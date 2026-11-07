@@ -1,0 +1,320 @@
+{
+  "schema": 2,
+  "why": "Compiling front-end layout preview; checker records take priority.",
+  "record": {
+    "headerBytes": 24,
+    "handleUnitBytes": 8,
+    "why": "Header fields occupy words 0..4 plus w5; this preview reserves w5 and uses the SPEC conservative 24 + 8*ceil(tail_words/2) formula. Reusing w5 for payload needs arena projection API at integration."
+  },
+  "tails": {},
+  "binderFields": {
+    "why": "Derived transitively from the snapshotted Go struct embeddings; overrides forbidden without an explanation.",
+    "overrides": {}
+  },
+  "jsDoc": {
+    "why": "No jsDoc word: HAS_JSDOC in tflags; parser owns the per-file side map.",
+    "tflag": 32768
+  },
+  "texts": {
+    "why": "TextRef tag bit31 selects source-span index or arena Bytes handle; source spans retain pos/len; arena handle must fit 31 bits.",
+    "tagBit": 31
+  },
+  "stringTypes": {
+    "JsString": {
+      "why": "string literal values hold arbitrary UTF-16 (lone surrogates); numeric, raw and identifier texts stay UTF-8",
+      "fields": [
+        "NoSubstitutionTemplateLiteral.text",
+        "StringLiteral.text",
+        "TemplateHead.text",
+        "TemplateMiddle.text",
+        "TemplateTail.text"
+      ]
+    },
+    "EscapedName": {
+      "why": "an identifier's escaped text is the interned name the binder keys its tables by, at the size of an id",
+      "fields": [
+        "Identifier.escapedText",
+        "PrivateIdentifier.escapedText"
+      ]
+    }
+  },
+  "rare": {
+    "why": "No rare extraction without joint <1% occupancy AND >=8 B net rounded allocation saving. CallExpression pair saves 8 B but joint presence is 16951/962167 = 1.76%, so reject.",
+    "kinds": {}
+  },
+  "hotSlots": {
+    "why": "node-layout-report.md's M1 rule: the required slots first in schema order, then the optional ones by their presence on VS Code; '@scalars' is the word of the kind's booleans and SyntaxKind",
+    "kinds": {
+      "ArrowFunction": [
+        "parameters",
+        "body",
+        "equalsGreaterThanToken"
+      ],
+      "BindingElement": [
+        "name",
+        "propertyName",
+        "dotDotDotToken"
+      ],
+      "CallExpression": [
+        "expression",
+        "typeArguments",
+        "arguments"
+      ],
+      "ClassDeclaration": [
+        "name",
+        "heritageClauses",
+        "members"
+      ],
+      "ClassExpression": [
+        "name",
+        "heritageClauses",
+        "members"
+      ],
+      "ConditionalExpression": [
+        "condition",
+        "questionToken",
+        "whenTrue"
+      ],
+      "ConditionalType": [
+        "checkType",
+        "extendsType",
+        "trueType"
+      ],
+      "Constructor": [
+        "parameters",
+        "body",
+        "modifiers"
+      ],
+      "ConstructorType": [
+        "parameters",
+        "type",
+        "modifiers"
+      ],
+      "ExportDeclaration": [
+        "exportClause",
+        "moduleSpecifier",
+        "@scalars"
+      ],
+      "ForOfStatement": [
+        "statement",
+        "initializer",
+        "expression"
+      ],
+      "ForStatement": [
+        "statement",
+        "condition",
+        "incrementor"
+      ],
+      "FunctionDeclaration": [
+        "name",
+        "parameters",
+        "type"
+      ],
+      "FunctionExpression": [
+        "parameters",
+        "body",
+        "modifiers"
+      ],
+      "FunctionType": [
+        "typeParameters",
+        "parameters",
+        "type"
+      ],
+      "GetAccessor": [
+        "name",
+        "parameters",
+        "body"
+      ],
+      "ImportDeclaration": [
+        "importClause",
+        "moduleSpecifier",
+        "attributes"
+      ],
+      "ImportEqualsDeclaration": [
+        "name",
+        "modifiers",
+        "moduleReference"
+      ],
+      "ImportType": [
+        "argument",
+        "qualifier",
+        "@scalars"
+      ],
+      "IndexSignature": [
+        "parameters",
+        "type",
+        "modifiers"
+      ],
+      "InterfaceDeclaration": [
+        "name",
+        "modifiers",
+        "members"
+      ],
+      "JSDocCallbackTag": [
+        "tagName",
+        "name",
+        "typeExpression"
+      ],
+      "JSDocFunctionType": [
+        "name",
+        "typeParameters",
+        "parameters"
+      ],
+      "JSDocImportTag": [
+        "tagName",
+        "importClause",
+        "moduleSpecifier"
+      ],
+      "JSDocParameterTag": [
+        "tagName",
+        "name",
+        "@scalars"
+      ],
+      "JSDocPropertyTag": [
+        "tagName",
+        "name",
+        "typeExpression"
+      ],
+      "JSDocTypedefTag": [
+        "tagName",
+        "name",
+        "fullName"
+      ],
+      "MappedType": [
+        "typeParameter",
+        "type",
+        "members"
+      ],
+      "MethodDeclaration": [
+        "name",
+        "parameters",
+        "body"
+      ],
+      "MethodSignature": [
+        "name",
+        "parameters",
+        "type"
+      ],
+      "ModuleDeclaration": [
+        "name",
+        "modifiers",
+        "body"
+      ],
+      "NamedTupleMember": [
+        "name",
+        "questionToken",
+        "type"
+      ],
+      "NewExpression": [
+        "expression",
+        "typeArguments",
+        "arguments"
+      ],
+      "Parameter": [
+        "name",
+        "modifiers",
+        "type"
+      ],
+      "PropertyAssignment": [
+        "name",
+        "initializer",
+        "modifiers"
+      ],
+      "PropertyDeclaration": [
+        "name",
+        "modifiers",
+        "initializer"
+      ],
+      "PropertySignature": [
+        "name",
+        "questionToken",
+        "type"
+      ],
+      "SetAccessor": [
+        "name",
+        "parameters",
+        "body"
+      ],
+      "ShorthandPropertyAssignment": [
+        "name",
+        "equalsToken",
+        "objectAssignmentInitializer"
+      ],
+      "TaggedTemplateExpression": [
+        "tag",
+        "typeArguments",
+        "template"
+      ],
+      "TypeAliasDeclaration": [
+        "name",
+        "modifiers",
+        "type"
+      ],
+      "TypeParameter": [
+        "name",
+        "constraint",
+        "default"
+      ],
+      "VariableDeclaration": [
+        "name",
+        "type",
+        "initializer"
+      ]
+    }
+  },
+  "rustOptional": {
+    "JSDocNamepathType.type": "the JSDoc parser creates JSDocNamepathType(undefined) while recovering, though the d.ts says required"
+  },
+  "visitOrder": {
+    "JSDocParameterTag": {
+      "swap": [
+        "name",
+        "typeExpression"
+      ],
+      "when": "isNameFirst",
+      "why": "tsc visits name before typeExpression only when isNameFirst"
+    },
+    "JSDocPropertyTag": {
+      "swap": [
+        "name",
+        "typeExpression"
+      ],
+      "when": "isNameFirst",
+      "why": "tsc visits name before typeExpression only when isNameFirst"
+    },
+    "JSDocTypedefTag": {
+      "swap": [
+        "typeExpression",
+        "fullName"
+      ],
+      "when": "typeExpressionIsJSDocTypeExpression",
+      "why": "tsc visits typeExpression before fullName only when it is a JSDocTypeExpression"
+    }
+  },
+  "headerObservables": [
+    {
+      "kind": "RegularExpressionLiteral",
+      "name": "isUnterminated",
+      "accessor": "is_unterminated",
+      "why": "kept in the header's literal_flags, not in the payload"
+    },
+    {
+      "kind": "StringLiteral",
+      "name": "hasExtendedUnicodeEscape",
+      "accessor": "has_extended_unicode_escape",
+      "why": "kept in the header's literal_flags, not in the payload"
+    }
+  ],
+  "equalitySkips": {},
+  "fieldDocs": {
+    "ModuleDeclaration.attributes": [
+      "TypeScript 7.1's import attributes type of an ambient module",
+      "(`declare module \"*.css\" with { type: \"css\" }`): a TypeLiteral."
+    ]
+  },
+  "encodingExceptions": {
+    "why": "Full-range tagged TextRef has no niche; preserve every owned Data value with explicit presence/tag words.",
+    "optionalText": "Four template kinds add text_presence word; Some(TextRef(0)) differs from None.",
+    "JSDocComment": "Five words: tag, text/list, pos, end, text_end. None, Text(TextRef(0)), and Nodes stay distinct."
+  }
+}

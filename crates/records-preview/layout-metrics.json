@@ -1,0 +1,5955 @@
+{
+  "nodes": [
+    {
+      "kind": "ArrayBindingPattern",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "BindingPattern",
+        "fields": []
+      },
+      "wordOrder": [
+        "elements"
+      ]
+    },
+    {
+      "kind": "ArrayLiteralExpression",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ArrayLiteralExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "elements"
+      ]
+    },
+    {
+      "kind": "ArrayType",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ArrayTypeNode",
+        "fields": []
+      },
+      "wordOrder": [
+        "element_type"
+      ]
+    },
+    {
+      "kind": "ArrowFunction",
+      "words": 11,
+      "tailBytes": 48,
+      "recordBytes": 72,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ArrowFunction",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "ArrowFunction",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ArrowFunction",
+              "FunctionLikeWithBodyBase",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ArrowFunction",
+              "FunctionLikeWithBodyBase",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "end_flow",
+            "target": "Flow",
+            "goStruct": "BodyBase",
+            "goField": "EndFlowNode",
+            "source": "ast_generated.go",
+            "line": 162,
+            "embeddingPath": [
+              "ArrowFunction",
+              "FunctionLikeWithBodyBase",
+              "BodyBase"
+            ]
+          },
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "ArrowFunction",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "parameters",
+        "body",
+        "equals_greater_than_token",
+        "type_parameters",
+        "r#type",
+        "modifiers",
+        "symbol",
+        "locals",
+        "next_container",
+        "end_flow",
+        "flow"
+      ]
+    },
+    {
+      "kind": "AsExpression",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "AsExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "expression",
+        "r#type"
+      ]
+    },
+    {
+      "kind": "AwaitExpression",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "AwaitExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "expression"
+      ]
+    },
+    {
+      "kind": "BigIntLiteral",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "BigIntLiteral",
+        "fields": []
+      },
+      "wordOrder": [
+        "text"
+      ]
+    },
+    {
+      "kind": "BinaryExpression",
+      "words": 4,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "BinaryExpression",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "BinaryExpression",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "left",
+        "operator_token",
+        "right",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "BindingElement",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "BindingElement",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "BindingElement",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "local_symbol",
+            "target": "Symbol",
+            "goStruct": "ExportableBase",
+            "goField": "LocalSymbol",
+            "source": "ast_generated.go",
+            "line": 131,
+            "embeddingPath": [
+              "BindingElement",
+              "ExportableBase"
+            ]
+          },
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "BindingElement",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "property_name",
+        "dot_dot_dot_token",
+        "initializer",
+        "symbol",
+        "local_symbol",
+        "flow"
+      ]
+    },
+    {
+      "kind": "Block",
+      "words": 4,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "Block",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "Block",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "Block",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "Block",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "statements",
+        "flow",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "BreakStatement",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "BreakStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "BreakStatement",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "label",
+        "flow"
+      ]
+    },
+    {
+      "kind": "CallExpression",
+      "words": 5,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "CallExpression",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "CallExpression",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "expression",
+        "type_arguments",
+        "arguments",
+        "question_dot_token",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "CallSignature",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "CallSignatureDeclaration",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "CallSignatureDeclaration",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "CallSignatureDeclaration",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "CallSignatureDeclaration",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "type_parameters",
+        "parameters",
+        "r#type",
+        "symbol",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "CaseBlock",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "CaseBlock",
+        "fields": [
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "CaseBlock",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "CaseBlock",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "clauses",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "CaseClause",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "CaseOrDefaultClause",
+        "fields": [
+          {
+            "field": "fallthrough_flow",
+            "target": "Flow",
+            "goStruct": "CaseOrDefaultClause",
+            "goField": "FallthroughFlowNode",
+            "source": "ast_generated.go",
+            "line": 1318,
+            "embeddingPath": [
+              "CaseOrDefaultClause"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "expression",
+        "statements",
+        "fallthrough_flow"
+      ]
+    },
+    {
+      "kind": "CatchClause",
+      "words": 4,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "CatchClause",
+        "fields": [
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "CatchClause",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "CatchClause",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "variable_declaration",
+        "block",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "ClassDeclaration",
+      "words": 10,
+      "tailBytes": 40,
+      "recordBytes": 64,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ClassDeclaration",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "ClassDeclaration",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          },
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "ClassDeclaration",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "local_symbol",
+            "target": "Symbol",
+            "goStruct": "ExportableBase",
+            "goField": "LocalSymbol",
+            "source": "ast_generated.go",
+            "line": 131,
+            "embeddingPath": [
+              "ClassDeclaration",
+              "ClassLikeBase",
+              "ExportableBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ClassDeclaration",
+              "ClassLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ClassDeclaration",
+              "ClassLikeBase",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "heritage_clauses",
+        "members",
+        "type_parameters",
+        "modifiers",
+        "flow",
+        "symbol",
+        "local_symbol",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "ClassExpression",
+      "words": 9,
+      "tailBytes": 40,
+      "recordBytes": 64,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ClassExpression",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "ClassExpression",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "local_symbol",
+            "target": "Symbol",
+            "goStruct": "ExportableBase",
+            "goField": "LocalSymbol",
+            "source": "ast_generated.go",
+            "line": 131,
+            "embeddingPath": [
+              "ClassExpression",
+              "ClassLikeBase",
+              "ExportableBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ClassExpression",
+              "ClassLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ClassExpression",
+              "ClassLikeBase",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "heritage_clauses",
+        "members",
+        "type_parameters",
+        "modifiers",
+        "symbol",
+        "local_symbol",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "ClassStaticBlockDeclaration",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ClassStaticBlockDeclaration",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "ClassStaticBlockDeclaration",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ClassStaticBlockDeclaration",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ClassStaticBlockDeclaration",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "return_flow",
+            "target": "Flow",
+            "goStruct": "ClassStaticBlockDeclaration",
+            "goField": "ReturnFlowNode",
+            "source": "ast_generated.go",
+            "line": 3505,
+            "embeddingPath": [
+              "ClassStaticBlockDeclaration"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "body",
+        "modifiers",
+        "symbol",
+        "locals",
+        "next_container",
+        "return_flow"
+      ]
+    },
+    {
+      "kind": "CommaListExpression",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "SyntaxList",
+        "fields": []
+      },
+      "wordOrder": [
+        "elements"
+      ]
+    },
+    {
+      "kind": "ComputedPropertyName",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ComputedPropertyName",
+        "fields": []
+      },
+      "wordOrder": [
+        "expression"
+      ]
+    },
+    {
+      "kind": "ConditionalExpression",
+      "words": 5,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ConditionalExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "condition",
+        "question_token",
+        "when_true",
+        "colon_token",
+        "when_false"
+      ]
+    },
+    {
+      "kind": "ConditionalType",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ConditionalTypeNode",
+        "fields": [
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ConditionalTypeNode",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ConditionalTypeNode",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "check_type",
+        "extends_type",
+        "true_type",
+        "false_type",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "ConstructSignature",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ConstructSignatureDeclaration",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "ConstructSignatureDeclaration",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ConstructSignatureDeclaration",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ConstructSignatureDeclaration",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "type_parameters",
+        "parameters",
+        "r#type",
+        "symbol",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "Constructor",
+      "words": 11,
+      "tailBytes": 48,
+      "recordBytes": 72,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ConstructorDeclaration",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "ConstructorDeclaration",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ConstructorDeclaration",
+              "FunctionLikeWithBodyBase",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ConstructorDeclaration",
+              "FunctionLikeWithBodyBase",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "end_flow",
+            "target": "Flow",
+            "goStruct": "BodyBase",
+            "goField": "EndFlowNode",
+            "source": "ast_generated.go",
+            "line": 162,
+            "embeddingPath": [
+              "ConstructorDeclaration",
+              "FunctionLikeWithBodyBase",
+              "BodyBase"
+            ]
+          },
+          {
+            "field": "return_flow",
+            "target": "Flow",
+            "goStruct": "ConstructorDeclaration",
+            "goField": "ReturnFlowNode",
+            "source": "ast_generated.go",
+            "line": 3048,
+            "embeddingPath": [
+              "ConstructorDeclaration"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "parameters",
+        "body",
+        "modifiers",
+        "name",
+        "type_parameters",
+        "r#type",
+        "symbol",
+        "locals",
+        "next_container",
+        "end_flow",
+        "return_flow"
+      ]
+    },
+    {
+      "kind": "ConstructorType",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ConstructorTypeNode",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "ConstructorTypeNode",
+              "FunctionOrConstructorTypeNodeBase",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ConstructorTypeNode",
+              "FunctionOrConstructorTypeNodeBase",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ConstructorTypeNode",
+              "FunctionOrConstructorTypeNodeBase",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "parameters",
+        "r#type",
+        "modifiers",
+        "type_parameters",
+        "symbol",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "ContinueStatement",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ContinueStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "ContinueStatement",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "label",
+        "flow"
+      ]
+    },
+    {
+      "kind": "DebuggerStatement",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "DebuggerStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "DebuggerStatement",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "flow"
+      ]
+    },
+    {
+      "kind": "Decorator",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "Decorator",
+        "fields": []
+      },
+      "wordOrder": [
+        "expression"
+      ]
+    },
+    {
+      "kind": "DefaultClause",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "CaseOrDefaultClause",
+        "fields": [
+          {
+            "field": "fallthrough_flow",
+            "target": "Flow",
+            "goStruct": "CaseOrDefaultClause",
+            "goField": "FallthroughFlowNode",
+            "source": "ast_generated.go",
+            "line": 1318,
+            "embeddingPath": [
+              "CaseOrDefaultClause"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "statements",
+        "fallthrough_flow"
+      ]
+    },
+    {
+      "kind": "DeleteExpression",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "DeleteExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "expression"
+      ]
+    },
+    {
+      "kind": "DoStatement",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "DoStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "DoStatement",
+              "IterationStatementBase",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "statement",
+        "expression",
+        "flow"
+      ]
+    },
+    {
+      "kind": "ElementAccessExpression",
+      "words": 4,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ElementAccessExpression",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "ElementAccessExpression",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "expression",
+        "question_dot_token",
+        "argument_expression",
+        "flow"
+      ]
+    },
+    {
+      "kind": "EmptyStatement",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "EmptyStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "EmptyStatement",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "flow"
+      ]
+    },
+    {
+      "kind": "EnumDeclaration",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "EnumDeclaration",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "EnumDeclaration",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          },
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "EnumDeclaration",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "local_symbol",
+            "target": "Symbol",
+            "goStruct": "ExportableBase",
+            "goField": "LocalSymbol",
+            "source": "ast_generated.go",
+            "line": 131,
+            "embeddingPath": [
+              "EnumDeclaration",
+              "ExportableBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "modifiers",
+        "members",
+        "flow",
+        "symbol",
+        "local_symbol"
+      ]
+    },
+    {
+      "kind": "EnumMember",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "EnumMember",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "EnumMember",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "initializer",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "ExportAssignment",
+      "words": 5,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ExportAssignment",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "ExportAssignment",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          },
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "ExportAssignment",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "modifiers",
+        "expression",
+        "scalars",
+        "flow",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "ExportDeclaration",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ExportDeclaration",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "ExportDeclaration",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          },
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "ExportDeclaration",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "export_clause",
+        "module_specifier",
+        "scalars",
+        "modifiers",
+        "attributes",
+        "flow",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "ExportSpecifier",
+      "words": 5,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ExportSpecifier",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "ExportSpecifier",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "local_symbol",
+            "target": "Symbol",
+            "goStruct": "ExportableBase",
+            "goField": "LocalSymbol",
+            "source": "ast_generated.go",
+            "line": 131,
+            "embeddingPath": [
+              "ExportSpecifier",
+              "ExportableBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "property_name",
+        "scalars",
+        "symbol",
+        "local_symbol"
+      ]
+    },
+    {
+      "kind": "ExpressionStatement",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ExpressionStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "ExpressionStatement",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "expression",
+        "flow"
+      ]
+    },
+    {
+      "kind": "ExpressionWithTypeArguments",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ExpressionWithTypeArguments",
+        "fields": []
+      },
+      "wordOrder": [
+        "type_arguments",
+        "expression"
+      ]
+    },
+    {
+      "kind": "ExternalModuleReference",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ExternalModuleReference",
+        "fields": []
+      },
+      "wordOrder": [
+        "expression"
+      ]
+    },
+    {
+      "kind": "ForInStatement",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ForInOrOfStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "ForInOrOfStatement",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ForInOrOfStatement",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ForInOrOfStatement",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "statement",
+        "initializer",
+        "expression",
+        "flow",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "ForOfStatement",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ForInOrOfStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "ForInOrOfStatement",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ForInOrOfStatement",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ForInOrOfStatement",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "statement",
+        "initializer",
+        "expression",
+        "await_modifier",
+        "flow",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "ForStatement",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ForStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "ForStatement",
+              "IterationStatementBase",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ForStatement",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ForStatement",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "statement",
+        "condition",
+        "incrementor",
+        "initializer",
+        "flow",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "FunctionDeclaration",
+      "words": 14,
+      "tailBytes": 56,
+      "recordBytes": 80,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "FunctionDeclaration",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "FunctionDeclaration",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          },
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "FunctionDeclaration",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "local_symbol",
+            "target": "Symbol",
+            "goStruct": "ExportableBase",
+            "goField": "LocalSymbol",
+            "source": "ast_generated.go",
+            "line": 131,
+            "embeddingPath": [
+              "FunctionDeclaration",
+              "ExportableBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "FunctionDeclaration",
+              "FunctionLikeWithBodyBase",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "FunctionDeclaration",
+              "FunctionLikeWithBodyBase",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "end_flow",
+            "target": "Flow",
+            "goStruct": "BodyBase",
+            "goField": "EndFlowNode",
+            "source": "ast_generated.go",
+            "line": 162,
+            "embeddingPath": [
+              "FunctionDeclaration",
+              "FunctionLikeWithBodyBase",
+              "BodyBase"
+            ]
+          },
+          {
+            "field": "return_flow",
+            "target": "Flow",
+            "goStruct": "FunctionDeclaration",
+            "goField": "ReturnFlowNode",
+            "source": "ast_generated.go",
+            "line": 1989,
+            "embeddingPath": [
+              "FunctionDeclaration"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "parameters",
+        "r#type",
+        "type_parameters",
+        "asterisk_token",
+        "body",
+        "modifiers",
+        "flow",
+        "symbol",
+        "local_symbol",
+        "locals",
+        "next_container",
+        "end_flow",
+        "return_flow"
+      ]
+    },
+    {
+      "kind": "FunctionExpression",
+      "words": 13,
+      "tailBytes": 56,
+      "recordBytes": 80,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "FunctionExpression",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "FunctionExpression",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "FunctionExpression",
+              "FunctionLikeWithBodyBase",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "FunctionExpression",
+              "FunctionLikeWithBodyBase",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "end_flow",
+            "target": "Flow",
+            "goStruct": "BodyBase",
+            "goField": "EndFlowNode",
+            "source": "ast_generated.go",
+            "line": 162,
+            "embeddingPath": [
+              "FunctionExpression",
+              "FunctionLikeWithBodyBase",
+              "BodyBase"
+            ]
+          },
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "FunctionExpression",
+              "FlowNodeBase"
+            ]
+          },
+          {
+            "field": "return_flow",
+            "target": "Flow",
+            "goStruct": "FunctionExpression",
+            "goField": "ReturnFlowNode",
+            "source": "ast_generated.go",
+            "line": 3954,
+            "embeddingPath": [
+              "FunctionExpression"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "parameters",
+        "body",
+        "modifiers",
+        "name",
+        "type_parameters",
+        "r#type",
+        "asterisk_token",
+        "symbol",
+        "locals",
+        "next_container",
+        "end_flow",
+        "flow",
+        "return_flow"
+      ]
+    },
+    {
+      "kind": "FunctionType",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "FunctionTypeNode",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "FunctionTypeNode",
+              "FunctionOrConstructorTypeNodeBase",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "FunctionTypeNode",
+              "FunctionOrConstructorTypeNodeBase",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "FunctionTypeNode",
+              "FunctionOrConstructorTypeNodeBase",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "type_parameters",
+        "parameters",
+        "r#type",
+        "modifiers",
+        "symbol",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "GetAccessor",
+      "words": 11,
+      "tailBytes": 48,
+      "recordBytes": 72,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "GetAccessorDeclaration",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "GetAccessorDeclaration",
+              "AccessorDeclarationBase",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "GetAccessorDeclaration",
+              "AccessorDeclarationBase",
+              "FunctionLikeWithBodyBase",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "GetAccessorDeclaration",
+              "AccessorDeclarationBase",
+              "FunctionLikeWithBodyBase",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "end_flow",
+            "target": "Flow",
+            "goStruct": "BodyBase",
+            "goField": "EndFlowNode",
+            "source": "ast_generated.go",
+            "line": 162,
+            "embeddingPath": [
+              "GetAccessorDeclaration",
+              "AccessorDeclarationBase",
+              "FunctionLikeWithBodyBase",
+              "BodyBase"
+            ]
+          },
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "GetAccessorDeclaration",
+              "AccessorDeclarationBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "parameters",
+        "body",
+        "type_parameters",
+        "r#type",
+        "modifiers",
+        "symbol",
+        "locals",
+        "next_container",
+        "end_flow",
+        "flow"
+      ]
+    },
+    {
+      "kind": "HeritageClause",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "HeritageClause",
+        "fields": []
+      },
+      "wordOrder": [
+        "types",
+        "scalars"
+      ]
+    },
+    {
+      "kind": "Identifier",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "Identifier",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "Identifier",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "escaped_text",
+        "flow"
+      ]
+    },
+    {
+      "kind": "IfStatement",
+      "words": 4,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "IfStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "IfStatement",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "expression",
+        "then_statement",
+        "else_statement",
+        "flow"
+      ]
+    },
+    {
+      "kind": "ImportAttribute",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ImportAttribute",
+        "fields": []
+      },
+      "wordOrder": [
+        "name",
+        "value"
+      ]
+    },
+    {
+      "kind": "ImportAttributes",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ImportAttributes",
+        "fields": []
+      },
+      "wordOrder": [
+        "elements",
+        "scalars"
+      ]
+    },
+    {
+      "kind": "ImportClause",
+      "words": 5,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ImportClause",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "ImportClause",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "local_symbol",
+            "target": "Symbol",
+            "goStruct": "ExportableBase",
+            "goField": "LocalSymbol",
+            "source": "ast_generated.go",
+            "line": 131,
+            "embeddingPath": [
+              "ImportClause",
+              "ExportableBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "named_bindings",
+        "scalars",
+        "symbol",
+        "local_symbol"
+      ]
+    },
+    {
+      "kind": "ImportDeclaration",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ImportDeclaration",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "ImportDeclaration",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          },
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "ImportDeclaration",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "import_clause",
+        "module_specifier",
+        "attributes",
+        "modifiers",
+        "flow",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "ImportEqualsDeclaration",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ImportEqualsDeclaration",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "ImportEqualsDeclaration",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          },
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "ImportEqualsDeclaration",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "local_symbol",
+            "target": "Symbol",
+            "goStruct": "ExportableBase",
+            "goField": "LocalSymbol",
+            "source": "ast_generated.go",
+            "line": 131,
+            "embeddingPath": [
+              "ImportEqualsDeclaration",
+              "ExportableBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "modifiers",
+        "module_reference",
+        "scalars",
+        "flow",
+        "symbol",
+        "local_symbol"
+      ]
+    },
+    {
+      "kind": "ImportSpecifier",
+      "words": 5,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ImportSpecifier",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "ImportSpecifier",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "local_symbol",
+            "target": "Symbol",
+            "goStruct": "ExportableBase",
+            "goField": "LocalSymbol",
+            "source": "ast_generated.go",
+            "line": 131,
+            "embeddingPath": [
+              "ImportSpecifier",
+              "ExportableBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "property_name",
+        "scalars",
+        "symbol",
+        "local_symbol"
+      ]
+    },
+    {
+      "kind": "ImportType",
+      "words": 5,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ImportTypeNode",
+        "fields": []
+      },
+      "wordOrder": [
+        "argument",
+        "qualifier",
+        "scalars",
+        "type_arguments",
+        "attributes"
+      ]
+    },
+    {
+      "kind": "ImportTypeAssertionContainer",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ImportAttributes",
+        "fields": []
+      },
+      "wordOrder": [
+        "assert_clause"
+      ]
+    },
+    {
+      "kind": "IndexSignature",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "IndexSignatureDeclaration",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "IndexSignatureDeclaration",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "IndexSignatureDeclaration",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "IndexSignatureDeclaration",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "parameters",
+        "r#type",
+        "modifiers",
+        "type_parameters",
+        "symbol",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "IndexedAccessType",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "IndexedAccessTypeNode",
+        "fields": []
+      },
+      "wordOrder": [
+        "object_type",
+        "index_type"
+      ]
+    },
+    {
+      "kind": "InferType",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "InferTypeNode",
+        "fields": []
+      },
+      "wordOrder": [
+        "type_parameter"
+      ]
+    },
+    {
+      "kind": "InterfaceDeclaration",
+      "words": 8,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "InterfaceDeclaration",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "InterfaceDeclaration",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          },
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "InterfaceDeclaration",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "local_symbol",
+            "target": "Symbol",
+            "goStruct": "ExportableBase",
+            "goField": "LocalSymbol",
+            "source": "ast_generated.go",
+            "line": 131,
+            "embeddingPath": [
+              "InterfaceDeclaration",
+              "ExportableBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "modifiers",
+        "members",
+        "type_parameters",
+        "heritage_clauses",
+        "flow",
+        "symbol",
+        "local_symbol"
+      ]
+    },
+    {
+      "kind": "IntersectionType",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "IntersectionTypeNode",
+        "fields": []
+      },
+      "wordOrder": [
+        "types"
+      ]
+    },
+    {
+      "kind": "JSDoc",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDoc",
+        "fields": []
+      },
+      "wordOrder": [
+        "tags",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocAllType",
+      "words": 0,
+      "tailBytes": 0,
+      "recordBytes": 24,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocAllType",
+        "fields": []
+      },
+      "wordOrder": []
+    },
+    {
+      "kind": "JSDocAugmentsTag",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocAugmentsTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "class",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocAuthorTag",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocUnknownTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocCallbackTag",
+      "words": 9,
+      "tailBytes": 40,
+      "recordBytes": 64,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocCallbackTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "name",
+        "type_expression",
+        "full_name",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocClassTag",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocUnknownTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocDeprecatedTag",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocDeprecatedTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocEnumTag",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocTypeTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "type_expression",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocFunctionType",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocSignature",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "JSDocSignature",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "JSDocSignature",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "JSDocSignature",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "type_parameters",
+        "parameters",
+        "r#type",
+        "symbol",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "JSDocImplementsTag",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocImplementsTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "class",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocImportTag",
+      "words": 9,
+      "tailBytes": 40,
+      "recordBytes": 64,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocImportTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "import_clause",
+        "module_specifier",
+        "attributes",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocLink",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocLink",
+        "fields": []
+      },
+      "wordOrder": [
+        "name",
+        "text"
+      ]
+    },
+    {
+      "kind": "JSDocLinkCode",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocLinkCode",
+        "fields": []
+      },
+      "wordOrder": [
+        "name",
+        "text"
+      ]
+    },
+    {
+      "kind": "JSDocLinkPlain",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocLinkPlain",
+        "fields": []
+      },
+      "wordOrder": [
+        "name",
+        "text"
+      ]
+    },
+    {
+      "kind": "JSDocMemberName",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "QualifiedName",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "QualifiedName",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "left",
+        "right",
+        "flow"
+      ]
+    },
+    {
+      "kind": "JSDocNameReference",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocNameReference",
+        "fields": []
+      },
+      "wordOrder": [
+        "name"
+      ]
+    },
+    {
+      "kind": "JSDocNamepathType",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocTypeBase",
+        "fields": []
+      },
+      "wordOrder": [
+        "r#type"
+      ]
+    },
+    {
+      "kind": "JSDocNonNullableType",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocNonNullableType",
+        "fields": []
+      },
+      "wordOrder": [
+        "r#type",
+        "scalars"
+      ]
+    },
+    {
+      "kind": "JSDocNullableType",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocNullableType",
+        "fields": []
+      },
+      "wordOrder": [
+        "r#type",
+        "scalars"
+      ]
+    },
+    {
+      "kind": "JSDocOptionalType",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocOptionalType",
+        "fields": []
+      },
+      "wordOrder": [
+        "r#type"
+      ]
+    },
+    {
+      "kind": "JSDocOverloadTag",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocOverloadTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "type_expression",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocOverrideTag",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocOverrideTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocParameterTag",
+      "words": 9,
+      "tailBytes": 40,
+      "recordBytes": 64,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocParameterOrPropertyTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "name",
+        "scalars",
+        "type_expression",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocPrivateTag",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocPrivateTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocPropertyTag",
+      "words": 9,
+      "tailBytes": 40,
+      "recordBytes": 64,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocParameterOrPropertyTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "name",
+        "type_expression",
+        "scalars",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocProtectedTag",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocProtectedTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocPublicTag",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocPublicTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocReadonlyTag",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocReadonlyTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocReturnTag",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocReturnTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "type_expression",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocSatisfiesTag",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocSatisfiesTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "type_expression",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocSeeTag",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocSeeTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "name",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocSignature",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocSignature",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "JSDocSignature",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "JSDocSignature",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "JSDocSignature",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "type_parameters",
+        "parameters",
+        "r#type",
+        "symbol",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "JSDocTag",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocUnknownTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocTemplateTag",
+      "words": 8,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocTemplateTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "constraint",
+        "type_parameters",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocText",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocText",
+        "fields": []
+      },
+      "wordOrder": [
+        "text"
+      ]
+    },
+    {
+      "kind": "JSDocThisTag",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocThisTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "type_expression",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocThrowsTag",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocThrowsTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "type_expression",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocTypeExpression",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocTypeExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "r#type"
+      ]
+    },
+    {
+      "kind": "JSDocTypeLiteral",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocTypeLiteral",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "JSDocTypeLiteral",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "js_doc_property_tags",
+        "scalars",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "JSDocTypeTag",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocTypeTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "type_expression",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocTypedefTag",
+      "words": 9,
+      "tailBytes": 40,
+      "recordBytes": 64,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocTypedefTag",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "name",
+        "full_name",
+        "type_expression",
+        "comment0",
+        "comment1",
+        "comment2",
+        "comment3",
+        "comment4"
+      ]
+    },
+    {
+      "kind": "JSDocUnknownType",
+      "words": 0,
+      "tailBytes": 0,
+      "recordBytes": 24,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocTypeBase",
+        "fields": []
+      },
+      "wordOrder": []
+    },
+    {
+      "kind": "JSDocVariadicType",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JSDocVariadicType",
+        "fields": []
+      },
+      "wordOrder": [
+        "r#type"
+      ]
+    },
+    {
+      "kind": "JsxAttribute",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JsxAttribute",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "JsxAttribute",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "initializer",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "JsxAttributes",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JsxAttributes",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "JsxAttributes",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "properties",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "JsxClosingElement",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JsxClosingElement",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name"
+      ]
+    },
+    {
+      "kind": "JsxElement",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JsxElement",
+        "fields": []
+      },
+      "wordOrder": [
+        "opening_element",
+        "children",
+        "closing_element"
+      ]
+    },
+    {
+      "kind": "JsxExpression",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JsxExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "dot_dot_dot_token",
+        "expression"
+      ]
+    },
+    {
+      "kind": "JsxFragment",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JsxFragment",
+        "fields": []
+      },
+      "wordOrder": [
+        "opening_fragment",
+        "children",
+        "closing_fragment"
+      ]
+    },
+    {
+      "kind": "JsxNamespacedName",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JsxNamespacedName",
+        "fields": []
+      },
+      "wordOrder": [
+        "name",
+        "namespace"
+      ]
+    },
+    {
+      "kind": "JsxOpeningElement",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JsxOpeningElement",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "type_arguments",
+        "attributes"
+      ]
+    },
+    {
+      "kind": "JsxSelfClosingElement",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JsxSelfClosingElement",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag_name",
+        "type_arguments",
+        "attributes"
+      ]
+    },
+    {
+      "kind": "JsxSpreadAttribute",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JsxSpreadAttribute",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "JsxSpreadAttribute",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "expression",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "JsxText",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "JsxText",
+        "fields": []
+      },
+      "wordOrder": [
+        "text",
+        "scalars"
+      ]
+    },
+    {
+      "kind": "LabeledStatement",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "LabeledStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "LabeledStatement",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "label",
+        "statement",
+        "flow"
+      ]
+    },
+    {
+      "kind": "LiteralType",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "LiteralTypeNode",
+        "fields": []
+      },
+      "wordOrder": [
+        "literal"
+      ]
+    },
+    {
+      "kind": "MappedType",
+      "words": 9,
+      "tailBytes": 40,
+      "recordBytes": 64,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "MappedTypeNode",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "MappedTypeNode",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "MappedTypeNode",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "MappedTypeNode",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "type_parameter",
+        "r#type",
+        "members",
+        "readonly_token",
+        "name_type",
+        "question_token",
+        "symbol",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "MetaProperty",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "MetaProperty",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "MetaProperty",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "scalars",
+        "flow"
+      ]
+    },
+    {
+      "kind": "MethodDeclaration",
+      "words": 14,
+      "tailBytes": 56,
+      "recordBytes": 80,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "MethodDeclaration",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "MethodDeclaration",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "MethodDeclaration",
+              "FunctionLikeWithBodyBase",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "MethodDeclaration",
+              "FunctionLikeWithBodyBase",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "end_flow",
+            "target": "Flow",
+            "goStruct": "BodyBase",
+            "goField": "EndFlowNode",
+            "source": "ast_generated.go",
+            "line": 162,
+            "embeddingPath": [
+              "MethodDeclaration",
+              "FunctionLikeWithBodyBase",
+              "BodyBase"
+            ]
+          },
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "MethodDeclaration",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "parameters",
+        "body",
+        "type_parameters",
+        "r#type",
+        "asterisk_token",
+        "question_token",
+        "exclamation_token",
+        "modifiers",
+        "symbol",
+        "locals",
+        "next_container",
+        "end_flow",
+        "flow"
+      ]
+    },
+    {
+      "kind": "MethodSignature",
+      "words": 9,
+      "tailBytes": 40,
+      "recordBytes": 64,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "MethodSignatureDeclaration",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "MethodSignatureDeclaration",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "MethodSignatureDeclaration",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "MethodSignatureDeclaration",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "parameters",
+        "r#type",
+        "type_parameters",
+        "question_token",
+        "modifiers",
+        "symbol",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "MissingDeclaration",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "MissingDeclaration",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "MissingDeclaration",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          },
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "MissingDeclaration",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "modifiers",
+        "flow",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "ModuleBlock",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ModuleBlock",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "ModuleBlock",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "statements",
+        "flow"
+      ]
+    },
+    {
+      "kind": "ModuleDeclaration",
+      "words": 10,
+      "tailBytes": 40,
+      "recordBytes": 64,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ModuleDeclaration",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "ModuleDeclaration",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          },
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "ModuleDeclaration",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "local_symbol",
+            "target": "Symbol",
+            "goStruct": "ExportableBase",
+            "goField": "LocalSymbol",
+            "source": "ast_generated.go",
+            "line": 131,
+            "embeddingPath": [
+              "ModuleDeclaration",
+              "ExportableBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ModuleDeclaration",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "ModuleDeclaration",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "end_flow",
+            "target": "Flow",
+            "goStruct": "BodyBase",
+            "goField": "EndFlowNode",
+            "source": "ast_generated.go",
+            "line": 162,
+            "embeddingPath": [
+              "ModuleDeclaration",
+              "BodyBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "modifiers",
+        "body",
+        "attributes",
+        "flow",
+        "symbol",
+        "local_symbol",
+        "locals",
+        "next_container",
+        "end_flow"
+      ]
+    },
+    {
+      "kind": "NamedExports",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "NamedExports",
+        "fields": []
+      },
+      "wordOrder": [
+        "elements"
+      ]
+    },
+    {
+      "kind": "NamedImports",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "NamedImports",
+        "fields": []
+      },
+      "wordOrder": [
+        "elements"
+      ]
+    },
+    {
+      "kind": "NamedTupleMember",
+      "words": 5,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "NamedTupleMember",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "NamedTupleMember",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "question_token",
+        "r#type",
+        "dot_dot_dot_token",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "NamespaceExport",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "NamespaceExport",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "NamespaceExport",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "NamespaceExportDeclaration",
+      "words": 4,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "NamespaceExportDeclaration",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "NamespaceExportDeclaration",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          },
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "NamespaceExportDeclaration",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "modifiers",
+        "flow",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "NamespaceImport",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "NamespaceImport",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "NamespaceImport",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "local_symbol",
+            "target": "Symbol",
+            "goStruct": "ExportableBase",
+            "goField": "LocalSymbol",
+            "source": "ast_generated.go",
+            "line": 131,
+            "embeddingPath": [
+              "NamespaceImport",
+              "ExportableBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "symbol",
+        "local_symbol"
+      ]
+    },
+    {
+      "kind": "NewExpression",
+      "words": 4,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "NewExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "expression",
+        "type_arguments",
+        "arguments",
+        "question_dot_token"
+      ]
+    },
+    {
+      "kind": "NoSubstitutionTemplateLiteral",
+      "words": 4,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "NoSubstitutionTemplateLiteral",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "NoSubstitutionTemplateLiteral",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "text",
+        "raw_text",
+        "text_presence",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "NonNullExpression",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "NonNullExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "expression"
+      ]
+    },
+    {
+      "kind": "NotEmittedStatement",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "NotEmittedStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "NotEmittedStatement",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "flow"
+      ]
+    },
+    {
+      "kind": "NumericLiteral",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "NumericLiteral",
+        "fields": []
+      },
+      "wordOrder": [
+        "text"
+      ]
+    },
+    {
+      "kind": "ObjectBindingPattern",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "BindingPattern",
+        "fields": []
+      },
+      "wordOrder": [
+        "elements"
+      ]
+    },
+    {
+      "kind": "ObjectLiteralExpression",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ObjectLiteralExpression",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "ObjectLiteralExpression",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "properties",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "OmittedExpression",
+      "words": 0,
+      "tailBytes": 0,
+      "recordBytes": 24,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "OmittedExpression",
+        "fields": []
+      },
+      "wordOrder": []
+    },
+    {
+      "kind": "OptionalType",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "OptionalTypeNode",
+        "fields": []
+      },
+      "wordOrder": [
+        "r#type"
+      ]
+    },
+    {
+      "kind": "Parameter",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ParameterDeclaration",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "ParameterDeclaration",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "modifiers",
+        "r#type",
+        "dot_dot_dot_token",
+        "question_token",
+        "initializer",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "ParenthesizedExpression",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ParenthesizedExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "expression"
+      ]
+    },
+    {
+      "kind": "ParenthesizedType",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ParenthesizedTypeNode",
+        "fields": []
+      },
+      "wordOrder": [
+        "r#type"
+      ]
+    },
+    {
+      "kind": "PartiallyEmittedExpression",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "PartiallyEmittedExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "expression"
+      ]
+    },
+    {
+      "kind": "PostfixUnaryExpression",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "PostfixUnaryExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "operand",
+        "scalars"
+      ]
+    },
+    {
+      "kind": "PrefixUnaryExpression",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "PrefixUnaryExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "operand",
+        "scalars"
+      ]
+    },
+    {
+      "kind": "PrivateIdentifier",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "PrivateIdentifier",
+        "fields": []
+      },
+      "wordOrder": [
+        "escaped_text"
+      ]
+    },
+    {
+      "kind": "PropertyAccessExpression",
+      "words": 4,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "PropertyAccessExpression",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "PropertyAccessExpression",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "expression",
+        "question_dot_token",
+        "flow"
+      ]
+    },
+    {
+      "kind": "PropertyAssignment",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "PropertyAssignment",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "PropertyAssignment",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "initializer",
+        "modifiers",
+        "question_token",
+        "exclamation_token",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "PropertyDeclaration",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "PropertyDeclaration",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "PropertyDeclaration",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "modifiers",
+        "initializer",
+        "question_token",
+        "exclamation_token",
+        "r#type",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "PropertySignature",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "PropertySignatureDeclaration",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "PropertySignatureDeclaration",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "question_token",
+        "r#type",
+        "modifiers",
+        "initializer",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "QualifiedName",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "QualifiedName",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "QualifiedName",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "left",
+        "right",
+        "flow"
+      ]
+    },
+    {
+      "kind": "RegularExpressionLiteral",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "RegularExpressionLiteral",
+        "fields": []
+      },
+      "wordOrder": [
+        "text"
+      ]
+    },
+    {
+      "kind": "RestType",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "RestTypeNode",
+        "fields": []
+      },
+      "wordOrder": [
+        "r#type"
+      ]
+    },
+    {
+      "kind": "ReturnStatement",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ReturnStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "ReturnStatement",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "expression",
+        "flow"
+      ]
+    },
+    {
+      "kind": "SatisfiesExpression",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "SatisfiesExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "expression",
+        "r#type"
+      ]
+    },
+    {
+      "kind": "SetAccessor",
+      "words": 11,
+      "tailBytes": 48,
+      "recordBytes": 72,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "SetAccessorDeclaration",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "SetAccessorDeclaration",
+              "AccessorDeclarationBase",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "SetAccessorDeclaration",
+              "AccessorDeclarationBase",
+              "FunctionLikeWithBodyBase",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "SetAccessorDeclaration",
+              "AccessorDeclarationBase",
+              "FunctionLikeWithBodyBase",
+              "FunctionLikeBase",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "end_flow",
+            "target": "Flow",
+            "goStruct": "BodyBase",
+            "goField": "EndFlowNode",
+            "source": "ast_generated.go",
+            "line": 162,
+            "embeddingPath": [
+              "SetAccessorDeclaration",
+              "AccessorDeclarationBase",
+              "FunctionLikeWithBodyBase",
+              "BodyBase"
+            ]
+          },
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "SetAccessorDeclaration",
+              "AccessorDeclarationBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "parameters",
+        "body",
+        "type_parameters",
+        "r#type",
+        "modifiers",
+        "symbol",
+        "locals",
+        "next_container",
+        "end_flow",
+        "flow"
+      ]
+    },
+    {
+      "kind": "ShorthandPropertyAssignment",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ShorthandPropertyAssignment",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "ShorthandPropertyAssignment",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "equals_token",
+        "object_assignment_initializer",
+        "modifiers",
+        "question_token",
+        "exclamation_token",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "SourceFile",
+      "words": 7,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "SourceFile",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "SourceFile",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "SourceFile",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "SourceFile",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "common_js_module_indicator",
+            "target": "Node",
+            "goStruct": "SourceFile",
+            "goField": "CommonJSModuleIndicator",
+            "source": "ast.go",
+            "line": 2446,
+            "embeddingPath": [
+              "SourceFile"
+            ]
+          },
+          {
+            "field": "external_module_indicator",
+            "target": "Node",
+            "goStruct": "SourceFile",
+            "goField": "ExternalModuleIndicator",
+            "source": "ast.go",
+            "line": 2446,
+            "embeddingPath": [
+              "SourceFile"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "statements",
+        "end_of_file_token",
+        "symbol",
+        "locals",
+        "next_container",
+        "common_js_module_indicator",
+        "external_module_indicator"
+      ]
+    },
+    {
+      "kind": "SpreadAssignment",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "SpreadAssignment",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "SpreadAssignment",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "expression",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "SpreadElement",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "SpreadElement",
+        "fields": []
+      },
+      "wordOrder": [
+        "expression"
+      ]
+    },
+    {
+      "kind": "StringLiteral",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "StringLiteral",
+        "fields": []
+      },
+      "wordOrder": [
+        "text"
+      ]
+    },
+    {
+      "kind": "SwitchStatement",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "SwitchStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "SwitchStatement",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "expression",
+        "case_block",
+        "flow"
+      ]
+    },
+    {
+      "kind": "SyntaxList",
+      "words": 0,
+      "tailBytes": 0,
+      "recordBytes": 24,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "SyntaxList",
+        "fields": []
+      },
+      "wordOrder": []
+    },
+    {
+      "kind": "TaggedTemplateExpression",
+      "words": 4,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TaggedTemplateExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "tag",
+        "type_arguments",
+        "template",
+        "question_dot_token"
+      ]
+    },
+    {
+      "kind": "TemplateExpression",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TemplateExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "head",
+        "template_spans"
+      ]
+    },
+    {
+      "kind": "TemplateHead",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TemplateHead",
+        "fields": []
+      },
+      "wordOrder": [
+        "text",
+        "raw_text",
+        "text_presence"
+      ]
+    },
+    {
+      "kind": "TemplateLiteralType",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TemplateLiteralTypeNode",
+        "fields": []
+      },
+      "wordOrder": [
+        "head",
+        "template_spans"
+      ]
+    },
+    {
+      "kind": "TemplateLiteralTypeSpan",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TemplateLiteralTypeSpan",
+        "fields": []
+      },
+      "wordOrder": [
+        "r#type",
+        "literal"
+      ]
+    },
+    {
+      "kind": "TemplateMiddle",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TemplateMiddle",
+        "fields": []
+      },
+      "wordOrder": [
+        "text",
+        "raw_text",
+        "text_presence"
+      ]
+    },
+    {
+      "kind": "TemplateSpan",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TemplateSpan",
+        "fields": []
+      },
+      "wordOrder": [
+        "expression",
+        "literal"
+      ]
+    },
+    {
+      "kind": "TemplateTail",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TemplateTail",
+        "fields": []
+      },
+      "wordOrder": [
+        "text",
+        "raw_text",
+        "text_presence"
+      ]
+    },
+    {
+      "kind": "ThrowStatement",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "ThrowStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "ThrowStatement",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "expression",
+        "flow"
+      ]
+    },
+    {
+      "kind": "TryStatement",
+      "words": 4,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TryStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "TryStatement",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "try_block",
+        "catch_clause",
+        "finally_block",
+        "flow"
+      ]
+    },
+    {
+      "kind": "TupleType",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TupleTypeNode",
+        "fields": []
+      },
+      "wordOrder": [
+        "elements"
+      ]
+    },
+    {
+      "kind": "TypeAliasDeclaration",
+      "words": 9,
+      "tailBytes": 40,
+      "recordBytes": 64,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TypeAliasDeclaration",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "TypeAliasDeclaration",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          },
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "TypeAliasDeclaration",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "local_symbol",
+            "target": "Symbol",
+            "goStruct": "ExportableBase",
+            "goField": "LocalSymbol",
+            "source": "ast_generated.go",
+            "line": 131,
+            "embeddingPath": [
+              "TypeAliasDeclaration",
+              "ExportableBase"
+            ]
+          },
+          {
+            "field": "locals",
+            "target": "SymbolTable",
+            "goStruct": "LocalsContainerBase",
+            "goField": "Locals",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "TypeAliasDeclaration",
+              "LocalsContainerBase"
+            ]
+          },
+          {
+            "field": "next_container",
+            "target": "Node",
+            "goStruct": "LocalsContainerBase",
+            "goField": "NextContainer",
+            "source": "ast_generated.go",
+            "line": 139,
+            "embeddingPath": [
+              "TypeAliasDeclaration",
+              "LocalsContainerBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "modifiers",
+        "r#type",
+        "type_parameters",
+        "flow",
+        "symbol",
+        "local_symbol",
+        "locals",
+        "next_container"
+      ]
+    },
+    {
+      "kind": "TypeAssertionExpression",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TypeAssertion",
+        "fields": []
+      },
+      "wordOrder": [
+        "r#type",
+        "expression"
+      ]
+    },
+    {
+      "kind": "TypeLiteral",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TypeLiteralNode",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "TypeLiteralNode",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "members",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "TypeOfExpression",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TypeOfExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "expression"
+      ]
+    },
+    {
+      "kind": "TypeOperator",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TypeOperatorNode",
+        "fields": []
+      },
+      "wordOrder": [
+        "r#type",
+        "scalars"
+      ]
+    },
+    {
+      "kind": "TypeParameter",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TypeParameterDeclaration",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "TypeParameterDeclaration",
+              "DeclarationBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "constraint",
+        "r#default",
+        "modifiers",
+        "expression",
+        "symbol"
+      ]
+    },
+    {
+      "kind": "TypePredicate",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TypePredicateNode",
+        "fields": []
+      },
+      "wordOrder": [
+        "asserts_modifier",
+        "parameter_name",
+        "r#type"
+      ]
+    },
+    {
+      "kind": "TypeQuery",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TypeQueryNode",
+        "fields": []
+      },
+      "wordOrder": [
+        "type_arguments",
+        "expr_name"
+      ]
+    },
+    {
+      "kind": "TypeReference",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "TypeReferenceNode",
+        "fields": []
+      },
+      "wordOrder": [
+        "type_arguments",
+        "type_name"
+      ]
+    },
+    {
+      "kind": "UnionType",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "UnionTypeNode",
+        "fields": []
+      },
+      "wordOrder": [
+        "types"
+      ]
+    },
+    {
+      "kind": "VariableDeclaration",
+      "words": 6,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "VariableDeclaration",
+        "fields": [
+          {
+            "field": "symbol",
+            "target": "Symbol",
+            "goStruct": "DeclarationBase",
+            "goField": "Symbol",
+            "source": "ast_generated.go",
+            "line": 127,
+            "embeddingPath": [
+              "VariableDeclaration",
+              "DeclarationBase"
+            ]
+          },
+          {
+            "field": "local_symbol",
+            "target": "Symbol",
+            "goStruct": "ExportableBase",
+            "goField": "LocalSymbol",
+            "source": "ast_generated.go",
+            "line": 131,
+            "embeddingPath": [
+              "VariableDeclaration",
+              "ExportableBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "name",
+        "r#type",
+        "initializer",
+        "exclamation_token",
+        "symbol",
+        "local_symbol"
+      ]
+    },
+    {
+      "kind": "VariableDeclarationList",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "VariableDeclarationList",
+        "fields": []
+      },
+      "wordOrder": [
+        "declarations"
+      ]
+    },
+    {
+      "kind": "VariableStatement",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "VariableStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "VariableStatement",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "modifiers",
+        "declaration_list",
+        "flow"
+      ]
+    },
+    {
+      "kind": "VoidExpression",
+      "words": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "VoidExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "expression"
+      ]
+    },
+    {
+      "kind": "WhileStatement",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "WhileStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "WhileStatement",
+              "IterationStatementBase",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "statement",
+        "expression",
+        "flow"
+      ]
+    },
+    {
+      "kind": "WithStatement",
+      "words": 3,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "WithStatement",
+        "fields": [
+          {
+            "field": "flow",
+            "target": "Flow",
+            "goStruct": "FlowNodeBase",
+            "goField": "FlowNode",
+            "source": "ast_generated.go",
+            "line": 144,
+            "embeddingPath": [
+              "WithStatement",
+              "StatementBase",
+              "FlowNodeBase"
+            ]
+          }
+        ]
+      },
+      "wordOrder": [
+        "expression",
+        "statement",
+        "flow"
+      ]
+    },
+    {
+      "kind": "YieldExpression",
+      "words": 2,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "rare": "none: savings/occupancy gate",
+      "binder": {
+        "goStruct": "YieldExpression",
+        "fields": []
+      },
+      "wordOrder": [
+        "asterisk_token",
+        "expression"
+      ]
+    }
+  ],
+  "types": [
+    {
+      "kind": "Object",
+      "payloadWords": 0,
+      "linksWords": 4,
+      "inlineLinksWords": 4,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "fullInlineBytes": 40,
+      "outlineLinksBytes": 0
+    },
+    {
+      "kind": "Intrinsic",
+      "payloadWords": 3,
+      "linksWords": 0,
+      "inlineLinksWords": 0,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "fullInlineBytes": 40,
+      "outlineLinksBytes": 0
+    },
+    {
+      "kind": "Literal",
+      "payloadWords": 5,
+      "linksWords": 0,
+      "inlineLinksWords": 0,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "fullInlineBytes": 48,
+      "outlineLinksBytes": 0
+    },
+    {
+      "kind": "Enum",
+      "payloadWords": 2,
+      "linksWords": 0,
+      "inlineLinksWords": 0,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "fullInlineBytes": 32,
+      "outlineLinksBytes": 0
+    },
+    {
+      "kind": "UniqueESSymbol",
+      "payloadWords": 1,
+      "linksWords": 0,
+      "inlineLinksWords": 0,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "fullInlineBytes": 32,
+      "outlineLinksBytes": 0
+    },
+    {
+      "kind": "Union",
+      "payloadWords": 3,
+      "linksWords": 7,
+      "inlineLinksWords": 7,
+      "tailBytes": 40,
+      "recordBytes": 64,
+      "fullInlineBytes": 64,
+      "outlineLinksBytes": 0
+    },
+    {
+      "kind": "Intersection",
+      "payloadWords": 1,
+      "linksWords": 5,
+      "inlineLinksWords": 5,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "fullInlineBytes": 48,
+      "outlineLinksBytes": 0
+    },
+    {
+      "kind": "EvolvingArray",
+      "payloadWords": 1,
+      "linksWords": 1,
+      "inlineLinksWords": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "fullInlineBytes": 32,
+      "outlineLinksBytes": 0
+    },
+    {
+      "kind": "Reference",
+      "payloadWords": 2,
+      "linksWords": 4,
+      "inlineLinksWords": 4,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "fullInlineBytes": 48,
+      "outlineLinksBytes": 0
+    },
+    {
+      "kind": "TupleTarget",
+      "payloadWords": 1,
+      "linksWords": 2,
+      "inlineLinksWords": 2,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "fullInlineBytes": 40,
+      "outlineLinksBytes": 0
+    },
+    {
+      "kind": "TypeParameter",
+      "payloadWords": 2,
+      "linksWords": 5,
+      "inlineLinksWords": 5,
+      "tailBytes": 32,
+      "recordBytes": 56,
+      "fullInlineBytes": 56,
+      "outlineLinksBytes": 0
+    },
+    {
+      "kind": "TemplateLiteral",
+      "payloadWords": 1,
+      "linksWords": 1,
+      "inlineLinksWords": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "fullInlineBytes": 32,
+      "outlineLinksBytes": 0
+    },
+    {
+      "kind": "StringMapping",
+      "payloadWords": 1,
+      "linksWords": 1,
+      "inlineLinksWords": 1,
+      "tailBytes": 8,
+      "recordBytes": 32,
+      "fullInlineBytes": 32,
+      "outlineLinksBytes": 0
+    },
+    {
+      "kind": "Index",
+      "payloadWords": 2,
+      "linksWords": 1,
+      "inlineLinksWords": 1,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "fullInlineBytes": 40,
+      "outlineLinksBytes": 0
+    },
+    {
+      "kind": "IndexedAccess",
+      "payloadWords": 3,
+      "linksWords": 3,
+      "inlineLinksWords": 3,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "fullInlineBytes": 48,
+      "outlineLinksBytes": 0
+    },
+    {
+      "kind": "Mapped",
+      "payloadWords": 3,
+      "linksWords": 9,
+      "inlineLinksWords": 7,
+      "tailBytes": 40,
+      "recordBytes": 64,
+      "fullInlineBytes": 72,
+      "outlineLinksBytes": 12
+    },
+    {
+      "kind": "ReverseMapped",
+      "payloadWords": 3,
+      "linksWords": 2,
+      "inlineLinksWords": 2,
+      "tailBytes": 24,
+      "recordBytes": 48,
+      "fullInlineBytes": 48,
+      "outlineLinksBytes": 0
+    },
+    {
+      "kind": "Conditional",
+      "payloadWords": 5,
+      "linksWords": 8,
+      "inlineLinksWords": 5,
+      "tailBytes": 40,
+      "recordBytes": 64,
+      "fullInlineBytes": 80,
+      "outlineLinksBytes": 16
+    },
+    {
+      "kind": "Substitution",
+      "payloadWords": 2,
+      "linksWords": 1,
+      "inlineLinksWords": 1,
+      "tailBytes": 16,
+      "recordBytes": 40,
+      "fullInlineBytes": 40,
+      "outlineLinksBytes": 0
+    },
+    {
+      "kind": "GenericType",
+      "payloadWords": 3,
+      "linksWords": 6,
+      "inlineLinksWords": 6,
+      "tailBytes": 40,
+      "recordBytes": 64,
+      "fullInlineBytes": 64,
+      "outlineLinksBytes": 0
+    }
+  ]
+}

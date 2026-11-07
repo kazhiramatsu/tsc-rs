@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/store",
+    "crates/records-preview",
     "crates/syntax",
     "crates/binder",
     "crates/types",

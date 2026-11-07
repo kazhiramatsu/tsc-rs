@@ -1022,6 +1022,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "tsc-rs-records-preview"
+version = "0.1.0"
+dependencies = [
+ "tsc-rs-types",
+]
+
+[[package]]
 name = "tsc-rs-store"
 version = "0.1.0"
 dependencies = [

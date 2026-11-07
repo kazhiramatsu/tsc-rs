@@ -1,0 +1,3970 @@
+{
+  "tokens": {
+    "Unknown": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "EndOfFileToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "SingleLineCommentTrivia": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "MultiLineCommentTrivia": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "NewLineTrivia": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "WhitespaceTrivia": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ShebangTrivia": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ConflictMarkerTrivia": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "NonTextFileMarkerTrivia": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "JsxTextAllWhiteSpaces": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "OpenBraceToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "CloseBraceToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "OpenParenToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "CloseParenToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "OpenBracketToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "CloseBracketToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "DotToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "DotDotDotToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "SemicolonToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "CommaToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "QuestionDotToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "LessThanToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "LessThanSlashToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "GreaterThanToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "LessThanEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "GreaterThanEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "EqualsEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ExclamationEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "EqualsEqualsEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ExclamationEqualsEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "EqualsGreaterThanToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "PlusToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "MinusToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "AsteriskToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "AsteriskAsteriskToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "SlashToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "PercentToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "PlusPlusToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "MinusMinusToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "LessThanLessThanToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "GreaterThanGreaterThanToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "GreaterThanGreaterThanGreaterThanToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "AmpersandToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "BarToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "CaretToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ExclamationToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "TildeToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "AmpersandAmpersandToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "BarBarToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "QuestionToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ColonToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "AtToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "QuestionQuestionToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "BacktickToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "HashToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "EqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "PlusEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "MinusEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "AsteriskEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "AsteriskAsteriskEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "SlashEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "PercentEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "LessThanLessThanEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "GreaterThanGreaterThanEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "GreaterThanGreaterThanGreaterThanEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "AmpersandEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "BarEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "BarBarEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "AmpersandAmpersandEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "QuestionQuestionEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "CaretEqualsToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "JSDocCommentTextToken": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "BreakKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "CaseKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "CatchKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ClassKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ConstKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ContinueKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "DebuggerKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "DefaultKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "DeleteKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "DoKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ElseKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "EnumKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ExportKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ExtendsKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "FalseKeyword": {
+      "goStruct": "KeywordExpression",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "KeywordExpression",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "FinallyKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ForKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "FunctionKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "IfKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ImportKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "InKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "InstanceOfKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "NewKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "NullKeyword": {
+      "goStruct": "KeywordExpression",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "KeywordExpression",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "ReturnKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "SuperKeyword": {
+      "goStruct": "KeywordExpression",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "KeywordExpression",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "SwitchKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ThisKeyword": {
+      "goStruct": "KeywordExpression",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "KeywordExpression",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "ThrowKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "TrueKeyword": {
+      "goStruct": "KeywordExpression",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "KeywordExpression",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "TryKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "TypeOfKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "VarKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "VoidKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "WhileKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "WithKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ImplementsKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "InterfaceKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "LetKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "PackageKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "PrivateKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ProtectedKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "PublicKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "StaticKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "YieldKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "AbstractKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "AccessorKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "AsKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "AssertsKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "AssertKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "AnyKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "AsyncKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "AwaitKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "BooleanKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ConstructorKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "DeclareKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "GetKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "InferKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "IntrinsicKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "IsKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "KeyOfKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ModuleKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "NamespaceKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "NeverKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "OutKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ReadonlyKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "RequireKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "NumberKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ObjectKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "SatisfiesKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "SetKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "StringKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "SymbolKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "TypeKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "UndefinedKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "UniqueKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "UnknownKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "UsingKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "FromKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "GlobalKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "BigIntKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "OverrideKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "OfKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "DeferKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "SourceKeyword": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "ThisType": {
+      "goStruct": "ThisTypeNode",
+      "fields": []
+    },
+    "SyntheticExpression": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "SemicolonClassElement": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "JsxOpeningFragment": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "JsxClosingFragment": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "Bundle": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "NotEmittedTypeElement": {
+      "goStruct": "Token",
+      "fields": []
+    },
+    "SyntheticReferenceExpression": {
+      "goStruct": "Token",
+      "fields": []
+    }
+  },
+  "why": "Recursive Go embeddings from inputs/go-structs.json; full source hashes in inputs/provenance.json.",
+  "kinds": {
+    "ArrayBindingPattern": {
+      "goStruct": "BindingPattern",
+      "fields": []
+    },
+    "ArrayLiteralExpression": {
+      "goStruct": "ArrayLiteralExpression",
+      "fields": []
+    },
+    "ArrayType": {
+      "goStruct": "ArrayTypeNode",
+      "fields": []
+    },
+    "ArrowFunction": {
+      "goStruct": "ArrowFunction",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "ArrowFunction",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ArrowFunction",
+            "FunctionLikeWithBodyBase",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ArrowFunction",
+            "FunctionLikeWithBodyBase",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "end_flow",
+          "target": "Flow",
+          "goStruct": "BodyBase",
+          "goField": "EndFlowNode",
+          "source": "ast_generated.go",
+          "line": 162,
+          "embeddingPath": [
+            "ArrowFunction",
+            "FunctionLikeWithBodyBase",
+            "BodyBase"
+          ]
+        },
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "ArrowFunction",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "AsExpression": {
+      "goStruct": "AsExpression",
+      "fields": []
+    },
+    "AwaitExpression": {
+      "goStruct": "AwaitExpression",
+      "fields": []
+    },
+    "BigIntLiteral": {
+      "goStruct": "BigIntLiteral",
+      "fields": []
+    },
+    "BinaryExpression": {
+      "goStruct": "BinaryExpression",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "BinaryExpression",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "BindingElement": {
+      "goStruct": "BindingElement",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "BindingElement",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "local_symbol",
+          "target": "Symbol",
+          "goStruct": "ExportableBase",
+          "goField": "LocalSymbol",
+          "source": "ast_generated.go",
+          "line": 131,
+          "embeddingPath": [
+            "BindingElement",
+            "ExportableBase"
+          ]
+        },
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "BindingElement",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "Block": {
+      "goStruct": "Block",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "Block",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "Block",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "Block",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "BreakStatement": {
+      "goStruct": "BreakStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "BreakStatement",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "CallExpression": {
+      "goStruct": "CallExpression",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "CallExpression",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "CallSignature": {
+      "goStruct": "CallSignatureDeclaration",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "CallSignatureDeclaration",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "CallSignatureDeclaration",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "CallSignatureDeclaration",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "CaseBlock": {
+      "goStruct": "CaseBlock",
+      "fields": [
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "CaseBlock",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "CaseBlock",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "CaseClause": {
+      "goStruct": "CaseOrDefaultClause",
+      "fields": [
+        {
+          "field": "fallthrough_flow",
+          "target": "Flow",
+          "goStruct": "CaseOrDefaultClause",
+          "goField": "FallthroughFlowNode",
+          "source": "ast_generated.go",
+          "line": 1318,
+          "embeddingPath": [
+            "CaseOrDefaultClause"
+          ]
+        }
+      ]
+    },
+    "CatchClause": {
+      "goStruct": "CatchClause",
+      "fields": [
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "CatchClause",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "CatchClause",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "ClassDeclaration": {
+      "goStruct": "ClassDeclaration",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "ClassDeclaration",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        },
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "ClassDeclaration",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "local_symbol",
+          "target": "Symbol",
+          "goStruct": "ExportableBase",
+          "goField": "LocalSymbol",
+          "source": "ast_generated.go",
+          "line": 131,
+          "embeddingPath": [
+            "ClassDeclaration",
+            "ClassLikeBase",
+            "ExportableBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ClassDeclaration",
+            "ClassLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ClassDeclaration",
+            "ClassLikeBase",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "ClassExpression": {
+      "goStruct": "ClassExpression",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "ClassExpression",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "local_symbol",
+          "target": "Symbol",
+          "goStruct": "ExportableBase",
+          "goField": "LocalSymbol",
+          "source": "ast_generated.go",
+          "line": 131,
+          "embeddingPath": [
+            "ClassExpression",
+            "ClassLikeBase",
+            "ExportableBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ClassExpression",
+            "ClassLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ClassExpression",
+            "ClassLikeBase",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "ClassStaticBlockDeclaration": {
+      "goStruct": "ClassStaticBlockDeclaration",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "ClassStaticBlockDeclaration",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ClassStaticBlockDeclaration",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ClassStaticBlockDeclaration",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "return_flow",
+          "target": "Flow",
+          "goStruct": "ClassStaticBlockDeclaration",
+          "goField": "ReturnFlowNode",
+          "source": "ast_generated.go",
+          "line": 3505,
+          "embeddingPath": [
+            "ClassStaticBlockDeclaration"
+          ]
+        }
+      ]
+    },
+    "CommaListExpression": {
+      "goStruct": "SyntaxList",
+      "fields": []
+    },
+    "ComputedPropertyName": {
+      "goStruct": "ComputedPropertyName",
+      "fields": []
+    },
+    "ConditionalExpression": {
+      "goStruct": "ConditionalExpression",
+      "fields": []
+    },
+    "ConditionalType": {
+      "goStruct": "ConditionalTypeNode",
+      "fields": [
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ConditionalTypeNode",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ConditionalTypeNode",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "ConstructSignature": {
+      "goStruct": "ConstructSignatureDeclaration",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "ConstructSignatureDeclaration",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ConstructSignatureDeclaration",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ConstructSignatureDeclaration",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "Constructor": {
+      "goStruct": "ConstructorDeclaration",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "ConstructorDeclaration",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ConstructorDeclaration",
+            "FunctionLikeWithBodyBase",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ConstructorDeclaration",
+            "FunctionLikeWithBodyBase",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "end_flow",
+          "target": "Flow",
+          "goStruct": "BodyBase",
+          "goField": "EndFlowNode",
+          "source": "ast_generated.go",
+          "line": 162,
+          "embeddingPath": [
+            "ConstructorDeclaration",
+            "FunctionLikeWithBodyBase",
+            "BodyBase"
+          ]
+        },
+        {
+          "field": "return_flow",
+          "target": "Flow",
+          "goStruct": "ConstructorDeclaration",
+          "goField": "ReturnFlowNode",
+          "source": "ast_generated.go",
+          "line": 3048,
+          "embeddingPath": [
+            "ConstructorDeclaration"
+          ]
+        }
+      ]
+    },
+    "ConstructorType": {
+      "goStruct": "ConstructorTypeNode",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "ConstructorTypeNode",
+            "FunctionOrConstructorTypeNodeBase",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ConstructorTypeNode",
+            "FunctionOrConstructorTypeNodeBase",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ConstructorTypeNode",
+            "FunctionOrConstructorTypeNodeBase",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "ContinueStatement": {
+      "goStruct": "ContinueStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "ContinueStatement",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "DebuggerStatement": {
+      "goStruct": "DebuggerStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "DebuggerStatement",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "Decorator": {
+      "goStruct": "Decorator",
+      "fields": []
+    },
+    "DefaultClause": {
+      "goStruct": "CaseOrDefaultClause",
+      "fields": [
+        {
+          "field": "fallthrough_flow",
+          "target": "Flow",
+          "goStruct": "CaseOrDefaultClause",
+          "goField": "FallthroughFlowNode",
+          "source": "ast_generated.go",
+          "line": 1318,
+          "embeddingPath": [
+            "CaseOrDefaultClause"
+          ]
+        }
+      ]
+    },
+    "DeleteExpression": {
+      "goStruct": "DeleteExpression",
+      "fields": []
+    },
+    "DoStatement": {
+      "goStruct": "DoStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "DoStatement",
+            "IterationStatementBase",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "ElementAccessExpression": {
+      "goStruct": "ElementAccessExpression",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "ElementAccessExpression",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "EmptyStatement": {
+      "goStruct": "EmptyStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "EmptyStatement",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "EnumDeclaration": {
+      "goStruct": "EnumDeclaration",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "EnumDeclaration",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        },
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "EnumDeclaration",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "local_symbol",
+          "target": "Symbol",
+          "goStruct": "ExportableBase",
+          "goField": "LocalSymbol",
+          "source": "ast_generated.go",
+          "line": 131,
+          "embeddingPath": [
+            "EnumDeclaration",
+            "ExportableBase"
+          ]
+        }
+      ]
+    },
+    "EnumMember": {
+      "goStruct": "EnumMember",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "EnumMember",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "ExportAssignment": {
+      "goStruct": "ExportAssignment",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "ExportAssignment",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        },
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "ExportAssignment",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "ExportDeclaration": {
+      "goStruct": "ExportDeclaration",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "ExportDeclaration",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        },
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "ExportDeclaration",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "ExportSpecifier": {
+      "goStruct": "ExportSpecifier",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "ExportSpecifier",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "local_symbol",
+          "target": "Symbol",
+          "goStruct": "ExportableBase",
+          "goField": "LocalSymbol",
+          "source": "ast_generated.go",
+          "line": 131,
+          "embeddingPath": [
+            "ExportSpecifier",
+            "ExportableBase"
+          ]
+        }
+      ]
+    },
+    "ExpressionStatement": {
+      "goStruct": "ExpressionStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "ExpressionStatement",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "ExpressionWithTypeArguments": {
+      "goStruct": "ExpressionWithTypeArguments",
+      "fields": []
+    },
+    "ExternalModuleReference": {
+      "goStruct": "ExternalModuleReference",
+      "fields": []
+    },
+    "ForInStatement": {
+      "goStruct": "ForInOrOfStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "ForInOrOfStatement",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ForInOrOfStatement",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ForInOrOfStatement",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "ForOfStatement": {
+      "goStruct": "ForInOrOfStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "ForInOrOfStatement",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ForInOrOfStatement",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ForInOrOfStatement",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "ForStatement": {
+      "goStruct": "ForStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "ForStatement",
+            "IterationStatementBase",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ForStatement",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ForStatement",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "FunctionDeclaration": {
+      "goStruct": "FunctionDeclaration",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "FunctionDeclaration",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        },
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "FunctionDeclaration",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "local_symbol",
+          "target": "Symbol",
+          "goStruct": "ExportableBase",
+          "goField": "LocalSymbol",
+          "source": "ast_generated.go",
+          "line": 131,
+          "embeddingPath": [
+            "FunctionDeclaration",
+            "ExportableBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "FunctionDeclaration",
+            "FunctionLikeWithBodyBase",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "FunctionDeclaration",
+            "FunctionLikeWithBodyBase",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "end_flow",
+          "target": "Flow",
+          "goStruct": "BodyBase",
+          "goField": "EndFlowNode",
+          "source": "ast_generated.go",
+          "line": 162,
+          "embeddingPath": [
+            "FunctionDeclaration",
+            "FunctionLikeWithBodyBase",
+            "BodyBase"
+          ]
+        },
+        {
+          "field": "return_flow",
+          "target": "Flow",
+          "goStruct": "FunctionDeclaration",
+          "goField": "ReturnFlowNode",
+          "source": "ast_generated.go",
+          "line": 1989,
+          "embeddingPath": [
+            "FunctionDeclaration"
+          ]
+        }
+      ]
+    },
+    "FunctionExpression": {
+      "goStruct": "FunctionExpression",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "FunctionExpression",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "FunctionExpression",
+            "FunctionLikeWithBodyBase",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "FunctionExpression",
+            "FunctionLikeWithBodyBase",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "end_flow",
+          "target": "Flow",
+          "goStruct": "BodyBase",
+          "goField": "EndFlowNode",
+          "source": "ast_generated.go",
+          "line": 162,
+          "embeddingPath": [
+            "FunctionExpression",
+            "FunctionLikeWithBodyBase",
+            "BodyBase"
+          ]
+        },
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "FunctionExpression",
+            "FlowNodeBase"
+          ]
+        },
+        {
+          "field": "return_flow",
+          "target": "Flow",
+          "goStruct": "FunctionExpression",
+          "goField": "ReturnFlowNode",
+          "source": "ast_generated.go",
+          "line": 3954,
+          "embeddingPath": [
+            "FunctionExpression"
+          ]
+        }
+      ]
+    },
+    "FunctionType": {
+      "goStruct": "FunctionTypeNode",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "FunctionTypeNode",
+            "FunctionOrConstructorTypeNodeBase",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "FunctionTypeNode",
+            "FunctionOrConstructorTypeNodeBase",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "FunctionTypeNode",
+            "FunctionOrConstructorTypeNodeBase",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "GetAccessor": {
+      "goStruct": "GetAccessorDeclaration",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "GetAccessorDeclaration",
+            "AccessorDeclarationBase",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "GetAccessorDeclaration",
+            "AccessorDeclarationBase",
+            "FunctionLikeWithBodyBase",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "GetAccessorDeclaration",
+            "AccessorDeclarationBase",
+            "FunctionLikeWithBodyBase",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "end_flow",
+          "target": "Flow",
+          "goStruct": "BodyBase",
+          "goField": "EndFlowNode",
+          "source": "ast_generated.go",
+          "line": 162,
+          "embeddingPath": [
+            "GetAccessorDeclaration",
+            "AccessorDeclarationBase",
+            "FunctionLikeWithBodyBase",
+            "BodyBase"
+          ]
+        },
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "GetAccessorDeclaration",
+            "AccessorDeclarationBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "HeritageClause": {
+      "goStruct": "HeritageClause",
+      "fields": []
+    },
+    "Identifier": {
+      "goStruct": "Identifier",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "Identifier",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "IfStatement": {
+      "goStruct": "IfStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "IfStatement",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "ImportAttribute": {
+      "goStruct": "ImportAttribute",
+      "fields": []
+    },
+    "ImportAttributes": {
+      "goStruct": "ImportAttributes",
+      "fields": []
+    },
+    "ImportClause": {
+      "goStruct": "ImportClause",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "ImportClause",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "local_symbol",
+          "target": "Symbol",
+          "goStruct": "ExportableBase",
+          "goField": "LocalSymbol",
+          "source": "ast_generated.go",
+          "line": 131,
+          "embeddingPath": [
+            "ImportClause",
+            "ExportableBase"
+          ]
+        }
+      ]
+    },
+    "ImportDeclaration": {
+      "goStruct": "ImportDeclaration",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "ImportDeclaration",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        },
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "ImportDeclaration",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "ImportEqualsDeclaration": {
+      "goStruct": "ImportEqualsDeclaration",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "ImportEqualsDeclaration",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        },
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "ImportEqualsDeclaration",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "local_symbol",
+          "target": "Symbol",
+          "goStruct": "ExportableBase",
+          "goField": "LocalSymbol",
+          "source": "ast_generated.go",
+          "line": 131,
+          "embeddingPath": [
+            "ImportEqualsDeclaration",
+            "ExportableBase"
+          ]
+        }
+      ]
+    },
+    "ImportSpecifier": {
+      "goStruct": "ImportSpecifier",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "ImportSpecifier",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "local_symbol",
+          "target": "Symbol",
+          "goStruct": "ExportableBase",
+          "goField": "LocalSymbol",
+          "source": "ast_generated.go",
+          "line": 131,
+          "embeddingPath": [
+            "ImportSpecifier",
+            "ExportableBase"
+          ]
+        }
+      ]
+    },
+    "ImportType": {
+      "goStruct": "ImportTypeNode",
+      "fields": []
+    },
+    "ImportTypeAssertionContainer": {
+      "goStruct": "ImportAttributes",
+      "fields": []
+    },
+    "IndexSignature": {
+      "goStruct": "IndexSignatureDeclaration",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "IndexSignatureDeclaration",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "IndexSignatureDeclaration",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "IndexSignatureDeclaration",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "IndexedAccessType": {
+      "goStruct": "IndexedAccessTypeNode",
+      "fields": []
+    },
+    "InferType": {
+      "goStruct": "InferTypeNode",
+      "fields": []
+    },
+    "InterfaceDeclaration": {
+      "goStruct": "InterfaceDeclaration",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "InterfaceDeclaration",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        },
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "InterfaceDeclaration",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "local_symbol",
+          "target": "Symbol",
+          "goStruct": "ExportableBase",
+          "goField": "LocalSymbol",
+          "source": "ast_generated.go",
+          "line": 131,
+          "embeddingPath": [
+            "InterfaceDeclaration",
+            "ExportableBase"
+          ]
+        }
+      ]
+    },
+    "IntersectionType": {
+      "goStruct": "IntersectionTypeNode",
+      "fields": []
+    },
+    "JSDoc": {
+      "goStruct": "JSDoc",
+      "fields": []
+    },
+    "JSDocAllType": {
+      "goStruct": "JSDocAllType",
+      "fields": []
+    },
+    "JSDocAugmentsTag": {
+      "goStruct": "JSDocAugmentsTag",
+      "fields": []
+    },
+    "JSDocAuthorTag": {
+      "goStruct": "JSDocUnknownTag",
+      "fields": []
+    },
+    "JSDocCallbackTag": {
+      "goStruct": "JSDocCallbackTag",
+      "fields": []
+    },
+    "JSDocClassTag": {
+      "goStruct": "JSDocUnknownTag",
+      "fields": []
+    },
+    "JSDocDeprecatedTag": {
+      "goStruct": "JSDocDeprecatedTag",
+      "fields": []
+    },
+    "JSDocEnumTag": {
+      "goStruct": "JSDocTypeTag",
+      "fields": []
+    },
+    "JSDocFunctionType": {
+      "goStruct": "JSDocSignature",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "JSDocSignature",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "JSDocSignature",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "JSDocSignature",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "JSDocImplementsTag": {
+      "goStruct": "JSDocImplementsTag",
+      "fields": []
+    },
+    "JSDocImportTag": {
+      "goStruct": "JSDocImportTag",
+      "fields": []
+    },
+    "JSDocLink": {
+      "goStruct": "JSDocLink",
+      "fields": []
+    },
+    "JSDocLinkCode": {
+      "goStruct": "JSDocLinkCode",
+      "fields": []
+    },
+    "JSDocLinkPlain": {
+      "goStruct": "JSDocLinkPlain",
+      "fields": []
+    },
+    "JSDocMemberName": {
+      "goStruct": "QualifiedName",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "QualifiedName",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "JSDocNameReference": {
+      "goStruct": "JSDocNameReference",
+      "fields": []
+    },
+    "JSDocNamepathType": {
+      "goStruct": "JSDocTypeBase",
+      "fields": []
+    },
+    "JSDocNonNullableType": {
+      "goStruct": "JSDocNonNullableType",
+      "fields": []
+    },
+    "JSDocNullableType": {
+      "goStruct": "JSDocNullableType",
+      "fields": []
+    },
+    "JSDocOptionalType": {
+      "goStruct": "JSDocOptionalType",
+      "fields": []
+    },
+    "JSDocOverloadTag": {
+      "goStruct": "JSDocOverloadTag",
+      "fields": []
+    },
+    "JSDocOverrideTag": {
+      "goStruct": "JSDocOverrideTag",
+      "fields": []
+    },
+    "JSDocParameterTag": {
+      "goStruct": "JSDocParameterOrPropertyTag",
+      "fields": []
+    },
+    "JSDocPrivateTag": {
+      "goStruct": "JSDocPrivateTag",
+      "fields": []
+    },
+    "JSDocPropertyTag": {
+      "goStruct": "JSDocParameterOrPropertyTag",
+      "fields": []
+    },
+    "JSDocProtectedTag": {
+      "goStruct": "JSDocProtectedTag",
+      "fields": []
+    },
+    "JSDocPublicTag": {
+      "goStruct": "JSDocPublicTag",
+      "fields": []
+    },
+    "JSDocReadonlyTag": {
+      "goStruct": "JSDocReadonlyTag",
+      "fields": []
+    },
+    "JSDocReturnTag": {
+      "goStruct": "JSDocReturnTag",
+      "fields": []
+    },
+    "JSDocSatisfiesTag": {
+      "goStruct": "JSDocSatisfiesTag",
+      "fields": []
+    },
+    "JSDocSeeTag": {
+      "goStruct": "JSDocSeeTag",
+      "fields": []
+    },
+    "JSDocSignature": {
+      "goStruct": "JSDocSignature",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "JSDocSignature",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "JSDocSignature",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "JSDocSignature",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "JSDocTag": {
+      "goStruct": "JSDocUnknownTag",
+      "fields": []
+    },
+    "JSDocTemplateTag": {
+      "goStruct": "JSDocTemplateTag",
+      "fields": []
+    },
+    "JSDocText": {
+      "goStruct": "JSDocText",
+      "fields": []
+    },
+    "JSDocThisTag": {
+      "goStruct": "JSDocThisTag",
+      "fields": []
+    },
+    "JSDocThrowsTag": {
+      "goStruct": "JSDocThrowsTag",
+      "fields": []
+    },
+    "JSDocTypeExpression": {
+      "goStruct": "JSDocTypeExpression",
+      "fields": []
+    },
+    "JSDocTypeLiteral": {
+      "goStruct": "JSDocTypeLiteral",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "JSDocTypeLiteral",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "JSDocTypeTag": {
+      "goStruct": "JSDocTypeTag",
+      "fields": []
+    },
+    "JSDocTypedefTag": {
+      "goStruct": "JSDocTypedefTag",
+      "fields": []
+    },
+    "JSDocUnknownType": {
+      "goStruct": "JSDocTypeBase",
+      "fields": []
+    },
+    "JSDocVariadicType": {
+      "goStruct": "JSDocVariadicType",
+      "fields": []
+    },
+    "JsxAttribute": {
+      "goStruct": "JsxAttribute",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "JsxAttribute",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "JsxAttributes": {
+      "goStruct": "JsxAttributes",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "JsxAttributes",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "JsxClosingElement": {
+      "goStruct": "JsxClosingElement",
+      "fields": []
+    },
+    "JsxElement": {
+      "goStruct": "JsxElement",
+      "fields": []
+    },
+    "JsxExpression": {
+      "goStruct": "JsxExpression",
+      "fields": []
+    },
+    "JsxFragment": {
+      "goStruct": "JsxFragment",
+      "fields": []
+    },
+    "JsxNamespacedName": {
+      "goStruct": "JsxNamespacedName",
+      "fields": []
+    },
+    "JsxOpeningElement": {
+      "goStruct": "JsxOpeningElement",
+      "fields": []
+    },
+    "JsxSelfClosingElement": {
+      "goStruct": "JsxSelfClosingElement",
+      "fields": []
+    },
+    "JsxSpreadAttribute": {
+      "goStruct": "JsxSpreadAttribute",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "JsxSpreadAttribute",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "JsxText": {
+      "goStruct": "JsxText",
+      "fields": []
+    },
+    "LabeledStatement": {
+      "goStruct": "LabeledStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "LabeledStatement",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "LiteralType": {
+      "goStruct": "LiteralTypeNode",
+      "fields": []
+    },
+    "MappedType": {
+      "goStruct": "MappedTypeNode",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "MappedTypeNode",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "MappedTypeNode",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "MappedTypeNode",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "MetaProperty": {
+      "goStruct": "MetaProperty",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "MetaProperty",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "MethodDeclaration": {
+      "goStruct": "MethodDeclaration",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "MethodDeclaration",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "MethodDeclaration",
+            "FunctionLikeWithBodyBase",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "MethodDeclaration",
+            "FunctionLikeWithBodyBase",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "end_flow",
+          "target": "Flow",
+          "goStruct": "BodyBase",
+          "goField": "EndFlowNode",
+          "source": "ast_generated.go",
+          "line": 162,
+          "embeddingPath": [
+            "MethodDeclaration",
+            "FunctionLikeWithBodyBase",
+            "BodyBase"
+          ]
+        },
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "MethodDeclaration",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "MethodSignature": {
+      "goStruct": "MethodSignatureDeclaration",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "MethodSignatureDeclaration",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "MethodSignatureDeclaration",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "MethodSignatureDeclaration",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "MissingDeclaration": {
+      "goStruct": "MissingDeclaration",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "MissingDeclaration",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        },
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "MissingDeclaration",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "ModuleBlock": {
+      "goStruct": "ModuleBlock",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "ModuleBlock",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "ModuleDeclaration": {
+      "goStruct": "ModuleDeclaration",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "ModuleDeclaration",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        },
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "ModuleDeclaration",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "local_symbol",
+          "target": "Symbol",
+          "goStruct": "ExportableBase",
+          "goField": "LocalSymbol",
+          "source": "ast_generated.go",
+          "line": 131,
+          "embeddingPath": [
+            "ModuleDeclaration",
+            "ExportableBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ModuleDeclaration",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "ModuleDeclaration",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "end_flow",
+          "target": "Flow",
+          "goStruct": "BodyBase",
+          "goField": "EndFlowNode",
+          "source": "ast_generated.go",
+          "line": 162,
+          "embeddingPath": [
+            "ModuleDeclaration",
+            "BodyBase"
+          ]
+        }
+      ]
+    },
+    "NamedExports": {
+      "goStruct": "NamedExports",
+      "fields": []
+    },
+    "NamedImports": {
+      "goStruct": "NamedImports",
+      "fields": []
+    },
+    "NamedTupleMember": {
+      "goStruct": "NamedTupleMember",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "NamedTupleMember",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "NamespaceExport": {
+      "goStruct": "NamespaceExport",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "NamespaceExport",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "NamespaceExportDeclaration": {
+      "goStruct": "NamespaceExportDeclaration",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "NamespaceExportDeclaration",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        },
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "NamespaceExportDeclaration",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "NamespaceImport": {
+      "goStruct": "NamespaceImport",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "NamespaceImport",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "local_symbol",
+          "target": "Symbol",
+          "goStruct": "ExportableBase",
+          "goField": "LocalSymbol",
+          "source": "ast_generated.go",
+          "line": 131,
+          "embeddingPath": [
+            "NamespaceImport",
+            "ExportableBase"
+          ]
+        }
+      ]
+    },
+    "NewExpression": {
+      "goStruct": "NewExpression",
+      "fields": []
+    },
+    "NoSubstitutionTemplateLiteral": {
+      "goStruct": "NoSubstitutionTemplateLiteral",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "NoSubstitutionTemplateLiteral",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "NonNullExpression": {
+      "goStruct": "NonNullExpression",
+      "fields": []
+    },
+    "NotEmittedStatement": {
+      "goStruct": "NotEmittedStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "NotEmittedStatement",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "NumericLiteral": {
+      "goStruct": "NumericLiteral",
+      "fields": []
+    },
+    "ObjectBindingPattern": {
+      "goStruct": "BindingPattern",
+      "fields": []
+    },
+    "ObjectLiteralExpression": {
+      "goStruct": "ObjectLiteralExpression",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "ObjectLiteralExpression",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "OmittedExpression": {
+      "goStruct": "OmittedExpression",
+      "fields": []
+    },
+    "OptionalType": {
+      "goStruct": "OptionalTypeNode",
+      "fields": []
+    },
+    "Parameter": {
+      "goStruct": "ParameterDeclaration",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "ParameterDeclaration",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "ParenthesizedExpression": {
+      "goStruct": "ParenthesizedExpression",
+      "fields": []
+    },
+    "ParenthesizedType": {
+      "goStruct": "ParenthesizedTypeNode",
+      "fields": []
+    },
+    "PartiallyEmittedExpression": {
+      "goStruct": "PartiallyEmittedExpression",
+      "fields": []
+    },
+    "PostfixUnaryExpression": {
+      "goStruct": "PostfixUnaryExpression",
+      "fields": []
+    },
+    "PrefixUnaryExpression": {
+      "goStruct": "PrefixUnaryExpression",
+      "fields": []
+    },
+    "PrivateIdentifier": {
+      "goStruct": "PrivateIdentifier",
+      "fields": []
+    },
+    "PropertyAccessExpression": {
+      "goStruct": "PropertyAccessExpression",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "PropertyAccessExpression",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "PropertyAssignment": {
+      "goStruct": "PropertyAssignment",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "PropertyAssignment",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "PropertyDeclaration": {
+      "goStruct": "PropertyDeclaration",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "PropertyDeclaration",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "PropertySignature": {
+      "goStruct": "PropertySignatureDeclaration",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "PropertySignatureDeclaration",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "QualifiedName": {
+      "goStruct": "QualifiedName",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "QualifiedName",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "RegularExpressionLiteral": {
+      "goStruct": "RegularExpressionLiteral",
+      "fields": []
+    },
+    "RestType": {
+      "goStruct": "RestTypeNode",
+      "fields": []
+    },
+    "ReturnStatement": {
+      "goStruct": "ReturnStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "ReturnStatement",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "SatisfiesExpression": {
+      "goStruct": "SatisfiesExpression",
+      "fields": []
+    },
+    "SetAccessor": {
+      "goStruct": "SetAccessorDeclaration",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "SetAccessorDeclaration",
+            "AccessorDeclarationBase",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "SetAccessorDeclaration",
+            "AccessorDeclarationBase",
+            "FunctionLikeWithBodyBase",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "SetAccessorDeclaration",
+            "AccessorDeclarationBase",
+            "FunctionLikeWithBodyBase",
+            "FunctionLikeBase",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "end_flow",
+          "target": "Flow",
+          "goStruct": "BodyBase",
+          "goField": "EndFlowNode",
+          "source": "ast_generated.go",
+          "line": 162,
+          "embeddingPath": [
+            "SetAccessorDeclaration",
+            "AccessorDeclarationBase",
+            "FunctionLikeWithBodyBase",
+            "BodyBase"
+          ]
+        },
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "SetAccessorDeclaration",
+            "AccessorDeclarationBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "ShorthandPropertyAssignment": {
+      "goStruct": "ShorthandPropertyAssignment",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "ShorthandPropertyAssignment",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "SourceFile": {
+      "goStruct": "SourceFile",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "SourceFile",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "SourceFile",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "SourceFile",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "common_js_module_indicator",
+          "target": "Node",
+          "goStruct": "SourceFile",
+          "goField": "CommonJSModuleIndicator",
+          "source": "ast.go",
+          "line": 2446,
+          "embeddingPath": [
+            "SourceFile"
+          ]
+        },
+        {
+          "field": "external_module_indicator",
+          "target": "Node",
+          "goStruct": "SourceFile",
+          "goField": "ExternalModuleIndicator",
+          "source": "ast.go",
+          "line": 2446,
+          "embeddingPath": [
+            "SourceFile"
+          ]
+        }
+      ]
+    },
+    "SpreadAssignment": {
+      "goStruct": "SpreadAssignment",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "SpreadAssignment",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "SpreadElement": {
+      "goStruct": "SpreadElement",
+      "fields": []
+    },
+    "StringLiteral": {
+      "goStruct": "StringLiteral",
+      "fields": []
+    },
+    "SwitchStatement": {
+      "goStruct": "SwitchStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "SwitchStatement",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "SyntaxList": {
+      "goStruct": "SyntaxList",
+      "fields": []
+    },
+    "TaggedTemplateExpression": {
+      "goStruct": "TaggedTemplateExpression",
+      "fields": []
+    },
+    "TemplateExpression": {
+      "goStruct": "TemplateExpression",
+      "fields": []
+    },
+    "TemplateHead": {
+      "goStruct": "TemplateHead",
+      "fields": []
+    },
+    "TemplateLiteralType": {
+      "goStruct": "TemplateLiteralTypeNode",
+      "fields": []
+    },
+    "TemplateLiteralTypeSpan": {
+      "goStruct": "TemplateLiteralTypeSpan",
+      "fields": []
+    },
+    "TemplateMiddle": {
+      "goStruct": "TemplateMiddle",
+      "fields": []
+    },
+    "TemplateSpan": {
+      "goStruct": "TemplateSpan",
+      "fields": []
+    },
+    "TemplateTail": {
+      "goStruct": "TemplateTail",
+      "fields": []
+    },
+    "ThrowStatement": {
+      "goStruct": "ThrowStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "ThrowStatement",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "TryStatement": {
+      "goStruct": "TryStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "TryStatement",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "TupleType": {
+      "goStruct": "TupleTypeNode",
+      "fields": []
+    },
+    "TypeAliasDeclaration": {
+      "goStruct": "TypeAliasDeclaration",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "TypeAliasDeclaration",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        },
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "TypeAliasDeclaration",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "local_symbol",
+          "target": "Symbol",
+          "goStruct": "ExportableBase",
+          "goField": "LocalSymbol",
+          "source": "ast_generated.go",
+          "line": 131,
+          "embeddingPath": [
+            "TypeAliasDeclaration",
+            "ExportableBase"
+          ]
+        },
+        {
+          "field": "locals",
+          "target": "SymbolTable",
+          "goStruct": "LocalsContainerBase",
+          "goField": "Locals",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "TypeAliasDeclaration",
+            "LocalsContainerBase"
+          ]
+        },
+        {
+          "field": "next_container",
+          "target": "Node",
+          "goStruct": "LocalsContainerBase",
+          "goField": "NextContainer",
+          "source": "ast_generated.go",
+          "line": 139,
+          "embeddingPath": [
+            "TypeAliasDeclaration",
+            "LocalsContainerBase"
+          ]
+        }
+      ]
+    },
+    "TypeAssertionExpression": {
+      "goStruct": "TypeAssertion",
+      "fields": []
+    },
+    "TypeLiteral": {
+      "goStruct": "TypeLiteralNode",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "TypeLiteralNode",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "TypeOfExpression": {
+      "goStruct": "TypeOfExpression",
+      "fields": []
+    },
+    "TypeOperator": {
+      "goStruct": "TypeOperatorNode",
+      "fields": []
+    },
+    "TypeParameter": {
+      "goStruct": "TypeParameterDeclaration",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "TypeParameterDeclaration",
+            "DeclarationBase"
+          ]
+        }
+      ]
+    },
+    "TypePredicate": {
+      "goStruct": "TypePredicateNode",
+      "fields": []
+    },
+    "TypeQuery": {
+      "goStruct": "TypeQueryNode",
+      "fields": []
+    },
+    "TypeReference": {
+      "goStruct": "TypeReferenceNode",
+      "fields": []
+    },
+    "UnionType": {
+      "goStruct": "UnionTypeNode",
+      "fields": []
+    },
+    "VariableDeclaration": {
+      "goStruct": "VariableDeclaration",
+      "fields": [
+        {
+          "field": "symbol",
+          "target": "Symbol",
+          "goStruct": "DeclarationBase",
+          "goField": "Symbol",
+          "source": "ast_generated.go",
+          "line": 127,
+          "embeddingPath": [
+            "VariableDeclaration",
+            "DeclarationBase"
+          ]
+        },
+        {
+          "field": "local_symbol",
+          "target": "Symbol",
+          "goStruct": "ExportableBase",
+          "goField": "LocalSymbol",
+          "source": "ast_generated.go",
+          "line": 131,
+          "embeddingPath": [
+            "VariableDeclaration",
+            "ExportableBase"
+          ]
+        }
+      ]
+    },
+    "VariableDeclarationList": {
+      "goStruct": "VariableDeclarationList",
+      "fields": []
+    },
+    "VariableStatement": {
+      "goStruct": "VariableStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "VariableStatement",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "VoidExpression": {
+      "goStruct": "VoidExpression",
+      "fields": []
+    },
+    "WhileStatement": {
+      "goStruct": "WhileStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "WhileStatement",
+            "IterationStatementBase",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "WithStatement": {
+      "goStruct": "WithStatement",
+      "fields": [
+        {
+          "field": "flow",
+          "target": "Flow",
+          "goStruct": "FlowNodeBase",
+          "goField": "FlowNode",
+          "source": "ast_generated.go",
+          "line": 144,
+          "embeddingPath": [
+            "WithStatement",
+            "StatementBase",
+            "FlowNodeBase"
+          ]
+        }
+      ]
+    },
+    "YieldExpression": {
+      "goStruct": "YieldExpression",
+      "fields": []
+    }
+  },
+  "excludedFacts": {
+    "possibly_exhaustive": {
+      "why": "No field in Go SwitchStatement. Exhaustiveness is checker-local SwitchStatementLinks.exhaustiveState, not a binder word.",
+      "source": "checker-types.go:267-278"
+    },
+    "flow_when_true/flow_when_false": {
+      "why": "No node fields in this Go revision. Binder.currentTrueTarget/currentFalseTarget are traversal state, not persistent per-file maps.",
+      "source": "binder.go:55-56"
+    },
+    "jsdoc": {
+      "why": "SourceFile.jsdocCache is a per-file map; tflags HAS_JSDOC only.",
+      "source": "ast.go:2476"
+    }
+  }
+}

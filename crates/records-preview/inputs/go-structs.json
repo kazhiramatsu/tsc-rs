@@ -1,0 +1,1248 @@
+{
+  "structs": {
+    "NodeFactoryHooks": {
+      "source": "ast.go",
+      "line": 61,
+      "body": "\tOnCreate func(node *Node)                 // Hooks the creation of a node.\n\tOnUpdate func(node *Node, original *Node) // Hooks the updating of a node.\n\tOnClone  func(node *Node, original *Node) // Hooks the cloning of a node."
+    },
+    "NodeList": {
+      "source": "ast.go",
+      "line": 124,
+      "body": "\tLoc   core.TextRange\n\tNodes []*Node"
+    },
+    "ModifierList": {
+      "source": "ast.go",
+      "line": 155,
+      "body": "\tNodeList\n\tModifierFlags ModifierFlags"
+    },
+    "Node": {
+      "source": "ast.go",
+      "line": 180,
+      "body": "\tKind   Kind\n\tFlags  NodeFlags\n\tLoc    core.TextRange\n\tid     atomic.Uint64\n\tParent *Node\n\tdata   nodeData"
+    },
+    "NodeDefault": {
+      "source": "ast.go",
+      "line": 1209,
+      "body": "\tNode"
+    },
+    "NodeBase": {
+      "source": "ast.go",
+      "line": 1252,
+      "body": "\tNodeDefault"
+    },
+    "PatternAmbientModule": {
+      "source": "ast.go",
+      "line": 2358,
+      "body": "\tPattern core.Pattern\n\tSymbol  *Symbol"
+    },
+    "CommentDirective": {
+      "source": "ast.go",
+      "line": 2371,
+      "body": "\tLoc  core.TextRange\n\tKind CommentDirectiveKind"
+    },
+    "SourceFileMetaData": {
+      "source": "ast.go",
+      "line": 2378,
+      "body": "\tPackageJsonType      string\n\tPackageJsonDirectory tspath.RootedDirectoryPath\n\tImpliedNodeFormat    core.ResolutionMode"
+    },
+    "CheckJsDirective": {
+      "source": "ast.go",
+      "line": 2431,
+      "body": "\tEnabled bool\n\tRange   CommentRange"
+    },
+    "TokenCacheKey": {
+      "source": "ast.go",
+      "line": 2441,
+      "body": "\tparent *Node\n\tloc    core.TextRange"
+    },
+    "SourceFile": {
+      "source": "ast.go",
+      "line": 2446,
+      "body": "\tNodeBase\n\tDeclarationBase\n\tLocalsContainerBase\n\tCompositeBase\n\n\t// Fields set by NewSourceFile\n\tfileName          tspath.RootedFilePath // For debugging convenience\n\tparseOptions      SourceFileParseOptions\n\ttext              string\n\tcontentMapperInfo *ContentMapperSourceFileInfo\n\tStatements        *NodeList  // NodeList[*Statement]\n\tEndOfFileToken    *TokenNode // TokenNode[*EndOfFileToken]\n\n\t// Fields for lazily-computed data owned by packages outside ast.\n\tdataMu sync.Mutex\n\tdata   map[sourceFileDataKey]any\n\n\t// Fields set by parser\n\tdiagnostics                 []*Diagnostic\n\tjsDiagnostics               []*Diagnostic\n\tjsdocDiagnostics            []*Diagnostic\n\tLanguageVariant             core.LanguageVariant\n\tScriptKind                  core.ScriptKind\n\tIsDeclarationFile           bool\n\tUsesUriStyleNodeCoreModules core.Tristate\n\tIdentifierCount             int\n\timports                     []*LiteralLikeNode // []LiteralLikeNode\n\tModuleAugmentations         []*ModuleName      // []ModuleName\n\tAmbientModuleNames          []string\n\tCommentDirectives           []CommentDirective\n\tjsdocCache                  map[*Node][]*Node\n\tjsdocMu                     sync.RWMutex\n\thasLazyJSDoc                bool\n\tidentifiersOnce             sync.Once\n\tidentifiers                 collections.Set[string]\n\tReparsedClones              []*Node\n\tPragmas                     []Pragma\n\tReferencedFiles             []*FileReference\n\tTypeReferenceDirectives     []*FileReference\n\tLibReferenceDirectives      []*FileReference\n\tCheckJsDirective            *CheckJsDirective\n\tNodeCount                   int\n\tTextCount                   int\n\tCommonJSModuleIndicator     *Node\n\t// If this is the SourceFile itself, then this module was \"forced\"\n\t// to be an external module (previously \"true\").\n\tExternalModuleIndicator *Node\n\n\t// Fields set by binder\n\n\tisBound               atomic.Bool\n\tbindOnce              sync.Once\n\tbindDiagnostics       []*Diagnostic\n\tSymbolCount           int\n\tPatternAmbientModules []*PatternAmbientModule\n\tGlobalExports         SymbolTable\n\n\t// Fields set by ECMALineMap\n\n\tecmaLineMapMu sync.RWMutex\n\tecmaLineMap   []core.TextPos\n\n\t// Fields set by language service\n\n\tHash             xxh3.Uint128\n\ttokenCacheMu     sync.Mutex\n\ttokenCache       map[TokenCacheKey]*Node\n\ttokenFactory     *NodeFactory\n\tdeclarationMapMu sync.Mutex\n\tdeclarationMap   map[string][]*Node\n\tnameTableOnce    sync.Once\n\tnameTable        map[string]int\n\n\t// Fields for UTF-8 to UTF-16 position mapping\n\n\tpositionMapOnce sync.Once\n\tpositionMap     *PositionMap"
+    },
+    "MappedDiagnosticDirective": {
+      "source": "ast.go",
+      "line": 2611,
+      "body": "\tOriginalRange     core.TextRange\n\tVirtualRange      core.TextRange\n\tPolicy            MappedDiagnosticDirectivePolicy\n\tUnusedCode        int32\n\tUnusedMessageText string\n\tSource            string"
+    },
+    "ContentMapperSourceFileInfo": {
+      "source": "ast.go",
+      "line": 2620,
+      "body": "\tContentMapper           string\n\tTransformIdentity       string\n\tParseOptions            SourceFileParseOptions\n\tVirtualFileName         tspath.RootedFilePath\n\tOriginalText            string\n\tSpanMap                 *spanmap.SpanMap\n\tDiagnosticDirectives    []MappedDiagnosticDirective\n\tSupplementalSourceFiles []*SourceFile\n\tCanonicalSourceFile     *SourceFile"
+    },
+    "CommentRange": {
+      "source": "ast.go",
+      "line": 3111,
+      "body": "\tcore.TextRange\n\tKind               Kind\n\tHasTrailingNewLine bool"
+    },
+    "FileReference": {
+      "source": "ast.go",
+      "line": 3125,
+      "body": "\tcore.TextRange\n\tFileName       string\n\tResolutionMode core.ResolutionMode\n\tPreserve       bool"
+    },
+    "PragmaArgument": {
+      "source": "ast.go",
+      "line": 3132,
+      "body": "\tcore.TextRange\n\tName  string\n\tValue string"
+    },
+    "Pragma": {
+      "source": "ast.go",
+      "line": 3138,
+      "body": "\tCommentRange\n\tName string\n\tArgs map[string]PragmaArgument"
+    },
+    "PragmaArgumentSpecification": {
+      "source": "ast.go",
+      "line": 3155,
+      "body": "\tName        string\n\tOptional    bool\n\tCaptureSpan bool"
+    },
+    "PragmaSpecification": {
+      "source": "ast.go",
+      "line": 3160,
+      "body": "\tArgs []PragmaArgumentSpecification\n\tKind PragmaKindFlags"
+    },
+    "NodeFactory": {
+      "source": "ast_generated.go",
+      "line": 20,
+      "body": "\thooks                              NodeFactoryHooks\n\tarrayTypeNodeArena                 core.Arena[ArrayTypeNode]\n\tbinaryExpressionArena              core.Arena[BinaryExpression]\n\tblockArena                         core.Arena[Block]\n\tcallExpressionArena                core.Arena[CallExpression]\n\tconditionalExpressionArena         core.Arena[ConditionalExpression]\n\tconstructSignatureDeclarationArena core.Arena[ConstructSignatureDeclaration]\n\telementAccessExpressionArena       core.Arena[ElementAccessExpression]\n\texpressionStatementArena           core.Arena[ExpressionStatement]\n\texpressionWithTypeArgumentsArena   core.Arena[ExpressionWithTypeArguments]\n\tfunctionDeclarationArena           core.Arena[FunctionDeclaration]\n\tfunctionTypeNodeArena              core.Arena[FunctionTypeNode]\n\theritageClauseArena                core.Arena[HeritageClause]\n\tidentifierArena                    core.Arena[Identifier]\n\tifStatementArena                   core.Arena[IfStatement]\n\timportSpecifierArena               core.Arena[ImportSpecifier]\n\tindexedAccessTypeNodeArena         core.Arena[IndexedAccessTypeNode]\n\tinterfaceDeclarationArena          core.Arena[InterfaceDeclaration]\n\tintersectionTypeNodeArena          core.Arena[IntersectionTypeNode]\n\tjsdocArena                         core.Arena[JSDoc]\n\tjsdocDeprecatedTagArena            core.Arena[JSDocDeprecatedTag]\n\tjsdocTextArena                     core.Arena[JSDocText]\n\tjsdocUnknownTagArena               core.Arena[JSDocUnknownTag]\n\tkeywordExpressionArena             core.Arena[KeywordExpression]\n\tkeywordTypeNodeArena               core.Arena[KeywordTypeNode]\n\tliteralTypeNodeArena               core.Arena[LiteralTypeNode]\n\tmethodSignatureDeclarationArena    core.Arena[MethodSignatureDeclaration]\n\tmodifierListArena                  core.Arena[ModifierList]\n\tnodeListArena                      core.Arena[NodeList]\n\tnumericLiteralArena                core.Arena[NumericLiteral]\n\tparameterDeclarationArena          core.Arena[ParameterDeclaration]\n\tparenthesizedExpressionArena       core.Arena[ParenthesizedExpression]\n\tparenthesizedTypeNodeArena         core.Arena[ParenthesizedTypeNode]\n\tprefixUnaryExpressionArena         core.Arena[PrefixUnaryExpression]\n\tpropertyAccessExpressionArena      core.Arena[PropertyAccessExpression]\n\tpropertyAssignmentArena            core.Arena[PropertyAssignment]\n\tpropertySignatureDeclarationArena  core.Arena[PropertySignatureDeclaration]\n\treturnStatementArena               core.Arena[ReturnStatement]\n\tstringLiteralArena                 core.Arena[StringLiteral]\n\ttokenArena                         core.Arena[Token]\n\ttypeAliasDeclarationArena          core.Arena[TypeAliasDeclaration]\n\ttypeLiteralNodeArena               core.Arena[TypeLiteralNode]\n\ttypeOperatorNodeArena              core.Arena[TypeOperatorNode]\n\ttypeParameterDeclarationArena      core.Arena[TypeParameterDeclaration]\n\ttypeReferenceNodeArena             core.Arena[TypeReferenceNode]\n\tunionTypeNodeArena                 core.Arena[UnionTypeNode]\n\tvariableDeclarationArena           core.Arena[VariableDeclaration]\n\tvariableDeclarationListArena       core.Arena[VariableDeclarationList]\n\tvariableStatementArena             core.Arena[VariableStatement]\n\n\tnodeCount int\n\ttextCount int"
+    },
+    "StatementBase": {
+      "source": "ast_generated.go",
+      "line": 79,
+      "body": "\tNodeBase\n\tFlowNodeBase"
+    },
+    "IterationStatementBase": {
+      "source": "ast_generated.go",
+      "line": 84,
+      "body": "\tStatementBase\n\tStatement *Statement"
+    },
+    "ExpressionBase": {
+      "source": "ast_generated.go",
+      "line": 89,
+      "body": "\tNodeBase"
+    },
+    "UnaryExpressionBase": {
+      "source": "ast_generated.go",
+      "line": 93,
+      "body": "\tExpressionBase"
+    },
+    "UpdateExpressionBase": {
+      "source": "ast_generated.go",
+      "line": 97,
+      "body": "\tUnaryExpressionBase"
+    },
+    "LeftHandSideExpressionBase": {
+      "source": "ast_generated.go",
+      "line": 101,
+      "body": "\tUpdateExpressionBase"
+    },
+    "MemberExpressionBase": {
+      "source": "ast_generated.go",
+      "line": 105,
+      "body": "\tLeftHandSideExpressionBase"
+    },
+    "PrimaryExpressionBase": {
+      "source": "ast_generated.go",
+      "line": 109,
+      "body": "\tMemberExpressionBase"
+    },
+    "TypeNodeBase": {
+      "source": "ast_generated.go",
+      "line": 113,
+      "body": "\tTypeSyntaxBase\n\tNodeBase"
+    },
+    "NodeWithTypeArgumentsBase": {
+      "source": "ast_generated.go",
+      "line": 118,
+      "body": "\tTypeNodeBase\n\tTypeArguments *TypeList // Optional"
+    },
+    "JSDocTypeBase": {
+      "source": "ast_generated.go",
+      "line": 123,
+      "body": "\tTypeNodeBase"
+    },
+    "DeclarationBase": {
+      "source": "ast_generated.go",
+      "line": 127,
+      "body": "\tSymbol *Symbol"
+    },
+    "ExportableBase": {
+      "source": "ast_generated.go",
+      "line": 131,
+      "body": "\tLocalSymbol *Symbol"
+    },
+    "ModifiersBase": {
+      "source": "ast_generated.go",
+      "line": 135,
+      "body": "\tmodifiers *ModifierList // Optional"
+    },
+    "LocalsContainerBase": {
+      "source": "ast_generated.go",
+      "line": 139,
+      "body": "\tLocals        SymbolTable\n\tNextContainer *Node"
+    },
+    "FlowNodeBase": {
+      "source": "ast_generated.go",
+      "line": 144,
+      "body": "\tFlowNode *FlowNode"
+    },
+    "CompositeBase": {
+      "source": "ast_generated.go",
+      "line": 148,
+      "body": "\tfacts atomic.Uint32"
+    },
+    "TypeSyntaxBase": {
+      "source": "ast_generated.go",
+      "line": 152,
+      "body": ""
+    },
+    "FunctionLikeBase": {
+      "source": "ast_generated.go",
+      "line": 154,
+      "body": "\tLocalsContainerBase\n\tTypeParameters *TypeParameterList // Optional\n\tParameters     *ParameterList\n\tType           *TypeNode // Optional\n\tFullSignature  *TypeNode // Optional"
+    },
+    "BodyBase": {
+      "source": "ast_generated.go",
+      "line": 162,
+      "body": "\tAsteriskToken *AsteriskToken // Optional\n\tBody          *NodeBody      // Optional\n\tEndFlowNode   *FlowNode"
+    },
+    "FunctionLikeWithBodyBase": {
+      "source": "ast_generated.go",
+      "line": 168,
+      "body": "\tFunctionLikeBase\n\tBodyBase"
+    },
+    "ClassLikeBase": {
+      "source": "ast_generated.go",
+      "line": 173,
+      "body": "\tExportableBase\n\tModifiersBase\n\tLocalsContainerBase\n\tCompositeBase\n\tname            *IdentifierNode     // Optional\n\tTypeParameters  *TypeParameterList  // Optional\n\tHeritageClauses *HeritageClauseList // Optional\n\tMembers         *ClassElementList"
+    },
+    "LiteralLikeNodeBase": {
+      "source": "ast_generated.go",
+      "line": 184,
+      "body": "\tText       string\n\tTokenFlags TokenFlags"
+    },
+    "LiteralExpressionBase": {
+      "source": "ast_generated.go",
+      "line": 189,
+      "body": "\tPrimaryExpressionBase\n\tLiteralLikeNodeBase"
+    },
+    "TemplateLiteralLikeNodeBase": {
+      "source": "ast_generated.go",
+      "line": 194,
+      "body": "\tLiteralLikeNodeBase\n\tRawText       string\n\tTemplateFlags TokenFlags"
+    },
+    "TypeElementBase": {
+      "source": "ast_generated.go",
+      "line": 200,
+      "body": ""
+    },
+    "ClassElementBase": {
+      "source": "ast_generated.go",
+      "line": 202,
+      "body": ""
+    },
+    "NamedMemberBase": {
+      "source": "ast_generated.go",
+      "line": 204,
+      "body": "\tModifiersBase\n\tname         *PropertyName\n\tPostfixToken *TokenNode // Optional"
+    },
+    "ObjectLiteralElementBase": {
+      "source": "ast_generated.go",
+      "line": 210,
+      "body": ""
+    },
+    "AccessorDeclarationBase": {
+      "source": "ast_generated.go",
+      "line": 212,
+      "body": "\tTypeElementBase\n\tClassElementBase\n\tObjectLiteralElementBase\n\tNodeBase\n\tDeclarationBase\n\tNamedMemberBase\n\tFunctionLikeWithBodyBase\n\tFlowNodeBase\n\tCompositeBase"
+    },
+    "FunctionOrConstructorTypeNodeBase": {
+      "source": "ast_generated.go",
+      "line": 224,
+      "body": "\tTypeNodeBase\n\tDeclarationBase\n\tModifiersBase\n\tFunctionLikeBase"
+    },
+    "UnionOrIntersectionTypeNodeBase": {
+      "source": "ast_generated.go",
+      "line": 231,
+      "body": "\tTypeNodeBase\n\tTypes *TypeList"
+    },
+    "JSDocTagBase": {
+      "source": "ast_generated.go",
+      "line": 236,
+      "body": "\tNodeBase\n\tTagName *IdentifierNode\n\tComment *NodeList // Optional"
+    },
+    "JSDocCommentBase": {
+      "source": "ast_generated.go",
+      "line": 242,
+      "body": "\tNodeBase\n\ttext []string"
+    },
+    "Token": {
+      "source": "ast_generated.go",
+      "line": 596,
+      "body": "\tNodeBase"
+    },
+    "Identifier": {
+      "source": "ast_generated.go",
+      "line": 621,
+      "body": "\tPrimaryExpressionBase\n\tFlowNodeBase\n\tText string"
+    },
+    "PrivateIdentifier": {
+      "source": "ast_generated.go",
+      "line": 646,
+      "body": "\tPrimaryExpressionBase\n\tText string"
+    },
+    "QualifiedName": {
+      "source": "ast_generated.go",
+      "line": 670,
+      "body": "\tNodeBase\n\tFlowNodeBase\n\tCompositeBase\n\tLeft  *EntityName\n\tRight *MemberName"
+    },
+    "ComputedPropertyName": {
+      "source": "ast_generated.go",
+      "line": 717,
+      "body": "\tNodeBase\n\tCompositeBase\n\tExpression *Expression"
+    },
+    "Decorator": {
+      "source": "ast_generated.go",
+      "line": 760,
+      "body": "\tNodeBase\n\tCompositeBase\n\tExpression *LeftHandSideExpression"
+    },
+    "EmptyStatement": {
+      "source": "ast_generated.go",
+      "line": 799,
+      "body": "\tStatementBase"
+    },
+    "IfStatement": {
+      "source": "ast_generated.go",
+      "line": 820,
+      "body": "\tStatementBase\n\tCompositeBase\n\tExpression    *Expression\n\tThenStatement *Statement\n\tElseStatement *Statement // Optional"
+    },
+    "DoStatement": {
+      "source": "ast_generated.go",
+      "line": 869,
+      "body": "\tIterationStatementBase\n\tCompositeBase\n\tExpression *Expression"
+    },
+    "WhileStatement": {
+      "source": "ast_generated.go",
+      "line": 914,
+      "body": "\tIterationStatementBase\n\tCompositeBase\n\tExpression *Expression"
+    },
+    "ForStatement": {
+      "source": "ast_generated.go",
+      "line": 959,
+      "body": "\tIterationStatementBase\n\tLocalsContainerBase\n\tCompositeBase\n\tInitializer *ForInitializer // Optional\n\tCondition   *Expression     // Optional\n\tIncrementor *Expression     // Optional"
+    },
+    "ForInOrOfStatement": {
+      "source": "ast_generated.go",
+      "line": 1014,
+      "body": "\tStatementBase\n\tLocalsContainerBase\n\tCompositeBase\n\tAwaitModifier *AwaitKeyword // Optional\n\tInitializer   *ForInitializer\n\tExpression    *Expression\n\tStatement     *Statement"
+    },
+    "BreakStatement": {
+      "source": "ast_generated.go",
+      "line": 1067,
+      "body": "\tStatementBase\n\tLabel *IdentifierNode // Optional"
+    },
+    "ContinueStatement": {
+      "source": "ast_generated.go",
+      "line": 1105,
+      "body": "\tStatementBase\n\tLabel *IdentifierNode // Optional"
+    },
+    "ReturnStatement": {
+      "source": "ast_generated.go",
+      "line": 1143,
+      "body": "\tStatementBase\n\tCompositeBase\n\tExpression *Expression // Optional"
+    },
+    "WithStatement": {
+      "source": "ast_generated.go",
+      "line": 1182,
+      "body": "\tStatementBase\n\tCompositeBase\n\tExpression *Expression\n\tStatement  *Statement"
+    },
+    "SwitchStatement": {
+      "source": "ast_generated.go",
+      "line": 1228,
+      "body": "\tStatementBase\n\tCompositeBase\n\tExpression *Expression\n\tCaseBlock  *CaseBlockNode"
+    },
+    "CaseBlock": {
+      "source": "ast_generated.go",
+      "line": 1274,
+      "body": "\tNodeBase\n\tLocalsContainerBase\n\tCompositeBase\n\tClauses *CaseClausesList"
+    },
+    "CaseOrDefaultClause": {
+      "source": "ast_generated.go",
+      "line": 1318,
+      "body": "\tNodeBase\n\tCompositeBase\n\tExpression          *Expression\n\tStatements          *StatementList\n\tFallthroughFlowNode *FlowNode"
+    },
+    "ThrowStatement": {
+      "source": "ast_generated.go",
+      "line": 1369,
+      "body": "\tStatementBase\n\tCompositeBase\n\tExpression *Expression"
+    },
+    "TryStatement": {
+      "source": "ast_generated.go",
+      "line": 1412,
+      "body": "\tStatementBase\n\tCompositeBase\n\tTryBlock     *BlockNode\n\tCatchClause  *CatchClauseNode // Optional\n\tFinallyBlock *BlockNode       // Optional"
+    },
+    "CatchClause": {
+      "source": "ast_generated.go",
+      "line": 1461,
+      "body": "\tNodeBase\n\tLocalsContainerBase\n\tCompositeBase\n\tVariableDeclaration *VariableDeclarationNode // Optional\n\tBlock               *BlockNode"
+    },
+    "DebuggerStatement": {
+      "source": "ast_generated.go",
+      "line": 1503,
+      "body": "\tStatementBase"
+    },
+    "LabeledStatement": {
+      "source": "ast_generated.go",
+      "line": 1524,
+      "body": "\tStatementBase\n\tLabel     *IdentifierNode\n\tStatement *Statement"
+    },
+    "ExpressionStatement": {
+      "source": "ast_generated.go",
+      "line": 1569,
+      "body": "\tStatementBase\n\tExpression *Expression"
+    },
+    "Block": {
+      "source": "ast_generated.go",
+      "line": 1611,
+      "body": "\tStatementBase\n\tLocalsContainerBase\n\tCompositeBase\n\tStatements *StatementList\n\tMultiLine  bool"
+    },
+    "VariableStatement": {
+      "source": "ast_generated.go",
+      "line": 1657,
+      "body": "\tStatementBase\n\tModifiersBase\n\tCompositeBase\n\tDeclarationList *VariableDeclarationListNode"
+    },
+    "VariableDeclaration": {
+      "source": "ast_generated.go",
+      "line": 1698,
+      "body": "\tNodeBase\n\tDeclarationBase\n\tExportableBase\n\tCompositeBase\n\tname             *BindingName\n\tExclamationToken *ExclamationToken // Optional\n\tType             *TypeNode         // Optional\n\tInitializer      *Expression       // Optional"
+    },
+    "VariableDeclarationList": {
+      "source": "ast_generated.go",
+      "line": 1752,
+      "body": "\tNodeBase\n\tCompositeBase\n\tDeclarations *VariableDeclarationNodeList"
+    },
+    "BindingPattern": {
+      "source": "ast_generated.go",
+      "line": 1793,
+      "body": "\tNodeBase\n\tCompositeBase\n\tElements *BindingElementList"
+    },
+    "ParameterDeclaration": {
+      "source": "ast_generated.go",
+      "line": 1836,
+      "body": "\tNodeBase\n\tDeclarationBase\n\tModifiersBase\n\tCompositeBase\n\tDotDotDotToken *DotDotDotToken // Optional\n\tname           *BindingName\n\tQuestionToken  *QuestionToken // Optional\n\tType           *TypeNode      // Optional\n\tInitializer    *Expression    // Optional"
+    },
+    "BindingElement": {
+      "source": "ast_generated.go",
+      "line": 1895,
+      "body": "\tNodeBase\n\tDeclarationBase\n\tExportableBase\n\tFlowNodeBase\n\tCompositeBase\n\tDotDotDotToken *DotDotDotToken // Optional\n\tPropertyName   *PropertyName   // Optional\n\tname           *BindingName    // Optional\n\tInitializer    *Expression     // Optional"
+    },
+    "MissingDeclaration": {
+      "source": "ast_generated.go",
+      "line": 1950,
+      "body": "\tStatementBase\n\tDeclarationBase\n\tModifiersBase"
+    },
+    "FunctionDeclaration": {
+      "source": "ast_generated.go",
+      "line": 1989,
+      "body": "\tStatementBase\n\tDeclarationBase\n\tExportableBase\n\tModifiersBase\n\tFunctionLikeWithBodyBase\n\tCompositeBase\n\tname           *IdentifierNode // Optional\n\tReturnFlowNode *FlowNode"
+    },
+    "ClassDeclaration": {
+      "source": "ast_generated.go",
+      "line": 2051,
+      "body": "\tStatementBase\n\tDeclarationBase\n\tClassLikeBase"
+    },
+    "ClassExpression": {
+      "source": "ast_generated.go",
+      "line": 2102,
+      "body": "\tPrimaryExpressionBase\n\tDeclarationBase\n\tClassLikeBase"
+    },
+    "HeritageClause": {
+      "source": "ast_generated.go",
+      "line": 2153,
+      "body": "\tNodeBase\n\tCompositeBase\n\tToken Kind\n\tTypes *HeritageClauseElementList"
+    },
+    "InterfaceDeclaration": {
+      "source": "ast_generated.go",
+      "line": 2194,
+      "body": "\tTypeSyntaxBase\n\tStatementBase\n\tDeclarationBase\n\tExportableBase\n\tModifiersBase\n\tname            *IdentifierNode\n\tTypeParameters  *TypeParameterList  // Optional\n\tHeritageClauses *HeritageClauseList // Optional\n\tMembers         *TypeElementList"
+    },
+    "TypeAliasDeclaration": {
+      "source": "ast_generated.go",
+      "line": 2251,
+      "body": "\tTypeSyntaxBase\n\tStatementBase\n\tDeclarationBase\n\tExportableBase\n\tModifiersBase\n\tLocalsContainerBase\n\tname           *IdentifierNode\n\tTypeParameters *TypeParameterList // Optional\n\tType           *TypeNode"
+    },
+    "EnumMember": {
+      "source": "ast_generated.go",
+      "line": 2333,
+      "body": "\tNodeBase\n\tDeclarationBase\n\tNamedMemberBase\n\tCompositeBase\n\tInitializer *Expression // Optional"
+    },
+    "EnumDeclaration": {
+      "source": "ast_generated.go",
+      "line": 2379,
+      "body": "\tStatementBase\n\tDeclarationBase\n\tExportableBase\n\tModifiersBase\n\tCompositeBase\n\tname    *IdentifierNode\n\tMembers *EnumMemberList"
+    },
+    "ModuleBlock": {
+      "source": "ast_generated.go",
+      "line": 2428,
+      "body": "\tStatementBase\n\tCompositeBase\n\tStatements *StatementList"
+    },
+    "NotEmittedStatement": {
+      "source": "ast_generated.go",
+      "line": 2471,
+      "body": "\tStatementBase"
+    },
+    "NotEmittedTypeElement": {
+      "source": "ast_generated.go",
+      "line": 2492,
+      "body": "\tTypeElementBase\n\tNodeBase\n\tDeclarationBase"
+    },
+    "ImportDeclaration": {
+      "source": "ast_generated.go",
+      "line": 2515,
+      "body": "\tStatementBase\n\tModifiersBase\n\tCompositeBase\n\tDeclarationBase\n\tImportClause    *ImportClauseNode // Optional\n\tModuleSpecifier *Expression\n\tAttributes      *ImportAttributesNode // Optional"
+    },
+    "ExternalModuleReference": {
+      "source": "ast_generated.go",
+      "line": 2598,
+      "body": "\tNodeBase\n\tExpression *Expression"
+    },
+    "NamespaceImport": {
+      "source": "ast_generated.go",
+      "line": 2640,
+      "body": "\tNodeBase\n\tDeclarationBase\n\tExportableBase\n\tname *IdentifierNode"
+    },
+    "NamedImports": {
+      "source": "ast_generated.go",
+      "line": 2688,
+      "body": "\tNodeBase\n\tCompositeBase\n\tElements *ImportSpecifierList"
+    },
+    "ExportAssignment": {
+      "source": "ast_generated.go",
+      "line": 2731,
+      "body": "\tStatementBase\n\tDeclarationBase\n\tModifiersBase\n\tCompositeBase\n\tIsExportEquals bool\n\tType           *TypeNode\n\tExpression     *Expression"
+    },
+    "NamespaceExportDeclaration": {
+      "source": "ast_generated.go",
+      "line": 2777,
+      "body": "\tTypeSyntaxBase\n\tStatementBase\n\tDeclarationBase\n\tModifiersBase\n\tname *IdentifierNode"
+    },
+    "NamespaceExport": {
+      "source": "ast_generated.go",
+      "line": 2823,
+      "body": "\tNodeBase\n\tDeclarationBase\n\tname *ModuleExportName"
+    },
+    "NamedExports": {
+      "source": "ast_generated.go",
+      "line": 2870,
+      "body": "\tNodeBase\n\tCompositeBase\n\tElements *ExportSpecifierList"
+    },
+    "ExportSpecifier": {
+      "source": "ast_generated.go",
+      "line": 2913,
+      "body": "\tNodeBase\n\tDeclarationBase\n\tExportableBase\n\tCompositeBase\n\tIsTypeOnly   bool\n\tPropertyName *ModuleExportName // Optional\n\tname         *ModuleExportName"
+    },
+    "CallSignatureDeclaration": {
+      "source": "ast_generated.go",
+      "line": 2962,
+      "body": "\tTypeElementBase\n\tTypeSyntaxBase\n\tNodeBase\n\tDeclarationBase\n\tFunctionLikeBase"
+    },
+    "ConstructSignatureDeclaration": {
+      "source": "ast_generated.go",
+      "line": 3005,
+      "body": "\tTypeElementBase\n\tTypeSyntaxBase\n\tNodeBase\n\tDeclarationBase\n\tFunctionLikeBase"
+    },
+    "ConstructorDeclaration": {
+      "source": "ast_generated.go",
+      "line": 3048,
+      "body": "\tClassElementBase\n\tNodeBase\n\tDeclarationBase\n\tModifiersBase\n\tFunctionLikeWithBodyBase\n\tCompositeBase\n\tReturnFlowNode *FlowNode"
+    },
+    "GetAccessorDeclaration": {
+      "source": "ast_generated.go",
+      "line": 3101,
+      "body": "\tAccessorDeclarationBase"
+    },
+    "SetAccessorDeclaration": {
+      "source": "ast_generated.go",
+      "line": 3154,
+      "body": "\tAccessorDeclarationBase"
+    },
+    "IndexSignatureDeclaration": {
+      "source": "ast_generated.go",
+      "line": 3207,
+      "body": "\tTypeElementBase\n\tClassElementBase\n\tTypeSyntaxBase\n\tNodeBase\n\tDeclarationBase\n\tModifiersBase\n\tFunctionLikeBase"
+    },
+    "MethodSignatureDeclaration": {
+      "source": "ast_generated.go",
+      "line": 3252,
+      "body": "\tTypeElementBase\n\tTypeSyntaxBase\n\tNodeBase\n\tDeclarationBase\n\tNamedMemberBase\n\tFunctionLikeBase"
+    },
+    "MethodDeclaration": {
+      "source": "ast_generated.go",
+      "line": 3308,
+      "body": "\tClassElementBase\n\tObjectLiteralElementBase\n\tNodeBase\n\tDeclarationBase\n\tNamedMemberBase\n\tFunctionLikeWithBodyBase\n\tFlowNodeBase\n\tCompositeBase"
+    },
+    "PropertySignatureDeclaration": {
+      "source": "ast_generated.go",
+      "line": 3372,
+      "body": "\tTypeElementBase\n\tTypeSyntaxBase\n\tNodeBase\n\tDeclarationBase\n\tNamedMemberBase\n\tType        *TypeNode\n\tInitializer *Expression"
+    },
+    "PropertyDeclaration": {
+      "source": "ast_generated.go",
+      "line": 3427,
+      "body": "\tClassElementBase\n\tNodeBase\n\tDeclarationBase\n\tNamedMemberBase\n\tCompositeBase\n\tType        *TypeNode   // Optional\n\tInitializer *Expression // Optional"
+    },
+    "SemicolonClassElement": {
+      "source": "ast_generated.go",
+      "line": 3482,
+      "body": "\tClassElementBase\n\tNodeBase\n\tDeclarationBase"
+    },
+    "ClassStaticBlockDeclaration": {
+      "source": "ast_generated.go",
+      "line": 3505,
+      "body": "\tClassElementBase\n\tNodeBase\n\tDeclarationBase\n\tModifiersBase\n\tLocalsContainerBase\n\tCompositeBase\n\tBody           *BlockNode\n\tReturnFlowNode *FlowNode"
+    },
+    "OmittedExpression": {
+      "source": "ast_generated.go",
+      "line": 3550,
+      "body": "\tExpressionBase"
+    },
+    "KeywordExpression": {
+      "source": "ast_generated.go",
+      "line": 3571,
+      "body": "\tExpressionBase\n\tFlowNodeBase"
+    },
+    "StringLiteral": {
+      "source": "ast_generated.go",
+      "line": 3597,
+      "body": "\tLiteralExpressionBase"
+    },
+    "NumericLiteral": {
+      "source": "ast_generated.go",
+      "line": 3621,
+      "body": "\tLiteralExpressionBase"
+    },
+    "BigIntLiteral": {
+      "source": "ast_generated.go",
+      "line": 3645,
+      "body": "\tLiteralExpressionBase"
+    },
+    "RegularExpressionLiteral": {
+      "source": "ast_generated.go",
+      "line": 3669,
+      "body": "\tLiteralExpressionBase"
+    },
+    "NoSubstitutionTemplateLiteral": {
+      "source": "ast_generated.go",
+      "line": 3693,
+      "body": "\tExpressionBase\n\tTemplateLiteralLikeNodeBase\n\tDeclarationBase"
+    },
+    "BinaryExpression": {
+      "source": "ast_generated.go",
+      "line": 3719,
+      "body": "\tExpressionBase\n\tDeclarationBase\n\tModifiersBase\n\tCompositeBase\n\tLeft          *Expression\n\tType          *TypeNode // Optional\n\tOperatorToken *BinaryOperatorToken\n\tRight         *Expression"
+    },
+    "PrefixUnaryExpression": {
+      "source": "ast_generated.go",
+      "line": 3771,
+      "body": "\tUpdateExpressionBase\n\tOperator Kind\n\tOperand  *Expression"
+    },
+    "PostfixUnaryExpression": {
+      "source": "ast_generated.go",
+      "line": 3815,
+      "body": "\tUpdateExpressionBase\n\tOperand  *Expression\n\tOperator Kind"
+    },
+    "YieldExpression": {
+      "source": "ast_generated.go",
+      "line": 3859,
+      "body": "\tExpressionBase\n\tAsteriskToken *AsteriskToken // Optional\n\tExpression    *Expression    // Optional"
+    },
+    "ArrowFunction": {
+      "source": "ast_generated.go",
+      "line": 3899,
+      "body": "\tExpressionBase\n\tDeclarationBase\n\tModifiersBase\n\tFunctionLikeWithBodyBase\n\tFlowNodeBase\n\tCompositeBase\n\tEqualsGreaterThanToken *EqualsGreaterThanToken"
+    },
+    "FunctionExpression": {
+      "source": "ast_generated.go",
+      "line": 3954,
+      "body": "\tPrimaryExpressionBase\n\tDeclarationBase\n\tModifiersBase\n\tFunctionLikeWithBodyBase\n\tFlowNodeBase\n\tCompositeBase\n\tname           *IdentifierNode // Optional\n\tReturnFlowNode *FlowNode"
+    },
+    "AsExpression": {
+      "source": "ast_generated.go",
+      "line": 4016,
+      "body": "\tExpressionBase\n\tExpression *Expression\n\tType       *TypeNode"
+    },
+    "SatisfiesExpression": {
+      "source": "ast_generated.go",
+      "line": 4056,
+      "body": "\tExpressionBase\n\tExpression *Expression\n\tType       *TypeNode"
+    },
+    "ConditionalExpression": {
+      "source": "ast_generated.go",
+      "line": 4096,
+      "body": "\tExpressionBase\n\tCompositeBase\n\tCondition     *Expression\n\tQuestionToken *QuestionToken\n\tWhenTrue      *Expression\n\tColonToken    *ColonToken\n\tWhenFalse     *Expression"
+    },
+    "PropertyAccessExpression": {
+      "source": "ast_generated.go",
+      "line": 4155,
+      "body": "\tMemberExpressionBase\n\tFlowNodeBase\n\tCompositeBase\n\tExpression       *Expression\n\tQuestionDotToken *QuestionDotToken // Optional\n\tname             *MemberName"
+    },
+    "ElementAccessExpression": {
+      "source": "ast_generated.go",
+      "line": 4205,
+      "body": "\tMemberExpressionBase\n\tFlowNodeBase\n\tCompositeBase\n\tExpression         *Expression\n\tQuestionDotToken   *QuestionDotToken // Optional\n\tArgumentExpression *Expression"
+    },
+    "CallExpression": {
+      "source": "ast_generated.go",
+      "line": 4257,
+      "body": "\tLeftHandSideExpressionBase\n\tDeclarationBase\n\tCompositeBase\n\tExpression       *Expression\n\tQuestionDotToken *QuestionDotToken // Optional\n\tTypeArguments    *TypeList         // Optional\n\tArguments        *ElementList"
+    },
+    "NewExpression": {
+      "source": "ast_generated.go",
+      "line": 4308,
+      "body": "\tPrimaryExpressionBase\n\tCompositeBase\n\tExpression    *Expression\n\tTypeArguments *TypeList    // Optional\n\tArguments     *ElementList // Optional"
+    },
+    "MetaProperty": {
+      "source": "ast_generated.go",
+      "line": 4351,
+      "body": "\tPrimaryExpressionBase\n\tFlowNodeBase\n\tCompositeBase\n\tKeywordToken Kind\n\tname         *IdentifierNode"
+    },
+    "NonNullExpression": {
+      "source": "ast_generated.go",
+      "line": 4397,
+      "body": "\tLeftHandSideExpressionBase\n\tExpression *Expression"
+    },
+    "SpreadElement": {
+      "source": "ast_generated.go",
+      "line": 4437,
+      "body": "\tExpressionBase\n\tExpression *Expression"
+    },
+    "TemplateExpression": {
+      "source": "ast_generated.go",
+      "line": 4475,
+      "body": "\tPrimaryExpressionBase\n\tCompositeBase\n\tHead          *TemplateHeadNode\n\tTemplateSpans *TemplateSpanList"
+    },
+    "TemplateSpan": {
+      "source": "ast_generated.go",
+      "line": 4521,
+      "body": "\tNodeBase\n\tExpression *Expression\n\tLiteral    *TemplateMiddleOrTail"
+    },
+    "TaggedTemplateExpression": {
+      "source": "ast_generated.go",
+      "line": 4566,
+      "body": "\tMemberExpressionBase\n\tCompositeBase\n\tTag              *Expression\n\tQuestionDotToken *QuestionDotToken\n\tTypeArguments    *TypeList // Optional\n\tTemplate         *TemplateLiteral"
+    },
+    "ParenthesizedExpression": {
+      "source": "ast_generated.go",
+      "line": 4616,
+      "body": "\tPrimaryExpressionBase\n\tExpression *Expression"
+    },
+    "ArrayLiteralExpression": {
+      "source": "ast_generated.go",
+      "line": 4658,
+      "body": "\tPrimaryExpressionBase\n\tCompositeBase\n\tElements  *ElementList\n\tMultiLine bool"
+    },
+    "ObjectLiteralExpression": {
+      "source": "ast_generated.go",
+      "line": 4703,
+      "body": "\tPrimaryExpressionBase\n\tDeclarationBase\n\tCompositeBase\n\tProperties *NodeList\n\tMultiLine  bool"
+    },
+    "SpreadAssignment": {
+      "source": "ast_generated.go",
+      "line": 4749,
+      "body": "\tObjectLiteralElementBase\n\tNodeBase\n\tDeclarationBase\n\tExpression *Expression"
+    },
+    "PropertyAssignment": {
+      "source": "ast_generated.go",
+      "line": 4789,
+      "body": "\tObjectLiteralElementBase\n\tNodeBase\n\tDeclarationBase\n\tNamedMemberBase\n\tCompositeBase\n\tType        *TypeNode\n\tInitializer *Expression"
+    },
+    "ShorthandPropertyAssignment": {
+      "source": "ast_generated.go",
+      "line": 4844,
+      "body": "\tObjectLiteralElementBase\n\tNodeBase\n\tDeclarationBase\n\tNamedMemberBase\n\tCompositeBase\n\tType                        *TypeNode\n\tEqualsToken                 *EqualsToken // Optional\n\tObjectAssignmentInitializer *Expression  // Optional"
+    },
+    "DeleteExpression": {
+      "source": "ast_generated.go",
+      "line": 4902,
+      "body": "\tUnaryExpressionBase\n\tExpression *Expression"
+    },
+    "TypeOfExpression": {
+      "source": "ast_generated.go",
+      "line": 4944,
+      "body": "\tUnaryExpressionBase\n\tExpression *Expression"
+    },
+    "VoidExpression": {
+      "source": "ast_generated.go",
+      "line": 4986,
+      "body": "\tUnaryExpressionBase\n\tExpression *Expression"
+    },
+    "AwaitExpression": {
+      "source": "ast_generated.go",
+      "line": 5028,
+      "body": "\tUnaryExpressionBase\n\tExpression *Expression"
+    },
+    "TypeAssertion": {
+      "source": "ast_generated.go",
+      "line": 5066,
+      "body": "\tUnaryExpressionBase\n\tType       *TypeNode\n\tExpression *Expression"
+    },
+    "KeywordTypeNode": {
+      "source": "ast_generated.go",
+      "line": 5106,
+      "body": "\tTypeNodeBase"
+    },
+    "UnionTypeNode": {
+      "source": "ast_generated.go",
+      "line": 5131,
+      "body": "\tUnionOrIntersectionTypeNodeBase"
+    },
+    "IntersectionTypeNode": {
+      "source": "ast_generated.go",
+      "line": 5168,
+      "body": "\tUnionOrIntersectionTypeNodeBase"
+    },
+    "ConditionalTypeNode": {
+      "source": "ast_generated.go",
+      "line": 5205,
+      "body": "\tTypeNodeBase\n\tLocalsContainerBase\n\tCheckType   *TypeNode\n\tExtendsType *TypeNode\n\tTrueType    *TypeNode\n\tFalseType   *TypeNode"
+    },
+    "TypeOperatorNode": {
+      "source": "ast_generated.go",
+      "line": 5253,
+      "body": "\tTypeNodeBase\n\tOperator Kind\n\tType     *TypeNode"
+    },
+    "InferTypeNode": {
+      "source": "ast_generated.go",
+      "line": 5293,
+      "body": "\tTypeNodeBase\n\tTypeParameter *TypeParameterDeclarationNode"
+    },
+    "ArrayTypeNode": {
+      "source": "ast_generated.go",
+      "line": 5331,
+      "body": "\tTypeNodeBase\n\tElementType *TypeNode"
+    },
+    "IndexedAccessTypeNode": {
+      "source": "ast_generated.go",
+      "line": 5369,
+      "body": "\tTypeNodeBase\n\tObjectType *TypeNode\n\tIndexType  *TypeNode"
+    },
+    "TypeReferenceNode": {
+      "source": "ast_generated.go",
+      "line": 5409,
+      "body": "\tNodeWithTypeArgumentsBase\n\tTypeName *EntityName"
+    },
+    "ExpressionWithTypeArguments": {
+      "source": "ast_generated.go",
+      "line": 5448,
+      "body": "\tMemberExpressionBase\n\tCompositeBase\n\tExpression    *Expression\n\tTypeArguments *TypeList // Optional"
+    },
+    "LiteralTypeNode": {
+      "source": "ast_generated.go",
+      "line": 5489,
+      "body": "\tTypeNodeBase\n\tLiteral *Node"
+    },
+    "ThisTypeNode": {
+      "source": "ast_generated.go",
+      "line": 5527,
+      "body": "\tTypeNodeBase"
+    },
+    "TypePredicateNode": {
+      "source": "ast_generated.go",
+      "line": 5548,
+      "body": "\tTypeNodeBase\n\tAssertsModifier *AssertsKeyword // Optional\n\tParameterName   *TypePredicateParameterName\n\tType            *TypeNode // Optional"
+    },
+    "ImportAttribute": {
+      "source": "ast_generated.go",
+      "line": 5590,
+      "body": "\tNodeBase\n\tCompositeBase\n\tname  *ImportAttributeName\n\tValue *Expression"
+    },
+    "ImportAttributes": {
+      "source": "ast_generated.go",
+      "line": 5640,
+      "body": "\tNodeBase\n\tCompositeBase\n\tToken      Kind\n\tAttributes *ImportAttributeList\n\tMultiLine  bool"
+    },
+    "TypeQueryNode": {
+      "source": "ast_generated.go",
+      "line": 5687,
+      "body": "\tNodeWithTypeArgumentsBase\n\tExprName *EntityName"
+    },
+    "MappedTypeNode": {
+      "source": "ast_generated.go",
+      "line": 5726,
+      "body": "\tTypeNodeBase\n\tDeclarationBase\n\tLocalsContainerBase\n\tReadonlyToken *TokenNode // Optional\n\tTypeParameter *TypeParameterDeclarationNode\n\tNameType      *TypeNode        // Optional\n\tQuestionToken *TokenNode       // Optional\n\tType          *TypeNode        // Optional\n\tMembers       *TypeElementList // Optional"
+    },
+    "TypeLiteralNode": {
+      "source": "ast_generated.go",
+      "line": 5781,
+      "body": "\tTypeNodeBase\n\tDeclarationBase\n\tMembers *TypeElementList"
+    },
+    "TupleTypeNode": {
+      "source": "ast_generated.go",
+      "line": 5820,
+      "body": "\tTypeNodeBase\n\tElements *TypeList"
+    },
+    "NamedTupleMember": {
+      "source": "ast_generated.go",
+      "line": 5858,
+      "body": "\tTypeNodeBase\n\tDeclarationBase\n\tDotDotDotToken *DotDotDotToken // Optional\n\tname           *IdentifierNode\n\tQuestionToken  *QuestionToken // Optional\n\tType           *TypeNode"
+    },
+    "OptionalTypeNode": {
+      "source": "ast_generated.go",
+      "line": 5910,
+      "body": "\tTypeNodeBase\n\tType *TypeNode"
+    },
+    "RestTypeNode": {
+      "source": "ast_generated.go",
+      "line": 5948,
+      "body": "\tTypeNodeBase\n\tType *TypeNode"
+    },
+    "ParenthesizedTypeNode": {
+      "source": "ast_generated.go",
+      "line": 5986,
+      "body": "\tTypeNodeBase\n\tType *TypeNode"
+    },
+    "FunctionTypeNode": {
+      "source": "ast_generated.go",
+      "line": 6024,
+      "body": "\tFunctionOrConstructorTypeNodeBase"
+    },
+    "ConstructorTypeNode": {
+      "source": "ast_generated.go",
+      "line": 6063,
+      "body": "\tFunctionOrConstructorTypeNodeBase"
+    },
+    "TemplateHead": {
+      "source": "ast_generated.go",
+      "line": 6106,
+      "body": "\tNodeBase\n\tTemplateLiteralLikeNodeBase"
+    },
+    "TemplateMiddle": {
+      "source": "ast_generated.go",
+      "line": 6132,
+      "body": "\tNodeBase\n\tTemplateLiteralLikeNodeBase"
+    },
+    "TemplateTail": {
+      "source": "ast_generated.go",
+      "line": 6158,
+      "body": "\tNodeBase\n\tTemplateLiteralLikeNodeBase"
+    },
+    "TemplateLiteralTypeNode": {
+      "source": "ast_generated.go",
+      "line": 6184,
+      "body": "\tTypeNodeBase\n\tHead          *TemplateHeadNode\n\tTemplateSpans *TemplateLiteralTypeSpanList"
+    },
+    "TemplateLiteralTypeSpan": {
+      "source": "ast_generated.go",
+      "line": 6224,
+      "body": "\tTypeNodeBase\n\tType    *TypeNode\n\tLiteral *TemplateMiddleOrTail"
+    },
+    "SyntheticExpression": {
+      "source": "ast_generated.go",
+      "line": 6264,
+      "body": "\tExpressionBase\n\tType            any\n\tIsSpread        bool\n\tTupleNameSource *Node // Optional"
+    },
+    "PartiallyEmittedExpression": {
+      "source": "ast_generated.go",
+      "line": 6306,
+      "body": "\tLeftHandSideExpressionBase\n\tExpression *Expression"
+    },
+    "JsxElement": {
+      "source": "ast_generated.go",
+      "line": 6348,
+      "body": "\tPrimaryExpressionBase\n\tCompositeBase\n\tOpeningElement *JsxOpeningElementNode\n\tChildren       *JsxChildList\n\tClosingElement *JsxClosingElementNode"
+    },
+    "JsxAttributes": {
+      "source": "ast_generated.go",
+      "line": 6391,
+      "body": "\tPrimaryExpressionBase\n\tDeclarationBase\n\tCompositeBase\n\tProperties *JsxAttributeList"
+    },
+    "JsxNamespacedName": {
+      "source": "ast_generated.go",
+      "line": 6431,
+      "body": "\tExpressionBase\n\tCompositeBase\n\tNamespace *IdentifierNode\n\tname      *IdentifierNode"
+    },
+    "JsxOpeningElement": {
+      "source": "ast_generated.go",
+      "line": 6476,
+      "body": "\tExpressionBase\n\tCompositeBase\n\tTagName       *JsxTagNameExpression\n\tTypeArguments *TypeList // Optional\n\tAttributes    *JsxAttributesNode"
+    },
+    "JsxSelfClosingElement": {
+      "source": "ast_generated.go",
+      "line": 6519,
+      "body": "\tPrimaryExpressionBase\n\tCompositeBase\n\tTagName       *JsxTagNameExpression\n\tTypeArguments *TypeList // Optional\n\tAttributes    *JsxAttributesNode"
+    },
+    "JsxFragment": {
+      "source": "ast_generated.go",
+      "line": 6562,
+      "body": "\tPrimaryExpressionBase\n\tCompositeBase\n\tOpeningFragment *JsxOpeningFragmentNode\n\tChildren        *JsxChildList\n\tClosingFragment *JsxClosingFragmentNode"
+    },
+    "JsxOpeningFragment": {
+      "source": "ast_generated.go",
+      "line": 6605,
+      "body": "\tExpressionBase"
+    },
+    "JsxClosingFragment": {
+      "source": "ast_generated.go",
+      "line": 6626,
+      "body": "\tExpressionBase"
+    },
+    "JsxAttribute": {
+      "source": "ast_generated.go",
+      "line": 6647,
+      "body": "\tNodeBase\n\tDeclarationBase\n\tCompositeBase\n\tname        *JsxAttributeName\n\tInitializer *JsxAttributeValue // Optional"
+    },
+    "JsxSpreadAttribute": {
+      "source": "ast_generated.go",
+      "line": 6693,
+      "body": "\tObjectLiteralElementBase\n\tNodeBase\n\tDeclarationBase\n\tExpression *Expression"
+    },
+    "JsxClosingElement": {
+      "source": "ast_generated.go",
+      "line": 6733,
+      "body": "\tNodeBase\n\tTagName *JsxTagNameExpression"
+    },
+    "JsxExpression": {
+      "source": "ast_generated.go",
+      "line": 6771,
+      "body": "\tExpressionBase\n\tDotDotDotToken *DotDotDotToken // Optional\n\tExpression     *Expression     // Optional"
+    },
+    "JsxText": {
+      "source": "ast_generated.go",
+      "line": 6811,
+      "body": "\tExpressionBase\n\tLiteralLikeNodeBase\n\tContainsOnlyTriviaWhiteSpaces bool"
+    },
+    "SyntaxList": {
+      "source": "ast_generated.go",
+      "line": 6837,
+      "body": "\tNodeBase\n\tChildren []*Node"
+    },
+    "JSDoc": {
+      "source": "ast_generated.go",
+      "line": 6876,
+      "body": "\tNodeBase\n\tComment *NodeList\n\tTags    *NodeList // Optional"
+    },
+    "JSDocTypeExpression": {
+      "source": "ast_generated.go",
+      "line": 6916,
+      "body": "\tTypeNodeBase\n\tType *TypeNode"
+    },
+    "JSDocNonNullableType": {
+      "source": "ast_generated.go",
+      "line": 6954,
+      "body": "\tJSDocTypeBase\n\tType *TypeNode"
+    },
+    "JSDocNullableType": {
+      "source": "ast_generated.go",
+      "line": 6992,
+      "body": "\tJSDocTypeBase\n\tType *TypeNode"
+    },
+    "JSDocAllType": {
+      "source": "ast_generated.go",
+      "line": 7030,
+      "body": "\tJSDocTypeBase"
+    },
+    "JSDocVariadicType": {
+      "source": "ast_generated.go",
+      "line": 7051,
+      "body": "\tJSDocTypeBase\n\tType *TypeNode"
+    },
+    "JSDocOptionalType": {
+      "source": "ast_generated.go",
+      "line": 7089,
+      "body": "\tJSDocTypeBase\n\tType *TypeNode"
+    },
+    "JSDocTypeTag": {
+      "source": "ast_generated.go",
+      "line": 7127,
+      "body": "\tJSDocTagBase\n\tTypeExpression *Node"
+    },
+    "JSDocUnknownTag": {
+      "source": "ast_generated.go",
+      "line": 7167,
+      "body": "\tJSDocTagBase"
+    },
+    "JSDocTemplateTag": {
+      "source": "ast_generated.go",
+      "line": 7205,
+      "body": "\tJSDocTagBase\n\tConstraint     *Node\n\tTypeParameters *TypeParameterList"
+    },
+    "JSDocReturnTag": {
+      "source": "ast_generated.go",
+      "line": 7250,
+      "body": "\tJSDocTagBase\n\tTypeExpression *TypeNode // Optional"
+    },
+    "JSDocPublicTag": {
+      "source": "ast_generated.go",
+      "line": 7290,
+      "body": "\tJSDocTagBase"
+    },
+    "JSDocPrivateTag": {
+      "source": "ast_generated.go",
+      "line": 7328,
+      "body": "\tJSDocTagBase"
+    },
+    "JSDocProtectedTag": {
+      "source": "ast_generated.go",
+      "line": 7366,
+      "body": "\tJSDocTagBase"
+    },
+    "JSDocReadonlyTag": {
+      "source": "ast_generated.go",
+      "line": 7404,
+      "body": "\tJSDocTagBase"
+    },
+    "JSDocOverrideTag": {
+      "source": "ast_generated.go",
+      "line": 7442,
+      "body": "\tJSDocTagBase"
+    },
+    "JSDocDeprecatedTag": {
+      "source": "ast_generated.go",
+      "line": 7480,
+      "body": "\tJSDocTagBase"
+    },
+    "JSDocSeeTag": {
+      "source": "ast_generated.go",
+      "line": 7518,
+      "body": "\tJSDocTagBase\n\tNameExpression *TypeNode"
+    },
+    "JSDocImplementsTag": {
+      "source": "ast_generated.go",
+      "line": 7558,
+      "body": "\tJSDocTagBase\n\tClassName *ExpressionWithTypeArgumentsNode"
+    },
+    "JSDocAugmentsTag": {
+      "source": "ast_generated.go",
+      "line": 7598,
+      "body": "\tJSDocTagBase\n\tClassName *ExpressionWithTypeArgumentsNode"
+    },
+    "JSDocSatisfiesTag": {
+      "source": "ast_generated.go",
+      "line": 7638,
+      "body": "\tJSDocTagBase\n\tTypeExpression *TypeNode"
+    },
+    "JSDocThrowsTag": {
+      "source": "ast_generated.go",
+      "line": 7678,
+      "body": "\tJSDocTagBase\n\tTypeExpression *TypeNode // Optional"
+    },
+    "JSDocThisTag": {
+      "source": "ast_generated.go",
+      "line": 7718,
+      "body": "\tJSDocTagBase\n\tTypeExpression *TypeNode"
+    },
+    "JSDocImportTag": {
+      "source": "ast_generated.go",
+      "line": 7758,
+      "body": "\tJSDocTagBase\n\tImportClause    *ImportClauseNode // Optional\n\tModuleSpecifier *Expression\n\tAttributes      *ImportAttributesNode // Optional"
+    },
+    "JSDocCallbackTag": {
+      "source": "ast_generated.go",
+      "line": 7806,
+      "body": "\tJSDocTagBase\n\tTypeExpression *TypeNode\n\tname           *JSDocFullName // Optional"
+    },
+    "JSDocOverloadTag": {
+      "source": "ast_generated.go",
+      "line": 7855,
+      "body": "\tJSDocTagBase\n\tTypeExpression *TypeNode"
+    },
+    "JSDocTypedefTag": {
+      "source": "ast_generated.go",
+      "line": 7895,
+      "body": "\tJSDocTagBase\n\tTypeExpression *Node          // Optional\n\tname           *JSDocFullName // Optional"
+    },
+    "JSDocSignature": {
+      "source": "ast_generated.go",
+      "line": 7944,
+      "body": "\tJSDocTypeBase\n\tDeclarationBase\n\tFunctionLikeBase"
+    },
+    "JSDocNameReference": {
+      "source": "ast_generated.go",
+      "line": 7985,
+      "body": "\tTypeNodeBase\n\tname *EntityName"
+    },
+    "ModuleDeclaration": {
+      "source": "ast_generated.go",
+      "line": 8036,
+      "body": "\tStatementBase\n\tDeclarationBase\n\tExportableBase\n\tModifiersBase\n\tLocalsContainerBase\n\tBodyBase\n\tCompositeBase\n\tKeyword    Kind\n\tname       *ModuleName\n\tAttributes *TypeLiteralNodeNode // Optional"
+    },
+    "ImportEqualsDeclaration": {
+      "source": "ast_generated.go",
+      "line": 8093,
+      "body": "\tStatementBase\n\tDeclarationBase\n\tExportableBase\n\tModifiersBase\n\tCompositeBase\n\tIsTypeOnly      bool\n\tname            *IdentifierNode\n\tModuleReference *ModuleReference"
+    },
+    "ExportDeclaration": {
+      "source": "ast_generated.go",
+      "line": 8144,
+      "body": "\tStatementBase\n\tDeclarationBase\n\tModifiersBase\n\tCompositeBase\n\tIsTypeOnly      bool\n\tExportClause    *NamedExportBindings  // Optional\n\tModuleSpecifier *Expression           // Optional\n\tAttributes      *ImportAttributesNode // Optional"
+    },
+    "ImportTypeNode": {
+      "source": "ast_generated.go",
+      "line": 8195,
+      "body": "\tNodeWithTypeArgumentsBase\n\tIsTypeOf   bool\n\tArgument   *TypeNode\n\tAttributes *ImportAttributesNode // Optional\n\tQualifier  *EntityName           // Optional"
+    },
+    "ImportClause": {
+      "source": "ast_generated.go",
+      "line": 8243,
+      "body": "\tNodeBase\n\tDeclarationBase\n\tExportableBase\n\tCompositeBase\n\tPhaseModifier ImportPhaseModifierSyntaxKind // Optional\n\tname          *IdentifierNode               // Optional\n\tNamedBindings *NamedImportBindings          // Optional"
+    },
+    "ImportSpecifier": {
+      "source": "ast_generated.go",
+      "line": 8292,
+      "body": "\tNodeBase\n\tDeclarationBase\n\tExportableBase\n\tCompositeBase\n\tIsTypeOnly   bool\n\tPropertyName *ModuleExportName // Optional\n\tname         *IdentifierNode"
+    },
+    "JSDocText": {
+      "source": "ast_generated.go",
+      "line": 8341,
+      "body": "\tJSDocCommentBase"
+    },
+    "JSDocLink": {
+      "source": "ast_generated.go",
+      "line": 8364,
+      "body": "\tJSDocCommentBase\n\tname *EntityName // Optional"
+    },
+    "JSDocLinkPlain": {
+      "source": "ast_generated.go",
+      "line": 8408,
+      "body": "\tJSDocCommentBase\n\tname *EntityName // Optional"
+    },
+    "JSDocLinkCode": {
+      "source": "ast_generated.go",
+      "line": 8452,
+      "body": "\tJSDocCommentBase\n\tname *EntityName // Optional"
+    },
+    "TypeParameterDeclaration": {
+      "source": "ast_generated.go",
+      "line": 8496,
+      "body": "\tTypeSyntaxBase\n\tNodeBase\n\tDeclarationBase\n\tModifiersBase\n\tname        *IdentifierNode\n\tConstraint  *TypeNode   // Optional\n\tExpression  *Expression // Optional\n\tDefaultType *TypeNode   // Optional"
+    },
+    "SyntheticReferenceExpression": {
+      "source": "ast_generated.go",
+      "line": 8552,
+      "body": "\tExpressionBase\n\tExpression *Expression\n\tThisArg    *Expression"
+    },
+    "JSDocTypeLiteral": {
+      "source": "ast_generated.go",
+      "line": 8597,
+      "body": "\tJSDocTypeBase\n\tDeclarationBase\n\tJSDocPropertyTags []*Node // Optional\n\tIsArrayType       bool"
+    },
+    "JSDocParameterOrPropertyTag": {
+      "source": "ast_generated.go",
+      "line": 8639,
+      "body": "\tJSDocTagBase\n\tname           *EntityName\n\tIsBracketed    bool\n\tTypeExpression *TypeNode // Optional\n\tIsNameFirst    bool"
+    }
+  },
+  "evidence": {
+    "binder.go": [
+      {
+        "line": 50,
+        "text": "type Binder struct {\n\tfile            *ast.SourceFile\n\tbindFunc        func(*ast.Node) bool\n\tunreachableFlow *ast.FlowNode\n\n\tcontainer               *ast.Node\n\tthisContainer           *ast.Node\n\tblockScopeContainer     *ast.Node\n\tlastContainer           *ast.Node\n\tcurrentFlow             *ast.FlowNode\n\tcurrentBreakTarget      *ast.FlowLabel\n\tcurrentContinueTarget   *ast.FlowLabel\n\tcurrentReturnTarget     *ast.FlowLabel\n\tcurrentTrueTarget       *ast.FlowLabel\n\tcurrentFalseTarget      *ast.FlowLabel\n\tcurrentExceptionTarget  *ast.FlowLabel\n\tpreSwitchCaseFlow       *ast.FlowNode\n\tactiveLabelList         *ActiveLabel\n\temitFlags               ast.NodeFlags\n\tseenThisKeyword         bool\n\thasExplicitReturn       bool\n\thasFlowEffects          bool\n\tinAssignmentPattern     bool\n\tseenParseError          bool\n\tsymbolCount             int\n\tnotConstEnumOnlyModules collections.Set[*ast.Symbol]\n\tsymbolWithDataArena     core.Arena[ast.SymbolWithData]\n\tflowNodeArena           core.Arena[ast.FlowNode]\n\tflowListArena           core.Arena[ast.FlowList]\n\tsingleDeclarationsArena core.Arena[*ast.Node]\n\texpandoAssignments      []ExpandoAssignmentInfo\n}"
+      }
+    ],
+    "checker-types.go": [
+      {
+        "line": 273,
+        "text": "type SwitchStatementLinks struct {\n\texhaustiveState     ExhaustiveState // Switch statement exhaustiveness\n\tswitchTypesComputed bool\n\twitnessesComputed   bool\n\tswitchTypes         []*Type\n\twitnesses           []string\n}"
+      }
+    ]
+  }
+}

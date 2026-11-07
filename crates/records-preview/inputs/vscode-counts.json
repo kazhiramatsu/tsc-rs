@@ -1,0 +1,2629 @@
+{
+ "typescript": "6.0.3",
+ "config": "/Users/hiramatsu/dev/bench-corpora/vscode/src/tsconfig.bench-stable.json",
+ "jsdocMode": "ParseForTypeErrors",
+ "files": 10272,
+ "total": 16640179,
+ "kinds": {
+  "SourceFile": {
+   "count": 10272,
+   "jsDoc": 0,
+   "fields": {
+    "statements": 10272,
+    "endOfFileToken": 10272
+   },
+   "masks": {
+    "110": 10272
+   }
+  },
+  "VariableStatement": {
+   "count": 282892,
+   "jsDoc": 337,
+   "fields": {
+    "modifiers": 8485,
+    "declarationList": 282892
+   },
+   "masks": {
+    "110": 8259,
+    "111": 226,
+    "010": 274296,
+    "011": 111
+   }
+  },
+  "DeclareKeyword": {
+   "count": 5086,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 5086
+   }
+  },
+  "VariableDeclarationList": {
+   "count": 299210,
+   "jsDoc": 0,
+   "fields": {
+    "declarations": 299210
+   },
+   "masks": {
+    "10": 299210
+   }
+  },
+  "VariableDeclaration": {
+   "count": 303654,
+   "jsDoc": 0,
+   "fields": {
+    "name": 303654,
+    "type": 32230,
+    "initializer": 275919,
+    "exclamationToken": 111
+   },
+   "masks": {
+    "10000": 16924,
+    "10010": 254500,
+    "10100": 10700,
+    "10110": 21419,
+    "11100": 111
+   }
+  },
+  "Identifier": {
+   "count": 5688122,
+   "jsDoc": 0,
+   "fields": {
+    "escapedText": 5688122
+   },
+   "masks": {
+    "10": 5688122
+   }
+  },
+  "NumberKeyword": {
+   "count": 44003,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 44003
+   }
+  },
+  "FunctionDeclaration": {
+   "count": 21679,
+   "jsDoc": 1145,
+   "fields": {
+    "name": 21679,
+    "parameters": 21679,
+    "type": 19917,
+    "modifiers": 10039,
+    "typeParameters": 1128,
+    "body": 18665,
+    "asteriskToken": 26
+   },
+   "masks": {
+    "10100100": 1226,
+    "10100101": 5,
+    "10100110": 487,
+    "10100111": 6,
+    "10101100": 1,
+    "10101110": 2,
+    "10110000": 1005,
+    "10110001": 88,
+    "10110010": 1267,
+    "10110011": 195,
+    "10110100": 8794,
+    "10110101": 220,
+    "10110110": 6683,
+    "10110111": 563,
+    "10111100": 3,
+    "10111110": 5,
+    "10111111": 1,
+    "11100100": 23,
+    "11100110": 10,
+    "11100111": 2,
+    "11110000": 56,
+    "11110001": 4,
+    "11110010": 368,
+    "11110011": 31,
+    "11110100": 211,
+    "11110101": 2,
+    "11110110": 379,
+    "11110111": 28,
+    "11111100": 2,
+    "11111110": 12
+   }
+  },
+  "Parameter": {
+   "count": 285011,
+   "jsDoc": 2,
+   "fields": {
+    "name": 285002,
+    "type": 218054,
+    "questionToken": 19144,
+    "dotDotDotToken": 1920,
+    "modifiers": 25280,
+    "initializer": 4568
+   },
+   "masks": {
+    "1000000": 64756,
+    "1000010": 1856,
+    "1000100": 169937,
+    "1000110": 2387,
+    "1001000": 170,
+    "1001100": 18695,
+    "1001101": 1,
+    "1010000": 79,
+    "1010100": 1841,
+    "1100010": 96,
+    "1100100": 24676,
+    "1100101": 1,
+    "1100110": 229,
+    "1101100": 278,
+    "0000100": 9
+   }
+  },
+  "StringKeyword": {
+   "count": 107446,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 107446
+   }
+  },
+  "AnyKeyword": {
+   "count": 7240,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 7240
+   }
+  },
+  "QuestionToken": {
+   "count": 90651,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 90651
+   }
+  },
+  "BooleanKeyword": {
+   "count": 40626,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 40626
+   }
+  },
+  "UnionType": {
+   "count": 64763,
+   "jsDoc": 0,
+   "fields": {
+    "types": 64763
+   },
+   "masks": {
+    "10": 64763
+   }
+  },
+  "InterfaceDeclaration": {
+   "count": 20777,
+   "jsDoc": 859,
+   "fields": {
+    "name": 20777,
+    "members": 20777,
+    "heritageClauses": 4017,
+    "typeParameters": 1212,
+    "modifiers": 14653
+   },
+   "masks": {
+    "100010": 4130,
+    "100011": 58,
+    "100110": 1552,
+    "100111": 5,
+    "101010": 284,
+    "101011": 1,
+    "101110": 90,
+    "101111": 4,
+    "110010": 11186,
+    "110011": 631,
+    "110110": 1871,
+    "110111": 132,
+    "111010": 445,
+    "111011": 25,
+    "111110": 360,
+    "111111": 3
+   }
+  },
+  "MethodSignature": {
+   "count": 22071,
+   "jsDoc": 562,
+   "fields": {
+    "name": 22071,
+    "parameters": 22071,
+    "type": 22071,
+    "questionToken": 737,
+    "typeParameters": 1226
+   },
+   "masks": {
+    "1011000": 19622,
+    "1011001": 488,
+    "1011100": 682,
+    "1011101": 53,
+    "1111000": 1203,
+    "1111001": 21,
+    "1111100": 2
+   }
+  },
+  "SymbolKeyword": {
+   "count": 384,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 384
+   }
+  },
+  "TypeAliasDeclaration": {
+   "count": 9336,
+   "jsDoc": 176,
+   "fields": {
+    "name": 9336,
+    "modifiers": 6532,
+    "type": 9336,
+    "typeParameters": 628
+   },
+   "masks": {
+    "10010": 2515,
+    "10011": 29,
+    "10110": 258,
+    "10111": 2,
+    "11010": 6030,
+    "11011": 134,
+    "11110": 357,
+    "11111": 11
+   }
+  },
+  "PropertySignature": {
+   "count": 138508,
+   "jsDoc": 1353,
+   "fields": {
+    "name": 138508,
+    "questionToken": 38651,
+    "type": 138508,
+    "modifiers": 35632
+   },
+   "masks": {
+    "100100": 73251,
+    "100101": 229,
+    "101100": 26024,
+    "101101": 353,
+    "110100": 28925,
+    "110101": 471,
+    "111100": 8955,
+    "111101": 300
+   }
+  },
+  "VoidKeyword": {
+   "count": 55651,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 55651
+   }
+  },
+  "IndexSignature": {
+   "count": 1280,
+   "jsDoc": 1,
+   "fields": {
+    "parameters": 1280,
+    "type": 1280,
+    "modifiers": 84
+   },
+   "masks": {
+    "01100": 1195,
+    "01110": 84,
+    "01101": 1
+   }
+  },
+  "TypeReference": {
+   "count": 384390,
+   "jsDoc": 0,
+   "fields": {
+    "typeName": 384390,
+    "typeArguments": 71307
+   },
+   "masks": {
+    "110": 71307,
+    "010": 313083
+   }
+  },
+  "ConstructSignature": {
+   "count": 1016,
+   "jsDoc": 1,
+   "fields": {
+    "parameters": 1016,
+    "type": 1016,
+    "typeParameters": 46
+   },
+   "masks": {
+    "1110": 46,
+    "0110": 969,
+    "0111": 1
+   }
+  },
+  "CallSignature": {
+   "count": 467,
+   "jsDoc": 2,
+   "fields": {
+    "parameters": 467,
+    "type": 467,
+    "typeParameters": 18
+   },
+   "masks": {
+    "1110": 18,
+    "0110": 447,
+    "0111": 2
+   }
+  },
+  "ReadonlyKeyword": {
+   "count": 83300,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 83300
+   }
+  },
+  "UndefinedKeyword": {
+   "count": 39923,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 39923
+   }
+  },
+  "ArrayType": {
+   "count": 43671,
+   "jsDoc": 0,
+   "fields": {
+    "elementType": 43671
+   },
+   "masks": {
+    "10": 43671
+   }
+  },
+  "ObjectKeyword": {
+   "count": 1135,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 1135
+   }
+  },
+  "LiteralType": {
+   "count": 57927,
+   "jsDoc": 0,
+   "fields": {
+    "literal": 57927
+   },
+   "masks": {
+    "10": 57927
+   }
+  },
+  "NullKeyword": {
+   "count": 23287,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 23287
+   }
+  },
+  "IntersectionType": {
+   "count": 1759,
+   "jsDoc": 0,
+   "fields": {
+    "types": 1759
+   },
+   "masks": {
+    "10": 1759
+   }
+  },
+  "TypeParameter": {
+   "count": 9775,
+   "jsDoc": 0,
+   "fields": {
+    "name": 9775,
+    "constraint": 3695,
+    "default": 1363,
+    "modifiers": 46
+   },
+   "masks": {
+    "100000": 5431,
+    "100100": 644,
+    "101000": 2955,
+    "101100": 699,
+    "110100": 5,
+    "111000": 26,
+    "111100": 15
+   }
+  },
+  "TypeLiteral": {
+   "count": 26414,
+   "jsDoc": 0,
+   "fields": {
+    "members": 26414
+   },
+   "masks": {
+    "10": 26414
+   }
+  },
+  "BigIntKeyword": {
+   "count": 289,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 289
+   }
+  },
+  "DotDotDotToken": {
+   "count": 2060,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 2060
+   }
+  },
+  "ConditionalType": {
+   "count": 657,
+   "jsDoc": 0,
+   "fields": {
+    "checkType": 657,
+    "extendsType": 657,
+    "trueType": 657,
+    "falseType": 657
+   },
+   "masks": {
+    "11110": 657
+   }
+  },
+  "FunctionType": {
+   "count": 12754,
+   "jsDoc": 0,
+   "fields": {
+    "parameters": 12754,
+    "type": 12754,
+    "typeParameters": 124
+   },
+   "masks": {
+    "11100": 124,
+    "01100": 12630
+   }
+  },
+  "InferType": {
+   "count": 274,
+   "jsDoc": 0,
+   "fields": {
+    "typeParameter": 274
+   },
+   "masks": {
+    "10": 274
+   }
+  },
+  "NeverKeyword": {
+   "count": 1331,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 1331
+   }
+  },
+  "UnknownKeyword": {
+   "count": 10574,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 10574
+   }
+  },
+  "HeritageClause": {
+   "count": 21000,
+   "jsDoc": 0,
+   "fields": {
+    "token": 21000,
+    "types": 21000
+   },
+   "masks": {
+    "110": 21000
+   }
+  },
+  "ExpressionWithTypeArguments": {
+   "count": 21692,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 21692,
+    "typeArguments": 1949
+   },
+   "masks": {
+    "110": 1949,
+    "010": 19743
+   }
+  },
+  "TupleType": {
+   "count": 2858,
+   "jsDoc": 0,
+   "fields": {
+    "elements": 2858
+   },
+   "masks": {
+    "10": 2858
+   }
+  },
+  "RestType": {
+   "count": 93,
+   "jsDoc": 0,
+   "fields": {
+    "type": 93
+   },
+   "masks": {
+    "10": 93
+   }
+  },
+  "ConstructorType": {
+   "count": 67,
+   "jsDoc": 0,
+   "fields": {
+    "parameters": 67,
+    "type": 67,
+    "typeParameters": 1,
+    "modifiers": 9
+   },
+   "masks": {
+    "11100": 1,
+    "01100": 57,
+    "01110": 9
+   }
+  },
+  "JSDoc": {
+   "count": 6681,
+   "jsDoc": 0,
+   "fields": {
+    "tags": 1648,
+    "comment": 6554
+   },
+   "masks": {
+    "100": 127,
+    "110": 1521,
+    "010": 5033
+   }
+  },
+  "JSDocParameterTag": {
+   "count": 1362,
+   "jsDoc": 0,
+   "fields": {
+    "tagName": 1362,
+    "comment": 1332,
+    "name": 1362,
+    "isNameFirst": 1328,
+    "isBracketed": 38,
+    "typeExpression": 36
+   },
+   "masks": {
+    "1010100": 6,
+    "1010110": 23,
+    "1011000": 1,
+    "1110100": 1282,
+    "1110110": 15,
+    "1111000": 33,
+    "1111100": 2
+   }
+  },
+  "JSDocText": {
+   "count": 15952,
+   "jsDoc": 0,
+   "fields": {
+    "text": 15952
+   },
+   "masks": {
+    "10": 15952
+   }
+  },
+  "JSDocLinkCode": {
+   "count": 301,
+   "jsDoc": 0,
+   "fields": {
+    "name": 301,
+    "text": 301
+   },
+   "masks": {
+    "110": 301
+   }
+  },
+  "TypeOperator": {
+   "count": 10729,
+   "jsDoc": 0,
+   "fields": {
+    "operator": 10729,
+    "type": 10729
+   },
+   "masks": {
+    "110": 10729
+   }
+  },
+  "NumericLiteral": {
+   "count": 229588,
+   "jsDoc": 0,
+   "fields": {
+    "text": 229588
+   },
+   "masks": {
+    "10": 229588
+   }
+  },
+  "ThisType": {
+   "count": 3590,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 3590
+   }
+  },
+  "StringLiteral": {
+   "count": 732672,
+   "jsDoc": 0,
+   "fields": {
+    "text": 732672
+   },
+   "masks": {
+    "10": 732672
+   }
+  },
+  "ParenthesizedType": {
+   "count": 2887,
+   "jsDoc": 0,
+   "fields": {
+    "type": 2887
+   },
+   "masks": {
+    "10": 2887
+   }
+  },
+  "TypePredicate": {
+   "count": 1645,
+   "jsDoc": 0,
+   "fields": {
+    "parameterName": 1645,
+    "type": 1639,
+    "assertsModifier": 28
+   },
+   "masks": {
+    "1100": 6,
+    "1110": 22,
+    "0110": 1617
+   }
+  },
+  "MappedType": {
+   "count": 335,
+   "jsDoc": 0,
+   "fields": {
+    "typeParameter": 335,
+    "questionToken": 125,
+    "type": 335,
+    "members": 335,
+    "readonlyToken": 32,
+    "nameType": 12
+   },
+   "masks": {
+    "1100110": 21,
+    "1101110": 7,
+    "1110110": 2,
+    "1111110": 2,
+    "0101110": 116,
+    "0100110": 179,
+    "0110110": 8
+   }
+  },
+  "IndexedAccessType": {
+   "count": 4061,
+   "jsDoc": 0,
+   "fields": {
+    "objectType": 4061,
+    "indexType": 4061
+   },
+   "masks": {
+    "110": 4061
+   }
+  },
+  "MinusToken": {
+   "count": 10164,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 10164
+   }
+  },
+  "AbstractKeyword": {
+   "count": 1280,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 1280
+   }
+  },
+  "IntrinsicKeyword": {
+   "count": 6,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 6
+   }
+  },
+  "ModuleDeclaration": {
+   "count": 1308,
+   "jsDoc": 56,
+   "fields": {
+    "name": 1308,
+    "modifiers": 1131,
+    "body": 1308
+   },
+   "masks": {
+    "10010": 174,
+    "10011": 3,
+    "10110": 1078,
+    "10111": 53
+   }
+  },
+  "ModuleBlock": {
+   "count": 1305,
+   "jsDoc": 0,
+   "fields": {
+    "statements": 1305
+   },
+   "masks": {
+    "10": 1305
+   }
+  },
+  "FalseKeyword": {
+   "count": 51566,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 51566
+   }
+  },
+  "QualifiedName": {
+   "count": 34935,
+   "jsDoc": 0,
+   "fields": {
+    "left": 34935,
+    "right": 34935
+   },
+   "masks": {
+    "110": 34935
+   }
+  },
+  "EndOfFileToken": {
+   "count": 10272,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 10272
+   }
+  },
+  "TrueKeyword": {
+   "count": 68490,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 68490
+   }
+  },
+  "GetAccessor": {
+   "count": 7257,
+   "jsDoc": 58,
+   "fields": {
+    "name": 7257,
+    "parameters": 7257,
+    "type": 5325,
+    "body": 6786,
+    "modifiers": 2131
+   },
+   "masks": {
+    "1010010": 4,
+    "1010100": 1407,
+    "1010110": 516,
+    "1010111": 5,
+    "1011000": 411,
+    "1011001": 13,
+    "1011010": 41,
+    "1011011": 2,
+    "1011100": 3265,
+    "1011101": 30,
+    "1011110": 1555,
+    "1011111": 8
+   }
+  },
+  "SetAccessor": {
+   "count": 903,
+   "jsDoc": 6,
+   "fields": {
+    "name": 903,
+    "parameters": 903,
+    "body": 830,
+    "modifiers": 165
+   },
+   "masks": {
+    "1010000": 67,
+    "1010010": 6,
+    "1010100": 665,
+    "1010101": 6,
+    "1010110": 159
+   }
+  },
+  "TemplateLiteralType": {
+   "count": 73,
+   "jsDoc": 0,
+   "fields": {
+    "head": 73,
+    "templateSpans": 73
+   },
+   "masks": {
+    "110": 73
+   }
+  },
+  "TemplateHead": {
+   "count": 25168,
+   "jsDoc": 0,
+   "fields": {
+    "text": 25168,
+    "rawText": 25168
+   },
+   "masks": {
+    "110": 25168
+   }
+  },
+  "TemplateLiteralTypeSpan": {
+   "count": 124,
+   "jsDoc": 0,
+   "fields": {
+    "type": 124,
+    "literal": 124
+   },
+   "masks": {
+    "110": 124
+   }
+  },
+  "TemplateMiddle": {
+   "count": 11172,
+   "jsDoc": 0,
+   "fields": {
+    "text": 11172,
+    "rawText": 11172
+   },
+   "masks": {
+    "110": 11172
+   }
+  },
+  "TemplateTail": {
+   "count": 25168,
+   "jsDoc": 0,
+   "fields": {
+    "text": 25168,
+    "rawText": 25168
+   },
+   "masks": {
+    "110": 25168
+   }
+  },
+  "TypeQuery": {
+   "count": 1907,
+   "jsDoc": 0,
+   "fields": {
+    "exprName": 1907,
+    "typeArguments": 107
+   },
+   "masks": {
+    "110": 107,
+    "010": 1800
+   }
+  },
+  "PrefixUnaryExpression": {
+   "count": 57486,
+   "jsDoc": 0,
+   "fields": {
+    "operator": 57486,
+    "operand": 57486
+   },
+   "masks": {
+    "110": 57486
+   }
+  },
+  "ComputedPropertyName": {
+   "count": 5924,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 5924
+   },
+   "masks": {
+    "10": 5924
+   }
+  },
+  "PropertyAccessExpression": {
+   "count": 1499449,
+   "jsDoc": 0,
+   "fields": {
+    "name": 1499449,
+    "expression": 1499449,
+    "questionDotToken": 41228
+   },
+   "masks": {
+    "1100": 1458221,
+    "1110": 41228
+   }
+  },
+  "ArrayBindingPattern": {
+   "count": 3475,
+   "jsDoc": 0,
+   "fields": {
+    "elements": 3475
+   },
+   "masks": {
+    "10": 3475
+   }
+  },
+  "BindingElement": {
+   "count": 28654,
+   "jsDoc": 0,
+   "fields": {
+    "name": 28654,
+    "propertyName": 708,
+    "dotDotDotToken": 136,
+    "initializer": 127
+   },
+   "masks": {
+    "10000": 27685,
+    "10010": 125,
+    "10100": 136,
+    "11000": 706,
+    "11010": 2
+   }
+  },
+  "JSDocLink": {
+   "count": 9262,
+   "jsDoc": 0,
+   "fields": {
+    "name": 9233,
+    "text": 9262
+   },
+   "masks": {
+    "110": 9233,
+    "010": 29
+   }
+  },
+  "JSDocReturnTag": {
+   "count": 348,
+   "jsDoc": 0,
+   "fields": {
+    "tagName": 348,
+    "comment": 347,
+    "typeExpression": 10
+   },
+   "masks": {
+    "1010": 1,
+    "1100": 338,
+    "1110": 9
+   }
+  },
+  "ExpressionStatement": {
+   "count": 489540,
+   "jsDoc": 19,
+   "fields": {
+    "expression": 489540
+   },
+   "masks": {
+    "10": 489521,
+    "11": 19
+   }
+  },
+  "DeleteExpression": {
+   "count": 542,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 542
+   },
+   "masks": {
+    "10": 542
+   }
+  },
+  "ElementAccessExpression": {
+   "count": 37469,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 37469,
+    "argumentExpression": 37469,
+    "questionDotToken": 1219
+   },
+   "masks": {
+    "1010": 36250,
+    "1110": 1219
+   }
+  },
+  "ExportKeyword": {
+   "count": 46918,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 46918
+   }
+  },
+  "Block": {
+   "count": 341397,
+   "jsDoc": 0,
+   "fields": {
+    "statements": 341397
+   },
+   "masks": {
+    "10": 341397
+   }
+  },
+  "CallExpression": {
+   "count": 962167,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 962167,
+    "arguments": 962167,
+    "questionDotToken": 1502,
+    "typeArguments": 15453
+   },
+   "masks": {
+    "10010": 945216,
+    "10110": 15449,
+    "11010": 1498,
+    "11110": 4
+   }
+  },
+  "ForOfStatement": {
+   "count": 12659,
+   "jsDoc": 0,
+   "fields": {
+    "statement": 12659,
+    "initializer": 12659,
+    "expression": 12659,
+    "awaitModifier": 105
+   },
+   "masks": {
+    "10110": 12554,
+    "11110": 105
+   }
+  },
+  "IfStatement": {
+   "count": 113417,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 113417,
+    "thenStatement": 113417,
+    "elseStatement": 16561
+   },
+   "masks": {
+    "1100": 96856,
+    "1110": 16561
+   }
+  },
+  "BinaryExpression": {
+   "count": 295942,
+   "jsDoc": 0,
+   "fields": {
+    "left": 295942,
+    "operatorToken": 295942,
+    "right": 295942
+   },
+   "masks": {
+    "1110": 295942
+   }
+  },
+  "EqualsToken": {
+   "count": 89303,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 89303
+   }
+  },
+  "ArrayLiteralExpression": {
+   "count": 123303,
+   "jsDoc": 0,
+   "fields": {
+    "elements": 123303
+   },
+   "masks": {
+    "10": 123303
+   }
+  },
+  "ReturnStatement": {
+   "count": 118834,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 103463
+   },
+   "masks": {
+    "10": 103463,
+    "00": 15371
+   }
+  },
+  "NewExpression": {
+   "count": 84037,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 84037,
+    "typeArguments": 14812,
+    "arguments": 82364
+   },
+   "masks": {
+    "10000": 1659,
+    "10100": 67566,
+    "11000": 14,
+    "11100": 14798
+   }
+  },
+  "ObjectLiteralExpression": {
+   "count": 224191,
+   "jsDoc": 0,
+   "fields": {
+    "properties": 224191
+   },
+   "masks": {
+    "10": 224191
+   }
+  },
+  "ShorthandPropertyAssignment": {
+   "count": 40269,
+   "jsDoc": 0,
+   "fields": {
+    "name": 40269
+   },
+   "masks": {
+    "1000000": 40269
+   }
+  },
+  "EqualsEqualsEqualsToken": {
+   "count": 55950,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 55950
+   }
+  },
+  "ExclamationEqualsEqualsToken": {
+   "count": 17919,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 17919
+   }
+  },
+  "ClassDeclaration": {
+   "count": 12264,
+   "jsDoc": 529,
+   "fields": {
+    "name": 12264,
+    "typeParameters": 620,
+    "heritageClauses": 10035,
+    "members": 12264,
+    "modifiers": 7863
+   },
+   "masks": {
+    "100100": 638,
+    "100101": 12,
+    "100110": 1330,
+    "100111": 83,
+    "101100": 3493,
+    "101101": 109,
+    "101110": 5684,
+    "101111": 295,
+    "110100": 38,
+    "110101": 1,
+    "110110": 117,
+    "110111": 10,
+    "111100": 108,
+    "111101": 2,
+    "111110": 327,
+    "111111": 17
+   }
+  },
+  "PropertyDeclaration": {
+   "count": 49009,
+   "jsDoc": 430,
+   "fields": {
+    "name": 49009,
+    "modifiers": 44377,
+    "initializer": 28333,
+    "type": 26301,
+    "questionToken": 1803,
+    "exclamationToken": 914
+   },
+   "masks": {
+    "1000000": 20,
+    "1000010": 1006,
+    "1000011": 3,
+    "1000100": 2010,
+    "1000101": 52,
+    "1000110": 590,
+    "1000111": 7,
+    "1001100": 59,
+    "1010010": 1,
+    "1010100": 835,
+    "1010101": 47,
+    "1010110": 2,
+    "1100000": 1408,
+    "1100001": 3,
+    "1100010": 20030,
+    "1100011": 175,
+    "1100100": 14382,
+    "1100101": 103,
+    "1100110": 6471,
+    "1100111": 32,
+    "1101100": 854,
+    "1101101": 1,
+    "1110000": 62,
+    "1110100": 833,
+    "1110101": 7,
+    "1110110": 16
+   }
+  },
+  "PrivateKeyword": {
+   "count": 63089,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 63089
+   }
+  },
+  "Constructor": {
+   "count": 10804,
+   "jsDoc": 38,
+   "fields": {
+    "parameters": 10804,
+    "body": 10006,
+    "modifiers": 182
+   },
+   "masks": {
+    "0010100": 9867,
+    "0010010": 46,
+    "0010110": 131,
+    "0010000": 722,
+    "0010011": 4,
+    "0010111": 1,
+    "0010001": 26,
+    "0010101": 7
+   }
+  },
+  "ThisKeyword": {
+   "count": 295859,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 295859
+   }
+  },
+  "MethodDeclaration": {
+   "count": 73226,
+   "jsDoc": 969,
+   "fields": {
+    "name": 73226,
+    "parameters": 73226,
+    "type": 64717,
+    "body": 67440,
+    "asteriskToken": 78,
+    "modifiers": 46994,
+    "typeParameters": 1285,
+    "questionToken": 38
+   },
+   "masks": {
+    "1010000100": 3392,
+    "1010000101": 1,
+    "1010000110": 5058,
+    "1010000111": 7,
+    "1010100100": 8,
+    "1010100110": 12,
+    "1010100111": 1,
+    "1011000000": 3960,
+    "1011000001": 194,
+    "1011000010": 1287,
+    "1011000011": 37,
+    "1011000100": 17881,
+    "1011000101": 215,
+    "1011000110": 39298,
+    "1011000111": 497,
+    "1011010000": 8,
+    "1011010010": 4,
+    "1011010100": 24,
+    "1011010110": 1,
+    "1011100100": 26,
+    "1011100110": 30,
+    "1110000100": 16,
+    "1110000110": 14,
+    "1111000000": 226,
+    "1111000001": 6,
+    "1111000010": 63,
+    "1111000100": 271,
+    "1111000101": 3,
+    "1111000110": 676,
+    "1111000111": 8,
+    "1111010000": 1,
+    "1111100110": 1
+   }
+  },
+  "AsteriskToken": {
+   "count": 3890,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 3890
+   }
+  },
+  "YieldExpression": {
+   "count": 186,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 186,
+    "asteriskToken": 18
+   },
+   "masks": {
+    "110": 18,
+    "010": 168
+   }
+  },
+  "ArrowFunction": {
+   "count": 137473,
+   "jsDoc": 0,
+   "fields": {
+    "parameters": 137473,
+    "body": 137473,
+    "equalsGreaterThanToken": 137473,
+    "type": 2325,
+    "modifiers": 25564,
+    "typeParameters": 150
+   },
+   "masks": {
+    "1101010": 77,
+    "1101110": 11,
+    "1111010": 51,
+    "1111110": 11,
+    "0101010": 109781,
+    "0111010": 2000,
+    "0101110": 25279,
+    "0111110": 263
+   }
+  },
+  "EqualsGreaterThanToken": {
+   "count": 137473,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 137473
+   }
+  },
+  "BarBarToken": {
+   "count": 22789,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 22789
+   }
+  },
+  "ParenthesizedExpression": {
+   "count": 25885,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 25885
+   },
+   "masks": {
+    "10": 25885
+   }
+  },
+  "TypeOfExpression": {
+   "count": 6767,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 6767
+   },
+   "masks": {
+    "10": 6767
+   }
+  },
+  "AmpersandAmpersandToken": {
+   "count": 33797,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 33797
+   }
+  },
+  "GreaterThanEqualsToken": {
+   "count": 2759,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 2759
+   }
+  },
+  "RegularExpressionLiteral": {
+   "count": 4473,
+   "jsDoc": 0,
+   "fields": {
+    "text": 4473
+   },
+   "masks": {
+    "10": 4473
+   }
+  },
+  "VoidExpression": {
+   "count": 1143,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 1143
+   },
+   "masks": {
+    "10": 1143
+   }
+  },
+  "PlusToken": {
+   "count": 13679,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 13679
+   }
+  },
+  "JSDocTag": {
+   "count": 858,
+   "jsDoc": 0,
+   "fields": {
+    "tagName": 858,
+    "comment": 790
+   },
+   "masks": {
+    "100": 68,
+    "110": 790
+   }
+  },
+  "QuestionDotToken": {
+   "count": 43949,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 43949
+   }
+  },
+  "ThrowStatement": {
+   "count": 8123,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 8123
+   },
+   "masks": {
+    "10": 8123
+   }
+  },
+  "TemplateExpression": {
+   "count": 25095,
+   "jsDoc": 0,
+   "fields": {
+    "head": 25095,
+    "templateSpans": 25095
+   },
+   "masks": {
+    "110": 25095
+   }
+  },
+  "TemplateSpan": {
+   "count": 36216,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 36216,
+    "literal": 36216
+   },
+   "masks": {
+    "110": 36216
+   }
+  },
+  "PropertyAssignment": {
+   "count": 538435,
+   "jsDoc": 1,
+   "fields": {
+    "name": 538435,
+    "initializer": 538435
+   },
+   "masks": {
+    "110000": 538434,
+    "110001": 1
+   }
+  },
+  "ConditionalExpression": {
+   "count": 30135,
+   "jsDoc": 0,
+   "fields": {
+    "condition": 30135,
+    "questionToken": 30135,
+    "whenTrue": 30135,
+    "colonToken": 30135,
+    "whenFalse": 30135
+   },
+   "masks": {
+    "111110": 30135
+   }
+  },
+  "ColonToken": {
+   "count": 30135,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 30135
+   }
+  },
+  "ImportDeclaration": {
+   "count": 111079,
+   "jsDoc": 11,
+   "fields": {
+    "importClause": 108961,
+    "moduleSpecifier": 111079,
+    "attributes": 16
+   },
+   "masks": {
+    "01100": 108934,
+    "00100": 2118,
+    "01101": 11,
+    "01110": 16
+   }
+  },
+  "ImportClause": {
+   "count": 108961,
+   "jsDoc": 0,
+   "fields": {
+    "namedBindings": 106512,
+    "isTypeOnly": 3490,
+    "phaseModifier": 3490,
+    "name": 2458
+   },
+   "masks": {
+    "10000": 2425,
+    "10010": 9,
+    "11100": 24,
+    "00010": 103037,
+    "01110": 3466
+   }
+  },
+  "NamespaceImport": {
+   "count": 2629,
+   "jsDoc": 0,
+   "fields": {
+    "name": 2629
+   },
+   "masks": {
+    "10": 2629
+   }
+  },
+  "TryStatement": {
+   "count": 6978,
+   "jsDoc": 0,
+   "fields": {
+    "tryBlock": 6978,
+    "catchClause": 4919,
+    "finallyBlock": 2326
+   },
+   "masks": {
+    "1010": 2059,
+    "1100": 4652,
+    "1110": 267
+   }
+  },
+  "CatchClause": {
+   "count": 4919,
+   "jsDoc": 0,
+   "fields": {
+    "variableDeclaration": 3737,
+    "block": 4919
+   },
+   "masks": {
+    "110": 3737,
+    "010": 1182
+   }
+  },
+  "GreaterThanToken": {
+   "count": 8220,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 8220
+   }
+  },
+  "EnumDeclaration": {
+   "count": 1799,
+   "jsDoc": 61,
+   "fields": {
+    "name": 1799,
+    "modifiers": 1730,
+    "members": 1799
+   },
+   "masks": {
+    "1010": 69,
+    "1110": 1669,
+    "1111": 61
+   }
+  },
+  "ConstKeyword": {
+   "count": 1141,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 1141
+   }
+  },
+  "EnumMember": {
+   "count": 10155,
+   "jsDoc": 32,
+   "fields": {
+    "name": 10155,
+    "initializer": 8313
+   },
+   "masks": {
+    "100": 1841,
+    "101": 1,
+    "110": 8282,
+    "111": 31
+   }
+  },
+  "SwitchStatement": {
+   "count": 1916,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 1916,
+    "caseBlock": 1916
+   },
+   "masks": {
+    "110": 1916
+   }
+  },
+  "CaseBlock": {
+   "count": 1916,
+   "jsDoc": 0,
+   "fields": {
+    "clauses": 1916
+   },
+   "masks": {
+    "10": 1916
+   }
+  },
+  "CaseClause": {
+   "count": 8895,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 8895,
+    "statements": 8895
+   },
+   "masks": {
+    "110": 8895
+   }
+  },
+  "ForStatement": {
+   "count": 3553,
+   "jsDoc": 0,
+   "fields": {
+    "statement": 3553,
+    "initializer": 3483,
+    "condition": 3534,
+    "incrementor": 3540
+   },
+   "masks": {
+    "10000": 2,
+    "10110": 68,
+    "11010": 17,
+    "11100": 11,
+    "11110": 3455
+   }
+  },
+  "LessThanToken": {
+   "count": 6542,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 6542
+   }
+  },
+  "PostfixUnaryExpression": {
+   "count": 7920,
+   "jsDoc": 0,
+   "fields": {
+    "operand": 7920,
+    "operator": 7920
+   },
+   "masks": {
+    "110": 7920
+   }
+  },
+  "LessThanLessThanToken": {
+   "count": 418,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 418
+   }
+  },
+  "NamedImports": {
+   "count": 103883,
+   "jsDoc": 0,
+   "fields": {
+    "elements": 103883
+   },
+   "masks": {
+    "10": 103883
+   }
+  },
+  "ImportSpecifier": {
+   "count": 175434,
+   "jsDoc": 0,
+   "fields": {
+    "name": 175434,
+    "isTypeOnly": 4078,
+    "propertyName": 989
+   },
+   "masks": {
+    "1000": 170402,
+    "1010": 4043,
+    "1100": 954,
+    "1110": 35
+   }
+  },
+  "MetaProperty": {
+   "count": 54,
+   "jsDoc": 0,
+   "fields": {
+    "keywordToken": 54,
+    "name": 54
+   },
+   "masks": {
+    "110": 54
+   }
+  },
+  "NoSubstitutionTemplateLiteral": {
+   "count": 3930,
+   "jsDoc": 0,
+   "fields": {
+    "text": 3930,
+    "rawText": 3930
+   },
+   "masks": {
+    "110": 3930
+   }
+  },
+  "LessThanEqualsToken": {
+   "count": 1835,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 1835
+   }
+  },
+  "AsExpression": {
+   "count": 18399,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 18399,
+    "type": 18399
+   },
+   "masks": {
+    "110": 18399
+   }
+  },
+  "ImportType": {
+   "count": 466,
+   "jsDoc": 0,
+   "fields": {
+    "isTypeOf": 289,
+    "argument": 466,
+    "qualifier": 280,
+    "typeArguments": 48
+   },
+   "masks": {
+    "101010": 48,
+    "011000": 186,
+    "011010": 103,
+    "001010": 129
+   }
+  },
+  "FunctionExpression": {
+   "count": 4107,
+   "jsDoc": 0,
+   "fields": {
+    "parameters": 4107,
+    "type": 77,
+    "body": 4107,
+    "modifiers": 1951,
+    "name": 47,
+    "typeParameters": 5,
+    "asteriskToken": 31
+   },
+   "masks": {
+    "10100100": 29,
+    "10100110": 2,
+    "10110100": 16,
+    "00110100": 51,
+    "00100100": 2034,
+    "00100110": 1934,
+    "01100100": 1,
+    "00101100": 22,
+    "01110100": 3,
+    "00110110": 5,
+    "00111110": 2,
+    "01100110": 1,
+    "00101110": 7
+   }
+  },
+  "BreakStatement": {
+   "count": 4001,
+   "jsDoc": 0,
+   "fields": {
+    "label": 9
+   },
+   "masks": {
+    "10": 9,
+    "00": 3992
+   }
+  },
+  "WhileStatement": {
+   "count": 1307,
+   "jsDoc": 0,
+   "fields": {
+    "statement": 1307,
+    "expression": 1307
+   },
+   "masks": {
+    "110": 1307
+   }
+  },
+  "InKeyword": {
+   "count": 421,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 421
+   }
+  },
+  "OptionalType": {
+   "count": 95,
+   "jsDoc": 0,
+   "fields": {
+    "type": 95
+   },
+   "masks": {
+    "10": 95
+   }
+  },
+  "QuestionQuestionToken": {
+   "count": 13925,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 13925
+   }
+  },
+  "PlusEqualsToken": {
+   "count": 3027,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 3027
+   }
+  },
+  "MinusEqualsToken": {
+   "count": 298,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 298
+   }
+  },
+  "SpreadAssignment": {
+   "count": 10377,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 10377
+   },
+   "masks": {
+    "10": 10377
+   }
+  },
+  "SpreadElement": {
+   "count": 7127,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 7127
+   },
+   "masks": {
+    "10": 7127
+   }
+  },
+  "InstanceOfKeyword": {
+   "count": 4678,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 4678
+   }
+  },
+  "AsyncKeyword": {
+   "count": 43276,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 43276
+   }
+  },
+  "AwaitExpression": {
+   "count": 66189,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 66189
+   },
+   "masks": {
+    "10": 66189
+   }
+  },
+  "ImportKeyword": {
+   "count": 227,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 227
+   }
+  },
+  "SuperKeyword": {
+   "count": 9093,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 9093
+   }
+  },
+  "ContinueStatement": {
+   "count": 3298,
+   "jsDoc": 0,
+   "fields": {
+    "label": 4
+   },
+   "masks": {
+    "10": 4,
+    "00": 3294
+   }
+  },
+  "DoStatement": {
+   "count": 99,
+   "jsDoc": 0,
+   "fields": {
+    "statement": 99,
+    "expression": 99
+   },
+   "masks": {
+    "110": 99
+   }
+  },
+  "JSDocSeeTag": {
+   "count": 503,
+   "jsDoc": 0,
+   "fields": {
+    "tagName": 503,
+    "comment": 483,
+    "name": 293
+   },
+   "masks": {
+    "1010": 20,
+    "1100": 210,
+    "1110": 273
+   }
+  },
+  "JSDocNameReference": {
+   "count": 293,
+   "jsDoc": 0,
+   "fields": {
+    "name": 293
+   },
+   "masks": {
+    "10": 293
+   }
+  },
+  "ObjectBindingPattern": {
+   "count": 10032,
+   "jsDoc": 0,
+   "fields": {
+    "elements": 10032
+   },
+   "masks": {
+    "10": 10032
+   }
+  },
+  "TypeAssertionExpression": {
+   "count": 1821,
+   "jsDoc": 0,
+   "fields": {
+    "type": 1821,
+    "expression": 1821
+   },
+   "masks": {
+    "110": 1821
+   }
+  },
+  "StaticKeyword": {
+   "count": 5692,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 5692
+   }
+  },
+  "JSDocDeprecatedTag": {
+   "count": 104,
+   "jsDoc": 0,
+   "fields": {
+    "tagName": 104,
+    "comment": 100
+   },
+   "masks": {
+    "100": 4,
+    "110": 100
+   }
+  },
+  "OverrideKeyword": {
+   "count": 13000,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 13000
+   }
+  },
+  "PublicKeyword": {
+   "count": 13658,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 13658
+   }
+  },
+  "SlashToken": {
+   "count": 1672,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 1672
+   }
+  },
+  "BarToken": {
+   "count": 3019,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 3019
+   }
+  },
+  "NonNullExpression": {
+   "count": 10887,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 10887
+   },
+   "masks": {
+    "10": 10887
+   }
+  },
+  "CommaToken": {
+   "count": 22,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 22
+   }
+  },
+  "AssertsKeyword": {
+   "count": 28,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 28
+   }
+  },
+  "ProtectedKeyword": {
+   "count": 5556,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 5556
+   }
+  },
+  "OmittedExpression": {
+   "count": 407,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 407
+   }
+  },
+  "DefaultClause": {
+   "count": 924,
+   "jsDoc": 0,
+   "fields": {
+    "statements": 924
+   },
+   "masks": {
+    "10": 924
+   }
+  },
+  "JSDocThrowsTag": {
+   "count": 47,
+   "jsDoc": 0,
+   "fields": {
+    "tagName": 47,
+    "comment": 24,
+    "typeExpression": 23
+   },
+   "masks": {
+    "1010": 23,
+    "1100": 24
+   }
+  },
+  "ForInStatement": {
+   "count": 233,
+   "jsDoc": 0,
+   "fields": {
+    "statement": 233,
+    "initializer": 233,
+    "expression": 233
+   },
+   "masks": {
+    "1110": 233
+   }
+  },
+  "AwaitKeyword": {
+   "count": 105,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 105
+   }
+  },
+  "ClassExpression": {
+   "count": 4871,
+   "jsDoc": 0,
+   "fields": {
+    "heritageClauses": 4823,
+    "members": 4871,
+    "name": 501
+   },
+   "masks": {
+    "100100": 8,
+    "101100": 493,
+    "001100": 4330,
+    "000100": 40
+   }
+  },
+  "ExportDeclaration": {
+   "count": 1737,
+   "jsDoc": 3,
+   "fields": {
+    "exportClause": 1539,
+    "moduleSpecifier": 1516,
+    "isTypeOnly": 916
+   },
+   "masks": {
+    "001100": 418,
+    "000100": 197,
+    "001000": 203,
+    "011100": 898,
+    "011000": 17,
+    "001101": 2,
+    "010100": 1,
+    "001001": 1
+   }
+  },
+  "NamedExports": {
+   "count": 1528,
+   "jsDoc": 0,
+   "fields": {
+    "elements": 1528
+   },
+   "masks": {
+    "10": 1528
+   }
+  },
+  "ExportSpecifier": {
+   "count": 5412,
+   "jsDoc": 0,
+   "fields": {
+    "name": 5412,
+    "isTypeOnly": 1990,
+    "propertyName": 1179
+   },
+   "masks": {
+    "1000": 3167,
+    "1010": 255,
+    "1100": 1066,
+    "1110": 924
+   }
+  },
+  "NamedTupleMember": {
+   "count": 289,
+   "jsDoc": 0,
+   "fields": {
+    "name": 289,
+    "type": 289,
+    "questionToken": 24,
+    "dotDotDotToken": 4
+   },
+   "masks": {
+    "11010": 4,
+    "01010": 261,
+    "01110": 24
+   }
+  },
+  "SatisfiesExpression": {
+   "count": 915,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 915,
+    "type": 915
+   },
+   "masks": {
+    "110": 915
+   }
+  },
+  "QuestionQuestionEqualsToken": {
+   "count": 361,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 361
+   }
+  },
+  "AsteriskAsteriskToken": {
+   "count": 38,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 38
+   }
+  },
+  "PercentToken": {
+   "count": 318,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 318
+   }
+  },
+  "ExclamationToken": {
+   "count": 1025,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 1025
+   }
+  },
+  "AmpersandToken": {
+   "count": 568,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 568
+   }
+  },
+  "ExportAssignment": {
+   "count": 297,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 297,
+    "isExportEquals": 125
+   },
+   "masks": {
+    "0010": 172,
+    "0110": 125
+   }
+  },
+  "GreaterThanGreaterThanGreaterThanToken": {
+   "count": 192,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 192
+   }
+  },
+  "GreaterThanGreaterThanToken": {
+   "count": 38,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 38
+   }
+  },
+  "BarEqualsToken": {
+   "count": 121,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 121
+   }
+  },
+  "Decorator": {
+   "count": 17385,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 17385
+   },
+   "masks": {
+    "10": 17385
+   }
+  },
+  "CaretToken": {
+   "count": 35,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 35
+   }
+  },
+  "EqualsEqualsToken": {
+   "count": 2,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 2
+   }
+  },
+  "ExclamationEqualsToken": {
+   "count": 2,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 2
+   }
+  },
+  "AsteriskEqualsToken": {
+   "count": 26,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 26
+   }
+  },
+  "ImportEqualsDeclaration": {
+   "count": 177,
+   "jsDoc": 0,
+   "fields": {
+    "name": 177,
+    "moduleReference": 177,
+    "modifiers": 24
+   },
+   "masks": {
+    "10010": 153,
+    "11010": 24
+   }
+  },
+  "ExternalModuleReference": {
+   "count": 141,
+   "jsDoc": 0,
+   "fields": {
+    "expression": 141
+   },
+   "masks": {
+    "10": 141
+   }
+  },
+  "DefaultKeyword": {
+   "count": 13,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 13
+   }
+  },
+  "BarBarEqualsToken": {
+   "count": 62,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 62
+   }
+  },
+  "AmpersandEqualsToken": {
+   "count": 11,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 11
+   }
+  },
+  "CaretEqualsToken": {
+   "count": 4,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 4
+   }
+  },
+  "LabeledStatement": {
+   "count": 11,
+   "jsDoc": 0,
+   "fields": {
+    "label": 11,
+    "statement": 11
+   },
+   "masks": {
+    "110": 11
+   }
+  },
+  "JSDocMemberName": {
+   "count": 221,
+   "jsDoc": 0,
+   "fields": {
+    "left": 221,
+    "right": 221
+   },
+   "masks": {
+    "110": 221
+   }
+  },
+  "AmpersandAmpersandEqualsToken": {
+   "count": 9,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 9
+   }
+  },
+  "JSDocTypeExpression": {
+   "count": 69,
+   "jsDoc": 0,
+   "fields": {
+    "type": 69
+   },
+   "masks": {
+    "10": 69
+   }
+  },
+  "PrivateIdentifier": {
+   "count": 953,
+   "jsDoc": 0,
+   "fields": {
+    "escapedText": 953
+   },
+   "masks": {
+    "10": 953
+   }
+  },
+  "NamespaceExportDeclaration": {
+   "count": 2,
+   "jsDoc": 0,
+   "fields": {
+    "name": 2
+   },
+   "masks": {
+    "100": 2
+   }
+  },
+  "TaggedTemplateExpression": {
+   "count": 422,
+   "jsDoc": 0,
+   "fields": {
+    "tag": 422,
+    "template": 422
+   },
+   "masks": {
+    "10100": 422
+   }
+  },
+  "SlashEqualsToken": {
+   "count": 2,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 2
+   }
+  },
+  "BigIntLiteral": {
+   "count": 6,
+   "jsDoc": 0,
+   "fields": {
+    "text": 6
+   },
+   "masks": {
+    "10": 6
+   }
+  },
+  "PercentEqualsToken": {
+   "count": 3,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 3
+   }
+  },
+  "NamespaceExport": {
+   "count": 11,
+   "jsDoc": 0,
+   "fields": {
+    "name": 11
+   },
+   "masks": {
+    "10": 11
+   }
+  },
+  "OutKeyword": {
+   "count": 14,
+   "jsDoc": 0,
+   "fields": {},
+   "masks": {
+    "0": 14
+   }
+  },
+  "JSDocOptionalType": {
+   "count": 15,
+   "jsDoc": 0,
+   "fields": {
+    "type": 15
+   },
+   "masks": {
+    "10": 15
+   }
+  },
+  "ImportAttributes": {
+   "count": 16,
+   "jsDoc": 0,
+   "fields": {
+    "token": 16,
+    "elements": 16
+   },
+   "masks": {
+    "1100": 16
+   }
+  },
+  "ImportAttribute": {
+   "count": 16,
+   "jsDoc": 0,
+   "fields": {
+    "name": 16,
+    "value": 16
+   },
+   "masks": {
+    "110": 16
+   }
+  },
+  "JSDocPublicTag": {
+   "count": 1,
+   "jsDoc": 0,
+   "fields": {
+    "tagName": 1
+   },
+   "masks": {
+    "100": 1
+   }
+  },
+  "JSDocClassTag": {
+   "count": 1,
+   "jsDoc": 0,
+   "fields": {
+    "tagName": 1
+   },
+   "masks": {
+    "100": 1
+   }
+  },
+  "JSDocReadonlyTag": {
+   "count": 1,
+   "jsDoc": 0,
+   "fields": {
+    "tagName": 1
+   },
+   "masks": {
+    "100": 1
+   }
+  },
+  "JSDocFunctionType": {
+   "count": 6,
+   "jsDoc": 0,
+   "fields": {
+    "parameters": 6
+   },
+   "masks": {
+    "00100": 6
+   }
+  }
+ }
+}

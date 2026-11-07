@@ -1,0 +1,4490 @@
+{
+  "schema": 2,
+  "why": "Phase A records are an isolated, mechanically checked transcription of aa1992224.",
+  "representation": {
+    "why": "Record must accept every bit pattern; Id<T> stores nullable raw u32, OptionalSpan uses len+1, bools/enums are integer flags. No Rust references or enum discriminants enter a Record.",
+    "handleBytes": 4,
+    "spanBytes": 8,
+    "slotReservedRawValues": [
+      4294967295,
+      4294967294
+    ]
+  },
+  "sources": {
+    "Symbol": {
+      "source": "crates/binder/src/symbols.rs",
+      "line": 34,
+      "fields": [
+        {
+          "name": "flags",
+          "type": "SymbolFlags",
+          "line": 35,
+          "placement": [
+            "Symbol.flags"
+          ]
+        },
+        {
+          "name": "escaped_name",
+          "type": "EscapedName",
+          "line": 40,
+          "placement": [
+            "Symbol.name"
+          ]
+        },
+        {
+          "name": "declarations",
+          "type": "Declarations",
+          "line": 42,
+          "placement": [
+            "Symbol.decl0 + more"
+          ]
+        },
+        {
+          "name": "value_declaration",
+          "type": "Option<NodeId>",
+          "line": 44,
+          "placement": [
+            "Symbol.value_declaration"
+          ]
+        },
+        {
+          "name": "parent",
+          "type": "Option<SymbolId>",
+          "line": 45,
+          "placement": [
+            "Symbol.parent"
+          ]
+        },
+        {
+          "name": "extras",
+          "type": "Option<Box<SymbolExtras>>",
+          "line": 48,
+          "placement": [
+            "Symbol.tables"
+          ]
+        }
+      ]
+    },
+    "SymbolExtras": {
+      "source": "crates/binder/src/symbols.rs",
+      "line": 60,
+      "fields": [
+        {
+          "name": "members",
+          "type": "Arc<SymbolTable>",
+          "line": 64,
+          "placement": [
+            "SymbolTables.members"
+          ]
+        },
+        {
+          "name": "exports",
+          "type": "Arc<SymbolTable>",
+          "line": 66,
+          "placement": [
+            "SymbolTables.exports"
+          ]
+        },
+        {
+          "name": "global_exports",
+          "type": "Arc<SymbolTable>",
+          "line": 68,
+          "placement": [
+            "SymbolTables.global_exports"
+          ]
+        },
+        {
+          "name": "export_symbol",
+          "type": "Option<SymbolId>",
+          "line": 71,
+          "placement": [
+            "SymbolTables.export_symbol"
+          ]
+        },
+        {
+          "name": "const_enum_only_module",
+          "type": "Option<bool>",
+          "line": 72,
+          "placement": [
+            "SymbolTables.const_enum_only_module"
+          ]
+        },
+        {
+          "name": "is_replaceable_by_method",
+          "type": "bool",
+          "line": 73,
+          "placement": [
+            "SymbolTables.is_replaceable_by_method"
+          ]
+        },
+        {
+          "name": "assignment_declaration_members",
+          "type": "IndexMap<NodeId, NodeId>",
+          "line": 77,
+          "placement": [
+            "SymbolTables.assignment_declaration_members"
+          ]
+        }
+      ]
+    },
+    "FlowNode": {
+      "source": "crates/binder/src/flow.rs",
+      "line": 68,
+      "fields": [
+        {
+          "name": "flags",
+          "type": "FlowFlags",
+          "line": 69,
+          "placement": [
+            "Flow.flags"
+          ]
+        },
+        {
+          "name": "a",
+          "type": "u32",
+          "line": 70,
+          "placement": [
+            "Flow.a"
+          ]
+        },
+        {
+          "name": "antecedent",
+          "type": "Option<FlowId>",
+          "line": 71,
+          "placement": [
+            "Flow.antecedent"
+          ]
+        },
+        {
+          "name": "c",
+          "type": "u32",
+          "line": 72,
+          "placement": [
+            "Flow.c"
+          ]
+        }
+      ]
+    },
+    "Type": {
+      "source": "crates/types/src/ty.rs",
+      "line": 583,
+      "fields": [
+        {
+          "name": "flags",
+          "type": "TypeFlags",
+          "line": 584,
+          "placement": [
+            "Type.flags"
+          ]
+        },
+        {
+          "name": "object_flags",
+          "type": "ObjectFlags",
+          "line": 585,
+          "placement": [
+            "Type.object_flags"
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "Option<SymbolId>",
+          "line": 586,
+          "placement": [
+            "Type.symbol"
+          ]
+        },
+        {
+          "name": "alias",
+          "type": "Option<AliasId>",
+          "line": 587,
+          "placement": [
+            "Type.alias"
+          ]
+        },
+        {
+          "name": "data",
+          "type": "TypeData",
+          "line": 588,
+          "placement": [
+            "Type.per-kind payload (types section)"
+          ]
+        }
+      ]
+    },
+    "MappedTypeData": {
+      "source": "crates/types/src/ty.rs",
+      "line": 328,
+      "fields": [
+        {
+          "name": "declaration",
+          "type": "u32",
+          "line": 329,
+          "placement": [
+            "TypeMappedTail.declaration"
+          ]
+        },
+        {
+          "name": "target",
+          "type": "Option<TypeId>",
+          "line": 330,
+          "placement": [
+            "TypeMappedTail.target"
+          ]
+        },
+        {
+          "name": "mapper",
+          "type": "Option<MapperId>",
+          "line": 331,
+          "placement": [
+            "TypeMappedTail.mapper"
+          ]
+        }
+      ]
+    },
+    "ReverseMappedTypeData": {
+      "source": "crates/types/src/ty.rs",
+      "line": 339,
+      "fields": [
+        {
+          "name": "source",
+          "type": "TypeId",
+          "line": 340,
+          "placement": [
+            "TypeReverseMappedTail.source"
+          ]
+        },
+        {
+          "name": "mapped_type",
+          "type": "TypeId",
+          "line": 341,
+          "placement": [
+            "TypeReverseMappedTail.mapped_type"
+          ]
+        },
+        {
+          "name": "constraint_type",
+          "type": "TypeId",
+          "line": 342,
+          "placement": [
+            "TypeReverseMappedTail.constraint_type"
+          ]
+        }
+      ]
+    },
+    "ConditionalTypeData": {
+      "source": "crates/types/src/ty.rs",
+      "line": 365,
+      "fields": [
+        {
+          "name": "root",
+          "type": "ConditionalRootId",
+          "line": 366,
+          "placement": [
+            "TypeConditionalTail.root"
+          ]
+        },
+        {
+          "name": "check_type",
+          "type": "TypeId",
+          "line": 367,
+          "placement": [
+            "TypeConditionalTail.check_type"
+          ]
+        },
+        {
+          "name": "extends_type",
+          "type": "TypeId",
+          "line": 368,
+          "placement": [
+            "TypeConditionalTail.extends_type"
+          ]
+        },
+        {
+          "name": "mapper",
+          "type": "Option<MapperId>",
+          "line": 369,
+          "placement": [
+            "TypeConditionalTail.mapper"
+          ]
+        },
+        {
+          "name": "combined_mapper",
+          "type": "Option<MapperId>",
+          "line": 370,
+          "placement": [
+            "TypeConditionalTail.combined_mapper"
+          ]
+        }
+      ]
+    },
+    "SubstitutionTypeData": {
+      "source": "crates/types/src/ty.rs",
+      "line": 375,
+      "fields": [
+        {
+          "name": "base_type",
+          "type": "TypeId",
+          "line": 376,
+          "placement": [
+            "TypeSubstitutionTail.base_type"
+          ]
+        },
+        {
+          "name": "constraint",
+          "type": "TypeId",
+          "line": 377,
+          "placement": [
+            "TypeSubstitutionTail.constraint"
+          ]
+        }
+      ]
+    },
+    "TupleTargetData": {
+      "source": "crates/types/src/ty.rs",
+      "line": 294,
+      "fields": [
+        {
+          "name": "type_parameters",
+          "type": "crate::tables::TypeListId",
+          "line": 297,
+          "placement": [
+            "TupleTarget.type_parameters"
+          ]
+        },
+        {
+          "name": "this_type",
+          "type": "TypeId",
+          "line": 300,
+          "placement": [
+            "TupleTarget.this_type"
+          ]
+        },
+        {
+          "name": "element_flags",
+          "type": "Box<[ElementFlags]>",
+          "line": 301,
+          "placement": [
+            "TupleTarget.element_flags"
+          ]
+        },
+        {
+          "name": "min_length",
+          "type": "usize",
+          "line": 303,
+          "placement": [
+            "TupleTarget.min_length"
+          ]
+        },
+        {
+          "name": "length_type",
+          "type": "TypeId",
+          "line": 306,
+          "placement": [
+            "TupleTarget.length_type"
+          ]
+        },
+        {
+          "name": "fixed_length",
+          "type": "usize",
+          "line": 309,
+          "placement": [
+            "TupleTarget.fixed_length"
+          ]
+        },
+        {
+          "name": "has_rest_element",
+          "type": "bool",
+          "line": 311,
+          "placement": [
+            "TupleTarget.flags bit 0"
+          ]
+        },
+        {
+          "name": "combined_flags",
+          "type": "ElementFlags",
+          "line": 312,
+          "placement": [
+            "TupleTarget.flags bits 8..31"
+          ]
+        },
+        {
+          "name": "readonly",
+          "type": "bool",
+          "line": 313,
+          "placement": [
+            "TupleTarget.flags bit 1"
+          ]
+        },
+        {
+          "name": "labeled_element_declarations",
+          "type": "Option<Box<[Option<u32>]>>",
+          "line": 317,
+          "placement": [
+            "TupleTarget.labeled_element_declarations"
+          ]
+        }
+      ]
+    },
+    "TemplateLiteralData": {
+      "source": "crates/types/src/ty.rs",
+      "line": 422,
+      "fields": [
+        {
+          "name": "texts",
+          "type": "Box<[TemplateText]>",
+          "line": 423,
+          "placement": [
+            "TemplateLiteral.texts"
+          ]
+        },
+        {
+          "name": "types",
+          "type": "crate::tables::TypeListId",
+          "line": 425,
+          "placement": [
+            "TemplateLiteral.types"
+          ]
+        }
+      ]
+    },
+    "ConditionalRootData": {
+      "source": "crates/types/src/ty.rs",
+      "line": 351,
+      "fields": [
+        {
+          "name": "node",
+          "type": "u32",
+          "line": 352,
+          "placement": [
+            "ConditionalRoot.node"
+          ]
+        },
+        {
+          "name": "check_type",
+          "type": "TypeId",
+          "line": 353,
+          "placement": [
+            "ConditionalRoot.check_type"
+          ]
+        },
+        {
+          "name": "extends_type",
+          "type": "TypeId",
+          "line": 354,
+          "placement": [
+            "ConditionalRoot.extends_type"
+          ]
+        },
+        {
+          "name": "is_distributive",
+          "type": "bool",
+          "line": 355,
+          "placement": [
+            "ConditionalRoot.is_distributive"
+          ]
+        },
+        {
+          "name": "infer_type_parameters",
+          "type": "Box<[TypeId]>",
+          "line": 356,
+          "placement": [
+            "ConditionalRoot.infer_type_parameters"
+          ]
+        },
+        {
+          "name": "outer_type_parameters",
+          "type": "Option<Box<[TypeId]>>",
+          "line": 357,
+          "placement": [
+            "ConditionalRoot.outer_type_parameters"
+          ]
+        },
+        {
+          "name": "alias_symbol",
+          "type": "Option<SymbolId>",
+          "line": 358,
+          "placement": [
+            "ConditionalRoot.alias_symbol"
+          ]
+        },
+        {
+          "name": "alias_type_arguments",
+          "type": "Option<Box<[TypeId]>>",
+          "line": 359,
+          "placement": [
+            "ConditionalRoot.alias_type_arguments"
+          ]
+        }
+      ]
+    },
+    "IntrinsicData": {
+      "source": "crates/types/src/ty.rs",
+      "line": 415,
+      "fields": [
+        {
+          "name": "name",
+          "type": "&'static str",
+          "line": 416,
+          "placement": [
+            "Intrinsic.name"
+          ]
+        },
+        {
+          "name": "debug_name",
+          "type": "Option<&'static str>",
+          "line": 417,
+          "placement": [
+            "Intrinsic.debug_name"
+          ]
+        }
+      ]
+    },
+    "NodeLinks": {
+      "source": "crates/checker/src/links.rs",
+      "line": 294,
+      "fields": [
+        {
+          "name": "resolved_type",
+          "type": "IdSlot<TypeId>",
+          "line": 297,
+          "placement": [
+            "NodeLinks.resolved_type"
+          ]
+        },
+        {
+          "name": "resolved_signature",
+          "type": "IdSlot<SignatureId>",
+          "line": 299,
+          "placement": [
+            "NodeLinks.resolved_signature"
+          ]
+        },
+        {
+          "name": "resolved_symbol",
+          "type": "IdSlot<SymbolId>",
+          "line": 302,
+          "placement": [
+            "NodeLinks.resolved_symbol"
+          ]
+        },
+        {
+          "name": "check_flags",
+          "type": "tsc_types::NodeCheckFlags",
+          "line": 306,
+          "placement": [
+            "NodeLinks.check_flags"
+          ]
+        }
+      ]
+    },
+    "NodeLinksCold": {
+      "source": "crates/checker/src/links.rs",
+      "line": 317,
+      "fields": [
+        {
+          "name": "resolved_jsdoc_type",
+          "type": "SparseLinks<NodeId, LinkSlot<TypeId>>",
+          "line": 322,
+          "placement": [
+            "coldMaps.NodeLinksCold.resolved_jsdoc_type"
+          ]
+        },
+        {
+          "name": "enum_values_computed",
+          "type": "SparseLinks<NodeId, bool>",
+          "line": 326,
+          "placement": [
+            "coldMaps.NodeLinksCold.enum_values_computed"
+          ]
+        },
+        {
+          "name": "calculated_flags",
+          "type": "SparseLinks<NodeId, tsc_types::NodeCheckFlags>",
+          "line": 330,
+          "placement": [
+            "coldMaps.NodeLinksCold.calculated_flags"
+          ]
+        },
+        {
+          "name": "is_visible",
+          "type": "SparseLinks<NodeId, Option<bool>>",
+          "line": 336,
+          "placement": [
+            "coldMaps.NodeLinksCold.is_visible"
+          ]
+        },
+        {
+          "name": "contains_arguments_reference",
+          "type": "SparseLinks<NodeId, Option<bool>>",
+          "line": 340,
+          "placement": [
+            "coldMaps.NodeLinksCold.contains_arguments_reference"
+          ]
+        },
+        {
+          "name": "has_reported_statement_in_ambient_context",
+          "type": "SparseLinks<NodeId, bool>",
+          "line": 346,
+          "placement": [
+            "coldMaps.NodeLinksCold.has_reported_statement_in_ambient_context"
+          ]
+        },
+        {
+          "name": "context_free_type",
+          "type": "SparseLinks<NodeId, LinkSlot<TypeId>>",
+          "line": 348,
+          "placement": [
+            "coldMaps.NodeLinksCold.context_free_type"
+          ]
+        },
+        {
+          "name": "parameter_initializer_contains_undefined",
+          "type": "SparseLinks<NodeId, Option<bool>>",
+          "line": 352,
+          "placement": [
+            "coldMaps.NodeLinksCold.parameter_initializer_contains_undefined"
+          ]
+        },
+        {
+          "name": "jsx_flags",
+          "type": "SparseLinks<NodeId, tsc_types::JsxFlags>",
+          "line": 355,
+          "placement": [
+            "coldMaps.NodeLinksCold.jsx_flags"
+          ]
+        },
+        {
+          "name": "outer_type_parameters",
+          "type": "SparseLinks<NodeId, LinkSlot<tsc_types::TypeListId>>",
+          "line": 358,
+          "placement": [
+            "coldMaps.NodeLinksCold.outer_type_parameters"
+          ]
+        },
+        {
+          "name": "enum_member_value",
+          "type": "SparseLinks<NodeId, Option<crate::evaluate::EvaluatorResult>>",
+          "line": 361,
+          "placement": [
+            "coldMaps.NodeLinksCold.enum_member_value"
+          ]
+        },
+        {
+          "name": "assertion_expression_type",
+          "type": "SparseLinks<NodeId, Option<TypeId>>",
+          "line": 364,
+          "placement": [
+            "coldMaps.NodeLinksCold.assertion_expression_type"
+          ]
+        },
+        {
+          "name": "instantiation_expression_types",
+          "type": "SparseLinks<NodeId, Option<rustc_hash::FxHashMap<TypeId, TypeId>>>",
+          "line": 367,
+          "placement": [
+            "coldMaps.NodeLinksCold.instantiation_expression_types"
+          ]
+        },
+        {
+          "name": "spread_indices",
+          "type": "SparseLinks<NodeId, Option<SpreadIndices>>",
+          "line": 372,
+          "placement": [
+            "coldMaps.NodeLinksCold.spread_indices"
+          ]
+        },
+        {
+          "name": "non_existent_prop_check_cache",
+          "type": "SparseLinks<NodeId, rustc_hash::FxHashSet<String>>",
+          "line": 376,
+          "placement": [
+            "coldMaps.NodeLinksCold.non_existent_prop_check_cache"
+          ]
+        },
+        {
+          "name": "resolved_jsx_element_attributes_type",
+          "type": "SparseLinks<NodeId, Option<TypeId>>",
+          "line": 381,
+          "placement": [
+            "coldMaps.NodeLinksCold.resolved_jsx_element_attributes_type"
+          ]
+        },
+        {
+          "name": "jsx_fragment_type",
+          "type": "SparseLinks<NodeId, Option<TypeId>>",
+          "line": 385,
+          "placement": [
+            "coldMaps.NodeLinksCold.jsx_fragment_type"
+          ]
+        },
+        {
+          "name": "decorator_signature",
+          "type": "SparseLinks<NodeId, Option<SignatureId>>",
+          "line": 389,
+          "placement": [
+            "coldMaps.NodeLinksCold.decorator_signature"
+          ]
+        }
+      ]
+    },
+    "SymbolLinks": {
+      "source": "crates/checker/src/links.rs",
+      "line": 450,
+      "fields": [
+        {
+          "name": "type_of_symbol",
+          "type": "IdSlot<TypeId>",
+          "line": 452,
+          "placement": [
+            "SymbolLinks.type_of_symbol"
+          ]
+        },
+        {
+          "name": "check_flags",
+          "type": "tsc_types::CheckFlags",
+          "line": 455,
+          "placement": [
+            "SymbolLinks.check_flags"
+          ]
+        },
+        {
+          "name": "target",
+          "type": "Option<SymbolId>",
+          "line": 458,
+          "placement": [
+            "SymbolLinks.target"
+          ]
+        },
+        {
+          "name": "mapper",
+          "type": "Option<MapperId>",
+          "line": 460,
+          "placement": [
+            "SymbolLinks.mapper"
+          ]
+        },
+        {
+          "name": "name_type",
+          "type": "Option<TypeId>",
+          "line": 464,
+          "placement": [
+            "SymbolLinks.name_type"
+          ]
+        }
+      ]
+    },
+    "PersistentSymbolLinks": {
+      "source": "crates/checker/src/links.rs",
+      "line": 474,
+      "fields": [
+        {
+          "name": "declared_type",
+          "type": "IdSlot<TypeId>",
+          "line": 476,
+          "placement": [
+            "PersistentSymbolLinks.declared_type"
+          ]
+        },
+        {
+          "name": "type_of_symbol",
+          "type": "IdSlot<TypeId>",
+          "line": 477,
+          "placement": [
+            "PersistentSymbolLinks.type_of_symbol"
+          ]
+        },
+        {
+          "name": "is_referenced",
+          "type": "tsc_types::SymbolFlags",
+          "line": 483,
+          "placement": [
+            "PersistentSymbolLinks.is_referenced"
+          ]
+        }
+      ]
+    },
+    "SymbolLinksCold": {
+      "source": "crates/checker/src/links.rs",
+      "line": 508,
+      "fields": [
+        {
+          "name": "containing_type",
+          "type": "SparseLinks<SymbolId, Option<TypeId>>",
+          "line": 510,
+          "placement": [
+            "coldMaps.SymbolLinksCold.containing_type"
+          ]
+        },
+        {
+          "name": "mapped_type",
+          "type": "SparseLinks<SymbolId, Option<TypeId>>",
+          "line": 514,
+          "placement": [
+            "coldMaps.SymbolLinksCold.mapped_type"
+          ]
+        },
+        {
+          "name": "key_type",
+          "type": "SparseLinks<SymbolId, Option<TypeId>>",
+          "line": 517,
+          "placement": [
+            "coldMaps.SymbolLinksCold.key_type"
+          ]
+        },
+        {
+          "name": "synthetic_origin",
+          "type": "SparseLinks<SymbolId, Option<SymbolId>>",
+          "line": 521,
+          "placement": [
+            "coldMaps.SymbolLinksCold.synthetic_origin"
+          ]
+        },
+        {
+          "name": "inferred_class_symbols",
+          "type": "SparseLinks<SymbolId, FxHashMap<SymbolId, SymbolId>>",
+          "line": 530,
+          "placement": [
+            "coldMaps.SymbolLinksCold.inferred_class_symbols"
+          ]
+        },
+        {
+          "name": "specifier_cache",
+          "type": "SparseLinks<SymbolId, Option<ModuleSpecifierCache>>",
+          "line": 536,
+          "placement": [
+            "coldMaps.SymbolLinksCold.specifier_cache"
+          ]
+        },
+        {
+          "name": "extended_containers_by_file",
+          "type": "SparseLinks<SymbolId, FxHashMap<usize, Vec<Vec<SymbolId>>>>",
+          "line": 540,
+          "placement": [
+            "coldMaps.SymbolLinksCold.extended_containers_by_file"
+          ]
+        },
+        {
+          "name": "extended_containers",
+          "type": "SparseLinks<SymbolId, Option<Vec<Vec<SymbolId>>>>",
+          "line": 543,
+          "placement": [
+            "coldMaps.SymbolLinksCold.extended_containers"
+          ]
+        },
+        {
+          "name": "alias_referenced",
+          "type": "SparseLinks<SymbolId, bool>",
+          "line": 549,
+          "placement": [
+            "coldMaps.SymbolLinksCold.alias_referenced"
+          ]
+        },
+        {
+          "name": "type_parameters",
+          "type": "SparseLinks<SymbolId, Option<Vec<TypeId>>>",
+          "line": 552,
+          "placement": [
+            "coldMaps.SymbolLinksCold.type_parameters"
+          ]
+        },
+        {
+          "name": "resolved_members",
+          "type": "SparseLinks<SymbolId, LinkSlot<Arc<tsc_binder::SymbolTable>>>",
+          "line": 557,
+          "placement": [
+            "coldMaps.SymbolLinksCold.resolved_members"
+          ]
+        },
+        {
+          "name": "late_symbol",
+          "type": "SparseLinks<SymbolId, Option<SymbolId>>",
+          "line": 560,
+          "placement": [
+            "coldMaps.SymbolLinksCold.late_symbol"
+          ]
+        },
+        {
+          "name": "write_type",
+          "type": "SparseLinks<SymbolId, LinkSlot<TypeId>>",
+          "line": 563,
+          "placement": [
+            "coldMaps.SymbolLinksCold.write_type"
+          ]
+        },
+        {
+          "name": "resolved_exports",
+          "type": "SparseLinks<SymbolId, LinkSlot<Arc<tsc_binder::SymbolTable>>>",
+          "line": 567,
+          "placement": [
+            "coldMaps.SymbolLinksCold.resolved_exports"
+          ]
+        },
+        {
+          "name": "last_assignment_pos",
+          "type": "SparseLinks<SymbolId, Option<i64>>",
+          "line": 574,
+          "placement": [
+            "coldMaps.SymbolLinksCold.last_assignment_pos"
+          ]
+        },
+        {
+          "name": "alias_target",
+          "type": "SparseLinks<SymbolId, LinkSlot<SymbolId>>",
+          "line": 580,
+          "placement": [
+            "coldMaps.SymbolLinksCold.alias_target"
+          ]
+        },
+        {
+          "name": "type_only_declaration",
+          "type": "SparseLinks<SymbolId, Option<NodeId>>",
+          "line": 584,
+          "placement": [
+            "coldMaps.SymbolLinksCold.type_only_declaration"
+          ]
+        },
+        {
+          "name": "deferral_parent",
+          "type": "SparseLinks<SymbolId, Option<TypeId>>",
+          "line": 589,
+          "placement": [
+            "coldMaps.SymbolLinksCold.deferral_parent"
+          ]
+        },
+        {
+          "name": "deferral_constituents",
+          "type": "SparseLinks<SymbolId, Option<Vec<TypeId>>>",
+          "line": 590,
+          "placement": [
+            "coldMaps.SymbolLinksCold.deferral_constituents"
+          ]
+        },
+        {
+          "name": "deferral_write_constituents",
+          "type": "SparseLinks<SymbolId, Option<Vec<TypeId>>>",
+          "line": 591,
+          "placement": [
+            "coldMaps.SymbolLinksCold.deferral_write_constituents"
+          ]
+        },
+        {
+          "name": "is_discriminant_property",
+          "type": "SparseLinks<SymbolId, Option<bool>>",
+          "line": 594,
+          "placement": [
+            "coldMaps.SymbolLinksCold.is_discriminant_property"
+          ]
+        },
+        {
+          "name": "is_declaration_with_colliding_name",
+          "type": "SparseLinks<SymbolId, Option<bool>>",
+          "line": 597,
+          "placement": [
+            "coldMaps.SymbolLinksCold.is_declaration_with_colliding_name"
+          ]
+        },
+        {
+          "name": "is_constructor_declared_property",
+          "type": "SparseLinks<SymbolId, Option<bool>>",
+          "line": 601,
+          "placement": [
+            "coldMaps.SymbolLinksCold.is_constructor_declared_property"
+          ]
+        },
+        {
+          "name": "property_type",
+          "type": "SparseLinks<SymbolId, Option<TypeId>>",
+          "line": 604,
+          "placement": [
+            "coldMaps.SymbolLinksCold.property_type"
+          ]
+        },
+        {
+          "name": "constraint_type",
+          "type": "SparseLinks<SymbolId, Option<TypeId>>",
+          "line": 605,
+          "placement": [
+            "coldMaps.SymbolLinksCold.constraint_type"
+          ]
+        },
+        {
+          "name": "tuple_label_declaration",
+          "type": "SparseLinks<SymbolId, Option<NodeId>>",
+          "line": 609,
+          "placement": [
+            "coldMaps.SymbolLinksCold.tuple_label_declaration"
+          ]
+        },
+        {
+          "name": "unique_es_symbol_type",
+          "type": "SparseLinks<SymbolId, Option<TypeId>>",
+          "line": 612,
+          "placement": [
+            "coldMaps.SymbolLinksCold.unique_es_symbol_type"
+          ]
+        },
+        {
+          "name": "variances",
+          "type": "SparseLinks<SymbolId, LinkSlot<crate::state::SharedList<tsc_types::VarianceFlags>>>",
+          "line": 619,
+          "placement": [
+            "coldMaps.SymbolLinksCold.variances"
+          ]
+        },
+        {
+          "name": "originating_import",
+          "type": "SparseLinks<SymbolId, Option<NodeId>>",
+          "line": 625,
+          "placement": [
+            "coldMaps.SymbolLinksCold.originating_import"
+          ]
+        },
+        {
+          "name": "fabricated_declaration_parent",
+          "type": "SparseLinks<SymbolId, Option<NodeId>>",
+          "line": 632,
+          "placement": [
+            "coldMaps.SymbolLinksCold.fabricated_declaration_parent"
+          ]
+        },
+        {
+          "name": "left_spread",
+          "type": "SparseLinks<SymbolId, Option<SymbolId>>",
+          "line": 637,
+          "placement": [
+            "coldMaps.SymbolLinksCold.left_spread"
+          ]
+        },
+        {
+          "name": "right_spread",
+          "type": "SparseLinks<SymbolId, Option<SymbolId>>",
+          "line": 638,
+          "placement": [
+            "coldMaps.SymbolLinksCold.right_spread"
+          ]
+        },
+        {
+          "name": "type_parameters_checked",
+          "type": "SparseLinks<SymbolId, bool>",
+          "line": 642,
+          "placement": [
+            "coldMaps.SymbolLinksCold.type_parameters_checked"
+          ]
+        },
+        {
+          "name": "interface_checked",
+          "type": "SparseLinks<SymbolId, bool>",
+          "line": 645,
+          "placement": [
+            "coldMaps.SymbolLinksCold.interface_checked"
+          ]
+        },
+        {
+          "name": "index_signatures_checked",
+          "type": "SparseLinks<SymbolId, bool>",
+          "line": 646,
+          "placement": [
+            "coldMaps.SymbolLinksCold.index_signatures_checked"
+          ]
+        },
+        {
+          "name": "enum_checked",
+          "type": "SparseLinks<SymbolId, bool>",
+          "line": 647,
+          "placement": [
+            "coldMaps.SymbolLinksCold.enum_checked"
+          ]
+        },
+        {
+          "name": "function_or_constructor_checked",
+          "type": "SparseLinks<SymbolId, bool>",
+          "line": 649,
+          "placement": [
+            "coldMaps.SymbolLinksCold.function_or_constructor_checked"
+          ]
+        },
+        {
+          "name": "type_only_export_star_map",
+          "type": "SparseLinks<SymbolId, Option<rustc_hash::FxHashMap<EscapedName, NodeId>>>",
+          "line": 653,
+          "placement": [
+            "coldMaps.SymbolLinksCold.type_only_export_star_map"
+          ]
+        },
+        {
+          "name": "exports_checked",
+          "type": "SparseLinks<SymbolId, bool>",
+          "line": 657,
+          "placement": [
+            "coldMaps.SymbolLinksCold.exports_checked"
+          ]
+        },
+        {
+          "name": "cjs_export_merged",
+          "type": "SparseLinks<SymbolId, Option<SymbolId>>",
+          "line": 659,
+          "placement": [
+            "coldMaps.SymbolLinksCold.cjs_export_merged"
+          ]
+        },
+        {
+          "name": "immediate_target",
+          "type": "SparseLinks<SymbolId, Option<Option<SymbolId>>>",
+          "line": 663,
+          "placement": [
+            "coldMaps.SymbolLinksCold.immediate_target"
+          ]
+        }
+      ]
+    },
+    "TypeLinks": {
+      "source": "crates/checker/src/links.rs",
+      "line": 767,
+      "fields": [
+        {
+          "name": "resolved_members",
+          "type": "IdSlot<MembersId>",
+          "line": 768,
+          "placement": [
+            "TypeObjectTail.resolved_members",
+            "TypeUnionTail.resolved_members",
+            "TypeIntersectionTail.resolved_members",
+            "TypeReferenceTail.resolved_members",
+            "TypeTupleTargetTail.resolved_members",
+            "TypeMappedTail.resolved_members",
+            "TypeReverseMappedTail.resolved_members",
+            "TypeGenericTypeTail.resolved_members"
+          ]
+        },
+        {
+          "name": "type_parameter_constraint",
+          "type": "IdSlot<TypeId>",
+          "line": 771,
+          "placement": [
+            "TypeTypeParameterTail.type_parameter_constraint"
+          ]
+        },
+        {
+          "name": "resolved_base_constraint",
+          "type": "IdSlot<TypeId>",
+          "line": 776,
+          "placement": [
+            "TypeObjectTail.resolved_base_constraint",
+            "TypeUnionTail.resolved_base_constraint",
+            "TypeIntersectionTail.resolved_base_constraint",
+            "TypeEvolvingArrayTail.resolved_base_constraint",
+            "TypeReferenceTail.resolved_base_constraint",
+            "TypeTupleTargetTail.resolved_base_constraint",
+            "TypeTypeParameterTail.resolved_base_constraint",
+            "TypeTemplateLiteralTail.resolved_base_constraint",
+            "TypeStringMappingTail.resolved_base_constraint",
+            "TypeIndexTail.resolved_base_constraint",
+            "TypeIndexedAccessTail.resolved_base_constraint",
+            "TypeMappedTail.resolved_base_constraint",
+            "TypeReverseMappedTail.resolved_base_constraint",
+            "TypeConditionalTail.resolved_base_constraint",
+            "TypeSubstitutionTail.resolved_base_constraint",
+            "TypeGenericTypeTail.resolved_base_constraint"
+          ]
+        },
+        {
+          "name": "instantiated_target",
+          "type": "Option<TypeId>",
+          "line": 779,
+          "placement": [
+            "TypeObjectTail.instantiated_target"
+          ]
+        },
+        {
+          "name": "instantiated_mapper",
+          "type": "Option<MapperId>",
+          "line": 782,
+          "placement": [
+            "TypeObjectTail.instantiated_mapper"
+          ]
+        },
+        {
+          "name": "deferred_node",
+          "type": "Option<NodeId>",
+          "line": 789,
+          "placement": [
+            "TypeReferenceTail.deferred_node"
+          ]
+        }
+      ]
+    },
+    "TypeLinksCold": {
+      "source": "crates/checker/src/links.rs",
+      "line": 797,
+      "fields": [
+        {
+          "name": "type_parameter_target",
+          "type": "SparseLinks<TypeId, Option<TypeId>>",
+          "line": 800,
+          "placement": [
+            "coldMaps.TypeLinksCold.type_parameter_target"
+          ]
+        },
+        {
+          "name": "type_parameter_mapper",
+          "type": "SparseLinks<TypeId, Option<MapperId>>",
+          "line": 802,
+          "placement": [
+            "coldMaps.TypeLinksCold.type_parameter_mapper"
+          ]
+        },
+        {
+          "name": "type_parameter_default",
+          "type": "SparseLinks<TypeId, IdSlot<TypeId>>",
+          "line": 808,
+          "placement": [
+            "coldMaps.TypeLinksCold.type_parameter_default"
+          ]
+        },
+        {
+          "name": "mapped_type_parameter",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 811,
+          "placement": [
+            "coldMaps.TypeLinksCold.mapped_type_parameter"
+          ]
+        },
+        {
+          "name": "mapped_constraint_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 813,
+          "placement": [
+            "coldMaps.TypeLinksCold.mapped_constraint_type"
+          ]
+        },
+        {
+          "name": "mapped_name_type",
+          "type": "SparseLinks<TypeId, LinkSlot<Option<TypeId>>>",
+          "line": 816,
+          "placement": [
+            "coldMaps.TypeLinksCold.mapped_name_type"
+          ]
+        },
+        {
+          "name": "mapped_template_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 818,
+          "placement": [
+            "coldMaps.TypeLinksCold.mapped_template_type"
+          ]
+        },
+        {
+          "name": "mapped_modifiers_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 821,
+          "placement": [
+            "coldMaps.TypeLinksCold.mapped_modifiers_type"
+          ]
+        },
+        {
+          "name": "mapped_contains_error",
+          "type": "SparseLinks<TypeId, bool>",
+          "line": 824,
+          "placement": [
+            "coldMaps.TypeLinksCold.mapped_contains_error"
+          ]
+        },
+        {
+          "name": "mapped_apparent_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 827,
+          "placement": [
+            "coldMaps.TypeLinksCold.mapped_apparent_type"
+          ]
+        },
+        {
+          "name": "intersection_apparent_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 829,
+          "placement": [
+            "coldMaps.TypeLinksCold.intersection_apparent_type"
+          ]
+        },
+        {
+          "name": "uniform_union_type",
+          "type": "SparseLinks<TypeId, LinkSlot<bool>>",
+          "line": 832,
+          "placement": [
+            "coldMaps.TypeLinksCold.uniform_union_type"
+          ]
+        },
+        {
+          "name": "conditional_true_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 837,
+          "placement": [
+            "coldMaps.TypeLinksCold.conditional_true_type"
+          ]
+        },
+        {
+          "name": "conditional_false_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 838,
+          "placement": [
+            "coldMaps.TypeLinksCold.conditional_false_type"
+          ]
+        },
+        {
+          "name": "conditional_inferred_true_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 839,
+          "placement": [
+            "coldMaps.TypeLinksCold.conditional_inferred_true_type"
+          ]
+        },
+        {
+          "name": "conditional_default_constraint",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 840,
+          "placement": [
+            "coldMaps.TypeLinksCold.conditional_default_constraint"
+          ]
+        },
+        {
+          "name": "conditional_constraint_of_distributive",
+          "type": "SparseLinks<TypeId, LinkSlot<Option<TypeId>>>",
+          "line": 841,
+          "placement": [
+            "coldMaps.TypeLinksCold.conditional_constraint_of_distributive"
+          ]
+        },
+        {
+          "name": "synthetic_type",
+          "type": "SparseLinks<TypeId, Option<TypeId>>",
+          "line": 845,
+          "placement": [
+            "coldMaps.TypeLinksCold.synthetic_type"
+          ]
+        },
+        {
+          "name": "default_only_type",
+          "type": "SparseLinks<TypeId, Option<TypeId>>",
+          "line": 849,
+          "placement": [
+            "coldMaps.TypeLinksCold.default_only_type"
+          ]
+        },
+        {
+          "name": "resolved_index_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 852,
+          "placement": [
+            "coldMaps.TypeLinksCold.resolved_index_type"
+          ]
+        },
+        {
+          "name": "resolved_string_index_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 853,
+          "placement": [
+            "coldMaps.TypeLinksCold.resolved_string_index_type"
+          ]
+        },
+        {
+          "name": "simplified_for_reading",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 859,
+          "placement": [
+            "coldMaps.TypeLinksCold.simplified_for_reading"
+          ]
+        },
+        {
+          "name": "simplified_for_writing",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 860,
+          "placement": [
+            "coldMaps.TypeLinksCold.simplified_for_writing"
+          ]
+        },
+        {
+          "name": "unique_literal_filled_instantiation",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 863,
+          "placement": [
+            "coldMaps.TypeLinksCold.unique_literal_filled_instantiation"
+          ]
+        },
+        {
+          "name": "permissive_instantiation",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 866,
+          "placement": [
+            "coldMaps.TypeLinksCold.permissive_instantiation"
+          ]
+        },
+        {
+          "name": "restrictive_instantiation",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 869,
+          "placement": [
+            "coldMaps.TypeLinksCold.restrictive_instantiation"
+          ]
+        },
+        {
+          "name": "cached_equivalent_base_type",
+          "type": "SparseLinks<TypeId, Option<TypeId>>",
+          "line": 873,
+          "placement": [
+            "coldMaps.TypeLinksCold.cached_equivalent_base_type"
+          ]
+        },
+        {
+          "name": "pattern",
+          "type": "SparseLinks<TypeId, Option<NodeId>>",
+          "line": 880,
+          "placement": [
+            "coldMaps.TypeLinksCold.pattern"
+          ]
+        },
+        {
+          "name": "literal_type",
+          "type": "SparseLinks<TypeId, Option<TypeId>>",
+          "line": 883,
+          "placement": [
+            "coldMaps.TypeLinksCold.literal_type"
+          ]
+        },
+        {
+          "name": "array_fallback_signatures",
+          "type": "SparseLinks<TypeId, LinkSlot<crate::state::SignatureIds>>",
+          "line": 888,
+          "placement": [
+            "coldMaps.TypeLinksCold.array_fallback_signatures"
+          ]
+        },
+        {
+          "name": "resolved_properties",
+          "type": "SparseLinks<TypeId, LinkSlot<crate::state::SymbolIds>>",
+          "line": 891,
+          "placement": [
+            "coldMaps.TypeLinksCold.resolved_properties"
+          ]
+        },
+        {
+          "name": "union_key_property",
+          "type": "SparseLinks<TypeId, LinkSlot<UnionKeyProperty>>",
+          "line": 894,
+          "placement": [
+            "coldMaps.TypeLinksCold.union_key_property"
+          ]
+        },
+        {
+          "name": "resolved_reduced_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 897,
+          "placement": [
+            "coldMaps.TypeLinksCold.resolved_reduced_type"
+          ]
+        },
+        {
+          "name": "deferred_mapper",
+          "type": "SparseLinks<TypeId, Option<MapperId>>",
+          "line": 901,
+          "placement": [
+            "coldMaps.TypeLinksCold.deferred_mapper"
+          ]
+        },
+        {
+          "name": "declared_members",
+          "type": "SparseLinks<TypeId, LinkSlot<MembersId>>",
+          "line": 907,
+          "placement": [
+            "coldMaps.TypeLinksCold.declared_members"
+          ]
+        },
+        {
+          "name": "resolved_base_types",
+          "type": "SparseLinks<TypeId, Option<Vec<TypeId>>>",
+          "line": 911,
+          "placement": [
+            "coldMaps.TypeLinksCold.resolved_base_types"
+          ]
+        },
+        {
+          "name": "base_types_resolved",
+          "type": "SparseLinks<TypeId, bool>",
+          "line": 915,
+          "placement": [
+            "coldMaps.TypeLinksCold.base_types_resolved"
+          ]
+        },
+        {
+          "name": "resolved_base_constructor_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 920,
+          "placement": [
+            "coldMaps.TypeLinksCold.resolved_base_constructor_type"
+          ]
+        },
+        {
+          "name": "promised_type_of_promise",
+          "type": "SparseLinks<TypeId, Option<TypeId>>",
+          "line": 924,
+          "placement": [
+            "coldMaps.TypeLinksCold.promised_type_of_promise"
+          ]
+        },
+        {
+          "name": "awaited_type_of_type",
+          "type": "SparseLinks<TypeId, Option<TypeId>>",
+          "line": 927,
+          "placement": [
+            "coldMaps.TypeLinksCold.awaited_type_of_type"
+          ]
+        },
+        {
+          "name": "widened",
+          "type": "SparseLinks<TypeId, Option<TypeId>>",
+          "line": 931,
+          "placement": [
+            "coldMaps.TypeLinksCold.widened"
+          ]
+        },
+        {
+          "name": "iteration_types",
+          "type": "HashMap<crate::iterate::IterationTypesKey, crate::iterate::IterationTypesResult>",
+          "line": 935,
+          "placement": [
+            "coldMaps.TypeLinksCold.iteration_types"
+          ]
+        }
+      ]
+    },
+    "Signature": {
+      "source": "crates/checker/src/state.rs",
+      "line": 94,
+      "fields": [
+        {
+          "name": "declaration",
+          "type": "Option<NodeId>",
+          "line": 97,
+          "placement": [
+            "Signature.declaration"
+          ]
+        },
+        {
+          "name": "flags",
+          "type": "SignatureFlags",
+          "line": 98,
+          "placement": [
+            "Signature.flags"
+          ]
+        },
+        {
+          "name": "type_parameters",
+          "type": "Option<Vec<TypeId>>",
+          "line": 102,
+          "placement": [
+            "Signature.type_parameters"
+          ]
+        },
+        {
+          "name": "parameters",
+          "type": "Vec<SymbolId>",
+          "line": 104,
+          "placement": [
+            "Signature.parameters"
+          ]
+        },
+        {
+          "name": "this_parameter",
+          "type": "Option<SymbolId>",
+          "line": 105,
+          "placement": [
+            "Signature.this_parameter"
+          ]
+        },
+        {
+          "name": "min_argument_count",
+          "type": "u32",
+          "line": 106,
+          "placement": [
+            "Signature.min_argument_count"
+          ]
+        },
+        {
+          "name": "resolved_return_type",
+          "type": "LinkSlot<TypeId>",
+          "line": 109,
+          "placement": [
+            "Signature.resolved_return"
+          ]
+        },
+        {
+          "name": "from_method",
+          "type": "bool",
+          "line": 112,
+          "placement": [
+            "SignatureRare.from_method"
+          ]
+        },
+        {
+          "name": "target",
+          "type": "Option<SignatureId>",
+          "line": 114,
+          "placement": [
+            "Signature.target"
+          ]
+        },
+        {
+          "name": "mapper",
+          "type": "Option<MapperId>",
+          "line": 116,
+          "placement": [
+            "Signature.mapper"
+          ]
+        },
+        {
+          "name": "erased_signature_cache",
+          "type": "Option<SignatureId>",
+          "line": 118,
+          "placement": [
+            "SignatureRare.erased_signature_cache"
+          ]
+        },
+        {
+          "name": "canonical_signature_cache",
+          "type": "Option<SignatureId>",
+          "line": 121,
+          "placement": [
+            "SignatureRare.canonical_signature_cache"
+          ]
+        },
+        {
+          "name": "base_signature_cache",
+          "type": "Option<SignatureId>",
+          "line": 123,
+          "placement": [
+            "SignatureRare.base_signature_cache"
+          ]
+        },
+        {
+          "name": "composite_kind",
+          "type": "Option<TypeFlags>",
+          "line": 127,
+          "placement": [
+            "SignatureRare.composite_kind"
+          ]
+        },
+        {
+          "name": "composite_signatures",
+          "type": "Option<Box<[SignatureId]>>",
+          "line": 129,
+          "placement": [
+            "SignatureRare.composite_signatures"
+          ]
+        },
+        {
+          "name": "optional_call_signature_cache",
+          "type": "(Option<SignatureId>, Option<SignatureId>)",
+          "line": 132,
+          "placement": [
+            "SignatureRare.optional_call_inner + optional_call_outer"
+          ]
+        },
+        {
+          "name": "isolated_signature_kind",
+          "type": "Option<SignatureKind>",
+          "line": 137,
+          "placement": [
+            "SignatureRare.isolated_signature_kind"
+          ]
+        },
+        {
+          "name": "isolated_signature_type",
+          "type": "Option<TypeId>",
+          "line": 140,
+          "placement": [
+            "SignatureRare.isolated_signature_type"
+          ]
+        }
+      ]
+    },
+    "IndexInfo": {
+      "source": "crates/checker/src/state.rs",
+      "line": 179,
+      "fields": [
+        {
+          "name": "key_type",
+          "type": "TypeId",
+          "line": 180,
+          "placement": [
+            "IndexInfo.key_type"
+          ]
+        },
+        {
+          "name": "value_type",
+          "type": "TypeId",
+          "line": 181,
+          "placement": [
+            "IndexInfo.value_type"
+          ]
+        },
+        {
+          "name": "is_readonly",
+          "type": "bool",
+          "line": 182,
+          "placement": [
+            "IndexInfo.flags bit 0"
+          ]
+        },
+        {
+          "name": "declaration",
+          "type": "Option<NodeId>",
+          "line": 184,
+          "placement": [
+            "IndexInfo.declaration"
+          ]
+        },
+        {
+          "name": "components",
+          "type": "Option<Vec<NodeId>>",
+          "line": 189,
+          "placement": [
+            "IndexInfo.components"
+          ]
+        },
+        {
+          "name": "is_enum_number_index_info",
+          "type": "bool",
+          "line": 197,
+          "placement": [
+            "IndexInfo.flags bit 1"
+          ]
+        },
+        {
+          "name": "is_any_base_type_index_info",
+          "type": "bool",
+          "line": 202,
+          "placement": [
+            "IndexInfo.flags bit 2"
+          ]
+        }
+      ]
+    },
+    "ResolvedMembers": {
+      "source": "crates/checker/src/state.rs",
+      "line": 326,
+      "fields": [
+        {
+          "name": "members",
+          "type": "MemberTable",
+          "line": 330,
+          "placement": [
+            "StructuredMembers.members"
+          ]
+        },
+        {
+          "name": "properties",
+          "type": "SymbolIds",
+          "line": 331,
+          "placement": [
+            "StructuredMembers.properties"
+          ]
+        },
+        {
+          "name": "extras",
+          "type": "Option<Box<MembersExtras>>",
+          "line": 335,
+          "placement": [
+            "StructuredMembers.call + construct + index_infos"
+          ]
+        }
+      ]
+    },
+    "MembersExtras": {
+      "source": "crates/checker/src/state.rs",
+      "line": 341,
+      "fields": [
+        {
+          "name": "call_signatures",
+          "type": "SignatureIds",
+          "line": 342,
+          "placement": [
+            "StructuredMembers.call"
+          ]
+        },
+        {
+          "name": "construct_signatures",
+          "type": "SignatureIds",
+          "line": 343,
+          "placement": [
+            "StructuredMembers.construct"
+          ]
+        },
+        {
+          "name": "index_infos",
+          "type": "Vec<IndexInfo>",
+          "line": 344,
+          "placement": [
+            "StructuredMembers.index_infos"
+          ]
+        }
+      ]
+    },
+    "InferenceInfo": {
+      "source": "crates/checker/src/inference.rs",
+      "line": 64,
+      "fields": [
+        {
+          "name": "type_parameter",
+          "type": "TypeId",
+          "line": 65,
+          "placement": [
+            "InferenceInfo.type_parameter"
+          ]
+        },
+        {
+          "name": "candidates",
+          "type": "Option<Vec<TypeId>>",
+          "line": 66,
+          "placement": [
+            "InferenceInfo.candidates"
+          ]
+        },
+        {
+          "name": "contra_candidates",
+          "type": "Option<Vec<TypeId>>",
+          "line": 67,
+          "placement": [
+            "InferenceInfo.contra_candidates"
+          ]
+        },
+        {
+          "name": "inferred_type",
+          "type": "Option<TypeId>",
+          "line": 68,
+          "placement": [
+            "InferenceInfo.inferred_type"
+          ]
+        },
+        {
+          "name": "priority",
+          "type": "Option<InferencePriority>",
+          "line": 69,
+          "placement": [
+            "InferenceInfo.priority"
+          ]
+        },
+        {
+          "name": "top_level",
+          "type": "bool",
+          "line": 70,
+          "placement": [
+            "InferenceInfo.flags bit 0"
+          ]
+        },
+        {
+          "name": "is_fixed",
+          "type": "bool",
+          "line": 71,
+          "placement": [
+            "InferenceInfo.flags bit 1"
+          ]
+        },
+        {
+          "name": "implied_arity",
+          "type": "Option<usize>",
+          "line": 72,
+          "placement": [
+            "InferenceInfo.implied_arity"
+          ]
+        }
+      ]
+    },
+    "InferenceContext": {
+      "source": "crates/checker/src/inference.rs",
+      "line": 134,
+      "fields": [
+        {
+          "name": "inferences",
+          "type": "Vec<InferenceInfoId>",
+          "line": 135,
+          "placement": [
+            "InferenceContext.inferences"
+          ]
+        },
+        {
+          "name": "mapper_sources",
+          "type": "Vec<TypeId>",
+          "line": 138,
+          "placement": [
+            "InferenceContext.mapper_sources"
+          ]
+        },
+        {
+          "name": "mapper_infos",
+          "type": "Vec<InferenceInfoId>",
+          "line": 140,
+          "placement": [
+            "InferenceContext.mapper_infos"
+          ]
+        },
+        {
+          "name": "signature",
+          "type": "Option<SignatureId>",
+          "line": 141,
+          "placement": [
+            "InferenceContext.signature"
+          ]
+        },
+        {
+          "name": "flags",
+          "type": "InferenceFlags",
+          "line": 142,
+          "placement": [
+            "InferenceContext.flags"
+          ]
+        },
+        {
+          "name": "compare_types",
+          "type": "CompareTypesFn",
+          "line": 143,
+          "placement": [
+            "InferenceContext.compare_types"
+          ]
+        },
+        {
+          "name": "mapper",
+          "type": "MapperId",
+          "line": 144,
+          "placement": [
+            "InferenceContext.mapper"
+          ]
+        },
+        {
+          "name": "non_fixing_mapper",
+          "type": "MapperId",
+          "line": 145,
+          "placement": [
+            "InferenceContext.non_fixing_mapper"
+          ]
+        },
+        {
+          "name": "return_mapper",
+          "type": "Option<MapperId>",
+          "line": 146,
+          "placement": [
+            "InferenceContextRare.return_mapper"
+          ]
+        },
+        {
+          "name": "inferred_type_parameters",
+          "type": "Option<Vec<TypeId>>",
+          "line": 147,
+          "placement": [
+            "InferenceContextRare.inferred_type_parameters"
+          ]
+        },
+        {
+          "name": "intra_expression_inference_sites",
+          "type": "Option<Vec<IntraExpressionInferenceSite>>",
+          "line": 148,
+          "placement": [
+            "InferenceContextRare.intra_expression_inference_sites"
+          ]
+        },
+        {
+          "name": "outer_return_mapper",
+          "type": "Option<MapperId>",
+          "line": 149,
+          "placement": [
+            "InferenceContextRare.outer_return_mapper"
+          ]
+        }
+      ]
+    },
+    "TypeData": {
+      "source": "crates/types/src/ty.rs",
+      "line": 442,
+      "definition": "pub enum TypeData {\n    /// Anonymous object types AND class/interface declared types \u2014\n    /// distinguished by object_flags (Anonymous vs Class/Interface).\n    /// Members resolve lazily in the checker (resolveStructuredTypeMembers).\n    Object,\n    /// any/unknown/string/... incl. error/silentNever/wildcard/missing\n    /// variants (createIntrinsicType 50111). The boolean literal\n    /// intrinsics carry their fresh/regular twins (47070-47077).\n    Intrinsic {\n        name: IntrinsicId,\n        fresh_type: Option<TypeId>,\n        regular_type: Option<TypeId>,\n    },\n    /// String/number/bigint-literal types with their fresh/regular pair\n    /// (freshness is STRUCTURE: fresh_type == self).\n    Literal {\n        value: LiteralData,\n        fresh_type: Option<TypeId>,\n        regular_type: Option<TypeId>,\n    },\n    /// Computed enum types (createComputedEnumType 57475): a freshable\n    /// TypeFlags::Enum pair carrying the enum (or member) symbol \u2014\n    /// minted for enums whose member list is empty or whose members\n    /// have no compile-time value; never interned.\n    Enum {\n        fresh_type: Option<TypeId>,\n        regular_type: Option<TypeId>,\n    },\n    /// `unique symbol` (createUniqueESSymbolType 63112): one per\n    /// declaration symbol (memoized in SymbolLinks.uniqueESSymbolType);\n    /// escaped_name = `<late-bound prefix><symbol.escapedName>@<symbolId>` \u2014 the\n    /// late-bound member name known-symbol lookups compare against.\n    UniqueESSymbol {\n        escaped_name: crate::EscapedName,\n    },\n    Union {\n        /// The members, the interned list the union cache keys by.\n        types: crate::tables::TypeListId,\n        /// Denormalized origin union/intersection (4.2+).\n        origin: Option<TypeId>,\n        /// The lazily computed union regular type\n        /// (getRegularTypeOfLiteralType 63078).\n        regular_type: Option<TypeId>,\n    },\n    Intersection {\n        types: crate::tables::TypeListId,\n    },\n    /// Evolving (auto) array types (createEvolvingArrayType 70073,\n    /// object_flags EvolvingArray): the element-type accumulator for\n    /// `push`/`unshift`/index writes on an autoArrayType variable\n    /// inside the flow walk; finalized to a real array type at the\n    /// query postlude (finalizeEvolvingArrayType). Never structurally\n    /// resolved. The checker memoizes elementType\u2192evolving and\n    /// evolving\u2192finalArrayType maps (tsc evolvingArrayTypes /\n    /// EvolvingArrayType.finalArrayType).\n    EvolvingArray {\n        element_type: TypeId,\n    },\n    /// createTypeReference (60169): an instantiation-free reference \u2014\n    /// tuple values like `[number, string]` point at a TupleTarget.\n    /// `resolved_type_arguments` is `Some` from creation for plain\n    /// references; DEFERRED references (createDeferredTypeReference\n    /// 60188, node/mapper in checker TypeLinks) start `None` and are\n    /// filled by the checker's lazy getTypeArguments (60202).\n    Reference {\n        target: TypeId,\n        resolved_type_arguments: Option<crate::tables::TypeListId>,\n    },\n    /// The synthesized generic tuple TARGET (objectFlags Tuple|Reference):\n    /// one payload per tuple shape in the tables' list.\n    TupleTarget(TupleTargetId),\n    /// Synthesized type parameters (tuple targets, thisType). Real\n    /// declared type parameters are M4.\n    TypeParameter {\n        is_this_type: bool,\n        /// tsgo's `isDistributed` (checker.go:23455-23462): the form a\n        /// type parameter takes inside the branches of a conditional type\n        /// that distributes over it; `constraint` is the original.\n        is_distributed: bool,\n        constraint: Option<TypeId>,\n    },\n    /// getTemplateLiteralType (62057): texts.len() == types.len() + 1.\n    TemplateLiteral(TemplateLiteralId),\n    /// createStringMappingType (62163): `Uppercase<T>` over a generic\n    /// operand \u2014 Type::symbol names the intrinsic alias.\n    StringMapping {\n        ty: TypeId,\n    },\n    /// createIndexType (61921): `keyof T` over a deferred operand.\n    /// Origin index types (createOriginIndexType 61927, the union\n    /// display denormalization) share the shape with IndexFlags::NONE.\n    Index {\n        ty: TypeId,\n        index_flags: IndexFlags,\n    },\n    /// createIndexedAccessType (62168): `T[K]` over a generic pair;\n    /// alias fields live on Type.\n    IndexedAccess {\n        object_type: TypeId,\n        index_type: TypeId,\n        access_flags: AccessFlags,\n    },\n    /// createObjectType(ObjectFlags::Mapped): declaration identity is\n    /// intrinsic to the type; mutable resolutions stay in TypeLinks.\n    Mapped(MappedTypeData),\n    /// createObjectType(ObjectFlags::ReverseMapped | Anonymous):\n    /// homomorphic inference records the source plus its mapped\n    /// template and constraint. Mutable members stay in TypeLinks.\n    ReverseMapped(ReverseMappedTypeData),\n    /// Deferred conditional type. The shared root owns the written\n    /// declaration and type-parameter environment; this payload owns\n    /// the current check/extends pair and mapper identities.\n    Conditional(ConditionalTypeData),\n    /// Narrowing/NoInfer wrapper interned by `(base, constraint)`.\n    Substitution(SubstitutionTypeData),\n    /// tsc GenericType (InterfaceType & TypeReference): the declared\n    /// type of a class, a generic interface, or a this-ful interface\n    /// (getDeclaredTypeOfClassOrInterface 57387-57400). The target\n    /// doubles as a reference to itself \u2014 `type.target = type;\n    /// type.resolvedTypeArguments = type.typeParameters` \u2014 encoded by\n    /// TypeTables::reference_target / ::type_arguments like tuple\n    /// targets.\n    GenericType {\n        /// outerTypeParameters ++ localTypeParameters (may be empty:\n        /// non-generic classes and this-ful interfaces), interned.\n        type_parameters: crate::tables::TypeListId,\n        /// Length of the outerTypeParameters prefix.\n        outer_type_parameter_count: u32,\n        /// Synthesized thisType (isThisType, constraint = this target).\n        this_type: TypeId,\n    },\n}"
+    },
+    "TypeMapper": {
+      "source": "crates/checker/src/instantiate.rs",
+      "line": 104,
+      "definition": "pub enum TypeMapper {\n    /// tsc-port: makeUnaryTypeMapper @6.0.3\n    /// tsc-hash: f16e43be81b2a0ab46054c6a62c222608c47514ebef557e8fdbe5fc2b022cb63\n    /// tsc-span: _tsc.js:63359-63361\n    Simple {\n        source: TypeId,\n        target: TypeId,\n    },\n    /// tsc-port: makeArrayTypeMapper @6.0.3\n    /// tsc-hash: e011653188a06047cc1bd6668dc7b584e0756d94eb7e8a572b0cc9fe88695602\n    /// tsc-span: _tsc.js:63362-63364\n    ///\n    /// `targets: None` is the type-eraser form (targets \u2192 anyType).\n    Array {\n        sources: MapperList,\n        targets: Option<MapperList>,\n    },\n    Deferred(DeferredMapperTargets),\n    Function(FunctionMapper),\n    /// tsc-port: makeCompositeTypeMapper @6.0.3\n    /// tsc-hash: c6357cfb91719fe9cb439c4d6b9743da0095e3f28e047b98a4e46654c02c3196\n    /// tsc-span: _tsc.js:63371-63373\n    Composite {\n        mapper1: MapperId,\n        mapper2: MapperId,\n    },\n    Merged {\n        mapper1: MapperId,\n        mapper2: MapperId,\n    },\n}"
+    },
+    "TypeAlias": {
+      "source": "crates/types/src/ty.rs",
+      "line": 663,
+      "fields": [
+        {
+          "name": "symbol",
+          "type": "Option<SymbolId>",
+          "line": 664,
+          "placement": [
+            "Alias.symbol"
+          ]
+        },
+        {
+          "name": "type_arguments",
+          "type": "Option<crate::tables::TypeListId>",
+          "line": 665,
+          "placement": [
+            "Alias.type_arguments"
+          ]
+        }
+      ]
+    }
+  },
+  "records": {
+    "Symbol": {
+      "why": "Eight words exactly; more is two words. No spare word fits.",
+      "source": "Symbol",
+      "bytes": 32,
+      "align": 4,
+      "fields": [
+        {
+          "name": "flags",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "name",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "parent",
+          "type": "Id<Symbol>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "value_declaration",
+          "type": "Id<Node>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "decl0",
+          "type": "Id<Node>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "more",
+          "type": "OptionalSpan<Id<Node>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "tables",
+          "type": "Id<SymbolTables>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "SymbolTables": {
+      "why": "u8 const-enum is 0 absent, 1 false, 2 true; preserve three states.",
+      "source": "SymbolExtras",
+      "bytes": 28,
+      "align": 4,
+      "fields": [
+        {
+          "name": "members",
+          "type": "Id<SymbolTable>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "exports",
+          "type": "Id<SymbolTable>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "global_exports",
+          "type": "Id<SymbolTable>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "export_symbol",
+          "type": "Id<Symbol>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "const_enum_only_module",
+          "type": "u8",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "is_replaceable_by_method",
+          "type": "u8",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "padding",
+          "type": "[u8; 2]",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "assignment_declaration_members",
+          "type": "OptionalSpan<NodePair>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "SymbolTable": {
+      "why": "Variable record: header followed by ordered TableEntry words, then optional u32 hash slots for len > 16.",
+      "source": "SymbolExtras",
+      "bytes": 8,
+      "align": 4,
+      "fields": [
+        {
+          "name": "len",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "flags",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "TableEntry": {
+      "why": "Insertion-order entries are 8 bytes.",
+      "source": "SymbolExtras",
+      "bytes": 8,
+      "align": 4,
+      "fields": [
+        {
+          "name": "name",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "symbol",
+          "type": "Id<Symbol>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "NodePair": {
+      "why": "Assignment-declaration member key/value pair.",
+      "source": "SymbolExtras",
+      "bytes": 8,
+      "align": 4,
+      "fields": [
+        {
+          "name": "first",
+          "type": "Id<Node>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "second",
+          "type": "Id<Node>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "TransientSymbol": {
+      "why": "Instantiated flag selects this shape; name/declarations are borrowed from origin, including origin chains in the facade.",
+      "source": "SymbolLinks",
+      "bytes": 32,
+      "align": 4,
+      "fields": [
+        {
+          "name": "flags",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "origin",
+          "type": "Id<Symbol>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "check_flags",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "target",
+          "type": "Id<Symbol>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "mapper",
+          "type": "Id<Mapper>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "type_of_symbol",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "declared_type",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "name_type",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "SymbolLinks": {
+      "why": "Full transient links tail adds declared_type to the five current SymbolLinks words; is_referenced remains a cold map.",
+      "source": "SymbolLinks",
+      "bytes": 24,
+      "align": 4,
+      "fields": [
+        {
+          "name": "type_of_symbol",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "check_flags",
+          "type": "ArenaCell<u32>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "target",
+          "type": "Id<Symbol>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "mapper",
+          "type": "Id<Mapper>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "name_type",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "declared_type",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "FullTransientSymbol": {
+      "why": "Full transient shape is 32 + 24 bytes.",
+      "source": "Symbol",
+      "bytes": 56,
+      "align": 4,
+      "fields": [
+        {
+          "name": "symbol",
+          "type": "Symbol",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "links",
+          "type": "SymbolLinks",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "Flow": {
+      "why": "Preserve current flags-discriminated a/antecedent/c codec; a label overlays a/c with a Span<Id<Flow>>, reduce labels use a referenced ReduceLabelPayload.",
+      "source": "FlowNode",
+      "bytes": 16,
+      "align": 4,
+      "fields": [
+        {
+          "name": "flags",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "a",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "antecedent",
+          "type": "Id<Flow>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "c",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "ReduceLabelPayload": {
+      "why": "A reduce label needs both target and 8-byte span; the payload is separately allocated.",
+      "source": "FlowNode",
+      "bytes": 12,
+      "align": 4,
+      "fields": [
+        {
+          "name": "target",
+          "type": "Id<Flow>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "antecedents",
+          "type": "Span<Id<Flow>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "Type": {
+      "why": "Dense id is distinct from arena address. w5 is the checked payload-kind tag; payload+links begin at byte 24.",
+      "source": "Type",
+      "bytes": 24,
+      "align": 4,
+      "fields": [
+        {
+          "name": "flags",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "object_flags",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "id",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "symbol",
+          "type": "Id<Symbol>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "alias",
+          "type": "Id<Alias>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "w5",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "local",
+          "type": "std::marker::PhantomData<ArenaCell<u32>>",
+          "why": "Zero-sized !Sync marker: even header-only Id<Type> handles must stay on their checker thread."
+        }
+      ]
+    },
+    "Alias": {
+      "why": "Alias list handle is nullable; present-empty list stays distinguishable.",
+      "source": "TypeAlias",
+      "bytes": 8,
+      "align": 4,
+      "fields": [
+        {
+          "name": "symbol",
+          "type": "Id<Symbol>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "type_arguments",
+          "type": "Id<List<Id<Type>>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "Signature": {
+      "why": "Eleven logical fields / twelve words. from_method uses rare to avoid assuming unused SignatureFlags bits.",
+      "source": "Signature",
+      "bytes": 48,
+      "align": 8,
+      "fields": [
+        {
+          "name": "flags",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "min_argument_count",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "declaration",
+          "type": "Id<Node>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "parameters",
+          "type": "Span<Id<Symbol>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "type_parameters",
+          "type": "Id<List<Id<Type>>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "this_parameter",
+          "type": "Id<Symbol>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "resolved_return",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "target",
+          "type": "Id<Signature>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "mapper",
+          "type": "Id<Mapper>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "rare",
+          "type": "ArenaCell<Id<SignatureRare>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "padding",
+          "type": "u32",
+          "why": "Round the 44 bytes of named fields to the 48-byte target."
+        }
+      ]
+    },
+    "SignatureRare": {
+      "why": "All source rare fields retained. kind=0 absent, 1 call, 2 construct. Instantiations remain the source signature_instantiations map.",
+      "source": "Signature",
+      "bytes": 40,
+      "align": 4,
+      "fields": [
+        {
+          "name": "erased_signature_cache",
+          "type": "ArenaCell<Id<Signature>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "canonical_signature_cache",
+          "type": "ArenaCell<Id<Signature>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "base_signature_cache",
+          "type": "ArenaCell<Id<Signature>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "composite_kind",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "composite_signatures",
+          "type": "Id<List<Id<Signature>>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "optional_call_inner",
+          "type": "ArenaCell<Id<Signature>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "optional_call_outer",
+          "type": "ArenaCell<Id<Signature>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "isolated_signature_kind",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "isolated_signature_type",
+          "type": "ArenaCell<Id<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "from_method",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "StructuredMembers": {
+      "why": "4 + 4*8 = 36, rounded arena allocation 40. Target 32 is impossible with these fields and 8-byte spans.",
+      "source": "ResolvedMembers",
+      "bytes": 36,
+      "align": 4,
+      "fields": [
+        {
+          "name": "members",
+          "type": "Id<SymbolTable>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "properties",
+          "type": "Span<Id<Symbol>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "call",
+          "type": "Span<Id<Signature>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "construct",
+          "type": "Span<Id<Signature>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "index_infos",
+          "type": "Span<Id<IndexInfo>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "IndexInfo": {
+      "why": "12 + 8 + 1 + padding = 24, not 20. Flags 1 readonly, 2 enum-number, 4 any-base.",
+      "source": "IndexInfo",
+      "bytes": 24,
+      "align": 4,
+      "fields": [
+        {
+          "name": "key_type",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "value_type",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "declaration",
+          "type": "Id<Node>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "components",
+          "type": "OptionalSpan<Id<Node>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "flags",
+          "type": "u8",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "padding",
+          "type": "[u8; 3]",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "Mapper": {
+      "why": "Six shapes plus deferred subkinds fit 16 B. kind=1/129 distinguishes eraser vs present targets including empty; kinds 2/10/18 are fixing/nonfixing/effective; Function a=0..4.",
+      "source": "TypeMapper",
+      "bytes": 16,
+      "align": 4,
+      "fields": [
+        {
+          "name": "kind",
+          "type": "u8",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "padding",
+          "type": "[u8; 3]",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "a",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "b",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "c",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "local",
+          "type": "std::marker::PhantomData<ArenaCell<u32>>",
+          "why": "Tagged raw a/b/c words can lead to checker cells; preserve !Sync despite erasing their field types."
+        }
+      ]
+    },
+    "MapperArrayPayload": {
+      "why": "Optional side payload for independently described spans; same-length array fast shape packs both starts and shared length inline.",
+      "source": "TypeMapper",
+      "bytes": 16,
+      "align": 4,
+      "fields": [
+        {
+          "name": "sources",
+          "type": "Span<Id<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "targets",
+          "type": "OptionalSpan<Id<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "InferenceInfo": {
+      "why": "Four inline candidates alone consume 16 B; plus two 8 B overflow descriptors and metadata cannot fit target 24. This lossless shape is 52 B / 56 B allocation.",
+      "source": "InferenceInfo",
+      "bytes": 52,
+      "align": 4,
+      "fields": [
+        {
+          "name": "type_parameter",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "inferred_type",
+          "type": "ArenaCell<Id<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "candidates",
+          "type": "ArenaCell<CandidatePair>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "contra_candidates",
+          "type": "ArenaCell<CandidatePair>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "priority",
+          "type": "ArenaCell<u32>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "flags",
+          "type": "ArenaCell<u32>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "implied_arity",
+          "type": "ArenaCell<u32>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "CandidatePair": {
+      "why": "Two inline slots, whole-list overflow for >2; zero handle means absent. B-3 high-water coverage 99.88%.",
+      "source": "InferenceInfo",
+      "bytes": 16,
+      "align": 4,
+      "fields": [
+        {
+          "name": "inline",
+          "type": "[Id<Type>; 2]",
+          "why": "Contiguous inline slots permit a borrowed zero-copy slice."
+        },
+        {
+          "name": "overflow",
+          "type": "OptionalSpan<Id<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "InferenceContext": {
+      "why": "Keep all three identity-bearing capture vectors inline; late fields go into rare, preserving detached thunk identity.",
+      "source": "InferenceContext",
+      "bytes": 48,
+      "align": 4,
+      "fields": [
+        {
+          "name": "inferences",
+          "type": "ArenaCell<Span<Id<InferenceInfo>>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "mapper_sources",
+          "type": "Span<Id<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "mapper_infos",
+          "type": "Span<Id<InferenceInfo>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "signature",
+          "type": "Id<Signature>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "flags",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "compare_types",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "mapper",
+          "type": "Id<Mapper>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "non_fixing_mapper",
+          "type": "Id<Mapper>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "rare",
+          "type": "ArenaCell<Id<InferenceContextRare>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "InferenceContextRare": {
+      "why": "Four lazy context fields, all nullable; list handles preserve undefined vs present-empty.",
+      "source": "InferenceContext",
+      "bytes": 16,
+      "align": 4,
+      "fields": [
+        {
+          "name": "return_mapper",
+          "type": "ArenaCell<Id<Mapper>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "inferred_type_parameters",
+          "type": "ArenaCell<Id<List<Id<Type>>>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "intra_expression_inference_sites",
+          "type": "ArenaCell<Id<List<InferenceSite>>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "outer_return_mapper",
+          "type": "ArenaCell<Id<Mapper>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "InferenceSite": {
+      "why": "Intra-expression inference node/type pair.",
+      "source": "InferenceContext",
+      "bytes": 8,
+      "align": 4,
+      "fields": [
+        {
+          "name": "node",
+          "type": "Id<Node>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "ty",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "NodeLinks": {
+      "why": "Page-table record, including resolving sentinel.",
+      "source": "NodeLinks",
+      "bytes": 16,
+      "align": 4,
+      "fields": [
+        {
+          "name": "resolved_type",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "resolved_signature",
+          "type": "ArenaCell<Slot<Signature>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "resolved_symbol",
+          "type": "ArenaCell<Slot<Symbol>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "check_flags",
+          "type": "ArenaCell<u32>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "PersistentSymbolLinks": {
+      "why": "Page-table record; reference meaning stays a flags mask.",
+      "source": "PersistentSymbolLinks",
+      "bytes": 12,
+      "align": 4,
+      "fields": [
+        {
+          "name": "declared_type",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "type_of_symbol",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "is_referenced",
+          "type": "ArenaCell<u32>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "TupleTarget": {
+      "why": "Flags pack has_rest_element, readonly and combined_flags; u32 lengths require checked usize conversion.",
+      "source": "TupleTargetData",
+      "bytes": 40,
+      "align": 4,
+      "fields": [
+        {
+          "name": "type_parameters",
+          "type": "Id<List<Id<Type>>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "this_type",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "element_flags",
+          "type": "Span<u32>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "min_length",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "length_type",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "fixed_length",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "flags",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "labeled_element_declarations",
+          "type": "OptionalSpan<Id<Node>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "TemplateLiteral": {
+      "why": "UTF-16 lists preserve unpaired surrogates.",
+      "source": "TemplateLiteralData",
+      "bytes": 12,
+      "align": 4,
+      "fields": [
+        {
+          "name": "texts",
+          "type": "Span<Id<List<u16>>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "types",
+          "type": "Id<List<Id<Type>>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "Intrinsic": {
+      "why": "Nullable debug name; intrinsic name bytes in arena.",
+      "source": "IntrinsicData",
+      "bytes": 8,
+      "align": 4,
+      "fields": [
+        {
+          "name": "name",
+          "type": "Id<Bytes>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "debug_name",
+          "type": "Id<Bytes>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "ConditionalRoot": {
+      "why": "Preserve optional-empty distinctions and root object identity.",
+      "source": "ConditionalRootData",
+      "bytes": 44,
+      "align": 4,
+      "fields": [
+        {
+          "name": "node",
+          "type": "Id<Node>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "check_type",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "extends_type",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "is_distributive",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "infer_type_parameters",
+          "type": "Span<Id<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "outer_type_parameters",
+          "type": "OptionalSpan<Id<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "alias_symbol",
+          "type": "Id<Symbol>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "alias_type_arguments",
+          "type": "OptionalSpan<Id<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "UnionKeyProperty": {
+      "why": "Slot resolves even when name=0 no-key sentinel; constituent map remains a referenced ordered pair list.",
+      "source": "TypeLinksCold",
+      "bytes": 8,
+      "align": 4,
+      "fields": [
+        {
+          "name": "name",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "constituent_map",
+          "type": "Id<List<TypePair>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "TypePair": {
+      "why": "Union constituent index key/value entries.",
+      "source": "TypeLinksCold",
+      "bytes": 8,
+      "align": 4,
+      "fields": [
+        {
+          "name": "key",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "value",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ]
+    },
+    "TypeList": {
+      "why": "Variable TypeList header; Ref<List<Id<Type>>> names this header followed by 4-byte items, not an inline Rust Vec.",
+      "source": "Type",
+      "bytes": 8,
+      "align": 4,
+      "fields": [
+        {
+          "name": "len",
+          "type": "u32",
+          "why": "Number of following Type handles."
+        },
+        {
+          "name": "flags",
+          "type": "u32",
+          "why": "ListHeader extra word."
+        }
+      ]
+    }
+  },
+  "types": {
+    "Object": {
+      "why": "Payload and applicable hot/cache links are in the same record.",
+      "tag": 0,
+      "source": "TypeData",
+      "payload": [],
+      "links": [
+        {
+          "name": "resolved_members",
+          "type": "ArenaCell<Slot<StructuredMembers>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "instantiated_target",
+          "type": "ArenaCell<Id<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "instantiated_mapper",
+          "type": "ArenaCell<Id<Mapper>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "resolved_base_constraint",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "constraints.rs:551-562 accepts every constrained kind, including object forms, unions/intersections and templates."
+        }
+      ],
+      "outlineLinks": false,
+      "fullInlineBytes": 40,
+      "bytes": 40,
+      "outlineFields": []
+    },
+    "Intrinsic": {
+      "why": "Payload and applicable hot/cache links are in the same record.",
+      "tag": 1,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "name",
+          "type": "Id<Intrinsic>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "fresh_type",
+          "type": "ArenaCell<Id<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "regular_type",
+          "type": "ArenaCell<Id<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [],
+      "outlineLinks": false,
+      "fullInlineBytes": 40,
+      "bytes": 40,
+      "outlineFields": []
+    },
+    "Literal": {
+      "why": "Payload and applicable hot/cache links are in the same record.",
+      "tag": 2,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "value_kind",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "value_low",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "value_high",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "fresh_type",
+          "type": "ArenaCell<Id<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "regular_type",
+          "type": "ArenaCell<Id<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [],
+      "outlineLinks": false,
+      "fullInlineBytes": 48,
+      "bytes": 48,
+      "outlineFields": []
+    },
+    "Enum": {
+      "why": "Payload and applicable hot/cache links are in the same record.",
+      "tag": 3,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "fresh_type",
+          "type": "ArenaCell<Id<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "regular_type",
+          "type": "ArenaCell<Id<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [],
+      "outlineLinks": false,
+      "fullInlineBytes": 32,
+      "bytes": 32,
+      "outlineFields": []
+    },
+    "UniqueESSymbol": {
+      "why": "Payload and applicable hot/cache links are in the same record.",
+      "tag": 4,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "escaped_name",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [],
+      "outlineLinks": false,
+      "fullInlineBytes": 32,
+      "bytes": 32,
+      "outlineFields": []
+    },
+    "Union": {
+      "why": "Payload and applicable hot/cache links are in the same record.",
+      "tag": 5,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "types",
+          "type": "Id<List<Id<Type>>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "origin",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "regular_type",
+          "type": "ArenaCell<Id<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [
+        {
+          "name": "resolved_members",
+          "type": "ArenaCell<Slot<StructuredMembers>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "uniform_union_type",
+          "type": "ArenaCell<u32>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "resolved_reduced_type",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "resolved_properties",
+          "type": "ArenaCell<Slot<List<Id<Symbol>>>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "array_fallback_signatures",
+          "type": "ArenaCell<Slot<List<Id<Signature>>>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "union_key_property",
+          "type": "ArenaCell<Slot<UnionKeyProperty>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "resolved_base_constraint",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "constraints.rs:551-562 accepts every constrained kind, including object forms, unions/intersections and templates."
+        }
+      ],
+      "outlineLinks": false,
+      "fullInlineBytes": 64,
+      "bytes": 64,
+      "outlineFields": []
+    },
+    "Intersection": {
+      "why": "Payload and applicable hot/cache links are in the same record.",
+      "tag": 6,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "types",
+          "type": "Id<List<Id<Type>>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [
+        {
+          "name": "resolved_members",
+          "type": "ArenaCell<Slot<StructuredMembers>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "intersection_apparent_type",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "unique_literal_filled_instantiation",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "resolved_properties",
+          "type": "ArenaCell<Slot<List<Id<Symbol>>>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "resolved_base_constraint",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "constraints.rs:551-562 accepts every constrained kind, including object forms, unions/intersections and templates."
+        }
+      ],
+      "outlineLinks": false,
+      "fullInlineBytes": 48,
+      "bytes": 48,
+      "outlineFields": []
+    },
+    "EvolvingArray": {
+      "why": "Payload and applicable hot/cache links are in the same record.",
+      "tag": 7,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "element_type",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [
+        {
+          "name": "resolved_base_constraint",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "constraints.rs:551-562 accepts every constrained kind, including object forms, unions/intersections and templates."
+        }
+      ],
+      "outlineLinks": false,
+      "fullInlineBytes": 32,
+      "bytes": 32,
+      "outlineFields": []
+    },
+    "Reference": {
+      "why": "Payload and applicable hot/cache links are in the same record.",
+      "tag": 8,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "target",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "resolved_type_arguments",
+          "type": "ArenaCell<Id<List<Id<Type>>>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [
+        {
+          "name": "resolved_members",
+          "type": "ArenaCell<Slot<StructuredMembers>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "deferred_node",
+          "type": "ArenaCell<Id<Node>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "deferred_mapper",
+          "type": "ArenaCell<Id<Mapper>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "resolved_base_constraint",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "constraints.rs:551-562 accepts every constrained kind, including object forms, unions/intersections and templates."
+        }
+      ],
+      "outlineLinks": false,
+      "fullInlineBytes": 48,
+      "bytes": 48,
+      "outlineFields": []
+    },
+    "TupleTarget": {
+      "why": "Payload and applicable hot/cache links are in the same record.",
+      "tag": 9,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "target_data",
+          "type": "Id<TupleTarget>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [
+        {
+          "name": "resolved_members",
+          "type": "ArenaCell<Slot<StructuredMembers>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "resolved_base_constraint",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "constraints.rs:551-562 accepts every constrained kind, including object forms, unions/intersections and templates."
+        }
+      ],
+      "outlineLinks": false,
+      "fullInlineBytes": 40,
+      "bytes": 40,
+      "outlineFields": []
+    },
+    "TypeParameter": {
+      "why": "Payload and applicable hot/cache links are in the same record.",
+      "tag": 10,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "parameter_flags",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "constraint",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [
+        {
+          "name": "type_parameter_constraint",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "resolved_base_constraint",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "type_parameter_target",
+          "type": "ArenaCell<Id<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "type_parameter_mapper",
+          "type": "ArenaCell<Id<Mapper>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "type_parameter_default",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "outlineLinks": false,
+      "fullInlineBytes": 56,
+      "bytes": 56,
+      "outlineFields": []
+    },
+    "TemplateLiteral": {
+      "why": "Payload and applicable hot/cache links are in the same record.",
+      "tag": 11,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "template_data",
+          "type": "Id<TemplateLiteral>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [
+        {
+          "name": "resolved_base_constraint",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "constraints.rs:551-562 accepts every constrained kind, including object forms, unions/intersections and templates."
+        }
+      ],
+      "outlineLinks": false,
+      "fullInlineBytes": 32,
+      "bytes": 32,
+      "outlineFields": []
+    },
+    "StringMapping": {
+      "why": "Payload and applicable hot/cache links are in the same record.",
+      "tag": 12,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "ty",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [
+        {
+          "name": "resolved_base_constraint",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "outlineLinks": false,
+      "fullInlineBytes": 32,
+      "bytes": 32,
+      "outlineFields": []
+    },
+    "Index": {
+      "why": "Payload and applicable hot/cache links are in the same record.",
+      "tag": 13,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "ty",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "index_flags",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [
+        {
+          "name": "resolved_base_constraint",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "outlineLinks": false,
+      "fullInlineBytes": 40,
+      "bytes": 40,
+      "outlineFields": []
+    },
+    "IndexedAccess": {
+      "why": "Payload and applicable hot/cache links are in the same record.",
+      "tag": 14,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "object_type",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "index_type",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "access_flags",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [
+        {
+          "name": "resolved_base_constraint",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "simplified_for_reading",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "simplified_for_writing",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "outlineLinks": false,
+      "fullInlineBytes": 48,
+      "bytes": 48,
+      "outlineFields": []
+    },
+    "Mapped": {
+      "why": "Per-kind 64 B ceiling: use referenced links block only for this kind.",
+      "tag": 15,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "declaration",
+          "type": "Id<Node>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "target",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "mapper",
+          "type": "Id<Mapper>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [
+        {
+          "name": "resolved_members",
+          "type": "ArenaCell<Slot<StructuredMembers>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "mapped_type_parameter",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "mapped_constraint_type",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "mapped_name_type",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "mapped_template_type",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "mapped_modifiers_type",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "mapped_apparent_type",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "mapped_contains_error",
+          "type": "ArenaCell<u32>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "resolved_base_constraint",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "constraints.rs:551-562 accepts every constrained kind, including object forms, unions/intersections and templates."
+        }
+      ],
+      "outlineLinks": true,
+      "fullInlineBytes": 72,
+      "bytes": 64,
+      "outlineFields": [
+        "mapped_modifiers_type",
+        "mapped_contains_error",
+        "mapped_apparent_type"
+      ]
+    },
+    "ReverseMapped": {
+      "why": "Payload and applicable hot/cache links are in the same record.",
+      "tag": 16,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "source",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "mapped_type",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "constraint_type",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [
+        {
+          "name": "resolved_members",
+          "type": "ArenaCell<Slot<StructuredMembers>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "resolved_base_constraint",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "constraints.rs:551-562 accepts every constrained kind, including object forms, unions/intersections and templates."
+        }
+      ],
+      "outlineLinks": false,
+      "fullInlineBytes": 48,
+      "bytes": 48,
+      "outlineFields": []
+    },
+    "Conditional": {
+      "why": "Per-kind 64 B ceiling: use referenced links block only for this kind.",
+      "tag": 17,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "root",
+          "type": "Id<ConditionalRoot>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "check_type",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "extends_type",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "mapper",
+          "type": "Id<Mapper>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "combined_mapper",
+          "type": "Id<Mapper>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [
+        {
+          "name": "resolved_base_constraint",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "conditional_true_type",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "conditional_false_type",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "conditional_inferred_true_type",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "conditional_default_constraint",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "conditional_constraint_of_distributive",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "permissive_instantiation",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "restrictive_instantiation",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "outlineLinks": true,
+      "fullInlineBytes": 80,
+      "bytes": 64,
+      "outlineFields": [
+        "conditional_default_constraint",
+        "conditional_constraint_of_distributive",
+        "permissive_instantiation",
+        "restrictive_instantiation"
+      ]
+    },
+    "Substitution": {
+      "why": "Payload and applicable hot/cache links are in the same record.",
+      "tag": 18,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "base_type",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "constraint",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [
+        {
+          "name": "resolved_base_constraint",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "outlineLinks": false,
+      "fullInlineBytes": 40,
+      "bytes": 40,
+      "outlineFields": []
+    },
+    "GenericType": {
+      "why": "Payload and applicable hot/cache links are in the same record.",
+      "tag": 19,
+      "source": "TypeData",
+      "payload": [
+        {
+          "name": "type_parameters",
+          "type": "Id<List<Id<Type>>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "outer_type_parameter_count",
+          "type": "u32",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "this_type",
+          "type": "Id<Type>",
+          "why": "Preserve the named source field as plain record words."
+        }
+      ],
+      "links": [
+        {
+          "name": "resolved_members",
+          "type": "ArenaCell<Slot<StructuredMembers>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "declared_members",
+          "type": "ArenaCell<Slot<StructuredMembers>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "resolved_base_types",
+          "type": "ArenaCell<Id<List<Id<Type>>>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "base_types_resolved",
+          "type": "ArenaCell<u32>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "resolved_base_constructor_type",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "resolved_base_constraint",
+          "type": "ArenaCell<Slot<Type>>",
+          "why": "constraints.rs:551-562 accepts every constrained kind, including object forms, unions/intersections and templates."
+        }
+      ],
+      "outlineLinks": false,
+      "fullInlineBytes": 64,
+      "bytes": 64,
+      "outlineFields": []
+    }
+  },
+  "coldMaps": {
+    "NodeLinksCold": {
+      "why": "Cold sparse maps are listed for the integrator; no map implementation is generated.",
+      "fields": [
+        {
+          "name": "resolved_jsdoc_type",
+          "type": "SparseLinks<NodeId, LinkSlot<TypeId>>",
+          "line": 322,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "enum_values_computed",
+          "type": "SparseLinks<NodeId, bool>",
+          "line": 326,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "calculated_flags",
+          "type": "SparseLinks<NodeId, tsc_types::NodeCheckFlags>",
+          "line": 330,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "is_visible",
+          "type": "SparseLinks<NodeId, Option<bool>>",
+          "line": 336,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "contains_arguments_reference",
+          "type": "SparseLinks<NodeId, Option<bool>>",
+          "line": 340,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "has_reported_statement_in_ambient_context",
+          "type": "SparseLinks<NodeId, bool>",
+          "line": 346,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "context_free_type",
+          "type": "SparseLinks<NodeId, LinkSlot<TypeId>>",
+          "line": 348,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "parameter_initializer_contains_undefined",
+          "type": "SparseLinks<NodeId, Option<bool>>",
+          "line": 352,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "jsx_flags",
+          "type": "SparseLinks<NodeId, tsc_types::JsxFlags>",
+          "line": 355,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "outer_type_parameters",
+          "type": "SparseLinks<NodeId, LinkSlot<tsc_types::TypeListId>>",
+          "line": 358,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "enum_member_value",
+          "type": "SparseLinks<NodeId, Option<crate::evaluate::EvaluatorResult>>",
+          "line": 361,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "assertion_expression_type",
+          "type": "SparseLinks<NodeId, Option<TypeId>>",
+          "line": 364,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "instantiation_expression_types",
+          "type": "SparseLinks<NodeId, Option<rustc_hash::FxHashMap<TypeId, TypeId>>>",
+          "line": 367,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "spread_indices",
+          "type": "SparseLinks<NodeId, Option<SpreadIndices>>",
+          "line": 372,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "non_existent_prop_check_cache",
+          "type": "SparseLinks<NodeId, rustc_hash::FxHashSet<String>>",
+          "line": 376,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "resolved_jsx_element_attributes_type",
+          "type": "SparseLinks<NodeId, Option<TypeId>>",
+          "line": 381,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "jsx_fragment_type",
+          "type": "SparseLinks<NodeId, Option<TypeId>>",
+          "line": 385,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "decorator_signature",
+          "type": "SparseLinks<NodeId, Option<SignatureId>>",
+          "line": 389,
+          "placement": "keep sparse map"
+        }
+      ]
+    },
+    "SymbolLinksCold": {
+      "why": "Cold sparse maps are listed for the integrator; no map implementation is generated.",
+      "fields": [
+        {
+          "name": "containing_type",
+          "type": "SparseLinks<SymbolId, Option<TypeId>>",
+          "line": 510,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "mapped_type",
+          "type": "SparseLinks<SymbolId, Option<TypeId>>",
+          "line": 514,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "key_type",
+          "type": "SparseLinks<SymbolId, Option<TypeId>>",
+          "line": 517,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "synthetic_origin",
+          "type": "SparseLinks<SymbolId, Option<SymbolId>>",
+          "line": 521,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "inferred_class_symbols",
+          "type": "SparseLinks<SymbolId, FxHashMap<SymbolId, SymbolId>>",
+          "line": 530,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "specifier_cache",
+          "type": "SparseLinks<SymbolId, Option<ModuleSpecifierCache>>",
+          "line": 536,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "extended_containers_by_file",
+          "type": "SparseLinks<SymbolId, FxHashMap<usize, Vec<Vec<SymbolId>>>>",
+          "line": 540,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "extended_containers",
+          "type": "SparseLinks<SymbolId, Option<Vec<Vec<SymbolId>>>>",
+          "line": 543,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "alias_referenced",
+          "type": "SparseLinks<SymbolId, bool>",
+          "line": 549,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "type_parameters",
+          "type": "SparseLinks<SymbolId, Option<Vec<TypeId>>>",
+          "line": 552,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "resolved_members",
+          "type": "SparseLinks<SymbolId, LinkSlot<Arc<tsc_binder::SymbolTable>>>",
+          "line": 557,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "late_symbol",
+          "type": "SparseLinks<SymbolId, Option<SymbolId>>",
+          "line": 560,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "write_type",
+          "type": "SparseLinks<SymbolId, LinkSlot<TypeId>>",
+          "line": 563,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "resolved_exports",
+          "type": "SparseLinks<SymbolId, LinkSlot<Arc<tsc_binder::SymbolTable>>>",
+          "line": 567,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "last_assignment_pos",
+          "type": "SparseLinks<SymbolId, Option<i64>>",
+          "line": 574,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "alias_target",
+          "type": "SparseLinks<SymbolId, LinkSlot<SymbolId>>",
+          "line": 580,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "type_only_declaration",
+          "type": "SparseLinks<SymbolId, Option<NodeId>>",
+          "line": 584,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "deferral_parent",
+          "type": "SparseLinks<SymbolId, Option<TypeId>>",
+          "line": 589,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "deferral_constituents",
+          "type": "SparseLinks<SymbolId, Option<Vec<TypeId>>>",
+          "line": 590,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "deferral_write_constituents",
+          "type": "SparseLinks<SymbolId, Option<Vec<TypeId>>>",
+          "line": 591,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "is_discriminant_property",
+          "type": "SparseLinks<SymbolId, Option<bool>>",
+          "line": 594,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "is_declaration_with_colliding_name",
+          "type": "SparseLinks<SymbolId, Option<bool>>",
+          "line": 597,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "is_constructor_declared_property",
+          "type": "SparseLinks<SymbolId, Option<bool>>",
+          "line": 601,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "property_type",
+          "type": "SparseLinks<SymbolId, Option<TypeId>>",
+          "line": 604,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "constraint_type",
+          "type": "SparseLinks<SymbolId, Option<TypeId>>",
+          "line": 605,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "tuple_label_declaration",
+          "type": "SparseLinks<SymbolId, Option<NodeId>>",
+          "line": 609,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "unique_es_symbol_type",
+          "type": "SparseLinks<SymbolId, Option<TypeId>>",
+          "line": 612,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "variances",
+          "type": "SparseLinks<SymbolId, LinkSlot<crate::state::SharedList<tsc_types::VarianceFlags>>>",
+          "line": 619,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "originating_import",
+          "type": "SparseLinks<SymbolId, Option<NodeId>>",
+          "line": 625,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "fabricated_declaration_parent",
+          "type": "SparseLinks<SymbolId, Option<NodeId>>",
+          "line": 632,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "left_spread",
+          "type": "SparseLinks<SymbolId, Option<SymbolId>>",
+          "line": 637,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "right_spread",
+          "type": "SparseLinks<SymbolId, Option<SymbolId>>",
+          "line": 638,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "type_parameters_checked",
+          "type": "SparseLinks<SymbolId, bool>",
+          "line": 642,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "interface_checked",
+          "type": "SparseLinks<SymbolId, bool>",
+          "line": 645,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "index_signatures_checked",
+          "type": "SparseLinks<SymbolId, bool>",
+          "line": 646,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "enum_checked",
+          "type": "SparseLinks<SymbolId, bool>",
+          "line": 647,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "function_or_constructor_checked",
+          "type": "SparseLinks<SymbolId, bool>",
+          "line": 649,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "type_only_export_star_map",
+          "type": "SparseLinks<SymbolId, Option<rustc_hash::FxHashMap<EscapedName, NodeId>>>",
+          "line": 653,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "exports_checked",
+          "type": "SparseLinks<SymbolId, bool>",
+          "line": 657,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "cjs_export_merged",
+          "type": "SparseLinks<SymbolId, Option<SymbolId>>",
+          "line": 659,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "immediate_target",
+          "type": "SparseLinks<SymbolId, Option<Option<SymbolId>>>",
+          "line": 663,
+          "placement": "keep sparse map"
+        }
+      ]
+    },
+    "TypeLinksCold": {
+      "why": "Cold sparse maps are listed for the integrator; no map implementation is generated.",
+      "fields": [
+        {
+          "name": "type_parameter_target",
+          "type": "SparseLinks<TypeId, Option<TypeId>>",
+          "line": 800,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "type_parameter_mapper",
+          "type": "SparseLinks<TypeId, Option<MapperId>>",
+          "line": 802,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "type_parameter_default",
+          "type": "SparseLinks<TypeId, IdSlot<TypeId>>",
+          "line": 808,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "mapped_type_parameter",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 811,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "mapped_constraint_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 813,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "mapped_name_type",
+          "type": "SparseLinks<TypeId, LinkSlot<Option<TypeId>>>",
+          "line": 816,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "mapped_template_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 818,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "mapped_modifiers_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 821,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "mapped_contains_error",
+          "type": "SparseLinks<TypeId, bool>",
+          "line": 824,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "mapped_apparent_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 827,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "intersection_apparent_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 829,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "uniform_union_type",
+          "type": "SparseLinks<TypeId, LinkSlot<bool>>",
+          "line": 832,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "conditional_true_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 837,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "conditional_false_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 838,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "conditional_inferred_true_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 839,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "conditional_default_constraint",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 840,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "conditional_constraint_of_distributive",
+          "type": "SparseLinks<TypeId, LinkSlot<Option<TypeId>>>",
+          "line": 841,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "synthetic_type",
+          "type": "SparseLinks<TypeId, Option<TypeId>>",
+          "line": 845,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "default_only_type",
+          "type": "SparseLinks<TypeId, Option<TypeId>>",
+          "line": 849,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "resolved_index_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 852,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "resolved_string_index_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 853,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "simplified_for_reading",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 859,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "simplified_for_writing",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 860,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "unique_literal_filled_instantiation",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 863,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "permissive_instantiation",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 866,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "restrictive_instantiation",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 869,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "cached_equivalent_base_type",
+          "type": "SparseLinks<TypeId, Option<TypeId>>",
+          "line": 873,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "pattern",
+          "type": "SparseLinks<TypeId, Option<NodeId>>",
+          "line": 880,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "literal_type",
+          "type": "SparseLinks<TypeId, Option<TypeId>>",
+          "line": 883,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "array_fallback_signatures",
+          "type": "SparseLinks<TypeId, LinkSlot<crate::state::SignatureIds>>",
+          "line": 888,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "resolved_properties",
+          "type": "SparseLinks<TypeId, LinkSlot<crate::state::SymbolIds>>",
+          "line": 891,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "union_key_property",
+          "type": "SparseLinks<TypeId, LinkSlot<UnionKeyProperty>>",
+          "line": 894,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "resolved_reduced_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 897,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "deferred_mapper",
+          "type": "SparseLinks<TypeId, Option<MapperId>>",
+          "line": 901,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "declared_members",
+          "type": "SparseLinks<TypeId, LinkSlot<MembersId>>",
+          "line": 907,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "resolved_base_types",
+          "type": "SparseLinks<TypeId, Option<Vec<TypeId>>>",
+          "line": 911,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "base_types_resolved",
+          "type": "SparseLinks<TypeId, bool>",
+          "line": 915,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "resolved_base_constructor_type",
+          "type": "SparseLinks<TypeId, LinkSlot<TypeId>>",
+          "line": 920,
+          "placement": "type tail or per-kind links block"
+        },
+        {
+          "name": "promised_type_of_promise",
+          "type": "SparseLinks<TypeId, Option<TypeId>>",
+          "line": 924,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "awaited_type_of_type",
+          "type": "SparseLinks<TypeId, Option<TypeId>>",
+          "line": 927,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "widened",
+          "type": "SparseLinks<TypeId, Option<TypeId>>",
+          "line": 931,
+          "placement": "keep sparse map"
+        },
+        {
+          "name": "iteration_types",
+          "type": "HashMap<crate::iterate::IterationTypesKey, crate::iterate::IterationTypesResult>",
+          "line": 935,
+          "placement": "keep sparse map"
+        }
+      ]
+    },
+    "TransientSparse": {
+      "why": "These two sparse fields live on LinksTables itself rather than inside SymbolLinksCold.",
+      "fields": [
+        {
+          "name": "transient_declared_types",
+          "type": "FxHashMap<u32, IdSlot<TypeId>>",
+          "source": "crates/checker/src/links.rs:1349",
+          "placement": "move into TransientSymbol.declared_type / SymbolLinks.declared_type cells"
+        },
+        {
+          "name": "transient_is_referenced",
+          "type": "FxHashMap<u32, tsc_types::SymbolFlags>",
+          "source": "crates/checker/src/links.rs:1350",
+          "placement": "keep sparse map"
+        }
+      ]
+    }
+  },
+  "fieldPlacements": {
+    "Symbol.escaped_name": "Symbol.name",
+    "Symbol.declarations": "Symbol.decl0 + Symbol.more",
+    "Symbol.extras": "Symbol.tables",
+    "SymbolExtras.assignment_declaration_members": "SymbolTables.assignment_declaration_members",
+    "Signature.resolved_return_type": "Signature.resolved_return",
+    "Signature.optional_call_signature_cache": "SignatureRare.optional_call_inner + optional_call_outer",
+    "IndexInfo.is_readonly": "IndexInfo.flags bit 0",
+    "IndexInfo.is_enum_number_index_info": "IndexInfo.flags bit 1",
+    "IndexInfo.is_any_base_type_index_info": "IndexInfo.flags bit 2",
+    "ResolvedMembers.extras": "StructuredMembers.call + construct + index_infos",
+    "MembersExtras.call_signatures": "StructuredMembers.call",
+    "MembersExtras.construct_signatures": "StructuredMembers.construct",
+    "MembersExtras.index_infos": "StructuredMembers.index_infos",
+    "InferenceInfo.top_level": "InferenceInfo.flags bit 0",
+    "InferenceInfo.is_fixed": "InferenceInfo.flags bit 1",
+    "InferenceInfo.contra_candidates": "InferenceInfo.contra_candidates",
+    "TupleTargetData.has_rest_element": "TupleTarget.flags bit 0",
+    "TupleTargetData.readonly": "TupleTarget.flags bit 1",
+    "TupleTargetData.combined_flags": "TupleTarget.flags bits 8..31",
+    "LiteralData": "Literal tail value_kind (0 string, 1 number, 2 bigint), value_low/high; two f64 words preserve bits.",
+    "TypeParameter.is_this_type": "parameter_flags bit 0",
+    "TypeParameter.is_distributed": "parameter_flags bit 1",
+    "InferenceInfo.priority": "Raw i32 bits in priority; flags bit 2 records presence, preserving None, Some(0), and Some(CIRCULARITY=-1).",
+    "InferenceInfo.implied_arity": "Checked usize->u32 domain; flags bit 3 records presence, including Some(u32::MAX)."
+  }
+}

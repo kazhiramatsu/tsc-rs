@@ -1,0 +1,26 @@
+{
+  "vscode-counts.json": {
+    "source": "/Users/hiramatsu/dev/tsc-rs/target/claude-tools/handover/perf-tsrs/node-layout/vscode-counts.json",
+    "sha256": "acf2cd5bb14d3ebb2768ac660b607a38ff56940e320a671db0b5942e18acb452"
+  },
+  "vscode-b3.stderr": {
+    "source": "/Users/hiramatsu/dev/tsc-rs/target/claude-tools/handover/perf-tsrs/b3-census/census-results/vscode.counters.stderr",
+    "sha256": "38b37e3cc6f4168f1ed6ff9d7d00776bbff76372c0ec4ee7aec09d60ec060709"
+  },
+  "ast.go": {
+    "source": "/Users/hiramatsu/dev/tsc-rs/target/typescript7/upstream/tsc/internal/ast/ast.go",
+    "sha256": "0b77e229cf09a78d57dbcf222cf3dec9fea6590aea7baec80d20e4282e674a0f"
+  },
+  "ast_generated.go": {
+    "source": "/Users/hiramatsu/dev/tsc-rs/target/typescript7/upstream/tsc/internal/ast/ast_generated.go",
+    "sha256": "b6fc40ffc5f43adbe9e0f6e1a53bd90e5c20c86ae1c738bb0ae5716bc540bb5a"
+  },
+  "binder.go": {
+    "source": "/Users/hiramatsu/dev/tsc-rs/target/typescript7/upstream/tsc/internal/binder/binder.go",
+    "sha256": "177fcc0da842b52dbcdc020945d5f5b911ef11173b53ffe7022ae12bba244668"
+  },
+  "checker-types.go": {
+    "source": "/Users/hiramatsu/dev/tsc-rs/target/typescript7/upstream/tsc/internal/checker/types.go",
+    "sha256": "0265c1f309f28f4c6a608ea20243fe30625ba055e3b779b662dbec93172f9eb7"
+  }
+}
