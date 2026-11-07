@@ -103,6 +103,10 @@ file 割り当ては変えない。
   今後の規則は memory `disk-hygiene` と `incident-rm-main-repo`（破壊的 script は明示 list + deny-list + dry run、`|| rm -rf` 禁止）。
 - 掃除：閉じた lane clone 23 個と旧 worktree 57 個、build cache、Go/npm/Codex log の cache を削除（空き 13 → 491 GiB）。退避は
   `~/dev/tsc-rs-archive/2026-11-07-{worktrees,codex-outputs}/`。
+- 23:55：**#915 oracle の trait（`832b43134`）、#916 phase ledger（`7363b3dde`）、#917 PGO release workflow（`46a0e736e`）を merge**。
+  release workflow の hosted smoke run を dispatch（結果は次の記録で）。天井 lane は links と dispatch が完了（feature-off byte 同一、
+  focused test 通過、未計測）、bump と fe4 を起動。再発防止：Bash の PreToolUse guard hook と毎日の local backup script を導入
+  （memory `incident-rm-main-repo`）。
 
 ## 1. 工程の全体像（第 2 版：checker を先に、front end を後に）
 
