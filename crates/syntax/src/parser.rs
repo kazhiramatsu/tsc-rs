@@ -1127,10 +1127,16 @@ impl<'text> Parser<'text> {
         self.scanner.text()[start..end].to_owned()
     }
 
+    #[inline]
     fn drain_scanner_errors(&mut self) {
-        if !self.scanner.has_errors() {
-            return;
+        if self.scanner.has_errors() {
+            self.report_scanner_errors();
         }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn report_scanner_errors(&mut self) {
         for error in self.scanner.take_errors() {
             self.push_parse_diagnostic(
                 error.start,
@@ -1157,32 +1163,38 @@ impl<'text> Parser<'text> {
         if is_keyword(self.token())
             && (self.scanner.has_unicode_escape() || self.scanner.has_extended_unicode_escape())
         {
-            let retained_before = self.parse_diagnostics.len();
-            self.parse_error_at(
-                self.scanner.token_start(),
-                self.scanner.pos(),
-                &gen::Keywords_cannot_contain_escape_characters,
-                &[],
-            );
-            // A same-start report may have been deduplicated. Such a
-            // suppressed attempt must not justify a different retained error.
-            if self.parse_diagnostics.len() > retained_before {
-                let start = self.to_utf16(self.scanner.token_start());
-                let end = self.to_utf16(self.scanner.pos());
-                self.parse_recovery
-                    .actions
-                    .push(ParseRecoveryAction::EscapedKeywordConsumed {
-                        token: self.token(),
-                        start,
-                        length: end.saturating_sub(start),
-                        statement_start: self.to_utf16(
-                            self.recovery_statement_start
-                                .unwrap_or(self.scanner.token_start()),
-                        ),
-                    });
-            }
+            self.report_escaped_keyword();
         }
         self.next_token_without_check()
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn report_escaped_keyword(&mut self) {
+        let retained_before = self.parse_diagnostics.len();
+        self.parse_error_at(
+            self.scanner.token_start(),
+            self.scanner.pos(),
+            &gen::Keywords_cannot_contain_escape_characters,
+            &[],
+        );
+        // A same-start report may have been deduplicated. Such a
+        // suppressed attempt must not justify a different retained error.
+        if self.parse_diagnostics.len() > retained_before {
+            let start = self.to_utf16(self.scanner.token_start());
+            let end = self.to_utf16(self.scanner.pos());
+            self.parse_recovery
+                .actions
+                .push(ParseRecoveryAction::EscapedKeywordConsumed {
+                    token: self.token(),
+                    start,
+                    length: end.saturating_sub(start),
+                    statement_start: self.to_utf16(
+                        self.recovery_statement_start
+                            .unwrap_or(self.scanner.token_start()),
+                    ),
+                });
+        }
     }
 
     fn next_token_without_check(&mut self) -> SyntaxKind {
@@ -1244,12 +1256,7 @@ impl<'text> Parser<'text> {
             return true;
         }
 
-        if let Some(message) = message {
-            self.parse_error_at_current_token(message, &[]);
-        } else {
-            self.parse_error_at_current_token(&gen::_0_expected, &[&token_to_string(kind)]);
-        }
-        false
+        self.report_expected_token(kind, message)
     }
 
     /// tsc parseExpected with shouldAdvance=false: the JSX productions check
@@ -1263,6 +1270,16 @@ impl<'text> Parser<'text> {
             return true;
         }
 
+        self.report_expected_token(kind, message)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn report_expected_token(
+        &mut self,
+        kind: SyntaxKind,
+        message: Option<&'static DiagnosticMessage>,
+    ) -> bool {
         if let Some(message) = message {
             self.parse_error_at_current_token(message, &[]);
         } else {
@@ -6848,6 +6865,12 @@ impl<'text> Parser<'text> {
         {
             return None;
         }
+        self.try_parse_type_arguments_in_expression_worker()
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn try_parse_type_arguments_in_expression_worker(&mut self) -> Option<crate::NodeArrayId> {
         self.try_parse(|parser| parser.parse_type_arguments_in_expression())
     }
 

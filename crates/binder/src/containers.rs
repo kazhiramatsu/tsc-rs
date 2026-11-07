@@ -72,7 +72,16 @@ impl ModuleInstanceState {
 /// it with no second lookup and no call.
 #[inline(always)]
 pub fn get_container_flags(source: &SourceFile, node: NodeId) -> ContainerFlags {
-    match kind_of(source, node) {
+    get_container_flags_for_kind(source, node, kind_of(source, node))
+}
+
+#[inline(always)]
+pub(crate) fn get_container_flags_for_kind(
+    source: &SourceFile,
+    node: NodeId,
+    kind: SyntaxKind,
+) -> ContainerFlags {
+    match kind {
         SyntaxKind::ClassExpression
         | SyntaxKind::ClassDeclaration
         | SyntaxKind::EnumDeclaration

@@ -10,7 +10,7 @@ use crate::assignment::{
     access_expression_of, get_assignment_declaration_kind, get_element_or_property_access_name,
     AssignmentDeclarationKind,
 };
-use crate::containers::{get_container_flags, ContainerFlags};
+use crate::containers::{get_container_flags, get_container_flags_for_kind, ContainerFlags};
 #[cfg(test)]
 use crate::declare::Binder;
 use crate::declare::{BinderWorker, TableRef};
@@ -63,7 +63,8 @@ impl<'a> BinderWorker<'a> {
         // A function declaration of a statement list binds before the other
         // statements; tsgo's namespaces reparsed from its JSDoc are statements
         // of their own, bound in their place (bind_each_functions_first).
-        let functions_first = kind_of(self.source, node) == SyntaxKind::FunctionDeclaration
+        let kind = kind_of(self.source, node);
+        let functions_first = kind == SyntaxKind::FunctionDeclaration
             && parent_of(self.source, node).is_some_and(|parent| {
                 matches!(
                     kind_of(self.source, parent),
@@ -73,9 +74,9 @@ impl<'a> BinderWorker<'a> {
         if !functions_first {
             self.bind_reparsed_jsdoc_namespaces(node);
         }
-        self.bind_worker(node);
-        if kind_of(self.source, node) as u16 > SyntaxKind::LastToken as u16 {
-            let container_flags = get_container_flags(self.source, node);
+        self.bind_worker(node, kind);
+        if kind as u16 > SyntaxKind::LastToken as u16 {
+            let container_flags = get_container_flags_for_kind(self.source, node, kind);
             if container_flags == ContainerFlags::NONE {
                 self.bind_children(node);
             } else {
@@ -89,10 +90,10 @@ impl<'a> BinderWorker<'a> {
     /// tsc-port: bindWorker @6.0.3
     /// tsc-hash: 4b259323fa2534e8d67ea9485669ddbff8e0a5a252719533558d6d8e99181588
     /// tsc-span: _tsc.js:44287-44527
-    pub(crate) fn bind_worker(&mut self, node: NodeId) {
-        match kind_of(self.source, node) {
+    pub(crate) fn bind_worker(&mut self, node: NodeId, kind: SyntaxKind) {
+        match kind {
             SyntaxKind::Identifier | SyntaxKind::ThisKeyword => {
-                if kind_of(self.source, node) == SyntaxKind::Identifier
+                if kind == SyntaxKind::Identifier
                     && self
                         .flags_of(node)
                         .intersects(NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE)
@@ -113,7 +114,7 @@ impl<'a> BinderWorker<'a> {
                     }
                     return;
                 }
-                if kind_of(self.source, node) == SyntaxKind::ThisKeyword {
+                if kind == SyntaxKind::ThisKeyword {
                     self.seen_this_keyword = true;
                 }
                 if let Some(current_flow) = self.current_flow {
@@ -3383,7 +3384,7 @@ impl<'a> BinderWorker<'a> {
                     // Non-root frames re-run bindWorker (the trampoline's
                     // onEnter).
                     if top > 0 {
-                        self.bind_worker(node);
+                        self.bind_worker(node, SyntaxKind::BinaryExpression);
                     }
                     if crate::node_util::is_logical_or_coalescing_binary_operator(operator)
                         || crate::node_util::is_logical_or_coalescing_assignment_operator(operator)
