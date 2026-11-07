@@ -1,6 +1,14 @@
 # tsrs に追いつく構造変更：設計と工程（2026-11-07）
 
-状態：**計画**（所有者の方向承認待ち。code は未着手）。所有者の指示（2026-11-07）：
+状態：**第 2.1 版（2026-11-07 夜）。所有者が方向を承認（「承認します。続けてください」）した第 1 版 `aa1992224` に、独立した敵対レビュー 2 本
+（Opus 5.5 max、Codex gpt-6.1-sol max。両方とも「書かれたままでは NO-GO、契約と経済性を先に」）の所見を反映した版。** code は段 0 の
+lane（arena crate、生成器 v2）まで。所見ごとの採否は [reviews/2026-11-07-dispositions.md](reviews/2026-11-07-dispositions.md)、
+レビュー本文は [reviews/2026-11-07-opus.md](reviews/2026-11-07-opus.md) と [reviews/2026-11-07-codex.md](reviews/2026-11-07-codex.md)、
+依頼文は [reviews/2026-11-07-brief.md](reviews/2026-11-07-brief.md)。第 1 版からの主な変更：(1) 着手順を checker の data 層 → front end に反転（§1）、
+(2) 記憶モデルの健全性の節を追加（§0.5）、(3) 段 0b（B1 anchor・天井実験・PGO・oracle の trait）を freeze の前に置く（§2b）、
+(4) gate を計測した B1 からの差分と wall で定義し直す、(5) 見込みをレビューの算術に差し替える（§8：**通常 build で tsrs の 1.2〜1.37 倍**が
+現時点の正直な予測で、並ぶ予測ではない）、(6) emitter・API の型 handle・worker 数の決定性・`incremental.rs` の削除を計画に入れる。
+所有者の指示（2026-11-07）：
 「tsrs の性能に追いつくために scanner/parser/binder/checker の構造を大きく変更したい。まずは設計を」
 「過去にとらわれずゼロベースで」「小手先のデータ構造変更は全て試して無意味だとわかったので、大きな変更が必要」
 「各フェーズをより詳細に計画。変更量が大きいのでさらなる具体化が必要」。
@@ -21,8 +29,10 @@ links 表（4 段の依存 load）、getter が `Vec`/`Arc` を返す（確保 1
 **原則 4 つ。**
 
 1. 参照はすべて `Ref<T>`（`NonZeroU32`、8 byte 単位 offset）。deref は定数 base + shift の 1 命令。プロセスに 1 つの仮想予約
-   （native 32 GiB、wasm32 は linear memory）。id 空間・region・lease・relocation・publish・routing は存在しない。handle は確保した
-   瞬間に最終値。
+   （native 32 GiB = u32 handle が名指せる全空間、wasm32 は linear memory）。id 空間・region・lease・relocation・publish・routing は
+   存在しない。handle は確保した瞬間に最終値。**番号が観測される record はすべて密な序数を record 内に持つ**（node header の file 内 `index`、
+   Symbol の `ordinal`、Type と Signature の `id`）。順序・API の handle・links の表の key はその序数で、address は決して使わない
+   （レビュー R05/R13：address 単位で表を引くと密な id より 4 倍疎になり、node links だけで約 1 GiB になる）。
 2. arena は所有者ごと：file arena（parse + bind の出力。凍結後は全 checker が読む）、checker arena（型・signature・transient
    symbol・member 表・list・links 表）、scratch arena（式検査の一時物、mark と reset）、emit arena（file ごと、print 後に解放）。
    個別 free はない。
@@ -53,20 +63,49 @@ escape bit なし）、生成した kind 別 visitor、PGO（tsrs は −13〜14
 address 順。`unsafe` は `crates/arena` 1 つ。tsgo の論理・生成順・診断順・cache の鍵の意味・名前の intern・checker 4 本と DET-1 の
 file 割り当ては変えない。
 
+**記憶モデルの健全性（§0.5、レビュー B1 への答え）。**
+
+- `Record` は「あらゆる bit 列が有効な値」の POD（zero だけでなく）。block は所有者の drop 後に zero 化して再利用するので（今の
+  `crates/store` の lease と同じ契約）、古い `Ref` は zero か他の所有者の有効な record を読む。kind の decode は網羅的 `match` なので
+  論理エラーであって未定義動作ではない。release 専用の `madvise` と再利用なしの「退役」は採らない（u32 handle の 32 GiB で LS の再 check
+  が約 20 回で尽きるため）。
+- `Ref<T>` は `PhantomData<&'static T>` を持ち、`T: Sync` のときだけ `Send + Sync`。file arena の record は cell を持たず（`SharedArena::alloc`
+  は `Record + Sync` を要求、`ArenaCell` は `!Sync`）、binder は freeze 前に `&mut` で書く。checker arena の record は cell を持つので、その
+  handle は thread を出られない。checker 全体を thread 間で動かす pool のためだけに `Owned<T>`（監査済みの `unsafe impl Send`、排他使用の
+  契約）を arena crate に置く。`ArenaCell` の get/set は debug で所有 thread を検査する。
+- 凍結後の file arena には書かない。`incremental.rs` の in-place 再利用は削除（本番の呼び出し元がなく、tsgo にも incremental parser は
+  ない）。symbol の表の差し替えは checker 所有の clone にだけ行う（今の `symbol_mut` の `unreachable!` と同じ）。
+- 型の順序は Type header の密な id（tsgo の `t.id`、API の `type_handle` もこれ）。`LocalArena::contiguous` は不要。
+- parser は失敗した speculation の node を巻き戻さない（tsgo の `rewind` は `identifierCount`/`NodeCount` を戻さず、Nodes/Identifiers 行に
+  出る）。`mark/reset` は scratch だけ。
+- trybuild の compile-fail test（cell 付き record の `SharedArena` 投入、scratch の値の脱出、`Ref<cell record>` の他 thread への送出）。
+- 所有の行列（レビュー R03、Codex「Missing」）：file arena の record は file arena だけを指す。checker arena は file と自分の arena を指す。
+  emit arena は file と自分を指す。scratch は scope 内だけ。逆向きの参照（file → checker）は禁止。`owner_of` が返すのは **文書 id** で
+  あって Program の file index ではない（同じ文書を複数の Program が別の index で共有する）。Program は `doc → file index` の密な
+  配列を持つ（load が 1 つ増えるだけで、区間表の走査はない）。
+- `'static` の view が、借用のための複製（Codex の 30 か所 sample で B 11 / S 12 / I 1 / O 6）を消す機構そのもの。`&self` の alloc は
+  それを補うだけで、意味的な snapshot（S）は値のまま残す。
+
 **却下した案。** lib の型を 1 回作って 4 checker に写す（型 id の順が tsgo と変わり union の並びが出力に出る）、lazy member 表
 （depth 付近の診断が変わる）、checker の tsgo からの再移植（2 年分の適合を捨てる）。
 
-## 1. 工程の全体像
+## 1. 工程の全体像（第 2 版：checker を先に、front end を後に）
 
 | 段 | 期間 | 成果物 | 出口の gate（go/no-go） |
 | --- | --- | --- | --- |
-| 0 基盤 | 1 週 | `crates/arena`、生成器 v2、shuffle 決定性 harness、byte 予測表 | 単体 test、生成器が全 kind を通る、予測表のレビュー |
-| 1 front end | 2.5〜3 週 | scanner/AST/parser/binder/loader の arena 化、relocate 削除、消費側の compile 修正、incremental | fingerprint 全 corpus 一致、8 案件出力一致、conformance、shuffle 2 seed 一致、**front end ≤ 20 G**（今 ≈ 29 G） |
-| 2 checker data 層 | 3.5〜4 週 | 型・symbol・links・signature・members・mapper・scratch・key の arena 化、`to_vec`/`clone` の掃除 | checker tests、4-checker conformance 15,339、8 案件、`.types`/`.symbols`、Types/Symbols/Instantiations 行不変、**semantic ≤ 75 G**（今 ≈ 95 G） |
-| 3 消費側と配布 | 1.5 週 | emit arena、LS/API、診断 finalization、PGO pipeline、thread 配置 | 全 suite hosted、LS suite 4,583、API suite |
-| 4 計測と判定 | 3 日 | 製品指標の表（8 案件 × 1/4/既定 × wall/peak/命令数、tsrs 通常と PGO） | 達否の記録 |
+| 0 基盤 | 1 週 | `crates/arena`（健全性の節どおり）、生成器 v2、shuffle 決定性 harness、byte 予測表 | 単体 test、生成器が全 kind を通る、予測表のレビュー |
+| 0b 事前の de-risk | 1 週 | phase ledger を main に（feature）、B1 anchor（tsc-rs と tsrs）、天井実験 4 本（確保・links・front end・dispatch）、PGO の release pipeline、fingerprint oracle の trait 化 | B1 と天井の記録。**天井が閾値（front end ≤ B1 − 6 G、同名関数比 ≤ 1.10×）に届かなければ freeze せず所有者判断** |
+| A checker の data 層 | 5〜6 週 | 型（密 id 付き header + tail）・transient symbol・links・signature・members・mapper・inference・scratch・整数 key を checker arena に。**NodeId / SymbolId（binder）は今のまま** | checker tests、4-checker conformance 15,339、8 案件、`.types`/`.symbols`、Types/Symbols/Instantiations 行不変、LS/API/jsdoc-corpus suite、semantic ≤ B1_semantic − 天井で決めた差分、1/4 thread の wall AB/BA |
+| B front end | 4〜5 週 | scanner/AST/parser/binder/loader の arena 化、relocate・publish・adopt の削除、request の parse 内収集、resolution/loader の予算、emitter の `deep_copy_with_remap`、`incremental.rs` 削除、消費側の compile 修正 | fingerprint 一致、8 案件出力一致、emit 出力一致（bench-emit/decl）、workers 1/4/既定 × 3 回の決定性（Types/Symbols/Instantiations/Identifiers/Nodes 行込み）、shuffle 2 seed、front end ≤ B1_front − 天井で決めた差分、wall AB/BA |
+| C 消費側と配布 | 2 週 | LS/API/project/lsp、`--build`・watch の smoke、thread 配置、README の性能表 | 全 suite hosted、`gates` |
+| D 計測と判定 | 3 日 | 8 案件 × {1, 4, 既定} × {wall, peak, 命令数}、tsrs 通常と PGO の両方（normal-vs-normal と PGO-vs-PGO を別々に） | 達否の記録 |
 
-合計 ≈ 99 人日。Codex lane 3 本 + 統合者 1 人で **8〜10 週**。その間 main は修正だけ（feature freeze）。
+合計 ≈ 110〜120 人日。**同時に build する lane は 2 本まで**（heavy job は 1 つの規則）、統合者 1 人。暦で **13〜15 週**。
+main の freeze は段 0b の閾値を通ってから（段 A の開始時）。段 0 と 0b は freeze なしで進める。
+
+順序を反転した理由（レビュー M10 / A1）：差の 58% は checker にあり、checker の data 層は `NodeId`/`SymbolId` を変えずに arena 化できる
+（emitter 62 K 行・LS・API・fingerprint の消費側に触れない）。front end を先にすると、小さい方の bucket のために 8,400 か所の
+`NodeData` match を持つ消費側すべてを最初の PR で動かすことになる。
 
 ## 2. 段 0：基盤（1 週）
 
@@ -115,7 +154,30 @@ conformance 1,000 case を seed 2 つで走らせ、stdout/stderr/exit と `--ex
 `node-census`（kind 別個数）と B-3 census から、新 layout の AST / symbol / 型 / signature / members / links の live MiB を
 今の memory report の行と並べる。段 1・2 の出口 gate の予想値。
 
-## 3. 段 1：front end（2.5〜3 週、lane 3 本）
+## 2b. 段 0b：de-risk の 1 週（freeze の前）
+
+詳細は [specs/SPEC-0b.md](specs/SPEC-0b.md)。レビュー B2/B3/M13/M14 への答え。
+
+- **0b.1 phase ledger を main に**（lane、2 人日）：M1 の `proc_pid_rusage` 計測を #913 に cargo feature `phase-ledger` で移植。境界は構造に
+  依存しない定義（`load` = program 生成開始 → binder 開始、`semantic` = checker-init 終了 → finalization 開始）。計測器の PR は対象の
+  PR と分ける。
+- **0b.2 B1 anchor**（統合者、静音窓 1 つ）：tsc-rs #913 と tsrs を同じ窓で、8 案件 1 thread、warm-up 2、9 round の中央値。以後の gate は
+  すべて B1 からの差分。
+- **0b.3 天井実験 4 本**（lane、捨てる build）：(i) bump allocator で free なし、(ii) 最も熱い links 5 field を検査なしの密な配列に、
+  (iii) parse を最終 id に直接・binder 出力を node に inline・publish なしで parse+bind+fingerprint だけを走らせる、(iv) checker の
+  `NodeData` match 上位 50 か所を直接 field 読みに。判定規則は数字が出る前に固定：(iii) が front end ≤ B1_front − 6 G を示さなければ
+  段 B を再設計、(i)+(ii) で同名関数比が ≈ 1.22× から ≤ 1.10× に下がらなければ段 A の gate をその値から決め、段 A の価値を所有者が判断。
+- **0b.4 PGO の release pipeline**（lane、2 人日）：slice 8 は tsc-rs で −20.8%（VS Code 181.33 → 143.58 G）を実測済み。以後の tsrs 比較は
+  normal-vs-normal と PGO-vs-PGO を別々に報告し、PGO を構造変更の効果に数えない。
+- **0b.5 fingerprint oracle の trait 化**（lane、1 人日）：密 index の列挙（`SymbolId::new(base + i)`）を trait の背後に置き、今の code で
+  baseline を byte 一致で再現してから、段 B で arena 版を実装する。旧 binary と行を保存してから生成器を変える（oracle と生成器が同じ
+  field を黙って落とさないように）。
+- **0b.6 薄い縦 slice**（lane、1〜2 週、捨てる build。レビュー R17 / Codex §4）：binder field 付きの凍結 node 1 種、本当の instantiated
+  symbol と通常の可変 transient clone、再帰する可変 checker 呼び出しの中で借用する TypeList/Signature、可変な emit/API 消費者 1 つ、同じ
+  文書を別 index で共有する 2 つの live Program と解放順、小容量での枯渇と再利用、選択的 speculation restore。固定 base と比較してから
+  残りの kind に広げる。段 A の工数はこの slice の後に取り直す。
+
+## 3. 段 B：front end（4〜5 週、lane 2 本。第 1 版の「段 1」。段 A の後に行う）
 
 ### 1.1 scanner（`scanner.rs` 3.7 K、`keywords.rs`、`chars.rs`）— 3 人日
 
@@ -143,26 +205,29 @@ source 値は既に offset（`TokenValue{start, end, cooked}`）。残り：(a) 
   `NodeData` 値を組み立てて `set_data` する経路は消える。
 - list：既存の element stack から `alloc_slice` で 1 回写す。`alloc_array/empty_array/alloc_synthetic_array/missing_array` を `List`
   builder に。
-- speculation：`try_parse`（1465）/`look_ahead`（1491）の失敗経路で `FileArena::mark()/reset()`。巻き戻す node を誰も参照しない
-  ことを debug で確認（parent 未設定 = 未 finish）。
-- request 収集：`import`/`export … from`/`import()`/`require()`/`/// <reference>` を parse 中に `SourceFile.module_requests` へ。
-  `program/src/module_requests.rs` の別走査は削除。
+- speculation：失敗した `try_parse`/`look_ahead` の node は tsgo と同じく残す（`rewind` は `identifierCount`/`NodeCount` を戻さない。
+  第 1 版の arena 巻き戻しは撤回：レビュー M8）。
+- request 収集：parser は候補（`import`/`export … from`/`import()`/`require()`/`/// <reference>` の node）を parse 中に記録するだけ。
+  正規化（合成 import、static、dynamic/type/JSDoc、augmentation の順序、mode と loadability、DET-1 が使う import 数）は
+  `program/src/module_requests.rs` の契約のまま残し、別の木の走査だけをやめる（R07）。
 - 入口：`parse_source_file(file_name, text, options, arena: FileArena) -> SourceFile`。削除：`parse_*_in_identity_domain`、
   `with_bases`、`SyntaxLeases`、`published_*`、`Published`、`relocate.rs`（4.6 K）、`remap_node_data_ids`。
 - gate：fingerprint 全 corpus 一致、syntax の 279 test、conformance の parse 診断。
 
 ### 1.4 binder（`bind.rs` 4.0 K、`declare.rs` 2.0 K、`containers.rs`、`symbols.rs`、`symbols/table.rs`、`flow.rs`）— 5 人日、lane B
 
-- Symbol 32 B を file arena に：`{flags, name, parent, value_declaration, decl0, more: Option<Span<NodeId>>, tables:
-  Option<Ref<SymbolTables>>, spare}`。`SymbolTables` tail `{members, exports, global_exports, export_symbol,
+- Symbol 32 B を file arena に：`{flags, name, parent, value_declaration, decl0, more: Option<Ref<List<NodeId>>>, tables:
+  Option<Ref<SymbolTables>>, ordinal}`（8 word ちょうど。第 1 版の `Span` 8 B + spare は 36 B で誤り：R14）。`ordinal` は file 内の
+  生成番号で、API の symbol handle と tie-break（`type_order.rs:138-150`）はこれを使う。`SymbolTables` tail `{members, exports, global_exports, export_symbol,
   const_enum_only_module, is_replaceable_by_method, assignment_declaration_members: Option<Span<(NodeId, NodeId)>>}`。
   `SymbolExtras` の Box と `Arc<SymbolTable>` × 3 を削除。
 - `SymbolTable`：`{len, entries: [(EscapedName, SymbolId)]}` の arena record。bind 中は thread scratch で育て、container の bind
   終了時に凍結（16 entry 超は hash index を後ろに付ける）。checker が後から足す経路（late-bound、merge）は checker arena に新しい
   table を作って symbol の `tables` cell を差し替える（tsgo の merge と同じ）。挿入順は保つ。
-- BindData の per-node map を tail に：`node_symbol`→`symbol`、`locals`、`node_local_symbol`、`next_container`、`node_flow`→`flow`、
-  `node_end_flow`/`node_return_flow`→関数 tail、`node_flow_when_true/false`/`possibly_exhaustive`/`node_fallthrough_flow`→該当
-  kind、`node_flags_mut`→header `flags` に直接。BindData に残るのは `bind_diagnostics`、`classifiable_names`、
+- BindData の per-node map を tail に。どの kind がどの field を持つかは **field × kind × 書き手/読み手の行列**（gen2 の成果物。tsgo の
+  base 埋め込みと、Rust の binder の全書き込みの census の両方から導く：R08。flow は QualifiedName・BindingElement・statement にも
+  書かれ、SourceFile は end flow、static block は return flow、ConditionalType と hosted JSDoc は locals を持ち、CallExpression に
+  flow の書き手はない）。`node_flags_mut` は header `flags` に直接。BindData に残るのは `bind_diagnostics`、`classifiable_names`、
   `pattern_ambient_modules`、`common_js_module_indicator`、`emit_flags`。
 - flow：`FlowId = Ref<Flow>`（global）。16 B record は維持、label の antecedent は `Span<FlowId>`。
 - 削除：`published_node_symbol/flow/flags`、`DenseNodeMap`、`NodeFlowMap`、`BinderNodeFlags`、`TreeClaim`、`bind_reserved`、
@@ -171,8 +236,13 @@ source 値は既に offset（`TokenValue{start, end, cooked}`）。残り：(a) 
 
 ### 1.5 loader と Program（`loader.rs` 8.7 K、`prepared.rs`、`parse_cache.rs`、`workers.rs`、`program.rs`）— 5 人日、lane B
 
-- `load_task` → `admit_source` で parse した直後に同じ worker で `bind_source_file`。`bind_existing_source` の後段 bind、relocation、
-  publication、adopt を削除。
+- `load_task` → `admit_source` で parse した直後に同じ worker で `bind_source_file`。relocation、publication、adopt を削除。
+  `bind_existing_source` は後段の bind ではなく task の重複排除（表示 alias、library/root の class 判定）なので残す：同じ source が複数の
+  task/class に付いても bind は 1 回。content mapper の補助出力も同じ経路。
+- symbol と private-name serial の割り当て：今は Program 順に直列で予約してから並列 bind する（`checker/src/lib.rs:6214`）。融合後は
+  file 内で割り当て、出力に出る serial は Program 順で fix-up するか tsgo と同じく checker で lazy に付ける。どちらにするかは段 B の
+  SPEC で決め、gate に workers 1/4/既定 × 3 回の決定性を入れる（レビュー B6）。
+- resolution（B0 で 4.08 G 対 tsrs 1.88 G）と fs/loader（4.18 対 2.99 G）も段 B の範囲に入れ、天井 (iii) から予算を切る（レビュー B3）。
 - `FileDocument { arena: FileArena, source: SourceFile, bind: BindData }` を `Arc` で保持。`Program.files` の順が program 順。
 - `try_file_index_of_node`/`source_of_node`（checker 264、ls 189 か所）の実装を `arena::owner_of(node)` の 1 load に。API は残す。
   `DenseOwners` 削除。
@@ -181,36 +251,51 @@ source 値は既に offset（`TokenValue{start, end, cooked}`）。残り：(a) 
 
 ### 1.6 消費側の compile 修正（checker、emitter、ls、api、project、lsp）— 5 人日、lane D
 
-`NodeData::X(d)` の match（checker 2,810、emitter 3,443、ls 1,370、api 229、binder 524、program 29）は view enum でそのまま
-compile。手修正は (a) Box variant の deref、(b) `js_doc()`、(c) `published_*`、(d) `NodeArena` の変更 API（emitter 8、api 12、
-ls 2 か所）、(e) `&Node` → header + `data()`。見積 500〜800 か所。checker の意味は変えない（`kind_of` 1,758、`.node(` 454 は
-無変更）。
+`NodeData::X(d)` の match（checker 2,810、emitter 3,443、ls 1,370、api 229、binder 524、program 29）は、生成器が今と同じ owned の
+`XxxData` を tail から decode する形を保つのでそのまま compile する（`NodeData` の payload は今も Box なしの Copy 値型：レビュー R16。第 1 版の「Box variant 52 個」は古い記述で削除）。
+`NodeData::X(XData {…})` で値を組み立てる箇所（emitter 94、checker の node builder 100、api 18、ls 12）も同じ struct で動く。手修正は
+(a) `js_doc()`、(b) `published_*`、(c) `NodeArena` の変更 API（`node_mut`/`set_data`/`reshape`：emitter 14/4/0、api 7/1/2、syntax 18/2/0）、
+(d) `&Node` → header + `data()`、(e) API decoder の kind 変更（`decoder/mod.rs:676-699`：別 size の record に作り直す）。
+見積は段 0b の縦 slice で取り直す（R16/R17）。checker の意味は変えない（`kind_of` 1,758、`.node(` 454 は無変更）。
+- **emitter（レビュー B4 / R04）**：emitter は 124 K 行（`src/*.rs` 62 K + `builtins/` + `declarations/`）。`TransformArena::add_source` は
+  parse 済み tree を丸ごと複製して detach し、`parsed_node_base` の算術で元の node に戻す（`factory.rs:460-475`、`remap_node_data_ids`
+  は `:7937`、`copy_subtree` は `synthetic_file.rs:148`）。global な `Ref` ではこの算術が成り立たないので、生成器が
+  `deep_copy_with_remap(src, root, dst) -> (NodeId, OriginalMap)`（tsgo `DeepCloneNode`）を出し、emit arena に元 node の side table を
+  持たせる。見積 8〜12 人日（第 1 版の 3 人日は過小）。
 
-### 1.7 incremental（`incremental.rs` 1 K）— 2 人日
+### 1.7 incremental（`incremental.rs` 1 K）— 削除
 
-再利用 node は旧 file arena を `Arc` で保持したまま in-place で `pos/end/parent` を更新（旧 tree は LS が専有）。保持 byte が
-新 source の 2 倍を超えたら全 parse。`collect_node_data_ids`/`node_data_structurally_equal` は `observable_fields` 版に。
+本番の呼び出し元がなく（syntax の test と example だけ）、tsgo にも incremental parser はない（parse cache が file 全体を parse して
+bind する）。CLAUDE.md の「tsgo に合わせる」に従い削除する。第 1 版の「凍結 arena の in-place 更新」は撤回（レビュー M1 / B1）。
 
-### 段 1 の出口 gate（PR #1）
+### 段 B の出口 gate（PR #2）
 
-fingerprint 全 corpus `--compare` 一致、`cargo test -p tsc-syntax -p tsc-binder -p tsc-program`、8 案件 `diffout.py` 一致、
-conformance（hosted）、`arena-shuffle` 2 seed 一致、M1 台帳で front end（load + bind、adopt なし）**≤ 20 G**、syntax + binder の
-live が予測表の帯、hosted `gates`。**22 G を超えたら段 2 に進まず、profile で原因を書いて所有者に判断を仰ぐ。**
+fingerprint 全 corpus `--compare` 一致（trait 化した oracle）、`cargo test -p tsc-syntax -p tsc-binder -p tsc-program`、8 案件
+`diffout.py` 一致、emit 出力の全 file 一致（hono/zod/vue/TypeScript の bench-emit と bench-decl、段 B 前の binary と比較）、
+conformance と LS/API/jsdoc-corpus suite（hosted）、workers 1/4/既定 × 3 回 × 8 案件の stdout/stderr/exit と
+Types/Symbols/Instantiations/Identifiers/Nodes 行の一致、`arena-shuffle` 2 seed 一致、phase ledger で front end が
+**B1_front − 天井 (iii) で決めた差分**以下、1/4 thread の wall AB/BA、hosted `gates`。届かなければ段 C に進まず所有者に判断を仰ぐ。
 
-## 4. 段 2：checker の data 層（3.5〜4 週、lane 3 本）
+## 4. 段 A：checker の data 層（5〜6 週、lane 2 本。第 1 版の「段 2」。先に行う）
 
-前提：checker arena は `&self` で alloc、可変 field は `ArenaCell`。links の書き込みは今の `LinksTables` の `set_*`（speculation
-journal の入口 117 か所）を経由したままにし、journal の論理は変えない。
+前提：checker arena は `&self` で alloc、可変 field は `ArenaCell`。`NodeId` と binder の `SymbolId` は今の store のまま（段 B で替える）。
+speculation の巻き戻しは `SpeculationCheckpoint`（`speculate.rs:81`：19 本の stack 長 + clone する map 2 つ）と `SpeculativeLinksMarks`
+（`resolved_signatures` だけ）で行われており、links の `set_*` の `_speculation_depth` 引数の大半は未使用（レビュー M2）。swap/revert/clear
+の経路（`links.rs:1957-2071`）と `LinksTables` 外の signature 書き込み（`state.rs:2244`）もある。段 A の SPEC は **field ごとの
+protocol 表**（fresh / 永続 cache / sentinel / scoped restore / accumulator / snapshot）を先に作り、選択的な journal を保つ（R10）。
+stack を scratch に移しても truncate-on-rollback を保ち、test する。
 
 ### 2.1 型（`types/src/ty.rs`、`tables.rs` 3.8 K、`type_order.rs`）— 7 人日、lane E
 
-- `Type` header 24 B `{flags, object_flags, symbol, alias: Option<Ref<Alias>>, …}` + kind 別 tail に `TypeData` の payload と
-  `TypeLinks` の field を同居：Object `{members: Cell<Option<MembersId>>, deferred_node, instantiated_target, mapper, …}`、
+- `Type` header 24 B `{flags, object_flags, id（checker ごとの密な生成番号。tsgo `t.id`、API の `type_handle` もこれ）, symbol,
+  alias: Option<Ref<Alias>>, w5}` + kind 別 tail に `TypeData` の payload と `TypeLinks` の field を同居：Object `{members: Cell<Option<MembersId>>, deferred_node, instantiated_target, mapper, …}`、
   Reference `{target, type_arguments: Cell, …}`、Union/Intersection `{types: Span<TypeId>, regular_type, origin, key_property, …}`、
   TypeParameter `{constraint, default, base_constraint, target, mapper, …}`、Literal/Intrinsic `{value, fresh, regular}`、
   Mapped/Conditional/IndexedAccess/Substitution/ReverseMapped/GenericType。`TypeLinks` 表と `type_cold` の大半を削除。
-- 生成順 = handle 順を checker arena の連続予約で保証。`compare_types` の tie-break と `type_order.rs` は handle 比較。Types 行は
-  counter。
+- 順序は header の `id`（`compare_types` の tie-break、`type_order.rs`、union の並び、`engine.rs:4809` の再帰検出）。Signature も
+  `id` を持つ（API の signature handle は `index + 1`：R05）。address 順は使わない。tail が links を含むと
+  kind によっては今の 40 + 24 B を超えうるので、gen2 の REPORT の kind 別 byte 表（B-3 の occupancy 付き）で layout を決め、冷たい
+  kind は links 表に残す（レビュー M5）。
 - list：`TypeListId = Ref<List<TypeId>>`、`intern_type_list` は content hash の表で `Ref` を返す、`list(id) -> &[TypeId]` は arena
   借用。`get_type_list_id`/`get_alias_id`（String key）は `(TypeListId, AliasId)` の整数 key。
 - API 名は保つ：`flags_of`（909 か所）、`object_flags_of`（182）、`type_of`（659）、`TypeData::` の match（465）は view enum。
@@ -220,10 +305,14 @@ journal の入口 117 か所）を経由したままにし、journal の論理�
 
 - transient symbol を checker arena に：instantiated 形 32 B `{flags, origin: SymbolId, check_flags, target, mapper,
   type_of_symbol, declared_type, name_type}`（name/declarations/value_declaration/parent は origin 経由）、非 instantiated 形は
-  Symbol 32 B + links tail 24 B。`self.binder.symbol(id)`（489 か所）は `id.get()`。
-- 永続 symbol の links：2 段 page 表（256 handle/page、12 B `{type_of_symbol, declared_type, flags}`）。`SymbolLinksCold` 37 map は
+  Symbol 32 B + links tail 24 B。生成後に transient symbol を書き換える箇所（`symbol_mut` 57、`set_declarations` 15、`push_declaration` 5）
+  を生成経路ごとに census し、形は確保時に決め、origin 由来 field への書き込みは debug で assert する（レビュー M4）。binder の symbol は
+  今の `SymbolId` のまま読む。
+- 永続 symbol の links：2 段 page 表。**key は密な序数**（段 A では今の `SymbolId`、段 B では file base + `ordinal`）で、handle の
+  address ではない（R13）。record は 12 B `{type_of_symbol, declared_type, flags}`。`SymbolLinksCold` 37 map は
   transient 専用を tail に、残りは sparse のまま。
-- node links：2 段 page 表、16 B record。`NodeLinksCold` は sparse のまま。
+- node links：2 段 page 表、key は密な序数（段 A では今の `NodeId`、段 B では file base + header の `index`）、16 B record。
+  `NodeLinksCold` と compound key の map（iteration、union property、properties-type、file 別 export cache）は sparse のまま。
 - symbol の順序 id（R29、`getSymbolId`）は links に残す。
 - gate：Symbols 行不変、`.symbols` baseline。
 
@@ -248,7 +337,9 @@ journal の入口 117 か所）を経由したままにし、journal の論理�
 
 ### 2.5 relation と key（`engine.rs` 5.1 K、`relate.rs`）— 4 人日、lane G
 
-- relation cache key：`(source, target)` の u64 + `(relation, intersection_state)` で表を選ぶ。10 進文字列 key を削除。
+- relation cache key：通常 key は既に整数 3 組（`relate.rs:59-77`）。残るのは generic key の正規化（型引数 index の正規化、制約 marker、
+  深さ 4 の再帰）で、文字列構築の費用だけを価格付けして置き換える。Pair / Generic の 2 家族と、値ベースの `AliasKey`/`InstantiationKey`
+  は意味を変えない（第 1 版の「`(TypeListId, AliasId)` の整数 key」は撤回：`AliasId` は可変 record で正規形ではない。R06）。
 - `RelationErrorState` の clone を scratch の不変 chain `{parent, entry}` + depth に。capture は head の複製、reset は head の復元。
 - `format!/String::new` 206 か所のうち cache key 用途を整数 key に、診断文は `#[cold]` 関数へ。
 - gate：診断の順序と文面の byte 一致（8 案件、conformance）。
@@ -263,78 +354,97 @@ journal の入口 117 か所）を経由したままにし、journal の論理�
 2.1〜2.6 を `arch/arena` に順に merge し、各段で checker 1,891 test と 8 案件を回す。差が出たら `.types`/`.symbols` の walk で最初の
 差分 node を特定。
 
-### 段 2 の出口 gate（PR #2）
+### 段 A の出口 gate（PR #1）
 
 checker tests、`conformance_ts71.py --workers 1 --checkers 4` の 15,339 行が既知 4 差分のみ、8 案件 1 / 4 thread 出力一致、
-`.types`/`.symbols` suite（hosted）、Types/Symbols/Instantiations 行が 8 案件で不変、M1 台帳で semantic check **≤ 75 G**、checker
-live が予測表の帯、hosted `gates`。**80 G を超えたら段 3 の前に profile で原因を書き、所有者に判断を仰ぐ。**
+`.types`/`.symbols` suite と LS/API/jsdoc-corpus suite（hosted）、Types/Symbols/Instantiations 行が 8 案件で不変、API の型 handle が
+密 id で不変、phase ledger で semantic が **B1_semantic − 天井 (i)(ii) で決めた差分**以下、checker live が予測表の帯、1/4 thread の
+wall AB/BA、hosted `gates`。届かなければ段 B の前に profile で原因を書き、所有者に判断を仰ぐ。
 
-## 5. 段 3：消費側と配布（1.5 週、lane 2 本）
+## 5. 段 C：消費側と配布（2 週、lane 2 本。第 1 版の「段 3」）
 
-- **3.1 emitter**（62 K 行：`factory.rs`、`transform.rs`、`printer.rs`、`declarations/`）— 3 人日。transform が作る node は file
-  ごとの emit arena に `alloc` し、print 後に `release()`。`detached_clone`/`into_detached`/`copy_subtree`/`transform_flags` の
-  detached 表を emit arena の side table に。
-- **3.2 LS・API・project・lsp** — 3 人日。`source_of_node` 189 か所は 1.5 の実装で動く。API の node/symbol handle は登録制の opaque
-  値なので wire 不変。LS suite 4,583 と API suite で確認。
-- **3.3 診断 finalization** — 2 人日。M1 で 1.2 G 対 0.03 G。診断 record `{code, span, args: Span<Arg>}` の遅延描画と
-  `(file index, pos)` の安定 sort。
-- **3.4 PGO と配布** — 2 人日。`pgo.yml`（DRAFT）と `scripts/pgo_build.py` を release pipeline に。学習 corpus は hono +
-  conformance batch + 2 案件。PGO 対 PGO で tsrs と比較できるようにする。
+- **3.1 emitter** は段 B に移った（`deep_copy_with_remap` と元 node の side table、8〜12 人日）。段 C では emit arena の drop による
+  解放と `transform_flags` の side table の整理だけ。
+- **3.2 LS・API・project・lsp** — 5 人日。`source_of_node` 189 か所は段 B の実装で動く。API の node handle は表の index、symbol handle は
+  登録制で wire 不変、型 handle は Type header の密 id（レビュー B5）。LS suite 4,583 と API suite は段 A・B の出口でも走らせる。
+  `--build`（project reference）と watch の smoke、共有 lib binder の arena を LS で複数 Program が `Arc` で持つ寿命を確認。
+- **3.3 診断 finalization** — 削除。comparator（file 名、start、長さ、code、category、source、message、related info）と重複 merge は
+  複雑で簡略化できず（R11）、1.23 G のうち 0.92 G は #890 で既に除かれている（M11）。
+- **3.4 PGO** は段 0b に移った。段 C では release tag での配布だけ。
 - **3.5 thread 配置** — 1 人日。checker thread に macOS の QoS user-interactive、既定 checker 4、loader worker = P-core 数。
 
 出口：全 suite hosted、LS / API suite、`gates`。PR #3。
 
-## 6. 段 4：計測と判定（3 日）
+## 6. 段 D：計測と判定（3 日）
 
-8 案件 × {1 thread, 4 thread, 既定} × {wall, peak, 命令数}。tsrs 通常（`tsrs-sym-nopgo`）と npm PGO の両方。tsgo との出力一致は
+8 案件 × {1 thread, 4 thread, 既定} × {wall, peak, 命令数}。tsrs 通常（`tsrs-sym-nopgo`）と npm PGO の両方で、normal-vs-normal と
+PGO-vs-PGO を別々に。tsgo との出力一致は
 DET-1 の窓と同じ手順。静音窓、warm-up 2、AB/BA 12 組、A/A 付き。packet と README の性能表に記録し、「tsrs より速い」の達否を
 案件ごとに書く。
 
 ## 7. 体制・branch・gate の運用
 
 - branch：`arch/arena` を main から切る。lane は `arch/arena` から sub-branch を isolated clone で作業し、SPEC・patch・自己 check
-  を返す。統合者が毎日 `arch/arena` に merge し `cargo check --workspace` と focused test。main へは段 1・2・3 の 3 本の PR
-  （merge commit）。
-- main の freeze：段 1〜2 の間は修正だけ。統合者が週 1 回 `arch/arena` を main に rebase。
-- 役割：統合者（Claude）= SPEC、統合、gate、台帳。Codex lane = 実装（xhigh）。Opus = 設計レビューと段 2 の oracle debugging の
-  併走。着手前に設計の敵対レビュー（Codex max + Opus max、独立）を 1 回。
-- 負荷：heavy job は同時に 1 つ、lane の build は `-j 1`、計測は静音窓。
+  を返す。統合者が毎日 `arch/arena` に merge し `cargo check --workspace` と focused test。main へは段 A・B・C の 3 本の PR
+  （merge commit）。段 0/0b の成果物（arena crate、生成器、ledger feature、oracle の trait、PGO workflow）は通常の小さな PR で main へ。
+- main の freeze：段 A〜B の間は修正だけ。統合者が週 1 回 `arch/arena` を main に rebase。段 0・0b は freeze なし。
+- 役割：統合者（Claude）= SPEC、統合、gate、台帳、計測窓。Codex lane = 実装（xhigh）。Opus = 設計レビューと段 A の oracle debugging の
+  併走。設計の敵対レビュー（Codex max + Opus max、独立）は 2026-11-07 に実施済み（所見は処理表に）。
+- 負荷：build する lane は同時に 2 本まで、heavy job は 1 つ、lane の build は `-j 2`、計測は統合者の静音窓だけ。
+- 契約の文書（段 0b の成果物、Codex「Missing」）：所有の行列、snapshot の契約（api/ls/lsp/project、cursor、文書 registry、source lease）、
+  front end の全入口（TS/TSX、JS/JSX と hosted JSDoc、宣言/lib、JSON、parse cache、content mapper、project reference の redirect、
+  package の重複排除、lib の class 判定）、request の観測契約、wire/serialization の消費者、`--incremental`/`--build`/watch、oracle の
+  移行手順、変えた契約ごとの gate 行列、CI の生成器登録（`.github/ci/replay.py` が `generate_nodes.py --check` を走らせる）、byte の台帳。
+- 撤退：段 A が gate に届かなければ main は #913 の構造のまま（段 0/0b の成果物だけが main にある）。段 B が届かなければ main は段 A の
+  checker arena を保ったまま front end は今の store のまま。
 - SPEC：`SPEC-arena`、`SPEC-gen2`、`SPEC-scanner`、`SPEC-parser`、`SPEC-binder`、`SPEC-loader`、`SPEC-consumers-fe`、`SPEC-types`、
   `SPEC-symbols-links`、`SPEC-sig-members`、`SPEC-scratch`、`SPEC-keys`、`SPEC-copies`、`SPEC-emit-arena`、`SPEC-ls-api`、
   `SPEC-pgo`。各 SPEC：範囲、API 契約、不変条件、削除する物、gate、却下条件。
 
-## 8. 見込みと停止規則
+## 8. 見込みと停止規則（第 2 版：レビューの算術に差し替え、B1 で確定）
 
-| 指標（VS Code 1 thread） | 今（#913） | tsrs 通常 / PGO | 段 1 後 | 段 2 後 | 段 3 後（PGO 込み） |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| 命令数 | 127.7 G | 85.5 / 75 G | ≈ 115 G | 85〜95 G | 76〜85 G |
-| 内訳 front end | ≈ 29 G | 17.6 G | 15〜18 G | 同 | 同 |
-| 内訳 semantic | ≈ 95 G | 66.8 G | ≈ 95 G | 68〜74 G | 61〜67 G |
-| peak footprint | 2,886 MiB | 2,008 MiB | ≈ 2,650 MiB | 1,900〜2,200 MiB | 同 |
-| 4 thread wall | 3.13 s | 1.97 s | — | ≈ 2.1 s | ≈ 1.9〜2.0 s |
+第 1 版の「今 127.7 G / 2,886 MiB」は #909・#910 の card の和で、#911（peak −7.25%）と #913（命令数 ≈ −0.74%）を含まない。計測器
+（phase ledger）も main になく、front end ≈ 29 G・semantic ≈ 95 G は推定だった（レビュー B2）。B1 を測るまでの暫定値はレビューの再構成
+（±2 G）：
 
-正直な見立て：この構造は「追いつく」ための必要条件で、1 thread の命令数は tsgo 忠実のまま並ぶところまで。tsrs は tsgo より型を
-8% 少なく作る近道を持ち、その分は per-operation 効率で埋める。明確に上回る材料は front end の融合と SWAR、名前の u32、PGO、
-thread 配置の 4 つで合計 5〜10%。tsrs の近道を結果同一の証明付きで採るかは別の所有者判断。
+| 指標（VS Code 1 thread） | 今（#913、導出） | tsrs 通常 / PGO | 段 B 後（front end） | 段 A 後（semantic） | 合計（通常 / PGO） | peak |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 第 1 版の見込み | 127.7 G | 85.5 / 75 G | 15〜18 G | 68〜74 G | 85〜95 / 76〜85 G | 1,900〜2,200 MiB |
+| レビューの算術 | ≈ 125〜126.5 G（front ≈ 32.7、semantic ≈ 90〜92、peak ≈ 2,674 MiB） | 同 | 21〜28 G（削れるのは adopt ≤ 4.1、request 0.4〜0.6、parse 0.8〜2.3、bind 0.5〜1.5 G。resolution/fs は別予算） | 78〜87 G（links/routing 2〜3、transient 1〜1.5、複製 1.5〜3、確保 2〜4、key/error state 1〜2 G、着地率 30〜60%。tsgo 忠実の床は ≈ 70〜72 G） | **101〜117 G / 85〜100 G** | 2,100〜2,400 MiB |
 
-停止規則：段 1 の front end が 22 G 超、段 2 の semantic が 80 G 超なら、次の段に進まず原因を書いて判断を仰ぐ。
+正直な見立て：レビューの算術では、この構造変更の到達点は **通常 build で tsrs の 1.2〜1.37 倍、PGO 同士で 1.13〜1.33 倍、peak は tsrs より
+5〜20% 多い**。並ぶ予測ではない。第 1 版の数字は、個々に計測済みの機構（S3 の routing 除去 −0.91%、D1 の relocation −0.25 G、A-1a の
+小さい node +3.40 G、node_symbol の圧縮 +855 M）を過大に見積もっていた。差の最大の塊（Codex 相談の「relation/member/inference の
+制御経路と再問い合わせ」8〜16 G）は data 層では消えない。この見立てを覆せるかどうかを段 0b の天井実験で確かめ、§8 を B1 と天井の
+数字で書き直す。
+
+停止規則：段 0b の天井が閾値（front end ≤ B1_front − 6 G、同名関数比 ≤ 1.10×）に届かなければ freeze せず所有者判断。段 A・B の
+出口 gate は「数値を超えたら不合格」で、猶予帯はない（R12）。不合格なら次の段に進まず原因を書いて判断を仰ぐ。
+
+所有者に残る判断（両レビューの問い）：(1) 継続の条件は normal-vs-normal で並ぶ道筋か、memory の大きな改善 + 命令数の小さな改善でも
+可か。(2) 32 GiB（u32 handle × 8 B）を live な arena の process 全体の上限として受け入れるか（drop 後の再利用で LS は回る。複数の大きな
+Program を同時に持つ LS で超えれば明示的に失敗する。16 byte 単位にすれば 64 GiB）。(3) wasm32 をこの書き直しの間も対応 target と
+するか（compile と 4 GiB の明示的な上限、実行時の検証は段 C）。(4) freeze の期間は暫定（縦 slice 後に再見積もり）でよいか。
 
 ## 9. リスク台帳
 
 | リスク | 対策 |
 | --- | --- |
-| 段 2 の出力同一性 debugging が工数の大半を占める | accessor と `set_*` の名前を保って変更を機械的に。段 2 を 2 PR（2.1〜2.3 / 2.4〜2.7）に分ける退路。Opus を debugging に併走 |
-| handle 順序への暗黙依存 | `arena-shuffle` の CI job。handle 比較は型の生成順だけに限定し、symbol は順序 id |
-| cell 化で speculation journal が漏れる | 書き込みは `LinksTables` の `set_*` 経由のみ（lint で直接 `set` を禁止） |
-| 小 file の block 端数と untouched page | 64 KiB block は virtual、resident は触った page だけ。memory report で committed を出す |
-| LS の incremental で旧 arena が溜まる | 保持 2 倍で全 parse。LS suite で確認 |
-| API/LS の handle 公開 | 登録制の opaque 値で wire 不変。suite で確認 |
-| wasm32 | handle は 32 bit で収まる。予約は `memory.grow`、単 thread。段 3 で build を確認 |
-| main の freeze と rebase 費用 | 週 1 回の rebase、修正以外は main に入れない |
+| 段 A の出力同一性 debugging が工数の大半を占める | accessor と `set_*` の名前を保って変更を機械的に。段 A を 2 PR（2.1〜2.3 / 2.4〜2.7）に分ける退路。Opus を debugging に併走 |
+| handle 順序への暗黙依存 | 順序は record の密 id だけ。`arena-shuffle` の CI job と workers 1/4/既定の決定性 gate |
+| speculation の巻き戻し漏れ | 巻き戻しは `SpeculationCheckpoint` の stack 長 + map の clone（M2）。stack を scratch に移しても truncate を保ち test |
+| 記憶モデルの健全性（stale `Ref`、cell の data race） | §0.5：全 bit 列が有効な `Record`、drop 後の zero 化と再利用、`Ref: Send+Sync iff T: Sync`、`Owned<T>` の監査、trybuild |
+| 小 file の block 端数 | 16 KiB block（page と同じ）。memory report で committed を出す |
+| emitter の detached copy | 段 B で `deep_copy_with_remap` と元 node の side table（B4）。emit 出力一致を gate に |
+| API/LS の handle 公開 | node は表 index、symbol は登録制、型は密 id（B5）。suite を段 A・B の出口でも走らせる |
+| 見込みの過大評価（第 1 版） | 段 0b の天井実験と B1 で §8 を書き直し、閾値未達なら freeze しない |
+| wasm32 | handle は 32 bit で収まる。予約は `memory.grow`、単 thread。段 C で build を確認 |
+| main の freeze と rebase 費用 | 週 1 回の rebase、修正以外は main に入れない。freeze は段 A 開始から |
+| lane の並列 build と静音窓の競合 | build する lane は 2 本まで、計測は統合者の窓だけ（M9）。暦 13〜15 週 |
 
 ## 10. 捨てるもの・残すもの
 
-捨てる：`crates/store` の region / identity space / lease / claim / relocation / publication、`relocate.rs`、`PagedTable` と
+捨てる：`crates/store` の region / identity space / lease / claim / relocation / publication、`relocate.rs`、`incremental.rs`、`PagedTable` と
 `LinkSlot`/`IdSlot` と cold map の大半、binder の region 4〜6 と `BindData` の per-node map、`SymbolExtras` の Box、
 `ResolvedMembers` の Box と Arc、`Signature` の Vec、`TypeMapper` の enum arena、`InferenceContext` の Vec、`RelationErrorState`
 の clone、`get_type_list_id` の String、`ScannerState` の余分な word、`DenseOwners`、`module_requests.rs` の別走査。
