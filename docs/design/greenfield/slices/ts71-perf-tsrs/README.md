@@ -61,6 +61,16 @@ TypeScript compiler −0.79%、zod −0.66%、他 4 件 −0.5〜−0.6%（1 thr
 release workflow は繰り返し計測の完全一致規則で停止していた（差 0.002%）：[#920](https://github.com/kazhiramatsu/tsc-rs/pull/920) で
 許容 0.05% に（hono の PGO 感度 −15.5% は design §8 に記録）。
 
+**結果 2（2026-11-08 08:0x）。** lane `tax-a` の 9 行のうち払う 7 行（A2 綴り提案の lowercase 確保、A3 文字列の借用、A4 `format!` の key と
+数値→文字列、A5 union member の複製、A6 accessor の複製、A7 contextual type の持ち回り、A9 inference の visited と member 読み）を
+[#922](https://github.com/kazhiramatsu/tsc-rs/pull/922) として merge（`837630ca4`）：出力同一（8 project、各行と合成 binary）、checker/types の
+test 1,955 本、命令数（1 thread、9 round、低い峰）は 9 行合計で VS Code **−4.04%**、hono −5.00%、vue −5.21%、next −2.30%、effect −2.24%、
+zod −2.10%、playwright −1.88%、TypeScript compiler −1.85%（行別は PR 本文）。A1（述語の確保）と A8（maybe stack の走査）は雑音水準で除外。
+lane `tax-c`（loader と parser）は 6 行のうち C5 parser/scanner の cold 分割（VS Code −0.69%）と C6 binder の dispatch（−0.30%）が払い、
+[#923](https://github.com/kazhiramatsu/tsc-rs/pull/923) として check 中；C1〜C4（module 計画、resolver の path、inclusion reason、relocation の
+copy）は census では複製が大きく減ったが命令数は ≈ 0 で、loader の「other」4.2× の正体は別（load phase の命令単位の帰属が未解決）。
+lane `tax-d`（移植の税の残り 7 行）と `tax-e`（tsrs の出力同一な reuse 7 行、E7 は Types counter が変わるため判断保留）は patch 完成、計測中。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
