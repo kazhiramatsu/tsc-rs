@@ -26,7 +26,8 @@ sys.path.insert(0, str(RECIPE_ROOT/'scripts'))
 import pgo_build
 
 PINS = dict(hono='8dcd52b92beada28962e818bdca8a137a6beb656',
-            typescript='050880ce59e30b356b686bd3144efe24f875ebc8', zod='2bf7b06')
+            typescript='050880ce59e30b356b686bd3144efe24f875ebc8',
+            zod='2bf7b0630d5378033e90bcee82cb32b0fe04628e')
 PROFILE = '7.1.0-dev-aa814927'
 UPSTREAM = 'aa8149273b23401f0a79a5f0384c42de51888693'
 
@@ -57,7 +58,7 @@ def verify_corpus(corpora):
 def freeze(corpora, recipe):
     root = corpora
     for name, pin in [('hono', PINS['hono']),
-                      ('typescript', PINS['typescript'])]:
+                      ('typescript', PINS['typescript'])] + ([('zod', PINS['zod'])] if recipe == 'release' else []):
         actual = subprocess.check_output(['git', '-C', str(root/name),
                                           'rev-parse', 'HEAD'], text=True).strip()
         if actual != pin:
@@ -100,12 +101,8 @@ def freeze(corpora, recipe):
         (root/name).write_text(json.dumps(config, indent=2) + '\n')
     if recipe == 'release':
         zod = root/'zod'
-        # The benchmark record pins this abbreviated commit. Resolve it only from
-        # the full checkout; ambiguous or absent objects fail, never follow HEAD.
-        subprocess.run(['git', '-C', str(zod), 'checkout', '--detach', PINS['zod']], check=True)
-        actual = subprocess.check_output(['git', '-C', str(zod), 'rev-parse', 'HEAD'], text=True).strip()
-        if not actual.startswith(PINS['zod']):
-            raise RuntimeError('zod: checkout SHA mismatch')
+        # The workflow checks zod out at this full commit (the benchmark record's
+        # abbreviated 2bf7b06); the pin was verified above like the other corpora.
         source = zod/'packages/zod/src'
         if not source.is_dir():
             raise RuntimeError('zod: missing production source tree')
@@ -123,10 +120,8 @@ def freeze(corpora, recipe):
             shutil.copy2(listing, batches/listing.name)
         if len(list(batches.glob('*.cases'))) != 2:
             raise RuntimeError('expected exactly two fixed conformance batches')
-    else:
-        actual = None
     manifest = dict(recipe=recipe, hono=PINS['hono'], typescript=PINS['typescript'],
-                    zod=actual, dependencies=dependencies,
+                    zod=PINS['zod'] if recipe == 'release' else None, dependencies=dependencies,
                     conformance_profile=PROFILE, conformance_commit=UPSTREAM,
                     configs={name: sha256(root/name) for name in configs},
                     batches={p.name: sha256(p) for p in sorted((root/'conformance').glob('*.cases'))})

@@ -58,8 +58,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: colinhacks/zod
+          ref: 2bf7b0630d5378033e90bcee82cb32b0fe04628e
           path: corpora/zod
-          fetch-depth: 0
+          fetch-depth: 1
           persist-credentials: false
       - name: Freeze all training bytes (only this phase downloads dependencies)
         timeout-minutes: 10

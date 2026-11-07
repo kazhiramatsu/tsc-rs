@@ -191,7 +191,7 @@ class RecipeTests(unittest.TestCase):
         pgo.write_json(self.corpus/'typescript/package-lock.json', dict(packages=packages))
         def git(command, **kwargs):
             name = Path(command[2]).name
-            return pgo.PINS[name]+('0'*33 if name == 'zod' else '')+'\n'
+            return pgo.PINS[name]+'\n'
         with patch.object(pgo.urllib.request, 'urlopen', side_effect=lambda url, **kw: io.BytesIO(archives[url])), \
              patch.object(pgo.subprocess, 'check_output', side_effect=git), \
              patch.object(pgo.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0)), \
