@@ -32,6 +32,10 @@ JOBS = {"rust": "has_rust", "conformance-ts71": "has_conformance_ts71"}
 # records and walks, Clippy over every target, every workspace test target,
 # the generated diagnostic catalog and the API encoder's generated tables.
 RUST_CHECKS = (
+    [sys.executable, "scripts/perf_line_profile/test_accounting.py"],
+    ["cargo", "fmt", "--manifest-path", "scripts/perf_line_profile/demangler/Cargo.toml", "--", "--check"],
+    ["cargo", "clippy", "--locked", "--manifest-path", "scripts/perf_line_profile/demangler/Cargo.toml",
+     "--all-targets", "--", "-D", "warnings"],
     ["cargo", "fmt", "--all", "--", "--check"],
     [sys.executable, "scripts/generate_nodes.py", "--check"],
     ["cargo", "clippy", "--workspace", "--all-targets", "--", "-D", "warnings"],
