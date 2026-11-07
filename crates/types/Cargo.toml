@@ -13,6 +13,7 @@ name = "tsc_types"
 path = "src/lib.rs"
 
 [features]
+phase-ledger = []
 # Aggregate performance counters (measurement builds only; see src/perf.rs).
 perf-counters = []
 
