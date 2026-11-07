@@ -3906,10 +3906,11 @@ impl<'a> CheckerState<'a> {
             .read_node(file_root, |links| links.check_flags)
             .intersects(NodeCheckFlags::TYPE_CHECKED)
         {
-            self.deferred_nodes
+            let set = self
+                .deferred_nodes
                 .entry(file_root)
-                .or_default()
-                .insert(node);
+                .or_insert_with(|| self.deferred_node_sets.pop().unwrap_or_default());
+            set.insert(node);
         } else {
             debug_assert!(
                 !self.deferred_nodes.contains_key(&file_root),
@@ -3932,7 +3933,14 @@ impl<'a> CheckerState<'a> {
             self.check_deferred_node(node);
             index += 1;
         }
-        self.deferred_nodes.remove(&root);
+        if let Some(mut set) = self.deferred_nodes.remove(&root) {
+            // A small file may have borrowed a much larger file's buffer.
+            // Drop a sparse one instead of clearing all its buckets again.
+            if set.capacity() <= set.len().saturating_mul(4).max(64) {
+                set.clear();
+                self.deferred_node_sets.push(set);
+            }
+        }
     }
 
     /// tsrs-native (7.4b, precision reworked by the 7.4 review): the

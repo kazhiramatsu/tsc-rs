@@ -1363,14 +1363,13 @@ pub fn for_each_return_statement(
         | SyntaxKind::LabeledStatement
         | SyntaxKind::TryStatement
         | SyntaxKind::CatchClause => {
-            let mut children = Vec::new();
+            // The tree is immutably borrowed throughout the walk. Visit in
+            // the same source order directly, as tsgo does, without building
+            // a child vector for every block and control-flow statement.
             tsc_syntax::for_each_child(tree, tree.node(body), |child| {
-                children.push(child);
-                false
-            });
-            children
-                .into_iter()
-                .any(|child| for_each_return_statement(tree, child, visitor))
+                for_each_return_statement(tree, child, visitor)
+            })
+            .is_some()
         }
         _ => false,
     }

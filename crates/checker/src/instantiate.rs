@@ -3270,7 +3270,7 @@ impl<'a> CheckerState<'a> {
             _ => own_types,
         };
         let mut types = self.tables.cursor(types);
-        let mut mapped_types: Vec<TypeId> = Vec::new();
+        let mut mapped_types: Vec<TypeId> = Vec::with_capacity(types.len());
         let mut changed = false;
         while let Some(t) = types.next(&self.tables) {
             let mapped = if self.tables.flags_of(t).intersects(TypeFlags::UNION) {

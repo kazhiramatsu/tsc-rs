@@ -704,6 +704,27 @@ impl TypeTables {
         tables
     }
 
+    /// Reserve lookup-only interning tables from the bound program. Their
+    /// bucket order never assigns a type/list identity or visits a member:
+    /// those orders live in `types` and `list_items`. The caps bound eager
+    /// allocation when a large declaration file is mostly unchecked.
+    pub fn reserve_capacity_hint(&mut self, nodes: usize, symbols: usize) {
+        let lists = (symbols / 4).min(1 << 16);
+        let literals = (nodes / 128).min(1 << 14);
+        let items = &self.list_items;
+        self.list_ids
+            .reserve(lists.saturating_sub(self.list_ids.len()), |&id| {
+                hash_type_list(list_at(items, id))
+            });
+        let texts = &self.literal_texts;
+        self.string_literal_types.reserve(
+            literals.saturating_sub(self.string_literal_types.len()),
+            |&(text, _)| hash_literal_text(texts.bytes(text)),
+        );
+        self.instantiations
+            .reserve(lists.saturating_sub(self.instantiations.len()));
+    }
+
     // ---- arena ----
 
     /// tsc-port: createType @6.0.3
@@ -1540,6 +1561,9 @@ impl TypeTables {
         let at = u32::try_from(self.list_items.len()).expect("type list items fit u32");
         let len = u32::try_from(types.len()).expect("a type list's length fits u32");
         let id = TypeListId::new(at);
+        // The length word and payload are one append: reserve both before
+        // pushing the word so a boundary cannot grow the pool twice.
+        self.list_items.reserve(1 + types.len());
         self.list_items.push(TypeId::new(len));
         self.list_items.extend_from_slice(types);
         let items = &self.list_items;
@@ -2107,6 +2131,9 @@ impl TypeTables {
         mut includes: i32,
         types: &[TypeId],
     ) -> i32 {
+        // tsgo addTypesToUnion starts with len(sourceTypes) slots. Recursive
+        // flattening also knows the size of each constituent batch.
+        type_set.reserve(types.len());
         let mut last_type: Option<TypeId> = None;
         for &ty in types {
             if Some(ty) != last_type {

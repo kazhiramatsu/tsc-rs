@@ -514,7 +514,10 @@ impl<'a> CheckerState<'a> {
                 TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
                 _ => unreachable!("union flag implies union data"),
             };
-            let mut keep = rustc_hash::FxHashSet::default();
+            // The predicate runs in list order; this set is only queried
+            // with `contains` when reconstructing that same ordered list.
+            let mut keep =
+                rustc_hash::FxHashSet::with_capacity_and_hasher(members.len(), Default::default());
             for member in members {
                 if predicate(self, member)? {
                     keep.insert(member);
