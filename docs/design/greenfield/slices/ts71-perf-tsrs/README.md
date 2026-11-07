@@ -67,7 +67,7 @@ release workflow は繰り返し計測の完全一致規則で停止していた
 test 1,955 本、命令数（1 thread、9 round、低い峰）は 9 行合計で VS Code **−4.04%**、hono −5.00%、vue −5.21%、next −2.30%、effect −2.24%、
 zod −2.10%、playwright −1.88%、TypeScript compiler −1.85%（行別は PR 本文）。A1（述語の確保）と A8（maybe stack の走査）は雑音水準で除外。
 lane `tax-c`（loader と parser）は 6 行のうち C5 parser/scanner の cold 分割（VS Code −0.69%）と C6 binder の dispatch（−0.30%）が払い、
-[#923](https://github.com/kazhiramatsu/tsc-rs/pull/923) として check 中；C1〜C4（module 計画、resolver の path、inclusion reason、relocation の
+[#923](https://github.com/kazhiramatsu/tsc-rs/pull/923) として merge；C1〜C4（module 計画、resolver の path、inclusion reason、relocation の
 copy）は census では複製が大きく減ったが命令数は ≈ 0 で、loader の「other」4.2× の正体は別（load phase の命令単位の帰属が未解決）。
 lane `tax-d`（移植の税の残り 7 行）と `tax-e`（tsrs の出力同一な reuse 7 行、E7 は Types counter が変わるため判断保留）は patch 完成、計測中。
 
