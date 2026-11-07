@@ -3916,13 +3916,18 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         if flags.intersects(TypeFlags::OBJECT) {
-            let members = self.resolve_structured_type_members(ty)?;
+            let members = self.structured_member_headers(ty)?;
             let resolved = self.members_of(members);
-            return Ok(resolved.call_signatures().is_empty()
-                && resolved.construct_signatures().is_empty()
-                && resolved.index_infos().is_empty()
-                && !resolved.properties.is_empty()
-                && resolved.properties.iter().all(|&p| {
+            if !resolved.call_signatures().is_empty()
+                || !resolved.construct_signatures().is_empty()
+                || !resolved.index_infos().is_empty()
+            {
+                return Ok(false);
+            }
+            let members = self.resolve_structured_type_members(ty)?;
+            let properties = &self.members_of(members).properties;
+            return Ok(!properties.is_empty()
+                && properties.iter().all(|&p| {
                     self.binder
                         .symbol(p)
                         .flags
@@ -4220,12 +4225,15 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         if flags.intersects(TypeFlags::OBJECT) {
-            let members = self.resolve_structured_type_members(ty)?;
+            let members = self.structured_member_headers(ty)?;
             let resolved = self.members_of(members);
-            return Ok(resolved.properties.is_empty()
-                && resolved.call_signatures().is_empty()
-                && resolved.construct_signatures().is_empty()
-                && resolved.index_infos().is_empty());
+            if !resolved.call_signatures().is_empty()
+                || !resolved.construct_signatures().is_empty()
+                || !resolved.index_infos().is_empty()
+            {
+                return Ok(false);
+            }
+            return Ok(!self.structured_type_has_properties(ty)?);
         }
         if flags.intersects(TypeFlags::NON_PRIMITIVE) {
             return Ok(true);

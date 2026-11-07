@@ -4711,8 +4711,21 @@ impl<'a> CheckerState<'a> {
         if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
             return Ok(None);
         }
-        let members = self.resolve_structured_type_members(ty)?;
-        let Some(symbol) = self.members_of(members).members.get(&self.binder, name) else {
+        let symbol = if let Some(members) = self
+            .links
+            .read_ty(ty, |links| links.resolved_members.resolved())
+        {
+            self.members_of(members).members.get(&self.binder, name)
+        } else {
+            match self.deferred_reference_property(ty, name)? {
+                Some(symbol) => symbol,
+                None => {
+                    let members = self.resolve_structured_type_members(ty)?;
+                    self.members_of(members).members.get(&self.binder, name)
+                }
+            }
+        };
+        let Some(symbol) = symbol else {
             return Ok(None);
         };
         let hidden_type_only_export = !include_type_only_members
@@ -4875,7 +4888,7 @@ impl<'a> CheckerState<'a> {
             if skip_object_function_property_augment {
                 return Ok(None);
             }
-            let members = self.resolve_structured_type_members(reduced)?;
+            let members = self.structured_member_headers(reduced)?;
             let (has_call, has_construct) = {
                 let resolved = self.members_of(members);
                 (
@@ -7695,7 +7708,7 @@ impl<'a> CheckerState<'a> {
         {
             SignatureIds::new()
         } else {
-            let members = self.resolve_structured_type_members(reduced)?;
+            let members = self.structured_member_headers(reduced)?;
             let resolved = self.members_of(members);
             match kind {
                 SignatureKind::Call => resolved.call_signature_list(),
@@ -8513,7 +8526,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(Vec::new());
         }
-        let members = self.resolve_structured_type_members(ty)?;
+        let members = self.structured_member_headers(ty)?;
         Ok(self.members_of(members).index_infos().to_vec())
     }
 
@@ -8693,9 +8706,10 @@ impl<'a> CheckerState<'a> {
         if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
             return Ok(None);
         }
-        let members = self.resolve_structured_type_members(ty)?;
+        let members = self.structured_member_headers(ty)?;
+        let has_properties = !allow_members && self.structured_type_has_properties(ty)?;
         let resolved = self.members_of(members);
-        if allow_members || resolved.properties.is_empty() && resolved.index_infos().is_empty() {
+        if allow_members || !has_properties && resolved.index_infos().is_empty() {
             if kind == SignatureKind::Call
                 && resolved.call_signatures().len() == 1
                 && resolved.construct_signatures().is_empty()

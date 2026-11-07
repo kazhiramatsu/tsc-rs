@@ -268,15 +268,21 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
-        let resolved = self.resolve_structured_type_members(ty)?;
+        let resolved = self.structured_member_headers(ty)?;
         let members = self.members_of(resolved);
         if !members.call_signatures().is_empty() || !members.construct_signatures().is_empty() {
             return Ok(true);
         }
-        let has_bind = members
-            .members
-            .get(&self.binder, tsc_types::known_name!("bind"))
-            .is_some();
+        let has_bind = match self.deferred_reference_property(ty, tsc_types::known_name!("bind"))? {
+            Some(symbol) => symbol.is_some(),
+            None => {
+                let members = self.resolve_structured_type_members(ty)?;
+                self.members_of(members)
+                    .members
+                    .get(&self.binder, tsc_types::known_name!("bind"))
+                    .is_some()
+            }
+        };
         if !has_bind {
             return Ok(false);
         }
