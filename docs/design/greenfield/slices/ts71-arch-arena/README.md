@@ -89,6 +89,21 @@ file 割り当ては変えない。
 **却下した案。** lib の型を 1 回作って 4 checker に写す（型 id の順が tsgo と変わり union の並びが出力に出る）、lazy member 表
 （depth 付近の診断が変わる）、checker の tsgo からの再移植（2 年分の適合を捨てる）。
 
+## 0.9 進捗の記録（2026-11-07 夜）
+
+- 所有者の指示（22:30）「段0と0bまで進めてください」。段 0 の成果：**#914 arena crate merge（`a07f200f1`）**、生成器 v2 は branch
+  `arch/gen2-preview`（`e930f2955`、round 2 で密な序数と Rust 側 binder 書き込みの行列を追加）。段 0b：#915（oracle の trait、全 corpus
+  143,190 行一致）、#916（phase ledger、feature `phase-ledger`）、#917（PGO の release workflow）を PR として提出。TypeData kind の census は
+  観測 patch（lane `typecensus`、main には入れない）。天井実験の lane は links と dispatch を 23:05 に起動、bump と fe4 は順番待ち。
+- **事故（22:3x）**：統合者の worktree 掃除 script が main repository を削除した（zsh の unquoted 変数が単語分割されず除外が効かず、
+  `git worktree remove` 失敗時の `rm -rf` fallback が走った）。GitHub と 11-06 の backup から復旧。**失われた local 記録**：perf-tsrs packet が
+  「保持した」と記す `target/codex-structural-20261107/`、`target/codex-line-profile-20261107/`（`report.html` 含む）、
+  `target/codex-line-followup-20261107/`、`target/codex-perf-implementation-20261106/` の生 data と binary、`perf11/bin` の binary、
+  9 月の worktree 21 個の未 commit 変更。hash と要約は packet と handover に残る。再現は記録された source と手順から。
+  今後の規則は memory `disk-hygiene` と `incident-rm-main-repo`（破壊的 script は明示 list + deny-list + dry run、`|| rm -rf` 禁止）。
+- 掃除：閉じた lane clone 23 個と旧 worktree 57 個、build cache、Go/npm/Codex log の cache を削除（空き 13 → 491 GiB）。退避は
+  `~/dev/tsc-rs-archive/2026-11-07-{worktrees,codex-outputs}/`。
+
 ## 1. 工程の全体像（第 2 版：checker を先に、front end を後に）
 
 | 段 | 期間 | 成果物 | 出口の gate（go/no-go） |

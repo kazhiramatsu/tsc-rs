@@ -125,6 +125,10 @@ signature / type argument の recipe、member revision の新設、候補更新�
 
 ## 保存先と検証の限界
 
+**2026-11-07 夜の追記**：下記の local 保存先（`target/codex-structural-20261107/`、`target/codex-line-profile-20261107/RESUME.json`）は、
+同日夜の統合者の事故（main repository の誤削除）で失われた。source は archive branch（PROTOTYPES.md）に、hash と結果はこの記録と README に残る。
+
+
 local `target/codex-structural-20261107/` に通常 / 観測 / shadow binary、profile + dSYM、行別 HTML、raw counter、全 sample、失敗ログ、
 source patch、command / exit / hash の記録を保持した。主要入口は `STATE.json`、`VALIDATION.json`、`MANIFEST.json`、
 `candidate-sources.json`、`syntax-review.json`、`flow-review.json`、`inference-review.json`。
