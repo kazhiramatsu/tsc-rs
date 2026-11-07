@@ -491,6 +491,7 @@ PGO 感度（[release 手順](pgo.md)、構造変更の gain には数えない�
 
 | 対象 | 通常 build | PGO build | 差分 | 証跡 |
 | --- | ---: | ---: | ---: | --- |
+| main `a75438da1`、hono 1 thread、hosted Linux x64（cachegrind Ir） | 2,358.1 M | 1,991.7 M | **−15.5%** | run [42395965544](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42395965544) の `release-evidence-Linux-X64`（`results/hono/summary.json`、繰り返し 2 回の差 0.002%）。既定 wall 215 → 167 ms。zod と VS Code は未計測（同 run は繰り返しの完全一致規則で停止、修正 PR 参照） |
 | #913+、VS Code 1 thread | 未計測 | 未計測 | 未計測 | integrator：hosted dispatch 成功と assets 確認後、native binary を取得し quiet window で warm-up 2 + 交互 9 round。commit/run URL・binary/corpus/profile hash・peak も記録 |
 
 停止規則：段 0b の天井が閾値（front end ≤ B1_front − 6 G、同名関数比 ≤ 1.10×）に届かなければ freeze せず所有者判断。段 A・B の

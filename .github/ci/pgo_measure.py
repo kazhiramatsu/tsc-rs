@@ -10,6 +10,9 @@ import statistics
 import subprocess
 import time
 
+# Allowed spread between the two Cachegrind repeats of one binary (fraction).
+IR_TOLERANCE = 0.0005
+
 
 def measure(root, out, project, release=False, counts=True):
     out.mkdir(parents=True, exist_ok=True)
@@ -108,14 +111,19 @@ def measure(root, out, project, release=False, counts=True):
             data[mode+'_rss_kib'] = max(r['rss_kib'] for r in selected)
         counts = [r['ir'] for r in records if r['side'] == side and r['mode'] == 'count']
         data['ir_samples'] = counts
-        data['ir'] = counts[0] if counts and len(set(counts)) == 1 else None
-        if counts and len(set(counts)) != 1:
+        # Repeats of the same binary differ by a few thousand instructions (run
+        # 42395965544: 0.002% on hono); the smallest repeat is the count, and a
+        # spread above IR_TOLERANCE voids the sub-1% comparison.
+        spread = (max(counts) - min(counts)) / min(counts) if counts else None
+        data['ir_spread'] = spread
+        data['ir'] = min(counts) if counts and spread <= IR_TOLERANCE else None
+        if counts and spread > IR_TOLERANCE:
             summary['valid'] = False
         summary['sides'][side] = data
     (out/'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
     print(json.dumps(summary, indent=2), flush=True)
     if not summary['valid']:
-        raise SystemExit('Repeated I refs differ: retained raw samples; no sub-1% conclusion')
+        raise SystemExit(f'Repeated I refs differ by more than {IR_TOLERANCE:.2%}: retained raw samples; no sub-1% conclusion')
 
     return summary
 

@@ -223,9 +223,11 @@ class MeasurementTests(unittest.TestCase):
                 order.append(side)
                 kwargs['stdout'].write(b'changed\n' if failure == 'diagnostics' and side == 'pgo' else b'diagnostics\n')
                 if command[0] == 'valgrind':
-                    count = 1000 if side == 'normal' else 800
+                    count = 1_000_000 if side == 'normal' else 800_000
                     if failure == 'unstable' and len(order) == 20:
-                        count += 1
+                        count += 1000  # 0.125%: above IR_TOLERANCE
+                    if failure == 'jitter' and len(order) == 20:
+                        count += 100  # 0.0125%: ordinary repeat noise
                     Path(next(c.split('=', 1)[1] for c in command if c.startswith('--cachegrind-out-file='))).write_text(f'events: Ir\nsummary: {count}\n')
                     Path(next(c.split('=', 1)[1] for c in command if c.startswith('--log-file='))).write_text(f'I refs: {count:,}\n')
                 else:
@@ -236,8 +238,11 @@ class MeasurementTests(unittest.TestCase):
                  contextlib.redirect_stdout(io.StringIO()):
                 summary = measurement.measure(root, root/'results', 'hono', release=True)
             self.assertEqual(order, ['normal', 'pgo']*10)
-            self.assertEqual(summary['sides']['normal']['ir_samples'], [1000, 1000])
-            self.assertEqual(summary['sides']['pgo']['ir'], 800)
+            self.assertEqual(summary['sides']['normal']['ir_samples'], [1_000_000, 1_000_000])
+            self.assertEqual(summary['sides']['pgo']['ir'], 800_000 if failure != 'jitter' else 800_000)
+            if failure == 'jitter':
+                self.assertEqual(summary['sides']['pgo']['ir_samples'], [800_000, 800_100])
+                self.assertTrue(summary['valid'])
             self.assertEqual(len(json.loads((root/'results/samples.json').read_text())), 20)
 
     def test_interleaving_raw_counts_and_output_identity(self):
@@ -250,6 +255,9 @@ class MeasurementTests(unittest.TestCase):
     def test_unstable_repeated_counts_reject_comparison(self):
         with self.assertRaisesRegex(SystemExit, 'Repeated I refs differ'):
             self._exercise_measurement('unstable')
+
+    def test_small_repeat_jitter_keeps_the_smaller_count(self):
+        self._exercise_measurement('jitter')
 
 
 if __name__ == '__main__':
