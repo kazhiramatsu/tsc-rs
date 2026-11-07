@@ -21,6 +21,27 @@ use crate::state::{
 };
 use tsc_types::perf::{self, PerfCounter};
 
+/// Reference members keep their declarations and mapper until an actual
+/// member is requested. Signature/index queries use `header`; full member
+/// enumeration realizes the remaining symbols in declaration order.
+pub(crate) struct DeferredReferenceMembers {
+    source: MembersId,
+    mapper: crate::instantiate::MapperId,
+    unaffected: rustc_hash::FxHashSet<SymbolId>,
+    instantiated: MemberTable,
+    bases: crate::state::SharedList<TypeId>,
+    header: MembersId,
+    finishing: bool,
+}
+
+impl DeferredReferenceMembers {
+    pub(crate) fn heap_bytes(&self) -> usize {
+        self.unaffected.capacity() * (std::mem::size_of::<SymbolId>() + 1) * 8 / 7
+            + self.instantiated.heap_bytes()
+            + self.bases.heap_bytes()
+    }
+}
+
 /// A node list of the checked program, borrowed for the program's life
 /// (the published tree outlives the checker): it reads as a slice, and
 /// iterating it by value yields the ids, as iterating a copied `Vec` did.
@@ -4394,6 +4415,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 3761f294b677fb0961124508846997f613d16efd53c91352cd4fbd0053548734
     /// tsc-span: _tsc.js:57845-57852
     fn resolve_type_reference_members(&mut self, ty: TypeId) -> CheckResult<MembersId> {
+        if self
+            .deferred_reference_members
+            .get(&ty)
+            .is_some_and(|entry| entry.as_ref().is_some_and(|members| !members.finishing))
+        {
+            return self.finish_deferred_reference_members(ty);
+        }
         let target = self.tables.reference_target(ty);
         let source = self.resolve_declared_members(target)?;
         let (source_type_parameters, this_type) = match &self.tables.type_of(target).data {
@@ -4427,6 +4455,296 @@ impl<'a> CheckerState<'a> {
             &type_parameters,
             &padded_type_arguments,
         )
+    }
+
+    /// Resolve signatures and index information without requiring every
+    /// instantiated property of a reference to exist.
+    pub(crate) fn structured_member_headers(&mut self, ty: TypeId) -> CheckResult<MembersId> {
+        if let Some(members) = self
+            .links
+            .read_ty(ty, |links| links.resolved_members.resolved())
+        {
+            return Ok(members);
+        }
+        if let Some(header) = self.prepare_deferred_reference_members(ty)? {
+            return Ok(header);
+        }
+        self.resolve_structured_type_members(ty)
+    }
+
+    fn prepare_deferred_reference_members(&mut self, ty: TypeId) -> CheckResult<Option<MembersId>> {
+        if !self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::REFERENCE)
+            || self
+                .links
+                .read_ty(ty, |links| links.resolved_members.resolved())
+                .is_some()
+        {
+            return Ok(None);
+        }
+        if let Some(entry) = self.deferred_reference_members.get(&ty) {
+            return Ok(entry.as_ref().map(|members| members.header));
+        }
+        let target = self.tables.reference_target(ty);
+        if target == ty
+            || !self
+                .tables
+                .object_flags_of(target)
+                .intersects(ObjectFlags::CLASS_OR_INTERFACE | ObjectFlags::TUPLE)
+            || self.tables.type_of(ty).symbol.is_some_and(|symbol| {
+                self.symbol_flags(symbol)
+                    .intersects(SymbolFlags::VALUE_MODULE)
+            })
+        {
+            return Ok(None);
+        }
+        // A recursive query during preparation must use the ordinary
+        // resolution path; partially prepared headers are not answers.
+        self.deferred_reference_members.insert(ty, None);
+        let prepared = (|| -> CheckResult<Option<DeferredReferenceMembers>> {
+            let source = self.resolve_declared_members(target)?;
+            let (mut parameters, this_type) = match self.tables.type_of(target).data {
+                TypeData::GenericType {
+                    type_parameters,
+                    this_type,
+                    ..
+                } => (self.tables.list(type_parameters).to_vec(), this_type),
+                TypeData::TupleTarget(data) => {
+                    let data = self.tables.tuple_target(data);
+                    (
+                        self.tables.list(data.type_parameters).to_vec(),
+                        data.this_type,
+                    )
+                }
+                _ => return Ok(None),
+            };
+            parameters.push(this_type);
+            let mut arguments = self.get_type_arguments(ty)?;
+            if arguments.len() != parameters.len() {
+                arguments.push(ty);
+            }
+            if arguments.len() >= parameters.len() && arguments[..parameters.len()] == parameters {
+                return Ok(None);
+            }
+            let mapper = self.create_type_mapper(&parameters, Some(&arguments));
+            let properties = self.members_of(source).properties.clone();
+            // Freeze the identity decision at the original eager boundary:
+            // warming a declaration's type later must not change whether
+            // this reference has a distinct instantiated symbol.
+            let mut unaffected = rustc_hash::FxHashSet::default();
+            for &symbol in &properties {
+                if self.symbol_unaffected_by_instantiation(symbol, mapper) {
+                    unaffected.insert(symbol);
+                }
+            }
+            let calls = self.members_of(source).call_signatures().to_vec();
+            let mut calls = self.instantiate_signature_list(&calls, mapper)?;
+            let constructs = self.members_of(source).construct_signatures().to_vec();
+            let mut constructs = self.instantiate_signature_list(&constructs, mapper)?;
+            let indices = self.members_of(source).index_infos().to_vec();
+            let mut indices = self.instantiate_index_info_list(&indices, mapper)?;
+            let mut bases = Vec::new();
+            for base in self.get_base_types(target)? {
+                let base = match arguments.last().copied() {
+                    Some(this_argument) => {
+                        let base = self.instantiate_type(base, Some(mapper))?;
+                        self.get_type_with_this_argument(base, Some(this_argument), false)?
+                    }
+                    None => base,
+                };
+                let reduced = self.get_reduced_apparent_type(base)?;
+                if !self
+                    .tables
+                    .flags_of(reduced)
+                    .intersects(TypeFlags::INTERSECTION)
+                    && self.prepare_deferred_reference_members(reduced)?.is_none()
+                {
+                    self.get_properties_of_type_full(base)?;
+                }
+                calls.extend(
+                    self.get_signatures_of_type(base, crate::structural::SignatureKind::Call)?,
+                );
+                constructs.extend(
+                    self.get_signatures_of_type(base, crate::structural::SignatureKind::Construct)?,
+                );
+                let inherited = if base != self.tables.intrinsics.any {
+                    self.get_index_infos_of_type(base)?
+                } else {
+                    vec![IndexInfo {
+                        key_type: self.tables.intrinsics.string,
+                        value_type: self.tables.intrinsics.any,
+                        is_readonly: false,
+                        declaration: None,
+                        components: None,
+                        is_enum_number_index_info: false,
+                        is_any_base_type_index_info: true,
+                    }]
+                };
+                for info in inherited {
+                    if !indices
+                        .iter()
+                        .any(|existing| existing.key_type == info.key_type)
+                    {
+                        indices.push(info);
+                    }
+                }
+                bases.push(base);
+            }
+            let header = self.alloc_members(ResolvedMembers::new(
+                MemberTable::default(),
+                Vec::new(),
+                calls,
+                constructs,
+                indices,
+            ));
+            Ok(Some(DeferredReferenceMembers {
+                source,
+                mapper,
+                unaffected,
+                instantiated: MemberTable::default(),
+                bases: bases.into(),
+                header,
+                finishing: false,
+            }))
+        })();
+        match prepared {
+            Ok(Some(members))
+                if self
+                    .links
+                    .read_ty(ty, |links| links.resolved_members.resolved())
+                    .is_none() =>
+            {
+                let header = members.header;
+                self.deferred_reference_members.insert(ty, Some(members));
+                Ok(Some(header))
+            }
+            Ok(_) => {
+                self.deferred_reference_members.remove(&ty);
+                Ok(None)
+            }
+            Err(error) => {
+                self.deferred_reference_members.remove(&ty);
+                Err(error)
+            }
+        }
+    }
+
+    fn deferred_declared_member(&mut self, ty: TypeId, declared: SymbolId) -> SymbolId {
+        let name = self.binder.symbol(declared).escaped_name;
+        let members = self.deferred_reference_members[&ty]
+            .as_ref()
+            .expect("ready reference members");
+        if let Some(symbol) = members.instantiated.get(&self.binder, name) {
+            return symbol;
+        }
+        let mapper = members.mapper;
+        let symbol = if members.unaffected.contains(&declared) {
+            declared
+        } else {
+            self.new_instantiated_symbol(declared, mapper)
+        };
+        self.deferred_reference_members
+            .get_mut(&ty)
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .instantiated
+            .insert(&self.binder, symbol);
+        symbol
+    }
+
+    /// Outer None means the type requires normal member resolution. Inner
+    /// None is a completed lookup whose name was absent.
+    pub(crate) fn deferred_reference_property(
+        &mut self,
+        ty: TypeId,
+        name: tsc_types::EscapedName,
+    ) -> CheckResult<Option<Option<SymbolId>>> {
+        if is_reserved_member_name(name) || self.prepare_deferred_reference_members(ty)?.is_none() {
+            return Ok(None);
+        }
+        let members = self.deferred_reference_members[&ty].as_ref().unwrap();
+        let source = members.source;
+        let bases = members.bases.clone();
+        let declared = self
+            .members_of(source)
+            .members
+            .get(&self.binder, name)
+            .filter(|symbol| self.members_of(source).properties.contains(symbol));
+        let mut result = declared.map(|symbol| self.deferred_declared_member(ty, symbol));
+        for base in bases {
+            if result.is_some_and(|symbol| self.symbol_flags(symbol).intersects(SymbolFlags::VALUE))
+            {
+                break;
+            }
+            if let Some(symbol) = self.get_property_of_type_ex(base, name, true)? {
+                if !self.is_static_private_identifier_property(symbol) {
+                    result = Some(symbol);
+                }
+            }
+        }
+        Ok(Some(result))
+    }
+
+    pub(crate) fn structured_type_has_properties(&mut self, ty: TypeId) -> CheckResult<bool> {
+        if self.prepare_deferred_reference_members(ty)?.is_some() {
+            let members = self.deferred_reference_members[&ty].as_ref().unwrap();
+            if !self.members_of(members.source).properties.is_empty() {
+                return Ok(true);
+            }
+            let bases = members.bases.clone();
+            for base in bases {
+                let base = self.get_reduced_apparent_type(base)?;
+                if self.structured_type_has_properties(base)? {
+                    return Ok(true);
+                }
+            }
+            return Ok(false);
+        }
+        if self
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::STRUCTURED_TYPE)
+        {
+            let members = self.resolve_structured_type_members(ty)?;
+            return Ok(!self.members_of(members).properties.is_empty());
+        }
+        Ok(false)
+    }
+
+    fn finish_deferred_reference_members(&mut self, ty: TypeId) -> CheckResult<MembersId> {
+        let deferred = self
+            .deferred_reference_members
+            .get_mut(&ty)
+            .unwrap()
+            .as_mut()
+            .unwrap();
+        deferred.finishing = true;
+        let source = deferred.source;
+        let header = deferred.header;
+        let bases = deferred.bases.clone();
+        let result = (|| -> CheckResult<MembersId> {
+            let properties = self.members_of(source).properties.clone();
+            let mut members = MemberTable::with_capacity(properties.len());
+            for &declared in &properties {
+                let symbol = self.deferred_declared_member(ty, declared);
+                members.insert(&self.binder, symbol);
+            }
+            for base in bases {
+                let properties = self.get_properties_of_type_full(base)?;
+                self.add_inherited_members(&mut members, &properties)?;
+            }
+            let properties = self.get_named_members(&members, self.tables.type_of(ty).symbol)?;
+            self.members_mut(header).members = members;
+            self.members_mut(header).properties = properties.into();
+            self.links
+                .set_type_members(self.speculation_depth, ty, LinkSlot::Resolved(header));
+            Ok(header)
+        })();
+        self.deferred_reference_members.remove(&ty);
+        result
     }
 
     /// tsc-port: resolveDeclaredMembers @6.0.3

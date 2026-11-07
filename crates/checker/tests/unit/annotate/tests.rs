@@ -45,6 +45,131 @@ fn with_state<R>(text: &str, run: impl FnOnce(&mut CheckerState) -> R) -> R {
 }
 
 #[test]
+fn deferred_reference_members_keep_identity_across_lookup_and_enumeration() {
+    with_state(
+        "interface Box<T> { value: T; other: T; }\n\
+         declare const strings: Box<string>; declare const numbers: Box<number>;",
+        |state| {
+            let strings = annotation_type(state, "strings");
+            let numbers = annotation_type(state, "numbers");
+            let value = state
+                .get_property_of_object_type(strings, "value")
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                state.get_type_of_symbol(value).unwrap(),
+                state.tables.intrinsics.string
+            );
+            let all = state.get_properties_of_type_full(strings).unwrap();
+            assert_eq!(all.len(), 2);
+            assert!(all.contains(&value));
+            assert_eq!(
+                state.get_property_of_object_type(strings, "value").unwrap(),
+                Some(value)
+            );
+            let other_value = state
+                .get_property_of_object_type(numbers, "value")
+                .unwrap()
+                .unwrap();
+            assert_ne!(value, other_value);
+            assert_eq!(
+                state.get_type_of_symbol(other_value).unwrap(),
+                state.tables.intrinsics.number
+            );
+        },
+    );
+}
+
+#[test]
+fn deferred_reference_members_freeze_identity_before_declaration_type_warms() {
+    with_state(
+        "interface Box<T> { plain: number; value: T; }\ndeclare const box: Box<string>;",
+        |state| {
+            let box_type = annotation_type(state, "box");
+            let target = state.tables.reference_target(box_type);
+            let declared = state.resolve_declared_members(target).unwrap();
+            let plain = state
+                .members_of(declared)
+                .members
+                .get(&state.binder, "plain")
+                .unwrap();
+            assert!(state
+                .links
+                .symbol(plain)
+                .type_of_symbol
+                .resolved()
+                .is_none());
+            state.structured_member_headers(box_type).unwrap();
+            assert!(
+                state.members_resolved(box_type),
+                "public flags retain the eager resolution boundary"
+            );
+            assert!(state
+                .deferred_reference_members
+                .get(&box_type)
+                .is_some_and(Option::is_some));
+            assert_eq!(
+                state.get_type_of_symbol(plain).unwrap(),
+                state.tables.intrinsics.number
+            );
+            let instantiated = state
+                .get_property_of_object_type(box_type, "plain")
+                .unwrap()
+                .unwrap();
+            assert_ne!(
+                instantiated, plain,
+                "a later cache hit cannot change the earlier identity decision"
+            );
+            assert_eq!(
+                state.get_type_of_symbol(instantiated).unwrap(),
+                state.tables.intrinsics.number
+            );
+            assert!(state
+                .get_properties_of_type_full(box_type)
+                .unwrap()
+                .contains(&instantiated));
+        },
+    );
+}
+
+#[test]
+fn deferred_reference_members_preserve_inherited_types_and_this() {
+    with_state(
+        "interface Base<T> { value: T; clone(): this; }\n\
+         interface Derived<T> extends Base<T> { own: T; }\n\
+         declare const item: Derived<string>;",
+        |state| {
+            let item = annotation_type(state, "item");
+            let value = state
+                .get_property_of_object_type(item, "value")
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                state.get_type_of_symbol(value).unwrap(),
+                state.tables.intrinsics.string
+            );
+            let clone = state
+                .get_property_of_object_type(item, "clone")
+                .unwrap()
+                .unwrap();
+            let clone_type = state.get_type_of_symbol(clone).unwrap();
+            let signatures = state
+                .get_signatures_of_type(clone_type, crate::structural::SignatureKind::Call)
+                .unwrap();
+            assert_eq!(signatures.len(), 1);
+            assert_eq!(
+                state.get_return_type_of_signature(signatures[0]).unwrap(),
+                item
+            );
+            let all = state.get_properties_of_type_full(item).unwrap();
+            assert_eq!(all.len(), 3);
+            assert!(all.contains(&value));
+            assert!(all.contains(&clone));
+        },
+    );
+}
+
+#[test]
 fn any_base_index_identity_preserves_semantic_indexing_and_distinguishes_declared_indexes() {
     with_state(
         "declare const Base: any; class Derived extends Base {}\n\

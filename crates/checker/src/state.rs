@@ -541,6 +541,8 @@ pub struct CheckerState<'a> {
     pub(crate) signature_instantiations:
         rustc_hash::FxHashMap<(SignatureId, tsc_types::TypeListId), SignatureId>,
     pub members: Vec<ResolvedMembers>,
+    pub(crate) deferred_reference_members:
+        rustc_hash::FxHashMap<TypeId, Option<crate::annotate::DeferredReferenceMembers>>,
     pub(crate) named_member_order_buffers:
         std::cell::Cell<crate::type_order::NamedMemberOrderBuffers>,
     /// checker-key §1.5: five per-relation caches + enumRelation.
@@ -790,7 +792,8 @@ pub struct CheckerState<'a> {
     /// (flowInvocationCount pre-exists below — M4 wired it for the
     /// getTypeOfExpression cache gate.)
     pub(crate) flow_analysis_disabled: bool,
-    /// Dependency bookkeeping only; independent of speculation rollback.
+    /// Bounded flow answers and their dependency registers; independent of
+    /// speculation rollback.
     pub(crate) flow_memo: crate::flow_memo::FlowMemo,
     /// tsc sharedFlowNodes/sharedFlowTypes (69395-69396), with each
     /// answer's dependencies; each query scans only its own
@@ -1315,6 +1318,8 @@ impl<'a> CheckerState<'a> {
     /// program's size count the records they hold: their untouched room is
     /// address space, not memory.
     pub(crate) fn report_memory(&self, label: &str) {
+        #[cfg(feature = "flow-memo-shadow")]
+        self.flow_memo.report(label);
         if std::env::var_os("TSRS_MEMORY_REPORT").is_none() {
             return;
         }
@@ -1346,6 +1351,8 @@ impl<'a> CheckerState<'a> {
             types.other_map_bytes,
         ));
         rows.extend(self.links.memory_usage());
+        let (flow_entries, flow_bytes) = self.flow_memo.memory_usage();
+        rows.push(("flow memo and walk scratch", flow_entries, flow_bytes));
         let mut tables = rustc_hash::FxHashMap::default();
         let (symbols, symbol_bytes, owned) = self.binder.transient_memory_usage(&mut tables);
         rows.push(("transient symbols (Symbol)", symbols, symbol_bytes));
@@ -1388,6 +1395,17 @@ impl<'a> CheckerState<'a> {
             "resolved members",
             self.members.len(),
             self.members.len() * std::mem::size_of::<ResolvedMembers>() + members_heap,
+        ));
+        rows.push((
+            "deferred reference members",
+            self.deferred_reference_members.len(),
+            map_bytes(&self.deferred_reference_members)
+                + self
+                    .deferred_reference_members
+                    .values()
+                    .flatten()
+                    .map(crate::annotate::DeferredReferenceMembers::heap_bytes)
+                    .sum::<usize>(),
         ));
         rows.push((
             "type mappers",
@@ -1724,6 +1742,7 @@ impl<'a> CheckerState<'a> {
             signatures: Vec::new(),
             signature_instantiations: rustc_hash::FxHashMap::default(),
             members: Vec::new(),
+            deferred_reference_members: Default::default(),
             named_member_order_buffers: Default::default(),
             relations: RelationCaches::default(),
             subtype_reduction_cache: rustc_hash::FxHashMap::default(),

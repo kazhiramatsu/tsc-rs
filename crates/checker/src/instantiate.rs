@@ -701,10 +701,19 @@ impl<'a> CheckerState<'a> {
     /// signatures' parameters, as `I<this>` instantiates them), as is a
     /// symbol whose resolved type cannot contain type variables.
     pub fn instantiate_symbol(&mut self, symbol: SymbolId, mapper: MapperId) -> SymbolId {
-        let mut symbol = symbol;
-        let mut mapper = mapper;
-        if self.maps_this_only(mapper) && self.is_thisless(symbol) {
+        if self.symbol_unaffected_by_instantiation(symbol, mapper) {
             return symbol;
+        }
+        self.new_instantiated_symbol(symbol, mapper)
+    }
+
+    pub(crate) fn symbol_unaffected_by_instantiation(
+        &mut self,
+        symbol: SymbolId,
+        mapper: MapperId,
+    ) -> bool {
+        if self.maps_this_only(mapper) && self.is_thisless(symbol) {
+            return true;
         }
         let links = self.links.symbol(symbol);
         if let Some(cached_type) = links.type_of_symbol.resolved() {
@@ -713,18 +722,28 @@ impl<'a> CheckerState<'a> {
                     .symbol_flags(symbol)
                     .intersects(SymbolFlags::SET_ACCESSOR)
                 {
-                    return symbol;
+                    return true;
                 }
                 // 63442-63444: set accessors also need a var-free
                 // writeType before the fast path applies.
                 if let Some(write_type) = self.links.symbol_cold().write_type.get(symbol).resolved()
                 {
                     if !self.could_contain_type_variables(write_type) {
-                        return symbol;
+                        return true;
                     }
                 }
             }
         }
+        false
+    }
+
+    pub(crate) fn new_instantiated_symbol(
+        &mut self,
+        symbol: SymbolId,
+        mapper: MapperId,
+    ) -> SymbolId {
+        let mut symbol = symbol;
+        let mut mapper = mapper;
         let links = self.links.symbol(symbol);
         if links.check_flags.intersects(CheckFlags::INSTANTIATED) {
             let target = links

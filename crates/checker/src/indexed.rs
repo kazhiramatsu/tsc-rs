@@ -1903,8 +1903,8 @@ impl<'a> CheckerState<'a> {
             if self.is_generic_mapped_type_state(ty)? {
                 return Ok(false);
             }
-            let properties = self.get_properties_of_type_full(ty)?;
-            if !properties.is_empty() {
+            let reduced = self.get_reduced_apparent_type(ty)?;
+            if self.structured_type_has_properties(reduced)? {
                 return Ok(false);
             }
             let infos = self.get_index_infos_of_type(ty)?;
