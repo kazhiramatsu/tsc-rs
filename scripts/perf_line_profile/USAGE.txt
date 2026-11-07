@@ -1,0 +1,84 @@
+tsc-rs source-line CPU report (macOS arm64)
+=========================================
+
+This tool turns a samply recording into a standalone, local HTML report.
+Default ranking is inclusive CPU time: time in callees is charged to callers.
+Self time, operation ownership, source-line heat, caller/callee links, search
+and per-run profile comparison are available.
+
+It is a sampling profiler report, not NYTProf-style instrumentation of every
+source statement. It does not report invocation counts or directly measured
+per-line wall time. Use targeted counters/timers after locating a hot path,
+and use ordinary release binaries for final wall-time A/B measurements.
+
+Requirements
+------------
+Python 3, macOS atos and dwarfdump, samply, an optimized binary with line
+debug information and matching source. For complete Rust v0 inline names,
+use rustfilt or the included small rustc-demangle filter.
+
+Build the symbol filter:
+  cargo build --release --manifest-path scripts/perf_line_profile/demangler/Cargo.toml
+
+For a profiling build, preserve release optimizations and add line information:
+  cargo --config 'profile.release.debug="line-tables-only"' build --release -j 2 -p tsc-rs-cli --bin tsc-rs --target-dir target/line-profile-build
+
+Record:
+  samply record --save-only --unstable-presymbolicate --rate 1000 -o target/workload.json.gz -- target/line-profile-build/release/tsc-rs -p /absolute/path/to/tsconfig.json --singleThreaded --pretty false --noEmit --incremental false
+
+Use a dedicated measurement window. The --iteration-count option stops after
+a nonzero target exit code: a compiler corpus with diagnostics may therefore
+produce only one run. The report counts observed tsc-rs-main process IDs.
+Do not turn diagnostic failures into successful runs just to force iteration.
+
+Analyze each recording:
+  python3 scripts/perf_line_profile/analyze_lines.py target/workload.json.gz target/workload.analysis.json --binary target/line-profile-build/release/tsc-rs --demangler scripts/perf_line_profile/demangler/target/release/perf-line-demangle
+
+Create HTML from one or more analyses:
+  python3 scripts/perf_line_profile/generate_report.py --source-root . --output target/profile-report.html target/workload.analysis.json
+
+Open profile-report.html in a browser. It contains its source snapshots and
+does not send data to a server. Do not embed or publish source from a different
+revision. The report records the source commit and each embedded file's hash.
+
+Correctness checks:
+  python3 scripts/perf_line_profile/test_accounting.py
+
+Interpretation
+--------------
+* Inclusive entries overlap; do not add parent and child time.
+* Repeated instances of the same function/line within a sampled recursive
+  stack count once. Multiple inlined functions mapped to one source line do
+  not multiply that line's CPU time.
+* All sampled threads contribute. Zero-CPU waits do not count, regardless of
+  samply's compressed sample weight. Missing stacks/deltas are recorded.
+* CPU deltas are attributed to the stack at the end of each sample interval.
+  Optimizations can move/fuse work across source lines.
+* Function keys retain the reported function name and source file. Different
+  generic instantiations/inline names may appear separately.
+* Compare matching workloads/settings. The comparison column divides each
+  recording's CPU cost by observed process count. A source line may move
+  between revisions; use function names and source inspection to match it.
+* The analyzer verifies the Mach-O UUID before using the symbol file.
+* samply 0.13.1's .syms.json merges multiple addresses in one function into a
+  symbol entry. Its saved inline/line frames cannot be used for per-address
+  line attribution. This tool reruns atos for every recorded address.
+* Synthetic accounting tests cover inclusive/self time, recursion, inlined
+  frames sharing a source line, zero-CPU waits, multiple threads and UUID
+  mismatch rejection.
+
+2026-11-07 checkpoint
+--------------------
+Source being profiled: 7706d25a361af52708b1f4be695b459d50b6bdf2.
+It was merged in PR #911 as f31ba6a4bacb25f66853c32f3625a01c477cd419.
+Artifacts and current HTML:
+  /Users/hiramatsu/dev/tsc-rs/target/codex-line-profile-20261107/
+Report inputs: vscode-1-a.analysis.json (one run) and
+ts-1-repeat.analysis.json (12 runs). Both are single-threaded.
+A short ts-1-a recording and an earlier analyzer check remain as intermediate
+artifacts; they are not report inputs.
+Resume state is RESUME.json in the artifact directory.
+
+Local browser validation used the existing VS Code corpus playwright-core
+and a headless Chrome with a temporary browser profile. test_html.cjs,
+browser-check.json and screenshots are in the artifact directory.
