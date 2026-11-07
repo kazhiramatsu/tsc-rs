@@ -105,6 +105,7 @@ pub mod exports;
 pub mod expr;
 pub mod facts;
 pub mod flow;
+mod flow_index;
 mod flow_memo;
 pub mod functions;
 pub mod globals;

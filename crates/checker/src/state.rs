@@ -795,6 +795,7 @@ pub struct CheckerState<'a> {
     /// Bounded flow answers and their dependency registers; independent of
     /// speculation rollback.
     pub(crate) flow_memo: crate::flow_memo::FlowMemo,
+    pub(crate) flow_index: crate::flow_index::FlowIndex,
     /// tsc sharedFlowNodes/sharedFlowTypes (69395-69396), with each
     /// answer's dependencies; each query scans only its own
     /// window (sharedFlowStart..) and truncates back on exit — also on
@@ -1318,6 +1319,8 @@ impl<'a> CheckerState<'a> {
     /// program's size count the records they hold: their untouched room is
     /// address space, not memory.
     pub(crate) fn report_memory(&self, label: &str) {
+        #[cfg(feature = "perf-counters")]
+        self.flow_index.report();
         #[cfg(feature = "flow-memo-shadow")]
         self.flow_memo.report(label);
         if std::env::var_os("TSRS_MEMORY_REPORT").is_none() {
@@ -1820,6 +1823,7 @@ impl<'a> CheckerState<'a> {
             mapped_types_in_progress: Vec::new(),
             flow_analysis_disabled: false,
             flow_memo: crate::flow_memo::FlowMemo::new(),
+            flow_index: crate::flow_index::FlowIndex::default(),
             shared_flow: Vec::new(),
             reduce_label_overrides: rustc_hash::FxHashMap::default(),
             evolving_array_types: rustc_hash::FxHashMap::default(),

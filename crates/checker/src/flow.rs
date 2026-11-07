@@ -159,12 +159,12 @@ impl<'a> FlowQuery<'a> {
     }
 
     #[inline]
-    fn flow(&self, flow: FlowId) -> &FlowNode {
+    pub(crate) fn flow(&self, flow: FlowId) -> &FlowNode {
         self.arena.flow(flow)
     }
 
     #[inline]
-    fn antecedent(&self, flow: FlowId) -> FlowId {
+    pub(crate) fn antecedent(&self, flow: FlowId) -> FlowId {
         plain_flow_antecedent(self.flow(flow))
     }
 
@@ -688,6 +688,8 @@ impl<'a> CheckerState<'a> {
         let walk = (|| loop {
             steps += 1;
             let flags = query.flow(flow).flags;
+            #[cfg(feature = "perf-counters")]
+            self.flow_index.step(flags);
             if flags.intersects(FlowFlags::SHARED) {
                 // The shared-flow cache is scoped to THIS
                 // getFlowTypeOfReference invocation (sharedFlowStart..).
@@ -716,6 +718,15 @@ impl<'a> CheckerState<'a> {
             }
             let ty: FlowType;
             if flags.intersects(FlowFlags::ASSIGNMENT) {
+                if !flags.intersects(FlowFlags::SHARED) {
+                    if let Some(jump) = self.flow_index_jump(query, flow) {
+                        #[cfg(feature = "flow-memo-shadow")]
+                        self.verify_flow_index_jump(query, flow, jump)?;
+                        steps += jump.steps - 1;
+                        flow = jump.next;
+                        continue;
+                    }
+                }
                 match self.get_type_at_flow_assignment(query, flow)? {
                     Some(t) => ty = t,
                     None => {
@@ -879,7 +890,7 @@ impl<'a> CheckerState<'a> {
     /// getExpandoInitializer returns surviving the caller's kind check
     /// are a DIRECT FunctionExpression/ArrowFunction initializer (the
     /// call/class/object-literal returns fail it).
-    fn get_type_at_flow_assignment(
+    pub(crate) fn get_type_at_flow_assignment(
         &mut self,
         query: &mut FlowQuery,
         flow: FlowId,

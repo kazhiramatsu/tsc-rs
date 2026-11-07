@@ -895,3 +895,45 @@ impl CheckerState<'_> {
 #[cfg(test)]
 #[path = "../tests/unit/flow_memo/tests.rs"]
 mod tests;
+
+#[cfg(feature = "flow-memo-shadow")]
+impl CheckerState<'_> {
+    pub(crate) fn flow_index_state_snapshot(&self, query: &FlowQuery) -> String {
+        format!(
+            "{:?}",
+            (
+                (
+                    self.tables.len(),
+                    self.binder.transient_symbol_count(),
+                    self.signatures.len(),
+                    self.links.symbol_len()
+                ),
+                (
+                    self.instantiation_count,
+                    self.total_instantiation_count,
+                    self.active_type_mappers.len()
+                ),
+                (
+                    self.flow_memo.serial,
+                    self.flow_memo.regs,
+                    self.flow_memo.type_cache_epoch,
+                    self.flow_memo.frames.len()
+                ),
+                (
+                    self.shared_flow.len(),
+                    shared_hash(&self.shared_flow),
+                    self.flow_loop_stack.len(),
+                    self.reduce_label_overrides.len()
+                ),
+                (
+                    query.flow_depth,
+                    query.memo_used,
+                    query.memo_aborted,
+                    query.impure_shared,
+                    query.reduce_depth,
+                    &query.key
+                ),
+            )
+        )
+    }
+}
