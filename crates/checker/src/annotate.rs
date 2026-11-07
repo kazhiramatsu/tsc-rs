@@ -942,7 +942,8 @@ impl<'a> CheckerState<'a> {
                             outer_declaration(i),
                         );
                     } else if self.tables.is_tuple_type(element_type) {
-                        let inner_args = self.get_type_arguments(element_type)?;
+                        let inner_args = self.get_type_argument_list(element_type)?;
+                        let inner_args = self.tables.list_copy(inner_args);
                         if inner_args.len() + expanded_types.len() >= 10_000 {
                             // 61240-61246: 2799 in type positions,
                             // 2800 in expression positions.
@@ -2040,22 +2041,18 @@ impl<'a> CheckerState<'a> {
     /// resolution — every such forcer pre-5.3 (indexed access over
     /// tuples, member access) escapes, so the arms sit unexercised
     /// until 5.3 (pin then).
-    /// [`Self::get_type_arguments`] as the interned list (no copy): a
-    /// reference's resolved list, a deferred reference's resolved first.
-    pub fn get_type_argument_list(&mut self, ty: TypeId) -> CheckResult<tsc_types::TypeListId> {
-        if let Some(list) = self.tables.try_type_argument_list(ty) {
-            return Ok(list);
-        }
-        let arguments = self.get_type_arguments(ty)?;
-        Ok(match self.tables.try_type_argument_list(ty) {
-            Some(list) => list,
-            None => self.tables.intern_type_list(&arguments),
-        })
+    /// The stored arguments, borrowed after resolving a deferred reference.
+    pub fn get_type_arguments(&mut self, ty: TypeId) -> CheckResult<&[TypeId]> {
+        let list = self.get_type_argument_list(ty)?;
+        Ok(self.tables.list(list))
     }
 
-    pub fn get_type_arguments(&mut self, ty: TypeId) -> CheckResult<Vec<TypeId>> {
-        if let Some(resolved) = self.tables.try_type_arguments(ty) {
-            return Ok(resolved.to_vec());
+    /// Resolve first, then retain this immutable list id across checker
+    /// mutations. A later resolution may replace a reference's slot, but
+    /// the interned list itself never changes (the old Vec's snapshot).
+    pub fn get_type_argument_list(&mut self, ty: TypeId) -> CheckResult<tsc_types::TypeListId> {
+        if let Some(resolved) = self.tables.try_type_argument_list(ty) {
+            return Ok(resolved);
         }
         if !self.push_type_resolution(
             crate::state::ResolutionTarget::Type(ty),
@@ -2063,7 +2060,8 @@ impl<'a> CheckerState<'a> {
         ) {
             // Mid-cycle read: errorType-filled arguments WITHOUT
             // caching (60206) — the outermost frame reports.
-            return Ok(self.error_filled_type_arguments(ty));
+            let fallback = self.error_filled_type_arguments(ty);
+            return Ok(self.tables.intern_type_list(&fallback));
         }
         let node = self
             .links
@@ -2155,7 +2153,10 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        Ok(self.tables.type_arguments(ty).to_vec())
+        Ok(self
+            .tables
+            .try_type_argument_list(ty)
+            .expect("arguments resolved above"))
     }
 
     /// The push/pop-failure filler (tsgo checker.go:22361-22363,
@@ -4440,7 +4441,7 @@ impl<'a> CheckerState<'a> {
         };
         let mut type_parameters = source_type_parameters;
         type_parameters.push(this_type);
-        let type_arguments = self.get_type_arguments(ty)?;
+        let type_arguments = self.get_type_arguments(ty)?.to_vec();
         let padded_type_arguments = if type_arguments.len() == type_parameters.len() {
             type_arguments
         } else {
@@ -4521,7 +4522,7 @@ impl<'a> CheckerState<'a> {
                 _ => return Ok(None),
             };
             parameters.push(this_type);
-            let mut arguments = self.get_type_arguments(ty)?;
+            let mut arguments = self.get_type_arguments(ty)?.to_vec();
             if arguments.len() != parameters.len() {
                 arguments.push(ty);
             }
@@ -4582,6 +4583,7 @@ impl<'a> CheckerState<'a> {
                         is_enum_number_index_info: false,
                         is_any_base_type_index_info: true,
                     }]
+                    .into()
                 };
                 for info in inherited {
                     if !indices
@@ -5039,6 +5041,7 @@ impl<'a> CheckerState<'a> {
                         is_enum_number_index_info: false,
                         is_any_base_type_index_info: true,
                     }]
+                    .into()
                 };
                 for info in inherited_index_infos {
                     if !index_infos
@@ -6633,7 +6636,8 @@ impl<'a> CheckerState<'a> {
             return Ok(true);
         }
         let last = outer_count - 1;
-        let type_arguments = self.get_type_arguments(ty)?;
+        let type_arguments = self.get_type_argument_list(ty)?;
+        let type_arguments = self.tables.list_copy(type_arguments);
         Ok(self.tables.type_of(type_parameters[last]).symbol
             != self.tables.type_of(type_arguments[last]).symbol)
     }
@@ -11105,7 +11109,7 @@ impl<'a> CheckerState<'a> {
             properties,
             Vec::new(),
             Vec::new(),
-            string_index_info.into_iter().collect(),
+            string_index_info.into_iter().collect::<Vec<_>>(),
         ));
         self.links
             .set_fresh_type_members(id, crate::links::LinkSlot::Resolved(members_id));

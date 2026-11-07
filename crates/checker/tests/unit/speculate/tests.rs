@@ -217,7 +217,8 @@ fn overload_argument_retains_completed_class_and_interface_base_types() {
             assert_eq!(
                 state
                     .get_type_arguments(bases[0])
-                    .expect("Parent arguments"),
+                    .expect("Parent arguments")
+                    .to_vec(),
                 vec![state.tables.intrinsics.number]
             );
             assert_eq!(

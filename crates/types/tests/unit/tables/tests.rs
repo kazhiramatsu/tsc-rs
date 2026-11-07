@@ -449,6 +449,11 @@ fn template_literal_types_fold_and_intern() {
     let a1 = t.get_template_literal_type(&["a".into(), "".into()], &[string]);
     let a2 = t.get_template_literal_type(&["a".into(), "".into()], &[string]);
     assert_eq!(a1, a2);
+    let ab = t.get_template_literal_type(&["a".into(), "b".into()], &[string]);
+    let moved = t.get_template_literal_type(&["ab".into(), "".into()], &[string]);
+    assert_ne!(ab, moved);
+    let changed_type = t.get_template_literal_type(&["a".into(), "b".into()], &[number]);
+    assert_ne!(ab, changed_type);
     // All-literal spans fold to a plain string literal (62071-62073).
     let one = t.get_number_literal_type(1.0);
     let folded = t.get_template_literal_type(&["a".into(), "b".into()], &[one]);
@@ -701,4 +706,90 @@ fn a_string_literal_text_is_one_type_from_every_entry() {
     let pair = t.get_string_literal_type_from_utf16(&[0xD83D, 0xDE00]);
     assert_eq!(t.get_string_literal_type("\u{1F600}"), pair);
     assert_ne!(pair, plain);
+}
+
+#[test]
+fn safe_integer_number_formatting_preserves_previous_bytes() {
+    fn before(value: f64) -> String {
+        if value.is_nan() {
+            return "NaN".to_string();
+        }
+        if value == f64::INFINITY {
+            return "Infinity".to_string();
+        }
+        if value == f64::NEG_INFINITY {
+            return "-Infinity".to_string();
+        }
+        if value == 0.0 {
+            return "0".to_string();
+        }
+        if value < 0.0 {
+            return format!("-{}", before(-value));
+        }
+        // Shortest round-trip digits: "d[.ddd]e<exp>" from LowerExp.
+        let exp_form = format!("{value:e}");
+        let (mantissa, exp) = exp_form.split_once('e').expect("LowerExp always emits 'e'");
+        let exp: i32 = exp.parse().expect("LowerExp exponent is an integer");
+        let mut digits: String = mantissa.chars().filter(|c| *c != '.').collect();
+        while digits.len() > 1 && digits.ends_with('0') {
+            digits.pop();
+        }
+        // value = 0.<digits> * 10^n with k significant digits.
+        let k = digits.len() as i32;
+        let n = exp + 1;
+        if k <= n && n <= 21 {
+            format!("{digits}{}", "0".repeat((n - k) as usize))
+        } else if 0 < n && n <= 21 {
+            format!("{}.{}", &digits[..n as usize], &digits[n as usize..])
+        } else if -6 < n && n <= 0 {
+            format!("0.{}{digits}", "0".repeat((-n) as usize))
+        } else {
+            let e = n - 1;
+            let sign = if e >= 0 { "+" } else { "-" };
+            if k == 1 {
+                format!("{digits}e{sign}{}", e.abs())
+            } else {
+                format!("{}.{}e{sign}{}", &digits[..1], &digits[1..], e.abs())
+            }
+        }
+    }
+
+    let mut count = 0;
+    let mut compare = |value: f64| {
+        assert_eq!(js_number_to_string(value), before(value), "{value:?}");
+        count += 1;
+    };
+    for integer in -65_536..=65_536 {
+        compare(f64::from(integer));
+    }
+    for value in [
+        0.0,
+        -0.0,
+        f64::NAN,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        1e-7,
+        1e-6,
+        1e20,
+        1e21,
+        9_007_199_254_740_991.0,
+        9_007_199_254_740_992.0,
+        4_294_967_295.0,
+    ] {
+        compare(value);
+        compare(-value);
+        if value.is_finite() {
+            compare(f64::from_bits(value.to_bits().wrapping_add(1)));
+            compare(f64::from_bits(value.to_bits().wrapping_sub(1)));
+        }
+    }
+    let mut bits = 0x9e3779b97f4a7c15u64;
+    for _ in 0..100_000 {
+        bits ^= bits << 13;
+        bits ^= bits >> 7;
+        bits ^= bits << 17;
+        compare(f64::from_bits(bits));
+        compare((bits % 9_007_199_254_740_992) as f64);
+    }
+    assert_eq!(count, 331_115);
 }

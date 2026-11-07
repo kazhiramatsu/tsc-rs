@@ -1485,15 +1485,17 @@ impl<'a> CheckerState<'a> {
         // this-rooted chain keys from the ThisKeyword arm's base
         // (69414 "0|…") — the container node's own kind never keys.
         let base_key = if query.synthetic_this_root {
-            let container_id = query.flow_container.map_or_else(
-                || "-1".to_owned(),
-                |container| container.index().to_string(),
-            );
-            Some(JsString::from(format!(
-                "0|{container_id}|{}|{}",
-                query.declared_type.index(),
-                query.initial_type.index()
-            )))
+            let mut key = String::with_capacity(34);
+            key.push_str("0|");
+            match query.flow_container {
+                Some(container) => tsc_types::push_decimal(&mut key, container.index()),
+                None => key.push_str("-1"),
+            }
+            key.push('|');
+            tsc_types::push_decimal(&mut key, query.declared_type.index());
+            key.push('|');
+            tsc_types::push_decimal(&mut key, query.initial_type.index());
+            Some(JsString::from(key))
         } else {
             self.get_flow_cache_key(
                 query.reference,
@@ -1677,11 +1679,13 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::FunctionDeclaration
             | SyntaxKind::FunctionExpression
             | SyntaxKind::ArrowFunction
-            | SyntaxKind::MethodDeclaration => Ok(Some(JsString::from(format!(
-                "{}#{}",
-                node.index(),
-                declared_type.index()
-            )))),
+            | SyntaxKind::MethodDeclaration => {
+                let mut key = String::with_capacity(21);
+                tsc_types::push_decimal(&mut key, node.index());
+                key.push('#');
+                tsc_types::push_decimal(&mut key, declared_type.index());
+                Ok(Some(JsString::from(key)))
+            }
             _ => Ok(None),
         }
     }
@@ -2510,7 +2514,7 @@ impl<'a> CheckerState<'a> {
         if self.tables.flags_of(assigned).intersects(TypeFlags::NEVER) {
             return Ok(assigned);
         }
-        let key = format!("A{},{}", declared.index(), assigned.index());
+        let key = crate::state::CachedTypeKey::AssignmentReduced(declared, assigned);
         if let Some(cached) = self.get_cached_type(&key) {
             return Ok(cached);
         }
@@ -4166,14 +4170,13 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::STRING_OR_NUMBER_LITERAL) {
             // tsc: escapeLeadingUnderscores("" + type.value).
             if let Some(value) = self.tables.literal_value(ty) {
-                let text = match value {
-                    tsc_types::LiteralValue::String(text) => text.to_owned(),
-                    tsc_types::LiteralValue::Number(number) => {
-                        JsString::from(tsc_types::tables::js_number_to_string(number))
-                    }
-                    tsc_types::LiteralValue::BigInt(_) => return None,
+                return match value {
+                    tsc_types::LiteralValue::String(text) => Some(EscapedName::escape(text)),
+                    tsc_types::LiteralValue::Number(number) => Some(EscapedName::escape(
+                        tsc_types::js_number_to_string(number).as_str().into(),
+                    )),
+                    tsc_types::LiteralValue::BigInt(_) => None,
                 };
-                return Some(EscapedName::escape(text.as_js()));
             }
             return None;
         }

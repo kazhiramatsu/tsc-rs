@@ -144,7 +144,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getCachedType @6.0.3
     /// tsc-hash: 4e226620c66910d6b21cfb246af7d8efb7014b85809ff341f1bac1792c0eebff
     /// tsc-span: _tsc.js:47484-47486
-    pub(crate) fn get_cached_type(&self, key: &str) -> Option<TypeId> {
+    pub(crate) fn get_cached_type(&self, key: &crate::state::CachedTypeKey) -> Option<TypeId> {
         perf::bump(PerfCounter::ContextualCachedTypeLookups);
         let hit = self.cached_types.get(key).copied();
         if hit.is_some() {
@@ -156,7 +156,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: setCachedType @6.0.3
     /// tsc-hash: 9bda8c122f4f7467d62cbc681e173fe72d678c97fce16191d85457ee0d467110
     /// tsc-span: _tsc.js:47487-47490
-    pub(crate) fn set_cached_type(&mut self, key: String, ty: TypeId) -> TypeId {
+    pub(crate) fn set_cached_type(
+        &mut self,
+        key: crate::state::CachedTypeKey,
+        ty: TypeId,
+    ) -> TypeId {
         self.cached_types.insert(key, ty);
         ty
     }
@@ -2015,7 +2019,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         contextual_type: TypeId,
     ) -> CheckResult<TypeId> {
-        let key = format!("D{},{}", node.index(), contextual_type.index());
+        let key = crate::state::CachedTypeKey::Discriminated(node, contextual_type);
         if let Some(cached) = self.get_cached_type(&key) {
             return Ok(cached);
         }
@@ -2110,7 +2114,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         contextual_type: TypeId,
     ) -> CheckResult<TypeId> {
-        let key = format!("D{},{}", node.index(), contextual_type.index());
+        let key = crate::state::CachedTypeKey::Discriminated(node, contextual_type);
         if let Some(cached) = self.get_cached_type(&key) {
             return Ok(cached);
         }

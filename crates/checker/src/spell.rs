@@ -15,20 +15,22 @@ use tsc_types::{
 
 use crate::state::{CheckResult, CheckerState};
 
-/// One UTF-16 code unit, lowercased the way `String.prototype
-/// .toLowerCase` treats a single-unit string: BMP scalars take the
-/// full Unicode mapping (possibly multi-char), lone surrogates are
-/// identity.
-fn lowercase_unit(unit: u16) -> Vec<u16> {
-    match char::from_u32(u32::from(unit)) {
-        Some(scalar) => scalar
-            .to_lowercase()
-            .flat_map(|lowered| {
-                let mut buffer = [0u16; 2];
-                lowered.encode_utf16(&mut buffer).to_vec()
-            })
-            .collect(),
-        None => vec![unit],
+/// Compare the full lowercase mappings of two single UTF-16 units.
+/// Scalar sequences compare exactly as their UTF-16 encodings do; lone
+/// surrogates only match themselves. No temporary string is needed.
+fn lowercase_units_equal(left: u16, right: u16) -> bool {
+    if left == right {
+        return true;
+    }
+    if left <= 0x7f && right <= 0x7f {
+        return (left as u8).eq_ignore_ascii_case(&(right as u8));
+    }
+    match (
+        char::from_u32(u32::from(left)),
+        char::from_u32(u32::from(right)),
+    ) {
+        (Some(left), Some(right)) => left.to_lowercase().eq(right.to_lowercase()),
+        _ => false,
     }
 }
 
@@ -88,7 +90,7 @@ fn levenshtein_with_max(s1: &[u16], s2: &[u16], max: f64) -> Option<f64> {
             *slot = big;
         }
         for j in min_j..=max_j {
-            let substitution_distance = if lowercase_unit(s1[i - 1]) == lowercase_unit(s2[j - 1]) {
+            let substitution_distance = if lowercase_units_equal(s1[i - 1], s2[j - 1]) {
                 previous[j - 1] + 0.1
             } else {
                 previous[j - 1] + 2.0
@@ -122,7 +124,7 @@ fn levenshtein_with_max(s1: &[u16], s2: &[u16], max: f64) -> Option<f64> {
 /// Generic over candidate handles, with tsc's getName callback shape;
 /// candidates run IN ORDER and only a STRICTLY better distance
 /// replaces the best (earlier candidates win ties).
-pub(crate) fn get_spelling_suggestion<'n, C: Copy, S, A: Into<JsString>>(
+pub(crate) fn get_spelling_suggestion<'n, 'c, C: Copy, S, A: Into<JsStr<'c>>>(
     state: &mut S,
     name: impl Into<JsStr<'n>>,
     candidates: &[C],
@@ -328,7 +330,7 @@ impl<'a> CheckerState<'a> {
             self.get_suggested_symbol_for_nonexistent_property(name_node, name, containing_type)?;
         // symbolName(suggestion): the unescaped (or `#private`) face, never
         // the written face with its quotes and escape spellings.
-        Ok(suggestion.map(|symbol| self.symbol_name(symbol)))
+        Ok(suggestion.map(|symbol| self.symbol_name(symbol).to_owned()))
     }
 }
 
@@ -388,5 +390,55 @@ impl<'a> CheckerState<'a> {
             }
             None => suggested_method.into(),
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The pre-change single-unit mapping is the output-identity oracle.
+    fn owned_lowercase(unit: u16) -> Vec<u16> {
+        match char::from_u32(u32::from(unit)) {
+            Some(scalar) => scalar
+                .to_lowercase()
+                .flat_map(|lowered| {
+                    let mut buffer = [0u16; 2];
+                    lowered.encode_utf16(&mut buffer).to_vec()
+                })
+                .collect(),
+            None => vec![unit],
+        }
+    }
+
+    #[test]
+    fn lowercase_comparison_preserves_every_utf16_unit() {
+        let mut representatives = std::collections::BTreeMap::new();
+        for unit in 0..=u16::MAX {
+            let lowered = owned_lowercase(unit);
+            let representative = *representatives.entry(lowered).or_insert(unit);
+            assert!(lowercase_units_equal(unit, representative), "{unit:04x}");
+            for other in [unit, unit.wrapping_add(1), unit ^ 0x20, 0x0130, 0xd800] {
+                assert_eq!(
+                    lowercase_units_equal(unit, other),
+                    owned_lowercase(unit) == owned_lowercase(other),
+                    "{unit:04x} / {other:04x}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn distance_keeps_case_cost_cutoffs_and_lone_surrogates() {
+        assert_eq!(levenshtein_with_max(&[65], &[97], 0.1), Some(0.1));
+        assert_eq!(levenshtein_with_max(&[65], &[97], 0.09), None);
+        assert_eq!(levenshtein_with_max(&[0x0130], &[105], 2.0), Some(2.0));
+        assert_eq!(levenshtein_with_max(&[0xd800], &[0xd800], 0.0), Some(0.0));
+        assert_eq!(levenshtein_with_max(&[0xd800], &[0xd801], 2.0), Some(2.0));
+        let candidates = ["abc", "Abc"];
+        assert_eq!(
+            get_spelling_suggestion(&mut (), "abC", &[0, 1], |_, i| Some(candidates[i])),
+            Some(0)
+        );
     }
 }

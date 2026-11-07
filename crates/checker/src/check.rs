@@ -5046,7 +5046,8 @@ impl<'a> CheckerState<'a> {
             && self.tables.alias_symbol(source_display).is_some()
         {
             let target = self.tables.reference_target(source_display);
-            let arguments = self.get_type_arguments(source_display)?;
+            let arguments = self.get_type_argument_list(source_display)?;
+            let arguments = self.tables.list_copy(arguments);
             self.tables.create_type_reference(target, &arguments)
         } else {
             source_display
@@ -6603,7 +6604,8 @@ impl<'a> CheckerState<'a> {
                 return self.type_reference_to_string_node(ty, fully_qualified);
             }
             let target = self.tables.reference_target(ty);
-            let arguments = self.get_type_arguments(ty)?;
+            let arguments = self.get_type_argument_list(ty)?;
+            let arguments = self.tables.list_copy(arguments);
             let identity = self.tables.create_type_reference(target, &arguments);
             if self.display_visited_types.contains(&identity) {
                 return Ok(self.reverse_mapped_elision_placeholder());
@@ -6814,7 +6816,8 @@ impl<'a> CheckerState<'a> {
             let readonly = data.readonly;
             // getTypeReferenceArity: length(target.typeParameters).
             let arity = self.tables.list(data.type_parameters).len();
-            let raw_arguments = self.get_type_arguments(ty)?;
+            let raw_arguments = self.get_type_argument_list(ty)?;
+            let raw_arguments = self.tables.list_copy(raw_arguments);
             // 51949: removeMissingType on every OPTIONAL element —
             // the eOPT missing marker never prints.
             let mut arguments = Vec::with_capacity(raw_arguments.len());
@@ -6916,7 +6919,8 @@ impl<'a> CheckerState<'a> {
             .type_of(target)
             .symbol
             .expect("non-tuple reference targets carry a generic symbol");
-        let arguments = self.get_type_arguments(ty)?;
+        let arguments = self.get_type_argument_list(ty)?;
+        let arguments = self.tables.list_copy(arguments);
         // typeReferenceToTypeNode's array sugar: references to the
         // global Array/ReadonlyArray print as element sugar (the
         // identity probe is against the target globals, before the
@@ -9581,7 +9585,7 @@ impl<'a> CheckerState<'a> {
         // tsgo `len(ast.SymbolName(propertySymbol)) + 1`: the name, not
         // its quoted display.
         let symbol_name = self.symbol_name(property);
-        self.display_add_approximate_length(Self::slice_js_length(&symbol_name) + 1);
+        self.display_add_approximate_length(Self::slice_js_length(symbol_name) + 1);
         // 52268-52343: accessor properties whose write type diverges
         // (or whose class parent takes the getter/setter arms) print
         // signature faces; the same-type non-class fall-through
@@ -10052,7 +10056,8 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
         let data = self.tables.tuple_target(data).clone();
-        let element_types = self.get_type_arguments(rest_type)?;
+        let element_types = self.get_type_argument_list(rest_type)?;
+        let element_types = self.tables.list_copy(element_types);
         let count = element_types.len().min(data.element_flags.len());
         // getUniqAssociatedNamesFromTupleType (57937-57959): the
         //4-arg getTupleElementLabel derives every name (labeled or

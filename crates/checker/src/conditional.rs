@@ -104,7 +104,9 @@ impl<'a> CheckerState<'a> {
             return Ok(true);
         }
         if check_tuples && self.tables.is_tuple_type(ty) {
-            for element in self.get_type_arguments(ty)? {
+            let arguments = self.get_type_argument_list(ty)?;
+            let mut arguments = self.tables.cursor(arguments);
+            while let Some(element) = arguments.next(&self.tables) {
                 if self.is_generic_type(element)? {
                     return Ok(true);
                 }

@@ -262,7 +262,7 @@ fn expand_signature_parameters_with_tuple_members(
         return Ok(signature.parameters);
     };
     let tuple = checker.tables.tuple_target(tuple).clone();
-    let element_types = checker.get_type_arguments(rest_type)?;
+    let element_types = checker.get_type_arguments(rest_type)?.to_vec();
     let count = element_types.len().min(tuple.element_flags.len());
     // tsgo 7.1 `getUniqAssociatedNamesFromTupleType`: every element's label
     // (`getTupleElementLabel`: its labeled declaration's, else from the rest

@@ -2412,3 +2412,55 @@ fn an_alias_without_arguments_relates_structurally_to_its_instantiation() {
     assert_eq!(result.work_counters.types(), 83 - 1);
     assert_eq!(result.work_counters.instantiations(), 5);
 }
+
+#[test]
+fn settled_own_member_reads_preserve_deferral_replacement_and_module_gates() {
+    crate::state::test_support::with_program_state(
+        &[(
+            "a.ts",
+            "interface Shape { p: number } declare let value: Shape;\n",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let annotation = find_probe_annotation(state.binder.source(0), "value").unwrap();
+            let ty = state.get_type_from_type_node(annotation).unwrap();
+            let name = tsc_types::known_name!("p");
+            let before = state
+                .links
+                .read_ty(ty, |links| links.resolved_members.resolved());
+            let _ = state.resolved_own_value_property(ty, name);
+            assert_eq!(
+                state
+                    .links
+                    .read_ty(ty, |links| links.resolved_members.resolved()),
+                before
+            );
+            let full = state.get_property_of_type_full(ty, name).unwrap().unwrap();
+            assert_eq!(state.resolved_own_value_property(ty, name), Some(full));
+            let members = state
+                .links
+                .read_ty(ty, |links| links.resolved_members.resolved())
+                .unwrap();
+            let replacement = state
+                .binder
+                .create_symbol(tsc_types::SymbolFlags::PROPERTY, name);
+            state.members[members.index() as usize]
+                .members
+                .insert(&state.binder, replacement);
+            assert_eq!(
+                state.resolved_own_value_property(ty, name),
+                Some(replacement)
+            );
+            assert_eq!(
+                state.get_property_of_type_full(ty, name).unwrap(),
+                Some(replacement)
+            );
+            let module = state.binder.create_symbol(
+                tsc_types::SymbolFlags::VALUE_MODULE,
+                tsc_types::known_name!("module"),
+            );
+            state.tables.type_mut(ty).symbol = Some(module);
+            assert_eq!(state.resolved_own_value_property(ty, name), None);
+        },
+    );
+}

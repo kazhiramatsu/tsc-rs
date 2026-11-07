@@ -2098,7 +2098,7 @@ impl<'a> CheckerState<'a> {
             };
             match spread_type {
                 Some(spread_type) if self.tables.is_tuple_type(spread_type) => {
-                    let element_types = self.get_type_arguments(spread_type)?;
+                    let element_types = self.get_type_argument_list(spread_type)?;
                     let target = self.tables.reference_target(spread_type);
                     let TypeData::TupleTarget(target_data) = self.tables.type_of(target).data
                     else {
@@ -2108,7 +2108,8 @@ impl<'a> CheckerState<'a> {
                         let raw = Published.node(arg);
                         (raw.pos, raw.end)
                     };
-                    for (i, &element) in element_types.iter().enumerate() {
+                    for i in 0..self.tables.list(element_types).len() {
+                        let element = self.tables.list(element_types)[i];
                         let flags = self.tables.tuple_target(target_data).element_flags[i];
                         let ty = if flags.intersects(ElementFlags::REST) {
                             self.create_array_type(element, /*readonly*/ false)?
@@ -2401,7 +2402,8 @@ impl<'a> CheckerState<'a> {
             return Ok(ty);
         }
         if self.tables.is_tuple_type(ty) {
-            let element_types = self.get_type_arguments(ty)?;
+            let element_types = self.get_type_argument_list(ty)?;
+            let element_types = self.tables.list_copy(element_types);
             let target = self.tables.reference_target(ty);
             let TypeData::TupleTarget(data) = self.tables.type_of(target).data else {
                 unreachable!("tuple type targets a tuple target");

@@ -339,28 +339,41 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-        post_fix: &str,
+        intersection_state: IntersectionState,
         ignore_constraints: bool,
     ) -> CheckResult<RelationKey> {
         let mut type_parameters: Vec<TypeId> = Vec::new();
         let mut constraint_marker = "";
-        let source_id = self.get_type_reference_id(
+        let mut result = String::with_capacity(64);
+        self.get_type_reference_id(
             source,
             0,
             ignore_constraints,
             &mut type_parameters,
             &mut constraint_marker,
+            &mut result,
         )?;
-        let target_id = self.get_type_reference_id(
+        result.push(',');
+        self.get_type_reference_id(
             target,
             0,
             ignore_constraints,
             &mut type_parameters,
             &mut constraint_marker,
+            &mut result,
         )?;
-        Ok(RelationKey::Generic(
-            format!("{constraint_marker}{source_id},{target_id}{post_fix}").into_boxed_str(),
-        ))
+        if !constraint_marker.is_empty() {
+            result.insert(0, '*');
+        }
+        let intersection = intersection_state.bits();
+        if intersection != 0 {
+            result.push(':');
+            if intersection < 0 {
+                result.push('-');
+            }
+            tsc_types::tables::push_decimal(&mut result, intersection.unsigned_abs());
+        }
+        Ok(RelationKey::Generic(result.into_boxed_str()))
     }
 
     fn get_type_reference_id(
@@ -370,10 +383,15 @@ impl<'a> CheckerState<'a> {
         ignore_constraints: bool,
         type_parameters: &mut Vec<TypeId>,
         constraint_marker: &mut &'static str,
-    ) -> CheckResult<String> {
-        let mut result = self.tables.reference_target(ty).index().to_string();
-        let arguments = self.tables.type_arguments(ty).to_vec();
-        for t in arguments {
+        result: &mut String,
+    ) -> CheckResult<()> {
+        tsc_types::tables::push_decimal(result, self.tables.reference_target(ty).index());
+        let arguments = self
+            .tables
+            .try_type_argument_list(ty)
+            .expect("generic relation keys only read resolved, non-deferred references");
+        let mut arguments = self.tables.cursor(arguments);
+        while let Some(t) = arguments.next(&self.tables) {
             if self
                 .tables
                 .flags_of(t)
@@ -388,26 +406,30 @@ impl<'a> CheckerState<'a> {
                         }
                     };
                     result.push('=');
-                    result.push_str(&index.to_string());
+                    tsc_types::tables::push_decimal(
+                        result,
+                        u32::try_from(index).expect("type parameter ids fit u32"),
+                    );
                     continue;
                 }
                 *constraint_marker = "*";
             } else if depth < 4 && self.is_type_reference_with_generic_arguments(t) {
                 result.push('<');
-                result.push_str(&self.get_type_reference_id(
+                self.get_type_reference_id(
                     t,
                     depth + 1,
                     ignore_constraints,
                     type_parameters,
                     constraint_marker,
-                )?);
+                    result,
+                )?;
                 result.push('>');
                 continue;
             }
             result.push('-');
-            result.push_str(&t.index().to_string());
+            tsc_types::tables::push_decimal(result, t.index());
         }
-        Ok(result)
+        Ok(())
     }
 
     /// tsc-port: getRelationKey @6.0.3
@@ -434,15 +456,10 @@ impl<'a> CheckerState<'a> {
         if self.is_type_reference_with_generic_arguments(source)
             && self.is_type_reference_with_generic_arguments(target)
         {
-            let post_fix = if intersection_state.bits() != 0 {
-                format!(":{}", intersection_state.bits())
-            } else {
-                String::new()
-            };
             return self.get_generic_type_reference_relation_key(
                 source,
                 target,
-                &post_fix,
+                intersection_state,
                 ignore_constraints,
             );
         }

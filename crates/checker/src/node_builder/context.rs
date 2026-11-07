@@ -551,9 +551,10 @@ fn check_type_expandability_worker(
         .intersects(ObjectFlags::REFERENCE)
     {
         let arguments = checker
-            .get_type_arguments(r#type)
+            .get_type_argument_list(r#type)
             .map_err(|abort| super::type_nodes::checker_abort_error(checker, context, abort))?;
-        for argument in arguments {
+        let mut arguments = checker.tables.cursor(arguments);
+        while let Some(argument) = arguments.next(&checker.tables) {
             check_type_expandability(checker, argument, context)?;
             if context.out.can_increase_expansion_depth {
                 return Ok(());

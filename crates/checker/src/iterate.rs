@@ -1054,7 +1054,8 @@ impl<'a> CheckerState<'a> {
             || self.is_reference_to_type(ty, global_iterable_iterator)
             || self.is_reference_to_type(ty, global_generator)
         {
-            let arguments = self.get_type_arguments(ty)?;
+            let arguments = self.get_type_argument_list(ty)?;
+            let arguments = self.tables.list_copy(arguments);
             let (yield_type, return_type, next_type) = (arguments[0], arguments[1], arguments[2]);
             let resolved_yield = self
                 .resolve_iteration_type(resolver, yield_type, None)?
@@ -1071,7 +1072,8 @@ impl<'a> CheckerState<'a> {
         }
         let builtin = self.resolver_global_builtin_iterator_types(resolver)?;
         if self.is_reference_to_some_type(ty, &builtin) {
-            let arguments = self.get_type_arguments(ty)?;
+            let arguments = self.get_type_argument_list(ty)?;
+            let arguments = self.tables.list_copy(arguments);
             let yield_type = arguments[0];
             let return_type = self.get_builtin_iterator_return_type();
             let next_type = self.tables.intrinsics.unknown;
@@ -1325,7 +1327,8 @@ impl<'a> CheckerState<'a> {
             || self.is_reference_to_type(ty, global_iterator_object)
             || self.is_reference_to_type(ty, global_generator)
         {
-            let arguments = self.get_type_arguments(ty)?;
+            let arguments = self.get_type_argument_list(ty)?;
+            let arguments = self.tables.list_copy(arguments);
             let types = self.create_iteration_types(
                 Some(arguments[0]),
                 Some(arguments[1]),
@@ -1335,7 +1338,8 @@ impl<'a> CheckerState<'a> {
         }
         let builtin = self.resolver_global_builtin_iterator_types(resolver)?;
         if self.is_reference_to_some_type(ty, &builtin) {
-            let arguments = self.get_type_arguments(ty)?;
+            let arguments = self.get_type_argument_list(ty)?;
+            let arguments = self.tables.list_copy(arguments);
             let return_type = self.get_builtin_iterator_return_type();
             let unknown = self.tables.intrinsics.unknown;
             let types =

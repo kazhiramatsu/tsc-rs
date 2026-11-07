@@ -166,8 +166,9 @@ fn homomorphic_mapped_instantiation_preserves_array_and_tuple_shapes() {
             assert!(state.tables.tuple_target(tuple_data).readonly);
             assert!(state.tables.tuple_target(tuple_data).element_flags[1]
                 .intersects(ElementFlags::OPTIONAL));
+            let expected = state.tables.intrinsics.number;
             let tuple_arguments = state.get_type_arguments(tuple).expect("tuple elements");
-            assert_eq!(tuple_arguments[0], state.tables.intrinsics.number);
+            assert_eq!(tuple_arguments[0], expected);
 
             let mutable = annotation_type(state, "mutable");
             let mutable_text = state.type_to_string(mutable).expect("mutable renders");

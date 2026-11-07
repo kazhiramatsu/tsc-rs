@@ -408,7 +408,7 @@ impl<'a> CheckerState<'a> {
     /// symbol unescapes its escaped name. Spelling-suggestion candidates and
     /// "Did you mean" values use this face, never the written face of
     /// getNameOfSymbolAsWritten.
-    pub(crate) fn symbol_name(&self, symbol: SymbolId) -> JsString {
+    pub(crate) fn symbol_name(&self, symbol: SymbolId) -> JsStr<'a> {
         if let Some(declaration) = self.binder.symbol(symbol).value_declaration {
             let source = self.binder.source_of_node(declaration);
             let is_class_element = matches!(
@@ -421,12 +421,12 @@ impl<'a> CheckerState<'a> {
             if is_class_element {
                 if let Some(name) = get_name_of_declaration(source, declaration) {
                     if let Some(data) = Published.node(name).as_private_identifier() {
-                        return JsString::from(data.text());
+                        return JsStr::from(data.text());
                     }
                 }
             }
         }
-        self.symbol_display_name(symbol)
+        self.binder.symbol(symbol).escaped_name.unescape()
     }
 
     /// tsc-port: getNameOfSymbolAsWritten @6.0.3
@@ -537,7 +537,7 @@ impl<'a> CheckerState<'a> {
         if let Some(name) = self.symbol_name_from_name_type(symbol, false, false, None) {
             return name;
         }
-        self.symbol_name(symbol)
+        self.symbol_name(symbol).to_owned()
     }
 
     /// tsc reportMergeSymbolError (inside mergeSymbol, 47755-47775) +

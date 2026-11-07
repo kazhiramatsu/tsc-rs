@@ -2085,7 +2085,10 @@ fn homomorphic_mapped_inference_preserves_tuple_shape() {
                 state.tables.tuple_target(data).element_flags.as_ref(),
                 &[ElementFlags::REQUIRED, ElementFlags::OPTIONAL]
             );
-            let arguments = state.get_type_arguments(reversed).expect("tuple arguments");
+            let arguments = state
+                .get_type_arguments(reversed)
+                .expect("tuple arguments")
+                .to_vec();
             assert_eq!(arguments[0], state.tables.intrinsics.string);
             assert_eq!(
                 state

@@ -67,7 +67,8 @@ fn generic_tuple_normalization_simplifies_variadic_indexed_access_elements() {
 
             let elements = state
                 .get_type_arguments(declared)
-                .expect("generic tuple elements resolve");
+                .expect("generic tuple elements resolve")
+                .to_vec();
             assert_eq!(elements.len(), 1);
             let simplified_for_reading = state
                 .get_simplified_type(elements[0], /*writing*/ false)

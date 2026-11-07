@@ -234,8 +234,9 @@ fn alias_hosted_generic_references_defer_and_resolve_lazily() {
             assert!(state.links.ty(deferred).deferred_node.is_some());
             assert!(state.tables.alias_symbol(deferred).is_some());
             // Forcing reads the node lazily.
+            let expected = state.tables.intrinsics.number;
             let arguments = state.get_type_arguments(deferred).expect("forcible");
-            assert_eq!(arguments, [state.tables.intrinsics.number]);
+            assert_eq!(arguments, [expected]);
             assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
         },
     );
@@ -276,8 +277,9 @@ fn alias_hosted_array_nodes_defer_over_the_global_array_target() {
                 state.tables.type_of(target).data,
                 TypeData::GenericType { .. }
             ));
+            let expected = state.tables.intrinsics.string;
             let arguments = state.get_type_arguments(deferred).expect("forcible");
-            assert_eq!(arguments, [state.tables.intrinsics.string]);
+            assert_eq!(arguments, [expected]);
             assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
         },
     );
@@ -608,8 +610,9 @@ fn circular_tuple_type_arguments_report_4110() {
             // lookup re-enters getTypeArguments on the same
             // reference — the pop-failure arm fills errorType and
             // reports 4110 at the tuple node (oracle-pinned).
+            let expected = state.tables.intrinsics.error;
             let arguments = state.get_type_arguments(deferred).expect("forcible");
-            assert_eq!(arguments, [state.tables.intrinsics.error]);
+            assert_eq!(arguments, [expected]);
             let codes: Vec<u32> = state
                 .diagnostics
                 .iter()
@@ -631,8 +634,9 @@ fn circular_interface_type_arguments_report_4109() {
         |state| {
             let w = annotation_of(state, "w");
             let deferred = state.get_type_from_type_node(w).expect("alias RHS defers");
+            let expected = state.tables.intrinsics.error;
             let arguments = state.get_type_arguments(deferred).expect("forcible");
-            assert_eq!(arguments, [state.tables.intrinsics.error]);
+            assert_eq!(arguments, [expected]);
             let codes: Vec<u32> = state
                 .diagnostics
                 .iter()
@@ -881,8 +885,9 @@ fn deferred_references_instantiate_through_the_canonical_node_cache() {
                 .deferred_mapper
                 .get(instance)
                 .is_some());
+            let expected = state.tables.intrinsics.string;
             let arguments = state.get_type_arguments(instance).expect("forcible");
-            assert_eq!(arguments, [state.tables.intrinsics.string]);
+            assert_eq!(arguments, [expected]);
             // The canonical node reference hosts the instantiations
             // map: the same argument list reuses the instance.
             let w = annotation_of(state, "w");

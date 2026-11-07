@@ -355,7 +355,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let mut index_infos = self.get_index_infos_of_type(ty)?;
+        let mut index_infos = self.get_index_infos_of_type(ty)?.to_vec();
         for info in &mut index_infos {
             info.value_type = self.get_widened_type(info.value_type)?;
             // Upstream creates a new IndexInfo even if its type is unchanged.
@@ -465,9 +465,10 @@ impl<'a> CheckerState<'a> {
             result =
                 Some(self.get_intersection_type(&widened, tsc_types::IntersectionFlags::NONE)?);
         } else if self.is_array_type(ty)? || self.tables.is_tuple_type(ty) {
-            let arguments = self.get_type_arguments(ty)?;
-            let mut widened = Vec::with_capacity(arguments.len());
-            for argument in arguments {
+            let arguments = self.get_type_argument_list(ty)?;
+            let mut widened = Vec::with_capacity(self.tables.list(arguments).len());
+            let mut arguments = self.tables.cursor(arguments);
+            while let Some(argument) = arguments.next(&self.tables) {
                 widened.push(self.get_widened_type(argument)?);
             }
             let target = self.tables.reference_target(ty);
@@ -522,7 +523,9 @@ impl<'a> CheckerState<'a> {
                 }
             }
         } else if self.is_array_type(ty)? || self.tables.is_tuple_type(ty) {
-            for argument in self.get_type_arguments(ty)? {
+            let arguments = self.get_type_argument_list(ty)?;
+            let mut arguments = self.tables.cursor(arguments);
+            while let Some(argument) = arguments.next(&self.tables) {
                 if !error_reported {
                     error_reported = self.report_widening_errors_in_type(argument)?;
                 }

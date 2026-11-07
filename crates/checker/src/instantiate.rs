@@ -1569,14 +1569,15 @@ impl<'a> CheckerState<'a> {
             unreachable!("tuple type points at a tuple target");
         };
         let tuple = self.tables.tuple_target(tuple).clone();
-        let element_types = self.get_type_arguments(tuple_type)?;
+        let element_types = self.get_type_argument_list(tuple_type)?;
         let fixed_mapper = if tuple.fixed_length != 0 {
             self.prepend_type_mapping(type_variable, tuple_type, Some(mapper))
         } else {
             mapper
         };
-        let mut new_element_types = Vec::with_capacity(element_types.len());
-        for (i, &element_type) in element_types.iter().enumerate() {
+        let mut new_element_types = Vec::with_capacity(self.tables.list(element_types).len());
+        for i in 0..self.tables.list(element_types).len() {
+            let element_type = self.tables.list(element_types)[i];
             let flags = tuple.element_flags[i];
             let instantiated = if i < tuple.fixed_length {
                 let key = self.tables.get_string_literal_type(&i.to_string());

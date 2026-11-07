@@ -3001,8 +3001,7 @@ impl<'a> CheckerState<'a> {
         let declaration_name = self
             .identifier_text_of(right)
             .map(tsc_binder::unescape_leading_underscores)
-            .unwrap_or_default()
-            .to_owned();
+            .unwrap_or_default();
         let mut message: Option<&'static tsc_diagnostics::DiagnosticMessage> = None;
         let is_optional_property = self.kind_of(value_declaration)
             == SyntaxKind::PropertyDeclaration
@@ -3055,14 +3054,9 @@ impl<'a> CheckerState<'a> {
             let related = self.related_info_for_node_js(
                 value_declaration,
                 &tsc_diagnostics::gen::_0_is_declared_here,
-                &[(&declaration_name).into()],
+                &[declaration_name],
             );
-            self.error_at_with_related_js(
-                Some(right),
-                message,
-                &[(&declaration_name).into()],
-                vec![related],
-            );
+            self.error_at_with_related_js(Some(right), message, &[declaration_name], vec![related]);
         }
         Ok(())
     }
@@ -3379,7 +3373,11 @@ impl<'a> CheckerState<'a> {
                         };
                         head = tsc_diagnostics::MessageChain::new_js(
                             message,
-                            &[missing_property.clone(), container, suggested_name.clone()],
+                            &[
+                                missing_property.clone(),
+                                container,
+                                suggested_name.to_owned(),
+                            ],
                         );
                         if let Some(value_declaration) =
                             self.binder.symbol(suggestion).value_declaration
@@ -3387,7 +3385,7 @@ impl<'a> CheckerState<'a> {
                             related = Some(self.related_info_for_node_js(
                                 value_declaration,
                                 &tsc_diagnostics::gen::_0_is_declared_here,
-                                &[suggested_name.as_js()],
+                                &[suggested_name],
                             ));
                         }
                     } else if self.container_seems_to_be_empty_dom_element(containing_type)? {
@@ -3554,7 +3552,7 @@ impl<'a> CheckerState<'a> {
                 .intersects(tsc_types::ObjectFlags::REFERENCE)
                 && self.tables.reference_target(ty) == global_promise;
             if is_reference {
-                let arguments = self.get_type_arguments(ty)?;
+                let arguments = self.get_type_arguments(ty)?.to_vec();
                 if let Some(&first) = arguments.first() {
                     self.links.set_type_promised_type_of_promise(ty, first);
                     return Ok((Some(first), None));

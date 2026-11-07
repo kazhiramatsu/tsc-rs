@@ -559,13 +559,11 @@ impl<'a> CheckerState<'a> {
                     return Ok(self.tables.intrinsics.blocked_string);
                 }
                 let text = match self.data_of(node) {
-                    NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
-                    NodeData::NoSubstitutionTemplateLiteral(data) => {
-                        self.text_js(data.text).to_owned()
-                    }
+                    NodeData::StringLiteral(data) => self.text_js(data.text),
+                    NodeData::NoSubstitutionTemplateLiteral(data) => self.text_js(data.text),
                     _ => unreachable!("kind/data agree"),
                 };
-                let literal = self.tables.get_string_literal_type(&text);
+                let literal = self.tables.get_string_literal_type(text);
                 Ok(self.tables.get_fresh_type_of_literal_type(literal))
             }
             SyntaxKind::NumericLiteral => {
@@ -3238,7 +3236,7 @@ impl<'a> CheckerState<'a> {
         if combined_variable || arity >= pattern_elements.len() {
             return Ok(ty);
         }
-        let mut element_types = self.get_type_arguments(ty)?;
+        let mut element_types = self.get_type_arguments(ty)?.to_vec();
         for i in arity..pattern_elements.len() {
             let e = pattern_elements[i];
             let is_rest_binding = matches!(
@@ -3429,8 +3427,14 @@ impl<'a> CheckerState<'a> {
     }
 
     pub(crate) fn is_const_context(&mut self, node: NodeId) -> CheckResult<bool> {
+        Ok(self.is_const_context_ex(node)?.0)
+    }
+
+    /// Also return this node's contextual type when the const-variable
+    /// probe obtained one. A missing type is queried again by the caller.
+    fn is_const_context_ex(&mut self, node: NodeId) -> CheckResult<(bool, Option<TypeId>)> {
         let Some(parent) = self.parent_of(node) else {
-            return Ok(false);
+            return Ok((false, None));
         };
         let parent_data = self.data_of(parent);
         let assertion_type = match parent_data {
@@ -3440,7 +3444,7 @@ impl<'a> CheckerState<'a> {
         };
         if let Some(assertion_type) = assertion_type {
             if self.is_const_type_reference_node(assertion_type) {
-                return Ok(true);
+                return Ok((true, None));
             }
         }
         if node_util::is_jsdoc_type_assertion(self.binder.source_of_node(parent), parent)
@@ -3448,20 +3452,23 @@ impl<'a> CheckerState<'a> {
                 .jsdoc_type_assertion_type_node(parent)
                 .is_some_and(|type_node| self.is_const_type_reference_node(type_node))
         {
-            return Ok(true);
+            return Ok((true, None));
         }
         if let NodeData::PropertyAssignment(assignment) = parent_data {
             if self.is_inline_import_attributes(node, parent, &assignment) {
-                return Ok(true);
+                return Ok((true, None));
             }
         }
-        if self.is_valid_const_assertion_argument(node)? {
+        let contextual = if self.is_valid_const_assertion_argument(node)? {
             let contextual = self.get_contextual_type(node, tsc_types::ContextFlags::NONE)?;
             if self.is_const_type_variable(contextual, 0)? {
-                return Ok(true);
+                return Ok((true, contextual));
             }
-        }
-        match self.kind_of(parent) {
+            contextual
+        } else {
+            None
+        };
+        let is_const = match self.kind_of(parent) {
             SyntaxKind::ParenthesizedExpression
             | SyntaxKind::ArrayLiteralExpression
             | SyntaxKind::SpreadElement => self.is_const_context(parent),
@@ -3472,7 +3479,10 @@ impl<'a> CheckerState<'a> {
                 self.is_const_context(grandparent)
             }
             _ => Ok(false),
-        }
+        }?;
+        // A parent's contextual type belongs to that parent, so recursive
+        // probes above keep only its boolean. Retain only this node's type.
+        Ok((is_const, contextual))
     }
 
     /// tsc-port: isValidConstAssertionArgument @6.0.3
@@ -3636,8 +3646,9 @@ impl<'a> CheckerState<'a> {
                     }
                     _ => return Ok(false),
                 };
-            let Ok(type_arguments) = self.get_type_arguments(ty);
-            for (i, &element) in type_arguments.iter().enumerate() {
+            let arguments = self.get_type_argument_list(ty)?;
+            for i in 0..self.tables.list(arguments).len() {
+                let element = self.tables.list(arguments)[i];
                 if element_flags
                     .get(i)
                     .is_some_and(|flags| flags.intersects(tsc_types::ElementFlags::VARIADIC))
@@ -3671,13 +3682,17 @@ impl<'a> CheckerState<'a> {
         force_tuple: bool,
     ) -> CheckResult<TypeId> {
         let ty = self.check_expression_with_force_tuple(node, check_mode, force_tuple)?;
-        if self.is_const_context(node)? || self.is_common_js_exported_expression(node) {
+        let (is_const, contextual) = self.is_const_context_ex(node)?;
+        if is_const || self.is_common_js_exported_expression(node) {
             return Ok(self.regular_type_of_literal_type(ty));
         }
         if self.is_type_assertion_expr(node) {
             return Ok(ty);
         }
-        let contextual = self.get_contextual_type(node, tsc_types::ContextFlags::NONE)?;
+        let contextual = match contextual {
+            Some(contextual) => Some(contextual),
+            None => self.get_contextual_type(node, tsc_types::ContextFlags::NONE)?,
+        };
         let instantiated = self.instantiate_contextual_type_for_node(contextual, node)?;
         self.get_widened_literal_like_type_for_contextual_type(ty, instantiated)
     }

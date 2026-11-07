@@ -965,7 +965,7 @@ pub(crate) fn pseudo_type_equivalent_to_type_core(
             if non_required {
                 return Ok(false);
             }
-            let element_types = checker.get_type_arguments(undefined_stripped)?;
+            let element_types = checker.get_type_arguments(undefined_stripped)?.to_vec();
             if elements.len() != element_types.len() {
                 return Ok(false);
             }

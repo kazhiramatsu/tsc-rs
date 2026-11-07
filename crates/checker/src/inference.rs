@@ -19,8 +19,6 @@
 //! production pushInferenceContext site still passes None until
 //! then).
 
-use rustc_hash::FxHashMap as HashMap;
-
 use tsc_syntax::{NodeId, SyntaxKind};
 use tsc_types::{
     ContextFlags, ElementFlags, ExpandingFlags, InferenceFlags, InferencePriority,
@@ -609,7 +607,8 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(ty)
             .intersects(ObjectFlags::REFERENCE)
         {
-            let arguments = self.get_type_arguments(ty)?;
+            let arguments = self.get_type_argument_list(ty)?;
+            let arguments = self.tables.list_copy(arguments);
             if !arguments.is_empty() {
                 return Ok(self.get_type_list_depth(&arguments, max_depth - 1)? + 1);
             }
@@ -769,9 +768,7 @@ impl<'a> CheckerState<'a> {
                 is_any_base_type_index_info: false,
             };
             self.members_mut(members_id)
-                .extras_mut()
-                .index_infos
-                .push(index_info);
+                .set_index_infos(vec![index_info]);
         }
         let properties: Vec<_> = self.members_of(members_id).members.symbols().to_vec();
         self.members_mut(members_id).properties = properties.into();
@@ -938,7 +935,9 @@ impl<'a> CheckerState<'a> {
             }
         }
         if self.tables.is_tuple_type(ty) {
-            for element in self.get_type_arguments(ty)? {
+            let arguments = self.get_type_argument_list(ty)?;
+            let mut arguments = self.tables.cursor(arguments);
+            while let Some(element) = arguments.next(&self.tables) {
                 if self.is_partially_inferable_type(element)? {
                     return Ok(true);
                 }
@@ -981,9 +980,10 @@ impl<'a> CheckerState<'a> {
         }
 
         if self.tables.is_tuple_type(source) {
-            let source_elements = self.get_type_arguments(source)?;
-            let mut reversed_elements = Vec::with_capacity(source_elements.len());
-            for element in source_elements {
+            let source_elements = self.get_type_argument_list(source)?;
+            let mut reversed_elements = Vec::with_capacity(self.tables.list(source_elements).len());
+            let mut source_elements = self.tables.cursor(source_elements);
+            while let Some(element) = source_elements.next(&self.tables) {
                 let Some(reversed) = self.infer_reverse_mapped_type(element, target, constraint)?
                 else {
                     return Ok(None);
@@ -1878,7 +1878,8 @@ struct InferTypesWalker<'r, 'a> {
 
 /// tsgo invokeOnce's visited map (inference.go:11-17): one per inference
 /// walk, keyed by [`InferenceKey`].
-pub(crate) type InferenceVisited = HashMap<InferenceKey, InferencePriority>;
+pub(crate) type InferenceVisited =
+    indexmap::IndexMap<InferenceKey, InferencePriority, rustc_hash::FxBuildHasher>;
 
 /// Remove a short walk's keys individually when clearing would zero a large
 /// retained table. Dense walks and small tables keep HashMap's bulk clear.
@@ -1886,7 +1887,7 @@ fn clear_inference_visited(visited: &mut InferenceVisited, touched: &[InferenceK
     let len = visited.len();
     if len <= touched.len() && visited.capacity() >= 1024 {
         for key in &touched[..len] {
-            visited.remove(key);
+            visited.swap_remove(key);
         }
     } else {
         visited.clear();
@@ -1922,8 +1923,8 @@ enum InferAction {
 impl InferTypesWalker<'_, '_> {
     /// tsrs-native: member access for UnionOrIntersection types (tsc
     /// `type.types`), the engine.rs union_members shape.
-    fn types_of(&self, ty: TypeId) -> tsc_types::TypeListCopy {
-        tsc_types::TypeListCopy::new(self.st.tables.members_of(ty))
+    fn types_of(&self, ty: TypeId) -> &[TypeId] {
+        self.st.tables.members_of(ty)
     }
 
     /// tsrs-native: clearCachedInferences over the walker's array —
@@ -2021,8 +2022,10 @@ impl InferTypesWalker<'_, '_> {
         source: TypeId,
         target: TypeId,
     ) -> CheckResult<()> {
-        let source_arguments = self.st.get_type_arguments(source)?;
-        let target_arguments = self.st.get_type_arguments(target)?;
+        let source_arguments = self.st.get_type_argument_list(source)?;
+        let source_arguments = self.st.tables.list_copy(source_arguments);
+        let target_arguments = self.st.get_type_argument_list(target)?;
+        let target_arguments = self.st.tables.list_copy(target_arguments);
         let reference_target = self.st.tables.reference_target(source);
         let variances = match self.st.get_variances(reference_target)? {
             VariancesResult::Known(variances) => variances,
@@ -2096,7 +2099,8 @@ impl InferTypesWalker<'_, '_> {
         {
             // 68667-68671: identical union/intersection — infer each
             // member into itself.
-            for t in self.types_of(source) {
+            for i in 0..self.types_of(source).len() {
+                let t = self.types_of(source)[i];
                 self.infer_from_types(t, t)?;
             }
             return Ok(());
@@ -2106,12 +2110,12 @@ impl InferTypesWalker<'_, '_> {
             // a fully-stripped source infers the remainder as a naked
             // type variable.
             let initial_sources = if self.st.tables.flags_of(source).intersects(TypeFlags::UNION) {
-                self.types_of(source)
+                self.types_of(source).to_vec()
             } else {
-                tsc_types::TypeListCopy::new(&[source])
+                vec![source]
             };
             let (temp_sources, temp_targets) = self.infer_from_matching_types(
-                initial_sources.to_vec(),
+                initial_sources,
                 self.types_of(target).to_vec(),
                 TypeMatcher::OrBaseIdenticalTo,
                 false,
@@ -2142,7 +2146,8 @@ impl InferTypesWalker<'_, '_> {
             .intersects(TypeFlags::INTERSECTION)
             && {
                 let mut every_non_generic_object = true;
-                for member in self.types_of(target) {
+                for i in 0..self.types_of(target).len() {
+                    let member = self.types_of(target)[i];
                     // 62918 isNonGenericObjectType
                     let non_generic_object = self
                         .st
@@ -2167,12 +2172,12 @@ impl InferTypesWalker<'_, '_> {
                     .flags_of(source)
                     .intersects(TypeFlags::INTERSECTION)
                 {
-                    self.types_of(source)
+                    self.types_of(source).to_vec()
                 } else {
-                    tsc_types::TypeListCopy::new(&[source])
+                    vec![source]
                 };
                 let (sources, targets) = self.infer_from_matching_types(
-                    initial_sources.to_vec(),
+                    initial_sources,
                     self.types_of(target).to_vec(),
                     TypeMatcher::IdenticalTo,
                     false,
@@ -2433,11 +2438,12 @@ impl InferTypesWalker<'_, '_> {
             // is live in infer_to_conditional_type.
             self.invoke_once(source, target, InferAction::ToConditionalType)?;
         } else if target_flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
-            let member_types = self.types_of(target);
+            let member_types = tsc_types::TypeListCopy::new(self.types_of(target));
             self.infer_to_multiple_types(source, &member_types, target_flags)?;
         } else if source_flags.intersects(TypeFlags::UNION) {
             // 68791-68795: distribute a union source over the target.
-            for source_type in self.types_of(source) {
+            for i in 0..self.types_of(source).len() {
+                let source_type = self.types_of(source)[i];
                 self.infer_from_types(source_type, target)?;
             }
         } else if target_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
@@ -2559,14 +2565,23 @@ impl InferTypesWalker<'_, '_> {
             contravariant: self.contravariant,
             bivariant: self.bivariant,
         };
-        if let Some(&status) = self.visited.get(&key) {
-            self.inference_priority = self.inference_priority.min(status);
-            return Ok(());
-        }
-        if self.visited.len() < self.visited_touched.len() {
-            self.visited_touched[self.visited.len()] = key;
-        }
-        self.visited.insert(key, InferencePriority::CIRCULARITY);
+        // The map is append-only during this walk. Keep the insertion
+        // index across recursion instead of probing the key again to write
+        // the final priority; nested inserts may grow storage, not indices.
+        let index = match self.visited.entry(key) {
+            indexmap::map::Entry::Occupied(entry) => {
+                self.inference_priority = self.inference_priority.min(*entry.get());
+                return Ok(());
+            }
+            indexmap::map::Entry::Vacant(entry) => {
+                let index = entry.index();
+                if index < self.visited_touched.len() {
+                    self.visited_touched[index] = key;
+                }
+                entry.insert(InferencePriority::CIRCULARITY);
+                index
+            }
+        };
         let save_inference_priority = self.inference_priority;
         self.inference_priority = InferencePriority::MAX_VALUE;
         let save_expanding_flags = self.expanding_flags;
@@ -2604,7 +2619,11 @@ impl InferTypesWalker<'_, '_> {
         self.target_stack.pop();
         self.source_stack.pop();
         self.expanding_flags = save_expanding_flags;
-        self.visited.insert(key, self.inference_priority);
+        *self
+            .visited
+            .get_index_mut(index)
+            .expect("visited entries are only appended during an inference action")
+            .1 = self.inference_priority;
         self.inference_priority = self.inference_priority.min(save_inference_priority);
         Ok(())
     }
@@ -2785,7 +2804,8 @@ impl InferTypesWalker<'_, '_> {
                 .intersects(TypeFlags::INTERSECTION)
             {
                 self.types_of(ty)
-                    .into_iter()
+                    .iter()
+                    .copied()
                     .find(|&member| self.get_inference_info_for_type(member).is_some())
             } else {
                 None
@@ -2815,7 +2835,7 @@ impl InferTypesWalker<'_, '_> {
             // type variable.
             let mut naked_type_variable: Option<TypeId> = None;
             let sources = if self.st.tables.flags_of(source).intersects(TypeFlags::UNION) {
-                self.types_of(source)
+                tsc_types::TypeListCopy::new(self.types_of(source))
             } else {
                 tsc_types::TypeListCopy::new(&[source])
             };
@@ -3021,7 +3041,7 @@ impl InferTypesWalker<'_, '_> {
                             .flags_of(constraint)
                             .intersects(TypeFlags::UNION)
                         {
-                            self.types_of(constraint)
+                            tsc_types::TypeListCopy::new(self.types_of(constraint))
                         } else {
                             tsc_types::TypeListCopy::new(&[constraint])
                         };
@@ -3276,7 +3296,8 @@ impl InferTypesWalker<'_, '_> {
         let constraint_flags = self.st.tables.flags_of(constraint_type);
         if constraint_flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
             let mut result = false;
-            for constraint in self.types_of(constraint_type) {
+            for i in 0..self.types_of(constraint_type).len() {
+                let constraint = self.types_of(constraint_type)[i];
                 result = self.infer_to_mapped_type(source, target, constraint)? || result;
             }
             return Ok(result);
@@ -3418,7 +3439,7 @@ impl InferTypesWalker<'_, '_> {
         let source_is_tuple = self.st.tables.is_tuple_type(source);
         let source_arity = self.st.get_type_reference_arity(source);
         let target_arity = self.st.get_type_reference_arity(target);
-        let element_types = self.st.get_type_arguments(target)?;
+        let element_types = self.st.get_type_argument_list(target)?;
         let target_target = self.st.tables.reference_target(target);
         let TypeData::TupleTarget(target_data) = self.st.tables.type_of(target_target).data else {
             unreachable!("tuple type targets a tuple target");
@@ -3429,7 +3450,7 @@ impl InferTypesWalker<'_, '_> {
             // 69094-69098: same shape — element-wise.
             for i in 0..target_arity {
                 let source_element = self.st.get_type_arguments(source)?[i];
-                self.infer_from_types(source_element, element_types[i])?;
+                self.infer_from_types(source_element, self.st.tables.list(element_types)[i])?;
             }
             return Ok(());
         }
@@ -3471,7 +3492,7 @@ impl InferTypesWalker<'_, '_> {
         );
         for i in 0..start_length {
             let source_element = self.st.get_type_arguments(source)?[i];
-            self.infer_from_types(source_element, element_types[i])?;
+            self.infer_from_types(source_element, self.st.tables.list(element_types)[i])?;
         }
         if !source_is_tuple
             || source_arity as i64 - start_length as i64 - end_length as i64 == 1
@@ -3486,7 +3507,7 @@ impl InferTypesWalker<'_, '_> {
                 } else {
                     rest_type
                 };
-                self.infer_from_types(source2, element_types[i])?;
+                self.infer_from_types(source2, self.st.tables.list(element_types)[i])?;
             }
         } else {
             let middle_length = target_arity - start_length - end_length;
@@ -3496,22 +3517,28 @@ impl InferTypesWalker<'_, '_> {
                 {
                     // 69111-69116: both variadic — gated on the 7.4
                     // impliedArity record (None until then).
-                    if let Some(info_id) =
-                        self.get_inference_info_for_type(element_types[start_length])
-                    {
+                    if let Some(info_id) = self.get_inference_info_for_type(
+                        self.st.tables.list(element_types)[start_length],
+                    ) {
                         if let Some(implied_arity) = self.st.inference_info(info_id).implied_arity {
                             let first = self.st.slice_tuple_type(
                                 source,
                                 start_length,
                                 (end_length + source_arity).saturating_sub(implied_arity),
                             )?;
-                            self.infer_from_types(first, element_types[start_length])?;
+                            self.infer_from_types(
+                                first,
+                                self.st.tables.list(element_types)[start_length],
+                            )?;
                             let second = self.st.slice_tuple_type(
                                 source,
                                 start_length + implied_arity,
                                 end_length,
                             )?;
-                            self.infer_from_types(second, element_types[start_length + 1])?;
+                            self.infer_from_types(
+                                second,
+                                self.st.tables.list(element_types)[start_length + 1],
+                            )?;
                         }
                     }
                 } else if element_flags[start_length].intersects(ElementFlags::VARIADIC)
@@ -3519,14 +3546,18 @@ impl InferTypesWalker<'_, '_> {
                 {
                     // 69117-69123: variadic then rest — the variable's
                     // fixed tuple constraint implies the split arity.
-                    let implied = self.middle_implied_arity(element_types[start_length])?;
+                    let implied = self
+                        .middle_implied_arity(self.st.tables.list(element_types)[start_length])?;
                     if let Some(implied_arity) = implied {
                         let first = self.st.slice_tuple_type(
                             source,
                             start_length,
                             source_arity.saturating_sub(start_length + implied_arity),
                         )?;
-                        self.infer_from_types(first, element_types[start_length])?;
+                        self.infer_from_types(
+                            first,
+                            self.st.tables.list(element_types)[start_length],
+                        )?;
                         if let Some(rest_type) = self.st.get_element_type_of_slice_of_tuple_type(
                             source,
                             start_length + implied_arity,
@@ -3534,7 +3565,10 @@ impl InferTypesWalker<'_, '_> {
                             /*writing*/ false,
                             /*no_reductions*/ false,
                         )? {
-                            self.infer_from_types(rest_type, element_types[start_length + 1])?;
+                            self.infer_from_types(
+                                rest_type,
+                                self.st.tables.list(element_types)[start_length + 1],
+                            )?;
                         }
                     }
                 } else if element_flags[start_length].intersects(ElementFlags::REST)
@@ -3543,7 +3577,9 @@ impl InferTypesWalker<'_, '_> {
                     // tsgo inference.go:789-806: rest then variadic, when
                     // the variable's fixed length fits after the leading
                     // elements.
-                    let implied = self.middle_implied_arity(element_types[start_length + 1])?;
+                    let implied = self.middle_implied_arity(
+                        self.st.tables.list(element_types)[start_length + 1],
+                    )?;
                     let end_index = source_arity.checked_sub(crate::structural::end_element_count(
                         &element_flags,
                         ElementFlags::FIXED,
@@ -3559,7 +3595,8 @@ impl InferTypesWalker<'_, '_> {
                             ))
                         });
                     if let Some((implied_arity, start_index, end_index)) = bounds {
-                        let source_arguments = self.st.get_type_arguments(source)?;
+                        let source_arguments = self.st.get_type_argument_list(source)?;
+                        let source_arguments = self.st.tables.list_copy(source_arguments);
                         let source_target = self.st.tables.reference_target(source);
                         let TypeData::TupleTarget(source_data) =
                             self.st.tables.type_of(source_target).data
@@ -3589,9 +3626,15 @@ impl InferTypesWalker<'_, '_> {
                             /*writing*/ false,
                             /*no_reductions*/ false,
                         )? {
-                            self.infer_from_types(rest_type, element_types[start_length])?;
+                            self.infer_from_types(
+                                rest_type,
+                                self.st.tables.list(element_types)[start_length],
+                            )?;
                         }
-                        self.infer_from_types(trailing_slice, element_types[start_length + 1])?;
+                        self.infer_from_types(
+                            trailing_slice,
+                            self.st.tables.list(element_types)[start_length + 1],
+                        )?;
                     }
                 }
             } else if middle_length == 1
@@ -3604,7 +3647,7 @@ impl InferTypesWalker<'_, '_> {
                 let source_slice = self.st.slice_tuple_type(source, start_length, end_length)?;
                 self.infer_with_priority(
                     source_slice,
-                    element_types[start_length],
+                    self.st.tables.list(element_types)[start_length],
                     if ends_in_optional {
                         InferencePriority::SPECULATIVE_TUPLE
                     } else {
@@ -3623,14 +3666,20 @@ impl InferTypesWalker<'_, '_> {
                     /*no_reductions*/ false,
                 )?;
                 if let Some(rest_type) = rest_type {
-                    self.infer_from_types(rest_type, element_types[start_length])?;
+                    self.infer_from_types(
+                        rest_type,
+                        self.st.tables.list(element_types)[start_length],
+                    )?;
                 }
             }
         }
         // 69153-69156: trailing fixed elements pair from the ends.
         for i in 0..end_length {
             let source_element = self.st.get_type_arguments(source)?[source_arity - i - 1];
-            self.infer_from_types(source_element, element_types[target_arity - i - 1])?;
+            self.infer_from_types(
+                source_element,
+                self.st.tables.list(element_types)[target_arity - i - 1],
+            )?;
         }
         Ok(())
     }
@@ -3814,7 +3863,7 @@ impl InferTypesWalker<'_, '_> {
                     .flags_of(target_rest_type)
                     .intersects(TypeFlags::UNION)
                 {
-                    self.types_of(target_rest_type)
+                    tsc_types::TypeListCopy::new(self.types_of(target_rest_type))
                 } else {
                     tsc_types::TypeListCopy::new(&[target_rest_type])
                 };
