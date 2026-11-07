@@ -29,8 +29,8 @@ for path in args.analyses:
             sources[file] = {"text":data.decode(), "sha256":hashlib.sha256(data).hexdigest()}
 payload = json.dumps({"profiles":profiles, "sources":sources,
                      "source_commit":source_commit,
-                     "method":"samply 1000 Hz + per-address atos inline/line resolution, CPU-delta weighted",
-                     "note":"optimized release + line-tables-only; fat LTO, codegen-units=1; profiling at nice 20"},
+                     "method":"samply + per-address atos inline/line resolution, CPU-delta weighted",
+                     "note":"Build settings, sampling rate and process priority are specified by the recording commands; they are not inferred from symbol information."},
                      ensure_ascii=False).replace("<", "\\u003c")
 template = r"""<!doctype html>
 <html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

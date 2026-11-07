@@ -54,6 +54,8 @@ Interpretation
   samply's compressed sample weight. Missing stacks/deltas are recorded.
 * CPU deltas are attributed to the stack at the end of each sample interval.
   Optimizations can move/fuse work across source lines.
+* Retain the recording and build commands alongside the report. The report
+  does not infer build settings, sampling rate or priority from symbols.
 * Function keys retain the reported function name and source file. Different
   generic instantiations/inline names may appear separately.
 * Compare matching workloads/settings. The comparison column divides each
