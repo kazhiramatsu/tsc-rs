@@ -2,7 +2,7 @@
 //! not equivalent checker state or a legal memoization opportunity.
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Instant;
 
 use rustc_hash::FxHashMap;
@@ -32,6 +32,7 @@ struct Frame {
 #[derive(Default)]
 pub(crate) struct FollowupObserve {
     path: Option<PathBuf>,
+    reported: AtomicBool,
     rows: FxHashMap<Key, Row>,
     stack: Vec<Frame>,
     counters: FxHashMap<&'static str, u64>,
@@ -41,6 +42,7 @@ impl FollowupObserve {
     pub(crate) fn new() -> Self {
         Self {
             path: std::env::var_os("TSRS_FOLLOWUP_COUNTERS").map(PathBuf::from),
+            reported: AtomicBool::new(false),
             rows: FxHashMap::default(),
             stack: Vec::new(),
             counters: FxHashMap::default(),
@@ -99,12 +101,12 @@ impl FollowupObserve {
     }
 }
 
-impl Drop for FollowupObserve {
-    fn drop(&mut self) {
+impl FollowupObserve {
+    pub(crate) fn report(&self) {
         let Some(path) = &self.path else {
             return;
         };
-        if self.rows.is_empty() {
+        if self.reported.swap(true, Ordering::Relaxed) || self.rows.is_empty() {
             return;
         }
         assert!(self.stack.is_empty(), "unclosed observation scope");
@@ -153,5 +155,11 @@ impl crate::state::CheckerState<'_> {
             self.signatures.len() as u64,
             self.total_instantiation_count,
         ]
+    }
+}
+
+impl Drop for FollowupObserve {
+    fn drop(&mut self) {
+        self.report();
     }
 }

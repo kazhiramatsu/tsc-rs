@@ -1320,6 +1320,8 @@ impl<'a> CheckerState<'a> {
     /// program's size count the records they hold: their untouched room is
     /// address space, not memory.
     pub(crate) fn report_memory(&self, label: &str) {
+        #[cfg(feature = "perf-counters")]
+        self.followup_observe.report();
         #[cfg(feature = "flow-memo-shadow")]
         self.flow_memo.report(label);
         if std::env::var_os("TSRS_MEMORY_REPORT").is_none() {
