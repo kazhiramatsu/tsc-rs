@@ -1481,11 +1481,10 @@ impl<'a> CheckerState<'a> {
         check_derived: bool,
     ) -> CheckResult<TypeId> {
         let key = if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
-            Some(format!(
-                "N{},{},{}",
-                ty.index(),
-                candidate.index(),
-                (assume_true as u8) | ((check_derived as u8) << 1)
+            Some(crate::state::CachedTypeKey::Narrowed(
+                ty,
+                candidate,
+                (assume_true as u8) | ((check_derived as u8) << 1),
             ))
         } else {
             None

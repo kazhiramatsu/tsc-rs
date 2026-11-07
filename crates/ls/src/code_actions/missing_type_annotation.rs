@@ -2093,7 +2093,10 @@ enum Spreads {
 /// tsgo `endOfRequiredTypeParameters`: the number of type arguments that
 /// differ from what their defaults fill in.
 fn end_of_required_type_parameters(checker: &mut CheckerState<'_>, ty: TypeId) -> FixResult<usize> {
-    let type_arguments = checker.get_type_arguments(ty).map_err(check_error)?;
+    let type_arguments = checker
+        .get_type_arguments(ty)
+        .map(<[TypeId]>::to_vec)
+        .map_err(check_error)?;
     if type_arguments.is_empty() {
         return Ok(0);
     }

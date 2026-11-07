@@ -2069,7 +2069,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<TypeId>> {
         // getTypeArguments (67826) — deferred tuple references force
         // their arguments lazily here.
-        let type_arguments: Vec<TypeId> = self.get_type_arguments(ty)?;
+        let type_arguments: Vec<TypeId> = self.get_type_arguments(ty)?.to_vec();
         let target = self.tables.reference_target(ty);
         let element_flags: Vec<tsc_types::ElementFlags> = match &self.tables.type_of(target).data {
             TypeData::TupleTarget(data) => {

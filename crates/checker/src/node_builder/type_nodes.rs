@@ -3202,6 +3202,7 @@ fn visit_and_transform_type(
         let reference_target = checker.tables.reference_target(r#type);
         let arguments = checker
             .get_type_arguments(r#type)
+            .map(<[TypeId]>::to_vec)
             .map_err(|abort| checker_abort_error(checker, context, abort))?;
         checker
             .tables
@@ -3603,6 +3604,7 @@ fn type_reference_to_type_node(
     let target_type = checker.tables.reference_target(r#type);
     let mut arguments = checker
         .get_type_arguments(r#type)
+        .map(<[TypeId]>::to_vec)
         .map_err(|abort| checker_abort_error(checker, context, abort))?;
     let is_array = checker
         .is_array_type(r#type)

@@ -850,7 +850,7 @@ impl<'a> CheckerState<'a> {
             };
             let data = self.tables.tuple_target(data).clone();
             // getElementTypes (61313-61316): arguments sliced to arity.
-            let mut elements = self.get_type_arguments(t)?;
+            let mut elements = self.get_type_arguments(t)?.to_vec();
             elements.truncate(self.tables.list(data.type_parameters).len());
             let global_array = self.global_array_type()?;
             let global_readonly = self.global_readonly_array_type()?;

@@ -442,7 +442,7 @@ impl CheckerState<'_> {
         ) {
             panic!("{NIL_POINTER_DEREFERENCE}");
         }
-        self.get_type_arguments(ty)
+        self.get_type_arguments(ty).map(<[TypeId]>::to_vec)
     }
 
     /// tsgo `GetApparentProperties` (`getAugmentedPropertiesOfType`,

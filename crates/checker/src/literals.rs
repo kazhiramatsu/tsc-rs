@@ -1459,7 +1459,7 @@ impl<'a> CheckerState<'a> {
         symbol: Option<SymbolId>,
         members: MemberTable,
         properties: Vec<SymbolId>,
-        index_infos: Vec<IndexInfo>,
+        index_infos: impl Into<crate::state::IndexInfos>,
         object_flags: ObjectFlags,
     ) -> TypeId {
         let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
@@ -1877,7 +1877,7 @@ impl<'a> CheckerState<'a> {
         let index_infos = if left == self.empty_object_type {
             self.get_index_infos_of_type(right)?
         } else {
-            self.get_union_index_infos(&[left, right])?
+            self.get_union_index_infos(&[left, right])?.into()
         };
         for right_prop in self.get_properties_of_type(right)? {
             let name = self.binder.symbol(right_prop).escaped_name;

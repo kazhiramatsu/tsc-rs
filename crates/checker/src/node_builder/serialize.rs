@@ -404,7 +404,7 @@ pub(crate) fn recover_suppressed_import_call_return_type(
             NodeData::TupleType(data) => checker.nodes_of(data.elements).to_vec(),
             _ => return Some(return_type),
         };
-        let mut arguments = checker.get_type_arguments(return_type).ok()?;
+        let mut arguments = checker.get_type_arguments(return_type).ok()?.to_vec();
         let mut changed = false;
         for (argument, element) in arguments.iter_mut().zip(elements) {
             if checker.tables.is_error_type(*argument) {

@@ -490,7 +490,8 @@ impl<'a> CheckerState<'a> {
             {
                 if self.links.ty(ty).deferred_node.is_some() {
                     let target = self.tables.reference_target(ty);
-                    let arguments = self.get_type_arguments(ty)?;
+                    let arguments = self.get_type_argument_list(ty)?;
+                    let arguments = self.tables.list_copy(arguments);
                     self.create_normalized_type_reference_forced(target, &arguments)?
                 } else {
                     self.get_single_base_for_non_augmenting_subtype(ty)?
@@ -618,14 +619,16 @@ impl<'a> CheckerState<'a> {
         let mut instantiated_base = if target_parameters.is_empty() {
             bases[0]
         } else {
-            let arguments = self.get_type_arguments(ty)?;
+            let arguments = self.get_type_argument_list(ty)?;
+            let arguments = self.tables.list_copy(arguments);
             let mapper = self.create_type_mapper(
                 &target_parameters,
                 Some(&arguments[..target_parameters.len()]),
             );
             self.instantiate_type(bases[0], Some(mapper))?
         };
-        let arguments = self.get_type_arguments(ty)?;
+        let arguments = self.get_type_argument_list(ty)?;
+        let arguments = self.tables.list_copy(arguments);
         if arguments.len() > target_parameters.len() {
             let last = *arguments.last().expect("nonempty argument list");
             instantiated_base = self.get_type_with_this_argument(
@@ -730,7 +733,7 @@ impl<'a> CheckerState<'a> {
             }
             _ => unreachable!("generic tuple targets a tuple target"),
         };
-        let mut elements = self.get_type_arguments(ty)?;
+        let mut elements = self.get_type_arguments(ty)?.to_vec();
         elements.truncate(arity);
         for element in &mut elements {
             if self
@@ -1570,10 +1573,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         tsc_types::type_order::contains_type(&self.st.tables, ctx.order(), types, ty)
     }
 
-    /// A copy of a union's or intersection's members for a loop that
-    /// relates them (inline up to eight: no allocation).
-    pub(crate) fn union_members(&self, ty: TypeId) -> TypeListCopy {
-        TypeListCopy::new(self.st.tables.members_of(ty))
+    /// The stored members of a union or intersection. Interned member
+    /// lists never change; mutating loops read one item at a time by index.
+    pub(crate) fn union_members(&self, ty: TypeId) -> &[TypeId] {
+        self.st.tables.members_of(ty)
     }
 
     /// How many members a union or intersection has (no copy).
@@ -2606,7 +2609,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 None => self.st.filter_primitives_if_contains_non_primitive(target),
             };
             check_types = Some(if self.flags(reduced_target).intersects(TypeFlags::UNION) {
-                self.union_members(reduced_target)
+                TypeListCopy::new(self.union_members(reduced_target))
             } else {
                 TypeListCopy::new(&[reduced_target])
             });
@@ -3136,10 +3139,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if self.relation == RelationKind::Comparable
             && self.flags(target).intersects(TypeFlags::PRIMITIVE)
         {
-            let members = self.union_members(source);
-            let mut constraints = Vec::with_capacity(members.len());
+            let count = self.union_member_count(source);
+            let mut constraints = Vec::with_capacity(count);
             let mut changed = false;
-            for &member in &members {
+            for i in 0..count {
+                let member = self.union_members(source)[i];
                 let constraint = if self.flags(member).intersects(TypeFlags::INSTANTIABLE) {
                     let base = self.st.get_base_constraint_of_type(member)?;
                     base.unwrap_or(self.st.tables.intrinsics.unknown)
@@ -3199,7 +3203,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         target: TypeId,
     ) -> CheckResult<Ternary> {
         let mut result = Ternary::TRUE;
-        for source_type in self.union_members(source) {
+        for i in 0..self.union_member_count(source) {
+            let source_type = self.union_members(source)[i];
             let related = self.type_related_to_some_type(
                 source_type,
                 target,
@@ -3227,9 +3232,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult<Ternary> {
-        let target_types = self.union_members(target);
         if self.flags(target).intersects(TypeFlags::UNION) {
-            if self.contains_type_ordered(&target_types, source) {
+            if self.contains_type_ordered(self.union_members(target), source) {
                 return Ok(Ternary::TRUE);
             }
             let source_flags = self.flags(source).bits();
@@ -3265,8 +3269,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     None
                 };
                 let matched = primitive
-                    .is_some_and(|p| self.contains_type_ordered(&target_types, p))
-                    || alternate_form.is_some_and(|a| self.contains_type_ordered(&target_types, a));
+                    .is_some_and(|p| self.contains_type_ordered(self.union_members(target), p))
+                    || alternate_form
+                        .is_some_and(|a| self.contains_type_ordered(self.union_members(target), a));
                 return Ok(if matched {
                     Ternary::TRUE
                 } else {
@@ -3289,7 +3294,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             }
         }
-        for ty in target_types {
+        for i in 0..self.union_member_count(target) {
+            let ty = self.union_members(target)[i];
             let related = self.is_related_to(
                 source,
                 ty,
@@ -3329,8 +3335,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         intersection_state: IntersectionState,
     ) -> CheckResult<Ternary> {
         let mut result = Ternary::TRUE;
-        let target_types = self.union_members(target);
-        for &target_type in &target_types {
+        for i in 0..self.union_member_count(target) {
+            let target_type = self.union_members(target)[i];
             let related = self.is_related_to(
                 source,
                 target_type,
@@ -3343,7 +3349,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     && self
                         .st
                         .order_guard
-                        .two_post_init(target_types.iter().copied())
+                        .two_post_init(self.union_members(target).iter().copied())
                 {
                     // W2c (F40): the first failing member is the one reported
                     // (display-class, owned by this walk's error state).
@@ -3367,14 +3373,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult<Ternary> {
-        let source_types = self.union_members(source);
         if self.flags(source).intersects(TypeFlags::UNION)
-            && self.contains_type_ordered(&source_types, target)
+            && self.contains_type_ordered(self.union_members(source), target)
         {
             return Ok(Ternary::TRUE);
         }
-        let len = source_types.len();
-        for (index, &source_type) in source_types.iter().enumerate() {
+        let len = self.union_member_count(source);
+        for index in 0..len {
+            let source_type = self.union_members(source)[index];
             let related = self.is_related_to(
                 source_type,
                 target,
@@ -3390,7 +3396,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             && self
                 .st
                 .order_guard
-                .two_post_init(source_types.iter().copied())
+                .two_post_init(self.union_members(source).iter().copied())
         {
             // W2c (F40): only the LAST member reports, so the reported
             // member depends on the stored order (display-class).
@@ -3435,17 +3441,19 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         intersection_state: IntersectionState,
     ) -> CheckResult<Ternary> {
         let mut result = Ternary::TRUE;
-        let source_types = self.union_members(source);
         let undefined_stripped_target =
             self.get_undefined_stripped_target_if_needed(source, target);
-        for (i, &source_type) in source_types.iter().enumerate() {
+        for i in 0..self.union_member_count(source) {
+            let source_type = self.union_members(source)[i];
             if self
                 .flags(undefined_stripped_target)
                 .intersects(TypeFlags::UNION)
             {
                 let stripped_types = self.union_members(undefined_stripped_target);
-                if source_types.len() >= stripped_types.len()
-                    && source_types.len().is_multiple_of(stripped_types.len())
+                if self.union_member_count(source) >= stripped_types.len()
+                    && self
+                        .union_member_count(source)
+                        .is_multiple_of(stripped_types.len())
                 {
                     let related = self.is_related_to(
                         source_type,
@@ -3472,7 +3480,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     && self
                         .st
                         .order_guard
-                        .two_post_init(source_types.iter().copied())
+                        .two_post_init(self.union_members(source).iter().copied())
                 {
                     // W2c (F40): the elaboration names the FIRST failing
                     // member, whatever the outer union prints as

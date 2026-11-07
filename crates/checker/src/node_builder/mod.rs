@@ -774,7 +774,10 @@ pub(crate) fn late_bound_index_signatures(
     };
 
     let mut result: Option<Vec<tsc_emitter::TransformNode>> = None;
-    for (info_list, is_static) in [(Some(static_infos), true), (instance_infos, false)] {
+    for (info_list, is_static) in [
+        (Some(static_infos), true),
+        (instance_infos.map(Into::into), false),
+    ] {
         let Some(info_list) = info_list else { continue };
         if info_list.is_empty() {
             continue;

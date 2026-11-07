@@ -138,7 +138,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         && self.flags(target).intersects(TypeFlags::UNION)))
             {
                 let source_types = if self.flags(source).intersects(TypeFlags::INTERSECTION) {
-                    self.union_members(source)
+                    tsc_types::TypeListCopy::new(self.union_members(source))
                 } else {
                     tsc_types::TypeListCopy::new(&[source])
                 };
@@ -1408,8 +1408,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         return Ok(Ternary::UNKNOWN);
                     }
                     crate::variance::VariancesResult::Known(variances) => {
-                        let source_arguments = self.st.get_type_arguments(source)?;
-                        let target_arguments = self.st.get_type_arguments(target)?;
+                        let source_arguments = self.st.get_type_argument_list(source)?;
+                        let source_arguments = self.st.tables.list_copy(source_arguments);
+                        let target_arguments = self.st.get_type_argument_list(target)?;
+                        let target_arguments = self.st.tables.list_copy(target_arguments);
                         if let Some(variance_result) = self.relate_variances(
                             &source_arguments,
                             &target_arguments,
@@ -1877,10 +1879,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         let discriminant_combinations = cartesian_product(&source_discriminant_types);
         let mut matching_types: Vec<TypeId> = Vec::new();
-        let target_types = self.union_members(target);
         for combination in &discriminant_combinations {
             let mut has_match = false;
-            'outer: for &ty in &target_types {
+            'outer: for i in 0..self.union_member_count(target) {
+                let ty = self.union_members(target)[i];
                 for (i, &source_property) in source_properties_filtered.iter().enumerate() {
                     let name = self.st.binder.symbol(source_property).escaped_name;
                     let Some(target_property) = self.st.get_property_of_type_full(ty, name)? else {
@@ -1993,9 +1995,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         target: TypeId,
         discriminators: &[SymbolId],
     ) -> CheckResult<TypeId> {
-        let types = self.union_members(target);
-        let mut include: Vec<Ternary> = Vec::with_capacity(types.len());
-        for &t in &types {
+        let mut include: Vec<Ternary> = Vec::with_capacity(self.union_member_count(target));
+        for i in 0..self.union_member_count(target) {
+            let t = self.union_members(target)[i];
             let excluded = self.flags(t).intersects(TypeFlags::PRIMITIVE) || {
                 let reduced = self.st.get_reduced_type(t)?;
                 self.flags(reduced).intersects(TypeFlags::NEVER)
@@ -2010,11 +2012,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             let property_name = self.st.binder.symbol(prop).escaped_name;
             let discriminating_type = self.st.get_type_of_symbol(prop)?;
             let mut matched = false;
-            for i in 0..types.len() {
-                if is_true(include[i]) {
-                    if let Some(target_type) = self
-                        .st
-                        .get_type_of_property_or_index_signature_of_type(types[i], property_name)?
+            for (i, included) in include.iter_mut().enumerate() {
+                if is_true(*included) {
+                    if let Some(target_type) =
+                        self.st.get_type_of_property_or_index_signature_of_type(
+                            self.union_members(target)[i],
+                            property_name,
+                        )?
                     {
                         if self.some_type_related_for_discrimination(
                             discriminating_type,
@@ -2022,7 +2026,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         )? {
                             matched = true;
                         } else {
-                            include[i] = Ternary::MAYBE;
+                            *included = Ternary::MAYBE;
                         }
                     }
                 }
@@ -2038,7 +2042,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         let filtered = if include.contains(&Ternary::FALSE) {
-            let kept: Vec<TypeId> = types
+            let kept: Vec<TypeId> = self
+                .union_members(target)
                 .iter()
                 .zip(include.iter())
                 .filter(|&(_, &inc)| is_true(inc))
@@ -2065,7 +2070,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         target: TypeId,
     ) -> CheckResult<bool> {
         if self.flags(source).intersects(TypeFlags::UNION) {
-            for t in self.union_members(source) {
+            for i in 0..self.union_member_count(source) {
+                let t = self.union_members(source)[i];
                 let related = self.is_related_to(
                     t,
                     target,
@@ -2415,8 +2421,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
                 // getTypeArguments (66804-66805): deferred tuple
                 // references force their arguments lazily here.
-                let source_type_arguments = self.st.get_type_arguments(source)?;
-                let target_type_arguments = self.st.get_type_arguments(target)?;
+                let source_type_arguments = self.st.get_type_argument_list(source)?;
+                let target_type_arguments = self.st.get_type_argument_list(target)?;
                 let target_start_count = start_element_count(
                     &self.st.tables.tuple_target(target_data).element_flags,
                     ElementFlags::NON_REST,
@@ -2515,11 +2521,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         }
                     }
                     let source_type = self.st.remove_missing_type(
-                        source_type_arguments[source_position],
+                        self.st.tables.list(source_type_arguments)[source_position],
                         source_flags.intersects(ElementFlags::OPTIONAL)
                             && target_flags.intersects(ElementFlags::OPTIONAL),
                     );
-                    let target_type = target_type_arguments[target_position];
+                    let target_type = self.st.tables.list(target_type_arguments)[target_position];
                     // 66841: a variadic source element against a rest
                     // target element compares to the rest ARRAY.
                     let target_check_type = if source_flags.intersects(ElementFlags::VARIADIC)
@@ -2635,7 +2641,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 && (!numeric_names_only || is_numeric_name(name) || name == "length")
                 && (!optionals_only || target_symbol_flags.intersects(SymbolFlags::OPTIONAL))
             {
-                let source_prop = self.st.get_property_of_type_full(source, name)?;
+                let source_prop = match self.st.resolved_own_value_property(source, name) {
+                    Some(property) => Some(property),
+                    None => self.st.get_property_of_type_full(source, name)?,
+                };
                 if let Some(source_prop) = source_prop {
                     if source_prop != target_prop {
                         let skip_optional = self.relation == RelationKind::Comparable;
@@ -4638,7 +4647,7 @@ impl<'a> CheckerState<'a> {
             self.links.set_intersection_apparent_type(ty, result);
             return Ok(result);
         }
-        let key = format!("I{}", this_argument.index());
+        let key = crate::state::CachedTypeKey::IntersectionThis(this_argument);
         if let Some(&result) = self.cached_types.get(&key) {
             return Ok(result);
         }
@@ -4863,6 +4872,36 @@ impl<'a> CheckerState<'a> {
             skip_object_function_property_augment,
             /*include_type_only_members*/ false,
         )
+    }
+
+    /// tsgo checker.go:19315-19343, 21812-21819.
+    /// A settled own value member of a plain object shape. For these
+    /// shapes reduction/apparent mapping is the identity, the resolved
+    /// header is already present (often from getUnmatchedProperty), and
+    /// symbolIsValue returns immediately. Read the current table so member
+    /// replacement cannot leave a stale cached match. All other cases use
+    /// the full getPropertyOfType path, including module type-only gates.
+    fn resolved_own_value_property(&self, ty: TypeId, name: EscapedName) -> Option<SymbolId> {
+        let data = self.tables.type_of(ty);
+        if !matches!(
+            data.data,
+            TypeData::Object | TypeData::Reference { .. } | TypeData::GenericType { .. }
+        ) || data.flags != TypeFlags::OBJECT
+            || data.object_flags.intersects(ObjectFlags::MAPPED)
+            || data.symbol.is_some_and(|symbol| {
+                self.symbol_flags(symbol)
+                    .intersects(SymbolFlags::VALUE_MODULE)
+            })
+        {
+            return None;
+        }
+        let members = self
+            .links
+            .read_ty(ty, |links| links.resolved_members.resolved())?;
+        let property = self.members_of(members).members.get(&self.binder, name)?;
+        self.symbol_flags(property)
+            .intersects(SymbolFlags::VALUE)
+            .then_some(property)
     }
 
     /// tsrs-native: include-carrying body behind the getPropertyOfType
@@ -7383,7 +7422,7 @@ impl<'a> CheckerState<'a> {
         key_type: TypeId,
     ) -> CheckResult<Option<IndexInfo>> {
         let infos = self.get_index_infos_of_type(ty)?;
-        Ok(infos.into_iter().find(|info| info.key_type == key_type))
+        Ok(infos.iter().find(|info| info.key_type == key_type).cloned())
     }
 
     /// tsc-port: resolveUnionTypeMembers @6.0.3
@@ -8369,7 +8408,8 @@ impl<'a> CheckerState<'a> {
                 )),
             };
         }
-        let arguments = self.get_type_arguments(ty)?;
+        let arguments = self.get_type_argument_list(ty)?;
+        let arguments = self.tables.list_copy(arguments);
         let labels = data
             .labeled_element_declarations
             .as_ref()
@@ -8508,7 +8548,7 @@ impl<'a> CheckerState<'a> {
     /// kinds — M4 rows.
     // Keep the full getter boundary distinct from contextual structured lookup.
     #[inline(never)]
-    pub fn get_index_infos_of_type(&mut self, ty: TypeId) -> CheckResult<Vec<IndexInfo>> {
+    pub fn get_index_infos_of_type(&mut self, ty: TypeId) -> CheckResult<crate::state::IndexInfos> {
         let reduced = self.get_reduced_apparent_type(ty)?;
         self.get_index_infos_of_structured_type(reduced)
     }
@@ -8518,16 +8558,16 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_index_infos_of_structured_type(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult<Vec<IndexInfo>> {
+    ) -> CheckResult<crate::state::IndexInfos> {
         if !self
             .tables
             .flags_of(ty)
             .intersects(TypeFlags::STRUCTURED_TYPE)
         {
-            return Ok(Vec::new());
+            return Ok(crate::state::IndexInfos::new());
         }
         let members = self.structured_member_headers(ty)?;
-        Ok(self.members_of(members).index_infos().to_vec())
+        Ok(self.members_of(members).index_info_list())
     }
 
     /// tsc-port: findApplicableIndexInfo @6.0.3
@@ -8552,13 +8592,13 @@ impl<'a> CheckerState<'a> {
     /// tsgo checker.go:19435, shared by full and contextual index lookup.
     pub(crate) fn find_applicable_index_info(
         &mut self,
-        index_infos: Vec<IndexInfo>,
+        index_infos: crate::state::IndexInfos,
         key_type: TypeId,
     ) -> CheckResult<Option<IndexInfo>> {
         let string = self.tables.intrinsics.string;
-        let mut string_index_info: Option<IndexInfo> = None;
-        let mut applicable: Vec<IndexInfo> = Vec::new();
-        for info in index_infos {
+        let mut string_index_info: Option<&IndexInfo> = None;
+        let mut applicable: Vec<&IndexInfo> = Vec::new();
+        for info in &index_infos {
             if info.key_type == string {
                 string_index_info = Some(info);
             } else if self.is_applicable_index_type(key_type, info.key_type)? {
@@ -8582,11 +8622,11 @@ impl<'a> CheckerState<'a> {
             }));
         }
         if let Some(info) = applicable.into_iter().next() {
-            return Ok(Some(info));
+            return Ok(Some(info.clone()));
         }
         if let Some(info) = string_index_info {
             if self.is_applicable_index_type(key_type, string)? {
-                return Ok(Some(info));
+                return Ok(Some(info.clone()));
             }
         }
         Ok(None)

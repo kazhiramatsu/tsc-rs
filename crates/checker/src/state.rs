@@ -25,6 +25,16 @@ use crate::relate::RelationCaches;
 
 pub use crate::diagnostic_sink::DiagnosticSink;
 
+/// Value keys for the checker's side cache. These preserve the partitions
+/// formerly identified by the D/A/N/I string prefixes.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum CachedTypeKey {
+    Discriminated(NodeId, TypeId),
+    AssignmentReduced(TypeId, TypeId),
+    Narrowed(TypeId, TypeId, u8),
+    IntersectionThis(TypeId),
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum PackageJsonModuleType {
     Module,
@@ -219,13 +229,13 @@ pub struct WideningContext {
 
 pub type WideningContextId = usize;
 
-/// An immutable list shared by its readers: a resolved type's properties or
-/// signatures. Cloning it is a reference count (the getters hand it out
+/// An immutable list shared by its readers: a resolved type's properties,
+/// signatures, or index infos. Cloning it is a reference count (the getters hand it out
 /// instead of copying the list), an empty list holds no allocation, it
 /// reads as a slice, and iterating it by value yields the ids, as iterating
 /// a copied `Vec` did.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SharedList<T: Copy>(Option<Arc<[T]>>);
+pub struct SharedList<T: Clone>(Option<Arc<[T]>>);
 
 /// A resolved type's properties (see [`SharedList`]).
 pub type SymbolIds = SharedList<SymbolId>;
@@ -233,7 +243,10 @@ pub type SymbolIds = SharedList<SymbolId>;
 /// A resolved type's call or construct signatures (see [`SharedList`]).
 pub type SignatureIds = SharedList<SignatureId>;
 
-impl<T: Copy> SharedList<T> {
+/// Immutable resolved index infos; cloning this list copies only its Arc.
+pub type IndexInfos = SharedList<IndexInfo>;
+
+impl<T: Clone> SharedList<T> {
     /// The empty list.
     pub const fn new() -> Self {
         Self(None)
@@ -248,25 +261,25 @@ impl<T: Copy> SharedList<T> {
     }
 }
 
-impl<T: Copy> Default for SharedList<T> {
+impl<T: Clone> Default for SharedList<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: Copy> From<Vec<T>> for SharedList<T> {
+impl<T: Clone> From<Vec<T>> for SharedList<T> {
     fn from(list: Vec<T>) -> Self {
         Self((!list.is_empty()).then(|| Arc::from(list)))
     }
 }
 
-impl<T: Copy> From<&[T]> for SharedList<T> {
+impl<T: Clone> From<&[T]> for SharedList<T> {
     fn from(list: &[T]) -> Self {
         Self((!list.is_empty()).then(|| Arc::from(list)))
     }
 }
 
-impl<T: Copy> std::ops::Deref for SharedList<T> {
+impl<T: Clone> std::ops::Deref for SharedList<T> {
     type Target = [T];
 
     #[inline]
@@ -276,17 +289,17 @@ impl<T: Copy> std::ops::Deref for SharedList<T> {
 }
 
 /// The records of a [`SharedList`] by value, in order.
-pub struct SharedListIter<T: Copy> {
+pub struct SharedListIter<T: Clone> {
     list: SharedList<T>,
     next: usize,
 }
 
-impl<T: Copy> Iterator for SharedListIter<T> {
+impl<T: Clone> Iterator for SharedListIter<T> {
     type Item = T;
 
     #[inline]
     fn next(&mut self) -> Option<T> {
-        let record = self.list.get(self.next).copied();
+        let record = self.list.get(self.next).cloned();
         self.next += usize::from(record.is_some());
         record
     }
@@ -297,9 +310,9 @@ impl<T: Copy> Iterator for SharedListIter<T> {
     }
 }
 
-impl<T: Copy> ExactSizeIterator for SharedListIter<T> {}
+impl<T: Clone> ExactSizeIterator for SharedListIter<T> {}
 
-impl<T: Copy> IntoIterator for SharedList<T> {
+impl<T: Clone> IntoIterator for SharedList<T> {
     type Item = T;
     type IntoIter = SharedListIter<T>;
 
@@ -311,7 +324,7 @@ impl<T: Copy> IntoIterator for SharedList<T> {
     }
 }
 
-impl<'a, T: Copy> IntoIterator for &'a SharedList<T> {
+impl<'a, T: Clone> IntoIterator for &'a SharedList<T> {
     type Item = &'a T;
     type IntoIter = std::slice::Iter<'a, T>;
 
@@ -341,7 +354,7 @@ pub struct ResolvedMembers {
 pub struct MembersExtras {
     pub call_signatures: SignatureIds,
     pub construct_signatures: SignatureIds,
-    pub index_infos: Vec<IndexInfo>,
+    pub index_infos: IndexInfos,
 }
 
 impl ResolvedMembers {
@@ -350,8 +363,9 @@ impl ResolvedMembers {
         properties: Vec<SymbolId>,
         call_signatures: Vec<SignatureId>,
         construct_signatures: Vec<SignatureId>,
-        index_infos: Vec<IndexInfo>,
+        index_infos: impl Into<IndexInfos>,
     ) -> Self {
+        let index_infos = index_infos.into();
         let extras = (!call_signatures.is_empty()
             || !construct_signatures.is_empty()
             || !index_infos.is_empty())
@@ -400,7 +414,14 @@ impl ResolvedMembers {
     pub fn index_infos(&self) -> &[IndexInfo] {
         self.extras
             .as_ref()
-            .map_or(&[], |extras| extras.index_infos.as_slice())
+            .map_or(&[], |extras| &extras.index_infos[..])
+    }
+
+    /// The immutable list, shared across recursive checker calls.
+    pub fn index_info_list(&self) -> IndexInfos {
+        self.extras
+            .as_ref()
+            .map_or_else(IndexInfos::new, |extras| extras.index_infos.clone())
     }
 
     /// The lists for writing, allocated on the first write.
@@ -424,7 +445,7 @@ impl ResolvedMembers {
 
     pub fn set_index_infos(&mut self, index_infos: Vec<IndexInfo>) {
         if !index_infos.is_empty() || self.extras.is_some() {
-            self.extras_mut().index_infos = index_infos;
+            self.extras_mut().index_infos = index_infos.into();
         }
     }
 
@@ -451,7 +472,7 @@ impl ResolvedMembers {
             std::mem::size_of::<MembersExtras>()
                 + extras.call_signatures.heap_bytes()
                 + extras.construct_signatures.heap_bytes()
-                + extras.index_infos.capacity() * std::mem::size_of::<IndexInfo>()
+                + extras.index_infos.heap_bytes()
         })
     }
 }
@@ -1015,10 +1036,8 @@ pub struct CheckerState<'a> {
     pub(crate) reverse_mapped_source_stack: Vec<TypeId>,
     pub(crate) reverse_mapped_target_stack: Vec<TypeId>,
     pub(crate) reverse_expanding_flags: ExpandingFlags,
-    /// tsc cachedTypes (47415): the string-keyed side cache
-    /// (getCachedType/setCachedType 47484-47490) — `B{typeId}` literal-
-    /// base unions, `D{nodeId},{typeId}` object-literal discrimination.
-    pub(crate) cached_types: rustc_hash::FxHashMap<String, TypeId>,
+    /// tsc cachedTypes (47415), with value keys for its disjoint prefixes.
+    pub(crate) cached_types: rustc_hash::FxHashMap<CachedTypeKey, TypeId>,
 
     // ---- M5 flow state ----
     /// tsc flowLoopStart (47396): the loop-label fixpoint stack cursor;
@@ -1438,11 +1457,6 @@ impl<'a> CheckerState<'a> {
             map_bytes(&self.cached_types)
                 + map_bytes(&self.regular_object_literal_types)
                 + map_bytes(&self.properties_types)
-                + self
-                    .cached_types
-                    .keys()
-                    .map(String::capacity)
-                    .sum::<usize>()
                 + map_bytes(&self.error_types)
                 + self.error_types.keys().map(String::capacity).sum::<usize>()
                 + map_bytes(&self.unresolved_symbols)

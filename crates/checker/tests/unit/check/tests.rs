@@ -3690,6 +3690,41 @@ fn anonymous_object_display_basic_members_render() {
 }
 
 #[test]
+fn property_display_budget_keeps_name_byte_lengths() {
+    // tsgo nodebuilderimpl.go:2617 uses len(SymbolName), including the
+    // WTF-8 bytes of lone surrogates, rather than a UTF-16 unit count.
+    with_program_state(
+        &[(
+            "/main.ts",
+            "type T = { a: number; 名: number; '😀': number; '\\uD800': number; };",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            state.check_source_file(0);
+            let symbol = state
+                .resolve_file_scope_name("T", SymbolFlags::TYPE)
+                .unwrap();
+            let ty = state.get_declared_type_of_symbol(symbol).unwrap();
+            let properties = state.get_properties_of_type(ty).unwrap();
+            let mut rendered = Vec::new();
+            let mut lengths = Vec::new();
+            for property in properties {
+                let before = state.display_approximate_length;
+                state
+                    .property_signature(property, false, &mut rendered)
+                    .unwrap();
+                lengths.push(state.display_approximate_length - before);
+            }
+            // Each property also charges the six bytes of "number".
+            assert_eq!(lengths, [8, 10, 11, 10]);
+            assert_eq!(rendered.len(), 4);
+            assert_eq!(rendered[0], "a: number");
+            assert_eq!(rendered[1], "名: number");
+        },
+    );
+}
+
+#[test]
 fn type_display_truncation_state_is_sticky_across_alias_arguments() {
     let short = "type Defaultize<T, D> = T & D;\n\
                      declare let target: Defaultize<{ \

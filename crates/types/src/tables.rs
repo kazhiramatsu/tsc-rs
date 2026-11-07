@@ -291,7 +291,7 @@ pub struct TypeTables {
     /// tupleTypes (46988), keyed per getTupleTargetType 61149.
     tuple_types: HashMap<String, TypeId>,
     /// templateLiteralTypes (46997), keyed per getTemplateLiteralType 62083.
-    template_literal_types: HashMap<String, TypeId>,
+    template_literal_types: hashbrown::HashTable<(TemplateLiteralId, TypeId)>,
     /// stringMappingTypes (46998), keyed `${symbolId},${typeId}`
     /// (getStringMappingTypeForGenericType 62154).
     string_mapping_types: HashMap<(SymbolId, TypeId), TypeId>,
@@ -471,6 +471,15 @@ impl LiteralTexts {
     }
 }
 
+/// The complete former template cache key, without decimal/hex encoding.
+fn hash_template_literal_key(types: &[TypeId], texts: &[TemplateText]) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = rustc_hash::FxHasher::default();
+    types.hash(&mut hasher);
+    texts.hash(&mut hasher);
+    hasher.finish()
+}
+
 /// The hash of a string literal's text, by its canonical WTF-8 bytes.
 #[inline]
 fn hash_literal_text(bytes: &[u8]) -> u64 {
@@ -589,11 +598,11 @@ impl TypeTables {
         usage.type_list_map_bytes = self.list_ids.capacity()
             * (std::mem::size_of::<TypeListId>() + 1)
             + self.list_items.capacity() * std::mem::size_of::<TypeId>();
-        for map in [&self.tuple_types, &self.template_literal_types] {
-            usage.string_keyed_entries += map.len();
-            usage.string_keyed_bytes +=
-                map_bytes(map) + map.keys().map(String::capacity).sum::<usize>();
-        }
+        usage.string_keyed_entries += self.tuple_types.len() + self.template_literal_types.len();
+        usage.string_keyed_bytes += map_bytes(&self.tuple_types)
+            + self.tuple_types.keys().map(String::capacity).sum::<usize>()
+            + self.template_literal_types.capacity()
+                * (std::mem::size_of::<(TemplateLiteralId, TypeId)>() + 1);
         usage.other_map_bytes += map_bytes(&self.union_types)
             + map_bytes(&self.union_of_union_types)
             + map_bytes(&self.intersection_types)
@@ -692,7 +701,7 @@ impl TypeTables {
             union_of_union_types: HashMap::default(),
             intersection_types: HashMap::default(),
             tuple_types: HashMap::default(),
-            template_literal_types: HashMap::default(),
+            template_literal_types: hashbrown::HashTable::new(),
             string_mapping_types: HashMap::default(),
             indexed_access_types: HashMap::default(),
             substitution_types: HashMap::default(),
@@ -3414,25 +3423,27 @@ impl TypeTables {
                 return Ok(new_types[0]);
             }
         }
-        let key = format!(
-            "{}|{}|{}",
-            self.get_type_list_id(&new_types),
-            new_texts
-                .iter()
-                .map(|t| t.len().to_string())
-                .collect::<Vec<_>>()
-                .join(","),
-            new_texts
-                .iter()
-                .flat_map(|text| text.units())
-                .map(|unit| format!("{unit:04X}"))
-                .collect::<String>()
-        );
-        if let Some(&id) = self.template_literal_types.get(&key) {
+        // Hash the same ordered type list and length-delimited UTF-16
+        // segments as the former formatted key. Entries refer to the
+        // immutable payload: lookups need neither key strings nor copies.
+        let hash = hash_template_literal_key(&new_types, &new_texts);
+        if let Some(&(_, id)) = self.template_literal_types.find(hash, |&(payload, _)| {
+            let data = &self.template_literals[payload.index() as usize];
+            self.list(data.types) == new_types && *data.texts == new_texts
+        }) {
             return Ok(id);
         }
         let id = self.create_template_literal_type(new_texts, new_types);
-        self.template_literal_types.insert(key, id);
+        let TypeData::TemplateLiteral(payload) = self.type_of(id).data else {
+            unreachable!("created a template literal above");
+        };
+        let payloads = &self.template_literals;
+        let items = &self.list_items;
+        self.template_literal_types
+            .insert_unique(hash, (payload, id), |&(payload, _)| {
+                let data = &payloads[payload.index() as usize];
+                hash_template_literal_key(list_at(items, data.types), &data.texts)
+            });
         Ok(id)
     }
 
@@ -3765,6 +3776,15 @@ pub fn js_number_to_string(value: f64) -> String {
     }
     if value == 0.0 {
         return "0".to_string();
+    }
+    // tsgo jsnum/string.go:29-34: safe integers need only decimal
+    // conversion. This also avoids LowerExp, exponent parsing and the
+    // temporary mantissa/digit strings for numeric property names.
+    if value.abs() <= 9_007_199_254_740_991.0 {
+        let integer = value as i64;
+        if integer as f64 == value {
+            return integer.to_string();
+        }
     }
     if value < 0.0 {
         return format!("-{}", js_number_to_string(-value));

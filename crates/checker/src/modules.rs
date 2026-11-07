@@ -3855,8 +3855,8 @@ impl<'a> CheckerState<'a> {
         is_for_augmentation: bool,
     ) -> CheckResult<Option<SymbolId>> {
         let text = match self.data_of(module_reference_expression) {
-            NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
-            NodeData::NoSubstitutionTemplateLiteral(data) => self.text_js(data.text).to_owned(),
+            NodeData::StringLiteral(data) => self.text_js(data.text),
+            NodeData::NoSubstitutionTemplateLiteral(data) => self.text_js(data.text),
             _ => return Ok(None),
         };
         // tsgo: a source phase import resolves no module.
@@ -3882,7 +3882,7 @@ impl<'a> CheckerState<'a> {
         };
         self.resolve_external_module(
             location,
-            &text,
+            text,
             module_not_found_error,
             error_node,
             is_for_augmentation,

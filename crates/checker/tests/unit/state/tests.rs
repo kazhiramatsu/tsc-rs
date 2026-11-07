@@ -116,3 +116,37 @@ fn resolution_stack_resolved_intermediate_breaks_cycle_scan() {
         assert!(state.pop_type_resolution());
     });
 }
+
+#[test]
+fn index_info_readers_share_storage_and_keep_replaced_snapshots() {
+    use super::{IndexInfo, ResolvedMembers};
+    use crate::member_table::MemberTable;
+    use tsc_types::TypeId;
+
+    let info = IndexInfo {
+        key_type: TypeId::new(1),
+        value_type: TypeId::new(2),
+        is_readonly: false,
+        declaration: None,
+        components: None,
+        is_enum_number_index_info: false,
+        is_any_base_type_index_info: false,
+    };
+    let mut members = ResolvedMembers::new(
+        MemberTable::default(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        vec![info],
+    );
+    let snapshot = members.index_info_list();
+    let second_reader = members.index_info_list();
+    assert_eq!(snapshot.as_ptr(), members.index_infos().as_ptr());
+    assert_eq!(snapshot.as_ptr(), second_reader.as_ptr());
+    members.set_index_infos(Vec::new());
+    assert!(members.index_infos().is_empty());
+    assert_eq!(snapshot[0].value_type, TypeId::new(2));
+    let mut changed = snapshot.to_vec();
+    changed[0].is_readonly = true;
+    assert!(!snapshot[0].is_readonly);
+}
