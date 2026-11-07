@@ -152,7 +152,19 @@ conformance 1,000 case を seed 2 つで走らせ、stdout/stderr/exit と `--ex
 ### 0.5 byte 予測表 — 1 人日、統合者
 
 `node-census`（kind 別個数）と B-3 census から、新 layout の AST / symbol / 型 / signature / members / links の live MiB を
-今の memory report の行と並べる。段 1・2 の出口 gate の予想値。
+今の memory report の行と並べる。段 A・B の出口 gate の予想値。
+
+**段 0 の lane の結果（2026-11-07 夜、branch `arch/gen2-preview` `0610b17fe` の `crates/records-preview/REPORT.md`）。**
+生成器 v2 は 195 node kind と 20 Type kind を生成し、preview crate の test 287 本が統合者の独立実行でも通った。REPORT の算術
+（VS Code、16,640,179 node × 1.033）：node header 393 MiB + kind 別 tail（binder word 込み）205 MiB + list 68〜80 MiB = **667〜679 MiB**
+（今の node record 525 + tail + array 81 + binder 副表 115 + locals 48 ≈ 770 MiB）。record の大きさは REPORT が正：Symbol 32 B
+（`more` を 1 word の list 参照にして `ordinal` を入れる：round 2）、SymbolTables 32、TransientSymbol 32 / Full 56、Flow 16、Type header 24
++ kind 別 tail（Object 40、Literal 48、Union 64、Reference 48、TypeParameter 56、Mapped 72 か 64 + cold 16、Conditional 80 か 64 + cold 16、
+GenericType 64）、Signature 48 + rare 40、**StructuredMembers 40**（36 を 8 B 単位に丸め）、**IndexInfo 24**、Mapper 16、
+**InferenceInfo 56**（候補 inline 4 個）、InferenceContext 48 + rare 16。Type の kind 別個数は B-3 census にないので未計測（段 0b で
+TypeData kind の census を取る：0b.7）。CallExpression の rare tail は共起率 1.76% で条件（< 1%）を満たさず不採用。
+tsgo の `ast.go` には `possiblyExhaustive`/`flowWhenTrue/False` の node field がない（checker-local と走査状態）ので、この port の
+BindData の map は port 固有として行列に記録する。
 
 ## 2b. 段 0b：de-risk の 1 週（freeze の前）
 
