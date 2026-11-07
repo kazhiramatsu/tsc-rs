@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Phase 0.3 generator. Outputs ONLY records-preview; v1 consumers stay untouched.
 
-Nodes reserve w5 and use the SPEC's conservative 24 + 8*ceil(words/2).
+Nodes store a dense file-local index at byte 20 and use the SPEC's conservative 24 + 8*ceil(words/2).
 Type w5 is the payload tag; payload and applicable links follow at byte 24.
 No pointer casts or Rust enum discriminants are stored in Record structs.
 """
@@ -76,6 +76,8 @@ def load():
             v1.require_reason(entry, name)
     if raw['record']['headerBytes'] != 24 or raw['record']['handleUnitBytes'] != 8:
         raise ValueError('preview ABI is a 24-byte header with 8-byte allocation units')
+    if raw['record']['fields'] != ['kind', 'tflags', 'flags', 'pos', 'end', 'parent', 'index']:
+        raise ValueError('node header field order must preserve index at byte 20 and tail at byte 24')
     for key, oldkey in [('hotSlots', 'hotSlots'), ('visitOrder', 'visitOrder'), ('rustOptional', 'rustOptional'),
                         ('headerObservables', 'headerObservables'), ('equalitySkips', 'equalitySkips'),
                         ('stringTypes', 'stringTypes'), ('fieldDocs', 'fieldDocs')]:
@@ -160,13 +162,20 @@ def binder_fields(kinds):
         if name not in result and name != 'Count':
             go = 'KeywordExpression' if name in ('ThisKeyword','SuperKeyword','NullKeyword','TrueKeyword','FalseKeyword') else 'ThisTypeNode' if name == 'ThisType' else 'Token'
             tokens[name] = {'goStruct':go,'fields':walk(go)}
-    return {'tokens':tokens, 'why': 'Recursive Go embeddings from inputs/go-structs.json; full source hashes in inputs/provenance.json.',
+    derived = {'tokens':tokens, 'why': 'Recursive Go embeddings from inputs/go-structs.json; full source hashes in inputs/provenance.json.',
             'kinds': result,
             'excludedFacts': {
-                'possibly_exhaustive': {'why': 'No field in Go SwitchStatement. Exhaustiveness is checker-local SwitchStatementLinks.exhaustiveState, not a binder word.', 'source': 'checker-types.go:267-278'},
-                'flow_when_true/flow_when_false': {'why': 'No node fields in this Go revision. Binder.currentTrueTarget/currentFalseTarget are traversal state, not persistent per-file maps.', 'source': 'binder.go:55-56'},
+                'possibly_exhaustive': {'why': 'Go-only exclusion: SwitchStatementLinks.exhaustiveState is checker-local. Rust DOES write possibly_exhaustive; see rustWriters.maps.possibly_exhaustive for port-specific retained-map placement.', 'source': 'checker-types.go:267-278'},
+                'flow_when_true/flow_when_false': {'why': 'Go-only exclusion: currentTrueTarget/currentFalseTarget are traversal state. Rust DOES persist node_flow_when_true/false; see rustWriters maps for port-specific retained-map placement.', 'source': 'binder.go:55-56'},
                 'jsdoc': {'why': 'SourceFile.jsdocCache is a per-file map; tflags HAS_JSDOC only.', 'source': 'ast.go:2476'},
             }}
+
+    spec = importlib.util.spec_from_file_location('binder_census', PREVIEW / 'tools/binder_census.py')
+    census = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(census)
+    config = json.loads((ROOT / 'crates/syntax/nodes.layout2.json').read_text())['binderFields']['rustCensus']
+    derived['rustWriters'] = census.derive(ROOT, derived, config)
+    return derived
 
 
 def sizeof(ty, records):
@@ -252,9 +261,10 @@ def render_records(layout):
         type_allocators += [f'pub fn alloc_type_{v1.snake_case(kind)}(&self,tail:{tail_name})->crate::arena_stub::Ref<{record_name}> {{',
                             'let id=self.next_type_id.get().checked_add(1).expect("dense Type id overflow"); self.next_type_id.set(id);',
                             f'self.arena.alloc({record_name}::new(id,tail))', '}']
-    out += ['pub struct CheckerArena { pub arena:crate::arena_stub::LocalArena, next_type_id:std::cell::Cell<u32> }',
-            'impl CheckerArena { pub fn new(owner:u32)->Self { Self { arena:crate::arena_stub::LocalArena::new(owner),next_type_id:std::cell::Cell::new(0) } }']
-    out += type_allocators + ['}']
+    out += ['pub struct CheckerArena { pub arena:crate::arena_stub::LocalArena, next_type_id:std::cell::Cell<u32>, next_signature_id:std::cell::Cell<u32> }',
+            'impl CheckerArena { pub fn new(owner:u32)->Self { Self { arena:crate::arena_stub::LocalArena::new(owner),next_type_id:std::cell::Cell::new(0),next_signature_id:std::cell::Cell::new(0) } }']
+    out += type_allocators + ['pub fn alloc_signature(&self,mut signature:Signature)->crate::arena_stub::Ref<Signature> {',
+        'signature.id=crate::support::next_ordinal(&self.next_signature_id); self.arena.alloc(signature)', '}','}']
     out += ['pub fn memory_rows() -> &\'static [(&\'static str, usize)] { &[']
     out += [f'({json.dumps(name)}, {size}),' for name, size in rows]
     out += ['] }']
@@ -277,11 +287,12 @@ def node_words(kind, binder):
 
 
 def render_nodes(kinds, binders, raw):
-    out = [HEADER, 'use crate::arena_stub::{List, Record, Ref};', 'use crate::support::{Id, TextRef};',
+    out = [HEADER, 'use crate::arena_stub::{List, Record, Ref};', 'use crate::support::{FileOrdinals, Id, TextRef};',
            'pub use crate::syntax_kind::SyntaxKind;',
            'pub type NodeId = Ref<Node>;', 'pub type ListId = Ref<List<Id<Node>>>;', 'pub type NodeArrayId = ListId;',
            '#[repr(C)]', '#[derive(Clone, Copy, Debug, Default, PartialEq)]',
-           'pub struct Node { pub kind: u16, pub tflags: u16, pub flags: u32, pub pos: u32, pub end: u32, pub parent: Option<NodeId>, pub w5: u32 }',
+           'pub struct Node { pub kind: u16, pub tflags: u16, pub flags: u32, pub pos: u32, pub end: u32, pub parent: Option<NodeId>, pub index: u32 }',
+           'impl Node { #[inline] pub fn index(&self)->u32 { self.index } }',
            'unsafe impl Record for Node {}', 'const _: () = assert!(std::mem::size_of::<Node>() == 24);',
            '#[derive(Clone, Copy, Debug, PartialEq)]',
            'pub enum JSDocComment { Text { text: TextRef, pos: u32, end: u32, text_end: u32 }, Nodes(ListId) }',
@@ -299,9 +310,9 @@ def render_nodes(kinds, binders, raw):
             'const _:()=assert!(std::mem::size_of::<KeywordExpressionRecord>()==32);',
             '#[derive(Clone,Copy,Debug,PartialEq)]',
             'pub enum TokenPreview { Plain(Node), Flow(KeywordExpressionRecord) }',
-            'impl TokenPreview { pub fn new(kind:SyntaxKind,pos:u32,end:u32)->Self {',
+            'impl TokenPreview { pub fn new(file:&FileOrdinals,kind:SyntaxKind,pos:u32,end:u32)->Self {',
             'assert!(matches!(NodeData::missing(kind),NodeData::Token));',
-            'let header=Node {kind:kind as u16,pos,end,..Node::default()};',
+            'let header=Node {index:file.next_node_index(),kind:kind as u16,pos,end,..Node::default()};',
             'match kind { SyntaxKind::ThisKeyword|SyntaxKind::SuperKeyword|SyntaxKind::NullKeyword|SyntaxKind::TrueKeyword|SyntaxKind::FalseKeyword=>Self::Flow(KeywordExpressionRecord {header,tail:KeywordExpressionTail::default()}), _=>Self::Plain(header) } }',
             'pub fn header(&self)->&Node { match self { Self::Plain(n)=>n,Self::Flow(r)=>&r.header } }',
             '#[inline] pub fn flow(&self)->Option<Ref<crate::records::Flow>> { match self { Self::Plain(_)=>None,Self::Flow(r)=>Ref::from_raw(r.tail.flow) } }',
@@ -333,8 +344,8 @@ def render_nodes(kinds, binders, raw):
                 f'const _: () = assert!(std::mem::size_of::<{kind.name}Record>() == {24 + size});',
                 f'const _: () = assert!(std::mem::offset_of!({kind.name}Record, tail) == 24);',
                 f'impl {kind.name}Record {{',
-                f'pub fn new(pos:u32,end:u32,flags:u32,data:&{kind.data_name}) -> Self {{',
-                f'let {"mut " if kind.fields else ""}r = Self {{ header: Node {{ kind: SyntaxKind::{kind.name} as u16,pos,end,flags,..Node::default() }}, ..Self::default() }};']
+                f'pub fn new(file:&FileOrdinals,pos:u32,end:u32,flags:u32,data:&{kind.data_name}) -> Self {{',
+                f'let {"mut " if kind.fields else ""}r = Self {{ header: Node {{ index:file.next_node_index(),kind: SyntaxKind::{kind.name} as u16,pos,end,flags,..Node::default() }}, ..Self::default() }};']
         for name, slot in words:
             if slot == v1.SCALARS:
                 expr = v1.encode_slot(kind, slot)
@@ -458,12 +469,12 @@ def render_nodes(kinds, binders, raw):
 def render_node_tests(kinds):
     schema = json.loads(v1.SCHEMA.read_text())['nodes']
     by_name = {k['kindName']: k for k in schema}
-    tests = [HEADER, 'use tsc_records_preview::{arena_stub::Ref, nodes::*, support::TextRef};',
+    tests = [HEADER, 'use tsc_records_preview::{arena_stub::Ref, nodes::*, support::{FileOrdinals,TextRef}};',
              '#[derive(Default)] struct Lookup { lists:std::collections::BTreeMap<u32,Vec<NodeId>> } impl PreviewLookup for Lookup {',
              'fn kind(&self,_:NodeId)->SyntaxKind { SyntaxKind::JSDocTypeExpression }',
              'fn list(&self,id:ListId)->&[NodeId] { &self.lists[&id.raw()] } }']
     for kind in kinds:
-        tests += ['#[test]', f'fn round_trip_{v1.snake_case(kind.name)}() {{', f'let data = {kind.data_name} {{']
+        tests += ['#[test]', f'fn round_trip_{v1.snake_case(kind.name)}() {{', 'let file=FileOrdinals::default();', f'let data = {kind.data_name} {{']
         for i, f in enumerate(kind.fields):
             value = i * 7 + 17
             if f.ty in ('Node', 'NodeArray'):
@@ -485,7 +496,7 @@ def render_node_tests(kinds):
                 if f.rust_optional:
                     expr = 'Some(SyntaxKind::PlusToken)'
             tests += [f'{f.rust_name}: {expr},']
-        tests += ['};', f'let record = {kind.name}Record::new(3,19,41,&data);', 'assert_eq!(record.data(),data);',
+        tests += ['};', f'let record = {kind.name}Record::new(&file,3,19,41,&data);', 'assert_eq!(record.data(),data);', 'assert_eq!(record.header.index(),1);',
                   'assert_eq!((record.header.pos,record.header.end,record.header.flags),(3,19,41));',
                   'assert!(std::ptr::eq(record.tail(),&record.tail));',
                   'let mut names=Vec::new(); record.child_slots(|_|SyntaxKind::JSDocTypeExpression, |slot|names.push(match slot {ChildSlot::Node(n,_)|ChildSlot::List(n,_)=>n}));']
@@ -500,7 +511,7 @@ def render_node_tests(kinds):
             swapped[a], swapped[b] = swapped[b], swapped[a]
             if kind.visit_order['when'] == 'isNameFirst':
                 tests += ['let mut reverse_data=data; reverse_data.is_name_first=false;',
-                          f'let reverse={kind.name}Record::new(0,0,0,&reverse_data);']
+                          f'let reverse={kind.name}Record::new(&file,0,0,0,&reverse_data);']
             else:
                 tests += ['let reverse=record;']
             tests += ['let mut reverse_names=Vec::new(); reverse.child_slots(|_|SyntaxKind::Unknown, |slot|reverse_names.push(match slot {ChildSlot::Node(n,_)|ChildSlot::List(n,_)=>n}));',
@@ -518,13 +529,13 @@ def render_node_tests(kinds):
                   f'assert_eq!(visited,Vec::<u32>::from({json.dumps(flat)}));',
                   'assert!(record.try_visit(&lookup, |_|Ok::<_,()>(())).is_ok());',
                   f'let missing=NodeData::missing(SyntaxKind::{kind.name}).as_{v1.snake_case(kind.name)}().unwrap();',
-                  f'assert_eq!({kind.name}Record::new(0,0,0,&missing).data(),missing);', '}']
-    tests += ['#[test] fn every_token_kind() { for kind in [']
+                  f'assert_eq!({kind.name}Record::new(&file,0,0,0,&missing).data(),missing);', '}']
+    tests += ['#[test] fn every_token_kind() { let file=FileOrdinals::default(); for kind in [']
     names={k.name for k in kinds}
     for name in re.findall(r'^    (\w+) = \d+,', (ROOT/'crates/syntax/src/kind.rs').read_text(),re.M):
         if name not in names and name!='Count':
             tests += [f'SyntaxKind::{name},']
-    tests += ['] { let mut token=TokenPreview::new(kind,4,9);',
+    tests += ['] { let mut token=TokenPreview::new(&file,kind,4,9);',
               'assert_eq!(token.header().kind,kind as u16); assert_eq!(token.data(),NodeData::Token);',
               'assert_eq!((token.header().pos,token.header().end),(4,9));',
               'let has_flow=matches!(kind,SyntaxKind::ThisKeyword|SyntaxKind::SuperKeyword|SyntaxKind::NullKeyword|SyntaxKind::TrueKeyword|SyntaxKind::FalseKeyword);',

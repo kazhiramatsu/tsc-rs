@@ -4,6 +4,36 @@ use crate::nodes::Node;
 use crate::records::*;
 use std::marker::PhantomData;
 
+/// Counters belong to one file. Pass the same instance to every typed node/token
+/// constructor in parse creation order; symbols use their own dense sequence.
+/// Zero defaults and Sample fixtures are unissued records, not allocated identities.
+#[derive(Default)]
+pub struct FileOrdinals {
+    next_node: std::cell::Cell<u32>,
+    next_symbol: std::cell::Cell<u32>,
+}
+pub(crate) fn next_ordinal(counter: &std::cell::Cell<u32>) -> u32 {
+    let next = counter
+        .get()
+        .checked_add(1)
+        .expect("dense ordinal overflow");
+    counter.set(next);
+    next
+}
+impl FileOrdinals {
+    pub(crate) fn next_node_index(&self) -> u32 {
+        next_ordinal(&self.next_node)
+    }
+    pub fn alloc_symbol(
+        &self,
+        arena: &crate::arena_stub::SharedArena,
+        mut symbol: Symbol,
+    ) -> Ref<Symbol> {
+        symbol.ordinal = next_ordinal(&self.next_symbol);
+        arena.alloc(symbol)
+    }
+}
+
 /// Nullable 32-bit arena identity. Zero is absence, never an invalid Rust value.
 #[repr(transparent)]
 pub struct Id<T: Record> {
@@ -403,7 +433,7 @@ impl Symbol {
     pub fn declarations<'a>(&self, arena: &'a Arena) -> DeclarationView<'a> {
         DeclarationView {
             first: self.decl0,
-            more: self.more.decode().map(|s| s.as_slice(arena)),
+            more: self.more.as_ref().map(|list| list.items(arena)),
         }
     }
 }

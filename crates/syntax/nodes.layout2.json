@@ -4,12 +4,31 @@
   "record": {
     "headerBytes": 24,
     "handleUnitBytes": 8,
-    "why": "Header fields occupy words 0..4 plus w5; this preview reserves w5 and uses the SPEC conservative 24 + 8*ceil(tail_words/2) formula. Reusing w5 for payload needs arena projection API at integration."
+    "why": "24-byte header: kind u16, tflags u16, flags/pos/end/parent/index u32. Dense file-local index starts at 1 in parse creation order; typed tails start at byte 24 and use 8*ceil(words/2) bytes.",
+    "fields": [
+      "kind",
+      "tflags",
+      "flags",
+      "pos",
+      "end",
+      "parent",
+      "index"
+    ]
   },
   "tails": {},
   "binderFields": {
-    "why": "Derived transitively from the snapshotted Go struct embeddings; overrides forbidden without an explanation.",
-    "overrides": {}
+    "why": "Go embeds define preview tails; the Rust writer matrix records port-specific differences and explicit retained-map placement for every uncovered writer.",
+    "overrides": {},
+    "rustCensus": {
+      "why": "Whole-source hashes pin the hand-audited kind guards in tools/binder_census.py; re-audit on drift.",
+      "sourceSha256": {
+        "crates/binder/src/bind.rs": "d8299fd3413a787f8367cede91c57d70b6c5903085b48367895b2fca49dc1329",
+        "crates/binder/src/declare.rs": "a0b83d1f69f28fc4ebb194f6a6cd35f968ea249c06182f8cbe3ed82ab01b0c89",
+        "crates/binder/src/containers.rs": "9e4560c573f784c72f34d27ea26bc0ac03a2117985b85baba35dbad7c93d95fb",
+        "crates/binder/src/flow.rs": "c4451ebb5145db517717f62e7c14d8444b90ac03567e2c38858b6278dd392a9f",
+        "crates/binder/src/node_util.rs": "3f6e90e6e1023998eff70f3bbfb292f1d6d1019e4fcdf47ba02925e60e7b726d"
+      }
+    }
   },
   "jsDoc": {
     "why": "No jsDoc word: HAS_JSDOC in tflags; parser owns the per-file side map.",

@@ -56,13 +56,112 @@ fn type_ids_are_dense_creation_numbers_separate_from_arena_handles() {
     ));
 }
 #[test]
+fn node_indices_follow_file_creation_order_across_kinds_and_tokens() {
+    let file = FileOrdinals::default();
+    let identifier = NodeData::missing(SyntaxKind::Identifier)
+        .as_identifier()
+        .unwrap();
+    let a = IdentifierRecord::new(&file, 90, 91, 0, &identifier);
+    // Positions and allocation sizes need not be monotonic; creation indices do.
+    let token = TokenPreview::new(&file, SyntaxKind::PlusToken, 5, 6);
+    let flow_token = TokenPreview::new(&file, SyntaxKind::ThisKeyword, 0, 4);
+    let block = BlockRecord::new(&file, 0, 100, 0, &BlockData { statements: None });
+    assert_eq!(
+        [
+            a.header.index(),
+            token.header().index(),
+            flow_token.header().index(),
+            block.header.index()
+        ],
+        [1, 2, 3, 4]
+    );
+    let another = FileOrdinals::default();
+    assert_eq!(
+        IdentifierRecord::new(&another, 0, 1, 0, &identifier)
+            .header
+            .index(),
+        1
+    );
+    assert_eq!(std::mem::size_of::<Node>(), 24);
+    assert_eq!(std::mem::offset_of!(Node, index), 20);
+    assert_eq!(std::mem::offset_of!(IdentifierRecord, tail), 24);
+}
+#[test]
+fn symbol_ordinals_and_signature_ids_have_independent_dense_sequences() {
+    let file = FileOrdinals::default();
+    let shared = SharedArena::new(1);
+    let _ = shared.alloc_bytes(&[0; 100]);
+    let a = file.alloc_symbol(
+        &shared,
+        Symbol {
+            ordinal: 99,
+            ..Symbol::default()
+        },
+    );
+    let _ = TokenPreview::new(&file, SyntaxKind::PlusToken, 0, 1);
+    let _ = shared.alloc_list(&[7u32, 8, 9]);
+    let b = file.alloc_symbol(&shared, Symbol::default());
+    assert_eq!((shared.get(a).ordinal, shared.get(b).ordinal), (1, 2));
+    assert_ne!(a.raw(), 1);
+    let other_file = FileOrdinals::default();
+    let other = other_file.alloc_symbol(&shared, Symbol::default());
+    assert_eq!(shared.get(other).ordinal, 1);
+
+    let checker = CheckerArena::new(2);
+    let _ = checker.arena.alloc_bytes(&[0; 100]);
+    let a = checker.alloc_signature(Signature {
+        id: 77,
+        ..Signature::default()
+    });
+    let ty = checker.alloc_type_object(TypeObjectTail::default());
+    let b = checker.alloc_signature(Signature::default());
+    assert_eq!((checker.arena.get(a).id, checker.arena.get(b).id), (1, 2));
+    assert_eq!(checker.arena.get(ty).header.id, 1);
+    assert_ne!(a.raw(), 1);
+    let other_checker = CheckerArena::new(3);
+    let other = other_checker.alloc_signature(Signature::default());
+    assert_eq!(other_checker.arena.get(other).id, 1);
+    assert_eq!(std::mem::size_of::<Symbol>(), 32);
+    assert_eq!(std::mem::size_of::<Signature>(), 48);
+    assert_eq!(std::mem::offset_of!(Signature, id), 44);
+}
+#[test]
+fn symbol_more_is_a_nullable_list_with_header_length() {
+    let arena = Arena::new(1);
+    assert_eq!(Symbol::default().declarations(&arena).iter().count(), 0);
+    let empty = arena.alloc_list::<Id<Node>>(&[]);
+    let empty_symbol = Symbol {
+        more: Id::from_ref(empty),
+        ..Symbol::default()
+    };
+    assert!(!empty_symbol.more.is_none());
+    assert_eq!(empty.header(&arena).len, 0);
+    assert_eq!(empty_symbol.declarations(&arena).iter().count(), 0);
+    let more = arena.alloc_list(&[Id::<Node>::from_raw(2), Id::from_raw(3)]);
+    let symbol = Symbol {
+        decl0: Id::from_raw(1),
+        more: Id::from_ref(more),
+        ..Symbol::default()
+    };
+    assert_eq!(std::mem::size_of_val(&symbol.more), 4);
+    assert_eq!(more.header(&arena).len, 2);
+    assert_eq!(
+        symbol
+            .declarations(&arena)
+            .iter()
+            .map(Id::raw)
+            .collect::<Vec<_>>(),
+        [1, 2, 3]
+    );
+}
+#[test]
 fn instantiated_symbol_borrows_name_and_declarations_from_origin() {
     let arena = Arena::new(3);
-    let more = arena.alloc_slice(&[Id::<Node>::from_raw(22), Id::from_raw(23)]);
+    let more = arena.alloc_list(&[Id::<Node>::from_raw(22), Id::from_raw(23)]);
     let origin = arena.alloc(Symbol {
         name: 55,
         decl0: Id::from_raw(21),
-        more: OptionalSpan::encode(Some(more)),
+        more: Id::from_ref(more),
         ..Symbol::default()
     });
     let transient = TransientSymbol {
@@ -144,12 +243,14 @@ fn mapper_all_six_shapes_and_all_deferred_forms() {
         assert_eq!((record.kind, record.a, record.b, record.c), words);
         assert_eq!(Mapper::encode(record.decode().unwrap()), record);
     }
-    assert!(Mapper {
-        kind: 255,
-        ..Mapper::default()
-    }
-    .decode()
-    .is_none());
+    assert!(
+        Mapper {
+            kind: 255,
+            ..Mapper::default()
+        }
+        .decode()
+        .is_none()
+    );
 }
 #[test]
 fn tables_switch_at_seventeen_entries_and_preserve_insertion_order() {
@@ -188,10 +289,13 @@ fn optional_text_and_jsdoc_zero_text_are_lossless() {
         .as_template_head()
         .unwrap();
     data.raw_text = Some(TextRef(0));
-    let record = TemplateHeadRecord::new(0, 0, 0, &data);
+    let record = TemplateHeadRecord::new(&FileOrdinals::default(), 0, 0, 0, &data);
     assert_eq!(record.data(), data);
     data.raw_text = None;
-    assert_eq!(TemplateHeadRecord::new(0, 0, 0, &data).data(), data);
+    assert_eq!(
+        TemplateHeadRecord::new(&FileOrdinals::default(), 0, 0, 0, &data).data(),
+        data
+    );
     for comment in [
         None,
         Some(JSDocComment::Text {
@@ -211,12 +315,16 @@ fn optional_text_and_jsdoc_zero_text_are_lossless() {
             tags: None,
             comment,
         };
-        assert_eq!(JSDocRecord::new(0, 0, 0, &data).data(), data);
+        assert_eq!(
+            JSDocRecord::new(&FileOrdinals::default(), 0, 0, 0, &data).data(),
+            data
+        );
     }
 }
 #[test]
 fn binder_flow_and_observable_field_order() {
     let mut identifier = IdentifierRecord::new(
+        &FileOrdinals::default(),
         0,
         1,
         0,
@@ -234,7 +342,8 @@ fn binder_flow_and_observable_field_order() {
         .as_call_expression()
         .unwrap();
     names.clear();
-    CallExpressionRecord::new(0, 0, 0, &call).observable_fields(|name, _| names.push(name));
+    CallExpressionRecord::new(&FileOrdinals::default(), 0, 0, 0, &call)
+        .observable_fields(|name, _| names.push(name));
     assert_eq!(
         names,
         [
@@ -248,7 +357,8 @@ fn binder_flow_and_observable_field_order() {
         .as_binary_expression()
         .unwrap();
     names.clear();
-    BinaryExpressionRecord::new(0, 0, 0, &binary).observable_fields(|name, _| names.push(name));
+    BinaryExpressionRecord::new(&FileOrdinals::default(), 0, 0, 0, &binary)
+        .observable_fields(|name, _| names.push(name));
     assert_eq!(names, ["left", "operatorToken", "right"]);
 }
 #[test]
@@ -301,7 +411,7 @@ fn direct_walk_stops_on_first_match_or_error_and_rewrites_slots() {
         operator_token: Ref::from_raw(2),
         right: Ref::from_raw(3),
     };
-    let mut record = BinaryExpressionRecord::new(0, 0, 0, &data);
+    let mut record = BinaryExpressionRecord::new(&FileOrdinals::default(), 0, 0, 0, &data);
     let mut visited = Vec::new();
     assert_eq!(
         record

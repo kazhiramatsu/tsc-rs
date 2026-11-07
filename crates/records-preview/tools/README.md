@@ -26,17 +26,75 @@ verbatim struct bodies and original line numbers from ast.go/ast_generated.go,
 plus Binder and checker SwitchStatementLinks evidence. Generation and reporting
 never open the original external paths.
 
-A future TypeData-kind census can be supplied as a JSON object with all 20 variant
-names and nonnegative integer populations:
+The census lane should emit a single flat JSON object with exactly the following
+22 keys (case-sensitive). This is a **shape example with zero placeholders**, not
+measured data; replace them with counts before running the report:
+
+```json
+{
+  "Object": 0,
+  "Intrinsic": 0,
+  "Literal": 0,
+  "Enum": 0,
+  "UniqueESSymbol": 0,
+  "Union": 0,
+  "Intersection": 0,
+  "EvolvingArray": 0,
+  "Reference": 0,
+  "TupleTarget": 0,
+  "TypeParameter": 0,
+  "TemplateLiteral": 0,
+  "StringMapping": 0,
+  "Index": 0,
+  "IndexedAccess": 0,
+  "Mapped": 0,
+  "ReverseMapped": 0,
+  "Conditional": 0,
+  "Substitution": 0,
+  "GenericType": 0,
+  "mapped_cold_materialized": 0,
+  "conditional_cold_materialized": 0
+}
+```
+
+Every value is a nonnegative integer (JSON booleans/floats are rejected). The 20
+TypeData-kind counts, **excluding the two cold counters**, must sum to the pinned
+Type memory row, **2,575,521**. Count each resident Type once under its TypeData
+variant at the same census point as that memory row. `Object` and `GenericType`,
+for example, are distinct exact variant names, not aggregate categories.
+
+`mapped_cold_materialized` counts resident Mapped types whose generated cold
+links block exists; `conditional_cold_materialized` counts the analogous
+Conditional blocks. Each must be at most its own kind's population. Count blocks
+actually retained, not nonzero fields or cumulative allocation attempts. Both
+blocks cost 16 arena-rounded bytes each (Mapped has 12 repr(C) bytes). If the
+census runs on the old representation, derive materialization from the proposed
+lazy allocation policy for the fields listed under Mapped/Conditional in REPORT;
+do not substitute the mere presence of a universal TypeLinks slot.
 
 ```sh
 python3 crates/records-preview/tools/memory_report.py --type-populations /path/to/type-populations.json
 ```
 
-Its sum must equal the recorded Type memory row (2,575,521). The supplied B-3
-stream has no such distribution, so the default report labels every per-kind
-population unmeasured. Materialized per-kind cold-link counts and node-list
-length parity are also missing; the report exposes those costs separately.
+The existing `--type-populations` flag and the original 20-kind-only JSON remain
+supported. Supply either both cold counters or neither. With both, the report
+also prints common + cold allocated bytes; without them it reports common bytes
+only and leaves cold occupancy unmeasured. Unknown keys, incomplete kind lists,
+a single cold counter, or inconsistent counts fail validation. This command
+regenerates REPORT.md with the supplied census; default generation still uses the
+bundled B-3 input and labels absent measurements honestly.
+
+`binder-fields.derived.json` also includes `rustWriters.maps`: every per-node map,
+writer file:line, method/function, kind bound (`any` if not syntactically bounded),
+and separate dispatch evidence. `tools/binder_census.py` discovers mutable sites;
+source hashes in nodes.layout2.json pin the manual guard audit. Go embeds remain
+the preview tail authority. Every missing/uncertain Rust placement explicitly
+retains the original per-file map; no consumer or map is removed here.
+
+The owned `data()` section is reproduced from the generated Rust method bodies
+for the ten highest raw node populations. It counts source field reads and
+distinct words, plus the debug-only kind check in `tail()`. These are static
+accounting inputs for ceiling (iv), not benchmark or assembly results.
 
 The `repr(C)` layouts are the proof artifact. The Vec-backed arena is a safe
 shape model with explicit borrow guards; its timings, host allocations and

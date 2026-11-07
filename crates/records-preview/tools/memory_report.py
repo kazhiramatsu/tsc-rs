@@ -2,7 +2,8 @@
 """Reproduce REPORT.md using bundled immutable census inputs and layout JSON.
 
 No compiler build/run or benchmark is involved. Optional --type-populations accepts
-{TypeData_kind: count} from a future census; totals must match the Type memory row.
+{TypeData_kind: count, mapped_cold_materialized: count,
+ conditional_cold_materialized: count}; kind totals match the Type memory row.
 """
 import argparse
 from fractions import Fraction
@@ -15,6 +16,7 @@ PREVIEW = Path(__file__).resolve().parents[1]
 ROOT = PREVIEW.parents[1]
 SCALE = Fraction(1033, 1000)
 LISTS, ITEMS = 3_119_430, 5_407_345
+COLD_POPULATIONS = {'mapped_cold_materialized': 'Mapped', 'conditional_cold_materialized': 'Conditional'}
 
 
 def load(path):
@@ -27,6 +29,41 @@ def rounded(value):
 
 def mib(value):
     return f'{float(value) / 1048576:.3f}'
+
+
+def method_body(source, kind, method):
+    """Read the emitted Rust, not the layout/schema estimate of decode work."""
+    start = source.index(f'impl {kind}Record {{')
+    end = source.find('\nimpl ', start + 1)
+    region = source[start:end if end != -1 else len(source)]
+    match = re.search(r'pub fn ' + method + r'\(&self\)[^{]+\{', region)
+    if match is None:
+        raise ValueError(f'no generated {kind}Record::{method}')
+    begin = start + match.end()
+    cursor, depth = begin, 1
+    while depth:
+        depth += (source[cursor] == '{') - (source[cursor] == '}')
+        cursor += 1
+    return source[begin:cursor - 1], source[:start + match.start()].count('\n') + 1
+
+
+def decode_load_rows(counts):
+    source = (PREVIEW / 'src/nodes.rs').read_text()
+    rows = []
+    for kind, census in sorted(counts['kinds'].items(), key=lambda item: (-item[1]['count'], item[0]))[:10]:
+        data, data_line = method_body(source, kind, 'data')
+        tail, tail_line = method_body(source, kind, 'tail')
+        if 'self.header.' in data:
+            raise ValueError(f'{kind}: re-audit data header load accounting')
+        reads = re.findall(r'\bself\.tail\.((?:r#)?\w+)', data)
+        tail_reads = re.findall(r'\bself\.tail\.((?:r#)?\w+)', tail)
+        # Current hot tail methods only check kind (debug) and form a reference.
+        if len(re.findall(r'\bself\.header\.kind\b', tail)) != 1 or 'debug_assert_eq!' not in tail or '&self.tail' not in tail:
+            raise ValueError(f'{kind}: re-audit tail accessor load accounting')
+        rows.append({'kind': kind, 'count': census['count'], 'dataLoads': len(reads),
+                     'dataWords': len(set(reads)), 'dataLine': data_line,
+                     'tailLoads': len(tail_reads), 'tailDebugHeaderLoads': 1, 'tailLine': tail_line})
+    return rows
 
 
 def calculate(populations=None):
@@ -63,10 +100,14 @@ def calculate(populations=None):
     type_count = memory['serial types (Type)']
     if populations is not None:
         expected = set(records['types'])
-        if set(populations) != expected or any(type(n) is not int or n < 0 for n in populations.values()):
-            raise ValueError('type populations must contain all 20 TypeData kinds with nonnegative integer counts')
-        if sum(populations.values()) != type_count:
+        if (not isinstance(populations, dict) or set(populations) not in (expected, expected | COLD_POPULATIONS.keys())
+                or any(type(n) is not int or n < 0 for n in populations.values())):
+            raise ValueError('type populations require all 20 TypeData kinds and optionally BOTH cold materialization counts, all nonnegative integers')
+        if sum(populations[kind] for kind in expected) != type_count:
             raise ValueError('type populations do not match the Type memory row')
+        for key, kind in COLD_POPULATIONS.items():
+            if key in populations and populations[key] > populations[kind]:
+                raise ValueError(f'{key} exceeds its {kind} population')
     return metrics, counts, records, binders, b3, memory, {
         'header':header, 'tails':tails,'rare':0,'listHeader':list_header,'listItems':list_items,
         'listPaddingMin':list_pad_low,'listPaddingMax':list_pad_high,
@@ -89,8 +130,7 @@ def render(populations=None):
              'This is layout arithmetic, not a performance result.', '',
              '## Accounting rules and limitations', '',
              '- Node header = 24 B; tail = `8 * ceil(words / 2)` B. '
-             'The preview reserves header w5 and starts its typed tail at byte 24. '
-             'This follows the SPEC formula; overlapping payload with w5 would be a different ABI and arithmetic.',
+             'Header word 5 is the dense file-local `index` (parse creation order, starts at 1); typed tails start at byte 24.',
              '- Type header = 24 B including dense per-checker `id`; w5 is the payload tag. '
              'Payload and inline links follow at byte 24, padded to 8 B. '
              'Mapped and Conditional spill only named cold fields when fully inline size exceeds 64 B; hot members remain inline.',
@@ -100,7 +140,7 @@ def render(populations=None):
              '- B-3 was measured on an older source revision; population counts are used as a workload model, '
              'not as current binary layout measurements. The fixed Type comparator is the SPEC\'s 40 + 24 = 64 B.',
              '- **The supplied B-3 streams contain no TypeData-kind population rows.** '
-             'Every per-kind population and weighted Type byte total below is therefore unmeasured. '
+             'Without an external population file, per-kind populations and weighted Type totals are unmeasured. '
              'Use `--type-populations path.json` to fill this gap; the script verifies the aggregate against the memory row.',
              '- `data()` builds owned decoded Data values; hot access is `KindRecord::tail()` / `TypeKindRecord::tail()`. '
              'The integrator must price owned decoding through SPEC-0b ceiling (iv). '
@@ -123,7 +163,22 @@ def render(populations=None):
               'Rare decision: CallExpression questionDotToken/typeArguments joint occupancy is '
               f'{joint:,} / {call["count"]:,} = **{joint/call["count"]*100:.6f}%**, so it fails the <1% gate. '
               'Its rounded common record would save 8 B, but this does not override the occupancy condition. '
-              'No rare tail is extracted.', '', '## Per-node-kind layouts', '',
+              'No rare tail is extracted.', '']
+    lines += ['## Owned data() cost input for ceiling (iv)', '',
+              'Top ten kinds by raw VS Code frequency. Counts below are syntactic 32-bit field reads in the emitted '
+              '`src/nodes.rs` method bodies, extracted by this script. They are not measured loads or machine instructions. '
+              'Each occurrence of `self.tail.FIELD` in data() counts once, including eager scalar-array construction '
+              '(even unused binder words) and repeated field reads. Distinct words are shown separately: optimization may '
+              'remove unused reads or combine repeats. Data() itself does not read the header; NodeView dispatch, handle decoding, '
+              'owned result construction/copying and caller work are additional costs not priced here.', '',
+              '`tail()` returns a reference with zero payload reads and no copy. Its kind check adds one header read in debug '
+              'and none with debug assertions disabled; subsequent field accesses cost the words the caller selects. '
+              'The integrator must price both paths in SPEC-0b ceiling (iv), including optimization and native arena projection.', '',
+              '| Kind | VS Code count | data() source reads | Distinct tail words | tail() payload reads | tail() debug header reads | Generated methods (line) |',
+              '| --- | ---: | ---: | ---: | ---: | ---: | --- |']
+    for row in decode_load_rows(counts):
+        lines.append(f'| {row["kind"]} | {row["count"]:,} | {row["dataLoads"]} | {row["dataWords"]} | {row["tailLoads"]} | {row["tailDebugHeaderLoads"]} | src/nodes.rs data:{row["dataLine"]}, tail:{row["tailLine"]} |')
+    lines += ['', '## Per-node-kind layouts', '',
               '| Kind | Words | Record B | VS Code count (raw) | Rare | Binder words (Go authority) |',
               '| --- | ---: | ---: | ---: | --- | --- |']
     for node in metrics['nodes']:
@@ -139,15 +194,32 @@ def render(populations=None):
             lines.append(f'| {node["kind"]} | {node["words"]} | {node["recordBytes"]} | {node["count"]:,} | {facts} |')
     lines += ['', 'Schema JSDocComment payloads use five words (tag plus four data words). '
               'The four template rawText optionals add a presence word to preserve Some(TextRef(0)). '
-              'There is no node jsDoc field. Go has no persistent flowWhenTrue/False node word, '
-              'and switch exhaustiveness is checker-local; see binder-fields.derived.json excludedFacts.', '',
+              'There is no node jsDoc field. The Go layout alone does not cover every Rust binder write; '
+              'see the static writer reconciliation below. Retained Rust maps are excluded from these AST totals.', '',
+              '## Rust binder writer reconciliation', '',
+              'The derived JSON records all 32 updates of 12 per-node maps across bind/declare/containers/flow/node_util.rs. '
+              'It includes entry insertion, removals, mutable table access and identity relocation. Source hashes pin the '
+              'manual guard audit; generation fails on drift. A kind guard must constrain the written key. Generic helpers '
+              'and non-returning data-match fallbacks are classified as `any`; dispatch/schema evidence is listed separately.', '',
+              '| Rust map | Writer sites | Field | Known missing Go tails | Placement |',
+              '| --- | ---: | --- | --- | --- |']
+    for name, entry in binders['rustWriters']['maps'].items():
+        missing = ', '.join(entry['missingTailKinds']) or 'none established; see any writers'
+        placement = 'Node.flags header' if entry['field'] == 'flags' else 'Go-backed tails; retain map for other written kinds'
+        lines.append(f'| {name} | {len(entry["writers"])} | {entry["field"]} ({entry["status"]}) | {missing} | {placement} |')
+    lines += ['', 'SourceFile.end_flow, SwitchStatement.possibly_exhaustive and ConditionalExpression.flow_when_true/false '
+              'are explicitly port-specific. This preview retains their Rust maps instead of silently discarding the facts. '
+              'For every unbounded helper, the matrix explicitly retains the map on kinds lacking the Go tail word. '
+              'Thus the AST table prices the Go-derived tails, not a complete migrated Rust binder. No map occupancy/byte claim is made.', '',
               '## Checker/binder families', '',
               '| Family | repr(C) B | Arena-rounded B | Source |', '| --- | ---: | ---: | --- |']
     for name, record in records['records'].items():
         source=records['sources'][record['source']]
         lines.append(f'| {name} | {record["bytes"]} | {(record["bytes"]+7)//8*8} | `{source["source"]}:{source["line"]}` ({record["source"]}) |')
-    lines += ['', 'Symbol is exactly eight words: flags/name/parent/value_declaration/decl0 (5), more (2), tables (1); no spare fits. '
-              'Signature has 44 named bytes plus 4 padding. StructuredMembers is 36 B, IndexInfo 24 B, '
+    lines += ['', 'Symbol is exactly eight words: flags/name/parent/value_declaration/decl0 (5), more list handle (1), tables (1), ordinal (1). '
+              'The nullable more handle is zero when absent; the declaration list header owns its length. '
+              'In this stub List<T> stores T, so the concrete handle type is Id<List<Id<Node>>>. '
+              'Signature has 48 named bytes: its dense per-checker id replaces the former four padding bytes. StructuredMembers is 36 B, IndexInfo 24 B, '
               'InferenceInfo 52 B (56 allocated); the literal 32/20/24 targets cannot hold the requested fields. '
               'InferenceContext is 48 B plus a lazy 16 B rare record; capture vectors retain their independent identities.', '',
               f'B-3 snapshots: {b3["arena.contexts.end"]:,} contexts, {b3["arena.infos.end"]:,} infos, '
@@ -164,9 +236,16 @@ def render(populations=None):
     for t in metrics['types']:
         pop=populations[t['kind']] if populations is not None else None
         lines.append(f'| {t["kind"]} | {t["payloadWords"]} | {t["linksWords"]} | {t["inlineLinksWords"]} | {t["tailBytes"]} | {t["recordBytes"]} | {t["fullInlineBytes"]} | {t["outlineLinksBytes"]} | {pop if pop is not None else "unmeasured"} | 64 | {pop*t["recordBytes"] if pop is not None else "unmeasured"} |')
+    if populations is not None:
+        common = sum(populations[t['kind']] * t['recordBytes'] for t in metrics['types'])
+        lines += ['', f'Weighted common Type bytes: **{common:,}**; today (64 B each): **{totals["typeCount"] * 64:,}**.']
+        if all(key in populations for key in COLD_POPULATIONS):
+            cold = sum(populations[key] * 16 for key in COLD_POPULATIONS)
+            lines += [f'Materialized cold counts: Mapped **{populations["mapped_cold_materialized"]:,}**, Conditional **{populations["conditional_cold_materialized"]:,}**. '
+                      f'Additional allocated cold bytes: **{cold:,}**; complete modeled Type record bytes: **{common + cold:,}**.']
     lines += ['', 'The proposed total column counts common records only; add per-kind materialized cold-link counts × extra cold B rounded to 8 B (16 B for both kinds). '
               'Those occupancies are also not present in B-3. Thus even a future kind population file alone '
-              'does not establish the complete resident Type byte total.', '',
+              'does not establish the complete resident Type byte total. The optional pair of cold counts in tools/README.md enables the complete modeled record total above.', '',
               f'Mapped cold fields: {mapped_cold}. Conditional cold fields: {conditional_cold}. '
               'All other listed links read directly from the typed tail.', '',
               '## Cold maps retained', '']

@@ -2034,7 +2034,7 @@
   },
   "records": {
     "Symbol": {
-      "why": "Eight words exactly; more is two words. No spare word fits.",
+      "why": "Eight words: five core words, one declaration-list handle, tables and a dense file-local ordinal.",
       "source": "Symbol",
       "bytes": 32,
       "align": 4,
@@ -2066,13 +2066,18 @@
         },
         {
           "name": "more",
-          "type": "OptionalSpan<Id<Node>>",
-          "why": "Preserve the named source field as plain record words."
+          "type": "Id<List<Id<Node>>>",
+          "why": "Nullable handle to a list of Node identities; length lives in its header. List<T> stores T, so the preview spells the requested node-handle list List<Id<Node>>."
         },
         {
           "name": "tables",
           "type": "Id<SymbolTables>",
           "why": "Preserve the named source field as plain record words."
+        },
+        {
+          "name": "ordinal",
+          "type": "u32",
+          "why": "Dense file-local creation number; issued from 1 independently of arena offsets."
         }
       ]
     },
@@ -2390,7 +2395,7 @@
       ]
     },
     "Signature": {
-      "why": "Eleven logical fields / twelve words. from_method uses rare to avoid assuming unused SignatureFlags bits.",
+      "why": "48 named bytes including dense id; from_method remains rare without assuming unused SignatureFlags bits.",
       "source": "Signature",
       "bytes": 48,
       "align": 8,
@@ -2446,9 +2451,9 @@
           "why": "Preserve the named source field as plain record words."
         },
         {
-          "name": "padding",
+          "name": "id",
           "type": "u32",
-          "why": "Round the 44 bytes of named fields to the 48-byte target."
+          "why": "Dense per-checker Signature creation number, from 1; occupies the former four padding bytes."
         }
       ]
     },

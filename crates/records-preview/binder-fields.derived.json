@@ -3955,16 +3955,778 @@
   },
   "excludedFacts": {
     "possibly_exhaustive": {
-      "why": "No field in Go SwitchStatement. Exhaustiveness is checker-local SwitchStatementLinks.exhaustiveState, not a binder word.",
+      "why": "Go-only exclusion: SwitchStatementLinks.exhaustiveState is checker-local. Rust DOES write possibly_exhaustive; see rustWriters.maps.possibly_exhaustive for port-specific retained-map placement.",
       "source": "checker-types.go:267-278"
     },
     "flow_when_true/flow_when_false": {
-      "why": "No node fields in this Go revision. Binder.currentTrueTarget/currentFalseTarget are traversal state, not persistent per-file maps.",
+      "why": "Go-only exclusion: currentTrueTarget/currentFalseTarget are traversal state. Rust DOES persist node_flow_when_true/false; see rustWriters maps for port-specific retained-map placement.",
       "source": "binder.go:55-56"
     },
     "jsdoc": {
       "why": "SourceFile.jsdocCache is a per-file map; tflags HAS_JSDOC only.",
       "source": "ast.go:2476"
+    }
+  },
+  "rustWriters": {
+    "why": "Source-pinned static writer/guard census; local kind bounds and dispatch evidence are separate. Mutating table contents, removals and identity relocation are included; initialization/publication copies are not per-node writes.",
+    "sources": {
+      "crates/binder/src/bind.rs": "d8299fd3413a787f8367cede91c57d70b6c5903085b48367895b2fca49dc1329",
+      "crates/binder/src/declare.rs": "a0b83d1f69f28fc4ebb194f6a6cd35f968ea249c06182f8cbe3ed82ab01b0c89",
+      "crates/binder/src/containers.rs": "9e4560c573f784c72f34d27ea26bc0ac03a2117985b85baba35dbad7c93d95fb",
+      "crates/binder/src/flow.rs": "c4451ebb5145db517717f62e7c14d8444b90ac03567e2c38858b6278dd392a9f",
+      "crates/binder/src/node_util.rs": "3f6e90e6e1023998eff70f3bbfb292f1d6d1019e4fcdf47ba02925e60e7b726d"
+    },
+    "writerCount": 32,
+    "maps": {
+      "node_symbol": {
+        "field": "symbol",
+        "writers": [
+          {
+            "source": "crates/binder/src/bind.rs",
+            "line": 432,
+            "method": "insert",
+            "function": "bind_source_file_if_external_module",
+            "kinds": "any",
+            "why": "Key is self.source.root, the file root; enclosing branch tests .json file name, not a node kind.",
+            "dispatchKinds": [
+              "SourceFile"
+            ],
+            "dispatchEvidence": "Key self.source.root denotes the file root; structural evidence, not a dominating kind guard"
+          },
+          {
+            "source": "crates/binder/src/bind.rs",
+            "line": 1021,
+            "method": "insert",
+            "function": "declare_reparsed_overloads",
+            "kinds": "any",
+            "why": "Key is name from the collected names vector. JSDocOverloadTag guard is on tag, not on the written name."
+          },
+          {
+            "source": "crates/binder/src/declare.rs",
+            "line": 859,
+            "method": "insert",
+            "function": "add_declaration_to_symbol",
+            "kinds": "any",
+            "why": "Generic add_declaration_to_symbol; no kind guard."
+          },
+          {
+            "source": "crates/binder/src/declare.rs",
+            "line": 1370,
+            "method": "values_mut",
+            "function": "apply_declared_identity_relocation",
+            "kinds": "any",
+            "why": "Identity relocation rewrites every stored symbol value through values_mut."
+          }
+        ],
+        "goKinds": [
+          "ArrowFunction",
+          "BinaryExpression",
+          "BindingElement",
+          "CallExpression",
+          "CallSignature",
+          "ClassDeclaration",
+          "ClassExpression",
+          "ClassStaticBlockDeclaration",
+          "ConstructSignature",
+          "Constructor",
+          "ConstructorType",
+          "EnumDeclaration",
+          "EnumMember",
+          "ExportAssignment",
+          "ExportDeclaration",
+          "ExportSpecifier",
+          "FunctionDeclaration",
+          "FunctionExpression",
+          "FunctionType",
+          "GetAccessor",
+          "ImportClause",
+          "ImportDeclaration",
+          "ImportEqualsDeclaration",
+          "ImportSpecifier",
+          "IndexSignature",
+          "InterfaceDeclaration",
+          "JSDocFunctionType",
+          "JSDocSignature",
+          "JSDocTypeLiteral",
+          "JsxAttribute",
+          "JsxAttributes",
+          "JsxSpreadAttribute",
+          "MappedType",
+          "MethodDeclaration",
+          "MethodSignature",
+          "MissingDeclaration",
+          "ModuleDeclaration",
+          "NamedTupleMember",
+          "NamespaceExport",
+          "NamespaceExportDeclaration",
+          "NamespaceImport",
+          "NoSubstitutionTemplateLiteral",
+          "ObjectLiteralExpression",
+          "Parameter",
+          "PropertyAssignment",
+          "PropertyDeclaration",
+          "PropertySignature",
+          "SetAccessor",
+          "ShorthandPropertyAssignment",
+          "SourceFile",
+          "SpreadAssignment",
+          "TypeAliasDeclaration",
+          "TypeLiteral",
+          "TypeParameter",
+          "VariableDeclaration"
+        ],
+        "rustKnownKinds": [
+          "SourceFile"
+        ],
+        "hasUnboundedWriter": true,
+        "missingTailKinds": [],
+        "status": "Go-backed",
+        "placement": "Inline only on goKinds listed above. Retain the Rust per-file map for every other written kind; missingTailKinds lists known differences, and any is NOT restricted to goKinds. No Rust fact is discarded; this preview does not migrate the binder or price retained maps."
+      },
+      "node_local_symbol": {
+        "field": "local_symbol",
+        "writers": [
+          {
+            "source": "crates/binder/src/declare.rs",
+            "line": 1373,
+            "method": "values_mut",
+            "function": "apply_declared_identity_relocation",
+            "kinds": "any",
+            "why": "Identity relocation rewrites every stored symbol value through values_mut."
+          },
+          {
+            "source": "crates/binder/src/containers.rs",
+            "line": 646,
+            "method": "insert",
+            "function": "declare_module_member",
+            "kinds": "any",
+            "why": "declare_module_member branches on container/export flags, not the written node kind."
+          }
+        ],
+        "goKinds": [
+          "BindingElement",
+          "ClassDeclaration",
+          "ClassExpression",
+          "EnumDeclaration",
+          "ExportSpecifier",
+          "FunctionDeclaration",
+          "ImportClause",
+          "ImportEqualsDeclaration",
+          "ImportSpecifier",
+          "InterfaceDeclaration",
+          "ModuleDeclaration",
+          "NamespaceImport",
+          "TypeAliasDeclaration",
+          "VariableDeclaration"
+        ],
+        "rustKnownKinds": [],
+        "hasUnboundedWriter": true,
+        "missingTailKinds": [],
+        "status": "Go-backed",
+        "placement": "Inline only on goKinds listed above. Retain the Rust per-file map for every other written kind; missingTailKinds lists known differences, and any is NOT restricted to goKinds. No Rust fact is discarded; this preview does not migrate the binder or price retained maps."
+      },
+      "locals": {
+        "field": "locals",
+        "writers": [
+          {
+            "source": "crates/binder/src/bind.rs",
+            "line": 1578,
+            "method": "get_mut",
+            "function": "declare_common_js_variable",
+            "kinds": "any",
+            "why": "get_mut mutates table contents; root is self.source.root at bind.rs:1547.",
+            "dispatchKinds": [
+              "SourceFile"
+            ],
+            "dispatchEvidence": "Key root = self.source.root at bind.rs:1547; structural evidence, not a dominating kind guard"
+          },
+          {
+            "source": "crates/binder/src/declare.rs",
+            "line": 436,
+            "method": "entry",
+            "function": "locals_entry",
+            "kinds": "any",
+            "why": "Generic locals_entry returns a mutable table, inserting on absence."
+          },
+          {
+            "source": "crates/binder/src/declare.rs",
+            "line": 1377,
+            "method": "values_mut",
+            "function": "apply_declared_identity_relocation",
+            "kinds": "any",
+            "why": "Identity relocation rewrites all tables under has_private_serials; not a kind guard."
+          },
+          {
+            "source": "crates/binder/src/declare.rs",
+            "line": 1381,
+            "method": "values_mut",
+            "function": "apply_declared_identity_relocation",
+            "kinds": "any",
+            "why": "Identity relocation rewrites all tables without private serials; not a kind guard."
+          },
+          {
+            "source": "crates/binder/src/containers.rs",
+            "line": 213,
+            "method": "entry",
+            "function": "ensure_locals",
+            "kinds": "any",
+            "why": "Generic ensure_locals inserts via Entry::Vacant(entry) at containers.rs:214."
+          },
+          {
+            "source": "crates/binder/src/containers.rs",
+            "line": 272,
+            "method": "insert",
+            "function": "bind_container",
+            "kinds": "any",
+            "why": "IS_CONTAINER and HAS_LOCALS flags are caller-supplied; no dominating node-kind bound."
+          },
+          {
+            "source": "crates/binder/src/containers.rs",
+            "line": 281,
+            "method": "remove",
+            "function": "bind_container",
+            "kinds": "any",
+            "why": "IS_BLOCK_SCOPED_CONTAINER and HAS_LOCALS are caller-supplied; remove clears a fact."
+          }
+        ],
+        "goKinds": [
+          "ArrowFunction",
+          "Block",
+          "CallSignature",
+          "CaseBlock",
+          "CatchClause",
+          "ClassDeclaration",
+          "ClassExpression",
+          "ClassStaticBlockDeclaration",
+          "ConditionalType",
+          "ConstructSignature",
+          "Constructor",
+          "ConstructorType",
+          "ForInStatement",
+          "ForOfStatement",
+          "ForStatement",
+          "FunctionDeclaration",
+          "FunctionExpression",
+          "FunctionType",
+          "GetAccessor",
+          "IndexSignature",
+          "JSDocFunctionType",
+          "JSDocSignature",
+          "MappedType",
+          "MethodDeclaration",
+          "MethodSignature",
+          "ModuleDeclaration",
+          "SetAccessor",
+          "SourceFile",
+          "TypeAliasDeclaration"
+        ],
+        "rustKnownKinds": [
+          "SourceFile"
+        ],
+        "hasUnboundedWriter": true,
+        "missingTailKinds": [],
+        "status": "Go-backed",
+        "placement": "Inline only on goKinds listed above. Retain the Rust per-file map for every other written kind; missingTailKinds lists known differences, and any is NOT restricted to goKinds. No Rust fact is discarded; this preview does not migrate the binder or price retained maps."
+      },
+      "next_container": {
+        "field": "next_container",
+        "writers": [
+          {
+            "source": "crates/binder/src/containers.rs",
+            "line": 204,
+            "method": "insert",
+            "function": "add_to_container_chain",
+            "kinds": "any",
+            "why": "Key last comes from last_container, with no syntactic kind bound."
+          }
+        ],
+        "goKinds": [
+          "ArrowFunction",
+          "Block",
+          "CallSignature",
+          "CaseBlock",
+          "CatchClause",
+          "ClassDeclaration",
+          "ClassExpression",
+          "ClassStaticBlockDeclaration",
+          "ConditionalType",
+          "ConstructSignature",
+          "Constructor",
+          "ConstructorType",
+          "ForInStatement",
+          "ForOfStatement",
+          "ForStatement",
+          "FunctionDeclaration",
+          "FunctionExpression",
+          "FunctionType",
+          "GetAccessor",
+          "IndexSignature",
+          "JSDocFunctionType",
+          "JSDocSignature",
+          "MappedType",
+          "MethodDeclaration",
+          "MethodSignature",
+          "ModuleDeclaration",
+          "SetAccessor",
+          "SourceFile",
+          "TypeAliasDeclaration"
+        ],
+        "rustKnownKinds": [],
+        "hasUnboundedWriter": true,
+        "missingTailKinds": [],
+        "status": "Go-backed",
+        "placement": "Inline only on goKinds listed above. Retain the Rust per-file map for every other written kind; missingTailKinds lists known differences, and any is NOT restricted to goKinds. No Rust fact is discarded; this preview does not migrate the binder or price retained maps."
+      },
+      "node_flow": {
+        "field": "flow",
+        "writers": [
+          {
+            "source": "crates/binder/src/bind.rs",
+            "line": 125,
+            "method": "insert",
+            "function": "bind_worker",
+            "kinds": [
+              "Identifier",
+              "ThisKeyword"
+            ],
+            "why": "bind_worker match kind_of(node), bind.rs:94-95."
+          },
+          {
+            "source": "crates/binder/src/bind.rs",
+            "line": 132,
+            "method": "insert",
+            "function": "bind_worker",
+            "kinds": [
+              "QualifiedName"
+            ],
+            "why": "bind_worker match arm, bind.rs:129; is_part_of_type_query is an additional predicate."
+          },
+          {
+            "source": "crates/binder/src/bind.rs",
+            "line": 138,
+            "method": "insert",
+            "function": "bind_worker",
+            "kinds": [
+              "MetaProperty",
+              "SuperKeyword"
+            ],
+            "why": "bind_worker match arm, bind.rs:136."
+          },
+          {
+            "source": "crates/binder/src/bind.rs",
+            "line": 145,
+            "method": "insert",
+            "function": "bind_worker",
+            "kinds": [
+              "PropertyAccessExpression",
+              "ElementAccessExpression"
+            ],
+            "why": "bind_worker match arm, bind.rs:142; is_narrowable_reference further restricts."
+          },
+          {
+            "source": "crates/binder/src/bind.rs",
+            "line": 195,
+            "method": "insert",
+            "function": "bind_worker",
+            "kinds": [
+              "BindingElement"
+            ],
+            "why": "bind_worker match arm, bind.rs:193."
+          },
+          {
+            "source": "crates/binder/src/bind.rs",
+            "line": 1057,
+            "method": "insert",
+            "function": "bind_function_expression",
+            "kinds": "any",
+            "why": "No local kind guard. is_async_function only controls emit flags, not this insertion.",
+            "dispatchKinds": [
+              "FunctionExpression",
+              "ArrowFunction"
+            ],
+            "dispatchEvidence": "bind.rs:288-289 match in bind_worker"
+          },
+          {
+            "source": "crates/binder/src/bind.rs",
+            "line": 1086,
+            "method": "insert",
+            "function": "bind_property_or_method_or_accessor",
+            "kinds": [
+              "MethodDeclaration",
+              "GetAccessor",
+              "SetAccessor"
+            ],
+            "why": "Dominating is_object_literal_or_class_expression_method_or_accessor guard; node_util.rs:1799-1816 matches these kinds and checks their parent."
+          },
+          {
+            "source": "crates/binder/src/bind.rs",
+            "line": 2115,
+            "method": "remove",
+            "function": "bind_children",
+            "kinds": [
+              "VariableStatement",
+              "ExpressionStatement",
+              "IfStatement",
+              "DoStatement",
+              "WhileStatement",
+              "ForStatement",
+              "ForInStatement",
+              "ForOfStatement",
+              "ContinueStatement",
+              "BreakStatement",
+              "ReturnStatement",
+              "WithStatement",
+              "SwitchStatement",
+              "LabeledStatement",
+              "ThrowStatement",
+              "TryStatement",
+              "DebuggerStatement",
+              "Identifier",
+              "ThisKeyword",
+              "SuperKeyword",
+              "QualifiedName",
+              "MetaProperty",
+              "ElementAccessExpression",
+              "PropertyAccessExpression",
+              "BindingElement",
+              "FunctionExpression",
+              "ArrowFunction",
+              "MethodDeclaration",
+              "GetAccessor",
+              "SetAccessor"
+            ],
+            "why": "Dominating can_have_flow_node guard; node_util.rs:3095-3118 is statement range OR the listed expression kinds. Removal clears a fact."
+          },
+          {
+            "source": "crates/binder/src/bind.rs",
+            "line": 2143,
+            "method": "insert",
+            "function": "bind_children",
+            "kinds": [
+              "VariableStatement",
+              "ExpressionStatement",
+              "IfStatement",
+              "DoStatement",
+              "WhileStatement",
+              "ForStatement",
+              "ForInStatement",
+              "ForOfStatement",
+              "ContinueStatement",
+              "BreakStatement",
+              "ReturnStatement",
+              "WithStatement",
+              "SwitchStatement",
+              "LabeledStatement",
+              "ThrowStatement",
+              "TryStatement",
+              "DebuggerStatement"
+            ],
+            "why": "Dominating FirstStatement <= kind <= LastStatement and can_have_flow_node; bind.rs:2137-2143, kind.rs:789/791."
+          }
+        ],
+        "goKinds": [
+          "ArrowFunction",
+          "BindingElement",
+          "Block",
+          "BreakStatement",
+          "ClassDeclaration",
+          "ContinueStatement",
+          "DebuggerStatement",
+          "DoStatement",
+          "ElementAccessExpression",
+          "EmptyStatement",
+          "EnumDeclaration",
+          "ExportAssignment",
+          "ExportDeclaration",
+          "ExpressionStatement",
+          "ForInStatement",
+          "ForOfStatement",
+          "ForStatement",
+          "FunctionDeclaration",
+          "FunctionExpression",
+          "GetAccessor",
+          "Identifier",
+          "IfStatement",
+          "ImportDeclaration",
+          "ImportEqualsDeclaration",
+          "InterfaceDeclaration",
+          "JSDocMemberName",
+          "LabeledStatement",
+          "MetaProperty",
+          "MethodDeclaration",
+          "MissingDeclaration",
+          "ModuleBlock",
+          "ModuleDeclaration",
+          "NamespaceExportDeclaration",
+          "NotEmittedStatement",
+          "PropertyAccessExpression",
+          "QualifiedName",
+          "ReturnStatement",
+          "SetAccessor",
+          "SwitchStatement",
+          "ThrowStatement",
+          "TryStatement",
+          "TypeAliasDeclaration",
+          "VariableStatement",
+          "WhileStatement",
+          "WithStatement",
+          "FalseKeyword",
+          "NullKeyword",
+          "SuperKeyword",
+          "ThisKeyword",
+          "TrueKeyword"
+        ],
+        "rustKnownKinds": [
+          "ArrowFunction",
+          "BindingElement",
+          "BreakStatement",
+          "ContinueStatement",
+          "DebuggerStatement",
+          "DoStatement",
+          "ElementAccessExpression",
+          "ExpressionStatement",
+          "ForInStatement",
+          "ForOfStatement",
+          "ForStatement",
+          "FunctionExpression",
+          "GetAccessor",
+          "Identifier",
+          "IfStatement",
+          "LabeledStatement",
+          "MetaProperty",
+          "MethodDeclaration",
+          "PropertyAccessExpression",
+          "QualifiedName",
+          "ReturnStatement",
+          "SetAccessor",
+          "SuperKeyword",
+          "SwitchStatement",
+          "ThisKeyword",
+          "ThrowStatement",
+          "TryStatement",
+          "VariableStatement",
+          "WhileStatement",
+          "WithStatement"
+        ],
+        "hasUnboundedWriter": true,
+        "missingTailKinds": [],
+        "status": "Go-backed",
+        "placement": "Inline only on goKinds listed above. Retain the Rust per-file map for every other written kind; missingTailKinds lists known differences, and any is NOT restricted to goKinds. No Rust fact is discarded; this preview does not migrate the binder or price retained maps."
+      },
+      "node_end_flow": {
+        "field": "end_flow",
+        "writers": [
+          {
+            "source": "crates/binder/src/containers.rs",
+            "line": 351,
+            "method": "insert",
+            "function": "bind_container",
+            "kinds": "any",
+            "why": "IS_FUNCTION_LIKE is caller-supplied; reachability/body checks do not syntactically bound node kind."
+          },
+          {
+            "source": "crates/binder/src/containers.rs",
+            "line": 358,
+            "method": "insert",
+            "function": "bind_container",
+            "kinds": [
+              "SourceFile"
+            ],
+            "why": "Dominating kind_of(node) == SourceFile at containers.rs:356."
+          }
+        ],
+        "goKinds": [
+          "ArrowFunction",
+          "Constructor",
+          "FunctionDeclaration",
+          "FunctionExpression",
+          "GetAccessor",
+          "MethodDeclaration",
+          "ModuleDeclaration",
+          "SetAccessor"
+        ],
+        "rustKnownKinds": [
+          "SourceFile"
+        ],
+        "hasUnboundedWriter": true,
+        "missingTailKinds": [
+          "SourceFile"
+        ],
+        "status": "port-specific",
+        "placement": "Inline only on goKinds listed above. Retain the Rust per-file map for every other written kind; missingTailKinds lists known differences, and any is NOT restricted to goKinds. No Rust fact is discarded; this preview does not migrate the binder or price retained maps."
+      },
+      "node_return_flow": {
+        "field": "return_flow",
+        "writers": [
+          {
+            "source": "crates/binder/src/containers.rs",
+            "line": 375,
+            "method": "insert",
+            "function": "bind_container",
+            "kinds": [
+              "Constructor",
+              "ClassStaticBlockDeclaration",
+              "FunctionDeclaration",
+              "FunctionExpression"
+            ],
+            "why": "Dominating kind equality OR matches! guard at containers.rs:366-373; functions additionally require JS file."
+          }
+        ],
+        "goKinds": [
+          "ClassStaticBlockDeclaration",
+          "Constructor",
+          "FunctionDeclaration",
+          "FunctionExpression"
+        ],
+        "rustKnownKinds": [
+          "ClassStaticBlockDeclaration",
+          "Constructor",
+          "FunctionDeclaration",
+          "FunctionExpression"
+        ],
+        "hasUnboundedWriter": false,
+        "missingTailKinds": [],
+        "status": "Go-backed",
+        "placement": "Inline only on goKinds listed above. Retain the Rust per-file map for every other written kind; missingTailKinds lists known differences, and any is NOT restricted to goKinds. No Rust fact is discarded; this preview does not migrate the binder or price retained maps."
+      },
+      "node_flow_when_true": {
+        "field": "flow_when_true",
+        "writers": [
+          {
+            "source": "crates/binder/src/bind.rs",
+            "line": 3543,
+            "method": "insert",
+            "function": "bind_conditional_expression_flow",
+            "kinds": "any",
+            "why": "in_return_position guard is not a kind guard; ConditionalExpression data match has a non-returning fallback.",
+            "dispatchKinds": [
+              "ConditionalExpression"
+            ],
+            "dispatchEvidence": "bind.rs:2176 match in bind_children"
+          }
+        ],
+        "goKinds": [],
+        "rustKnownKinds": [
+          "ConditionalExpression"
+        ],
+        "hasUnboundedWriter": true,
+        "missingTailKinds": [
+          "ConditionalExpression"
+        ],
+        "status": "port-specific",
+        "placement": "Inline only on goKinds listed above. Retain the Rust per-file map for every other written kind; missingTailKinds lists known differences, and any is NOT restricted to goKinds. No Rust fact is discarded; this preview does not migrate the binder or price retained maps."
+      },
+      "node_flow_when_false": {
+        "field": "flow_when_false",
+        "writers": [
+          {
+            "source": "crates/binder/src/bind.rs",
+            "line": 3555,
+            "method": "insert",
+            "function": "bind_conditional_expression_flow",
+            "kinds": "any",
+            "why": "in_return_position guard is not a kind guard; ConditionalExpression data match has a non-returning fallback.",
+            "dispatchKinds": [
+              "ConditionalExpression"
+            ],
+            "dispatchEvidence": "bind.rs:2176 match in bind_children"
+          }
+        ],
+        "goKinds": [],
+        "rustKnownKinds": [
+          "ConditionalExpression"
+        ],
+        "hasUnboundedWriter": true,
+        "missingTailKinds": [
+          "ConditionalExpression"
+        ],
+        "status": "port-specific",
+        "placement": "Inline only on goKinds listed above. Retain the Rust per-file map for every other written kind; missingTailKinds lists known differences, and any is NOT restricted to goKinds. No Rust fact is discarded; this preview does not migrate the binder or price retained maps."
+      },
+      "possibly_exhaustive": {
+        "field": "possibly_exhaustive",
+        "writers": [
+          {
+            "source": "crates/binder/src/bind.rs",
+            "line": 2981,
+            "method": "insert",
+            "function": "bind_switch_statement",
+            "kinds": "any",
+            "why": "Earlier SwitchStatement data match has a non-returning fallback, so does not bound this writer. Dispatch evidence recorded separately.",
+            "dispatchKinds": [
+              "SwitchStatement"
+            ],
+            "dispatchEvidence": "bind.rs:2160 match in bind_children"
+          }
+        ],
+        "goKinds": [],
+        "rustKnownKinds": [
+          "SwitchStatement"
+        ],
+        "hasUnboundedWriter": true,
+        "missingTailKinds": [
+          "SwitchStatement"
+        ],
+        "status": "port-specific",
+        "placement": "Inline only on goKinds listed above. Retain the Rust per-file map for every other written kind; missingTailKinds lists known differences, and any is NOT restricted to goKinds. No Rust fact is discarded; this preview does not migrate the binder or price retained maps."
+      },
+      "node_fallthrough_flow": {
+        "field": "fallthrough_flow",
+        "writers": [
+          {
+            "source": "crates/binder/src/bind.rs",
+            "line": 3057,
+            "method": "insert",
+            "function": "bind_case_block",
+            "kinds": "any",
+            "why": "Key is clause from a CaseBlock list; no kind guard on clause. Schema intent is CaseClause/DefaultClause, recorded separately.",
+            "dispatchKinds": [
+              "CaseClause",
+              "DefaultClause"
+            ],
+            "dispatchEvidence": "CaseBlock clauses schema intent; not a Rust kind guard on clause"
+          }
+        ],
+        "goKinds": [
+          "CaseClause",
+          "DefaultClause"
+        ],
+        "rustKnownKinds": [
+          "CaseClause",
+          "DefaultClause"
+        ],
+        "hasUnboundedWriter": true,
+        "missingTailKinds": [],
+        "status": "Go-backed",
+        "placement": "Inline only on goKinds listed above. Retain the Rust per-file map for every other written kind; missingTailKinds lists known differences, and any is NOT restricted to goKinds. No Rust fact is discarded; this preview does not migrate the binder or price retained maps."
+      },
+      "node_flags_mut": {
+        "field": "flags",
+        "writers": [
+          {
+            "source": "crates/binder/src/declare.rs",
+            "line": 430,
+            "method": "set_has_locals",
+            "function": "set_has_locals",
+            "kinds": "any",
+            "why": "Generic set_has_locals helper; key index is derived from node."
+          },
+          {
+            "source": "crates/binder/src/declare.rs",
+            "line": 446,
+            "method": "set",
+            "function": "set_flags_of",
+            "kinds": "any",
+            "why": "Generic set_flags_of helper; debug assertion bounds flag bits, not node kind."
+          }
+        ],
+        "goKinds": [],
+        "rustKnownKinds": [],
+        "hasUnboundedWriter": true,
+        "missingTailKinds": [],
+        "status": "header-backed",
+        "placement": "Node.flags header word on every kind; no extra tail word."
+      }
     }
   }
 }

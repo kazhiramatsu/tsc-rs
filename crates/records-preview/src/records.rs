@@ -3,7 +3,7 @@
 use crate::arena_stub::{ArenaCell, Bytes, List, Record, Span};
 use crate::nodes::Node;
 use crate::support::{Id, OptionalSpan, Sample, Slot};
-/// Eight words exactly; more is two words. No spare word fits.
+/// Eight words: five core words, one declaration-list handle, tables and a dense file-local ordinal.
 #[repr(C, align(4))]
 #[derive(Debug, Default, Clone, PartialEq, Copy)]
 pub struct Symbol {
@@ -17,10 +17,12 @@ pub struct Symbol {
     pub value_declaration: Id<Node>,
     /// Preserve the named source field as plain record words.
     pub decl0: Id<Node>,
-    /// Preserve the named source field as plain record words.
-    pub more: OptionalSpan<Id<Node>>,
+    /// Nullable handle to a list of Node identities; length lives in its header. List<T> stores T, so the preview spells the requested node-handle list List<Id<Node>>.
+    pub more: Id<List<Id<Node>>>,
     /// Preserve the named source field as plain record words.
     pub tables: Id<SymbolTables>,
+    /// Dense file-local creation number; issued from 1 independently of arena offsets.
+    pub ordinal: u32,
 }
 // SAFETY: plain word codecs, no references/Drop or restricted enum/bool bit patterns.
 unsafe impl Record for Symbol {}
@@ -37,6 +39,7 @@ impl Sample for Symbol {
             decl0: Sample::sample(seed + 68),
             more: Sample::sample(seed + 85),
             tables: Sample::sample(seed + 102),
+            ordinal: Sample::sample(seed + 119),
         }
     }
 }
@@ -351,7 +354,7 @@ impl Sample for Alias {
         }
     }
 }
-/// Eleven logical fields / twelve words. from_method uses rare to avoid assuming unused SignatureFlags bits.
+/// 48 named bytes including dense id; from_method remains rare without assuming unused SignatureFlags bits.
 #[repr(C, align(8))]
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Signature {
@@ -375,8 +378,8 @@ pub struct Signature {
     pub mapper: Id<Mapper>,
     /// Preserve the named source field as plain record words.
     pub rare: ArenaCell<Id<SignatureRare>>,
-    /// Round the 44 bytes of named fields to the 48-byte target.
-    pub padding: u32,
+    /// Dense per-checker Signature creation number, from 1; occupies the former four padding bytes.
+    pub id: u32,
 }
 // SAFETY: plain word codecs, no references/Drop or restricted enum/bool bit patterns.
 unsafe impl Record for Signature {}
@@ -396,7 +399,7 @@ impl Sample for Signature {
             target: Sample::sample(seed + 119),
             mapper: Sample::sample(seed + 136),
             rare: Sample::sample(seed + 153),
-            padding: Sample::sample(seed + 170),
+            id: Sample::sample(seed + 170),
         }
     }
 }
@@ -2460,12 +2463,14 @@ impl TypeGenericTypeRecord {
 pub struct CheckerArena {
     pub arena: crate::arena_stub::LocalArena,
     next_type_id: std::cell::Cell<u32>,
+    next_signature_id: std::cell::Cell<u32>,
 }
 impl CheckerArena {
     pub fn new(owner: u32) -> Self {
         Self {
             arena: crate::arena_stub::LocalArena::new(owner),
             next_type_id: std::cell::Cell::new(0),
+            next_signature_id: std::cell::Cell::new(0),
         }
     }
     pub fn alloc_type_object(
@@ -2698,6 +2703,10 @@ impl CheckerArena {
             .expect("dense Type id overflow");
         self.next_type_id.set(id);
         self.arena.alloc(TypeGenericTypeRecord::new(id, tail))
+    }
+    pub fn alloc_signature(&self, mut signature: Signature) -> crate::arena_stub::Ref<Signature> {
+        signature.id = crate::support::next_ordinal(&self.next_signature_id);
+        self.arena.alloc(signature)
     }
 }
 pub fn memory_rows() -> &'static [(&'static str, usize)] {

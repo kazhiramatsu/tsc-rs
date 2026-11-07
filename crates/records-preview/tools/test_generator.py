@@ -2,6 +2,7 @@
 """Offline generator/source/Go audit and accounting regressions. No Cargo subprocesses."""
 import importlib.util
 import json
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -85,6 +86,78 @@ class GeneratorTests(unittest.TestCase):
         joint=sum(n for mask,n in counts['masks'].items() if any(mask[i]=='1' for i in indexes))
         self.assertEqual(joint,16_951)
         self.assertGreater(Fraction(joint,counts['count']),Fraction(1,100))
+
+    def test_rust_writer_maps_and_sites_are_all_in_matrix(self):
+        matrix=json.loads((PREVIEW/'binder-fields.derived.json').read_text())['rustWriters']
+        maps=matrix['maps']
+        expected_maps={'node_symbol','node_local_symbol','locals','next_container','node_flow',
+            'node_end_flow','node_return_flow','node_flow_when_true','node_flow_when_false',
+            'possibly_exhaustive','node_fallthrough_flow','node_flags_mut'}
+        self.assertEqual(set(maps),expected_maps)
+        # Independent scan: do not use binder_census.inventory or its audit list.
+        # Includes multiline receivers, destructured aliases, entry insertion,
+        # mutable table contents and relocation, not only .insert calls.
+        pattern=r'\b('+'|'.join(expected_maps)+r')\s*\.\s*(insert|entry|remove|get_mut|values_mut|iter_mut|set|set_has_locals|extend|clear|retain|drain)\s*\('
+        actual=set()
+        for file in ('bind','declare','containers','flow','node_util'):
+            path=f'crates/binder/src/{file}.rs'
+            source=(ROOT/path).read_text()
+            source=re.sub(r'//[^\n]*',lambda m:' '*len(m[0]),source)
+            for m in re.finditer(pattern,source):
+                actual.add((m[1],path,source[:m.start()].count('\n')+1,m[2]))
+        recorded={(name,w['source'],w['line'],w['method']) for name,entry in maps.items() for w in entry['writers']}
+        self.assertEqual(actual,recorded)
+        self.assertEqual(len(actual),32)
+        self.assertEqual(matrix['writerCount'],32)
+        for entry in maps.values():
+            self.assertTrue(entry['placement'])
+            for writer in entry['writers']:
+                self.assertTrue(writer['kinds'])
+                self.assertTrue(writer['why'])
+        for name,missing in [('node_end_flow',['SourceFile']),('possibly_exhaustive',['SwitchStatement']),
+                             ('node_flow_when_true',['ConditionalExpression']),('node_flow_when_false',['ConditionalExpression'])]:
+            self.assertEqual(maps[name]['status'],'port-specific')
+            self.assertEqual(maps[name]['missingTailKinds'],missing)
+            self.assertIn('Retain the Rust per-file map',maps[name]['placement'])
+        flow=maps['node_flow']['writers']
+        self.assertEqual(next(w for w in flow if w['line']==125)['kinds'],['Identifier','ThisKeyword'])
+        self.assertEqual(next(w for w in flow if w['line']==1057)['kinds'],'any')
+        self.assertEqual(maps['node_flow_when_true']['writers'][0]['kinds'],'any')
+        # A non-returning data match must not be mistaken for a dominating guard.
+        self.assertEqual(maps['possibly_exhaustive']['writers'][0]['kinds'],'any')
+
+    def test_population_contract_and_cold_occupancy(self):
+        records=gen.load()[0]
+        totals=report.calculate()[-1]
+        pop=dict.fromkeys(records['types'],0)
+        pop.update(Object=totals['typeCount']-5,Mapped=3,Conditional=2)
+        report.calculate(pop)  # Original 20-key format remains supported.
+        complete=dict(pop,mapped_cold_materialized=2,conditional_cold_materialized=1)
+        report.calculate(complete)
+        common=sum(pop[k]*r['bytes'] for k,r in records['types'].items())
+        self.assertIn(f'complete modeled Type record bytes: **{common+48:,}**',report.render(complete))
+        for invalid in [dict(pop,mapped_cold_materialized=1),
+                        dict(complete,mapped_cold_materialized=4),
+                        dict(complete,conditional_cold_materialized=-1),
+                        dict(complete,conditional_cold_materialized=True),
+                        dict(complete,unknown=0),dict(complete,Object=0)]:
+            with self.assertRaises(ValueError):
+                report.calculate(invalid)
+
+    def test_owned_decode_load_table_reads_generated_bodies(self):
+        counts=json.loads((PREVIEW/'inputs/vscode-counts.json').read_text())
+        rows=report.decode_load_rows(counts)
+        self.assertEqual([(r['kind'],r['dataLoads']) for r in rows],[
+            ('Identifier',1),('PropertyAccessExpression',3),('CallExpression',4),
+            ('StringLiteral',1),('PropertyAssignment',5),('ExpressionStatement',1),
+            ('TypeReference',2),('Block',1),('VariableDeclaration',4),('VariableDeclarationList',1)])
+        for row in rows:
+            self.assertEqual((row['tailLoads'],row['tailDebugHeaderLoads']),(0,1))
+        source=(PREVIEW/'src/nodes.rs').read_text()
+        body,_=report.method_body(source,'ExportAssignment','data')
+        # Scalar-array construction reads binder words too, despite optimizer DCE.
+        self.assertIn('self.tail.symbol',body)
+        self.assertEqual(len(re.findall(r'self\.tail\.\w+',body)),7)
 
 
 if __name__=='__main__':

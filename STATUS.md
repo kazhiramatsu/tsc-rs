@@ -1,9 +1,69 @@
 # SPEC-gen2 phase 0.3 status — 2026-11-07
 
-Base: `aa1992224`. No commits, consumer migration, network access or benchmarks.
+Round 2 base: `0610b17fe` (`arch/gen2-preview`), committed by the integrator from patches 01–02.
+The source transcriptions remain pinned to `aa1992224`. No commits, consumer
+migration, network access or benchmarks by this lane.
 Checker/binder generation (priority A) is implemented as an isolated layout proof.
 Front-end B is the permitted compiling preview, with the explicit integration gaps below.
-Integrator acceptance is **not complete**: the supplied census lacks per-TypeData-kind populations.
+The integrator accepted round 1 as the phase-0 proof and re-ran its tests.
+All four round-2 follow-ups are implemented below. Missing populations remain an
+explicit input for the census lane, not an outstanding phase-0 acceptance claim.
+
+## Round 2 follow-ups
+
+1. **Dense ordinals, unchanged sizes.** Node stays 24 B; byte 20 is now `index`
+   with an accessor, and every typed tail still starts at byte 24. All 195 typed
+   constructors plus token constructors take the same per-file `FileOrdinals`
+   counter and issue 1-based indices in creation order (the parser must call them
+   in parse order at integration). Symbol stays 32 B: `more` shrinks to one list
+   handle and `ordinal` uses the saved word. `FileOrdinals::alloc_symbol` issues
+   an independent sequence. Signature stays 48 B; its former padding word at
+   byte 44 is `id`, issued by `CheckerArena::alloc_signature` independently of
+   Type ids. Checked increments cannot wrap to zero. Default/Sample/raw arena
+   storage are zero/bit-pattern fixtures, not identity-issuing constructors.
+
+   The requested `Id<List<Node>>` means a list of node **handles**. In this stub
+   `List<T>` stores T, so the concrete spelling is `Id<List<Id<Node>>>`, consistent
+   with existing node lists. Storing `List<Node>` literally would copy 24-byte
+   Node headers. The four-byte nullable handle preserves absent (0) versus a
+   present empty list; length lives in the list header. Origin declaration views
+   borrow list items without copying.
+
+2. **Rust + Go binder matrix.** `binder-fields.derived.json` now has `rustWriters`
+   with 32 mutation sites covering all 12 requested maps across the five named
+   Rust files. It includes multiline calls, Entry insertion, removal, mutable
+   table access and relocation of values. Every site has file:line, function,
+   mutation method, local kind bound or `any`, and guard evidence. Dispatch and
+   structural/schema evidence are separate, so a non-returning match fallback
+   is never presented as an exclusive kind guard. `tools/binder_census.py`
+   discovers sites; layout2 hashes pin the hand-reviewed source guards. A new
+   writer or changed source fails generation pending re-audit. An independent
+   Python scan verifies every map and site against the generated matrix.
+
+   Known Go/Rust differences are marked **port-specific**: SourceFile.end_flow
+   (`containers.rs:358`), SwitchStatement.possibly_exhaustive (`bind.rs:2981`),
+   ConditionalExpression.flow_when_true/false (`bind.rs:3543/3555`). Go tails
+   remain the accepted preview layout; these four facts explicitly retain the
+   existing Rust per-file maps. Every `any` writer also retains its map on any
+   kind without the Go tail word. `node_flags_mut` belongs in the header. No
+   Rust-written fact is silently omitted. This lane does not migrate consumers;
+   REPORT's AST total excludes these retained maps and is not a complete cost
+   claim for a migrated Rust binder.
+
+3. **Census contract.** `tools/README.md` gives all 20 exact kind keys plus
+   `mapped_cold_materialized` / `conditional_cold_materialized`, their bounds,
+   and their census meaning. The flag and original 20-key input remain supported;
+   both additional counts can now be supplied together to price allocated cold
+   blocks (16 B each). Unknown/partial keys, non-integers, count overflow and an
+   aggregate other than 2,575,521 are rejected. No population is invented.
+
+4. **Owned decode accounting.** REPORT extracts source reads directly from
+   generated Rust for the ten most frequent node kinds. Counts in frequency
+   order are 1/3/4/1/5/1/2/1/4/1 words, versus zero payload reads to return a tail
+   reference (one header-kind read with debug assertions). These are static
+   source reads, including duplicates/dead array reads where present, not
+   optimized instruction counts. Native projection, owned result construction,
+   caller work and ceiling (iv) pricing remain the integrator's task.
 
 ## Delivered
 
@@ -19,7 +79,8 @@ Integrator acceptance is **not complete**: the supplied census lacks per-TypeDat
   StructuredMembers, IndexInfo, Mapper, InferenceInfo/Context and auxiliary records.
   Every generated record has size/alignment/no-Drop assertions and zero defaults.
   `memory_rows()` includes each generated checker family and Type allocation shape.
-- `CheckerArena` assigns dense ids across all 20 Type allocation methods; raw bump
+- `CheckerArena` assigns dense ids across all 20 Type allocation methods and
+  an independent Signature sequence; raw bump
   handles can have gaps. Hot `TypeKindRecord::tail()` borrows the resident tail;
   cells retain vacant/resolving/resolved-none/resolved-handle distinctions.
   Zero-sized !Sync markers keep Type header and raw-tagged Mapper handles local too.
@@ -57,18 +118,18 @@ python3 scripts/generate_records.py --check
 python3 crates/records-preview/tools/memory_report.py --check
   REPORT.md arithmetic reproduced
 python3 crates/records-preview/tools/test_generator.py
-  Ran 6 tests ... OK
+  Ran 9 tests ... OK
 nice -n 20 cargo test --offline -p tsc-rs-records-preview -j 2 -- --test-threads=1
   nodes_generated: 196 passed (195 kinds + every-token fixture)
   records_generated: 74 passed
-  semantics: 14 passed
+  semantics: 17 passed
   compile-fail doctests: 3 passed
-  total: 287 passed, 0 failed
+  total: 290 passed, 0 failed
 nice -n 20 cargo clippy --offline -p tsc-rs-records-preview -j 2 --all-targets --no-deps -- -D warnings
   Finished dev profile ... (exit 0)
 ```
 
-Logs: `target/lane-gen2/{test,generator-tests,clippy}.log`.
+Round-2 logs: `target/lane-gen2/{test-round2,generator-tests-round2,clippy-round2}.log`.
 The Python test computes all generated output twice, compares bytes with disk,
 runs --check, checks multiline source-field coverage, audits three Go kinds,
 checks the per-kind ceiling, verifies rare occupancy and reproduces arithmetic.
@@ -93,15 +154,16 @@ Python test (not an expectation copied from the generated derived JSON):
 The pinned Go has no node possiblyExhaustive or flowWhenTrue/False fields.
 SwitchStatementLinks.exhaustiveState is checker-local (checker/types.go:273);
 Binder.currentTrueTarget/currentFalseTarget are traversal state, not per-file maps.
-The derived JSON records these exclusions and SourceFile.jsdocCache as a side map.
+These are Go-only exclusions. Round 2 records the Rust port-specific writers and
+retained-map placement alongside them; SourceFile.jsdocCache remains a side map.
 Legacy schema kinds without an exact Go struct use explicit compatibility aliases;
 these are visible in the generator and should be re-audited when B is integrated.
 
 ## Size and representation decisions
 
-- Symbol: flags/name/parent/value_declaration/decl0 = 5 words, more = 2,
-  tables = 1, exactly 32 B. No spare word fits.
-- Signature has 44 named bytes plus 4 padding to reach 48 B. from_method is rare.
+- Symbol: flags/name/parent/value_declaration/decl0 = 5 words, more = 1,
+  tables = 1, ordinal = 1, exactly 32 B.
+- Signature has 48 named bytes including dense id; from_method remains rare.
 - StructuredMembers fields add to 36 B (40 allocated), not 32; IndexInfo adds
   to 24 B, not 20. Neither target can hold the stated 8 B span fields as written.
 - InferenceInfo is 52 B (56 allocated): type_parameter/inferred_type 8,
@@ -117,9 +179,8 @@ these are visible in the generator and should be re-audited when B is integrated
   two-word Span makes Rust Option<Span> 12 B. These are integration contract issues,
   not silently assumed 8-byte Options. Slot writers reject MAX/MAX-1 handle values
   reserved for resolving / resolved-none. TextRef rejects arena handles >= 2^31.
-- Node preview reserves w5 and starts the typed tail at byte 24 to obey the stated
-  `24 + 8*ceil(words/2)` formula. Actually overlapping the first tail word with w5
-  changes that formula and needs an arena projection ABI decision.
+- Node header word 5 is the dense `index`; the typed tail starts at byte 24,
+  preserving the `24 + 8*ceil(words/2)` formula and existing per-kind byte totals.
 - Full-range TextRef has no optional niche. Four template kinds add a presence
   word. JSDocComment (schema comment content, distinct from node jsDoc attachments)
   uses five words: tag plus four words of data. This preserves TextRef(0), full
@@ -163,13 +224,15 @@ wrapper; no native memory or performance claims follow from these stub tests.
 1. **Missing measurement**: the supplied B-3 stream has an aggregate Type count
    of 2,575,521 but no TypeData-kind populations or per-kind cold-cache occupancy.
    All 20 population cells are honestly unmeasured. Pass a complete kind-count
-   JSON to memory_report.py --type-populations; it checks the aggregate. Cold-link
-   occupancy is additionally needed to total proposed Type resident bytes. No
+   JSON to memory_report.py --type-populations; it checks the aggregate. Supply
+   both documented cold-materialization counters to include cold record bytes. No
    compiler/census run was attempted under the no-benchmark/package restrictions.
 2. **Permitted B preview boundary**: typed per-kind builders/records are implemented,
    but the exact FileArena facade (alloc_kind -> uniform NodeId, node/node_mut,
    alloc_list/list), Node::data()/tail_kind()/as_kind()/flow() on a bare 24 B header,
-   and production typed observable_fields are not implemented. NodeView and typed
+   and production typed observable_fields are not implemented. FileOrdinals now
+   supplies creation indices to typed constructors without claiming the uniform
+   native FileArena API. NodeView and typed
    KindRecord methods demonstrate decoding, zero-copy access and direct traversal.
    Header-to-adjacent-tail projection and variable-sized allocation require a
    reviewed native arena API; safe Vec Any storage cannot provide that projection.
@@ -185,9 +248,14 @@ wrapper; no native memory or performance claims follow from these stub tests.
 
 ## Patches
 
-Apply both numbered patches in order, with no commits made by this lane:
-
-- `target/lane-gen2/patches/01-records-preview.patch`: generator, layouts, stub,
-  generated records/nodes, bundled inputs, tests, workspace member and lock entry.
-- `target/lane-gen2/patches/02-report-status.patch`: report, reproduction guide and
-  this STATUS. User-owned README/SPEC edits present at entry are excluded.
+- Historical 01–02 are already in the integrator's `0610b17fe`; do not reapply
+  them on that base.
+- `target/lane-gen2/patches/03-integrator-followups.patch` is the cumulative
+  round-2 diff against **0610b17fe**, including the new binder census helper.
+  It excludes user-owned RESUME.md, RESUME2.md, SPEC.md and the spec directory.
+  No commits or index staging were performed.
+- Validation: whitespace check; forward application to temporary copies of the
+  exact base files; byte-for-byte comparison to all changed files; reverse
+  application check against the working tree. The new helper is included as a
+  normal new-file diff in the same patch. Live syntax/binder/checker files and
+  the v1 generator/layout remain untouched.
