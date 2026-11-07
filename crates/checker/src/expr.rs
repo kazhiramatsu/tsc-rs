@@ -3852,9 +3852,11 @@ impl<'a> CheckerState<'a> {
         if let Some(quick) = self.get_quick_type_of_expression(node)? {
             return Ok(quick);
         }
+        // Both a hit and an absent entry choose the expression-check path.
+        // A flow memo must retain this dependency even on a cold cache.
+        self.flow_memo.add_flags(crate::flow_memo::FLAG_TYPE_CACHE);
         if let Some(cache) = &self.flow_type_cache {
             if let Some(&cached) = cache.get(&node) {
-                self.flow_memo.add_flags(crate::flow_memo::FLAG_TYPE_CACHE);
                 return Ok(cached);
             }
         }

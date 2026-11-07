@@ -315,6 +315,77 @@ fn checker_run_leaves_no_open_frame() {
 }
 
 #[test]
+fn expression_cache_absence_misses_and_hits_all_record_a_dependency() {
+    with_program_state(
+        &[("a.ts", "declare let x: string | number; x;")],
+        &CompilerOptions::default(),
+        |state| {
+            let node = *identifiers(state, "x").last().unwrap();
+            assert!(state.get_quick_type_of_expression(node).unwrap().is_none());
+            state.flow_type_cache = None;
+            state.flow_frame_begin();
+            let ty = state.get_type_of_expression(node).unwrap();
+            assert_ne!(state.flow_frame_end().0.flags & FLAG_TYPE_CACHE, 0);
+
+            state.flow_type_cache = Some(FxHashMap::default());
+            state.flow_frame_begin();
+            assert_eq!(state.get_type_of_expression(node).unwrap(), ty);
+            assert_ne!(state.flow_frame_end().0.flags & FLAG_TYPE_CACHE, 0);
+
+            state.flow_type_cache = Some(FxHashMap::from_iter([(node, ty)]));
+            state.flow_frame_begin();
+            assert_eq!(state.get_type_of_expression(node).unwrap(), ty);
+            assert_ne!(state.flow_frame_end().0.flags & FLAG_TYPE_CACHE, 0);
+        },
+    );
+}
+
+#[test]
+fn only_cache_independent_answers_survive_a_scoped_cache_reset() {
+    with_program_state(&[("a.ts", "this;")], &CompilerOptions::default(), |state| {
+        let reference = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .find(|&node| state.kind_of(node) == SyntaxKind::ThisKeyword)
+            .unwrap();
+        let mut q = query(state, reference);
+        q.flow_depth = 1;
+        let key = state.flow_memo_key(&q).unwrap();
+        for (flow, flags) in [(FlowId::new(10), 0), (FlowId::new(20), FLAG_TYPE_CACHE)] {
+            let memo = FrameMemo {
+                key: key.clone(),
+                checkpoints: 0,
+                shadow: 0,
+                shared_start: 0,
+            };
+            state.flow_memo_finish(
+                &q,
+                memo,
+                flow,
+                flow,
+                &Ok(FlowType::Type(state.tables.intrinsics.string)),
+                FrameTaint { flags, ..pure() },
+                2,
+                5,
+                None,
+                false,
+            );
+        }
+        let independent = state.flow_memo.lookup(0, FlowId::new(10), &key).unwrap();
+        let dependent = state.flow_memo.lookup(0, FlowId::new(20), &key).unwrap();
+        assert!(state.flow_memo_consult_ok(&q, independent));
+        assert!(state.flow_memo_consult_ok(&q, dependent));
+        let saved = state.take_flow_type_cache();
+        assert!(state.flow_memo_consult_ok(&q, independent));
+        assert!(!state.flow_memo_consult_ok(&q, dependent));
+        state.restore_flow_type_cache(saved);
+        assert!(state.flow_memo_consult_ok(&q, dependent));
+    });
+}
+
+#[test]
 fn packed_keys_reserve_a_distinct_domain_without_restricting_initial_type_ids() {
     with_program_state(&[("a.ts", "this;")], &CompilerOptions::default(), |state| {
         let reference = state
@@ -699,10 +770,10 @@ fn checkpoints_are_node_based_and_nested_frames_do_not_steal_them() {
         for flow in [3, 4, 5] {
             assert!(state.flow_memo.lookup(0, FlowId::new(flow), &key).is_some());
         }
-        // Even a cold, cache-independent frame acquires an epoch guard:
-        // its later real walk may consume an expression-cache hit.
+        // A frame that never consulted the expression cache survives a
+        // scoped reset. Replacement still propagates the conservative flag.
         let cold = state.flow_memo.lookup(0, FlowId::new(4), &key).unwrap();
-        assert_eq!(cold.epoch, state.flow_memo.type_cache_epoch);
+        assert_eq!(cold.epoch, 0);
         assert_ne!(cold.flags & FLAG_TYPE_CACHE, 0);
         state.flow_memo_finish(
             &q,
