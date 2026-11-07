@@ -13,6 +13,154 @@ data model の現状と費用の証拠、slice 12〜17 の設計、tsrs との�
 `3e9236361` を移植。tsc-rs の参照 `aa8149273` の 53 commit 後）。この repo の環境変数の接頭辞 `TSRS_` とは無関係。既定の mode が
 tsgo と同じ答え（checker 4 つ、eager な member）で、`--fast` は答えが変わりうる。
 
+## 行別プロファイルからの追加改善（2026-11-07、#912・#913）
+
+`RESUME.json` から再開し、プロファイラを [#912](https://github.com/kazhiramatsu/tsc-rs/pull/912)、
+flow memo の依存条件の変更を [#913](https://github.com/kazhiramatsu/tsc-rs/pull/913) として採用した。
+merge はそれぞれ `144e71bca139875267b6d446e92980dee53a1f68`、`ace63ee1f1ab59b57b2fedbae55731e423bb3a38`。
+**tsrs より速いという目標は引き続き未達。今回、tsrs との直接比較は追加していない。**
+
+**観測から選んだ変更。** 選択した argument identity の key では、VS Code の overload 選択は 1,069,920 calls 中、同じ key の再訪が 563 回、
+contextual type は 1,816,050 calls 中 11,294 回だった。一方、flow memo の key hit 2,593,111 に対して epoch による拒否が 1,610,903 あった。
+これは key の同一性の観測であり、同じ意味の仕事の全量や、再利用の正しさを証明する数字ではない。観測した生成数も Rust の malloc 回数ではない。
+この結果から、単純な overload/contextual cache の追加よりも、scoped expression cache と flow memo の依存関係を調べた。
+
+式キャッシュに触れていない sub-walk の結果だけを、キャッシュの scoped reset 後も再利用する。キャッシュの hit だけを依存として扱った
+試案 `755bf9b43` は、VS Code の strict shadow 比較で 2 件の不一致を出した。同じ型を返しても transient/shared state が一致しなかったため不採用。
+miss とキャッシュ自体の不在も依存として記録した `4987c5a40` では、1 / 4 threads・8 案件の記録で候補 hit 合計 21,504,938、不一致 0。
+Vue serial は counter report がないため hit の根拠に含めず、出力を照合した。16 実行すべて同じ thread 数の基準と stdout・stderr・exit が一致。
+初期の 4-thread Zod 比較には誤って serial 基準を使った記録があるが、基準自体に thread 数による既存の差がある。
+採用判断には同じ thread 数で取り直した `epoch-negative-shadow-matched-4` を使い、誤った比較も削除していない。
+
+最終 source `932e975f6141199123372a4a05e6c1baa8036abe` は shadow 検証済み実装にテストとコメントを追加したもの。
+creation / instantiation / transient / reference / shared-flow / mapper / loop / depth / count-reset の既存 guard と strict verifier は維持した。
+memo hit が親へ伝える cache dependency も保守的なまま。新しい mode flag、観測用コード、ratchet の変更は採用版に含めない。
+
+**通常 release の本測定。** 基準は #911 最終版 `7706d25a3`、候補は上記最終 source。nice 0、warm files、fresh process、noEmit、
+worker/checker 数を 1 / 4 に固定。各案件・各 thread 数で各版 2 warm-ups 後、順序を均衡させた AB/BA 12 組を測定した。
+下表は各組の比の中央値（負が改善）。local build・test・解析を測定窓に重ねていない。外部 process の snapshot と各 run の load average を保存しており、
+機械全体が完全に無負荷だったとは主張しない。事前の 4-pair pilot は別に保存し、下表に混ぜていない。
+
+| project | wall 1 thread | wall 4 threads | peak footprint 1 / 4 threads |
+| --- | ---: | ---: | ---: |
+| VS Code | -3.61% | +0.07% | -0.12% / -0.13% |
+| TypeScript compiler | -3.00% | +1.32% | -0.02% / +0.07% |
+| Hono | -0.07% | +2.07% | +0.00% / -0.38% |
+| Zod | +0.94% | +0.35% | +0.00% / -0.07% |
+| Effect | -0.76% | -0.45% | -0.03% / -0.10% |
+| Next.js | -0.62% | +0.22% | -0.02% / -0.14% |
+| Playwright | +0.23% | +0.41% | -0.08% / +0.09% |
+| Vue | -0.15% | -1.49% | -0.03% / -0.30% |
+
+wall の探索的 bootstrap 95% 区間（1 / 4 threads）は VS Code: -4.08〜-0.87% / -0.63〜+2.99%; TypeScript compiler: -5.60〜+3.34% / -1.82〜+4.45%。
+同一窓内の区間で、多重比較補正はしていない。全 sample を保持し、結果による除外や選び直しはしなかった。
+8 案件の wall 中央値の合計は -1.95% / -0.19%。各案件 1 回ずつを数えた合計で、一般的な workload の重みではない。
+メモリの微小差を一律の削減とは扱わない。詳細な区間・絶対値は `final-review.json` と両 `final-*/summary.json` にある。
+今回の wall は多くの区間がゼロをまたぐ。VS Code 1 thread の −3.61% も pilot の −0.56%、命令数の約 −0.74% と開きがあり、
+この小変更の安定した高速化率とは扱わない。TypeScript compiler の最終 wall は両 thread 数とも未確定。
+Zod / Playwright などの正の中央値も保持した。命令数は全条件で約 0.21〜3.11% 減ったが、広範囲の大幅な wall 改善を実証したという採用ではない。
+
+**検証。** 固定 tsgo は `aa8149273b23401f0a79a5f0384c42de51888693`。
+
+- 最終 source で checker 1,887 unit + 1 integration、release CLI/conformance build が成功。全 workspace test と 1-checker 全適合性は hosted CI で実施し、local では重複実行していない。
+- local `conformance_ts71.py --workers 1 --checkers 4` の 15,339 rows は既存 4-checker report と全 field 同一。
+  1-checker reference との差は既存の 4 構成だけ。4 checker は types / symbols walk を評価しないため、別途 flow 関連 14 cases・15 configurations を
+  1 checker で実行し、types / symbols を含む全 result fields が reference と一致した（compared 15、types/symbols Full 15/15）。
+- 最終 wall 測定の 448 実行はすべて対応する基準と stdout・stderr・exit 同一。別枠で調べた 1 thread の 8 案件の Types / Symbols / Instantiations の統計値も一致。
+  4 threads は Vue の統計値が一致し、ほかの 7 案件は両版ともこれらの統計値を出力しないため未評価。初回の比較 script は統計の存在を前提として停止したが、失敗記録を保持し、未評価を明示する手順で確認した。
+- [tool CI 42332326407](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42332326407)、
+  [checker CI 42334410486](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42334410486) は各最終 head の `gates` 成功後に merge。
+
+最終 CLI SHA-256 `79e68a70641ebb3395759815320cb78d1477b5c7954333d1863b918bc729fd9d`。
+ソース・通常版/観測版 binary・raw counter・全測定 sample・失敗した試案・各 check の command/exit/hash は local
+`target/codex-line-followup-20261107/` に保持した。再開状態は `STATE.json` と `target/codex-line-profile-20261107/RESUME.json`。
+元の source worktree も残してある。小さい実測改善を、未計測の大きな構造変更の効果に外挿しない。
+
+### 次のアルゴリズム・データ構造変更の計画（2026-11-07）
+
+所有者の追加指示：「プロファイラで重い処理の候補を絞り込んで、そのアルゴリズム、データ構造の変更を計画」。
+以下は **計画** であり、#913 以外の実装・効果検証はまだ行っていない。着手順は **引数検査の構造分離 → flow graph の索引化 → 型推論の再利用単位の再設計**。
+最初の 2 案を主対象とし、3 案目は追加観測で費用が残っている場合に進める。微小な table 調整を次々に足す進め方にはしない。
+
+**絞り込みの根拠。** #911 の固定 source を観測した VS Code 1 run / TypeScript compiler 12 runs の CPU 比率。
+以下の親・子は重なるため、行や列を合算しない。4-thread の critical path は未観測で、この比率を wall の削減率に置き換えない。
+抽出値は local `target/codex-line-followup-20261107/architecture-evidence.json`、元データは `codex-line-profile-20261107/reviewed/`。
+
+| 観測する処理・呼び出し行 | VS Code | TypeScript compiler | 計画への判断 |
+| --- | ---: | ---: | --- |
+| `choose_overload` inclusive | 40.01% | 35.96% | 本体のループより、その配下の仕事を対象にする |
+| `get_signature_applicability_error` inclusive | 30.26% | 26.03% | 引数を文脈付きで検査する経路を優先 |
+| applicability → `check_effective_arg_with_contextual_type`（`calls.rs:3728`） | 25.70% | 21.88% | 案 1 の中心。文脈依存の仕事と構文共通の仕事を分ける |
+| inference → 同じ引数検査（`calls.rs:3162`） | 10.71% | 8.13% | 推論・適用性・通常 mode 間の再処理を測る。上の行とは重なる |
+| `infer_type_arguments` inclusive | 16.22% | 13.17% | 引数検査以外に残る推論処理を案 3 で調べる |
+| `get_type_at_flow_node` inclusive | 10.85% | 23.04% | TypeScript compiler では特に案 2 を優先する理由 |
+| `begin_speculation` inclusive | 0.095% | 0.048% | checkpoint の map clone を主対象にしない |
+
+`speculate` の scope は VS Code の約 28.3% に現れるが、ほぼすべて候補の検査を実行している時間。
+transaction の保存・復元全体にその費用が掛かっているという解釈はしない。
+観測した明示 key の再訪は VS Code の choose が 563 / 1,069,920 calls、contextual が 11,294 / 1,816,050 calls。
+この key は mutable state を網羅せず、同じ値を返せても副作用が一致するとは限らない。関数入口に一般的な結果 cache を足す根拠には使わない。
+
+**案 1：文脈付き引数検査を、構文の共通構造と候補ごとの状態に分ける。**
+対象は [calls.rs](../../../../../crates/checker/src/calls.rs) の `ResolveCallCtx` / `infer_type_arguments` / `get_signature_applicability_error` と
+[expr.rs](../../../../../crates/checker/src/expr.rs) の `check_expression_with_contextual_type`、object literal / function の検査経路。
+現在は `EffectiveArg` を共有しても、推論・適用性・mode の再試行が同じ式の検査へ入り、文脈を push して再び構造を歩く。
+既存の `check_expression_cached` は通常 mode の resolved type を保存する仕組みであり、文脈付きの結果を自由に流用できるものではない。
+
+- 最初に call / argument node ごとに、候補数・relation pass・check mode・contextual type・inference context の組合せと再訪回数を分離する。
+  AST の分類・member 列挙、文脈からの parameter 対応、実際の型生成、診断の exclusive 費用と生成物の生存期間を測る。
+  現在の counter は argument identity の組合せまでで、「同じ node のどの部分を共通化できるか」は未確定。
+- 試作する構造は、式ごとの不変な構文情報を順序付き配列にまとめた template と、候補ごとの contextual type / mapper / inference slots を持つ小さな overlay。
+  `ResolveCallCtx` がまずその call の間だけ保持し、プロパティ名・spread/arity・context-sensitive 部分の判定を各 pass で組み立て直さない。
+  object literal / arrow の型付けを最初の対象にし、文脈と無関係と証明できた部分だけを共通化する。候補に依存する型と symbol は overlay 側で生成し、
+  既存の外部参照へ公開する境界で materialize する。異なる候補の semantic identity を同一化しない。checker 全体の無制限 cache は作らない。
+- 候補の順序、Subtype → Assignable の順序、SKIP_* → NORMAL の再試行、literal の regular/fresh 判定、intra-expression inference の消去、
+  rejected trial から残る once-state / 診断を保存条件に含める。単に「候補が不採用なら全状態を捨てる」設計にはしない。
+- 共通化できる exclusive work が小さければ、この構造を導入する費用の方が大きい。node 単位の再処理・生成物を測った段階で見切る。
+  25.70% の領域を仮に 20% 減らせて初めて CPU 全体で約 5.1% という規模であり、これは必要な改善幅の目安であって効果予測ではない。
+
+**案 2：参照に無関係な flow 節点を、結果を計算する前に飛ばせる graph にする。**
+対象は [flow.rs](../../../../../crates/checker/src/flow.rs) の `get_type_at_flow_node` / `get_type_at_flow_assignment` と binder の flow metadata。
+現在は query ごとに antecedent を遡り、参照の一致・包含を調べてから `None` で次の節点へ進む。VS Code の観測は 16,735,837 steps、
+shared-flow の線形比較は 9,380,298 回に対して 287,648 hits。これらの回数だけから wall 効果は算出しない。
+
+- まず query ごとに「結果を変えずに通過した連続区間」と CALL / SHARED / LOOP / REDUCE_LABEL などで止まる区間を記録し、
+  処理時間を参照照合・式の再検査・narrowing / join・memo 管理へ分解する。#913 後の残存費用を再測定してから試作する。
+- immutable な直線 block に「触る root symbol / property path と不明な効果の有無」をまとめる。小さな sorted index と jump edge を持ち、
+  query と無関係と判定できた block を一度で飛ばす。全 reference × 全 flow node の表は作らず、container 単位で必要になった索引を保持する。
+  すでに確定した binding identity だけを使い、索引を作るために名前解決や型生成を先行させない。
+- 最初はキャッシュ済みの単純な identifier / this に限定し、alias・computed property・captured reference が不明なら従来の walk に戻す。
+  CALL（asserts / never を含む）、shared state、loop fixpoint、try/finally の label 差替え、array mutation、outer-container resume は barrier とする。
+  branch の join 順序・incomplete type・depth-limit 診断・transient flag の伝播を変えない。#913 の strict shadow は緩めず、戻り型だけでなく状態も照合する。
+- 過去の C-0 table 拡大や今回の epoch 緩和とは異なり、計算する節点数自体を減らす案。VS Code の flow 領域が 10.85% なので、
+  flow だけで CPU 全体 5% を狙うにはその領域を約 46% 減らす必要がある。TypeScript compiler では約 22%。
+  安全に飛ばせる区間がこの規模に届かないなら、graph の大改造は進めない。
+
+**案 3：型推論の構造走査と、推論候補への更新を分ける（追加観測後）。**
+対象は [inference.rs](../../../../../crates/checker/src/inference.rs) の `InferTypesWalker` / `invoke_once` / `infer_from_properties`。
+visited map と buffer の再利用は実装済みであり、再提案しない。推論 slot は可変で、priority・contravariant・bivariant・recursive stack に依存するため、
+source / target だけの結果 memo は不可。C1 の checker 全体 generation で hit が消えた問題も、そのまま持ち込まない。
+
+同じ型構造を歩いて得る「対応する property / signature / type argument と処理順」の recipe と、その場の inference slots に候補を適用する処理を分離する。
+初版は元の走査と同じ時点で解決済みの immutable な shape pair に限り、型や symbol の生成、副作用、未完の再帰に触れる recipe は保存しない。
+member 構造の revision を照合し、保持範囲も inference context / 対象 container 内に制限する。cache のために lazy member を先行展開しない。
+優先順位・分散・候補の順序を保ち、候補更新のログと全状態を通常 walk と照合する。先に pair ごとの再訪数、visited miss の理由、
+構造走査と候補更新の exclusive 費用を記録し、案 1 と重なる費用を二重に見積もらない。十分な構造走査が残らなければ保留する。
+
+**実行と採否の順序。**
+
+1. #913 採用後の通常 source/binary を固定し、1 / 4-thread profile を取得。4 threads では全 thread の CPU と critical path を区別する。
+   上記の不足 counter を 1 案ずつ足し、観測 overhead を通常版との照合で把握する。観測時間を性能結果として使わない。
+2. 案 1 の call-scoped prototype、次に案 2 の単純な直線 block prototype を別々に評価する。新設構造の memory と作成費用も計上する。
+   source / binary / 入力を固定し、8 案件・1 / 4 threads の wall と peak footprint で判断する。単独で効いた案だけを組み合わせ、効果を足し算せず再測定する。
+3. 各案で固定 tsgo の診断・emit・types/symbols、局所の shadow state、checker tests、local 4-checker の既知 4 差分、hosted gates を確認する。
+   binder metadata を変える案 2 は syntax fingerprint も確認する。観測可能な型・symbol の同一性や diagnostic order を変えて速度を得ない。
+4. 大きな構造変更の継続目安は、狙った workload の通常 wall で再現する 5% 以上の改善を示せること。
+   これは利用者へ約束する予測値ではなく、小さな効果に大改造を重ねないための作業上の目安。メモリ増と他案件の退行は併記して採否を判断する。
+   A/A を含む測定計画と一度だけの独立確認を先に固定し、今回のように揺れが大きい場合は未確定と記録する。
+
+次の着手点は **案 1 の argument-node ごとの再処理と生成物の census**。現時点で構造変更の実装を追加済みとは扱わない。
+
 ## 再評価（2026-11-07、#911）
 
 所有者の追加指示により、不採用案と構造変更を実時間で再評価した。下の「終了」は 11/06 時点の判断を残した記録。
@@ -82,29 +230,30 @@ raw output、binary/source の identity、全 sample、区間、実行 command �
 
 ### 再開メモ：行別プロファイル（2026-11-07）
 
-所有者の指示により、プロファイラと HTML の完成で今回は停止する。承認設定を変更して新しいセッションで再開するための区切り。
-追加の性能改修はまだ行わない。#911 は上記のとおり採用済み。
+前セッションではプロファイラと HTML の完成で停止した。今回は `RESUME.json` から再開し、ツールのレビュー・CI・採用と上記の追加改善まで実施した。
+以下の profile が観測している compiler source は引き続き #911 最終版であり、#913 採用後の profile ではない。
 
 - HTML は local `target/codex-line-profile-20261107/report.html`（約 27 MB、ソース内包、単独でブラウザ表示）。
   呼び出し先を含む inclusive CPU time を既定に、self time、行別の色付け、呼び出し先・元への移動、検索、比較を表示する。
   NYTProf のような全行の直接計時・呼び出し回数ではなく、サンプリングに基づく CPU 時間の推定。行に対応する全 address を `atos` で解決する。
-- ソースは [tools/line-profile-report-20261107](https://github.com/kazhiramatsu/tsc-rs/tree/tools/line-profile-report-20261107/scripts/perf_line_profile)
-  の `scripts/perf_line_profile/`、commit `0ea35c4dd887fa2cc5975deefbb07139a9d08fcc`。`USAGE.txt` に再実行方法。
-  local worktree は `/private/tmp/tsc-rs-line-profile-report-20261107`。ツールの PR・main への採用は再開後。
+- ソースは [scripts/perf_line_profile](https://github.com/kazhiramatsu/tsc-rs/tree/7f79468ecc144517b5989c5e8dc84b290a7440bc/scripts/perf_line_profile)
+  の `scripts/perf_line_profile/`、commit `7f79468ecc144517b5989c5e8dc84b290a7440bc`。`USAGE.txt` に再実行方法。
+  local worktree は `/private/tmp/tsc-rs-line-profile-report-20261107`。[#912](https://github.com/kazhiramatsu/tsc-rs/pull/912) で採用済み。
 - 観測ソースは #911 最終版 `7706d25a3`。release の fat LTO / codegen-units 1 を保ち、`line-tables-only` を追加した。
   VS Code 1 run と TypeScript compiler 12 runs、いずれも `--singleThreaded`、1000 Hz、nice 20。
   VS Code は診断による exit 2 で、要求した 2 回のうち 1 回のみ記録された。HTML は実際の process 数で正規化している。
   観測の経過時間は採用判定の wall 計測には使わない。
-- 集計の 3 tests（inclusive/self、再帰、同じ行の inline 重複、CPU ゼロの待機、全 thread、binary UUID の不一致）と
+- 集計の 4 tests（inclusive/self、再帰、同じ行の inline 重複、CPU ゼロの待機、全 thread、binary UUID の不一致、外部 stdarch source の除外）と
   headless Chrome での操作確認を通した。`browser-check.json`、画面画像、全 profile、source/binary hash は同じ artifact directory にある。
   この版の samply sidecar は symbol 内の address をまとめるため、sidecar の line 情報だけで集計しない。
+  レビューで外部 `core_arch` の path を project source と誤分類する問題を修正し、`reviewed/` 配下の解析を使って HTML を再生成した。
+  元の profile/analysis は保持し、CPU 総量・thread 集計・行帰属率が変わらないことも確認した。
 - 初期の手掛かり：VS Code の `choose_overload` は自身約 8.7 ms、呼び出し先込み約 3.50 s（観測 CPU の約 40%）。
   TypeScript compiler の `get_type_at_flow_node` は呼び出し先込み約 23%。親子の時間は重なるので合算しない。
-  次回は呼び出し行から、overload 候補の試行・文脈付き式チェック・flow の再訪と、それらが触る cache / mapper / symbol の構造を追う。
+  呼び出し行から overload 候補の試行・文脈付き式チェック・flow の再訪と cache / mapper / symbol の構造を調べた結果は、上の追加改善節に記録した。
   これらの時間がそのまま除去可能な費用であるとはまだ判断していない。
 - 詳細な再開状態：local `target/codex-line-profile-20261107/RESUME.json`。元の性能改修の記録は
-  `target/codex-perf-implementation-20261106/adoption-status.json`。次のエージェントはまずこの節と両 JSON を読み、
-  現在の承認設定を確認してから、行別の観測を根拠とした検討を再開する。
+  `target/codex-perf-implementation-20261106/adoption-status.json`。次のエージェントはまず上の追加改善節と最新の `RESUME.json` / `STATE.json` を読み、完了した検証を重複実行しない。
 
 ## 終了（2026-11-06、所有者の決定）
 
