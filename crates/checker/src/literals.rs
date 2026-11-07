@@ -954,333 +954,60 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
-        if let Some(expando) = self.expando_object_literal_type(node) {
-            return Ok(expando);
-        }
-        // tsgo checks the contextual type's deprecated properties after the
-        // file (`checkContextualDeprecations`).
-        self.check_node_deferred(node);
-        let in_destructuring_pattern = node_util::is_assignment_target(&Published, node);
-        self.check_grammar_object_literal_expression(node, in_destructuring_pattern)?;
-        let strict_null_checks = self.tables.strict_null_checks;
-        let mut acc = ObjectLiteralAcc {
-            all_properties_table: strict_null_checks.then(SymbolTable::default),
-            properties_table: SymbolTable::default(),
-            properties_array: Vec::new(),
-            spread: self.empty_object_type,
-            contextual_type: None,
-            contextual_type_has_pattern: false,
-            in_const_context: false,
-            check_flags: CheckFlags::from_bits(0),
-            is_in_javascript: false,
-            is_js_object_literal: false,
-            object_flags: ObjectFlags::FRESH_LITERAL,
-            pattern_with_computed_properties: false,
-            has_computed_string_property: false,
-            has_computed_number_property: false,
-            has_computed_symbol_property: false,
-            offset: 0,
-            in_destructuring_pattern,
-        };
-        self.push_cached_contextual_type(node)?;
-        let walked = self.check_object_literal_members(node, check_mode, &mut acc);
-        self.pop_contextual_type();
-        walked?;
-        let error = self.tables.intrinsics.error;
-        if acc.spread == error {
-            return Ok(error);
-        }
-        if acc.spread != self.empty_object_type {
-            if !acc.properties_array.is_empty() {
-                let segment = self.create_object_literal_segment(node, &acc)?;
-                let raw_symbol = self.node_symbol(node);
-                acc.spread = self.get_spread_type(
-                    acc.spread,
-                    segment,
-                    raw_symbol,
-                    acc.object_flags,
-                    acc.in_const_context,
-                )?;
-                acc.properties_array = Vec::new();
-                acc.properties_table = SymbolTable::default();
-                acc.has_computed_string_property = false;
-                acc.has_computed_number_property = false;
-                // hasComputedSymbolProperty survives the FINAL flush
-                // (74270-74276 resets only string+number) — the
-                // asymmetry is transcribed as-is.
+        self.structure_observe.begin(
+            "object",
+            [
+                node.position() as u64,
+                check_mode.bits() as u64,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ],
+            self.structure_snapshot(),
+        );
+        let structure_result = (|| {
+            if let Some(expando) = self.expando_object_literal_type(node) {
+                return Ok(expando);
             }
-            let spread = acc.spread;
-            return self.map_type_result(spread, |state, t| {
-                if t == state.empty_object_type {
-                    state.create_object_literal_segment(node, &acc)
-                } else {
-                    Ok(t)
-                }
-            });
-        }
-        self.create_object_literal_segment(node, &acc)
-    }
-
-    /// The member loop of checkObjectLiteral (74159-74268), run while
-    /// the cached contextual scope is pushed.
-    fn check_object_literal_members(
-        &mut self,
-        node: NodeId,
-        check_mode: CheckMode,
-        acc: &mut ObjectLiteralAcc,
-    ) -> CheckResult<()> {
-        let properties: Vec<NodeId> = match self.data_of(node) {
-            NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties).to_vec(),
-            _ => Vec::new(),
-        };
-        acc.contextual_type =
-            self.get_apparent_type_of_contextual_type(node, ContextFlags::NONE)?;
-        acc.contextual_type_has_pattern = acc.contextual_type.is_some_and(|contextual| {
-            self.links
-                .type_cold()
-                .pattern
-                .get(contextual)
-                .is_some_and(|pattern| {
-                    matches!(
-                        self.kind_of(pattern),
-                        SyntaxKind::ObjectBindingPattern | SyntaxKind::ObjectLiteralExpression
-                    )
-                })
-        });
-        acc.in_const_context = self.is_const_context(node)?;
-        acc.check_flags = if acc.in_const_context {
-            CheckFlags::READONLY
-        } else {
-            CheckFlags::from_bits(0)
-        };
-        acc.is_in_javascript = self.is_in_js_file(node);
-        // tsgo checkObjectLiteral (TypeScript 7.1, checker.go:13413-13415): a
-        // JavaScript (not JSON) object literal without a contextual type is a
-        // JS literal; there is no `@enum` tag.
-        acc.is_js_object_literal = acc.contextual_type.is_none()
-            && acc.is_in_javascript
-            && self.node_flags(node) & tsc_types::NodeFlags::JSON_FILE.bits() == 0;
-        // Pre-pass: force every computed name (74159-74163).
-        for &member_decl in &properties {
-            if let Some(name) = self.name_of_named_declaration(member_decl) {
-                if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
-                    self.check_computed_property_name(name)?;
-                }
+            // tsgo checks the contextual type's deprecated properties after the
+            // file (`checkContextualDeprecations`).
+            self.check_node_deferred(node);
+            let in_destructuring_pattern = node_util::is_assignment_target(&Published, node);
+            self.check_grammar_object_literal_expression(node, in_destructuring_pattern)?;
+            let strict_null_checks = self.tables.strict_null_checks;
+            let mut acc = ObjectLiteralAcc {
+                all_properties_table: strict_null_checks.then(SymbolTable::default),
+                properties_table: SymbolTable::default(),
+                properties_array: Vec::new(),
+                spread: self.empty_object_type,
+                contextual_type: None,
+                contextual_type_has_pattern: false,
+                in_const_context: false,
+                check_flags: CheckFlags::from_bits(0),
+                is_in_javascript: false,
+                is_js_object_literal: false,
+                object_flags: ObjectFlags::FRESH_LITERAL,
+                pattern_with_computed_properties: false,
+                has_computed_string_property: false,
+                has_computed_number_property: false,
+                has_computed_symbol_property: false,
+                offset: 0,
+                in_destructuring_pattern,
+            };
+            self.push_cached_contextual_type(node)?;
+            let walked = self.check_object_literal_members(node, check_mode, &mut acc);
+            self.pop_contextual_type();
+            walked?;
+            let error = self.tables.intrinsics.error;
+            if acc.spread == error {
+                return Ok(error);
             }
-        }
-        for member_decl in properties {
-            // getSymbolOfDeclaration (74166): the LATE-BOUND hop is
-            // load-bearing for computed-name accessors — the get/set
-            // halves of one `[Symbol.x]` pair share a late symbol,
-            // and the table must carry THAT symbol or
-            // getTypeOfAccessors sees an unpaired half
-            // (symbolDeclarationEmit10, 5.8e lift).
-            let member_symbol = match self.node_symbol(member_decl) {
-                Some(symbol) => {
-                    let late = self.get_late_bound_symbol(symbol)?;
-                    Some(self.get_merged_symbol(late))
-                }
-                None => None,
-            };
-            let computed_name_type = match self.name_of_named_declaration(member_decl) {
-                Some(name) if self.kind_of(name) == SyntaxKind::ComputedPropertyName => {
-                    Some(self.check_computed_property_name(name)?)
-                }
-                _ => None,
-            };
-            let kind = self.kind_of(member_decl);
-            let member: SymbolId;
-            if matches!(
-                kind,
-                SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment
-            ) || self.is_object_literal_method(member_decl)
-            {
-                let Some(member_sym) = member_symbol else {
-                    // Binder-created object members always carry a symbol.
-                    // A checker-synthetic recovery member has no property to
-                    // publish; continue so valid siblings still contribute.
-                    continue;
-                };
-                let mut ty = match kind {
-                    SyntaxKind::PropertyAssignment => {
-                        self.check_property_assignment(member_decl, check_mode)?
-                    }
-                    SyntaxKind::ShorthandPropertyAssignment => {
-                        // The objectAssignmentInitializer only outside
-                        // destructuring — error-recovery semantics for
-                        // `{ a = 100 }` (74173-74176).
-                        let (name, initializer) = match self.data_of(member_decl) {
-                            NodeData::ShorthandPropertyAssignment(data) => {
-                                (data.name, data.object_assignment_initializer)
-                            }
-                            _ => (None, None),
-                        };
-                        let target = match initializer {
-                            Some(initializer) if !acc.in_destructuring_pattern => initializer,
-                            _ => {
-                                let Some(name) = name else {
-                                    continue;
-                                };
-                                name
-                            }
-                        };
-                        self.check_expression_for_mutable_location(target, check_mode, false)?
-                    }
-                    _ => self.check_object_literal_method(member_decl, check_mode)?,
-                };
-                // tsgo checkPropertyAssignment / checkShorthandPropertyAssignment
-                // (checker.go:13907-13938): a reparsed `@type` is the member's
-                // type, and the value must be assignable to it (elaborated
-                // into the expression). An object-literal method's `@type` is
-                // its FullSignature instead.
-                if acc.is_in_javascript {
-                    if let Some(type_node) = self.get_jsdoc_type(member_decl) {
-                        let jsdoc_type = self.get_type_from_type_node(type_node)?;
-                        let expression = match self.data_of(member_decl) {
-                            NodeData::PropertyAssignment(data) => data.initializer,
-                            NodeData::ShorthandPropertyAssignment(data) => data
-                                .object_assignment_initializer
-                                .filter(|_| !acc.in_destructuring_pattern)
-                                .or(data.name),
-                            _ => None,
-                        };
-                        if let Some(expression) = expression {
-                            self.check_type_assignable_to_and_optionally_elaborate(
-                                ty,
-                                jsdoc_type,
-                                Some(member_decl),
-                                expression,
-                                &diagnostics::Type_0_is_not_assignable_to_type_1,
-                            )?;
-                        }
-                        ty = jsdoc_type;
-                    }
-                }
-                acc.object_flags |=
-                    self.tables.object_flags_of(ty) & ObjectFlags::PROPAGATING_FLAGS;
-                let name_type = computed_name_type
-                    .filter(|&t| self.property_name_from_type_usable(t).is_some());
-                let member_flags = self.binder.symbol(member_sym).flags;
-                let prop = match name_type {
-                    Some(name_type) => {
-                        let name = self
-                            .property_name_from_type_usable(name_type)
-                            .expect("filtered above");
-                        let prop = self
-                            .binder
-                            .create_symbol(SymbolFlags::PROPERTY | member_flags, name);
-                        self.links.set_symbol_check_flags(
-                            self.speculation_depth,
-                            prop,
-                            acc.check_flags | CheckFlags::LATE,
-                        );
-                        self.links.set_symbol_name_type(
-                            self.speculation_depth,
-                            prop,
-                            Some(name_type),
-                        );
-                        prop
-                    }
-                    None => {
-                        let name = self.binder.symbol(member_sym).escaped_name;
-                        let prop = self
-                            .binder
-                            .create_symbol(SymbolFlags::PROPERTY | member_flags, name);
-                        if !acc.check_flags.is_empty() {
-                            self.links.set_symbol_check_flags(
-                                self.speculation_depth,
-                                prop,
-                                acc.check_flags,
-                            );
-                        }
-                        prop
-                    }
-                };
-                if acc.in_destructuring_pattern && self.has_default_value(member_decl) {
-                    self.binder.symbol_mut(prop).flags |= SymbolFlags::OPTIONAL;
-                } else if acc.contextual_type_has_pattern
-                    && !self
-                        .tables
-                        .object_flags_of(acc.contextual_type.expect("pattern implies contextual"))
-                        .intersects(ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES)
-                {
-                    let contextual = acc.contextual_type.expect("pattern implies contextual");
-                    let member_name = self.binder.symbol(member_sym).escaped_name;
-                    let implied_prop = self.get_property_of_type_full(contextual, member_name)?;
-                    match implied_prop {
-                        Some(implied) => {
-                            let optional =
-                                self.binder.symbol(implied).flags & SymbolFlags::OPTIONAL;
-                            self.binder.symbol_mut(prop).flags |= optional;
-                        }
-                        None => {
-                            let string = self.tables.intrinsics.string;
-                            if self.get_index_info_of_type(contextual, string)?.is_none() {
-                                let member_display = self.symbol_name_as_written(member_sym);
-                                let contextual_display = self.type_to_string(contextual)?;
-                                let error_node = self
-                                    .name_of_named_declaration(member_decl)
-                                    .or(Some(member_decl));
-                                self.error_at_js(
-                                    error_node,
-                                    &diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
-                                    &[member_display.as_js(), (&contextual_display).into()],
-                                );
-                            }
-                        }
-                    }
-                }
-                let declarations = self.binder.symbol(member_sym).declaration_list();
-                let parent = self.binder.symbol(member_sym).parent;
-                let value_declaration = self.binder.symbol(member_sym).value_declaration;
-                {
-                    let prop_symbol = self.binder.symbol_mut(prop);
-                    prop_symbol.set_declarations(declarations);
-                    prop_symbol.parent = parent;
-                    if let Some(value_declaration) = value_declaration {
-                        prop_symbol.value_declaration = Some(value_declaration);
-                    }
-                }
-                self.links
-                    .set_fresh_symbol_type(prop, crate::links::LinkSlot::Resolved(ty));
-                self.links
-                    .set_symbol_target(self.speculation_depth, prop, member_sym);
-                member = prop;
-                if let Some(all) = &mut acc.all_properties_table {
-                    let name = self.binder.symbol(prop).escaped_name;
-                    all.insert(name, prop);
-                }
-                // 74206-74213: the intra-expression inference-site
-                // record (7.4) — a PropertyAssignment records its
-                // INITIALIZER, a method records the declaration node.
-                if acc.contextual_type.is_some()
-                    && check_mode.intersects(CheckMode::INFERENTIAL)
-                    && !check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE)
-                    && matches!(
-                        kind,
-                        SyntaxKind::PropertyAssignment | SyntaxKind::MethodDeclaration
-                    )
-                    && self.is_context_sensitive(member_decl)
-                {
-                    let inference_context = self
-                        .get_inference_context(node)
-                        .expect("Inferential check mode implies an inference context (74208)");
-                    let inference_node = if kind == SyntaxKind::PropertyAssignment {
-                        match self.data_of(member_decl) {
-                            NodeData::PropertyAssignment(data) => match data.initializer {
-                                Some(initializer) => initializer,
-                                None => continue,
-                            },
-                            _ => member_decl,
-                        }
-                    } else {
-                        member_decl
-                    };
-                    self.add_intra_expression_inference_site(inference_context, inference_node, ty);
-                }
-            } else if kind == SyntaxKind::SpreadAssignment {
+            if acc.spread != self.empty_object_type {
                 if !acc.properties_array.is_empty() {
-                    let segment = self.create_object_literal_segment(node, acc)?;
+                    let segment = self.create_object_literal_segment(node, &acc)?;
                     let raw_symbol = self.node_symbol(node);
                     acc.spread = self.get_spread_type(
                         acc.spread,
@@ -1293,91 +1020,420 @@ impl<'a> CheckerState<'a> {
                     acc.properties_table = SymbolTable::default();
                     acc.has_computed_string_property = false;
                     acc.has_computed_number_property = false;
-                    acc.has_computed_symbol_property = false;
+                    // hasComputedSymbolProperty survives the FINAL flush
+                    // (74270-74276 resets only string+number) — the
+                    // asymmetry is transcribed as-is.
                 }
-                let expression = match self.data_of(member_decl) {
-                    NodeData::SpreadAssignment(data) => data.expression,
+                let spread = acc.spread;
+                return self.map_type_result(spread, |state, t| {
+                    if t == state.empty_object_type {
+                        state.create_object_literal_segment(node, &acc)
+                    } else {
+                        Ok(t)
+                    }
+                });
+            }
+            self.create_object_literal_segment(node, &acc)
+        })();
+        self.structure_observe.end(
+            self.structure_snapshot(),
+            structure_result.as_ref().ok().map(|ty| ty.index() as u32),
+        );
+        structure_result
+    }
+
+    /// The member loop of checkObjectLiteral (74159-74268), run while
+    /// the cached contextual scope is pushed.
+    fn check_object_literal_members(
+        &mut self,
+        node: NodeId,
+        check_mode: CheckMode,
+        acc: &mut ObjectLiteralAcc,
+    ) -> CheckResult<()> {
+        self.structure_observe.begin(
+            "object_members",
+            [
+                node.position() as u64,
+                check_mode.bits() as u64,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ],
+            self.structure_snapshot(),
+        );
+        let structure_result = (|| {
+            self.structure_observe.begin(
+                "object_syntax",
+                [node.position() as u64, 0, 0, 0, 0, 0, 0, 0],
+                self.structure_snapshot(),
+            );
+            let properties: Vec<NodeId> = match self.data_of(node) {
+                NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties).to_vec(),
+                _ => Vec::new(),
+            };
+            self.structure_observe
+                .bump("object.member_copies", properties.len() as u64);
+            self.structure_observe.end(self.structure_snapshot(), None);
+            acc.contextual_type =
+                self.get_apparent_type_of_contextual_type(node, ContextFlags::NONE)?;
+            acc.contextual_type_has_pattern = acc.contextual_type.is_some_and(|contextual| {
+                self.links
+                    .type_cold()
+                    .pattern
+                    .get(contextual)
+                    .is_some_and(|pattern| {
+                        matches!(
+                            self.kind_of(pattern),
+                            SyntaxKind::ObjectBindingPattern | SyntaxKind::ObjectLiteralExpression
+                        )
+                    })
+            });
+            acc.in_const_context = self.is_const_context(node)?;
+            acc.check_flags = if acc.in_const_context {
+                CheckFlags::READONLY
+            } else {
+                CheckFlags::from_bits(0)
+            };
+            acc.is_in_javascript = self.is_in_js_file(node);
+            // tsgo checkObjectLiteral (TypeScript 7.1, checker.go:13413-13415): a
+            // JavaScript (not JSON) object literal without a contextual type is a
+            // JS literal; there is no `@enum` tag.
+            acc.is_js_object_literal = acc.contextual_type.is_none()
+                && acc.is_in_javascript
+                && self.node_flags(node) & tsc_types::NodeFlags::JSON_FILE.bits() == 0;
+            // Pre-pass: force every computed name (74159-74163).
+            for &member_decl in &properties {
+                if let Some(name) = self.name_of_named_declaration(member_decl) {
+                    if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
+                        self.check_computed_property_name(name)?;
+                    }
+                }
+            }
+            for member_decl in properties {
+                // getSymbolOfDeclaration (74166): the LATE-BOUND hop is
+                // load-bearing for computed-name accessors — the get/set
+                // halves of one `[Symbol.x]` pair share a late symbol,
+                // and the table must carry THAT symbol or
+                // getTypeOfAccessors sees an unpaired half
+                // (symbolDeclarationEmit10, 5.8e lift).
+                let member_symbol = match self.node_symbol(member_decl) {
+                    Some(symbol) => {
+                        let late = self.get_late_bound_symbol(symbol)?;
+                        Some(self.get_merged_symbol(late))
+                    }
+                    None => None,
+                };
+                let computed_name_type = match self.name_of_named_declaration(member_decl) {
+                    Some(name) if self.kind_of(name) == SyntaxKind::ComputedPropertyName => {
+                        Some(self.check_computed_property_name(name)?)
+                    }
                     _ => None,
                 };
-                let Some(expression) = expression else {
-                    acc.spread = self.tables.intrinsics.error;
-                    continue;
-                };
-                let inner_mode =
-                    CheckMode::from_bits(check_mode.bits() & CheckMode::INFERENTIAL.bits());
-                let raw = self.check_expression(expression, inner_mode)?;
-                let ty = self.get_reduced_type(raw)?;
-                if self.is_valid_spread_type(ty)? {
-                    let merged = self.try_merge_union_of_object_type_and_empty_object(
-                        ty,
-                        acc.in_const_context,
-                    )?;
-                    if let Some(all) = &acc.all_properties_table {
-                        let all = all.clone();
-                        self.check_spread_prop_overrides(merged, &all, member_decl)?;
+                let kind = self.kind_of(member_decl);
+                let member: SymbolId;
+                if matches!(
+                    kind,
+                    SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment
+                ) || self.is_object_literal_method(member_decl)
+                {
+                    let Some(member_sym) = member_symbol else {
+                        // Binder-created object members always carry a symbol.
+                        // A checker-synthetic recovery member has no property to
+                        // publish; continue so valid siblings still contribute.
+                        continue;
+                    };
+                    let mut ty = match kind {
+                        SyntaxKind::PropertyAssignment => {
+                            self.check_property_assignment(member_decl, check_mode)?
+                        }
+                        SyntaxKind::ShorthandPropertyAssignment => {
+                            // The objectAssignmentInitializer only outside
+                            // destructuring — error-recovery semantics for
+                            // `{ a = 100 }` (74173-74176).
+                            let (name, initializer) = match self.data_of(member_decl) {
+                                NodeData::ShorthandPropertyAssignment(data) => {
+                                    (data.name, data.object_assignment_initializer)
+                                }
+                                _ => (None, None),
+                            };
+                            let target = match initializer {
+                                Some(initializer) if !acc.in_destructuring_pattern => initializer,
+                                _ => {
+                                    let Some(name) = name else {
+                                        continue;
+                                    };
+                                    name
+                                }
+                            };
+                            self.check_expression_for_mutable_location(target, check_mode, false)?
+                        }
+                        _ => self.check_object_literal_method(member_decl, check_mode)?,
+                    };
+                    // tsgo checkPropertyAssignment / checkShorthandPropertyAssignment
+                    // (checker.go:13907-13938): a reparsed `@type` is the member's
+                    // type, and the value must be assignable to it (elaborated
+                    // into the expression). An object-literal method's `@type` is
+                    // its FullSignature instead.
+                    if acc.is_in_javascript {
+                        if let Some(type_node) = self.get_jsdoc_type(member_decl) {
+                            let jsdoc_type = self.get_type_from_type_node(type_node)?;
+                            let expression = match self.data_of(member_decl) {
+                                NodeData::PropertyAssignment(data) => data.initializer,
+                                NodeData::ShorthandPropertyAssignment(data) => data
+                                    .object_assignment_initializer
+                                    .filter(|_| !acc.in_destructuring_pattern)
+                                    .or(data.name),
+                                _ => None,
+                            };
+                            if let Some(expression) = expression {
+                                self.check_type_assignable_to_and_optionally_elaborate(
+                                    ty,
+                                    jsdoc_type,
+                                    Some(member_decl),
+                                    expression,
+                                    &diagnostics::Type_0_is_not_assignable_to_type_1,
+                                )?;
+                            }
+                            ty = jsdoc_type;
+                        }
                     }
-                    acc.offset = acc.properties_array.len();
-                    if self.tables.is_error_type(acc.spread) {
+                    acc.object_flags |=
+                        self.tables.object_flags_of(ty) & ObjectFlags::PROPAGATING_FLAGS;
+                    let name_type = computed_name_type
+                        .filter(|&t| self.property_name_from_type_usable(t).is_some());
+                    let member_flags = self.binder.symbol(member_sym).flags;
+                    let prop = match name_type {
+                        Some(name_type) => {
+                            let name = self
+                                .property_name_from_type_usable(name_type)
+                                .expect("filtered above");
+                            let prop = self
+                                .binder
+                                .create_symbol(SymbolFlags::PROPERTY | member_flags, name);
+                            self.links.set_symbol_check_flags(
+                                self.speculation_depth,
+                                prop,
+                                acc.check_flags | CheckFlags::LATE,
+                            );
+                            self.links.set_symbol_name_type(
+                                self.speculation_depth,
+                                prop,
+                                Some(name_type),
+                            );
+                            prop
+                        }
+                        None => {
+                            let name = self.binder.symbol(member_sym).escaped_name;
+                            let prop = self
+                                .binder
+                                .create_symbol(SymbolFlags::PROPERTY | member_flags, name);
+                            if !acc.check_flags.is_empty() {
+                                self.links.set_symbol_check_flags(
+                                    self.speculation_depth,
+                                    prop,
+                                    acc.check_flags,
+                                );
+                            }
+                            prop
+                        }
+                    };
+                    if acc.in_destructuring_pattern && self.has_default_value(member_decl) {
+                        self.binder.symbol_mut(prop).flags |= SymbolFlags::OPTIONAL;
+                    } else if acc.contextual_type_has_pattern
+                        && !self
+                            .tables
+                            .object_flags_of(
+                                acc.contextual_type.expect("pattern implies contextual"),
+                            )
+                            .intersects(
+                                ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES,
+                            )
+                    {
+                        let contextual = acc.contextual_type.expect("pattern implies contextual");
+                        let member_name = self.binder.symbol(member_sym).escaped_name;
+                        let implied_prop =
+                            self.get_property_of_type_full(contextual, member_name)?;
+                        match implied_prop {
+                            Some(implied) => {
+                                let optional =
+                                    self.binder.symbol(implied).flags & SymbolFlags::OPTIONAL;
+                                self.binder.symbol_mut(prop).flags |= optional;
+                            }
+                            None => {
+                                let string = self.tables.intrinsics.string;
+                                if self.get_index_info_of_type(contextual, string)?.is_none() {
+                                    let member_display = self.symbol_name_as_written(member_sym);
+                                    let contextual_display = self.type_to_string(contextual)?;
+                                    let error_node = self
+                                        .name_of_named_declaration(member_decl)
+                                        .or(Some(member_decl));
+                                    self.error_at_js(
+                                    error_node,
+                                    &diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
+                                    &[member_display.as_js(), (&contextual_display).into()],
+                                );
+                                }
+                            }
+                        }
+                    }
+                    let declarations = self.binder.symbol(member_sym).declaration_list();
+                    let parent = self.binder.symbol(member_sym).parent;
+                    let value_declaration = self.binder.symbol(member_sym).value_declaration;
+                    {
+                        let prop_symbol = self.binder.symbol_mut(prop);
+                        prop_symbol.set_declarations(declarations);
+                        prop_symbol.parent = parent;
+                        if let Some(value_declaration) = value_declaration {
+                            prop_symbol.value_declaration = Some(value_declaration);
+                        }
+                    }
+                    self.links
+                        .set_fresh_symbol_type(prop, crate::links::LinkSlot::Resolved(ty));
+                    self.links
+                        .set_symbol_target(self.speculation_depth, prop, member_sym);
+                    member = prop;
+                    if let Some(all) = &mut acc.all_properties_table {
+                        let name = self.binder.symbol(prop).escaped_name;
+                        all.insert(name, prop);
+                    }
+                    // 74206-74213: the intra-expression inference-site
+                    // record (7.4) — a PropertyAssignment records its
+                    // INITIALIZER, a method records the declaration node.
+                    if acc.contextual_type.is_some()
+                        && check_mode.intersects(CheckMode::INFERENTIAL)
+                        && !check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE)
+                        && matches!(
+                            kind,
+                            SyntaxKind::PropertyAssignment | SyntaxKind::MethodDeclaration
+                        )
+                        && self.is_context_sensitive(member_decl)
+                    {
+                        let inference_context = self
+                            .get_inference_context(node)
+                            .expect("Inferential check mode implies an inference context (74208)");
+                        let inference_node = if kind == SyntaxKind::PropertyAssignment {
+                            match self.data_of(member_decl) {
+                                NodeData::PropertyAssignment(data) => match data.initializer {
+                                    Some(initializer) => initializer,
+                                    None => continue,
+                                },
+                                _ => member_decl,
+                            }
+                        } else {
+                            member_decl
+                        };
+                        self.add_intra_expression_inference_site(
+                            inference_context,
+                            inference_node,
+                            ty,
+                        );
+                    }
+                } else if kind == SyntaxKind::SpreadAssignment {
+                    if !acc.properties_array.is_empty() {
+                        let segment = self.create_object_literal_segment(node, acc)?;
+                        let raw_symbol = self.node_symbol(node);
+                        acc.spread = self.get_spread_type(
+                            acc.spread,
+                            segment,
+                            raw_symbol,
+                            acc.object_flags,
+                            acc.in_const_context,
+                        )?;
+                        acc.properties_array = Vec::new();
+                        acc.properties_table = SymbolTable::default();
+                        acc.has_computed_string_property = false;
+                        acc.has_computed_number_property = false;
+                        acc.has_computed_symbol_property = false;
+                    }
+                    let expression = match self.data_of(member_decl) {
+                        NodeData::SpreadAssignment(data) => data.expression,
+                        _ => None,
+                    };
+                    let Some(expression) = expression else {
+                        acc.spread = self.tables.intrinsics.error;
+                        continue;
+                    };
+                    let inner_mode =
+                        CheckMode::from_bits(check_mode.bits() & CheckMode::INFERENTIAL.bits());
+                    let raw = self.check_expression(expression, inner_mode)?;
+                    let ty = self.get_reduced_type(raw)?;
+                    if self.is_valid_spread_type(ty)? {
+                        let merged = self.try_merge_union_of_object_type_and_empty_object(
+                            ty,
+                            acc.in_const_context,
+                        )?;
+                        if let Some(all) = &acc.all_properties_table {
+                            let all = all.clone();
+                            self.check_spread_prop_overrides(merged, &all, member_decl)?;
+                        }
+                        acc.offset = acc.properties_array.len();
+                        if self.tables.is_error_type(acc.spread) {
+                            continue;
+                        }
+                        let raw_symbol = self.node_symbol(node);
+                        acc.spread = self.get_spread_type(
+                            acc.spread,
+                            merged,
+                            raw_symbol,
+                            acc.object_flags,
+                            acc.in_const_context,
+                        )?;
+                    } else {
+                        self.error_at(
+                            Some(member_decl),
+                            &diagnostics::Spread_types_may_only_be_created_from_object_types,
+                            &[],
+                        );
+                        acc.spread = self.tables.intrinsics.error;
+                    }
+                    continue;
+                } else {
+                    // Debug.assert(Get/SetAccessor) is guaranteed by the parser
+                    // for ordinary object literals. Unknown synthetic recovery
+                    // members have no value property to publish.
+                    if !matches!(kind, SyntaxKind::GetAccessor | SyntaxKind::SetAccessor) {
                         continue;
                     }
-                    let raw_symbol = self.node_symbol(node);
-                    acc.spread = self.get_spread_type(
-                        acc.spread,
-                        merged,
-                        raw_symbol,
-                        acc.object_flags,
-                        acc.in_const_context,
-                    )?;
+                    self.check_node_deferred(member_decl);
+                    let Some(member_symbol) = member_symbol else {
+                        continue;
+                    };
+                    member = member_symbol;
+                }
+                if let Some(computed_name_type) = computed_name_type.filter(|&t| {
+                    !self
+                        .tables
+                        .flags_of(t)
+                        .intersects(TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE)
+                }) {
+                    let string_number_symbol = self.tables.intrinsics.string_number_symbol;
+                    if self.is_type_assignable_to(computed_name_type, string_number_symbol)? {
+                        let number = self.tables.intrinsics.number;
+                        let es_symbol = self.tables.intrinsics.es_symbol;
+                        if self.is_type_assignable_to(computed_name_type, number)? {
+                            acc.has_computed_number_property = true;
+                        } else if self.is_type_assignable_to(computed_name_type, es_symbol)? {
+                            acc.has_computed_symbol_property = true;
+                        } else {
+                            acc.has_computed_string_property = true;
+                        }
+                        if acc.in_destructuring_pattern {
+                            acc.pattern_with_computed_properties = true;
+                        }
+                    }
                 } else {
-                    self.error_at(
-                        Some(member_decl),
-                        &diagnostics::Spread_types_may_only_be_created_from_object_types,
-                        &[],
-                    );
-                    acc.spread = self.tables.intrinsics.error;
+                    let name = self.binder.symbol(member).escaped_name;
+                    acc.properties_table.insert(name, member);
                 }
-                continue;
-            } else {
-                // Debug.assert(Get/SetAccessor) is guaranteed by the parser
-                // for ordinary object literals. Unknown synthetic recovery
-                // members have no value property to publish.
-                if !matches!(kind, SyntaxKind::GetAccessor | SyntaxKind::SetAccessor) {
-                    continue;
-                }
-                self.check_node_deferred(member_decl);
-                let Some(member_symbol) = member_symbol else {
-                    continue;
-                };
-                member = member_symbol;
+                acc.properties_array.push(member);
             }
-            if let Some(computed_name_type) = computed_name_type.filter(|&t| {
-                !self
-                    .tables
-                    .flags_of(t)
-                    .intersects(TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE)
-            }) {
-                let string_number_symbol = self.tables.intrinsics.string_number_symbol;
-                if self.is_type_assignable_to(computed_name_type, string_number_symbol)? {
-                    let number = self.tables.intrinsics.number;
-                    let es_symbol = self.tables.intrinsics.es_symbol;
-                    if self.is_type_assignable_to(computed_name_type, number)? {
-                        acc.has_computed_number_property = true;
-                    } else if self.is_type_assignable_to(computed_name_type, es_symbol)? {
-                        acc.has_computed_symbol_property = true;
-                    } else {
-                        acc.has_computed_string_property = true;
-                    }
-                    if acc.in_destructuring_pattern {
-                        acc.pattern_with_computed_properties = true;
-                    }
-                }
-            } else {
-                let name = self.binder.symbol(member).escaped_name;
-                acc.properties_table.insert(name, member);
-            }
-            acc.properties_array.push(member);
-        }
-        Ok(())
+            Ok(())
+        })();
+        self.structure_observe.end(self.structure_snapshot(), None);
+        structure_result
     }
 
     /// The createObjectLiteralType closure (74277-74298): a FRESH

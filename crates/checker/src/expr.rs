@@ -2962,44 +2962,65 @@ impl<'a> CheckerState<'a> {
         inference_context: Option<crate::inference::InferenceContextId>,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
-        let context_node = self.get_context_node(node);
-        self.push_contextual_type(context_node, Some(contextual_type), false);
-        self.push_inference_context(context_node, inference_context);
-        let result = (|state: &mut Self| -> CheckResult<TypeId> {
-            let inferential = if inference_context.is_some() {
-                CheckMode::INFERENTIAL
-            } else {
-                CheckMode::NORMAL
-            };
-            let ty =
-                state.check_expression(node, check_mode | CheckMode::CONTEXTUAL | inferential)?;
-            // 80566-80569: the un-drained intra-expression sites are
-            // discarded once the full expression has been checked
-            // (set to undefined, NOT drained — the fixing mapper is
-            // the only drainer).
-            if let Some(context) = inference_context {
-                if state
-                    .inference_context(context)
-                    .intra_expression_inference_sites
-                    .is_some()
-                {
-                    state
-                        .inference_context_mut(context)
-                        .intra_expression_inference_sites = None;
+        self.structure_observe.begin(
+            "argument",
+            [
+                node.position() as u64,
+                contextual_type.index() as u64,
+                inference_context.map_or(0, |id| id.index() as u64 + 1),
+                check_mode.bits() as u64,
+                self.kind_of(node) as u64,
+                self.speculation_depth as u64,
+                0,
+                0,
+            ],
+            self.structure_snapshot(),
+        );
+        let structure_result = (|| {
+            let context_node = self.get_context_node(node);
+            self.push_contextual_type(context_node, Some(contextual_type), false);
+            self.push_inference_context(context_node, inference_context);
+            let result = (|state: &mut Self| -> CheckResult<TypeId> {
+                let inferential = if inference_context.is_some() {
+                    CheckMode::INFERENTIAL
+                } else {
+                    CheckMode::NORMAL
+                };
+                let ty = state
+                    .check_expression(node, check_mode | CheckMode::CONTEXTUAL | inferential)?;
+                // 80566-80569: the un-drained intra-expression sites are
+                // discarded once the full expression has been checked
+                // (set to undefined, NOT drained — the fixing mapper is
+                // the only drainer).
+                if let Some(context) = inference_context {
+                    if state
+                        .inference_context(context)
+                        .intra_expression_inference_sites
+                        .is_some()
+                    {
+                        state
+                            .inference_context_mut(context)
+                            .intra_expression_inference_sites = None;
+                    }
                 }
-            }
-            if state.maybe_type_of_kind(ty, TypeFlags::LITERAL) {
-                let instantiated =
-                    state.instantiate_contextual_type_for_node(Some(contextual_type), node)?;
-                if state.is_literal_of_contextual_type(ty, instantiated)? {
-                    return Ok(state.regular_type_of_literal_type(ty));
+                if state.maybe_type_of_kind(ty, TypeFlags::LITERAL) {
+                    let instantiated =
+                        state.instantiate_contextual_type_for_node(Some(contextual_type), node)?;
+                    if state.is_literal_of_contextual_type(ty, instantiated)? {
+                        return Ok(state.regular_type_of_literal_type(ty));
+                    }
                 }
-            }
-            Ok(ty)
-        })(self);
-        self.pop_inference_context();
-        self.pop_contextual_type();
-        result
+                Ok(ty)
+            })(self);
+            self.pop_inference_context();
+            self.pop_contextual_type();
+            result
+        })();
+        self.structure_observe.end(
+            self.structure_snapshot(),
+            structure_result.as_ref().ok().map(|ty| ty.index() as u32),
+        );
+        structure_result
     }
 
     /// tsc-port: checkExpressionCached @6.0.3

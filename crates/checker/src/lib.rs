@@ -155,6 +155,7 @@ pub mod spell;
 pub mod state;
 pub mod statements;
 pub mod structural;
+mod structure_observe;
 mod syntactic_type_node_builder;
 mod tracing;
 pub(crate) mod type_order;

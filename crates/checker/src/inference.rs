@@ -845,59 +845,77 @@ impl<'a> CheckerState<'a> {
         priority: InferencePriority,
         contravariant: bool,
     ) -> CheckResult<()> {
-        let visited = std::mem::take(&mut self.inference_visited);
-        // The slot snapshot and the stacks reuse the buffers of the last
-        // walk (a walk started inside this one finds them taken and gets
-        // empty ones).
-        let InferenceWalkBuffers {
-            inferences: mut slots,
-            source_stack,
-            target_stack,
-        } = std::mem::take(&mut self.inference_walk_buffers);
-        slots.extend_from_slice(inferences);
-        let mut walker = InferTypesWalker {
-            st: self,
-            inferences: slots,
-            original_target,
-            priority,
-            contravariant,
-            bivariant: false,
-            propagation_type: None,
-            inference_priority: InferencePriority::MAX_VALUE,
-            visited,
-            visited_touched: [InferenceKey {
-                source: original_source,
-                target: original_target,
+        self.structure_observe.begin(
+            "inference",
+            [
+                original_source.index() as u64,
+                original_target.index() as u64,
+                priority.bits() as u64,
+                contravariant as u64,
+                inferences.len() as u64,
+                0,
+                0,
+                0,
+            ],
+            self.structure_snapshot(),
+        );
+        let structure_result = (|| {
+            let visited = std::mem::take(&mut self.inference_visited);
+            // The slot snapshot and the stacks reuse the buffers of the last
+            // walk (a walk started inside this one finds them taken and gets
+            // empty ones).
+            let InferenceWalkBuffers {
+                inferences: mut slots,
+                source_stack,
+                target_stack,
+            } = std::mem::take(&mut self.inference_walk_buffers);
+            slots.extend_from_slice(inferences);
+            let mut walker = InferTypesWalker {
+                st: self,
+                inferences: slots,
+                original_target,
                 priority,
                 contravariant,
                 bivariant: false,
-            }; 4],
-            source_stack,
-            target_stack,
-            expanding_flags: ExpandingFlags::NONE,
-        };
-        let result = walker.infer_from_types(original_source, original_target);
-        let InferTypesWalker {
-            mut visited,
-            visited_touched,
-            inferences: mut slots,
-            mut source_stack,
-            mut target_stack,
-            ..
-        } = walker;
-        clear_inference_visited(&mut visited, &visited_touched);
-        self.inference_visited = visited;
-        slots.clear();
-        source_stack.clear();
-        target_stack.clear();
-        if self.inference_walk_buffers.inferences.capacity() < slots.capacity() {
-            self.inference_walk_buffers = InferenceWalkBuffers {
-                inferences: slots,
+                propagation_type: None,
+                inference_priority: InferencePriority::MAX_VALUE,
+                visited,
+                visited_touched: [InferenceKey {
+                    source: original_source,
+                    target: original_target,
+                    priority,
+                    contravariant,
+                    bivariant: false,
+                }; 4],
                 source_stack,
                 target_stack,
+                expanding_flags: ExpandingFlags::NONE,
             };
-        }
-        result
+            let result = walker.infer_from_types(original_source, original_target);
+            let InferTypesWalker {
+                mut visited,
+                visited_touched,
+                inferences: mut slots,
+                mut source_stack,
+                mut target_stack,
+                ..
+            } = walker;
+            clear_inference_visited(&mut visited, &visited_touched);
+            self.inference_visited = visited;
+            slots.clear();
+            source_stack.clear();
+            target_stack.clear();
+            if self.inference_walk_buffers.inferences.capacity() < slots.capacity() {
+                self.inference_walk_buffers = InferenceWalkBuffers {
+                    inferences: slots,
+                    source_stack,
+                    target_stack,
+                };
+            }
+            result
+        })();
+        self.structure_observe.end(self.structure_snapshot(), None);
+        structure_result
     }
 
     /// tsc-port: inferTypeForHomomorphicMappedType @6.0.3

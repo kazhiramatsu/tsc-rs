@@ -2992,211 +2992,232 @@ impl<'a> CheckerState<'a> {
         check_mode: CheckMode,
         context: InferenceContextId,
     ) -> CheckResult<Vec<TypeId>> {
-        let node_kind = self.kind_of(node);
-        if matches!(
-            node_kind,
-            SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement
-        ) {
-            return self.infer_jsx_type_arguments(node, signature, check_mode, context);
-        }
-        if node_kind != SyntaxKind::Decorator && node_kind != SyntaxKind::BinaryExpression {
-            // 75943: skipBindingPatterns = every type parameter carries
-            // a default (helper-every semantics: vacuous true).
-            let type_parameters = self
-                .signature_of(signature)
-                .type_parameters
-                .clone()
-                .unwrap_or_default();
-            let mut skip_binding_patterns = true;
-            for &tp in &type_parameters {
-                if self.get_default_from_type_parameter(tp)?.is_none() {
-                    skip_binding_patterns = false;
-                    break;
-                }
+        self.structure_observe.begin(
+            "infer_args",
+            [
+                node.position() as u64,
+                signature.index() as u64,
+                context.index() as u64,
+                check_mode.bits() as u64,
+                0,
+                0,
+                0,
+                0,
+            ],
+            self.structure_snapshot(),
+        );
+        let structure_result = (|| {
+            let node_kind = self.kind_of(node);
+            if matches!(
+                node_kind,
+                SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement
+            ) {
+                return self.infer_jsx_type_arguments(node, signature, check_mode, context);
             }
-            let contextual_type = self.get_contextual_type(
-                node,
-                if skip_binding_patterns {
-                    ContextFlags::SKIP_BINDING_PATTERNS
-                } else {
-                    ContextFlags::NONE
-                },
-            )?;
-            if let Some(contextual_type) = contextual_type {
-                let inference_target_type = self.get_return_type_of_signature(signature)?;
-                if self.could_contain_type_variables(inference_target_type) {
-                    let outer_context = self.get_inference_context(node);
-                    let is_from_binding_pattern = !skip_binding_patterns
-                        && self.get_contextual_type(node, ContextFlags::SKIP_BINDING_PATTERNS)?
-                            != Some(contextual_type);
-                    if !is_from_binding_pattern {
-                        let outer_clone =
-                            self.clone_inference_context(outer_context, InferenceFlags::NO_DEFAULT);
-                        let outer_mapper = self.get_mapper_from_context(outer_clone);
-                        let instantiated_type =
-                            self.instantiate_type(contextual_type, outer_mapper)?;
-                        let contextual_signature =
-                            self.get_single_call_signature(instantiated_type)?;
-                        let generic_contextual_signature = contextual_signature
-                            .filter(|&sig| self.signature_of(sig).type_parameters.is_some());
-                        let inference_source_type = match generic_contextual_signature {
-                            Some(contextual_signature) => {
-                                let contextual_type_parameters = self
-                                    .signature_of(contextual_signature)
-                                    .type_parameters
-                                    .clone()
-                                    .expect("filtered on Some above");
-                                let instantiation = self
+            if node_kind != SyntaxKind::Decorator && node_kind != SyntaxKind::BinaryExpression {
+                // 75943: skipBindingPatterns = every type parameter carries
+                // a default (helper-every semantics: vacuous true).
+                let type_parameters = self
+                    .signature_of(signature)
+                    .type_parameters
+                    .clone()
+                    .unwrap_or_default();
+                let mut skip_binding_patterns = true;
+                for &tp in &type_parameters {
+                    if self.get_default_from_type_parameter(tp)?.is_none() {
+                        skip_binding_patterns = false;
+                        break;
+                    }
+                }
+                let contextual_type = self.get_contextual_type(
+                    node,
+                    if skip_binding_patterns {
+                        ContextFlags::SKIP_BINDING_PATTERNS
+                    } else {
+                        ContextFlags::NONE
+                    },
+                )?;
+                if let Some(contextual_type) = contextual_type {
+                    let inference_target_type = self.get_return_type_of_signature(signature)?;
+                    if self.could_contain_type_variables(inference_target_type) {
+                        let outer_context = self.get_inference_context(node);
+                        let is_from_binding_pattern = !skip_binding_patterns
+                            && self
+                                .get_contextual_type(node, ContextFlags::SKIP_BINDING_PATTERNS)?
+                                != Some(contextual_type);
+                        if !is_from_binding_pattern {
+                            let outer_clone = self
+                                .clone_inference_context(outer_context, InferenceFlags::NO_DEFAULT);
+                            let outer_mapper = self.get_mapper_from_context(outer_clone);
+                            let instantiated_type =
+                                self.instantiate_type(contextual_type, outer_mapper)?;
+                            let contextual_signature =
+                                self.get_single_call_signature(instantiated_type)?;
+                            let generic_contextual_signature = contextual_signature
+                                .filter(|&sig| self.signature_of(sig).type_parameters.is_some());
+                            let inference_source_type = match generic_contextual_signature {
+                                Some(contextual_signature) => {
+                                    let contextual_type_parameters = self
+                                        .signature_of(contextual_signature)
+                                        .type_parameters
+                                        .clone()
+                                        .expect("filtered on Some above");
+                                    let instantiation = self
                                     .get_signature_instantiation_without_filling_in_type_arguments(
                                         contextual_signature,
                                         Some(&contextual_type_parameters),
                                     )?;
-                                self.get_or_create_type_from_signature(instantiation)?
-                            }
-                            None => instantiated_type,
-                        };
-                        let inferences = self.inference_context(context).inferences.clone();
+                                    self.get_or_create_type_from_signature(instantiation)?
+                                }
+                                None => instantiated_type,
+                            };
+                            let inferences = self.inference_context(context).inferences.clone();
+                            self.infer_types(
+                                &inferences,
+                                inference_source_type,
+                                inference_target_type,
+                                InferencePriority::RETURN_TYPE,
+                                false,
+                            )?;
+                        }
+                        // 75957-75960: the a2 pass — priority-None
+                        // inference in a FRESH context; returnMapper comes
+                        // from ITS inferred part.
+                        let context_flags = self.inference_context(context).flags;
+                        let return_context = self.create_inference_context(
+                            &type_parameters,
+                            Some(signature),
+                            context_flags,
+                            None,
+                        );
+                        let outer_return_mapper = outer_context
+                            .map(|outer_context| self.create_outer_return_mapper(outer_context));
+                        let return_source_type =
+                            self.instantiate_type(contextual_type, outer_return_mapper)?;
+                        let return_inferences =
+                            self.inference_context(return_context).inferences.clone();
                         self.infer_types(
-                            &inferences,
-                            inference_source_type,
+                            &return_inferences,
+                            return_source_type,
                             inference_target_type,
-                            InferencePriority::RETURN_TYPE,
+                            InferencePriority::NONE,
                             false,
                         )?;
+                        let has_candidates = self
+                            .inference_context(return_context)
+                            .inferences
+                            .iter()
+                            .any(|&slot| {
+                                crate::inference::has_inference_candidates(
+                                    self.inference_info(slot),
+                                )
+                            });
+                        let return_mapper = if has_candidates {
+                            let inferred_part = self.clone_inferred_part_of_context(return_context);
+                            self.get_mapper_from_context(inferred_part)
+                        } else {
+                            None
+                        };
+                        self.inference_context_mut(context).return_mapper = return_mapper;
                     }
-                    // 75957-75960: the a2 pass — priority-None
-                    // inference in a FRESH context; returnMapper comes
-                    // from ITS inferred part.
-                    let context_flags = self.inference_context(context).flags;
-                    let return_context = self.create_inference_context(
-                        &type_parameters,
-                        Some(signature),
-                        context_flags,
-                        None,
-                    );
-                    let outer_return_mapper = outer_context
-                        .map(|outer_context| self.create_outer_return_mapper(outer_context));
-                    let return_source_type =
-                        self.instantiate_type(contextual_type, outer_return_mapper)?;
-                    let return_inferences =
-                        self.inference_context(return_context).inferences.clone();
+                }
+            }
+            let rest_type = self.get_non_array_rest_type(signature)?;
+            let arg_count = if rest_type.is_some() {
+                std::cmp::min(self.get_parameter_count(signature)? - 1, args.len())
+            } else {
+                args.len()
+            };
+            if let Some(rest_type) = rest_type {
+                if self
+                    .tables
+                    .flags_of(rest_type)
+                    .intersects(TypeFlags::TYPE_PARAMETER)
+                {
+                    let info_slot = self
+                        .inference_context(context)
+                        .inferences
+                        .iter()
+                        .copied()
+                        .find(|&slot| self.inference_info(slot).type_parameter == rest_type);
+                    if let Some(info_slot) = info_slot {
+                        // 75969: findIndex(args, isSpreadArgument, argCount)
+                        // — a spread at/after the rest position voids the
+                        // implied arity.
+                        let has_spread_from_arg_count = (arg_count..args.len())
+                            .any(|index| self.is_spread_argument(&args[index]));
+                        self.inference_info_mut(info_slot).implied_arity =
+                            if has_spread_from_arg_count {
+                                None
+                            } else {
+                                Some(args.len() - arg_count)
+                            };
+                    }
+                }
+            }
+            let this_type = self.get_this_type_of_signature(signature)?;
+            if let Some(this_type) = this_type {
+                if self.could_contain_type_variables(this_type) {
+                    let this_argument_node = self.get_this_argument_of_call(node);
+                    let this_argument_type = self.get_this_argument_type(this_argument_node)?;
+                    let inferences = self.inference_context(context).inferences.clone();
                     self.infer_types(
-                        &return_inferences,
-                        return_source_type,
-                        inference_target_type,
+                        &inferences,
+                        this_argument_type,
+                        this_type,
                         InferencePriority::NONE,
                         false,
                     )?;
-                    let has_candidates = self
-                        .inference_context(return_context)
-                        .inferences
-                        .iter()
-                        .any(|&slot| {
-                            crate::inference::has_inference_candidates(self.inference_info(slot))
-                        });
-                    let return_mapper = if has_candidates {
-                        let inferred_part = self.clone_inferred_part_of_context(return_context);
-                        self.get_mapper_from_context(inferred_part)
-                    } else {
-                        None
-                    };
-                    self.inference_context_mut(context).return_mapper = return_mapper;
                 }
             }
-        }
-        let rest_type = self.get_non_array_rest_type(signature)?;
-        let arg_count = if rest_type.is_some() {
-            std::cmp::min(self.get_parameter_count(signature)? - 1, args.len())
-        } else {
-            args.len()
-        };
-        if let Some(rest_type) = rest_type {
-            if self
-                .tables
-                .flags_of(rest_type)
-                .intersects(TypeFlags::TYPE_PARAMETER)
-            {
-                let info_slot = self
-                    .inference_context(context)
-                    .inferences
-                    .iter()
-                    .copied()
-                    .find(|&slot| self.inference_info(slot).type_parameter == rest_type);
-                if let Some(info_slot) = info_slot {
-                    // 75969: findIndex(args, isSpreadArgument, argCount)
-                    // — a spread at/after the rest position voids the
-                    // implied arity.
-                    let has_spread_from_arg_count =
-                        (arg_count..args.len()).any(|index| self.is_spread_argument(&args[index]));
-                    self.inference_info_mut(info_slot).implied_arity = if has_spread_from_arg_count
-                    {
-                        None
-                    } else {
-                        Some(args.len() - arg_count)
-                    };
+            for (index, arg) in args.iter().enumerate().take(arg_count) {
+                let arg = *arg;
+                if self.effective_arg_kind(&arg) == Some(SyntaxKind::OmittedExpression) {
+                    continue;
+                }
+                let param_type = self.get_type_at_position(signature, index)?;
+                if self.could_contain_type_variables(param_type) {
+                    let arg_type = self.check_effective_arg_with_contextual_type(
+                        &arg,
+                        param_type,
+                        Some(context),
+                        check_mode,
+                    )?;
+                    let inferences = self.inference_context(context).inferences.clone();
+                    self.infer_types(
+                        &inferences,
+                        arg_type,
+                        param_type,
+                        InferencePriority::NONE,
+                        false,
+                    )?;
                 }
             }
-        }
-        let this_type = self.get_this_type_of_signature(signature)?;
-        if let Some(this_type) = this_type {
-            if self.could_contain_type_variables(this_type) {
-                let this_argument_node = self.get_this_argument_of_call(node);
-                let this_argument_type = self.get_this_argument_type(this_argument_node)?;
-                let inferences = self.inference_context(context).inferences.clone();
-                self.infer_types(
-                    &inferences,
-                    this_argument_type,
-                    this_type,
-                    InferencePriority::NONE,
-                    false,
-                )?;
+            if let Some(rest_type) = rest_type {
+                if self.could_contain_type_variables(rest_type) {
+                    let spread_type = self.get_spread_argument_type(
+                        node,
+                        args,
+                        arg_count,
+                        args.len(),
+                        rest_type,
+                        Some(context),
+                        check_mode,
+                    )?;
+                    let inferences = self.inference_context(context).inferences.clone();
+                    self.infer_types(
+                        &inferences,
+                        spread_type,
+                        rest_type,
+                        InferencePriority::NONE,
+                        false,
+                    )?;
+                }
             }
-        }
-        for (index, arg) in args.iter().enumerate().take(arg_count) {
-            let arg = *arg;
-            if self.effective_arg_kind(&arg) == Some(SyntaxKind::OmittedExpression) {
-                continue;
-            }
-            let param_type = self.get_type_at_position(signature, index)?;
-            if self.could_contain_type_variables(param_type) {
-                let arg_type = self.check_effective_arg_with_contextual_type(
-                    &arg,
-                    param_type,
-                    Some(context),
-                    check_mode,
-                )?;
-                let inferences = self.inference_context(context).inferences.clone();
-                self.infer_types(
-                    &inferences,
-                    arg_type,
-                    param_type,
-                    InferencePriority::NONE,
-                    false,
-                )?;
-            }
-        }
-        if let Some(rest_type) = rest_type {
-            if self.could_contain_type_variables(rest_type) {
-                let spread_type = self.get_spread_argument_type(
-                    node,
-                    args,
-                    arg_count,
-                    args.len(),
-                    rest_type,
-                    Some(context),
-                    check_mode,
-                )?;
-                let inferences = self.inference_context(context).inferences.clone();
-                self.infer_types(
-                    &inferences,
-                    spread_type,
-                    rest_type,
-                    InferencePriority::NONE,
-                    false,
-                )?;
-            }
-        }
-        self.get_inferred_types(context)
+            self.get_inferred_types(context)
+        })();
+        self.structure_observe.end(self.structure_snapshot(), None);
+        structure_result
     }
 
     // ---- applicability ----
@@ -3639,116 +3660,157 @@ impl<'a> CheckerState<'a> {
         mode: ApplicabilityMode,
         containing_message_chain: Option<MessageChain>,
     ) -> CheckResult<Option<Vec<ApplicabilityError>>> {
-        if matches!(
-            self.kind_of(node),
-            SyntaxKind::JsxOpeningElement
-                | SyntaxKind::JsxSelfClosingElement
-                | SyntaxKind::JsxOpeningFragment
-        ) {
-            return self.check_applicable_signature_for_jsx_call_like_element(
-                node,
-                signature,
-                relation,
-                check_mode,
-                mode,
-                containing_message_chain,
-            );
-        }
-        let this_type = self.get_this_type_of_signature(signature)?;
-        if let Some(this_type) = this_type {
-            let is_new = self.kind_of(node) == SyntaxKind::NewExpression;
-            let is_super_property_call = matches!(self.data_of(node), NodeData::CallExpression(data)
+        self.structure_observe.begin(
+            "applicability",
+            [
+                node.position() as u64,
+                signature.index() as u64,
+                relation.cache_index() as u64,
+                check_mode.bits() as u64,
+                mode as u64,
+                0,
+                0,
+                0,
+            ],
+            self.structure_snapshot(),
+        );
+        let structure_result = (|| {
+            if matches!(
+                self.kind_of(node),
+                SyntaxKind::JsxOpeningElement
+                    | SyntaxKind::JsxSelfClosingElement
+                    | SyntaxKind::JsxOpeningFragment
+            ) {
+                return self.check_applicable_signature_for_jsx_call_like_element(
+                    node,
+                    signature,
+                    relation,
+                    check_mode,
+                    mode,
+                    containing_message_chain,
+                );
+            }
+            let this_type = self.get_this_type_of_signature(signature)?;
+            if let Some(this_type) = this_type {
+                let is_new = self.kind_of(node) == SyntaxKind::NewExpression;
+                let is_super_property_call = matches!(self.data_of(node), NodeData::CallExpression(data)
                 if data.expression.is_some_and(|expression| self.is_super_property(expression)));
-            if this_type != self.tables.intrinsics.void && !is_new && !is_super_property_call {
-                let this_argument_node = self.get_this_argument_of_call(node);
-                let this_argument_type = self.get_this_argument_type(this_argument_node)?;
-                let head = &diagnostics::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1;
-                // tsgo checker.go:9501 calls checkTypeRelatedToEx directly,
-                // including selection passes with no error node.
-                let (related, output) = if mode == ApplicabilityMode::Silent {
-                    (
-                        self.check_type_related_to(this_argument_type, this_type, relation)?,
-                        None,
-                    )
+                if this_type != self.tables.intrinsics.void && !is_new && !is_super_property_call {
+                    let this_argument_node = self.get_this_argument_of_call(node);
+                    let this_argument_type = self.get_this_argument_type(this_argument_node)?;
+                    let head = &diagnostics::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1;
+                    // tsgo checker.go:9501 calls checkTypeRelatedToEx directly,
+                    // including selection passes with no error node.
+                    let (related, output) = if mode == ApplicabilityMode::Silent {
+                        (
+                            self.check_type_related_to(this_argument_type, this_type, relation)?,
+                            None,
+                        )
+                    } else {
+                        self.check_relation_with_error_output_at(
+                            this_argument_type,
+                            this_type,
+                            relation,
+                            Some(head),
+                            containing_message_chain.clone(),
+                            Some(this_argument_node.unwrap_or(node)),
+                        )?
+                    };
+                    if !related {
+                        if mode == ApplicabilityMode::Silent {
+                            return Ok(Some(Vec::new()));
+                        }
+                        let span = self.diag_span_of_node(this_argument_node.unwrap_or(node));
+                        let diagnostic = match mode {
+                            ApplicabilityMode::Report => Some(if let Some(output) = output {
+                                let mut diagnostic = self.diagnostic_at_span(&span, output.message);
+                                diagnostic.related = output.related;
+                                diagnostic
+                            } else {
+                                self.build_relation_error_with_head_and_containing_chain(
+                                    this_argument_type,
+                                    this_type,
+                                    &span,
+                                    head,
+                                    containing_message_chain,
+                                )?
+                            }),
+                            _ => None,
+                        };
+                        let related = diagnostic
+                            .as_ref()
+                            .map(|diagnostic| diagnostic.related.clone())
+                            .unwrap_or_default();
+                        return Ok(Some(vec![ApplicabilityError {
+                            related,
+                            diagnostic,
+                        }]));
+                    }
+                }
+            }
+            let head = &diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1;
+            let rest_type = self.get_non_array_rest_type(signature)?;
+            let arg_count = if rest_type.is_some() {
+                std::cmp::min(self.get_parameter_count(signature)? - 1, args.len())
+            } else {
+                args.len()
+            };
+            for (i, arg) in args.iter().enumerate().take(arg_count) {
+                let arg = *arg;
+                if self.effective_arg_kind(&arg) == Some(SyntaxKind::OmittedExpression) {
+                    continue;
+                }
+                let param_type = self.get_type_at_position(signature, i)?;
+                let arg_type = self.check_effective_arg_with_contextual_type(
+                    &arg, param_type, /*inference_context*/ None, check_mode,
+                )?;
+                let check_arg_type = if check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE) {
+                    self.get_regular_type_of_object_literal(arg_type)?
                 } else {
-                    self.check_relation_with_error_output_at(
-                        this_argument_type,
-                        this_type,
-                        relation,
-                        Some(head),
-                        containing_message_chain.clone(),
-                        Some(this_argument_node.unwrap_or(node)),
-                    )?
+                    arg_type
                 };
-                if !related {
+                if !self.is_type_related_to(check_arg_type, param_type, relation)? {
                     if mode == ApplicabilityMode::Silent {
                         return Ok(Some(Vec::new()));
                     }
-                    let span = self.diag_span_of_node(this_argument_node.unwrap_or(node));
-                    let diagnostic = match mode {
-                        ApplicabilityMode::Report => Some(if let Some(output) = output {
-                            let mut diagnostic = self.diagnostic_at_span(&span, output.message);
-                            diagnostic.related = output.related;
-                            diagnostic
-                        } else {
-                            self.build_relation_error_with_head_and_containing_chain(
-                                this_argument_type,
-                                this_type,
-                                &span,
-                                head,
-                                containing_message_chain,
-                            )?
-                        }),
-                        _ => None,
+                    let effective = match arg {
+                        EffectiveArg::Node(arg_node) => {
+                            Some(self.get_effective_check_node(arg_node))
+                        }
+                        EffectiveArg::Synthetic { .. } => None,
                     };
-                    let related = diagnostic
-                        .as_ref()
-                        .map(|diagnostic| diagnostic.related.clone())
-                        .unwrap_or_default();
-                    return Ok(Some(vec![ApplicabilityError {
-                        related,
-                        diagnostic,
-                    }]));
-                }
-            }
-        }
-        let head = &diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1;
-        let rest_type = self.get_non_array_rest_type(signature)?;
-        let arg_count = if rest_type.is_some() {
-            std::cmp::min(self.get_parameter_count(signature)? - 1, args.len())
-        } else {
-            args.len()
-        };
-        for (i, arg) in args.iter().enumerate().take(arg_count) {
-            let arg = *arg;
-            if self.effective_arg_kind(&arg) == Some(SyntaxKind::OmittedExpression) {
-                continue;
-            }
-            let param_type = self.get_type_at_position(signature, i)?;
-            let arg_type = self.check_effective_arg_with_contextual_type(
-                &arg, param_type, /*inference_context*/ None, check_mode,
-            )?;
-            let check_arg_type = if check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE) {
-                self.get_regular_type_of_object_literal(arg_type)?
-            } else {
-                arg_type
-            };
-            if !self.is_type_related_to(check_arg_type, param_type, relation)? {
-                if mode == ApplicabilityMode::Silent {
-                    return Ok(Some(Vec::new()));
-                }
-                let effective = match arg {
-                    EffectiveArg::Node(arg_node) => Some(self.get_effective_check_node(arg_node)),
-                    EffectiveArg::Synthetic { .. } => None,
-                };
-                if let Some(effective) = effective {
-                    if let Some(mut errors) = self.capture_argument_elaboration(
-                        effective,
-                        param_type,
-                        head,
-                        mode,
-                        containing_message_chain.clone(),
-                    )? {
+                    if let Some(effective) = effective {
+                        if let Some(mut errors) = self.capture_argument_elaboration(
+                            effective,
+                            param_type,
+                            head,
+                            mode,
+                            containing_message_chain.clone(),
+                        )? {
+                            if let Some(await_related) = self.missing_await_related(
+                                node,
+                                &arg,
+                                check_arg_type,
+                                param_type,
+                                relation,
+                            )? {
+                                if let Some(first) = errors.first_mut() {
+                                    first.related.push(await_related.clone());
+                                    if let Some(diagnostic) = first.diagnostic.as_mut() {
+                                        diagnostic.related.push(await_related);
+                                    }
+                                }
+                            }
+                            return Ok(Some(errors));
+                        }
+                        let mut errors = self.capture_argument_relation_error(
+                            effective,
+                            check_arg_type,
+                            param_type,
+                            head,
+                            mode,
+                            containing_message_chain,
+                        )?;
                         if let Some(await_related) = self.missing_await_related(
                             node,
                             &arg,
@@ -3765,14 +3827,18 @@ impl<'a> CheckerState<'a> {
                         }
                         return Ok(Some(errors));
                     }
-                    let mut errors = self.capture_argument_relation_error(
-                        effective,
-                        check_arg_type,
-                        param_type,
-                        head,
-                        mode,
-                        containing_message_chain,
-                    )?;
+                    // The elaboration gate: elementwise elaborations move
+                    // the code/span (Err); the did-you-mean flavor keeps
+                    // the head but reports at the walked node.
+                    //
+                    // 76229: errorNode = effectiveCheckArgumentNode — the
+                    // span skips parentheses/satisfies exactly like the
+                    // rest branch below.
+                    let span = match effective {
+                        Some(effective) => self.diag_span_of_node(effective),
+                        None => self.diag_span_of_effective_arg(node, &arg),
+                    };
+                    let mut related: Vec<RelatedInfo> = Vec::new();
                     if let Some(await_related) = self.missing_await_related(
                         node,
                         &arg,
@@ -3780,151 +3846,133 @@ impl<'a> CheckerState<'a> {
                         param_type,
                         relation,
                     )? {
-                        if let Some(first) = errors.first_mut() {
-                            first.related.push(await_related.clone());
-                            if let Some(diagnostic) = first.diagnostic.as_mut() {
-                                diagnostic.related.push(await_related);
+                        related.push(await_related);
+                    }
+                    let diagnostic = match mode {
+                        ApplicabilityMode::Report => {
+                            let report_target = self.spread_argument_relation_report_target(
+                                node,
+                                &arg,
+                                check_arg_type,
+                                param_type,
+                            )?;
+                            let mut diagnostic = self
+                                .build_relation_error_with_head_and_containing_chain(
+                                    check_arg_type,
+                                    report_target,
+                                    &span,
+                                    head,
+                                    containing_message_chain,
+                                )?;
+                            diagnostic.related.extend(related);
+                            related = diagnostic.related.clone();
+                            Some(diagnostic)
+                        }
+                        _ => None,
+                    };
+                    return Ok(Some(vec![ApplicabilityError {
+                        related,
+                        diagnostic,
+                    }]));
+                }
+            }
+            if let Some(rest_type) = rest_type {
+                let spread_type = self.get_spread_argument_type(
+                    node,
+                    args,
+                    arg_count,
+                    args.len(),
+                    rest_type,
+                    /*inference_context*/ None,
+                    check_mode,
+                )?;
+                // tsgo checker.go:9549 uses the same direct checker route for
+                // the spread tuple, rather than an isTypeRelatedTo probe.
+                let (related, output) = if mode == ApplicabilityMode::Silent {
+                    (
+                        self.check_type_related_to(spread_type, rest_type, relation)?,
+                        None,
+                    )
+                } else {
+                    let error_node = match args.len() - arg_count {
+                        0 => Some(node),
+                        1 => match args[arg_count] {
+                            EffectiveArg::Node(arg_node) => {
+                                Some(self.get_effective_check_node(arg_node))
+                            }
+                            EffectiveArg::Synthetic { .. } => None,
+                        },
+                        _ => None,
+                    };
+                    self.check_relation_with_error_output_at(
+                        spread_type,
+                        rest_type,
+                        relation,
+                        Some(head),
+                        None,
+                        error_node,
+                    )?
+                };
+                if !related {
+                    if mode == ApplicabilityMode::Silent {
+                        return Ok(Some(Vec::new()));
+                    }
+                    let rest_arg_count = args.len() - arg_count;
+                    let span = if rest_arg_count == 0 {
+                        self.diag_span_of_node(node)
+                    } else if rest_arg_count == 1 {
+                        match args[arg_count] {
+                            EffectiveArg::Node(arg_node) => {
+                                self.diag_span_of_node(self.get_effective_check_node(arg_node))
+                            }
+                            arg @ EffectiveArg::Synthetic { .. } => {
+                                self.diag_span_of_effective_arg(node, &arg)
                             }
                         }
+                    } else {
+                        let pos = self.effective_arg_pos(&args[arg_count]);
+                        let end = self.effective_arg_end(&args[args.len() - 1]);
+                        self.diag_span_of_byte_range(node, pos, end)
+                    };
+                    let mut related: Vec<RelatedInfo> = Vec::new();
+                    if let Some(await_related) = self.missing_await_related_at(
+                        Some(&span),
+                        spread_type,
+                        rest_type,
+                        relation,
+                    )? {
+                        related.push(await_related);
                     }
-                    return Ok(Some(errors));
+                    let diagnostic = match mode {
+                        ApplicabilityMode::Report => {
+                            let mut diagnostic = if let Some(output) = output {
+                                let mut diagnostic = self.diagnostic_at_span(&span, output.message);
+                                diagnostic.related = output.related;
+                                diagnostic
+                            } else {
+                                self.build_relation_error_with_head(
+                                    spread_type,
+                                    rest_type,
+                                    &span,
+                                    head,
+                                )?
+                            };
+                            diagnostic.related.extend(related);
+                            related = diagnostic.related.clone();
+                            Some(diagnostic)
+                        }
+                        _ => None,
+                    };
+                    return Ok(Some(vec![ApplicabilityError {
+                        related,
+                        diagnostic,
+                    }]));
                 }
-                // The elaboration gate: elementwise elaborations move
-                // the code/span (Err); the did-you-mean flavor keeps
-                // the head but reports at the walked node.
-                //
-                // 76229: errorNode = effectiveCheckArgumentNode — the
-                // span skips parentheses/satisfies exactly like the
-                // rest branch below.
-                let span = match effective {
-                    Some(effective) => self.diag_span_of_node(effective),
-                    None => self.diag_span_of_effective_arg(node, &arg),
-                };
-                let mut related: Vec<RelatedInfo> = Vec::new();
-                if let Some(await_related) =
-                    self.missing_await_related(node, &arg, check_arg_type, param_type, relation)?
-                {
-                    related.push(await_related);
-                }
-                let diagnostic = match mode {
-                    ApplicabilityMode::Report => {
-                        let report_target = self.spread_argument_relation_report_target(
-                            node,
-                            &arg,
-                            check_arg_type,
-                            param_type,
-                        )?;
-                        let mut diagnostic = self
-                            .build_relation_error_with_head_and_containing_chain(
-                                check_arg_type,
-                                report_target,
-                                &span,
-                                head,
-                                containing_message_chain,
-                            )?;
-                        diagnostic.related.extend(related);
-                        related = diagnostic.related.clone();
-                        Some(diagnostic)
-                    }
-                    _ => None,
-                };
-                return Ok(Some(vec![ApplicabilityError {
-                    related,
-                    diagnostic,
-                }]));
             }
-        }
-        if let Some(rest_type) = rest_type {
-            let spread_type = self.get_spread_argument_type(
-                node,
-                args,
-                arg_count,
-                args.len(),
-                rest_type,
-                /*inference_context*/ None,
-                check_mode,
-            )?;
-            // tsgo checker.go:9549 uses the same direct checker route for
-            // the spread tuple, rather than an isTypeRelatedTo probe.
-            let (related, output) = if mode == ApplicabilityMode::Silent {
-                (
-                    self.check_type_related_to(spread_type, rest_type, relation)?,
-                    None,
-                )
-            } else {
-                let error_node = match args.len() - arg_count {
-                    0 => Some(node),
-                    1 => match args[arg_count] {
-                        EffectiveArg::Node(arg_node) => {
-                            Some(self.get_effective_check_node(arg_node))
-                        }
-                        EffectiveArg::Synthetic { .. } => None,
-                    },
-                    _ => None,
-                };
-                self.check_relation_with_error_output_at(
-                    spread_type,
-                    rest_type,
-                    relation,
-                    Some(head),
-                    None,
-                    error_node,
-                )?
-            };
-            if !related {
-                if mode == ApplicabilityMode::Silent {
-                    return Ok(Some(Vec::new()));
-                }
-                let rest_arg_count = args.len() - arg_count;
-                let span = if rest_arg_count == 0 {
-                    self.diag_span_of_node(node)
-                } else if rest_arg_count == 1 {
-                    match args[arg_count] {
-                        EffectiveArg::Node(arg_node) => {
-                            self.diag_span_of_node(self.get_effective_check_node(arg_node))
-                        }
-                        arg @ EffectiveArg::Synthetic { .. } => {
-                            self.diag_span_of_effective_arg(node, &arg)
-                        }
-                    }
-                } else {
-                    let pos = self.effective_arg_pos(&args[arg_count]);
-                    let end = self.effective_arg_end(&args[args.len() - 1]);
-                    self.diag_span_of_byte_range(node, pos, end)
-                };
-                let mut related: Vec<RelatedInfo> = Vec::new();
-                if let Some(await_related) =
-                    self.missing_await_related_at(Some(&span), spread_type, rest_type, relation)?
-                {
-                    related.push(await_related);
-                }
-                let diagnostic = match mode {
-                    ApplicabilityMode::Report => {
-                        let mut diagnostic = if let Some(output) = output {
-                            let mut diagnostic = self.diagnostic_at_span(&span, output.message);
-                            diagnostic.related = output.related;
-                            diagnostic
-                        } else {
-                            self.build_relation_error_with_head(
-                                spread_type,
-                                rest_type,
-                                &span,
-                                head,
-                            )?
-                        };
-                        diagnostic.related.extend(related);
-                        related = diagnostic.related.clone();
-                        Some(diagnostic)
-                    }
-                    _ => None,
-                };
-                return Ok(Some(vec![ApplicabilityError {
-                    related,
-                    diagnostic,
-                }]));
-            }
-        }
-        Ok(None)
+            Ok(None)
+        })();
+        self.structure_observe.end(self.structure_snapshot(), None);
+        structure_result
     }
 
     fn effective_arg_pos(&self, arg: &EffectiveArg) -> u32 {
@@ -4017,192 +4065,211 @@ impl<'a> CheckerState<'a> {
         call_chain_flags: SignatureFlags,
         mut head_message: Option<&'static DiagnosticMessage>,
     ) -> CheckResult<SignatureId> {
-        let node_kind = self.kind_of(node);
-        let is_decorator = node_kind == SyntaxKind::Decorator;
-        let is_instanceof = node_kind == SyntaxKind::BinaryExpression;
-        let is_jsx_open_fragment = node_kind == SyntaxKind::JsxOpeningFragment;
-        let is_super_call = matches!(self.data_of(node), NodeData::CallExpression(data)
+        self.structure_observe.begin(
+            "call",
+            [
+                node.position() as u64,
+                signatures.len() as u64,
+                check_mode.bits() as u64,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ],
+            self.structure_snapshot(),
+        );
+        let structure_result = (|| {
+            let node_kind = self.kind_of(node);
+            let is_decorator = node_kind == SyntaxKind::Decorator;
+            let is_instanceof = node_kind == SyntaxKind::BinaryExpression;
+            let is_jsx_open_fragment = node_kind == SyntaxKind::JsxOpeningFragment;
+            let is_super_call = matches!(self.data_of(node), NodeData::CallExpression(data)
             if data.expression.is_some_and(|e| self.kind_of(e) == SyntaxKind::SuperKeyword));
 
-        // 76593-76598: type arguments — skipped entirely for
-        // decorator/instanceof/super-call/jsx-fragment; each checks
-        // EXCEPT on super-expression calls.
-        let mut type_argument_nodes: Vec<NodeId> = Vec::new();
-        let mut type_arguments_array: Option<NodeArrayId> = None;
-        if !is_decorator && !is_instanceof && !is_super_call && !is_jsx_open_fragment {
-            type_arguments_array = match self.data_of(node) {
-                NodeData::CallExpression(data) => data.type_arguments,
-                NodeData::NewExpression(data) => data.type_arguments,
-                NodeData::TaggedTemplateExpression(data) => data.type_arguments,
-                NodeData::JsxOpeningElement(data) => data.type_arguments,
-                NodeData::JsxSelfClosingElement(data) => data.type_arguments,
-                _ => None,
-            };
-            type_argument_nodes = self.nodes_of(type_arguments_array).to_vec();
-            for &argument in &type_argument_nodes {
-                self.check_source_element(Some(argument));
+            // 76593-76598: type arguments — skipped entirely for
+            // decorator/instanceof/super-call/jsx-fragment; each checks
+            // EXCEPT on super-expression calls.
+            let mut type_argument_nodes: Vec<NodeId> = Vec::new();
+            let mut type_arguments_array: Option<NodeArrayId> = None;
+            if !is_decorator && !is_instanceof && !is_super_call && !is_jsx_open_fragment {
+                type_arguments_array = match self.data_of(node) {
+                    NodeData::CallExpression(data) => data.type_arguments,
+                    NodeData::NewExpression(data) => data.type_arguments,
+                    NodeData::TaggedTemplateExpression(data) => data.type_arguments,
+                    NodeData::JsxOpeningElement(data) => data.type_arguments,
+                    NodeData::JsxSelfClosingElement(data) => data.type_arguments,
+                    _ => None,
+                };
+                type_argument_nodes = self.nodes_of(type_arguments_array).to_vec();
+                for &argument in &type_argument_nodes {
+                    self.check_source_element(Some(argument));
+                }
             }
-        }
 
-        let candidates = self.reorder_candidates(signatures, call_chain_flags)?;
-        // tsgo's candidatesOutArray shares the candidates' slice: the slot of
-        // the chosen or failure candidate holds its instantiation.
-        let has_candidates_out = candidates_out.is_some();
-        if let Some(out) = candidates_out.as_deref_mut() {
-            out.clone_from(&candidates);
-        }
-        // tsgo resolveCall (checker.go:9048-9052): no candidate is no error
-        // ("In Strada we would error here, but no known repro doesn't have at
-        // least one other error in this codepath").
-        if candidates.is_empty() {
-            return Ok(self.unknown_signature);
-        }
+            let candidates = self.reorder_candidates(signatures, call_chain_flags)?;
+            // tsgo's candidatesOutArray shares the candidates' slice: the slot of
+            // the chosen or failure candidate holds its instantiation.
+            let has_candidates_out = candidates_out.is_some();
+            if let Some(out) = candidates_out.as_deref_mut() {
+                out.clone_from(&candidates);
+            }
+            // tsgo resolveCall (checker.go:9048-9052): no candidate is no error
+            // ("In Strada we would error here, but no known repro doesn't have at
+            // least one other error in this codepath").
+            if candidates.is_empty() {
+                return Ok(self.unknown_signature);
+            }
 
-        let args = self.get_effective_call_arguments(node)?;
-        let has_computed_object_argument = args.iter().any(|arg| {
-            let EffectiveArg::Node(argument) = *arg else {
-                return false;
-            };
-            let argument = self.get_effective_check_node(argument);
-            let Some(data) = self.record_of(argument).as_object_literal_expression() else {
-                return false;
-            };
-            self.nodes_of(data.properties).into_iter().any(|property| {
-                self.name_of_node(property)
-                    .is_some_and(|name| self.kind_of(name) == SyntaxKind::ComputedPropertyName)
-            })
-        });
-        let is_single_non_generic_candidate =
-            candidates.len() == 1 && self.signature_of(candidates[0]).type_parameters.is_none();
-        let mut arg_check_mode = CheckMode::NORMAL;
-        if !is_decorator && !is_single_non_generic_candidate {
-            let any_context_sensitive = args.iter().any(|arg| match arg {
-                EffectiveArg::Node(node) => self.is_context_sensitive(*node),
-                EffectiveArg::Synthetic { .. } => false,
+            let args = self.get_effective_call_arguments(node)?;
+            let has_computed_object_argument = args.iter().any(|arg| {
+                let EffectiveArg::Node(argument) = *arg else {
+                    return false;
+                };
+                let argument = self.get_effective_check_node(argument);
+                let Some(data) = self.record_of(argument).as_object_literal_expression() else {
+                    return false;
+                };
+                self.nodes_of(data.properties).into_iter().any(|property| {
+                    self.name_of_node(property)
+                        .is_some_and(|name| self.kind_of(name) == SyntaxKind::ComputedPropertyName)
+                })
             });
-            if any_context_sensitive {
-                arg_check_mode = CheckMode::SKIP_CONTEXT_SENSITIVE;
+            let is_single_non_generic_candidate =
+                candidates.len() == 1 && self.signature_of(candidates[0]).type_parameters.is_none();
+            let mut arg_check_mode = CheckMode::NORMAL;
+            if !is_decorator && !is_single_non_generic_candidate {
+                let any_context_sensitive = args.iter().any(|arg| match arg {
+                    EffectiveArg::Node(node) => self.is_context_sensitive(*node),
+                    EffectiveArg::Synthetic { .. } => false,
+                });
+                if any_context_sensitive {
+                    arg_check_mode = CheckMode::SKIP_CONTEXT_SENSITIVE;
+                }
             }
-        }
 
-        let mut ctx = ResolveCallCtx {
-            node,
-            args,
-            type_arguments_array,
-            type_argument_nodes,
-            arg_check_mode,
-            candidates,
-            candidates_for_argument_error: None,
-            candidate_for_argument_arity_error: None,
-            candidate_for_type_argument_error: None,
-            recursive_resolution: self.call_resolution_stack.contains(&node),
-            signature_help_trailing_comma: check_mode.intersects(CheckMode::IS_FOR_SIGNATURE_HELP)
-                && match self.data_of(node) {
-                    NodeData::CallExpression(data) => data.arguments.is_some_and(|arguments| {
-                        self.binder.node_array(arguments).has_trailing_comma
-                    }),
-                    _ => false,
-                },
-        };
+            let mut ctx = ResolveCallCtx {
+                node,
+                args,
+                type_arguments_array,
+                type_argument_nodes,
+                arg_check_mode,
+                candidates,
+                candidates_for_argument_error: None,
+                candidate_for_argument_arity_error: None,
+                candidate_for_type_argument_error: None,
+                recursive_resolution: self.call_resolution_stack.contains(&node),
+                signature_help_trailing_comma: check_mode
+                    .intersects(CheckMode::IS_FOR_SIGNATURE_HELP)
+                    && match self.data_of(node) {
+                        NodeData::CallExpression(data) => data.arguments.is_some_and(|arguments| {
+                            self.binder.node_array(arguments).has_trailing_comma
+                        }),
+                        _ => false,
+                    },
+            };
 
-        // tsgo resolveCall (checker.go:9108-9116): the call is on the
-        // resolution stack while its overloads are chosen.
-        self.call_resolution_stack.push(node);
-        let chosen = (|state: &mut Self| {
-            let mut result: Option<SignatureId> = None;
-            if ctx.candidates.len() > 1 {
-                result = state.choose_overload(
-                    &mut ctx,
-                    RelationKind::Subtype,
-                    is_single_non_generic_candidate,
-                    true,
-                )?;
-            }
-            if result.is_none() {
-                result = state.choose_overload(
-                    &mut ctx,
-                    RelationKind::Assignable,
-                    is_single_non_generic_candidate,
-                    true,
-                )?;
-            }
-            Ok(result)
-        })(self);
-        self.call_resolution_stack.pop();
-        let result: Option<SignatureId> = chosen?;
+            // tsgo resolveCall (checker.go:9108-9116): the call is on the
+            // resolution stack while its overloads are chosen.
+            self.call_resolution_stack.push(node);
+            let chosen = (|state: &mut Self| {
+                let mut result: Option<SignatureId> = None;
+                if ctx.candidates.len() > 1 {
+                    result = state.choose_overload(
+                        &mut ctx,
+                        RelationKind::Subtype,
+                        is_single_non_generic_candidate,
+                        true,
+                    )?;
+                }
+                if result.is_none() {
+                    result = state.choose_overload(
+                        &mut ctx,
+                        RelationKind::Assignable,
+                        is_single_non_generic_candidate,
+                        true,
+                    )?;
+                }
+                Ok(result)
+            })(self);
+            self.call_resolution_stack.pop();
+            let result: Option<SignatureId> = chosen?;
 
-        // tsgo resolveCall (checker.go:9117-9133) has no early return for a
-        // signature that a re-entrant resolution of the same node cached
-        // meanwhile (tsc 6.0 returned it here, 76621-76625):
-        // getResolvedSignature swaps to the cached one after this returns,
-        // and a failed resolution reports its errors first. A nested
-        // resolution skips the constraint checks, so taking its signature
-        // here would lose the outer one's errors.
-        if let Some(result) = result {
-            if let Some(out) = candidates_out {
-                out.clone_from(&ctx.candidates);
-            }
-            return Ok(result);
-        }
-
-        // Failure: stash the candidate BEFORE error reporting so the
-        // deferred re-checks and contextual reads see its parameters
-        // (76629-76630, load-bearing ordering).
-        let result = self.get_candidate_for_overload_failure(
-            node,
-            &mut ctx,
-            has_candidates_out,
-            check_mode,
-        )?;
-        if let Some(out) = candidates_out.as_deref_mut() {
-            out.clone_from(&ctx.candidates);
-        }
-
-        // tsrs-native: candidate trials are rollback-capable because this
-        // port has a typed CheckAbort exit that tsc does not. That boundary
-        // also suppresses cold permanent-cache publication. For a lone
-        // generic call, tsc's failure-candidate inference runs outside the
-        // trial and may materialize the exact instantiation that its shared
-        // candidate state would already have selected. Retry that one
-        // materialized signature inside the same rollback boundary before
-        // publishing the failure face. This preserves abort containment and
-        // restores tsc's computed-symbol/contextual-object success path.
-        if ctx.candidates.len() == 1
-            && !is_single_non_generic_candidate
-            && ctx.type_argument_nodes.is_empty()
-            && has_computed_object_argument
-            && ctx.candidates_for_argument_error.is_some()
-            && ctx.candidate_for_argument_arity_error.is_none()
-            && ctx.candidate_for_type_argument_error.is_none()
-        {
-            let retry = self.choose_overload(
-                &mut ctx,
-                RelationKind::Assignable,
-                /*is_single_non_generic_candidate*/ false,
-                true,
-            )?;
-            if let Some(retry) = retry {
+            // tsgo resolveCall (checker.go:9117-9133) has no early return for a
+            // signature that a re-entrant resolution of the same node cached
+            // meanwhile (tsc 6.0 returned it here, 76621-76625):
+            // getResolvedSignature swaps to the cached one after this returns,
+            // and a failed resolution reports its errors first. A nested
+            // resolution skips the constraint checks, so taking its signature
+            // here would lose the outer one's errors.
+            if let Some(result) = result {
                 if let Some(out) = candidates_out {
                     out.clone_from(&ctx.candidates);
                 }
-                return Ok(retry);
+                return Ok(result);
             }
-        }
-        self.links.set_node_resolved_signature_call_protocol(
-            self.speculation_depth,
-            node,
-            LinkSlot::Resolved(result),
-        );
 
-        // tsgo `reportErrors`: none while the language service blocks
-        // the node's inferences or asks for the candidates.
-        if !self.is_inference_partially_blocked && !has_candidates_out {
-            if head_message.is_none() && is_instanceof {
-                head_message = Some(&diagnostics::The_left_hand_side_of_an_instanceof_expression_must_be_assignable_to_the_first_argument_of_the_right_hand_side_s_Symbol_hasInstance_method);
+            // Failure: stash the candidate BEFORE error reporting so the
+            // deferred re-checks and contextual reads see its parameters
+            // (76629-76630, load-bearing ordering).
+            let result = self.get_candidate_for_overload_failure(
+                node,
+                &mut ctx,
+                has_candidates_out,
+                check_mode,
+            )?;
+            if let Some(out) = candidates_out.as_deref_mut() {
+                out.clone_from(&ctx.candidates);
             }
-            self.report_call_resolution_failure(node, &mut ctx, signatures, head_message)?;
-        }
-        Ok(result)
+
+            // tsrs-native: candidate trials are rollback-capable because this
+            // port has a typed CheckAbort exit that tsc does not. That boundary
+            // also suppresses cold permanent-cache publication. For a lone
+            // generic call, tsc's failure-candidate inference runs outside the
+            // trial and may materialize the exact instantiation that its shared
+            // candidate state would already have selected. Retry that one
+            // materialized signature inside the same rollback boundary before
+            // publishing the failure face. This preserves abort containment and
+            // restores tsc's computed-symbol/contextual-object success path.
+            if ctx.candidates.len() == 1
+                && !is_single_non_generic_candidate
+                && ctx.type_argument_nodes.is_empty()
+                && has_computed_object_argument
+                && ctx.candidates_for_argument_error.is_some()
+                && ctx.candidate_for_argument_arity_error.is_none()
+                && ctx.candidate_for_type_argument_error.is_none()
+            {
+                let retry = self.choose_overload(
+                    &mut ctx,
+                    RelationKind::Assignable,
+                    /*is_single_non_generic_candidate*/ false,
+                    true,
+                )?;
+                if let Some(retry) = retry {
+                    if let Some(out) = candidates_out {
+                        out.clone_from(&ctx.candidates);
+                    }
+                    return Ok(retry);
+                }
+            }
+            self.links.set_node_resolved_signature_call_protocol(
+                self.speculation_depth,
+                node,
+                LinkSlot::Resolved(result),
+            );
+
+            // tsgo `reportErrors`: none while the language service blocks
+            // the node's inferences or asks for the candidates.
+            if !self.is_inference_partially_blocked && !has_candidates_out {
+                if head_message.is_none() && is_instanceof {
+                    head_message = Some(&diagnostics::The_left_hand_side_of_an_instanceof_expression_must_be_assignable_to_the_first_argument_of_the_right_hand_side_s_Symbol_hasInstance_method);
+                }
+                self.report_call_resolution_failure(node, &mut ctx, signatures, head_message)?;
+            }
+            Ok(result)
+        })();
+        self.structure_observe.end(self.structure_snapshot(), None);
+        structure_result
     }
 
     /// tsc-port: resolveCall @6.0.3
@@ -4486,108 +4553,127 @@ impl<'a> CheckerState<'a> {
         is_single_non_generic_candidate: bool,
         rollback_rejected_candidates: bool,
     ) -> CheckResult<Option<SignatureId>> {
-        ctx.candidates_for_argument_error = None;
-        ctx.candidate_for_argument_arity_error = None;
-        ctx.candidate_for_type_argument_error = None;
-        let node = ctx.node;
-        if is_single_non_generic_candidate {
-            let candidate = ctx.candidates[0];
-            // The context is not the checker: its lists are borrowed, not
-            // copied, while the checker relates the arguments.
-            let args = &ctx.args;
-            if !ctx.type_argument_nodes.is_empty()
-                || !self.has_correct_arity(
-                    node,
-                    args,
-                    candidate,
-                    ctx.signature_help_trailing_comma,
-                )?
-            {
-                return Ok(None);
+        self.structure_observe.begin(
+            "choose",
+            [
+                ctx.node.position() as u64,
+                relation.cache_index() as u64,
+                ctx.candidates.len() as u64,
+                ctx.arg_check_mode.bits() as u64,
+                0,
+                0,
+                0,
+                0,
+            ],
+            self.structure_snapshot(),
+        );
+        let structure_result = (|| {
+            ctx.candidates_for_argument_error = None;
+            ctx.candidate_for_argument_arity_error = None;
+            ctx.candidate_for_type_argument_error = None;
+            let node = ctx.node;
+            if is_single_non_generic_candidate {
+                let candidate = ctx.candidates[0];
+                // The context is not the checker: its lists are borrowed, not
+                // copied, while the checker relates the arguments.
+                let args = &ctx.args;
+                if !ctx.type_argument_nodes.is_empty()
+                    || !self.has_correct_arity(
+                        node,
+                        args,
+                        candidate,
+                        ctx.signature_help_trailing_comma,
+                    )?
+                {
+                    return Ok(None);
+                }
+                if self
+                    .get_signature_applicability_error(
+                        node,
+                        args,
+                        candidate,
+                        relation,
+                        CheckMode::NORMAL,
+                        ApplicabilityMode::Silent,
+                        None,
+                    )?
+                    .is_some()
+                {
+                    ctx.candidates_for_argument_error = Some(vec![candidate]);
+                    return Ok(None);
+                }
+                return Ok(Some(candidate));
             }
-            if self
-                .get_signature_applicability_error(
-                    node,
-                    args,
-                    candidate,
-                    relation,
-                    CheckMode::NORMAL,
-                    ApplicabilityMode::Silent,
-                    None,
-                )?
-                .is_some()
-            {
-                ctx.candidates_for_argument_error = Some(vec![candidate]);
-                return Ok(None);
-            }
-            return Ok(Some(candidate));
-        }
-        for candidate_index in 0..ctx.candidates.len() {
-            let candidate = ctx.candidates[candidate_index];
-            let args = &ctx.args;
-            if !self.has_correct_type_argument_arity(candidate, &ctx.type_argument_nodes)
-                || !self.has_correct_arity(
-                    node,
-                    args,
-                    candidate,
-                    ctx.signature_help_trailing_comma,
-                )?
-            {
-                continue;
-            }
-            let type_argument_nodes = &ctx.type_argument_nodes;
-            // tsgo chooseOverload (checker.go:9243-9246): "When we are
-            // recursively resolving a call with a single candidate, we skip
-            // constraints checks during type inference to avoid circularity
-            // errors."
-            let no_constraint_checks = ctx.recursive_resolution && ctx.candidates.len() == 1;
-            let signature_help_trailing_comma = ctx.signature_help_trailing_comma;
-            let run_trial = |state: &mut Self| {
-                state.try_overload_candidate(
-                    node,
-                    args,
-                    type_argument_nodes,
-                    candidate,
-                    relation,
-                    ctx.arg_check_mode,
-                    no_constraint_checks,
-                    signature_help_trailing_comma,
-                )
-            };
-            let trial = if rollback_rejected_candidates {
-                self.speculate(|state| {
-                    let trial = run_trial(state)?;
-                    Ok(
-                        if matches!(trial.disposition, OverloadCandidateDisposition::Success(_)) {
-                            SpeculationOutcome::Commit(trial)
-                        } else {
-                            SpeculationOutcome::Reject(trial)
-                        },
+            for candidate_index in 0..ctx.candidates.len() {
+                let candidate = ctx.candidates[candidate_index];
+                let args = &ctx.args;
+                if !self.has_correct_type_argument_arity(candidate, &ctx.type_argument_nodes)
+                    || !self.has_correct_arity(
+                        node,
+                        args,
+                        candidate,
+                        ctx.signature_help_trailing_comma,
+                    )?
+                {
+                    continue;
+                }
+                let type_argument_nodes = &ctx.type_argument_nodes;
+                // tsgo chooseOverload (checker.go:9243-9246): "When we are
+                // recursively resolving a call with a single candidate, we skip
+                // constraints checks during type inference to avoid circularity
+                // errors."
+                let no_constraint_checks = ctx.recursive_resolution && ctx.candidates.len() == 1;
+                let signature_help_trailing_comma = ctx.signature_help_trailing_comma;
+                let run_trial = |state: &mut Self| {
+                    state.try_overload_candidate(
+                        node,
+                        args,
+                        type_argument_nodes,
+                        candidate,
+                        relation,
+                        ctx.arg_check_mode,
+                        no_constraint_checks,
+                        signature_help_trailing_comma,
                     )
-                })?
-            } else {
-                run_trial(self)?
-            };
-            ctx.arg_check_mode = trial.arg_check_mode;
-            match trial.disposition {
-                OverloadCandidateDisposition::TypeArgumentError(candidate) => {
-                    ctx.candidate_for_type_argument_error = Some(candidate);
-                }
-                OverloadCandidateDisposition::ArgumentArityError(candidate) => {
-                    ctx.candidate_for_argument_arity_error = Some(candidate);
-                }
-                OverloadCandidateDisposition::ArgumentError(candidate) => {
-                    ctx.candidates_for_argument_error
-                        .get_or_insert_with(Vec::new)
-                        .push(candidate);
-                }
-                OverloadCandidateDisposition::Success(check_candidate) => {
-                    ctx.candidates[candidate_index] = check_candidate;
-                    return Ok(Some(check_candidate));
+                };
+                let trial = if rollback_rejected_candidates {
+                    self.speculate(|state| {
+                        let trial = run_trial(state)?;
+                        Ok(
+                            if matches!(trial.disposition, OverloadCandidateDisposition::Success(_))
+                            {
+                                SpeculationOutcome::Commit(trial)
+                            } else {
+                                SpeculationOutcome::Reject(trial)
+                            },
+                        )
+                    })?
+                } else {
+                    run_trial(self)?
+                };
+                ctx.arg_check_mode = trial.arg_check_mode;
+                match trial.disposition {
+                    OverloadCandidateDisposition::TypeArgumentError(candidate) => {
+                        ctx.candidate_for_type_argument_error = Some(candidate);
+                    }
+                    OverloadCandidateDisposition::ArgumentArityError(candidate) => {
+                        ctx.candidate_for_argument_arity_error = Some(candidate);
+                    }
+                    OverloadCandidateDisposition::ArgumentError(candidate) => {
+                        ctx.candidates_for_argument_error
+                            .get_or_insert_with(Vec::new)
+                            .push(candidate);
+                    }
+                    OverloadCandidateDisposition::Success(check_candidate) => {
+                        ctx.candidates[candidate_index] = check_candidate;
+                        return Ok(Some(check_candidate));
+                    }
                 }
             }
-        }
-        Ok(None)
+            Ok(None)
+        })();
+        self.structure_observe.end(self.structure_snapshot(), None);
+        structure_result
     }
 
     /// One chooseOverload candidate body (76791-76868). The caller
@@ -4604,117 +4690,85 @@ impl<'a> CheckerState<'a> {
         no_constraint_checks: bool,
         signature_help_trailing_comma: bool,
     ) -> CheckResult<OverloadCandidateTrial> {
-        let mut check_candidate;
-        let mut inference_context: Option<InferenceContextId> = None;
-        if self.signature_of(candidate).type_parameters.is_some() {
-            let type_argument_types;
-            if !type_argument_nodes.is_empty() {
-                let Some(checked) = self.check_type_arguments(
-                    candidate,
-                    type_argument_nodes,
-                    /*report_errors*/ false,
-                    /*head_message*/ None,
-                )?
-                else {
-                    return Ok(OverloadCandidateTrial {
-                        disposition: OverloadCandidateDisposition::TypeArgumentError(candidate),
-                        arg_check_mode,
-                    });
-                };
-                type_argument_types = checked;
-            } else {
-                let type_parameters = self
-                    .signature_of(candidate)
-                    .type_parameters
-                    .clone()
-                    .expect("checked Some above");
-                let mut flags = if self.is_in_js_file(node) {
-                    InferenceFlags::ANY_DEFAULT
+        let structure_before = self.structure_snapshot();
+        self.structure_observe.begin(
+            "trial",
+            [
+                node.position() as u64,
+                candidate.index() as u64,
+                relation.cache_index() as u64,
+                arg_check_mode.bits() as u64,
+                0,
+                0,
+                0,
+                0,
+            ],
+            structure_before,
+        );
+        let structure_result = (|| {
+            let mut check_candidate;
+            let mut inference_context: Option<InferenceContextId> = None;
+            if self.signature_of(candidate).type_parameters.is_some() {
+                let type_argument_types;
+                if !type_argument_nodes.is_empty() {
+                    let Some(checked) = self.check_type_arguments(
+                        candidate,
+                        type_argument_nodes,
+                        /*report_errors*/ false,
+                        /*head_message*/ None,
+                    )?
+                    else {
+                        return Ok(OverloadCandidateTrial {
+                            disposition: OverloadCandidateDisposition::TypeArgumentError(candidate),
+                            arg_check_mode,
+                        });
+                    };
+                    type_argument_types = checked;
                 } else {
-                    InferenceFlags::NONE
-                };
-                if no_constraint_checks {
-                    flags |= InferenceFlags::NO_CONSTRAINT_CHECKS;
+                    let type_parameters = self
+                        .signature_of(candidate)
+                        .type_parameters
+                        .clone()
+                        .expect("checked Some above");
+                    let mut flags = if self.is_in_js_file(node) {
+                        InferenceFlags::ANY_DEFAULT
+                    } else {
+                        InferenceFlags::NONE
+                    };
+                    if no_constraint_checks {
+                        flags |= InferenceFlags::NO_CONSTRAINT_CHECKS;
+                    }
+                    let context = self.create_inference_context(
+                        &type_parameters,
+                        Some(candidate),
+                        flags,
+                        None,
+                    );
+                    inference_context = Some(context);
+                    type_argument_types = self.infer_type_arguments(
+                        node,
+                        candidate,
+                        args,
+                        arg_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
+                        context,
+                    )?;
+                    if self
+                        .inference_context(context)
+                        .flags
+                        .intersects(InferenceFlags::SKIPPED_GENERIC_FUNCTION)
+                    {
+                        arg_check_mode |= CheckMode::SKIP_GENERIC_FUNCTIONS;
+                    }
                 }
-                let context =
-                    self.create_inference_context(&type_parameters, Some(candidate), flags, None);
-                inference_context = Some(context);
-                type_argument_types = self.infer_type_arguments(
-                    node,
-                    candidate,
-                    args,
-                    arg_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
-                    context,
-                )?;
-                if self
-                    .inference_context(context)
-                    .flags
-                    .intersects(InferenceFlags::SKIPPED_GENERIC_FUNCTION)
-                {
-                    arg_check_mode |= CheckMode::SKIP_GENERIC_FUNCTIONS;
-                }
-            }
-            let is_javascript = self
-                .signature_of(candidate)
-                .declaration
-                .is_some_and(|declaration| self.is_in_js_file(declaration));
-            let inferred_type_parameters = inference_context.and_then(|context| {
-                self.inference_context(context)
-                    .inferred_type_parameters
-                    .clone()
-            });
-            check_candidate = self.get_signature_instantiation(
-                candidate,
-                Some(&type_argument_types),
-                is_javascript,
-                inferred_type_parameters.as_deref(),
-            )?;
-            if self.get_non_array_rest_type(candidate)?.is_some()
-                && !self.has_correct_arity(
-                    node,
-                    args,
-                    check_candidate,
-                    signature_help_trailing_comma,
-                )?
-            {
-                return Ok(OverloadCandidateTrial {
-                    disposition: OverloadCandidateDisposition::ArgumentArityError(check_candidate),
-                    arg_check_mode,
-                });
-            }
-        } else {
-            check_candidate = candidate;
-        }
-        if self
-            .get_signature_applicability_error(
-                node,
-                args,
-                check_candidate,
-                relation,
-                arg_check_mode,
-                ApplicabilityMode::Silent,
-                None,
-            )?
-            .is_some()
-        {
-            return Ok(OverloadCandidateTrial {
-                disposition: OverloadCandidateDisposition::ArgumentError(check_candidate),
-                arg_check_mode,
-            });
-        }
-        if !arg_check_mode.is_empty() {
-            arg_check_mode = CheckMode::NORMAL;
-            if let Some(context) = inference_context {
-                let type_argument_types =
-                    self.infer_type_arguments(node, candidate, args, arg_check_mode, context)?;
                 let is_javascript = self
                     .signature_of(candidate)
                     .declaration
                     .is_some_and(|declaration| self.is_in_js_file(declaration));
-                let inferred_type_parameters = self
-                    .inference_context(context)
-                    .inferred_type_parameters
-                    .clone();
+                let inferred_type_parameters = inference_context.and_then(|context| {
+                    self.inference_context(context)
+                        .inferred_type_parameters
+                        .clone()
+                });
                 check_candidate = self.get_signature_instantiation(
                     candidate,
                     Some(&type_argument_types),
@@ -4736,6 +4790,8 @@ impl<'a> CheckerState<'a> {
                         arg_check_mode,
                     });
                 }
+            } else {
+                check_candidate = candidate;
             }
             if self
                 .get_signature_applicability_error(
@@ -4754,11 +4810,90 @@ impl<'a> CheckerState<'a> {
                     arg_check_mode,
                 });
             }
+            if !arg_check_mode.is_empty() {
+                arg_check_mode = CheckMode::NORMAL;
+                if let Some(context) = inference_context {
+                    let type_argument_types =
+                        self.infer_type_arguments(node, candidate, args, arg_check_mode, context)?;
+                    let is_javascript = self
+                        .signature_of(candidate)
+                        .declaration
+                        .is_some_and(|declaration| self.is_in_js_file(declaration));
+                    let inferred_type_parameters = self
+                        .inference_context(context)
+                        .inferred_type_parameters
+                        .clone();
+                    check_candidate = self.get_signature_instantiation(
+                        candidate,
+                        Some(&type_argument_types),
+                        is_javascript,
+                        inferred_type_parameters.as_deref(),
+                    )?;
+                    if self.get_non_array_rest_type(candidate)?.is_some()
+                        && !self.has_correct_arity(
+                            node,
+                            args,
+                            check_candidate,
+                            signature_help_trailing_comma,
+                        )?
+                    {
+                        return Ok(OverloadCandidateTrial {
+                            disposition: OverloadCandidateDisposition::ArgumentArityError(
+                                check_candidate,
+                            ),
+                            arg_check_mode,
+                        });
+                    }
+                }
+                if self
+                    .get_signature_applicability_error(
+                        node,
+                        args,
+                        check_candidate,
+                        relation,
+                        arg_check_mode,
+                        ApplicabilityMode::Silent,
+                        None,
+                    )?
+                    .is_some()
+                {
+                    return Ok(OverloadCandidateTrial {
+                        disposition: OverloadCandidateDisposition::ArgumentError(check_candidate),
+                        arg_check_mode,
+                    });
+                }
+            }
+            Ok(OverloadCandidateTrial {
+                disposition: OverloadCandidateDisposition::Success(check_candidate),
+                arg_check_mode,
+            })
+        })();
+        let structure_after = self.structure_snapshot();
+        if let Ok(trial) = &structure_result {
+            let names = if matches!(&trial.disposition, OverloadCandidateDisposition::Success(_)) {
+                [
+                    "trial.success.types",
+                    "trial.success.symbols",
+                    "trial.success.signatures",
+                    "trial.success.instantiations",
+                ]
+            } else {
+                [
+                    "trial.rejected.types",
+                    "trial.rejected.symbols",
+                    "trial.rejected.signatures",
+                    "trial.rejected.instantiations",
+                ]
+            };
+            for i in 0..4 {
+                self.structure_observe.bump(
+                    names[i],
+                    structure_after[i].saturating_sub(structure_before[i]),
+                );
+            }
         }
-        Ok(OverloadCandidateTrial {
-            disposition: OverloadCandidateDisposition::Success(check_candidate),
-            arg_check_mode,
-        })
+        self.structure_observe.end(structure_after, None);
+        structure_result
     }
 
     // ---- failure candidates ----

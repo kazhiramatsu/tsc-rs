@@ -479,56 +479,77 @@ impl<'a> CheckerState<'a> {
         flow_node: Option<FlowId>,
         flow_file: usize,
     ) -> CheckResult<TypeId> {
-        if self.flow_analysis_disabled {
-            return Ok(self.tables.intrinsics.error);
-        }
-        let Some(flow_node) = flow_node else {
-            return Ok(declared_type);
-        };
-        self.flow_invocation_count += 1;
-        let shared_flow_start = self.shared_flow.len();
-        let mut query = FlowQuery {
-            reference,
-            declared_type,
-            initial_type,
-            flow_container,
-            file: flow_file,
-            arena: self.binder.flow_arena(flow_file),
-            flow_depth: 0,
-            shared_flow_start,
-            walk_floor: self.flow_memo.next_serial(),
-            impure_shared: 0,
-            reduce_depth: 0,
-            memo_key: None,
-            memo_used: false,
-            memo_aborted: false,
-            memo_faithful: false,
-            key: None,
-            synthetic_props,
-            synthetic_this_root,
-        };
-        query.memo_key = self.flow_memo_key(&query);
-        let frame_depth = self.flow_memo.frame_depth();
-        let saved_height = self.flow_memo.save_height();
-        let mut walk = self.get_type_at_flow_node(&mut query, flow_node);
-        if query.memo_aborted {
-            // A replacement can omit shared entries and make a later branch
-            // deeper. Replay the whole walk faithfully before reporting TS2563.
+        self.structure_observe.begin(
+            "flow",
+            [
+                reference.position() as u64,
+                declared_type.index() as u64,
+                initial_type.index() as u64,
+                flow_file as u64,
+                0,
+                0,
+                0,
+                0,
+            ],
+            self.structure_snapshot(),
+        );
+        let structure_result = (|| {
+            if self.flow_analysis_disabled {
+                return Ok(self.tables.intrinsics.error);
+            }
+            let Some(flow_node) = flow_node else {
+                return Ok(declared_type);
+            };
+            self.flow_invocation_count += 1;
+            let shared_flow_start = self.shared_flow.len();
+            let mut query = FlowQuery {
+                reference,
+                declared_type,
+                initial_type,
+                flow_container,
+                file: flow_file,
+                arena: self.binder.flow_arena(flow_file),
+                flow_depth: 0,
+                shared_flow_start,
+                walk_floor: self.flow_memo.next_serial(),
+                impure_shared: 0,
+                reduce_depth: 0,
+                memo_key: None,
+                memo_used: false,
+                memo_aborted: false,
+                memo_faithful: false,
+                key: None,
+                synthetic_props,
+                synthetic_this_root,
+            };
+            query.memo_key = self.flow_memo_key(&query);
+            let frame_depth = self.flow_memo.frame_depth();
+            let saved_height = self.flow_memo.save_height();
+            let mut walk = self.get_type_at_flow_node(&mut query, flow_node);
+            if query.memo_aborted {
+                // A replacement can omit shared entries and make a later branch
+                // deeper. Replay the whole walk faithfully before reporting TS2563.
+                self.shared_flow.truncate(shared_flow_start);
+                query.impure_shared = 0;
+                query.memo_used = false;
+                query.memo_aborted = false;
+                query.memo_faithful = true;
+                walk = self.get_type_at_flow_node(&mut query, flow_node);
+            }
+            self.flow_memo.restore_height(saved_height);
+            debug_assert_eq!(self.flow_memo.frame_depth(), frame_depth);
+            debug_assert_eq!(query.reduce_depth, 0);
+            // sharedFlowCount = sharedFlowStart — restored BEFORE the `?`
+            // so a CheckAbort unwind leaves no shared-cache residue (the
+            // unwind invariant).
             self.shared_flow.truncate(shared_flow_start);
-            query.impure_shared = 0;
-            query.memo_used = false;
-            query.memo_aborted = false;
-            query.memo_faithful = true;
-            walk = self.get_type_at_flow_node(&mut query, flow_node);
-        }
-        self.flow_memo.restore_height(saved_height);
-        debug_assert_eq!(self.flow_memo.frame_depth(), frame_depth);
-        debug_assert_eq!(query.reduce_depth, 0);
-        // sharedFlowCount = sharedFlowStart — restored BEFORE the `?`
-        // so a CheckAbort unwind leaves no shared-cache residue (the
-        // unwind invariant).
-        self.shared_flow.truncate(shared_flow_start);
-        walk.and_then(|flow_type| self.flow_query_postlude(&query, flow_type.get_type()))
+            walk.and_then(|flow_type| self.flow_query_postlude(&query, flow_type.get_type()))
+        })();
+        self.structure_observe.end(
+            self.structure_snapshot(),
+            structure_result.as_ref().ok().map(|ty| ty.index() as u32),
+        );
+        structure_result
     }
 
     /// The getFlowTypeOfReference tail (70407-70411): evolving-array
@@ -688,6 +709,13 @@ impl<'a> CheckerState<'a> {
         let walk = (|| loop {
             steps += 1;
             let flags = query.flow(flow).flags;
+            self.structure_observe.bump("flow.steps", 1);
+            if flags.intersects(FlowFlags::ASSIGNMENT) {
+                self.structure_observe.bump("flow.assignment_steps", 1);
+            }
+            if flags.intersects(FlowFlags::SHARED) {
+                self.structure_observe.bump("flow.shared_steps", 1);
+            }
             if flags.intersects(FlowFlags::SHARED) {
                 // The shared-flow cache is scoped to THIS
                 // getFlowTypeOfReference invocation (sharedFlowStart..).
@@ -719,6 +747,8 @@ impl<'a> CheckerState<'a> {
                 match self.get_type_at_flow_assignment(query, flow)? {
                     Some(t) => ty = t,
                     None => {
+                        self.structure_observe
+                            .bump("flow.assignment_passthrough", 1);
                         flow = query.antecedent(flow);
                         continue;
                     }
