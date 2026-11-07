@@ -430,8 +430,20 @@ fn remap_run(run: Run) -> bool {
 mod tests {
     use super::*;
 
+    // The arena is process-global (one fixed reservation, one owner table), and
+    // these tests observe block reuse and owner transitions. The harness runs tests
+    // on several threads, so each test holds this lock; a failed test poisons it
+    // and the next recovers the guard.
+    static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    fn serial() -> std::sync::MutexGuard<'static, ()> {
+        SERIAL
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
     #[test]
     fn released_blocks_are_zero_before_reissue() {
+        let _serial = serial();
         let allocator = BlockAllocator::global();
         let run = allocator.allocate(3, 101);
         // SAFETY: exclusively owned committed run, no typed views exist.
@@ -455,6 +467,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn constant_addresses_and_remap_preserve_other_owners() {
+        let _serial = serial();
         let allocator = BlockAllocator::global();
         let a = allocator.allocate(2, 110);
         let b = allocator.allocate(1, 111);
@@ -495,6 +508,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn reservation_collision_is_loud_and_preserves_mapping() {
+        let _serial = serial();
         const PROBE: &str = "TSRS_ARENA_RESERVATION_COLLISION_PROBE";
         if std::env::var_os(PROBE).is_none() {
             let output = std::process::Command::new(std::env::current_exe().unwrap())

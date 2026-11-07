@@ -18,6 +18,10 @@ lane（arena crate、生成器 v2）まで。所見ごとの採否は [reviews/2
 `target/claude-tools/handover/perf-tsrs/consult-{codex,opus}-2026-11-04.md`（率直な相談の答え）。
 数字はすべて VS Code `src` 1 thread、特記なければ #913 時点。
 
+**状態（2026-11-08 01:30）**：段 0 と段 0b は完了。天井実験 4 本と B1 の測定（§0.9、§8）で、対象機構の上限は VS Code で合計 ≈ 5%
+（≈ 6 G）と判明し、所有者は方針を転換した：「instruction の parity は構造書き換えの対象機構では届かない。memory（peak）の削減と、
+tsrs との差が集中する phase の algorithm 差の調査に軸を移す」。pilot lane（SPEC-0b.6）は起動せず、この設計は測定済みの天井つきで保留。
+
 ## 0. 設計の要約
 
 **診断。** 仕事の量は tsgo と同じ（型・symbol・instantiation の数、主要関数の入口回数が 1.00〜1.05 倍）なのに、同名関数が一様に
@@ -107,6 +111,18 @@ file 割り当ては変えない。
   release workflow の hosted smoke run を dispatch（結果は次の記録で）。天井 lane は links と dispatch が完了（feature-off byte 同一、
   focused test 通過、未計測）、bump と fe4 を起動。再発防止：Bash の PreToolUse guard hook と毎日の local backup script を導入
   （memory `incident-rm-main-repo`）。
+- **2026-11-08 00:30〜01:30：段 0b の天井 4 本と B1 を測定**（integrator、1 thread、retired instructions、warm-up 1 + 3 round の中央値、
+  base `b3e0c06c2`、binary と provenance は `perf11/bin/MANIFEST.tsv`、生 data は `handover/arch-arena/ceilings/results/`）。4 lane とも
+  feature-off の dev CLI は base と byte 同一、focused test 通過、出力は 8 project で base と一致（`diffout.py`）。結果は §8 の表。
+  fe4 は fallback 0（direct 10,321 / 2,876）で、見積もり lease の分だけ遅く・重い。tsrs との差は命令数そのもの（CPI は同じ）。
+  TypeData kind の census（VS Code、1 checker）：2,567,002 型 = Object 1,125,919・Literal 458,153・Reference 400,496・TypeParameter 239,261・
+  Union 232,499・TupleTarget 25,842・Intersection 20,236・GenericType 17,957・他。`memory_report.py --type-populations` は入力の
+  memory 行が旧 build のため不一致で停止（入力の更新が要る）。
+- **01:2x 所有者の判断**：「instruction の parity は構造書き換えの対象機構では届かない。memory（peak）の削減と、tsrs との差が集中する
+  phase の algorithm 差の調査に軸を移す」。pilot lane は起動しない（価格 gate の「測った bound が有利」を満たさない）。具体案（関数単位の
+  差の地図 → algorithm 差の修正、memory は並行）を提示し、承認待ち。承認後の記録先は perf-tsrs packet（この設計は保留）。
+- 掃除：計測用 worktree 8 本を削除（binary は perf11/bin に保存）。CI：#918（release workflow の zod pin）、#919（arena test の直列化、
+  hosted の flake 修正）が check 中。
 
 ## 1. 工程の全体像（第 2 版：checker を先に、front end を後に）
 
@@ -448,6 +464,28 @@ DET-1 の窓と同じ手順。静音窓、warm-up 2、AB/BA 12 組、A/A 付き�
 小さい node +3.40 G、node_symbol の圧縮 +855 M）を過大に見積もっていた。差の最大の塊（Codex 相談の「relation/member/inference の
 制御経路と再問い合わせ」8〜16 G）は data 層では消えない。この見立てを覆せるかどうかを段 0b の天井実験で確かめ、§8 を B1 と天井の
 数字で書き直す。
+
+### B1 と天井の数字（2026-11-08、§8 の確定値）
+
+B1（phase ledger、VS Code 1 thread、3 round 中央値、照合 −0.0045%）：config 1.40 G / 0.050 s、load 23.30 G / 1.449 s、bind 8.83 G / 0.436 s、
+checker-init 0.06 G、semantic 87.81 G / 6.043 s、finalization 0.19 G、合計 121.63 G / 7.997 s、peak 2,673 MiB。tsrs（`--extendedDiagnostics`、
+wall のみ）：parse 0.756、bind 0.285、check 4.561、合計 5.636 s。比は load 1.92×、bind 1.53×、check 1.32×、合計 1.42×；差 2.36 s の内訳は
+check 63%、load 29%、bind 6%。8 project すべて同じ形（load 1.9〜2.5×、bind 1.4〜1.6×、check 1.2〜1.45×）。
+
+tsrs 対 main（`serial.py`、1 thread、8 project）：VS Code は命令 85.44 G 対 121.61 G（tsc-rs 1.42×）、cpu 5.98 対 8.37 s（1.40×）、
+peak 1,991 対 2,674 MiB（+683 MiB、1.34×）。**wall の比と命令の比が等しいので CPI は同じ：差は命令数であり、cache miss ではない。**
+他の 7 project：命令 1.27〜1.58×、peak 1.25〜1.43×（ts +47、next +177、zod +137、effect +113、hono +18、vue +78、playwright +93 MiB）。
+
+| 天井（SPEC-0b.3） | 測るもの | VS Code 命令（base 121.68 G） | 8 project | peak |
+| --- | --- | ---: | ---: | ---: |
+| (i) `ceiling-bump` | allocator + free の全作業（総確保 5.8 GiB） | **−2.55%** | −2.0〜−5.0% | +3,069 MiB（解放しない） |
+| (ii) `ceiling-dense-links` | PagedTable の間接参照税（最熱の 2 表） | **−1.67%** | −0.8〜−2.5% | +91 MiB |
+| (iv) `ceiling-direct-data` | 二重 dispatch（最熱 50 箇所） | **−0.81%** | −1.6〜+1.1% | ±0 |
+| (iii) `ceiling-fe4` | relocate / publish / copy をなくす（fallback 0） | **+1.96%** | +0.5〜+1.2% | +1,052 MiB |
+
+合計 ≈ −5%（≈ 6 G）→ 115.6 G ≈ tsrs の 1.35 倍。レビューの算術（1.2〜1.37 倍）の悲観側が確定。front end の publish/copy は今の表現では
+除いても得がない。cpu 時間も命令と同じ向きで、局所性による追加の利得は観測されない。天井が測っていないもの：gen2 の record 表現そのもの、
+型 list の複製（SPEC-0b.6 の対象）、mapper / inference context の生成。所有者の判断（§0.9）により、これらは追わない。
 
 PGO 感度（[release 手順](pgo.md)、構造変更の gain には数えない）：
 
