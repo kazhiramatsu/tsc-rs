@@ -430,6 +430,12 @@ DET-1 の窓と同じ手順。静音窓、warm-up 2、AB/BA 12 組、A/A 付き�
 制御経路と再問い合わせ」8〜16 G）は data 層では消えない。この見立てを覆せるかどうかを段 0b の天井実験で確かめ、§8 を B1 と天井の
 数字で書き直す。
 
+PGO 感度（[release 手順](pgo.md)、構造変更の gain には数えない）：
+
+| 対象 | 通常 build | PGO build | 差分 | 証跡 |
+| --- | ---: | ---: | ---: | --- |
+| #913+、VS Code 1 thread | 未計測 | 未計測 | 未計測 | integrator：hosted dispatch 成功と assets 確認後、native binary を取得し quiet window で warm-up 2 + 交互 9 round。commit/run URL・binary/corpus/profile hash・peak も記録 |
+
 停止規則：段 0b の天井が閾値（front end ≤ B1_front − 6 G、同名関数比 ≤ 1.10×）に届かなければ freeze せず所有者判断。段 A・B の
 出口 gate は「数値を超えたら不合格」で、猶予帯はない（R12）。不合格なら次の段に進まず原因を書いて判断を仰ぐ。
 

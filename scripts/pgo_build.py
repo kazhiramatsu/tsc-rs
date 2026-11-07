@@ -52,7 +52,8 @@ def llvm_profdata():
     return candidates[0]
 
 
-def cargo_build(target_dir, rustflags, jobs, *, prefix=(), runner=run, offline=False):
+def cargo_build(target_dir, rustflags, jobs, *, prefix=(), runner=run, offline=False,
+                locked=False, root=ROOT, packages=("tsc-rs-cli",), bins=()):
     env = dict(os.environ)
     # Never let a caller's training filename collect build-script profiles.
     env.pop("LLVM_PROFILE_FILE", None)
@@ -65,11 +66,17 @@ def cargo_build(target_dir, rustflags, jobs, *, prefix=(), runner=run, offline=F
         # runtime). Native libraries are not part of the Rust checker census.
         for variable in ("CFLAGS", "CXXFLAGS"):
             env[variable] = (env.get(variable, "") + " -fno-profile-generate -fno-profile-use").strip()
-    command = ["cargo", "build", "--release", "-j", str(jobs), "-p", "tsc-rs-cli"]
+    command = ["cargo", "build", "--release", "-j", str(jobs)]
+    for package in packages:
+        command += ["-p", package]
+    for binary in bins:
+        command += ["--bin", binary]
     if offline:
         env["CARGO_NET_OFFLINE"] = "true"
-        command += ["--offline", "--locked"]
-    result = runner([*prefix, *command], cwd=ROOT, env=env)
+        command += ["--offline"]
+    if locked or offline:
+        command += ["--locked"]
+    result = runner([*prefix, *command], cwd=root, env=env)
     if result.returncode != 0:
         sys.exit(f"cargo build failed ({result.returncode})")
     return os.path.join(target_dir, "release", "tsc-rs")

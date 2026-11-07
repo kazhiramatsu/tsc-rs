@@ -1,0 +1,234 @@
+name: Release normal and PGO CLI
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_BUILD_JOBS: '2'
+  CARGO_INCREMENTAL: '0'
+  RUSTC_WRAPPER: ''
+  LC_ALL: C
+  TZ: UTC
+  WORKFLOW_SHA: ${{ github.workflow_sha }}
+
+jobs:
+  corpus:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - id: pins
+        run: python3 .github/ci/pgo.py pins
+      - name: Hono at the experiment pin
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: honojs/hono
+          ref: ${{ steps.pins.outputs.hono }}
+          path: corpora/hono
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /src/
+            /package.json
+            /tsconfig*.json
+      - name: Pinned declaration dependency lock and compiler configuration
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: microsoft/TypeScript
+          ref: ${{ steps.pins.outputs.typescript }}
+          path: corpora/typescript
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /src/
+            /package.json
+            /package-lock.json
+      - name: Zod history to resolve the benchmark's abbreviated immutable pin
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: colinhacks/zod
+          path: corpora/zod
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Freeze all training bytes (only this phase downloads dependencies)
+        timeout-minutes: 10
+        run: |
+          python3 .github/ci/pgo.py freeze --recipe release
+          tar --exclude=.git -czf corpus.tar.gz corpora
+          sha256sum corpus.tar.gz
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-corpus
+          path: corpus.tar.gz
+          retention-days: 14
+          if-no-files-found: error
+
+  build:
+    needs: corpus
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: release-corpus
+      - id: pins
+        run: python3 .github/ci/pgo.py pins
+      - name: Install the pinned toolchain and matching LLVM
+        env:
+          TOOLCHAIN: ${{ steps.pins.outputs.toolchain }}
+        run: |
+          rustup toolchain install "$TOOLCHAIN" --profile minimal --component llvm-tools
+          tar -xzf corpus.tar.gz
+          rustc -vV
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: release-registry-${{ runner.os }}-${{ runner.arch }}-${{ steps.pins.outputs.toolchain }}-${{ hashFiles('Cargo.lock') }}
+      - name: Normal CLI using today's release profile
+        timeout-minutes: 80
+        run: |
+          python3 .github/ci/pgo.py build --kind normal
+          python3 .github/ci/pgo.py package --kind normal
+          mkdir -p binaries/normal
+          cp target/pgo/tsc-rs binaries/normal/tsc-rs
+          cp dist/*-normal/BUILD.json binaries/normal/BUILD.json
+          rm -rf target/pgo/normal
+      - name: Instrumented CLI and in-process conformance runner
+        timeout-minutes: 80
+        run: python3 .github/ci/pgo.py build --kind instrumented
+      - name: Serial training with no downloads or package installation
+        timeout-minutes: 20
+        run: python3 .github/ci/pgo.py train --recipe release
+      - name: Merge only this run's training profiles
+        timeout-minutes: 5
+        run: python3 .github/ci/pgo.py merge
+      - name: PGO CLI using the same release profile plus profile-use
+        timeout-minutes: 80
+        run: |
+          python3 .github/ci/pgo.py build --kind pgo
+          python3 .github/ci/pgo.py package --kind pgo
+          mkdir -p binaries/pgo
+          cp target/pgo/tsc-rs binaries/pgo/tsc-rs
+          cp dist/*-pgo/BUILD.json binaries/pgo/BUILD.json
+          rm -rf target/pgo/optimized
+      - name: Install Linux measurement tools
+        if: runner.os == 'Linux'
+        timeout-minutes: 10
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends time valgrind
+          mkdir -p results
+          { uname -a; lscpu; valgrind --version; /usr/bin/time --version; } > results/runner.txt
+      - name: Same-runner normal and PGO instruction counts on hono and zod
+        if: runner.os == 'Linux'
+        timeout-minutes: 90
+        run: |
+          python3 .github/ci/pgo_measure.py --release --project hono --out results/hono
+          python3 .github/ci/pgo_measure.py --release --project zod --out results/zod
+          python3 .github/ci/pgo_measure.py --summary > dist/linux-MEASUREMENTS.md
+      - name: Hash the release assets
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, os
+          from pathlib import Path
+          dist = Path('dist')
+          assets = sorted(p for p in dist.iterdir() if p.is_file())
+          (dist/f"SHA256SUMS-{os.environ['RUNNER_OS']}-{os.environ['RUNNER_ARCH']}").write_text(
+              ''.join(f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n' for p in assets))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-binaries-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.BUILD.json
+            dist/*MEASUREMENTS.md
+            dist/SHA256SUMS-*
+          retention-days: 14
+          if-no-files-found: error
+      - name: Retain training and measurement evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-evidence-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            target/pgo/logs
+            target/pgo/merged.profdata
+            results
+          retention-days: 14
+          if-no-files-found: warn
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: release-binaries-*
+          path: downloads
+      - name: Collect and verify platform assets
+        run: |
+          mkdir assets
+          for directory in downloads/release-binaries-Linux-* downloads/release-binaries-macOS-*; do
+            (cd "$directory" && sha256sum --check SHA256SUMS-*)
+            cp "$directory"/* assets/
+          done
+          cat assets/SHA256SUMS-* > assets/SHA256SUMS
+          rm assets/SHA256SUMS-*
+      - name: Publish both variants with provenance and SHA-256 sums
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
+        with:
+          script: |
+            const fs = require('fs');
+            const tagged = context.eventName === 'push';
+            const tag = tagged ? context.ref.slice('refs/tags/'.length) : `pgo-${context.runId}`;
+            let release;
+            try {
+              release = (await github.rest.repos.getReleaseByTag({...context.repo, tag})).data;
+              const commit = (await github.rest.repos.getCommit({...context.repo, ref: tag})).data.sha;
+              if (commit !== context.sha) throw new Error('Existing release tag points at another commit');
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              release = (await github.rest.repos.createRelease({
+                ...context.repo, tag_name: tag, target_commitish: context.sha,
+                name: tagged ? tag : `PGO pipeline ${context.runId}`, prerelease: !tagged,
+                body: `Normal and PGO CLI from ${context.sha}. Each archive contains BUILD.json and SHA256SUMS.\n\n`
+                  + fs.readFileSync('assets/linux-MEASUREMENTS.md', 'utf8')
+              })).data;
+            }
+            const existing = await github.paginate(github.rest.repos.listReleaseAssets,
+              {...context.repo, release_id: release.id});
+            for (const name of fs.readdirSync('assets').sort()) {
+              const prior = existing.find(asset => asset.name === name);
+              if (prior) await github.rest.repos.deleteReleaseAsset({...context.repo, asset_id: prior.id});
+              await github.rest.repos.uploadReleaseAsset({
+                ...context.repo, release_id: release.id, name, data: fs.readFileSync(`assets/${name}`)
+              });
+            }
+            await core.summary.addLink('Release assets', release.html_url).write();
