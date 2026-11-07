@@ -70,6 +70,19 @@ class AccountingTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,"UUID"):
                     module.analyze(path,binary)
 
+    def test_standard_library_crate_keeps_external_source_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path,binary,raw=self.fixture(Path(directory))
+            external="/rustc/version/library/stdarch/crates/core_arch/src/neon.rs"
+            raw=raw.replace("other (in tsc-rs) (/private/tmp/tsc-rs-test/crates/checker/src/test.rs:20)",
+                            f"other (in tsc-rs) ({external}:30)")
+            with patch.object(module.subprocess,"check_output",return_value="UUID: 12345678-90AB-CDEF-1234-567890ABCDEF (arm64)\n"), \
+                 patch.object(module.subprocess,"run",return_value=subprocess.CompletedProcess([],0,raw,"")):
+                result=module.analyze(path,binary)
+            functions=result["counters_us"]["inclusive_functions"]
+            self.assertEqual(functions[external+" | other"],400)
+            self.assertNotIn("crates/core_arch/src/neon.rs | other",functions)
+
     def test_all_threads_contribute(self):
         with tempfile.TemporaryDirectory() as directory:
             path,binary,raw=self.fixture(Path(directory))

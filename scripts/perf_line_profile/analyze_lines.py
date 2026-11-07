@@ -91,14 +91,16 @@ def analyze(path, binary, demangler=None):
     symbols[library_key] = address_frames
     Path(str(path) + ".address-frames.json").write_text(json.dumps(address_frames, ensure_ascii=False))
 
+    def project_source(file):
+        return file and "/crates/" in file and ("/tsc-rs" in file or "/tsrs" in file)
+
     def project(frame):
-        file = frame[1] or ""
         allocator_shim = any(name in frame[0] for name in ("__rust_alloc", "__rust_dealloc", "__rust_realloc", "_rust_alloc", "_rust_dealloc", "_rust_realloc"))
-        return "/crates/" in file and ("/tsc-rs" in file or "/tsrs" in file) and not allocator_shim
+        return project_source(frame[1]) and not allocator_shim
 
     def location(frame, line=True):
         name, file, number = frame
-        if file and "/crates/" in file:
+        if project_source(file):
             file = "crates/" + file.split("/crates/", 1)[1]
         return f"{file or '?'}{':' + str(number) if line and number else ''} | {name}"
 
