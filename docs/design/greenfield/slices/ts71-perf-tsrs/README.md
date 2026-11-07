@@ -52,6 +52,15 @@ rehash 2.1% と `Vec` 成長 2.1% の事前確保・再利用；hashbrown の反
 統合者が `serial.py`（1 thread、8 project）で項目ごとに測り、`diffout.py` の出力同一と focused test と（binder に触れれば）fingerprint
 oracle を gate に、払う項目だけ PR にする。次は loader の「other」（4.2×）と、catalog の上位（reuse と inline）。
 
+**結果 1（2026-11-08 06:0x）。** lane `tax-b` の 4 行を 1 本にした [#921](https://github.com/kazhiramatsu/tsc-rs/pull/921) を merge
+（`d224915ea`）：出力同一（8 project）、fingerprint 0 差 / 143,190 行、4 crate の test 2,314 本、命令数は VS Code −0.42%、next −0.41%、
+TypeScript compiler −0.79%、zod −0.66%、他 4 件 −0.5〜−0.6%（1 thread、9 round）。教訓：sample の self 時間で rehash と成長が 4% に見えた
+のは memory latency で、命令数では 0.5% だった。**計測の注意**：VS Code の 1 thread 命令数は run ごとに二峰（≈121.9 G と ≈122.8 G、
++0.75%）で、binary に依らず出る。3 round では 1% 未満の差を判定できないので、以後は 9 round と低い峰どうしの比較。原因は未特定
+（候補：std `RandomState` の集合、loader の thread timing）。tax-a（checker、A1〜A9）と tax-c（loader、C1〜C6）は patch 完成、計測中。
+release workflow は繰り返し計測の完全一致規則で停止していた（差 0.002%）：[#920](https://github.com/kazhiramatsu/tsc-rs/pull/920) で
+許容 0.05% に（hono の PGO 感度 −15.5% は design §8 に記録）。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
