@@ -796,6 +796,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "tsc-rs-arena"
+version = "0.1.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "tsc-rs-binder"
 version = "0.1.0"
 dependencies = [

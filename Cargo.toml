@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/arena",
     "crates/store",
     "crates/syntax",
     "crates/binder",

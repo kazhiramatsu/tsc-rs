@@ -1,0 +1,16 @@
+[package]
+name = "tsc-rs-arena"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "tsc_arena"
+
+[features]
+default = []
+# Determinism-test instrumentation, never a compiler runtime mode.
+arena-shuffle = []
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
