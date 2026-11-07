@@ -1270,8 +1270,11 @@ fn run_config(
         plan.source().file_name.clone(),
         Arc::clone(plan.source().snapshot()),
     );
-    // The plan's options are the config's with the command line's merged
-    // over them. tsgo runs no emit under --listFilesOnly: the no-emit route.
+    #[cfg(feature = "phase-ledger")]
+    tsc_types::phase_ledger::start_load(
+        route.worker_budget().max_workers(),
+        route.checker_budget().checkers(),
+    );
     let limits = route.limits();
     let config_file_name = plan.config_file_name().to_string_lossy().into_owned();
     // tsgo `startTracingIfNeeded` (a command's compilation; never a build's).
@@ -1568,8 +1571,11 @@ fn run_explicit_files(
         .then(|| start_tracing(route, &options, ""))
         .flatten();
     let create_program = begin_create_program(tracing.as_ref(), "");
-    // tsgo runs no emit under --listFilesOnly: the no-emit route (whose
-    // loader requires an explicit noEmit).
+    #[cfg(feature = "phase-ledger")]
+    tsc_types::phase_ledger::start_load(
+        route.worker_budget().max_workers(),
+        route.checker_budget().checkers(),
+    );
     let prepared = if options.no_emit == Some(true) || options.list_files_only == Some(true) {
         let mut options = options;
         options.no_emit = Some(true);

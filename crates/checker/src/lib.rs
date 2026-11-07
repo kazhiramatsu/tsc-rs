@@ -3299,6 +3299,8 @@ fn init_checker_state<'a>(
     host: HostFacts,
     checker_index: Option<usize>,
 ) -> state::CheckerState<'a> {
+    #[cfg(feature = "phase-ledger")]
+    tsc_types::phase_ledger::switch(tsc_types::phase_ledger::Phase::CheckerInit);
     let mut state = state::CheckerState::from_snapshot_deferring_globals(snapshot, options);
     // tsgo `NewTracer` per checker of the pool: the checker's events carry
     // its index and its types file is written when the state ends.
@@ -3849,6 +3851,8 @@ fn run_checker_shard<'a>(
     // tsgo forEachCheckerGroupDo: files are checked in original Program
     // order, including the default-library prefix for whole-Program runs.
     let mut files = Vec::new();
+    #[cfg(feature = "phase-ledger")]
+    tsc_types::phase_ledger::switch(tsc_types::phase_ledger::Phase::Semantic);
     if complete_library_prefix {
         while let Some(file) = queue.next_library(shard_index) {
             debug_assert!(std::ptr::eq(
@@ -3888,6 +3892,8 @@ fn run_checker_shard<'a>(
         }
     }
     let fixture = captured.clone();
+    #[cfg(feature = "phase-ledger")]
+    tsc_types::phase_ledger::switch(tsc_types::phase_ledger::Phase::Finalization);
     files.sort_unstable();
     // This shard has checked its files: the eager work of every shard reads
     // the count of shards still checking.
@@ -4827,6 +4833,8 @@ fn check_snapshot_serially(
             .is_none_or(|selected| selected[file.index()])
     };
     if !check_sources {
+        #[cfg(feature = "phase-ledger")]
+        tsc_types::phase_ledger::switch(tsc_types::phase_ledger::Phase::Finalization);
         // The command's options diagnostics are non-empty: the checker is
         // initialized for the global rows and no source is checked
         // (DiagnosticSchedule::GlobalDiagnosticsUnlessSyntacticDiagnostics).
@@ -4874,6 +4882,8 @@ fn check_snapshot_serially(
     }
     let program_file_ids = state.binder.file_ids().skip(lib_count).collect::<Vec<_>>();
     let mut global_checker_diagnostics_by_file = vec![Vec::new(); state.binder.file_count()];
+    #[cfg(feature = "phase-ledger")]
+    tsc_types::phase_ledger::switch(tsc_types::phase_ledger::Phase::Semantic);
     let check_started = std::time::Instant::now();
     let check_span = state.trace_check_phase();
     let checked_program_file_ids = program_file_ids
@@ -4935,6 +4945,8 @@ fn check_snapshot_serially(
         );
     }
     drop(check_span);
+    #[cfg(feature = "phase-ledger")]
+    tsc_types::phase_ledger::switch(tsc_types::phase_ledger::Phase::Finalization);
     let mut diagnostics = Vec::new();
     let checker_rows_by_file = checker_diagnostics_by_file(&state, &state.diagnostics);
     for &file in &all_program_file_ids {
@@ -5329,6 +5341,8 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             .filter(|&file| is_selected(file))
             .collect::<Vec<_>>();
         let check_span = state.trace_check_phase();
+        #[cfg(feature = "phase-ledger")]
+        tsc_types::phase_ledger::switch(tsc_types::phase_ledger::Phase::Semantic);
         check_files_in_order(
             &mut state,
             &checked_program_file_ids,
@@ -5406,6 +5420,8 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 );
             }
             drop(check_span);
+            #[cfg(feature = "phase-ledger")]
+            tsc_types::phase_ledger::switch(tsc_types::phase_ledger::Phase::Finalization);
 
             let mut diagnostics = Vec::new();
             // Reassemble every file from the completed diagnostic ledger.
@@ -6228,6 +6244,8 @@ fn bind_reserved_in_program_order<'a>(
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
 ) -> Vec<tsc_binder::Binder<'a>> {
+    #[cfg(feature = "phase-ledger")]
+    let _ledger = tsc_types::phase_ledger::scope(tsc_types::phase_ledger::Phase::Bind);
     let phase_started = std::time::Instant::now();
     let reservations = sources
         .iter()

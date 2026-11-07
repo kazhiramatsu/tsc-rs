@@ -96,14 +96,14 @@ const PROCESS_ALIVE: Option<fn(i32) -> bool> = Some(is_process_alive);
 const PROCESS_ALIVE: Option<fn(i32) -> bool> = None;
 
 fn main() {
-    // Return freed pages to the OS 10 ms after they empty (mimalloc v2's
-    // default, pinned here). A large program's arenas and tables outgrow
-    // their buffers and leave the old ones free; keeping every freed page
-    // mapped until exit added up to 7 % to the peak footprint (280 MiB on
-    // VS Code, 40 MiB on the TypeScript compiler's full build), while
-    // purging after this delay costs no measurable time.
-    // SAFETY: mi_option_set only writes a process-global option value and
-    // has no other preconditions.
+    #[cfg(feature = "phase-ledger")]
+    let mut ledger = phase_ledger::install(); // Before allocator/scheduling setup.
+                                              // Return freed pages to the OS 10 ms after they empty (mimalloc v2's
+                                              // default, pinned here). Large arenas and tables outgrow their buffers
+                                              // and leave old ones free. Delayed purging returns those pages while
+                                              // preserving the allocator's ordinary reuse window.
+                                              // SAFETY: mi_option_set only writes a process-global option value and
+                                              // has no other preconditions.
     unsafe { libmimalloc_sys::mi_option_set(MI_OPTION_PURGE_DELAY, 10) };
     tsc_types::trace::set_memory_probe(memory_sample);
     tsc_compiler::pprof::set_gc(collect_memory);
@@ -112,19 +112,21 @@ fn main() {
     tsc_program::set_thread_start_hook(prefer_interactive_scheduling);
     prefer_interactive_scheduling();
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
-    // tsgo `runMain`: a first `--lsp` serves the language server
-    // (cmd/tsc/lsp.go), a first `--api` the API (cmd/tsc/api.go).
+    #[cfg(feature = "phase-ledger")]
+    phase_ledger::calibrate(ledger.as_mut()); // After ordinary scheduling setup.
     match arguments.first().map(String::as_str) {
         Some("--lsp") => {
             let code =
                 run_on_worker_stack(|| tsc_lsp::cli::run_lsp(&arguments[1..], PROCESS_ALIVE));
-            // SAFETY: as below; the server flushed every message it wrote.
-            unsafe { libc::_exit(code) }
+            #[cfg(feature = "phase-ledger")]
+            phase_ledger::finish(ledger);
+            unsafe { libc::_exit(code) } // SAFETY: the server flushed its messages.
         }
         Some("--api") => {
             let code = run_on_worker_stack(|| tsc_api::server::run_api(&arguments[1..]));
-            // SAFETY: as below; the server flushed every response it wrote.
-            unsafe { libc::_exit(code) }
+            #[cfg(feature = "phase-ledger")]
+            phase_ledger::finish(ledger);
+            unsafe { libc::_exit(code) } // SAFETY: the server flushed its responses.
         }
         _ => {}
     }
@@ -138,9 +140,10 @@ fn main() {
         let _ = stderr.write_all(output.stderr().as_bytes());
         let _ = stderr.flush();
     }
-    // An instrumented build (`scripts/pgo_build.py`) writes its profile from
-    // the C runtime's exit chain, which `LLVM_PROFILE_FILE` asks for.
+    #[cfg(feature = "phase-ledger")]
+    phase_ledger::finish(ledger);
     if std::env::var_os("LLVM_PROFILE_FILE").is_some() {
+        // PGO flushes through C runtime exit.
         std::process::exit(output.exit_code());
     }
     // Leave without the C runtime's exit chain: the CLI keeps its arenas
@@ -157,3 +160,6 @@ fn main() {
 #[cfg(test)]
 #[path = "../tests/unit/main/tests.rs"]
 mod tests;
+
+#[cfg(feature = "phase-ledger")]
+mod phase_ledger;
