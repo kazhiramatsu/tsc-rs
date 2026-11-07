@@ -190,7 +190,7 @@ impl CheckerState<'_> {
             // In particular CALL, SHARED, condition, join, loop, reduce-label,
             // array mutation and outer-container START are absolute barriers.
             if !flow.flags.intersects(FlowFlags::ASSIGNMENT)
-                || !(flow.flags & !(FlowFlags::ASSIGNMENT | FlowFlags::REFERENCED)).is_empty()
+                || flow.flags.bits() & !(FlowFlags::ASSIGNMENT | FlowFlags::REFERENCED).bits() != 0
             {
                 self.flow_index.bump(10, 1);
                 break;
