@@ -19,7 +19,8 @@ const TABLE_SLOTS: usize = 1 << 12;
 pub(crate) const UNTAINTED: u32 = u32::MAX;
 /// Instantiated, began under an active mapper, or created an identity.
 pub(crate) const FLAG_EFFECTS: u8 = 1;
-/// Read the expression flow cache; the answer depends on its epoch.
+/// Consulted the expression flow cache, including a miss or absent cache.
+/// The answer depends on its epoch.
 pub(crate) const FLAG_TYPE_CACHE: u8 = 2;
 /// May have reset the per-entry instantiation count.
 pub(crate) const FLAG_COUNT_RESET: u8 = 4;
@@ -726,19 +727,16 @@ impl CheckerState<'_> {
             let hit = MemoHit {
                 ty: result.as_ref().expect("successful flow result").get_type(),
                 height,
-                // A cold computation can be replayed through a warm
-                // expression-cache read. Conservatively bind every answer
-                // to this epoch and carry that dependency on replacement.
-                // This tightens consultation without relaxing the shadow
-                // check of the real walk's registers.
-                // Observation hypothesis: only an actual expression-cache
-                // read requires the current epoch. Shadow replay still runs
-                // the ordinary walk and verifies types/registers/shared state.
+                // Cache misses affect the executed path too. Bind those
+                // answers to the epoch, while a walk that never consulted
+                // the expression cache can survive its scoped reset.
                 epoch: if taint.flags & FLAG_TYPE_CACHE == 0 {
                     0
                 } else {
                     self.flow_memo.type_cache_epoch
                 },
+                // Keep conservative dependency propagation on replacement:
+                // later warm paths may consult an expression-cache entry.
                 flags: taint.flags | FLAG_TYPE_CACHE,
             };
             self.flow_memo.store(query, entry, &memo.key, hit);
