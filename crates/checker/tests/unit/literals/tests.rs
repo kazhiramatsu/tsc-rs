@@ -453,3 +453,57 @@ fn a_template_union_drops_the_literals_its_templates_match() {
         assert_eq!(printed("r1", SymbolFlags::VALUE), "`undefined:${string}`");
     });
 }
+
+#[test]
+fn shared_object_syntax_preserves_fresh_semantic_identities() {
+    with_program_state(
+        &[("a.ts", "const value = { a: 1, b: 'text' };\n")],
+        &CompilerOptions::default(),
+        |state| {
+            state.check_source_file(0);
+            let node = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .find(|&node| state.kind_of(node) == SyntaxKind::ObjectLiteralExpression)
+                .unwrap();
+            state.argument_syntax.push(Default::default());
+            let first = state
+                .check_object_literal(node, tsc_types::CheckMode::NORMAL)
+                .unwrap();
+            let second = state
+                .check_object_literal(node, tsc_types::CheckMode::NORMAL)
+                .unwrap();
+            assert_ne!(
+                first, second,
+                "fresh object identities belong to each check"
+            );
+            let first_members = state.get_properties_of_object_type_owned(first).unwrap();
+            let second_members = state.get_properties_of_object_type_owned(second).unwrap();
+            assert_eq!(first_members.len(), 2);
+            assert_eq!(second_members.len(), 2);
+            for (a, b) in first_members.into_iter().zip(second_members) {
+                assert_ne!(a, b, "fresh property identities belong to each check");
+                assert_eq!(
+                    state.get_type_of_symbol(a).unwrap(),
+                    state.get_type_of_symbol(b).unwrap()
+                );
+            }
+            state.argument_syntax.pop();
+        },
+    );
+}
+
+#[test]
+fn nested_call_syntax_scopes_are_released_after_overload_failure() {
+    let source = "declare function inner(x: { value: number }): number;\ndeclare function outer(x: { value: string }): void;\nouter({ value: inner({ value: 1 }) });\n";
+    with_program_state(&[("a.ts", source)], &CompilerOptions::default(), |state| {
+        state.check_source_file(0);
+        assert!(state.argument_syntax.is_empty());
+        assert!(state
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code() == 2322));
+    });
+}

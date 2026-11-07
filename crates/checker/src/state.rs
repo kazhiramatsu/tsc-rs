@@ -620,6 +620,8 @@ pub struct CheckerState<'a> {
     /// tsgo `Checker.callResolutionStack` (checker/checker.go:798): the
     /// calls whose overloads are being chosen, innermost last.
     pub(crate) call_resolution_stack: Vec<NodeId>,
+    /// Immutable object syntax, discarded after each call resolution.
+    pub(crate) argument_syntax: Vec<crate::literals::ArgumentSyntaxScope>,
     /// tsc apparentArgumentCount (77606) — only the signature-help LSP
     /// entry point sets it; None forever in the compile pipeline.
     pub(crate) apparent_argument_count: Option<usize>,
@@ -1775,6 +1777,7 @@ impl<'a> CheckerState<'a> {
             is_inference_partially_blocked: false,
             skip_direct_inference_nodes: std::collections::HashSet::new(),
             call_resolution_stack: Vec::new(),
+            argument_syntax: Vec::new(),
             apparent_argument_count: None,
             no_constraint_type: TypeId::new(0),
             circular_constraint_type: TypeId::new(0),

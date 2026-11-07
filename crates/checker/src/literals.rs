@@ -659,6 +659,22 @@ impl<'a> CheckerState<'a> {
 
 /// checkObjectLiteral's accumulator — the locals of L74138-74158 the
 /// member loop mutates and the createObjectLiteralType closure reads.
+/// A member's syntax only. No resolved symbols, types, or diagnostics are shared.
+#[derive(Clone, Copy)]
+struct ObjectMemberSyntax {
+    node: NodeId,
+    kind: SyntaxKind,
+    computed_name: Option<NodeId>,
+    is_method: bool,
+}
+
+#[derive(Default)]
+pub(crate) struct ArgumentSyntaxScope {
+    objects: Vec<(NodeId, std::sync::Arc<[ObjectMemberSyntax]>)>,
+}
+
+/// Mutable semantic state belongs to a single check, including rejected trials.
+/// In particular every check still allocates its own fresh type and properties.
 struct ObjectLiteralAcc {
     all_properties_table: Option<SymbolTable>,
     properties_table: SymbolTable,
@@ -1021,6 +1037,33 @@ impl<'a> CheckerState<'a> {
         self.create_object_literal_segment(node, &acc)
     }
 
+    fn object_member_syntax(&mut self, node: NodeId) -> std::sync::Arc<[ObjectMemberSyntax]> {
+        if let Some(scope) = self.argument_syntax.last() {
+            if let Some((_, plan)) = scope.objects.iter().find(|(owner, _)| *owner == node) {
+                return plan.clone();
+            }
+        }
+        let properties = match self.data_of(node) {
+            NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
+            _ => Default::default(),
+        };
+        let plan: std::sync::Arc<[ObjectMemberSyntax]> = properties
+            .into_iter()
+            .map(|member| ObjectMemberSyntax {
+                node: member,
+                kind: self.kind_of(member),
+                computed_name: self
+                    .name_of_named_declaration(member)
+                    .filter(|&name| self.kind_of(name) == SyntaxKind::ComputedPropertyName),
+                is_method: self.is_object_literal_method(member),
+            })
+            .collect();
+        if let Some(scope) = self.argument_syntax.last_mut() {
+            scope.objects.push((node, plan.clone()));
+        }
+        plan
+    }
+
     /// The member loop of checkObjectLiteral (74159-74268), run while
     /// the cached contextual scope is pushed.
     fn check_object_literal_members(
@@ -1029,10 +1072,7 @@ impl<'a> CheckerState<'a> {
         check_mode: CheckMode,
         acc: &mut ObjectLiteralAcc,
     ) -> CheckResult<()> {
-        let properties: Vec<NodeId> = match self.data_of(node) {
-            NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties).to_vec(),
-            _ => Vec::new(),
-        };
+        let properties = self.object_member_syntax(node);
         acc.contextual_type =
             self.get_apparent_type_of_contextual_type(node, ContextFlags::NONE)?;
         acc.contextual_type_has_pattern = acc.contextual_type.is_some_and(|contextual| {
@@ -1061,14 +1101,13 @@ impl<'a> CheckerState<'a> {
             && acc.is_in_javascript
             && self.node_flags(node) & tsc_types::NodeFlags::JSON_FILE.bits() == 0;
         // Pre-pass: force every computed name (74159-74163).
-        for &member_decl in &properties {
-            if let Some(name) = self.name_of_named_declaration(member_decl) {
-                if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
-                    self.check_computed_property_name(name)?;
-                }
+        for member in properties.iter() {
+            if let Some(name) = member.computed_name {
+                self.check_computed_property_name(name)?;
             }
         }
-        for member_decl in properties {
+        for syntax in properties.iter() {
+            let member_decl = syntax.node;
             // getSymbolOfDeclaration (74166): the LATE-BOUND hop is
             // load-bearing for computed-name accessors — the get/set
             // halves of one `[Symbol.x]` pair share a late symbol,
@@ -1082,18 +1121,16 @@ impl<'a> CheckerState<'a> {
                 }
                 None => None,
             };
-            let computed_name_type = match self.name_of_named_declaration(member_decl) {
-                Some(name) if self.kind_of(name) == SyntaxKind::ComputedPropertyName => {
-                    Some(self.check_computed_property_name(name)?)
-                }
-                _ => None,
+            let computed_name_type = match syntax.computed_name {
+                Some(name) => Some(self.check_computed_property_name(name)?),
+                None => None,
             };
-            let kind = self.kind_of(member_decl);
+            let kind = syntax.kind;
             let member: SymbolId;
             if matches!(
                 kind,
                 SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment
-            ) || self.is_object_literal_method(member_decl)
+            ) || syntax.is_method
             {
                 let Some(member_sym) = member_symbol else {
                     // Binder-created object members always carry a symbol.

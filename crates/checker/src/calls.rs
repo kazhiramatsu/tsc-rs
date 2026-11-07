@@ -4012,6 +4012,28 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         signatures: &[SignatureId],
+        candidates_out: Option<&mut Vec<SignatureId>>,
+        check_mode: CheckMode,
+        call_chain_flags: SignatureFlags,
+        head_message: Option<&'static DiagnosticMessage>,
+    ) -> CheckResult<SignatureId> {
+        self.argument_syntax.push(Default::default());
+        let result = self.resolve_call_worker(
+            node,
+            signatures,
+            candidates_out,
+            check_mode,
+            call_chain_flags,
+            head_message,
+        );
+        self.argument_syntax.pop();
+        result
+    }
+
+    fn resolve_call_worker(
+        &mut self,
+        node: NodeId,
+        signatures: &[SignatureId],
         mut candidates_out: Option<&mut Vec<SignatureId>>,
         check_mode: CheckMode,
         call_chain_flags: SignatureFlags,
