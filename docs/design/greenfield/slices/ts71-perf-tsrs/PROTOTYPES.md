@@ -1,4 +1,4 @@
-# 性能の作業の試作一覧（2026-11-01〜11-06）
+# 性能の作業の試作一覧（2026-11-01〜11-07）
 
 main に merge しなかった branch を、何を試して結果がどうなったかとともに並べる。GitHub 上の名前は「branch」の列（`archive/2026-11/` の下にまとめて push した；元から push 済みのものは元の名前）。採用された card の最終形は main の merge commit にあり、ここに並ぶのはその試作・段階・比較用の build。数字と判断の根拠は README の計測台帳と `target/claude-tools/handover/perf-tsrs/` の各 gate の記録（local の archive `~/dev/tsc-rs-archive/2026-11-06/`）。
 
@@ -6,6 +6,10 @@ main に merge しなかった branch を、何を試して結果がどうなっ
 
 | 種類 | 日付 | branch | commit | 試したこと | 結果 |
 | --- | --- | --- | --- | --- | --- |
+| observation | 2026-11-07 | `archive/2026-11/codex-argument-census` | `f4b6acf08` | call / argument / candidate の再処理と生成数 | [構造変更の実施記録](STRUCTURAL-2026-11-07.md)。1 / 4 threads の出力一致 |
+| pilot | 2026-11-07 | `archive/2026-11/codex-argument-syntax` | `f9d1a1250` | call-scoped な object 構文配列と fresh semantic state の分離 | 不採用：VS Code wall +0.28% / +0.09%（1 / 4）、継続目安未達 |
+| observation | 2026-11-07 | `archive/2026-11/codex-inference-census` | `177252b00` | property 構造走査と推論候補適用、visited の再訪理由 | recipe cache は見送り。1 / 4 threads の出力一致 |
+| pilot | 2026-11-07 | `archive/2026-11/codex-flow-index` | `f0bb1c3f1` | 解決済み symbol による bounded straight block index | 不採用：VS Code wall +0.61% / +0.83%（1 / 4）。shadow 不一致 0、61 tests passed |
 | card | 2026-11-06 | `perf/ts71-shared-paths` | `4a79b2302` | card (a): paths share their bytes (SharedJsString) | adopted as #910 (the last card) |
 | pilot | 2026-11-05 | `archive/2026-11/m8/batch-attach` | `5877accc9` | attach-from-data variant in the batch | folded into #895 |
 | pilot | 2026-11-05 | `archive/2026-11/m8/batch-card10` | `608939e31` | card 10 v1 in the parse batch | superseded by v2 |
