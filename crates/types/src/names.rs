@@ -12,6 +12,7 @@
 
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use hashbrown::hash_table::{Entry, HashTable};
@@ -26,6 +27,31 @@ const SHARDS: usize = 64;
 /// sits at a fixed address computed from its id.
 static SHARDS_BY_HASH: [OnceLock<Mutex<HashTable<u32>>>; SHARDS] =
     [const { OnceLock::new() }; SHARDS];
+
+/// Largest requested per-shard capacity. The shared vocabulary outlives a
+/// program, so a later, smaller source must not reserve the same room again.
+static CAPACITY_HINT: AtomicUsize = AtomicUsize::new(0);
+
+/// Reserve the shared lookup index from an already known source/program size.
+/// Names are assigned by the append-only store, never by hash-table traversal.
+/// The hint is deliberately conservative and bounded to 64K names in total;
+/// it is neither a limit on the vocabulary nor an allocation per source file.
+pub fn reserve_capacity_hint(names: usize) {
+    let per_shard = names.min(1 << 16).div_ceil(SHARDS);
+    if per_shard <= CAPACITY_HINT.load(Ordering::Relaxed)
+        || per_shard <= CAPACITY_HINT.fetch_max(per_shard, Ordering::Relaxed)
+    {
+        return;
+    }
+    for shard in &SHARDS_BY_HASH {
+        let mut table = shard
+            .get_or_init(Default::default)
+            .lock()
+            .expect("name shard poisoned");
+        let additional = per_shard.saturating_sub(table.len());
+        table.reserve(additional, |&id| hash_bytes(tsc_store::names::text(id)));
+    }
+}
 
 fn hash_bytes(bytes: &[u8]) -> u64 {
     let mut hasher = FxHasher::default();

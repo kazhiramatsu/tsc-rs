@@ -890,6 +890,9 @@ pub struct CheckerState<'a> {
     /// Set's visit-inserts-during-forEach semantics are reproduced by
     /// index iteration over the IndexSet.
     pub(crate) deferred_nodes: rustc_hash::FxHashMap<NodeId, indexmap::IndexSet<NodeId>>,
+    /// Cleared after a file's deferred drain; a nested file check keeps its
+    /// own live set in `deferred_nodes` and can take another spare.
+    pub(crate) deferred_node_sets: Vec<indexmap::IndexSet<NodeId>>,
 
     // Deferred reports and renamed bindings survive candidate rejection;
     // these accumulators are not transient per-element stacks.
@@ -1688,7 +1691,7 @@ impl<'a> CheckerState<'a> {
         let strict_function_types = options.strict_option_value(options.strict_function_types);
         let stable_type_ordering = options.stable_type_ordering_effective();
         let exact_optional = options.exact_optional_property_types.unwrap_or(false);
-        let tables = TypeTables::new(
+        let mut tables = TypeTables::new(
             strict_null_checks,
             exact_optional,
             crate::program::shared_identity_domain(),
@@ -1725,6 +1728,8 @@ impl<'a> CheckerState<'a> {
             program_nodes += binder.source(file_index).arena.len();
             program_symbols += binder.file(file_index).symbols.len();
         }
+        tables.reserve_capacity_hint(program_nodes, program_symbols);
+        tsc_types::names::reserve_capacity_hint(program_symbols / 4);
 
         let mut state = Self {
             binder,
@@ -1744,7 +1749,7 @@ impl<'a> CheckerState<'a> {
             members: Vec::new(),
             deferred_reference_members: Default::default(),
             named_member_order_buffers: Default::default(),
-            relations: RelationCaches::default(),
+            relations: RelationCaches::with_capacity_hint(program_symbols),
             subtype_reduction_cache: rustc_hash::FxHashMap::default(),
             inference_visited: Default::default(),
             inference_walk_buffers: Default::default(),
@@ -1838,6 +1843,7 @@ impl<'a> CheckerState<'a> {
             line_profile: crate::line_profile::LineProfiler::new(),
             profile_ops: [0; crate::line_profile::OPS],
             deferred_nodes: rustc_hash::FxHashMap::default(),
+            deferred_node_sets: Vec::new(),
             deferred_diagnostics: Vec::new(),
             declaration_emit_aliases_marked: rustc_hash::FxHashSet::default(),
             deferred_ambient_module_symbols: Vec::new(),

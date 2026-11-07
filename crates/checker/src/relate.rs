@@ -230,6 +230,26 @@ impl EnumRelationOutcome {
 }
 
 impl RelationCaches {
+    /// Pair caches are queried by key. `values()` is only a test/counting
+    /// adapter; no diagnostic, type identity or traversal uses bucket order.
+    /// Give the commonly used assignability cache most of the bounded hint.
+    pub(crate) fn with_capacity_hint(symbols: usize) -> Self {
+        Self {
+            per_relation: std::array::from_fn(|index| RelationCache {
+                pairs: HashMap::with_capacity_and_hasher(
+                    if index == RelationKind::Assignable.cache_index() {
+                        (symbols / 4).min(1 << 16)
+                    } else {
+                        (symbols / 32).min(1 << 12)
+                    },
+                    Default::default(),
+                ),
+                generics: HashMap::default(),
+            }),
+            enum_relation: HashMap::default(),
+        }
+    }
+
     /// Entries and bytes of the five relation caches and the enum-relation
     /// cache (memory accounting).
     pub(crate) fn memory_usage(&self) -> (usize, usize) {

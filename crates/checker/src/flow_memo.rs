@@ -543,7 +543,9 @@ impl CheckerState<'_> {
         if let Some(hash) = packed {
             return Some(MemoKey { hash });
         }
-        let mut bytes = Vec::new();
+        // An identifier root is one tag plus a u32, followed by the three
+        // fixed u32 key fields. Property fragments reserve their bytes too.
+        let mut bytes = Vec::with_capacity(1 + 4 + 3 * 4);
         self.write_flow_memo_reference(query.reference, &mut bytes)?;
         bytes.extend_from_slice(&query.declared_type.index().to_le_bytes());
         bytes.extend_from_slice(&query.initial_type.index().to_le_bytes());
@@ -582,6 +584,9 @@ impl CheckerState<'_> {
                 }
                 self.write_flow_memo_reference(data.expression?, bytes)?;
                 let name = self.escaped_text_of(data.name)?;
+                // Include the fixed suffix in the reservation so appending
+                // it after the final property cannot immediately regrow.
+                bytes.reserve(1 + 4 + name.len() + 3 * 4);
                 bytes.push(b'P');
                 bytes.extend_from_slice(&u32::try_from(name.len()).ok()?.to_le_bytes());
                 bytes.extend_from_slice(name.as_bytes());

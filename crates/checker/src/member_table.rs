@@ -61,8 +61,8 @@ impl MemberTable {
     }
 
     /// Index the members by name once there are more than a few.
-    fn index(binder: &ProgramBinder<'_>, symbols: &[SymbolId]) -> HashTable<u32> {
-        let mut positions = HashTable::with_capacity(symbols.len() + 1);
+    fn index(binder: &ProgramBinder<'_>, symbols: &[SymbolId], capacity: usize) -> HashTable<u32> {
+        let mut positions = HashTable::with_capacity(capacity);
         for (position, &symbol) in symbols.iter().enumerate() {
             let name = name_of(binder, symbol);
             positions.insert_unique(hash_name(name), position as u32, |&position| {
@@ -117,7 +117,7 @@ impl MemberTable {
                 hash_name(name_of(binder, symbols[position as usize]))
             });
         } else if symbols.len() + additional > LINEAR_MEMBERS {
-            self.positions = Self::index(binder, symbols);
+            self.positions = Self::index(binder, symbols, symbols.len() + additional);
         }
     }
 
@@ -153,7 +153,7 @@ impl MemberTable {
                 self.symbols.push(symbol);
                 return None;
             }
-            self.positions = Self::index(binder, &self.symbols);
+            self.positions = Self::index(binder, &self.symbols, self.symbols.len() + 1);
         }
         let symbols = &self.symbols;
         let entry = self.positions.entry(

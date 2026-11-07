@@ -139,8 +139,18 @@ pub struct FlowArena {
 impl FlowArena {
     /// An empty arena for a bind, its cells in this thread's scratch.
     pub fn for_bind() -> Self {
+        Self::for_bind_with_capacity_hint(0)
+    }
+
+    /// Reuse the thread's cells and size the first file's flow storage from
+    /// its AST. Hints are bounded for large, mostly declarative source files;
+    /// the node and antecedent allocation orders do not depend on capacity.
+    pub(crate) fn for_bind_with_capacity_hint(nodes: usize) -> Self {
+        let mut cells = FLOW_CELLS.with(std::cell::Cell::take).unwrap_or_default();
+        cells.reserve((nodes / 8).min(1 << 16));
         Self {
-            cells: FLOW_CELLS.with(std::cell::Cell::take).unwrap_or_default(),
+            nodes: Vec::with_capacity((nodes / 4).min(1 << 16)),
+            cells,
             ..Self::default()
         }
     }

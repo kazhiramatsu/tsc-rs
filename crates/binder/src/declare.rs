@@ -117,6 +117,7 @@ pub struct BinderWorker<'a> {
     pub child_scratch: Vec<NodeId>,
     /// tsc activeLabelList (a stack; tsc uses a linked list).
     pub active_label_list: Vec<crate::flow::ActiveLabel>,
+    pub(crate) active_label_buffers: Vec<Vec<crate::flow::ActiveLabel>>,
 
     // ---- walk state ----
     pub seen_this_keyword: bool,
@@ -348,7 +349,8 @@ impl<'a> BinderWorker<'a> {
                     .expect("a published tree is bound once at a time")
             }),
         };
-        let mut flow = crate::flow::FlowArena::for_bind();
+        let node_count = source.arena.nodes().len();
+        let mut flow = crate::flow::FlowArena::for_bind_with_capacity_hint(node_count);
         // tsc createBinder: unreachableFlow is allocated once up front.
         let unreachable_flow = flow.create_flow_node(
             tsc_types::FlowFlags::UNREACHABLE,
@@ -358,7 +360,6 @@ impl<'a> BinderWorker<'a> {
         // Sized from the node count so the per-node maps do not rehash a
         // dozen times while a large source binds (about one declaration per
         // eight nodes in ordinary code).
-        let node_count = source.arena.nodes().len();
         Self {
             source,
             in_js_file: crate::node_util::node_flags(source, source.root)
@@ -400,6 +401,7 @@ impl<'a> BinderWorker<'a> {
             possibly_exhaustive: FxHashMap::default(),
             node_fallthrough_flow: FxHashMap::default(),
             active_label_list: Vec::new(),
+            active_label_buffers: Vec::new(),
             seen_this_keyword: false,
             in_assignment_pattern: false,
             has_explicit_return: false,
@@ -1331,6 +1333,7 @@ impl BinderWorker<'_> {
             possibly_exhaustive: _,
             node_fallthrough_flow: _,
             active_label_list: _,
+            active_label_buffers: _,
             seen_this_keyword: _,
             in_assignment_pattern: _,
             has_explicit_return: _,
@@ -1572,6 +1575,7 @@ impl BinderWorker<'_> {
             possibly_exhaustive,
             node_fallthrough_flow,
             active_label_list: _,
+            active_label_buffers: _,
             seen_this_keyword: _,
             in_assignment_pattern: _,
             has_explicit_return: _,

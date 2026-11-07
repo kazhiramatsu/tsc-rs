@@ -951,7 +951,12 @@ impl<'text> Parser<'text> {
             scanner: Scanner::new(text, language_variant),
             source_text: text,
             arena: NodeArena::new(),
-            names: tsc_types::names::HeldNameCache::take(),
+            names: {
+                // The program's node/symbol counts are not available until
+                // after parsing. Use source bytes for the first vocabulary hint.
+                tsc_types::names::reserve_capacity_hint(text.len() / 128);
+                tsc_types::names::HeldNameCache::take()
+            },
             node_stack: Vec::new(),
             jsdoc_tags: Vec::new(),
             #[cfg(debug_assertions)]

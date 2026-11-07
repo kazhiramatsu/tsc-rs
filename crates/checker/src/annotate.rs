@@ -4545,8 +4545,9 @@ impl<'a> CheckerState<'a> {
             let mut constructs = self.instantiate_signature_list(&constructs, mapper)?;
             let indices = self.members_of(source).index_infos().to_vec();
             let mut indices = self.instantiate_index_info_list(&indices, mapper)?;
-            let mut bases = Vec::new();
-            for base in self.get_base_types(target)? {
+            let base_types = self.get_base_types(target)?;
+            let mut bases = Vec::with_capacity(base_types.len());
+            for base in base_types {
                 let base = match arguments.last().copied() {
                     Some(this_argument) => {
                         let base = self.instantiate_type(base, Some(mapper))?;
