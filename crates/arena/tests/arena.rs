@@ -49,8 +49,20 @@ const _: fn() = || {
     let _ = <tsc_arena::ScratchArena as Ambiguous<_>>::check;
 };
 
+// The arena is process-global (one fixed reservation, one owner table), and
+// these tests observe block reuse and owner transitions. The harness runs tests
+// on several threads, so each test holds this lock; a failed test poisons it
+// and the next recovers the guard.
+static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+fn serial() -> std::sync::MutexGuard<'static, ()> {
+    SERIAL
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 #[test]
 fn round_trips_layout_alignment_and_handles() {
+    let _serial = serial();
     send::<Ref<Eight>>();
     send::<Ref<SyncButNotSend>>();
     sync::<Ref<SyncButNotSend>>();
@@ -93,6 +105,7 @@ fn round_trips_layout_alignment_and_handles() {
 
 #[test]
 fn slices_lists_bytes_empty_and_multiple_blocks() {
+    let _serial = serial();
     let arena = SharedArena::new(2);
     let values = vec![Eight { a: 73 }; BLOCK_BYTES / 8 * 3 + 1];
     let span = arena.alloc_slice(&values);
@@ -125,6 +138,7 @@ fn slices_lists_bytes_empty_and_multiple_blocks() {
 
 #[test]
 fn exclusive_mutation_freeze_and_four_readers() {
+    let _serial = serial();
     let mut arena = SharedArena::new(3);
     let r = arena.alloc(Forty { a: [1; 5] });
     arena.get_mut(r).a = [2, 3, 4, 5, 6];
@@ -149,6 +163,7 @@ fn exclusive_mutation_freeze_and_four_readers() {
 
 #[test]
 fn drop_diagnostics_reuse_and_stale_scalar() {
+    let _serial = serial();
     let arena = LocalArena::new(4);
     let stale = arena.alloc(Eight { a: u64::MAX });
     let raw = stale.raw();
@@ -167,6 +182,7 @@ fn drop_diagnostics_reuse_and_stale_scalar() {
 
 #[test]
 fn reports_live_arenas_transitions_and_stats() {
+    let _serial = serial();
     let arena = SharedArena::new(6);
     assert_eq!(arena.used_bytes(), 0);
     assert_eq!(arena.committed_bytes(), 0);
@@ -214,6 +230,7 @@ impl LocalThing {
 
 #[test]
 fn owned_checker_transfer_and_thread_adoption() {
+    let _serial = serial();
     send::<Owned<LocalThing>>();
     let arena = LocalArena::new(7);
     let r = arena.alloc(CellRecord {
@@ -243,6 +260,7 @@ fn owned_checker_transfer_and_thread_adoption() {
 
 #[test]
 fn foreign_mutation_rejected_and_reserved_owner_values_rejected() {
+    let _serial = serial();
     let mut first = SharedArena::new(8);
     let second = SharedArena::new(8); // Same logical owner still has separate leases.
     let r = second.alloc(8u64);
@@ -261,6 +279,7 @@ fn foreign_mutation_rejected_and_reserved_owner_values_rejected() {
 
 #[test]
 fn concurrent_owners_keep_disjoint_live_blocks() {
+    let _serial = serial();
     let barrier = Arc::new(std::sync::Barrier::new(4));
     let mut threads = Vec::new();
     for owner in 20..24 {
@@ -291,6 +310,7 @@ fn concurrent_owners_keep_disjoint_live_blocks() {
 
 #[test]
 fn bump_stats_exclude_closed_run_slack_and_freeze_exactly() {
+    let _serial = serial();
     let arena = SharedArena::new(81);
     let snapshot = || report().into_iter().find(|s| s.owner == 81).unwrap();
     arena.alloc(1u64);
@@ -331,6 +351,7 @@ impl SeveralLocalBlocks {
 
 #[test]
 fn adoption_updates_every_block_in_every_run() {
+    let _serial = serial();
     let arena = LocalArena::new(82);
     let mut cells = Vec::new();
     for _ in 0..3 {
