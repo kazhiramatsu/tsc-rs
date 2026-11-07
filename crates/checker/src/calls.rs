@@ -3639,116 +3639,158 @@ impl<'a> CheckerState<'a> {
         mode: ApplicabilityMode,
         containing_message_chain: Option<MessageChain>,
     ) -> CheckResult<Option<Vec<ApplicabilityError>>> {
-        if matches!(
-            self.kind_of(node),
-            SyntaxKind::JsxOpeningElement
-                | SyntaxKind::JsxSelfClosingElement
-                | SyntaxKind::JsxOpeningFragment
-        ) {
-            return self.check_applicable_signature_for_jsx_call_like_element(
-                node,
-                signature,
-                relation,
-                check_mode,
-                mode,
-                containing_message_chain,
-            );
-        }
-        let this_type = self.get_this_type_of_signature(signature)?;
-        if let Some(this_type) = this_type {
-            let is_new = self.kind_of(node) == SyntaxKind::NewExpression;
-            let is_super_property_call = matches!(self.data_of(node), NodeData::CallExpression(data)
+        #[cfg(feature = "perf-counters")]
+        self.followup_observe.begin(
+            "applicability",
+            [
+                node.index() as u64,
+                signature.index() as u64,
+                relation as u64,
+                check_mode.bits() as u64,
+                mode as u64,
+                0,
+                0,
+                0,
+            ],
+            self.followup_snapshot(),
+        );
+        let followup_result = (|| {
+            if matches!(
+                self.kind_of(node),
+                SyntaxKind::JsxOpeningElement
+                    | SyntaxKind::JsxSelfClosingElement
+                    | SyntaxKind::JsxOpeningFragment
+            ) {
+                return self.check_applicable_signature_for_jsx_call_like_element(
+                    node,
+                    signature,
+                    relation,
+                    check_mode,
+                    mode,
+                    containing_message_chain,
+                );
+            }
+            let this_type = self.get_this_type_of_signature(signature)?;
+            if let Some(this_type) = this_type {
+                let is_new = self.kind_of(node) == SyntaxKind::NewExpression;
+                let is_super_property_call = matches!(self.data_of(node), NodeData::CallExpression(data)
                 if data.expression.is_some_and(|expression| self.is_super_property(expression)));
-            if this_type != self.tables.intrinsics.void && !is_new && !is_super_property_call {
-                let this_argument_node = self.get_this_argument_of_call(node);
-                let this_argument_type = self.get_this_argument_type(this_argument_node)?;
-                let head = &diagnostics::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1;
-                // tsgo checker.go:9501 calls checkTypeRelatedToEx directly,
-                // including selection passes with no error node.
-                let (related, output) = if mode == ApplicabilityMode::Silent {
-                    (
-                        self.check_type_related_to(this_argument_type, this_type, relation)?,
-                        None,
-                    )
+                if this_type != self.tables.intrinsics.void && !is_new && !is_super_property_call {
+                    let this_argument_node = self.get_this_argument_of_call(node);
+                    let this_argument_type = self.get_this_argument_type(this_argument_node)?;
+                    let head = &diagnostics::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1;
+                    // tsgo checker.go:9501 calls checkTypeRelatedToEx directly,
+                    // including selection passes with no error node.
+                    let (related, output) = if mode == ApplicabilityMode::Silent {
+                        (
+                            self.check_type_related_to(this_argument_type, this_type, relation)?,
+                            None,
+                        )
+                    } else {
+                        self.check_relation_with_error_output_at(
+                            this_argument_type,
+                            this_type,
+                            relation,
+                            Some(head),
+                            containing_message_chain.clone(),
+                            Some(this_argument_node.unwrap_or(node)),
+                        )?
+                    };
+                    if !related {
+                        if mode == ApplicabilityMode::Silent {
+                            return Ok(Some(Vec::new()));
+                        }
+                        let span = self.diag_span_of_node(this_argument_node.unwrap_or(node));
+                        let diagnostic = match mode {
+                            ApplicabilityMode::Report => Some(if let Some(output) = output {
+                                let mut diagnostic = self.diagnostic_at_span(&span, output.message);
+                                diagnostic.related = output.related;
+                                diagnostic
+                            } else {
+                                self.build_relation_error_with_head_and_containing_chain(
+                                    this_argument_type,
+                                    this_type,
+                                    &span,
+                                    head,
+                                    containing_message_chain,
+                                )?
+                            }),
+                            _ => None,
+                        };
+                        let related = diagnostic
+                            .as_ref()
+                            .map(|diagnostic| diagnostic.related.clone())
+                            .unwrap_or_default();
+                        return Ok(Some(vec![ApplicabilityError {
+                            related,
+                            diagnostic,
+                        }]));
+                    }
+                }
+            }
+            let head = &diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1;
+            let rest_type = self.get_non_array_rest_type(signature)?;
+            let arg_count = if rest_type.is_some() {
+                std::cmp::min(self.get_parameter_count(signature)? - 1, args.len())
+            } else {
+                args.len()
+            };
+            for (i, arg) in args.iter().enumerate().take(arg_count) {
+                let arg = *arg;
+                if self.effective_arg_kind(&arg) == Some(SyntaxKind::OmittedExpression) {
+                    continue;
+                }
+                let param_type = self.get_type_at_position(signature, i)?;
+                let arg_type = self.check_effective_arg_with_contextual_type(
+                    &arg, param_type, /*inference_context*/ None, check_mode,
+                )?;
+                let check_arg_type = if check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE) {
+                    self.get_regular_type_of_object_literal(arg_type)?
                 } else {
-                    self.check_relation_with_error_output_at(
-                        this_argument_type,
-                        this_type,
-                        relation,
-                        Some(head),
-                        containing_message_chain.clone(),
-                        Some(this_argument_node.unwrap_or(node)),
-                    )?
+                    arg_type
                 };
-                if !related {
+                if !self.is_type_related_to(check_arg_type, param_type, relation)? {
                     if mode == ApplicabilityMode::Silent {
                         return Ok(Some(Vec::new()));
                     }
-                    let span = self.diag_span_of_node(this_argument_node.unwrap_or(node));
-                    let diagnostic = match mode {
-                        ApplicabilityMode::Report => Some(if let Some(output) = output {
-                            let mut diagnostic = self.diagnostic_at_span(&span, output.message);
-                            diagnostic.related = output.related;
-                            diagnostic
-                        } else {
-                            self.build_relation_error_with_head_and_containing_chain(
-                                this_argument_type,
-                                this_type,
-                                &span,
-                                head,
-                                containing_message_chain,
-                            )?
-                        }),
-                        _ => None,
+                    let effective = match arg {
+                        EffectiveArg::Node(arg_node) => {
+                            Some(self.get_effective_check_node(arg_node))
+                        }
+                        EffectiveArg::Synthetic { .. } => None,
                     };
-                    let related = diagnostic
-                        .as_ref()
-                        .map(|diagnostic| diagnostic.related.clone())
-                        .unwrap_or_default();
-                    return Ok(Some(vec![ApplicabilityError {
-                        related,
-                        diagnostic,
-                    }]));
-                }
-            }
-        }
-        let head = &diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1;
-        let rest_type = self.get_non_array_rest_type(signature)?;
-        let arg_count = if rest_type.is_some() {
-            std::cmp::min(self.get_parameter_count(signature)? - 1, args.len())
-        } else {
-            args.len()
-        };
-        for (i, arg) in args.iter().enumerate().take(arg_count) {
-            let arg = *arg;
-            if self.effective_arg_kind(&arg) == Some(SyntaxKind::OmittedExpression) {
-                continue;
-            }
-            let param_type = self.get_type_at_position(signature, i)?;
-            let arg_type = self.check_effective_arg_with_contextual_type(
-                &arg, param_type, /*inference_context*/ None, check_mode,
-            )?;
-            let check_arg_type = if check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE) {
-                self.get_regular_type_of_object_literal(arg_type)?
-            } else {
-                arg_type
-            };
-            if !self.is_type_related_to(check_arg_type, param_type, relation)? {
-                if mode == ApplicabilityMode::Silent {
-                    return Ok(Some(Vec::new()));
-                }
-                let effective = match arg {
-                    EffectiveArg::Node(arg_node) => Some(self.get_effective_check_node(arg_node)),
-                    EffectiveArg::Synthetic { .. } => None,
-                };
-                if let Some(effective) = effective {
-                    if let Some(mut errors) = self.capture_argument_elaboration(
-                        effective,
-                        param_type,
-                        head,
-                        mode,
-                        containing_message_chain.clone(),
-                    )? {
+                    if let Some(effective) = effective {
+                        if let Some(mut errors) = self.capture_argument_elaboration(
+                            effective,
+                            param_type,
+                            head,
+                            mode,
+                            containing_message_chain.clone(),
+                        )? {
+                            if let Some(await_related) = self.missing_await_related(
+                                node,
+                                &arg,
+                                check_arg_type,
+                                param_type,
+                                relation,
+                            )? {
+                                if let Some(first) = errors.first_mut() {
+                                    first.related.push(await_related.clone());
+                                    if let Some(diagnostic) = first.diagnostic.as_mut() {
+                                        diagnostic.related.push(await_related);
+                                    }
+                                }
+                            }
+                            return Ok(Some(errors));
+                        }
+                        let mut errors = self.capture_argument_relation_error(
+                            effective,
+                            check_arg_type,
+                            param_type,
+                            head,
+                            mode,
+                            containing_message_chain,
+                        )?;
                         if let Some(await_related) = self.missing_await_related(
                             node,
                             &arg,
@@ -3765,14 +3807,18 @@ impl<'a> CheckerState<'a> {
                         }
                         return Ok(Some(errors));
                     }
-                    let mut errors = self.capture_argument_relation_error(
-                        effective,
-                        check_arg_type,
-                        param_type,
-                        head,
-                        mode,
-                        containing_message_chain,
-                    )?;
+                    // The elaboration gate: elementwise elaborations move
+                    // the code/span (Err); the did-you-mean flavor keeps
+                    // the head but reports at the walked node.
+                    //
+                    // 76229: errorNode = effectiveCheckArgumentNode — the
+                    // span skips parentheses/satisfies exactly like the
+                    // rest branch below.
+                    let span = match effective {
+                        Some(effective) => self.diag_span_of_node(effective),
+                        None => self.diag_span_of_effective_arg(node, &arg),
+                    };
+                    let mut related: Vec<RelatedInfo> = Vec::new();
                     if let Some(await_related) = self.missing_await_related(
                         node,
                         &arg,
@@ -3780,151 +3826,134 @@ impl<'a> CheckerState<'a> {
                         param_type,
                         relation,
                     )? {
-                        if let Some(first) = errors.first_mut() {
-                            first.related.push(await_related.clone());
-                            if let Some(diagnostic) = first.diagnostic.as_mut() {
-                                diagnostic.related.push(await_related);
+                        related.push(await_related);
+                    }
+                    let diagnostic = match mode {
+                        ApplicabilityMode::Report => {
+                            let report_target = self.spread_argument_relation_report_target(
+                                node,
+                                &arg,
+                                check_arg_type,
+                                param_type,
+                            )?;
+                            let mut diagnostic = self
+                                .build_relation_error_with_head_and_containing_chain(
+                                    check_arg_type,
+                                    report_target,
+                                    &span,
+                                    head,
+                                    containing_message_chain,
+                                )?;
+                            diagnostic.related.extend(related);
+                            related = diagnostic.related.clone();
+                            Some(diagnostic)
+                        }
+                        _ => None,
+                    };
+                    return Ok(Some(vec![ApplicabilityError {
+                        related,
+                        diagnostic,
+                    }]));
+                }
+            }
+            if let Some(rest_type) = rest_type {
+                let spread_type = self.get_spread_argument_type(
+                    node,
+                    args,
+                    arg_count,
+                    args.len(),
+                    rest_type,
+                    /*inference_context*/ None,
+                    check_mode,
+                )?;
+                // tsgo checker.go:9549 uses the same direct checker route for
+                // the spread tuple, rather than an isTypeRelatedTo probe.
+                let (related, output) = if mode == ApplicabilityMode::Silent {
+                    (
+                        self.check_type_related_to(spread_type, rest_type, relation)?,
+                        None,
+                    )
+                } else {
+                    let error_node = match args.len() - arg_count {
+                        0 => Some(node),
+                        1 => match args[arg_count] {
+                            EffectiveArg::Node(arg_node) => {
+                                Some(self.get_effective_check_node(arg_node))
+                            }
+                            EffectiveArg::Synthetic { .. } => None,
+                        },
+                        _ => None,
+                    };
+                    self.check_relation_with_error_output_at(
+                        spread_type,
+                        rest_type,
+                        relation,
+                        Some(head),
+                        None,
+                        error_node,
+                    )?
+                };
+                if !related {
+                    if mode == ApplicabilityMode::Silent {
+                        return Ok(Some(Vec::new()));
+                    }
+                    let rest_arg_count = args.len() - arg_count;
+                    let span = if rest_arg_count == 0 {
+                        self.diag_span_of_node(node)
+                    } else if rest_arg_count == 1 {
+                        match args[arg_count] {
+                            EffectiveArg::Node(arg_node) => {
+                                self.diag_span_of_node(self.get_effective_check_node(arg_node))
+                            }
+                            arg @ EffectiveArg::Synthetic { .. } => {
+                                self.diag_span_of_effective_arg(node, &arg)
                             }
                         }
+                    } else {
+                        let pos = self.effective_arg_pos(&args[arg_count]);
+                        let end = self.effective_arg_end(&args[args.len() - 1]);
+                        self.diag_span_of_byte_range(node, pos, end)
+                    };
+                    let mut related: Vec<RelatedInfo> = Vec::new();
+                    if let Some(await_related) = self.missing_await_related_at(
+                        Some(&span),
+                        spread_type,
+                        rest_type,
+                        relation,
+                    )? {
+                        related.push(await_related);
                     }
-                    return Ok(Some(errors));
+                    let diagnostic = match mode {
+                        ApplicabilityMode::Report => {
+                            let mut diagnostic = if let Some(output) = output {
+                                let mut diagnostic = self.diagnostic_at_span(&span, output.message);
+                                diagnostic.related = output.related;
+                                diagnostic
+                            } else {
+                                self.build_relation_error_with_head(
+                                    spread_type,
+                                    rest_type,
+                                    &span,
+                                    head,
+                                )?
+                            };
+                            diagnostic.related.extend(related);
+                            related = diagnostic.related.clone();
+                            Some(diagnostic)
+                        }
+                        _ => None,
+                    };
+                    return Ok(Some(vec![ApplicabilityError {
+                        related,
+                        diagnostic,
+                    }]));
                 }
-                // The elaboration gate: elementwise elaborations move
-                // the code/span (Err); the did-you-mean flavor keeps
-                // the head but reports at the walked node.
-                //
-                // 76229: errorNode = effectiveCheckArgumentNode — the
-                // span skips parentheses/satisfies exactly like the
-                // rest branch below.
-                let span = match effective {
-                    Some(effective) => self.diag_span_of_node(effective),
-                    None => self.diag_span_of_effective_arg(node, &arg),
-                };
-                let mut related: Vec<RelatedInfo> = Vec::new();
-                if let Some(await_related) =
-                    self.missing_await_related(node, &arg, check_arg_type, param_type, relation)?
-                {
-                    related.push(await_related);
-                }
-                let diagnostic = match mode {
-                    ApplicabilityMode::Report => {
-                        let report_target = self.spread_argument_relation_report_target(
-                            node,
-                            &arg,
-                            check_arg_type,
-                            param_type,
-                        )?;
-                        let mut diagnostic = self
-                            .build_relation_error_with_head_and_containing_chain(
-                                check_arg_type,
-                                report_target,
-                                &span,
-                                head,
-                                containing_message_chain,
-                            )?;
-                        diagnostic.related.extend(related);
-                        related = diagnostic.related.clone();
-                        Some(diagnostic)
-                    }
-                    _ => None,
-                };
-                return Ok(Some(vec![ApplicabilityError {
-                    related,
-                    diagnostic,
-                }]));
             }
-        }
-        if let Some(rest_type) = rest_type {
-            let spread_type = self.get_spread_argument_type(
-                node,
-                args,
-                arg_count,
-                args.len(),
-                rest_type,
-                /*inference_context*/ None,
-                check_mode,
-            )?;
-            // tsgo checker.go:9549 uses the same direct checker route for
-            // the spread tuple, rather than an isTypeRelatedTo probe.
-            let (related, output) = if mode == ApplicabilityMode::Silent {
-                (
-                    self.check_type_related_to(spread_type, rest_type, relation)?,
-                    None,
-                )
-            } else {
-                let error_node = match args.len() - arg_count {
-                    0 => Some(node),
-                    1 => match args[arg_count] {
-                        EffectiveArg::Node(arg_node) => {
-                            Some(self.get_effective_check_node(arg_node))
-                        }
-                        EffectiveArg::Synthetic { .. } => None,
-                    },
-                    _ => None,
-                };
-                self.check_relation_with_error_output_at(
-                    spread_type,
-                    rest_type,
-                    relation,
-                    Some(head),
-                    None,
-                    error_node,
-                )?
-            };
-            if !related {
-                if mode == ApplicabilityMode::Silent {
-                    return Ok(Some(Vec::new()));
-                }
-                let rest_arg_count = args.len() - arg_count;
-                let span = if rest_arg_count == 0 {
-                    self.diag_span_of_node(node)
-                } else if rest_arg_count == 1 {
-                    match args[arg_count] {
-                        EffectiveArg::Node(arg_node) => {
-                            self.diag_span_of_node(self.get_effective_check_node(arg_node))
-                        }
-                        arg @ EffectiveArg::Synthetic { .. } => {
-                            self.diag_span_of_effective_arg(node, &arg)
-                        }
-                    }
-                } else {
-                    let pos = self.effective_arg_pos(&args[arg_count]);
-                    let end = self.effective_arg_end(&args[args.len() - 1]);
-                    self.diag_span_of_byte_range(node, pos, end)
-                };
-                let mut related: Vec<RelatedInfo> = Vec::new();
-                if let Some(await_related) =
-                    self.missing_await_related_at(Some(&span), spread_type, rest_type, relation)?
-                {
-                    related.push(await_related);
-                }
-                let diagnostic = match mode {
-                    ApplicabilityMode::Report => {
-                        let mut diagnostic = if let Some(output) = output {
-                            let mut diagnostic = self.diagnostic_at_span(&span, output.message);
-                            diagnostic.related = output.related;
-                            diagnostic
-                        } else {
-                            self.build_relation_error_with_head(
-                                spread_type,
-                                rest_type,
-                                &span,
-                                head,
-                            )?
-                        };
-                        diagnostic.related.extend(related);
-                        related = diagnostic.related.clone();
-                        Some(diagnostic)
-                    }
-                    _ => None,
-                };
-                return Ok(Some(vec![ApplicabilityError {
-                    related,
-                    diagnostic,
-                }]));
-            }
-        }
-        Ok(None)
+            Ok(None)
+        })();
+        #[cfg(feature = "perf-counters")]
+        self.followup_observe.end(self.followup_snapshot());
+        followup_result
     }
 
     fn effective_arg_pos(&self, arg: &EffectiveArg) -> u32 {
@@ -4486,108 +4515,141 @@ impl<'a> CheckerState<'a> {
         is_single_non_generic_candidate: bool,
         rollback_rejected_candidates: bool,
     ) -> CheckResult<Option<SignatureId>> {
-        ctx.candidates_for_argument_error = None;
-        ctx.candidate_for_argument_arity_error = None;
-        ctx.candidate_for_type_argument_error = None;
-        let node = ctx.node;
-        if is_single_non_generic_candidate {
-            let candidate = ctx.candidates[0];
-            // The context is not the checker: its lists are borrowed, not
-            // copied, while the checker relates the arguments.
-            let args = &ctx.args;
-            if !ctx.type_argument_nodes.is_empty()
-                || !self.has_correct_arity(
-                    node,
-                    args,
-                    candidate,
-                    ctx.signature_help_trailing_comma,
-                )?
-            {
-                return Ok(None);
+        #[cfg(feature = "perf-counters")]
+        self.followup_observe.begin(
+            "choose",
+            [
+                ctx.node.index() as u64,
+                relation as u64,
+                u64::from(is_single_non_generic_candidate),
+                u64::from(rollback_rejected_candidates),
+                ctx.candidates.len() as u64,
+                ctx.arg_check_mode.bits() as u64,
+                0,
+                0,
+            ],
+            self.followup_snapshot(),
+        );
+        let followup_result = (|| {
+            ctx.candidates_for_argument_error = None;
+            ctx.candidate_for_argument_arity_error = None;
+            ctx.candidate_for_type_argument_error = None;
+            let node = ctx.node;
+            if is_single_non_generic_candidate {
+                let candidate = ctx.candidates[0];
+                // The context is not the checker: its lists are borrowed, not
+                // copied, while the checker relates the arguments.
+                let args = &ctx.args;
+                if !ctx.type_argument_nodes.is_empty()
+                    || !self.has_correct_arity(
+                        node,
+                        args,
+                        candidate,
+                        ctx.signature_help_trailing_comma,
+                    )?
+                {
+                    return Ok(None);
+                }
+                if self
+                    .get_signature_applicability_error(
+                        node,
+                        args,
+                        candidate,
+                        relation,
+                        CheckMode::NORMAL,
+                        ApplicabilityMode::Silent,
+                        None,
+                    )?
+                    .is_some()
+                {
+                    ctx.candidates_for_argument_error = Some(vec![candidate]);
+                    return Ok(None);
+                }
+                return Ok(Some(candidate));
             }
-            if self
-                .get_signature_applicability_error(
-                    node,
-                    args,
-                    candidate,
-                    relation,
-                    CheckMode::NORMAL,
-                    ApplicabilityMode::Silent,
-                    None,
-                )?
-                .is_some()
-            {
-                ctx.candidates_for_argument_error = Some(vec![candidate]);
-                return Ok(None);
-            }
-            return Ok(Some(candidate));
-        }
-        for candidate_index in 0..ctx.candidates.len() {
-            let candidate = ctx.candidates[candidate_index];
-            let args = &ctx.args;
-            if !self.has_correct_type_argument_arity(candidate, &ctx.type_argument_nodes)
-                || !self.has_correct_arity(
-                    node,
-                    args,
-                    candidate,
-                    ctx.signature_help_trailing_comma,
-                )?
-            {
-                continue;
-            }
-            let type_argument_nodes = &ctx.type_argument_nodes;
-            // tsgo chooseOverload (checker.go:9243-9246): "When we are
-            // recursively resolving a call with a single candidate, we skip
-            // constraints checks during type inference to avoid circularity
-            // errors."
-            let no_constraint_checks = ctx.recursive_resolution && ctx.candidates.len() == 1;
-            let signature_help_trailing_comma = ctx.signature_help_trailing_comma;
-            let run_trial = |state: &mut Self| {
-                state.try_overload_candidate(
-                    node,
-                    args,
-                    type_argument_nodes,
-                    candidate,
-                    relation,
-                    ctx.arg_check_mode,
-                    no_constraint_checks,
-                    signature_help_trailing_comma,
-                )
-            };
-            let trial = if rollback_rejected_candidates {
-                self.speculate(|state| {
-                    let trial = run_trial(state)?;
-                    Ok(
-                        if matches!(trial.disposition, OverloadCandidateDisposition::Success(_)) {
-                            SpeculationOutcome::Commit(trial)
-                        } else {
-                            SpeculationOutcome::Reject(trial)
-                        },
+            for candidate_index in 0..ctx.candidates.len() {
+                let candidate = ctx.candidates[candidate_index];
+                let args = &ctx.args;
+                if !self.has_correct_type_argument_arity(candidate, &ctx.type_argument_nodes)
+                    || !self.has_correct_arity(
+                        node,
+                        args,
+                        candidate,
+                        ctx.signature_help_trailing_comma,
+                    )?
+                {
+                    continue;
+                }
+                let type_argument_nodes = &ctx.type_argument_nodes;
+                // tsgo chooseOverload (checker.go:9243-9246): "When we are
+                // recursively resolving a call with a single candidate, we skip
+                // constraints checks during type inference to avoid circularity
+                // errors."
+                let no_constraint_checks = ctx.recursive_resolution && ctx.candidates.len() == 1;
+                let signature_help_trailing_comma = ctx.signature_help_trailing_comma;
+                let run_trial = |state: &mut Self| {
+                    state.try_overload_candidate(
+                        node,
+                        args,
+                        type_argument_nodes,
+                        candidate,
+                        relation,
+                        ctx.arg_check_mode,
+                        no_constraint_checks,
+                        signature_help_trailing_comma,
                     )
-                })?
-            } else {
-                run_trial(self)?
-            };
-            ctx.arg_check_mode = trial.arg_check_mode;
-            match trial.disposition {
-                OverloadCandidateDisposition::TypeArgumentError(candidate) => {
-                    ctx.candidate_for_type_argument_error = Some(candidate);
-                }
-                OverloadCandidateDisposition::ArgumentArityError(candidate) => {
-                    ctx.candidate_for_argument_arity_error = Some(candidate);
-                }
-                OverloadCandidateDisposition::ArgumentError(candidate) => {
-                    ctx.candidates_for_argument_error
-                        .get_or_insert_with(Vec::new)
-                        .push(candidate);
-                }
-                OverloadCandidateDisposition::Success(check_candidate) => {
-                    ctx.candidates[candidate_index] = check_candidate;
-                    return Ok(Some(check_candidate));
+                };
+                let trial = if rollback_rejected_candidates {
+                    self.speculate(|state| {
+                        let trial = run_trial(state)?;
+                        Ok(
+                            if matches!(trial.disposition, OverloadCandidateDisposition::Success(_))
+                            {
+                                SpeculationOutcome::Commit(trial)
+                            } else {
+                                SpeculationOutcome::Reject(trial)
+                            },
+                        )
+                    })?
+                } else {
+                    run_trial(self)?
+                };
+                #[cfg(feature = "perf-counters")]
+                self.followup_observe.bump(
+                    match trial.disposition {
+                        OverloadCandidateDisposition::Success(_) => "trial.success",
+                        OverloadCandidateDisposition::ArgumentError(_) => "trial.argument_error",
+                        OverloadCandidateDisposition::ArgumentArityError(_) => "trial.arity_error",
+                        OverloadCandidateDisposition::TypeArgumentError(_) => {
+                            "trial.type_argument_error"
+                        }
+                    },
+                    1,
+                );
+                ctx.arg_check_mode = trial.arg_check_mode;
+                match trial.disposition {
+                    OverloadCandidateDisposition::TypeArgumentError(candidate) => {
+                        ctx.candidate_for_type_argument_error = Some(candidate);
+                    }
+                    OverloadCandidateDisposition::ArgumentArityError(candidate) => {
+                        ctx.candidate_for_argument_arity_error = Some(candidate);
+                    }
+                    OverloadCandidateDisposition::ArgumentError(candidate) => {
+                        ctx.candidates_for_argument_error
+                            .get_or_insert_with(Vec::new)
+                            .push(candidate);
+                    }
+                    OverloadCandidateDisposition::Success(check_candidate) => {
+                        ctx.candidates[candidate_index] = check_candidate;
+                        return Ok(Some(check_candidate));
+                    }
                 }
             }
-        }
-        Ok(None)
+            Ok(None)
+        })();
+        #[cfg(feature = "perf-counters")]
+        self.followup_observe.end(self.followup_snapshot());
+        followup_result
     }
 
     /// One chooseOverload candidate body (76791-76868). The caller
@@ -4604,117 +4666,85 @@ impl<'a> CheckerState<'a> {
         no_constraint_checks: bool,
         signature_help_trailing_comma: bool,
     ) -> CheckResult<OverloadCandidateTrial> {
-        let mut check_candidate;
-        let mut inference_context: Option<InferenceContextId> = None;
-        if self.signature_of(candidate).type_parameters.is_some() {
-            let type_argument_types;
-            if !type_argument_nodes.is_empty() {
-                let Some(checked) = self.check_type_arguments(
-                    candidate,
-                    type_argument_nodes,
-                    /*report_errors*/ false,
-                    /*head_message*/ None,
-                )?
-                else {
-                    return Ok(OverloadCandidateTrial {
-                        disposition: OverloadCandidateDisposition::TypeArgumentError(candidate),
-                        arg_check_mode,
-                    });
-                };
-                type_argument_types = checked;
-            } else {
-                let type_parameters = self
-                    .signature_of(candidate)
-                    .type_parameters
-                    .clone()
-                    .expect("checked Some above");
-                let mut flags = if self.is_in_js_file(node) {
-                    InferenceFlags::ANY_DEFAULT
+        #[cfg(feature = "perf-counters")]
+        self.followup_observe.begin(
+            "trial",
+            [
+                node.index() as u64,
+                candidate.index() as u64,
+                relation as u64,
+                arg_check_mode.bits() as u64,
+                u64::from(no_constraint_checks),
+                0,
+                0,
+                0,
+            ],
+            self.followup_snapshot(),
+        );
+        let followup_result = (|| {
+            let mut check_candidate;
+            let mut inference_context: Option<InferenceContextId> = None;
+            if self.signature_of(candidate).type_parameters.is_some() {
+                let type_argument_types;
+                if !type_argument_nodes.is_empty() {
+                    let Some(checked) = self.check_type_arguments(
+                        candidate,
+                        type_argument_nodes,
+                        /*report_errors*/ false,
+                        /*head_message*/ None,
+                    )?
+                    else {
+                        return Ok(OverloadCandidateTrial {
+                            disposition: OverloadCandidateDisposition::TypeArgumentError(candidate),
+                            arg_check_mode,
+                        });
+                    };
+                    type_argument_types = checked;
                 } else {
-                    InferenceFlags::NONE
-                };
-                if no_constraint_checks {
-                    flags |= InferenceFlags::NO_CONSTRAINT_CHECKS;
+                    let type_parameters = self
+                        .signature_of(candidate)
+                        .type_parameters
+                        .clone()
+                        .expect("checked Some above");
+                    let mut flags = if self.is_in_js_file(node) {
+                        InferenceFlags::ANY_DEFAULT
+                    } else {
+                        InferenceFlags::NONE
+                    };
+                    if no_constraint_checks {
+                        flags |= InferenceFlags::NO_CONSTRAINT_CHECKS;
+                    }
+                    let context = self.create_inference_context(
+                        &type_parameters,
+                        Some(candidate),
+                        flags,
+                        None,
+                    );
+                    inference_context = Some(context);
+                    type_argument_types = self.infer_type_arguments(
+                        node,
+                        candidate,
+                        args,
+                        arg_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
+                        context,
+                    )?;
+                    if self
+                        .inference_context(context)
+                        .flags
+                        .intersects(InferenceFlags::SKIPPED_GENERIC_FUNCTION)
+                    {
+                        arg_check_mode |= CheckMode::SKIP_GENERIC_FUNCTIONS;
+                    }
                 }
-                let context =
-                    self.create_inference_context(&type_parameters, Some(candidate), flags, None);
-                inference_context = Some(context);
-                type_argument_types = self.infer_type_arguments(
-                    node,
-                    candidate,
-                    args,
-                    arg_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
-                    context,
-                )?;
-                if self
-                    .inference_context(context)
-                    .flags
-                    .intersects(InferenceFlags::SKIPPED_GENERIC_FUNCTION)
-                {
-                    arg_check_mode |= CheckMode::SKIP_GENERIC_FUNCTIONS;
-                }
-            }
-            let is_javascript = self
-                .signature_of(candidate)
-                .declaration
-                .is_some_and(|declaration| self.is_in_js_file(declaration));
-            let inferred_type_parameters = inference_context.and_then(|context| {
-                self.inference_context(context)
-                    .inferred_type_parameters
-                    .clone()
-            });
-            check_candidate = self.get_signature_instantiation(
-                candidate,
-                Some(&type_argument_types),
-                is_javascript,
-                inferred_type_parameters.as_deref(),
-            )?;
-            if self.get_non_array_rest_type(candidate)?.is_some()
-                && !self.has_correct_arity(
-                    node,
-                    args,
-                    check_candidate,
-                    signature_help_trailing_comma,
-                )?
-            {
-                return Ok(OverloadCandidateTrial {
-                    disposition: OverloadCandidateDisposition::ArgumentArityError(check_candidate),
-                    arg_check_mode,
-                });
-            }
-        } else {
-            check_candidate = candidate;
-        }
-        if self
-            .get_signature_applicability_error(
-                node,
-                args,
-                check_candidate,
-                relation,
-                arg_check_mode,
-                ApplicabilityMode::Silent,
-                None,
-            )?
-            .is_some()
-        {
-            return Ok(OverloadCandidateTrial {
-                disposition: OverloadCandidateDisposition::ArgumentError(check_candidate),
-                arg_check_mode,
-            });
-        }
-        if !arg_check_mode.is_empty() {
-            arg_check_mode = CheckMode::NORMAL;
-            if let Some(context) = inference_context {
-                let type_argument_types =
-                    self.infer_type_arguments(node, candidate, args, arg_check_mode, context)?;
                 let is_javascript = self
                     .signature_of(candidate)
                     .declaration
                     .is_some_and(|declaration| self.is_in_js_file(declaration));
-                let inferred_type_parameters = self
-                    .inference_context(context)
-                    .inferred_type_parameters
-                    .clone();
+                let inferred_type_parameters = inference_context.and_then(|context| {
+                    self.inference_context(context)
+                        .inferred_type_parameters
+                        .clone()
+                });
                 check_candidate = self.get_signature_instantiation(
                     candidate,
                     Some(&type_argument_types),
@@ -4736,6 +4766,8 @@ impl<'a> CheckerState<'a> {
                         arg_check_mode,
                     });
                 }
+            } else {
+                check_candidate = candidate;
             }
             if self
                 .get_signature_applicability_error(
@@ -4754,11 +4786,67 @@ impl<'a> CheckerState<'a> {
                     arg_check_mode,
                 });
             }
-        }
-        Ok(OverloadCandidateTrial {
-            disposition: OverloadCandidateDisposition::Success(check_candidate),
-            arg_check_mode,
-        })
+            if !arg_check_mode.is_empty() {
+                arg_check_mode = CheckMode::NORMAL;
+                if let Some(context) = inference_context {
+                    let type_argument_types =
+                        self.infer_type_arguments(node, candidate, args, arg_check_mode, context)?;
+                    let is_javascript = self
+                        .signature_of(candidate)
+                        .declaration
+                        .is_some_and(|declaration| self.is_in_js_file(declaration));
+                    let inferred_type_parameters = self
+                        .inference_context(context)
+                        .inferred_type_parameters
+                        .clone();
+                    check_candidate = self.get_signature_instantiation(
+                        candidate,
+                        Some(&type_argument_types),
+                        is_javascript,
+                        inferred_type_parameters.as_deref(),
+                    )?;
+                    if self.get_non_array_rest_type(candidate)?.is_some()
+                        && !self.has_correct_arity(
+                            node,
+                            args,
+                            check_candidate,
+                            signature_help_trailing_comma,
+                        )?
+                    {
+                        return Ok(OverloadCandidateTrial {
+                            disposition: OverloadCandidateDisposition::ArgumentArityError(
+                                check_candidate,
+                            ),
+                            arg_check_mode,
+                        });
+                    }
+                }
+                if self
+                    .get_signature_applicability_error(
+                        node,
+                        args,
+                        check_candidate,
+                        relation,
+                        arg_check_mode,
+                        ApplicabilityMode::Silent,
+                        None,
+                    )?
+                    .is_some()
+                {
+                    return Ok(OverloadCandidateTrial {
+                        disposition: OverloadCandidateDisposition::ArgumentError(check_candidate),
+                        arg_check_mode,
+                    });
+                }
+            }
+            Ok(OverloadCandidateTrial {
+                disposition: OverloadCandidateDisposition::Success(check_candidate),
+                arg_check_mode,
+            })
+        })();
+        #[cfg(feature = "perf-counters")]
+        self.followup_observe.end(self.followup_snapshot());
+        followup_result
     }
 
     // ---- failure candidates ----

@@ -660,209 +660,237 @@ impl<'a> CheckerState<'a> {
         query: &mut FlowQuery,
         flow: FlowId,
     ) -> CheckResult<FlowType> {
-        if query.memo_aborted {
-            return Ok(FlowType::Type(self.tables.intrinsics.error));
-        }
-        let entry_flow = flow;
-        let mut flow = flow;
-        if query.flow_depth == FLOW_DEPTH_LIMIT {
-            if query.memo_used {
-                query.memo_aborted = true;
+        #[cfg(feature = "perf-counters")]
+        self.followup_observe.begin(
+            "flow",
+            [
+                query.file as u64,
+                flow.index() as u64,
+                query.reference.index() as u64,
+                query.declared_type.index() as u64,
+                query.initial_type.index() as u64,
+                query.flow_container.map_or(u64::MAX, |x| x.index() as u64),
+                query.reduce_depth as u64,
+                u64::from(query.synthetic_props.is_some()),
+            ],
+            self.followup_snapshot(),
+        );
+        let followup_result = (|| {
+            if query.memo_aborted {
                 return Ok(FlowType::Type(self.tables.intrinsics.error));
             }
-            let depth = query.flow_depth;
-            self.trace_instant("getTypeAtFlowNode_DepthLimit", || {
-                tsc_types::tracing::Args::new().with("depth", depth)
-            });
-            self.flow_memo.taint(0);
-            self.flow_analysis_disabled = true;
-            self.report_flow_control_error(query.reference);
-            return Ok(FlowType::Type(self.tables.intrinsics.error));
-        }
-        self.flow_frame_begin();
-        let memo = self.flow_frame_memo(query);
-        query.flow_depth += 1;
-        let mut shared: Option<FlowId> = None;
-        let mut shared_height = None;
-        let mut steps = 0;
-        let walk = (|| loop {
-            steps += 1;
-            let flags = query.flow(flow).flags;
-            if flags.intersects(FlowFlags::SHARED) {
-                // The shared-flow cache is scoped to THIS
-                // getFlowTypeOfReference invocation (sharedFlowStart..).
-                for index in query.shared_flow_start..self.shared_flow.len() {
-                    if self.shared_flow[index].flow == flow {
-                        let cached = self.shared_flow[index];
-                        self.flow_memo_consume(cached.transient, cached.reference);
-                        self.flow_memo.add_flags(cached.flags);
-                        shared_height = Some(cached.height);
-                        shared = None;
-                        return Ok(cached.flow_type);
-                    }
+            let entry_flow = flow;
+            let mut flow = flow;
+            if query.flow_depth == FLOW_DEPTH_LIMIT {
+                if query.memo_used {
+                    query.memo_aborted = true;
+                    return Ok(FlowType::Type(self.tables.intrinsics.error));
                 }
-                shared = Some(flow);
-            }
-            if let Some(memo) = memo.as_ref() {
-                if let Some((ty, ends_iteration)) =
-                    self.flow_memo_at_node(query, memo, entry_flow, flow, flags, shared)
-                {
-                    query.memo_used = true;
-                    // Go records the last shared node of the entire
-                    // iteration, which a checkpoint hit cannot know.
-                    shared = memo_shared_node(ends_iteration, shared);
-                    return Ok(ty);
-                }
-            }
-            let ty: FlowType;
-            if flags.intersects(FlowFlags::ASSIGNMENT) {
-                match self.get_type_at_flow_assignment(query, flow)? {
-                    Some(t) => ty = t,
-                    None => {
-                        flow = query.antecedent(flow);
-                        continue;
-                    }
-                }
-            } else if flags.intersects(FlowFlags::CALL) {
-                match self.get_type_at_flow_call(query, flow)? {
-                    Some(t) => ty = t,
-                    None => {
-                        flow = query.antecedent(flow);
-                        continue;
-                    }
-                }
-            } else if flags.intersects(FlowFlags::TRUE_CONDITION | FlowFlags::FALSE_CONDITION) {
-                ty = self.get_type_at_flow_condition(query, flow)?;
-            } else if flags.intersects(FlowFlags::SWITCH_CLAUSE) {
-                ty = self.get_type_at_switch_clause(query, flow)?;
-            } else if flags.intersects(FlowFlags::BRANCH_LABEL | FlowFlags::LOOP_LABEL) {
-                let antecedents = self.flow_label_antecedents_in(query.file, query.arena, flow);
-                if antecedents.len() == 1 {
-                    flow = antecedents[0];
-                    continue;
-                }
-                let join = if flags.intersects(FlowFlags::BRANCH_LABEL) {
-                    self.get_type_at_flow_branch_label(query, flow)
-                } else {
-                    self.get_type_at_flow_loop_label(query, flow)
-                };
-                // Dependency failures are not flow answers. Every
-                // production Err propagates to the outer containment
-                // boundary after the join workers restore their
-                // loop/reduce-label state.
-                ty = join?;
-            } else if flags.intersects(FlowFlags::ARRAY_MUTATION) {
-                match self.get_type_at_flow_array_mutation(query, flow)? {
-                    Some(t) => ty = t,
-                    None => {
-                        flow = query.antecedent(flow);
-                        continue;
-                    }
-                }
-            } else if flags.intersects(FlowFlags::REDUCE_LABEL) {
-                // try/finally: walk the antecedent with the target
-                // label's antecedents temporarily swapped (tsc mutates
-                // target.antecedent in place; the override map is the
-                // immutable-arena equivalent, restored ALSO on unwind).
-                let FlowData::ReduceLabel {
-                    target,
-                    antecedents,
-                } = query.payload(flow)
-                else {
-                    unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
-                };
-                let swapped = antecedents.to_vec();
-                let antecedent = query.antecedent(flow);
-                let saved = self
-                    .reduce_label_overrides
-                    .insert((query.file, target), swapped);
+                let depth = query.flow_depth;
+                self.trace_instant("getTypeAtFlowNode_DepthLimit", || {
+                    tsc_types::tracing::Args::new().with("depth", depth)
+                });
                 self.flow_memo.taint(0);
-                query.reduce_depth += 1;
-                let result = self.get_type_at_flow_node(query, antecedent);
-                query.reduce_depth -= 1;
-                match saved {
-                    Some(previous) => {
-                        self.reduce_label_overrides
-                            .insert((query.file, target), previous);
+                self.flow_analysis_disabled = true;
+                self.report_flow_control_error(query.reference);
+                return Ok(FlowType::Type(self.tables.intrinsics.error));
+            }
+            self.flow_frame_begin();
+            let memo = self.flow_frame_memo(query);
+            query.flow_depth += 1;
+            let mut shared: Option<FlowId> = None;
+            let mut shared_height = None;
+            let mut steps = 0;
+            let walk = (|| loop {
+                steps += 1;
+                #[cfg(feature = "perf-counters")]
+                self.followup_observe.bump("flow.steps", 1);
+                let flags = query.flow(flow).flags;
+                if flags.intersects(FlowFlags::SHARED) {
+                    // The shared-flow cache is scoped to THIS
+                    // getFlowTypeOfReference invocation (sharedFlowStart..).
+                    for index in query.shared_flow_start..self.shared_flow.len() {
+                        #[cfg(feature = "perf-counters")]
+                        self.followup_observe.bump("flow.shared_comparisons", 1);
+                        if self.shared_flow[index].flow == flow {
+                            #[cfg(feature = "perf-counters")]
+                            self.followup_observe.bump("flow.shared_hits", 1);
+                            let cached = self.shared_flow[index];
+                            self.flow_memo_consume(cached.transient, cached.reference);
+                            self.flow_memo.add_flags(cached.flags);
+                            shared_height = Some(cached.height);
+                            shared = None;
+                            return Ok(cached.flow_type);
+                        }
                     }
-                    None => {
-                        self.reduce_label_overrides.remove(&(query.file, target));
+                    shared = Some(flow);
+                }
+                if let Some(memo) = memo.as_ref() {
+                    if let Some((ty, ends_iteration)) =
+                        self.flow_memo_at_node(query, memo, entry_flow, flow, flags, shared)
+                    {
+                        #[cfg(feature = "perf-counters")]
+                        self.followup_observe.bump("flow.memo_hits", 1);
+                        query.memo_used = true;
+                        // Go records the last shared node of the entire
+                        // iteration, which a checkpoint hit cannot know.
+                        shared = memo_shared_node(ends_iteration, shared);
+                        return Ok(ty);
                     }
                 }
-                ty = result?;
-            } else if flags.intersects(FlowFlags::START) {
-                // Start outer-resume: a bare non-this reference
-                // declared outside the current flow container resumes
-                // in the OUTER container's flow (funcexpr/arrow
-                // capture); accesses and non-arrow `this` do not.
-                if let Some(container) = query.payload_node(flow) {
-                    // A synthetic destructuring reference (6.4b) IS an
-                    // element access — accesses never resume outward.
-                    let reference_kind = if query.synthetic_props.is_some() {
-                        SyntaxKind::ElementAccessExpression
-                    } else {
-                        self.kind_of(query.reference)
-                    };
-                    if Some(container) != query.flow_container
-                        && reference_kind != SyntaxKind::PropertyAccessExpression
-                        && reference_kind != SyntaxKind::ElementAccessExpression
-                        && !(reference_kind == SyntaxKind::ThisKeyword
-                            && self.kind_of(container) != SyntaxKind::ArrowFunction)
-                    {
-                        // Start payloads are only recorded for
-                        // fnexpr/arrow/object-literal-method containers
-                        // (binder bind_container), whose bind_worker ran
-                        // under the enclosing container's live flow and
-                        // recorded node_flow; current_flow is never
-                        // reset to None during subtree binding (no such
-                        // assignment exists in the binder), so the
-                        // container's flow node is always present.
-                        flow = self
-                            .flow_node_of(container)
-                            .expect("Start containers record their own flowNode at bind time");
+                let ty: FlowType;
+                if flags.intersects(FlowFlags::ASSIGNMENT) {
+                    match self.get_type_at_flow_assignment(query, flow)? {
+                        Some(t) => ty = t,
+                        None => {
+                            flow = query.antecedent(flow);
+                            continue;
+                        }
+                    }
+                } else if flags.intersects(FlowFlags::CALL) {
+                    match self.get_type_at_flow_call(query, flow)? {
+                        Some(t) => ty = t,
+                        None => {
+                            flow = query.antecedent(flow);
+                            continue;
+                        }
+                    }
+                } else if flags.intersects(FlowFlags::TRUE_CONDITION | FlowFlags::FALSE_CONDITION) {
+                    ty = self.get_type_at_flow_condition(query, flow)?;
+                } else if flags.intersects(FlowFlags::SWITCH_CLAUSE) {
+                    ty = self.get_type_at_switch_clause(query, flow)?;
+                } else if flags.intersects(FlowFlags::BRANCH_LABEL | FlowFlags::LOOP_LABEL) {
+                    let antecedents = self.flow_label_antecedents_in(query.file, query.arena, flow);
+                    if antecedents.len() == 1 {
+                        flow = antecedents[0];
                         continue;
                     }
+                    let join = if flags.intersects(FlowFlags::BRANCH_LABEL) {
+                        self.get_type_at_flow_branch_label(query, flow)
+                    } else {
+                        self.get_type_at_flow_loop_label(query, flow)
+                    };
+                    // Dependency failures are not flow answers. Every
+                    // production Err propagates to the outer containment
+                    // boundary after the join workers restore their
+                    // loop/reduce-label state.
+                    ty = join?;
+                } else if flags.intersects(FlowFlags::ARRAY_MUTATION) {
+                    match self.get_type_at_flow_array_mutation(query, flow)? {
+                        Some(t) => ty = t,
+                        None => {
+                            flow = query.antecedent(flow);
+                            continue;
+                        }
+                    }
+                } else if flags.intersects(FlowFlags::REDUCE_LABEL) {
+                    // try/finally: walk the antecedent with the target
+                    // label's antecedents temporarily swapped (tsc mutates
+                    // target.antecedent in place; the override map is the
+                    // immutable-arena equivalent, restored ALSO on unwind).
+                    let FlowData::ReduceLabel {
+                        target,
+                        antecedents,
+                    } = query.payload(flow)
+                    else {
+                        unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
+                    };
+                    let swapped = antecedents.to_vec();
+                    let antecedent = query.antecedent(flow);
+                    let saved = self
+                        .reduce_label_overrides
+                        .insert((query.file, target), swapped);
+                    self.flow_memo.taint(0);
+                    query.reduce_depth += 1;
+                    let result = self.get_type_at_flow_node(query, antecedent);
+                    query.reduce_depth -= 1;
+                    match saved {
+                        Some(previous) => {
+                            self.reduce_label_overrides
+                                .insert((query.file, target), previous);
+                        }
+                        None => {
+                            self.reduce_label_overrides.remove(&(query.file, target));
+                        }
+                    }
+                    ty = result?;
+                } else if flags.intersects(FlowFlags::START) {
+                    // Start outer-resume: a bare non-this reference
+                    // declared outside the current flow container resumes
+                    // in the OUTER container's flow (funcexpr/arrow
+                    // capture); accesses and non-arrow `this` do not.
+                    if let Some(container) = query.payload_node(flow) {
+                        // A synthetic destructuring reference (6.4b) IS an
+                        // element access — accesses never resume outward.
+                        let reference_kind = if query.synthetic_props.is_some() {
+                            SyntaxKind::ElementAccessExpression
+                        } else {
+                            self.kind_of(query.reference)
+                        };
+                        if Some(container) != query.flow_container
+                            && reference_kind != SyntaxKind::PropertyAccessExpression
+                            && reference_kind != SyntaxKind::ElementAccessExpression
+                            && !(reference_kind == SyntaxKind::ThisKeyword
+                                && self.kind_of(container) != SyntaxKind::ArrowFunction)
+                        {
+                            // Start payloads are only recorded for
+                            // fnexpr/arrow/object-literal-method containers
+                            // (binder bind_container), whose bind_worker ran
+                            // under the enclosing container's live flow and
+                            // recorded node_flow; current_flow is never
+                            // reset to None during subtree binding (no such
+                            // assignment exists in the binder), so the
+                            // container's flow node is always present.
+                            flow = self
+                                .flow_node_of(container)
+                                .expect("Start containers record their own flowNode at bind time");
+                            continue;
+                        }
+                    }
+                    ty = FlowType::Type(query.initial_type);
+                } else {
+                    // Unreachable terminus.
+                    ty = FlowType::Type(self.convert_auto_to_any(query.declared_type)?);
                 }
-                ty = FlowType::Type(query.initial_type);
-            } else {
-                // Unreachable terminus.
-                ty = FlowType::Type(self.convert_auto_to_any(query.declared_type)?);
-            }
-            return Ok(ty);
-        })();
-        query.flow_depth -= 1;
-        let (taint, height) = match shared_height {
-            Some(height) => (self.flow_frame_end_with(height), height),
-            None => self.flow_frame_end(),
-        };
-        if let Some(memo) = memo {
-            self.flow_memo_finish(
-                query,
-                memo,
-                entry_flow,
-                flow,
-                &walk,
-                taint,
-                height,
-                steps,
-                shared,
-                shared_height.is_some(),
-            );
-        }
-        if let (Ok(ty), Some(shared_node)) = (&walk, shared.filter(|_| !query.memo_aborted)) {
-            self.record_shared_flow(
-                query,
-                SharedFlow {
-                    flow: shared_node,
-                    flow_type: *ty,
-                    transient: taint.transient,
-                    reference: taint.reference,
+                return Ok(ty);
+            })();
+            query.flow_depth -= 1;
+            let (taint, height) = match shared_height {
+                Some(height) => (self.flow_frame_end_with(height), height),
+                None => self.flow_frame_end(),
+            };
+            if let Some(memo) = memo {
+                self.flow_memo_finish(
+                    query,
+                    memo,
+                    entry_flow,
+                    flow,
+                    &walk,
+                    taint,
                     height,
-                    flags: taint.flags,
-                },
-            );
-        }
-        walk
+                    steps,
+                    shared,
+                    shared_height.is_some(),
+                );
+            }
+            if let (Ok(ty), Some(shared_node)) = (&walk, shared.filter(|_| !query.memo_aborted)) {
+                self.record_shared_flow(
+                    query,
+                    SharedFlow {
+                        flow: shared_node,
+                        flow_type: *ty,
+                        transient: taint.transient,
+                        reference: taint.reference,
+                        height,
+                        flags: taint.flags,
+                    },
+                );
+            }
+            walk
+        })();
+        #[cfg(feature = "perf-counters")]
+        self.followup_observe.end(self.followup_snapshot());
+        followup_result
     }
 
     // ---- the arms (assignment + array mutation live since 6.2,

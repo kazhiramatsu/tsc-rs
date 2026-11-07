@@ -6382,3 +6382,6 @@ fn publish_bound_documents_from_handles(
 #[cfg(test)]
 #[path = "../tests/unit/lib/tests.rs"]
 mod tests;
+
+#[cfg(feature = "perf-counters")]
+mod followup_observe;

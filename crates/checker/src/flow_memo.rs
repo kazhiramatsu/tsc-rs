@@ -644,7 +644,31 @@ impl CheckerState<'_> {
             }
             self.flow_memo.checkpoints.push(flow);
         }
+        #[cfg(feature = "perf-counters")]
+        self.followup_observe.bump("memo.lookups", 1);
         let hit = self.flow_memo.lookup(query.file_index(), flow, &memo.key)?;
+        #[cfg(feature = "perf-counters")]
+        {
+            self.followup_observe.bump("memo.key_hits", 1);
+            self.followup_observe.bump(
+                "memo.blocked.epoch",
+                u64::from(hit.epoch != 0 && hit.epoch != self.flow_memo.type_cache_epoch),
+            );
+            self.followup_observe.bump(
+                "memo.blocked.loop",
+                u64::from(!self.flow_loop_stack.is_empty()),
+            );
+            self.followup_observe.bump(
+                "memo.blocked.mapper",
+                u64::from(!self.active_type_mappers.is_empty()),
+            );
+            self.followup_observe.bump(
+                "memo.blocked.count",
+                u64::from(hit.flags & FLAG_COUNT_RESET != 0 && self.instantiation_count != 0),
+            );
+            self.followup_observe
+                .bump("memo.blocked.shared", u64::from(query.impure_shared != 0));
+        }
         if !self.flow_memo_consult_ok(query, hit) {
             return None;
         }
@@ -722,6 +746,27 @@ impl CheckerState<'_> {
                     && !query.memo_aborted
                     && shared_replay_safe(&self.shared_flow[memo.shared_start..])
             });
+        #[cfg(feature = "perf-counters")]
+        {
+            self.followup_observe.bump("memo.finish", 1);
+            self.followup_observe.bump("memo.store", u64::from(store));
+            self.followup_observe.bump(
+                "memo.no_store.effects",
+                u64::from(taint.flags & FLAG_EFFECTS != 0),
+            );
+            self.followup_observe.bump(
+                "memo.no_store.transient",
+                u64::from(taint.transient != UNTAINTED),
+            );
+            self.followup_observe.bump(
+                "memo.no_store.reference",
+                u64::from(taint.reference != UNTAINTED),
+            );
+            self.followup_observe
+                .bump("memo.no_store.short", u64::from(height == 0 && steps < 4));
+            self.followup_observe
+                .bump("memo.no_store.shared_hit", u64::from(shared_hit));
+        }
         if store {
             let hit = MemoHit {
                 ty: result.as_ref().expect("successful flow result").get_type(),

@@ -776,6 +776,8 @@ pub struct CheckerState<'a> {
     pub(crate) instantiation_count: u64,
     /// tsc totalInstantiationCount (46450).
     pub total_instantiation_count: u64,
+    #[cfg(feature = "perf-counters")]
+    pub(crate) followup_observe: crate::followup_observe::FollowupObserve,
     /// Symbols whose class/interface declared type is mid-computation.
     /// Type parameters whose default is mid-resolution — tsc's
     /// resolvingDefaultType sentinel (getResolvedTypeParameterDefault
@@ -1816,6 +1818,8 @@ impl<'a> CheckerState<'a> {
             instantiation_stack: Vec::new(),
             instantiation_count: 0,
             total_instantiation_count: 0,
+            #[cfg(feature = "perf-counters")]
+            followup_observe: crate::followup_observe::FollowupObserve::new(),
             type_parameter_defaults_in_progress: Vec::new(),
             mapped_types_in_progress: Vec::new(),
             flow_analysis_disabled: false,
