@@ -7,8 +7,8 @@ A Rust port of the TypeScript compiler. The reference is TypeScript 7.1
 
 Recent work and its records: the
 [tsrs comparison packet](docs/design/greenfield/slices/ts71-perf-tsrs/README.md)
-(2026-11-01 to 11-06, ended by the owner's decision; the outcome is its first
-section, the prototypes are listed in
+(started 2026-11-01, closed 11-06 and reopened for prototype/structure review
+on 11-07; the current outcome is its first section, the prototypes are listed in
 [PROTOTYPES.md](docs/design/greenfield/slices/ts71-perf-tsrs/PROTOTYPES.md));
 before it,
 the [real-project differences packet](docs/design/greenfield/slices/ts71-real-projects/README.md)
@@ -40,8 +40,8 @@ short user guide.
   configurations are recorded in the packet. Change `ratchets/ts71/` only
   with `--update` at the final bytes.
 - Keep the machine's load low: one heavy job at a time, `nice -n 20`,
-  `cargo -j 2`, one or two workers. No per-slice performance measurement
-  for now.
+  `cargo -j 2`, one or two workers. Keep wall-time measurements in dedicated
+  windows without concurrent builds or tests.
 - Inspect each check's real exit status (do not pipe it through `tail` or
   `grep`), and report only checks actually run, with their source identity.
 

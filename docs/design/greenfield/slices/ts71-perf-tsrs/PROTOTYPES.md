@@ -50,10 +50,10 @@ main に merge しなかった branch を、何を試して結果がどうなっ
 | pilot | 2026-11-06 | `archive/2026-11/m8/proto-text-heap` | `f96fecddf` | FE-T1 bound: source texts in their own heap (routed allocator) | bound −201 MiB; card #907 |
 | card branch | 2026-11-01 | `archive/2026-11/wip/perf-check-abort` | `4a7d69d67` | WIP: uninhabited CheckAbort | not pursued |
 | card branch | 2026-11-04 | `archive/2026-11/perf/ts71-direct-attach` | `ac43d66dc` | parents attached through a generated child-edge visitor | withdrawn (measured +0.7%) |
-| card branch | 2026-11-04 | `perf/ts71-c0-step2` | `6dd36c387` | C-0 flow memo step 2 | stopped (C-0 memos stopped 11/04) |
+| card branch | 2026-11-04 | `perf/ts71-c0-step2` | `6dd36c387` | C-0 flow memo step 2 | stopped 11/04; repaired and re-evaluated, adopted in [#911](https://github.com/kazhiramatsu/tsc-rs/pull/911) on 11/07 |
 | card branch | 2026-11-04 | `perf/ts71-r29b` | `501c9dc1c` | R29 steps 4–7: Go sort history at the remaining sites | folded into the data-layer plan (S1) |
 | card branch | 2026-11-04 | `perf/ts71-r29b-p2` | `deb3eeeab` | R29 steps 4–7, second attempt | folded into the data-layer plan (S1) |
-| observation | 2026-11-04 | `archive/2026-11/scratch/c0-step3-measure` | `77c2aa34d` | C-0 flow memo enabled (step 3 measurement build) | C-0 stopped 11/04 |
+| observation | 2026-11-04 | `archive/2026-11/scratch/c0-step3-measure` | `77c2aa34d` | C-0 flow memo enabled (step 3 measurement build) | stopped 11/04; shared-flow guard repaired, production form adopted in [#911](https://github.com/kazhiramatsu/tsc-rs/pull/911) on 11/07 |
 | observation | 2026-11-04 | `archive/2026-11/scratch/c0-table-14` | `e30b19e06` | C-0 flow memo, 1<<14 slots (table-size measurement) | C-0 stopped 11/04 |
 | observation | 2026-11-04 | `archive/2026-11/scratch/c0-table-16` | `be1d4652e` | C-0 flow memo, 1<<16 slots (table-size measurement) | C-0 stopped 11/04 |
 | observation | 2026-11-04 | `perf/ts71-b2-census` | `ee42c3045` | list-copy census counters | — |
