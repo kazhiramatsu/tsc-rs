@@ -2577,6 +2577,15 @@ impl InferTypesWalker<'_, '_> {
             contravariant: self.contravariant,
             bivariant: self.bivariant,
         };
+        self.st.structure_observe.inference_visit(
+            [source.index() as u64, target.index() as u64],
+            [
+                self.priority.bits() as u64,
+                self.contravariant as u64,
+                self.bivariant as u64,
+            ],
+            self.visited.contains_key(&key),
+        );
         if let Some(&status) = self.visited.get(&key) {
             self.inference_priority = self.inference_priority.min(status);
             return Ok(());
@@ -3682,39 +3691,86 @@ impl InferTypesWalker<'_, '_> {
     /// tsc-hash: d7581e09cb3cca44f643758bd3a498be544bb10fb35e640192072263dab91a38
     /// tsc-span: _tsc.js:69170-69181
     fn infer_from_properties(&mut self, source: TypeId, target: TypeId) -> CheckResult<()> {
-        let properties = self.st.get_properties_of_object_type_owned(target)?;
-        for target_prop in properties {
-            let name = self.st.binder.symbol(target_prop).escaped_name;
-            let Some(source_prop) = self.st.get_property_of_type_full(source, name)? else {
-                continue;
-            };
-            // tsgo inferFromProperties: a property declared by a node whose
-            // inference is blocked infers nothing.
-            let skipped = self
-                .st
-                .binder
-                .symbol(source_prop)
-                .declaration_list()
-                .into_iter()
-                .any(|declaration| self.st.has_skip_direct_inference_flag(declaration));
-            if skipped {
-                continue;
+        self.st.structure_observe.begin(
+            "property_pairs",
+            [
+                source.index() as u64,
+                target.index() as u64,
+                self.priority.bits() as u64,
+                self.contravariant as u64,
+                self.bivariant as u64,
+                self.inferences.len() as u64,
+                0,
+                0,
+            ],
+            self.st.structure_snapshot(),
+        );
+        let result = (|| {
+            self.st.structure_observe.begin(
+                "property_enumerate",
+                [0; 8],
+                self.st.structure_snapshot(),
+            );
+            let properties = self.st.get_properties_of_object_type_owned(target);
+            self.st
+                .structure_observe
+                .end(self.st.structure_snapshot(), None);
+            let properties = properties?;
+            for target_prop in properties {
+                let name = self.st.binder.symbol(target_prop).escaped_name;
+                self.st.structure_observe.begin(
+                    "property_lookup",
+                    [0; 8],
+                    self.st.structure_snapshot(),
+                );
+                let source_prop = self.st.get_property_of_type_full(source, name);
+                self.st
+                    .structure_observe
+                    .end(self.st.structure_snapshot(), None);
+                let Some(source_prop) = source_prop? else {
+                    continue;
+                };
+                // tsgo inferFromProperties: a property declared by a node whose
+                // inference is blocked infers nothing.
+                let skipped = self
+                    .st
+                    .binder
+                    .symbol(source_prop)
+                    .declaration_list()
+                    .into_iter()
+                    .any(|declaration| self.st.has_skip_direct_inference_flag(declaration));
+                if skipped {
+                    continue;
+                }
+                let source_type = self.st.get_type_of_symbol(source_prop)?;
+                let source_optional = self
+                    .st
+                    .symbol_flags(source_prop)
+                    .intersects(SymbolFlags::OPTIONAL);
+                let source2 = self.st.remove_missing_type(source_type, source_optional);
+                let target_type = self.st.get_type_of_symbol(target_prop)?;
+                let target_optional = self
+                    .st
+                    .symbol_flags(target_prop)
+                    .intersects(SymbolFlags::OPTIONAL);
+                let target2 = self.st.remove_missing_type(target_type, target_optional);
+                self.st.structure_observe.begin(
+                    "property_apply",
+                    [0; 8],
+                    self.st.structure_snapshot(),
+                );
+                let applied = self.infer_from_types(source2, target2);
+                self.st
+                    .structure_observe
+                    .end(self.st.structure_snapshot(), None);
+                applied?;
             }
-            let source_type = self.st.get_type_of_symbol(source_prop)?;
-            let source_optional = self
-                .st
-                .symbol_flags(source_prop)
-                .intersects(SymbolFlags::OPTIONAL);
-            let source2 = self.st.remove_missing_type(source_type, source_optional);
-            let target_type = self.st.get_type_of_symbol(target_prop)?;
-            let target_optional = self
-                .st
-                .symbol_flags(target_prop)
-                .intersects(SymbolFlags::OPTIONAL);
-            let target2 = self.st.remove_missing_type(target_type, target_optional);
-            self.infer_from_types(source2, target2)?;
-        }
-        Ok(())
+            Ok(())
+        })();
+        self.st
+            .structure_observe
+            .end(self.st.structure_snapshot(), None);
+        result
     }
 
     /// tsc-port: inferFromSignatures @6.0.3

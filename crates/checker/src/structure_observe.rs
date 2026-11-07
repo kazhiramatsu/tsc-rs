@@ -27,6 +27,7 @@ struct Frame {
     child_ns: u64,
     child_creations: [u64; 4],
     arguments: FxHashMap<u64, u64>,
+    inference_pairs: FxHashMap<[u64; 2], [u64; 3]>,
 }
 
 #[derive(Default)]
@@ -37,6 +38,7 @@ pub(crate) struct StructureObserve {
     stack: Vec<Frame>,
     counts: FxHashMap<&'static str, u64>,
     argument_histogram: FxHashMap<u64, u64>,
+    inference_serial: u64,
 }
 
 impl StructureObserve {
@@ -46,9 +48,22 @@ impl StructureObserve {
         observer
     }
 
-    pub(crate) fn begin(&mut self, category: &'static str, inputs: [u64; 8], before: [u64; 4]) {
+    pub(crate) fn begin(&mut self, category: &'static str, mut inputs: [u64; 8], before: [u64; 4]) {
         if self.directory.is_none() {
             return;
+        }
+        if category == "inference" {
+            self.inference_serial += 1;
+            inputs[6] = self.inference_serial;
+        } else if category == "property_pairs" {
+            if let Some(frame) = self
+                .stack
+                .iter()
+                .rev()
+                .find(|frame| frame.category == "inference")
+            {
+                inputs[6] = frame.inputs[6];
+            }
         }
         let mut key = [0; 12];
         key[..8].copy_from_slice(&inputs);
@@ -88,6 +103,7 @@ impl StructureObserve {
             child_ns: 0,
             child_creations: [0; 4],
             arguments: FxHashMap::default(),
+            inference_pairs: FxHashMap::default(),
         });
     }
 
@@ -127,6 +143,36 @@ impl StructureObserve {
     pub(crate) fn bump(&mut self, name: &'static str, amount: u64) {
         if self.directory.is_some() {
             *self.counts.entry(name).or_default() += amount;
+        }
+    }
+
+    pub(crate) fn inference_visit(&mut self, pair: [u64; 2], modes: [u64; 3], hit: bool) {
+        if self.directory.is_none() {
+            return;
+        }
+        if hit {
+            self.bump("inference.visited_hit", 1);
+            return;
+        }
+        self.bump("inference.visited_miss", 1);
+        let previous = self
+            .stack
+            .iter_mut()
+            .rev()
+            .find(|frame| frame.category == "inference")
+            .and_then(|frame| frame.inference_pairs.insert(pair, modes));
+        if let Some(previous) = previous {
+            self.bump("inference.pair_revisited_in_walk", 1);
+            self.bump(
+                "inference.priority_changed",
+                u64::from(previous[0] != modes[0]),
+            );
+            self.bump(
+                "inference.variance_changed",
+                u64::from(previous[1..] != modes[1..]),
+            );
+        } else {
+            self.bump("inference.first_pair_in_walk", 1);
         }
     }
 
