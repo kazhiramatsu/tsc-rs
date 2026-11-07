@@ -13,6 +13,45 @@ data model の現状と費用の証拠、slice 12〜17 の設計、tsrs との�
 `3e9236361` を移植。tsc-rs の参照 `aa8149273` の 53 commit 後）。この repo の環境変数の接頭辞 `TSRS_` とは無関係。既定の mode が
 tsgo と同じ答え（checker 4 つ、eager な member）で、`--fast` は答えが変わりうる。
 
+## 方針転換：tsrs との差の地図と「移植の税」（2026-11-08、進行中）
+
+arena 書き換え計画（[ts71-arch-arena](../ts71-arch-arena/README.md)）の段 0b で測った 4 本の天井は合計 ≈ 5% で、所有者は 2026-11-08 01:2x に
+方針を転換した：「instruction の parity は構造書き換えの対象機構では届かない。memory（peak）の削減と、tsrs との差が集中する phase の
+algorithm 差の調査に軸を移す」。続いて「tsc と tsgo から移植した関数を徹底的にトレース、プロファイルして差を確認」、tsrs の設計文書の
+確認、そして「(2) の移植の税から先に片付けてください」。記録は `target/claude-tools/handover/arch-arena/`（`gapmap/` に lane の報告一式、
+`tsrs-notes/` に tsrs の docs と notes の複製、rev `fc38431`）。
+
+**測った事実（VS Code、1 thread）。** 統計：Types は tsc-rs 2,567,002 / tsgo 2,570,757 / tsrs 2,163,379、Instantiations 3,386,791 /
+3,389,287 / 3,116,848（TypeScript compiler と next.js も同じ形：tsc-rs ≈ tsgo、tsrs は型 −7% / −2%）。tsc-rs は tsgo と同じ型の仕事をし、
+tsrs は既定 mode でも tsgo より仕事が少ない（tuple の要素 type parameter の共有、空の index-info list で名前 literal 型を作らない、ほか未特定）。
+命令 85.44 G 対 121.61 G（1.42×）、cpu 5.98 対 8.37 s（1.40×、CPI は同じ）、peak 1,991 対 2,674 MiB。worker thread の sample（4 kHz）では
+parse 663 対 701 ms（tsc-rs が速い）、bind 413 対 288（1.43×）、check 6,252 対 4,751（1.32×、+1.5 s）、loader 周辺の「other」903 対 213
+（4.2×、+0.69 s：module request の計画 245 ms、program 入力の parse 163、relocate 144、module 解決 190）。呼び出し回数（entry
+instrumentation、`-pgo-instrument-entry=true` と `CFLAGS=-fno-profile-generate`）：resolve_call 1,067,207、choose_overload 1,069,920、
+invoke_once 7,731,980 は両者で完全一致。多いのは get_contextual_type 1.18×、get_apparent_type_of_contextual_type 1.26×、
+get_type_of_parameter 1.28×、get_contextual_type_for_object_literal_element 1.42×、get_object_type_instantiation 1.44×、
+get_effects_signature 1.12×、get_type_at_flow_node 1.06×（tsrs が答えを持ち回る箇所）。同じ回数で self が重いのは
+recursive_type_related_to（maybe stack の線形走査 vs hash）、invoke_once（hash の get/insert）、next_token（scanner 診断の cold 分割なし）、
+properties_related_to、check_expression_for_mutable_location（contextual type の再問い合わせ、incl +319 ms）、is_reachable_flow_node_worker。
+
+**tsrs の記録が答え。** tsrs の `notes/`（約 180 本）は出力同一のまま命令数を削った工程記録で、tsrs 自身の VS Code 1 thread は 10 月初めに
+121.4 G（今の tsc-rs と同じ）、今 85.4 G。種類は 2 つ：(1) algorithm の変更（union の sorted run merge #250、Function/Object fallback の
+filter #187、contextual type / property lookup / instantiation の再利用 #301/#304/#327、#299 の union/indexed access cache、lazy member 表は
+本家 microsoft/TypeScript#64475/#64526 へ）— tsgo でも効く；(2) 移植の税の除去（round 1〜3：格納済み slice を返す、inference の visited map、
+mapper cache の pool、keyBuilder の inline、Go の sort、hash の二重操作）— Rust 移植固有で tsgo には無い。tsrs は tsgo の Go 版にも counter を
+入れて「関数単位で Go より仕事が多い箇所は sort 以外にない」と確認している。lane `gapmap` の表「tsrs catalog vs tsc-rs」（164 項目、
+`handover/arch-arena/gapmap/CATALOG.md`）は各項目の tsc-rs での有無と、我々の時間・回数から見た上限（条件付き、加算不可、合計 ≈ 22%）を並べる。
+上位：inference visited map（部分）、isConstContext からの contextual type 再利用（無し、−1.3%）、inline early return（部分）、格納済み
+slice（部分）、member 表の walk、Function/Object fallback filter（無し）、contextual union constituent の cache（無し）、temporary list の
+pool（部分）、maybe stack ≤ 32 の走査（無し）、enum member の simple relation（部分）。
+
+**実施（所有者の順序：(2) を先に）。** lane `tax-a`（checker の複製・文字列・`format!` key・確保する述語：`is_const_type_variable`、綴り提案の
+lowercase 確保、hot path の `JsString` 構築、`get_apparent_type_of_contextual_type` と `js_number_to_string` の `format!`、
+`RelationChecker::union_members` の複製、`get_type_arguments` / `get_index_infos_of_type` の `Vec` 返し）と lane `tax-b`（hash 表の
+rehash 2.1% と `Vec` 成長 2.1% の事前確保・再利用；hashbrown の反復順が出力に届かない証明を要求）を 03:1x に起動。1 項目 1 patch、
+統合者が `serial.py`（1 thread、8 project）で項目ごとに測り、`diffout.py` の出力同一と focused test と（binder に触れれば）fingerprint
+oracle を gate に、払う項目だけ PR にする。次は loader の「other」（4.2×）と、catalog の上位（reuse と inline）。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
