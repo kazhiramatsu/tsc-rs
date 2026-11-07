@@ -676,7 +676,7 @@ impl CheckerState<'_> {
                 ends_iteration,
                 shared_node: memo_shared_node(ends_iteration, shared),
             });
-            return None;
+            None
         }
         #[cfg(not(feature = "flow-memo-shadow"))]
         {
