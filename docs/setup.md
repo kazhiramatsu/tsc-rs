@@ -140,6 +140,11 @@ The script builds an instrumented compiler, runs it on every project given
 `target/pgo/tsc-rs` with them; `target/release` is untouched. Train on a
 few real projects (the comparison corpora, for example).
 
+Release tags (`v*`) and manual runs of `.github/workflows/release.yml` publish
+normal and PGO archives with SHA-256 sums and `BUILD.json` provenance. See the
+[release recipe and comparison rules](design/greenfield/slices/ts71-arch-arena/pgo.md).
+The on-demand `.github/workflows/pgo.yml` remains the PR experiment workflow.
+
 ## Verification during development
 
 During implementation, run the affected conformance cases
