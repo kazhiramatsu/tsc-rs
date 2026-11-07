@@ -98,12 +98,12 @@ const PROCESS_ALIVE: Option<fn(i32) -> bool> = None;
 fn main() {
     #[cfg(feature = "phase-ledger")]
     let mut ledger = phase_ledger::install(); // Before allocator/scheduling setup.
-    // Return freed pages to the OS 10 ms after they empty (mimalloc v2's
-    // default, pinned here). Large arenas and tables outgrow their buffers
-    // and leave old ones free. Delayed purging returns those pages while
-    // preserving the allocator's ordinary reuse window.
-    // SAFETY: mi_option_set only writes a process-global option value and
-    // has no other preconditions.
+                                              // Return freed pages to the OS 10 ms after they empty (mimalloc v2's
+                                              // default, pinned here). Large arenas and tables outgrow their buffers
+                                              // and leave old ones free. Delayed purging returns those pages while
+                                              // preserving the allocator's ordinary reuse window.
+                                              // SAFETY: mi_option_set only writes a process-global option value and
+                                              // has no other preconditions.
     unsafe { libmimalloc_sys::mi_option_set(MI_OPTION_PURGE_DELAY, 10) };
     tsc_types::trace::set_memory_probe(memory_sample);
     tsc_compiler::pprof::set_gc(collect_memory);
@@ -118,12 +118,14 @@ fn main() {
         Some("--lsp") => {
             let code =
                 run_on_worker_stack(|| tsc_lsp::cli::run_lsp(&arguments[1..], PROCESS_ALIVE));
-            #[cfg(feature = "phase-ledger")] phase_ledger::finish(ledger);
+            #[cfg(feature = "phase-ledger")]
+            phase_ledger::finish(ledger);
             unsafe { libc::_exit(code) } // SAFETY: the server flushed its messages.
         }
         Some("--api") => {
             let code = run_on_worker_stack(|| tsc_api::server::run_api(&arguments[1..]));
-            #[cfg(feature = "phase-ledger")] phase_ledger::finish(ledger);
+            #[cfg(feature = "phase-ledger")]
+            phase_ledger::finish(ledger);
             unsafe { libc::_exit(code) } // SAFETY: the server flushed its responses.
         }
         _ => {}
@@ -140,7 +142,8 @@ fn main() {
     }
     #[cfg(feature = "phase-ledger")]
     phase_ledger::finish(ledger);
-    if std::env::var_os("LLVM_PROFILE_FILE").is_some() { // PGO flushes through C runtime exit.
+    if std::env::var_os("LLVM_PROFILE_FILE").is_some() {
+        // PGO flushes through C runtime exit.
         std::process::exit(output.exit_code());
     }
     // Leave without the C runtime's exit chain: the CLI keeps its arenas
