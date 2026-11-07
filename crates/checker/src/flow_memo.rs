@@ -731,7 +731,14 @@ impl CheckerState<'_> {
                 // to this epoch and carry that dependency on replacement.
                 // This tightens consultation without relaxing the shadow
                 // check of the real walk's registers.
-                epoch: self.flow_memo.type_cache_epoch,
+                // Observation hypothesis: only an actual expression-cache
+                // read requires the current epoch. Shadow replay still runs
+                // the ordinary walk and verifies types/registers/shared state.
+                epoch: if taint.flags & FLAG_TYPE_CACHE == 0 {
+                    0
+                } else {
+                    self.flow_memo.type_cache_epoch
+                },
                 flags: taint.flags | FLAG_TYPE_CACHE,
             };
             self.flow_memo.store(query, entry, &memo.key, hit);
