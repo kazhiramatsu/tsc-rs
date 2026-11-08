@@ -200,8 +200,8 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         self.push_cached_contextual_type(node)?;
         let scan = (|state: &mut Self| -> CheckResult<ArrayLiteralScan> {
-            let elements: Vec<NodeId> = match state.data_of(node) {
-                NodeData::ArrayLiteralExpression(data) => state.nodes_of(data.elements).to_vec(),
+            let elements: Vec<NodeId> = match state.record_of(node).as_array_literal_expression() {
+                Some(data) => state.nodes_of(data.elements).to_vec(),
                 _ => Vec::new(),
             };
             let in_destructuring_pattern = node_util::is_assignment_target(&Published, node);
@@ -428,8 +428,8 @@ impl<'a> CheckerState<'a> {
     /// expression inside an iteration also records its checker-owned emit
     /// placement facts.
     pub(crate) fn check_computed_property_name(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        let expression = match self.data_of(node) {
-            NodeData::ComputedPropertyName(data) => data.expression,
+        let expression = match self.record_of(node).as_computed_property_name() {
+            Some(data) => data.expression,
             _ => None,
         };
         let Some(expression) = expression else {
@@ -633,17 +633,17 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: typed AST projection for tsc's direct
     /// `declaration.name` property access.
     pub(crate) fn name_of_named_declaration(&self, declaration: NodeId) -> Option<NodeId> {
-        match self.data_of(declaration) {
-            NodeData::PropertyAssignment(data) => data.name,
-            NodeData::ShorthandPropertyAssignment(data) => data.name,
-            NodeData::MethodDeclaration(data) => data.name,
-            NodeData::GetAccessor(data) => data.name,
-            NodeData::SetAccessor(data) => data.name,
-            NodeData::PropertyDeclaration(data) => data.name,
-            NodeData::PropertySignature(data) => data.name,
-            NodeData::MethodSignature(data) => data.name,
+        match_record! { self.record_of(declaration), {
+            as_property_assignment(data) => data.name,
+            as_shorthand_property_assignment(data) => data.name,
+            as_method_declaration(data) => data.name,
+            as_get_accessor(data) => data.name,
+            as_set_accessor(data) => data.name,
+            as_property_declaration(data) => data.name,
+            as_property_signature(data) => data.name,
+            as_method_signature(data) => data.name,
             _ => None,
-        }
+        }}
     }
 
     /// The NumericLiteral/StringLiteral `.text` read behind
@@ -760,12 +760,11 @@ impl<'a> CheckerState<'a> {
             if self.kind_of(member) == SyntaxKind::ShorthandPropertyAssignment
                 && !in_destructuring_pattern
             {
-                let (equals_token, initializer) = match self.data_of(member) {
-                    NodeData::ShorthandPropertyAssignment(data) => {
-                        (data.equals_token, data.object_assignment_initializer)
-                    }
-                    _ => (None, None),
-                };
+                let (equals_token, initializer) =
+                    match self.record_of(member).as_shorthand_property_assignment() {
+                        Some(data) => (data.equals_token, data.object_assignment_initializer),
+                        _ => (None, None),
+                    };
                 if initializer.is_some() {
                     if let Some(equals_token) = equals_token {
                         self.grammar_error_on_node(
@@ -1029,8 +1028,8 @@ impl<'a> CheckerState<'a> {
         check_mode: CheckMode,
         acc: &mut ObjectLiteralAcc,
     ) -> CheckResult<()> {
-        let properties: Vec<NodeId> = match self.data_of(node) {
-            NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties).to_vec(),
+        let properties: Vec<NodeId> = match self.record_of(node).as_object_literal_expression() {
+            Some(data) => self.nodes_of(data.properties).to_vec(),
             _ => Vec::new(),
         };
         acc.contextual_type =
@@ -1109,10 +1108,11 @@ impl<'a> CheckerState<'a> {
                         // The objectAssignmentInitializer only outside
                         // destructuring — error-recovery semantics for
                         // `{ a = 100 }` (74173-74176).
-                        let (name, initializer) = match self.data_of(member_decl) {
-                            NodeData::ShorthandPropertyAssignment(data) => {
-                                (data.name, data.object_assignment_initializer)
-                            }
+                        let (name, initializer) = match self
+                            .record_of(member_decl)
+                            .as_shorthand_property_assignment()
+                        {
+                            Some(data) => (data.name, data.object_assignment_initializer),
                             _ => (None, None),
                         };
                         let target = match initializer {

@@ -441,12 +441,14 @@ impl<'a> CheckerState<'a> {
     /// reports).
     fn check_const_enum_access(&mut self, node: NodeId, ty: TypeId) -> CheckResult<()> {
         let parent = self.parent_of(node);
-        let ok = parent.is_some_and(|parent| match self.data_of(parent) {
-            NodeData::PropertyAccessExpression(data) => data.expression == Some(node),
-            NodeData::ElementAccessExpression(data) => data.expression == Some(node),
-            NodeData::TypeQuery(data) => data.expr_name == Some(node),
-            NodeData::ExportSpecifier(_) => true,
-            _ => false,
+        let ok = parent.is_some_and(|parent| {
+            match_record! { self.record_of(parent), {
+                as_property_access_expression(data) => data.expression == Some(node),
+                as_element_access_expression(data) => data.expression == Some(node),
+                as_type_query(data) => data.expr_name == Some(node),
+                as_export_specifier(_) => true,
+                _ => false,
+            }}
         }) || (matches!(
             self.kind_of(node),
             SyntaxKind::Identifier | SyntaxKind::QualifiedName
@@ -558,11 +560,11 @@ impl<'a> CheckerState<'a> {
                 if self.has_skip_direct_inference_flag(node) {
                     return Ok(self.tables.intrinsics.blocked_string);
                 }
-                let text = match self.data_of(node) {
-                    NodeData::StringLiteral(data) => self.text_js(data.text),
-                    NodeData::NoSubstitutionTemplateLiteral(data) => self.text_js(data.text),
+                let text = match_record! { self.record_of(node), {
+                    as_string_literal(data) => self.text_js(data.text),
+                    as_no_substitution_template_literal(data) => self.text_js(data.text),
                     _ => unreachable!("kind/data agree"),
-                };
+                }};
                 let literal = self.tables.get_string_literal_type(text);
                 Ok(self.tables.get_fresh_type_of_literal_type(literal))
             }
@@ -1138,10 +1140,11 @@ impl<'a> CheckerState<'a> {
         }
         let is_never_initialized = match immediate_declaration {
             Some(decl) if self.kind_of(decl) == SyntaxKind::VariableDeclaration => {
-                let (has_initializer, has_exclamation) = match self.data_of(decl) {
-                    NodeData::VariableDeclaration(data) => {
-                        (data.initializer.is_some(), data.exclamation_token.is_some())
-                    }
+                let (has_initializer, has_exclamation) = match self
+                    .record_of(decl)
+                    .as_variable_declaration()
+                {
+                    Some(data) => (data.initializer.is_some(), data.exclamation_token.is_some()),
                     _ => (true, true),
                 };
                 let for_in_or_of = self
@@ -1757,8 +1760,8 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::NamespaceExport
             | SyntaxKind::ImportSpecifier
             | SyntaxKind::ExportSpecifier => true,
-            SyntaxKind::ImportClause => match self.data_of(node) {
-                NodeData::ImportClause(data) => data.name.is_some(),
+            SyntaxKind::ImportClause => match self.record_of(node).as_import_clause() {
+                Some(data) => data.name.is_some(),
                 _ => false,
             },
             SyntaxKind::ExportAssignment => {
@@ -1843,8 +1846,8 @@ impl<'a> CheckerState<'a> {
         let mut node = node;
         let mut parent = self.parent_of(node)?;
         loop {
-            match self.data_of(parent) {
-                NodeData::BinaryExpression(data) => {
+            match_record! { self.record_of(parent), {
+                as_binary_expression(data) => {
                     let operator = data
                         .operator_token
                         .map(|token| self.kind_of(token))
@@ -1852,50 +1855,56 @@ impl<'a> CheckerState<'a> {
                     return (node_util::is_assignment_operator(operator)
                         && data.left == Some(node))
                     .then_some(parent);
-                }
-                NodeData::PrefixUnaryExpression(data) => {
+                },
+                as_prefix_unary_expression(data) => {
                     return matches!(
                         data.operator,
                         SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
                     )
                     .then_some(parent);
-                }
-                NodeData::PostfixUnaryExpression(data) => {
+                },
+                as_postfix_unary_expression(data) => {
                     return matches!(
                         data.operator,
                         SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
                     )
                     .then_some(parent);
-                }
-                NodeData::ForInStatement(data) => {
+                },
+                as_for_in_statement(data) => {
                     return (data.initializer == Some(node)).then_some(parent);
-                }
-                NodeData::ForOfStatement(data) => {
+                },
+                as_for_of_statement(data) => {
                     return (data.initializer == Some(node)).then_some(parent);
-                }
-                NodeData::ParenthesizedExpression(_)
-                | NodeData::ArrayLiteralExpression(_)
-                | NodeData::SpreadElement(_)
-                | NodeData::NonNullExpression(_) => {
+                },
+                as_parenthesized_expression(_) => {
                     node = parent;
-                }
-                NodeData::SpreadAssignment(_) => {
+                },
+                as_array_literal_expression(_) => {
+                    node = parent;
+                },
+                as_spread_element(_) => {
+                    node = parent;
+                },
+                as_non_null_expression(_) => {
+                    node = parent;
+                },
+                as_spread_assignment(_) => {
                     node = self.parent_of(parent)?;
-                }
-                NodeData::ShorthandPropertyAssignment(data) => {
+                },
+                as_shorthand_property_assignment(data) => {
                     if data.name != Some(node) {
                         return None;
                     }
                     node = self.parent_of(parent)?;
-                }
-                NodeData::PropertyAssignment(data) => {
+                },
+                as_property_assignment(data) => {
                     if data.name == Some(node) {
                         return None;
                     }
                     node = self.parent_of(parent)?;
-                }
+                },
                 _ => return None,
-            }
+            }}
             parent = self.parent_of(node)?;
         }
     }
@@ -1908,8 +1917,8 @@ impl<'a> CheckerState<'a> {
         let Some(target) = self.get_assignment_target(node) else {
             return AssignmentKind::None;
         };
-        match self.data_of(target) {
-            NodeData::BinaryExpression(data) => {
+        match_record! { self.record_of(target), {
+            as_binary_expression(data) => {
                 let operator = data
                     .operator_token
                     .map(|token| self.kind_of(token))
@@ -1921,13 +1930,17 @@ impl<'a> CheckerState<'a> {
                 } else {
                     AssignmentKind::Compound
                 }
-            }
-            NodeData::PrefixUnaryExpression(_) | NodeData::PostfixUnaryExpression(_) => {
+            },
+            as_prefix_unary_expression(_) => {
                 AssignmentKind::Compound
-            }
-            NodeData::ForInStatement(_) | NodeData::ForOfStatement(_) => AssignmentKind::Definite,
+            },
+            as_postfix_unary_expression(_) => {
+                AssignmentKind::Compound
+            },
+            as_for_in_statement(_) => AssignmentKind::Definite,
+            as_for_of_statement(_) => AssignmentKind::Definite,
             _ => unreachable!("getAssignmentTarget returns assignment-like nodes only"),
-        }
+        }}
     }
 
     /// tsc-port: isDestructuringAssignmentTarget @6.0.3
@@ -2010,12 +2023,8 @@ impl<'a> CheckerState<'a> {
         let Some(parent) = self.parent_of(node) else {
             return AccessKind::Read;
         };
-        match self.data_of(parent) {
-            // tsgo reparses `/** @type {T} */ (x)` into `x as T`, and its
-            // accessKind has no arm for an `as` expression: the `x` of
-            // `(x) = v` or `(x)++` under a cast is a read (webpack's
-            // `(load) = undefined`, `(len)++` highlights).
-            NodeData::ParenthesizedExpression(data) => {
+        match_record! { self.record_of(parent), {
+            as_parenthesized_expression(data) => {
                 let source = self.binder.source_of_node(parent);
                 if source.is_source_file_js()
                     && data.expression.is_some_and(|expression| {
@@ -2028,8 +2037,8 @@ impl<'a> CheckerState<'a> {
                 } else {
                     self.access_kind(parent)
                 }
-            }
-            NodeData::PrefixUnaryExpression(data) => {
+            },
+            as_prefix_unary_expression(data) => {
                 if matches!(
                     data.operator,
                     SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
@@ -2038,8 +2047,8 @@ impl<'a> CheckerState<'a> {
                 } else {
                     AccessKind::Read
                 }
-            }
-            NodeData::PostfixUnaryExpression(data) => {
+            },
+            as_postfix_unary_expression(data) => {
                 if matches!(
                     data.operator,
                     SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
@@ -2048,8 +2057,8 @@ impl<'a> CheckerState<'a> {
                 } else {
                     AccessKind::Read
                 }
-            }
-            NodeData::BinaryExpression(data) => {
+            },
+            as_binary_expression(data) => {
                 let operator = data
                     .operator_token
                     .map(|token| self.kind_of(token))
@@ -2063,15 +2072,15 @@ impl<'a> CheckerState<'a> {
                 } else {
                     AccessKind::Read
                 }
-            }
-            NodeData::PropertyAccessExpression(data) => {
+            },
+            as_property_access_expression(data) => {
                 if data.name != Some(node) {
                     AccessKind::Read
                 } else {
                     self.access_kind(parent)
                 }
-            }
-            NodeData::PropertyAssignment(data) => {
+            },
+            as_property_assignment(data) => {
                 let parent_access = self
                     .parent_of(parent)
                     .map(|grand| self.access_kind(grand))
@@ -2081,8 +2090,8 @@ impl<'a> CheckerState<'a> {
                 } else {
                     parent_access
                 }
-            }
-            NodeData::ShorthandPropertyAssignment(data) => {
+            },
+            as_shorthand_property_assignment(data) => {
                 if data.object_assignment_initializer == Some(node) {
                     AccessKind::Read
                 } else {
@@ -2090,24 +2099,24 @@ impl<'a> CheckerState<'a> {
                         .map(|grand| self.access_kind(grand))
                         .unwrap_or(AccessKind::Read)
                 }
-            }
-            NodeData::ArrayLiteralExpression(_) => self.access_kind(parent),
-            NodeData::ForInStatement(data) => {
+            },
+            as_array_literal_expression(_) => self.access_kind(parent),
+            as_for_in_statement(data) => {
                 if data.initializer == Some(node) {
                     AccessKind::Write
                 } else {
                     AccessKind::Read
                 }
-            }
-            NodeData::ForOfStatement(data) => {
+            },
+            as_for_of_statement(data) => {
                 if data.initializer == Some(node) {
                     AccessKind::Write
                 } else {
                     AccessKind::Read
                 }
-            }
+            },
             _ => AccessKind::Read,
-        }
+        }}
     }
 
     /// tsc isWriteOnlyAccess (17459).
@@ -2482,8 +2491,7 @@ impl<'a> CheckerState<'a> {
     /// — tsc order preserved.
     pub(crate) fn check_super_expression(&mut self, node: NodeId) -> CheckResult<TypeId> {
         let is_call_expression = self.parent_of(node).is_some_and(|parent| {
-            matches!(self.data_of(parent), NodeData::CallExpression(data)
-                if data.expression == Some(node))
+            matches!(self.record_of(parent).as_call_expression(), Some(data) if data.expression == Some(node))
         });
         let immediate_container = self.get_super_container(node, true);
         let mut container = immediate_container;
@@ -3392,14 +3400,14 @@ impl<'a> CheckerState<'a> {
         {
             return false;
         }
-        let is_with = assignment
-            .name
-            .is_some_and(|name| match self.data_of(name) {
-                NodeData::Identifier(data) => data.escaped_text.identifier_text() == "with",
-                NodeData::StringLiteral(data) => self.text_js(data.text) == "with",
-                NodeData::NoSubstitutionTemplateLiteral(data) => self.text_js(data.text) == "with",
+        let is_with = assignment.name.is_some_and(|name| {
+            match_record! { self.record_of(name), {
+                as_identifier(data) => data.escaped_text.identifier_text() == "with",
+                as_string_literal(data) => self.text_js(data.text) == "with",
+                as_no_substitution_template_literal(data) => self.text_js(data.text) == "with",
                 _ => false,
-            });
+            }}
+        });
         if !is_with {
             return false;
         }
@@ -3436,12 +3444,12 @@ impl<'a> CheckerState<'a> {
         let Some(parent) = self.parent_of(node) else {
             return Ok((false, None));
         };
-        let parent_data = self.data_of(parent);
-        let assertion_type = match parent_data {
-            NodeData::AsExpression(data) => data.r#type,
-            NodeData::TypeAssertionExpression(data) => data.r#type,
+        let parent_data = self.record_of(parent);
+        let assertion_type = match_record! { parent_data, {
+            as_as_expression(data) => data.r#type,
+            as_type_assertion_expression(data) => data.r#type,
             _ => None,
-        };
+        }};
         if let Some(assertion_type) = assertion_type {
             if self.is_const_type_reference_node(assertion_type) {
                 return Ok((true, None));
@@ -3454,7 +3462,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok((true, None));
         }
-        if let NodeData::PropertyAssignment(assignment) = parent_data {
+        if let Some(assignment) = parent_data.as_property_assignment() {
             if self.is_inline_import_attributes(node, parent, &assignment) {
                 return Ok((true, None));
             }
@@ -3730,8 +3738,8 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
-        let (name, initializer) = match self.data_of(node) {
-            NodeData::PropertyAssignment(data) => (data.name, data.initializer),
+        let (name, initializer) = match self.record_of(node).as_property_assignment() {
+            Some(data) => (data.name, data.initializer),
             _ => (None, None),
         };
         if let Some(name) = name {

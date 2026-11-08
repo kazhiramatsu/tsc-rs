@@ -2175,8 +2175,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 5c0b40fb58b0730526a9d0f16bc128e96ad5aec0ac305aadabe5d69de62515a0
     /// tsc-span: _tsc.js:69893-69904
     fn get_initial_type_of_variable_declaration(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        let initializer = match self.data_of(node) {
-            NodeData::VariableDeclaration(data) => data.initializer,
+        let initializer = match self.record_of(node).as_variable_declaration() {
+            Some(data) => data.initializer,
             _ => None,
         };
         if let Some(initializer) = initializer {
@@ -2640,8 +2640,8 @@ impl<'a> CheckerState<'a> {
     }
 
     pub(crate) fn get_reference_candidate(&self, node: NodeId) -> NodeId {
-        match self.data_of(node) {
-            NodeData::ParenthesizedExpression(data) => {
+        match_record! { self.record_of(node), {
+            as_parenthesized_expression(data) => {
                 let Some(inner) = data.expression else {
                     return node;
                 };
@@ -2649,8 +2649,8 @@ impl<'a> CheckerState<'a> {
                     return node;
                 }
                 self.get_reference_candidate(inner)
-            }
-            NodeData::BinaryExpression(data) => {
+            },
+            as_binary_expression(data) => {
                 let (left, right, operator) = (data.left, data.right, data.operator_token);
                 let Some(operator) = operator else {
                     return node;
@@ -2669,9 +2669,9 @@ impl<'a> CheckerState<'a> {
                     },
                     _ => node,
                 }
-            }
+            },
             _ => node,
-        }
+        }}
     }
 
     /// tsc-port: getReferenceRoot @6.0.3
@@ -2681,18 +2681,18 @@ impl<'a> CheckerState<'a> {
         let Some(parent) = self.parent_of(node) else {
             return node;
         };
-        let hop = match self.data_of(parent) {
-            NodeData::ParenthesizedExpression(_) => true,
-            NodeData::BinaryExpression(data) => {
+        let hop = match_record! { self.record_of(parent), {
+            as_parenthesized_expression(_) => true,
+            as_binary_expression(data) => {
                 let (left, right, operator) = (data.left, data.right, data.operator_token);
                 match operator.map(|operator| self.kind_of(operator)) {
                     Some(SyntaxKind::EqualsToken) => left == Some(node),
                     Some(SyntaxKind::CommaToken) => right == Some(node),
                     _ => false,
                 }
-            }
+            },
             _ => false,
-        };
+        }};
         if hop {
             self.get_reference_root(parent)
         } else {
@@ -2888,8 +2888,8 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         };
         if self.kind_of(parent) == SyntaxKind::PropertyAccessExpression {
-            let name = match self.data_of(parent) {
-                NodeData::PropertyAccessExpression(data) => data.name,
+            let name = match self.record_of(parent).as_property_access_expression() {
+                Some(data) => data.name,
                 _ => None,
             };
             let name_is_identifier =
@@ -2908,18 +2908,17 @@ impl<'a> CheckerState<'a> {
             }
         }
         if self.kind_of(parent) == SyntaxKind::ElementAccessExpression {
-            let (expression, argument) = match self.data_of(parent) {
-                NodeData::ElementAccessExpression(data) => {
-                    (data.expression, data.argument_expression)
-                }
+            let (expression, argument) = match self.record_of(parent).as_element_access_expression()
+            {
+                Some(data) => (data.expression, data.argument_expression),
                 _ => (None, None),
             };
             if expression == Some(root) {
                 let Some(grand) = self.parent_of(parent) else {
                     return Ok(false);
                 };
-                let (left, operator) = match self.data_of(grand) {
-                    NodeData::BinaryExpression(data) => (data.left, data.operator_token),
+                let (left, operator) = match self.record_of(grand).as_binary_expression() {
+                    Some(data) => (data.left, data.operator_token),
                     _ => (None, None),
                 };
                 if operator
@@ -2954,10 +2953,7 @@ impl<'a> CheckerState<'a> {
         let strict_null_checks = self
             .options
             .strict_option_value(self.options.strict_null_checks);
-        let has_initializer = matches!(
-            self.data_of(declaration),
-            NodeData::Parameter(data) if data.initializer.is_some()
-        );
+        let has_initializer = matches!(self.record_of(declaration).as_parameter(), Some(data) if data.initializer.is_some());
         let remove_undefined = strict_null_checks
             && self.kind_of(declaration) == SyntaxKind::Parameter
             && has_initializer
@@ -4089,8 +4085,8 @@ impl<'a> CheckerState<'a> {
     /// The `.argumentExpression` of an element access.
     /// tsrs-native: NodeData accessor.
     fn element_access_argument_of(&self, node: NodeId) -> Option<NodeId> {
-        match self.data_of(node) {
-            NodeData::ElementAccessExpression(data) => data.argument_expression,
+        match self.record_of(node).as_element_access_expression() {
+            Some(data) => data.argument_expression,
             _ => None,
         }
     }
@@ -4099,11 +4095,11 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: NodeData accessor.
     pub(crate) fn escaped_text_of(&self, node: Option<NodeId>) -> Option<&'a str> {
         let node = node?;
-        match self.data_of(node) {
-            NodeData::Identifier(data) => Some(data.escaped_text.identifier_text()),
-            NodeData::PrivateIdentifier(data) => Some(data.escaped_text.identifier_text()),
+        match_record! { self.record_of(node), {
+            as_identifier(data) => Some(data.escaped_text.identifier_text()),
+            as_private_identifier(data) => Some(data.escaped_text.identifier_text()),
             _ => None,
-        }
+        }}
     }
 
     /// tsc-port: getAccessedPropertyName @6.0.3
@@ -4194,14 +4190,14 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
         if node_util::is_string_or_numeric_literal_like(&Published, argument) {
-            let text = match self.data_of(argument) {
-                NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
-                NodeData::NumericLiteral(data) => {
+            let text = match_record! { self.record_of(argument), {
+                as_string_literal(data) => self.text_js(data.text).to_owned(),
+                as_numeric_literal(data) => {
                     tsc_types::JsString::from(self.text_utf8(data.text))
-                }
-                NodeData::NoSubstitutionTemplateLiteral(data) => self.text_js(data.text).to_owned(),
+                },
+                as_no_substitution_template_literal(data) => self.text_js(data.text).to_owned(),
                 _ => return Ok(None),
-            };
+            }};
             return Ok(Some(EscapedName::escape(text.as_js())));
         }
         if node_util::is_entity_name_expression(&Published, argument) {
@@ -4252,14 +4248,14 @@ impl<'a> CheckerState<'a> {
         if has_only_expression_initializer
             && self.is_block_scoped_name_declared_before_use(declaration, node)?
         {
-            let initializer = match self.data_of(declaration) {
-                NodeData::VariableDeclaration(data) => data.initializer,
-                NodeData::Parameter(data) => data.initializer,
-                NodeData::PropertyDeclaration(data) => data.initializer,
-                NodeData::PropertyAssignment(data) => data.initializer,
-                NodeData::EnumMember(data) => data.initializer,
+            let initializer = match_record! { self.record_of(declaration), {
+                as_variable_declaration(data) => data.initializer,
+                as_parameter(data) => data.initializer,
+                as_property_declaration(data) => data.initializer,
+                as_property_assignment(data) => data.initializer,
+                as_enum_member(data) => data.initializer,
                 _ => None,
-            };
+            }};
             if let Some(initializer) = initializer {
                 let initializer_type = self.get_type_of_expression(initializer)?;
                 return Ok(self.try_get_name_from_type(initializer_type));
@@ -4775,13 +4771,13 @@ impl<'a> CheckerState<'a> {
                 let Some(func) = self.parent_of(declaration) else {
                     return Ok(ty);
                 };
-                let parameters = self.nodes_of(match self.data_of(func) {
-                    NodeData::FunctionExpression(f) => f.parameters,
-                    NodeData::ArrowFunction(f) => f.parameters,
-                    NodeData::FunctionDeclaration(f) => f.parameters,
-                    NodeData::MethodDeclaration(f) => f.parameters,
+                let parameters = self.nodes_of(match_record! { self.record_of(func), {
+                    as_function_expression(f) => f.parameters,
+                    as_arrow_function(f) => f.parameters,
+                    as_function_declaration(f) => f.parameters,
+                    as_method_declaration(f) => f.parameters,
                     _ => None,
-                });
+                }});
                 if parameters.len() >= 2
                     && self.is_context_sensitive_function_or_object_literal_method(func)?
                 {
@@ -4891,11 +4887,11 @@ impl<'a> CheckerState<'a> {
         let Some(pattern) = self.parent_of(declaration) else {
             return Ok(None);
         };
-        let element_count = match self.data_of(pattern) {
-            NodeData::ObjectBindingPattern(p) => p.elements,
-            NodeData::ArrayBindingPattern(p) => p.elements,
+        let element_count = match_record! { self.record_of(pattern), {
+            as_object_binding_pattern(p) => p.elements,
+            as_array_binding_pattern(p) => p.elements,
             _ => None,
-        }
+        }}
         .map(|elements| self.binder.node_array(elements).nodes.len())
         .unwrap_or(0);
         if element_count < 2 {

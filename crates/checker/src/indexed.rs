@@ -1209,8 +1209,11 @@ impl<'a> CheckerState<'a> {
                     );
                 }
                 if let Some(access_expression) = access_expression {
-                    let receiver = match self.data_of(access_expression) {
-                        NodeData::ElementAccessExpression(data) => data.expression,
+                    let receiver = match self
+                        .record_of(access_expression)
+                        .as_element_access_expression()
+                    {
+                        Some(data) => data.expression,
                         _ => None,
                     };
                     let object_symbol = self.tables.type_of(object_type).symbol;

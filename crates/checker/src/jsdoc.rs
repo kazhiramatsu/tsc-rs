@@ -233,20 +233,20 @@ impl<'a> CheckerState<'a> {
     /// tsgo-port: ast.GetNextJSDocCommentLocation @7.1 (ast/utilities.go:4100-4113).
     pub(crate) fn next_jsdoc_comment_location_tsgo(&self, node: NodeId) -> Option<NodeId> {
         let parent = self.parent_of(node)?;
-        match self.data_of(parent) {
-            NodeData::PropertyAssignment(_)
-            | NodeData::ExportAssignment(_)
-            | NodeData::PropertyDeclaration(_)
-            | NodeData::VariableDeclaration(_)
-            | NodeData::SatisfiesExpression(_)
-            | NodeData::ReturnStatement(_)
-            | NodeData::VariableStatement(_)
-            | NodeData::ExpressionStatement(_) => Some(parent),
-            NodeData::VariableDeclarationList(list) => {
+        match_record! { self.record_of(parent), {
+            as_property_assignment(_) => Some(parent),
+            as_export_assignment(_) => Some(parent),
+            as_property_declaration(_) => Some(parent),
+            as_variable_declaration(_) => Some(parent),
+            as_satisfies_expression(_) => Some(parent),
+            as_return_statement(_) => Some(parent),
+            as_variable_statement(_) => Some(parent),
+            as_expression_statement(_) => Some(parent),
+            as_variable_declaration_list(list) => {
                 (self.nodes_of(list.declarations).first().copied() == Some(node)).then_some(parent)
-            }
+            },
             _ => None,
-        }
+        }}
     }
 
     /// Project direct `node.jsDoc` property presence. getJSDocTagsWorker
@@ -775,18 +775,18 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 24527d56f922af19f90134af44bfc873edd90fee7095f21d029e44f9ce0d3214
     /// tsc-span: _tsc.js:12593-12596
     pub(crate) fn is_rest_parameter_declaration(&self, node: NodeId) -> bool {
-        match self.data_of(node) {
-            NodeData::Parameter(data) => {
+        match_record! { self.record_of(node), {
+            as_parameter(data) => {
                 data.dot_dot_dot_token.is_some()
                     || data
                         .r#type
                         .is_some_and(|ty| self.kind_of(ty) == SyntaxKind::JSDocVariadicType)
-            }
-            NodeData::JSDocParameterTag(data) => self
+            },
+            as_js_doc_parameter_tag(data) => self
                 .jsdoc_type_expression_type(data.type_expression)
                 .is_some_and(|ty| self.kind_of(ty) == SyntaxKind::JSDocVariadicType),
             _ => false,
-        }
+        }}
     }
 
     /// tsgo (TypeScript 7.1): the declaration a `@template` tag's type

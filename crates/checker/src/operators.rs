@@ -3219,8 +3219,8 @@ impl<'a> CheckerState<'a> {
         }
         let mut types: Vec<TypeId> = Vec::with_capacity(spans.len());
         for span in spans {
-            let (expression, literal) = match self.data_of(span) {
-                NodeData::TemplateSpan(data) => (data.expression, data.literal),
+            let (expression, literal) = match self.record_of(span).as_template_span() {
+                Some(data) => (data.expression, data.literal),
                 _ => (None, None),
             };
             let Some(expression) = expression else {
@@ -4088,8 +4088,8 @@ impl<'a> CheckerState<'a> {
         }
         let is_property_expression_cast = self.kind_of(location)
             == SyntaxKind::PropertyAccessExpression
-            && match self.data_of(location) {
-                NodeData::PropertyAccessExpression(data) => data
+            && match self.record_of(location).as_property_access_expression() {
+                Some(data) => data
                     .expression
                     .is_some_and(|expr| self.is_type_assertion_kind(expr)),
                 _ => false,

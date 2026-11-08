@@ -395,8 +395,8 @@ impl<'a> CheckerState<'a> {
         location: Option<NodeId>,
     ) -> CheckResult<EvaluatorResult> {
         let expr = self.skip_parentheses(expr);
-        match self.data_of(expr) {
-            NodeData::PrefixUnaryExpression(data) => {
+        match_record! { self.record_of(expr), {
+            as_prefix_unary_expression(data) => {
                 let operand = data
                     .operand
                     .expect("parser invariant: PrefixUnary operand always parsed");
@@ -423,8 +423,8 @@ impl<'a> CheckerState<'a> {
                     result.resolved_other_files,
                     result.has_external_references,
                 ))
-            }
-            NodeData::BinaryExpression(data) => {
+            },
+            as_binary_expression(data) => {
                 let (left_node, operator_token, right_node) =
                     match (data.left, data.operator_token, data.right) {
                         (Some(left), Some(operator), Some(right)) => (left, operator, right),
@@ -502,21 +502,21 @@ impl<'a> CheckerState<'a> {
                     resolved_other_files,
                     has_external_references,
                 ))
-            }
-            NodeData::StringLiteral(data) => Ok(evaluator_result(
+            },
+            as_string_literal(data) => Ok(evaluator_result(
                 Some(EvalValue::Str(self.text_js(data.text).to_owned())),
                 true,
                 false,
                 false,
             )),
-            NodeData::NoSubstitutionTemplateLiteral(data) => Ok(evaluator_result(
+            as_no_substitution_template_literal(data) => Ok(evaluator_result(
                 Some(EvalValue::Str(self.text_js(data.text).to_owned())),
                 true,
                 false,
                 false,
             )),
-            NodeData::TemplateExpression(_) => self.evaluate_template_expression(expr, location),
-            NodeData::NumericLiteral(data) => {
+            as_template_expression(_) => self.evaluate_template_expression(expr, location),
+            as_numeric_literal(data) => {
                 let value = crate::annotate::parse_numeric_literal_text(self.text_utf8(data.text))?;
                 Ok(evaluator_result(
                     Some(EvalValue::Num(value)),
@@ -524,19 +524,19 @@ impl<'a> CheckerState<'a> {
                     false,
                     false,
                 ))
-            }
-            NodeData::Identifier(_) => self.evaluate_entity_name_expression(expr, location),
-            NodeData::PropertyAccessExpression(_) => {
+            },
+            as_identifier(_) => self.evaluate_entity_name_expression(expr, location),
+            as_property_access_expression(_) => {
                 if self.is_entity_name_expression(expr) {
                     return self.evaluate_entity_name_expression(expr, location);
                 }
                 Ok(undefined_result())
-            }
-            NodeData::ElementAccessExpression(_) => {
+            },
+            as_element_access_expression(_) => {
                 self.evaluate_element_access_expression(expr, location)
-            }
+            },
             _ => Ok(undefined_result()),
-        }
+        }}
     }
 
     /// tsc-port: evaluateTemplateExpression @6.0.3
@@ -1378,8 +1378,8 @@ impl<'a> CheckerState<'a> {
             prev = parent;
             parent = self.parent_of(parent)?;
         }
-        match self.data_of(parent) {
-            NodeData::CallExpression(data) if data.expression == Some(prev) => Some(parent),
+        match self.record_of(parent).as_call_expression() {
+            Some(data) if data.expression == Some(prev) => Some(parent),
             _ => None,
         }
     }
@@ -1391,13 +1391,13 @@ impl<'a> CheckerState<'a> {
     /// `getFunctionFlags(n) & AsyncGenerator` — only the Async |
     /// Generator bits matter to isSameScopeDescendentOf.
     fn function_flags_async_generator(&self, node: NodeId) -> bool {
-        let (asterisk, has_async) = match self.data_of(node) {
-            NodeData::FunctionDeclaration(data) => (data.asterisk_token.is_some(), true),
-            NodeData::FunctionExpression(data) => (data.asterisk_token.is_some(), true),
-            NodeData::MethodDeclaration(data) => (data.asterisk_token.is_some(), true),
-            NodeData::ArrowFunction(_) => (false, true),
+        let (asterisk, has_async) = match_record! { self.record_of(node), {
+            as_function_declaration(data) => (data.asterisk_token.is_some(), true),
+            as_function_expression(data) => (data.asterisk_token.is_some(), true),
+            as_method_declaration(data) => (data.asterisk_token.is_some(), true),
+            as_arrow_function(_) => (false, true),
             _ => (false, false),
-        };
+        }};
         if !has_async {
             return asterisk;
         }
@@ -1550,25 +1550,22 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 775dd95b7a0f4d64b4b910bb31e7dd9bdcddd1c473bf9b913b2b2adbe4afd0c2
     /// tsc-span: _tsc.js:13863-13882
     pub fn try_get_text_of_property_name(&self, name: NodeId) -> Option<EscapedName> {
-        match self.data_of(name) {
-            // emitNode.autoGenerate is not represented in the parsed
-            // arena; parsed identifiers/private identifiers therefore
-            // take the escapedText arm directly.
-            NodeData::Identifier(data) => Some(data.escaped_text),
-            NodeData::PrivateIdentifier(data) => Some(data.escaped_text),
-            NodeData::StringLiteral(data) => Some(tsc_binder::escape_leading_underscores(
+        match_record! { self.record_of(name), {
+            as_identifier(data) => Some(data.escaped_text),
+            as_private_identifier(data) => Some(data.escaped_text),
+            as_string_literal(data) => Some(tsc_binder::escape_leading_underscores(
                 self.text_js(data.text),
             )),
-            NodeData::NumericLiteral(data) => Some(tsc_binder::escape_leading_underscores(
+            as_numeric_literal(data) => Some(tsc_binder::escape_leading_underscores(
                 self.text_utf8(data.text),
             )),
-            NodeData::BigIntLiteral(data) => Some(tsc_binder::escape_leading_underscores(
+            as_big_int_literal(data) => Some(tsc_binder::escape_leading_underscores(
                 self.text_utf8(data.text),
             )),
-            NodeData::NoSubstitutionTemplateLiteral(data) => Some(
+            as_no_substitution_template_literal(data) => Some(
                 tsc_binder::escape_leading_underscores(self.text_js(data.text)),
             ),
-            NodeData::ComputedPropertyName(data) => {
+            as_computed_property_name(data) => {
                 let expression = data.expression?;
                 match self.data_of(expression) {
                     NodeData::StringLiteral(data) => Some(tsc_binder::escape_leading_underscores(
@@ -1582,12 +1579,12 @@ impl<'a> CheckerState<'a> {
                     ),
                     _ => None,
                 }
-            }
-            NodeData::JsxNamespacedName(_) => {
+            },
+            as_jsx_namespaced_name(_) => {
                 node_util::get_escaped_text_of_jsx_namespaced_name(&Published, name)
-            }
+            },
             _ => None,
-        }
+        }}
     }
 
     /// tsc-port: getTextOfPropertyName @6.0.3

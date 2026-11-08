@@ -1795,15 +1795,15 @@ impl<'a> CheckerState<'a> {
 
     /// The declaration-kind initializer field.
     fn initializer_of_node(&self, node: NodeId) -> Option<NodeId> {
-        match self.data_of(node) {
-            NodeData::VariableDeclaration(data) => data.initializer,
-            NodeData::Parameter(data) => data.initializer,
-            NodeData::BindingElement(data) => data.initializer,
-            NodeData::PropertyDeclaration(data) => data.initializer,
-            NodeData::PropertyAssignment(data) => data.initializer,
-            NodeData::EnumMember(data) => data.initializer,
+        match_record! { self.record_of(node), {
+            as_variable_declaration(data) => data.initializer,
+            as_parameter(data) => data.initializer,
+            as_binding_element(data) => data.initializer,
+            as_property_declaration(data) => data.initializer,
+            as_property_assignment(data) => data.initializer,
+            as_enum_member(data) => data.initializer,
             _ => None,
-        }
+        }}
     }
 
     /// tsc-port: isVariableLike @6.0.3
@@ -1828,16 +1828,16 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 06c9b820c0d5a73c3c11c26fc46049a0742889798513f8030e08f73038a580c3
     /// tsc-span: _tsc.js:15286-15298
     pub(crate) fn has_question_token(&self, node: NodeId) -> bool {
-        match self.data_of(node) {
-            NodeData::Parameter(data) => data.question_token.is_some(),
-            NodeData::PropertyDeclaration(data) => data.question_token.is_some(),
-            NodeData::PropertySignature(data) => data.question_token.is_some(),
-            NodeData::MethodDeclaration(data) => data.question_token.is_some(),
-            NodeData::MethodSignature(data) => data.question_token.is_some(),
-            NodeData::ShorthandPropertyAssignment(data) => data.question_token.is_some(),
-            NodeData::PropertyAssignment(data) => data.question_token.is_some(),
+        match_record! { self.record_of(node), {
+            as_parameter(data) => data.question_token.is_some(),
+            as_property_declaration(data) => data.question_token.is_some(),
+            as_property_signature(data) => data.question_token.is_some(),
+            as_method_declaration(data) => data.question_token.is_some(),
+            as_method_signature(data) => data.question_token.is_some(),
+            as_shorthand_property_assignment(data) => data.question_token.is_some(),
+            as_property_assignment(data) => data.question_token.is_some(),
             _ => false,
-        }
+        }}
     }
 
     /// nodeIsMissing(getContainingFunction(node).body) — the shared

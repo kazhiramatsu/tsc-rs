@@ -6,6 +6,32 @@ fn parse(text: &str) -> SourceFile {
 }
 
 #[test]
+fn jsdoc_namespace_predicate_preserves_the_complete_overlay_view() {
+    let mut source = parse("let name;");
+    let node = source
+        .arena
+        .node_ids()
+        .find(|&id| source.arena.node(id).kind == tsc_syntax::SyntaxKind::Identifier)
+        .unwrap();
+    let index = (node.index() - source.arena.node_base()) as usize;
+    for parsed in [0, NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE.bits()] {
+        source.arena.node_mut(node).flags = parsed;
+        let mut binder = BinderWorker::new(&source);
+        assert_eq!(binder.identifier_is_in_jsdoc_namespace(node), parsed != 0);
+        for packed in 0..=u8::MAX {
+            binder.node_flags_mut.0[index] = PackedNodeFlags(packed);
+            assert_eq!(
+                binder.identifier_is_in_jsdoc_namespace(node),
+                binder
+                    .flags_of(node)
+                    .intersects(NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE),
+                "parsed={parsed}, packed={packed}"
+            );
+        }
+    }
+}
+
+#[test]
 fn bind_relocation_matches_direct_nonzero_symbols_and_private_serials() {
     let domain = IdentityDomain::new();
     // Leases ahead of the bind keep its bases away from the start of the

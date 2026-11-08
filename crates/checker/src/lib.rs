@@ -1,5 +1,24 @@
 #![forbid(unsafe_code)]
 
+// Decode only the candidate kind of each arm. Evaluate the record once,
+// preserve arm/guard order, and leave early returns in the caller's scope.
+macro_rules! match_record {
+    (@arms $record:ident; _ => $fallback:expr,) => { $fallback };
+    (@arms $record:ident; _ if $guard:expr => $body:expr, $($rest:tt)*) => {
+        if $guard { $body } else { match_record!(@arms $record; $($rest)*) }
+    };
+    (@arms $record:ident; $decode:ident($data:pat) $(if $guard:expr)? => $body:expr, $($rest:tt)*) => {
+        match $record.$decode() {
+            Some($data) $(if $guard)? => $body,
+            _ => match_record!(@arms $record; $($rest)*),
+        }
+    };
+    ($value:expr, { $($arms:tt)* }) => {{
+        let record = $value;
+        match_record!(@arms record; $($arms)*)
+    }};
+}
+
 /// Join JavaScript values without converting through a scalar display string.
 /// tsrs-native: JsString Array.join utility without scalar round-trip
 pub(crate) fn join_js_strings<'a>(
