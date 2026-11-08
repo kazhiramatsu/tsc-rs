@@ -189,6 +189,37 @@ impl StagedModules {
     }
 }
 
+/// Lookup order is separate from the observable (path, specifier, mode)
+/// row order. A hash narrows each lookup; full equality handles collisions.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct ModuleLookup {
+    hash: u64,
+    row: u32,
+}
+
+fn module_lookup_hash(specifier: JsStr<'_>, mode: ResolutionMode) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = rustc_hash::FxHasher::default();
+    (specifier, mode).hash(&mut hasher);
+    hasher.finish()
+}
+
+fn module_lookup_index(modules: &[Row], ranges: &[Range<u32>]) -> Vec<ModuleLookup> {
+    let mut index: Vec<_> = modules
+        .iter()
+        .enumerate()
+        .map(|(row, module)| ModuleLookup {
+            hash: module_lookup_hash(module.specifier.as_js(), module.mode),
+            row: u32::try_from(row).expect("module row index fits u32"),
+        })
+        .collect();
+    for range in ranges {
+        index[range.start as usize..range.end as usize]
+            .sort_unstable_by_key(|entry| (entry.hash, entry.row));
+    }
+    index
+}
+
 /// Authoritative tables, frozen at `PreparedProgramBuilder::build()`.
 /// Module rows retain the old `(canonical path, specifier, mode)` byte order.
 /// There is no mutation API; borrowed views cannot replace their facts.
@@ -201,6 +232,7 @@ impl StagedModules {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ResolutionTable {
     modules: Vec<Row>,
+    module_lookup: Vec<ModuleLookup>,
     source_ranges: Vec<Range<u32>>,
     package_ids: Vec<PackageId>,
     type_references: BTreeMap<TypeReferenceResolutionKey, TypeReferenceResolution>,
@@ -334,6 +366,7 @@ impl ResolutionTable {
         packages.sort_unstable_by_key(|(id, _)| *id);
         let package_ids = packages.into_iter().map(|(_, package)| package).collect();
         Self {
+            module_lookup: module_lookup_index(&modules, &source_ranges),
             modules,
             source_ranges,
             package_ids,
@@ -387,12 +420,17 @@ impl<'a> ResolutionTableView<'a> {
         mode: ResolutionMode,
     ) -> Option<ModuleResolutionView<'a>> {
         let range = self.table.source_ranges.get(source.index())?;
-        let rows = &self.table.modules[range.start as usize..range.end as usize];
-        let index =
-            rows.partition_point(|row| (row.specifier.as_js(), row.mode) < (specifier, mode));
-        let row = rows
-            .get(index)
-            .filter(|row| row.specifier.as_js() == specifier && row.mode == mode)?;
+        let index = &self.table.module_lookup[range.start as usize..range.end as usize];
+        if index.is_empty() {
+            return None;
+        }
+        let hash = module_lookup_hash(specifier, mode);
+        let start = index.partition_point(|entry| entry.hash < hash);
+        let row = index[start..]
+            .iter()
+            .take_while(|entry| entry.hash == hash)
+            .map(|entry| &self.table.modules[entry.row as usize])
+            .find(|row| row.mode == mode && row.specifier.as_js() == specifier)?;
         Some(ModuleResolutionView {
             row,
             table: self.table,
@@ -487,6 +525,7 @@ impl<'a> ResolutionTableView<'a> {
             row_size: std::mem::size_of::<Row>(),
             row_bytes: self.table.modules.capacity() * std::mem::size_of::<Row>(),
             range_bytes: self.table.source_ranges.capacity() * std::mem::size_of::<Range<u32>>(),
+            index_bytes: self.table.module_lookup.capacity() * std::mem::size_of::<ModuleLookup>(),
             rare_boxes,
             rare_bytes: rare_boxes * std::mem::size_of::<Rare>(),
             unloaded_paths,
@@ -515,6 +554,7 @@ pub struct ModuleStorageStats {
     pub row_size: usize,
     pub row_bytes: usize,
     pub range_bytes: usize,
+    pub index_bytes: usize,
     pub rare_boxes: usize,
     pub rare_bytes: usize,
     pub unloaded_paths: usize,

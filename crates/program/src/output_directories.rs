@@ -578,24 +578,21 @@ pub fn source_file_may_be_emitted_for_options(
     if !eligible || is_declaration_file_name(name) {
         return false;
     }
-    let name: JsString = name
-        .code_units()
-        .map(|unit| {
-            if (0x41..=0x5a).contains(&unit) {
-                unit + 0x20
-            } else {
-                unit
-            }
-        })
-        .collect();
+    // Only the ASCII extension participates in these tests. Lowercasing
+    // the entire JavaScript string also copied every unrelated path unit.
+    let bytes = name.as_bytes();
+    let has_extension = |extension: &[u8]| {
+        bytes.len() >= extension.len()
+            && bytes[bytes.len() - extension.len()..].eq_ignore_ascii_case(extension)
+    };
     if options.no_emit_for_js_files == Some(true)
-        && [".js", ".jsx", ".mjs", ".cjs", ".json"]
+        && [b".js".as_slice(), b".jsx", b".mjs", b".cjs", b".json"]
             .iter()
-            .any(|extension| name.ends_with(extension))
+            .any(|extension| has_extension(extension))
     {
         return false;
     }
-    if !name.ends_with(".json") {
+    if !has_extension(b".json") {
         return true;
     }
     let Some(out_dir) = options

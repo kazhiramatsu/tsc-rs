@@ -2239,7 +2239,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let declaration_name =
                     if self.kind_of(type_only_declaration) == SyntaxKind::ExportDeclaration {
-                        JsString::from("*")
+                        JsStr::from("*")
                     } else {
                         let decl_name = match self.data_of(type_only_declaration) {
                             NodeData::ImportSpecifier(data) => data.name,
@@ -2252,13 +2252,13 @@ impl<'a> CheckerState<'a> {
                         };
                         match decl_name {
                             Some(decl_name) => self.module_export_name_text_unescaped(decl_name),
-                            None => JsString::new(),
+                            None => JsStr::default(),
                         }
                     };
                 let related = self.related_info_for_node_js(
                     type_only_declaration,
                     related_message,
-                    &[(&declaration_name).into()],
+                    &[declaration_name],
                 );
                 self.error_at_with_related_js(Some(module_reference), message, &[], vec![related]);
                 break;
@@ -8598,13 +8598,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: moduleExportNameTextUnescaped @6.0.3
     /// tsc-hash: 6ca98eb0675711e5d04bc7ab9c263795d5a4e08c689ed2361947370c00473ddc
     /// tsc-span: _tsc.js:13026-13028
-    pub(crate) fn module_export_name_text_unescaped(&self, name: NodeId) -> JsString {
+    pub(crate) fn module_export_name_text_unescaped(&self, name: NodeId) -> JsStr<'a> {
         match self.data_of(name) {
-            NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
-            NodeData::Identifier(data) => {
-                unescape_leading_underscores(data.escaped_text).to_owned()
-            }
-            _ => JsString::new(),
+            NodeData::StringLiteral(data) => self.text_js(data.text),
+            NodeData::Identifier(data) => unescape_leading_underscores(data.escaped_text),
+            _ => JsStr::default(),
         }
     }
 
@@ -9518,16 +9516,16 @@ impl<'a> CheckerState<'a> {
                                 let related = self.related_info_for_node_js(
                                     declaration,
                                     related_message,
-                                    &[(&display).into()],
+                                    &[display],
                                 );
                                 self.error_at_with_related_js(
                                     Some(node),
                                     message,
-                                    &[(&display).into()],
+                                    &[display],
                                     vec![related],
                                 );
                             } else {
-                                self.error_at_js(Some(node), message, &[(&display).into()]);
+                                self.error_at_js(Some(node), message, &[display]);
                             }
                         }
                         if is_type
@@ -9591,12 +9589,12 @@ impl<'a> CheckerState<'a> {
                                 let related = self.related_info_for_node_js(
                                     declaration,
                                     related_message,
-                                    &[(&display).into()],
+                                    &[display],
                                 );
                                 self.error_at_with_related_js(
                                     Some(node),
                                     message,
-                                    &[(&display).into(), (option_name).into()],
+                                    &[display, (option_name).into()],
                                     vec![related],
                                 );
                             } else if is_type {
@@ -9605,7 +9603,7 @@ impl<'a> CheckerState<'a> {
                                 self.error_at_js(
                                     Some(node),
                                     message,
-                                    &[(&display).into(), (option_name).into()],
+                                    &[display, (option_name).into()],
                                 );
                             }
                         }
@@ -10629,7 +10627,7 @@ impl<'a> CheckerState<'a> {
                     self.error_at_js(
                         Some(exported_name),
                         &diagnostics::Cannot_export_0_Only_local_declarations_can_be_exported_from_a_module,
-                        &[(&display).into()],
+                        &[display],
                     );
                 }
             }
@@ -10773,7 +10771,7 @@ impl<'a> CheckerState<'a> {
                             } else {
                                 &diagnostics::An_export_default_must_reference_a_real_value_when_verbatimModuleSyntax_is_enabled_but_0_resolves_to_a_type_only_declaration
                             },
-                            &[(&display).into()],
+                            &[display],
                         );
                     }
                 } else if !is_illegal_export_default_in_cjs
@@ -10787,7 +10785,7 @@ impl<'a> CheckerState<'a> {
                         } else {
                             &diagnostics::An_export_default_must_reference_a_value_when_verbatimModuleSyntax_is_enabled_but_0_only_refers_to_a_type
                         },
-                        &[(&display).into()],
+                        &[display],
                     );
                 }
                 let isolated_modules_like = self.options.isolated_modules == Some(true)
@@ -10823,7 +10821,7 @@ impl<'a> CheckerState<'a> {
                             } else {
                                 &diagnostics::_0_resolves_to_a_type_and_must_be_marked_type_only_in_this_file_before_re_exporting_when_1_is_enabled_Consider_using_export_type_0_as_default
                             },
-                            &[(&display).into(), (option_name).into()],
+                            &[display, (option_name).into()],
                         );
                     } else if type_only_is_external {
                         let declaration =
@@ -10838,11 +10836,8 @@ impl<'a> CheckerState<'a> {
                         } else {
                             &diagnostics::_0_was_imported_here
                         };
-                        let related = self.related_info_for_node_js(
-                            declaration,
-                            related_message,
-                            &[(&display).into()],
-                        );
+                        let related =
+                            self.related_info_for_node_js(declaration, related_message, &[display]);
                         self.error_at_with_related_js(
                             Some(expression),
                             if is_export_equals {
@@ -10850,7 +10845,7 @@ impl<'a> CheckerState<'a> {
                             } else {
                                 &diagnostics::_0_resolves_to_a_type_only_declaration_and_must_be_marked_type_only_in_this_file_before_re_exporting_when_1_is_enabled_Consider_using_export_type_0_as_default
                             },
-                            &[(&display).into(), (option_name).into()],
+                            &[display, (option_name).into()],
                             vec![related],
                         );
                     }
