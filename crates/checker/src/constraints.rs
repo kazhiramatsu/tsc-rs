@@ -51,27 +51,29 @@ impl<'a> CheckerState<'a> {
             .declarations()
             .iter()
             .copied()
-            .find_map(|declaration| match self.data_of(declaration) {
-                NodeData::TypeParameter(data)
-                    if self.kind_of(declaration) == SyntaxKind::TypeParameter =>
-                {
-                    data.constraint.or_else(|| {
-                        let parent = self.parent_of(declaration)?;
-                        let template = self.record_of(parent).as_js_doc_template_tag()?;
-                        // tsgo's reparser gives the tag's first type parameter
-                        // the type inside the constraint's braces
-                        // (gatherTypeParameters clones `constraint.Type()`):
-                        // a reused constraint charges that type's span, and a
-                        // circular constraint is reported on it.
-                        (self.nodes_of(template.type_parameters).first().copied()
-                            == Some(declaration))
-                        .then_some(template.constraint)
-                        .flatten()
-                        .and_then(|constraint| self.jsdoc_type_expression_type(Some(constraint)))
-                    })
-                }
-                _ => None,
-            })
+            .find_map(
+                |declaration| match self.record_of(declaration).as_type_parameter() {
+                    Some(data) if self.kind_of(declaration) == SyntaxKind::TypeParameter => {
+                        data.constraint.or_else(|| {
+                            let parent = self.parent_of(declaration)?;
+                            let template = self.record_of(parent).as_js_doc_template_tag()?;
+                            // tsgo's reparser gives the tag's first type parameter
+                            // the type inside the constraint's braces
+                            // (gatherTypeParameters clones `constraint.Type()`):
+                            // a reused constraint charges that type's span, and a
+                            // circular constraint is reported on it.
+                            (self.nodes_of(template.type_parameters).first().copied()
+                                == Some(declaration))
+                            .then_some(template.constraint)
+                            .flatten()
+                            .and_then(|constraint| {
+                                self.jsdoc_type_expression_type(Some(constraint))
+                            })
+                        })
+                    }
+                    _ => None,
+                },
+            )
     }
 
     /// tsc-port: getConstraintFromTypeParameter @6.0.3

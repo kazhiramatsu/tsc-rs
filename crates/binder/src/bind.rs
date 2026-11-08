@@ -93,11 +93,7 @@ impl<'a> BinderWorker<'a> {
     pub(crate) fn bind_worker(&mut self, node: NodeId, kind: SyntaxKind) {
         match kind {
             SyntaxKind::Identifier | SyntaxKind::ThisKeyword => {
-                if kind == SyntaxKind::Identifier
-                    && self
-                        .flags_of(node)
-                        .intersects(NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE)
-                {
+                if kind == SyntaxKind::Identifier && self.identifier_is_in_jsdoc_namespace(node) {
                     let mut declaration = parent_of(self.source, node);
                     while declaration
                         .is_some_and(|candidate| !is_jsdoc_type_alias(self.source, candidate))

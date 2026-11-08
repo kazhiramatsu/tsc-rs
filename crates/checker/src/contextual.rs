@@ -623,13 +623,13 @@ impl<'a> CheckerState<'a> {
                 return Ok(Some(result));
             }
             if !context_flags.intersects(ContextFlags::SKIP_BINDING_PATTERNS) {
-                let name = match self.data_of(declaration) {
-                    NodeData::VariableDeclaration(data) => data.name,
-                    NodeData::Parameter(data) => data.name,
-                    NodeData::BindingElement(data) => data.name,
-                    NodeData::PropertyDeclaration(data) => data.name,
+                let name = match_record! { self.record_of(declaration), {
+                    as_variable_declaration(data) => data.name,
+                    as_parameter(data) => data.name,
+                    as_binding_element(data) => data.name,
+                    as_property_declaration(data) => data.name,
                     _ => None,
-                };
+                }};
                 if let Some(name) = name {
                     if node_util::is_binding_pattern(&Published, name) {
                         let elements = match self.data_of(name) {
@@ -1146,20 +1146,20 @@ impl<'a> CheckerState<'a> {
     /// tsgo GetLeftmostExpression(node, false) over an assignment target.
     fn leftmost_assignment_target(&self, mut node: NodeId) -> NodeId {
         loop {
-            let next = match self.data_of(node) {
-                NodeData::PostfixUnaryExpression(data) => data.operand,
-                NodeData::BinaryExpression(data) => data.left,
-                NodeData::ConditionalExpression(data) => data.condition,
-                NodeData::TaggedTemplateExpression(data) => data.tag,
-                NodeData::CallExpression(data) => data.expression,
-                NodeData::AsExpression(data) => data.expression,
-                NodeData::SatisfiesExpression(data) => data.expression,
-                NodeData::ElementAccessExpression(data) => data.expression,
-                NodeData::PropertyAccessExpression(data) => data.expression,
-                NodeData::NonNullExpression(data) => data.expression,
-                NodeData::PartiallyEmittedExpression(data) => data.expression,
+            let next = match_record! { self.record_of(node), {
+                as_postfix_unary_expression(data) => data.operand,
+                as_binary_expression(data) => data.left,
+                as_conditional_expression(data) => data.condition,
+                as_tagged_template_expression(data) => data.tag,
+                as_call_expression(data) => data.expression,
+                as_as_expression(data) => data.expression,
+                as_satisfies_expression(data) => data.expression,
+                as_element_access_expression(data) => data.expression,
+                as_property_access_expression(data) => data.expression,
+                as_non_null_expression(data) => data.expression,
+                as_partially_emitted_expression(data) => data.expression,
                 _ => None,
-            };
+            }};
             let Some(next) = next else {
                 return node;
             };
@@ -1186,11 +1186,11 @@ impl<'a> CheckerState<'a> {
         };
         let left = data.left.expect("assignment has a left side");
         let declaration_symbol = self.node_symbol(binary);
-        let (expression, is_property_access) = match self.data_of(left) {
-            NodeData::PropertyAccessExpression(access) => (access.expression, true),
-            NodeData::ElementAccessExpression(access) => (access.expression, false),
+        let (expression, is_property_access) = match_record! { self.record_of(left), {
+            as_property_access_expression(access) => (access.expression, true),
+            as_element_access_expression(access) => (access.expression, false),
             _ => (None, false),
-        };
+        }};
         if let Some(expression) = expression {
             match self.kind_of(expression) {
                 SyntaxKind::Identifier => {
@@ -1379,12 +1379,12 @@ impl<'a> CheckerState<'a> {
             _ => (false, false),
         };
         if asterisk_eligible {
-            let asterisk = match self.data_of(node) {
-                NodeData::FunctionDeclaration(data) => data.asterisk_token.is_some(),
-                NodeData::FunctionExpression(data) => data.asterisk_token.is_some(),
-                NodeData::MethodDeclaration(data) => data.asterisk_token.is_some(),
+            let asterisk = match_record! { self.record_of(node), {
+                as_function_declaration(data) => data.asterisk_token.is_some(),
+                as_function_expression(data) => data.asterisk_token.is_some(),
+                as_method_declaration(data) => data.asterisk_token.is_some(),
                 _ => false,
-            };
+            }};
             if asterisk {
                 flags |= FUNCTION_FLAGS_GENERATOR;
             }
@@ -1394,16 +1394,16 @@ impl<'a> CheckerState<'a> {
         {
             flags |= FUNCTION_FLAGS_ASYNC;
         }
-        let body = match self.data_of(node) {
-            NodeData::FunctionDeclaration(data) => data.body,
-            NodeData::FunctionExpression(data) => data.body,
-            NodeData::ArrowFunction(data) => data.body,
-            NodeData::MethodDeclaration(data) => data.body,
-            NodeData::Constructor(data) => data.body,
-            NodeData::GetAccessor(data) => data.body,
-            NodeData::SetAccessor(data) => data.body,
+        let body = match_record! { self.record_of(node), {
+            as_function_declaration(data) => data.body,
+            as_function_expression(data) => data.body,
+            as_arrow_function(data) => data.body,
+            as_method_declaration(data) => data.body,
+            as_constructor(data) => data.body,
+            as_get_accessor(data) => data.body,
+            as_set_accessor(data) => data.body,
             _ => None,
-        };
+        }};
         if body.is_none() {
             flags |= FUNCTION_FLAGS_INVALID;
         }
@@ -2128,8 +2128,8 @@ impl<'a> CheckerState<'a> {
             return Ok(self.set_cached_type(key, matched));
         }
         let mut discriminators: Vec<(ContextualDiscriminator, tsc_types::EscapedName)> = Vec::new();
-        let properties = match self.data_of(node) {
-            NodeData::ObjectLiteralExpression(data) => data.properties,
+        let properties = match self.record_of(node).as_object_literal_expression() {
+            Some(data) => data.properties,
             _ => None,
         };
         {
@@ -3414,13 +3414,15 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::FunctionDeclaration => {
                 self.is_context_sensitive_function_like_declaration_syntactic(node)
             }
-            SyntaxKind::ObjectLiteralExpression => match self.data_of(node) {
-                NodeData::ObjectLiteralExpression(data) => self
-                    .nodes_of(data.properties)
-                    .iter()
-                    .any(|&p| self.is_context_sensitive(p)),
-                _ => false,
-            },
+            SyntaxKind::ObjectLiteralExpression => {
+                match self.record_of(node).as_object_literal_expression() {
+                    Some(data) => self
+                        .nodes_of(data.properties)
+                        .iter()
+                        .any(|&p| self.is_context_sensitive(p)),
+                    _ => false,
+                }
+            }
             SyntaxKind::ArrayLiteralExpression => match self.data_of(node) {
                 NodeData::ArrayLiteralExpression(data) => self
                     .nodes_of(data.elements)
@@ -3551,13 +3553,13 @@ impl<'a> CheckerState<'a> {
         {
             return false;
         }
-        let body = match self.data_of(node) {
-            NodeData::FunctionDeclaration(data) => data.body,
-            NodeData::FunctionExpression(data) => data.body,
-            NodeData::ArrowFunction(data) => data.body,
-            NodeData::MethodDeclaration(data) => data.body,
+        let body = match_record! { self.record_of(node), {
+            as_function_declaration(data) => data.body,
+            as_function_expression(data) => data.body,
+            as_arrow_function(data) => data.body,
+            as_method_declaration(data) => data.body,
             _ => None,
-        };
+        }};
         let Some(body) = body else {
             return false;
         };
@@ -3747,35 +3749,35 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: typed AST projection for tsc's direct
     /// `declaration.parameters` property access.
     pub(crate) fn parameters_of_function(&self, node: NodeId) -> Vec<NodeId> {
-        let parameters = match self.data_of(node) {
-            NodeData::FunctionDeclaration(data) => data.parameters,
-            NodeData::FunctionExpression(data) => data.parameters,
-            NodeData::ArrowFunction(data) => data.parameters,
-            NodeData::MethodDeclaration(data) => data.parameters,
-            NodeData::Constructor(data) => data.parameters,
-            NodeData::GetAccessor(data) => data.parameters,
-            NodeData::SetAccessor(data) => data.parameters,
-            NodeData::CallSignature(data) => data.parameters,
-            NodeData::ConstructSignature(data) => data.parameters,
-            NodeData::MethodSignature(data) => data.parameters,
-            NodeData::FunctionType(data) => data.parameters,
-            NodeData::ConstructorType(data) => data.parameters,
-            NodeData::JSDocFunctionType(data) => data.parameters,
-            NodeData::JSDocSignature(data) => data.parameters,
+        let parameters = match_record! { self.record_of(node), {
+            as_function_declaration(data) => data.parameters,
+            as_function_expression(data) => data.parameters,
+            as_arrow_function(data) => data.parameters,
+            as_method_declaration(data) => data.parameters,
+            as_constructor(data) => data.parameters,
+            as_get_accessor(data) => data.parameters,
+            as_set_accessor(data) => data.parameters,
+            as_call_signature(data) => data.parameters,
+            as_construct_signature(data) => data.parameters,
+            as_method_signature(data) => data.parameters,
+            as_function_type(data) => data.parameters,
+            as_constructor_type(data) => data.parameters,
+            as_js_doc_function_type(data) => data.parameters,
+            as_js_doc_signature(data) => data.parameters,
             _ => None,
-        };
+        }};
         self.nodes_of(parameters).to_vec()
     }
 
     /// The declaration's syntactic `typeParameters` property.
     fn function_type_parameters_of(&self, node: NodeId) -> Option<tsc_syntax::NodeArrayId> {
-        match self.data_of(node) {
-            NodeData::FunctionDeclaration(data) => data.type_parameters,
-            NodeData::FunctionExpression(data) => data.type_parameters,
-            NodeData::ArrowFunction(data) => data.type_parameters,
-            NodeData::MethodDeclaration(data) => data.type_parameters,
+        match_record! { self.record_of(node), {
+            as_function_declaration(data) => data.type_parameters,
+            as_function_expression(data) => data.type_parameters,
+            as_arrow_function(data) => data.type_parameters,
+            as_method_declaration(data) => data.type_parameters,
             _ => None,
-        }
+        }}
     }
 
     /// getThisParameter's declaration read: the leading `this`
@@ -3823,30 +3825,27 @@ impl<'a> CheckerState<'a> {
         // tsc getEffectiveTypeAnnotationNode is a kind-generic `.type`
         // read after the function-declaration exception above. Kinds
         // without a type field answer None.
-        let syntactic = match self.data_of(declaration) {
-            NodeData::VariableDeclaration(data) => data.r#type,
-            NodeData::Parameter(data) => data.r#type,
-            NodeData::PropertyDeclaration(data) => data.r#type,
-            NodeData::PropertySignature(data) => data.r#type,
-            NodeData::MethodSignature(data) => data.r#type,
-            NodeData::MethodDeclaration(data) => data.r#type,
-            NodeData::GetAccessor(data) => data.r#type,
-            NodeData::FunctionDeclaration(data) => data.r#type,
-            NodeData::FunctionExpression(data) => data.r#type,
-            NodeData::ArrowFunction(data) => data.r#type,
-            NodeData::CallSignature(data) => data.r#type,
-            NodeData::ConstructSignature(data) => data.r#type,
-            NodeData::IndexSignature(data) => data.r#type,
-            NodeData::FunctionType(data) => data.r#type,
-            NodeData::JSDocFunctionType(data) => data.r#type,
-            NodeData::ConstructorType(data) => data.r#type,
-            NodeData::JSDocPropertyTag(data) => {
+        let syntactic = match_record! { self.record_of(declaration), {
+            as_variable_declaration(data) => data.r#type,
+            as_parameter(data) => data.r#type,
+            as_property_declaration(data) => data.r#type,
+            as_property_signature(data) => data.r#type,
+            as_method_signature(data) => data.r#type,
+            as_method_declaration(data) => data.r#type,
+            as_get_accessor(data) => data.r#type,
+            as_function_declaration(data) => data.r#type,
+            as_function_expression(data) => data.r#type,
+            as_arrow_function(data) => data.r#type,
+            as_call_signature(data) => data.r#type,
+            as_construct_signature(data) => data.r#type,
+            as_index_signature(data) => data.r#type,
+            as_function_type(data) => data.r#type,
+            as_js_doc_function_type(data) => data.r#type,
+            as_constructor_type(data) => data.r#type,
+            as_js_doc_property_tag(data) => {
                 self.jsdoc_type_expression_type(data.type_expression)
-            }
-            // tsgo reparseJSDocSignature (reparser.go:184-198): a `@callback`
-            // or `@overload` parameter typed `...T` is a rest parameter of
-            // type T.
-            NodeData::JSDocParameterTag(data) => self
+            },
+            as_js_doc_parameter_tag(data) => self
                 .jsdoc_type_expression_type(data.type_expression)
                 .map(|ty| match self.data_of(ty) {
                     NodeData::JSDocVariadicType(variadic)
@@ -3859,7 +3858,7 @@ impl<'a> CheckerState<'a> {
                     _ => ty,
                 }),
             _ => None,
-        };
+        }};
         // tsgo node.Type(): a JavaScript declaration's type may be the one
         // its reparser hosts from a `@type` or `@param` tag. (A function's
         // `@type` is its FullSignature, not a type annotation.)
@@ -3875,16 +3874,16 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: typed AST projection for tsc's direct
     /// `declaration.initializer` property access.
     pub(crate) fn initializer_of(&self, declaration: NodeId) -> Option<NodeId> {
-        match self.data_of(declaration) {
-            NodeData::VariableDeclaration(data) => data.initializer,
-            NodeData::Parameter(data) => data.initializer,
-            NodeData::BindingElement(data) => data.initializer,
-            NodeData::PropertyDeclaration(data) => data.initializer,
-            NodeData::PropertyAssignment(data) => data.initializer,
-            NodeData::EnumMember(data) => data.initializer,
-            NodeData::JsxAttribute(data) => data.initializer,
+        match_record! { self.record_of(declaration), {
+            as_variable_declaration(data) => data.initializer,
+            as_parameter(data) => data.initializer,
+            as_binding_element(data) => data.initializer,
+            as_property_declaration(data) => data.initializer,
+            as_property_assignment(data) => data.initializer,
+            as_enum_member(data) => data.initializer,
+            as_jsx_attribute(data) => data.initializer,
             _ => None,
-        }
+        }}
     }
 
     /// tsc isConstTypeReference on a TYPE node: `const` type reference

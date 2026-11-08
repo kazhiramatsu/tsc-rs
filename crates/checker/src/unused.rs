@@ -205,11 +205,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:83008-83038
     /// d2: d2:5a2c45fdca4506945d356d1d7cf0abdfbf8b3db6c524587eb3031fd4e0169d16
     fn check_unused_class_members(&mut self, node: NodeId) -> CheckResult<()> {
-        let members = match self.data_of(node) {
-            NodeData::ClassDeclaration(data) => data.members,
-            NodeData::ClassExpression(data) => data.members,
+        let members = match_record! { self.record_of(node), {
+            as_class_declaration(data) => data.members,
+            as_class_expression(data) => data.members,
             _ => return Ok(()),
-        };
+        }};
         for member in self.nodes_of(members) {
             if self.is_recovery_only_unused_declaration(member) {
                 continue;

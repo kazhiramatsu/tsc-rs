@@ -10,7 +10,7 @@ use tsc_diagnostics::{
     gen as diagnostics, Diagnostic, DiagnosticMessage, MessageChain, RelatedInfo,
 };
 use tsc_syntax::nodes::{JsxOpeningElementData, JsxSelfClosingElementData};
-use tsc_syntax::{NodeArrayId, NodeData, NodeId, NodeLookup, Published, SyntaxKind};
+use tsc_syntax::{NodeArrayId, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{
     CheckMode, ContextFlags, ElementFlags, InferenceFlags, InferencePriority, ModifierFlags,
     NodeFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
@@ -269,13 +269,10 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         };
         self.check_external_emit_helpers(first_decorator, crate::modules::EMIT_HELPER_METADATA)?;
-        match self.data_of(node) {
-            NodeData::ClassDeclaration(data) => {
+        match_record! { self.record_of(node), {
+            as_class_declaration(data) => {
                 let constructor = self.nodes_of(data.members).into_iter().find(|&member| {
-                    matches!(
-                        self.data_of(member),
-                        NodeData::Constructor(data) if data.body.is_some()
-                    )
+                    matches!(self.record_of(member).as_constructor(), Some(data) if data.body.is_some())
                 });
                 if let Some(constructor) = constructor {
                     for parameter in self.function_like_parameters(constructor) {
@@ -283,8 +280,8 @@ impl<'a> CheckerState<'a> {
                         self.mark_decorator_metadata_type_node_as_referenced(r#type)?;
                     }
                 }
-            }
-            NodeData::GetAccessor(_) | NodeData::SetAccessor(_) => {
+            },
+            as_get_accessor(_) => {
                 let symbol = self.get_symbol_of_declaration(node)?;
                 let other_kind = if self.kind_of(node) == SyntaxKind::GetAccessor {
                     SyntaxKind::SetAccessor
@@ -296,20 +293,33 @@ impl<'a> CheckerState<'a> {
                     .annotated_accessor_type_node(Some(node))
                     .or_else(|| self.annotated_accessor_type_node(other));
                 self.mark_decorator_metadata_type_node_as_referenced(r#type)?;
-            }
-            NodeData::MethodDeclaration(data) => {
+            },
+            as_set_accessor(_) => {
+                let symbol = self.get_symbol_of_declaration(node)?;
+                let other_kind = if self.kind_of(node) == SyntaxKind::GetAccessor {
+                    SyntaxKind::SetAccessor
+                } else {
+                    SyntaxKind::GetAccessor
+                };
+                let other = self.get_declaration_of_kind(symbol, other_kind);
+                let r#type = self
+                    .annotated_accessor_type_node(Some(node))
+                    .or_else(|| self.annotated_accessor_type_node(other));
+                self.mark_decorator_metadata_type_node_as_referenced(r#type)?;
+            },
+            as_method_declaration(data) => {
                 for parameter in self.nodes_of(data.parameters) {
                     let r#type = self.parameter_type_node_for_decorator_metadata(parameter);
                     self.mark_decorator_metadata_type_node_as_referenced(r#type)?;
                 }
                 let return_type = self.effective_return_type_node(node);
                 self.mark_decorator_metadata_type_node_as_referenced(return_type)?;
-            }
-            NodeData::PropertyDeclaration(_) => {
+            },
+            as_property_declaration(_) => {
                 let r#type = self.effective_type_annotation_node(node);
                 self.mark_decorator_metadata_type_node_as_referenced(r#type)?;
-            }
-            NodeData::Parameter(_) => {
+            },
+            as_parameter(_) => {
                 let r#type = self.parameter_type_node_for_decorator_metadata(node);
                 self.mark_decorator_metadata_type_node_as_referenced(r#type)?;
                 if let Some(signature) = self.parent_of(node) {
@@ -320,23 +330,23 @@ impl<'a> CheckerState<'a> {
                     let return_type = self.effective_return_type_node(signature);
                     self.mark_decorator_metadata_type_node_as_referenced(return_type)?;
                 }
-            }
-            _ => {}
-        }
+            },
+            _ => {},
+        }}
         Ok(())
     }
 
     fn function_like_parameters(&self, node: NodeId) -> Vec<NodeId> {
-        let parameters = match self.data_of(node) {
-            NodeData::Constructor(data) => data.parameters,
-            NodeData::FunctionDeclaration(data) => data.parameters,
-            NodeData::FunctionExpression(data) => data.parameters,
-            NodeData::ArrowFunction(data) => data.parameters,
-            NodeData::MethodDeclaration(data) => data.parameters,
-            NodeData::GetAccessor(data) => data.parameters,
-            NodeData::SetAccessor(data) => data.parameters,
+        let parameters = match_record! { self.record_of(node), {
+            as_constructor(data) => data.parameters,
+            as_function_declaration(data) => data.parameters,
+            as_function_expression(data) => data.parameters,
+            as_arrow_function(data) => data.parameters,
+            as_method_declaration(data) => data.parameters,
+            as_get_accessor(data) => data.parameters,
+            as_set_accessor(data) => data.parameters,
             _ => None,
-        };
+        }};
         self.nodes_of(parameters).to_vec()
     }
 
@@ -348,14 +358,14 @@ impl<'a> CheckerState<'a> {
         if !self.is_rest_parameter_declaration(parameter) {
             return Some(r#type);
         }
-        match self.data_of(r#type) {
-            NodeData::ArrayType(data) => data.element_type,
-            NodeData::TypeReference(data) => {
+        match_record! { self.record_of(r#type), {
+            as_array_type(data) => data.element_type,
+            as_type_reference(data) => {
                 let arguments = self.nodes_of(data.type_arguments);
                 (arguments.len() == 1).then_some(arguments[0])
-            }
+            },
             _ => None,
-        }
+        }}
     }
 
     /// tsc-port: markDecoratorMedataDataTypeNodeAsReferenced @6.0.3
@@ -476,19 +486,19 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:82698-82713
     fn decorator_metadata_entity_name(&self, r#type: Option<NodeId>) -> Option<NodeId> {
         let r#type = r#type?;
-        match self.data_of(r#type) {
-            NodeData::IntersectionType(data) => {
+        match_record! { self.record_of(r#type), {
+            as_intersection_type(data) => {
                 self.decorator_metadata_entity_name_from_types(data.types)
-            }
-            NodeData::UnionType(data) => self.decorator_metadata_entity_name_from_types(data.types),
-            NodeData::ConditionalType(data) => self.decorator_metadata_common_entity_name(
+            },
+            as_union_type(data) => self.decorator_metadata_entity_name_from_types(data.types),
+            as_conditional_type(data) => self.decorator_metadata_common_entity_name(
                 [data.true_type, data.false_type].into_iter().flatten(),
             ),
-            NodeData::ParenthesizedType(data) => self.decorator_metadata_entity_name(data.r#type),
-            NodeData::NamedTupleMember(data) => self.decorator_metadata_entity_name(data.r#type),
-            NodeData::TypeReference(data) => data.type_name,
+            as_parenthesized_type(data) => self.decorator_metadata_entity_name(data.r#type),
+            as_named_tuple_member(data) => self.decorator_metadata_entity_name(data.r#type),
+            as_type_reference(data) => data.type_name,
             _ => None,
-        }
+        }}
     }
 
     fn decorator_metadata_entity_name_from_types(
@@ -511,22 +521,18 @@ impl<'a> CheckerState<'a> {
         let mut common = None;
         for mut r#type in types {
             loop {
-                r#type = match self.data_of(r#type) {
-                    NodeData::ParenthesizedType(data) => data.r#type?,
-                    NodeData::NamedTupleMember(data) => data.r#type?,
+                r#type = match_record! { self.record_of(r#type), {
+                    as_parenthesized_type(data) => data.r#type?,
+                    as_named_tuple_member(data) => data.r#type?,
                     _ => break,
-                };
+                }};
             }
             if self.kind_of(r#type) == SyntaxKind::NeverKeyword {
                 continue;
             }
             if !strict_null_checks
                 && (self.kind_of(r#type) == SyntaxKind::UndefinedKeyword
-                    || matches!(
-                        self.data_of(r#type),
-                        NodeData::LiteralType(data)
-                            if data.literal.is_some_and(|literal| self.kind_of(literal) == SyntaxKind::NullKeyword)
-                    ))
+                    || matches!(self.record_of(r#type).as_literal_type(), Some(data) if data.literal.is_some_and(|literal| self.kind_of(literal) == SyntaxKind::NullKeyword)))
             {
                 continue;
             }
@@ -623,18 +629,18 @@ impl<'a> CheckerState<'a> {
     /// tsc getThisParameter (14688) reduced to the declaration side:
     /// the first parameter when its name is the `this` identifier.
     fn get_this_parameter_of_function(&self, function: NodeId) -> Option<NodeId> {
-        let parameters = match self.data_of(function) {
-            NodeData::Constructor(data) => data.parameters,
-            NodeData::MethodDeclaration(data) => data.parameters,
-            NodeData::SetAccessor(data) => data.parameters,
-            NodeData::GetAccessor(data) => data.parameters,
-            NodeData::FunctionDeclaration(data) => data.parameters,
-            NodeData::FunctionExpression(data) => data.parameters,
+        let parameters = match_record! { self.record_of(function), {
+            as_constructor(data) => data.parameters,
+            as_method_declaration(data) => data.parameters,
+            as_set_accessor(data) => data.parameters,
+            as_get_accessor(data) => data.parameters,
+            as_function_declaration(data) => data.parameters,
+            as_function_expression(data) => data.parameters,
             _ => None,
-        };
+        }};
         let first = self.nodes_of(parameters).first().copied()?;
-        let name = match self.data_of(first) {
-            NodeData::Parameter(data) => data.name?,
+        let name = match self.record_of(first).as_parameter() {
+            Some(data) => data.name?,
             _ => return None,
         };
         self.is_this_identifier(name).then_some(first)
@@ -660,16 +666,16 @@ impl<'a> CheckerState<'a> {
         let mut can_have_call_expression = true;
         let mut error_node: Option<NodeId> = None;
         loop {
-            match self.data_of(node) {
-                NodeData::ExpressionWithTypeArguments(data) => {
+            match_record! { self.record_of(node), {
+                as_expression_with_type_arguments(data) => {
                     let Some(next) = data.expression else { break };
                     node = next;
-                }
-                NodeData::NonNullExpression(data) => {
+                },
+                as_non_null_expression(data) => {
                     let Some(next) = data.expression else { break };
                     node = next;
-                }
-                NodeData::CallExpression(data) => {
+                },
+                as_call_expression(data) => {
                     if !can_have_call_expression {
                         error_node = Some(node);
                     }
@@ -679,22 +685,22 @@ impl<'a> CheckerState<'a> {
                     let Some(next) = data.expression else { break };
                     node = next;
                     can_have_call_expression = false;
-                }
-                NodeData::PropertyAccessExpression(data) => {
+                },
+                as_property_access_expression(data) => {
                     if let Some(question_dot) = data.question_dot_token {
                         error_node = Some(question_dot);
                     }
                     let Some(next) = data.expression else { break };
                     node = next;
                     can_have_call_expression = false;
-                }
+                },
                 _ => {
                     if self.kind_of(node) != SyntaxKind::Identifier {
                         error_node = Some(node);
                     }
                     break;
-                }
-            }
+                },
+            }}
         }
         if let Some(error_node) = error_node {
             let index = self.error_at(
@@ -755,8 +761,8 @@ impl<'a> CheckerState<'a> {
             }
             _ => unreachable!("nodeCanBeDecorated gates the parent kinds"),
         };
-        let expression = match self.data_of(node) {
-            NodeData::Decorator(data) => data.expression,
+        let expression = match self.record_of(node).as_decorator() {
+            Some(data) => data.expression,
             _ => None,
         };
         self.check_type_assignable_to(return_type, expected_return_type, expression, head_message)?;
@@ -1224,12 +1230,12 @@ impl<'a> CheckerState<'a> {
                 if this_parameter == Some(parent) {
                     return Ok(None);
                 }
-                let parameters = match self.data_of(function) {
-                    NodeData::Constructor(data) => self.nodes_of(data.parameters),
-                    NodeData::MethodDeclaration(data) => self.nodes_of(data.parameters),
-                    NodeData::SetAccessor(data) => self.nodes_of(data.parameters),
+                let parameters = match_record! { self.record_of(function), {
+                    as_constructor(data) => self.nodes_of(data.parameters),
+                    as_method_declaration(data) => self.nodes_of(data.parameters),
+                    as_set_accessor(data) => self.nodes_of(data.parameters),
                     _ => Default::default(),
-                };
+                }};
                 let raw_index = parameters
                     .iter()
                     .position(|&param| param == parent)
@@ -1358,20 +1364,20 @@ impl<'a> CheckerState<'a> {
             "parser invariant: class method/accessor/property parsers always store a name \
              (parse recovery stores a missing Identifier)",
         );
-        match self.data_of(name) {
-            NodeData::Identifier(data) => {
+        match_record! { self.record_of(name), {
+            as_identifier(data) => {
                 let text = data.text().to_owned();
                 Ok(self.tables.get_string_literal_type(&text))
-            }
-            NodeData::NumericLiteral(data) => {
+            },
+            as_numeric_literal(data) => {
                 let text = self.text_utf8(data.text).to_owned();
                 Ok(self.tables.get_string_literal_type(&text))
-            }
-            NodeData::StringLiteral(data) => {
+            },
+            as_string_literal(data) => {
                 let text = self.text_js(data.text).to_owned();
                 Ok(self.tables.get_string_literal_type(&text))
-            }
-            NodeData::ComputedPropertyName(_) => {
+            },
+            as_computed_property_name(_) => {
                 let name_type = self.check_computed_property_name(name)?;
                 if self.is_type_assignable_to_kind(
                     name_type,
@@ -1382,13 +1388,9 @@ impl<'a> CheckerState<'a> {
                 } else {
                     Ok(self.tables.intrinsics.string)
                 }
-            }
-            // tsc Debug.fail("Unsupported property name."). This is
-            // reachable only on an already-invalid decorated member
-            // (for example a bigint key); propagate the checker error
-            // type instead of inventing a string/symbol key.
+            },
             _ => Ok(self.tables.intrinsics.error),
-        }
+        }}
     }
 
     /// tsc-port: createTypedPropertyDescriptorType @6.0.3
@@ -1429,8 +1431,8 @@ impl<'a> CheckerState<'a> {
         );
         let is_private = self.kind_of(name) == SyntaxKind::PrivateIdentifier;
         let name_type = if is_private {
-            let text = match self.data_of(name) {
-                NodeData::PrivateIdentifier(data) => data.text().to_owned(),
+            let text = match self.record_of(name).as_private_identifier() {
+                Some(data) => data.text().to_owned(),
                 _ => unreachable!("kind/data agree"),
             };
             self.tables.get_string_literal_type(&text)
@@ -1737,8 +1739,8 @@ impl<'a> CheckerState<'a> {
                 unreachable!("kind/data agree");
             };
             if let Some(expression) = data.expression {
-                let target = match self.data_of(expression) {
-                    NodeData::PropertyAccessExpression(access) => access.name.unwrap_or(expression),
+                let target = match self.record_of(expression).as_property_access_expression() {
+                    Some(access) => access.name.unwrap_or(expression),
                     _ => expression,
                 };
                 return self.diag_span_of_node(target);
@@ -1757,8 +1759,8 @@ impl<'a> CheckerState<'a> {
     /// Arguments = call/new/tagged/jsx-opening-like; the tagged/binary/
     /// jsx operand arms are 5.7b/c callers.
     pub(crate) fn resolve_untyped_call(&mut self, node: NodeId) -> CheckResult<SignatureId> {
-        match self.data_of(node) {
-            NodeData::CallExpression(data) => {
+        match_record! { self.record_of(node), {
+            as_call_expression(data) => {
                 let type_arguments = data.type_arguments;
                 let arguments = data.arguments;
                 for argument in self.nodes_of(type_arguments) {
@@ -1767,8 +1769,8 @@ impl<'a> CheckerState<'a> {
                 for argument in self.nodes_of(arguments) {
                     self.check_expression(argument, CheckMode::NORMAL)?;
                 }
-            }
-            NodeData::NewExpression(data) => {
+            },
+            as_new_expression(data) => {
                 let type_arguments = data.type_arguments;
                 let arguments = data.arguments;
                 for argument in self.nodes_of(type_arguments) {
@@ -1777,8 +1779,8 @@ impl<'a> CheckerState<'a> {
                 for argument in self.nodes_of(arguments) {
                     self.check_expression(argument, CheckMode::NORMAL)?;
                 }
-            }
-            NodeData::TaggedTemplateExpression(data) => {
+            },
+            as_tagged_template_expression(data) => {
                 let type_arguments = data.type_arguments;
                 let template = data.template;
                 for argument in self.nodes_of(type_arguments) {
@@ -1787,13 +1789,13 @@ impl<'a> CheckerState<'a> {
                 if let Some(template) = template {
                     self.check_expression(template, CheckMode::NORMAL)?;
                 }
-            }
-            NodeData::BinaryExpression(data) => {
+            },
+            as_binary_expression(data) => {
                 if let Some(left) = data.left {
                     self.check_expression(left, CheckMode::NORMAL)?;
                 }
-            }
-            NodeData::JsxOpeningElement(data) => {
+            },
+            as_jsx_opening_element(data) => {
                 let type_arguments = data.type_arguments;
                 let attributes = data.attributes;
                 for argument in self.nodes_of(type_arguments) {
@@ -1802,8 +1804,8 @@ impl<'a> CheckerState<'a> {
                 if let Some(attributes) = attributes {
                     self.check_expression(attributes, CheckMode::NORMAL)?;
                 }
-            }
-            NodeData::JsxSelfClosingElement(data) => {
+            },
+            as_jsx_self_closing_element(data) => {
                 let type_arguments = data.type_arguments;
                 let attributes = data.attributes;
                 for argument in self.nodes_of(type_arguments) {
@@ -1812,18 +1814,18 @@ impl<'a> CheckerState<'a> {
                 if let Some(attributes) = attributes {
                     self.check_expression(attributes, CheckMode::NORMAL)?;
                 }
-            }
+            },
             _ if self.kind_of(node) == SyntaxKind::JsxOpeningFragment => {
                 // Fragments carry no type arguments (not a
                 // callLikeExpressionMayHaveTypeArguments kind) and no
                 // operand to walk.
-            }
+            },
             _ if self.kind_of(node) == SyntaxKind::Decorator => {
                 // 75748-75761: decorators fall through every operand
                 // branch (no type arguments, no operand walk).
-            }
+            },
             _ => unreachable!("call-like kinds route here"),
-        }
+        }}
         Ok(self.any_signature)
     }
 
@@ -1972,96 +1974,123 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<Vec<EffectiveArg>> {
-        let arguments = match self.data_of(node) {
-            NodeData::CallExpression(data) => data.arguments,
-            NodeData::NewExpression(data) => data.arguments,
-            NodeData::TaggedTemplateExpression(data) => {
-                // 76299-76308: [Synthetic(TemplateStringsArray)] at the
-                // template's span + the span expressions.
-                let template = data.template.expect(
-                    "parser invariant: parse_tagged_template_rest always stores a template \
-                     (parse recovery stores a missing TemplateTail)",
-                );
-                let strings_array = self.get_global_template_strings_array_type()?;
-                let (pos, end) = {
-                    let raw = Published.node(template);
-                    (raw.pos, raw.end)
-                };
-                let mut args = vec![EffectiveArg::Synthetic {
-                    pos,
-                    end,
-                    ty: strings_array,
-                    is_spread: false,
-                    tuple_name_source: None,
-                }];
-                if let Some(template_data) = self.record_of(template).as_template_expression() {
-                    let spans = template_data.template_spans;
-                    for span in self.nodes_of(spans) {
-                        if let Some(span_data) = self.record_of(span).as_template_span() {
-                            if let Some(expression) = span_data.expression {
-                                args.push(EffectiveArg::Node(expression));
+        let arguments = match_record! { self.record_of(node), {
+                    as_call_expression(data) => data.arguments,
+                    as_new_expression(data) => data.arguments,
+                    as_tagged_template_expression(data) => {
+                        // 76299-76308: [Synthetic(TemplateStringsArray)] at the
+                        // template's span + the span expressions.
+                        let template = data.template.expect(
+                            "parser invariant: parse_tagged_template_rest always stores a template \
+                             (parse recovery stores a missing TemplateTail)",
+                        );
+                        let strings_array = self.get_global_template_strings_array_type()?;
+                        let (pos, end) = {
+                            let raw = Published.node(template);
+                            (raw.pos, raw.end)
+                        };
+                        let mut args = vec![EffectiveArg::Synthetic {
+                            pos,
+                            end,
+                            ty: strings_array,
+                            is_spread: false,
+                            tuple_name_source: None,
+                        }];
+                        if let Some(template_data) = self.record_of(template).as_template_expression() {
+                            let spans = template_data.template_spans;
+                            for span in self.nodes_of(spans) {
+                                if let Some(span_data) = self.record_of(span).as_template_span() {
+                                    if let Some(expression) = span_data.expression {
+                                        args.push(EffectiveArg::Node(expression));
+                                    }
+                                }
                             }
                         }
-                    }
-                }
-                return Ok(args);
-            }
-            NodeData::BinaryExpression(data) => {
-                let left = data.left.expect(
-                    "parser invariant: make_binary_expression always stores its left operand \
-                     (parse recovery stores a missing expression node)",
-                );
-                return Ok(vec![EffectiveArg::Node(left)]);
-            }
-            NodeData::JsxOpeningElement(JsxOpeningElementData { attributes, .. })
-            | NodeData::JsxSelfClosingElement(JsxSelfClosingElementData { attributes, .. }) => {
-                // 76315-76317: the attributes node is THE argument when
-                // properties exist or an opening element has children.
-                let attributes = attributes.expect(
-                    "parser invariant: JSX opening/self-closing parsers always store an \
-                     attributes node (empty or recovery)",
-                );
-                let has_properties = match self.data_of(attributes) {
-                    NodeData::JsxAttributes(attributes_data) => {
-                        !self.nodes_of(attributes_data.properties).is_empty()
-                    }
-                    _ => false,
-                };
-                let has_children = self.kind_of(node) == SyntaxKind::JsxOpeningElement
-                    && self
-                        .parent_of(node)
-                        .is_some_and(|parent| match self.data_of(parent) {
-                            NodeData::JsxElement(element) => {
-                                !self.nodes_of(element.children).is_empty()
-                            }
-                            _ => false,
-                        });
-                return Ok(if has_properties || has_children {
-                    vec![EffectiveArg::Node(attributes)]
-                } else {
-                    Vec::new()
-                });
-            }
-            _ if self.kind_of(node) == SyntaxKind::JsxOpeningFragment => {
-                // 76296-76298: one synthetic emptyFreshJsxObjectType
-                // argument at the fragment's span.
-                let (pos, end) = {
-                    let raw = Published.node(node);
-                    (raw.pos, raw.end)
-                };
-                return Ok(vec![EffectiveArg::Synthetic {
-                    pos,
-                    end,
-                    ty: self.empty_fresh_jsx_object_type,
-                    is_spread: false,
-                    tuple_name_source: None,
-                }]);
-            }
-            _ if self.kind_of(node) == SyntaxKind::Decorator => {
-                return self.get_effective_decorator_arguments(node);
-            }
-            _ => unreachable!("call-like kinds route here"),
+                        return Ok(args);
+                    },
+                    as_binary_expression(data) => {
+                        let left = data.left.expect(
+                            "parser invariant: make_binary_expression always stores its left operand \
+                             (parse recovery stores a missing expression node)",
+                        );
+                        return Ok(vec![EffectiveArg::Node(left)]);
+                    },
+                    as_jsx_opening_element(JsxOpeningElementData { attributes, .. }) => {
+                        // 76315-76317: the attributes node is THE argument when
+                        // properties exist or an opening element has children.
+                        let attributes = attributes.expect(
+                            "parser invariant: JSX opening/self-closing parsers always store an \
+                             attributes node (empty or recovery)",
+                        );
+                        let has_properties = match self.record_of(attributes).as_jsx_attributes() {
+        Some(attributes_data) => {
+                                !self.nodes_of(attributes_data.properties).is_empty()
+                            },
+        _ => false,
         };
+                        let has_children = self.kind_of(node) == SyntaxKind::JsxOpeningElement
+                            && self
+                                .parent_of(node)
+                                .is_some_and(|parent| match self.record_of(parent).as_jsx_element() {
+        Some(element) => {
+                                        !self.nodes_of(element.children).is_empty()
+                                    },
+        _ => false,
+        });
+                        return Ok(if has_properties || has_children {
+                            vec![EffectiveArg::Node(attributes)]
+                        } else {
+                            Vec::new()
+                        });
+                    },
+                    as_jsx_self_closing_element(JsxSelfClosingElementData { attributes, .. }) => {
+                        // 76315-76317: the attributes node is THE argument when
+                        // properties exist or an opening element has children.
+                        let attributes = attributes.expect(
+                            "parser invariant: JSX opening/self-closing parsers always store an \
+                             attributes node (empty or recovery)",
+                        );
+                        let has_properties = match self.record_of(attributes).as_jsx_attributes() {
+        Some(attributes_data) => {
+                                !self.nodes_of(attributes_data.properties).is_empty()
+                            },
+        _ => false,
+        };
+                        let has_children = self.kind_of(node) == SyntaxKind::JsxOpeningElement
+                            && self
+                                .parent_of(node)
+                                .is_some_and(|parent| match self.record_of(parent).as_jsx_element() {
+        Some(element) => {
+                                        !self.nodes_of(element.children).is_empty()
+                                    },
+        _ => false,
+        });
+                        return Ok(if has_properties || has_children {
+                            vec![EffectiveArg::Node(attributes)]
+                        } else {
+                            Vec::new()
+                        });
+                    },
+                    _ if self.kind_of(node) == SyntaxKind::JsxOpeningFragment => {
+                        // 76296-76298: one synthetic emptyFreshJsxObjectType
+                        // argument at the fragment's span.
+                        let (pos, end) = {
+                            let raw = Published.node(node);
+                            (raw.pos, raw.end)
+                        };
+                        return Ok(vec![EffectiveArg::Synthetic {
+                            pos,
+                            end,
+                            ty: self.empty_fresh_jsx_object_type,
+                            is_spread: false,
+                            tuple_name_source: None,
+                        }]);
+                    },
+                    _ if self.kind_of(node) == SyntaxKind::Decorator => {
+                        return self.get_effective_decorator_arguments(node);
+                    },
+                    _ => unreachable!("call-like kinds route here"),
+                }};
         let args = self.nodes_of(arguments);
         let spread_index = args
             .iter()
@@ -2272,8 +2301,8 @@ impl<'a> CheckerState<'a> {
                         "parser invariant: parse_template_expression always stores at least \
                          one TemplateSpan (ending in a real or missing TemplateTail)",
                     );
-                    let literal = match self.data_of(last_span) {
-                        NodeData::TemplateSpan(span_data) => span_data.literal,
+                    let literal = match self.record_of(last_span).as_template_span() {
+                        Some(span_data) => span_data.literal,
                         _ => None,
                     };
                     call_is_incomplete = node_util::node_is_missing(&Published, literal)
@@ -2296,11 +2325,11 @@ impl<'a> CheckerState<'a> {
                 // 75833-75840: an unterminated opening element
                 // (attributes.end == node.end) is always arity-correct;
                 // otherwise the counts clamp to the one-argument shape.
-                let attributes = match self.data_of(node) {
-                    NodeData::JsxOpeningElement(data) => data.attributes,
-                    NodeData::JsxSelfClosingElement(data) => data.attributes,
+                let attributes = match_record! { self.record_of(node), {
+                    as_jsx_opening_element(data) => data.attributes,
+                    as_jsx_self_closing_element(data) => data.attributes,
                     _ => None,
-                }
+                }}
                 .expect(
                     "parser invariant: JSX opening/self-closing parsers always store an \
                      attributes node (empty or recovery)",
@@ -2320,11 +2349,11 @@ impl<'a> CheckerState<'a> {
                 effective_minimum_arguments = effective_minimum_arguments.min(1);
             }
             _ => {
-                let arguments = match self.data_of(node) {
-                    NodeData::CallExpression(data) => data.arguments,
-                    NodeData::NewExpression(data) => data.arguments,
+                let arguments = match_record! { self.record_of(node), {
+                    as_call_expression(data) => data.arguments,
+                    as_new_expression(data) => data.arguments,
                     _ => None,
-                };
+                }};
                 let Some(arguments) = arguments else {
                     // Argument-less `new C`.
                     debug_assert_eq!(self.kind_of(node), SyntaxKind::NewExpression);
@@ -2880,21 +2909,19 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 13dfb639a189d005e4cb66f7c3362059101d200d03a5001d3bb534e094422b13
     /// tsc-span: _tsc.js:76277-76288
     fn get_this_argument_of_call(&self, node: NodeId) -> Option<NodeId> {
-        let expression = match self.data_of(node) {
-            NodeData::BinaryExpression(data) => return data.right,
-            NodeData::CallExpression(data) => data.expression,
-            NodeData::TaggedTemplateExpression(data) => data.tag,
-            // ES decorators take a this-argument from an access-
-            // expression callee; LEGACY decorators take NONE (76281).
-            NodeData::Decorator(data) if !self.options.experimental_decorators => data.expression,
+        let expression = match_record! { self.record_of(node), {
+            as_binary_expression(data) => return data.right,
+            as_call_expression(data) => data.expression,
+            as_tagged_template_expression(data) => data.tag,
+            as_decorator(data) if !self.options.experimental_decorators => data.expression,
             _ => None,
-        }?;
+        }}?;
         let callee = self.skip_outer_expressions(expression, OuterExpressionKinds::ALL);
-        match self.data_of(callee) {
-            NodeData::PropertyAccessExpression(data) => data.expression,
-            NodeData::ElementAccessExpression(data) => data.expression,
+        match_record! { self.record_of(callee), {
+            as_property_access_expression(data) => data.expression,
+            as_element_access_expression(data) => data.expression,
             _ => None,
-        }
+        }}
     }
 
     /// tsc-port: getThisArgumentType @6.0.3
@@ -2909,8 +2936,7 @@ impl<'a> CheckerState<'a> {
         };
         let this_argument_type = self.check_expression(node, CheckMode::NORMAL)?;
         let is_instanceof_right = self.parent_of(node).is_some_and(|parent| {
-            matches!(self.data_of(parent), NodeData::BinaryExpression(data)
-                if data.right == Some(node)
+            matches!(self.record_of(parent).as_binary_expression(), Some(data) if data.right == Some(node)
                     && data.operator_token
                         .is_some_and(|token| self.kind_of(token) == SyntaxKind::InstanceOfKeyword))
         });
@@ -2940,11 +2966,11 @@ impl<'a> CheckerState<'a> {
         context: InferenceContextId,
     ) -> CheckResult<Vec<TypeId>> {
         let param_type = self.get_effective_first_argument_for_jsx_signature(signature, node)?;
-        let attributes = match self.data_of(node) {
-            NodeData::JsxOpeningElement(data) => data.attributes,
-            NodeData::JsxSelfClosingElement(data) => data.attributes,
+        let attributes = match_record! { self.record_of(node), {
+            as_jsx_opening_element(data) => data.attributes,
+            as_jsx_self_closing_element(data) => data.attributes,
             _ => None,
-        }
+        }}
         .expect(
             "parser invariant: JSX opening/self-closing parsers always store an attributes \
              node (empty or recovery)",
@@ -3226,11 +3252,11 @@ impl<'a> CheckerState<'a> {
         let attributes_type = if is_jsx_open_fragment {
             self.create_jsx_attributes_type_from_attributes_property(node, CheckMode::NORMAL)?
         } else {
-            let attributes = match self.data_of(node) {
-                NodeData::JsxOpeningElement(data) => data.attributes,
-                NodeData::JsxSelfClosingElement(data) => data.attributes,
+            let attributes = match_record! { self.record_of(node), {
+                as_jsx_opening_element(data) => data.attributes,
+                as_jsx_self_closing_element(data) => data.attributes,
                 _ => None,
-            }
+            }}
             .expect(
                 "parser invariant: JSX opening/self-closing parsers always store an \
                  attributes node (empty or recovery)",
@@ -3258,11 +3284,11 @@ impl<'a> CheckerState<'a> {
         if mode == ApplicabilityMode::Silent {
             return Ok(Some(Vec::new()));
         }
-        let relation_error_node = match self.data_of(node) {
-            NodeData::JsxOpeningElement(data) => data.tag_name.unwrap_or(node),
-            NodeData::JsxSelfClosingElement(data) => data.tag_name.unwrap_or(node),
+        let relation_error_node = match_record! { self.record_of(node), {
+            as_jsx_opening_element(data) => data.tag_name.unwrap_or(node),
+            as_jsx_self_closing_element(data) => data.tag_name.unwrap_or(node),
             _ => node,
-        };
+        }};
         if let Some(attributes) = attributes_node {
             let (elaborated, diagnostics) = self
                 .capture_literal_assignment_elaboration_from_types(
@@ -3312,11 +3338,11 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(None);
         }
-        let tag_name = match self.data_of(node) {
-            NodeData::JsxOpeningElement(data) => data.tag_name,
-            NodeData::JsxSelfClosingElement(data) => data.tag_name,
+        let tag_name = match_record! { self.record_of(node), {
+            as_jsx_opening_element(data) => data.tag_name,
+            as_jsx_self_closing_element(data) => data.tag_name,
             _ => None,
-        };
+        }};
         let Some(tag_name) = tag_name else {
             return Ok(None);
         };
@@ -3556,11 +3582,11 @@ impl<'a> CheckerState<'a> {
         let EffectiveArg::Synthetic { pos, end, .. } = *arg else {
             return Ok(target);
         };
-        let arguments = match self.data_of(call_like) {
-            NodeData::CallExpression(data) => data.arguments,
-            NodeData::NewExpression(data) => data.arguments,
+        let arguments = match_record! { self.record_of(call_like), {
+            as_call_expression(data) => data.arguments,
+            as_new_expression(data) => data.arguments,
             _ => None,
-        };
+        }};
         let from_tuple_spread = arguments.is_some_and(|arguments| {
             self.nodes_of(Some(arguments)).iter().any(|&argument| {
                 if self.kind_of(argument) != SyntaxKind::SpreadElement {
@@ -3659,8 +3685,7 @@ impl<'a> CheckerState<'a> {
         let this_type = self.get_this_type_of_signature(signature)?;
         if let Some(this_type) = this_type {
             let is_new = self.kind_of(node) == SyntaxKind::NewExpression;
-            let is_super_property_call = matches!(self.data_of(node), NodeData::CallExpression(data)
-                if data.expression.is_some_and(|expression| self.is_super_property(expression)));
+            let is_super_property_call = matches!(self.record_of(node).as_call_expression(), Some(data) if data.expression.is_some_and(|expression| self.is_super_property(expression)));
             if this_type != self.tables.intrinsics.void && !is_new && !is_super_property_call {
                 let this_argument_node = self.get_this_argument_of_call(node);
                 let this_argument_type = self.get_this_argument_type(this_argument_node)?;
@@ -3991,11 +4016,11 @@ impl<'a> CheckerState<'a> {
     /// isSuperProperty (16007): property/element access whose
     /// expression is `super`.
     fn is_super_property(&self, node: NodeId) -> bool {
-        let expression = match self.data_of(node) {
-            NodeData::PropertyAccessExpression(data) => data.expression,
-            NodeData::ElementAccessExpression(data) => data.expression,
+        let expression = match_record! { self.record_of(node), {
+            as_property_access_expression(data) => data.expression,
+            as_element_access_expression(data) => data.expression,
             _ => None,
-        };
+        }};
         expression.is_some_and(|expression| self.kind_of(expression) == SyntaxKind::SuperKeyword)
     }
 
@@ -4023,8 +4048,7 @@ impl<'a> CheckerState<'a> {
         let is_decorator = node_kind == SyntaxKind::Decorator;
         let is_instanceof = node_kind == SyntaxKind::BinaryExpression;
         let is_jsx_open_fragment = node_kind == SyntaxKind::JsxOpeningFragment;
-        let is_super_call = matches!(self.data_of(node), NodeData::CallExpression(data)
-            if data.expression.is_some_and(|e| self.kind_of(e) == SyntaxKind::SuperKeyword));
+        let is_super_call = matches!(self.record_of(node).as_call_expression(), Some(data) if data.expression.is_some_and(|e| self.kind_of(e) == SyntaxKind::SuperKeyword));
 
         // 76593-76598: type arguments — skipped entirely for
         // decorator/instanceof/super-call/jsx-fragment; each checks
@@ -4032,14 +4056,14 @@ impl<'a> CheckerState<'a> {
         let mut type_argument_nodes: Vec<NodeId> = Vec::new();
         let mut type_arguments_array: Option<NodeArrayId> = None;
         if !is_decorator && !is_instanceof && !is_super_call && !is_jsx_open_fragment {
-            type_arguments_array = match self.data_of(node) {
-                NodeData::CallExpression(data) => data.type_arguments,
-                NodeData::NewExpression(data) => data.type_arguments,
-                NodeData::TaggedTemplateExpression(data) => data.type_arguments,
-                NodeData::JsxOpeningElement(data) => data.type_arguments,
-                NodeData::JsxSelfClosingElement(data) => data.type_arguments,
+            type_arguments_array = match_record! { self.record_of(node), {
+                as_call_expression(data) => data.type_arguments,
+                as_new_expression(data) => data.type_arguments,
+                as_tagged_template_expression(data) => data.type_arguments,
+                as_jsx_opening_element(data) => data.type_arguments,
+                as_jsx_self_closing_element(data) => data.type_arguments,
                 _ => None,
-            };
+            }};
             type_argument_nodes = self.nodes_of(type_arguments_array).to_vec();
             for &argument in &type_argument_nodes {
                 self.check_source_element(Some(argument));
@@ -4099,8 +4123,8 @@ impl<'a> CheckerState<'a> {
             candidate_for_type_argument_error: None,
             recursive_resolution: self.call_resolution_stack.contains(&node),
             signature_help_trailing_comma: check_mode.intersects(CheckMode::IS_FOR_SIGNATURE_HELP)
-                && match self.data_of(node) {
-                    NodeData::CallExpression(data) => data.arguments.is_some_and(|arguments| {
+                && match self.record_of(node).as_call_expression() {
+                    Some(data) => data.arguments.is_some_and(|arguments| {
                         self.binder.node_array(arguments).has_trailing_comma
                     }),
                     _ => false,
@@ -5270,21 +5294,21 @@ impl<'a> CheckerState<'a> {
                 let has_this = closest_signature
                     .is_some_and(|s| self.signature_of(s).this_parameter.is_some());
                 let parameter_index = if has_this { args.len() + 1 } else { args.len() };
-                let parameters = match self.data_of(declaration) {
-                    NodeData::FunctionDeclaration(data) => data.parameters,
-                    NodeData::FunctionExpression(data) => data.parameters,
-                    NodeData::ArrowFunction(data) => data.parameters,
-                    NodeData::MethodDeclaration(data) => data.parameters,
-                    NodeData::MethodSignature(data) => data.parameters,
-                    NodeData::CallSignature(data) => data.parameters,
-                    NodeData::ConstructSignature(data) => data.parameters,
-                    NodeData::FunctionType(data) => data.parameters,
-                    NodeData::JSDocFunctionType(data) => data.parameters,
-                    NodeData::JSDocSignature(data) => data.parameters,
-                    NodeData::ConstructorType(data) => data.parameters,
-                    NodeData::Constructor(data) => data.parameters,
+                let parameters = match_record! { self.record_of(declaration), {
+                    as_function_declaration(data) => data.parameters,
+                    as_function_expression(data) => data.parameters,
+                    as_arrow_function(data) => data.parameters,
+                    as_method_declaration(data) => data.parameters,
+                    as_method_signature(data) => data.parameters,
+                    as_call_signature(data) => data.parameters,
+                    as_construct_signature(data) => data.parameters,
+                    as_function_type(data) => data.parameters,
+                    as_js_doc_function_type(data) => data.parameters,
+                    as_js_doc_signature(data) => data.parameters,
+                    as_constructor_type(data) => data.parameters,
+                    as_constructor(data) => data.parameters,
                     _ => None,
-                };
+                }};
                 let parameter = self.nodes_of(parameters).get(parameter_index).copied();
                 if let Some(parameter) = parameter {
                     let related = self.argument_not_provided_related(parameter, args.len())?;
@@ -5330,13 +5354,13 @@ impl<'a> CheckerState<'a> {
         parameter: NodeId,
         argument_index: usize,
     ) -> CheckResult<RelatedInfo> {
-        let (name, is_rest) = match self.data_of(parameter) {
-            NodeData::Parameter(data) => (data.name, data.dot_dot_dot_token.is_some()),
-            NodeData::JSDocParameterTag(data) => {
+        let (name, is_rest) = match_record! { self.record_of(parameter), {
+            as_parameter(data) => (data.name, data.dot_dot_dot_token.is_some()),
+            as_js_doc_parameter_tag(data) => {
                 (data.name, self.is_rest_parameter_declaration(parameter))
-            }
+            },
             _ => unreachable!("signature declarations carry parameter-like nodes"),
-        };
+        }};
         let name_kind = name.map(|name| self.kind_of(name));
         if matches!(
             name_kind,
@@ -5590,9 +5614,10 @@ impl<'a> CheckerState<'a> {
             &diagnostics::This_expression_is_not_constructable
         };
         let parent = self.parent_of(error_target);
-        let parent_call_args = parent.and_then(|parent| match self.data_of(parent) {
-            NodeData::CallExpression(data) => Some(self.nodes_of(data.arguments).len()),
-            _ => None,
+        let parent_call_args = parent.and_then(|parent| {
+            self.record_of(parent)
+                .as_call_expression()
+                .map(|data| self.nodes_of(data.arguments).len())
         });
         if parent_call_args == Some(0) {
             if let LinkSlot::Resolved(resolved_symbol) = self
@@ -5691,8 +5716,8 @@ impl<'a> CheckerState<'a> {
             // 76973-76989: the super() arm.
             let super_type = self.check_super_expression(expression)?;
             if self.tables.flags_of(super_type).intersects(TypeFlags::ANY) {
-                let arguments = match self.data_of(node) {
-                    NodeData::CallExpression(data) => data.arguments,
+                let arguments = match self.record_of(node).as_call_expression() {
+                    Some(data) => data.arguments,
                     _ => None,
                 };
                 for argument in self.nodes_of(arguments) {
@@ -5792,8 +5817,8 @@ impl<'a> CheckerState<'a> {
                 // single-argument call whose argument opens on a new
                 // line.
                 let mut related_information: Option<RelatedInfo> = None;
-                let arguments = self.nodes_of(match self.data_of(node) {
-                    NodeData::CallExpression(data) => data.arguments,
+                let arguments = self.nodes_of(match self.record_of(node).as_call_expression() {
+                    Some(data) => data.arguments,
                     _ => None,
                 });
                 if arguments.len() == 1 {
@@ -6145,8 +6170,8 @@ impl<'a> CheckerState<'a> {
         relation: RelationKind,
         sink: &mut ElaborationDiagnosticSink,
     ) -> CheckResult<bool> {
-        let properties = match self.data_of(attributes) {
-            NodeData::JsxAttributes(data) => data.properties,
+        let properties = match self.record_of(attributes).as_jsx_attributes() {
+            Some(data) => data.properties,
             _ => return Ok(false),
         };
         let mut reported = false;
@@ -6157,12 +6182,12 @@ impl<'a> CheckerState<'a> {
             let Some(name_node) = data.name else {
                 continue;
             };
-            let initializer =
-                data.initializer
-                    .and_then(|initializer| match self.data_of(initializer) {
-                        NodeData::JsxExpression(data) => data.expression,
-                        _ => Some(initializer),
-                    });
+            let initializer = data.initializer.and_then(|initializer| {
+                match self.record_of(initializer).as_jsx_expression() {
+                    Some(data) => data.expression,
+                    _ => Some(initializer),
+                }
+            });
             let name = self.jsx_attribute_name_text(name_node);
             if name.contains('-') {
                 continue;
@@ -6277,15 +6302,15 @@ impl<'a> CheckerState<'a> {
         let mut value_tag_name: Option<NodeId> = None;
         let expr_types;
         if !is_jsx_open_fragment {
-            let (tag_name, type_arguments, attributes) = match self.data_of(node) {
-                NodeData::JsxOpeningElement(data) => {
+            let (tag_name, type_arguments, attributes) = match_record! { self.record_of(node), {
+                as_jsx_opening_element(data) => {
                     (data.tag_name, data.type_arguments, data.attributes)
-                }
-                NodeData::JsxSelfClosingElement(data) => {
+                },
+                as_jsx_self_closing_element(data) => {
                     (data.tag_name, data.type_arguments, data.attributes)
-                }
+                },
                 _ => (None, None, None),
-            };
+            }};
             let tag_name = tag_name.expect(
                 "parser invariant: JSX opening/self-closing parsers always store a tag name \
                  (parse recovery stores a missing Identifier)",
@@ -6972,11 +6997,11 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
-        let (type_arguments, expression) = match self.data_of(node) {
-            NodeData::CallExpression(data) => (data.type_arguments, data.expression),
-            NodeData::NewExpression(data) => (data.type_arguments, data.expression),
+        let (type_arguments, expression) = match_record! { self.record_of(node), {
+            as_call_expression(data) => (data.type_arguments, data.expression),
+            as_new_expression(data) => (data.type_arguments, data.expression),
             _ => unreachable!("checkCallExpression serves call/new"),
-        };
+        }};
         self.check_grammar_type_arguments(node, type_arguments);
         let signature = self.get_resolved_signature(node, None, check_mode)?;
         if signature == self.resolving_signature {
@@ -7030,8 +7055,8 @@ impl<'a> CheckerState<'a> {
         // the syntactic isRequireCall probe: a local non-ambient
         // function named `require` remains an ordinary call.
         if self.is_in_js_file(node) && self.is_common_js_require(node)? {
-            let argument = match self.data_of(node) {
-                NodeData::CallExpression(data) => self.nodes_of(data.arguments).first().copied(),
+            let argument = match self.record_of(node).as_call_expression() {
+                Some(data) => self.nodes_of(data.arguments).first().copied(),
                 _ => None,
             };
             if let Some(argument) = argument {
@@ -7068,8 +7093,8 @@ impl<'a> CheckerState<'a> {
         // through getTypeOfDottedName so getExplicitTypeOfSymbol can
         // attach 2782 at the first declaration without an annotation.
         if self.kind_of(node) == SyntaxKind::CallExpression {
-            let question_dot_token = match self.data_of(node) {
-                NodeData::CallExpression(data) => data.question_dot_token,
+            let question_dot_token = match self.record_of(node).as_call_expression() {
+                Some(data) => data.question_dot_token,
                 _ => None,
             };
             if question_dot_token.is_none()
@@ -7121,8 +7146,8 @@ impl<'a> CheckerState<'a> {
         if !self.is_require_call(node, /*require_string_literal_like_argument*/ true) {
             return Ok(false);
         }
-        let callee = match self.data_of(node) {
-            NodeData::CallExpression(data) => data.expression,
+        let callee = match self.record_of(node).as_call_expression() {
+            Some(data) => data.expression,
             _ => None,
         };
         let Some(callee) = callee else {
@@ -7176,18 +7201,22 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::ThisKeyword
             | SyntaxKind::SuperKeyword
             | SyntaxKind::MetaProperty => true,
-            SyntaxKind::PropertyAccessExpression => match self.data_of(node) {
-                NodeData::PropertyAccessExpression(data) => data
-                    .expression
-                    .is_some_and(|expression| self.is_dotted_name(expression)),
-                _ => false,
-            },
-            SyntaxKind::ParenthesizedExpression => match self.data_of(node) {
-                NodeData::ParenthesizedExpression(data) => data
-                    .expression
-                    .is_some_and(|expression| self.is_dotted_name(expression)),
-                _ => false,
-            },
+            SyntaxKind::PropertyAccessExpression => {
+                match self.record_of(node).as_property_access_expression() {
+                    Some(data) => data
+                        .expression
+                        .is_some_and(|expression| self.is_dotted_name(expression)),
+                    _ => false,
+                }
+            }
+            SyntaxKind::ParenthesizedExpression => {
+                match self.record_of(node).as_parenthesized_expression() {
+                    Some(data) => data
+                        .expression
+                        .is_some_and(|expression| self.is_dotted_name(expression)),
+                    _ => false,
+                }
+            }
             _ => false,
         }
     }

@@ -424,6 +424,15 @@ impl<'a> BinderWorker<'a> {
             .get(index, self.source.arena.nodes()[index].flags)
     }
 
+    /// IdentifierIsInJSDocNamespace aliases HasAsyncFunctions, a binder-owned
+    /// bit. Read that packed overlay bit directly, preserving flags_of's view
+    /// without loading parse flags or expanding the complete overlay byte.
+    #[inline]
+    pub(crate) fn identifier_is_in_jsdoc_namespace(&self, node: NodeId) -> bool {
+        let index = (node.index() - self.source.arena.node_base()) as usize;
+        self.node_flags_mut.0[index].0 & JS_DOC_NAMESPACE_OVERLAY_BIT != 0
+    }
+
     /// Keep `node`'s `HAS_LOCALS` bit equal to whether it has a locals table:
     /// every site that creates or drops a table calls this, and a name lookup
     /// tests the bit before it looks for a table.
@@ -1637,6 +1646,14 @@ const BINDER_NODE_FLAGS: [NodeFlags; 6] = [
 ];
 
 const BINDER_NODE_FLAG_MASK: i32 = unpack_binder_node_flags(u8::MAX);
+
+// The fifth packed bit is HasAsyncFunctions / IdentifierIsInJSDocNamespace.
+// Keep the specialized read in sync if BINDER_NODE_FLAGS is reordered.
+const JS_DOC_NAMESPACE_OVERLAY_BIT: u8 = 1 << 4;
+const _: () = assert!(
+    unpack_binder_node_flags(JS_DOC_NAMESPACE_OVERLAY_BIT)
+        == NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE.bits()
+);
 
 /// A bit of the overlay byte past the node flags: the node is a scope with
 /// locals (a key of the bound file's `locals`), so a name lookup tests one

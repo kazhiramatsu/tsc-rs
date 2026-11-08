@@ -2464,27 +2464,27 @@ impl<'a> CheckerState<'a> {
         &self,
         node: NodeId,
     ) -> Option<tsc_syntax::NodeArrayId> {
-        match self.data_of(node) {
-            NodeData::ClassDeclaration(data) => data.type_parameters,
-            NodeData::ClassExpression(data) => data.type_parameters,
-            NodeData::InterfaceDeclaration(data) => data.type_parameters,
-            NodeData::TypeAliasDeclaration(data) => data.type_parameters,
-            NodeData::FunctionDeclaration(data) => data.type_parameters,
-            NodeData::MethodDeclaration(data) => data.type_parameters,
-            NodeData::MethodSignature(data) => data.type_parameters,
-            NodeData::CallSignature(data) => data.type_parameters,
-            NodeData::ConstructSignature(data) => data.type_parameters,
-            NodeData::FunctionType(data) => data.type_parameters,
-            NodeData::ConstructorType(data) => data.type_parameters,
-            NodeData::FunctionExpression(data) => data.type_parameters,
-            NodeData::ArrowFunction(data) => data.type_parameters,
-            NodeData::Constructor(data) => data.type_parameters,
-            NodeData::GetAccessor(data) => data.type_parameters,
-            NodeData::SetAccessor(data) => data.type_parameters,
-            NodeData::JSDocFunctionType(data) => data.type_parameters,
-            NodeData::JSDocTemplateTag(data) => data.type_parameters,
+        match_record! { self.record_of(node), {
+            as_class_declaration(data) => data.type_parameters,
+            as_class_expression(data) => data.type_parameters,
+            as_interface_declaration(data) => data.type_parameters,
+            as_type_alias_declaration(data) => data.type_parameters,
+            as_function_declaration(data) => data.type_parameters,
+            as_method_declaration(data) => data.type_parameters,
+            as_method_signature(data) => data.type_parameters,
+            as_call_signature(data) => data.type_parameters,
+            as_construct_signature(data) => data.type_parameters,
+            as_function_type(data) => data.type_parameters,
+            as_constructor_type(data) => data.type_parameters,
+            as_function_expression(data) => data.type_parameters,
+            as_arrow_function(data) => data.type_parameters,
+            as_constructor(data) => data.type_parameters,
+            as_get_accessor(data) => data.type_parameters,
+            as_set_accessor(data) => data.type_parameters,
+            as_js_doc_function_type(data) => data.type_parameters,
+            as_js_doc_template_tag(data) => data.type_parameters,
             _ => None,
-        }
+        }}
     }
 
     /// tsc-port: getEffectiveTypeParameterDeclarations @6.0.3
@@ -3070,12 +3070,8 @@ impl<'a> CheckerState<'a> {
             .declarations()
             .iter()
             .any(|&declaration| {
-                matches!(
-                    self.data_of(declaration),
-                    NodeData::TypeParameter(data)
-                        if self.kind_of(declaration) == SyntaxKind::TypeParameter
-                            && data.r#default.is_some()
-                )
+                matches!(self.record_of(declaration).as_type_parameter(), Some(data) if self.kind_of(declaration) == SyntaxKind::TypeParameter
+                            && data.r#default.is_some())
             })
     }
 

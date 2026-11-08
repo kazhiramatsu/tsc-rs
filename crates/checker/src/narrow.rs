@@ -44,8 +44,8 @@ impl<'a> CheckerState<'a> {
         let optionality = node_util::is_expression_of_optional_chain_root(&Published, expr) || {
             match self.parent_of(expr) {
                 Some(parent) if self.kind_of(parent) == SyntaxKind::BinaryExpression => {
-                    match self.data_of(parent) {
-                        NodeData::BinaryExpression(data) => {
+                    match self.record_of(parent).as_binary_expression() {
+                        Some(data) => {
                             data.left == Some(expr)
                                 && data.operator_token.is_some_and(|operator| {
                                     matches!(
@@ -77,12 +77,12 @@ impl<'a> CheckerState<'a> {
                             let declaration = self.binder.symbol(symbol).value_declaration;
                             if let Some(declaration) = declaration {
                                 if self.kind_of(declaration) == SyntaxKind::VariableDeclaration {
-                                    let (annotated, initializer) = match self.data_of(declaration) {
-                                        NodeData::VariableDeclaration(data) => {
-                                            (data.r#type.is_some(), data.initializer)
-                                        }
-                                        _ => (true, None),
-                                    };
+                                    let (annotated, initializer) =
+                                        match self.record_of(declaration).as_variable_declaration()
+                                        {
+                                            Some(data) => (data.r#type.is_some(), data.initializer),
+                                            _ => (true, None),
+                                        };
                                     if let (false, Some(initializer)) = (annotated, initializer) {
                                         // tsc's && chain consults
                                         // isConstantReference LAST — its
@@ -156,8 +156,8 @@ impl<'a> CheckerState<'a> {
                 self.narrow_type_by_binary_expression(query, ty, expr, assume_true)
             }
             SyntaxKind::PrefixUnaryExpression => {
-                let (operator, operand) = match self.data_of(expr) {
-                    NodeData::PrefixUnaryExpression(data) => (data.operator, data.operand),
+                let (operator, operand) = match self.record_of(expr).as_prefix_unary_expression() {
+                    Some(data) => (data.operator, data.operand),
                     _ => (SyntaxKind::Unknown, None),
                 };
                 if operator == SyntaxKind::ExclamationToken {
@@ -269,11 +269,11 @@ impl<'a> CheckerState<'a> {
             self.kind_of(expr),
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
         ) {
-            let receiver = match self.data_of(expr) {
-                NodeData::PropertyAccessExpression(data) => data.expression,
-                NodeData::ElementAccessExpression(data) => data.expression,
+            let receiver = match_record! { self.record_of(expr), {
+                as_property_access_expression(data) => data.expression,
+                as_element_access_expression(data) => data.expression,
                 _ => None,
-            };
+            }};
             if let Some(receiver) = receiver {
                 if self.is_matching_query_reference(query, receiver)? {
                     return Ok(Some(expr));
@@ -348,8 +348,8 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(node) != SyntaxKind::VariableDeclaration {
             return None;
         }
-        match self.data_of(node) {
-            NodeData::VariableDeclaration(data) if data.r#type.is_none() => data
+        match self.record_of(node).as_variable_declaration() {
+            Some(data) if data.r#type.is_none() => data
                 .initializer
                 .map(|initializer| self.skip_parentheses(initializer)),
             _ => None,
@@ -506,8 +506,8 @@ impl<'a> CheckerState<'a> {
         expr: NodeId,
         assume_true: bool,
     ) -> CheckResult<TypeId> {
-        let (left, operator_token, right) = match self.data_of(expr) {
-            NodeData::BinaryExpression(data) => (data.left, data.operator_token, data.right),
+        let (left, operator_token, right) = match self.record_of(expr).as_binary_expression() {
+            Some(data) => (data.left, data.operator_token, data.right),
             _ => (None, None, None),
         };
         let (Some(expr_left), Some(operator_token), Some(expr_right)) =
@@ -757,8 +757,8 @@ impl<'a> CheckerState<'a> {
         } else {
             assume_true
         };
-        let operand = match self.data_of(typeof_expr) {
-            NodeData::TypeOfExpression(data) => data.expression,
+        let operand = match self.record_of(typeof_expr).as_type_of_expression() {
+            Some(data) => data.expression,
             _ => None,
         };
         let Some(operand) = operand else {
@@ -1242,13 +1242,13 @@ impl<'a> CheckerState<'a> {
         query: &mut FlowQuery,
         expr: NodeId,
     ) -> CheckResult<bool> {
-        let is_constructor_access = match self.data_of(expr) {
-            NodeData::PropertyAccessExpression(data) => {
+        let is_constructor_access = match_record! { self.record_of(expr), {
+            as_property_access_expression(data) => {
                 let name = data.name;
                 name.and_then(|name| self.identifier_name_of(name))
                     == Some(tsc_types::known_name!("constructor"))
-            }
-            NodeData::ElementAccessExpression(data) => {
+            },
+            as_element_access_expression(data) => {
                 let argument = data.argument_expression;
                 argument.is_some_and(|argument| {
                     self.is_string_literal_like(argument)
@@ -1257,9 +1257,9 @@ impl<'a> CheckerState<'a> {
                             .as_ref()
                             .is_some_and(|text| text == "constructor")
                 })
-            }
+            },
             _ => false,
-        };
+        }};
         if !is_constructor_access {
             return Ok(false);
         }
@@ -2543,13 +2543,13 @@ impl<'a> CheckerState<'a> {
     /// The literal text of a string-literal-like node.
     /// tsrs-native: NodeData accessor.
     fn string_literal_text(&self, node: NodeId) -> Option<tsc_types::JsString> {
-        match self.data_of(node) {
-            NodeData::StringLiteral(data) => Some(self.text_js(data.text).to_owned()),
-            NodeData::NoSubstitutionTemplateLiteral(data) => {
+        match_record! { self.record_of(node), {
+            as_string_literal(data) => Some(self.text_js(data.text).to_owned()),
+            as_no_substitution_template_literal(data) => {
                 Some(self.text_js(data.text).to_owned())
-            }
+            },
             _ => None,
-        }
+        }}
     }
 
     /// tsc-port: narrowTypeByCallExpression @6.0.3
@@ -2764,8 +2764,8 @@ impl<'a> CheckerState<'a> {
         query: &FlowQuery,
         expression: NodeId,
     ) -> CheckResult<bool> {
-        let (callee, arguments) = match self.data_of(expression) {
-            NodeData::CallExpression(data) => (data.expression, data.arguments),
+        let (callee, arguments) = match self.record_of(expression).as_call_expression() {
+            Some(data) => (data.expression, data.arguments),
             _ => (None, None),
         };
         let arguments = self.nodes_of(arguments);
@@ -2807,8 +2807,8 @@ impl<'a> CheckerState<'a> {
             predicate.kind,
             TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
         ) {
-            let arguments = match self.data_of(call_expression) {
-                NodeData::CallExpression(data) => data.arguments,
+            let arguments = match self.record_of(call_expression).as_call_expression() {
+                Some(data) => data.arguments,
                 _ => None,
             }?;
             let nodes = &self.binder.node_array(arguments).nodes;
@@ -2870,8 +2870,8 @@ impl<'a> CheckerState<'a> {
             let parent_is_expression_statement = self
                 .parent_of(node)
                 .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ExpressionStatement);
-            let callee = match self.data_of(node) {
-                NodeData::CallExpression(data) => data.expression,
+            let callee = match self.record_of(node).as_call_expression() {
+                Some(data) => data.expression,
                 _ => None,
             };
             match callee {
@@ -2980,8 +2980,8 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::ThisKeyword => self.get_explicit_this_type(node),
             SyntaxKind::SuperKeyword => self.check_super_expression(node).map(Some),
             SyntaxKind::PropertyAccessExpression => {
-                let (receiver, name) = match self.data_of(node) {
-                    NodeData::PropertyAccessExpression(data) => (data.expression, data.name),
+                let (receiver, name) = match self.record_of(node).as_property_access_expression() {
+                    Some(data) => (data.expression, data.name),
                     _ => (None, None),
                 };
                 let (Some(receiver), Some(name)) = (receiver, name) else {
@@ -3378,8 +3378,8 @@ impl<'a> CheckerState<'a> {
         } else {
             let mut single: Option<NodeId> = None;
             let bailed = self.for_each_return_statement(body, &mut |state, statement| {
-                let expression = match state.data_of(statement) {
-                    NodeData::ReturnStatement(data) => data.expression,
+                let expression = match state.record_of(statement).as_return_statement() {
+                    Some(data) => data.expression,
                     _ => None,
                 };
                 if single.is_some() || expression.is_none() {
@@ -3526,12 +3526,11 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         signature: SignatureId,
     ) -> CheckResult<TypePredicate> {
-        let (asserts_modifier, parameter_name, type_node) = match self.data_of(node) {
-            NodeData::TypePredicate(data) => {
-                (data.asserts_modifier, data.parameter_name, data.r#type)
-            }
-            _ => (None, None, None),
-        };
+        let (asserts_modifier, parameter_name, type_node) =
+            match self.record_of(node).as_type_predicate() {
+                Some(data) => (data.asserts_modifier, data.parameter_name, data.r#type),
+                _ => (None, None, None),
+            };
         let ty = match type_node {
             Some(type_node) => Some(self.get_type_from_type_node(type_node)?),
             None => None,

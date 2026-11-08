@@ -8,7 +8,7 @@
 //! activated both conditional relation directions.
 
 use tsc_binder::SymbolId;
-use tsc_syntax::{NodeData, NodeId, Published, SyntaxKind};
+use tsc_syntax::{NodeId, Published, SyntaxKind};
 use tsc_types::{
     AccessFlags, CheckFlags, CheckMode, ElementFlags, EscapedName, IndexFlags, InferenceFlags,
     InferencePriority, IntersectionFlags, IntersectionState, JsStr, MappedTypeModifiers,
@@ -8499,11 +8499,7 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(declaration) == SyntaxKind::NamedTupleMember {
             return true;
         }
-        matches!(
-            self.data_of(declaration),
-            NodeData::Parameter(data)
-                if data.name.is_some_and(|name| self.kind_of(name) == SyntaxKind::Identifier)
-        )
+        matches!(self.record_of(declaration).as_parameter(), Some(data) if data.name.is_some_and(|name| self.kind_of(name) == SyntaxKind::Identifier))
     }
 
     /// tsc-port: getEffectiveRestType @6.0.3

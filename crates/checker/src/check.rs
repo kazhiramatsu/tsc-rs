@@ -475,15 +475,14 @@ impl<'a> CheckerState<'a> {
         }
         let parent = self.parent_of(node);
         let is_expression_or_shorthand_name = node_util::is_expression_node(&Published, node)
-            || parent.is_some_and(|parent| match self.data_of(parent) {
-                NodeData::ShorthandPropertyAssignment(data) => {
-                    data.object_assignment_initializer.or(data.name) == Some(node)
+            || parent.is_some_and(|parent| {
+                match self.record_of(parent).as_shorthand_property_assignment() {
+                    Some(data) => data.object_assignment_initializer.or(data.name) == Some(node),
+                    _ => false,
                 }
-                _ => false,
             });
         let is_property_access_name = parent.is_some_and(|parent| {
-            matches!(self.data_of(parent), NodeData::PropertyAccessExpression(data)
-                if data.name == Some(node))
+            matches!(self.record_of(parent).as_property_access_expression(), Some(data) if data.name == Some(node))
         });
         if !is_expression_or_shorthand_name || is_property_access_name {
             return Ok(());
@@ -621,8 +620,8 @@ impl<'a> CheckerState<'a> {
         }
         let modifiers = self.nodes_of(node_util::modifiers_of(&Published, node));
         if node_kind == SyntaxKind::Parameter {
-            let is_this = match self.data_of(node) {
-                NodeData::Parameter(data) => data
+            let is_this = match self.record_of(node).as_parameter() {
+                Some(data) => data
                     .name
                     .is_some_and(|name| self.identifier_text_of(name) == Some("this")),
                 _ => false,
@@ -636,8 +635,8 @@ impl<'a> CheckerState<'a> {
             }
         }
         let block_scope_kind = if node_kind == SyntaxKind::VariableStatement {
-            match self.data_of(node) {
-                NodeData::VariableStatement(data) => data
+            match self.record_of(node).as_variable_statement() {
+                Some(data) => data
                     .declaration_list
                     .map(|list| self.node_flags(list) & tsc_types::NodeFlags::BLOCK_SCOPED.bits())
                     .unwrap_or(0),
@@ -1503,8 +1502,8 @@ impl<'a> CheckerState<'a> {
         if node_kind == SyntaxKind::Parameter
             && flags.intersects(ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
         {
-            let (name_is_pattern, has_dot_dot_dot) = match self.data_of(node) {
-                NodeData::Parameter(data) => (
+            let (name_is_pattern, has_dot_dot_dot) = match self.record_of(node).as_parameter() {
+                Some(data) => (
                     data.name.is_some_and(|name| {
                         matches!(
                             self.kind_of(name),
@@ -1601,12 +1600,10 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::InterfaceDeclaration
             | SyntaxKind::TypeAliasDeclaration => first_modifier_except(None),
             SyntaxKind::VariableStatement => {
-                let using = match self.data_of(node) {
-                    NodeData::VariableStatement(data) => {
-                        data.declaration_list.is_some_and(|list| {
-                            self.node_flags(list) & tsc_types::NodeFlags::USING.bits() != 0
-                        })
-                    }
+                let using = match self.record_of(node).as_variable_statement() {
+                    Some(data) => data.declaration_list.is_some_and(|list| {
+                        self.node_flags(list) & tsc_types::NodeFlags::USING.bits() != 0
+                    }),
                     _ => false,
                 };
                 first_modifier_except(using.then_some(SyntaxKind::AwaitKeyword))
@@ -1824,14 +1821,14 @@ impl<'a> CheckerState<'a> {
         if let Some(parent) = self.parent_of(node) {
             // canHaveStatements (20193): Block | ModuleBlock |
             // SourceFile | CaseClause | DefaultClause.
-            let statements = match self.data_of(parent) {
-                NodeData::Block(data) => data.statements,
-                NodeData::ModuleBlock(data) => data.statements,
-                NodeData::SourceFile(data) => data.statements,
-                NodeData::CaseClause(data) => data.statements,
-                NodeData::DefaultClause(data) => data.statements,
+            let statements = match_record! { self.record_of(parent), {
+                as_block(data) => data.statements,
+                as_module_block(data) => data.statements,
+                as_source_file(data) => data.statements,
+                as_case_clause(data) => data.statements,
+                as_default_clause(data) => data.statements,
                 _ => None,
-            };
+            }};
             let statements = self.nodes_of(statements);
             if let Some(offset) = statements.iter().position(|&statement| statement == node) {
                 let mut first = offset;
@@ -2005,12 +2002,12 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::JSDocNullableType
             | SyntaxKind::JSDocOptionalType => {
                 self.check_jsdoc_type_is_in_js_file(node)?;
-                let inner = match self.data_of(node) {
-                    NodeData::JSDocNonNullableType(data) => data.r#type,
-                    NodeData::JSDocNullableType(data) => data.r#type,
-                    NodeData::JSDocOptionalType(data) => data.r#type,
+                let inner = match_record! { self.record_of(node), {
+                    as_js_doc_non_nullable_type(data) => data.r#type,
+                    as_js_doc_nullable_type(data) => data.r#type,
+                    as_js_doc_optional_type(data) => data.r#type,
                     _ => unreachable!("kind/data agree"),
-                };
+                }};
                 self.check_source_element(inner);
                 Ok(())
             }
@@ -2034,10 +2031,8 @@ impl<'a> CheckerState<'a> {
             // tsgo checks the import declaration it reparses an `@import`
             // with an import clause into like any other (reparser.go:123-137,
             // checker.go:2414).
-            SyntaxKind::JSDocImportTag => match self.data_of(node) {
-                NodeData::JSDocImportTag(data) if data.import_clause.is_some() => {
-                    self.check_import_declaration(node)
-                }
+            SyntaxKind::JSDocImportTag => match self.record_of(node).as_js_doc_import_tag() {
+                Some(data) if data.import_clause.is_some() => self.check_import_declaration(node),
                 _ => Ok(()),
             },
             SyntaxKind::IndexedAccessType => self.check_indexed_access_type(node),
@@ -2096,8 +2091,8 @@ impl<'a> CheckerState<'a> {
         let in_js_file = self.is_in_js_file(host);
         for document in documents {
             self.check_jsdoc_comment_links(document);
-            let tags = match self.data_of(document) {
-                NodeData::JSDoc(data) => self.nodes_of(data.tags),
+            let tags = match self.record_of(document).as_js_doc() {
+                Some(data) => self.nodes_of(data.tags),
                 _ => Default::default(),
             };
             for tag in tags {
@@ -2168,11 +2163,11 @@ impl<'a> CheckerState<'a> {
     /// type alias tsgo's reparser makes of a `@typedef` / `@callback` with a
     /// type expression; without one there is no alias (no TS8021).
     fn check_jsdoc_type_alias_tag(&mut self, node: NodeId) -> CheckResult<()> {
-        let (name, type_expression) = match self.data_of(node) {
-            NodeData::JSDocTypedefTag(data) => (data.name, data.type_expression),
-            NodeData::JSDocCallbackTag(data) => (data.name, data.type_expression),
+        let (name, type_expression) = match_record! { self.record_of(node), {
+            as_js_doc_typedef_tag(data) => (data.name, data.type_expression),
+            as_js_doc_callback_tag(data) => (data.name, data.type_expression),
             _ => unreachable!("kind/data agree"),
-        };
+        }};
         if type_expression.is_none() {
             return Ok(());
         }
@@ -2191,12 +2186,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 670de5faef306240a1f40aedcbe389e3bdcb2495dfe29b06ca8086c83118a0af
     /// tsc-span: _tsc.js:82824-82832
     fn check_jsdoc_link_like_tag(&mut self, node: NodeId) -> CheckResult<()> {
-        let name = match self.data_of(node) {
-            NodeData::JSDocLink(data) => data.name,
-            NodeData::JSDocLinkCode(data) => data.name,
-            NodeData::JSDocLinkPlain(data) => data.name,
+        let name = match_record! { self.record_of(node), {
+            as_js_doc_link(data) => data.name,
+            as_js_doc_link_code(data) => data.name,
+            as_js_doc_link_plain(data) => data.name,
             _ => unreachable!("kind/data agree"),
-        };
+        }};
         if let Some(name) = name {
             self.resolve_jsdoc_member_name(name)?;
         }
@@ -2265,11 +2260,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: bbcb0b6e77882141e513682989e45af8057e40acd9ee399e0cba630be39b34bd
     /// tsc-span: _tsc.js:82836-82838
     fn check_jsdoc_property_like_tag(&mut self, node: NodeId) -> CheckResult<()> {
-        let type_expression = match self.data_of(node) {
-            NodeData::JSDocParameterTag(data) => data.type_expression,
-            NodeData::JSDocPropertyTag(data) => data.type_expression,
+        let type_expression = match_record! { self.record_of(node), {
+            as_js_doc_parameter_tag(data) => data.type_expression,
+            as_js_doc_property_tag(data) => data.type_expression,
             _ => unreachable!("kind/data agree"),
-        };
+        }};
         self.check_source_element(type_expression);
         // tsgo's reparser makes a property signature of a JSDoc type
         // literal's tag (reparser.go reparseJSDocTypeLiteral), and
@@ -2314,10 +2309,12 @@ impl<'a> CheckerState<'a> {
         }
         let target_name = self
             .get_class_extends_heritage_element(node)
-            .and_then(|extends| match self.data_of(extends) {
-                NodeData::ExpressionWithTypeArguments(data) => data.expression,
-                _ => None,
-            })
+            .and_then(
+                |extends| match self.record_of(extends).as_expression_with_type_arguments() {
+                    Some(data) => data.expression,
+                    _ => None,
+                },
+            )
             .and_then(|expression| self.identifier_from_entity_name_expression(expression));
         for doc in self.direct_jsdoc_documents(node) {
             let Some(doc) = self.record_of(doc).as_js_doc() else {
@@ -2685,11 +2682,11 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(node) == SyntaxKind::Block {
             self.check_grammar_statement_in_ambient_context(node);
         }
-        let statements = match self.data_of(node) {
-            NodeData::Block(data) => data.statements,
-            NodeData::ModuleBlock(data) => data.statements,
+        let statements = match_record! { self.record_of(node), {
+            as_block(data) => data.statements,
+            as_module_block(data) => data.statements,
             _ => unreachable!("kind/data agree"),
-        };
+        }};
         for statement in self.nodes_of(statements) {
             self.check_source_element(Some(statement));
         }
@@ -3452,11 +3449,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: fb99110bb4ec225868bfc2a8215247de48be9c3b4c2e50d4283b5bafc74da82b
     /// tsc-span: _tsc.js:81889-81892
     fn check_union_or_intersection_type(&mut self, node: NodeId) -> CheckResult<()> {
-        let types = match self.data_of(node) {
-            NodeData::UnionType(data) => data.types,
-            NodeData::IntersectionType(data) => data.types,
+        let types = match_record! { self.record_of(node), {
+            as_union_type(data) => data.types,
+            as_intersection_type(data) => data.types,
             _ => unreachable!("kind/data agree"),
-        };
+        }};
         for member in self.nodes_of(types) {
             self.check_source_element(Some(member));
         }
@@ -4165,11 +4162,11 @@ impl<'a> CheckerState<'a> {
     fn check_contextual_deprecations(&mut self, node: NodeId) -> CheckResult<()> {
         let contextual_type =
             self.get_apparent_type_of_contextual_type(node, tsc_types::ContextFlags::NONE)?;
-        let properties = match self.data_of(node) {
-            NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
-            NodeData::JsxAttributes(data) => self.nodes_of(data.properties),
+        let properties = match_record! { self.record_of(node), {
+            as_object_literal_expression(data) => self.nodes_of(data.properties),
+            as_jsx_attributes(data) => self.nodes_of(data.properties),
             _ => Default::default(),
-        };
+        }};
         for property in properties {
             let Some(name) = self.name_of_node(property) else {
                 continue;
