@@ -267,6 +267,35 @@ worker の CPU ms は parse 401 対 tsrs 617（我々が速い）、bind 404 対
 うち 13% は realloc）。symbol/member 表は tsrs と同等（260.5 対 241.6 ms）、`#187` の Function/Object fallback filter は既に移植済み（be0e7c23f）。次の命令側の lane は
 tsrs の algorithm 行（`algo-a`：#250 union の sorted-run merge、union の type facts）と allocator の purge 実験（G1）に移した。
 
+**結果 7（2026-11-09 04:0x〜08:1x、memory lane の 2 周目と algorithm 行；base main `a93bb8389`、1 thread、9 round、低い峰、8 案件出力同一）。**
+`caches`（K2 relation cache の pair key と結果を u64 1 word に（id ≥ 2^28 と state > 3 は従来の表へ）、K3 alias 無しの instantiation key を u64 に、
+K4 deferred reference members の record 120 → 56 B）：K2+K3+K4 で命令 VS Code **−0.07%**、effect −0.48%、zod −0.31%、next −0.23%、hono −0.16%、
+playwright −0.14%、ts +0.08%、vue +0.07%；footprint VS Code 2,605〜2,631 → 2,560〜2,591 MiB（≈ **−43**）、zod 566 → 543、next 621 → 603、effect
+436 → 422、vue 259 → 251、playwright 333 → 326、ts 157 → 154、hono 89 → 87；memory report は relation caches 33.7 → 18.2、instantiation maps 33.8 →
+26.2、deferred 37.8 → 22.8 → [#935](https://github.com/kazhiramatsu/tsc-rs/pull/935)（test 1,974 本、diffout 8/8、counter 同一、4-checker 制御 = 既知
+4 件）→ **merge `1cf37b901`**（hosted run [42526434741](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42526434741)）。`nodelinks` N4（N3 の u16
+region 索引に、checker 起動時に region 表・chunk directory・dense page を 1 回で確保し、record を固定 256 個の block に置く：挿入経路の成長処理が消え、
+census では VS Code の node 表で block 確保 22,107 回・表の再確保 0 回）：命令 **8 案件すべて改善**（VS Code −0.15%、ts −0.23%、next −0.22%、zod −0.16%、
+effect −0.18%、playwright −0.18%、hono −0.09%、vue −0.07%）、footprint VS Code 2,616〜2,632 → 2,563〜2,586（≈ **−37**）、next −4、playwright −3、ts −2 →
+[#936](https://github.com/kazhiramatsu/tsc-rs/pull/936)（checker test 1,904 本、diffout 8/8、counter 同一、4-checker 制御 = 既知 4 件）→ **merge
+`ede843471`**。N3（+0.34%）の超過は release binary の profile で挿入経路（`create_record`）にあると分かり、事前確保で消えた。
+
+memory 行の教訓（M2/M3、S2/S3、N3 で繰り返し見えた）：**hot な read の load 数や表現 tag を増やす形は footprint を減らしても命令が 0.2〜0.5% 増える**。
+通るのは key の u64 詰め・表の事前確保・固定 block のような、読みの経路を変えない形。`members` M3（M2 から宣言 table の handle と表現 tag を外し lookup を元の形に）：
+footprint VS Code −55 MiB（2,602〜2,633 → 2,563〜2,571）、zod −21、next −17 のまま、命令は +0.54% → **+0.16%**（残差は構築経路の `memcpy`/`memcmp`：
+Vec → Arc の凍結複写と properties 共有の等価判定）→ M4（borrowed source から Arc を直接埋め、named member の選別と凍結を 1 loop に）を計測中。`signatures`
+S3（S2 の view 型を撤去、list は 1 回の `extend_from_slice`、rare record は必要な 6.7% だけ）：footprint VS Code −43 MiB（next −17、zod −12、effect −10）だが
+命令は S2 と同じ +0.15〜+0.52%——残差は pool への複写（元は呼び手の `Vec` を move、S2/S3 は 862,705 id を pool へ copy）と pool 経由の範囲検査 → S4（pool を
+やめ `Box<[SymbolId]>` 16 B、72 B 以下）を lane で作成中。`algo-a` U1（#250 sorted-run merge の原型）：next −1.22% だが VS Code +0.26%（run 検出の走査が
+1,397,920 件の構築に乗る；95% は要素 4 以下）→ U1b（初期集合が空、32 member 以上の union 入力が 1 つ以上、入力 2 個または 8 個以上のときだけ merge；VS Code で
+584 件、next で 1,556 件 = next の比較の 3.48 M / 5.1 M；両方式の差分検査 0 差）+ U2（union の type facts：non-nullable bit と member list の複写廃止）：
+VS Code **+0.03%**（中立）、next **−1.40%**、ts **−0.43%**、他 ±0.07%、footprint 不変 → branch `perf/union-sorted-runs`（638abe60d）、局所検査待ち。
+`caches-2`（C2 flow caches の (file, FlowId) → bool を u64 1 word に、loop cache の外側 key も詰める；C4 sparse link fields 27 本の `LinkSlot` を tag 無しで
+格納し、bool 11 本を id 集合に；C3 type list map は 20.4 MiB の 16 MiB が list pool の capacity で表は 4 B entry のまま）：命令 VS Code −0.11%、next −0.15%、
+zod −0.14%、vue −0.16%；footprint VS Code 2,617〜2,634 → 2,581〜2,599（中央値 −24）、zod −5 → branch `perf/cache-tables-2`（efcbf68e7）、局所検査待ち。
+mimalloc の purge 設定（G1 無効化：命令 −0.2% だが footprint +7〜+20 MiB；G2 reset 化：中立で footprint 増）は不採用——現状の 10 ms decommit が peak に最適。
+main `ede843471` の見込み：VS Code ≈ 105.8 G（1.24×）、1 thread の peak ≈ 2,540 MiB（統合再計測は batch の後）。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
