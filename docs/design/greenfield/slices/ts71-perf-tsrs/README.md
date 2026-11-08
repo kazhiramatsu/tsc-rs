@@ -71,6 +71,16 @@ lane `tax-c`（loader と parser）は 6 行のうち C5 parser/scanner の cold
 copy）は census では複製が大きく減ったが命令数は ≈ 0 で、loader の「other」4.2× の正体は別（load phase の命令単位の帰属が未解決）。
 lane `tax-d`（移植の税の残り 7 行）と `tax-e`（tsrs の出力同一な reuse 7 行、E7 は Types counter が変わるため判断保留）は patch 完成、計測中。
 
+**統合値（2026-11-08 09:4x、main `3b1b623b2` = #921 + #922 + #923 対 base `a75438da1`、1 thread、9 round、低い峰、出力同一）：**
+VS Code **−5.36%**（122.0 → 115.5 G）、hono −6.36%、vue −6.12%、playwright −3.51%、zod −3.45%、TypeScript compiler −3.43%、effect −3.33%、
+next −2.89%；peak footprint は ±10 MiB で不変。tax-d は D3（union の run merge）と D5（getter の inline と property scratch の pool）が払い
+（VS Code −0.22% / −0.37%）、D1（early return の inline）は全 project で +0.1〜+0.5% 悪化、D2/D6/D7 は ≈ 0 → [#924](https://github.com/kazhiramatsu/tsc-rs/pull/924)。
+tax-e は E5（resolveName の祖先 skip と accessibility 読みの限定）が VS Code −1.27% で最大、E6 −0.11%（小さい project で −0.5〜−0.8%）、
+E3 −0.25%、E2/E1 は vue/playwright で −1%、E4 ≈ 0；E1〜E6 合計 VS Code −1.67%、playwright −4.11%（統計同一）→ PR 準備中。
+E7（tuple 要素 parameter の共有）は −0.1〜−0.4% で Types counter が tsgo から離れるため不採用を推奨。
+**release workflow は 3 回目の run [42413136153](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42413136153) で完走**（pre-release
+`pgo-42413136153`、macOS ARM64 と Linux x64 の normal/PGO binary）：hosted Linux の cachegrind で PGO は hono −15.56%、zod −11.75%。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
