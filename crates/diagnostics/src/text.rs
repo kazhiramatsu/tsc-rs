@@ -100,6 +100,28 @@ struct WideCharacter {
     utf16_len: u8,
 }
 
+/// Find the first high-bit byte without reading beyond the slice. Most
+/// source text is ASCII: four word loads cover each 32-byte run, and only
+/// the first non-ASCII chunk and the bounded remainder need a byte search.
+fn first_non_ascii(bytes: &[u8]) -> Option<usize> {
+    const HIGH_BITS: u64 = 0x8080_8080_8080_8080;
+    let (chunks, remainder) = bytes.as_chunks::<32>();
+    for (index, chunk) in chunks.iter().enumerate() {
+        let words = chunk.as_chunks::<8>().0;
+        let high = u64::from_ne_bytes(words[0])
+            | u64::from_ne_bytes(words[1])
+            | u64::from_ne_bytes(words[2])
+            | u64::from_ne_bytes(words[3]);
+        if high & HIGH_BITS != 0 {
+            return Some(index * 32 + chunk.iter().position(|&byte| byte >= 0x80).unwrap());
+        }
+    }
+    remainder
+        .iter()
+        .position(|&byte| byte >= 0x80)
+        .map(|offset| chunks.len() * 32 + offset)
+}
+
 impl DensePositionIndex {
     fn new(text: &str) -> Self {
         let byte_len =
@@ -109,7 +131,7 @@ impl DensePositionIndex {
         let mut position = 0usize;
         // The UTF-16 position of `position`.
         let mut utf16_position = 0u32;
-        while let Some(offset) = bytes[position..].iter().position(|&byte| byte >= 0x80) {
+        while let Some(offset) = first_non_ascii(&bytes[position..]) {
             let start = position + offset;
             let character = text[start..]
                 .chars()
@@ -1555,7 +1577,7 @@ mod sparse_position_index_tests {
 
     #[test]
     fn sparse_index_matches_the_character_walk() {
-        for text in [
+        let fixed = [
             "",
             "abc",
             "a\nb\r\nc\rd",
@@ -1564,7 +1586,21 @@ mod sparse_position_index_tests {
             "\u{2028}",
             "😀",
             "\u{e2}\u{80}",
-        ] {
+        ];
+        let aligned = (0..96).flat_map(|alignment| {
+            ["é", "日", "😀", "\u{2028}", "\u{2029}"].map(|wide| {
+                format!(
+                    "{}{}\r\n{}{}\r{}\n",
+                    "a".repeat(alignment),
+                    wide,
+                    "b".repeat(95 - alignment),
+                    wide,
+                    wide
+                )
+            })
+        });
+        for text in fixed.into_iter().map(str::to_owned).chain(aligned) {
+            let text = text.as_str();
             let index = PositionIndex::new_static(text);
             let (byte_to_utf16, utf16_to_byte, line_bytes, line_utf16) = reference(text);
             assert_eq!(index.byte_len() as usize, text.len(), "{text:?}");

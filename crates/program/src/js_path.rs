@@ -374,22 +374,35 @@ fn normalized_absolute_path_worker(path: PathText<'_>, root_length: usize) -> Js
                     normalized_up_to = index + 2;
                 }
             } else if normalized.is_none() {
-                // normalizedUpTo - 2 is a UTF-16 position, not a byte
-                // position. A one-unit non-ASCII first relative segment must
-                // take TypeScript's short-prefix branch just as ASCII does.
-                let up_to_units = prefix(path, normalized_up_to).len_units();
-                normalized = Some(if up_to_units >= 2 {
-                    let end_units = path
-                        .code_units()
-                        .take(up_to_units - 1)
-                        .enumerate()
-                        .filter_map(|(index, unit)| (unit == u16::from(b'/')).then_some(index))
-                        .last()
-                        .unwrap_or(0)
-                        .max(root.len_units());
-                    path.substring(0, end_units)
+                // In an ASCII prefix, byte positions are UTF-16 positions.
+                // Keep TypeScript's normalizedUpTo - 2 short-prefix rule and
+                // exclude the final prefix byte from the backward slash scan.
+                normalized = Some(if bytes[..normalized_up_to].is_ascii() {
+                    let end = if normalized_up_to >= 2 {
+                        bytes[..normalized_up_to - 1]
+                            .iter()
+                            .rposition(|&byte| byte == b'/')
+                            .unwrap_or(0)
+                            .max(root_length)
+                    } else {
+                        normalized_up_to
+                    };
+                    prefix(path, end).to_owned()
                 } else {
-                    prefix(path, normalized_up_to).to_owned()
+                    let up_to_units = prefix(path, normalized_up_to).len_units();
+                    if up_to_units >= 2 {
+                        let end_units = path
+                            .code_units()
+                            .take(up_to_units - 1)
+                            .enumerate()
+                            .filter_map(|(index, unit)| (unit == u16::from(b'/')).then_some(index))
+                            .last()
+                            .unwrap_or(0)
+                            .max(root.len_units());
+                        path.substring(0, end_units)
+                    } else {
+                        prefix(path, normalized_up_to).to_owned()
+                    }
                 });
             } else if let Some(normalized) = &mut normalized {
                 if let Some(last_slash) =
