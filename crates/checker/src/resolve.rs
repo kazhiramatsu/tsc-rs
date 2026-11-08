@@ -331,6 +331,14 @@ impl<'a> CheckerState<'a> {
         let mut within_deferred_context = false;
 
         'walk: while let Some(loc) = location {
+            // tsrs H4.6: these kinds have no locals or resolver switch arm,
+            // are never deferred/self-reference contexts or const assertions.
+            if is_pass_through_scope_kind(self.kind_of(loc)) {
+                debug_assert!(self.binder.locals_of(loc).is_none());
+                last_location = Some(loc);
+                location = self.parent_of(loc);
+                continue;
+            }
             // The first location of a walk from a token, which is none of
             // the nodes the checks below compare the last location with.
             let after_token = from_token && last_location.is_none();
@@ -3318,3 +3326,74 @@ fn is_es2015_or_later_constructor_name(name: JsStr<'_>) -> bool {
 #[cfg(test)]
 #[path = "../tests/unit/resolve/tests.rs"]
 mod tests;
+
+/// tsrs H4.6: see the pass-through branch in resolve_name_full.
+#[inline]
+fn is_pass_through_scope_kind(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::Identifier
+            | SyntaxKind::QualifiedName
+            | SyntaxKind::CallExpression
+            | SyntaxKind::NewExpression
+            | SyntaxKind::PropertyAccessExpression
+            | SyntaxKind::ElementAccessExpression
+            | SyntaxKind::ExpressionStatement
+            | SyntaxKind::ReturnStatement
+            | SyntaxKind::IfStatement
+            | SyntaxKind::SwitchStatement
+            | SyntaxKind::CaseClause
+            | SyntaxKind::DefaultClause
+            | SyntaxKind::WhileStatement
+            | SyntaxKind::DoStatement
+            | SyntaxKind::TryStatement
+            | SyntaxKind::ThrowStatement
+            | SyntaxKind::LabeledStatement
+            | SyntaxKind::ModuleBlock
+            | SyntaxKind::VariableDeclaration
+            | SyntaxKind::VariableDeclarationList
+            | SyntaxKind::VariableStatement
+            | SyntaxKind::ObjectLiteralExpression
+            | SyntaxKind::PropertyAssignment
+            | SyntaxKind::ShorthandPropertyAssignment
+            | SyntaxKind::SpreadAssignment
+            | SyntaxKind::ArrayLiteralExpression
+            | SyntaxKind::BinaryExpression
+            | SyntaxKind::ParenthesizedExpression
+            | SyntaxKind::ConditionalExpression
+            | SyntaxKind::PrefixUnaryExpression
+            | SyntaxKind::PostfixUnaryExpression
+            | SyntaxKind::TypeOfExpression
+            | SyntaxKind::VoidExpression
+            | SyntaxKind::DeleteExpression
+            | SyntaxKind::AwaitExpression
+            | SyntaxKind::YieldExpression
+            | SyntaxKind::SpreadElement
+            | SyntaxKind::SatisfiesExpression
+            | SyntaxKind::NonNullExpression
+            | SyntaxKind::TemplateExpression
+            | SyntaxKind::TemplateSpan
+            | SyntaxKind::TaggedTemplateExpression
+            | SyntaxKind::JsxElement
+            | SyntaxKind::JsxSelfClosingElement
+            | SyntaxKind::JsxOpeningElement
+            | SyntaxKind::JsxAttributes
+            | SyntaxKind::JsxAttribute
+            | SyntaxKind::JsxExpression
+            | SyntaxKind::JsxFragment
+            | SyntaxKind::TypeReference
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::TypeLiteral
+            | SyntaxKind::UnionType
+            | SyntaxKind::IntersectionType
+            | SyntaxKind::ArrayType
+            | SyntaxKind::IndexedAccessType
+            | SyntaxKind::ParenthesizedType
+            | SyntaxKind::TupleType
+            | SyntaxKind::TypeOperator
+            | SyntaxKind::TypePredicate
+            | SyntaxKind::TypeParameter
+            | SyntaxKind::HeritageClause
+            | SyntaxKind::EnumMember
+    )
+}

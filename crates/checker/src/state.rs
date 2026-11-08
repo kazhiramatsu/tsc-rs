@@ -522,6 +522,9 @@ pub(crate) enum DeferredDiagnostic {
         related: Vec<tsc_diagnostics::RelatedInfo>,
     },
 }
+/// The member-reset epoch and viable positions of a contextual union/name pair.
+pub(crate) type ContextualRelevantPositions = (u64, Arc<[u32]>);
+
 pub struct CheckerState<'a> {
     pub binder: ProgramBinder<'a>,
     pub options: &'a CompilerOptions,
@@ -562,6 +565,14 @@ pub struct CheckerState<'a> {
     pub(crate) signature_instantiations:
         rustc_hash::FxHashMap<(SignatureId, tsc_types::TypeListId), SignatureId>,
     pub members: Vec<ResolvedMembers>,
+    /// tsrs: do not shortcut a table while a reentrant member resolution may be building it.
+    pub(crate) members_resolving: usize,
+    pub(crate) intersection_recursion_ids:
+        rustc_hash::FxHashMap<TypeId, Arc<[crate::engine::RecursionIdentity]>>,
+    pub(crate) augment_filter: Option<(u64, crate::member_table::NameFilter)>,
+    /// Viable positions only; property types still depend on the contextual name type.
+    pub(crate) contextual_relevant:
+        rustc_hash::FxHashMap<(TypeId, tsc_types::EscapedName), ContextualRelevantPositions>,
     pub(crate) deferred_reference_members:
         rustc_hash::FxHashMap<TypeId, Option<crate::annotate::DeferredReferenceMembers>>,
     pub(crate) named_member_order_buffers:
@@ -1761,6 +1772,10 @@ impl<'a> CheckerState<'a> {
             signatures: Vec::new(),
             signature_instantiations: rustc_hash::FxHashMap::default(),
             members: Vec::new(),
+            members_resolving: 0,
+            intersection_recursion_ids: Default::default(),
+            augment_filter: None,
+            contextual_relevant: Default::default(),
             deferred_reference_members: Default::default(),
             named_member_order_buffers: Default::default(),
             relations: RelationCaches::with_capacity_hint(program_symbols),

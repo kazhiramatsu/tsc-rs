@@ -1333,6 +1333,8 @@ impl<K: DenseKey, T: Default> PagedTable<K, T> {
 
 #[derive(Debug, Default)]
 pub struct LinksTables {
+    /// Invalidates shortcuts that retained resolved member tables across a base-cycle reset or abort.
+    pub(crate) members_reset_epoch: u64,
     // Dense paged tables over compiler-assigned IDs (see PagedTable): no
     // hashing, no rehash, records never move. Their iteration order is not
     // observable. Keep the other cache and public field types unchanged.
@@ -3672,6 +3674,7 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn retract_type_members(&mut self, id: TypeId) {
+        self.members_reset_epoch += 1;
         let slot = &mut self.ty.slot(id).resolved_members;
         assert!(
             matches!(slot.get(), LinkSlot::Resolved(_)),

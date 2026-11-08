@@ -18,10 +18,18 @@ use tsc_types::{
 
 use crate::engine::{is_false, is_true, ternary_and, RelationChecker};
 use crate::inference::CompareTypesFn;
+use crate::member_table::{HashedName, NameFilter};
 use crate::relate::RelationKind;
 pub use crate::state::SignatureKind;
 use crate::state::{CheckResult, CheckerState, IndexInfo, SignatureId, SignatureIds, SymbolIds};
 use tsc_binder::NameKey;
+
+/// A source table retained by a property walk, invalidated by member retraction.
+#[derive(Clone, Copy)]
+struct ResolvedPropertySource {
+    members: crate::state::MembersId,
+    epoch: u64,
+}
 
 /// tsc SignatureCheckMode (inlined const enum).
 mod check_mode {
@@ -916,10 +924,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         if target_flags.intersects(TypeFlags::CONDITIONAL) {
-            if self
-                .st
-                .is_deeply_nested_type(target, &self.target_stack, self.target_depth, 10)?
-            {
+            if self.st.is_deeply_nested_on_stack(
+                target,
+                &self.target_stack,
+                self.target_depth,
+                10,
+            )? {
                 return Ok(Ternary::MAYBE);
             }
             let TypeData::Conditional(target_data) = self.st.tables.type_of(target).data else {
@@ -1223,10 +1233,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             }
         } else if source_flags.intersects(TypeFlags::CONDITIONAL) {
-            if self
-                .st
-                .is_deeply_nested_type(source, &self.source_stack, self.source_depth, 10)?
-            {
+            if self.st.is_deeply_nested_on_stack(
+                source,
+                &self.source_stack,
+                self.source_depth,
+                10,
+            )? {
                 return Ok(Ternary::MAYBE);
             }
             let TypeData::Conditional(source_data) = self.st.tables.type_of(source).data else {
@@ -2155,10 +2167,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     ) -> CheckResult<Ternary> {
         let source_prop_flags = self
             .st
-            .get_declaration_modifier_flags_from_symbol(source_prop);
+            .get_declaration_non_public_flags_from_symbol(source_prop);
         let target_prop_flags = self
             .st
-            .get_declaration_modifier_flags_from_symbol(target_prop);
+            .get_declaration_non_public_flags_from_symbol(target_prop);
         if source_prop_flags.intersects(ModifierFlags::PRIVATE)
             || target_prop_flags.intersects(ModifierFlags::PRIVATE)
         {
@@ -2632,6 +2644,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         let properties = self.st.get_properties_of_type(target)?;
+        let source_members = self.st.resolved_property_source(source);
         let numeric_names_only =
             self.st.tables.is_tuple_type(source) && self.st.tables.is_tuple_type(target);
         for target_prop in self.exclude_properties(properties.to_vec(), excluded_properties) {
@@ -2641,10 +2654,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 && (!numeric_names_only || is_numeric_name(name) || name == "length")
                 && (!optionals_only || target_symbol_flags.intersects(SymbolFlags::OPTIONAL))
             {
-                let source_prop = match self.st.resolved_own_value_property(source, name) {
-                    Some(property) => Some(property),
-                    None => self.st.get_property_of_type_full(source, name)?,
-                };
+                let source_prop = self
+                    .st
+                    .get_resolved_property(source_members, source, name)?;
                 if let Some(source_prop) = source_prop {
                     if source_prop != target_prop {
                         let skip_optional = self.relation == RelationKind::Comparable;
@@ -4716,7 +4728,20 @@ impl<'a> CheckerState<'a> {
         name: impl NameKey,
         include_type_only_members: bool,
     ) -> CheckResult<Option<SymbolId>> {
-        let name = name.name();
+        self.get_property_of_object_type_hashed(
+            ty,
+            HashedName::new(name.name()),
+            include_type_only_members,
+        )
+    }
+
+    fn get_property_of_object_type_hashed(
+        &mut self,
+        ty: TypeId,
+        key: HashedName,
+        include_type_only_members: bool,
+    ) -> CheckResult<Option<SymbolId>> {
+        let name = key.name;
         if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
             return Ok(None);
         }
@@ -4724,13 +4749,17 @@ impl<'a> CheckerState<'a> {
             .links
             .read_ty(ty, |links| links.resolved_members.resolved())
         {
-            self.members_of(members).members.get(&self.binder, name)
+            self.members_of(members)
+                .members
+                .get_hashed(&self.binder, key)
         } else {
             match self.deferred_reference_property(ty, name)? {
                 Some(symbol) => symbol,
                 None => {
                     let members = self.resolve_structured_type_members(ty)?;
-                    self.members_of(members).members.get(&self.binder, name)
+                    self.members_of(members)
+                        .members
+                        .get_hashed(&self.binder, key)
                 }
             }
         };
@@ -4874,14 +4903,11 @@ impl<'a> CheckerState<'a> {
         )
     }
 
-    /// tsgo checker.go:19315-19343, 21812-21819.
-    /// A settled own value member of a plain object shape. For these
-    /// shapes reduction/apparent mapping is the identity, the resolved
-    /// header is already present (often from getUnmatchedProperty), and
-    /// symbolIsValue returns immediately. Read the current table so member
-    /// replacement cannot leave a stale cached match. All other cases use
-    /// the full getPropertyOfType path, including module type-only gates.
-    fn resolved_own_value_property(&self, ty: TypeId, name: EscapedName) -> Option<SymbolId> {
+    /// tsrs H3.1: test the source's shape once per walk, retaining its table.
+    fn resolved_property_source(&self, ty: TypeId) -> Option<ResolvedPropertySource> {
+        if self.members_resolving != 0 {
+            return None;
+        }
         let data = self.tables.type_of(ty);
         if !matches!(
             data.data,
@@ -4898,10 +4924,77 @@ impl<'a> CheckerState<'a> {
         let members = self
             .links
             .read_ty(ty, |links| links.resolved_members.resolved())?;
-        let property = self.members_of(members).members.get(&self.binder, name)?;
-        self.symbol_flags(property)
-            .intersects(SymbolFlags::VALUE)
-            .then_some(property)
+
+        Some(ResolvedPropertySource {
+            members,
+            epoch: self.links.members_reset_epoch,
+        })
+    }
+
+    /// The same value-member and global-fallback rules as getPropertyOfType.
+    /// Reentrant relations can retract members, so a retained table needs its epoch check.
+    fn get_resolved_property(
+        &mut self,
+        source: Option<ResolvedPropertySource>,
+        ty: TypeId,
+        name: EscapedName,
+    ) -> CheckResult<Option<SymbolId>> {
+        if let Some(source) = source.filter(|source| {
+            source.epoch == self.links.members_reset_epoch
+                && self.members_resolving == 0
+                && self
+                    .links
+                    .read_ty(ty, |links| links.resolved_members.resolved())
+                    == Some(source.members)
+        }) {
+            let key = HashedName::new(name);
+            match self
+                .members_of(source.members)
+                .members
+                .get_hashed(&self.binder, key)
+            {
+                Some(symbol) if self.symbol_flags(symbol).intersects(SymbolFlags::VALUE) => {
+                    return Ok(Some(symbol));
+                }
+                None if !self.may_be_augment_member(key) => return Ok(None),
+                _ => {}
+            }
+        }
+        self.get_property_of_type_full(ty, name)
+    }
+
+    /// tsrs ALG.7: resolved global member tables are immutable until a retraction.
+    /// False positives retain the original path; a rejection skips only reads.
+    pub(crate) fn may_be_augment_member(&mut self, key: HashedName) -> bool {
+        if self.members_resolving != 0 {
+            return true;
+        }
+        let epoch = self.links.members_reset_epoch;
+        if let Some((saved, filter)) = self.augment_filter {
+            if saved == epoch {
+                return filter.may_contain(key);
+            }
+        }
+        let Some(types) = self.initialized_augment_types() else {
+            return true;
+        };
+        let mut filter = NameFilter::default();
+        for ty in types {
+            if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
+                continue;
+            }
+            let Some(members) = self
+                .links
+                .read_ty(ty, |links| links.resolved_members.resolved())
+            else {
+                return true;
+            };
+            for &symbol in self.members_of(members).members.symbols() {
+                filter.insert(HashedName::new(self.binder.symbol(symbol).escaped_name));
+            }
+        }
+        self.augment_filter = Some((epoch, filter));
+        filter.may_contain(key)
     }
 
     /// tsrs-native: include-carrying body behind the getPropertyOfType
@@ -4917,14 +5010,22 @@ impl<'a> CheckerState<'a> {
         let reduced = self.get_reduced_apparent_type(ty)?;
         let flags = self.tables.flags_of(reduced);
         if flags.intersects(TypeFlags::OBJECT) {
-            if let Some(symbol) = self.get_property_of_object_type_with_include_type_only_members(
-                reduced,
-                name,
-                include_type_only_members,
-            )? {
+            let key = HashedName::new(name);
+            if let Some(symbol) =
+                self.get_property_of_object_type_hashed(reduced, key, include_type_only_members)?
+            {
                 return Ok(Some(symbol));
             }
             if skip_object_function_property_augment {
+                return Ok(None);
+            }
+            // Only resolved tables can be answered without the fallback's lazy effects.
+            if self
+                .links
+                .read_ty(reduced, |links| links.resolved_members.resolved())
+                .is_some()
+                && !self.may_be_augment_member(key)
+            {
                 return Ok(None);
             }
             let members = self.structured_member_headers(reduced)?;
@@ -4945,12 +5046,14 @@ impl<'a> CheckerState<'a> {
                 None
             };
             if let Some(function_type) = function_type {
-                if let Some(symbol) = self.get_property_of_object_type(function_type, name)? {
+                if let Some(symbol) =
+                    self.get_property_of_object_type_hashed(function_type, key, false)?
+                {
                     return Ok(Some(symbol));
                 }
             }
             let global_object = self.global_object_type()?;
-            return self.get_property_of_object_type(global_object, name);
+            return self.get_property_of_object_type_hashed(global_object, key, false);
         }
         if flags.intersects(TypeFlags::INTERSECTION) {
             if let Some(property) = self.get_property_of_union_or_intersection_type(
@@ -6090,6 +6193,26 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsrs H4.3: non-class declarations lose accessibility in the general
+    /// getter; synthetic properties still combine constituent accessibility.
+    fn get_declaration_non_public_flags_from_symbol(&self, symbol: SymbolId) -> ModifierFlags {
+        let synthetic = symbol.index() & tsc_types::TRANSIENT_SYMBOL_BIT != 0
+            && self
+                .get_check_flags(symbol)
+                .intersects(CheckFlags::SYNTHETIC);
+        if !synthetic
+            && !self
+                .binder
+                .symbol(symbol)
+                .parent
+                .is_some_and(|parent| self.symbol_flags(parent).intersects(SymbolFlags::CLASS))
+        {
+            return ModifierFlags::from_bits(0);
+        }
+        self.get_declaration_modifier_flags_from_symbol(symbol)
+            & (ModifierFlags::PRIVATE | ModifierFlags::PROTECTED)
+    }
+
     /// tsc-port: getDeclarationModifierFlagsFromSymbol @6.0.3
     /// tsc-hash: 640b7c9d80362bc126b54abbed85737561ceff6a8dec412cfaf111c794a4ef8d
     /// tsc-span: _tsc.js:17436-17452
@@ -6337,6 +6460,7 @@ impl<'a> CheckerState<'a> {
         match_discriminant_properties: bool,
     ) -> CheckResult<Option<SymbolId>> {
         let properties = self.get_properties_of_type(target)?;
+        let source_members = self.resolved_property_source(source);
         for target_prop in properties {
             if self.is_static_private_identifier_property(target_prop) {
                 continue;
@@ -6349,7 +6473,7 @@ impl<'a> CheckerState<'a> {
                         .intersects(CheckFlags::PARTIAL))
             {
                 let name = self.binder.symbol(target_prop).escaped_name;
-                match self.get_property_of_type_full(source, name)? {
+                match self.get_resolved_property(source_members, source, name)? {
                     None => return Ok(Some(target_prop)),
                     Some(source_prop) if match_discriminant_properties => {
                         let target_type = self.get_type_of_symbol(target_prop)?;

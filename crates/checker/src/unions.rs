@@ -384,6 +384,10 @@ impl<'a> CheckerState<'a> {
             }
         }
         let len = types.len();
+        // tsrs H3.6: sources often share the discriminant name. Resolve a
+        // target's property lazily on its first comparison, then reuse it.
+        let mut key_types = rustc_hash::FxHashMap::<TypeId, Option<TypeId>>::default();
+        let mut key_types_of = None;
         let mut i = len;
         let mut count = 0usize;
         while i > 0 {
@@ -469,7 +473,24 @@ impl<'a> CheckerState<'a> {
                                     | TypeFlags::INSTANTIABLE_NON_PRIMITIVE.bits(),
                             ))
                         {
-                            if let Some(t) = self.get_type_of_property_of_type(target, key_name)? {
+                            let stamp = (*key_name, self.links.members_reset_epoch);
+                            if key_types_of != Some(stamp) {
+                                key_types.clear();
+                                key_types_of = Some(stamp);
+                            }
+                            let t = if self.members_resolving != 0 {
+                                self.get_type_of_property_of_type(target, key_name)?
+                            } else if let Some(&cached) = key_types.get(&target) {
+                                cached
+                            } else {
+                                let t = self.get_type_of_property_of_type(target, key_name)?;
+                                // A reset during this query must not publish a stale answer.
+                                if self.links.members_reset_epoch == stamp.1 {
+                                    key_types.insert(target, t);
+                                }
+                                t
+                            };
+                            if let Some(t) = t {
                                 if self.is_unit_type(t)
                                     && self.regular_type_of_literal_type(t) != *key_type
                                 {

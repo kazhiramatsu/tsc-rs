@@ -2428,7 +2428,7 @@ fn settled_own_member_reads_preserve_deferral_replacement_and_module_gates() {
             let before = state
                 .links
                 .read_ty(ty, |links| links.resolved_members.resolved());
-            let _ = state.resolved_own_value_property(ty, name);
+            let _ = state.resolved_property_source(ty);
             assert_eq!(
                 state
                     .links
@@ -2436,7 +2436,12 @@ fn settled_own_member_reads_preserve_deferral_replacement_and_module_gates() {
                 before
             );
             let full = state.get_property_of_type_full(ty, name).unwrap().unwrap();
-            assert_eq!(state.resolved_own_value_property(ty, name), Some(full));
+            let source = state.resolved_property_source(ty);
+            assert!(source.is_some());
+            assert_eq!(
+                state.get_resolved_property(source, ty, name).unwrap(),
+                Some(full)
+            );
             let members = state
                 .links
                 .read_ty(ty, |links| links.resolved_members.resolved())
@@ -2448,7 +2453,7 @@ fn settled_own_member_reads_preserve_deferral_replacement_and_module_gates() {
                 .members
                 .insert(&state.binder, replacement);
             assert_eq!(
-                state.resolved_own_value_property(ty, name),
+                state.get_resolved_property(source, ty, name).unwrap(),
                 Some(replacement)
             );
             assert_eq!(
@@ -2460,7 +2465,74 @@ fn settled_own_member_reads_preserve_deferral_replacement_and_module_gates() {
                 tsc_types::known_name!("module"),
             );
             state.tables.type_mut(ty).symbol = Some(module);
-            assert_eq!(state.resolved_own_value_property(ty, name), None);
+            assert!(state.resolved_property_source(ty).is_none());
+        },
+    );
+}
+
+#[test]
+fn global_member_filter_waits_for_resolution_and_survives_retraction() {
+    use crate::member_table::HashedName;
+    use tsc_types::EscapedName;
+    crate::state::test_support::with_program_state(
+        &[("a.ts", "interface Object { obj: number }\ninterface Function { fn: number }\ninterface CallableFunction extends Function { call: number }\ninterface NewableFunction extends Function { construct: number }\ndeclare let own: { x: number };\n")],
+        &CompilerOptions { strict_bind_call_apply: Some(true), ..CompilerOptions::default() },
+        |state| {
+            let types = [state.global_function_type().unwrap(), state.global_callable_function_type().unwrap(),
+                state.global_newable_function_type().unwrap(), state.global_object_type().unwrap()];
+            let absent = HashedName::new(EscapedName::from_identifier_escaped_text("definitelyAbsent"));
+            if state.links.read_ty(types[3], |links| links.resolved_members.resolved()).is_some() {
+                state.links.retract_type_members(types[3]);
+            }
+            assert!(state.may_be_augment_member(absent));
+            for ty in types { state.resolve_structured_type_members(ty).unwrap(); }
+            assert!(!state.may_be_augment_member(absent));
+            for ty in types {
+                let members = state.resolve_structured_type_members(ty).unwrap();
+                for symbol in state.members_of(members).members.symbols().to_vec() {
+                    let key = HashedName::new(state.binder.symbol(symbol).escaped_name);
+                    assert!(state.may_be_augment_member(key));
+                }
+            }
+            let annotation = find_probe_annotation(state.binder.source(0), "own").unwrap();
+            let ty = state.get_type_from_type_node(annotation).unwrap();
+            assert!(state.get_property_of_type_full(ty, "x").unwrap().is_some());
+            assert!(state.get_property_of_type_full(ty, "obj").unwrap().is_some());
+            let count = state.tables.len();
+            assert_eq!(state.get_property_of_type_full(ty, "definitelyAbsent").unwrap(), None);
+            assert_eq!(state.tables.len(), count);
+            state.links.retract_type_members(types[3]);
+            assert!(state.may_be_augment_member(absent));
+            state.resolve_structured_type_members(types[3]).unwrap();
+            assert!(!state.may_be_augment_member(absent));
+            state.members_resolving += 1;
+            assert!(state.may_be_augment_member(absent));
+            state.members_resolving -= 1;
+        },
+    );
+}
+
+#[test]
+fn resolved_source_walk_observes_replaced_members_and_keeps_global_fallback() {
+    crate::state::test_support::with_program_state(
+        &[("a.ts", "declare let source: { x: number; y: string };\ndeclare let target: { x: number; y: string; z: boolean };\n")],
+        &CompilerOptions::default(),
+        |state| {
+            let annotation = find_probe_annotation(state.binder.source(0), "source").unwrap();
+            let source = state.get_type_from_type_node(annotation).unwrap();
+            state.resolve_structured_type_members(source).unwrap();
+            let captured = state.resolved_property_source(source);
+            assert!(captured.is_some());
+            for name in ["x", "y", "z", "toString"] {
+                let name = tsc_types::EscapedName::from_identifier_escaped_text(name);
+                assert_eq!(state.get_resolved_property(captured, source, name).unwrap(),
+                    state.get_property_of_type_full(source, name).unwrap());
+            }
+            state.links.retract_type_members(source);
+            state.resolve_structured_type_members(source).unwrap();
+            let name = tsc_types::EscapedName::from_identifier_escaped_text("x");
+            assert_eq!(state.get_resolved_property(captured, source, name).unwrap(),
+                state.get_property_of_type_full(source, name).unwrap());
         },
     );
 }

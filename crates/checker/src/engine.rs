@@ -1318,8 +1318,8 @@ fn is_excess_property_message(message: &'static DiagnosticMessage) -> bool {
 pub(crate) struct RelationScratch {
     pub(crate) maybe_keys: Vec<RelationKey>,
     pub(crate) maybe_keys_set: HashSet<RelationKey>,
-    pub(crate) source_stack: Vec<TypeId>,
-    pub(crate) target_stack: Vec<TypeId>,
+    pub(crate) source_stack: Vec<RelationStackEntry>,
+    pub(crate) target_stack: Vec<RelationStackEntry>,
 }
 
 pub(crate) struct RelationChecker<'r, 'a> {
@@ -1327,8 +1327,8 @@ pub(crate) struct RelationChecker<'r, 'a> {
     pub(crate) relation: RelationKind,
     pub(crate) maybe_keys: Vec<RelationKey>,
     pub(crate) maybe_keys_set: HashSet<RelationKey>,
-    pub(crate) source_stack: Vec<TypeId>,
-    pub(crate) target_stack: Vec<TypeId>,
+    pub(crate) source_stack: Vec<RelationStackEntry>,
+    pub(crate) target_stack: Vec<RelationStackEntry>,
     pub(crate) maybe_count: usize,
     pub(crate) source_depth: usize,
     pub(crate) target_depth: usize,
@@ -1359,8 +1359,8 @@ pub(crate) struct RelationFrame {
     pub(crate) relation: RelationKind,
     pub(crate) maybe_keys: Vec<RelationKey>,
     pub(crate) maybe_keys_set: HashSet<RelationKey>,
-    pub(crate) source_stack: Vec<TypeId>,
-    pub(crate) target_stack: Vec<TypeId>,
+    pub(crate) source_stack: Vec<RelationStackEntry>,
+    pub(crate) target_stack: Vec<RelationStackEntry>,
     pub(crate) maybe_count: usize,
     pub(crate) source_depth: usize,
     pub(crate) target_depth: usize,
@@ -3723,13 +3723,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let outcome = (|| {
             if recursion_flags.intersects(RecursionFlags::SOURCE) {
                 if self.source_stack.len() == self.source_depth {
-                    self.source_stack.push(source);
+                    self.source_stack.push(RelationStackEntry::new(source));
                 } else {
-                    self.source_stack[self.source_depth] = source;
+                    self.source_stack[self.source_depth] = RelationStackEntry::new(source);
                 }
                 self.source_depth += 1;
                 if !self.expanding_flags.intersects(ExpandingFlags::SOURCE)
-                    && self.st.is_deeply_nested_type(
+                    && self.st.is_deeply_nested_on_stack(
                         source,
                         &self.source_stack,
                         self.source_depth,
@@ -3743,13 +3743,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
             if recursion_flags.intersects(RecursionFlags::TARGET) {
                 if self.target_stack.len() == self.target_depth {
-                    self.target_stack.push(target);
+                    self.target_stack.push(RelationStackEntry::new(target));
                 } else {
-                    self.target_stack[self.target_depth] = target;
+                    self.target_stack[self.target_depth] = RelationStackEntry::new(target);
                 }
                 self.target_depth += 1;
                 if !self.expanding_flags.intersects(ExpandingFlags::TARGET)
-                    && self.st.is_deeply_nested_type(
+                    && self.st.is_deeply_nested_on_stack(
                         target,
                         &self.target_stack,
                         self.target_depth,
@@ -4833,6 +4833,136 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
+    /// tsrs R4.18: same walk and type-id ordering, but each relation entry
+    /// keeps its identity after the first walk that actually reaches it.
+    pub(crate) fn is_deeply_nested_on_stack(
+        &mut self,
+        ty: TypeId,
+        stack: &[RelationStackEntry],
+        depth: usize,
+        max_depth: usize,
+    ) -> CheckResult<bool> {
+        if depth < max_depth {
+            return Ok(false);
+        }
+        let target = self.get_recursion_target(ty)?;
+        if let Some(top) = stack.get(depth - 1).filter(|entry| entry.ty == ty) {
+            top.identity.set(Some(target));
+        }
+        let identity = match target {
+            RecursionTarget::Identity(identity) => identity,
+            RecursionTarget::Intersection(target) => {
+                let TypeData::Intersection { types } = self.tables.type_of(target).data else {
+                    unreachable!()
+                };
+                let mut types = self.tables.cursor(types);
+                while let Some(member) = types.next(&self.tables) {
+                    if self.is_deeply_nested_on_stack(member, stack, depth, max_depth)? {
+                        return Ok(true);
+                    }
+                }
+                return Ok(false);
+            }
+        };
+        let mut count = 0;
+        let mut last_type_id = 0;
+        for entry in stack.iter().take(depth) {
+            let target = match entry.identity.get() {
+                Some(target) => target,
+                None => {
+                    let target = self.get_recursion_target(entry.ty)?;
+                    entry.identity.set(Some(target));
+                    target
+                }
+            };
+            let matches = match target {
+                RecursionTarget::Identity(key) => key == identity,
+                RecursionTarget::Intersection(target) => {
+                    self.intersection_has_matching_recursion_identity(target, identity)?
+                }
+            };
+            if matches {
+                if entry.ty.index() >= last_type_id {
+                    count += 1;
+                    if count >= max_depth {
+                        return Ok(true);
+                    }
+                }
+                last_type_id = entry.ty.index();
+            }
+        }
+        Ok(false)
+    }
+
+    fn get_recursion_target(&mut self, ty: TypeId) -> CheckResult<RecursionTarget> {
+        let target = self.get_recursion_identity_target(ty)?;
+        Ok(
+            if self
+                .tables
+                .flags_of(target)
+                .intersects(TypeFlags::INTERSECTION)
+            {
+                RecursionTarget::Intersection(target)
+            } else {
+                RecursionTarget::Identity(self.get_recursion_identity_from_target(target))
+            },
+        )
+    }
+
+    /// tsrs H3.4, preserving the original short circuit: publish a complete
+    /// identity list only after a walk has reached every constituent. A hit
+    /// before that leaves later mapped modifiers untouched, as in tsgo.
+    fn intersection_has_matching_recursion_identity(
+        &mut self,
+        target: TypeId,
+        identity: RecursionIdentity,
+    ) -> CheckResult<bool> {
+        if let Some(keys) = self.intersection_recursion_ids.get(&target) {
+            return Ok(keys.contains(&identity));
+        }
+        let mut keys = Vec::new();
+        if self.collect_intersection_recursion_identities(target, identity, &mut keys)? {
+            return Ok(true);
+        }
+        self.intersection_recursion_ids.insert(target, keys.into());
+        Ok(false)
+    }
+
+    fn collect_intersection_recursion_identities(
+        &mut self,
+        target: TypeId,
+        identity: RecursionIdentity,
+        keys: &mut Vec<RecursionIdentity>,
+    ) -> CheckResult<bool> {
+        let TypeData::Intersection { types } = self.tables.type_of(target).data else {
+            unreachable!()
+        };
+        let mut types = self.tables.cursor(types);
+        while let Some(member) = types.next(&self.tables) {
+            match self.get_recursion_target(member)? {
+                RecursionTarget::Intersection(target) => {
+                    if let Some(cached) = self.intersection_recursion_ids.get(&target) {
+                        if cached.contains(&identity) {
+                            return Ok(true);
+                        }
+                        keys.extend_from_slice(cached);
+                    } else if self
+                        .collect_intersection_recursion_identities(target, identity, keys)?
+                    {
+                        return Ok(true);
+                    }
+                }
+                RecursionTarget::Identity(key) => {
+                    if key == identity {
+                        return Ok(true);
+                    }
+                    keys.push(key);
+                }
+            }
+        }
+        Ok(false)
+    }
+
     /// tsgo-port: hasMatchingRecursionIdentity @7.1
     /// (checker/relater.go:797-808)
     fn has_matching_recursion_identity(
@@ -4840,20 +4970,12 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         identity: RecursionIdentity,
     ) -> CheckResult<bool> {
-        let target = self.get_recursion_identity_target(ty)?;
-        let members = match self.tables.type_of(target).data {
-            TypeData::Intersection { types } => Some(self.tables.list(types).to_vec()),
-            _ => None,
-        };
-        if let Some(members) = members {
-            for member in members {
-                if self.has_matching_recursion_identity(member, identity)? {
-                    return Ok(true);
-                }
+        match self.get_recursion_target(ty)? {
+            RecursionTarget::Intersection(target) => {
+                self.intersection_has_matching_recursion_identity(target, identity)
             }
-            return Ok(false);
+            RecursionTarget::Identity(key) => Ok(key == identity),
         }
-        Ok(self.get_recursion_identity_from_target(target) == identity)
     }
 
     /// tsgo-port: getRecursionIdentity @7.1 (checker/relater.go:810-812)
@@ -5057,6 +5179,28 @@ impl<'a> CheckerState<'a> {
         }
         Ok(ty)
     }
+}
+
+/// A lazily computed identity: pushing a relation must not resolve mapped modifiers early.
+#[derive(Clone, Debug)]
+pub(crate) struct RelationStackEntry {
+    ty: TypeId,
+    identity: std::cell::Cell<Option<RecursionTarget>>,
+}
+
+impl RelationStackEntry {
+    fn new(ty: TypeId) -> Self {
+        Self {
+            ty,
+            identity: std::cell::Cell::new(None),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum RecursionTarget {
+    Identity(RecursionIdentity),
+    Intersection(TypeId),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
