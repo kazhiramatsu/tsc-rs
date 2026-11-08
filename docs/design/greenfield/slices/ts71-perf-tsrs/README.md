@@ -107,6 +107,9 @@ arena 計画の段 B の領域（上限 ≈ 3%）。
 **統合値 2（2026-11-08 10:5x、main `84a8ca86b` = #921〜#925 対 base `a75438da1`、1 thread、9 round、低い峰、出力同一、peak ±5 MiB）：**
 VS Code **−7.35%**（122.08 → 113.12 G、cpu −5.1%）、vue −10.08%、playwright −8.21%、hono −7.30%、next −6.49%、TypeScript compiler −6.15%、
 effect −5.39%、zod −5.25%。tsrs（85.4 G）との比は 1.42× → **1.32×**。PGO 同士（−10%）なら ≈ 1.19×。
+lane `tax-g`（loader、tax-f の候補行）：F1 relocation の layout descriptor（VS Code −0.47%）、F3 ASCII 経路の `..` 正規化（−0.72%）、
+F4 位置 index の ASCII run 走査（−0.56%）、F5 解決表の freeze 順（−0.26%）を [#926](https://github.com/kazhiramatsu/tsc-rs/pull/926) として merge
+（fingerprint 0 差、生成器再現、出力同一）；F2 観測 cache の FxHash（−0.11%）と F6 読み込みの UTF-8 境界（−0.05%）は除外。
 
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
