@@ -1698,7 +1698,7 @@ impl<'a> CheckerState<'a> {
             tsc_binder::node_util::is_function_like_kind(kind)
                 || matches!(kind, SyntaxKind::GetAccessor | SyntaxKind::SetAccessor)
         });
-        if !*self
+        if !self
             .links
             .node_cold()
             .has_reported_statement_in_ambient_context
@@ -1720,7 +1720,7 @@ impl<'a> CheckerState<'a> {
             Some(SyntaxKind::Block) | Some(SyntaxKind::ModuleBlock) | Some(SyntaxKind::SourceFile)
         ) {
             let parent = parent.expect("kind implies presence");
-            if !*self
+            if !self
                 .links
                 .node_cold()
                 .has_reported_statement_in_ambient_context
@@ -2924,7 +2924,7 @@ impl<'a> CheckerState<'a> {
         self.check_type_parameter_lists_identical(symbol)?;
         // tsgo checkInterfaceDeclaration: once per checker, anchored at
         // the first declaration even when this checker visits another first.
-        if !*self.links.symbol_cold().interface_checked.get(symbol) {
+        if !self.links.symbol_cold().interface_checked.get(symbol) {
             self.links.set_symbol_interface_checked(symbol);
             let first_interface_declaration =
                 self.get_declaration_of_kind(symbol, SyntaxKind::InterfaceDeclaration);
@@ -3623,7 +3623,7 @@ impl<'a> CheckerState<'a> {
         if let Some(type_parameter) = type_parameter {
             let symbol = self.get_symbol_of_declaration(type_parameter)?;
             if self.binder.symbol(symbol).declarations().len() > 1
-                && !*self.links.symbol_cold().type_parameters_checked.get(symbol)
+                && !self.links.symbol_cold().type_parameters_checked.get(symbol)
             {
                 self.links.set_symbol_type_parameters_checked(symbol);
                 let declared = self.get_declared_type_of_type_parameter(symbol);
@@ -9261,7 +9261,7 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(ty)
             .intersects(ObjectFlags::MAPPED)
             && (self.is_generic_mapped_type_state(ty)?
-                || *self.links.type_cold().mapped_contains_error.get(ty))
+                || self.links.type_cold().mapped_contains_error.get(ty))
         {
             return self.mapped_type_to_string_node(ty, fully_qualified);
         }

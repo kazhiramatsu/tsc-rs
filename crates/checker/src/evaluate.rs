@@ -142,7 +142,7 @@ impl<'a> CheckerState<'a> {
     /// flag REVERTS (tsc cannot fail here) so a later query recomputes;
     /// already-written member slots are reused, not rewritten.
     fn compute_enum_member_values(&mut self, node: NodeId) -> CheckResult<()> {
-        if *self.links.node_cold().enum_values_computed.get(node) {
+        if self.links.node_cold().enum_values_computed.get(node) {
             return Ok(());
         }
         self.links
@@ -1685,7 +1685,7 @@ impl<'a> CheckerState<'a> {
         let enum_symbol = self.get_symbol_of_declaration(node)?;
         // tsgo declaredTypeLinks.enumChecked: every checker that owns an
         // enum declaration must perform the merged-symbol checks once.
-        if *self.links.symbol_cold().enum_checked.get(enum_symbol) {
+        if self.links.symbol_cold().enum_checked.get(enum_symbol) {
             return Ok(());
         }
         self.links.set_symbol_enum_checked(enum_symbol);

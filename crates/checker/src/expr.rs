@@ -4016,13 +4016,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .node_cold()
-            .context_free_type
-            .get(node)
-            .resolved()
-        {
+        if let Some(cached) = self.links.node_cold().context_free_type.resolved(node) {
             return Ok(cached);
         }
         self.push_contextual_type(node, Some(self.tables.intrinsics.any), false);
@@ -4033,8 +4027,7 @@ impl<'a> CheckerState<'a> {
             .links
             .node_cold()
             .context_free_type
-            .get(node)
-            .resolved()
+            .resolved(node)
             .is_none()
         {
             self.links

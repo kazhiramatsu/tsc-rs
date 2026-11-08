@@ -2386,7 +2386,7 @@ impl<'a> CheckerState<'a> {
                 return self.get_type_of_symbol_with_deferred_type(symbol);
             }
             if let crate::links::LinkSlot::Resolved(write_type) =
-                self.links.symbol_cold().write_type.get(symbol).clone()
+                self.links.symbol_cold().write_type.get(symbol)
             {
                 return Ok(write_type);
             }
@@ -2403,7 +2403,7 @@ impl<'a> CheckerState<'a> {
                 // links.writeType ||= the target's write type through
                 // the mapper — first write wins on a recursive fill.
                 if let crate::links::LinkSlot::Resolved(write_type) =
-                    self.links.symbol_cold().write_type.get(symbol).clone()
+                    self.links.symbol_cold().write_type.get(symbol)
                 {
                     return Ok(write_type);
                 }
@@ -2415,7 +2415,7 @@ impl<'a> CheckerState<'a> {
                 let target_write = self.get_write_type_of_symbol(target)?;
                 let instantiated = self.instantiate_type(target_write, mapper)?;
                 if let crate::links::LinkSlot::Resolved(already) =
-                    self.links.symbol_cold().write_type.get(symbol).clone()
+                    self.links.symbol_cold().write_type.get(symbol)
                 {
                     return Ok(already);
                 }
@@ -2436,7 +2436,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
     ) -> CheckResult<Option<TypeId>> {
         let cold = self.links.symbol_cold();
-        if let Some(ty) = cold.write_type.get(symbol).resolved() {
+        if let Some(ty) = cold.write_type.resolved(symbol) {
             return Ok(Some(ty));
         }
         let Some(constituents) = cold.deferral_write_constituents.get(symbol).clone() else {

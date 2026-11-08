@@ -529,8 +529,7 @@ impl<'a> CheckerState<'a> {
             .links
             .type_cold()
             .conditional_default_constraint
-            .get(ty)
-            .resolved()
+            .resolved(ty)
         {
             return Ok(cached);
         }
@@ -584,8 +583,7 @@ impl<'a> CheckerState<'a> {
             .links
             .type_cold()
             .restrictive_instantiation
-            .get(ty)
-            .resolved()
+            .resolved(ty)
             == Some(ty);
         if root.is_distributive && !already_restrictive {
             let simplified = self.get_simplified_type(data.check_type, /*writing*/ false)?;
@@ -755,13 +753,7 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.cached_conditional_branches(ty).true_type {
             return Ok(cached);
         }
-        if let Some(cached) = self
-            .links
-            .type_cold()
-            .conditional_true_type
-            .get(ty)
-            .resolved()
-        {
+        if let Some(cached) = self.links.type_cold().conditional_true_type.resolved(ty) {
             self.remember_conditional_branch(ty, Some(cached), None);
             return Ok(cached);
         }
@@ -794,13 +786,7 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.cached_conditional_branches(ty).false_type {
             return Ok(cached);
         }
-        if let Some(cached) = self
-            .links
-            .type_cold()
-            .conditional_false_type
-            .get(ty)
-            .resolved()
-        {
+        if let Some(cached) = self.links.type_cold().conditional_false_type.resolved(ty) {
             self.remember_conditional_branch(ty, None, Some(cached));
             return Ok(cached);
         }
@@ -834,8 +820,7 @@ impl<'a> CheckerState<'a> {
             .links
             .type_cold()
             .conditional_inferred_true_type
-            .get(ty)
-            .resolved()
+            .resolved(ty)
         {
             return Ok(cached);
         }

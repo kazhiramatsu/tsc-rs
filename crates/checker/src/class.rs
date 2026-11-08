@@ -333,7 +333,7 @@ impl<'a> CheckerState<'a> {
         ) {
             // tsgo checkClassOrInterfaceForDuplicateIndexSignatures: each
             // checker must run this even if it owns a later declaration.
-            if *self
+            if self
                 .links
                 .symbol_cold()
                 .index_signatures_checked
@@ -1365,7 +1365,7 @@ impl<'a> CheckerState<'a> {
         if self.binder.symbol(symbol).declarations().len() == 1 {
             return Ok(());
         }
-        if *self.links.symbol_cold().type_parameters_checked.get(symbol) {
+        if self.links.symbol_cold().type_parameters_checked.get(symbol) {
             return Ok(());
         }
         self.links.set_symbol_type_parameters_checked(symbol);

@@ -212,8 +212,7 @@ impl<'a> CheckerState<'a> {
             .links
             .type_cold()
             .unique_literal_filled_instantiation
-            .get(ty)
-            .resolved()
+            .resolved(ty)
         {
             Some(cached) => cached,
             None => {
@@ -243,14 +242,9 @@ impl<'a> CheckerState<'a> {
             self.links
                 .type_cold()
                 .resolved_string_index_type
-                .get(ty)
-                .resolved()
+                .resolved(ty)
         } else {
-            self.links
-                .type_cold()
-                .resolved_index_type
-                .get(ty)
-                .resolved()
+            self.links.type_cold().resolved_index_type.resolved(ty)
         };
         if let Some(cached) = cached {
             return cached;

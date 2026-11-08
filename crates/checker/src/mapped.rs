@@ -156,13 +156,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .type_cold()
-            .mapped_modifiers_type
-            .get(ty)
-            .resolved()
-        {
+        if let Some(cached) = self.links.type_cold().mapped_modifiers_type.resolved(ty) {
             return Ok(cached);
         }
         let mapped = self.mapped_type_data(ty);
@@ -201,13 +195,7 @@ impl<'a> CheckerState<'a> {
                 _ => self.tables.intrinsics.unknown,
             }
         };
-        if let Some(cached) = self
-            .links
-            .type_cold()
-            .mapped_modifiers_type
-            .get(ty)
-            .resolved()
-        {
+        if let Some(cached) = self.links.type_cold().mapped_modifiers_type.resolved(ty) {
             return Ok(cached);
         }
         self.links.set_mapped_modifiers_type(ty, resolved);
@@ -798,23 +786,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 63dc25b3158fd6cad94c5b30d6a17744e81d9dd7ec6dc18d1978535d1de9bee6
     /// tsc-span: _tsc.js:59071-59073
     pub(crate) fn get_apparent_type_of_mapped_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .type_cold()
-            .mapped_apparent_type
-            .get(ty)
-            .resolved()
-        {
+        if let Some(cached) = self.links.type_cold().mapped_apparent_type.resolved(ty) {
             return Ok(cached);
         }
         let resolved = self.get_resolved_apparent_type_of_mapped_type(ty)?;
-        if let Some(cached) = self
-            .links
-            .type_cold()
-            .mapped_apparent_type
-            .get(ty)
-            .resolved()
-        {
+        if let Some(cached) = self.links.type_cold().mapped_apparent_type.resolved(ty) {
             return Ok(cached);
         }
         self.links.set_mapped_apparent_type(ty, resolved);

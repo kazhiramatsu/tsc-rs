@@ -61,12 +61,8 @@ impl<'a> CheckerState<'a> {
                     let contextual_return =
                         self.get_return_type_of_signature(contextual_signature)?;
                     if self.could_contain_type_variables(contextual_return) {
-                        if let Some(cached) = self
-                            .links
-                            .node_cold()
-                            .context_free_type
-                            .get(node)
-                            .resolved()
+                        if let Some(cached) =
+                            self.links.node_cold().context_free_type.resolved(node)
                         {
                             return Ok(cached);
                         }
@@ -3232,7 +3228,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<()> {
         // tsgo checkFunctionOrConstructorSymbol: once per checker, set before
         // the worker so recursive checks see the same latch.
-        if *self
+        if self
             .links
             .symbol_cold()
             .function_or_constructor_checked
