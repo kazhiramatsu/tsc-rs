@@ -1005,3 +1005,63 @@ fn compact_conditionals_keep_distinct_instantiations_after_table_growth() {
         assert_eq!(t.flags_of(id), TypeFlags::CONDITIONAL);
     }
 }
+
+#[test]
+fn packed_instantiation_keys_preserve_all_shapes_and_bounds() {
+    let mut t = tables();
+    let value = t.intrinsics.string;
+    let replacement = t.intrinsics.number;
+    let mut expected = Vec::new();
+    for target in [
+        TypeId::new(0),
+        TypeId::new((1 << 31) - 1),
+        TypeId::new(1 << 31),
+        TypeId::new(u32::MAX - 1),
+    ] {
+        for arguments in [TypeListId::new(0), TypeListId::new(u32::MAX - 1)] {
+            for single_signature in [false, true] {
+                for (alias_symbol, alias_arguments) in [
+                    (None, None),
+                    (Some(SymbolId::new(7)), None),
+                    (Some(SymbolId::new(7)), Some(TypeListId::new(3))),
+                    (Some(SymbolId::new(8)), Some(TypeListId::new(3))),
+                    (None, Some(TypeListId::new(3))),
+                ] {
+                    let key = InstantiationKey {
+                        arguments,
+                        alias_symbol,
+                        alias_arguments,
+                        single_signature,
+                    };
+                    let packed = InstantiationCache::packed_key(target, key);
+                    assert_eq!(
+                        packed.is_some(),
+                        target.index() < 1 << 31
+                            && alias_symbol.is_none()
+                            && alias_arguments.is_none()
+                    );
+                    if let Some(packed) = packed {
+                        assert_eq!((packed & ((1 << 31) - 1)) as u32, target.index());
+                        assert_eq!(
+                            ((packed >> 31) & u64::from(u32::MAX)) as u32,
+                            arguments.index()
+                        );
+                        assert_eq!(packed >> 63, u64::from(single_signature));
+                    }
+                    assert_eq!(t.instantiation_get(target, key), None);
+                    t.instantiation_insert(target, key, value);
+                    expected.push(((target, key), value));
+                }
+            }
+        }
+    }
+    assert!(!t.instantiations.plain.is_empty());
+    assert!(!t.instantiations.full.is_empty());
+    assert_eq!(t.instantiations.len(), expected.len());
+    for &((target, key), value) in &expected {
+        assert_eq!(t.instantiation_get(target, key), Some(value));
+        t.instantiation_insert(target, key, replacement);
+        assert_eq!(t.instantiation_get(target, key), Some(replacement));
+    }
+    assert_eq!(t.instantiations.len(), expected.len());
+}

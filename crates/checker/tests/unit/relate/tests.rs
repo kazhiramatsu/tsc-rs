@@ -104,13 +104,13 @@ fn relation_cache_preserves_full_keys_and_replacement_verdicts() {
     assert_eq!(cache.len(), keys.len());
     assert!(!cache.is_empty());
     for key in &keys {
-        assert_eq!(cache.get(key), reference.get(key));
+        assert_eq!(cache.get(key), reference.get(key).copied());
         assert!(cache.contains_key(key));
         assert_eq!(
             cache.insert(key.clone(), RelationComparisonResult::SUCCEEDED),
             reference.insert(key.clone(), RelationComparisonResult::SUCCEEDED)
         );
-        assert_eq!(cache.get(key), reference.get(key));
+        assert_eq!(cache.get(key), reference.get(key).copied());
     }
     assert_eq!(cache.len(), reference.len());
     assert_eq!(cache.values().count(), reference.len());
@@ -122,7 +122,7 @@ fn relation_cache_preserves_full_keys_and_replacement_verdicts() {
         },
         RelationKey::Generic("*0,0:2".into()),
     ] {
-        assert_eq!(cache.get(&missing), reference.get(&missing));
+        assert_eq!(cache.get(&missing), reference.get(&missing).copied());
         assert!(!cache.contains_key(&missing));
     }
 }
@@ -439,4 +439,80 @@ fn reporting_relation_retains_nested_no_common_properties_leaf() {
             assert!(output.message.next.is_empty());
         },
     );
+}
+
+#[test]
+fn packed_pair_round_trips_at_bounds_and_falls_back_without_losing_result_bits() {
+    use super::{packed_pair, RelationCache, RESULT_BITS};
+    let mut cache = RelationCache::default();
+    for source in [0, 1, (1 << 28) - 1] {
+        for target in [0, 1, (1 << 28) - 1] {
+            for intersection in 0..4 {
+                let packed = packed_pair(source, target, intersection).unwrap();
+                assert_eq!((packed & ((1 << 28) - 1)) as u32, source);
+                assert_eq!(((packed >> 28) & ((1 << 28) - 1)) as u32, target);
+                assert_eq!((packed >> 56) as i32, intersection);
+                let key = RelationKey::Pair {
+                    source,
+                    target,
+                    intersection,
+                };
+                for bits in 0..64 {
+                    let value = RelationComparisonResult::from_bits(bits);
+                    cache.insert(key.clone(), value);
+                    assert_eq!(cache.get(&key), Some(value));
+                    assert_eq!(
+                        ((packed << RESULT_BITS) | bits as u64) >> RESULT_BITS,
+                        packed
+                    );
+                }
+                assert!(!cache.pairs.is_empty());
+            }
+        }
+    }
+    for (source, target, intersection) in [
+        (1 << 28, 0, 0),
+        (0, 1 << 28, 0),
+        (u32::MAX, u32::MAX, 3),
+        (0, 0, -1),
+        (0, 0, 4),
+        (0, 0, i32::MAX),
+    ] {
+        assert_eq!(packed_pair(source, target, intersection), None);
+        let key = RelationKey::Pair {
+            source,
+            target,
+            intersection,
+        };
+        assert_eq!(
+            cache.insert(key.clone(), RelationComparisonResult::FAILED),
+            None
+        );
+        assert_eq!(cache.get(&key), Some(RelationComparisonResult::FAILED));
+    }
+    let key = RelationKey::Pair {
+        source: 5,
+        target: 6,
+        intersection: 3,
+    };
+    let unusual = RelationComparisonResult::from_bits(-1);
+    assert_eq!(cache.insert(key.clone(), unusual), None);
+    assert_eq!(cache.get(&key), Some(unusual));
+    assert_eq!(
+        cache.insert(key.clone(), RelationComparisonResult::SUCCEEDED),
+        Some(unusual)
+    );
+    assert_eq!(
+        cache.insert(key.clone(), unusual),
+        Some(RelationComparisonResult::SUCCEEDED)
+    );
+    assert_eq!(cache.get(&key), Some(unusual));
+    let generic = RelationKey::Generic("*5=0,6=0:3".into());
+    assert!(generic.has_constraint_marker());
+    assert_eq!(
+        cache.insert(generic.clone(), RelationComparisonResult::FAILED),
+        None
+    );
+    assert_eq!(cache.get(&generic), Some(RelationComparisonResult::FAILED));
+    assert_eq!(cache.get(&key), Some(unusual));
 }
