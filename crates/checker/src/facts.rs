@@ -88,8 +88,8 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::TEMPLATE_LITERAL) {
             let is_empty = flags.intersects(TypeFlags::STRING_LITERAL)
                 && matches!(
-                    &self.tables.type_of(ty).data,
-                    TypeData::Literal { value: tsc_types::LiteralData::String(value), .. } if self.tables.literal_text(*value).is_empty()
+                    self.tables.literal_data_of(ty),
+                    Some(tsc_types::LiteralData::String(value)) if self.tables.literal_text(value).is_empty()
                 );
             return Ok(match (strict_null_checks, is_empty) {
                 (true, true) => TypeFacts::EMPTY_STRING_STRICT_FACTS,
@@ -107,8 +107,8 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::NUMBER_LITERAL) {
             let is_zero = matches!(
-                &self.tables.type_of(ty).data,
-                TypeData::Literal { value: tsc_types::LiteralData::Number(value), .. } if value.get() == 0.0
+                self.tables.literal_data_of(ty),
+                Some(tsc_types::LiteralData::Number(value)) if value.get() == 0.0
             );
             return Ok(match (strict_null_checks, is_zero) {
                 (true, true) => TypeFacts::ZERO_NUMBER_STRICT_FACTS,
@@ -295,8 +295,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:67836-67838
     fn is_zero_big_int(&self, ty: TypeId) -> bool {
         matches!(
-            &self.tables.type_of(ty).data,
-            TypeData::Literal { value: tsc_types::LiteralData::BigInt(value), .. } if self.tables.bigint(*value).base10_value == "0"
+            self.tables.literal_data_of(ty),
+            Some(tsc_types::LiteralData::BigInt(value)) if self.tables.bigint(value).base10_value == "0"
         )
     }
 

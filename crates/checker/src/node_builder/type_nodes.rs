@@ -2333,6 +2333,7 @@ fn conditional_type_to_type_node(
     let TypeData::Conditional(data) = checker.tables.type_of(r#type).data else {
         unreachable!("conditional worker receives a conditional type")
     };
+    let data = *checker.tables.conditional_data(data);
     let root = checker.tables.conditional_root(data.root).clone();
     let Some(check_type) =
         type_to_type_node_helper(checker, arena, target, data.check_type, context)?
@@ -3232,6 +3233,7 @@ fn visit_and_transform_type(
             .deferred_node
             .map(super::context::CompositeSymbolIdentity::Node)
     } else if let TypeData::Conditional(conditional) = &type_data.data {
+        let conditional = checker.tables.conditional_data(*conditional);
         Some(super::context::CompositeSymbolIdentity::ConditionalRoot(
             conditional.root,
         ))

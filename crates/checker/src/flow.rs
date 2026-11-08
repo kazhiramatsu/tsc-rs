@@ -1212,11 +1212,8 @@ impl<'a> CheckerState<'a> {
                                     let is_undefined_literal = flags
                                         .intersects(TypeFlags::STRING_LITERAL)
                                         && matches!(
-                                            &state.tables.type_of(t).data,
-                                            TypeData::Literal {
-                                                value: tsc_types::LiteralData::String(value),
-                                                ..
-                                            } if state.tables.literal_text(*value) == "undefined"
+                                            state.tables.literal_data_of(t),
+                                            Some(tsc_types::LiteralData::String(value)) if state.tables.literal_text(value) == "undefined"
                                         );
                                     !is_undefined_literal
                                 },

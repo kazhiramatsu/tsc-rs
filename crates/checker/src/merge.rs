@@ -468,8 +468,8 @@ impl<'a> CheckerState<'a> {
                     let flags = self.tables.flags_of(name_type);
                     if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
                         let name = match &self.tables.type_of(name_type).data {
-                            TypeData::Literal { value, .. } => {
-                                match self.tables.literal_value_of(*value) {
+                            TypeData::Literal { .. } => {
+                                match self.tables.literal_value(name_type).expect("literal data") {
                                     tsc_types::LiteralValue::String(text) => text.to_owned(),
                                     tsc_types::LiteralValue::Number(value) => {
                                         JsString::from(tsc_types::js_number_to_string(value))

@@ -6365,40 +6365,42 @@ impl<'a> CheckerState<'a> {
                 };
                 Ok((text.into(), SliceTypeNodeKind::Keyword))
             }
-            TypeData::Literal { value, .. } => match self.tables.literal_value_of(value) {
-                tsc_types::LiteralValue::String(text) => {
-                    let text = tsc_types::TemplateText::from_js(text);
-                    // 51401-51403: the StringLiteral face carries
-                    // EmitFlags.NoAsciiEscaping, so getLiteralText
-                    // runs escapeString(text, '"') WITHOUT the
-                    // non-ASCII pass — `"あ"` prints raw while
-                    // `"AB\r\nC"` spells its escapes (oracle-pinned).
-                    // The JS display value retains lone surrogate units;
-                    // only the final output sink may encode/project them.
-                    self.display_add_approximate_length(text.len_utf8() + 2);
-                    Ok((
-                        crate::concat_js(&[
-                            &"\"",
-                            &(string_literal_type_display_text(&text)),
-                            &"\"",
-                        ]),
-                        SliceTypeNodeKind::Literal,
-                    ))
+            TypeData::Literal { .. } => {
+                match self.tables.literal_value(ty).expect("literal data") {
+                    tsc_types::LiteralValue::String(text) => {
+                        let text = tsc_types::TemplateText::from_js(text);
+                        // 51401-51403: the StringLiteral face carries
+                        // EmitFlags.NoAsciiEscaping, so getLiteralText
+                        // runs escapeString(text, '"') WITHOUT the
+                        // non-ASCII pass — `"あ"` prints raw while
+                        // `"AB\r\nC"` spells its escapes (oracle-pinned).
+                        // The JS display value retains lone surrogate units;
+                        // only the final output sink may encode/project them.
+                        self.display_add_approximate_length(text.len_utf8() + 2);
+                        Ok((
+                            crate::concat_js(&[
+                                &"\"",
+                                &(string_literal_type_display_text(&text)),
+                                &"\"",
+                            ]),
+                            SliceTypeNodeKind::Literal,
+                        ))
+                    }
+                    tsc_types::LiteralValue::Number(value) => {
+                        let text = tsc_types::js_number_to_string(value);
+                        self.display_add_approximate_length(Self::slice_js_length(&text));
+                        Ok((text.into(), SliceTypeNodeKind::Literal))
+                    }
+                    tsc_types::LiteralValue::BigInt(value) => {
+                        // 51409-51411: pseudoBigIntToString plus the
+                        // BigIntLiteral printer's `n` suffix. The pseudo
+                        // value is already normalized to signed base-10.
+                        let text = crate::concat_js(&[&(value.to_base10_string()), &"n"]);
+                        self.display_add_approximate_length(Self::slice_js_length(&text));
+                        Ok((text, SliceTypeNodeKind::Literal))
+                    }
                 }
-                tsc_types::LiteralValue::Number(value) => {
-                    let text = tsc_types::js_number_to_string(value);
-                    self.display_add_approximate_length(Self::slice_js_length(&text));
-                    Ok((text.into(), SliceTypeNodeKind::Literal))
-                }
-                tsc_types::LiteralValue::BigInt(value) => {
-                    // 51409-51411: pseudoBigIntToString plus the
-                    // BigIntLiteral printer's `n` suffix. The pseudo
-                    // value is already normalized to signed base-10.
-                    let text = crate::concat_js(&[&(value.to_base10_string()), &"n"]);
-                    self.display_add_approximate_length(Self::slice_js_length(&text));
-                    Ok((text, SliceTypeNodeKind::Literal))
-                }
-            },
+            }
             TypeData::UniqueESSymbol { .. } => {
                 // 51417-51428. typeToString's DEFAULT flags include
                 // AllowUniqueESSymbolType (50717) — the plain render
@@ -6725,6 +6727,7 @@ impl<'a> CheckerState<'a> {
             let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
                 unreachable!("CONDITIONAL flag implies Conditional data");
             };
+            let data = *self.tables.conditional_data(data);
             let (check_text, check_kind) =
                 self.type_to_string_node(data.check_type, fully_qualified)?;
             let check = if conditional_check_type_needs_parens(check_kind) {
@@ -13878,24 +13881,28 @@ impl<'a> CheckerState<'a> {
             }
             if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
                 let name = match &self.tables.type_of(name_type).data {
-                    TypeData::Literal { value, .. } => match self.tables.literal_value_of(*value) {
-                        tsc_types::LiteralValue::String(text) => {
-                            let Some(text_utf8) = text.as_str() else {
-                                return string_literal_name_text(
-                                    &tsc_types::TemplateText::from_js(text),
-                                    single_quote,
+                    TypeData::Literal { .. } => {
+                        match self.tables.literal_value(name_type).expect("literal data") {
+                            tsc_types::LiteralValue::String(text) => {
+                                let Some(text_utf8) = text.as_str() else {
+                                    return string_literal_name_text(
+                                        &tsc_types::TemplateText::from_js(text),
+                                        single_quote,
+                                    )
+                                    .map(JsString::from);
+                                };
+                                text_utf8.to_owned()
+                            }
+                            tsc_types::LiteralValue::Number(value) => {
+                                tsc_types::js_number_to_string(value)
+                            }
+                            tsc_types::LiteralValue::BigInt(_) => {
+                                unreachable!(
+                                    "string/number literal flags imply string/number value"
                                 )
-                                .map(JsString::from);
-                            };
-                            text_utf8.to_owned()
+                            }
                         }
-                        tsc_types::LiteralValue::Number(value) => {
-                            tsc_types::js_number_to_string(value)
-                        }
-                        tsc_types::LiteralValue::BigInt(_) => {
-                            unreachable!("string/number literal flags imply string/number value")
-                        }
-                    },
+                    }
                     _ => unreachable!("literal flags imply literal data"),
                 };
                 if !tsc_syntax::is_identifier_text(&name)

@@ -392,12 +392,10 @@ impl<'a> CheckerState<'a> {
 
     fn literal_values_equal(&self, source: TypeId, target: TypeId) -> bool {
         match (
-            &self.tables.type_of(source).data,
-            &self.tables.type_of(target).data,
+            self.tables.literal_data_of(source),
+            self.tables.literal_data_of(target),
         ) {
-            (TypeData::Literal { value: source, .. }, TypeData::Literal { value: target, .. }) => {
-                self.tables.literal_data_equal(*source, *target)
-            }
+            (Some(source), Some(target)) => self.tables.literal_data_equal(source, target),
             _ => false,
         }
     }
@@ -5106,6 +5104,7 @@ impl<'a> CheckerState<'a> {
             let TypeData::Conditional(data) = &self.tables.type_of(ty).data else {
                 unreachable!("conditional flag implies conditional data");
             };
+            let data = *self.tables.conditional_data(*data);
             return RecursionIdentity::ConditionalRoot(data.root);
         }
         RecursionIdentity::Type(ty)

@@ -2046,6 +2046,7 @@ impl<'a> CheckerState<'a> {
             let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
                 unreachable!("Conditional flag implies conditional data");
             };
+            let data = *self.tables.conditional_data(data);
             let conditional_mapper = self.combine_type_mappers(data.mapper, mapper);
             return self.get_conditional_type_instantiation(
                 ty,

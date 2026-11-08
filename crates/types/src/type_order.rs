@@ -283,16 +283,8 @@ pub fn compare_types(
     } else if flags.intersects(TypeFlags::STRING_LITERAL) {
         // The records' text ids directly (a union sort compares literals
         // n log n times); one text is equal to itself.
-        if let (
-            TypeData::Literal {
-                value: LiteralData::String(text1),
-                ..
-            },
-            TypeData::Literal {
-                value: LiteralData::String(text2),
-                ..
-            },
-        ) = (tables.type_of(t1).data, tables.type_of(t2).data)
+        if let (Some(LiteralData::String(text1)), Some(LiteralData::String(text2))) =
+            (tables.literal_data_of(t1), tables.literal_data_of(t2))
         {
             if text1 != text2 {
                 // tsgo `strings.Compare` of the Go strings: the byte order of
@@ -304,16 +296,8 @@ pub fn compare_types(
             }
         }
     } else if flags.intersects(TypeFlags::NUMBER_LITERAL) {
-        if let (
-            TypeData::Literal {
-                value: LiteralData::Number(value1),
-                ..
-            },
-            TypeData::Literal {
-                value: LiteralData::Number(value2),
-                ..
-            },
-        ) = (tables.type_of(t1).data, tables.type_of(t2).data)
+        if let (Some(LiteralData::Number(value1)), Some(LiteralData::Number(value2))) =
+            (tables.literal_data_of(t1), tables.literal_data_of(t2))
         {
             let c = compare_numbers(value1.get(), value2.get());
             if c != Ordering::Equal {
@@ -323,16 +307,8 @@ pub fn compare_types(
     } else if flags.intersects(TypeFlags::BIG_INT_LITERAL) {
         // tsgo CompareTypes (checker/utilities.go:563-566): bigint literal
         // types are ordered by their values.
-        if let (
-            TypeData::Literal {
-                value: LiteralData::BigInt(value1),
-                ..
-            },
-            TypeData::Literal {
-                value: LiteralData::BigInt(value2),
-                ..
-            },
-        ) = (tables.type_of(t1).data, tables.type_of(t2).data)
+        if let (Some(LiteralData::BigInt(value1)), Some(LiteralData::BigInt(value2))) =
+            (tables.literal_data_of(t1), tables.literal_data_of(t2))
         {
             let c = compare_pseudo_big_ints(tables.bigint(value1), tables.bigint(value2));
             if c != Ordering::Equal {
@@ -402,6 +378,8 @@ pub fn compare_types(
         if let (TypeData::Conditional(data1), TypeData::Conditional(data2)) =
             (&tables.type_of(t1).data, &tables.type_of(t2).data)
         {
+            let data1 = tables.conditional_data(*data1);
+            let data2 = tables.conditional_data(*data2);
             let c = ctx.compare_nodes(
                 tables.conditional_root(data1.root).node,
                 tables.conditional_root(data2.root).node,
@@ -465,16 +443,8 @@ pub fn compare_types(
 // particular, supplementary text sorts after BMP private-use text.
 #[inline]
 fn compare_string_literal_types(tables: &TypeTables, t1: TypeId, t2: TypeId) -> Ordering {
-    let (
-        TypeData::Literal {
-            value: LiteralData::String(a),
-            ..
-        },
-        TypeData::Literal {
-            value: LiteralData::String(b),
-            ..
-        },
-    ) = (tables.type_of(t1).data, tables.type_of(t2).data)
+    let (Some(LiteralData::String(a)), Some(LiteralData::String(b))) =
+        (tables.literal_data_of(t1), tables.literal_data_of(t2))
     else {
         unreachable!("string literal flags imply string literal data");
     };

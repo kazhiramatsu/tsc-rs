@@ -267,6 +267,7 @@ impl<'a> CheckerState<'a> {
                     let false_type = self.get_type_from_type_node(false_node)?;
                     if let TypeData::Conditional(false_data) = self.tables.type_of(false_type).data
                     {
+                        let false_data = *self.tables.conditional_data(false_data);
                         let new_root = self.tables.conditional_root(false_data.root).clone();
                         if self.parent_of(NodeId::new(new_root.node))
                             == Some(NodeId::new(root_data.node))
@@ -376,6 +377,7 @@ impl<'a> CheckerState<'a> {
         let TypeData::Conditional(data) = self.tables.type_of(new_type).data else {
             return Ok(None);
         };
+        let data = *self.tables.conditional_data(data);
         let new_root = self.tables.conditional_root(data.root).clone();
         let Some(outer_parameters) = new_root.outer_type_parameters.as_deref() else {
             return Ok(None);
@@ -444,6 +446,7 @@ impl<'a> CheckerState<'a> {
         let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
             unreachable!("Conditional flag implies conditional data");
         };
+        let data = *self.tables.conditional_data(data);
         let root = self.tables.conditional_root(data.root).clone();
         let Some(outer_parameters) = root.outer_type_parameters.as_deref() else {
             return Ok(ty);
@@ -575,6 +578,7 @@ impl<'a> CheckerState<'a> {
         let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
             unreachable!("Conditional flag implies conditional data");
         };
+        let data = *self.tables.conditional_data(data);
         let root = self.tables.conditional_root(data.root).clone();
         let already_restrictive = self
             .links
@@ -653,6 +657,7 @@ impl<'a> CheckerState<'a> {
         let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
             unreachable!("Conditional flag implies conditional data");
         };
+        let data = *self.tables.conditional_data(data);
         let true_type = self.get_true_type_from_conditional_type(ty)?;
         let false_type = self.get_false_type_from_conditional_type(ty)?;
         if self
@@ -763,6 +768,7 @@ impl<'a> CheckerState<'a> {
         let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
             unreachable!("Conditional flag implies conditional data");
         };
+        let data = *self.tables.conditional_data(data);
         let root = self.tables.conditional_root(data.root).clone();
         let Some(node) = self.record_of(NodeId::new(root.node)).as_conditional_type() else {
             unreachable!("conditional root points at a ConditionalType node");
@@ -801,6 +807,7 @@ impl<'a> CheckerState<'a> {
         let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
             unreachable!("Conditional flag implies conditional data");
         };
+        let data = *self.tables.conditional_data(data);
         let root = self.tables.conditional_root(data.root).clone();
         let Some(node) = self.record_of(NodeId::new(root.node)).as_conditional_type() else {
             unreachable!("conditional root points at a ConditionalType node");
@@ -835,6 +842,7 @@ impl<'a> CheckerState<'a> {
         let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
             unreachable!("Conditional flag implies conditional data");
         };
+        let data = *self.tables.conditional_data(data);
         let resolved = if let Some(mapper) = data.combined_mapper {
             let root = self.tables.conditional_root(data.root).clone();
             let Some(node) = self.record_of(NodeId::new(root.node)).as_conditional_type() else {

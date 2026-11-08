@@ -173,7 +173,7 @@ impl From<&str> for TemplateText {
 
 /// tsc LiteralType.value: string | number | PseudoBigInt, read from or
 /// given to the tables (`TypeTables::literal_value`; the record holds
-/// [`LiteralData`]).
+/// a compact index decoded as [`LiteralData`]).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LiteralValue<'a> {
     /// The text, canonical WTF-8 (byte equality is UTF-16 equality).
@@ -268,7 +268,7 @@ impl NumberBits {
     }
 }
 
-/// A literal type's value as the record holds it: a string by its text id,
+/// A decoded literal value: a string by its text id,
 /// a number by its bits, a bigint by its value id (the tables own the
 /// texts and values).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -359,6 +359,11 @@ pub struct ConditionalRootData {
     pub alias_type_arguments: Option<Box<[TypeId]>>,
 }
 
+crate::id_type!(
+    /// A conditional type's immutable per-instantiation payload in its tables.
+    ConditionalDataId
+);
+
 /// Immutable per-instantiation fields of a conditional type. Resolved
 /// true/false/default/constraint types are checker-owned lazy links.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -431,7 +436,7 @@ pub struct TemplateLiteralData {
 /// ReverseMapped are live from phase 9.5; Conditional/Substitution
 /// follow in phase 9.6.
 ///
-/// Every variant is identities, bits and small flags (`Copy`, 24 bytes):
+/// Every variant is identities, bits and small flags (`Copy`, 16 bytes):
 /// lists are interned type lists, texts and the few large payloads (tuple
 /// targets, template literals, intrinsic names, bigints) are ids into the
 /// tables' lists. The tag is a byte and the first variant carries nothing,
@@ -455,7 +460,9 @@ pub enum TypeData {
     /// String/number/bigint-literal types with their fresh/regular pair
     /// (freshness is STRUCTURE: fresh_type == self).
     Literal {
-        value: LiteralData,
+        // The kind comes from Type.flags, including on enum and fresh
+        // literals. Text/bigint ids and number-table indices are lossless.
+        value: u32,
         fresh_type: Option<TypeId>,
         regular_type: Option<TypeId>,
     },
@@ -550,8 +557,8 @@ pub enum TypeData {
     ReverseMapped(ReverseMappedTypeData),
     /// Deferred conditional type. The shared root owns the written
     /// declaration and type-parameter environment; this payload owns
-    /// the current check/extends pair and mapper identities.
-    Conditional(ConditionalTypeData),
+    /// the current check/extends pair and mapper identities in the tables.
+    Conditional(ConditionalDataId),
     /// Narrowing/NoInfer wrapper interned by `(base, constraint)`.
     Substitution(SubstitutionTypeData),
     /// tsc GenericType (InterfaceType & TypeReference): the declared
@@ -572,9 +579,10 @@ pub enum TypeData {
     },
 }
 
-const _: () = assert!(std::mem::size_of::<TypeData>() == 24);
+const _: () = assert!(std::mem::size_of::<TypeData>() == 16);
+const _: () = assert!(std::mem::align_of::<TypeData>() == 4);
 
-/// tsc Type (core-interfaces §3): 40 bytes of words, in the type store.
+/// tsc Type (core-interfaces §3): 32 bytes of words, in the type store.
 /// `symbol` is None for intrinsics (tsc leaves it undefined); the alias
 /// symbol and type arguments are one id into the tables' alias list
 /// (`TypeTables::alias_symbol`, `alias_type_arguments`); the fresh/regular
@@ -588,7 +596,7 @@ pub struct Type {
     pub data: TypeData,
 }
 
-const _: () = assert!(std::mem::size_of::<Type>() == 40);
+const _: () = assert!(std::mem::size_of::<Type>() == 32);
 const _: () = assert!(std::mem::align_of::<Type>() == 4);
 
 /// A checker's types live in the type store at leased positions (see

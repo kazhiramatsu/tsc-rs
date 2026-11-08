@@ -381,9 +381,11 @@ impl CheckerState<'_> {
     }
 
     /// tsgo `ConditionalType.CheckType` and `ExtendsType`.
+    /// The immutable side-table entry retains the original pair verbatim.
     pub fn get_conditional_parts(&self, ty: TypeId) -> [TypeId; 2] {
         match &self.tables.type_of(ty).data {
             TypeData::Conditional(conditional) => {
+                let conditional = self.tables.conditional_data(*conditional);
                 [conditional.check_type, conditional.extends_type]
             }
             _ => self.type_assertion_failure(ty, "ConditionalType"),

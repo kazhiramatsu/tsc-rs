@@ -176,6 +176,7 @@ impl CheckerState<'_> {
                 descriptor.indexed_access_index_type = Some(trace_id(*index_type));
             }
             TypeData::Conditional(data) => {
+                let data = self.tables.conditional_data(*data);
                 descriptor.conditional_check_type = Some(trace_id(data.check_type));
                 descriptor.conditional_extends_type = Some(trace_id(data.extends_type));
                 let cold = self.links.type_cold();

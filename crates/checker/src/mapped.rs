@@ -377,6 +377,7 @@ impl<'a> CheckerState<'a> {
             let TypeData::Conditional(data) = self.tables.type_of(ty).data else {
                 unreachable!("Conditional flag implies conditional data");
             };
+            let data = *self.tables.conditional_data(data);
             let root = self.tables.conditional_root(data.root).clone();
             if root.is_distributive {
                 let constraint = self.get_lower_bound_of_key_type(data.check_type)?;

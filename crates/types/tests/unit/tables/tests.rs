@@ -580,6 +580,7 @@ fn conditional_type_model_constructibility() {
     let TypeData::Conditional(data) = &t.type_of(conditional).data else {
         panic!("conditional constructor must retain its root");
     };
+    let data = *t.conditional_data(*data);
     assert_eq!(data.root, root);
     assert_eq!(data.check_type, check);
     assert_eq!(data.extends_type, extends);
@@ -854,5 +855,153 @@ fn tuple_targets_share_element_parameters_but_preserve_this_constraints() {
         assert!(
             matches!(t.type_of(this_type).data, TypeData::TypeParameter { is_this_type: true, constraint: Some(own), .. } if own == target)
         );
+    }
+}
+
+#[test]
+fn compact_literals_preserve_bits_kinds_and_fresh_indices() {
+    let mut t = tables();
+    let initial_count = t.len();
+    let initial_numbers = t.number_literals.len();
+    let initial_heap = t.memory_usage().type_heap_bytes;
+    let values = [
+        -0.0,
+        1.25,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        f64::from_bits(0x7ff8_0000_0000_0042),
+    ];
+    for (offset, value) in values.into_iter().enumerate() {
+        let regular = t.get_number_literal_type(value);
+        assert_eq!(regular.index() as usize, initial_count + offset * 2);
+        let fresh = t.get_fresh_type_of_literal_type(regular);
+        assert_eq!(fresh.index(), regular.index() + 1);
+        let TypeData::Literal {
+            value: regular_index,
+            ..
+        } = t.type_of(regular).data
+        else {
+            panic!("number literal data");
+        };
+        let TypeData::Literal {
+            value: fresh_index, ..
+        } = t.type_of(fresh).data
+        else {
+            panic!("fresh number literal data");
+        };
+        assert_eq!(regular_index, fresh_index);
+        for id in [regular, fresh] {
+            let Some(LiteralValue::Number(actual)) = t.literal_value(id) else {
+                panic!("number literal value");
+            };
+            assert_eq!(actual.to_bits(), value.to_bits());
+            let decoded = t.literal_data_of(id).unwrap();
+            assert_eq!(t.literal_data_equal(decoded, decoded), !value.is_nan());
+        }
+        assert_eq!(t.get_number_literal_type(value), regular);
+        assert_eq!(t.number_literals.len(), initial_numbers + offset + 1);
+    }
+    assert_eq!(
+        t.memory_usage().type_heap_bytes - initial_heap,
+        t.number_literals.capacity() * std::mem::size_of::<NumberBits>(),
+    );
+    let zero = t.get_number_literal_type(0.0);
+    let Some(LiteralValue::Number(value)) = t.literal_value(zero) else {
+        panic!("zero value");
+    };
+    assert_eq!(value.to_bits(), (-0.0f64).to_bits());
+
+    let text = crate::JsString::from_code_units(&[0xd800, 0x61]);
+    let string = t.get_string_literal_type(text.as_js());
+    let bigint = t.get_bigint_literal_type(PseudoBigInt {
+        negative: true,
+        base10_value: "12345678901234567890".to_owned(),
+    });
+    for id in [string, bigint] {
+        let fresh = t.get_fresh_type_of_literal_type(id);
+        assert_eq!(t.literal_value(id), t.literal_value(fresh));
+        assert_eq!(t.flags_of(id), t.flags_of(fresh));
+    }
+    assert_eq!(
+        t.literal_value(string),
+        Some(LiteralValue::String(text.as_js()))
+    );
+    let number_data = t.literal_data_of(zero).unwrap();
+    let string_data = t.literal_data_of(string).unwrap();
+    let bigint_data = t.literal_data_of(bigint).unwrap();
+    assert!(!t.literal_data_equal(number_data, string_data));
+    assert!(!t.literal_data_equal(string_data, bigint_data));
+    assert!(!t.literal_data_equal(bigint_data, number_data));
+    assert_eq!(t.literal_data_of(t.intrinsics.number), None);
+    assert_eq!(t.literal_value(t.intrinsics.true_regular), None);
+}
+
+#[test]
+fn compact_enum_literals_keep_the_first_members_bits_and_symbol() {
+    let mut t = tables();
+    for (enum_index, value, equal_value) in [
+        (700, -0.0, 0.0),
+        (701, f64::from_bits(0x7ff8_0000_0000_0042), f64::NAN),
+    ] {
+        let symbol = SymbolId::new(enum_index + 1);
+        let enum_id = SymbolId::new(enum_index);
+        let regular = t.get_enum_literal_type(LiteralValue::Number(value), enum_id, symbol);
+        assert_eq!(
+            t.get_enum_literal_type(
+                LiteralValue::Number(equal_value),
+                enum_id,
+                SymbolId::new(enum_index + 2)
+            ),
+            regular,
+        );
+        let fresh = t.get_fresh_type_of_literal_type(regular);
+        for id in [regular, fresh] {
+            assert!(t.flags_of(id).intersects(TypeFlags::ENUM_LITERAL));
+            assert_eq!(t.type_of(id).symbol, Some(symbol));
+            let Some(LiteralValue::Number(actual)) = t.literal_value(id) else {
+                panic!("numeric enum value");
+            };
+            assert_eq!(actual.to_bits(), value.to_bits());
+        }
+    }
+}
+
+#[test]
+fn compact_conditionals_keep_distinct_instantiations_after_table_growth() {
+    let mut t = tables();
+    let check = t.intrinsics.string;
+    let extends = t.intrinsics.number;
+    let root = t.create_conditional_root(ConditionalRootData {
+        node: 73,
+        check_type: check,
+        extends_type: extends,
+        is_distributive: false,
+        infer_type_parameters: Box::new([]),
+        outer_type_parameters: None,
+        alias_symbol: None,
+        alias_type_arguments: None,
+    });
+    let start = t.len();
+    let mut saved = Vec::new();
+    for index in 0..65 {
+        let data = ConditionalTypeData {
+            root,
+            check_type: check,
+            extends_type: extends,
+            mapper: Some(MapperId::new(index)),
+            combined_mapper: Some(MapperId::new(index + 100)),
+        };
+        let id = t.create_conditional_type(data, Some(SymbolId::new(700)), Some(&[check]));
+        assert_eq!(id.index() as usize, start + index as usize);
+        saved.push((id, data));
+    }
+    for (id, expected) in saved {
+        let TypeData::Conditional(data) = t.type_of(id).data else {
+            panic!("conditional payload id");
+        };
+        assert_eq!(*t.conditional_data(data), expected);
+        assert_eq!(t.alias_symbol(id), Some(SymbolId::new(700)));
+        assert_eq!(t.alias_type_arguments(id), Some([check].as_slice()));
+        assert_eq!(t.flags_of(id), TypeFlags::CONDITIONAL);
     }
 }

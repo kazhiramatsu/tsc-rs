@@ -1625,6 +1625,7 @@ impl<'a> CheckerState<'a> {
             let TypeData::Conditional(data) = self.tables.type_of(constraint).data else {
                 unreachable!("Conditional flag implies conditional data");
             };
+            let data = *self.tables.conditional_data(data);
             let true_type = self.get_true_type_from_conditional_type(constraint)?;
             let true_type = self.get_reduced_type(true_type)?;
             let false_type = self.get_false_type_from_conditional_type(constraint)?;

@@ -18,11 +18,11 @@ use std::cmp::Ordering;
 use crate::flags::{AccessFlags, ElementFlags, ObjectFlags, TypeFlags};
 use crate::identity::{IdentityDomain, IdentityLease, IdentitySpace};
 use crate::ty::{
-    AliasId, BigIntId, ConditionalRootData, ConditionalRootId, ConditionalTypeData, IntrinsicData,
-    IntrinsicId, LiteralData, LiteralTextId, LiteralValue, MappedTypeData, MapperId, NumberBits,
-    PseudoBigInt, ReverseMappedTypeData, SubstitutionTypeData, SymbolId, TemplateLiteralData,
-    TemplateLiteralId, TemplateText, TupleTargetData, TupleTargetId, Type, TypeAlias, TypeData,
-    TypeId,
+    AliasId, BigIntId, ConditionalDataId, ConditionalRootData, ConditionalRootId,
+    ConditionalTypeData, IntrinsicData, IntrinsicId, LiteralData, LiteralTextId, LiteralValue,
+    MappedTypeData, MapperId, NumberBits, PseudoBigInt, ReverseMappedTypeData,
+    SubstitutionTypeData, SymbolId, TemplateLiteralData, TemplateLiteralId, TemplateText,
+    TupleTargetData, TupleTargetId, Type, TypeAlias, TypeData, TypeId,
 };
 use crate::type_order::TypeOrder;
 use tsc_store::StoreVec;
@@ -268,6 +268,12 @@ pub struct TypeTables {
     /// template literal's folded text), reused across lookups.
     literal_scratch: Vec<u8>,
     bigints: Vec<PseudoBigInt>,
+    /// Exact number bits, appended only for a new regular literal (including
+    /// enum literals). Fresh twins copy the index without adding a value.
+    number_literals: Vec<NumberBits>,
+    /// One immutable payload per conditional type, separate from the shared
+    /// roots and the checker's sparse lazy links.
+    conditional_types: Vec<ConditionalTypeData>,
     intrinsic_names: Vec<IntrinsicData>,
     tuple_targets: Vec<TupleTargetData>,
     /// Anonymous tuple element parameters are mapped through each target's
@@ -560,6 +566,8 @@ impl TypeTables {
                 .map(|value| value.base10_value.capacity())
                 .sum::<usize>()
             + self.bigints.capacity() * std::mem::size_of::<PseudoBigInt>()
+            + self.number_literals.capacity() * std::mem::size_of::<NumberBits>()
+            + self.conditional_types.capacity() * std::mem::size_of::<ConditionalTypeData>()
             + self.intrinsic_names.capacity() * std::mem::size_of::<IntrinsicData>()
             + self
                 .tuple_targets
@@ -694,6 +702,8 @@ impl TypeTables {
             literal_texts: LiteralTexts::default(),
             literal_scratch: Vec::new(),
             bigints: Vec::new(),
+            number_literals: Vec::new(),
+            conditional_types: Vec::new(),
             intrinsic_names: Vec::new(),
             tuple_targets: Vec::new(),
             tuple_elements: Vec::new(),
@@ -822,10 +832,22 @@ impl TypeTables {
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
     ) -> TypeId {
-        let id = self.create_type(TypeFlags::CONDITIONAL, TypeData::Conditional(data));
+        // Moving these fields adds no type allocation: ids, flags and alias
+        // creation order remain exactly those of the inline representation.
+        let data_id = ConditionalDataId::new(self.conditional_types.len() as u32);
+        self.conditional_types.push(data);
+        let id = self.create_type(TypeFlags::CONDITIONAL, TypeData::Conditional(data_id));
         let alias_type_arguments = self.intern_alias_arguments(alias_type_arguments);
         self.set_alias(id, alias_symbol, alias_type_arguments);
         id
+    }
+
+    /// The same five immutable fields formerly held inline. The id names
+    /// this type's payload, not its shared root; reads allocate no types and
+    /// do not resolve or change any checker links.
+    #[inline]
+    pub fn conditional_data(&self, id: ConditionalDataId) -> &ConditionalTypeData {
+        &self.conditional_types[id.index() as usize]
     }
 
     // ---- aliases ----
@@ -901,14 +923,35 @@ impl TypeTables {
     /// A literal type's value (None for a type that is no literal).
     #[inline]
     pub fn literal_value(&self, id: TypeId) -> Option<LiteralValue<'_>> {
-        match self.type_of(id).data {
-            TypeData::Literal { value, .. } => Some(self.literal_value_of(value)),
-            _ => None,
-        }
+        // Decoding uses the unchanged literal flags and exact stored bits;
+        // enum literals and fresh twins therefore expose the same value.
+        self.literal_data_of(id)
+            .map(|value| self.literal_value_of(value))
+    }
+
+    /// Decode the compact record without changing the public LiteralData
+    /// representation. Every literal carries its kind in the unchanged
+    /// flags; text/bigint ids and number bits retain their original identity.
+    #[inline]
+    pub fn literal_data_of(&self, id: TypeId) -> Option<LiteralData> {
+        let ty = self.type_of(id);
+        let TypeData::Literal { value, .. } = ty.data else {
+            return None;
+        };
+        Some(if ty.flags.intersects(TypeFlags::STRING_LITERAL) {
+            LiteralData::String(LiteralTextId::new(value))
+        } else if ty.flags.intersects(TypeFlags::NUMBER_LITERAL) {
+            LiteralData::Number(self.number_literals[value as usize])
+        } else {
+            debug_assert!(ty.flags.intersects(TypeFlags::BIG_INT_LITERAL));
+            LiteralData::BigInt(BigIntId::new(value))
+        })
     }
 
     /// Whether two literal records' data name equal values: one text or
-    /// bigint id is equal to itself without reading it.
+    /// bigint id is equal to itself without reading it. Decoding preserves
+    /// the old data, so numeric equality still equates signed zeros and
+    /// rejects NaN, even when two indices or bit patterns are identical.
     #[inline]
     pub fn literal_data_equal(&self, a: LiteralData, b: LiteralData) -> bool {
         match (a, b) {
@@ -923,7 +966,8 @@ impl TypeTables {
         }
     }
 
-    /// The value a literal record's data names.
+    /// The value decoded literal data names. Text/bigint lookup and exact
+    /// NumberBits conversion are unchanged by compact record storage.
     #[inline]
     pub fn literal_value_of(&self, value: LiteralData) -> LiteralValue<'_> {
         match value {
@@ -1285,7 +1329,7 @@ impl TypeTables {
     fn create_literal_type(
         &mut self,
         flags: TypeFlags,
-        value: LiteralData,
+        value: u32,
         regular_type: Option<TypeId>,
     ) -> TypeId {
         let id = self.create_type(
@@ -1301,16 +1345,22 @@ impl TypeTables {
         id
     }
 
-    /// The record data of a literal value: a string's text and a bigint's
-    /// value join the tables' lists.
-    fn literal_data(&mut self, value: LiteralValue<'_>) -> LiteralData {
+    /// Store a newly created regular literal's value, without allocating a
+    /// type or changing interning. Numbers retain all bits, including the
+    /// first value's signed zero and NaN payload; fresh twins reuse the index.
+    fn literal_data(&mut self, value: LiteralValue<'_>) -> u32 {
         match value {
-            LiteralValue::String(text) => LiteralData::String(self.literal_texts.push(text)),
-            LiteralValue::Number(value) => LiteralData::Number(NumberBits::new(value)),
+            LiteralValue::String(text) => self.literal_texts.push(text).index(),
+            LiteralValue::Number(value) => {
+                let index =
+                    u32::try_from(self.number_literals.len()).expect("number literal index");
+                self.number_literals.push(NumberBits::new(value));
+                index
+            }
             LiteralValue::BigInt(value) => {
                 let id = BigIntId::new(self.bigints.len() as u32);
                 self.bigints.push(value.clone());
-                LiteralData::BigInt(id)
+                id.index()
             }
         }
     }
@@ -1411,8 +1461,7 @@ impl TypeTables {
             return id;
         }
         let text = self.literal_texts.push(value);
-        let id =
-            self.create_literal_type(TypeFlags::STRING_LITERAL, LiteralData::String(text), None);
+        let id = self.create_literal_type(TypeFlags::STRING_LITERAL, text.index(), None);
         let texts = &self.literal_texts;
         self.string_literal_types
             .insert_unique(hash, (text, id), |&(text, _)| {
@@ -1456,11 +1505,8 @@ impl TypeTables {
             crate::perf::bump(crate::perf::PerfCounter::NumberLiteralHits);
             return id;
         }
-        let id = self.create_literal_type(
-            TypeFlags::NUMBER_LITERAL,
-            LiteralData::Number(NumberBits::new(value)),
-            None,
-        );
+        let data = self.literal_data(LiteralValue::Number(value));
+        let id = self.create_literal_type(TypeFlags::NUMBER_LITERAL, data, None);
         self.number_literal_types.insert(key, id);
         id
     }
