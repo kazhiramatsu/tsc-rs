@@ -210,14 +210,16 @@ pub(crate) struct FlowLoopEntry {
     pub(crate) serial: u32,
 }
 
-/// An owned, override-aware snapshot. Most labels have only a few incoming
-/// edges; larger joins keep the same heap-backed snapshot as before.
-pub(crate) enum FlowAntecedents {
+/// Immutable arena antecedents can be borrowed across the recursive walk.
+/// Reduce-label overrides and callers without a separate arena borrow keep
+/// an owned snapshot (inline for the usual small label).
+pub(crate) enum FlowAntecedents<'a> {
+    Borrowed(&'a [FlowId]),
     Inline { len: usize, flows: [FlowId; 4] },
     Heap(Vec<FlowId>),
 }
 
-impl FlowAntecedents {
+impl FlowAntecedents<'_> {
     fn new(antecedents: &[FlowId]) -> Self {
         if antecedents.len() <= 4 {
             let mut flows = [FlowId::new(0); 4];
@@ -232,11 +234,12 @@ impl FlowAntecedents {
     }
 }
 
-impl std::ops::Deref for FlowAntecedents {
+impl std::ops::Deref for FlowAntecedents<'_> {
     type Target = [FlowId];
 
     fn deref(&self) -> &[FlowId] {
         match self {
+            Self::Borrowed(flows) => flows,
             Self::Inline { len, flows } => &flows[..*len],
             Self::Heap(flows) => flows,
         }
@@ -298,20 +301,30 @@ impl<'a> CheckerState<'a> {
     /// the binder graph is immutable to the checker, so the swap lives
     /// in `reduce_label_overrides` and every label read consults it.
     /// tsrs-native: override-map view over the binder arena.
-    pub(crate) fn flow_label_antecedents(&self, file: usize, flow: FlowId) -> FlowAntecedents {
-        self.flow_label_antecedents_in(file, &self.binder.file(file).flow, flow)
-    }
-
-    fn flow_label_antecedents_in(
+    pub(crate) fn flow_label_antecedents(
         &self,
         file: usize,
-        arena: &FlowArena,
         flow: FlowId,
-    ) -> FlowAntecedents {
+    ) -> FlowAntecedents<'static> {
+        let antecedents = self.reduce_label_overrides.get(&(file, flow)).map_or_else(
+            || self.binder.file(file).flow.antecedents(flow),
+            Vec::as_slice,
+        );
+        FlowAntecedents::new(antecedents)
+    }
+
+    fn flow_label_antecedents_in<'b>(
+        &self,
+        file: usize,
+        arena: &'b FlowArena,
+        flow: FlowId,
+    ) -> FlowAntecedents<'b> {
         if let Some(overridden) = self.reduce_label_overrides.get(&(file, flow)) {
             return FlowAntecedents::new(overridden);
         }
-        FlowAntecedents::new(arena.antecedents(flow))
+        // tsgo iterates the immutable binder list directly. Overrides must
+        // remain snapshots: a recursive walk can temporarily replace them.
+        FlowAntecedents::Borrowed(arena.antecedents(flow))
     }
 
     fn flow_payload_node(&self, file: usize, flow: FlowId) -> Option<NodeId> {

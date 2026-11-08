@@ -117,6 +117,7 @@ fn legacy_build(
     packages.sort_unstable_by_key(|(id, _)| *id);
     let package_ids = packages.into_iter().map(|(_, package)| package).collect();
     ResolutionTable {
+        module_lookup: module_lookup_index(&modules, &source_ranges),
         modules,
         source_ranges,
         package_ids,
@@ -272,4 +273,88 @@ fn grouped_freeze_matches_the_old_table_for_shuffled_rows() {
         empty,
         legacy_build(StagedModules::default(), BTreeMap::new(), &sources)
     );
+}
+
+#[test]
+fn module_lookup_checks_full_keys_when_hashes_collide() {
+    fn path(name: &str) -> ProgramPath {
+        ProgramPath::from_js_parts(name.into(), name.into()).unwrap()
+    }
+    let sources: Vec<_> = ["/a.ts", "/b.ts", "/empty.ts"]
+        .into_iter()
+        .map(|name| PreparedSourceFile::new(path(name), ""))
+        .collect();
+    let source_by_canonical = sources
+        .iter()
+        .enumerate()
+        .map(|(i, source)| {
+            (
+                source.path().canonical().clone(),
+                SourceFileId::from_raw(i as u32),
+            )
+        })
+        .collect();
+    let names = [
+        JsString::from("pkg"),
+        JsString::from("pkg/subpath"),
+        JsString::from_code_units(&[0xd800]),
+    ];
+    let modes = [
+        ResolutionMode::Unspecified,
+        ResolutionMode::EsNext,
+        ResolutionMode::CommonJs,
+    ];
+    let mut staged = StagedModules::default();
+    for source in 0..2 {
+        for name in &names {
+            for mode in modes {
+                staged
+                    .insert(
+                        SourceFileId::from_raw(source),
+                        ResolutionKey::new(
+                            sources[source as usize].path().canonical().clone(),
+                            name.as_js(),
+                            mode,
+                        ),
+                        ModuleResolution::not_found(),
+                    )
+                    .unwrap();
+            }
+        }
+    }
+    let mut table = ResolutionTable::build(staged, BTreeMap::new(), &sources);
+    assert_eq!(table.modules.len(), table.module_lookup.len());
+    for name in names
+        .iter()
+        .map(JsString::as_js)
+        .chain(["missing".into(), "Pkg".into()])
+    {
+        for mode in modes {
+            // Force every row into this query's hash bucket. Hash equality
+            // must neither hide a later exact match nor admit a false one.
+            for entry in &mut table.module_lookup {
+                entry.hash = module_lookup_hash(name, mode);
+            }
+            let view = table.view(&sources, &source_by_canonical);
+            for source in 0..4 {
+                let range = table
+                    .source_ranges
+                    .get(source as usize)
+                    .cloned()
+                    .unwrap_or(0..0);
+                let rows = &table.modules[range.start as usize..range.end as usize];
+                let old_index =
+                    rows.partition_point(|row| (row.specifier.as_js(), row.mode) < (name, mode));
+                let expected = rows
+                    .get(old_index)
+                    .filter(|row| row.specifier.as_js() == name && row.mode == mode);
+                let actual = view.module(SourceFileId::from_raw(source), name, mode);
+                assert_eq!(
+                    actual.map(|resolution| resolution.row),
+                    expected,
+                    "source={source} name={name:?} mode={mode:?}"
+                );
+            }
+        }
+    }
 }
