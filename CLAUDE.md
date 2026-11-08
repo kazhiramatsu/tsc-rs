@@ -44,6 +44,15 @@ short user guide.
   windows without concurrent builds or tests.
 - Inspect each check's real exit status (do not pipe it through `tail` or
   `grep`), and report only checks actually run, with their source identity.
+- Performance work (making the compiler faster or lighter, comparing against
+  `tsrs`/`tsgo`, running or measuring perf lanes) follows the project skill
+  `measured-port-optimization`
+  ([SKILL.md](.claude/skills/measured-port-optimization/SKILL.md)) and uses
+  the tools in `scripts/perf/`: outputs byte-identical is the law, the
+  `--extendedDiagnostics` work counters are recorded (not gated), and a
+  candidate is judged on retired instructions at one thread, 9 rounds, low
+  mode (`scripts/perf/lowmode.py`), with its own release binary on the common
+  base.
 
 ## Merging
 
