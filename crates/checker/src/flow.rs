@@ -4546,12 +4546,20 @@ impl<'a> CheckerState<'a> {
     ///
     /// tsc recurses via forEachChild; deep expression chains exist in
     /// the corpus (M2 ground rule: walkers are ITERATIVE), so this is
-    /// an explicit pre-order stack with children pushed reversed —
-    /// write order stays document order, and the LAST assignment's
-    /// write wins exactly as in tsc.
+    /// an explicit pre-order stack in a suffix of child_scratch. Reverse
+    /// only the newly appended children to retain left-to-right order.
+    /// Reentrant walks preserve the caller's pending nodes in the prefix.
     fn mark_node_assignments(&mut self, root: NodeId) -> CheckResult<()> {
-        let mut stack = vec![root];
-        while let Some(node) = stack.pop() {
+        let first = self.child_scratch.len();
+        self.child_scratch.push(root);
+        let result = self.mark_node_assignments_worker(first);
+        self.child_scratch.truncate(first);
+        result
+    }
+
+    fn mark_node_assignments_worker(&mut self, first: usize) -> CheckResult<()> {
+        while self.child_scratch.len() > first {
+            let node = self.child_scratch.pop().expect("assignment walk node");
             match self.kind_of(node) {
                 SyntaxKind::Identifier => {
                     let assignment_target = self.get_assignment_target_kind(node);
@@ -4628,12 +4636,12 @@ impl<'a> CheckerState<'a> {
                 kind if self.is_type_node_kind(kind) => continue,
                 _ => {}
             }
-            let mut children: Vec<NodeId> = Vec::new();
+            let first_child = self.child_scratch.len();
             tsc_syntax::for_each_child(&Published, Published.node(node), |child| {
-                children.push(child);
+                self.child_scratch.push(child);
                 false
             });
-            stack.extend(children.into_iter().rev());
+            self.child_scratch[first_child..].reverse();
         }
         Ok(())
     }

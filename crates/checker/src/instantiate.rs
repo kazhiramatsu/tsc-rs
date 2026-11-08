@@ -1303,14 +1303,7 @@ impl<'a> CheckerState<'a> {
                     None => Ok(false),
                 }
             }
-            _ => {
-                for child in self.children_of(node) {
-                    if self.contains_reference(tp, child)? {
-                        return Ok(true);
-                    }
-                }
-                Ok(false)
-            }
+            _ => self.for_each_child_of(node, |state, child| state.contains_reference(tp, child)),
         }
     }
 
@@ -3457,7 +3450,7 @@ impl<'a> CheckerState<'a> {
 
     // ---- node utilities for the containsReference walker ----
 
-    /// tsrs-native: owned child-list adapter around the syntax crate's
+    /// tsrs-native: scratch-backed child adapter around the syntax crate's
     /// forEachChild traversal; tsc passes callbacks directly. tsgo's
     /// reparser writes a JavaScript node's hosted JSDoc into its syntax
     /// (`jsdoc_hosted`), so its forEachChild also visits a function's or
@@ -3465,21 +3458,39 @@ impl<'a> CheckerState<'a> {
     /// type, a declaration's `@type` or `@param` type, a function's
     /// `@returns` type or whole-function `@type`, and the type of the cast
     /// wrapped around an expression.
-    pub(crate) fn children_of(&self, node: NodeId) -> Vec<NodeId> {
-        let mut children = Vec::new();
+    pub(crate) fn for_each_child_of(
+        &mut self,
+        node: NodeId,
+        mut visit: impl FnMut(&mut Self, NodeId) -> CheckResult<bool>,
+    ) -> CheckResult<bool> {
+        let first = self.child_scratch.len();
         for_each_child(&Published, Published.node(node), |child| {
-            children.push(child);
+            self.child_scratch.push(child);
             false
         });
         if self.is_in_js_file(node) {
             let hosted = self.hosted_jsdoc(node);
-            children.extend(self.reparsed_type_parameters(node));
-            children.extend(self.reparsed_this_type_node(node));
-            children.extend(hosted.type_of(node));
-            children.extend(hosted.full_signature_of(node));
-            children.extend(hosted.cast_of(node).map(|cast| cast.type_node));
+            self.child_scratch
+                .extend(self.reparsed_type_parameters(node));
+            self.child_scratch
+                .extend(self.reparsed_this_type_node(node));
+            self.child_scratch.extend(hosted.type_of(node));
+            self.child_scratch.extend(hosted.full_signature_of(node));
+            self.child_scratch
+                .extend(hosted.cast_of(node).map(|cast| cast.type_node));
         }
-        children
+        let last = self.child_scratch.len();
+        let result = (|| {
+            for position in first..last {
+                let child = self.child_scratch[position];
+                if visit(self, child)? {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        })();
+        self.child_scratch.truncate(first);
+        result
     }
 
     /// tsc-port: isThisIdentifier @6.0.3

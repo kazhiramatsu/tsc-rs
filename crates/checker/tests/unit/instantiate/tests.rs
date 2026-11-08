@@ -1,7 +1,43 @@
+use tsc_syntax::NodeLookup;
 use tsc_types::{CompilerOptions, ObjectFlags, SymbolFlags, TypeFlags, UnionReduction};
 
 use crate::state::test_support::with_program_state;
 use crate::state::CheckerState;
+
+#[test]
+fn child_scratch_preserves_nested_visits_early_returns_and_the_callers_prefix() {
+    with_program_state(
+        &[("a.ts", "let x = 1; function f() { x = 2; } x = 3;")],
+        &CompilerOptions::default(),
+        |state| {
+            let root = state.binder.source(0).root;
+            let mut expected = Vec::new();
+            tsc_syntax::for_each_child(
+                &tsc_syntax::Published,
+                tsc_syntax::Published.node(root),
+                |child| {
+                    expected.push(child);
+                    false
+                },
+            );
+            state.child_scratch.push(root);
+            let mut observed = Vec::new();
+            assert!(!state
+                .for_each_child_of(root, |state, child| {
+                    observed.push(child);
+                    let first = state.child_scratch.len();
+                    state.for_each_child_of(child, |_, _| Ok(true))?;
+                    assert_eq!(state.child_scratch.len(), first);
+                    Ok(false)
+                })
+                .unwrap());
+            assert_eq!(observed, expected);
+            assert_eq!(state.child_scratch, [root]);
+            assert!(state.for_each_child_of(root, |_, _| Ok(true)).unwrap());
+            assert_eq!(state.child_scratch, [root]);
+        },
+    );
+}
 
 fn annotation_of_var(state: &CheckerState, name: &str) -> tsc_syntax::NodeId {
     crate::relpin::find_probe_annotation(state.binder.source(0), name).expect("var with annotation")

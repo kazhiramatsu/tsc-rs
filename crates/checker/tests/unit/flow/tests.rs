@@ -3,6 +3,38 @@ use crate::state::test_support::with_program_state;
 use crate::CompilerOptions;
 
 #[test]
+fn assignment_walk_keeps_the_last_write_definite_assignment_and_scratch_prefix() {
+    with_program_state(
+        &[("a.ts", "function f() { let x: number; x = 1; x += 2; }")],
+        &CompilerOptions::default(),
+        |state| {
+            let root = state.binder.source(0).root;
+            let last = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .filter(|&node| {
+                    state.kind_of(node) == tsc_syntax::SyntaxKind::Identifier
+                        && state.escaped_text_of(Some(node)) == Some("x")
+                })
+                .max_by_key(|&node| state.pos_of(node))
+                .unwrap();
+            let symbol = state.get_resolved_symbol(last).unwrap().unwrap();
+            let declaration = state.binder.symbol(symbol).value_declaration.unwrap();
+            let expected = state.extend_assignment_position(last, declaration);
+            state.child_scratch.push(root);
+            state.mark_node_assignments(root).unwrap();
+            assert_eq!(state.child_scratch, [root]);
+            assert_eq!(
+                *state.links.symbol_cold().last_assignment_pos.get(symbol),
+                Some(-expected)
+            );
+        },
+    );
+}
+
+#[test]
 fn flow_type_accessors() {
     let ty = tsc_types::TypeId::new(7);
     assert_eq!(FlowType::Type(ty).get_type(), ty);

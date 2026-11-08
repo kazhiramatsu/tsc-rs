@@ -9571,12 +9571,9 @@ impl<'a> CheckerState<'a> {
         if node_util::is_function_like_kind(self.kind_of(expression)) {
             return Ok(false);
         }
-        for child in self.children_of(expression) {
-            if self.contains_same_named_this_property(this_property, child)? {
-                return Ok(true);
-            }
-        }
-        Ok(false)
+        self.for_each_child_of(expression, |state, child| {
+            state.contains_same_named_this_property(this_property, child)
+        })
     }
 
     /// tsgo-port: getTypeFromPropertyDescriptor @7.1: the descriptor's
