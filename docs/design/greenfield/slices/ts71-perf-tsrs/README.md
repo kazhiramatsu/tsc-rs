@@ -111,6 +111,38 @@ lane `tax-g`（loader、tax-f の候補行）：F1 relocation の layout descrip
 F4 位置 index の ASCII run 走査（−0.56%）、F5 解決表の freeze 順（−0.26%）を [#926](https://github.com/kazhiramatsu/tsc-rs/pull/926) として merge
 （fingerprint 0 差、生成器再現、出力同一）；F2 観測 cache の FxHash（−0.11%）と F6 読み込みの UTF-8 境界（−0.05%）は除外。
 
+**結果 3（2026-11-08 15:2x、lane `tax-h`・`tax-i`、base `231d925b8`、1 thread、9 round、低い峰、出力同一）。** `tax-h`（checker/types の
+比較器・関係・mapper・container、独立 patch 9 行、H9 は tax-d の D5 で既存）：払うのは **H5**（named union の membership を sort 済み list の
+二分探索から id の `FxHashSet` に：next **−3.66%**、vue −0.53%、playwright −0.53%、hono −0.42%、ts −0.36%、VS Code −0.15%）と **H2**（比較器で
+alias の無い plain string literal 同士は名前比較を飛ばして bytes と id に：vue −0.72%、playwright −0.28%、next −0.20%、VS Code −0.13%）。
+H1・H3・H7 は基準未満（H7 は 8 案件すべて −0.08〜−0.24% で向きは揃う）、H4・H6 は ≈0 か悪化、H8（list pool）は VS Code +0.21% で他 −0.2〜−0.4%
+の混在、H10 は playwright −0.50% と ts +0.21% の混在。全部で VS Code −0.28%、next −4.11%、vue −1.96%。H2+H5 を
+[#928](https://github.com/kazhiramatsu/tsc-rs/pull/928) に（main `db1419734` 対：next −3.82%、vue −1.12%、playwright −0.78%、hono −0.43%、ts −0.45%、
+VS Code −0.09%；counter 不変；types の test 66 本、8 案件出力同一、4-checker 制御は既知 4 件のみ）→ **merge `dd000d63f`**（hosted gates pass）。tax-i の 3 行は所有者の判断（「Types がかなり減りますが見送るのですか」）で [#929](https://github.com/kazhiramatsu/tsc-rs/pull/929) に（tax-h の上に積む；tax-h binary 対で命令 VS Code −0.24%・playwright −0.46%、peak −15 MiB、Types hono −427・zod −1,242、出力同一、4-checker 既知 4 件；hosted gates 待ち）。
+
+`tax-i`（型生成・instantiation の tsrs との差、報告 `handover/arch-arena/taxi/REPORT.md`）：両 port に一時 counter を置いて種別・文脈・呼び出し元で
+突き合わせた結果、**instantiation 差の 98%（VS Code で 198,334 Types / 200,634 Instantiations）は tsrs の `is_property_of_unit_type`**（判別 property
+の探索で、method だけの symbol や安定した object の property の関数型を作らずに除外する事前 filter）。tsrs でこれを切ると差はほぼ消える。ただし lane の
+canary で、省いた instantiation が深さ予算を消費しなくなると TS2589 が success に変わる構成が作れたため、**出力の法で採らない**（tsrs はこの危険を
+受け入れている）。残る安全な 4 行（I1 tuple 要素 parameter の target 間共有 −197,122 Types、I2 宣言 method の保守的 guard、I3/I4 index 名・文脈
+literal の未使用 intern の省略）は VS Code の Types −205,851（−8.0%）・Instantiations 不変、命令数は全部で VS Code −0.20%・最大 playwright −0.46%
+で基準未満、peak は VS Code −15 MiB（9 round すべて下がる実差、0.6%）。基準では見送りだが、所有者は Types の削減と tsrs との差の説明が閉じる価値を取り、I1+I3+I4 を #929 として出した（I2 は利得なしで除外）。残差 ≈ 4,137
+miss（conditional +5,410、indexed-access +2,774、負の種別で相殺）は未説明。
+
+**検査の補完（2026-11-08 15:0x）。** #921〜#926 では CLAUDE.md の「checker 変更後の `conformance_ts71.py --workers 1 --checkers 4` と 1-checker
+報告の比較」を省いていた。main `db1419734`（#921〜#927 入り）と pre-tax base `a75438da1` の両方で release build → 1-checker（`--check` exit 0、
+ratchet 0 regressions）→ 4-checker 制御 → 比較：どちらも 15,335 一致・4 差で、4 件は [conformance-ts71](../conformance-ts71/README.md) の
+2026-10-06 の記録どおり（`mutuallyRecursiveInference`・`incorrectRecursiveMappedTypeConstraint`・`typeParameterWithInvalidConstraintType`・
+`recursiveMappedTypes`：1-checker runner が emit 後の 2 つ目の Program の診断を使うことによる順序差で、partition 依存ではない）。
+`a75438da1` と `db1419734` の 1-checker 報告同士は 15,339 構成すべて同一（描画した診断と emit の digest まで）、4-checker 報告同士も同一：
+出力の法は conformance 全体でも成り立っている。
+
+**道具と手順の定着（[#927](https://github.com/kazhiramatsu/tsc-rs/pull/927)、`db1419734`）。** 計測の道具を `scripts/perf/`（`serial.py`、`lowmode.py`、
+`diffout.py`、`binprov.py`、`phasecmp.py`、`callers.py`、`build-patches.sh`、`measure-patches.sh`、環境変数 `TSRS_REPO`・`TSRS_PERF_ROOT`・
+`TSRS_BENCH_ROOT`）に取り込み、手順（法・帰属の梯子・lane の契約・統合 pipeline・教訓）を project skill
+`.claude/skills/measured-port-optimization/` に書いた。CLAUDE.md の Rules から参照。計測の実時間：VS Code 1 thread は cpu 約 9 秒（113 G 命令）、
+8 案件 × 10 run × 11 binary の窓は 26 分。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
