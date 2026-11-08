@@ -302,10 +302,7 @@ impl<'a> CheckerState<'a> {
     /// locals or exports.
     fn is_module_attributes_scope(&self, location: NodeId, last_location: Option<NodeId>) -> bool {
         last_location.is_some()
-            && matches!(
-                self.data_of(location),
-                NodeData::ModuleDeclaration(data) if data.attributes == last_location
-            )
+            && matches!(self.record_of(location).as_module_declaration(), Some(data) if data.attributes == last_location)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -2938,22 +2935,19 @@ impl<'a> CheckerState<'a> {
     /// tsc idText/direct escapedText access.
     /// The escaped name of an Identifier or PrivateIdentifier node.
     pub(crate) fn identifier_name_of(&self, node: NodeId) -> Option<EscapedName> {
-        match self.data_of(node) {
-            NodeData::Identifier(data) => Some(data.escaped_text),
-            NodeData::PrivateIdentifier(data) => Some(data.escaped_text),
+        match_record! { self.record_of(node), {
+            as_identifier(data) => Some(data.escaped_text),
+            as_private_identifier(data) => Some(data.escaped_text),
             _ => None,
-        }
+        }}
     }
 
     pub(crate) fn identifier_text_of(&self, node: NodeId) -> Option<&'a str> {
-        match self.data_of(node) {
-            NodeData::Identifier(data) => Some(data.escaped_text.identifier_text()),
-            // tsc idText serves Identifier AND PrivateIdentifier — the
-            // private text keeps its `#` (getSymbolNameForPrivateIdentifier
-            // suffixes exactly this form).
-            NodeData::PrivateIdentifier(data) => Some(data.escaped_text.identifier_text()),
+        match_record! { self.record_of(node), {
+            as_identifier(data) => Some(data.escaped_text.identifier_text()),
+            as_private_identifier(data) => Some(data.escaped_text.identifier_text()),
             _ => None,
-        }
+        }}
     }
 
     /// tsc-port: getResolvedSymbol @6.0.3
@@ -3101,10 +3095,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: typed HeritageClause projection for tsc's direct
     /// token comparison.
     pub(crate) fn heritage_clause_is_extends(&self, clause: NodeId) -> bool {
-        matches!(
-            self.data_of(clause),
-            NodeData::HeritageClause(data) if data.token == SyntaxKind::ExtendsKeyword
-        )
+        matches!(self.record_of(clause).as_heritage_clause(), Some(data) if data.token == SyntaxKind::ExtendsKeyword)
     }
 
     fn is_class_element_kind(&self, node: NodeId) -> bool {
@@ -3137,7 +3128,28 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: typed AST projection for tsc's direct declaration
     /// `type` property access.
     pub fn type_annotation_of(&self, node: NodeId) -> Option<NodeId> {
-        tsc_binder::node_util::type_annotation_of_data(&self.data_of(node))
+        let record = self.record_of(node);
+        match record.kind {
+            SyntaxKind::FunctionDeclaration
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::CallSignature
+            | SyntaxKind::ConstructSignature
+            | SyntaxKind::MethodSignature
+            | SyntaxKind::FunctionType
+            | SyntaxKind::ConstructorType
+            | SyntaxKind::Constructor
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::Parameter
+            | SyntaxKind::VariableDeclaration
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::TypeAssertionExpression => record.type_field(),
+            _ => None,
+        }
     }
 
     fn parameters_of(&self, node: NodeId) -> crate::annotate::NodeIds<'a> {

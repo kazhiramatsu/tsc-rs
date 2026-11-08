@@ -406,21 +406,21 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_private_names: bool,
     ) -> CheckResult<()> {
-        let members = match self.data_of(node) {
-            NodeData::ClassDeclaration(data) => data.members,
-            NodeData::ClassExpression(data) => data.members,
-            NodeData::InterfaceDeclaration(data) => data.members,
-            NodeData::TypeLiteral(data) => data.members,
+        let members = match_record! { self.record_of(node), {
+            as_class_declaration(data) => data.members,
+            as_class_expression(data) => data.members,
+            as_interface_declaration(data) => data.members,
+            as_type_literal(data) => data.members,
             _ => None,
-        };
+        }};
         let members = self.nodes_of(members);
         let mut instance_names: rustc_hash::FxHashMap<EscapedName, u8> = Default::default();
         let mut static_names: rustc_hash::FxHashMap<EscapedName, u8> = Default::default();
         let mut private_names: rustc_hash::FxHashMap<EscapedName, u8> = Default::default();
         for &member in &members {
             if self.kind_of(member) == SyntaxKind::Constructor {
-                let parameters = match self.data_of(member) {
-                    NodeData::Constructor(data) => data.parameters,
+                let parameters = match self.record_of(member).as_constructor() {
+                    Some(data) => data.parameters,
                     _ => None,
                 };
                 for parameter in self.nodes_of(parameters) {
@@ -1206,11 +1206,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4ed1934b252ad9f0205a4ae8d5316c4d1602af811184091ed9dbc5b8c9877321
     /// tsc-span: _tsc.js:89470-89473
     fn check_grammar_class_like_declaration(&mut self, node: NodeId) -> bool {
-        let type_parameters = match self.data_of(node) {
-            NodeData::ClassDeclaration(data) => data.type_parameters,
-            NodeData::ClassExpression(data) => data.type_parameters,
+        let type_parameters = match_record! { self.record_of(node), {
+            as_class_declaration(data) => data.type_parameters,
+            as_class_expression(data) => data.type_parameters,
             _ => None,
-        };
+        }};
         self.check_grammar_class_declaration_heritage_clauses(node)
             || self.check_grammar_type_parameter_list(node, type_parameters)
     }
@@ -1283,8 +1283,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:89590-89607
     pub(crate) fn check_grammar_interface_declaration(&mut self, node: NodeId) -> bool {
         let mut seen_extends_clause = false;
-        let heritage_clauses = match self.data_of(node) {
-            NodeData::InterfaceDeclaration(data) => data.heritage_clauses,
+        let heritage_clauses = match self.record_of(node).as_interface_declaration() {
+            Some(data) => data.heritage_clauses,
             _ => None,
         };
         for clause in self.nodes_of(heritage_clauses) {
@@ -1642,11 +1642,11 @@ impl<'a> CheckerState<'a> {
             None => None,
         };
         let base_static_type = self.get_base_constructor_type_of_class(ty)?;
-        let members = match self.data_of(node) {
-            NodeData::ClassDeclaration(data) => data.members,
-            NodeData::ClassExpression(data) => data.members,
+        let members = match_record! { self.record_of(node), {
+            as_class_declaration(data) => data.members,
+            as_class_expression(data) => data.members,
             _ => None,
-        };
+        }};
         for member in self.nodes_of(members) {
             if tsc_binder::node_util::has_syntactic_modifier(
                 &Published,
@@ -2616,8 +2616,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 8370e069d548eefacf2e9cee538e49d3f25da4bd308441f99d511c96b6dc068c
     /// tsc-span: _tsc.js:85499-85501
     fn is_property_without_initializer(&self, node: NodeId) -> bool {
-        match self.data_of(node) {
-            NodeData::PropertyDeclaration(data) => {
+        match self.record_of(node).as_property_declaration() {
+            Some(data) => {
                 !tsc_binder::node_util::has_syntactic_modifier(
                     &Published,
                     node,

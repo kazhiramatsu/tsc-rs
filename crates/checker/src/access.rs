@@ -14,7 +14,7 @@
 
 use tsc_binder::node_util;
 use tsc_diagnostics::DiagnosticCategory;
-use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
+use tsc_syntax::{NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{
     CheckMode, EscapedName, IntersectionFlags, JsStr, JsString, MappedTypeModifiers, ModifierFlags,
     NodeFlags, SymbolFlags, SymbolId, TypeFacts, TypeFlags, TypeId, UnionReduction,
@@ -899,11 +899,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 00057dc50395f95f80ad950b1020aa661aa6ce6404eed788d5235e78bc996404
     /// tsc-span: _tsc.js:14612-14622
     fn is_this_property(&self, node: NodeId) -> bool {
-        let expression = match self.data_of(node) {
-            NodeData::PropertyAccessExpression(data) => data.expression,
-            NodeData::ElementAccessExpression(data) => data.expression,
+        let expression = match_record! { self.record_of(node), {
+            as_property_access_expression(data) => data.expression,
+            as_element_access_expression(data) => data.expression,
             _ => return false,
-        };
+        }};
         expression.is_some_and(|expression| self.kind_of(expression) == SyntaxKind::ThisKeyword)
     }
 
@@ -950,8 +950,8 @@ impl<'a> CheckerState<'a> {
         property: SymbolId,
     ) -> CheckResult<bool> {
         let is_super = self.kind_of(node) == SyntaxKind::PropertyAccessExpression
-            && match self.data_of(node) {
-                NodeData::PropertyAccessExpression(data) => data
+            && match self.record_of(node).as_property_access_expression() {
+                Some(data) => data
                     .expression
                     .is_some_and(|expression| self.kind_of(expression) == SyntaxKind::SuperKeyword),
                 _ => false,
@@ -1142,11 +1142,11 @@ impl<'a> CheckerState<'a> {
         matches!(
             self.kind_of(parent),
             SyntaxKind::CallExpression | SyntaxKind::NewExpression
-        ) && match self.data_of(parent) {
-            NodeData::CallExpression(data) => data.expression == Some(node),
-            NodeData::NewExpression(data) => data.expression == Some(node),
+        ) && match_record! { self.record_of(parent), {
+            as_call_expression(data) => data.expression == Some(node),
+            as_new_expression(data) => data.expression == Some(node),
             _ => false,
-        }
+        }}
     }
 
     // ---- private-identifier family ----
@@ -1565,8 +1565,8 @@ impl<'a> CheckerState<'a> {
         declarations.iter().find_map(|&declaration| {
             self.direct_jsdoc_documents(declaration)
                 .into_iter()
-                .find_map(|document| match self.data_of(document) {
-                    NodeData::JSDoc(data) => self
+                .find_map(|document| match self.record_of(document).as_js_doc() {
+                    Some(data) => self
                         .nodes_of(data.tags)
                         .into_iter()
                         .find(|&tag| self.kind_of(tag) == SyntaxKind::JSDocDeprecatedTag),
@@ -1648,55 +1648,55 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:77669-77691
     pub(crate) fn get_deprecated_suggestion_node(&self, node: NodeId) -> NodeId {
         let node = self.skip_parentheses(node);
-        match self.data_of(node) {
-            NodeData::CallExpression(data) => data
-                .expression
-                .map(|expression| self.get_deprecated_suggestion_node(expression))
-                .unwrap_or(node),
-            NodeData::NewExpression(data) => data
-                .expression
-                .map(|expression| self.get_deprecated_suggestion_node(expression))
-                .unwrap_or(node),
-            NodeData::Decorator(data) => data
-                .expression
-                .map(|expression| self.get_deprecated_suggestion_node(expression))
-                .unwrap_or(node),
-            NodeData::TaggedTemplateExpression(data) => data
-                .tag
-                .map(|tag| self.get_deprecated_suggestion_node(tag))
-                .unwrap_or(node),
-            NodeData::JsxOpeningElement(data) => data
-                .tag_name
-                .map(|tag| self.get_deprecated_suggestion_node(tag))
-                .unwrap_or(node),
-            NodeData::JsxSelfClosingElement(data) => data
-                .tag_name
-                .map(|tag| self.get_deprecated_suggestion_node(tag))
-                .unwrap_or(node),
-            NodeData::ElementAccessExpression(data) => data.argument_expression.unwrap_or(node),
-            NodeData::PropertyAccessExpression(data) => data.name.unwrap_or(node),
-            NodeData::TypeReference(data) => data
-                .type_name
-                .and_then(|name| match self.data_of(name) {
-                    NodeData::QualifiedName(qualified) => qualified.right,
-                    _ => None,
-                })
-                .unwrap_or(node),
-            _ => node,
-        }
+        match_record! { self.record_of(node), {
+                    as_call_expression(data) => data
+                        .expression
+                        .map(|expression| self.get_deprecated_suggestion_node(expression))
+                        .unwrap_or(node),
+                    as_new_expression(data) => data
+                        .expression
+                        .map(|expression| self.get_deprecated_suggestion_node(expression))
+                        .unwrap_or(node),
+                    as_decorator(data) => data
+                        .expression
+                        .map(|expression| self.get_deprecated_suggestion_node(expression))
+                        .unwrap_or(node),
+                    as_tagged_template_expression(data) => data
+                        .tag
+                        .map(|tag| self.get_deprecated_suggestion_node(tag))
+                        .unwrap_or(node),
+                    as_jsx_opening_element(data) => data
+                        .tag_name
+                        .map(|tag| self.get_deprecated_suggestion_node(tag))
+                        .unwrap_or(node),
+                    as_jsx_self_closing_element(data) => data
+                        .tag_name
+                        .map(|tag| self.get_deprecated_suggestion_node(tag))
+                        .unwrap_or(node),
+                    as_element_access_expression(data) => data.argument_expression.unwrap_or(node),
+                    as_property_access_expression(data) => data.name.unwrap_or(node),
+                    as_type_reference(data) => data
+                        .type_name
+                        .and_then(|name| match self.record_of(name).as_qualified_name() {
+        Some(qualified) => qualified.right,
+        _ => None,
+        })
+                        .unwrap_or(node),
+                    _ => node,
+                }}
     }
 
     fn invoked_expression_of(&self, node: NodeId) -> Option<NodeId> {
-        match self.data_of(node) {
-            NodeData::TaggedTemplateExpression(data) => data.tag,
-            NodeData::JsxOpeningElement(data) => data.tag_name,
-            NodeData::JsxSelfClosingElement(data) => data.tag_name,
-            NodeData::BinaryExpression(data) => data.right,
-            NodeData::CallExpression(data) => data.expression,
-            NodeData::NewExpression(data) => data.expression,
-            NodeData::Decorator(data) => data.expression,
+        match_record! { self.record_of(node), {
+            as_tagged_template_expression(data) => data.tag,
+            as_jsx_opening_element(data) => data.tag_name,
+            as_jsx_self_closing_element(data) => data.tag_name,
+            as_binary_expression(data) => data.right,
+            as_call_expression(data) => data.expression,
+            as_new_expression(data) => data.expression,
+            as_decorator(data) => data.expression,
             _ => None,
-        }
+        }}
     }
 
     /// tsc-port: tryGetPropertyAccessOrIdentifierToString @6.0.3
@@ -1706,39 +1706,39 @@ impl<'a> CheckerState<'a> {
         &self,
         expression: NodeId,
     ) -> Option<JsString> {
-        match self.data_of(expression) {
-            NodeData::PropertyAccessExpression(data) => {
+        match_record! { self.record_of(expression), {
+            as_property_access_expression(data) => {
                 let mut base = self.property_access_or_identifier_to_string(data.expression?)?;
                 let name = self.entity_name_to_string(data.name?).ok()?;
                 base.push_str(".");
                 base.push_str(&name);
                 Some(base)
-            }
-            NodeData::ElementAccessExpression(data) => {
+            },
+            as_element_access_expression(data) => {
                 let mut base = self.property_access_or_identifier_to_string(data.expression?)?;
                 let argument = data.argument_expression?;
-                let name = match self.data_of(argument) {
-                    NodeData::Identifier(data) => data.text().into(),
-                    NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
-                    NodeData::NoSubstitutionTemplateLiteral(data) => {
+                let name = match_record!{ self.record_of(argument), {
+                    as_identifier(data) => data.text().into(),
+                    as_string_literal(data) => self.text_js(data.text).to_owned(),
+                    as_no_substitution_template_literal(data) => {
                         self.text_js(data.text).to_owned()
-                    }
-                    NodeData::NumericLiteral(data) => {
+                    },
+                    as_numeric_literal(data) => {
                         tsc_types::JsString::from(self.text_utf8(data.text))
-                    }
-                    NodeData::BigIntLiteral(data) => {
+                    },
+                    as_big_int_literal(data) => {
                         tsc_types::JsString::from(self.text_utf8(data.text))
-                    }
+                    },
                     _ => return None,
-                };
+                }};
                 base.push_str(".");
                 base.push_js(name.as_js());
                 Some(base)
-            }
-            NodeData::Identifier(data) => Some(data.text().into()),
-            NodeData::JsxNamespacedName(_) => Some(self.jsx_attribute_name_text(expression).into()),
+            },
+            as_identifier(data) => Some(data.text().into()),
+            as_jsx_namespaced_name(_) => Some(self.jsx_attribute_name_text(expression).into()),
             _ => None,
-        }
+        }}
     }
 
     /// tsc-port: checkDeprecatedSignature @6.0.3
@@ -1785,11 +1785,11 @@ impl<'a> CheckerState<'a> {
             self.kind_of(source),
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
         ) {
-            let expression = match self.data_of(source) {
-                NodeData::PropertyAccessExpression(data) => data.expression,
-                NodeData::ElementAccessExpression(data) => data.expression,
+            let expression = match_record! { self.record_of(source), {
+                as_property_access_expression(data) => data.expression,
+                as_element_access_expression(data) => data.expression,
                 _ => None,
-            };
+            }};
             let Some(expression) = expression else {
                 return Ok(false);
             };
@@ -1815,11 +1815,11 @@ impl<'a> CheckerState<'a> {
         expression: NodeId,
         reference: NodeId,
     ) -> CheckResult<bool> {
-        let (invoked, arguments) = match self.data_of(expression) {
-            NodeData::CallExpression(data) => (data.expression, data.arguments),
-            NodeData::NewExpression(data) => (data.expression, data.arguments),
+        let (invoked, arguments) = match_record! { self.record_of(expression), {
+            as_call_expression(data) => (data.expression, data.arguments),
+            as_new_expression(data) => (data.expression, data.arguments),
             _ => return Ok(false),
-        };
+        }};
         for argument in self.nodes_of(arguments) {
             if self.is_or_contains_matching_reference_for_deprecation(reference, argument)?
                 || self.optional_chain_contains_reference(argument, reference)?
@@ -1827,9 +1827,11 @@ impl<'a> CheckerState<'a> {
                 return Ok(true);
             }
         }
-        let receiver = invoked.and_then(|invoked| match self.data_of(invoked) {
-            NodeData::PropertyAccessExpression(data) => data.expression,
-            _ => None,
+        let receiver = invoked.and_then(|invoked| {
+            match self.record_of(invoked).as_property_access_expression() {
+                Some(data) => data.expression,
+                _ => None,
+            }
         });
         match receiver {
             Some(receiver) => {
@@ -1892,8 +1894,8 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::JsxOpeningElement
             | SyntaxKind::JsxSelfClosingElement
             | SyntaxKind::JsxOpeningFragment => true,
-            SyntaxKind::BinaryExpression => match self.data_of(node) {
-                NodeData::BinaryExpression(data) => data.operator_token.is_some_and(|operator| {
+            SyntaxKind::BinaryExpression => match self.record_of(node).as_binary_expression() {
+                Some(data) => data.operator_token.is_some_and(|operator| {
                     self.kind_of(operator) == SyntaxKind::InstanceOfKeyword
                 }),
                 _ => false,
@@ -2508,15 +2510,15 @@ impl<'a> CheckerState<'a> {
             self.kind_of(node),
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
         );
-        let receiver_is_this = match self.data_of(node) {
-            NodeData::PropertyAccessExpression(data) => data
+        let receiver_is_this = match_record! { self.record_of(node), {
+            as_property_access_expression(data) => data
                 .expression
                 .is_some_and(|e| self.kind_of(e) == SyntaxKind::ThisKeyword),
-            NodeData::ElementAccessExpression(data) => data
+            as_element_access_expression(data) => data
                 .expression
                 .is_some_and(|e| self.kind_of(e) == SyntaxKind::ThisKeyword),
             _ => false,
-        };
+        }};
         // tsgo getFlowTypeOfAccessExpression (TypeScript 7.1): a `this.p` read
         // in the constructor of the class declaring the uninitialized,
         // non-static property `p`; otherwise any property whose value
@@ -2536,10 +2538,8 @@ impl<'a> CheckerState<'a> {
                     declaration,
                     ModifierFlags::ABSTRACT,
                 )
-                && match self.data_of(declaration) {
-                    NodeData::PropertyDeclaration(data) => {
-                        data.initializer.is_none() && data.exclamation_token.is_none()
-                    }
+                && match self.record_of(declaration).as_property_declaration() {
+                    Some(data) => data.initializer.is_none() && data.exclamation_token.is_none(),
                     _ => false,
                 };
             let is_static = self
@@ -3005,28 +3005,28 @@ impl<'a> CheckerState<'a> {
         let mut message: Option<&'static tsc_diagnostics::DiagnosticMessage> = None;
         let is_optional_property = self.kind_of(value_declaration)
             == SyntaxKind::PropertyDeclaration
-            && match self.data_of(value_declaration) {
-                NodeData::PropertyDeclaration(data) => data.question_token.is_some(),
+            && match self.record_of(value_declaration).as_property_declaration() {
+                Some(data) => data.question_token.is_some(),
                 _ => false,
             };
         let node_is_nested_access = matches!(
             self.kind_of(node),
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
-        ) && match self.data_of(node) {
-            NodeData::PropertyAccessExpression(data) => data.expression.is_some_and(|e| {
+        ) && match_record! { self.record_of(node), {
+            as_property_access_expression(data) => data.expression.is_some_and(|e| {
                 matches!(
                     self.kind_of(e),
                     SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
                 )
             }),
-            NodeData::ElementAccessExpression(data) => data.expression.is_some_and(|e| {
+            as_element_access_expression(data) => data.expression.is_some_and(|e| {
                 matches!(
                     self.kind_of(e),
                     SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
                 )
             }),
             _ => false,
-        };
+        }};
         let static_method_exemption = self.kind_of(value_declaration)
             == SyntaxKind::MethodDeclaration
             && self
@@ -3101,11 +3101,11 @@ impl<'a> CheckerState<'a> {
         }
         // tsgo checker.go:27823-27832: CommonJS `exports.x` / `exports[k]`
         // is never readonly.
-        let object = match self.data_of(expr) {
-            NodeData::PropertyAccessExpression(data) => data.expression,
-            NodeData::ElementAccessExpression(data) => data.expression,
+        let object = match_record! { self.record_of(expr), {
+            as_property_access_expression(data) => data.expression,
+            as_element_access_expression(data) => data.expression,
             _ => None,
-        };
+        }};
         if let Some(object) = object.map(|object| self.skip_parentheses(object)) {
             if self.kind_of(object) == SyntaxKind::Identifier
                 && self
@@ -3158,11 +3158,11 @@ impl<'a> CheckerState<'a> {
             self.kind_of(expr),
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
         ) {
-            let receiver = match self.data_of(expr) {
-                NodeData::PropertyAccessExpression(data) => data.expression,
-                NodeData::ElementAccessExpression(data) => data.expression,
+            let receiver = match_record! { self.record_of(expr), {
+                as_property_access_expression(data) => data.expression,
+                as_element_access_expression(data) => data.expression,
                 _ => None,
-            };
+            }};
             if let Some(mut node) = receiver {
                 while self.kind_of(node) == SyntaxKind::ParenthesizedExpression {
                     let Some(data) = self.record_of(node).as_parenthesized_expression() else {

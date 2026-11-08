@@ -899,17 +899,15 @@ impl<'a> CheckerState<'a> {
     fn is_export_or_export_expression(&self, location: NodeId) -> bool {
         let mut current = location;
         while let Some(parent) = self.parent_of(current) {
-            match self.data_of(parent) {
-                NodeData::ExportAssignment(data) if data.expression == Some(current) => {
+            match_record! { self.record_of(parent), {
+                as_export_assignment(data) if data.expression == Some(current) => {
                     return self.is_entity_name_expression(current);
-                }
-                NodeData::ExportSpecifier(data)
-                    if data.name == Some(current) || data.property_name == Some(current) =>
-                {
+                },
+                as_export_specifier(data) if data.name == Some(current) || data.property_name == Some(current) => {
                     return true;
-                }
-                _ => {}
-            }
+                },
+                _ => {},
+            }}
             current = parent;
         }
         false
@@ -1207,10 +1205,8 @@ impl<'a> CheckerState<'a> {
         let Some(parent) = self.parent_of(node) else {
             return true;
         };
-        if matches!(
-            self.data_of(parent),
-            NodeData::PropertyAccessExpression(data) if data.expression == Some(node)
-        ) {
+        if matches!(self.record_of(parent).as_property_access_expression(), Some(data) if data.expression == Some(node))
+        {
             return false;
         }
         if matches!(
@@ -1223,10 +1219,7 @@ impl<'a> CheckerState<'a> {
             .parent_of(parent)
             .and_then(|grandparent| self.parent_of(grandparent));
         if great_grandparent.is_some_and(|declaration| {
-            matches!(
-                self.data_of(declaration),
-                NodeData::ExportDeclaration(data) if data.is_type_only
-            )
+            matches!(self.record_of(declaration).as_export_declaration(), Some(data) if data.is_type_only)
         }) {
             return false;
         }
@@ -2150,8 +2143,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: df9ae7461357c5238af9db4e5e91ed7115206205987d61e15485a6ab87b04405
     /// tsc-span: _tsc.js:14874-14876
     pub(crate) fn external_module_require_argument(&self, node: NodeId) -> Option<NodeId> {
-        let mut initializer = match self.data_of(node) {
-            NodeData::VariableDeclaration(data) => data.initializer?,
+        let mut initializer = match self.record_of(node).as_variable_declaration() {
+            Some(data) => data.initializer?,
             _ => return None,
         };
         loop {
@@ -2928,25 +2921,25 @@ impl<'a> CheckerState<'a> {
         specifier: NodeId,
         dont_resolve_alias: bool,
     ) -> CheckResult<Option<SymbolId>> {
-        let module_specifier =
-            self.external_module_require_argument(node)
-                .or_else(|| match self.data_of(node) {
-                    NodeData::ImportDeclaration(data) => data.module_specifier,
-                    NodeData::ExportDeclaration(data) => data.module_specifier,
-                    NodeData::JSDocImportTag(data) => data.module_specifier,
-                    _ => None,
-                });
+        let module_specifier = self.external_module_require_argument(node).or_else(|| {
+            match_record! { self.record_of(node), {
+                as_import_declaration(data) => data.module_specifier,
+                as_export_declaration(data) => data.module_specifier,
+                as_js_doc_import_tag(data) => data.module_specifier,
+                _ => None,
+            }}
+        });
         let Some(module_specifier) = module_specifier else {
             return Ok(None);
         };
         let module_symbol = self.resolve_external_module_name(node, module_specifier, false)?;
-        let name = match self.data_of(specifier) {
-            NodeData::PropertyAccessExpression(data) => data.name,
-            NodeData::BindingElement(data) => data.property_name.or(data.name),
-            NodeData::ImportSpecifier(data) => data.property_name.or(data.name),
-            NodeData::ExportSpecifier(data) => data.property_name.or(data.name),
+        let name = match_record! { self.record_of(specifier), {
+            as_property_access_expression(data) => data.name,
+            as_binding_element(data) => data.property_name.or(data.name),
+            as_import_specifier(data) => data.property_name.or(data.name),
+            as_export_specifier(data) => data.property_name.or(data.name),
             _ => None,
-        };
+        }};
         let Some(name) = name else {
             return Ok(None);
         };
@@ -3308,11 +3301,11 @@ impl<'a> CheckerState<'a> {
     ///
     /// The BindingElement arm is the JavaScript `const { a } = require("m")`.
     fn get_target_of_import_specifier(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
-        let (property_name, name) = match self.data_of(node) {
-            NodeData::ImportSpecifier(data) => (data.property_name, data.name),
-            NodeData::BindingElement(data) => (data.property_name, data.name),
+        let (property_name, name) = match_record! { self.record_of(node), {
+            as_import_specifier(data) => (data.property_name, data.name),
+            as_binding_element(data) => (data.property_name, data.name),
             _ => return Ok(None),
-        };
+        }};
         let Some(effective) = property_name.or(name) else {
             return Ok(None);
         };
@@ -3854,11 +3847,11 @@ impl<'a> CheckerState<'a> {
         ignore_errors: bool,
         is_for_augmentation: bool,
     ) -> CheckResult<Option<SymbolId>> {
-        let text = match self.data_of(module_reference_expression) {
-            NodeData::StringLiteral(data) => self.text_js(data.text),
-            NodeData::NoSubstitutionTemplateLiteral(data) => self.text_js(data.text),
+        let text = match_record! { self.record_of(module_reference_expression), {
+            as_string_literal(data) => self.text_js(data.text),
+            as_no_substitution_template_literal(data) => self.text_js(data.text),
             _ => return Ok(None),
-        };
+        }};
         // tsgo: a source phase import resolves no module.
         if self
             .parent_of(module_reference_expression)
@@ -4001,16 +3994,16 @@ impl<'a> CheckerState<'a> {
         let Some(parent) = self.parent_of(specifier) else {
             return Ok(None);
         };
-        let attributes = match self.data_of(parent) {
-            NodeData::ImportDeclaration(data) => data.attributes,
-            NodeData::ExportDeclaration(data) => data.attributes,
-            NodeData::JSDocImportTag(data) => data.attributes,
-            NodeData::LiteralType(_) => match self.parent_of(parent).map(|node| self.data_of(node))
+        let attributes = match_record! { self.record_of(parent), {
+            as_import_declaration(data) => data.attributes,
+            as_export_declaration(data) => data.attributes,
+            as_js_doc_import_tag(data) => data.attributes,
+            as_literal_type(_) => match self.parent_of(parent).map(|node| self.data_of(node))
             {
                 Some(NodeData::ImportType(data)) => data.attributes,
                 _ => None,
             },
-            NodeData::CallExpression(data) if self.is_import_call(parent) => {
+            as_call_expression(data) if self.is_import_call(parent) => {
                 let Some(&options) = self.nodes_of(data.arguments).get(1) else {
                     return Ok(None);
                 };
@@ -4019,9 +4012,9 @@ impl<'a> CheckerState<'a> {
                     options_type,
                     tsc_types::EscapedName::escape(JsStr::from("with")),
                 );
-            }
+            },
             _ => None,
-        };
+        }};
         attributes
             .map(|attributes| self.get_type_from_import_attributes(attributes))
             .transpose()
@@ -5203,8 +5196,8 @@ impl<'a> CheckerState<'a> {
         &self,
         module_name: NodeId,
     ) -> Option<&'static DiagnosticMessage> {
-        let text = match self.data_of(module_name) {
-            NodeData::StringLiteral(data) => self.text_js(data.text),
+        let text = match self.record_of(module_name).as_string_literal() {
+            Some(data) => self.text_js(data.text),
             _ => return None,
         };
         if !is_node_core_module(text) {
@@ -7311,26 +7304,26 @@ impl<'a> CheckerState<'a> {
     fn resolution_mode_override_for_usage(&self, location: NodeId) -> Option<ModuleResolutionMode> {
         let mut current = Some(location);
         while let Some(node) = current {
-            let attributes = match self.data_of(node) {
-                NodeData::ImportDeclaration(data) => {
+            let attributes = match_record! { self.record_of(node), {
+                as_import_declaration(data) => {
                     if !self.is_exclusively_type_only_import_or_export(node) {
                         return None;
                     }
                     data.attributes
-                }
-                NodeData::ExportDeclaration(data) => {
+                },
+                as_export_declaration(data) => {
                     if !self.is_exclusively_type_only_import_or_export(node) {
                         return None;
                     }
                     data.attributes
-                }
-                NodeData::ImportType(data) => data.attributes,
-                NodeData::JSDocImportTag(data) => data.attributes,
+                },
+                as_import_type(data) => data.attributes,
+                as_js_doc_import_tag(data) => data.attributes,
                 _ => {
                     current = self.parent_of(node);
                     continue;
-                }
-            };
+                },
+            }};
             return attributes.and_then(|attributes| {
                 match self.parse_resolution_mode_override(attributes) {
                     ResolutionModeOverrideParse::Valid(mode) => Some(mode),
@@ -8256,8 +8249,8 @@ impl<'a> CheckerState<'a> {
             NodeData::ImportDeclaration(data) => data.import_clause?,
             _ => return None,
         };
-        let named_bindings = match self.data_of(clause) {
-            NodeData::ImportClause(data) => data.named_bindings?,
+        let named_bindings = match self.record_of(clause).as_import_clause() {
+            Some(data) => data.named_bindings?,
             _ => return None,
         };
         if self.kind_of(named_bindings) == SyntaxKind::NamespaceImport {
@@ -8538,48 +8531,48 @@ impl<'a> CheckerState<'a> {
     /// TypeKeyword phase, so `import defer` (DeferKeyword phase) stays
     /// a value import here.
     pub fn is_type_only_import_or_export_declaration(&self, node: NodeId) -> bool {
-        match self.data_of(node) {
-            NodeData::ImportSpecifier(data) => {
-                data.is_type_only
-                    || self
-                        .parent_of(node)
-                        .and_then(|named| self.parent_of(named))
-                        .is_some_and(|clause| match self.data_of(clause) {
-                            NodeData::ImportClause(data) => data.is_type_only,
-                            _ => false,
-                        })
-            }
-            NodeData::ExportSpecifier(data) => {
-                data.is_type_only
-                    || self
-                        .parent_of(node)
-                        .and_then(|named| self.parent_of(named))
-                        .is_some_and(|declaration| match self.data_of(declaration) {
-                            NodeData::ExportDeclaration(data) => data.is_type_only,
-                            _ => false,
-                        })
-            }
-            NodeData::NamespaceImport(_) => {
-                self.parent_of(node)
-                    .is_some_and(|clause| match self.data_of(clause) {
-                        NodeData::ImportClause(data) => data.is_type_only,
-                        _ => false,
-                    })
-            }
-            NodeData::NamespaceExport(_) => {
-                self.parent_of(node)
-                    .is_some_and(|declaration| match self.data_of(declaration) {
-                        NodeData::ExportDeclaration(data) => data.is_type_only,
-                        _ => false,
-                    })
-            }
-            NodeData::ImportClause(data) => data.is_type_only,
-            NodeData::ImportEqualsDeclaration(data) => data.is_type_only,
-            NodeData::ExportDeclaration(data) => {
-                data.is_type_only && data.module_specifier.is_some() && data.export_clause.is_none()
-            }
-            _ => false,
-        }
+        match_record! { self.record_of(node), {
+                    as_import_specifier(data) => {
+                        data.is_type_only
+                            || self
+                                .parent_of(node)
+                                .and_then(|named| self.parent_of(named))
+                                .is_some_and(|clause| match self.record_of(clause).as_import_clause() {
+        Some(data) => data.is_type_only,
+        _ => false,
+        })
+                    },
+                    as_export_specifier(data) => {
+                        data.is_type_only
+                            || self
+                                .parent_of(node)
+                                .and_then(|named| self.parent_of(named))
+                                .is_some_and(|declaration| match self.data_of(declaration) {
+                                    NodeData::ExportDeclaration(data) => data.is_type_only,
+                                    _ => false,
+                                })
+                    },
+                    as_namespace_import(_) => {
+                        self.parent_of(node)
+                            .is_some_and(|clause| match self.data_of(clause) {
+                                NodeData::ImportClause(data) => data.is_type_only,
+                                _ => false,
+                            })
+                    },
+                    as_namespace_export(_) => {
+                        self.parent_of(node)
+                            .is_some_and(|declaration| match self.data_of(declaration) {
+                                NodeData::ExportDeclaration(data) => data.is_type_only,
+                                _ => false,
+                            })
+                    },
+                    as_import_clause(data) => data.is_type_only,
+                    as_import_equals_declaration(data) => data.is_type_only,
+                    as_export_declaration(data) => {
+                        data.is_type_only && data.module_specifier.is_some() && data.export_clause.is_none()
+                    },
+                    _ => false,
+                }}
     }
 
     /// tsc-port: moduleExportNameTextEscaped @6.0.3
@@ -8588,35 +8581,35 @@ impl<'a> CheckerState<'a> {
     ///
     /// Folded family: TextUnescaped/TextEscaped/IsDefault.
     pub(crate) fn module_export_name_text_escaped(&self, name: NodeId) -> EscapedName {
-        match self.data_of(name) {
-            NodeData::StringLiteral(data) => escape_leading_underscores(self.text_js(data.text)),
-            NodeData::Identifier(data) => data.escaped_text,
+        match_record! { self.record_of(name), {
+            as_string_literal(data) => escape_leading_underscores(self.text_js(data.text)),
+            as_identifier(data) => data.escaped_text,
             _ => EscapedName::escape("".into()),
-        }
+        }}
     }
 
     /// tsc-port: moduleExportNameTextUnescaped @6.0.3
     /// tsc-hash: 6ca98eb0675711e5d04bc7ab9c263795d5a4e08c689ed2361947370c00473ddc
     /// tsc-span: _tsc.js:13026-13028
     pub(crate) fn module_export_name_text_unescaped(&self, name: NodeId) -> JsString {
-        match self.data_of(name) {
-            NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
-            NodeData::Identifier(data) => {
+        match_record! { self.record_of(name), {
+            as_string_literal(data) => self.text_js(data.text).to_owned(),
+            as_identifier(data) => {
                 unescape_leading_underscores(data.escaped_text).to_owned()
-            }
+            },
             _ => JsString::new(),
-        }
+        }}
     }
 
     /// tsc-port: moduleExportNameIsDefault @6.0.3
     /// tsc-hash: a5be65407a7f18b94596f3fec078ba710f3c23f8594057edb6e1550afa87cdf0
     /// tsc-span: _tsc.js:13032-13034
     pub(crate) fn module_export_name_is_default(&self, name: NodeId) -> bool {
-        match self.data_of(name) {
-            NodeData::StringLiteral(data) => self.text_js(data.text) == InternalSymbolName::DEFAULT,
-            NodeData::Identifier(data) => data.escaped_text == InternalSymbolName::DEFAULT,
+        match_record! { self.record_of(name), {
+            as_string_literal(data) => self.text_js(data.text) == InternalSymbolName::DEFAULT,
+            as_identifier(data) => data.escaped_text == InternalSymbolName::DEFAULT,
             _ => false,
-        }
+        }}
     }
 
     /// tsrs-native: the SourceFile declaration index of a module
@@ -9188,29 +9181,29 @@ impl<'a> CheckerState<'a> {
     }
 
     fn get_external_module_name_of(&self, node: NodeId) -> Option<NodeId> {
-        match self.data_of(node) {
-            NodeData::ImportDeclaration(data) => data.module_specifier,
-            NodeData::ExportDeclaration(data) => data.module_specifier,
-            NodeData::JSDocImportTag(data) => data.module_specifier,
-            NodeData::ImportEqualsDeclaration(data) => {
+        match_record! { self.record_of(node), {
+            as_import_declaration(data) => data.module_specifier,
+            as_export_declaration(data) => data.module_specifier,
+            as_js_doc_import_tag(data) => data.module_specifier,
+            as_import_equals_declaration(data) => {
                 let reference = data.module_reference?;
                 match self.data_of(reference) {
                     NodeData::ExternalModuleReference(data) => data.expression,
                     _ => None,
                 }
-            }
-            NodeData::ImportType(data) => data.argument.and_then(|argument| {
+            },
+            as_import_type(data) => data.argument.and_then(|argument| {
                 let literal = self.record_of(argument).as_literal_type()?;
                 literal
                     .literal
                     .filter(|&literal| self.kind_of(literal) == SyntaxKind::StringLiteral)
             }),
-            NodeData::CallExpression(data) => self.nodes_of(data.arguments).first().copied(),
-            NodeData::ModuleDeclaration(data) => data
+            as_call_expression(data) => self.nodes_of(data.arguments).first().copied(),
+            as_module_declaration(data) => data
                 .name
                 .filter(|&name| self.kind_of(name) == SyntaxKind::StringLiteral),
             _ => None,
-        }
+        }}
     }
 
     /// tsc isTopLevelInExternalModuleAugmentation.
@@ -9727,13 +9720,13 @@ impl<'a> CheckerState<'a> {
     /// The esModuleInterop default-import probe verifies
     /// `__importDefault` when this file emits CommonJS.
     fn check_import_binding(&mut self, node: NodeId) -> CheckResult<()> {
-        let name = match self.data_of(node) {
-            NodeData::ImportClause(data) => data.name,
-            NodeData::NamespaceImport(data) => data.name,
-            NodeData::ImportSpecifier(data) => data.name,
-            NodeData::ImportEqualsDeclaration(data) => data.name,
+        let name = match_record! { self.record_of(node), {
+            as_import_clause(data) => data.name,
+            as_namespace_import(data) => data.name,
+            as_import_specifier(data) => data.name,
+            as_import_equals_declaration(data) => data.name,
             _ => None,
-        };
+        }};
         self.check_collisions_for_declaration_name(node, name);
         self.check_alias_symbol(node)?;
         if self.kind_of(node) == SyntaxKind::ImportSpecifier {
@@ -9767,13 +9760,13 @@ impl<'a> CheckerState<'a> {
     /// (2857) and resolution-mode (1454) rows — the oracle-correction
     /// epoch made it observable corpus-wide.
     pub(crate) fn check_import_attributes_of(&mut self, declaration: NodeId) -> CheckResult<()> {
-        let attributes = match self.data_of(declaration) {
-            NodeData::ImportDeclaration(data) => data.attributes,
-            NodeData::ExportDeclaration(data) => data.attributes,
-            NodeData::JSDocImportTag(data) => data.attributes,
-            NodeData::ImportType(data) => data.attributes,
+        let attributes = match_record! { self.record_of(declaration), {
+            as_import_declaration(data) => data.attributes,
+            as_export_declaration(data) => data.attributes,
+            as_js_doc_import_tag(data) => data.attributes,
+            as_import_type(data) => data.attributes,
             _ => None,
-        };
+        }};
         let Some(node) = attributes else {
             return Ok(());
         };
@@ -9879,24 +9872,24 @@ impl<'a> CheckerState<'a> {
     /// tsc isExclusivelyTypeOnlyImportOrExport: the declaration-level
     /// type-only flag (import type { } / export type { }).
     fn is_exclusively_type_only_import_or_export(&self, declaration: NodeId) -> bool {
-        match self.data_of(declaration) {
-            NodeData::ExportDeclaration(data) => data.is_type_only,
-            NodeData::ImportDeclaration(data) => {
-                data.import_clause
-                    .is_some_and(|clause| match self.data_of(clause) {
-                        NodeData::ImportClause(data) => data.is_type_only,
-                        _ => false,
-                    })
-            }
-            NodeData::JSDocImportTag(data) => {
-                data.import_clause
-                    .is_some_and(|clause| match self.data_of(clause) {
-                        NodeData::ImportClause(data) => data.is_type_only,
-                        _ => false,
-                    })
-            }
-            _ => false,
-        }
+        match_record! { self.record_of(declaration), {
+                    as_export_declaration(data) => data.is_type_only,
+                    as_import_declaration(data) => {
+                        data.import_clause
+                            .is_some_and(|clause| match self.record_of(clause).as_import_clause() {
+        Some(data) => data.is_type_only,
+        _ => false,
+        })
+                    },
+                    as_js_doc_import_tag(data) => {
+                        data.import_clause
+                            .is_some_and(|clause| match self.record_of(clause).as_import_clause() {
+        Some(data) => data.is_type_only,
+        _ => false,
+        })
+                    },
+                    _ => false,
+                }}
     }
 
     /// tsc-port: getResolutionModeOverride @6.0.3
@@ -10056,11 +10049,11 @@ impl<'a> CheckerState<'a> {
         }
         if self.check_external_import_or_export_declaration(node)? {
             let mut resolved_module = None;
-            let import_clause = match self.data_of(node) {
-                NodeData::ImportDeclaration(data) => data.import_clause,
-                NodeData::JSDocImportTag(data) => data.import_clause,
+            let import_clause = match_record! { self.record_of(node), {
+                as_import_declaration(data) => data.import_clause,
+                as_js_doc_import_tag(data) => data.import_clause,
                 _ => None,
-            };
+            }};
             if let Some(import_clause) = import_clause {
                 if !self.check_grammar_import_clause(import_clause)? {
                     let (name, named_bindings) = match self.data_of(import_clause) {
@@ -10107,10 +10100,7 @@ impl<'a> CheckerState<'a> {
                     {
                         self.check_external_emit_helpers(node, EMIT_HELPER_IMPORT_DEFAULT)?;
                     }
-                    let is_type_only = matches!(
-                        self.data_of(import_clause),
-                        NodeData::ImportClause(data) if data.is_type_only
-                    );
+                    let is_type_only = matches!(self.record_of(import_clause).as_import_clause(), Some(data) if data.is_type_only);
                     let module_kind = self.options.emit_module_kind();
                     let module_specifier = self.get_external_module_name_of(node);
                     let requires_json_attribute =
@@ -10196,15 +10186,16 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 135005635990b013ef4d869f68234202f2703dae3e7cb87768337c7a642852c3
     /// tsc-span: _tsc.js:90396-90417
     fn check_grammar_import_clause(&mut self, node: NodeId) -> CheckResult<bool> {
-        let (is_type_only, phase_modifier, name, named_bindings) = match self.data_of(node) {
-            NodeData::ImportClause(data) => (
-                data.is_type_only,
-                data.phase_modifier,
-                data.name,
-                data.named_bindings,
-            ),
-            _ => return Ok(false),
-        };
+        let (is_type_only, phase_modifier, name, named_bindings) =
+            match self.record_of(node).as_import_clause() {
+                Some(data) => (
+                    data.is_type_only,
+                    data.phase_modifier,
+                    data.name,
+                    data.named_bindings,
+                ),
+                _ => return Ok(false),
+            };
         if is_type_only {
             // tsgo grammarchecks.go:2103: a JSDoc `@import` may have both.
             if self.node_flags(node) & tsc_types::NodeFlags::JS_DOC.bits() == 0

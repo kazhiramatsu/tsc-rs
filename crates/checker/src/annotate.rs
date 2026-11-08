@@ -142,8 +142,8 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: typed Identifier projection for tsc's direct
     /// `escapedText` property access.
     pub(crate) fn identifier_text(&self, node: NodeId) -> Option<&str> {
-        match self.data_of(node) {
-            NodeData::Identifier(data) => Some(data.escaped_text.identifier_text()),
+        match self.record_of(node).as_identifier() {
+            Some(data) => Some(data.escaped_text.identifier_text()),
             _ => None,
         }
     }
@@ -369,12 +369,12 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::ParenthesizedType
             | SyntaxKind::JSDocNonNullableType
             | SyntaxKind::JSDocTypeExpression => {
-                let inner = match self.data_of(node) {
-                    NodeData::ParenthesizedType(data) => data.r#type,
-                    NodeData::JSDocNonNullableType(data) => data.r#type,
-                    NodeData::JSDocTypeExpression(data) => data.r#type,
+                let inner = match_record! { self.record_of(node), {
+                    as_parenthesized_type(data) => data.r#type,
+                    as_js_doc_non_nullable_type(data) => data.r#type,
+                    as_js_doc_type_expression(data) => data.r#type,
                     _ => unreachable!("kind/data agree"),
-                };
+                }};
                 let inner = inner.expect("parser invariant: unary type operand always parsed");
                 self.get_type_from_type_node(inner)
             }
@@ -454,26 +454,26 @@ impl<'a> CheckerState<'a> {
     /// Scoped to the literal kinds a LiteralTypeNode can hold; the full
     /// checkExpression is M4/M6.
     fn check_literal_expression(&mut self, literal: NodeId) -> CheckResult<TypeId> {
-        match self.data_of(literal) {
-            NodeData::StringLiteral(data) => {
+        match_record! { self.record_of(literal), {
+            as_string_literal(data) => {
                 let regular = self.tables.get_string_literal_type(self.text_js(data.text));
                 Ok(self.tables.get_fresh_type_of_literal_type(regular))
-            }
-            NodeData::NoSubstitutionTemplateLiteral(data) => {
+            },
+            as_no_substitution_template_literal(data) => {
                 let regular = self.tables.get_string_literal_type(self.text_js(data.text));
                 Ok(self.tables.get_fresh_type_of_literal_type(regular))
-            }
-            NodeData::NumericLiteral(data) => {
+            },
+            as_numeric_literal(data) => {
                 let value = parse_numeric_literal_text(self.text_utf8(data.text))?;
                 let regular = self.tables.get_number_literal_type(value);
                 Ok(self.tables.get_fresh_type_of_literal_type(regular))
-            }
-            NodeData::BigIntLiteral(data) => {
+            },
+            as_big_int_literal(data) => {
                 let value = crate::expr::parse_pseudo_big_int(self.text_utf8(data.text))?;
                 let regular = self.tables.get_bigint_literal_type(value);
                 Ok(self.tables.get_fresh_type_of_literal_type(regular))
-            }
-            NodeData::PrefixUnaryExpression(data) => {
+            },
+            as_prefix_unary_expression(data) => {
                 if data.operator != SyntaxKind::MinusToken {
                     unreachable!("parser invariant: literal-type prefix operator is always minus");
                 }
@@ -484,36 +484,36 @@ impl<'a> CheckerState<'a> {
                 // first. Its regular/fresh identities precede the negative
                 // literal even when this expression occurs in a type node.
                 self.check_literal_expression(operand)?;
-                match self.data_of(operand) {
-                    NodeData::NumericLiteral(data) => {
+                match_record!{ self.record_of(operand), {
+                    as_numeric_literal(data) => {
                         let value = -parse_numeric_literal_text(self.text_utf8(data.text))?;
                         let regular = self.tables.get_number_literal_type(value);
                         Ok(self.tables.get_fresh_type_of_literal_type(regular))
-                    }
-                    NodeData::BigIntLiteral(data) => {
+                    },
+                    as_big_int_literal(data) => {
                         let parsed = crate::expr::parse_pseudo_big_int(self.text_utf8(data.text))?;
                         let regular = self.tables.get_bigint_literal_type(PseudoBigInt {
                             negative: true,
                             base10_value: parsed.base10_value,
                         });
                         Ok(self.tables.get_fresh_type_of_literal_type(regular))
-                    }
+                    },
                     _ => unreachable!(
                         "parser invariant: literal-type minus is lookahead-gated to numeric/bigint"
                     ),
-                }
-            }
+                }}
+            },
             _ if self.kind_of(literal) == SyntaxKind::TrueKeyword => {
                 Ok(self.tables.intrinsics.true_fresh)
-            }
+            },
             _ if self.kind_of(literal) == SyntaxKind::FalseKeyword => {
                 Ok(self.tables.intrinsics.false_fresh)
-            }
+            },
             _ => unreachable!(
                 "parser invariant: literal-type literal kinds are closed: {:?}",
                 self.kind_of(literal)
             ),
-        }
+        }}
     }
 
     // ---- unions / intersections ----
@@ -651,13 +651,13 @@ impl<'a> CheckerState<'a> {
             let literal = span_data
                 .literal
                 .expect("parser invariant: template span literal always parsed");
-            let text = match self.data_of(literal) {
-                NodeData::TemplateMiddle(data) => tsc_types::TemplateText::from_js(self.text_js(data.text)),
-                NodeData::TemplateTail(data) => tsc_types::TemplateText::from_js(self.text_js(data.text)),
+            let text = match_record! { self.record_of(literal), {
+                as_template_middle(data) => tsc_types::TemplateText::from_js(self.text_js(data.text)),
+                as_template_tail(data) => tsc_types::TemplateText::from_js(self.text_js(data.text)),
                 _ => unreachable!(
                     "parser invariant: span literals are TemplateMiddle/TemplateTail (missing shape included)"
                 ),
-            };
+            }};
             types.push(self.get_type_from_type_node(span_type)?);
             texts.push(text);
         }
@@ -684,11 +684,11 @@ impl<'a> CheckerState<'a> {
         }
         let target = self.get_array_or_tuple_target_type(node)?;
         let is_tuple = self.kind_of(node) == SyntaxKind::TupleType;
-        let elements = match self.data_of(node) {
-            NodeData::TupleType(data) => self.nodes_of(data.elements),
-            NodeData::ArrayType(_) => Default::default(),
+        let elements = match_record! { self.record_of(node), {
+            as_tuple_type(data) => self.nodes_of(data.elements),
+            as_array_type(_) => Default::default(),
             _ => unreachable!("array/tuple kind implies payload"),
-        };
+        }};
         let resolved = if target == self.empty_generic_type {
             // A failed global Array/ReadonlyArray lookup (61122).
             self.empty_object_type
@@ -1127,20 +1127,17 @@ impl<'a> CheckerState<'a> {
 
     /// tsc isReadonlyTypeOperator (61138-61140).
     fn is_readonly_type_operator(&self, node: NodeId) -> bool {
-        matches!(
-            self.data_of(node),
-            NodeData::TypeOperator(data) if data.operator == SyntaxKind::ReadonlyKeyword
-        )
+        matches!(self.record_of(node).as_type_operator(), Some(data) if data.operator == SyntaxKind::ReadonlyKeyword)
     }
 
     /// tsc-port: getTupleElementFlags @6.0.3
     /// tsc-hash: 20a58237c33ac7f48b75470a5b7ff6badfc7c8190624917b6bb38a95fad11224
     /// tsc-span: _tsc.js:61041-61052
     pub(crate) fn get_tuple_element_flags(&self, node: NodeId) -> ElementFlags {
-        match self.data_of(node) {
-            NodeData::OptionalType(_) => ElementFlags::OPTIONAL,
-            NodeData::RestType(data) => self.get_rest_type_element_flags(data.r#type),
-            NodeData::NamedTupleMember(data) => {
+        match_record! { self.record_of(node), {
+            as_optional_type(_) => ElementFlags::OPTIONAL,
+            as_rest_type(data) => self.get_rest_type_element_flags(data.r#type),
+            as_named_tuple_member(data) => {
                 if data.question_token.is_some() {
                     ElementFlags::OPTIONAL
                 } else if data.dot_dot_dot_token.is_some() {
@@ -1148,9 +1145,9 @@ impl<'a> CheckerState<'a> {
                 } else {
                     ElementFlags::REQUIRED
                 }
-            }
+            },
             _ => ElementFlags::REQUIRED,
-        }
+        }}
     }
 
     /// tsc-port: getRestTypeElementFlags @6.0.3
@@ -1167,33 +1164,33 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: e7d0bc18a05ab539c84dab523668931ea9d6c9d40fa454b9029ba7e36ab20d7a
     /// tsc-span: _tsc.js:63170-63186
     fn get_array_element_type_node(&self, node: NodeId) -> Option<NodeId> {
-        match self.data_of(node) {
-            NodeData::ParenthesizedType(data) => data
+        match_record! { self.record_of(node), {
+            as_parenthesized_type(data) => data
                 .r#type
                 .and_then(|inner| self.get_array_element_type_node(inner)),
-            NodeData::TupleType(data) => {
+            as_tuple_type(data) => {
                 let elements = self.nodes_of(data.elements);
                 if elements.len() == 1 {
                     let element = elements[0];
-                    match self.data_of(element) {
-                        NodeData::RestType(data) => {
+                    match_record!{ self.record_of(element), {
+                        as_rest_type(data) => {
                             return data
                                 .r#type
                                 .and_then(|inner| self.get_array_element_type_node(inner));
-                        }
-                        NodeData::NamedTupleMember(data) if data.dot_dot_dot_token.is_some() => {
+                        },
+                        as_named_tuple_member(data) if data.dot_dot_dot_token.is_some() => {
                             return data
                                 .r#type
                                 .and_then(|inner| self.get_array_element_type_node(inner));
-                        }
-                        _ => {}
-                    }
+                        },
+                        _ => {},
+                    }}
                 }
                 None
-            }
-            NodeData::ArrayType(data) => data.element_type,
+            },
+            as_array_type(data) => data.element_type,
             _ => None,
-        }
+        }}
     }
 
     /// tsc-port: getTypeFromOptionalTypeNode @6.0.3
@@ -1351,13 +1348,15 @@ impl<'a> CheckerState<'a> {
                 if let Some(host) = host {
                     node = if let Some(data) = self.record_of(host).as_variable_statement() {
                         data.declaration_list
-                            .and_then(|list| match self.data_of(list) {
-                                NodeData::VariableDeclarationList(data) => data
-                                    .declarations
-                                    .map(|declarations| self.nodes_of(Some(declarations)))
-                                    .filter(|declarations| declarations.len() == 1)
-                                    .and_then(|declarations| declarations.first().copied()),
-                                _ => None,
+                            .and_then(|list| {
+                                match self.record_of(list).as_variable_declaration_list() {
+                                    Some(data) => data
+                                        .declarations
+                                        .map(|declarations| self.nodes_of(Some(declarations)))
+                                        .filter(|declarations| declarations.len() == 1)
+                                        .and_then(|declarations| declarations.first().copied()),
+                                    _ => None,
+                                }
                             })
                             .unwrap_or(host)
                     } else {
@@ -1368,8 +1367,8 @@ impl<'a> CheckerState<'a> {
         }
         if self.is_valid_es_symbol_declaration(node) {
             let symbol_node = if self.is_common_js_export_property_assignment(node) {
-                match self.data_of(node) {
-                    NodeData::BinaryExpression(data) => data.left.unwrap_or(node),
+                match self.record_of(node).as_binary_expression() {
+                    Some(data) => data.left.unwrap_or(node),
                     _ => node,
                 }
             } else {
@@ -1406,8 +1405,8 @@ impl<'a> CheckerState<'a> {
     /// the binder's assignment-declaration predicate.
     fn is_valid_es_symbol_declaration(&self, node: NodeId) -> bool {
         let source = self.binder.source_of_node(node);
-        match self.data_of(node) {
-            NodeData::VariableDeclaration(data) => {
+        match_record! { self.record_of(node), {
+            as_variable_declaration(data) => {
                 // isVarConst: (combined & BlockScoped) == Const.
                 let combined = node_util::get_combined_node_flags(&Published, node);
                 let block_scoped = tsc_types::NodeFlags::from_bits(
@@ -1422,17 +1421,17 @@ impl<'a> CheckerState<'a> {
                         .name
                         .is_some_and(|name| self.kind_of(name) == SyntaxKind::Identifier)
                     && self.is_variable_declaration_in_variable_statement(node)
-            }
-            NodeData::PropertyDeclaration(_) => {
+            },
+            as_property_declaration(_) => {
                 node_util::get_effective_modifier_flags(source, node)
                     .intersects(tsc_types::ModifierFlags::READONLY)
                     && self.has_static_modifier(node)
-            }
-            NodeData::PropertySignature(_) => node_util::get_effective_modifier_flags(source, node)
+            },
+            as_property_signature(_) => node_util::get_effective_modifier_flags(source, node)
                 .intersects(tsc_types::ModifierFlags::READONLY),
-            NodeData::BinaryExpression(_) => self.is_common_js_export_property_assignment(node),
+            as_binary_expression(_) => self.is_common_js_export_property_assignment(node),
             _ => false,
-        }
+        }}
     }
 
     /// tsc-port: isCommonJsExportPropertyAssignment @6.0.3
@@ -1503,10 +1502,8 @@ impl<'a> CheckerState<'a> {
                 id
             }
         };
-        if matches!(
-            self.data_of(node),
-            NodeData::JSDocTypeLiteral(data) if data.is_array_type
-        ) && !(symbol.is_none() || members_empty && alias_symbol.is_none())
+        if matches!(self.record_of(node).as_js_doc_type_literal(), Some(data) if data.is_array_type)
+            && !(symbol.is_none() || members_empty && alias_symbol.is_none())
         {
             resolved = self.create_array_type(resolved, false)?;
         }
@@ -1536,13 +1533,13 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         if self.is_const_type_reference_node(node) {
-            let expression = self
-                .parent_of(node)
-                .and_then(|parent| match self.data_of(parent) {
-                    NodeData::AsExpression(data) => data.expression,
-                    NodeData::TypeAssertionExpression(data) => data.expression,
+            let expression = self.parent_of(node).and_then(|parent| {
+                match_record! { self.record_of(parent), {
+                    as_as_expression(data) => data.expression,
+                    as_type_assertion_expression(data) => data.expression,
                     _ => None,
-                });
+                }}
+            });
             if let Some(expression) = expression {
                 let resolved = self.check_expression_cached(expression, CheckMode::NORMAL)?;
                 self.links.overwrite_type_reference_resolution(
@@ -1646,8 +1643,8 @@ impl<'a> CheckerState<'a> {
 
     /// tsgo isSimpleIdentifierTypeReference (checker.go:23472-23474).
     fn is_simple_identifier_type_reference(&self, node: NodeId) -> bool {
-        match self.data_of(node) {
-            NodeData::TypeReference(data) => {
+        match self.record_of(node).as_type_reference() {
+            Some(data) => {
                 data.type_arguments.is_none()
                     && data
                         .type_name
@@ -1798,13 +1795,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 0c09ad88c5d3a629786ee7341b209c528d60c369ead807a85da0adf1b364d791
     /// tsc-span: _tsc.js:60341-60352
     fn get_type_reference_name(&self, node: NodeId) -> Option<NodeId> {
-        match self.data_of(node) {
-            NodeData::TypeReference(data) => data.type_name,
-            NodeData::ExpressionWithTypeArguments(data) => data
+        match_record! { self.record_of(node), {
+            as_type_reference(data) => data.type_name,
+            as_expression_with_type_arguments(data) => data
                 .expression
                 .filter(|&expression| self.is_entity_name_expression(expression)),
             _ => None,
-        }
+        }}
     }
 
     /// tsc-port: getUnresolvedSymbolForEntityName @6.0.3
@@ -1816,17 +1813,17 @@ impl<'a> CheckerState<'a> {
     /// names reproduce the written parent chain, and the full path
     /// interns that symbol across all references in the program.
     pub(crate) fn get_unresolved_symbol_for_entity_name(&mut self, name: NodeId) -> SymbolId {
-        let (identifier, parent_name) = match self.data_of(name) {
-            NodeData::QualifiedName(data) => match (data.right, data.left) {
+        let (identifier, parent_name) = match_record! { self.record_of(name), {
+            as_qualified_name(data) => match (data.right, data.left) {
                 (Some(right), left) => (right, left),
                 _ => return self.unknown_symbol,
             },
-            NodeData::PropertyAccessExpression(data) => match (data.name, data.expression) {
+            as_property_access_expression(data) => match (data.name, data.expression) {
                 (Some(right), left) => (right, left),
                 _ => return self.unknown_symbol,
             },
             _ => (name, None),
-        };
+        }};
         let Some(text) = self.identifier_text(identifier).map(str::to_owned) else {
             return self.unknown_symbol;
         };
@@ -1954,8 +1951,8 @@ impl<'a> CheckerState<'a> {
             ) {
                 let is_constructor = self.kind_of(container) == SyntaxKind::Constructor;
                 let descendant_of_body = is_constructor && {
-                    let body = match self.data_of(container) {
-                        NodeData::Constructor(data) => data.body,
+                    let body = match self.record_of(container).as_constructor() {
+                        Some(data) => data.body,
                         _ => None,
                     };
                     body.is_some_and(|body| self.is_node_descendant_of(node, body))
@@ -2069,8 +2066,8 @@ impl<'a> CheckerState<'a> {
             .deferred_node
             .expect("unresolved references are deferred (node-carrying)");
         let computed = (|state: &mut Self| -> CheckResult<Vec<TypeId>> {
-            match state.data_of(node) {
-                NodeData::TypeReference(_) => {
+            match_record! { state.record_of(node), {
+                as_type_reference(_) => {
                     let target = state.tables.reference_target(ty);
                     let TypeData::GenericType {
                         type_parameters,
@@ -2087,25 +2084,25 @@ impl<'a> CheckerState<'a> {
                     let mut arguments = type_parameters[..outer_count].to_vec();
                     arguments.extend(effective);
                     Ok(arguments)
-                }
-                NodeData::ArrayType(data) => {
+                },
+                as_array_type(data) => {
                     let element = data
                         .element_type
                         .expect("parser invariant: ArrayType element_type always parsed");
                     Ok(vec![state.get_type_from_type_node(element)?])
-                }
-                NodeData::TupleType(data) => {
+                },
+                as_tuple_type(data) => {
                     let elements = state.nodes_of(data.elements);
                     let mut arguments = Vec::with_capacity(elements.len());
                     for element in elements {
                         arguments.push(state.get_type_from_type_node(element)?);
                     }
                     Ok(arguments)
-                }
+                },
                 _ => unreachable!(
                     "deferred references carry TypeReference/ArrayType/TupleType nodes"
                 ),
-            }
+            }}
         })(self);
         let type_arguments = match computed {
             Ok(arguments) => arguments,
@@ -2183,8 +2180,8 @@ impl<'a> CheckerState<'a> {
         let mut rights = Vec::new();
         let mut current = Some(node);
         while let Some(node) = current {
-            match self.data_of(node) {
-                NodeData::QualifiedName(data) => {
+            match self.record_of(node).as_qualified_name() {
+                Some(data) => {
                     if let Some(right) = data.right {
                         rights.push(right);
                     }
@@ -2284,10 +2281,12 @@ impl<'a> CheckerState<'a> {
         // isLiteralImportTypeNode: the argument is a LiteralType over
         // a string literal.
         let literal = argument
-            .and_then(|argument| match self.data_of(argument) {
-                NodeData::LiteralType(data) => data.literal,
-                _ => None,
-            })
+            .and_then(
+                |argument| match self.record_of(argument).as_literal_type() {
+                    Some(data) => data.literal,
+                    _ => None,
+                },
+            )
             .filter(|&literal| self.kind_of(literal) == SyntaxKind::StringLiteral);
         let Some(literal) = literal else {
             let argument = argument.expect("parser invariant: ImportType argument always parsed");
@@ -2300,17 +2299,15 @@ impl<'a> CheckerState<'a> {
                 .overwrite_import_type_resolved_type(self.speculation_depth, node, error);
             return Ok(error);
         };
-        let is_type_of = matches!(
-            self.data_of(node),
-            NodeData::ImportType(data) if data.is_type_of
-        );
+        let is_type_of =
+            matches!(self.record_of(node).as_import_type(), Some(data) if data.is_type_of);
         let target_meaning = if is_type_of {
             SymbolFlags::VALUE
         } else {
             SymbolFlags::TYPE
         };
-        let module_reference = match self.data_of(literal) {
-            NodeData::StringLiteral(data) => self.text_js(data.text).to_owned(),
+        let module_reference = match self.record_of(literal).as_string_literal() {
+            Some(data) => self.text_js(data.text).to_owned(),
             _ => JsString::new(),
         };
         let inner_module_symbol = self
@@ -2574,14 +2571,14 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         type_parameters: &[TypeId],
     ) -> CheckResult<Vec<TypeId>> {
-        let argument_nodes = match self.data_of(node) {
-            NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
-            NodeData::ImportType(data) => self.nodes_of(data.type_arguments),
-            NodeData::ExpressionWithTypeArguments(_) => {
+        let argument_nodes = match_record! { self.record_of(node), {
+            as_type_reference(data) => self.nodes_of(data.type_arguments),
+            as_import_type(data) => self.nodes_of(data.type_arguments),
+            as_expression_with_type_arguments(_) => {
                 self.nodes_of(self.heritage_type_arguments(node))
-            }
+            },
             _ => unreachable!("TypeReference/ImportType/heritage route here"),
-        };
+        }};
         let mut resolved = Vec::with_capacity(argument_nodes.len());
         for argument in argument_nodes {
             resolved.push(self.get_type_from_type_node(argument)?);
@@ -2607,14 +2604,14 @@ impl<'a> CheckerState<'a> {
         type_parameters: &[TypeId],
         index: usize,
     ) -> CheckResult<TypeId> {
-        let argument_nodes = match self.data_of(node) {
-            NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
-            NodeData::ImportType(data) => self.nodes_of(data.type_arguments),
-            NodeData::ExpressionWithTypeArguments(_) => {
+        let argument_nodes = match_record! { self.record_of(node), {
+            as_type_reference(data) => self.nodes_of(data.type_arguments),
+            as_import_type(data) => self.nodes_of(data.type_arguments),
+            as_expression_with_type_arguments(_) => {
                 self.nodes_of(self.heritage_type_arguments(node))
-            }
+            },
             _ => unreachable!("TypeReference/ImportType/heritage route here"),
-        };
+        }};
         if let Some(&argument) = argument_nodes.get(index) {
             self.get_type_from_type_node(argument)
         } else {
@@ -2645,14 +2642,14 @@ impl<'a> CheckerState<'a> {
         };
         let local_type_parameters = &type_parameters[outer_count..];
         if !local_type_parameters.is_empty() {
-            let node_type_arguments = match self.data_of(node) {
-                NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
-                NodeData::ExpressionWithTypeArguments(_) => {
+            let node_type_arguments = match_record! { self.record_of(node), {
+                as_type_reference(data) => self.nodes_of(data.type_arguments),
+                as_expression_with_type_arguments(_) => {
                     self.nodes_of(self.heritage_type_arguments(node))
-                }
-                NodeData::ImportType(data) => self.nodes_of(data.type_arguments),
+                },
+                as_import_type(data) => self.nodes_of(data.type_arguments),
                 _ => Default::default(),
-            };
+            }};
             let num_type_arguments = node_type_arguments.len();
             let min_type_argument_count =
                 self.get_min_type_argument_count(Some(local_type_parameters));
@@ -3200,18 +3197,18 @@ impl<'a> CheckerState<'a> {
             .get_check_flags(symbol)
             .intersects(CheckFlags::UNRESOLVED)
         {
-            let argument_nodes = match self.data_of(node) {
-                NodeData::TypeReference(data) => data
+            let argument_nodes = match_record! { self.record_of(node), {
+                as_type_reference(data) => data
                     .type_arguments
                     .map(|arguments| self.nodes_of(Some(arguments))),
-                NodeData::ExpressionWithTypeArguments(data) => data
+                as_expression_with_type_arguments(data) => data
                     .type_arguments
                     .map(|arguments| self.nodes_of(Some(arguments))),
-                NodeData::ImportType(data) => data
+                as_import_type(data) => data
                     .type_arguments
                     .map(|arguments| self.nodes_of(Some(arguments))),
                 _ => None,
-            };
+            }};
             let type_arguments = match argument_nodes {
                 Some(nodes) => {
                     let mut arguments = Vec::with_capacity(nodes.len());
@@ -3237,14 +3234,14 @@ impl<'a> CheckerState<'a> {
         let ty = self.get_declared_type_of_type_alias(symbol)?;
         let type_parameters = self.links.symbol_cold().type_parameters.get(symbol).clone();
         if let Some(type_parameters) = type_parameters {
-            let node_type_arguments = match self.data_of(node) {
-                NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
-                NodeData::ExpressionWithTypeArguments(_) => {
+            let node_type_arguments = match_record! { self.record_of(node), {
+                as_type_reference(data) => self.nodes_of(data.type_arguments),
+                as_expression_with_type_arguments(_) => {
                     self.nodes_of(self.heritage_type_arguments(node))
-                }
-                NodeData::ImportType(data) => self.nodes_of(data.type_arguments),
+                },
+                as_import_type(data) => self.nodes_of(data.type_arguments),
                 _ => Default::default(),
-            };
+            }};
             let num_type_arguments = node_type_arguments.len();
             let min_type_argument_count = self.get_min_type_argument_count(Some(&type_parameters));
             if num_type_arguments < min_type_argument_count
@@ -3440,17 +3437,17 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 0468ee396427d4a338fbca17bb95e2f10429f69271d64bb787682f2631661408
     /// tsc-span: _tsc.js:60486-60492
     fn check_no_type_arguments(&mut self, node: NodeId, symbol: Option<SymbolId>) -> bool {
-        let type_arguments = match self.data_of(node) {
-            NodeData::TypeReference(data) => data.type_arguments,
-            NodeData::ExpressionWithTypeArguments(_) => self.heritage_type_arguments(node),
-            NodeData::ImportType(data) => data.type_arguments,
+        let type_arguments = match_record! { self.record_of(node), {
+            as_type_reference(data) => data.type_arguments,
+            as_expression_with_type_arguments(_) => self.heritage_type_arguments(node),
+            as_import_type(data) => data.type_arguments,
             _ => None,
-        };
+        }};
         if type_arguments.is_some() {
             let display = match symbol {
                 Some(symbol) => self.symbol_display_name(symbol),
-                None => match self.data_of(node) {
-                    NodeData::TypeReference(data) => data
+                None => match self.record_of(node).as_type_reference() {
+                    Some(data) => data
                         .type_name
                         .map(|name| {
                             tsc_binder::node_util::declaration_name_to_string(
@@ -3528,11 +3525,12 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_alias_symbol_for_type_node(&self, node: NodeId) -> Option<SymbolId> {
         let mut host = self.parent_of(node)?;
         loop {
-            let hop = match self.data_of(host) {
-                NodeData::ParenthesizedType(_) | NodeData::JSDocTypeExpression(_) => true,
-                NodeData::TypeOperator(data) => data.operator == SyntaxKind::ReadonlyKeyword,
+            let hop = match_record! { self.record_of(host), {
+                as_parenthesized_type(_) => true,
+                as_js_doc_type_expression(_) => true,
+                as_type_operator(data) => data.operator == SyntaxKind::ReadonlyKeyword,
                 _ => false,
-            };
+            }};
             if !hop {
                 break;
             }
@@ -3565,35 +3563,35 @@ impl<'a> CheckerState<'a> {
         if !self.is_resolved_by_type_alias(node) {
             return Ok(false);
         }
-        match self.data_of(node) {
-            NodeData::ArrayType(data) => match data.element_type {
-                Some(element) => self.may_resolve_type_alias(element),
-                None => Ok(false),
-            },
-            NodeData::TupleType(data) => {
-                for element in self.nodes_of(data.elements) {
-                    if self.may_resolve_type_alias(element)? {
-                        return Ok(true);
-                    }
-                }
-                Ok(false)
-            }
-            _ => {
-                if has_default_type_arguments {
-                    return Ok(true);
-                }
-                let type_arguments = match self.data_of(node) {
-                    NodeData::TypeReference(data) => data.type_arguments,
-                    _ => None,
-                };
-                for argument in self.nodes_of(type_arguments) {
-                    if self.may_resolve_type_alias(argument)? {
-                        return Ok(true);
-                    }
-                }
-                Ok(false)
-            }
-        }
+        match_record! { self.record_of(node), {
+                    as_array_type(data) => match data.element_type {
+                        Some(element) => self.may_resolve_type_alias(element),
+                        None => Ok(false),
+                    },
+                    as_tuple_type(data) => {
+                        for element in self.nodes_of(data.elements) {
+                            if self.may_resolve_type_alias(element)? {
+                                return Ok(true);
+                            }
+                        }
+                        Ok(false)
+                    },
+                    _ => {
+                        if has_default_type_arguments {
+                            return Ok(true);
+                        }
+                        let type_arguments = match self.record_of(node).as_type_reference() {
+        Some(data) => data.type_arguments,
+        _ => None,
+        };
+                        for argument in self.nodes_of(type_arguments) {
+                            if self.may_resolve_type_alias(argument)? {
+                                return Ok(true);
+                            }
+                        }
+                        Ok(false)
+                    },
+                }}
     }
 
     /// tsc-port: isResolvedByTypeAlias @6.0.3
@@ -3634,120 +3632,120 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 845e0c512d1edd3015e228151cb17d5e05504158f1d0597577340b3bc79f73bf
     /// tsc-span: _tsc.js:61090-61114
     fn may_resolve_type_alias(&mut self, node: NodeId) -> CheckResult<bool> {
-        match self.data_of(node) {
-            NodeData::TypeReference(data) => {
-                if self.is_jsdoc_type_reference(node) {
-                    return Ok(true);
-                }
-                let Some(type_name) = data.type_name else {
-                    return Ok(false);
-                };
-                let symbol = self.resolve_entity_name(
-                    type_name,
-                    SymbolFlags::TYPE,
-                    /*ignore_errors*/ false,
-                    None,
-                )?;
-                Ok(symbol.is_some_and(|symbol| {
-                    self.symbol_flags(symbol)
-                        .intersects(SymbolFlags::TYPE_ALIAS)
-                }))
-            }
-            NodeData::TypeQuery(_) => Ok(true),
-            NodeData::TypeOperator(data) => {
-                if data.operator == SyntaxKind::UniqueKeyword {
-                    return Ok(false);
-                }
-                match data.r#type {
-                    Some(inner) => self.may_resolve_type_alias(inner),
-                    None => Ok(false),
-                }
-            }
-            NodeData::ParenthesizedType(data) => match data.r#type {
-                Some(inner) => self.may_resolve_type_alias(inner),
-                None => Ok(false),
-            },
-            NodeData::OptionalType(data) => match data.r#type {
-                Some(inner) => self.may_resolve_type_alias(inner),
-                None => Ok(false),
-            },
-            NodeData::JSDocOptionalType(data) => match data.r#type {
-                Some(inner) => self.may_resolve_type_alias(inner),
-                None => Ok(false),
-            },
-            NodeData::JSDocNullableType(data) => match data.r#type {
-                Some(inner) => self.may_resolve_type_alias(inner),
-                None => Ok(false),
-            },
-            NodeData::JSDocNonNullableType(data) => match data.r#type {
-                Some(inner) => self.may_resolve_type_alias(inner),
-                None => Ok(false),
-            },
-            NodeData::JSDocTypeExpression(data) => match data.r#type {
-                Some(inner) => self.may_resolve_type_alias(inner),
-                None => Ok(false),
-            },
-            NodeData::NamedTupleMember(data) => match data.r#type {
-                Some(inner) => self.may_resolve_type_alias(inner),
-                None => Ok(false),
-            },
-            NodeData::RestType(data) => {
-                let Some(inner) = data.r#type else {
-                    return Ok(false);
-                };
-                match self.data_of(inner) {
-                    NodeData::ArrayType(array) => match array.element_type {
-                        Some(element) => self.may_resolve_type_alias(element),
+        match_record! { self.record_of(node), {
+                    as_type_reference(data) => {
+                        if self.is_jsdoc_type_reference(node) {
+                            return Ok(true);
+                        }
+                        let Some(type_name) = data.type_name else {
+                            return Ok(false);
+                        };
+                        let symbol = self.resolve_entity_name(
+                            type_name,
+                            SymbolFlags::TYPE,
+                            /*ignore_errors*/ false,
+                            None,
+                        )?;
+                        Ok(symbol.is_some_and(|symbol| {
+                            self.symbol_flags(symbol)
+                                .intersects(SymbolFlags::TYPE_ALIAS)
+                        }))
+                    },
+                    as_type_query(_) => Ok(true),
+                    as_type_operator(data) => {
+                        if data.operator == SyntaxKind::UniqueKeyword {
+                            return Ok(false);
+                        }
+                        match data.r#type {
+                            Some(inner) => self.may_resolve_type_alias(inner),
+                            None => Ok(false),
+                        }
+                    },
+                    as_parenthesized_type(data) => match data.r#type {
+                        Some(inner) => self.may_resolve_type_alias(inner),
                         None => Ok(false),
                     },
-                    _ => Ok(true),
-                }
-            }
-            NodeData::UnionType(data) => {
-                for member in self.nodes_of(data.types) {
-                    if self.may_resolve_type_alias(member)? {
-                        return Ok(true);
-                    }
-                }
-                Ok(false)
-            }
-            NodeData::IntersectionType(data) => {
-                for member in self.nodes_of(data.types) {
-                    if self.may_resolve_type_alias(member)? {
-                        return Ok(true);
-                    }
-                }
-                Ok(false)
-            }
-            NodeData::IndexedAccessType(data) => {
-                if let Some(object) = data.object_type {
-                    if self.may_resolve_type_alias(object)? {
-                        return Ok(true);
-                    }
-                }
-                match data.index_type {
-                    Some(index) => self.may_resolve_type_alias(index),
-                    None => Ok(false),
-                }
-            }
-            NodeData::ConditionalType(data) => {
-                for part in [
-                    data.check_type,
-                    data.extends_type,
-                    data.true_type,
-                    data.false_type,
-                ]
-                .into_iter()
-                .flatten()
-                {
-                    if self.may_resolve_type_alias(part)? {
-                        return Ok(true);
-                    }
-                }
-                Ok(false)
-            }
-            _ => Ok(false),
+                    as_optional_type(data) => match data.r#type {
+                        Some(inner) => self.may_resolve_type_alias(inner),
+                        None => Ok(false),
+                    },
+                    as_js_doc_optional_type(data) => match data.r#type {
+                        Some(inner) => self.may_resolve_type_alias(inner),
+                        None => Ok(false),
+                    },
+                    as_js_doc_nullable_type(data) => match data.r#type {
+                        Some(inner) => self.may_resolve_type_alias(inner),
+                        None => Ok(false),
+                    },
+                    as_js_doc_non_nullable_type(data) => match data.r#type {
+                        Some(inner) => self.may_resolve_type_alias(inner),
+                        None => Ok(false),
+                    },
+                    as_js_doc_type_expression(data) => match data.r#type {
+                        Some(inner) => self.may_resolve_type_alias(inner),
+                        None => Ok(false),
+                    },
+                    as_named_tuple_member(data) => match data.r#type {
+                        Some(inner) => self.may_resolve_type_alias(inner),
+                        None => Ok(false),
+                    },
+                    as_rest_type(data) => {
+                        let Some(inner) = data.r#type else {
+                            return Ok(false);
+                        };
+                        match self.record_of(inner).as_array_type() {
+        Some(array) => match array.element_type {
+                                Some(element) => self.may_resolve_type_alias(element),
+                                None => Ok(false),
+                            },
+        _ => Ok(true),
         }
+                    },
+                    as_union_type(data) => {
+                        for member in self.nodes_of(data.types) {
+                            if self.may_resolve_type_alias(member)? {
+                                return Ok(true);
+                            }
+                        }
+                        Ok(false)
+                    },
+                    as_intersection_type(data) => {
+                        for member in self.nodes_of(data.types) {
+                            if self.may_resolve_type_alias(member)? {
+                                return Ok(true);
+                            }
+                        }
+                        Ok(false)
+                    },
+                    as_indexed_access_type(data) => {
+                        if let Some(object) = data.object_type {
+                            if self.may_resolve_type_alias(object)? {
+                                return Ok(true);
+                            }
+                        }
+                        match data.index_type {
+                            Some(index) => self.may_resolve_type_alias(index),
+                            None => Ok(false),
+                        }
+                    },
+                    as_conditional_type(data) => {
+                        for part in [
+                            data.check_type,
+                            data.extends_type,
+                            data.true_type,
+                            data.false_type,
+                        ]
+                        .into_iter()
+                        .flatten()
+                        {
+                            if self.may_resolve_type_alias(part)? {
+                                return Ok(true);
+                            }
+                        }
+                        Ok(false)
+                    },
+                    _ => Ok(false),
+                }}
     }
 
     /// tsc-port: getTypeFromTypeQueryNode @6.0.3
@@ -3826,12 +3824,12 @@ impl<'a> CheckerState<'a> {
                 // resolution stack below.
                 return Ok(state.tables.intrinsics.error);
             };
-            let type_node = match state.data_of(declaration) {
-                NodeData::TypeAliasDeclaration(data) => data.r#type,
-                NodeData::JSDocTypedefTag(data) => data.type_expression,
-                NodeData::JSDocCallbackTag(data) => data.type_expression,
+            let type_node = match_record! { state.record_of(declaration), {
+                as_type_alias_declaration(data) => data.r#type,
+                as_js_doc_typedef_tag(data) => data.type_expression,
+                as_js_doc_callback_tag(data) => data.type_expression,
                 _ => unreachable!("type-alias declaration kind implies payload"),
-            };
+            }};
             match type_node {
                 Some(type_node) => state.get_type_from_type_node(type_node),
                 None => Ok(state.tables.intrinsics.error),
@@ -4135,17 +4133,17 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 2e7694f05260a41567e84db34bfbfd9ec77c27e3c37116b2a9cf88f0ddccfeee
     /// tsc-span: _tsc.js:17128-17130
     pub(crate) fn is_entity_name_expression(&self, node: NodeId) -> bool {
-        match self.data_of(node) {
-            NodeData::Identifier(_) => true,
-            NodeData::PropertyAccessExpression(data) => {
+        match_record! { self.record_of(node), {
+            as_identifier(_) => true,
+            as_property_access_expression(data) => {
                 data.name
                     .is_some_and(|name| self.kind_of(name) == SyntaxKind::Identifier)
                     && data
                         .expression
                         .is_some_and(|expression| self.is_entity_name_expression(expression))
-            }
+            },
             _ => false,
-        }
+        }}
     }
 
     // ---- structured member resolution ----
@@ -5370,18 +5368,18 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
-        let left = match self.data_of(declaration) {
-            NodeData::BinaryExpression(data) => data.left,
+        let left = match self.record_of(declaration).as_binary_expression() {
+            Some(data) => data.left,
             _ => None,
         };
         let Some(left) = left else {
             return Ok(false);
         };
-        let receiver = match self.data_of(left) {
-            NodeData::PropertyAccessExpression(data) => data.expression,
-            NodeData::ElementAccessExpression(data) => data.expression,
+        let receiver = match_record! { self.record_of(left), {
+            as_property_access_expression(data) => data.expression,
+            as_element_access_expression(data) => data.expression,
             _ => None,
-        };
+        }};
         let Some(receiver) =
             receiver.filter(|&receiver| self.kind_of(receiver) == SyntaxKind::Identifier)
         else {
@@ -5406,13 +5404,9 @@ impl<'a> CheckerState<'a> {
                 .symbol(symbol)
                 .value_declaration
                 .is_some_and(|declaration| {
-                    matches!(
-                        self.data_of(declaration),
-                        NodeData::VariableDeclaration(data)
-                            if data.initializer.is_some_and(|initializer| {
+                    matches!(self.record_of(declaration).as_variable_declaration(), Some(data) if data.initializer.is_some_and(|initializer| {
                                 self.kind_of(initializer) == SyntaxKind::ThisKeyword
-                            })
-                    )
+                            }))
                 });
         Ok(initialized_from_this)
     }
@@ -5444,8 +5438,8 @@ impl<'a> CheckerState<'a> {
         }
         self.links
             .set_node_resolved_symbol_late_bind(self.speculation_depth, decl, decl_symbol);
-        let decl_name = match self.data_of(decl) {
-            NodeData::BinaryExpression(data) => data.left,
+        let decl_name = match self.record_of(decl).as_binary_expression() {
+            Some(data) => data.left,
             _ => self.name_of_named_declaration(decl),
         }
         .expect("late-bindable AST implies a declaration name");
@@ -5684,15 +5678,15 @@ impl<'a> CheckerState<'a> {
     /// getMembersOfDeclaration (19010-ish): the member lists a
     /// late-binding container declaration carries.
     fn members_of_declaration(&self, declaration: NodeId) -> NodeIds<'a> {
-        match self.data_of(declaration) {
-            NodeData::InterfaceDeclaration(data) => self.nodes_of(data.members),
-            NodeData::ClassDeclaration(data) => self.nodes_of(data.members),
-            NodeData::ClassExpression(data) => self.nodes_of(data.members),
-            NodeData::TypeLiteral(data) => self.nodes_of(data.members),
-            NodeData::JSDocTypeLiteral(data) => self.nodes_of(data.js_doc_property_tags),
-            NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
+        match_record! { self.record_of(declaration), {
+            as_interface_declaration(data) => self.nodes_of(data.members),
+            as_class_declaration(data) => self.nodes_of(data.members),
+            as_class_expression(data) => self.nodes_of(data.members),
+            as_type_literal(data) => self.nodes_of(data.members),
+            as_js_doc_type_literal(data) => self.nodes_of(data.js_doc_property_tags),
+            as_object_literal_expression(data) => self.nodes_of(data.properties),
             _ => NodeIds::default(),
-        }
+        }}
     }
 
     /// hasLateBindableName's AST half (isLateBindableAST 57622-57628):
@@ -5708,11 +5702,11 @@ impl<'a> CheckerState<'a> {
         let Some(name) = name else {
             return false;
         };
-        let expression = match self.data_of(name) {
-            NodeData::ComputedPropertyName(data) => data.expression,
-            NodeData::ElementAccessExpression(data) => data.argument_expression,
+        let expression = match_record! { self.record_of(name), {
+            as_computed_property_name(data) => data.expression,
+            as_element_access_expression(data) => data.argument_expression,
             _ => None,
-        };
+        }};
         expression.is_some_and(|expression| self.is_entity_name_expression(expression))
     }
 
@@ -5755,8 +5749,8 @@ impl<'a> CheckerState<'a> {
     }
 
     fn late_bindable_name_type(&mut self, name: NodeId) -> CheckResult<TypeId> {
-        match self.data_of(name) {
-            NodeData::ElementAccessExpression(data) => {
+        match self.record_of(name).as_element_access_expression() {
+            Some(data) => {
                 match data.argument_expression {
                     Some(argument) => self.check_expression_cached(argument, CheckMode::NORMAL),
                     // checkExpressionCached(undefined) is unreachable in
@@ -5783,13 +5777,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: aa988cea2523a038fb9edfc83ac54f743d513a67d521cee8d3cc014208062f4c
     /// tsc-span: _tsc.js:16937-16939
     pub(crate) fn has_static_modifier(&self, member: NodeId) -> bool {
-        let modifiers = match self.data_of(member) {
-            NodeData::PropertyDeclaration(data) => data.modifiers,
-            NodeData::MethodDeclaration(data) => data.modifiers,
-            NodeData::GetAccessor(data) => data.modifiers,
-            NodeData::SetAccessor(data) => data.modifiers,
+        let modifiers = match_record! { self.record_of(member), {
+            as_property_declaration(data) => data.modifiers,
+            as_method_declaration(data) => data.modifiers,
+            as_get_accessor(data) => data.modifiers,
+            as_set_accessor(data) => data.modifiers,
             _ => None,
-        };
+        }};
         self.modifier_flags_of(modifiers)
             .intersects(ModifierFlags::STATIC)
     }
@@ -6233,7 +6227,10 @@ impl<'a> CheckerState<'a> {
         let computed = (|state: &mut Self| -> CheckResult<TypeId> {
             let base_constructor_type = state.check_base_type_expression(expression)?;
             if let Some(extended) = extended.filter(|&extended| extended != base_type_node) {
-                if let NodeData::ExpressionWithTypeArguments(data) = state.data_of(extended) {
+                if let Some(data) = state
+                    .record_of(extended)
+                    .as_expression_with_type_arguments()
+                {
                     debug_assert!(state.nodes_of(data.type_arguments).is_empty());
                     if let Some(expression) = data.expression {
                         let _ = state.check_base_type_expression(expression)?;
@@ -6462,7 +6459,9 @@ impl<'a> CheckerState<'a> {
         let base_type_node = self
             .get_base_type_node_of_class(ty)
             .expect("a base constructor implies an extends clause");
-        let NodeData::ExpressionWithTypeArguments(base_type_data) = self.data_of(base_type_node)
+        let Some(base_type_data) = self
+            .record_of(base_type_node)
+            .as_expression_with_type_arguments()
         else {
             unreachable!("heritage clause types are ExpressionWithTypeArguments");
         };
@@ -6666,13 +6665,13 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         node: NodeId,
     ) -> CheckResult<Vec<SignatureId>> {
-        let argument_nodes = match self.data_of(node) {
-            NodeData::ExpressionWithTypeArguments(_) => {
+        let argument_nodes = match_record! { self.record_of(node), {
+            as_expression_with_type_arguments(_) => {
                 self.nodes_of(self.heritage_type_arguments(node))
-            }
-            NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
+            },
+            as_type_reference(data) => self.nodes_of(data.type_arguments),
             _ => Default::default(),
-        };
+        }};
         // tsgo getConstructorsForTypeArguments (checker.go:19623-19628) has
         // no JavaScript exception to the minimum type argument count.
         let type_arg_count = argument_nodes.len();
@@ -6697,13 +6696,13 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         node: NodeId,
     ) -> CheckResult<Vec<SignatureId>> {
-        let argument_nodes = match self.data_of(node) {
-            NodeData::ExpressionWithTypeArguments(_) => {
+        let argument_nodes = match_record! { self.record_of(node), {
+            as_expression_with_type_arguments(_) => {
                 self.nodes_of(self.heritage_type_arguments(node))
-            }
-            NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
+            },
+            as_type_reference(data) => self.nodes_of(data.type_arguments),
             _ => Default::default(),
-        };
+        }};
         let signatures = self.get_constructors_for_type_arguments(ty, node)?;
         let mut type_arguments = Vec::with_capacity(argument_nodes.len());
         for argument in argument_nodes {
@@ -6750,11 +6749,11 @@ impl<'a> CheckerState<'a> {
             .expect("class types carry their symbol");
         let declaration = self.class_like_declaration_of_symbol(symbol);
         let is_abstract = declaration.is_some_and(|declaration| {
-            let modifiers = match self.data_of(declaration) {
-                NodeData::ClassDeclaration(data) => data.modifiers,
-                NodeData::ClassExpression(data) => data.modifiers,
+            let modifiers = match_record! { self.record_of(declaration), {
+                as_class_declaration(data) => data.modifiers,
+                as_class_expression(data) => data.modifiers,
                 _ => None,
-            };
+            }};
             self.modifier_flags_of(modifiers)
                 .intersects(ModifierFlags::ABSTRACT)
         });
@@ -6806,10 +6805,11 @@ impl<'a> CheckerState<'a> {
             .get_base_type_node_of_class(class_type)
             .expect("base signatures imply an extends clause");
         let is_javascript = self.is_in_js_file(base_type_node);
-        let argument_nodes = match self.data_of(base_type_node) {
-            NodeData::ExpressionWithTypeArguments(_) => {
-                self.nodes_of(self.heritage_type_arguments(base_type_node))
-            }
+        let argument_nodes = match self
+            .record_of(base_type_node)
+            .as_expression_with_type_arguments()
+        {
+            Some(_) => self.nodes_of(self.heritage_type_arguments(base_type_node)),
             _ => Default::default(),
         };
         let mut type_arguments = Vec::with_capacity(argument_nodes.len());
@@ -7030,8 +7030,8 @@ impl<'a> CheckerState<'a> {
                 return Ok(Some(state.get_type_from_type_node(annotation)?));
             }
             if let Some(getter) = getter {
-                let body = match state.data_of(getter) {
-                    NodeData::GetAccessor(data) => data.body,
+                let body = match state.record_of(getter).as_get_accessor() {
+                    Some(data) => data.body,
                     _ => None,
                 };
                 if body.is_some() {
@@ -7259,25 +7259,25 @@ impl<'a> CheckerState<'a> {
     /// asserts the accessor modifier like tsc).
     pub(crate) fn annotated_accessor_type_node(&self, accessor: Option<NodeId>) -> Option<NodeId> {
         let accessor = accessor?;
-        match self.data_of(accessor) {
-            NodeData::GetAccessor(_) => self.effective_return_type_node(accessor),
-            NodeData::SetAccessor(_) => {
+        match_record! { self.record_of(accessor), {
+            as_get_accessor(_) => self.effective_return_type_node(accessor),
+            as_set_accessor(_) => {
                 // getEffectiveSetAccessorTypeAnnotationNode: the
                 // VALUE parameter's annotation — a leading `this`
                 // parameter is skipped (the A2-exposed FP root).
                 let parameter = self.set_accessor_value_parameter(accessor)?;
                 self.effective_type_annotation_node(parameter)
-            }
-            NodeData::PropertyDeclaration(_) => {
+            },
+            as_property_declaration(_) => {
                 debug_assert!(node_util::has_syntactic_modifier(
                     &Published,
                     accessor,
                     ModifierFlags::ACCESSOR,
                 ));
                 self.effective_type_annotation_node(accessor)
-            }
+            },
             _ => None,
-        }
+        }}
     }
 
     // ---- member instantiation ----
@@ -7396,14 +7396,14 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::UndefinedKeyword
             | SyntaxKind::NeverKeyword
             | SyntaxKind::LiteralType => true,
-            SyntaxKind::ArrayType => match self.data_of(node) {
-                NodeData::ArrayType(data) => data
+            SyntaxKind::ArrayType => match self.record_of(node).as_array_type() {
+                Some(data) => data
                     .element_type
                     .is_some_and(|element| self.is_thisless_type(element)),
                 _ => false,
             },
-            SyntaxKind::TypeReference => match self.data_of(node) {
-                NodeData::TypeReference(data) => self
+            SyntaxKind::TypeReference => match self.record_of(node).as_type_reference() {
+                Some(data) => self
                     .nodes_of(data.type_arguments)
                     .iter()
                     .all(|&argument| self.is_thisless_type(argument)),
@@ -7421,12 +7421,12 @@ impl<'a> CheckerState<'a> {
     /// The annotation is the effective one: tsgo's reparser gives a
     /// JavaScript declaration its JSDoc type.
     fn is_thisless_variable_like_declaration(&self, node: NodeId) -> bool {
-        let initializer = match self.data_of(node) {
-            NodeData::PropertyDeclaration(data) => data.initializer,
-            NodeData::PropertySignature(data) => data.initializer,
-            NodeData::Parameter(data) => data.initializer,
+        let initializer = match_record! { self.record_of(node), {
+            as_property_declaration(data) => data.initializer,
+            as_property_signature(data) => data.initializer,
+            as_parameter(data) => data.initializer,
             _ => None,
-        };
+        }};
         match self.effective_type_annotation_node(node) {
             Some(annotation) => self.is_thisless_type(annotation),
             None => initializer.is_none(),
@@ -7438,14 +7438,14 @@ impl<'a> CheckerState<'a> {
     /// `@template` type parameters (a JavaScript method's own symbol then
     /// stays in its class's members, as a TypeScript one's does).
     fn is_thisless_function_like_declaration(&self, node: NodeId) -> bool {
-        let (kind, parameters) = match self.data_of(node) {
-            NodeData::MethodDeclaration(data) => (SyntaxKind::MethodDeclaration, data.parameters),
-            NodeData::MethodSignature(data) => (SyntaxKind::MethodSignature, data.parameters),
-            NodeData::Constructor(data) => (SyntaxKind::Constructor, data.parameters),
-            NodeData::GetAccessor(data) => (SyntaxKind::GetAccessor, data.parameters),
-            NodeData::SetAccessor(data) => (SyntaxKind::SetAccessor, data.parameters),
+        let (kind, parameters) = match_record! { self.record_of(node), {
+            as_method_declaration(data) => (SyntaxKind::MethodDeclaration, data.parameters),
+            as_method_signature(data) => (SyntaxKind::MethodSignature, data.parameters),
+            as_constructor(data) => (SyntaxKind::Constructor, data.parameters),
+            as_get_accessor(data) => (SyntaxKind::GetAccessor, data.parameters),
+            as_set_accessor(data) => (SyntaxKind::SetAccessor, data.parameters),
             _ => return false,
-        };
+        }};
         let return_ok = kind == SyntaxKind::Constructor
             || self
                 .effective_return_type_node(node)
@@ -8322,8 +8322,8 @@ impl<'a> CheckerState<'a> {
                     .file_name
                     .ends_with(".json")
             {
-                let statements = match self.data_of(declaration) {
-                    NodeData::SourceFile(data) => data.statements,
+                let statements = match self.record_of(declaration).as_source_file() {
+                    Some(data) => data.statements,
                     _ => None,
                 };
                 let expression = statements
@@ -8336,9 +8336,11 @@ impl<'a> CheckerState<'a> {
                             .first()
                             .copied()
                     })
-                    .and_then(|statement| match self.data_of(statement) {
-                        NodeData::ExpressionStatement(data) => data.expression,
-                        _ => None,
+                    .and_then(|statement| {
+                        match self.record_of(statement).as_expression_statement() {
+                            Some(data) => data.expression,
+                            _ => None,
+                        }
                     });
                 let resolved = if let Some(expression) = expression {
                     let checked = self.check_expression_cached(expression, CheckMode::NORMAL)?;
@@ -8434,8 +8436,8 @@ impl<'a> CheckerState<'a> {
                     // 56680-56681: `export =` types as the widened
                     // (cached) expression; the effective-type-node
                     // read is the JS @type shape and stays None here.
-                    let expression = match state.data_of(declaration) {
-                        NodeData::ExportAssignment(data) => data.expression,
+                    let expression = match state.record_of(declaration).as_export_assignment() {
+                        Some(data) => data.expression,
                         _ => unreachable!("kind/data agree"),
                     };
                     let Some(expression) = expression else {
@@ -8497,8 +8499,11 @@ impl<'a> CheckerState<'a> {
                     match state.try_get_type_from_effective_type_node(declaration)? {
                         Some(declared) => Ok(declared),
                         None => {
-                            let name = match state.data_of(declaration) {
-                                NodeData::ShorthandPropertyAssignment(data) => data.name,
+                            let name = match state
+                                .record_of(declaration)
+                                .as_shorthand_property_assignment()
+                            {
+                                Some(data) => data.name,
                                 _ => None,
                             };
                             let Some(name) = name else {
@@ -8716,10 +8721,7 @@ impl<'a> CheckerState<'a> {
         let no_implicit_any = self
             .options
             .strict_option_value(self.options.no_implicit_any);
-        let has_initializer = matches!(
-            self.data_of(declaration),
-            NodeData::Parameter(data) if data.initializer.is_some()
-        );
+        let has_initializer = matches!(self.record_of(declaration).as_parameter(), Some(data) if data.initializer.is_some());
         if no_implicit_any
             && (self.kind_of(declaration) != SyntaxKind::Parameter || has_initializer)
         {
@@ -8797,10 +8799,7 @@ impl<'a> CheckerState<'a> {
             }
             return self.get_widened_type(ty);
         }
-        let is_rest_parameter = matches!(
-            self.data_of(declaration),
-            NodeData::Parameter(data) if data.dot_dot_dot_token.is_some()
-        );
+        let is_rest_parameter = matches!(self.record_of(declaration).as_parameter(), Some(data) if data.dot_dot_dot_token.is_some());
         let ty = if is_rest_parameter {
             self.any_array_type()?
         } else {
@@ -8879,8 +8878,8 @@ impl<'a> CheckerState<'a> {
                     // the Extract<_, string> wrap — everything else is
                     // plain string.
                     let grand = grand.expect("matched Some above");
-                    let expression = match self.data_of(grand) {
-                        NodeData::ForInStatement(data) => data.expression,
+                    let expression = match self.record_of(grand).as_for_in_statement() {
+                        Some(data) => data.expression,
                         _ => None,
                     };
                     let Some(expression) = expression else {
@@ -9012,23 +9011,19 @@ impl<'a> CheckerState<'a> {
                     // getAccessorThisParameter (89889-89893): a setter
                     // this-parameter exists only in the two-parameter
                     // shape, as a first `this`-named parameter.
-                    let setter_parameters = match self.data_of(func) {
-                        NodeData::SetAccessor(data) => data.parameters,
+                    let setter_parameters = match self.record_of(func).as_set_accessor() {
+                        Some(data) => data.parameters,
                         _ => None,
                     };
                     let setter_parameters = self.nodes_of(setter_parameters);
                     let this_parameter = if setter_parameters.len() == 2 {
                         setter_parameters.first().copied().filter(|&first| {
-                            matches!(
-                                self.data_of(first),
-                                NodeData::Parameter(data)
-                                    if data.name.is_some_and(|name| {
+                            matches!(self.record_of(first).as_parameter(), Some(data) if data.name.is_some_and(|name| {
                                         self.kind_of(name) == SyntaxKind::Identifier
                                             && self
                                                 .text_of_node(name)
                                                 .is_ok_and(|text| text == "this")
-                                    })
-                            )
+                                    }))
                         })
                     } else {
                         None
@@ -9113,15 +9108,15 @@ impl<'a> CheckerState<'a> {
                     self.add_optionality(ty, /*is_property*/ true, is_optional)
                 }));
             } else {
-                let static_blocks: Vec<NodeId> = match self.data_of(class) {
-                    NodeData::ClassDeclaration(data) => self
+                let static_blocks: Vec<NodeId> = match_record! { self.record_of(class), {
+                    as_class_declaration(data) => self
                         .nodes_of(data.members)
                         .into_iter()
                         .filter(|&member| {
                             self.kind_of(member) == SyntaxKind::ClassStaticBlockDeclaration
                         })
                         .collect(),
-                    NodeData::ClassExpression(data) => self
+                    as_class_expression(data) => self
                         .nodes_of(data.members)
                         .into_iter()
                         .filter(|&member| {
@@ -9129,7 +9124,7 @@ impl<'a> CheckerState<'a> {
                         })
                         .collect(),
                     _ => Vec::new(),
-                };
+                }};
                 let ty = if !static_blocks.is_empty() {
                     let symbol = self.get_symbol_of_declaration(declaration)?;
                     self.get_flow_type_in_static_blocks(symbol, &static_blocks)?
@@ -9168,10 +9163,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 08b0e4f2dd355e6594b9f063fb6aa6f72c5b0ce69241893358080cd4e8a01994
     /// tsc-span: _tsc.js:55824-55840
     fn get_type_for_binding_element(&mut self, declaration: NodeId) -> CheckResult<Option<TypeId>> {
-        let is_rest = matches!(
-            self.data_of(declaration),
-            NodeData::BindingElement(data) if data.dot_dot_dot_token.is_some()
-        );
+        let is_rest = matches!(self.record_of(declaration).as_binding_element(), Some(data) if data.dot_dot_dot_token.is_some());
         let check_mode = if is_rest {
             CheckMode::REST_BINDING_ELEMENT
         } else {
@@ -9259,11 +9251,7 @@ impl<'a> CheckerState<'a> {
         // A JavaScript `/** @type {T} */ ([])` is `([] as T)` in tsgo, which
         // skipParentheses does not unwrap.
         let expr = self.skip_parentheses_excluding_jsdoc_type_assertions(node);
-        matches!(
-            self.data_of(expr),
-            NodeData::ArrayLiteralExpression(data)
-                if self.nodes_of(data.elements).is_empty()
-        )
+        matches!(self.record_of(expr).as_array_literal_expression(), Some(data) if self.nodes_of(data.elements).is_empty())
     }
 
     /// tsc-port: isCatchClauseVariableDeclarationOrBindingElement @6.0.3
@@ -9285,31 +9273,28 @@ impl<'a> CheckerState<'a> {
     /// (pub(crate) since 7.4b: inferFromAnnotatedParametersAndReturn's
     /// addOptionality read).
     pub(crate) fn is_optional_declaration(&self, declaration: NodeId) -> bool {
-        match self.data_of(declaration) {
-            // tsgo isOptionalDeclaration = HasQuestionToken: a JavaScript
-            // parameter's question token may be the one its reparser hosts
-            // from a bracketed or `=`-typed `@param` (makeQuestionIfOptional).
-            NodeData::Parameter(data) => {
+        match_record! { self.record_of(declaration), {
+            as_parameter(data) => {
                 data.question_token.is_some()
                     || (self.is_in_js_file(declaration)
                         && self.reparsed_question_tag(declaration).is_some())
-            }
-            NodeData::PropertyDeclaration(data) => data.question_token.is_some(),
-            NodeData::PropertySignature(data) => data.question_token.is_some(),
-            NodeData::JSDocPropertyTag(data) => {
+            },
+            as_property_declaration(data) => data.question_token.is_some(),
+            as_property_signature(data) => data.question_token.is_some(),
+            as_js_doc_property_tag(data) => {
                 data.is_bracketed
                     || self
                         .jsdoc_property_like_type_node(data.type_expression)
                         .is_some_and(|ty| self.kind_of(ty) == SyntaxKind::JSDocOptionalType)
-            }
-            NodeData::JSDocParameterTag(data) => {
+            },
+            as_js_doc_parameter_tag(data) => {
                 data.is_bracketed
                     || self
                         .jsdoc_property_like_type_node(data.type_expression)
                         .is_some_and(|ty| self.kind_of(ty) == SyntaxKind::JSDocOptionalType)
-            }
+            },
             _ => false,
-        }
+        }}
     }
 
     fn jsdoc_property_like_type_node(&self, expression: Option<NodeId>) -> Option<NodeId> {
@@ -9436,13 +9421,13 @@ impl<'a> CheckerState<'a> {
             let left = data.left;
             let kind =
                 tsc_binder::get_assignment_declaration_kind(&tsc_syntax::Published, declaration);
-            let literal_or_property = left.is_some_and(|left| match self.data_of(left) {
-                NodeData::ElementAccessExpression(access) => {
-                    access.argument_expression.is_some_and(|argument| {
+            let literal_or_property = left.is_some_and(|left| {
+                match self.record_of(left).as_element_access_expression() {
+                    Some(access) => access.argument_expression.is_some_and(|argument| {
                         node_util::is_string_or_numeric_literal_like(&Published, argument)
-                    })
+                    }),
+                    _ => true,
                 }
-                _ => true,
             });
             if kind != tsc_binder::AssignmentDeclarationKind::ThisProperty || !literal_or_property {
                 return Ok(none);
@@ -9499,8 +9484,8 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<Option<TypeId>> {
-        match self.data_of(node) {
-            NodeData::BinaryExpression(data) => {
+        match_record! { self.record_of(node), {
+            as_binary_expression(data) => {
                 let (left, right) = (data.left, data.right);
                 let Some(right) = right else {
                     return Ok(None);
@@ -9535,16 +9520,16 @@ impl<'a> CheckerState<'a> {
                     return Ok(Some(any_array));
                 }
                 Ok(Some(ty))
-            }
-            NodeData::CallExpression(data) => {
+            },
+            as_call_expression(data) => {
                 let descriptor = self.nodes_of(data.arguments).get(2).copied();
                 let Some(descriptor) = descriptor else {
                     return Ok(None);
                 };
                 Ok(Some(self.get_type_from_property_descriptor(descriptor)?))
-            }
+            },
             _ => Ok(None),
-        }
+        }}
     }
 
     /// tsgo hasParentWithTypeAnnotation @7.1: the assignment declares a member
@@ -9565,9 +9550,11 @@ impl<'a> CheckerState<'a> {
         self.parent_of(value_declaration)
             .and_then(|host| self.node_symbol(host))
             .and_then(|host_symbol| self.binder.symbol(host_symbol).value_declaration)
-            .is_some_and(|declaration| match self.data_of(declaration) {
-                NodeData::VariableDeclaration(data) => data.r#type.is_some(),
-                _ => false,
+            .is_some_and(|declaration| {
+                match self.record_of(declaration).as_variable_declaration() {
+                    Some(data) => data.r#type.is_some(),
+                    _ => false,
+                }
             })
     }
 
@@ -10139,11 +10126,7 @@ impl<'a> CheckerState<'a> {
         let declared = self.get_type_of_symbol(symbol)?;
         let declaration = self.binder.symbol(symbol).value_declaration;
         let is_optional = declaration.is_some_and(|declaration| {
-            matches!(
-                self.data_of(declaration),
-                NodeData::Parameter(data)
-                    if data.question_token.is_some() || data.initializer.is_some()
-            )
+            matches!(self.record_of(declaration).as_parameter(), Some(data) if data.question_token.is_some() || data.initializer.is_some())
         });
         Ok(self.add_optionality(declared, /*is_property*/ false, is_optional))
     }
@@ -10209,8 +10192,7 @@ impl<'a> CheckerState<'a> {
                             // 59736-59740: the declaration being expanded is
                             // the constructor host even when an earlier JSDoc
                             // document owns this synthetic signature.
-                            let missing_return = matches!(self.data_of(signature), NodeData::JSDocSignature(data)
-                                    if data.r#type.is_none());
+                            let missing_return = matches!(self.record_of(signature).as_js_doc_signature(), Some(data) if data.r#type.is_none());
                             if missing_return
                                 && self.kind_of(declaration) != SyntaxKind::Constructor
                             {
@@ -10281,10 +10263,7 @@ impl<'a> CheckerState<'a> {
         else {
             return Ok(None);
         };
-        let rest = matches!(
-            self.data_of(parameter),
-            NodeData::Parameter(data) if data.dot_dot_dot_token.is_some()
-        );
+        let rest = matches!(self.record_of(parameter).as_parameter(), Some(data) if data.dot_dot_dot_token.is_some());
         if rest {
             self.get_rest_type_at_position(signature, position, false)
                 .map(Some)
@@ -10332,27 +10311,24 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(cached);
         }
-        let (type_parameters, parameter_list, modifiers) = match self.data_of(declaration) {
-            NodeData::FunctionType(data) => (data.type_parameters, data.parameters, None),
-            NodeData::JSDocFunctionType(data) => (data.type_parameters, data.parameters, None),
-            NodeData::JSDocSignature(data) => (data.type_parameters, data.parameters, None),
-            NodeData::ConstructorType(data) => {
+        let (type_parameters, parameter_list, modifiers) = match_record! { self.record_of(declaration), {
+            as_function_type(data) => (data.type_parameters, data.parameters, None),
+            as_js_doc_function_type(data) => (data.type_parameters, data.parameters, None),
+            as_js_doc_signature(data) => (data.type_parameters, data.parameters, None),
+            as_constructor_type(data) => {
                 (data.type_parameters, data.parameters, data.modifiers)
-            }
-            NodeData::CallSignature(data) => (data.type_parameters, data.parameters, None),
-            NodeData::ConstructSignature(data) => (data.type_parameters, data.parameters, None),
-            NodeData::MethodSignature(data) => (data.type_parameters, data.parameters, None),
-            // 5.5f: value function-likes (body-carrying kinds); the
-            // Constructor classType/parameter-property arms are 5.9c.
-            NodeData::Constructor(data) => (data.type_parameters, data.parameters, None),
-            NodeData::FunctionDeclaration(data) => (data.type_parameters, data.parameters, None),
-            NodeData::FunctionExpression(data) => (data.type_parameters, data.parameters, None),
-            NodeData::ArrowFunction(data) => (data.type_parameters, data.parameters, None),
-            NodeData::MethodDeclaration(data) => (data.type_parameters, data.parameters, None),
-            NodeData::GetAccessor(data) => (data.type_parameters, data.parameters, None),
-            NodeData::SetAccessor(data) => (data.type_parameters, data.parameters, None),
-            // tsgo answers the API's question for an index signature too.
-            NodeData::IndexSignature(data) => (data.type_parameters, data.parameters, None),
+            },
+            as_call_signature(data) => (data.type_parameters, data.parameters, None),
+            as_construct_signature(data) => (data.type_parameters, data.parameters, None),
+            as_method_signature(data) => (data.type_parameters, data.parameters, None),
+            as_constructor(data) => (data.type_parameters, data.parameters, None),
+            as_function_declaration(data) => (data.type_parameters, data.parameters, None),
+            as_function_expression(data) => (data.type_parameters, data.parameters, None),
+            as_arrow_function(data) => (data.type_parameters, data.parameters, None),
+            as_method_declaration(data) => (data.type_parameters, data.parameters, None),
+            as_get_accessor(data) => (data.type_parameters, data.parameters, None),
+            as_set_accessor(data) => (data.type_parameters, data.parameters, None),
+            as_index_signature(data) => (data.type_parameters, data.parameters, None),
             _ => {
                 // getSignatureFromDeclaration is called with a
                 // SignatureDeclaration in tsc.  Recovery callers that have
@@ -10365,8 +10341,8 @@ impl<'a> CheckerState<'a> {
                     LinkSlot::Resolved(signature),
                 );
                 return Ok(signature);
-            }
-        };
+            },
+        }};
         let _ = type_parameters;
         let host_declaration = if self.kind_of(declaration) == SyntaxKind::JSDocSignature {
             self.get_effective_jsdoc_host(declaration)
@@ -10416,7 +10392,7 @@ impl<'a> CheckerState<'a> {
             && self.is_in_js_file(declaration)
             && is_value_signature_declaration
             && !this_tag.is_some_and(|tag| {
-                matches!(self.data_of(tag), NodeData::JSDocThisTag(data) if data.type_expression.is_some())
+                matches!(self.record_of(tag).as_js_doc_this_tag(), Some(data) if data.type_expression.is_some())
             })
             && self
                 .parameters_of_function(declaration)
@@ -10451,27 +10427,26 @@ impl<'a> CheckerState<'a> {
             if self.is_jsdoc_property_path_parameter(parameter) {
                 continue;
             }
-            let (name, type_node, question_token, initializer, is_normal_parameter) =
-                match self.data_of(parameter) {
-                    NodeData::Parameter(data) => (
-                        data.name,
-                        data.r#type,
-                        data.question_token,
-                        data.initializer,
-                        true,
-                    ),
-                    NodeData::JSDocParameterTag(data) => (
-                        data.name,
-                        self.jsdoc_type_expression_type(data.type_expression),
-                        None,
-                        None,
-                        false,
-                    ),
-                    _ => unreachable!(
-                        "parser invariant: signature parameters are Parameter, JSDocParameterTag, \
-                     or the prefiltered JSDocThisTag"
-                    ),
-                };
+            let (name, type_node, question_token, initializer, is_normal_parameter) = match_record! { self.record_of(parameter), {
+                as_parameter(data) => (
+                    data.name,
+                    data.r#type,
+                    data.question_token,
+                    data.initializer,
+                    true,
+                ),
+                as_js_doc_parameter_tag(data) => (
+                    data.name,
+                    self.jsdoc_type_expression_type(data.type_expression),
+                    None,
+                    None,
+                    false,
+                ),
+                _ => unreachable!(
+                    "parser invariant: signature parameters are Parameter, JSDocParameterTag, \
+                 or the prefiltered JSDocThisTag"
+                ),
+            }};
             let parameter_symbol = if is_normal_parameter {
                 self.node_symbol(parameter)
             } else {
@@ -10543,8 +10518,8 @@ impl<'a> CheckerState<'a> {
                 && type_node.is_none()
                 && node_util::get_immediately_invoked_function_expression(&Published, declaration)
                     .is_some_and(|iife| {
-                        let argument_count = match self.data_of(iife) {
-                            NodeData::CallExpression(call) => self.nodes_of(call.arguments).len(),
+                        let argument_count = match self.record_of(iife).as_call_expression() {
+                            Some(call) => self.nodes_of(call.arguments).len(),
                             _ => 0,
                         };
                         parameters.len() > argument_count
@@ -10559,8 +10534,8 @@ impl<'a> CheckerState<'a> {
             }
         }
         if let Some(this_tag) = this_tag {
-            let type_expression = match self.data_of(this_tag) {
-                NodeData::JSDocThisTag(data) => data.type_expression,
+            let type_expression = match self.record_of(this_tag).as_js_doc_this_tag() {
+                Some(data) => data.type_expression,
                 _ => None,
             };
             if let Some(type_expression) = type_expression {
@@ -10575,8 +10550,8 @@ impl<'a> CheckerState<'a> {
                 let declaration = if this_tag_in_signature {
                     Some(this_tag)
                 } else {
-                    match self.data_of(this_tag) {
-                        NodeData::JSDocThisTag(data) => data.tag_name,
+                    match self.record_of(this_tag).as_js_doc_this_tag() {
+                        Some(data) => data.tag_name,
                         _ => None,
                     }
                 };
@@ -10614,18 +10589,14 @@ impl<'a> CheckerState<'a> {
             if let Some(other) = other {
                 // getAnnotatedAccessorThisParameter: the other
                 // accessor's `this` parameter symbol, when declared.
-                let other_parameters = match self.data_of(other) {
-                    NodeData::GetAccessor(data) => data.parameters,
-                    NodeData::SetAccessor(data) => data.parameters,
+                let other_parameters = match_record! { self.record_of(other), {
+                    as_get_accessor(data) => data.parameters,
+                    as_set_accessor(data) => data.parameters,
                     _ => None,
-                };
+                }};
                 if let Some(&first) = self.nodes_of(other_parameters).first() {
-                    let is_this = matches!(
-                        self.data_of(first),
-                        NodeData::Parameter(data)
-                            if data.name.and_then(|name| self.identifier_text(name))
-                                == Some("this")
-                    );
+                    let is_this = matches!(self.record_of(first).as_parameter(), Some(data) if data.name.and_then(|name| self.identifier_text(name))
+                                == Some("this"));
                     if is_this {
                         this_parameter = self.node_symbol(first);
                     }
@@ -10636,21 +10607,23 @@ impl<'a> CheckerState<'a> {
         // reparsed callback parameter's `...T` makes one). tsgo adds no
         // synthetic rest parameter for a JavaScript body that uses
         // `arguments` (tsc 6.0 maybeAddJsSyntheticRestParameter).
-        let last_is_rest =
-            self.nodes_of(parameter_list)
-                .last()
-                .is_some_and(|&parameter| match self.data_of(parameter) {
-                    NodeData::Parameter(data) => {
+        let last_is_rest = self
+            .nodes_of(parameter_list)
+            .last()
+            .is_some_and(|&parameter| {
+                match_record! { self.record_of(parameter), {
+                    as_parameter(data) => {
                         data.dot_dot_dot_token.is_some()
                             || data
                                 .r#type
                                 .is_some_and(|ty| self.kind_of(ty) == SyntaxKind::JSDocVariadicType)
-                    }
-                    NodeData::JSDocParameterTag(data) => self
+                    },
+                    as_js_doc_parameter_tag(data) => self
                         .jsdoc_type_expression_type(data.type_expression)
                         .is_some_and(|ty| self.kind_of(ty) == SyntaxKind::JSDocVariadicType),
                     _ => false,
-                });
+                }}
+            });
         if last_is_rest {
             flags |= SignatureFlags::HAS_REST_PARAMETER;
         }
@@ -10671,11 +10644,11 @@ impl<'a> CheckerState<'a> {
             let class = self
                 .parent_of(declaration)
                 .expect("constructor has a class parent");
-            let class_modifiers = match self.data_of(class) {
-                NodeData::ClassDeclaration(data) => data.modifiers,
-                NodeData::ClassExpression(data) => data.modifiers,
+            let class_modifiers = match_record! { self.record_of(class), {
+                as_class_declaration(data) => data.modifiers,
+                as_class_expression(data) => data.modifiers,
                 _ => None,
-            };
+            }};
             self.modifier_flags_of(class_modifiers)
                 .intersects(ModifierFlags::ABSTRACT)
         } else {
@@ -10739,43 +10712,38 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.error);
         }
         let declaration = self.signature_of(id).declaration;
-        let annotation = declaration.and_then(|declaration| match self.data_of(declaration) {
-            NodeData::FunctionType(data) => data.r#type,
-            NodeData::JSDocFunctionType(data) => {
+        let annotation = declaration.and_then(|declaration| match_record!{ self.record_of(declaration), {
+            as_function_type(data) => data.r#type,
+            as_js_doc_function_type(data) => {
                 if node_util::is_jsdoc_construct_signature(&Published, declaration) {
                     self.nodes_of(data.parameters)
                         .first()
-                        .and_then(|&parameter| match self.data_of(parameter) {
-                            NodeData::Parameter(data) => data.r#type,
-                            _ => None,
-                        })
+                        .and_then(|&parameter| match self.record_of(parameter).as_parameter() {
+Some(data) => data.r#type,
+_ => None,
+})
                 } else {
                     data.r#type
                 }
-            }
-            NodeData::JSDocSignature(data) => data.r#type.and_then(|tag| match self.data_of(tag) {
-                NodeData::JSDocReturnTag(data) => {
+            },
+            as_js_doc_signature(data) => data.r#type.and_then(|tag| match self.record_of(tag).as_js_doc_return_tag() {
+Some(data) => {
                     self.jsdoc_type_expression_type(data.type_expression)
-                }
-                _ => None,
-            }),
-            NodeData::ConstructorType(data) => data.r#type,
-            NodeData::CallSignature(data) => data.r#type,
-            NodeData::ConstructSignature(data) => data.r#type,
-            NodeData::MethodSignature(data) => data.r#type,
-            NodeData::FunctionDeclaration(data) => data.r#type,
-            NodeData::FunctionExpression(data) => data.r#type,
-            NodeData::ArrowFunction(data) => data.r#type,
-            NodeData::MethodDeclaration(data) => data.r#type,
-            NodeData::GetAccessor(data) => data.r#type,
-            // getEffectiveReturnTypeNode reads `.type` generically
-            // (16768): a set accessor's grammatically-illegal (1095)
-            // but PARSED annotation still feeds the signature return
-            // type — tsc's bare-return 7030 face consults it (the
-            // 6.6-review p9 face).
-            NodeData::SetAccessor(data) => data.r#type,
+                },
+_ => None,
+}),
+            as_constructor_type(data) => data.r#type,
+            as_call_signature(data) => data.r#type,
+            as_construct_signature(data) => data.r#type,
+            as_method_signature(data) => data.r#type,
+            as_function_declaration(data) => data.r#type,
+            as_function_expression(data) => data.r#type,
+            as_arrow_function(data) => data.r#type,
+            as_method_declaration(data) => data.r#type,
+            as_get_accessor(data) => data.r#type,
+            as_set_accessor(data) => data.r#type,
             _ => None,
-        });
+        }});
         let target = self.signature_of(id).target;
         let composite = self.signature_of(id).composite_signatures.clone();
         let computed = match (target, composite) {
@@ -11058,8 +11026,8 @@ impl<'a> CheckerState<'a> {
         include_pattern_in_type: bool,
         report_errors: bool,
     ) -> CheckResult<TypeId> {
-        let elements: Vec<NodeId> = match self.data_of(pattern) {
-            NodeData::ObjectBindingPattern(data) => self.nodes_of(data.elements).to_vec(),
+        let elements: Vec<NodeId> = match self.record_of(pattern).as_object_binding_pattern() {
+            Some(data) => self.nodes_of(data.elements).to_vec(),
             _ => Vec::new(),
         };
         let mut members = tsc_binder::SymbolTable::default();
@@ -11142,15 +11110,12 @@ impl<'a> CheckerState<'a> {
         include_pattern_in_type: bool,
         report_errors: bool,
     ) -> CheckResult<TypeId> {
-        let elements: Vec<NodeId> = match self.data_of(pattern) {
-            NodeData::ArrayBindingPattern(data) => self.nodes_of(data.elements).to_vec(),
+        let elements: Vec<NodeId> = match self.record_of(pattern).as_array_binding_pattern() {
+            Some(data) => self.nodes_of(data.elements).to_vec(),
             _ => Vec::new(),
         };
         let rest_element = elements.last().copied().filter(|&last| {
-            matches!(
-                self.data_of(last),
-                NodeData::BindingElement(data) if data.dot_dot_dot_token.is_some()
-            )
+            matches!(self.record_of(last).as_binding_element(), Some(data) if data.dot_dot_dot_token.is_some())
         });
         if elements.is_empty() || (elements.len() == 1 && rest_element.is_some()) {
             return if self.options.emit_script_target() >= tsc_types::ScriptTarget::ES2015 {
@@ -11203,10 +11168,7 @@ impl<'a> CheckerState<'a> {
     /// hasDefaultValue's binding-element half (the expression halves
     /// live on the driver band).
     fn binding_element_has_default_value(&self, e: NodeId) -> bool {
-        matches!(
-            self.data_of(e),
-            NodeData::BindingElement(data) if data.initializer.is_some()
-        )
+        matches!(self.record_of(e).as_binding_element(), Some(data) if data.initializer.is_some())
     }
 
     /// tsc-port: getTypeFromBindingPattern @6.0.3

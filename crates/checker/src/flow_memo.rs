@@ -8,7 +8,9 @@ use std::sync::Arc;
 
 use rustc_hash::{FxHashMap, FxHasher};
 use tsc_binder::flow::FlowId;
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+#[cfg(test)]
+use tsc_syntax::NodeData;
+use tsc_syntax::{NodeId, SyntaxKind};
 use tsc_types::{FlowFlags, NodeFlags, TypeId};
 
 use crate::flow::{FlowQuery, FlowType, SharedFlow};
@@ -565,16 +567,16 @@ impl CheckerState<'_> {
     }
 
     fn write_flow_memo_reference(&self, node: NodeId, bytes: &mut Vec<u8>) -> Option<()> {
-        match self.data_of(node) {
-            NodeData::Identifier(_) => {
+        match_record! { self.record_of(node), {
+            as_identifier(_) => {
                 let symbol = self.links.node(node).resolved_symbol.resolved()?;
                 if symbol == self.unknown_symbol || self.is_this_in_type_query(node) {
                     return None;
                 }
                 bytes.push(b'I');
                 bytes.extend_from_slice(&symbol.position().to_le_bytes());
-            }
-            NodeData::PropertyAccessExpression(data) => {
+            },
+            as_property_access_expression(data) => {
                 if self
                     .binder
                     .flags_of(node)
@@ -590,10 +592,10 @@ impl CheckerState<'_> {
                 bytes.push(b'P');
                 bytes.extend_from_slice(&u32::try_from(name.len()).ok()?.to_le_bytes());
                 bytes.extend_from_slice(name.as_bytes());
-            }
+            },
             _ if self.kind_of(node) == SyntaxKind::ThisKeyword => bytes.push(b'T'),
             _ => return None,
-        }
+        }}
         Some(())
     }
 

@@ -940,8 +940,8 @@ impl NodeArena {
     }
 
     /// The hottest cross-crate accessor of the checker (root's frozen W2e
-    /// profiles): inlined so the two id checks fold into the caller instead
-    /// of an out-of-line call with its own frame. The checks stay.
+    /// profiles): inline the base subtraction and the Vec bounds check.
+    /// Arena-domain checks remain debug assertions.
     #[inline]
     pub fn node(&self, id: NodeId) -> &Node {
         &self.nodes[self.node_index(id)]
@@ -1557,25 +1557,25 @@ impl NodeArena {
 
     #[inline]
     fn node_index(&self, id: NodeId) -> usize {
-        assert!(
+        debug_assert!(
             id.index() >= self.node_base,
             "NodeId below arena base: {id:?} (base {})",
             self.node_base
         );
         let index = (id.index() - self.node_base) as usize;
-        assert!(index < self.nodes.len(), "invalid NodeId: {id:?}");
+        debug_assert!(index < self.nodes.len(), "invalid NodeId: {id:?}");
         index
     }
 
     #[inline]
     fn array_index(&self, id: NodeArrayId) -> usize {
-        assert!(
+        debug_assert!(
             id.index() >= self.array_base,
             "NodeArrayId below arena base: {id:?} (base {})",
             self.array_base
         );
         let index = (id.index() - self.array_base) as usize;
-        assert!(index < self.arrays.len(), "invalid NodeArrayId: {id:?}");
+        debug_assert!(index < self.arrays.len(), "invalid NodeArrayId: {id:?}");
         index
     }
 }
