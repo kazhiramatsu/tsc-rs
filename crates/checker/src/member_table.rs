@@ -33,6 +33,40 @@ pub struct MemberTable {
 /// The most members a table is searched in order for.
 const LINEAR_MEMBERS: usize = 8;
 
+/// One hash shared by an own-member lookup and its global fallbacks.
+#[derive(Clone, Copy)]
+pub(crate) struct HashedName {
+    pub name: EscapedName,
+    hash: u64,
+}
+
+impl HashedName {
+    pub fn new(name: EscapedName) -> Self {
+        Self {
+            name,
+            hash: hash_name(name),
+        }
+    }
+}
+
+/// A negative answer proves absence from every table added to the filter.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct NameFilter([u64; 4]);
+
+impl NameFilter {
+    pub fn insert(&mut self, name: HashedName) {
+        for bit in [name.hash as u8, (name.hash >> 32) as u8] {
+            self.0[usize::from(bit / 64)] |= 1 << (bit % 64);
+        }
+    }
+
+    pub fn may_contain(&self, name: HashedName) -> bool {
+        [name.hash as u8, (name.hash >> 32) as u8]
+            .into_iter()
+            .all(|bit| self.0[usize::from(bit / 64)] & (1 << (bit % 64)) != 0)
+    }
+}
+
 fn hash_name(name: EscapedName) -> u64 {
     let mut hasher = FxHasher::default();
     name.index().hash(&mut hasher);
@@ -132,6 +166,26 @@ impl MemberTable {
         }
         self.positions
             .find(hash_name(name), |&position| {
+                name_of(binder, self.symbols[position as usize]) == name
+            })
+            .map(|&position| self.symbols[position as usize])
+    }
+
+    pub(crate) fn get_hashed(
+        &self,
+        binder: &ProgramBinder<'_>,
+        key: HashedName,
+    ) -> Option<SymbolId> {
+        let name = key.name;
+        if self.linear() {
+            return self
+                .symbols
+                .iter()
+                .copied()
+                .find(|&symbol| name_of(binder, symbol) == name);
+        }
+        self.positions
+            .find(key.hash, |&position| {
                 name_of(binder, self.symbols[position as usize]) == name
             })
             .map(|&position| self.symbols[position as usize])

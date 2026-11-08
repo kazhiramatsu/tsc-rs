@@ -331,3 +331,37 @@ fn jsdoc_getter_type_precedes_the_setter_annotation() {
         assert_eq!(actual, Some(state.tables.intrinsics.string));
     });
 }
+
+#[test]
+fn contextual_union_positions_preserve_name_literal_creation_and_result_order() {
+    fn run(shortcut: bool) -> (Vec<Option<u32>>, usize) {
+        with_program_state(
+            &[("a.ts", "interface Object {}\ninterface Function {}\ninterface CallableFunction {}\ninterface NewableFunction {}\ndeclare let u: { a: 1 } | { b: 2 } | { c: 3 } | { d: 4 } | { e: 5 } | { f: 6 } | { g: 7 } | { h: 8 };\n")],
+            &CompilerOptions { strict_bind_call_apply: Some(true), ..CompilerOptions::default() },
+            |state| {
+                let globals = [state.global_function_type().unwrap(), state.global_callable_function_type().unwrap(),
+                    state.global_newable_function_type().unwrap(), state.global_object_type().unwrap()];
+                for ty in globals { state.resolve_structured_type_members(ty).unwrap(); }
+                let annotation = crate::relpin::find_probe_annotation(state.binder.source(0), "u").unwrap();
+                let union = state.get_type_from_type_node(annotation).unwrap();
+                let tsc_types::TypeData::Union { types, .. } = state.tables.type_of(union).data else { panic!("union") };
+                for ty in state.tables.list_copy(types) { state.resolve_structured_type_members(ty).unwrap(); }
+                let mut results = Vec::new();
+                for name in ["missing", "a", "h", "missing", "a"] {
+                    let name = tsc_types::EscapedName::from_identifier_escaped_text(name);
+                    let result = if shortcut {
+                        state.get_type_of_property_of_contextual_type(union, name, None).unwrap()
+                    } else {
+                        state.map_type(union, &mut |state, t| state.contextual_property_type_of_constituent(t, name, None), true).unwrap()
+                    };
+                    results.push(result.map(|ty| ty.index()));
+                }
+                if shortcut {
+                    assert!(state.contextual_relevant.values().any(|(_, positions)| positions.is_empty()));
+                }
+                (results, state.tables.len())
+            },
+        )
+    }
+    assert_eq!(run(true), run(false));
+}

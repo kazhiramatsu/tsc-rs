@@ -1422,100 +1422,200 @@ impl<'a> CheckerState<'a> {
         name_type: Option<TypeId>,
     ) -> CheckResult<Option<TypeId>> {
         let name = name.name();
-        let name = name.to_owned();
+        if let Some(result) = self.contextual_property_type_of_large_union(ty, name, name_type)? {
+            return Ok(result);
+        }
         self.map_type(
             ty,
-            &mut |state, t| {
-                if state.tables.flags_of(t).intersects(TypeFlags::INTERSECTION) {
-                    let constituents = match &state.tables.type_of(t).data {
-                        TypeData::Intersection { types } => state.tables.list(*types).to_vec(),
-                        _ => unreachable!("intersection flag implies payload"),
-                    };
-                    let mut types: Vec<TypeId> = Vec::new();
-                    let mut index_info_candidates: Vec<TypeId> = Vec::new();
-                    let mut ignore_index_infos = false;
-                    for constituent in constituents {
-                        if !state
-                            .tables
-                            .flags_of(constituent)
-                            .intersects(TypeFlags::OBJECT)
-                        {
-                            continue;
-                        }
-                        if state.is_generic_mapped_type_state(constituent)?
-                            && state.get_mapped_type_name_type_kind(constituent)?
-                                != crate::mapped::MappedTypeNameTypeKind::Remapping
-                        {
-                            let substituted = state
-                                .get_indexed_mapped_type_substituted_type_of_contextual_type(
-                                    constituent,
-                                    name,
-                                    name_type,
-                                )?;
-                            state.append_contextual_property_type_constituent(
-                                &mut types,
-                                substituted,
-                            );
-                            continue;
-                        }
-                        let property_type = state
-                            .get_type_of_concrete_property_of_contextual_type(constituent, name)?;
-                        let Some(property_type) = property_type else {
-                            if !ignore_index_infos {
-                                index_info_candidates.push(constituent);
-                            }
-                            continue;
-                        };
-                        ignore_index_infos = true;
-                        index_info_candidates.clear();
-                        state.append_contextual_property_type_constituent(
-                            &mut types,
-                            Some(property_type),
-                        );
-                    }
-                    for candidate in index_info_candidates {
-                        let index_info_type = state.get_type_from_index_infos_of_contextual_type(
-                            candidate, name, name_type,
-                        )?;
-                        state.append_contextual_property_type_constituent(
-                            &mut types,
-                            index_info_type,
-                        );
-                    }
-                    if types.is_empty() {
-                        return Ok(None);
-                    }
-                    if types.len() == 1 {
-                        return Ok(Some(types[0]));
-                    }
-                    return state
-                        .get_intersection_type(&types, tsc_types::IntersectionFlags::NONE)
-                        .map(Some);
-                }
-                if !state.tables.flags_of(t).intersects(TypeFlags::OBJECT) {
-                    return Ok(None);
-                }
-                if state.is_generic_mapped_type_state(t)?
-                    && state.get_mapped_type_name_type_kind(t)?
-                        != crate::mapped::MappedTypeNameTypeKind::Remapping
-                {
-                    return state.get_indexed_mapped_type_substituted_type_of_contextual_type(
-                        t, name, name_type,
-                    );
-                }
-                match state.get_type_of_concrete_property_of_contextual_type(t, name)? {
-                    Some(property_type) => {
-                        // appendContextualPropertyTypeConstituent's
-                        // any→unknown laundering applies on the
-                        // intersection path only; the plain path
-                        // returns the property type as-is.
-                        Ok(Some(property_type))
-                    }
-                    None => state.get_type_from_index_infos_of_contextual_type(t, name, name_type),
-                }
-            },
+            &mut |state, t| state.contextual_property_type_of_constituent(t, name, name_type),
             true,
         )
+    }
+
+    fn contextual_property_type_of_constituent(
+        &mut self,
+        t: TypeId,
+        name: tsc_types::EscapedName,
+        name_type: Option<TypeId>,
+    ) -> CheckResult<Option<TypeId>> {
+        if self.tables.flags_of(t).intersects(TypeFlags::INTERSECTION) {
+            let constituents = match &self.tables.type_of(t).data {
+                TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+                _ => unreachable!("intersection flag implies payload"),
+            };
+            let mut types: Vec<TypeId> = Vec::new();
+            let mut index_info_candidates: Vec<TypeId> = Vec::new();
+            let mut ignore_index_infos = false;
+            for constituent in constituents {
+                if !self
+                    .tables
+                    .flags_of(constituent)
+                    .intersects(TypeFlags::OBJECT)
+                {
+                    continue;
+                }
+                if self.is_generic_mapped_type_state(constituent)?
+                    && self.get_mapped_type_name_type_kind(constituent)?
+                        != crate::mapped::MappedTypeNameTypeKind::Remapping
+                {
+                    let substituted = self
+                        .get_indexed_mapped_type_substituted_type_of_contextual_type(
+                            constituent,
+                            name,
+                            name_type,
+                        )?;
+                    self.append_contextual_property_type_constituent(&mut types, substituted);
+                    continue;
+                }
+                let property_type =
+                    self.get_type_of_concrete_property_of_contextual_type(constituent, name)?;
+                let Some(property_type) = property_type else {
+                    if !ignore_index_infos {
+                        index_info_candidates.push(constituent);
+                    }
+                    continue;
+                };
+                ignore_index_infos = true;
+                index_info_candidates.clear();
+                self.append_contextual_property_type_constituent(&mut types, Some(property_type));
+            }
+            for candidate in index_info_candidates {
+                let index_info_type =
+                    self.get_type_from_index_infos_of_contextual_type(candidate, name, name_type)?;
+                self.append_contextual_property_type_constituent(&mut types, index_info_type);
+            }
+            if types.is_empty() {
+                return Ok(None);
+            }
+            if types.len() == 1 {
+                return Ok(Some(types[0]));
+            }
+            return self
+                .get_intersection_type(&types, tsc_types::IntersectionFlags::NONE)
+                .map(Some);
+        }
+        if !self.tables.flags_of(t).intersects(TypeFlags::OBJECT) {
+            return Ok(None);
+        }
+        if self.is_generic_mapped_type_state(t)?
+            && self.get_mapped_type_name_type_kind(t)?
+                != crate::mapped::MappedTypeNameTypeKind::Remapping
+        {
+            return self
+                .get_indexed_mapped_type_substituted_type_of_contextual_type(t, name, name_type);
+        }
+        match self.get_type_of_concrete_property_of_contextual_type(t, name)? {
+            Some(property_type) => {
+                // appendContextualPropertyTypeConstituent's
+                // any→unknown laundering applies on the
+                // intersection path only; the plain path
+                // returns the property type as-is.
+                Ok(Some(property_type))
+            }
+            None => self.get_type_from_index_infos_of_contextual_type(t, name, name_type),
+        }
+    }
+
+    /// tsrs H2.1: skip only settled plain objects with no own or global member
+    /// and no index infos. Keep mapType's origin, order, recursion and reduction.
+    fn contextual_property_type_of_large_union(
+        &mut self,
+        ty: TypeId,
+        name: tsc_types::EscapedName,
+        name_type: Option<TypeId>,
+    ) -> CheckResult<Option<Option<TypeId>>> {
+        if self.members_resolving != 0 {
+            return Ok(None);
+        }
+        let TypeData::Union { types, origin, .. } = self.tables.type_of(ty).data else {
+            return Ok(None);
+        };
+        let types = match origin.map(|origin| self.tables.type_of(origin).data) {
+            Some(TypeData::Union { types, .. }) => types,
+            _ => types,
+        };
+        let len = self.tables.list(types).len();
+        if len < 8 {
+            return Ok(None);
+        }
+        let epoch = self.links.members_reset_epoch;
+        let relevant = match self.contextual_relevant.get(&(ty, name)) {
+            Some((saved, positions)) if *saved == epoch => positions.clone(),
+            _ => {
+                let key = crate::member_table::HashedName::new(name);
+                let mut positions = Vec::new();
+                for i in 0..len {
+                    let t = self.tables.list(types)[i];
+                    if !self.is_skippable_contextual_constituent(t, key) {
+                        positions.push(i as u32);
+                    }
+                }
+                let positions: std::sync::Arc<[u32]> = positions.into();
+                self.contextual_relevant
+                    .insert((ty, name), (epoch, positions.clone()));
+                positions
+            }
+        };
+        if relevant.len() == len {
+            return Ok(None);
+        }
+        let mut mapped = Vec::with_capacity(relevant.len());
+        let mut next = 0;
+        let mut position = 0;
+        while position < len {
+            let live = self.links.members_reset_epoch == epoch;
+            if live && relevant.get(next).copied() != Some(position as u32) {
+                // This port's empty-index path still interns the name. Preserve
+                // the first such creation's position and therefore type ids/counts.
+                if name_type.is_none() {
+                    self.tables.get_string_literal_type(name);
+                }
+                position = relevant.get(next).map_or(len, |&p| p as usize);
+                continue;
+            }
+            let t = self.tables.list(types)[position];
+            if let Some(t) = self.map_type(
+                t,
+                &mut |state, t| state.contextual_property_type_of_constituent(t, name, name_type),
+                true,
+            )? {
+                mapped.push(t);
+            }
+            next += 1;
+            position += 1;
+        }
+        let result = if mapped.is_empty() {
+            None
+        } else {
+            Some(self.get_union_type_ex(&mapped, tsc_types::UnionReduction::None)?)
+        };
+        Ok(Some(result))
+    }
+
+    fn is_skippable_contextual_constituent(
+        &mut self,
+        ty: TypeId,
+        key: crate::member_table::HashedName,
+    ) -> bool {
+        if self.tables.flags_of(ty) != TypeFlags::OBJECT
+            || self
+                .tables
+                .object_flags_of(ty)
+                .intersects(tsc_types::ObjectFlags::MAPPED)
+            || self.tables.is_tuple_type(ty)
+        {
+            return false;
+        }
+        let Some(members) = self
+            .links
+            .read_ty(ty, |links| links.resolved_members.resolved())
+        else {
+            return false;
+        };
+        let resolved = self.members_of(members);
+        resolved.index_infos().is_empty()
+            && resolved.members.get_hashed(&self.binder, key).is_none()
+            && !self.may_be_augment_member(key)
     }
 
     /// tsrs-native: the currently constructible

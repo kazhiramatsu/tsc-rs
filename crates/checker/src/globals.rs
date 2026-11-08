@@ -500,6 +500,17 @@ impl<'a> CheckerState<'a> {
         Ok(resolved)
     }
 
+    /// Read the global types without causing an earlier lazy initialization.
+    pub(crate) fn initialized_augment_types(&self) -> Option<[TypeId; 4]> {
+        let globals = &self.global_type_memos;
+        Some([
+            globals.function?,
+            globals.callable_function?,
+            globals.newable_function?,
+            globals.object?,
+        ])
+    }
+
     /// initializeTypeChecker 88795-88801.
     /// tsc-port: initializeTypeChecker @6.0.3
     /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276

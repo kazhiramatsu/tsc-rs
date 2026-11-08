@@ -133,3 +133,30 @@ fn a_pair_whose_normalized_flags_agree_falls_through_to_the_full_check() {
     // check decides (and may write its cache entry, as the frame does).
     assert_same_as_frame("simplifiesToT", "u", false, false);
 }
+
+#[test]
+fn kept_recursion_entries_match_fresh_walks_at_every_depth() {
+    use super::RelationStackEntry;
+    with_program_state(
+        &[("a.ts", "interface Box<T> { next: Box<Box<T>> }\ndeclare let a: Box<string>;\ndeclare let b: Box<number>;\ndeclare let c: Box<boolean> & { tag: 1 };\n")],
+        &CompilerOptions::default(),
+        |state| {
+            let a = resolve(state, "a");
+            let b = resolve(state, "b");
+            let c = resolve(state, "c");
+            let types = [a, b, a, c, b, c];
+            let entries: Vec<_> = types.iter().copied().map(RelationStackEntry::new).collect();
+            assert!(!state.is_deeply_nested_on_stack(a, &entries, 1, 3).unwrap());
+            assert!(entries.iter().all(|entry| entry.identity.get().is_none()));
+            for max_depth in [1, 2, 3, 10] {
+                for depth in 1..=types.len() {
+                    for ty in types {
+                        let expected = state.is_deeply_nested_type(ty, &types, depth, max_depth).unwrap();
+                        assert_eq!(state.is_deeply_nested_on_stack(ty, &entries, depth, max_depth).unwrap(), expected,
+                            "type {ty:?}, depth {depth}, threshold {max_depth}");
+                    }
+                }
+            }
+        },
+    );
+}

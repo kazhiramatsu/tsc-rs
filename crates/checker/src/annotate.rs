@@ -4169,6 +4169,13 @@ impl<'a> CheckerState<'a> {
 
     #[inline(never)]
     fn resolve_structured_type_members_worker(&mut self, ty: TypeId) -> CheckResult<MembersId> {
+        self.members_resolving += 1;
+        let result = self.resolve_structured_type_members_inner(ty);
+        self.members_resolving -= 1;
+        result
+    }
+
+    fn resolve_structured_type_members_inner(&mut self, ty: TypeId) -> CheckResult<MembersId> {
         let flags = self.tables.flags_of(ty);
         if !flags.intersects(TypeFlags::OBJECT) {
             if flags.intersects(TypeFlags::UNION) {

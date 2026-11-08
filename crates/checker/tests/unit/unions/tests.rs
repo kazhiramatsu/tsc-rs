@@ -191,3 +191,16 @@ fn common_supertype_prefers_single_supertypes_over_unions() {
         assert!(state.tables.list(*types).contains(&string));
     });
 }
+
+#[test]
+fn subtype_key_reuse_keeps_discriminants_with_different_names_separate() {
+    with_state(
+        "declare let a: { kind: 'a'; payload: number };\ndeclare let b: { kind: 'a' };\ndeclare let c: { kind: 'b'; payload: number };\ndeclare let d: { kind: 'b' };\ndeclare let e: { tag: 'e'; payload: number };\ndeclare let f: { tag: 'e' };\ndeclare let g: { other: 'g' };\n",
+        |state| {
+            let types: Vec<_> = ["a", "b", "c", "d", "e", "f", "g"].into_iter()
+                .map(|name| annotation(state, name)).collect();
+            let expected = vec![types[1], types[3], types[5], types[6]];
+            assert_eq!(state.remove_subtypes(types, true).unwrap(), Some(expected));
+        },
+    );
+}
