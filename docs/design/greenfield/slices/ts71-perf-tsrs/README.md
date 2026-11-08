@@ -101,6 +101,10 @@ read 10,377、readdir 2,652。1 日枠の候補 F1〜F5（relocation の layout 
 ASCII run 走査、解決表の freeze 順）は合計 0.4〜1.3 G（0.3〜1.1%）の見込み；relocation の全廃と publication 層の統合は複数日の構造変更で、
 arena 計画の段 B の領域（上限 ≈ 3%）。
 
+**統合値 2（2026-11-08 10:5x、main `84a8ca86b` = #921〜#925 対 base `a75438da1`、1 thread、9 round、低い峰、出力同一、peak ±5 MiB）：**
+VS Code **−7.35%**（122.08 → 113.12 G、cpu −5.1%）、vue −10.08%、playwright −8.21%、hono −7.30%、next −6.49%、TypeScript compiler −6.15%、
+effect −5.39%、zod −5.25%。tsrs（85.4 G）との比は 1.42× → **1.32×**。PGO 同士（−10%）なら ≈ 1.19×。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
