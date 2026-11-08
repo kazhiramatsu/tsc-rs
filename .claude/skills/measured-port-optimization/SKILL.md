@@ -77,3 +77,18 @@ container growth, allocating predicates); (c) work-count divergence (types/insta
   queries. Reference catalogs (tsrs's notes) transfer only after checking the mechanism exists here and the workload resembles theirs.
 - Structural extras vs the reference that no one-day row removes: AST identity relocation (≈ 2% of VS Code), the UTF-16 position index,
   multi-layer program publication (≈ 1.2%) — the arena design's phase-B territory; a ceiling experiment (fe4) showed the naive version loses.
+- Same-name tables lie in two ways (the "accessor ≈ 13% of check self" episode, 2026-11-08): a B = 0 column can mean the reference has
+  no function of that name (Go attributes a field read to the caller), not that it does no such work; and a bare leaf name collects
+  unrelated functions (`flags_of` of TypeFlags, `Vec::as_slice`, the store's `address`). Before quoting an excess, compare by full symbol
+  name (`fcmp.py`) or by inline-attributed source file (the P4 method), and state the denominator. Row-level evidence needs two
+  independent views (A/B full-name self, callers or children, entry counts) plus the mechanism in the code.
+- Decode tax of the AST records: direct field reads at the 300 hottest `NodeData::` sites gave −1.1% on VS Code with diminishing returns
+  (50 sites −0.81%, the next 250 −0.3%) and cover the whole `Node::data` subtree; the binder's routing asserts −0.65%; a direct child
+  visitor in the generated code ≈ 0. The remaining accessor time is single loads any representation performs — a record rewrite is not
+  justified by this mechanism.
+- Already in the code (do not propose again from tsrs's catalog): H2.2 contextual type carried from `is_const_context_ex`, H4.6
+  `resolve_name` pass-through kinds, R1.1 inference visited map reuse; the symbol tables cost the same as tsrs's (≈ 250 ms each on
+  VS Code).
+- Chains: run one sequential chain per measurement window; never wait on `pgrep -f` with a pattern another chain's command line can
+  contain (two chains deadlocked for 2 h). The fingerprint oracle takes the `syntax_fingerprint` example binary
+  (`cargo build --release -p tsc-rs-binder --example syntax_fingerprint`), not the CLI. Check a chain ~30 min after launch.

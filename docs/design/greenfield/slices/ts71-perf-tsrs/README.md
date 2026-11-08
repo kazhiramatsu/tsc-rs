@@ -149,6 +149,40 @@ ratchet 0 regressions）→ 4-checker 制御 → 比較：どちらも 15,335 �
 `.claude/skills/measured-port-optimization/` に書いた。CLAUDE.md の Rules から参照。計測の実時間：VS Code 1 thread は cpu 約 9 秒（113 G 命令）、
 8 案件 × 10 run × 11 binary の窓は 26 分。
 
+**結果 4（2026-11-08 22:5x、lane `tax-j`・`proto-record`、base `db1419734`、1 thread、9 round、低い峰、8 案件出力同一）。** `tax-j`（新しい
+profile の同名 leaf の超過から選んだ 6 行）：払うのは J6（path の lowercase 全体化と export 名の owned 返しをやめる：VS Code −0.20%、hono −0.16%、
+playwright −0.14%）、J5（flow label の antecedent list を借用：ts −0.28%）、J4（module 解決表の lookup を hash 索引に：ts −0.14%）の 3 行で、
+J1（modifier flags：array の flags は既に cache されていて、sample に見えた `_no_cache` の名前は費用ではなかった）、J2（型 list の hash 二重化）、
+J3（maybe stack ≤ 32 の線形走査）は ≈ 0。J4+J5+J6 を [#930](https://github.com/kazhiramatsu/tsc-rs/pull/930) に（main の code 対：VS Code
+**−0.40%**（−0.44 G）、next −0.28%、playwright −0.24%、effect −0.17%、hono −0.16%、ts −0.15%；counter 不変；checker/program の test 2,607 本；
+4-checker 制御は既知 4 件のみ）→ **merge `67446ce5f`**（hosted gates pass、run [42483458254](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42483458254)）。
+
+`proto-record`（所有者の「試作を試してみたい」：AST の record/dispatch の税を本物の patch で測る）：P2（checker の `NodeData::` match の
+hot 300 か所を kind 検査付きの単独 decoder／slot 読みに：VS Code −1.10%、ts −1.32%、effect −1.16%）と P3（binder の node routing の runtime assert を
+debug に、packed bit を読む：VS Code −0.65%、hono −0.61%、ts −0.61%）が払い、P1（生成 visitor が子 word だけを直接読む、4,637 行の生成 code 変更）は
+≈ 0 で不採用。P2+P3 を [#931](https://github.com/kazhiramatsu/tsc-rs/pull/931) に（main の code 対：VS Code **−1.75%**（−1.93 G）、ts −1.91%、
+effect −1.50%、playwright −1.18%、next −0.91%、hono −0.87%、zod −0.73%、vue −0.66%；fingerprint 0 差 / 143,190 行；生成器再現；syntax/binder/checker
+の test 2,266 本；counter 不変；4-checker 制御は既知 4 件のみ）→ **merge `3a64e56b3`**（hosted gates pass、run [42479946566](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42479946566)）。
+
+**試作の答え（record 表現の書き直し gen2 は正当化されない）。** P4 の露出表（base 記録の inline 帰属、`handover/arch-arena/proto-record/P4-*.md|json`）：
+P2 の 300 か所は `Node::data` 経由の decode 部分木 193 ms のうち 192 ms を覆い、50 か所 −0.81% → +250 か所で −0.3% と逓減する。先に「node の
+accessor（kind_of・data・slot・flags_of・parent_of）が check の self の約 13%」と書いた数字は、T1 inline 表（samply、名前で tsrs と引き算）の
+8 名前の self 合計 829 ms / check 相 self 6,991 ms（11.9%、bind の node_index 71 ms を足して丸めた値）で、2 つの過大評価を含んでいた：(1) tsrs
+（Go）に同名の関数が無く field 読みは呼び手に計上されるため B = 0 となり、引き算は「load に名前が付いているか」を測っていた；(2) 名前一致で
+無関係な関数（checker の `flags_of` は TypeFlags、`as_slice` は `Vec`、`address` は全 store 共通）が混入していた。AST record の access に絞ると
+checker 477.8 ms（data 148.9、kind_of 134.5、parent_of 74.2、slots 69.5、slot 50.8）= check 相 self の 6.8%、binder 31.3 + node_index 44.6 ms。
+このうち税だったのは `data()`（全 payload の decode と二重 match：P2）と binder の `node_index` の assert（P3）だけで、残りの単発 load は
+どの表現でも必要（pointer 表現で消えるのは境界検査と base 加算の 1 命令程度）。P2+P3 の −1.84%（≈ 2.1 G ≒ 170 ms 相当）は sample 上の
+data 149 ms + assert 行 69 ms の大半に相当し、見立てと合う。
+
+**次の lane（21:2x 起動、base = main + #930 + #931 の局所 merge `5488255d0`）。** 今回は A（現 binary の profile、4 kHz）と B（tsrs の名前付き
+profile、1 kHz）の両方で差が見え、機構を code で確認できた行だけ：`tax-k`（checker：K1 `mark_node_assignments` の node ごとの `Vec` 確保、
+K2 `is_const_context_ex` の全 payload decode と `is_const_type_variable` の `to_vec`、K3 flow memo の key buffer）、`tax-l`（L1 mimalloc の
+plain entry point、L2 module 解決の `stat`（87 ms 対 tsrs 28 ms）を directory listing の cache に——probe 数を数えてから、L3 計画の容器の
+事前確保、L4 J4 後に残る memcmp の検証）。外したもの：symbol 表（`position` 等）は tsrs も同じ約 250 ms；tsrs の H2.2・H4.6・R1.1 は移植済み。
+行単位の帰属が無いと手を出せない差：`get_type_at_flow_node` の self（+57 ms）、relation の入口（`recursive_type_related_to` 70 対 19 ms など
+計 +105 ms ≒ 1.2%）、`resolve_name_full`；relocation 143 ms（1.6%）は構造の判断（所有者）。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
