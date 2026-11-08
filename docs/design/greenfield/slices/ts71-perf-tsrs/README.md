@@ -76,7 +76,7 @@ VS Code **−5.36%**（122.0 → 115.5 G）、hono −6.36%、vue −6.12%、pla
 next −2.89%；peak footprint は ±10 MiB で不変。tax-d は D3（union の run merge）と D5（getter の inline と property scratch の pool）が払い
 （VS Code −0.22% / −0.37%）、D1（early return の inline）は全 project で +0.1〜+0.5% 悪化、D2/D6/D7 は ≈ 0 → [#924](https://github.com/kazhiramatsu/tsc-rs/pull/924)。
 tax-e は E5（resolveName の祖先 skip と accessibility 読みの限定）が VS Code −1.27% で最大、E6 −0.11%（小さい project で −0.5〜−0.8%）、
-E3 −0.25%、E2/E1 は vue/playwright で −1%、E4 ≈ 0；E1〜E6 合計 VS Code −1.67%、playwright −4.11%（統計同一）→ PR 準備中。
+E3 −0.25%、E2/E1 は vue/playwright で −1%、E4 ≈ 0；E1〜E6 合計 VS Code −1.67%、playwright −4.11%（統計同一）→ [#925](https://github.com/kazhiramatsu/tsc-rs/pull/925) として merge（#924 の後、structural.rs の衝突 1 件を両立で解決）。
 E7（tuple 要素 parameter の共有）は −0.1〜−0.4% で Types counter が tsgo から離れるため不採用を推奨。
 **release workflow は 3 回目の run [42413136153](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42413136153) で完走**（pre-release
 `pgo-42413136153`、macOS ARM64 と Linux x64 の normal/PGO binary）：hosted Linux の cachegrind で PGO は hono −15.56%、zod −11.75%。
