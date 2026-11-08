@@ -645,3 +645,60 @@ fn type_node_resolution_is_stable_across_repeated_queries() {
         assert_eq!(annotation_type(state, "a"), resolved);
     });
 }
+
+#[test]
+fn deferred_reference_realization_retires_the_record_and_keeps_warmed_and_new_members() {
+    with_state(
+        "interface Base<T> { inherited: T; }\n\
+         interface Box<T> extends Base<T> { plain: number; value: T; }\n\
+         declare const box: Box<string>;",
+        |state| {
+            let ty = annotation_type(state, "box");
+            let target = state.tables.reference_target(ty);
+            let declared = state.resolve_declared_members(target).unwrap();
+            let plain = state
+                .members_of(declared)
+                .members
+                .get(&state.binder, "plain")
+                .unwrap();
+            // This identity decision must be frozen when headers are prepared.
+            assert_eq!(
+                state.get_type_of_symbol(plain).unwrap(),
+                state.tables.intrinsics.number
+            );
+            state.structured_member_headers(ty).unwrap();
+            assert!(state
+                .deferred_reference_members
+                .get(&ty)
+                .is_some_and(Option::is_some));
+            assert_eq!(
+                state.get_property_of_object_type(ty, "plain").unwrap(),
+                Some(plain)
+            );
+            let value = state
+                .get_property_of_object_type(ty, "value")
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                state.get_type_of_symbol(value).unwrap(),
+                state.tables.intrinsics.string
+            );
+            let all = state.get_properties_of_type_full(ty).unwrap();
+            assert_eq!(all.len(), 3);
+            assert!(all.contains(&plain));
+            assert!(all.contains(&value));
+            assert!(!state.deferred_reference_members.contains_key(&ty));
+            assert!(state.members_resolved(ty));
+            assert_eq!(
+                state.get_property_of_object_type(ty, "value").unwrap(),
+                Some(value)
+            );
+            assert_eq!(
+                state.get_property_of_object_type(ty, "plain").unwrap(),
+                Some(plain)
+            );
+            assert_eq!(state.get_properties_of_type_full(ty).unwrap(), all);
+            assert!(!state.deferred_reference_members.contains_key(&ty));
+        },
+    );
+}

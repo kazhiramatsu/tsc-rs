@@ -27,8 +27,9 @@ use tsc_types::perf::{self, PerfCounter};
 pub(crate) struct DeferredReferenceMembers {
     source: MembersId,
     mapper: crate::instantiate::MapperId,
-    unaffected: rustc_hash::FxHashSet<SymbolId>,
-    instantiated: MemberTable,
+    unaffected: Box<[SymbolId]>,
+    // Most references never request a declared member.
+    instantiated: Option<Box<MemberTable>>,
     bases: crate::state::SharedList<TypeId>,
     header: MembersId,
     finishing: bool,
@@ -36,8 +37,10 @@ pub(crate) struct DeferredReferenceMembers {
 
 impl DeferredReferenceMembers {
     pub(crate) fn heap_bytes(&self) -> usize {
-        self.unaffected.capacity() * (std::mem::size_of::<SymbolId>() + 1) * 8 / 7
-            + self.instantiated.heap_bytes()
+        std::mem::size_of_val(&*self.unaffected)
+            + self.instantiated.as_deref().map_or(0, |table| {
+                std::mem::size_of::<MemberTable>() + table.heap_bytes()
+            })
             + self.bases.heap_bytes()
     }
 }
@@ -4545,12 +4548,17 @@ impl<'a> CheckerState<'a> {
             // Freeze the identity decision at the original eager boundary:
             // warming a declaration's type later must not change whether
             // this reference has a distinct instantiated symbol.
-            let mut unaffected = rustc_hash::FxHashSet::default();
+            let mut unaffected = Vec::new();
             for &symbol in &properties {
                 if self.symbol_unaffected_by_instantiation(symbol, mapper) {
-                    unaffected.insert(symbol);
+                    unaffected.push(symbol);
                 }
             }
+            // This set is queried only for membership, never traversed to
+            // instantiate symbols. Keep the frozen decisions in id order.
+            unaffected.sort_unstable();
+            unaffected.dedup();
+            let unaffected = unaffected.into_boxed_slice();
             let calls = self.members_of(source).call_signatures().to_vec();
             let mut calls = self.instantiate_signature_list(&calls, mapper)?;
             let constructs = self.members_of(source).construct_signatures().to_vec();
@@ -4617,7 +4625,7 @@ impl<'a> CheckerState<'a> {
                 source,
                 mapper,
                 unaffected,
-                instantiated: MemberTable::default(),
+                instantiated: None,
                 bases: bases.into(),
                 header,
                 finishing: false,
@@ -4650,11 +4658,15 @@ impl<'a> CheckerState<'a> {
         let members = self.deferred_reference_members[&ty]
             .as_ref()
             .expect("ready reference members");
-        if let Some(symbol) = members.instantiated.get(&self.binder, name) {
+        if let Some(symbol) = members
+            .instantiated
+            .as_ref()
+            .and_then(|table| table.get(&self.binder, name))
+        {
             return symbol;
         }
         let mapper = members.mapper;
-        let symbol = if members.unaffected.contains(&declared) {
+        let symbol = if members.unaffected.binary_search(&declared).is_ok() {
             declared
         } else {
             self.new_instantiated_symbol(declared, mapper)
@@ -4665,6 +4677,7 @@ impl<'a> CheckerState<'a> {
             .as_mut()
             .unwrap()
             .instantiated
+            .get_or_insert_with(Box::default)
             .insert(&self.binder, symbol);
         symbol
     }

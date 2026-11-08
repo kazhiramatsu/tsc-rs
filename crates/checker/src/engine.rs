@@ -193,7 +193,7 @@ impl<'a> CheckerState<'a> {
                 /*ignore_constraints*/ false,
             )?;
             perf::bump(PerfCounter::RelationLookups);
-            if let Some(&related) = self.relations.cache(relation).get(&key) {
+            if let Some(related) = self.relations.cache(relation).get(&key) {
                 perf::bump(PerfCounter::RelationEntryFound);
                 perf::bump(PerfCounter::RelationReturnedCached);
                 return Ok(related.intersects(RelationComparisonResult::SUCCEEDED));
@@ -3645,7 +3645,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             /*ignore_constraints*/ false,
         )?;
         perf::bump(PerfCounter::RelationLookups);
-        if let Some(&entry) = self.st.relations.cache(self.relation).get(&id) {
+        if let Some(entry) = self.st.relations.cache(self.relation).get(&id) {
             perf::bump(PerfCounter::RelationEntryFound);
             // 65739-65741: a failed, non-overflow cached relation is
             // deliberately recomputed in reporting mode so the exact

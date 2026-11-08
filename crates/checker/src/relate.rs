@@ -56,32 +56,66 @@ impl RelationKind {
     }
 }
 
-/// One relation's verdict cache (Succeeded/Failed + Reports*/Overflow bits).
-/// The existing Pair and Generic key representations use separate typed
-/// tables behind the same lookup/insert API.
+/// One relation's verdict cache. Small pairs use an injective 58-bit key;
+/// the six result bits share its slot. Other pairs keep their full key.
 #[derive(Debug, Default)]
 pub struct RelationCache {
-    pairs: HashMap<(u32, u32, i32), RelationComparisonResult>,
+    pairs: hashbrown::HashTable<u64>,
+    wide_pairs: HashMap<(u32, u32, i32), RelationComparisonResult>,
     generics: HashMap<Box<str>, RelationComparisonResult>,
+}
+
+const RESULT_BITS: u32 = 6;
+const RESULT_MASK: u64 = (1 << RESULT_BITS) - 1;
+
+#[inline]
+fn packed_pair(source: u32, target: u32, intersection: i32) -> Option<u64> {
+    (source < 1 << 28 && target < 1 << 28 && (0..4).contains(&intersection))
+        .then_some(u64::from(source) | (u64::from(target) << 28) | ((intersection as u64) << 56))
+}
+
+#[inline]
+fn pair_hash(key: u64) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = rustc_hash::FxHasher::default();
+    key.hash(&mut hasher);
+    hasher.finish()
+}
+
+#[inline]
+fn pair_result(slot: u64) -> RelationComparisonResult {
+    RelationComparisonResult::from_bits((slot & RESULT_MASK) as i32)
 }
 
 impl RelationCache {
     #[inline]
-    pub fn get(&self, key: &RelationKey) -> Option<&RelationComparisonResult> {
+    pub fn get(&self, key: &RelationKey) -> Option<RelationComparisonResult> {
         match key {
             RelationKey::Pair {
                 source,
                 target,
                 intersection,
-            } => self.pairs.get(&(*source, *target, *intersection)),
+            } => {
+                if let Some(key) = packed_pair(*source, *target, *intersection) {
+                    if let Some(&slot) = self
+                        .pairs
+                        .find(pair_hash(key), |&slot| slot >> RESULT_BITS == key)
+                    {
+                        return Some(pair_result(slot));
+                    }
+                }
+                self.wide_pairs
+                    .get(&(*source, *target, *intersection))
+                    .copied()
+            }
             RelationKey::Generic(text) => self.get_generic(text),
         }
     }
 
     // Keep string hashing/equality and its frame off the integer-pair hit.
     #[inline(never)]
-    fn get_generic(&self, text: &str) -> Option<&RelationComparisonResult> {
-        self.generics.get(text)
+    fn get_generic(&self, text: &str) -> Option<RelationComparisonResult> {
+        self.generics.get(text).copied()
     }
 
     #[inline]
@@ -95,7 +129,43 @@ impl RelationCache {
                 source,
                 target,
                 intersection,
-            } => self.pairs.insert((source, target, intersection), value),
+            } => {
+                let full_key = (source, target, intersection);
+                if let Some(key) = packed_pair(source, target, intersection) {
+                    let hash = pair_hash(key);
+                    if (0..=RESULT_MASK as i32).contains(&value.bits()) {
+                        // Preserve even values constructed with nonstandard result bits:
+                        // those use the full table and may be replaced by a packed value.
+                        let previous = if self.wide_pairs.is_empty() {
+                            None
+                        } else {
+                            self.wide_pairs.remove(&full_key)
+                        };
+                        let entry = self.pairs.entry(
+                            hash,
+                            |&slot| slot >> RESULT_BITS == key,
+                            |&slot| pair_hash(slot >> RESULT_BITS),
+                        );
+                        let slot = (key << RESULT_BITS) | value.bits() as u64;
+                        return match entry {
+                            hashbrown::hash_table::Entry::Occupied(mut entry) => {
+                                Some(pair_result(std::mem::replace(entry.get_mut(), slot)))
+                            }
+                            hashbrown::hash_table::Entry::Vacant(entry) => {
+                                entry.insert(slot);
+                                previous
+                            }
+                        };
+                    }
+                    let previous = self
+                        .pairs
+                        .find_entry(hash, |&slot| slot >> RESULT_BITS == key)
+                        .ok()
+                        .map(|entry| pair_result(entry.remove().0));
+                    return self.wide_pairs.insert(full_key, value).or(previous);
+                }
+                self.wide_pairs.insert(full_key, value)
+            }
             RelationKey::Generic(text) => self.insert_generic(text, value),
         }
     }
@@ -112,24 +182,27 @@ impl RelationCache {
     pub fn contains_key(&self, key: &RelationKey) -> bool {
         self.get(key).is_some()
     }
-
     pub fn len(&self) -> usize {
-        self.pairs.len() + self.generics.len()
+        self.pairs.len() + self.wide_pairs.len() + self.generics.len()
     }
-
     pub fn is_empty(&self) -> bool {
-        self.pairs.is_empty() && self.generics.is_empty()
+        self.pairs.is_empty() && self.wide_pairs.is_empty() && self.generics.is_empty()
     }
-
-    pub fn values(&self) -> impl Iterator<Item = &RelationComparisonResult> {
-        self.pairs.values().chain(self.generics.values())
+    pub fn values(&self) -> impl Iterator<Item = RelationComparisonResult> + '_ {
+        self.pairs
+            .iter()
+            .copied()
+            .map(pair_result)
+            .chain(self.wide_pairs.values().copied())
+            .chain(self.generics.values().copied())
     }
 
     fn memory_usage(&self) -> usize {
-        self.pairs.capacity()
-            * (std::mem::size_of::<((u32, u32, i32), RelationComparisonResult)>() + 1)
-            * 8
-            / 7
+        self.pairs.allocation_size()
+            + self.wide_pairs.capacity()
+                * (std::mem::size_of::<((u32, u32, i32), RelationComparisonResult)>() + 1)
+                * 8
+                / 7
             + self.generics.capacity()
                 * (std::mem::size_of::<(Box<str>, RelationComparisonResult)>() + 1)
                 * 8
@@ -236,14 +309,14 @@ impl RelationCaches {
     pub(crate) fn with_capacity_hint(symbols: usize) -> Self {
         Self {
             per_relation: std::array::from_fn(|index| RelationCache {
-                pairs: HashMap::with_capacity_and_hasher(
+                pairs: hashbrown::HashTable::with_capacity(
                     if index == RelationKind::Assignable.cache_index() {
                         (symbols / 4).min(1 << 16)
                     } else {
                         (symbols / 32).min(1 << 12)
                     },
-                    Default::default(),
                 ),
+                wide_pairs: HashMap::default(),
                 generics: HashMap::default(),
             }),
             enum_relation: HashMap::default(),

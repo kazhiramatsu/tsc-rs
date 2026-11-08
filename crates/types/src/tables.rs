@@ -231,6 +231,59 @@ impl InstantiationKey {
     }
 }
 
+/// The same instantiation map split by key shape. The common alias-free
+/// key uses all 32 list-id bits, 31 target-id bits and the signature bit.
+/// Large target ids and every other shape retain the complete key.
+#[derive(Default)]
+struct InstantiationCache {
+    plain: HashMap<u64, TypeId>,
+    full: HashMap<(TypeId, InstantiationKey), TypeId>,
+}
+
+impl InstantiationCache {
+    #[inline]
+    fn packed_key(target: TypeId, key: InstantiationKey) -> Option<u64> {
+        (key.alias_symbol.is_none() && key.alias_arguments.is_none() && target.index() < 1 << 31)
+            .then_some(
+                u64::from(target.index())
+                    | (u64::from(key.arguments.index()) << 31)
+                    | (u64::from(key.single_signature) << 63),
+            )
+    }
+
+    #[inline]
+    fn get(&self, &(target, key): &(TypeId, InstantiationKey)) -> Option<&TypeId> {
+        match Self::packed_key(target, key) {
+            Some(packed) => self.plain.get(&packed),
+            None => self.full.get(&(target, key)),
+        }
+    }
+
+    #[inline]
+    fn insert(
+        &mut self,
+        (target, key): (TypeId, InstantiationKey),
+        value: TypeId,
+    ) -> Option<TypeId> {
+        match Self::packed_key(target, key) {
+            Some(packed) => self.plain.insert(packed, value),
+            None => self.full.insert((target, key), value),
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.plain.len() + self.full.len()
+    }
+
+    fn reserve(&mut self, additional: usize) {
+        self.plain.reserve(additional);
+    }
+
+    fn memory_usage(&self) -> usize {
+        map_bytes(&self.plain) + map_bytes(&self.full)
+    }
+}
+
 pub struct TypeTables {
     /// The checker's types, in the type store (see [`TypeTables::new`]); a
     /// type's identity is its index here.
@@ -315,7 +368,7 @@ pub struct TypeTables {
     /// Per-target `type.instantiations` maps (createTypeReference
     /// 60170-60174 AND getObjectTypeInstantiation 63489-63492 — one map
     /// per target in tsc), flattened to one table keyed (target, id).
-    instantiations: HashMap<(TypeId, InstantiationKey), TypeId>,
+    instantiations: InstantiationCache,
 }
 
 /// A position in an interned list that does not borrow the tables, so a
@@ -625,7 +678,7 @@ impl TypeTables {
             + map_bytes(&self.enum_literal_types)
             + map_bytes(&self.string_mapping_types)
             + map_bytes(&self.substitution_types)
-            + map_bytes(&self.instantiations)
+            + self.instantiations.memory_usage()
             + self.conditional_roots.capacity() * std::mem::size_of::<ConditionalRootData>();
         usage
     }
@@ -721,7 +774,7 @@ impl TypeTables {
             indexed_access_types: HashMap::default(),
             substitution_types: HashMap::default(),
             conditional_roots: Vec::new(),
-            instantiations: HashMap::default(),
+            instantiations: InstantiationCache::default(),
         };
         tables.empty_list = tables.intern_type_list(&[]);
         tables.create_initial_types();
