@@ -183,6 +183,69 @@ plain entry point、L2 module 解決の `stat`（87 ms 対 tsrs 28 ms）を dire
 行単位の帰属が無いと手を出せない差：`get_type_at_flow_node` の self（+57 ms）、relation の入口（`recursive_type_related_to` 70 対 19 ms など
 計 +105 ms ≒ 1.2%）、`resolve_name_full`；relocation 143 ms（1.6%）は構造の判断（所有者）。
 
+**結果 5（2026-11-08 23:1x〜11-09、lane `tax-k`・`tax-l`・`proto-reloc`、base = lane base `5488255d0`（tree は main `67446ce5f`）、1 thread、9 round、低い峰、
+8 案件出力同一）。** `tax-k`（checker）：払うのは K1（`mark_node_assignments` の node ごとの `Vec` を共有 scratch の suffix に：VS Code **−0.53%**、ts −0.92%、
+effect −0.57%、hono −0.40%、playwright −0.31%、next −0.27%、zod −0.25%、vue −0.18%）だけで、K2（`is_const_type_variable` の union list の `to_vec`：VS Code −0.06%、
+ts −0.25%、effect +0.18%）と K3（flow memo の key を stack buffer に：VS Code +0.13%、ts −0.31%）は混合で不採用。lane の SPEC 訂正 2 点：K2 で狙った
+`is_const_context_ex` の全 payload decode は P2（#931）が既に消していた（patch の hunk に関数名が無く、名前の grep は 0 を返した——hunk の範囲で確かめる）；
+K3 の production memo は hash だけの slot と packed key の fast path で、`Arc<[u8]>` の full key は test/shadow 限定。`tax-l`（loader/host/allocator）：払うのは
+L1（store の global allocator が align ≤ 16 かつ align ≤ size のとき mimalloc の plain entry point `mi_malloc`/`mi_zalloc`/`mi_realloc`/`mi_free` を呼ぶ：
+VS Code **−0.85%**、vue −1.48%、hono −1.15%、effect −1.13%、zod −1.11%、ts −1.07%、next −0.89%、playwright −0.84%）。L2（module 解決の presence を parent
+directory の listing cache から推定；stat 17,364 回 / 2,891 directory = 6.0 回/dir の数の gate は通過）は **VS Code +1.16%、next +2.73%、zod +2.26%、hono +2.16%
+で悪化**——syscall の回数は命令数ではない（`read_dir` と cache の構築の方が、節約した `stat` より命令を使う）。L3（計画の容器の事前確保）≈ 0；L4 は検証のみ
+（J4 後に残る `ResolutionTableView::module` の文字列比較は lookup あたり 1 回の衝突検査で必要；594,290 lookup）。K1 → [#932](https://github.com/kazhiramatsu/tsc-rs/pull/932)
+（checker test 1,901 本、counter 不変、4-checker 制御は既知 4 件のみ）→ **merge `4a314f74b`**（hosted gates pass、run
+[42494787758](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42494787758)）；L1 → [#933](https://github.com/kazhiramatsu/tsc-rs/pull/933)（store+cli test 344 本、
+counter 不変）→ **merge `a93bb8389`**（run [42494794071](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42494794071)）。
+
+`proto-reloc`（所有者「relocation 143 ms（1.6%）はこれも試作したい」、22:2x）：R1 の分析では hono に 2 倍の node lease を通しても論理 byte の行は NodeLinks の
+PagedTable directory（+8%）以外不変——fe4 の +1,052 MiB は論理 byte では説明できず、疎な id と page の詰まり（と dev の zero scan）が残る容疑。R2（cargo
+feature `proto-reloc`、既定 off、off の binary は byte 同一）：planning/library parse を最終 identity へ直接 parse し exclusive lease を実数に縮める（hono 362/362
+direct、fallback 0；1 worker なら 1,448 の shrink が全部 bump 位置（密）、既定 worker 数では 1,429 が free list 行き（穴）、id は planning parse の順）。
+**計測（base `f85f3d640` 上、`results/patches-1109-0035.jsonl`）：R3（分岐の少ない relocation pass：kind ごとの delta 表、mask 加算、space ごと 1 回の境界検査）は
+VS Code +1.08%（8 案件 +0.7〜+1.4%）で悪化；R2 on は VS Code +0.73%（8 案件 +0.5〜+1.0%）かつ footprint +560 MiB（VS Code 9 round 3,166〜3,185 対
+2,606〜2,629 MiB）で両指標とも悪化（fe4 と同じ）。** R2 on の 1-checker conformance は 15,339 構成同一・ratchet 0 regressions（出力は id の順序に依存しなかった）。
+結論：store の契約の下では最終 identity へ直接 parse する方が relocate より高くつき（claimed placement の push と lease の帳簿が 143 ms の pass を上回る）、
+pass 自体も効率的な形に近い。relocation の 1.6% は構造（arena 計画の段 B）の領域として残す。
+
+発見：無改変の base でも hono full config の `--extendedDiagnostics` Types は `TSRS_WORKERS=1` かつ既定の checker 数（4）で ±1 揺れる（306,159/306,160）；
+`TSRS_CHECKERS=1` なら安定（10 回とも 147,480）。出力は同一で、checker thread 間の work counter の揺れ。counter の比較は `TSRS_CHECKERS=1` で行う。
+
+**統合値 4（2026-11-08 23:3x、pre-pivot base `a75438da1` 対、1 thread、9 round、低い峰、8 案件出力同一、`results/patches-1108-2320.jsonl`）：** main `67446ce5f`
+（#921〜#931）は VS Code **−11.50%**（121.889 → 107.87 G、tsrs 85.44 G の **1.26 倍**；出発点 1.42 倍）、ts −9.81%、next −12.12%、zod −7.44%、effect −8.30%、
+hono −10.57%、vue −12.78%、playwright −12.07%；peak は VS Code の 9 round が 2,654〜2,659 → 2,606〜2,631 MiB（≈ −40 MiB）。
+
+**統合値 5（2026-11-09 01:5x、pre-pivot base `a75438da1` 対、1 thread、9 round、低い峰、8 案件出力同一、`results/patches-1109-0152.jsonl`）：** main `a93bb8389`
+（#921〜#933）は VS Code **−12.64%**（122.148 → 106.708 G、tsrs 85.44 G の **1.25 倍**）、ts −11.24%、next −13.22%、zod −8.70%、effect −9.99%、hono −11.70%、
+vue −14.31%、playwright −13.10%；peak は VS Code の 9 round が 2,654〜2,670 → 2,604〜2,631 MiB（tsrs 1,991 MiB の 1.31 倍）。
+
+**memory の lane（所有者の順：Type 32 B → node links → resolved members；2026-11-08 23:2x〜）。** `type32`（Type 40 → 32 B：`TypeData` 24 → 16 B、Conditional の
+5 field を `ConditionalDataId` の密な side table に、Literal の値を TypeFlags で種別を読む 1 つの u32 に（number の bit は side の `Vec<NumberBits>`）；型 id・生成順・
+interning・flags は不変、types/checker の test 合格、counter 不変）：**計測（lane base `5488255d0` 対、9 round、低い峰、`results/patches-1109-0142.jsonl`、8 案件出力
+同一）：VS Code −0.60%（108.177 → 107.595 G）、vue −0.73%、next −0.65%、zod −0.58%、effect −0.56%、hono −0.49%、playwright −0.48%、ts +0.16%。** memory report の型の表は
+90.0 → 72.0 MiB（checker 合計 1,109.6 → 1,092.0）だが、footprint の 9 round の分布は VS Code 2,609〜2,613 | 2,628〜2,633 → 2,605〜2,615 | 2,622〜2,627 MiB（≈ −4）、
+next 625 → 620、zod 562 → 558、playwright 337〜341 → 332〜336 と小さい——差の理由は未調査（peak footprint は触れた page の数；仮説：空いた page を他の確保が使う）。
+branch `perf/type32-record`（main `a93bb8389` + T1）で局所検査 → PR。
+
+`infer-arena`（inference arenas 103.4 MiB + type mappers 60.8 MiB）：I1 census（VS Code、1 checker）は context 431,304、hard escape 101,655（23.6%；scratch 合成を含めて
+36%）、mapper を一度も要求しない context 170,220、eager な inference mapper 862,608 に対し初回要求 344,886。I2（fixing/non-fixing mapper を初回要求時に確保）+ I3（選ばれ
+なかった overload 候補・一時 return context・conditional の infer の context を checker ごとの free list へ、escape bit は耐久 store の全箇所で立てる、debug poison）を実装：
+gate は全部同一（hono noemit 1×1/既定、hono full emit 748 file、6 counter）だが、実際に回収できた context は 431,304 中 **77,605（18%）**（一時 return 63,361/63,361、
+overload 候補 14,219/230,956——選ばれた候補は保持で、候補 1 つの呼び出しが大半、conditional 25/44,858——合成 mapper が escape）。VS Code の行は type mappers 60.8 → 50.8、
+inference arenas 103.4 → 87.1、再利用の metadata +2.0 ⇒ **≈ −24 MiB**（hono ≈ 0）で、inference の hot code に +757/−103 行。命令数（9 round、main 対）を見てから判断する薄い行。
+
+`nodelinks`（links: node 149.4 MiB）：N1 census は record 5,594,740 × 16 B = 89.5 MiB + id 索引 65.3 MiB（触れた 256-id page 63,802 × 1 KiB、占有率 34%）+ directory
+1 MiB；用途は symbol のみ 3.50 M、signature のみ 0.97 M、type のみ 0.33 M、複数 field 13.8%。用途別の store（tsgo の形、N2）は索引が用途ごとに重複して +38〜+114 MiB で
+**却下**。代わりに N3：索引を u16 の region 内番号に（32,768 id の region ごとに record を (region, chunk) で持つ、lookup の load 数は同じ）で node 索引 65 → 33、
+symbol 索引 9.6 → 4.8 MiB（≈ −37 MiB の見込み、命令不変）を実装中（smoke と memory 行は取得済み、whole-crate test と patch 化が残り）。
+
+`members`（resolved members 200.8 MiB = 1,220,934 record × 172 B：record ≈ 80 B（`Vec<SymbolId>` + hash 表の header + `Arc<[SymbolId]>` + extras）+ heap ≈ 92 B；tsgo は
+宣言 table を共有して properties だけ別 slice、tsrs は 32 B の `StructuredMembers` で table は共有）の SPEC を書き、lane を 01:5x に起動（census 先行：宣言 table の
+複写・properties と members の一致・record の byte 内訳を数えてから、共有 table・1 本の list・record 縮小を選ぶ；見込み −50〜−90 MiB）。
+
+2026-11-09 01:06 にマシンが再起動し、走っていた lane 2 本（infer-arena、nodelinks）と type32 の計測 chain が死んだ。成果物は clone の `target/` と handover に残っていた
+ので、「続きを仕上げる」brief で lane を再開し、chain は再投入した（/private/tmp の計測 worktree は消えるが、binary と結果は `target/` 配下で無事）。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と

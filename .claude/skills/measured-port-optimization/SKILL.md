@@ -92,3 +92,16 @@ container growth, allocating predicates); (c) work-count divergence (types/insta
 - Chains: run one sequential chain per measurement window; never wait on `pgrep -f` with a pattern another chain's command line can
   contain (two chains deadlocked for 2 h). The fingerprint oracle takes the `syntax_fingerprint` example binary
   (`cargo build --release -p tsc-rs-binder --example syntax_fingerprint`), not the CLI. Check a chain ~30 min after launch.
+
+- Syscall counts are not instructions (tax-l L2, 2026-11-08): replacing 17,364 `stat` probes with a cached `read_dir` per directory passed
+  its count gate (6 probes per directory) and still cost +1.2% on VS Code and +2.7% on next.js — the listing and its cache cost more
+  instructions than the probes saved. A row that trades one kind of syscall for another needs an instruction estimate of both sides.
+- A branch-poor rewrite of a well-predicted loop costs more (proto-reloc R3, +1.08%): branchless delta tables and per-word min/max executed
+  more instructions than the predictable branches they replaced. Under the store contract, parsing directly into final identities (R2)
+  cost +0.73% and +560 MiB — the claimed-placement pushes and lease bookkeeping exceed the 143 ms relocation pass.
+- Check that a SPEC's target still exists on the lane base by hunk ranges, not by grepping names (tax-k K2): the decode that K2 was to
+  remove had already gone with P2 (#931), and a `grep -c` on the patch returned 0 because the hunk did not carry the function name.
+- A reboot kills every lane and chain and clears `/private/tmp` (measurement worktrees); binaries, results and lane evidence live under
+  `target/` and survive. Resume a lane with a short "finish" brief that names what it had already produced; re-run a chain from its log.
+- Accounted bytes are not footprint (type32): the memory report's types row fell 18 MiB on VS Code while the peak footprint rounds moved
+  ≈ 4 MiB; judge a memory row by the footprint distribution, and record the accounted rows beside it.
