@@ -80,6 +80,8 @@ E3 −0.25%、E2/E1 は vue/playwright で −1%、E4 ≈ 0；E1〜E6 合計 VS 
 E7（tuple 要素 parameter の共有）は −0.1〜−0.4% で Types counter が tsgo から離れるため不採用を推奨。
 **release workflow は 3 回目の run [42413136153](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42413136153) で完走**（pre-release
 `pgo-42413136153`、macOS ARM64 と Linux x64 の normal/PGO binary）：hosted Linux の cachegrind で PGO は hono −15.56%、zod −11.75%。
+この Mac で hosted の macOS binary を測ると（1 thread、9 round、低い峰、8 project 出力同一）PGO は VS Code **−9.95%**（121.85 → 109.72 G、cpu −13.0%）、
+他 7 project −9.5〜−14.5%、peak 不変。PGO 同士の比較では tsrs（通常 85.4 G、PGO は tsrs 自身の記録で −13〜14%）との差は main の −5.4% と合わせて約 1.2 倍。
 
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
