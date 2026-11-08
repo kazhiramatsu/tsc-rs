@@ -1747,13 +1747,18 @@ impl<'a> CheckerState<'a> {
             tsc_types::EscapedName::from_identifier_escaped_text("unknown"),
         );
 
-        // Capacity hints for the ID-keyed link tables (see
-        // LinksTables::with_capacity_hint); lookups are unaffected.
+        // Counts size the type-table hints; exclusive arena ends size the
+        // link directories because program-wide identities can have gaps.
         let mut program_nodes = 0usize;
         let mut program_symbols = 0usize;
+        let mut node_id_end = 0usize;
+        let mut symbol_id_end = 0usize;
         for file_index in 0..binder.file_count() {
             program_nodes += binder.source(file_index).arena.len();
             program_symbols += binder.file(file_index).symbols.len();
+            node_id_end = node_id_end.max(binder.source(file_index).arena.node_end() as usize);
+            symbol_id_end =
+                symbol_id_end.max(binder.file(file_index).symbols.next_id().index() as usize);
         }
         tables.reserve_capacity_hint(program_nodes, program_symbols);
         tsc_types::names::reserve_capacity_hint(program_symbols / 4);
@@ -1772,7 +1777,7 @@ impl<'a> CheckerState<'a> {
             tables,
             strict_function_types,
             stable_type_ordering,
-            links: LinksTables::with_capacity_hint(program_nodes, program_symbols),
+            links: LinksTables::with_id_bounds(node_id_end, symbol_id_end),
             signatures: Vec::new(),
             signature_instantiations: rustc_hash::FxHashMap::default(),
             members: Vec::new(),
