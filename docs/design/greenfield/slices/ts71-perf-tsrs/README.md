@@ -246,6 +246,27 @@ symbol 索引 9.6 → 4.8 MiB（≈ −37 MiB の見込み、命令不変）を�
 2026-11-09 01:06 にマシンが再起動し、走っていた lane 2 本（infer-arena、nodelinks）と type32 の計測 chain が死んだ。成果物は clone の `target/` と handover に残っていた
 ので、「続きを仕上げる」brief で lane を再開し、chain は再投入した（/private/tmp の計測 worktree は消えるが、binary と結果は `target/` 配下で無事）。
 
+**結果 6（2026-11-09 03:5x、memory lane の計測と、現 main の行単位の帰属；base main `a93bb8389`、1 thread、9 round、低い峰、8 案件出力同一）。**
+`type32` T1（Type 32 B）は [#934](https://github.com/kazhiramatsu/tsc-rs/pull/934)（局所検査：fmt、test 2,560 本、release build、diffout 8/8、counter 同一、
+4-checker 制御 = 既知 4 件）→ **merge `9d063cef4`**（hosted gates pass、run [42508902685](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42508902685)）。`infer-arena` I2+I3 は footprint VS Code −20 MiB（2,617〜2,634 → 2,598〜2,605）、vue −8、effect −5 でも命令数が
+8 案件すべて悪化（VS Code +0.44%、hono +1.36%、effect +1.27%）→ I3（free list・escape bit・poison の帳簿）は不採用；I2（lazy な inference mapper）単独は命令数
+中立（±0.07%）で footprint VS Code ≈ −2〜−10、vue −3、zod −2〜−4 → 薄い行として保留（inference 側の次の行と束ねる）。`nodelinks` N3（索引を u16 の region 内番号に）は
+footprint VS Code 2,601〜2,633 → 2,566〜2,592（分布全体で **−35 MiB**）、ts −2、next −3、playwright −3 だが、命令数が 8 案件すべて +0.14〜+0.38%（VS Code **+0.34%**：
+lookup ごとの region 算術）→ **そのままでは merge せず、−35 MiB 対 +0.34% の交換は所有者判断**（命令中立な変種：固定 256 record の chunk と region base の
+巻き上げ、を試す案あり）。`members` M2（resolved members の record 80 → 48 B、members と properties が等しいときは 1 本の `Arc` list を共有、hash 索引は > 8 member だけ
+optional な共有 pointer、14 か所の変更経路は copy-on-write builder、宣言 table の handle は > 8 member の厳密な binder 複写だけ；census：1,220,934 record のうち末尾で
+member 0 が 587,795、properties == members が 1,147,415（94%）、byte 内訳は 200.8 MiB に一致）：memory report で resolved members 200.8 → 154.7 MiB、checker 合計
+1,109.6 → 1,058.3（−51.3）；test 1,905 本、clippy、smoke 1×1/既定、6 counter 同一 → 計測：footprint は VS Code 2,616〜2,626 → 2,553〜2,571 MiB（≈ **−55**）、zod −21、next −15、effect −10、playwright −8、vue −5、ts −2 と大きいが、命令数は 8 案件すべて悪化（VS Code **+0.54%**、zod +1.40%、playwright +0.92%、next +0.83%、effect +0.84%、hono +0.74%、vue +0.65%、ts +0.29%）→ そのままでは merge せず。release binary の 4 kHz profile（main 対）で、M2 の超過は lookup 経路（`MemberTable::get_hashed` 1,144 対 837 sample = +77 ms：表現の tag の match と、宣言 table の handle が binder の `SymbolMap::position` に委譲する分）と builder 経路（`alloc_members` +30 ms、`builder_mut`・`set_properties`・`freeze`）、N3 の超過は挿入経路（`PagedTable::create_record` 129 対 0 sample = +32 ms、memmove +51 ms）にあり、lookup 自体は遅くなっていない。どちらも命令中立化の session を用意した（M3：handle を捨てて lookup を元の形に戻し record あたり `Arc` 1 つ；N4：region 表の事前確保と固定 256 record の chunk）。
+
+**行単位の帰属のやり直し（lane `gapmap2`、現 main の 4 kHz profile；samply は Codex の sandbox で動かず（Unknown(1100)）、記録は integrator が sandbox 外で実行）。**
+worker の CPU ms は parse 401 対 tsrs 617（我々が速い）、bind 404 対 283（+122）、check 6,024 対 4,790（+1,234 = 1.26×）；loader 周辺の「other」1,227 対 190 は
+`read` の self 476 ms（前回 18.6、tsrs 15.9；全部 `FsCompilerHost::read_file`）という記録環境の artifact（再起動後の page cache と 3 lane の memory 圧）を含み、
+この profile では使えない。結論：**関数単位でも行単位でも、非構造的で未着手の行で 0.3 G（≈ 0.3%）に届く候補は残っていない**——最大は relation の error state の
+`clone`（F2、0〜0.16 G、出力同一性の risk 高）、flow memo の frame 帳簿（F1、0〜0.03 G）、effects cache の probe（F5、0〜0.03 G）。残る超過は「構造の routing」
+（store の address 計算が hot な walker に乗る：`mark_property_alias_referenced` 63 対 29 ms 等）と allocator の振る舞い（`madvise` 36 対 3.8 ms、`memmove` 183 対 82 ms、
+うち 13% は realloc）。symbol/member 表は tsrs と同等（260.5 対 241.6 ms）、`#187` の Function/Object fallback filter は既に移植済み（be0e7c23f）。次の命令側の lane は
+tsrs の algorithm 行（`algo-a`：#250 union の sorted-run merge、union の type facts）と allocator の purge 実験（G1）に移した。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
