@@ -90,6 +90,17 @@ Types/Instantiations に 0.1% で一致していたが、A7 で「同じ出力�
 instantiation −8%）。counter の tsgo 一致を要件にするなら A7 だけ戻せる（VS Code −0.96%、vue −3.0% を失う）；要件にしないなら以後も
 出力同一を法とし counter は記録のみとする。tax-e の PR [#925](https://github.com/kazhiramatsu/tsc-rs/pull/925) は counter 不変。
 
+**loader の「other」の正体（lane `tax-f`、2026-11-08 09:5x、`handover/arch-arena/taxf/`）。** phase ledger に一時 sub-scope を足した release build
+（VS Code、1 thread、3 round 中央値）：load 25.7 G のうち scan+parse 11.1 G（43%）、module 解決の CPU 3.9 G（15%）、構文 relocation と
+store への publication 2.3 G（9%）、file 読み込み 2.0 G（8%）、module request の計画 2.0 G（8%）、prepared program の publication 0.9 G、
+filesystem probe 0.7 G、program 構築と checker adapter 0.55 G、decode 0.3 G、診断 0.3 G、残差 1.2 G。parse を除く load = **14.6 G / 0.96 s**。
+tsgo/tsrs が払わない仕事は (1) local 識別子から program 識別子への AST 全体の relocation（我々の store 契約が要求；2.4 G ≈ 2%）、
+(2) file ごとの UTF-16 位置 index と text の保持、(3) StagedGraph → PreparedProgram → InputFiles → bound document の多段 publication（1.4 G）。
+module 解決自体は共通の仕事だが、JS code unit の走査・大小文字変換・Path の SipHash cache が高い。filesystem 呼び出し：VS Code で stat 20,265、
+read 10,377、readdir 2,652。1 日枠の候補 F1〜F5（relocation の layout descriptor、観測 cache の FxHash、ASCII 経路の正規化、位置 index の
+ASCII run 走査、解決表の freeze 順）は合計 0.4〜1.3 G（0.3〜1.1%）の見込み；relocation の全廃と publication 層の統合は複数日の構造変更で、
+arena 計画の段 B の領域（上限 ≈ 3%）。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
