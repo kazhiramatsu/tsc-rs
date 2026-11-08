@@ -546,6 +546,8 @@ pub struct CheckerState<'a> {
     /// Scratch child list shared by the per-node check traversals: one
     /// buffer per checker instead of one allocation per node with children.
     pub(crate) child_scratch: Vec<tsc_syntax::NodeId>,
+    pub(crate) property_scratch: Vec<crate::structural::PropertyScratch>,
+    pub(crate) property_name_sets: Vec<rustc_hash::FxHashSet<tsc_types::EscapedName>>,
     pub tables: TypeTables,
     /// tsc strictFunctionTypes via getStrictOptionValue.
     pub strict_function_types: bool,
@@ -1754,6 +1756,8 @@ impl<'a> CheckerState<'a> {
             index_symbols: rustc_hash::FxHashMap::default(),
             emit_display_sources: std::collections::BTreeMap::new(),
             child_scratch: Vec::new(),
+            property_scratch: Vec::new(),
+            property_name_sets: Vec::new(),
             tables,
             strict_function_types,
             stable_type_ordering,

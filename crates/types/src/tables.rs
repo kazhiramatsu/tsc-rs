@@ -2106,8 +2106,9 @@ impl TypeTables {
     /// tsc-span: _tsc.js:61358-61367
     ///
     /// With content ordering, append filtered members in source traversal
-    /// order, keeping duplicate occurrences until after Go's stable sort
-    /// (`checker.go:addTypesToUnion`). Explicit ID ordering retains the
+    /// order, keeping duplicate occurrences until after a stable merge of
+    /// sorted runs. This gives Go's stable-sort result under compare_types'
+    /// total order, including its final type-id tie breaker. Explicit ID ordering retains the
     /// one-by-one ID insertion path.
     pub fn add_types_to_union(
         &mut self,
@@ -2122,7 +2123,7 @@ impl TypeTables {
         let includes = self.add_types_to_union_in_place(order, type_set, includes, types);
         #[cfg(feature = "perf-counters")]
         let sort_length = type_set.len();
-        crate::goslices::sort_types_like_tsgo(type_set, |a, b| {
+        crate::goslices::sort_union_types(type_set, |a, b| {
             #[cfg(feature = "perf-counters")]
             crate::perf::union_sort_comparison(sort_length);
             crate::type_order::compare_types(self, ctx, a, b) == Ordering::Less

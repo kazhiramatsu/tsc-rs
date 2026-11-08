@@ -2464,3 +2464,68 @@ fn settled_own_member_reads_preserve_deferral_replacement_and_module_gates() {
         },
     );
 }
+
+#[test]
+fn property_scratch_reuse_keeps_names_and_deferred_recipes_separate() {
+    crate::state::test_support::with_program_state(
+        &[(
+            "a.ts",
+            "declare let a: { p?: 'a' } & { p?: 'b' } & { p?: 'c' };\n\
+            declare let b: { q: string, r: number } | { q: number, s: boolean };\n",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let annotation = find_probe_annotation(state.binder.source(0), "a").unwrap();
+            let a = state.get_type_from_type_node(annotation).unwrap();
+            let annotation = find_probe_annotation(state.binder.source(0), "b").unwrap();
+            let b = state.get_type_from_type_node(annotation).unwrap();
+            let property = state
+                .create_union_or_intersection_property(
+                    a,
+                    tsc_types::EscapedName::from_identifier_escaped_text("p"),
+                    false,
+                )
+                .unwrap()
+                .unwrap();
+            assert!(state
+                .get_check_flags(property)
+                .intersects(CheckFlags::DEFERRED_TYPE));
+            let expected = state.get_type_of_symbol(property).unwrap();
+            for _ in 0..3 {
+                assert!(state
+                    .create_union_or_intersection_property(
+                        b,
+                        tsc_types::EscapedName::from_identifier_escaped_text("missing"),
+                        false
+                    )
+                    .unwrap()
+                    .is_none());
+                let q = state
+                    .create_union_or_intersection_property(
+                        b,
+                        tsc_types::EscapedName::from_identifier_escaped_text("q"),
+                        false,
+                    )
+                    .unwrap()
+                    .unwrap();
+                assert!(!state
+                    .get_check_flags(q)
+                    .intersects(CheckFlags::DEFERRED_TYPE));
+                assert_eq!(state.get_type_of_symbol(property).unwrap(), expected);
+                let props = state
+                    .get_properties_of_union_or_intersection_type(b)
+                    .unwrap();
+                let names: Vec<_> = props
+                    .iter()
+                    .map(|&p| state.binder.symbol(p).escaped_name)
+                    .collect();
+                assert_eq!(
+                    names,
+                    [tsc_types::EscapedName::from_identifier_escaped_text("q")]
+                );
+            }
+            assert!(!state.property_scratch.is_empty());
+            assert!(!state.property_name_sets.is_empty());
+        },
+    );
+}

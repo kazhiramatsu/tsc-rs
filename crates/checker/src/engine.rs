@@ -4791,6 +4791,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// maxDepth defaults to 3 (greenfield §4.7's "5" was the audited
     /// erratum).
+    #[inline]
     pub fn is_deeply_nested_type(
         &mut self,
         ty: TypeId,
@@ -4801,6 +4802,17 @@ impl<'a> CheckerState<'a> {
         if depth < max_depth {
             return Ok(false);
         }
+        self.is_deeply_nested_type_worker(ty, stack, depth, max_depth)
+    }
+
+    #[inline(never)]
+    fn is_deeply_nested_type_worker(
+        &mut self,
+        ty: TypeId,
+        stack: &[TypeId],
+        depth: usize,
+        max_depth: usize,
+    ) -> CheckResult<bool> {
         let target = self.get_recursion_identity_target(ty)?;
         let members = match self.tables.type_of(target).data {
             TypeData::Intersection { types } => Some(self.tables.list(types).to_vec()),
@@ -4835,6 +4847,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsgo-port: hasMatchingRecursionIdentity @7.1
     /// (checker/relater.go:797-808)
+    #[inline]
     fn has_matching_recursion_identity(
         &mut self,
         ty: TypeId,
@@ -4857,6 +4870,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsgo-port: getRecursionIdentity @7.1 (checker/relater.go:810-812)
+    #[inline(always)]
     pub(crate) fn get_recursion_identity(&mut self, ty: TypeId) -> CheckResult<RecursionIdentity> {
         let target = self.get_recursion_identity_target(ty)?;
         Ok(self.get_recursion_identity_from_target(target))
@@ -4874,7 +4888,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// The entry answers the common case (neither an indexed access nor an
     /// instantiated mapped type: the type itself) without the worker's frame.
-    #[inline]
+    #[inline(always)]
     fn get_recursion_identity_target(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if !self
             .tables
@@ -4935,6 +4949,7 @@ impl<'a> CheckerState<'a> {
     /// nested type aliases are not three instantiations of `Array`
     /// (deeplyNestedArrayTypes). A type parameter without a symbol is its
     /// own identity as well; tsc 6.0 gave all of them `undefined`.
+    #[inline(always)]
     fn get_recursion_identity_from_target(&self, ty: TypeId) -> RecursionIdentity {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::OBJECT) && !self.is_object_or_array_literal_type(ty) {
