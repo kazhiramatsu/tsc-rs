@@ -4,7 +4,7 @@
 /// source texts go to mimalloc's text heap in any process
 /// (`tsc_store::SharedText`).
 #[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+static GLOBAL: tsc_store::MiMalloc = tsc_store::MiMalloc;
 
 /// `mi_option_purge_delay` (mimalloc v2.3 `mi_option_e`, ordinal 15): memory
 /// purging is delayed by N ms, -1 disables it. The bundled binding names the
