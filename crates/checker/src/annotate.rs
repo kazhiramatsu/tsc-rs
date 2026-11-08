@@ -4467,6 +4467,7 @@ impl<'a> CheckerState<'a> {
 
     /// Resolve signatures and index information without requiring every
     /// instantiated property of a reference to exist.
+    #[inline]
     pub(crate) fn structured_member_headers(&mut self, ty: TypeId) -> CheckResult<MembersId> {
         if let Some(members) = self
             .links
@@ -4474,6 +4475,11 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(members);
         }
+        self.structured_member_headers_worker(ty)
+    }
+
+    #[inline(never)]
+    fn structured_member_headers_worker(&mut self, ty: TypeId) -> CheckResult<MembersId> {
         if let Some(header) = self.prepare_deferred_reference_members(ty)? {
             return Ok(header);
         }

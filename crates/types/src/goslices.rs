@@ -412,6 +412,43 @@ pub fn sort_types_like_tsgo<T: Copy>(data: &mut [T], mut less: impl FnMut(T, T) 
     }
 }
 
+/// Stable ordering for union members, whose flattened inputs often already
+/// contain long sorted runs. Keep Go's small-list sort; merge existing runs
+/// with its in-place symmetric merge instead of sorting them again.
+/// This requires a total order. Callers with an inconsistent comparator must
+/// continue to use `sort_types_like_tsgo` to preserve its comparison sequence.
+pub fn sort_union_types<T: Copy>(data: &mut [T], mut less: impl FnMut(T, T) -> bool) {
+    fn sort<T: Copy>(data: &mut [T], less: &mut impl FnMut(T, T) -> bool) {
+        if data.len() <= 20 {
+            sort_types_like_tsgo(data, less);
+            return;
+        }
+        let mut middle = 1;
+        while middle < data.len() && !less(data[middle], data[middle - 1]) {
+            middle += 1;
+        }
+        if middle == data.len() {
+            return;
+        }
+        let mut end = middle + 1;
+        while end < data.len() && !less(data[end], data[end - 1]) {
+            end += 1;
+        }
+        if end != data.len() {
+            // More than two runs: divide the work so repeated small runs
+            // cannot make a left-to-right merge quadratic.
+            middle = data.len() / 2;
+            sort(&mut data[..middle], less);
+            sort(&mut data[middle..], less);
+            if !less(data[middle], data[middle - 1]) {
+                return;
+            }
+        }
+        sym_merge(data, 0, middle, data.len(), less);
+    }
+    sort(data, &mut less);
+}
+
 fn insertion_sort<T: Copy>(
     data: &mut [T],
     a: usize,

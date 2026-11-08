@@ -491,8 +491,10 @@ PGO 感度（[release 手順](pgo.md)、構造変更の gain には数えない�
 
 | 対象 | 通常 build | PGO build | 差分 | 証跡 |
 | --- | ---: | ---: | ---: | --- |
+| main `77a4532e6`、zod 1 thread、hosted Linux x64（cachegrind Ir） | 3,534.1 M | 3,118.8 M | **−11.75%** | run [42413136153](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42413136153)（完走、pre-release `pgo-42413136153`）、`results/zod/summary.json`、繰り返し差 0.006%；既定 wall 616 → 515 ms |
+| main `77a4532e6`、hono 1 thread、hosted Linux x64（cachegrind Ir） | 2,358.4 M | 1,991.4 M | **−15.56%** | 同 run、`results/hono/summary.json`（繰り返し差 0.01〜0.03%）|
 | main `a75438da1`、hono 1 thread、hosted Linux x64（cachegrind Ir） | 2,358.1 M | 1,991.7 M | **−15.5%** | run [42395965544](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42395965544) の `release-evidence-Linux-X64`（`results/hono/summary.json`、繰り返し 2 回の差 0.002%）。既定 wall 215 → 167 ms。zod と VS Code は未計測（同 run は繰り返しの完全一致規則で停止、修正 PR 参照） |
-| #913+、VS Code 1 thread | 未計測 | 未計測 | 未計測 | integrator：hosted dispatch 成功と assets 確認後、native binary を取得し quiet window で warm-up 2 + 交互 9 round。commit/run URL・binary/corpus/profile hash・peak も記録 |
+| main `77a4532e6`（code は `a75438da1`）、**VS Code 1 thread、この Mac**（hosted macOS ARM64 binary、retired instructions、warm-up 1 + 9 round、低い峰） | 121.85 G | 109.72 G | **−9.95%**（cpu −13.0%） | run 42413136153 の `release-binaries-macOS-ARM64`（normal sha `b8606bba…`、PGO sha `00b33c49…`、profdata `388034d7…`）→ `perf11/bin/hosted-{normal,pgo}-77a4532e6`；8 project で出力同一、peak ±13 MiB；他：ts −10.1%、next −9.5%、zod −10.7%、effect −11.2%、hono −14.5%、vue −10.2%、playwright −12.8%（`ceilings/results/patches-1108-0906.txt`） |
 
 停止規則：段 0b の天井が閾値（front end ≤ B1_front − 6 G、同名関数比 ≤ 1.10×）に届かなければ freeze せず所有者判断。段 A・B の
 出口 gate は「数値を超えたら不合格」で、猶予帯はない（R12）。不合格なら次の段に進まず原因を書いて判断を仰ぐ。
