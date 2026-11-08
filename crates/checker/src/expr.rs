@@ -3186,7 +3186,7 @@ impl<'a> CheckerState<'a> {
         self.tables.type_mut(id).symbol = symbol;
         self.order_named_members_if_stable(&mut properties, symbol);
         let members_id = self.alloc_members(crate::state::ResolvedMembers::new(
-            self.member_table(&members),
+            self.member_table_source(&members),
             properties,
             Vec::new(),
             Vec::new(),

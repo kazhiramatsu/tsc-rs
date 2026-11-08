@@ -601,7 +601,7 @@ impl<'a> CheckerState<'a> {
                     child_prop_map.insert(*children_name, children_prop_symbol);
                     let child_type = self.make_resolved_anonymous_type(
                         attributes_symbol,
-                        self.member_table(&child_prop_map),
+                        self.member_table_source(&child_prop_map),
                         vec![children_prop_symbol],
                         Vec::new(),
                         ObjectFlags::ANONYMOUS,
@@ -660,7 +660,7 @@ impl<'a> CheckerState<'a> {
         let properties: Vec<SymbolId> = attributes_table.values().copied().collect();
         self.make_resolved_anonymous_type(
             attributes_symbol,
-            self.member_table(attributes_table),
+            self.member_table_source(attributes_table),
             properties,
             Vec::new(),
             flags,
@@ -1453,7 +1453,7 @@ impl<'a> CheckerState<'a> {
             .declaration
             .and_then(|declaration| self.binder.node_symbol(declaration));
         let members = self.alloc_members(crate::state::ResolvedMembers::new(
-            Default::default(),
+            crate::member_table::MemberTable::with_capacity(0),
             Vec::new(),
             if is_constructor {
                 Vec::new()

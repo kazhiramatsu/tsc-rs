@@ -133,7 +133,7 @@ fn index_info_readers_share_storage_and_keep_replaced_snapshots() {
         is_any_base_type_index_info: false,
     };
     let mut members = ResolvedMembers::new(
-        MemberTable::default(),
+        MemberTable::with_capacity(0),
         Vec::new(),
         Vec::new(),
         Vec::new(),

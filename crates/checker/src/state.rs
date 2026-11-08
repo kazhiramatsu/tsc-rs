@@ -19,7 +19,7 @@ use tsc_types::{
 
 use crate::instantiate::MapperId;
 use crate::links::{LinkSlot, LinksTables};
-use crate::member_table::MemberTable;
+use crate::member_table::{FreezeMembers, FrozenMembers, MemberTable};
 use crate::program::{ProgramBinder, ProgramSnapshot};
 use crate::relate::RelationCaches;
 
@@ -248,8 +248,16 @@ pub type IndexInfos = SharedList<IndexInfo>;
 
 impl<T: Clone> SharedList<T> {
     /// The empty list.
+    #[inline]
     pub const fn new() -> Self {
         Self(None)
+    }
+
+    /// Construction already checked the final length before allocating.
+    #[inline]
+    pub(crate) fn from_nonempty_arc(list: Arc<[T]>) -> Self {
+        debug_assert!(!list.is_empty());
+        Self(Some(list))
     }
 
     /// Bytes the list owns on the heap (its counts and records), for
@@ -259,21 +267,43 @@ impl<T: Clone> SharedList<T> {
             2 * std::mem::size_of::<usize>() + std::mem::size_of_val::<[T]>(list)
         })
     }
+
+    pub(crate) fn counted_heap_bytes(&self, seen: &mut rustc_hash::FxHashSet<*const T>) -> usize {
+        if self
+            .0
+            .as_ref()
+            .is_some_and(|list| seen.insert(list.as_ptr()))
+        {
+            self.heap_bytes()
+        } else {
+            0
+        }
+    }
 }
 
 impl<T: Clone> Default for SharedList<T> {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl<T: Clone> From<Vec<T>> for SharedList<T> {
+    #[inline]
     fn from(list: Vec<T>) -> Self {
         Self((!list.is_empty()).then(|| Arc::from(list)))
     }
 }
 
+impl<T: Clone> From<Arc<[T]>> for SharedList<T> {
+    #[inline]
+    fn from(list: Arc<[T]>) -> Self {
+        Self((!list.is_empty()).then_some(list))
+    }
+}
+
 impl<T: Clone> From<&[T]> for SharedList<T> {
+    #[inline]
     fn from(list: &[T]) -> Self {
         Self((!list.is_empty()).then(|| Arc::from(list)))
     }
@@ -337,10 +367,8 @@ impl<'a, T: Clone> IntoIterator for &'a SharedList<T> {
 /// 50198): members table + named properties + signatures + index infos.
 #[derive(Clone, Debug, Default)]
 pub struct ResolvedMembers {
-    /// The declared members (copied from the declaring symbol's own table
-    /// when they are exactly those), the instantiated ones, or the declared
-    /// plus inherited ones; see [`MemberTable`].
-    pub members: MemberTable,
+    /// Declared, instantiated, or declared plus inherited members.
+    pub members: FrozenMembers,
     pub properties: SymbolIds,
     /// The signatures and index infos, which most resolved types have none
     /// of (three empty lists were 72 of a record's 152 bytes, over a million
@@ -358,9 +386,29 @@ pub struct MembersExtras {
 }
 
 impl ResolvedMembers {
+    #[inline]
     pub fn new(
-        members: MemberTable,
+        members: impl FreezeMembers,
         properties: Vec<SymbolId>,
+        call_signatures: Vec<SignatureId>,
+        construct_signatures: Vec<SignatureId>,
+        index_infos: impl Into<IndexInfos>,
+    ) -> Self {
+        let (members, properties) = members.freeze_with_properties(properties);
+        Self::from_frozen(
+            members,
+            properties,
+            call_signatures,
+            construct_signatures,
+            index_infos,
+        )
+    }
+
+    /// Publish an existing frozen table and an already selected property list.
+    #[inline]
+    pub(crate) fn from_frozen(
+        members: FrozenMembers,
+        properties: SymbolIds,
         call_signatures: Vec<SignatureId>,
         construct_signatures: Vec<SignatureId>,
         index_infos: impl Into<IndexInfos>,
@@ -378,9 +426,19 @@ impl ResolvedMembers {
         });
         Self {
             members,
-            properties: properties.into(),
+            properties,
             extras,
         }
+    }
+
+    /// A later property update shares only after exact ordered equality.
+    #[cfg(test)]
+    pub(crate) fn set_properties(&mut self, properties: &[SymbolId]) {
+        self.properties = if properties == self.members.symbols() {
+            self.members.symbol_list()
+        } else {
+            properties.into()
+        };
     }
 
     pub fn call_signatures(&self) -> &[SignatureId] {
@@ -457,7 +515,7 @@ impl ResolvedMembers {
         index_infos: Vec<IndexInfo>,
     ) {
         self.extras = Self::new(
-            MemberTable::default(),
+            MemberTable::with_capacity(0),
             Vec::new(),
             call_signatures,
             construct_signatures,
@@ -1417,12 +1475,13 @@ impl<'a> CheckerState<'a> {
             self.signatures.len(),
             self.signatures.len() * std::mem::size_of::<Signature>() + signature_heap,
         ));
+        let mut member_symbols = rustc_hash::FxHashSet::default();
         let members_heap: usize = self
             .members
             .iter()
             .map(|members| {
-                members.members.heap_bytes()
-                    + members.properties.heap_bytes()
+                members.members.counted_heap_bytes(&mut member_symbols)
+                    + members.properties.counted_heap_bytes(&mut member_symbols)
                     + members.extras_heap_bytes()
             })
             .sum();
@@ -2242,6 +2301,16 @@ impl<'a> CheckerState<'a> {
     /// keys are the members' names).
     pub(crate) fn member_table(&self, table: &SymbolTable) -> MemberTable {
         MemberTable::from_symbol_table(&self.binder, table)
+    }
+
+    /// Finished tables can fill the published Arc directly, without first
+    /// copying their IDs into a mutable builder.
+    #[inline]
+    pub(crate) fn member_table_source<'table>(
+        &self,
+        table: &'table SymbolTable,
+    ) -> crate::member_table::MemberTableSource<'table> {
+        crate::member_table::MemberTableSource::new(&self.binder, table)
     }
 
     /// tsrs-native: numeric MembersId arena accessor; tsc carries the

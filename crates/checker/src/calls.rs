@@ -1511,10 +1511,13 @@ impl<'a> CheckerState<'a> {
             .links
             .read_ty(override_type, |links| links.resolved_members.resolved())
             .expect("freshly created anonymous types carry resolved members");
-        let members = self.member_table(&members);
+        let (members, properties) = crate::member_table::FreezeMembers::freeze_with_properties(
+            self.member_table_source(&members),
+            vec![name_prop, private_prop, static_prop],
+        );
         let resolved = self.members_mut(members_id);
         resolved.members = members;
-        resolved.properties = vec![name_prop, private_prop, static_prop].into();
+        resolved.properties = properties;
         self.decorator_context_override_type_cache
             .insert(key, override_type);
         override_type

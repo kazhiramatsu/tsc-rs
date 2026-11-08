@@ -2747,9 +2747,8 @@ impl<'a> CheckerState<'a> {
                 self.tables.type_mut(result).object_flags = tsc_types::ObjectFlags::ANONYMOUS
                     | tsc_types::ObjectFlags::INSTANTIATION_EXPRESSION_TYPE;
                 self.tables.type_mut(result).symbol = Some(symbol);
-                let mut properties = properties.to_vec();
-                self.order_named_members_if_stable(&mut properties, Some(symbol));
-                let members_id = self.alloc_members(crate::state::ResolvedMembers::new(
+                let properties = self.order_named_member_list(&members, properties, Some(symbol));
+                let members_id = self.alloc_members(crate::state::ResolvedMembers::from_frozen(
                     members,
                     properties,
                     instantiated_call,
@@ -3620,7 +3619,7 @@ impl<'a> CheckerState<'a> {
         let index_infos = self.get_index_infos_of_type(source)?;
         let result = self.make_resolved_anonymous_type(
             symbol,
-            self.member_table(&members),
+            self.member_table_source(&members),
             result_properties,
             index_infos,
             tsc_types::ObjectFlags::OBJECT_REST_TYPE,

@@ -15,9 +15,10 @@ use tsc_types::{
 use crate::evaluate::EvalValue;
 
 use crate::links::LinkSlot;
-use crate::member_table::MemberTable;
+use crate::member_table::{FreezeMembers, MemberTable};
 use crate::state::{
     CheckResult, CheckerState, IndexInfo, MembersId, ResolvedMembers, Signature, SignatureId,
+    SymbolIds,
 };
 use tsc_types::perf::{self, PerfCounter};
 
@@ -4393,7 +4394,7 @@ impl<'a> CheckerState<'a> {
             let mut properties: Vec<SymbolId> = members.values().copied().collect();
             state.order_named_members_if_stable(&mut properties, None);
             Ok(ResolvedMembers::new(
-                state.member_table(&members),
+                state.member_table_source(&members),
                 properties,
                 Vec::new(),
                 Vec::new(),
@@ -4615,7 +4616,7 @@ impl<'a> CheckerState<'a> {
                 bases.push(base);
             }
             let header = self.alloc_members(ResolvedMembers::new(
-                MemberTable::default(),
+                MemberTable::with_capacity(0),
                 Vec::new(),
                 calls,
                 constructs,
@@ -4763,9 +4764,11 @@ impl<'a> CheckerState<'a> {
                 let properties = self.get_properties_of_type_full(base)?;
                 self.add_inherited_members(&mut members, &properties)?;
             }
-            let properties = self.get_named_members(&members, self.tables.type_of(ty).symbol)?;
-            self.members_mut(header).members = members;
-            self.members_mut(header).properties = properties.into();
+            let (members, properties) =
+                self.freeze_named_members(members, self.tables.type_of(ty).symbol)?;
+            let resolved = self.members_mut(header);
+            resolved.members = members;
+            resolved.properties = properties;
             self.links
                 .set_type_members(self.speculation_depth, ty, LinkSlot::Resolved(header));
             Ok(header)
@@ -4862,7 +4865,7 @@ impl<'a> CheckerState<'a> {
             properties.push(length_symbol);
             let members = self.symbol_list_to_table(&properties);
             let id = self.alloc_members(ResolvedMembers::new(
-                self.member_table(&members),
+                self.member_table_source(&members),
                 properties,
                 Vec::new(),
                 Vec::new(),
@@ -4890,8 +4893,8 @@ impl<'a> CheckerState<'a> {
             .symbol
             .expect("class/interface targets carry their declaring symbol");
         let declared = self.get_members_of_symbol(symbol)?;
-        let members = self.member_table(&declared);
-        let properties = self.get_named_members(&members, Some(symbol))?;
+        let members = self.member_table_source(&declared);
+        let (members, properties) = self.freeze_named_members(members, Some(symbol))?;
         // tsc resolveDeclaredMembers publishes declaredProperties
         // FIRST and fills signatures/index infos into the type in
         // place (57772-57781): a nested reader reached through the
@@ -4907,7 +4910,7 @@ impl<'a> CheckerState<'a> {
             &self.binder,
             tsc_types::known_name!(InternalSymbolName::NEW),
         );
-        let id = self.alloc_members(ResolvedMembers::new(
+        let id = self.alloc_members(ResolvedMembers::from_frozen(
             members,
             properties,
             Vec::new(),
@@ -5078,8 +5081,8 @@ impl<'a> CheckerState<'a> {
             }
         }
         let container = self.tables.type_of(ty).symbol;
-        let properties = self.get_named_members(&members, container)?;
-        let id = self.alloc_members(ResolvedMembers::new(
+        let (members, properties) = self.freeze_named_members(members, container)?;
+        let id = self.alloc_members(ResolvedMembers::from_frozen(
             members,
             properties,
             call_signatures,
@@ -7554,8 +7557,8 @@ impl<'a> CheckerState<'a> {
                 let target_index_infos = state.get_index_infos_of_type(target)?;
                 let index_infos = state.instantiate_index_info_list(&target_index_infos, mapper)?;
                 let container = state.tables.type_of(ty).symbol;
-                let properties = state.get_named_members(&members, container)?;
-                return Ok(ResolvedMembers::new(
+                let (members, properties) = state.freeze_named_members(members, container)?;
+                return Ok(ResolvedMembers::from_frozen(
                     members,
                     properties,
                     call_signatures,
@@ -7574,9 +7577,9 @@ impl<'a> CheckerState<'a> {
                 active_id =
                     Some(state.publish_anonymous_members_stage(ty, ResolvedMembers::default()));
                 let declared = state.get_members_of_symbol(symbol)?;
-                let members = state.member_table(&declared);
+                let members = state.member_table_source(&declared);
                 let container = state.tables.type_of(ty).symbol;
-                let properties = state.get_named_members(&members, container)?;
+                let (members, properties) = state.freeze_named_members(members, container)?;
                 let call_signatures = state.get_signatures_of_symbol(members.get(
                     &state.binder,
                     tsc_types::known_name!(InternalSymbolName::CALL),
@@ -7586,7 +7589,7 @@ impl<'a> CheckerState<'a> {
                     tsc_types::known_name!(InternalSymbolName::NEW),
                 ))?;
                 let index_infos = state.get_index_infos_of_symbol(symbol)?;
-                return Ok(ResolvedMembers::new(
+                return Ok(ResolvedMembers::from_frozen(
                     members,
                     properties,
                     call_signatures,
@@ -7601,38 +7604,45 @@ impl<'a> CheckerState<'a> {
             // included) — no flags gate.
             {
                 let exports = state.get_exports_of_symbol(symbol)?;
-                let mut members = state.member_table(&exports);
                 // 58343-58352: globalThis members drop block-scoped
                 // bindings and purely-ambient value modules.
-                if symbol == state.global_this_symbol {
-                    let mut vars_only = MemberTable::with_capacity(members.len());
-                    for &member in members.symbols() {
-                        let member_flags = state.symbol_flags(member);
-                        let declarations = state.binder.symbol(member).declarations();
-                        let ambient_module_only = member_flags
-                            .intersects(SymbolFlags::VALUE_MODULE)
-                            && !declarations.is_empty()
-                            && declarations.iter().all(|&declaration| {
-                                node_util::is_ambient_module(&Published, declaration)
-                            });
-                        if !member_flags.intersects(SymbolFlags::BLOCK_SCOPED)
-                            && !ambient_module_only
-                        {
-                            vars_only.insert(&state.binder, member);
+                let mut members: crate::member_table::FrozenMembers =
+                    if symbol == state.global_this_symbol {
+                        let mut vars_only = MemberTable::with_capacity(exports.len());
+                        for &member in exports.values() {
+                            let member_flags = state.symbol_flags(member);
+                            let declarations = state.binder.symbol(member).declarations();
+                            let ambient_module_only = member_flags
+                                .intersects(SymbolFlags::VALUE_MODULE)
+                                && !declarations.is_empty()
+                                && declarations.iter().all(|&declaration| {
+                                    node_util::is_ambient_module(&Published, declaration)
+                                });
+                            if !member_flags.intersects(SymbolFlags::BLOCK_SCOPED)
+                                && !ambient_module_only
+                            {
+                                vars_only.insert(&state.binder, member);
+                            }
                         }
-                    }
-                    members = vars_only;
-                }
+                        vars_only.into()
+                    } else {
+                        state
+                            .member_table_source(&exports)
+                            .freeze_with_properties(Vec::new())
+                            .0
+                    };
                 // setStructuredTypeMembers (50198-50206) publishes the
                 // member table before getNamedMembers follows aliases.
                 // A CommonJS alias such as `exports.a = exports.b`
                 // re-enters this type while resolving `a`; that read
                 // must see `b` in the staged table.
+                // Freeze the live table once before cloning the published stage.
+                // Only the inheritance branch below needs another mutable builder.
                 let stage_id = state.publish_anonymous_members_stage(
                     ty,
-                    ResolvedMembers::new(
+                    ResolvedMembers::from_frozen(
                         members.clone(),
-                        Vec::new(),
+                        SymbolIds::new(),
                         Vec::new(),
                         Vec::new(),
                         Vec::new(),
@@ -7640,8 +7650,9 @@ impl<'a> CheckerState<'a> {
                 );
                 active_id = Some(stage_id);
                 let container = state.tables.type_of(ty).symbol;
-                let pre_merge_properties = state.get_named_members(&members, container)?;
-                state.members_mut(stage_id).properties = pre_merge_properties.clone().into();
+                let pre_merge_properties = state.get_named_member_list(&members, container)?;
+                state.members_mut(stage_id).properties = pre_merge_properties.clone();
+                let mut inherited_members = false;
                 let mut base_constructor_index_info: Option<IndexInfo> = None;
                 if flags.intersects(SymbolFlags::CLASS) {
                     let class_type = state.get_declared_type_of_class_or_interface(symbol)?;
@@ -7652,7 +7663,12 @@ impl<'a> CheckerState<'a> {
                     ) {
                         // 58359-58360: copy named+index members, then
                         // inherit the base's STATIC side.
-                        let named = state.get_named_members(&members, Some(symbol))?;
+                        let mut named = pre_merge_properties.clone();
+                        if state.stable_type_ordering && container != Some(symbol) {
+                            let mut sorted = named.to_vec();
+                            state.order_named_members_if_stable(&mut sorted, Some(symbol));
+                            named = sorted.into();
+                        }
                         let mut table = MemberTable::from_symbols(&state.binder, &named);
                         if let Some(index_symbol) = members.get(
                             &state.binder,
@@ -7660,10 +7676,11 @@ impl<'a> CheckerState<'a> {
                         ) {
                             table.insert(&state.binder, index_symbol);
                         }
-                        members = table;
                         let base_properties =
                             state.get_properties_of_type_full(base_constructor_type)?;
-                        state.add_inherited_members(&mut members, &base_properties)?;
+                        state.add_inherited_members(&mut table, &base_properties)?;
+                        members = table.into();
+                        inherited_members = true;
                     } else if base_constructor_type == state.tables.intrinsics.any {
                         base_constructor_index_info = Some(IndexInfo {
                             key_type: state.tables.intrinsics.string,
@@ -7761,8 +7778,15 @@ impl<'a> CheckerState<'a> {
                     }
                 }
                 let container = state.tables.type_of(ty).symbol;
-                let properties = state.get_named_members(&members, container)?;
-                Ok(ResolvedMembers::new(
+                let properties = if inherited_members {
+                    state.get_named_member_list(&members, container)?
+                } else {
+                    // Signatures and index infos do not change this frozen
+                    // member table. Its named properties were already selected
+                    // for the observable early stage, including alias resolution.
+                    pre_merge_properties
+                };
+                Ok(ResolvedMembers::from_frozen(
                     members,
                     properties,
                     call_signatures,
@@ -7827,22 +7851,23 @@ impl<'a> CheckerState<'a> {
     /// VALUE-flags-only filter dropped alias exports from module value
     /// faces (its "alias resolution is M4" note was the stale-
     /// justification pattern again).
-    pub(crate) fn get_named_members(
+    #[inline]
+    pub(crate) fn get_named_members<S: std::ops::Deref<Target = [SymbolId]>>(
         &mut self,
-        members: &MemberTable,
+        members: &MemberTable<S>,
         container: Option<SymbolId>,
     ) -> CheckResult<Vec<SymbolId>> {
-        // Names are only tested for the reserved prefix and the symbols kept
-        // for the value check, so no name is copied.
-        let candidates: Vec<SymbolId> = members
-            .symbols()
-            .iter()
-            .copied()
-            .filter(|&symbol| !is_reserved_member_name(self.binder.symbol(symbol).escaped_name))
-            .collect();
-        let mut named = Vec::with_capacity(candidates.len());
-        for symbol in candidates {
-            if self.symbol_is_value(symbol, /*include_type_only_members*/ false)? {
+        self.get_named_members_from_symbols(members.symbols(), container)
+    }
+
+    fn get_named_members_from_symbols(
+        &mut self,
+        members: &[SymbolId],
+        container: Option<SymbolId>,
+    ) -> CheckResult<Vec<SymbolId>> {
+        let mut named = Vec::with_capacity(members.len());
+        for &symbol in members {
+            if self.is_named_member(symbol)? {
                 named.push(symbol);
             }
         }
@@ -7850,6 +7875,82 @@ impl<'a> CheckerState<'a> {
         // first, each group sorted by compareSymbols.
         self.order_named_members_if_stable(&mut named, container);
         Ok(named)
+    }
+
+    #[inline]
+    fn is_named_member(&mut self, symbol: SymbolId) -> CheckResult<bool> {
+        // Escaped names do not change after symbol creation, including while
+        // following aliases. No separate candidate snapshot is needed.
+        Ok(
+            !is_reserved_member_name(self.binder.symbol(symbol).escaped_name)
+                && self.symbol_is_value(symbol, /*include_type_only_members*/ false)?,
+        )
+    }
+
+    /// Select properties in the same pass that fills the final member Arc.
+    /// The default insertion-order path neither builds a candidate Vec nor
+    /// compares an independently built property list with the member list.
+    fn freeze_named_members(
+        &mut self,
+        members: impl FreezeMembers,
+        container: Option<SymbolId>,
+    ) -> CheckResult<(crate::member_table::FrozenMembers, SymbolIds)> {
+        let mut result = Ok(());
+        let (members, properties) = members.freeze_with_filter(|symbol| {
+            if result.is_err() {
+                return false;
+            }
+            match self.is_named_member(symbol) {
+                Ok(keep) => keep,
+                Err(err) => {
+                    result = Err(err);
+                    false
+                }
+            }
+        });
+        result?;
+        let properties = self.order_named_member_list(&members, properties, container);
+        Ok((members, properties))
+    }
+
+    fn get_named_member_list(
+        &mut self,
+        members: &crate::member_table::FrozenMembers,
+        container: Option<SymbolId>,
+    ) -> CheckResult<SymbolIds> {
+        let mut result = Ok(());
+        let properties = members.filter_properties(|symbol| {
+            if result.is_err() {
+                return false;
+            }
+            match self.is_named_member(symbol) {
+                Ok(keep) => keep,
+                Err(err) => {
+                    result = Err(err);
+                    false
+                }
+            }
+        });
+        result?;
+        Ok(self.order_named_member_list(members, properties, container))
+    }
+
+    pub(crate) fn order_named_member_list(
+        &self,
+        members: &crate::member_table::FrozenMembers,
+        properties: SymbolIds,
+        container: Option<SymbolId>,
+    ) -> SymbolIds {
+        if !self.stable_type_ordering || properties.len() < 2 {
+            return properties;
+        }
+        let mut sorted = properties.to_vec();
+        self.order_named_members_if_stable(&mut sorted, container);
+        if sorted == members.symbols() {
+            members.symbol_list()
+        } else {
+            sorted.into()
+        }
     }
 
     // ---- index signatures ----
@@ -8433,7 +8534,7 @@ impl<'a> CheckerState<'a> {
                 let properties = members.values().copied().collect();
                 return Ok(state.make_resolved_anonymous_type(
                     Some(symbol),
-                    state.member_table(&members),
+                    state.member_table_source(&members),
                     properties,
                     Vec::new(),
                     ObjectFlags::ANONYMOUS,
@@ -11096,7 +11197,7 @@ impl<'a> CheckerState<'a> {
         self.tables.type_mut(id).object_flags = ObjectFlags::ANONYMOUS | object_flags;
         self.order_named_members_if_stable(&mut properties, None);
         let members_id = self.alloc_members(crate::state::ResolvedMembers::new(
-            self.member_table(&members),
+            self.member_table_source(&members),
             properties,
             Vec::new(),
             Vec::new(),

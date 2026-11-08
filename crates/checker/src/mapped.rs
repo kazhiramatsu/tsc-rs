@@ -528,7 +528,7 @@ impl<'a> CheckerState<'a> {
             let mut properties: Vec<SymbolId> = members.values().copied().collect();
             state.order_named_members_if_stable(&mut properties, state.tables.type_of(ty).symbol);
             Ok(ResolvedMembers::new(
-                state.member_table(&members),
+                state.member_table_source(&members),
                 properties,
                 Vec::new(),
                 Vec::new(),
