@@ -50,6 +50,11 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 use std::sync::Once;
 
+#[cfg(not(target_family = "wasm"))]
+mod allocator;
+#[cfg(not(target_family = "wasm"))]
+pub use allocator::MiMalloc;
+
 pub mod claimed;
 pub mod frozen;
 pub mod recycle;
