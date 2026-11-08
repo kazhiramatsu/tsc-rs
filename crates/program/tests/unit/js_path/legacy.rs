@@ -409,3 +409,50 @@ fn generated_path_corpus_is_byte_exact_to_the_base_algorithms() {
         }
     }
 }
+
+#[test]
+fn first_dotdot_prefixes_keep_utf16_short_prefix_and_root_rules() {
+    for root in [
+        "",
+        "/",
+        "//server/share/",
+        "C:",
+        "C:/",
+        "http://host/",
+        "file:///C:/",
+        "^/",
+    ] {
+        for segment in ["", "a", "ab", "abc", "é", "日本", "😀"] {
+            for suffix in [
+                "/..",
+                "/../",
+                "/../a",
+                "/../../b/",
+                "/./../x",
+                "//../x",
+                "/../é/..",
+                "/../😀/..",
+            ] {
+                let path = JsString::from(format!("{root}{segment}{suffix}"));
+                for base in ["", "/base/dir", "relative", "C:/base", "file:///base/"] {
+                    compare(
+                        &format!("{path:?}, base={base}"),
+                        || old_normalized_absolute_path(path.as_js(), base.into()),
+                        || normalized_absolute_path(path.as_js(), base.into()),
+                    );
+                }
+            }
+            for surrogate in [0xd800, 0xdc00] {
+                let mut path = JsString::from(root);
+                path.push_code_unit(surrogate);
+                path.push_str(segment);
+                path.push_str("/../x/../");
+                compare(
+                    &format!("surrogate {path:?}"),
+                    || old_normalized_absolute_path(path.as_js(), "".into()),
+                    || normalized_absolute_path(path.as_js(), "".into()),
+                );
+            }
+        }
+    }
+}

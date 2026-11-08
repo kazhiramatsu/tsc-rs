@@ -399,7 +399,7 @@ pub enum NodePayload {
 /// attachment and a JSDoc comment, and words 1-2 hold the first two slots.
 const HAS_TAIL: u16 = 1 << 15;
 
-/// The identity spaces of payload slots (see `slot_spaces`).
+/// The identity spaces of payload slots (see `IdentityLayout`).
 pub(crate) const SPACE_NONE: u8 = 0;
 pub(crate) const SPACE_NODE: u8 = 1;
 pub(crate) const SPACE_ARRAY: u8 = 2;
@@ -794,8 +794,8 @@ impl Node {
         tails: &mut tsc_store::tails::Tails,
         mut map: impl FnMut(u8, u32) -> Result<u32, E>,
     ) -> Result<(), E> {
-        let spaces = slot_spaces(self.kind);
-        let (count, has_comment) = payload_shape(self.kind);
+        let layout = identity_layout(self.kind);
+        let count = layout.count();
         let mut each = |space: u8, word: &mut u32| -> Result<(), E> {
             if space != SPACE_NONE && *word != 0 {
                 *word = map(space, *word)?;
@@ -803,25 +803,24 @@ impl Node {
             Ok(())
         };
         if self.literal_flags & HAS_TAIL == 0 {
-            for (index, &space) in spaces.iter().enumerate().take(3) {
-                each(space, &mut self.words[index])?;
-            }
+            each(layout.space(0), &mut self.words[0])?;
+            each(layout.space(1), &mut self.words[1])?;
+            each(layout.space(2), &mut self.words[2])?;
             if count < 3 {
                 each(SPACE_ARRAY, &mut self.words[count])?;
             }
             return Ok(());
         }
-        for (index, &space) in spaces.iter().enumerate().take(2) {
-            each(space, &mut self.words[index + 1])?;
-        }
+        each(layout.space(0), &mut self.words[1])?;
+        each(layout.space(1), &mut self.words[2])?;
         let at = count.saturating_sub(2);
-        let len = at + 1 + if has_comment { 4 } else { 0 };
+        let len = at + 1 + if layout.has_comment() { 4 } else { 0 };
         let tail = tails.words_mut(self.words[0], len as u32);
-        for (index, &space) in spaces.iter().enumerate().skip(2) {
-            each(space, &mut tail[index - 2])?;
+        for index in 2..count {
+            each(layout.space(index), &mut tail[index - 2])?;
         }
         each(SPACE_ARRAY, &mut tail[at])?;
-        if has_comment {
+        if layout.has_comment() {
             // A text's id, or an array's after a zero word (`JSDocComment::words`).
             if tail[at + 1] != 0 {
                 each(SPACE_TEXT, &mut tail[at + 1])?;
@@ -1044,6 +1043,34 @@ def render_payload_codec(kinds):
         out.append(f"{arms} => ({count}, {'true' if comment else 'false'}),")
     out += ["_ => (0, false),", "}", "}", ""]
 
+    out.append("/// One relocation dispatch: four count bits, one comment bit, then two bits per slot.")
+    out.append("/// Zero metadata beyond the payload leaves non-payload inline words untouched.")
+    out.append("struct IdentityLayout(u32);")
+    out.append("impl IdentityLayout {")
+    out.append("    const fn count(&self) -> usize { (self.0 & 15) as usize }")
+    out.append("    const fn has_comment(&self) -> bool { self.0 & 16 != 0 }")
+    out.append("    const fn space(&self, index: usize) -> u8 { ((self.0 >> (5 + 2 * index)) & 3) as u8 }")
+    out.append("}")
+    out.append("#[inline]")
+    out.append("const fn identity_layout(kind: SyntaxKind) -> IdentityLayout {")
+    out.append("    IdentityLayout(match kind {")
+    layouts = {}
+    space_bits = {"SPACE_NONE": 0, "SPACE_NODE": 1, "SPACE_ARRAY": 2, "SPACE_TEXT": 3}
+    for kind in kinds:
+        slots = kind.slots()
+        # Keep both the count and every space inside the descriptor's u32.
+        assert len(slots) <= 13, f"{kind.name}: relocation descriptor overflow"
+        bits = len(slots) | (16 if kind.comment_field() else 0)
+        for index, slot in enumerate(slots):
+            bits |= space_bits[slot_space(slot)] << (5 + 2 * index)
+        if bits:
+            layouts.setdefault(bits, []).append(kind.name)
+    for bits, names in sorted(layouts.items()):
+        arms = " | ".join(f"SyntaxKind::{name}" for name in names)
+        out.append(f"        {arms} => 0x{bits:x},")
+    out += ["        _ => 0,", "    })", "}", ""]
+    # Retain the independent old slot classification only for differential tests.
+    out.append("#[cfg(test)]")
     out.append("/// The identity space of each payload slot of `kind`, in record order (`SPACE_*`).")
     out.append("pub(crate) const fn slot_spaces(kind: SyntaxKind) -> &'static [u8] {")
     out.append("match kind {")

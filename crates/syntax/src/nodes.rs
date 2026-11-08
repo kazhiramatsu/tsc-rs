@@ -122,7 +122,7 @@ pub enum NodePayload {
 /// attachment and a JSDoc comment, and words 1-2 hold the first two slots.
 const HAS_TAIL: u16 = 1 << 15;
 
-/// The identity spaces of payload slots (see `slot_spaces`).
+/// The identity spaces of payload slots (see `IdentityLayout`).
 pub(crate) const SPACE_NONE: u8 = 0;
 pub(crate) const SPACE_NODE: u8 = 1;
 pub(crate) const SPACE_ARRAY: u8 = 2;
@@ -525,8 +525,8 @@ impl Node {
         tails: &mut tsc_store::tails::Tails,
         mut map: impl FnMut(u8, u32) -> Result<u32, E>,
     ) -> Result<(), E> {
-        let spaces = slot_spaces(self.kind);
-        let (count, has_comment) = payload_shape(self.kind);
+        let layout = identity_layout(self.kind);
+        let count = layout.count();
         let mut each = |space: u8, word: &mut u32| -> Result<(), E> {
             if space != SPACE_NONE && *word != 0 {
                 *word = map(space, *word)?;
@@ -534,25 +534,24 @@ impl Node {
             Ok(())
         };
         if self.literal_flags & HAS_TAIL == 0 {
-            for (index, &space) in spaces.iter().enumerate().take(3) {
-                each(space, &mut self.words[index])?;
-            }
+            each(layout.space(0), &mut self.words[0])?;
+            each(layout.space(1), &mut self.words[1])?;
+            each(layout.space(2), &mut self.words[2])?;
             if count < 3 {
                 each(SPACE_ARRAY, &mut self.words[count])?;
             }
             return Ok(());
         }
-        for (index, &space) in spaces.iter().enumerate().take(2) {
-            each(space, &mut self.words[index + 1])?;
-        }
+        each(layout.space(0), &mut self.words[1])?;
+        each(layout.space(1), &mut self.words[2])?;
         let at = count.saturating_sub(2);
-        let len = at + 1 + if has_comment { 4 } else { 0 };
+        let len = at + 1 + if layout.has_comment() { 4 } else { 0 };
         let tail = tails.words_mut(self.words[0], len as u32);
-        for (index, &space) in spaces.iter().enumerate().skip(2) {
-            each(space, &mut tail[index - 2])?;
+        for index in 2..count {
+            each(layout.space(index), &mut tail[index - 2])?;
         }
         each(SPACE_ARRAY, &mut tail[at])?;
-        if has_comment {
+        if layout.has_comment() {
             // A text's id, or an array's after a zero word (`JSDocComment::words`).
             if tail[at + 1] != 0 {
                 each(SPACE_TEXT, &mut tail[at + 1])?;
@@ -4775,6 +4774,206 @@ pub(crate) const fn payload_shape(kind: SyntaxKind) -> (usize, bool) {
     }
 }
 
+/// One relocation dispatch: four count bits, one comment bit, then two bits per slot.
+/// Zero metadata beyond the payload leaves non-payload inline words untouched.
+struct IdentityLayout(u32);
+impl IdentityLayout {
+    const fn count(&self) -> usize {
+        (self.0 & 15) as usize
+    }
+    const fn has_comment(&self) -> bool {
+        self.0 & 16 != 0
+    }
+    const fn space(&self, index: usize) -> u8 {
+        ((self.0 >> (5 + 2 * index)) & 3) as u8
+    }
+}
+#[inline]
+const fn identity_layout(kind: SyntaxKind) -> IdentityLayout {
+    IdentityLayout(match kind {
+        SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier => 0x1,
+        SyntaxKind::ArrayType
+        | SyntaxKind::AwaitExpression
+        | SyntaxKind::BreakStatement
+        | SyntaxKind::ComputedPropertyName
+        | SyntaxKind::ContinueStatement
+        | SyntaxKind::Decorator
+        | SyntaxKind::DeleteExpression
+        | SyntaxKind::ExpressionStatement
+        | SyntaxKind::ExternalModuleReference
+        | SyntaxKind::ImportTypeAssertionContainer
+        | SyntaxKind::InferType
+        | SyntaxKind::JSDocNameReference
+        | SyntaxKind::JSDocNamepathType
+        | SyntaxKind::JSDocOptionalType
+        | SyntaxKind::JSDocTypeExpression
+        | SyntaxKind::JSDocVariadicType
+        | SyntaxKind::JsxClosingElement
+        | SyntaxKind::JsxSpreadAttribute
+        | SyntaxKind::LiteralType
+        | SyntaxKind::NamespaceExport
+        | SyntaxKind::NamespaceImport
+        | SyntaxKind::NonNullExpression
+        | SyntaxKind::OptionalType
+        | SyntaxKind::ParenthesizedExpression
+        | SyntaxKind::ParenthesizedType
+        | SyntaxKind::PartiallyEmittedExpression
+        | SyntaxKind::RestType
+        | SyntaxKind::ReturnStatement
+        | SyntaxKind::SpreadAssignment
+        | SyntaxKind::SpreadElement
+        | SyntaxKind::ThrowStatement
+        | SyntaxKind::TypeOfExpression
+        | SyntaxKind::VoidExpression => 0x21,
+        SyntaxKind::JSDocNonNullableType
+        | SyntaxKind::JSDocNullableType
+        | SyntaxKind::MetaProperty
+        | SyntaxKind::PostfixUnaryExpression
+        | SyntaxKind::PrefixUnaryExpression
+        | SyntaxKind::TypeOperator => 0x22,
+        SyntaxKind::JSDocAuthorTag
+        | SyntaxKind::JSDocClassTag
+        | SyntaxKind::JSDocDeprecatedTag
+        | SyntaxKind::JSDocOverrideTag
+        | SyntaxKind::JSDocPrivateTag
+        | SyntaxKind::JSDocProtectedTag
+        | SyntaxKind::JSDocPublicTag
+        | SyntaxKind::JSDocReadonlyTag
+        | SyntaxKind::JSDocTag => 0x31,
+        SyntaxKind::ArrayBindingPattern
+        | SyntaxKind::ArrayLiteralExpression
+        | SyntaxKind::Block
+        | SyntaxKind::CaseBlock
+        | SyntaxKind::CommaListExpression
+        | SyntaxKind::DefaultClause
+        | SyntaxKind::IntersectionType
+        | SyntaxKind::JsxAttributes
+        | SyntaxKind::MissingDeclaration
+        | SyntaxKind::ModuleBlock
+        | SyntaxKind::NamedExports
+        | SyntaxKind::NamedImports
+        | SyntaxKind::ObjectBindingPattern
+        | SyntaxKind::ObjectLiteralExpression
+        | SyntaxKind::TupleType
+        | SyntaxKind::TypeLiteral
+        | SyntaxKind::UnionType
+        | SyntaxKind::VariableDeclarationList => 0x41,
+        SyntaxKind::HeritageClause
+        | SyntaxKind::ImportAttributes
+        | SyntaxKind::JSDocTypeLiteral => 0x42,
+        SyntaxKind::JSDoc => 0x51,
+        SyntaxKind::BigIntLiteral
+        | SyntaxKind::JSDocText
+        | SyntaxKind::NumericLiteral
+        | SyntaxKind::RegularExpressionLiteral
+        | SyntaxKind::StringLiteral => 0x61,
+        SyntaxKind::JsxText => 0x62,
+        SyntaxKind::AsExpression
+        | SyntaxKind::CatchClause
+        | SyntaxKind::DoStatement
+        | SyntaxKind::EnumMember
+        | SyntaxKind::ImportAttribute
+        | SyntaxKind::IndexedAccessType
+        | SyntaxKind::JSDocMemberName
+        | SyntaxKind::JsxAttribute
+        | SyntaxKind::JsxExpression
+        | SyntaxKind::JsxNamespacedName
+        | SyntaxKind::LabeledStatement
+        | SyntaxKind::QualifiedName
+        | SyntaxKind::SatisfiesExpression
+        | SyntaxKind::SwitchStatement
+        | SyntaxKind::TemplateLiteralTypeSpan
+        | SyntaxKind::TemplateSpan
+        | SyntaxKind::TypeAssertionExpression
+        | SyntaxKind::WhileStatement
+        | SyntaxKind::WithStatement
+        | SyntaxKind::YieldExpression => 0xa2,
+        SyntaxKind::ExportSpecifier | SyntaxKind::ImportClause | SyntaxKind::ImportSpecifier => {
+            0xa3
+        }
+        SyntaxKind::JSDocAugmentsTag
+        | SyntaxKind::JSDocEnumTag
+        | SyntaxKind::JSDocImplementsTag
+        | SyntaxKind::JSDocOverloadTag
+        | SyntaxKind::JSDocReturnTag
+        | SyntaxKind::JSDocSatisfiesTag
+        | SyntaxKind::JSDocSeeTag
+        | SyntaxKind::JSDocThisTag
+        | SyntaxKind::JSDocThrowsTag
+        | SyntaxKind::JSDocTypeTag => 0xb2,
+        SyntaxKind::ExpressionWithTypeArguments
+        | SyntaxKind::SourceFile
+        | SyntaxKind::TypeQuery
+        | SyntaxKind::TypeReference
+        | SyntaxKind::VariableStatement => 0xc2,
+        SyntaxKind::ExportAssignment => 0xc3,
+        SyntaxKind::CaseClause
+        | SyntaxKind::ClassStaticBlockDeclaration
+        | SyntaxKind::NamespaceExportDeclaration
+        | SyntaxKind::TemplateExpression
+        | SyntaxKind::TemplateLiteralType => 0x122,
+        SyntaxKind::JSDocLink | SyntaxKind::JSDocLinkCode | SyntaxKind::JSDocLinkPlain => 0x1a2,
+        SyntaxKind::NoSubstitutionTemplateLiteral
+        | SyntaxKind::TemplateHead
+        | SyntaxKind::TemplateMiddle
+        | SyntaxKind::TemplateTail => 0x1e2,
+        SyntaxKind::BinaryExpression
+        | SyntaxKind::ElementAccessExpression
+        | SyntaxKind::ForInStatement
+        | SyntaxKind::IfStatement
+        | SyntaxKind::PropertyAccessExpression
+        | SyntaxKind::TryStatement
+        | SyntaxKind::TypePredicate => 0x2a3,
+        SyntaxKind::JSDocPropertyTag => 0x2b4,
+        SyntaxKind::JsxElement
+        | SyntaxKind::JsxFragment
+        | SyntaxKind::JsxOpeningElement
+        | SyntaxKind::JsxSelfClosingElement => 0x323,
+        SyntaxKind::ImportEqualsDeclaration => 0x324,
+        SyntaxKind::CallSignature | SyntaxKind::ConstructSignature | SyntaxKind::JSDocSignature => {
+            0x343
+        }
+        SyntaxKind::JSDocTemplateTag => 0x4b3,
+        SyntaxKind::EnumDeclaration => 0x523,
+        SyntaxKind::JSDocParameterTag => 0x8b4,
+        SyntaxKind::BindingElement
+        | SyntaxKind::ConditionalType
+        | SyntaxKind::ForOfStatement
+        | SyntaxKind::ForStatement
+        | SyntaxKind::NamedTupleMember
+        | SyntaxKind::VariableDeclaration => 0xaa4,
+        SyntaxKind::JSDocCallbackTag | SyntaxKind::JSDocImportTag | SyntaxKind::JSDocTypedefTag => {
+            0xab4
+        }
+        SyntaxKind::ModuleDeclaration | SyntaxKind::TaggedTemplateExpression => 0xb24,
+        SyntaxKind::CallExpression | SyntaxKind::JSDocFunctionType | SyntaxKind::NewExpression => {
+            0xd24
+        }
+        SyntaxKind::ImportDeclaration => 0x12a4,
+        SyntaxKind::TypeAliasDeclaration => 0x1324,
+        SyntaxKind::FunctionType => 0x1344,
+        SyntaxKind::ConstructorType | SyntaxKind::IndexSignature => 0x14c4,
+        SyntaxKind::ConditionalExpression => 0x2aa5,
+        SyntaxKind::PropertyAssignment => 0x2ca5,
+        SyntaxKind::ExportDeclaration | SyntaxKind::ImportType => 0x30a5,
+        SyntaxKind::PropertySignature | SyntaxKind::TypeParameter => 0x32a5,
+        SyntaxKind::ClassDeclaration
+        | SyntaxKind::ClassExpression
+        | SyntaxKind::InterfaceDeclaration => 0x5525,
+        SyntaxKind::Parameter | SyntaxKind::PropertyDeclaration => 0xab26,
+        SyntaxKind::MappedType => 0xaca6,
+        SyntaxKind::ShorthandPropertyAssignment => 0xb2a6,
+        SyntaxKind::Constructor => 0xccc6,
+        SyntaxKind::ArrowFunction => 0x132c6,
+        SyntaxKind::GetAccessor | SyntaxKind::MethodSignature | SyntaxKind::SetAccessor => 0x13326,
+        SyntaxKind::FunctionExpression => 0x2ccc7,
+        SyntaxKind::FunctionDeclaration => 0x4b327,
+        SyntaxKind::MethodDeclaration => 0x4ab329,
+        _ => 0,
+    })
+}
+
+#[cfg(test)]
 /// The identity space of each payload slot of `kind`, in record order (`SPACE_*`).
 pub(crate) const fn slot_spaces(kind: SyntaxKind) -> &'static [u8] {
     match kind {

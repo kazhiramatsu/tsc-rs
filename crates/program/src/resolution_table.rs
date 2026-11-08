@@ -212,29 +212,39 @@ impl ResolutionTable {
         type_references: BTreeMap<TypeReferenceResolutionKey, TypeReferenceResolution>,
         sources: &[PreparedSourceFile],
     ) -> Self {
-        let StagedModules {
-            mut rows,
-            by_source,
-        } = staged;
-        drop(by_source);
-        rows.sort_unstable_by(|a, b| {
-            sources[a.source.index()]
+        let StagedModules { rows, by_source } = staged;
+        // Staging already sorts each source's indices by (specifier, mode).
+        // Source canonical paths are unique in a prepared program; ordering
+        // the nonempty groups therefore reproduces the old global row sort.
+        let mut groups: Vec<_> = by_source
+            .iter()
+            .enumerate()
+            .filter_map(|(source, indices)| (!indices.is_empty()).then_some(source))
+            .collect();
+        groups.sort_unstable_by(|a, b| {
+            sources[*a]
                 .path()
                 .canonical()
-                .cmp(sources[b.source.index()].path().canonical())
-                .then_with(|| a.specifier.cmp(&b.specifier))
-                .then_with(|| a.mode.cmp(&b.mode))
+                .cmp(sources[*b].path().canonical())
         });
+        // Take each staged row once, without cloning its owned facts. The
+        // optional slots retain staging's allocation while rows are frozen.
+        let mut rows: Vec<_> = rows.into_iter().map(Some).collect();
         let mut modules = Vec::with_capacity(rows.len());
         let mut source_ranges = vec![0..0; sources.len()];
         let mut packages = BTreeMap::new();
-        for StagedRow {
-            source: importing_source,
-            specifier,
-            mode,
-            resolution,
-        } in rows
+        for index in groups
+            .into_iter()
+            .flat_map(|source| by_source[source].iter().copied())
         {
+            let StagedRow {
+                source: importing_source,
+                specifier,
+                mode,
+                resolution,
+            } = rows[index]
+                .take()
+                .expect("each staged row has one source index");
             let start = u32::try_from(modules.len()).expect("module row index fits u32");
             let range = &mut source_ranges[importing_source.index()];
             if range.start == range.end {
@@ -700,3 +710,7 @@ impl<'a> ResolvedModuleView<'a> {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/resolution_table.rs"]
+mod tests;

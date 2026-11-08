@@ -425,3 +425,42 @@ fn invalid_ranges_fail_without_mutating_the_working_text() {
     assert_eq!(store.snapshot().text(), before.text());
     assert_eq!(store.pending_edit_count(), 0);
 }
+
+#[test]
+fn dense_wide_records_match_a_character_walk_at_every_chunk_alignment() {
+    for alignment in 0..96 {
+        for text in [
+            "a".repeat(alignment),
+            format!(
+                "{}é日😀{}\r\n\u{2028}\u{2029}é😀",
+                "a".repeat(alignment),
+                "b".repeat(95 - alignment)
+            ),
+        ] {
+            let index = DensePositionIndex::new(&text);
+            let mut utf16 = 0u32;
+            let expected: Vec<_> = text
+                .char_indices()
+                .filter_map(|(byte, character)| {
+                    utf16 += character.len_utf16() as u32;
+                    (!character.is_ascii()).then_some((
+                        (byte + character.len_utf8()) as u32,
+                        utf16,
+                        character.len_utf8() as u8,
+                        character.len_utf16() as u8,
+                    ))
+                })
+                .collect();
+            let actual: Vec<_> = index
+                .wide
+                .iter()
+                .map(|wide| (wide.byte_end, wide.utf16_end, wide.byte_len, wide.utf16_len))
+                .collect();
+            assert_eq!(actual, expected, "alignment {alignment}");
+            assert_eq!(index.byte_len, text.len() as u32);
+            assert_eq!(index.utf16_len, utf16);
+            assert_eq!(index.ascii_prefix_end, alignment as u32);
+            assert!(index.lines.get().is_none(), "line tables stay lazy");
+        }
+    }
+}
