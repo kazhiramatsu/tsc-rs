@@ -9,6 +9,91 @@ fn tables() -> TypeTables {
 }
 
 #[test]
+fn non_nullable_union_summary_uses_final_member_flags() {
+    for strict in [false, true] {
+        let mut t = TypeTables::new(strict, false, &IdentityDomain::new());
+        let string = t.intrinsics.string;
+        let number = t.intrinsics.number;
+        let object = t.create_type(TypeFlags::OBJECT, TypeData::Object);
+        let literal = t.get_string_literal_type("a");
+        let enum_type = t.create_computed_enum_type(SymbolId::new(10));
+        for member in [
+            number,
+            object,
+            literal,
+            enum_type,
+            t.intrinsics.bigint,
+            t.intrinsics.es_symbol,
+            t.intrinsics.non_primitive,
+            t.intrinsics.false_regular,
+        ] {
+            let mut members = vec![string, member];
+            members.sort();
+            let union =
+                t.get_union_type_from_sorted_list(members, ObjectFlags::NONE, None, None, None);
+            assert!(t
+                .object_flags_of(union)
+                .intersects(ObjectFlags::NON_NULLABLE_UNION));
+        }
+        let intersection = t.create_origin_union_or_intersection_type(
+            TypeFlags::INTERSECTION,
+            vec![string, number],
+        );
+        let nested =
+            t.create_origin_union_or_intersection_type(TypeFlags::UNION, vec![string, number]);
+        let parameter = t.create_synthesized_type_parameter(None);
+        let mapping = t.create_type(
+            TypeFlags::STRING_MAPPING,
+            TypeData::StringMapping { ty: string },
+        );
+        for member in [
+            t.intrinsics.undefined,
+            t.intrinsics.null,
+            t.intrinsics.void,
+            t.intrinsics.any,
+            t.intrinsics.unknown,
+            t.intrinsics.never,
+            t.intrinsics.numeric_string,
+            parameter,
+            intersection,
+            mapping,
+            nested,
+        ] {
+            let mut members = vec![string, member];
+            members.sort();
+            let union = t.get_union_type_from_sorted_list(
+                members,
+                ObjectFlags::NON_NULLABLE_UNION,
+                None,
+                None,
+                None,
+            );
+            assert!(
+                !t.object_flags_of(union)
+                    .intersects(ObjectFlags::NON_NULLABLE_UNION),
+                "excluded flags: {:?}",
+                t.flags_of(member)
+            );
+        }
+        // A filtered union gets its own summary, independently of the
+        // nullable source's flags and the builder's nullable-elision mode.
+        let mut members = vec![string, number, t.intrinsics.undefined];
+        members.sort();
+        let nullable =
+            t.get_union_type_from_sorted_list(members, ObjectFlags::NONE, None, None, None);
+        let filtered = t.filter_type(nullable, |tables, member| {
+            !tables.flags_of(member).intersects(TypeFlags::UNDEFINED)
+        });
+        assert!(t
+            .object_flags_of(filtered)
+            .intersects(ObjectFlags::NON_NULLABLE_UNION));
+        assert!(!t
+            .object_flags_of(nullable)
+            .intersects(ObjectFlags::NON_NULLABLE_UNION));
+    }
+}
+
+#[test]
 fn intrinsics_are_allocated_in_tsc_order() {
     let t = tables();
     // anyType is the first allocation, like tsc typeCount order.

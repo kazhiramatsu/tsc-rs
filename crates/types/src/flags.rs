@@ -1884,6 +1884,9 @@ impl ObjectFlags {
     pub const IS_UNKNOWN_LIKE_UNION_COMPUTED: Self = Self(33554432);
     /// tsc ObjectFlags.IsUnknownLikeUnion
     pub const IS_UNKNOWN_LIKE_UNION: Self = Self(67108864);
+    /// Union-only summary of the final constituents' flags. Every member
+    /// is definitely non-nullable and none needs base-constraint resolution.
+    pub const NON_NULLABLE_UNION: Self = Self(1 << 30);
     /// tsc ObjectFlags.IsNeverIntersectionComputed
     pub const IS_NEVER_INTERSECTION_COMPUTED: Self = Self(16777216);
     /// tsc ObjectFlags.IsNeverIntersection

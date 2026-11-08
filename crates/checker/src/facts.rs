@@ -151,13 +151,7 @@ impl<'a> CheckerState<'a> {
             });
         }
         if flags.intersects(TypeFlags::OBJECT) {
-            let possible_facts = if strict_null_checks {
-                TypeFacts::EMPTY_OBJECT_STRICT_FACTS
-                    | TypeFacts::FUNCTION_STRICT_FACTS
-                    | TypeFacts::OBJECT_STRICT_FACTS
-            } else {
-                TypeFacts::EMPTY_OBJECT_FACTS | TypeFacts::FUNCTION_FACTS | TypeFacts::OBJECT_FACTS
-            };
+            let possible_facts = Self::possible_object_type_facts(strict_null_checks);
             if !caller_only_needs.intersects(possible_facts) {
                 return Ok(TypeFacts::NONE);
             }
@@ -211,12 +205,25 @@ impl<'a> CheckerState<'a> {
             return Ok(TypeFacts::NONE);
         }
         if flags.intersects(TypeFlags::UNION) {
-            let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+            if self
+                .tables
+                .object_flags_of(ty)
+                .intersects(ObjectFlags::NON_NULLABLE_UNION)
+                && !caller_only_needs
+                    .intersects(Self::possible_object_type_facts(strict_null_checks))
+            {
+                // The OR fold is zero within this mask for every summarized
+                // kind. Object members would also return before resolution;
+                // instantiable and intersection members are never summarized.
+                return Ok(TypeFacts::NONE);
+            }
+            let types = match self.tables.type_of(ty).data {
+                TypeData::Union { types, .. } => types,
                 _ => unreachable!("union flag implies union data"),
             };
             let mut facts = TypeFacts::NONE;
-            for member in members {
+            for i in 0..self.tables.list(types).len() {
+                let member = self.tables.list(types)[i];
                 facts |= self.get_type_facts_worker(member, caller_only_needs)?;
             }
             return Ok(facts);
@@ -225,6 +232,16 @@ impl<'a> CheckerState<'a> {
             return self.get_intersection_type_facts(ty, caller_only_needs);
         }
         Ok(TypeFacts::UNKNOWN_FACTS)
+    }
+
+    fn possible_object_type_facts(strict_null_checks: bool) -> TypeFacts {
+        if strict_null_checks {
+            TypeFacts::EMPTY_OBJECT_STRICT_FACTS
+                | TypeFacts::FUNCTION_STRICT_FACTS
+                | TypeFacts::OBJECT_STRICT_FACTS
+        } else {
+            TypeFacts::EMPTY_OBJECT_FACTS | TypeFacts::FUNCTION_FACTS | TypeFacts::OBJECT_FACTS
+        }
     }
 
     /// tsc-port: getIntersectionTypeFacts @6.0.3
@@ -532,3 +549,7 @@ impl<'a> CheckerState<'a> {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/facts/tests.rs"]
+mod tests;
