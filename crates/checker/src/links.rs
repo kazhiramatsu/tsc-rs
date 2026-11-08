@@ -1069,12 +1069,13 @@ impl<K, T> PagedTable<K, T> {
     /// Record count and the bytes the table owns (memory accounting).
     fn memory_usage(&self) -> (usize, usize) {
         let pages = self.index.iter().filter(|page| page.is_some()).count() + self.far.len();
-        let mut bytes = self.index.capacity() * std::mem::size_of::<Option<Box<[u32; PAGE_IDS]>>>()
-            + pages * PAGE_IDS * std::mem::size_of::<u32>()
-            + self.chunks.capacity() * std::mem::size_of::<Vec<T>>();
-        for chunk in &self.chunks {
-            bytes += chunk.capacity() * std::mem::size_of::<T>();
-        }
+        let mut bytes = self.index.capacity() * std::mem::size_of::<Option<Box<[u16; PAGE_IDS]>>>()
+            + pages * PAGE_IDS * std::mem::size_of::<u16>()
+            + self.chunks.capacity() * std::mem::size_of::<Option<Box<[T; CHUNK_RECORDS]>>>()
+            + self.region_lens.capacity() * std::mem::size_of::<u16>();
+        bytes += self.chunks.iter().filter(|chunk| chunk.is_some()).count()
+            * CHUNK_RECORDS
+            * std::mem::size_of::<T>();
         (self.len, bytes)
     }
 }
@@ -1120,22 +1121,15 @@ impl LinksTables {
 }
 
 impl LinksTables {
-    /// Pre-size the three ID-keyed tables from the Program's node and
-    /// persistent-symbol counts, bounded so that no input can make the
-    /// eager reservation exceed a fixed number of slots per table.
-    ///
-    /// The ratios come from the measured fill on the benchmark inputs
-    /// (scale256: node links ≈ 1/9 of nodes, symbol links ≈ 71% of symbols,
-    /// type links ≈ 20% of symbols) and are deliberately below the observed
-    /// fill so a hint never allocates a larger table than lazy growth would
-    /// have reached there; the caps bound the cost for inputs with many
-    /// bound but rarely linked symbols (for example a large unused
-    /// declaration file under `skipLibCheck`). Hints only reduce rehash
-    /// work and never change lookup results.
-    pub(crate) fn with_capacity_hint(_nodes: usize, _symbols: usize) -> Self {
-        // The paged tables allocate index pages and record chunks on first
-        // use, so the program's node/symbol counts need no up-front reserve.
-        Self::default()
+    /// Size the paged-table directories once from exclusive ID bounds.
+    /// Arena IDs can contain gaps, so counts alone do not bound the keys.
+    /// Index pages and fixed record chunks remain allocated on first use.
+    pub(crate) fn with_id_bounds(node_end: usize, symbol_end: usize) -> Self {
+        Self {
+            node: PagedTable::with_id_bound(node_end),
+            persistent_symbols: PagedTable::with_id_bound(symbol_end),
+            ..Self::default()
+        }
     }
 }
 
@@ -1173,6 +1167,12 @@ const PAGE_SHIFT: usize = 8;
 const PAGE_IDS: usize = 1 << PAGE_SHIFT;
 const CHUNK_SHIFT: usize = 8;
 const CHUNK_RECORDS: usize = 1 << CHUNK_SHIFT;
+/// A region has at most 32,768 records, so its record slot + 1 fits u16.
+/// Reserve a fixed stride of chunk headers per region; empty headers own no
+/// record allocation, and lookup derives the stride directly from the id.
+const REGION_SHIFT: usize = 15;
+const REGION_CHUNK_SHIFT: usize = REGION_SHIFT - CHUNK_SHIFT;
+const REGION_CHUNKS: usize = 1 << REGION_CHUNK_SHIFT;
 /// Pages below this index (ids below 2^26) live in the direct vector; the
 /// rare id far beyond the program's dense domain (a sentinel, or an enormous
 /// program) takes the hashed far-page path instead of growing the vector to
@@ -1227,15 +1227,20 @@ impl<T: Default> DenseLinks<T> {
 /// indexed loads (an index page, then the record slab) with no hashing; index
 /// pages are allocated on first use per id range, and records live in
 /// fixed-size chunks that never move once written, so a growing table neither
-/// rehashes nor copies the large records. There is no removal: links are
-/// monotone per checker, exactly like tsc's per-object fields.
+/// rehashes nor copies the large records. Index entries are region-local:
+/// each 32,768-id region has at most 32,768 records and 128 chunk slots.
+/// There is no removal: links are monotone per checker, exactly like tsc's
+/// per-object fields.
 #[derive(Debug)]
 pub(crate) struct PagedTable<K, T> {
-    /// id → record slot + 1 (0 = absent), per page of `PAGE_IDS` ids.
-    index: Vec<Option<Box<[u32; PAGE_IDS]>>>,
+    /// id → region-local record slot + 1 (0 = absent), per page of `PAGE_IDS` ids.
+    index: Vec<Option<Box<[u16; PAGE_IDS]>>>,
     /// Pages at or beyond `DENSE_PAGES`.
-    far: FxHashMap<usize, Box<[u32; PAGE_IDS]>>,
-    chunks: Vec<Vec<T>>,
+    far: FxHashMap<usize, Box<[u16; PAGE_IDS]>>,
+    /// Each region owns `REGION_CHUNKS` consecutive slots, initially empty.
+    chunks: Vec<Option<Box<[T; CHUNK_RECORDS]>>>,
+    /// Used only to allocate a new record, never to look up an existing one.
+    region_lens: Vec<u16>,
     len: usize,
     key: std::marker::PhantomData<K>,
 }
@@ -1246,6 +1251,7 @@ impl<K, T> Default for PagedTable<K, T> {
             index: Vec::new(),
             far: FxHashMap::default(),
             chunks: Vec::new(),
+            region_lens: Vec::new(),
             len: 0,
             key: std::marker::PhantomData,
         }
@@ -1253,8 +1259,25 @@ impl<K, T> Default for PagedTable<K, T> {
 }
 
 impl<K: DenseKey, T: Default> PagedTable<K, T> {
+    fn with_id_bound(id_end: usize) -> Self {
+        let mut table = Self::default();
+        table.size_directories(id_end);
+        table
+    }
+
+    /// Called once at checker startup. Also preserves the unbounded
+    /// `LinksTables::default()` API: only a new index page beyond its
+    /// current range can grow directories, never record creation.
+    fn size_directories(&mut self, id_end: usize) {
+        let regions = id_end.div_ceil(1 << REGION_SHIFT);
+        self.region_lens.resize(regions, 0);
+        self.chunks.resize_with(regions * REGION_CHUNKS, || None);
+        self.index
+            .resize_with(id_end.div_ceil(PAGE_IDS).min(DENSE_PAGES), || None);
+    }
+
     #[inline]
-    fn page(&self, page_index: usize) -> Option<&[u32; PAGE_IDS]> {
+    fn page(&self, page_index: usize) -> Option<&[u16; PAGE_IDS]> {
         if page_index < DENSE_PAGES {
             self.index.get(page_index)?.as_deref()
         } else {
@@ -1266,12 +1289,12 @@ impl<K: DenseKey, T: Default> PagedTable<K, T> {
     /// every inlined `get`.
     #[cold]
     #[inline(never)]
-    fn far_page(&self, page_index: usize) -> Option<&[u32; PAGE_IDS]> {
+    fn far_page(&self, page_index: usize) -> Option<&[u16; PAGE_IDS]> {
         self.far.get(&page_index).map(|page| &**page)
     }
 
     #[inline]
-    fn page_mut(&mut self, page_index: usize) -> &mut [u32; PAGE_IDS] {
+    fn page_mut(&mut self, page_index: usize) -> &mut [u16; PAGE_IDS] {
         // Only dense pages grow `index`; existing slots use checked reads.
         if page_index < self.index.len() && self.index[page_index].is_some() {
             return self.index[page_index]
@@ -1283,13 +1306,16 @@ impl<K: DenseKey, T: Default> PagedTable<K, T> {
 
     #[cold]
     #[inline(never)]
-    fn create_page(&mut self, page_index: usize) -> &mut [u32; PAGE_IDS] {
+    fn create_page(&mut self, page_index: usize) -> &mut [u16; PAGE_IDS] {
         if page_index < DENSE_PAGES {
             if page_index >= self.index.len() {
-                self.index.resize_with(page_index + 1, || None);
+                self.size_directories((page_index + 1) << PAGE_SHIFT);
             }
             self.index[page_index].get_or_insert_with(|| Box::new([0; PAGE_IDS]))
         } else {
+            if page_index >> (REGION_SHIFT - PAGE_SHIFT) >= self.region_lens.len() {
+                self.size_directories((page_index + 1) << PAGE_SHIFT);
+            }
             self.far
                 .entry(page_index)
                 .or_insert_with(|| Box::new([0; PAGE_IDS]))
@@ -1305,7 +1331,12 @@ impl<K: DenseKey, T: Default> PagedTable<K, T> {
             return None;
         }
         let slot = (slot - 1) as usize;
-        Some(&self.chunks[slot >> CHUNK_SHIFT][slot & (CHUNK_RECORDS - 1)])
+        let chunk = ((id >> REGION_SHIFT) << REGION_CHUNK_SHIFT) | (slot >> CHUNK_SHIFT);
+        Some(
+            &self.chunks[chunk]
+                .as_ref()
+                .expect("an indexed record has a chunk")[slot & (CHUNK_RECORDS - 1)],
+        )
     }
 
     /// The record for `key`, created as `T::default()` on first use (the
@@ -1317,17 +1348,37 @@ impl<K: DenseKey, T: Default> PagedTable<K, T> {
         let offset = id & (PAGE_IDS - 1);
         let mut entry = self.page_mut(page_index)[offset];
         if entry == 0 {
-            let slot = self.len;
-            if slot & (CHUNK_RECORDS - 1) == 0 {
-                self.chunks.push(Vec::with_capacity(CHUNK_RECORDS));
-            }
-            self.chunks[slot >> CHUNK_SHIFT].push(T::default());
-            self.len += 1;
-            entry = u32::try_from(slot + 1).expect("links record count fits u32");
+            entry = self.create_record(id >> REGION_SHIFT);
             self.page_mut(page_index)[offset] = entry;
         }
         let slot = (entry - 1) as usize;
-        &mut self.chunks[slot >> CHUNK_SHIFT][slot & (CHUNK_RECORDS - 1)]
+        let chunk = ((id >> REGION_SHIFT) << REGION_CHUNK_SHIFT) | (slot >> CHUNK_SHIFT);
+        &mut self.chunks[chunk]
+            .as_mut()
+            .expect("an indexed record has a chunk")[slot & (CHUNK_RECORDS - 1)]
+    }
+
+    /// Allocate records independently within each region. The id determines
+    /// the chunk-header base even for a hashed far page; only the page
+    /// directory changes at `DENSE_PAGES`.
+    #[inline]
+    fn create_record(&mut self, region: usize) -> u16 {
+        let slot = self.region_lens[region] as usize;
+        debug_assert!(slot < (1 << REGION_SHIFT));
+        if slot & (CHUNK_RECORDS - 1) == 0 {
+            self.create_chunk((region << REGION_CHUNK_SHIFT) | (slot >> CHUNK_SHIFT));
+        }
+        let entry = (slot + 1) as u16;
+        self.region_lens[region] = entry;
+        self.len += 1;
+        entry
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn create_chunk(&mut self, chunk: usize) {
+        debug_assert!(self.chunks[chunk].is_none());
+        self.chunks[chunk] = Some(Box::new(std::array::from_fn(|_| T::default())));
     }
 }
 
@@ -3908,3 +3959,7 @@ impl LinksTables {
         Self::write_id_slot(&mut self.ty.slot(id).resolved_members, value);
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/links/tests.rs"]
+mod tests;
