@@ -118,7 +118,7 @@ alias の無い plain string literal 同士は名前比較を飛ばして bytes 
 H1・H3・H7 は基準未満（H7 は 8 案件すべて −0.08〜−0.24% で向きは揃う）、H4・H6 は ≈0 か悪化、H8（list pool）は VS Code +0.21% で他 −0.2〜−0.4%
 の混在、H10 は playwright −0.50% と ts +0.21% の混在。全部で VS Code −0.28%、next −4.11%、vue −1.96%。H2+H5 を
 [#928](https://github.com/kazhiramatsu/tsc-rs/pull/928) に（main `db1419734` 対：next −3.82%、vue −1.12%、playwright −0.78%、hono −0.43%、ts −0.45%、
-VS Code −0.09%；counter 不変；types の test 66 本、8 案件出力同一、4-checker 制御は既知 4 件のみ）→ **merge `dd000d63f`**（hosted gates pass）。tax-i の 3 行は所有者の判断（「Types がかなり減りますが見送るのですか」）で [#929](https://github.com/kazhiramatsu/tsc-rs/pull/929) に（tax-h の上に積む；tax-h binary 対で命令 VS Code −0.24%・playwright −0.46%、peak −15 MiB、Types hono −427・zod −1,242、出力同一、4-checker 既知 4 件；hosted gates 待ち）。
+VS Code −0.09%；counter 不変；types の test 66 本、8 案件出力同一、4-checker 制御は既知 4 件のみ）→ **merge `dd000d63f`**（hosted gates pass）。tax-i の 3 行は所有者の判断（「Types がかなり減りますが見送るのですか」）で [#929](https://github.com/kazhiramatsu/tsc-rs/pull/929) に（tax-h の上に積む；tax-h binary 対で命令 VS Code −0.24%・playwright −0.46%、peak −15 MiB、Types hono −427・zod −1,242、出力同一、4-checker 既知 4 件）→ **merge `032e6d623`**（hosted conformance・gates pass）。
 
 `tax-i`（型生成・instantiation の tsrs との差、報告 `handover/arch-arena/taxi/REPORT.md`）：両 port に一時 counter を置いて種別・文脈・呼び出し元で
 突き合わせた結果、**instantiation 差の 98%（VS Code で 198,334 Types / 200,634 Instantiations）は tsrs の `is_property_of_unit_type`**（判別 property
@@ -128,6 +128,12 @@ canary で、省いた instantiation が深さ予算を消費しなくなると 
 literal の未使用 intern の省略）は VS Code の Types −205,851（−8.0%）・Instantiations 不変、命令数は全部で VS Code −0.20%・最大 playwright −0.46%
 で基準未満、peak は VS Code −15 MiB（9 round すべて下がる実差、0.6%）。基準では見送りだが、所有者は Types の削減と tsrs との差の説明が閉じる価値を取り、I1+I3+I4 を #929 として出した（I2 は利得なしで除外）。残差 ≈ 4,137
 miss（conditional +5,410、indexed-access +2,774、負の種別で相殺）は未説明。
+
+**統合値 3（2026-11-08 17:0x、pre-pivot base `a75438da1` 対、1 thread、9 round、低い峰、8 案件出力同一）：** main `dd000d63f`（#921〜#928）は
+VS Code **−9.25%**、ts −7.84%、next −10.99%、zod −6.55%、effect −6.38%、hono −9.48%、vue −11.81%、playwright −10.45%；#929 を含む main `032e6d623` は
+VS Code **−9.47%**（122.02 → 110.5 G、tsrs 85.44 G の **1.29 倍**；出発点 1.42 倍）、ts −7.91%、next −11.14%、zod −6.75%、effect −6.75%、hono −9.66%、
+vue −12.11%、playwright −10.88%。peak は VS Code の 9 round が 2,653〜2,674 → 2,605〜2,630 MiB（≈ −45 MiB）。cpu 10.48 → 9.95 s は lane の build と
+同じ窓の値で、wall の記録ではない。
 
 **検査の補完（2026-11-08 15:0x）。** #921〜#926 では CLAUDE.md の「checker 変更後の `conformance_ts71.py --workers 1 --checkers 4` と 1-checker
 報告の比較」を省いていた。main `db1419734`（#921〜#927 入り）と pre-tax base `a75438da1` の両方で release build → 1-checker（`--check` exit 0、
