@@ -424,3 +424,68 @@ fn union_run_merge_matches_the_go_stable_sort() {
         }
     }
 }
+
+#[test]
+fn plain_string_order_preserves_wtf8_fresh_id_ties_and_alias_precedence() {
+    let mut tables = crate::TypeTables::new(true, true, &crate::IdentityDomain::new());
+    let ctx = TestOrderContext::default();
+    let bmp = tables.get_string_literal_type("\u{e000}");
+    let supplementary = tables.get_string_literal_type("\u{10000}");
+    assert!(super::compare_types(&tables, &ctx, bmp, supplementary).is_lt());
+    let fresh = tables.get_fresh_type_of_literal_type(bmp);
+    assert_eq!(
+        super::compare_types(&tables, &ctx, bmp, fresh),
+        bmp.index().cmp(&fresh.index())
+    );
+    let z = tables.get_string_literal_type("z");
+    let a = tables.get_string_literal_type("a");
+    tables.set_alias(z, Some(crate::SymbolId::new(1)), None);
+    tables.set_alias(a, Some(crate::SymbolId::new(2)), None);
+    assert!(super::compare_types(&tables, &ctx, z, a).is_lt());
+}
+
+#[test]
+fn named_union_membership_retains_search_behavior_across_ordering_modes() {
+    let mut tables = crate::TypeTables::new(true, false, &crate::IdentityDomain::new());
+    let ctx = TestOrderContext::default();
+    let z = tables.get_string_literal_type("z");
+    let a = tables.get_string_literal_type("a");
+    let named = tables.get_union_type(None, &[z, a], crate::UnionReduction::None);
+    tables.set_alias(named, Some(crate::SymbolId::new(1)), None);
+    let m = tables.get_string_literal_type("m");
+    let order = Some(&ctx as &dyn super::TypeOrderContext);
+    let members = match tables.type_of(named).data {
+        crate::TypeData::Union { types, .. } => tables.list(types),
+        _ => panic!("union"),
+    };
+    let legacy: Vec<_> = [a, m, z]
+        .into_iter()
+        .filter(|&t| !super::contains_type(&tables, order, members, t))
+        .collect();
+    assert_eq!(
+        legacy,
+        [m, z],
+        "retain the existing search, including a differently ordered list"
+    );
+    let outer = tables.get_union_type(order, &[named, m], crate::UnionReduction::None);
+    let crate::TypeData::Union { types, origin, .. } = tables.type_of(outer).data else {
+        panic!("union");
+    };
+    assert_eq!(tables.list(types), [a, m, z]);
+    assert!(
+        origin.is_none(),
+        "the original overlap count did not create an origin"
+    );
+
+    let content_named = tables.get_union_type(order, &[z, a], crate::UnionReduction::None);
+    tables.set_alias(content_named, Some(crate::SymbolId::new(2)), None);
+    let outer = tables.get_union_type(None, &[content_named, m], crate::UnionReduction::None);
+    let crate::TypeData::Union { types, origin, .. } = tables.type_of(outer).data else {
+        panic!("union");
+    };
+    assert_eq!(tables.list(types), [z, a, m]);
+    assert!(
+        origin.is_none(),
+        "also retain content-ordered members searched by ID"
+    );
+}

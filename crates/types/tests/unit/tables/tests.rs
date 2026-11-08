@@ -793,3 +793,40 @@ fn safe_integer_number_formatting_preserves_previous_bytes() {
     }
     assert_eq!(count, 331_115);
 }
+
+#[test]
+fn named_union_identity_membership_preserves_overlaps_and_fresh_literals() {
+    use crate::SymbolId;
+    let mut t = tables();
+    let a = t.get_string_literal_type("a");
+    let fresh = t.get_fresh_type_of_literal_type(a);
+    let b = t.get_string_literal_type("b");
+    let c = t.get_string_literal_type("c");
+    let left = t.get_union_type(None, &[a, b], UnionReduction::None);
+    let right = t.get_union_type(None, &[b, c], UnionReduction::None);
+    t.set_alias(left, Some(SymbolId::new(0)), None);
+    t.set_alias(right, Some(SymbolId::new(1)), None);
+    assert_eq!(
+        t.get_union_type(None, &[left, a], UnionReduction::None),
+        left
+    );
+    let overlap = t.get_union_type(None, &[left, right], UnionReduction::None);
+    let TypeData::Union { types, origin, .. } = t.type_of(overlap).data else {
+        panic!("union");
+    };
+    assert_eq!(t.list(types), [a, b, c]);
+    assert!(
+        origin.is_none(),
+        "overlapping named unions have no denormalized origin"
+    );
+    let with_fresh = t.get_union_type(None, &[left, fresh], UnionReduction::None);
+    let TypeData::Union { types, origin, .. } = t.type_of(with_fresh).data else {
+        panic!("union");
+    };
+    assert_eq!(t.list(types), [a, fresh, b]);
+    let origin = origin.expect("fresh and regular literal IDs are distinct members");
+    let TypeData::Union { types, .. } = t.type_of(origin).data else {
+        panic!("origin");
+    };
+    assert_eq!(t.list(types), [fresh, left]);
+}

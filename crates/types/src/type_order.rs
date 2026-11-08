@@ -78,6 +78,14 @@ pub fn compare_types(
     if c != Ordering::Equal {
         return c;
     }
+    // Equal sort flags and a plain string imply another plain string.
+    // Aliases and enum members retain the full name comparison.
+    if tables.flags_of(t1) == TypeFlags::STRING_LITERAL
+        && tables.alias_symbol(t1).is_none()
+        && tables.alias_symbol(t2).is_none()
+    {
+        return compare_string_literal_types(tables, t1, t2);
+    }
     let c = compare_type_names(tables, ctx, t1, t2);
     if c != Ordering::Equal {
         return c;
@@ -451,6 +459,31 @@ pub fn compare_types(
     // Fall back to type ids. This results in type creation order for
     // built-in types.
     t1.index().cmp(&t2.index())
+}
+
+// Go compares canonical WTF-8 bytes, then existing type IDs. In
+// particular, supplementary text sorts after BMP private-use text.
+#[inline]
+fn compare_string_literal_types(tables: &TypeTables, t1: TypeId, t2: TypeId) -> Ordering {
+    let (
+        TypeData::Literal {
+            value: LiteralData::String(a),
+            ..
+        },
+        TypeData::Literal {
+            value: LiteralData::String(b),
+            ..
+        },
+    ) = (tables.type_of(t1).data, tables.type_of(t2).data)
+    else {
+        unreachable!("string literal flags imply string literal data");
+    };
+    (if a == b {
+        Ordering::Equal
+    } else {
+        tables.literal_text(a).cmp(&tables.literal_text(b))
+    })
+    .then_with(|| t1.index().cmp(&t2.index()))
 }
 
 /// tsc-port: getSortOrderFlags @6.0.3

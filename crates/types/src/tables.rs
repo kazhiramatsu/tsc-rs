@@ -1988,11 +1988,32 @@ impl TypeTables {
         if origin.is_none() && includes & TypeFlags::UNION.bits() != 0 {
             let mut named_unions: Vec<TypeId> = Vec::new();
             self.add_named_unions(&mut named_unions, types);
+            // A union may have been built under the other ordering mode.
+            // Preserve the old binary-search behavior for such member lists.
+            let members_are_sorted = named_unions.iter().all(|&union| {
+                self.members_of(union).windows(2).all(|pair| match order {
+                    Some(ctx) => {
+                        crate::type_order::compare_types(self, ctx, pair[0], pair[1])
+                            != Ordering::Greater
+                    }
+                    None => pair[0] <= pair[1],
+                })
+            });
+            let named_members: Option<rustc_hash::FxHashSet<TypeId>> =
+                members_are_sorted.then(|| {
+                    named_unions
+                        .iter()
+                        .flat_map(|&union| self.members_of(union).iter().copied())
+                        .collect()
+                });
             let mut reduced_types: Vec<TypeId> = Vec::new();
             for &t in &type_set {
-                let in_named = named_unions.iter().any(|&union| {
-                    crate::type_order::contains_type(self, order, self.members_of(union), t)
-                });
+                let in_named = match &named_members {
+                    Some(members) => members.contains(&t),
+                    None => named_unions.iter().any(|&union| {
+                        crate::type_order::contains_type(self, order, self.members_of(union), t)
+                    }),
+                };
                 if !in_named {
                     reduced_types.push(t);
                 }
