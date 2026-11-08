@@ -169,6 +169,15 @@ The `tsc-rs` executable embeds the vendored TypeScript 7.1 standard-library
 bytes at build time. After it has been built or installed, running a project
 does not require this repository's `vendor/` directory.
 
+## Performance measurement tools
+
+`scripts/perf/` holds the integrator's tools for the measured-optimization loop (one release binary per candidate patch on a
+common base with provenance, retired-instruction windows on the eight bench projects with the low-mode summary, output identity,
+profile comparison against a reference port). Their roots are environment variables (`TSRS_REPO`, `TSRS_PERF_ROOT`,
+`TSRS_BENCH_ROOT`); see [scripts/perf/README.md](../scripts/perf/README.md). The procedure, the laws (outputs byte-identical,
+counters recorded), the lane contract and the lessons are the project skill
+[.claude/skills/measured-port-optimization/SKILL.md](../.claude/skills/measured-port-optimization/SKILL.md).
+
 ## Workspace package roles
 
 Each workspace member declares its role under `package.metadata.tsc-rs`.
