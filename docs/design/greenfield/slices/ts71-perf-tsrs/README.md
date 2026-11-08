@@ -83,6 +83,13 @@ E7（tuple 要素 parameter の共有）は −0.1〜−0.4% で Types counter �
 この Mac で hosted の macOS binary を測ると（1 thread、9 round、低い峰、8 project 出力同一）PGO は VS Code **−9.95%**（121.85 → 109.72 G、cpu −13.0%）、
 他 7 project −9.5〜−14.5%、peak 不変。PGO 同士の比較では tsrs（通常 85.4 G、PGO は tsrs 自身の記録で −13〜14%）との差は main の −5.4% と合わせて約 1.2 倍。
 
+**所有者への確認事項（2026-11-08 10:1x）。** #922 の行 A7（const-context probe からの contextual type の持ち回り）は `--extendedDiagnostics` の
+仕事の counter を変える：VS Code で Types 2,567,002 → 2,565,063（−1,939）、Instantiations 3,386,791 → 3,321,619（−65,172、−1.9%）。診断・emit・
+conformance は同一（PR の gate）で、他の 8 行と tax-e の E1〜E6 は counter 不変（行別 binary で確認）。これまで tsc-rs は tsgo の
+Types/Instantiations に 0.1% で一致していたが、A7 で「同じ出力をより少ない instantiation で出す」側に入る（tsrs の既定 mode は tsgo より
+instantiation −8%）。counter の tsgo 一致を要件にするなら A7 だけ戻せる（VS Code −0.96%、vue −3.0% を失う）；要件にしないなら以後も
+出力同一を法とし counter は記録のみとする。tax-e の PR [#925](https://github.com/kazhiramatsu/tsc-rs/pull/925) は counter 不変。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
