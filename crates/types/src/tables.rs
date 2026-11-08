@@ -270,6 +270,9 @@ pub struct TypeTables {
     bigints: Vec<PseudoBigInt>,
     intrinsic_names: Vec<IntrinsicData>,
     tuple_targets: Vec<TupleTargetData>,
+    /// Anonymous tuple element parameters are mapped through each target's
+    /// own parameter list. Share by index; each target keeps its own this type.
+    tuple_elements: Vec<TypeId>,
     template_literals: Vec<TemplateLiteralData>,
     aliases: Vec<TypeAlias>,
     /// numberLiteralTypes (46993), keyed by the numeric value with JS
@@ -570,6 +573,7 @@ impl TypeTables {
                 })
                 .sum::<usize>()
             + self.tuple_targets.capacity() * std::mem::size_of::<TupleTargetData>()
+            + self.tuple_elements.capacity() * std::mem::size_of::<TypeId>()
             + self
                 .template_literals
                 .iter()
@@ -692,6 +696,7 @@ impl TypeTables {
             bigints: Vec::new(),
             intrinsic_names: Vec::new(),
             tuple_targets: Vec::new(),
+            tuple_elements: Vec::new(),
             template_literals: Vec::new(),
             aliases: Vec::new(),
             number_literal_types: HashMap::default(),
@@ -2986,11 +2991,14 @@ impl TypeTables {
                 ))
             })
             .count();
-        let mut type_parameters = Vec::with_capacity(arity);
+        while self.tuple_elements.len() < arity {
+            let element = self.create_type_parameter(false, None);
+            self.tuple_elements.push(element);
+        }
+        let type_parameters = self.tuple_elements[..arity].to_vec();
         let mut combined_flags = ElementFlags::from_bits(0);
         let mut fixed_length = 0usize;
         for &flags in element_flags {
-            type_parameters.push(self.create_type_parameter(false, None));
             combined_flags |= flags;
             if !combined_flags.intersects(ElementFlags::VARIABLE) {
                 fixed_length += 1;

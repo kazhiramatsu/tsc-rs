@@ -8857,16 +8857,18 @@ impl<'a> CheckerState<'a> {
         name: impl NameKey,
     ) -> CheckResult<Option<IndexInfo>> {
         let name = name.name();
-        // getApplicableIndexInfoForName probes LATE-BOUND names
-        // (isLateBoundName — the unique-symbol spellings) with esSymbolType,
-        // everything else with the name's literal type.
-        let name_type = if name.starts_with(tsc_types::InternalSymbolName::LATE_BOUND_PREFIX) {
-            self.tables.intrinsics.es_symbol
-        } else {
-            self.tables
-                .get_string_literal_type(tsc_binder::unescape_leading_underscores(name))
-        };
-        self.get_applicable_index_info(ty, name_type)
+        if name.starts_with(tsc_types::InternalSymbolName::LATE_BOUND_PREFIX) {
+            return self.get_applicable_index_info(ty, self.tables.intrinsics.es_symbol);
+        }
+        let index_infos = self.get_index_infos_of_type(ty)?;
+        if index_infos.is_empty() {
+            return Ok(None);
+        }
+        // An empty index-info list cannot use the name's literal type.
+        let name_type = self
+            .tables
+            .get_string_literal_type(tsc_binder::unescape_leading_underscores(name));
+        self.find_applicable_index_info(index_infos, name_type)
     }
 
     // ---- callback-parameter helpers ----

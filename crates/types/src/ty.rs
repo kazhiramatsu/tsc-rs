@@ -292,8 +292,8 @@ pub enum LiteralData {
 /// tupleTypes cache key) are likewise deferred with them.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TupleTargetData {
-    /// One synthesized TypeParameter per element (empty for `[]`), as an
-    /// interned list.
+    /// One anonymous parameter per element index (empty for `[]`), shared
+    /// across targets in this table and stored as an interned list.
     pub type_parameters: crate::tables::TypeListId,
     /// Synthesized `thisType` TypeParameter (isThisType, constraint =
     /// this target).

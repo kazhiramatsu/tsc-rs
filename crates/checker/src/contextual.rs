@@ -1565,11 +1565,6 @@ impl<'a> CheckerState<'a> {
         while position < len {
             let live = self.links.members_reset_epoch == epoch;
             if live && relevant.get(next).copied() != Some(position as u32) {
-                // This port's empty-index path still interns the name. Preserve
-                // the first such creation's position and therefore type ids/counts.
-                if name_type.is_none() {
-                    self.tables.get_string_literal_type(name);
-                }
                 position = relevant.get(next).map_or(len, |&p| p as usize);
                 continue;
             }
@@ -1776,12 +1771,16 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
+        // Keep the tuple rest-element path above and resolve the same members.
+        // No index signature can use the name when this list is empty.
+        let index_infos = self.get_index_infos_of_structured_type(ty)?;
+        if index_infos.is_empty() {
+            return Ok(None);
+        }
         let key_type = match name_type {
             Some(name_type) => name_type,
             None => self.tables.get_string_literal_type(name),
         };
-        // tsgo checker.go:31210 uses the structured getter directly.
-        let index_infos = self.get_index_infos_of_structured_type(ty)?;
         Ok(self
             .find_applicable_index_info(index_infos, key_type)?
             .map(|info| info.value_type))

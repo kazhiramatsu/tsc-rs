@@ -830,3 +830,29 @@ fn named_union_identity_membership_preserves_overlaps_and_fresh_literals() {
     };
     assert_eq!(t.list(types), [fresh, left]);
 }
+
+#[test]
+fn tuple_targets_share_element_parameters_but_preserve_this_constraints() {
+    let mut t = tables();
+    let two = TupleTargetFlags::new(&[ElementFlags::REQUIRED; 2]).unwrap();
+    let three = TupleTargetFlags::new(&[ElementFlags::OPTIONAL; 3]).unwrap();
+    let required = t.get_tuple_target_type(None, two, false, None);
+    let readonly = t.get_tuple_target_type(None, two, true, None);
+    let optional = t.get_tuple_target_type(None, three, false, None);
+    let a = t.tuple_target_of(required).unwrap();
+    let b = t.tuple_target_of(readonly).unwrap();
+    let c = t.tuple_target_of(optional).unwrap();
+    assert_eq!(a.type_parameters, b.type_parameters);
+    assert_eq!(t.list(a.type_parameters), &t.list(c.type_parameters)[..2]);
+    assert_ne!(a.this_type, b.this_type);
+    assert_ne!(a.this_type, c.this_type);
+    for (target, this_type) in [
+        (required, a.this_type),
+        (readonly, b.this_type),
+        (optional, c.this_type),
+    ] {
+        assert!(
+            matches!(t.type_of(this_type).data, TypeData::TypeParameter { is_this_type: true, constraint: Some(own), .. } if own == target)
+        );
+    }
+}
