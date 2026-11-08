@@ -302,9 +302,13 @@ impl Completions<'_, '_, '_> {
                     .types
                     .into_iter()
                     .filter(|&ty| match &self.request.state.tables.type_of(ty).data {
-                        TypeData::Literal { value, .. } => {
-                            !tracker.has_value(self.request.state.tables.literal_value_of(*value))
-                        }
+                        TypeData::Literal { .. } => !tracker.has_value(
+                            self.request
+                                .state
+                                .tables
+                                .literal_value(ty)
+                                .expect("literal data"),
+                        ),
                         _ => true,
                     })
                     .collect();

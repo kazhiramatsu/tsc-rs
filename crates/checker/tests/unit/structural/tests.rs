@@ -389,6 +389,7 @@ fn conditional_source_and_target_relations_are_live() {
             else {
                 panic!("target remains conditional");
             };
+            let target_data = *state.tables.conditional_data(target_data);
             assert!(
                 !state
                     .is_distribution_dependent(target_data.root)

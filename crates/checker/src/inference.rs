@@ -2929,6 +2929,7 @@ impl InferTypesWalker<'_, '_> {
         let TypeData::Conditional(target_data) = self.st.tables.type_of(target).data else {
             unreachable!("Conditional target flag implies data");
         };
+        let target_data = *self.st.tables.conditional_data(target_data);
         if self
             .st
             .tables
@@ -2938,6 +2939,7 @@ impl InferTypesWalker<'_, '_> {
             let TypeData::Conditional(source_data) = self.st.tables.type_of(source).data else {
                 unreachable!("Conditional source flag implies data");
             };
+            let source_data = *self.st.tables.conditional_data(source_data);
             // tsgo infers from the originals of distributed type parameters
             // (inference.go:554-560).
             let source_check = self
@@ -3159,8 +3161,8 @@ impl InferTypesWalker<'_, '_> {
             Ok(left)
         } else if right_flags.intersects(TypeFlags::STRING_LITERAL)
             && matches!(
-                &self.st.tables.type_of(right).data,
-                TypeData::Literal { value: tsc_types::LiteralData::String(v), .. } if self.st.tables.literal_text(*v).code_units().eq(str_value.units().iter().copied())
+                self.st.tables.literal_data_of(right),
+                Some(tsc_types::LiteralData::String(v)) if self.st.tables.literal_text(v).code_units().eq(str_value.units().iter().copied())
             )
         {
             Ok(right)
@@ -3180,8 +3182,8 @@ impl InferTypesWalker<'_, '_> {
             Ok(left)
         } else if right_flags.intersects(TypeFlags::NUMBER_LITERAL)
             && matches!(
-                &self.st.tables.type_of(right).data,
-                TypeData::Literal { value: tsc_types::LiteralData::Number(v), .. }
+                self.st.tables.literal_data_of(right),
+                Some(tsc_types::LiteralData::Number(v))
                     if utf8_value.as_deref().and_then(crate::structural::js_string_to_number)
                         == Some(v.get())
             )
@@ -3198,11 +3200,11 @@ impl InferTypesWalker<'_, '_> {
             Ok(left)
         } else if right_flags.intersects(TypeFlags::BIG_INT_LITERAL)
             && matches!(
-                &self.st.tables.type_of(right).data,
-                TypeData::Literal { value: tsc_types::LiteralData::BigInt(v), .. }
+                self.st.tables.literal_data_of(right),
+                Some(tsc_types::LiteralData::BigInt(v))
                     if utf8_value
                         .as_deref()
-                        .is_some_and(|value| self.st.tables.bigint(*v).to_base10_string() == value)
+                        .is_some_and(|value| self.st.tables.bigint(v).to_base10_string() == value)
             )
         {
             Ok(right)

@@ -788,14 +788,19 @@ impl CheckerState<'_> {
     /// quoted, a number as JavaScript writes it, a bigint with its `n`.
     pub fn literal_type_value_text(&self, ty: TypeId) -> String {
         match &self.tables.type_of(ty).data {
-            TypeData::Literal { value, .. } => match self.tables.literal_value_of(*value) {
-                LiteralValue::String(text) => format!(
-                    "\"{}\"",
-                    tsc_emitter::escape_string(&text.to_utf16(), tsc_emitter::LiteralQuote::Double)
-                ),
-                LiteralValue::Number(value) => tsc_types::js_number_to_string(value),
-                LiteralValue::BigInt(value) => format!("{}n", value.to_base10_string()),
-            },
+            TypeData::Literal { .. } => {
+                match self.tables.literal_value(ty).expect("literal data") {
+                    LiteralValue::String(text) => format!(
+                        "\"{}\"",
+                        tsc_emitter::escape_string(
+                            &text.to_utf16(),
+                            tsc_emitter::LiteralQuote::Double
+                        )
+                    ),
+                    LiteralValue::Number(value) => tsc_types::js_number_to_string(value),
+                    LiteralValue::BigInt(value) => format!("{}n", value.to_base10_string()),
+                }
+            }
             _ if ty == self.tables.intrinsics.true_fresh
                 || ty == self.tables.intrinsics.true_regular =>
             {

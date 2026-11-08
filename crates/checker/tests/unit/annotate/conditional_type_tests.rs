@@ -24,6 +24,7 @@ fn conditional_and_substitution_models_are_constructible_and_renderable() {
             let TypeData::Conditional(data) = state.tables.type_of(conditional).data else {
                 panic!("conditional flags require the semantic payload");
             };
+            let data = *state.tables.conditional_data(data);
             let root = state.tables.conditional_root(data.root);
             assert!(root.is_distributive);
             assert_eq!(root.node, annotation.index());

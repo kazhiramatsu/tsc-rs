@@ -1950,28 +1950,26 @@ impl<'a> CheckerState<'a> {
     }
 
     fn property_name_from_type(&self, ty: TypeId) -> Option<EscapedName> {
-        match &self.tables.type_of(ty).data {
+        match self.tables.literal_data_of(ty) {
             // escapeLeadingUnderscores("" + type.value): the member
             // tables are escaped-keyed, so the propName leaves this
             // boundary escaped. Display rows that render the raw
             // literal value (tsc passes `indexType.value` there) use
             // index_literal_value_display instead.
-            TypeData::Literal {
-                value: tsc_types::LiteralData::String(value),
-                ..
-            } => Some(EscapedName::escape(self.tables.literal_text(*value))),
-            TypeData::Literal {
-                value: tsc_types::LiteralData::Number(value),
-                ..
-            } => Some(EscapedName::escape(
+            Some(tsc_types::LiteralData::String(value)) => {
+                Some(EscapedName::escape(self.tables.literal_text(value)))
+            }
+            Some(tsc_types::LiteralData::Number(value)) => Some(EscapedName::escape(
                 tsc_types::tables::js_number_to_string(value.get())
                     .as_str()
                     .into(),
             )),
             // getPropertyNameFromType's UniqueESSymbol arm: the
             // late-bound `__@<name>@<id>` member name.
-            TypeData::UniqueESSymbol { escaped_name } => Some(*escaped_name),
-            _ => None,
+            _ => match &self.tables.type_of(ty).data {
+                TypeData::UniqueESSymbol { escaped_name } => Some(*escaped_name),
+                _ => None,
+            },
         }
     }
 

@@ -1849,17 +1849,20 @@ impl<'a> CheckerState<'a> {
                     | TypeFlags::ANY_OR_UNKNOWN.bits(),
             ))
             || match &self.tables.type_of(ty).data {
-                TypeData::Literal { value, .. } => match self.tables.literal_value_of(*value) {
-                    LiteralValue::String(text) => {
-                        flags.intersects(TypeFlags::STRING_LITERAL) && text.is_empty()
+                TypeData::Literal { .. } => {
+                    match self.tables.literal_value(ty).expect("literal data") {
+                        LiteralValue::String(text) => {
+                            flags.intersects(TypeFlags::STRING_LITERAL) && text.is_empty()
+                        }
+                        LiteralValue::Number(value) => {
+                            flags.intersects(TypeFlags::NUMBER_LITERAL) && value == 0.0
+                        }
+                        LiteralValue::BigInt(value) => {
+                            flags.intersects(TypeFlags::BIG_INT_LITERAL)
+                                && value.base10_value == "0"
+                        }
                     }
-                    LiteralValue::Number(value) => {
-                        flags.intersects(TypeFlags::NUMBER_LITERAL) && value == 0.0
-                    }
-                    LiteralValue::BigInt(value) => {
-                        flags.intersects(TypeFlags::BIG_INT_LITERAL) && value.base10_value == "0"
-                    }
-                },
+                }
                 _ => false,
             };
         Ok(if is_self_falsy {
@@ -4162,11 +4165,13 @@ impl<'a> CheckerState<'a> {
     /// The EnumLiteral truthiness read (83657: `!!type.value`).
     fn enum_literal_type_is_truthy(&self, ty: TypeId) -> CheckResult<bool> {
         match &self.tables.type_of(ty).data {
-            TypeData::Literal { value, .. } => Ok(match self.tables.literal_value_of(*value) {
-                LiteralValue::String(text) => !text.is_empty(),
-                LiteralValue::Number(value) => value != 0.0,
-                LiteralValue::BigInt(value) => value.base10_value != "0",
-            }),
+            TypeData::Literal { .. } => {
+                Ok(match self.tables.literal_value(ty).expect("literal data") {
+                    LiteralValue::String(text) => !text.is_empty(),
+                    LiteralValue::Number(value) => value != 0.0,
+                    LiteralValue::BigInt(value) => value.base10_value != "0",
+                })
+            }
             // 83657 reads `.value` off the type: non-Literal payloads
             // (opaque computed enum members) carry none, and
             // `!!undefined` is false.

@@ -369,9 +369,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let TypeData::Conditional(source_data) = self.st.tables.type_of(source).data else {
                     unreachable!("Conditional flag implies conditional data");
                 };
+                let source_data = *self.st.tables.conditional_data(source_data);
                 let TypeData::Conditional(target_data) = self.st.tables.type_of(target).data else {
                     unreachable!("Conditional flag implies conditional data");
                 };
+                let target_data = *self.st.tables.conditional_data(target_data);
                 let source_root = self
                     .st
                     .tables
@@ -954,9 +956,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             let TypeData::Conditional(target_data) = self.st.tables.type_of(target).data else {
                 unreachable!("Conditional target flag implies data");
             };
+            let target_data = *self.st.tables.conditional_data(target_data);
             let target_root = self.st.tables.conditional_root(target_data.root).clone();
             let same_conditional_root = match &self.st.tables.type_of(source).data {
-                TypeData::Conditional(source_data) => source_data.root == target_data.root,
+                TypeData::Conditional(source_data) => {
+                    self.st.tables.conditional_data(*source_data).root == target_data.root
+                }
                 _ => false,
             };
             if target_root.infer_type_parameters.is_empty()
@@ -1263,10 +1268,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             let TypeData::Conditional(source_data) = self.st.tables.type_of(source).data else {
                 unreachable!("Conditional source flag implies data");
             };
+            let source_data = *self.st.tables.conditional_data(source_data);
             if target_flags.intersects(TypeFlags::CONDITIONAL) {
                 let TypeData::Conditional(target_data) = self.st.tables.type_of(target).data else {
                     unreachable!("Conditional target flag implies data");
                 };
+                let target_data = *self.st.tables.conditional_data(target_data);
                 let source_root = self.st.tables.conditional_root(source_data.root).clone();
                 let mut source_extends = source_data.extends_type;
                 let mut mapper = None;
