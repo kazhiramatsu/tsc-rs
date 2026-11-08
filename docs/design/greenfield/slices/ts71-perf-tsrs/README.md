@@ -89,6 +89,9 @@ conformance は同一（PR の gate）で、他の 8 行と tax-e の E1〜E6 �
 Types/Instantiations に 0.1% で一致していたが、A7 で「同じ出力をより少ない instantiation で出す」側に入る（tsrs の既定 mode は tsgo より
 instantiation −8%）。counter の tsgo 一致を要件にするなら A7 だけ戻せる（VS Code −0.96%、vue −3.0% を失う）；要件にしないなら以後も
 出力同一を法とし counter は記録のみとする。tax-e の PR [#925](https://github.com/kazhiramatsu/tsc-rs/pull/925) は counter 不変。
+**所有者の判断（2026-11-08 12:0x）**：「#922 の A7 ですがひとまずそれで OK です。tsrs もそれですよね」→ 以後、**出力（診断・emit・
+conformance）の同一を法とし、`--extendedDiagnostics` の仕事の counter は記録のみ**（tsrs の既定 mode も tsgo より Types −16%、
+Instantiations −8% で診断は同一）。E7 のような大きな counter 変化は利得と合わせて個別に判断する。
 
 **loader の「other」の正体（lane `tax-f`、2026-11-08 09:5x、`handover/arch-arena/taxf/`）。** phase ledger に一時 sub-scope を足した release build
 （VS Code、1 thread、3 round 中央値）：load 25.7 G のうち scan+parse 11.1 G（43%）、module 解決の CPU 3.9 G（15%）、構文 relocation と
