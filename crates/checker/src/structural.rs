@@ -23,6 +23,25 @@ pub use crate::state::SignatureKind;
 use crate::state::{CheckResult, CheckerState, IndexInfo, SignatureId, SignatureIds, SymbolIds};
 use tsc_binder::NameKey;
 
+/// Reusable property-synthesis storage. These are temporary ordered lists;
+/// published deferred recipes take ownership of their read-type list.
+#[derive(Default)]
+pub(crate) struct PropertyScratch {
+    prop_set: Vec<SymbolId>,
+    index_types: Vec<TypeId>,
+    declarations: Vec<NodeId>,
+    prop_types: Vec<TypeId>,
+}
+
+impl PropertyScratch {
+    fn clear(&mut self) {
+        self.prop_set.clear();
+        self.index_types.clear();
+        self.declarations.clear();
+        self.prop_types.clear();
+    }
+}
+
 /// tsc SignatureCheckMode (inlined const enum).
 mod check_mode {
     pub const NONE: i32 = 0;
@@ -4801,14 +4820,27 @@ impl<'a> CheckerState<'a> {
             TypeData::Union { types, .. } | TypeData::Intersection { types } => types,
             _ => unreachable!("union/intersection flag implies member data"),
         };
-        let mut seen: Vec<EscapedName> = Vec::new();
+        let mut seen = self.property_name_sets.pop().unwrap_or_default();
+        let result =
+            self.collect_union_or_intersection_properties(ty, is_union, members, &mut seen);
+        seen.clear();
+        self.property_name_sets.push(seen);
+        result
+    }
+
+    fn collect_union_or_intersection_properties(
+        &mut self,
+        ty: TypeId,
+        is_union: bool,
+        members: tsc_types::TypeListId,
+        seen: &mut rustc_hash::FxHashSet<EscapedName>,
+    ) -> CheckResult<SymbolIds> {
         let mut result: Vec<SymbolId> = Vec::new();
         for index in 0..self.tables.list(members).len() {
             let current = self.tables.list(members)[index];
             for prop in self.get_properties_of_type_full(current)? {
                 let name = self.binder.symbol(prop).escaped_name;
-                if !seen.contains(&name) {
-                    seen.push(name);
+                if seen.insert(name) {
                     if let Some(combined) = self.get_property_of_union_or_intersection_type(
                         ty, name, /*skip_object_function_property_augment*/ !is_union,
                     )? {
@@ -5447,6 +5479,31 @@ impl<'a> CheckerState<'a> {
         name: EscapedName,
         skip: bool,
     ) -> CheckResult<Option<SymbolId>> {
+        let mut scratch = self.property_scratch.pop().unwrap_or_default();
+        let result = self.create_union_or_intersection_property_worker(
+            containing_type,
+            name,
+            skip,
+            &mut scratch,
+        );
+        scratch.clear();
+        self.property_scratch.push(scratch);
+        result
+    }
+
+    fn create_union_or_intersection_property_worker(
+        &mut self,
+        containing_type: TypeId,
+        name: EscapedName,
+        skip: bool,
+        scratch: &mut PropertyScratch,
+    ) -> CheckResult<Option<SymbolId>> {
+        let PropertyScratch {
+            prop_set,
+            index_types,
+            declarations,
+            prop_types,
+        } = scratch;
         let is_union = self
             .tables
             .flags_of(containing_type)
@@ -5459,8 +5516,7 @@ impl<'a> CheckerState<'a> {
         };
         let mut prop_flags = SymbolFlags::from_bits(0);
         let mut single_prop: Option<SymbolId> = None;
-        let mut prop_set: Vec<SymbolId> = Vec::new();
-        let mut index_types: Vec<TypeId> = Vec::new();
+
         // tsgo (checker.go:21796-21801) starts an intersection's property
         // as optional and narrows that only by the class members among the
         // constituents' properties, so a property no constituent declares as
@@ -5660,7 +5716,7 @@ impl<'a> CheckerState<'a> {
                     | CheckFlags::CONTAINS_WRITE_PRIVATE.bits()
                     | CheckFlags::CONTAINS_WRITE_PROTECTED.bits())
                 != 0
-            && (prop_set.is_empty() || !self.common_declarations_of_symbols(&prop_set))
+            && (prop_set.is_empty() || !self.common_declarations_of_symbols(prop_set))
         {
             // tsgo creates no property for a private or protected read
             // declaration; a private or protected write declaration
@@ -5725,19 +5781,16 @@ impl<'a> CheckerState<'a> {
             }
             return Ok(Some(single_prop));
         }
-        let props = if prop_set.is_empty() {
-            vec![single_prop]
-        } else {
-            prop_set
-        };
-        let mut declarations: Vec<tsc_syntax::NodeId> = Vec::new();
+        if prop_set.is_empty() {
+            prop_set.push(single_prop);
+        }
+        let props = &*prop_set;
         let mut first_type: Option<TypeId> = None;
         let mut name_type: Option<TypeId> = None;
-        let mut prop_types: Vec<TypeId> = Vec::new();
         let mut write_types: Option<Vec<TypeId>> = None;
         let mut first_value_declaration: Option<tsc_syntax::NodeId> = None;
         let mut has_non_uniform_value_declaration = false;
-        for &prop in &props {
+        for &prop in props {
             let value_declaration = self.binder.symbol(prop).value_declaration;
             match (first_value_declaration, value_declaration) {
                 (None, Some(declaration)) => first_value_declaration = Some(declaration),
@@ -5783,7 +5836,7 @@ impl<'a> CheckerState<'a> {
             }
             prop_types.push(ty);
         }
-        prop_types.extend(index_types);
+        prop_types.append(index_types);
         let flags = SymbolFlags::from_bits(prop_flags.bits() | optional_flag.bits());
         let result = self.binder.create_symbol(flags, name);
         // 59224-59227: value declaration + its symbol's parent when
@@ -5795,7 +5848,7 @@ impl<'a> CheckerState<'a> {
                 .and_then(|symbol| self.binder.symbol(symbol).parent),
             _ => None,
         };
-        self.binder.set_declarations_from(result, &declarations);
+        self.binder.set_declarations_from(result, declarations);
         {
             let symbol = self.binder.symbol_mut(result);
             if !has_non_uniform_value_declaration {
@@ -5814,14 +5867,14 @@ impl<'a> CheckerState<'a> {
                 result,
                 synthetic_check_flags,
                 containing_type,
-                prop_types,
+                std::mem::take(prop_types),
                 write_types,
             );
         } else {
             let combined = if is_union {
-                self.get_union_type_ex(&prop_types, UnionReduction::Literal)?
+                self.get_union_type_ex(prop_types, UnionReduction::Literal)?
             } else {
-                self.get_intersection_type(&prop_types, tsc_types::IntersectionFlags::NONE)?
+                self.get_intersection_type(prop_types, tsc_types::IntersectionFlags::NONE)?
             };
             let combined_write = match &write_types {
                 Some(write_types) => Some(if is_union {
@@ -7732,6 +7785,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// getSignaturesOfType's union call-signature fallback (59397+)
     /// resolves through live union signature synthesis.
+    #[inline]
     pub fn get_signatures_of_type(
         &mut self,
         ty: TypeId,
@@ -7767,6 +7821,11 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(result);
         }
+        self.get_array_fallback_signatures(ty)
+    }
+
+    #[inline(never)]
+    fn get_array_fallback_signatures(&mut self, ty: TypeId) -> CheckResult<SignatureIds> {
         if let Some(cached) = self
             .links
             .type_cold()
@@ -7868,7 +7927,7 @@ impl<'a> CheckerState<'a> {
                 None => SignatureIds::new(),
             }
         } else {
-            result
+            SignatureIds::new()
         };
         self.links
             .set_type_array_fallback_signatures(ty, fallback.clone());

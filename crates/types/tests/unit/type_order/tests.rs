@@ -406,3 +406,21 @@ fn content_search_and_single_insertion_share_the_go_lower_bound() {
         ids.binary_search(&c)
     );
 }
+
+/// Tagged equal keys check stability as well as ordering, including existing
+/// runs, small tails, duplicate runs and the recursive merge path.
+#[test]
+fn union_run_merge_matches_the_go_stable_sort() {
+    for n in [0, 1, 2, 19, 20, 21, 39, 40, 41, 100, 257, 1024] {
+        for run in [1, 2, 7, 20, 31, 257, 1024] {
+            let mut data: Vec<_> = (0..n).map(|i| ((i * 37 + 11) % 23, i)).collect();
+            for chunk in data.chunks_mut(run) {
+                chunk.sort_by_key(|item| item.0);
+            }
+            let mut expected = data.clone();
+            sort_types_like_tsgo(&mut expected, |a, b| a.0 < b.0);
+            crate::goslices::sort_union_types(&mut data, |a, b| a.0 < b.0);
+            assert_eq!(data, expected, "n={n}, run={run}");
+        }
+    }
+}

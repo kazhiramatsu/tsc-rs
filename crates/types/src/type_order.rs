@@ -681,10 +681,31 @@ pub fn search_type(
     match order {
         None => types.binary_search(&ty),
         Some(ctx) => {
-            let (index, found) =
-                crate::goslices::binary_search_func(types, &ty, |&candidate, &target| {
-                    compare_types(tables, ctx, candidate, target)
-                });
+            // compare_types is a total order with type identity as its
+            // final tie breaker. Unlike a general Go lower-bound search,
+            // a unique equality can finish immediately.
+            let (mut low, mut high) = (0, types.len());
+            let mut found = false;
+            while low < high {
+                let middle = usize::midpoint(low, high);
+                match compare_types(tables, ctx, types[middle], ty) {
+                    Ordering::Less => low = middle + 1,
+                    Ordering::Greater => high = middle,
+                    Ordering::Equal => {
+                        // Most callers keep a unique type set, but this
+                        // public search also accepts duplicate ids. Keep
+                        // Go's first-equal result for those slices.
+                        if middle > 0 && types[middle - 1] == ty {
+                            high = middle;
+                        } else {
+                            low = middle;
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            let index = low;
             crate::perf::bump(if found {
                 crate::perf::PerfCounter::ContentSearchHits
             } else {
