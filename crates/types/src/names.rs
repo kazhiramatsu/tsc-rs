@@ -136,6 +136,14 @@ thread_local! {
 
 /// The id of `text`, interning it on first sight.
 pub(crate) fn intern(text: JsStr<'_>) -> u32 {
+    intern_with(text, || tsc_store::names::push(text.as_bytes()))
+}
+
+pub(crate) fn intern_str(text: &str) -> u32 {
+    intern_with(text.into(), || tsc_store::names::push_str(text))
+}
+
+fn intern_with(text: JsStr<'_>, store: impl FnOnce() -> u32) -> u32 {
     crate::perf::bump(crate::perf::PerfCounter::NamesInternCalls);
     let bytes = text.as_bytes();
     let hash = hash_bytes(bytes);
@@ -144,13 +152,13 @@ pub(crate) fn intern(text: JsStr<'_>) -> u32 {
     if recent.matches(hash, bytes) {
         return recent.id;
     }
-    let id = intern_shared(text, hash);
+    let id = intern_shared(text, hash, store);
     RECENT_NAMES.with(|recent| recent.borrow_mut()[slot] = Recent::remember(hash, id, bytes));
     id
 }
 
 /// The id of `text` in the shared table, interning it on first sight.
-fn intern_shared(text: JsStr<'_>, hash: u64) -> u32 {
+fn intern_shared(text: JsStr<'_>, hash: u64, store: impl FnOnce() -> u32) -> u32 {
     let bytes = text.as_bytes();
     // The shard comes from middle bits of the hash: the shard's table takes
     // its bucket from the low bits and its 7-bit tag from the top bits, and
@@ -167,7 +175,7 @@ fn intern_shared(text: JsStr<'_>, hash: u64) -> u32 {
             crate::perf::bump(crate::perf::PerfCounter::NamesInternInserts);
             // The text and record are written before the id is in the
             // shard, where other threads find it under the lock.
-            let id = tsc_store::names::push(bytes);
+            let id = store();
             entry.insert(id);
             id
         }
@@ -274,7 +282,7 @@ impl NameCache {
     /// The id of `raw` escaped. A name the escape changes (a leading `__`)
     /// is not cached.
     #[inline]
-    fn escaped_id(&mut self, raw: JsStr<'_>) -> u32 {
+    fn escaped_id(&mut self, raw: JsStr<'_>, intern: impl FnOnce() -> u32) -> u32 {
         let bytes = raw.as_bytes();
         if bytes.len() <= 16 {
             let (a, b) = short_key(bytes);
@@ -284,7 +292,7 @@ impl NameCache {
             if slot.len as usize == bytes.len() && slot.a == a && slot.b == b {
                 return slot.id;
             }
-            let id = crate::escaped_name::escaped_id(raw);
+            let id = intern();
             if !bytes.starts_with(b"__") {
                 *slot = ShortSlot {
                     a,
@@ -307,7 +315,7 @@ impl NameCache {
             {
                 return slot.id;
             }
-            let id = crate::escaped_name::escaped_id(raw);
+            let id = intern();
             if !bytes.starts_with(b"__") {
                 slot.hash = hash;
                 slot.id = id;
@@ -351,7 +359,23 @@ impl HeldNameCache {
     pub fn escape(&mut self, raw: JsStr<'_>) -> crate::EscapedName {
         crate::perf::name_site(std::panic::Location::caller());
         crate::perf::bump(crate::perf::PerfCounter::NamesEscapeCalls);
-        crate::EscapedName::from_index(self.cache.escaped_id(raw))
+        crate::EscapedName::from_index(
+            self.cache
+                .escaped_id(raw, || crate::escaped_name::escaped_id(raw)),
+        )
+    }
+
+    /// Escape a scalar token while retaining its UTF-8 validity through a
+    /// cache miss and the shared table's insertion.
+    #[inline]
+    #[cfg_attr(feature = "perf-counters", track_caller)]
+    pub fn escape_str(&mut self, raw: &str) -> crate::EscapedName {
+        crate::perf::name_site(std::panic::Location::caller());
+        crate::perf::bump(crate::perf::PerfCounter::NamesEscapeCalls);
+        crate::EscapedName::from_index(
+            self.cache
+                .escaped_id(raw.into(), || crate::escaped_name::escaped_str_id(raw)),
+        )
     }
 }
 

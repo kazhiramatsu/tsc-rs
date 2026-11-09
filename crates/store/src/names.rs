@@ -49,6 +49,20 @@ static CURSOR: AtomicUsize = AtomicUsize::new(0);
 /// Store a new name's text and return its id. Every call makes a new id;
 /// the caller hands the id to readers after this returns.
 pub fn push(text: &[u8]) -> u32 {
+    let flags = if std::str::from_utf8(text).is_ok() {
+        0
+    } else {
+        NOT_SCALAR
+    };
+    push_bytes(text, flags)
+}
+
+/// Store a name whose UTF-8 validity is carried by its type.
+pub fn push_str(text: &str) -> u32 {
+    push_bytes(text.as_bytes(), 0)
+}
+
+fn push_bytes(text: &[u8], flags: u32) -> u32 {
     crate::reserve();
     let len = u32::try_from(text.len())
         .ok()
@@ -61,11 +75,6 @@ pub fn push(text: &[u8]) -> u32 {
     );
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
     assert!(id < u32::MAX, "the name table holds 2^32 - 1 names");
-    let flags = if std::str::from_utf8(text).is_ok() {
-        0
-    } else {
-        NOT_SCALAR
-    };
     let record = crate::address::<NameRecord>(id);
     crate::system::commit(TEXT + start, text.len());
     crate::system::commit(record, std::mem::size_of::<NameRecord>());
@@ -109,8 +118,8 @@ pub fn scalar_text(id: u32) -> Option<&'static str> {
     if record.len_flags & NOT_SCALAR != 0 {
         return None;
     }
-    // SAFETY: `push` checked that the text is UTF-8 when it left
-    // `NOT_SCALAR` clear.
+    // SAFETY: `push` validates bytes; `push_str` accepts only valid UTF-8.
+    // Both leave `NOT_SCALAR` clear exactly for UTF-8 text.
     Some(unsafe { std::str::from_utf8_unchecked(bytes_of(record)) })
 }
 

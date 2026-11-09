@@ -5914,9 +5914,7 @@ impl<'text> Parser<'text> {
     /// tsc parseJsxText.
     fn parse_jsx_text(&mut self) -> NodeId {
         let pos = self.node_pos();
-        let text = self
-            .arena
-            .push_text(self.scanner.token_value_str().as_bytes());
+        let text = self.arena.push_text_str(self.scanner.token_value_str());
         let contains_only_trivia_white_spaces = self.token() == SyntaxKind::JsxTextAllWhiteSpaces;
         self.scan_jsx_text();
         self.finish_node_data(
@@ -7800,6 +7798,13 @@ impl<'text> Parser<'text> {
         }
     }
 
+    fn push_token_value(&mut self) -> crate::TextId {
+        match self.scanner.token_value_source() {
+            Some(text) => self.arena.push_text_str(text),
+            None => self.arena.push_text(self.scanner.token_value().as_bytes()),
+        }
+    }
+
     fn parse_template_fragment(&mut self, kind: SyntaxKind) -> NodeId {
         let pos = self.node_pos();
         let end = self.scanner.pos();
@@ -7807,9 +7812,9 @@ impl<'text> Parser<'text> {
         // directly: the empty cooked text of `${x}`-style fragments is
         // legitimate (current_token_text's missing-token fallback would
         // turn it into the token NAME).
-        let text = self.arena.push_text(self.scanner.token_value().as_bytes());
+        let text = self.push_token_value();
         let raw_text = self.template_literal_raw_text(kind);
-        let raw_text = Some(self.arena.push_text(raw_text.as_bytes()));
+        let raw_text = Some(self.arena.push_text_str(&raw_text));
         let data = match kind {
             SyntaxKind::TemplateHead => NodeData::TemplateHead(TemplateHeadData { text, raw_text }),
             SyntaxKind::TemplateMiddle => {
@@ -7832,7 +7837,7 @@ impl<'text> Parser<'text> {
         // Like parse_template_fragment: the empty cooked text of `""`
         // is legitimate — current_token_text's missing-token fallback
         // would turn it into the token NAME.
-        let text = self.arena.push_text(self.scanner.token_value().as_bytes());
+        let text = self.push_token_value();
         let has_extended_unicode_escape = self.scanner.has_extended_unicode_escape();
         let id = self.arena.alloc_node(
             NodeData::StringLiteral(StringLiteralData { text }),
@@ -7851,7 +7856,7 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let end = self.scanner.pos();
         let text = self.current_token_text();
-        let text = self.arena.push_text(text.as_bytes());
+        let text = self.arena.push_text_str(&text);
         let numeric_literal_flags = self.scanner.numeric_literal_flags();
         let id = self.arena.alloc_node(
             NodeData::NumericLiteral(NumericLiteralData { text }),
@@ -7870,7 +7875,7 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let end = self.scanner.pos();
         let text = self.current_token_text();
-        let text = self.arena.push_text(text.as_bytes());
+        let text = self.arena.push_text_str(&text);
         let id = self.arena.alloc_node(
             NodeData::BigIntLiteral(BigIntLiteralData { text }),
             pos,
@@ -7885,7 +7890,7 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let end = self.scanner.pos();
         let text = self.current_token_text();
-        let text = self.arena.push_text(text.as_bytes());
+        let text = self.arena.push_text_str(&text);
         let is_unterminated = self.scanner.is_unterminated().then_some(true);
         let id = self.arena.alloc_node(
             NodeData::RegularExpressionLiteral(RegularExpressionLiteralData { text }),
@@ -7902,9 +7907,9 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let end = self.scanner.pos();
         // Empty cooked text (``) is legitimate — see parse_template_fragment.
-        let text = self.arena.push_text(self.scanner.token_value().as_bytes());
+        let text = self.push_token_value();
         let raw_text = self.template_literal_raw_text(SyntaxKind::NoSubstitutionTemplateLiteral);
-        let raw_text = self.arena.push_text(raw_text.as_bytes());
+        let raw_text = self.arena.push_text_str(&raw_text);
         let id = self.arena.alloc_node(
             NodeData::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
                 text,
@@ -9801,6 +9806,11 @@ impl<'text> Parser<'text> {
     /// The escaped name of the current identifier token (tsc factory
     /// createIdentifier: escapedText is the ESCAPED form; idText stays raw).
     fn current_token_name(&mut self) -> tsc_types::EscapedName {
+        if let Some(value) = self.scanner.token_value_source() {
+            if !value.is_empty() {
+                return self.names.escape_str(value);
+            }
+        }
         let value = self.scanner.token_value();
         if value.is_empty() {
             return tsc_types::EscapedName::escape(token_to_string(self.token()).as_str().into());

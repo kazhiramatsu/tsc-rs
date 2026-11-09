@@ -4651,3 +4651,36 @@ fn owned_str(source: &SourceFile, id: crate::TextId) -> String {
         .expect("a UTF-8 literal text")
         .to_owned()
 }
+
+#[test]
+fn source_and_cooked_literal_values_keep_exact_utf8_and_wtf8() {
+    let source = crate::parse_source_file(
+        "str-carry.ts",
+        r#"const café = ["plain", "名前😀", "\u0061", "\uD800", ""]; const __raw = `raw`;"#,
+        crate::ParseOptions::default(),
+        None,
+    );
+    assert!(source.parse_diagnostics.is_empty());
+    let values: Vec<_> = source
+        .arena
+        .node_ids()
+        .filter_map(|node| {
+            source.arena.node(node).as_string_literal().map(|data| {
+                (
+                    source.arena.text(data.text).to_vec(),
+                    source.arena.text_str(data.text).map(str::to_owned),
+                )
+            })
+        })
+        .collect();
+    assert_eq!(
+        values,
+        [
+            (b"plain".to_vec(), Some("plain".to_owned())),
+            ("名前😀".as_bytes().to_vec(), Some("名前😀".to_owned())),
+            (b"a".to_vec(), Some("a".to_owned())),
+            (vec![0xed, 0xa0, 0x80], None),
+            (vec![], Some(String::new())),
+        ]
+    );
+}

@@ -95,3 +95,18 @@ fn a_parse_inside_a_parse_holds_its_own_cache_and_the_thread_keeps_one() {
     let raw = JsStr::from_str("inner");
     assert_eq!(again.escape(raw), EscapedName::escape(raw));
 }
+
+#[test]
+fn scalar_cache_and_js_cache_share_name_identity_in_both_insertion_orders() {
+    let mut held = HeldNameCache::take();
+    for text in texts() {
+        let scalar_first = format!("scalar_first_{text}");
+        let scalar = held.escape_str(&scalar_first);
+        assert_eq!(scalar, EscapedName::escape(scalar_first.as_str().into()));
+        assert_eq!(scalar.as_str(), Some(scalar_first.as_str()));
+        let js_first = format!("js_first_{text}");
+        let js = EscapedName::escape(js_first.as_str().into());
+        assert_eq!(held.escape_str(&js_first), js);
+        assert_eq!(held.escape_str(&text), held.escape(text.as_str().into()));
+    }
+}

@@ -738,6 +738,16 @@ impl NodeArena {
         )
     }
 
+    /// Store a scalar literal without revalidating its UTF-8 bytes.
+    pub fn push_text_str(&mut self, text: &str) -> TextId {
+        let index = tsc_store::texts::push_str(&mut self.texts, text);
+        TextId::new(
+            self.text_base
+                .checked_add(u32::try_from(index).expect("text store exceeds u32"))
+                .expect("text identity space exhausted"),
+        )
+    }
+
     /// The bytes of this tree's literal text `id`.
     pub fn text(&self, id: TextId) -> &[u8] {
         if id == TextId::EMPTY {

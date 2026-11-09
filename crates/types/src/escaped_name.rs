@@ -35,6 +35,15 @@ pub(crate) fn escaped_id(raw: JsStr<'_>) -> u32 {
     }
 }
 
+pub(crate) fn escaped_str_id(raw: &str) -> u32 {
+    if raw.starts_with("__") {
+        // Keep the small inline escape buffer for these uncommon names.
+        escaped_id(raw.into())
+    } else {
+        names::intern_str(raw)
+    }
+}
+
 impl EscapedName {
     /// Bytes this name owns on the heap: none, the text lives in the shared
     /// name table (see [`EscapedName::interned_names`]).
@@ -72,14 +81,14 @@ impl EscapedName {
     #[cfg_attr(feature = "perf-counters", track_caller)]
     pub fn internal(name: &'static str) -> Self {
         crate::perf::name_site(std::panic::Location::caller());
-        Self(names::intern(JsStr::from(name)))
+        Self(names::intern_str(name))
     }
 
     /// The caller has obtained parser/factory-owned escaped identifier text.
     #[cfg_attr(feature = "perf-counters", track_caller)]
     pub fn from_identifier_escaped_text(text: &str) -> Self {
         crate::perf::name_site(std::panic::Location::caller());
-        Self(names::intern(JsStr::from(text)))
+        Self(names::intern_str(text))
     }
 
     /// An upstream producer has explicitly constructed an already escaped
