@@ -453,6 +453,30 @@ tsrs の TS full と VS Code emit、`handover/arch-arena/profiles/{rs-c0a4f8858,
 main `c0a4f8858`、`SPEC-emit-census.md`、17:5x〜）に段ごとの帰属（prepare/clone、flag 分類、transformer、printer、source map、declaration emit の
 checker 呼び出し、書き出し）と行の候補（各 ≤ 1 日、emit 構成 + noEmit 中立 + emit 同一性で判定）を出させる。
 
+**結果 12（2026-11-09 17:3x〜18:0x、emitter の census：lane `emit-census`、`handover/arch-arena/emitcensus/EMIT-CENSUS.md`；main `c0a4f8858`、
+read-only、1 thread、各構成 1 run（lane 2 本が build 中）、profile は samply 4 kHz）。**
+**差は JS emit に集中している。** TypeScript compiler の構成差分（G、1 run）：JS − noEmit は ours **7.52** 対 tsrs **3.71**（tsgo 7.52）、declaration の追加は
+**1.08 対 1.37**（ours の方が安い；tsgo 2.28）、JS map の追加は **1.28 対 1.18**（tsgo 2.85）、full − noEmit 10.09 対 6.41。VS Code（`tsconfig.json`、
+map/declaration なし）：emit − noEmit **136.6 G 対 60.3 G（2.27 倍）**、peak 2,440 → 2,625 MiB 対 1,990 → 2,033。つまり declaration や VLQ ではなく
+**JS の transform と printer** が差。profile の emit root 内の配分（TS full / VS Code emit、分母 5,210 / 47,783 sample）：JS printer **60.5% / 52.5%**、
+JS transform **23.5% / 40.5%**、declaration 10.7% / 0、mount/clone 0.6% / 1.4%、書き出し 2.9% / 4.3%。細分（重ならない区分）：printer 制御 35.8% / 30.3%、
+printer の comment 16.3% / 18.0%、transform その他 16.9% / 23.5%、flag 分類 6.6% / 12.3%、source map 9.5% / 0.3%、name census 2.0% / 3.3%、
+metadata 2.7% / 1.6%、writer 2.9% / 3.8%。tsrs の profile は binary が strip されていて関数名の join ができず（`fun_<addr>` のみ）、tsrs 自身の
+`--extendedDiagnostics` の thread 合計（TS：JS transform 30%、print 52%、write 6%；VS Code：42 / 42 / 15%）を補助に使った。
+**無駄 12 件**（sample share は時間の割合で命令数ではない；I* = share × emit 差分の「同一 CPI 仮定の封筒」）：(1) legacy decorator pass が decorator の
+ない部分木も generic に訪問し子を eager に probe（VS Code の emit sample の **17.1%**、封筒 ≤ 19 G；tsrs/tsgo は部分木で gate）；(2) `original` だけの
+provenance に 400 B の rich metadata を払う（VS Code 216 万件中 192 万件）；(3) flag 容量（構文範囲いっぱいの zero fill）と未変更部分木の初回分類
+（5.7% / 8.5%）、更新時の伝播（4.6% / 9.8%）；(4) printer が comment の所有者・範囲・trivia 境界を毎回再構築（2.5〜4%）；(5) identifier text の UTF-8 再検証
+（2.7% / 1.5%）；(6) 出力 text を PrintedText に snapshot した後もう一度 clone（VS Code 131.9 MB × 2）；(7) file ごとの構文複製（E1；CPU は 1.1〜1.4%、
+S7b/S7c の仕事）；(8) source map の位置変換の重複（TS 10.1%）、VLQ は小さい（1.7%）；(9) name census の再構築（3.2%）；(10) printer の emission plan の
+全木走査（1.4% / 2.0%）；(11) JS だけの emit でも declaration path を構築（`execute.rs:956`）；(12) declaration の checker/nodebuilder は 1.7% で、追加分も
+tsrs より安いので当面対象外。**行の列（各 ≤ 1 日、1 PR = 1 行、判定は hono/full + ts/full + VS Code emit の 9 round と 8 案件 noEmit の中立、emit oracle
+26 実行の同一）：** 0 計測（`TSRS_PHASE_TRACE` の emit sub-phase、`--extendedDiagnostics` の `Bind time` / `Emit time`；今の `Check time` は emit を含む）→
+1 legacy decorator の部分木 gate → 2 original-only metadata の compact 化（S7a2 の後）→ 3 PrintedText の move → 4 source map 境界の変換を 1 回に → 5 comment
+所有者の引き回し → 6a/6b 完了 bitset と parsed/synthesized flag の分離 → 7 parsed flag の JS/d.ts 共有 → 8 identifier text の検証 1 回 → 9 declaration path の
+遅延 → 10 name census の共有 → 11 printer plan の走査削減。構文複製の除去は S7b → S7c の所有権移行のまま。**まず 1 と 3 + 9**（S7a2 に依存しない）を
+lane に出し、S7a2 の後に 2 → 5 → 6 → 7 を続ける。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
