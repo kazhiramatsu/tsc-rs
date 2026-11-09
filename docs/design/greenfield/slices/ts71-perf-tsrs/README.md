@@ -420,6 +420,39 @@ wall が同じに見えるが、tsrs 側も同じ 92.3 G で 1.96 → 2.10 s（c
 (4) tsrs `--fast` との差（既定 2.27 倍）は 10 core 全部と stealing の分で、決定性維持（16:0x の判断）はこの差を受け入れる判断。tsrs の per-checker 時間
 （`TSRS_ASSIGNMENT_STATS=times`）は stderr に出ず未取得。
 
+**結果 11（2026-11-09 17:2x〜17:5x、#941 の merge、fork の 2 段の review と修正 lane、emitter の見直しの開始）。**
+**[#941](https://github.com/kazhiramatsu/tsc-rs/pull/941) merged `b348e31e8`**（hosted run 42582133298：plan / rust / conformance (TypeScript 7.1) / gates すべて pass；
+局所検査 chain ai：checker 1,926 + api 333 test、release `siglists-sel-3b9521104`、8 案件出力同一、counter 同一、4 checker 15,335 同一 + 既知 4）：
+Signature の parameter / type-parameter list を凍結した `Box<[…]>` に（record 136 → 120 B；結果 9 の B1、VS Code −0.08%、footprint VS Code −5〜−27 MiB、
+next −4、effect −3；hono は +0.14 / +0.22% が 2 run とも正で有界差として記録）。
+**fork の 2 段は「考えは正しく、書き方を直す」で修正 lane へ。** S7a（emitter session、`forkS7a/`）：a93bb8389 基準の 9 round で noEmit は VS Code +0.07%
+（8 案件 −0.01〜+0.18%）だが **emit は hono full +0.34%、TS compiler full +0.67%**；emit 同一性は hono 748 / VS Code 9,244 / TS 312 artifact・counter・診断
+すべて同一（26 実行）。独立 review（read-only）：printer の最も熱い関数の先頭で全 emitted node の multiLine を先読み（handle 再検証 + hash 探索、使うのは
+5 arm）= emit の cost；per-context の 6 表（helper・生成名）を arena へ移して lifecycle の穴（`into_arena` の消去で塞いでいた）→ context に戻す；
+`EmitSession.sources` が `TransformArena.sources` と並行 Vec；生成 node の multiLine は構文なので record bit に直接書く。正しさ・決定性・禁止事項の指摘なし。
+footprint の本丸は `metadata: FxHashMap<TransformNode, EmitMetadata>`（VS Code で約 400 B × 216 万件 ≈ 865 MB、192 万件は `original` だけ）。T2 は main
+`c0a4f8858` に当たらない（#940 の arena.rs と衝突）→ unify clone を main に進め lane `fork-S7a2`（17:23〜）。S2a（bind before publish、`forkS2a/`）：
+review は所有権・コピー・並行性・決定性・cache key は主張どおり問題なし；書き方は `_mut` 3 本が従来の `&SourceFile` 入口を呼ぶだけの shim（排他性は
+builder の `&mut self` と lifetime が保証）、`Arc::get_mut().expect` は型が保証する検査、`schema_version` は死んだ状態、publish 経路の重複、comment だけの
+hunk 3 file；追加 cost は file 単位で |Δ| < 0.01% の見込み；fingerprint oracle はこの patch を判別しない（example が同じ入口を包む）→ lane `fork-S2b`（17:21〜）。
+どちらも最終 byte で計測し直す（8 案件同一、emit oracle、fingerprint、4 checker、9 round）。
+**emitter の見直し（所有者 17:4x「emitter は今まで手付かずだったこともあり、性能が微妙な可能性があります。再度、見直しが必要かと思います」）。**
+emitter は perf track の外（全行 noEmit で判定、emit は同一性のみ）だった。1 thread・3 round の規模（lane 2 本が build 中、±0.5%）：
+
+| case | tsc-rs `c0a4f8858` | tsrs | tsgo 7.1 |
+|---|---:|---:|---:|
+| hono noEmit / full（emit + declaration + declarationMap + sourceMap） | 2.24 / 3.90 G | 1.73 / 2.82 G | 5.49 / 7.32 G |
+| → emit の分（full − noEmit） | **1.66 G** | 1.09 G（**1.52 倍**） | 1.83 G |
+| TypeScript compiler noEmit / full | 6.81 / 16.87 G | 4.90 / 11.28 G | 12.56 / 26.79 G |
+| → emit の分 | **10.06 G** | 6.38 G（**1.58 倍**） | 14.23 G |
+
+noEmit の対 tsrs 比が 1.29 / 1.39 倍なのに対し emit の分は 1.52 / 1.58 倍で、**emit は相対的に最も弱い段**（tsgo より速いのは Go との差）。TS compiler では
+emit の分が noEmit 全体の 1.48 倍（tsrs 1.30、tsgo 1.13）。計測の穴：`--extendedDiagnostics` に `Bind time` / `Emit time` の行がなく（tsgo にはある；
+`Check time` が emit を含む）、`TSRS_PHASE_TRACE` に emit の sub-phase がない（"check + emit session" のみ）。samply profile（4 kHz、1 thread：ours と
+tsrs の TS full と VS Code emit、`handover/arch-arena/profiles/{rs-c0a4f8858,tsrs}-{ts-full,vscode-emit}.json.gz`）を記録し、lane `emit-census`（oracle clone、
+main `c0a4f8858`、`SPEC-emit-census.md`、17:5x〜）に段ごとの帰属（prepare/clone、flag 分類、transformer、printer、source map、declaration emit の
+checker 呼び出し、書き出し）と行の候補（各 ≤ 1 日、emit 構成 + noEmit 中立 + emit 同一性で判定）を出させる。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
