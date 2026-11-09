@@ -1012,8 +1012,7 @@ impl<'a> CheckerState<'a> {
         let mut has_return_with_no_expression = self.function_has_implicit_return(func)?;
         let mut has_return_of_type_never = false;
         let body = node_util::body_of(&Published, func).expect("callers checked the body");
-        let return_statements = self.collect_return_statements(body);
-        for return_statement in return_statements {
+        for return_statement in Self::return_statements(body) {
             let expression = match self.data_of(return_statement) {
                 NodeData::ReturnStatement(data) => data.expression,
                 _ => None,
@@ -1152,45 +1151,43 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// forEachReturnStatement (14275-14295) specialized to a collector:
-    /// visits ReturnStatements without descending into nested
-    /// function-likes (the walker recurses only through statement
-    /// constructs).
-    fn collect_return_statements(&self, body: NodeId) -> Vec<NodeId> {
-        let mut out = Vec::new();
+    /// Return statements in source order, without descending into nested
+    /// functions. Keep an iterative worklist for deeply nested statements;
+    /// yielding each return lets its caller stop on a check error.
+    fn return_statements(body: NodeId) -> impl Iterator<Item = NodeId> {
         let mut worklist = vec![body];
-        while let Some(node) = worklist.pop() {
-            match self.kind_of(node) {
-                SyntaxKind::ReturnStatement => out.push(node),
-                SyntaxKind::CaseBlock
-                | SyntaxKind::Block
-                | SyntaxKind::IfStatement
-                | SyntaxKind::DoStatement
-                | SyntaxKind::WhileStatement
-                | SyntaxKind::ForStatement
-                | SyntaxKind::ForInStatement
-                | SyntaxKind::ForOfStatement
-                | SyntaxKind::WithStatement
-                | SyntaxKind::SwitchStatement
-                | SyntaxKind::CaseClause
-                | SyntaxKind::DefaultClause
-                | SyntaxKind::LabeledStatement
-                | SyntaxKind::TryStatement
-                | SyntaxKind::CatchClause => {
-                    let mut children = Vec::new();
-                    tsc_syntax::for_each_child(&Published, Published.node(node), |child| {
-                        children.push(child);
-                        false
-                    });
-                    // LIFO worklist: reversed push keeps source order.
-                    for &child in children.iter().rev() {
-                        worklist.push(child);
+        std::iter::from_fn(move || {
+            while let Some(node) = worklist.pop() {
+                match Published.node(node).kind {
+                    SyntaxKind::ReturnStatement => return Some(node),
+                    SyntaxKind::CaseBlock
+                    | SyntaxKind::Block
+                    | SyntaxKind::IfStatement
+                    | SyntaxKind::DoStatement
+                    | SyntaxKind::WhileStatement
+                    | SyntaxKind::ForStatement
+                    | SyntaxKind::ForInStatement
+                    | SyntaxKind::ForOfStatement
+                    | SyntaxKind::WithStatement
+                    | SyntaxKind::SwitchStatement
+                    | SyntaxKind::CaseClause
+                    | SyntaxKind::DefaultClause
+                    | SyntaxKind::LabeledStatement
+                    | SyntaxKind::TryStatement
+                    | SyntaxKind::CatchClause => {
+                        let first = worklist.len();
+                        tsc_syntax::for_each_child(&Published, Published.node(node), |child| {
+                            worklist.push(child);
+                            false
+                        });
+                        // Reverse just the appended siblings for a LIFO walk.
+                        worklist[first..].reverse();
                     }
+                    _ => {}
                 }
-                _ => {}
             }
-        }
-        out
+            None
+        })
     }
 
     /// The `return f()` self-recursion probe (78979): CallExpression

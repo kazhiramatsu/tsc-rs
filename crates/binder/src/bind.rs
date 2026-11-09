@@ -29,7 +29,7 @@ use crate::node_util::{
 };
 use crate::symbols::{InternalSymbolName, SymbolId};
 use tsc_diagnostics::{gen as diagnostics, DiagnosticArgument, DiagnosticMessage};
-use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{for_each_child_mut, NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsc_types::{EscapedName, FlowFlags, JsStr, JsString, ModifierFlags, NodeFlags, SymbolFlags};
 
 impl<'a> BinderWorker<'a> {
@@ -2042,8 +2042,9 @@ impl<'a> BinderWorker<'a> {
     /// tsc bindEach (42834). Consumed by the stage-3.5 flow binders.
     fn bind_each(&mut self, nodes: Option<NodeArrayId>) {
         let Some(nodes) = nodes else { return };
-        let nodes = self.source.arena.node_array(nodes).nodes.to_vec();
-        for node in nodes {
+        let count = self.source.arena.node_array(nodes).nodes.len();
+        for index in 0..count {
+            let node = self.source.arena.node_array(nodes).nodes[index];
             self.bind(Some(node));
         }
     }
@@ -2057,13 +2058,15 @@ impl<'a> BinderWorker<'a> {
     /// and duplicate-diagnostic order.
     fn bind_each_functions_first(&mut self, nodes: Option<NodeArrayId>) {
         let Some(nodes) = nodes else { return };
-        let nodes = self.source.arena.node_array(nodes).nodes.to_vec();
-        for &node in &nodes {
+        let count = self.source.arena.node_array(nodes).nodes.len();
+        for index in 0..count {
+            let node = self.source.arena.node_array(nodes).nodes[index];
             if kind_of(self.source, node) == SyntaxKind::FunctionDeclaration {
                 self.bind(Some(node));
             }
         }
-        for &node in &nodes {
+        for index in 0..count {
+            let node = self.source.arena.node_array(nodes).nodes[index];
             if kind_of(self.source, node) != SyntaxKind::FunctionDeclaration {
                 self.bind(Some(node));
             } else {
@@ -2074,25 +2077,10 @@ impl<'a> BinderWorker<'a> {
 
     /// tsc bindEachChild (42840): every child in forEachChild order.
     fn bind_each_child(&mut self, node: NodeId) {
-        // The children occupy the tail of the shared buffer while this node
-        // binds them and are released afterwards; a nested call appends its
-        // own children beyond them.
-        let first = self.child_scratch.len();
-        let Self {
-            source,
-            child_scratch,
-            ..
-        } = self;
-        for_each_child(&source.arena, source.arena.node(node), |child| {
-            child_scratch.push(child);
+        for_each_child_mut(self, node, |binder, child| {
+            binder.bind(Some(child));
             false
         });
-        let last = self.child_scratch.len();
-        for position in first..last {
-            let child = self.child_scratch[position];
-            self.bind(Some(child));
-        }
-        self.child_scratch.truncate(first);
     }
 
     /// tsc-port: bindChildren @6.0.3
@@ -3991,3 +3979,22 @@ pub fn remove_file_extension(path: JsStr<'_>) -> JsStr<'_> {
 #[cfg(test)]
 #[path = "../tests/unit/bind/tests.rs"]
 mod tests;
+
+impl tsc_syntax::NodeLookup for BinderWorker<'_> {
+    #[inline]
+    fn node(&self, id: NodeId) -> &tsc_syntax::Node {
+        self.source.arena.node(id)
+    }
+    #[inline]
+    fn node_array(&self, id: NodeArrayId) -> tsc_syntax::NodeArray<'_> {
+        self.source.arena.node_array(id)
+    }
+    #[inline]
+    fn text(&self, id: tsc_syntax::TextId) -> &[u8] {
+        self.source.arena.text(id)
+    }
+    #[inline]
+    fn text_str(&self, id: tsc_syntax::TextId) -> Option<&str> {
+        self.source.arena.text_str(id)
+    }
+}

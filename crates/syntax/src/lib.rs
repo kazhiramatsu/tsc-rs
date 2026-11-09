@@ -32,8 +32,9 @@ use tsc_types::{IdentityDomain, IdentityError, IdentitySpace};
 pub use arena::{NodeArena, SubtreeCopy, SyntaxLeases, SyntaxMemory};
 pub use chars::{is_identifier_part, is_identifier_start};
 pub use for_each_child::{
-    apply_child_slots, child_slots, for_each_child, for_each_child_array, map_child_slots,
-    try_visit_each_child, ChildSlot, ChildSlots, NodeDataChildVisitor, NodeLookup, MAX_CHILD_SLOTS,
+    apply_child_slots, child_slots, for_each_child, for_each_child_array, for_each_child_mut,
+    map_child_slots, try_visit_each_child, ChildSlot, ChildSlots, NodeDataChildVisitor, NodeLookup,
+    MAX_CHILD_SLOTS,
 };
 pub use incremental::{
     create_language_service_source_file, create_language_service_source_file_in_identity_domain,

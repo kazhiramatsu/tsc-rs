@@ -1281,3 +1281,45 @@ fn checked_js_inherited_jsdoc_getter_type_does_not_form_a_derived_accessor_cycle
         "the inherited JSDoc getter type must anchor derived accessor inference: {circular:?}"
     );
 }
+
+#[test]
+fn return_iterator_keeps_source_order_and_excludes_nested_functions() {
+    let text = "function outer(x: number) { if (x) { return 1; } else { return 2; } try { switch (x) { case 0: return 3; default: return 4; } } catch { return 5; } finally { if (x) return 6; } function inner() { return 99; } return 7; }";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let function = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .find(|&node| {
+                state.kind_of(node) == SyntaxKind::FunctionDeclaration && state.pos_of(node) == 0
+            })
+            .expect("outer function");
+        let body = state
+            .record_of(function)
+            .as_function_declaration()
+            .unwrap()
+            .body
+            .unwrap();
+        let returns: Vec<_> = crate::state::CheckerState::return_statements(body)
+            .map(|node| {
+                let expression = state
+                    .record_of(node)
+                    .as_return_statement()
+                    .unwrap()
+                    .expression
+                    .unwrap();
+                text[state.pos_of(expression) as usize..state.end_of(expression) as usize]
+                    .trim()
+                    .to_owned()
+            })
+            .collect();
+        assert_eq!(returns, ["1", "2", "3", "4", "5", "6", "7"]);
+        assert_eq!(
+            crate::state::CheckerState::return_statements(body)
+                .take(1)
+                .count(),
+            1
+        );
+    });
+}
