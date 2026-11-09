@@ -7208,9 +7208,9 @@ impl<'a> CheckerState<'a> {
                     .links
                     .read_ty(result, |links| links.resolved_members.resolved())
                     .expect("freshly created anonymous types carry resolved members");
-                let stripped = crate::state::ResolvedMembers::new(
-                    resolved.members.clone(),
-                    resolved.properties.clone().to_vec(),
+                let stripped = crate::state::ResolvedMembers::from_frozen(
+                    resolved.members,
+                    resolved.properties,
                     Vec::new(),
                     Vec::new(),
                     Vec::new(),
@@ -7646,7 +7646,7 @@ impl<'a> CheckerState<'a> {
         let construct_signatures = self.get_union_signatures(&construct_lists)?;
         let index_infos = self.get_union_index_infos(&types)?;
         let id = self.alloc_members(crate::state::ResolvedMembers::new(
-            crate::member_table::MemberTable::default(),
+            crate::member_table::MemberTable::with_capacity(0),
             Vec::new(),
             call_signatures,
             construct_signatures,
@@ -7734,7 +7734,7 @@ impl<'a> CheckerState<'a> {
                 .note_always(crate::order_guard::OrderReason::INTERSECTION_SIGNATURES);
         }
         let id = self.alloc_members(crate::state::ResolvedMembers::new(
-            crate::member_table::MemberTable::default(),
+            crate::member_table::MemberTable::with_capacity(0),
             Vec::new(),
             call_signatures,
             construct_signatures,

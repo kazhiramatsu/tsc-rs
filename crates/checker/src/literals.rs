@@ -27,7 +27,6 @@ use tsc_types::{
     TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
-use crate::member_table::MemberTable;
 use crate::state::{CheckResult, CheckerState, IndexInfo};
 
 /// The per-literal accumulator checkArrayLiteral threads through its
@@ -927,7 +926,7 @@ impl<'a> CheckerState<'a> {
         let mut properties: Vec<SymbolId> = exports.values().copied().collect();
         self.order_named_members_if_stable(&mut properties, Some(symbol));
         *self.members_mut(members_id) = crate::state::ResolvedMembers::new(
-            self.member_table(&exports),
+            self.member_table_source(&exports),
             properties,
             Vec::new(),
             Vec::new(),
@@ -1438,7 +1437,7 @@ impl<'a> CheckerState<'a> {
         let table_properties: Vec<SymbolId> = acc.properties_table.values().copied().collect();
         let id = self.make_resolved_anonymous_type(
             symbol,
-            self.member_table(&acc.properties_table),
+            self.member_table_source(&acc.properties_table),
             table_properties,
             index_infos,
             object_flags,
@@ -1454,10 +1453,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: createAnonymousType @6.0.3
     /// tsc-hash: 801cde8bdea7de88d9052f5f01d296c15ec067902d478f857925edd1106efb93
     /// tsc-span: _tsc.js:50208-50210
+    #[inline]
     pub(crate) fn make_resolved_anonymous_type(
         &mut self,
         symbol: Option<SymbolId>,
-        members: MemberTable,
+        members: impl crate::member_table::FreezeMembers,
         properties: Vec<SymbolId>,
         index_infos: impl Into<crate::state::IndexInfos>,
         object_flags: ObjectFlags,
@@ -1691,7 +1691,7 @@ impl<'a> CheckerState<'a> {
         let symbol = self.tables.type_of(ty).symbol;
         Ok(self.make_resolved_anonymous_type(
             symbol,
-            self.member_table(&members),
+            self.member_table_source(&members),
             properties,
             index_infos,
             ObjectFlags::ANONYMOUS
@@ -1951,7 +1951,7 @@ impl<'a> CheckerState<'a> {
         let properties: Vec<SymbolId> = members.values().copied().collect();
         let spread = self.make_resolved_anonymous_type(
             symbol,
-            self.member_table(&members),
+            self.member_table_source(&members),
             properties,
             index_infos,
             ObjectFlags::ANONYMOUS

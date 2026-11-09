@@ -729,6 +729,8 @@ impl<'a> CheckerState<'a> {
         } else {
             vec![ty]
         };
+        let mut members =
+            std::mem::take(&mut self.members[members_id.index() as usize].members).into_builder();
         for t in source_members {
             if !self
                 .tables
@@ -753,10 +755,9 @@ impl<'a> CheckerState<'a> {
                 prop.set_declarations(declarations);
                 prop.value_declaration = value_declaration;
             }
-            self.members[members_id.index() as usize]
-                .members
-                .insert(&self.binder, literal_prop);
+            members.insert(&self.binder, literal_prop);
         }
+        self.members[members_id.index() as usize].members = members.into();
         if self.tables.flags_of(ty).intersects(TypeFlags::STRING) {
             let index_info = IndexInfo {
                 key_type: self.tables.intrinsics.string,
@@ -770,8 +771,8 @@ impl<'a> CheckerState<'a> {
             self.members_mut(members_id)
                 .set_index_infos(vec![index_info]);
         }
-        let properties: Vec<_> = self.members_of(members_id).members.symbols().to_vec();
-        self.members_mut(members_id).properties = properties.into();
+        let resolved = self.members_mut(members_id);
+        resolved.properties = resolved.members.symbol_list();
         id
     }
 
