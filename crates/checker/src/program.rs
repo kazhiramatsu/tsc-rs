@@ -1449,6 +1449,39 @@ impl<'a> ProgramBinder<'a> {
     }
 }
 
+impl ProgramBinder<'_> {
+    pub(crate) fn transient_record_heap_bytes(&self) -> usize {
+        self.transient.record_heap_bytes()
+    }
+    pub(crate) fn transient_declaration_store_bytes(&self) -> usize {
+        self.transient.declaration_store_bytes()
+    }
+}
+
+impl ProgramSnapshot {
+    pub(crate) fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
+        usage.vec("snapshot document handles", &self.documents);
+        usage.vec("snapshot file facts", &self.file_facts);
+    }
+}
+
+impl ProgramBinder<'_> {
+    pub(crate) fn add_projection_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
+        usage.vec("checker program projections", &self.file_entries);
+        usage.vec("checker program projections", &self.sources);
+        usage.vec("checker program projections", &self.file_facts);
+        usage.vec("checker owner indexes", &self.node_owners);
+        usage.vec("checker owner indexes", &self.symbol_owners);
+        for index in [&self.node_files, &self.symbol_files] {
+            usage.vec("checker owner indexes", &index.owners);
+            let bytes = std::mem::size_of_val(index.pages.as_ref());
+            if bytes != 0 && usage.claim(index.pages.as_ptr() as usize) {
+                usage.add("checker owner indexes", index.pages.len(), bytes, bytes);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 #[path = "../tests/unit/program/tests.rs"]
 mod tests;

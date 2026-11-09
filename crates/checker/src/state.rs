@@ -1408,7 +1408,14 @@ impl<'a> CheckerState<'a> {
     /// structure, to stderr under `label`. The arenas reserved from the
     /// program's size count the records they hold: their untouched room is
     /// address space, not memory.
-    pub(crate) fn report_memory(&self, label: &str) {
+    // Only commutative ownership sums; printed rows are ordered by BTreeMap.
+    #[allow(clippy::iter_over_hash_type)]
+    pub(crate) fn report_memory(
+        &self,
+        label: &str,
+        snapshot: &ProgramSnapshot,
+        include_shared: bool,
+    ) {
         #[cfg(feature = "flow-memo-shadow")]
         self.flow_memo.report(label);
         if std::env::var_os("TSRS_MEMORY_REPORT").is_none() {
@@ -1417,6 +1424,22 @@ impl<'a> CheckerState<'a> {
         fn map_bytes<K, V>(map: &rustc_hash::FxHashMap<K, V>) -> usize {
             map.capacity() * (std::mem::size_of::<(K, V)>() + 1) * 8 / 7
         }
+        let mut shared_usage = tsc_diagnostics::MemoryUsage::default();
+        let (program_heap, mut program_binder) =
+            crate::memory::snapshot_heap_usage(snapshot, &mut shared_usage);
+        let persistent_tables: rustc_hash::FxHashSet<_> =
+            program_binder.tables.keys().copied().collect();
+        let mut usage = if include_shared {
+            shared_usage
+        } else {
+            tsc_diagnostics::MemoryUsage::default()
+        };
+        if include_shared {
+            if let Some(provider) = self.authoritative_module_provider {
+                provider.add_memory_usage(&mut usage);
+            }
+        }
+        crate::memory::checker_owners(self, &mut usage, include_shared);
         let mut rows: Vec<(&str, usize, usize)> = Vec::new();
         let types = self.tables.memory_usage();
         rows.push(("types (Type)", types.types, types.type_bytes));
@@ -1444,13 +1467,25 @@ impl<'a> CheckerState<'a> {
         rows.extend(self.links.memory_usage());
         let (flow_entries, flow_bytes) = self.flow_memo.memory_usage();
         rows.push(("flow memo and walk scratch", flow_entries, flow_bytes));
-        let mut tables = rustc_hash::FxHashMap::default();
+        let mut tables = std::mem::take(&mut program_binder.tables);
+        let persistent_table_bytes: usize = tables.values().sum();
         let (symbols, symbol_bytes, owned) = self.binder.transient_memory_usage(&mut tables);
+        let (table_arc_layout, table_arc_offset) = std::alloc::Layout::new::<[usize; 2]>()
+            .extend(std::alloc::Layout::new::<tsc_binder::SymbolTable>())
+            .expect("symbol table Arc layout");
+        for table in tables.keys() {
+            if (include_shared || !persistent_tables.contains(table))
+                && usage.claim(*table as usize - table_arc_offset)
+            {
+                let bytes = table_arc_layout.pad_to_align().size();
+                usage.add("symbol table Arc headers", 1, bytes, bytes);
+            }
+        }
         rows.push(("transient symbols (Symbol)", symbols, symbol_bytes));
         rows.push((
             "transient names/decls/tables",
             symbols,
-            owned + tables.values().sum::<usize>(),
+            owned + tables.values().sum::<usize>() - persistent_table_bytes,
         ));
         let signature_heap: usize = self
             .signatures
@@ -1480,7 +1515,7 @@ impl<'a> CheckerState<'a> {
             .map(|members| {
                 members.members.counted_heap_bytes(&mut member_symbols)
                     + members.properties.counted_heap_bytes(&mut member_symbols)
-                    + members.extras_heap_bytes()
+                    + members.extras_heap_bytes_once(&mut usage)
             })
             .sum();
         rows.push((
@@ -1496,7 +1531,7 @@ impl<'a> CheckerState<'a> {
                     .deferred_reference_members
                     .values()
                     .flatten()
-                    .map(crate::annotate::DeferredReferenceMembers::heap_bytes)
+                    .map(|members| members.heap_bytes(&mut usage))
                     .sum::<usize>(),
         ));
         rows.push((
@@ -1553,6 +1588,21 @@ impl<'a> CheckerState<'a> {
                     * std::mem::size_of::<crate::inference::InferenceInfo>(),
         ));
         let total: usize = rows.iter().map(|row| row.2).sum();
+        let main_checker_heap = total
+            - types.type_bytes
+            - symbol_bytes
+            - self.binder.transient_declaration_store_bytes()
+            + types.type_record_heap_bytes
+            + self.binder.transient_record_heap_bytes();
+        let name_bytes = if include_shared {
+            tsc_types::EscapedName::interned_names().1
+        } else {
+            0
+        };
+        let main_heap = main_checker_heap
+            + if include_shared { program_heap } else { 0 }
+            + name_bytes
+            + usage.total().requested;
         for (name, count, bytes) in rows {
             eprintln!(
                 "[memory] {label} {name:<32} {count:>11} {:>10.1} MiB",
@@ -1565,6 +1615,23 @@ impl<'a> CheckerState<'a> {
             "",
             total as f64 / (1024.0 * 1024.0)
         );
+        usage.print(label);
+        let resident_tail_bytes = crate::memory::print_reserved_arenas(self, label);
+        let main_heap = main_heap + resident_tail_bytes;
+        eprintln!("[memory] {label} observed complete resident arena tails: {resident_tail_bytes} B (added once to main estimate)");
+        eprintln!(
+            "[memory] {label} main heap owners estimate: {} B ({:.3} MiB)",
+            main_heap,
+            main_heap as f64 / 1048576.0
+        );
+        if include_shared {
+            eprintln!(
+                "[memory] source characters (separate text heap): {} B ({:.3} MiB)",
+                usage.source_text_bytes,
+                usage.source_text_bytes as f64 / 1048576.0
+            );
+        }
+        eprintln!("[memory] accounting: end-of-check checkpoint; legacy arena rows use initialized records, legacy lists/hash rows use capacity estimates. New rows separate initialized/requested bytes (value layouts include padding; hash/IndexSet/BTree layouts are estimates from public capacities). Shared program/host owners appear only in serial/shard 0. Complete resident tail pages of the six arena Vecs and the two dense links Vecs are added once; other unused room, allocator rounding/free space, native mutex backing, available parse bodies and edited persistent-line trees are excluded; no usable/resident/physical-peak claim. Diagnostic owners are live here; peak-only clones are not inferred.");
     }
 
     /// Single-file construction for the relation probe and unit tests.
@@ -2942,14 +3009,6 @@ impl<'a> CheckerState<'a> {
 #[path = "../tests/unit/state/test_support.rs"]
 pub(crate) mod test_support;
 
-#[cfg(test)]
-#[path = "../tests/unit/state/tests.rs"]
-mod tests;
-
-#[cfg(test)]
-#[path = "../tests/unit/state/resolution_unwind_tests.rs"]
-mod resolution_unwind_tests;
-
 /// The active-mapper instantiation cache key: tsc's
 /// `type.id + getAliasId(aliasSymbol, aliasTypeArguments)` (73584) as one
 /// value instead of a formatted string. The alias arguments count only with
@@ -2960,3 +3019,34 @@ pub(crate) struct MapperCacheKey {
     pub(crate) alias_symbol: Option<SymbolId>,
     pub(crate) alias_arguments: Option<tsc_types::TypeListId>,
 }
+
+impl<T: Clone> SharedList<T> {
+    pub(crate) fn heap_bytes_once(&self, usage: &mut tsc_diagnostics::MemoryUsage) -> usize {
+        self.0.as_ref().map_or(0, |list| {
+            if usage.claim_arc(list) {
+                self.heap_bytes()
+            } else {
+                0
+            }
+        })
+    }
+}
+
+impl ResolvedMembers {
+    fn extras_heap_bytes_once(&self, usage: &mut tsc_diagnostics::MemoryUsage) -> usize {
+        self.extras.as_ref().map_or(0, |extras| {
+            std::mem::size_of::<MembersExtras>()
+                + extras.call_signatures.heap_bytes_once(usage)
+                + extras.construct_signatures.heap_bytes_once(usage)
+                + extras.index_infos.heap_bytes_once(usage)
+        })
+    }
+}
+
+#[cfg(test)]
+#[path = "../tests/unit/state/tests.rs"]
+mod tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/state/resolution_unwind_tests.rs"]
+mod resolution_unwind_tests;

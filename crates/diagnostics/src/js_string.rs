@@ -942,6 +942,13 @@ impl fmt::Debug for Storage {
     }
 }
 
+impl SharedJsString {
+    /// Count the shared allocation once, including Arc counters.
+    pub fn add_memory_usage(&self, usage: &mut crate::MemoryUsage) {
+        usage.arc("strings: shared stable owners", &self.0);
+    }
+}
+
 #[cfg(test)]
 #[path = "../tests/unit/js_string/tests.rs"]
 mod tests;

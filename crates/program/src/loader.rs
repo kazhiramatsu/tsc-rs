@@ -8699,6 +8699,79 @@ pub fn load_emitting_program_js(
     )
 }
 
+impl SourceInclusionReason {
+    pub(crate) fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
+        use SourceInclusionReason::*;
+        const STRINGS: &str = "strings: stable owners";
+        let shared = |text: &Arc<JsString>, usage: &mut tsc_diagnostics::MemoryUsage| {
+            if usage.arc("include-reason shared strings", text) {
+                usage.js_string(STRINGS, text);
+            }
+        };
+        match self {
+            Root(reason) => match reason {
+                RootFileReason::FilesList { spec } => shared(spec, usage),
+                RootFileReason::IncludePattern { spec, config_file } => {
+                    shared(spec, usage);
+                    shared(config_file, usage);
+                }
+                RootFileReason::Explicit | RootFileReason::DefaultInclude => {}
+            },
+            Import {
+                parent,
+                reference_text,
+                package_id,
+                ..
+            } => {
+                usage.js_string(STRINGS, parent);
+                usage.string(STRINGS, reference_text);
+                if let Some(id) = package_id {
+                    usage.js_string(STRINGS, id);
+                }
+            }
+            PathReference {
+                parent, specifier, ..
+            }
+            | LibraryReference { parent, specifier } => {
+                usage.js_string(STRINGS, parent);
+                usage.js_string(STRINGS, specifier);
+            }
+            TypeReference {
+                parent,
+                specifier,
+                package_id,
+                ..
+            }
+            | SyntheticImport {
+                parent,
+                specifier,
+                package_id,
+                ..
+            } => {
+                usage.js_string(STRINGS, parent);
+                usage.js_string(STRINGS, specifier);
+                if let Some(id) = package_id {
+                    usage.js_string(STRINGS, id);
+                }
+            }
+            AutomaticType {
+                name, package_id, ..
+            } => {
+                usage.js_string(STRINGS, name);
+                if let Some(id) = package_id {
+                    usage.js_string(STRINGS, id);
+                }
+            }
+            LibraryRoot(LibraryRootReason::Default { target }) => usage.string(STRINGS, target),
+            LibraryRoot(LibraryRootReason::Explicit { file_name }) => {
+                usage.string(STRINGS, file_name)
+            }
+            ContentMapperSupplemental { canonical } => usage.js_string(STRINGS, canonical),
+            Synthetic => {}
+        }
+    }
+}
+
 #[cfg(test)]
 #[path = "../tests/unit/loader/typed_error_source_tests.rs"]
 mod typed_error_source_tests;

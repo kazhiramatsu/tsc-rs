@@ -1087,6 +1087,10 @@ impl<P: std::borrow::Borrow<PreparedProgram>> PreparedModuleProvider<P> {
 impl<P: std::borrow::Borrow<PreparedProgram> + Sync> AuthoritativeModuleProvider
     for PreparedModuleProvider<P>
 {
+    fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
+        self.prepared().add_memory_usage(usage);
+    }
+
     fn checker_association_imports(
         &self,
     ) -> Vec<(

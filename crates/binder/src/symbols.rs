@@ -647,10 +647,6 @@ pub fn unescape_leading_underscores<'a>(escaped: impl Into<JsStr<'a>>) -> JsStr<
     }
 }
 
-#[cfg(test)]
-#[path = "../tests/unit/symbols/tests.rs"]
-mod tests;
-
 /// The empty member table every fresh symbol starts with: one shared
 /// allocation per thread, so that binding files on several threads never
 /// contends on one reference count (a process-wide table made every symbol
@@ -663,3 +659,16 @@ pub fn empty_symbol_table() -> Arc<SymbolTable> {
     }
     EMPTY.with(Arc::clone)
 }
+
+impl SymbolArena {
+    pub fn record_heap_bytes(&self) -> usize {
+        self.symbols.heap_capacity_bytes()
+    }
+    pub fn declaration_store_bytes(&self) -> usize {
+        self.declarations.live_bytes()
+    }
+}
+
+#[cfg(test)]
+#[path = "../tests/unit/symbols/tests.rs"]
+mod tests;

@@ -638,7 +638,7 @@ pub fn plan_source_requests_retaining_syntax(
     let (plan, parsed) = plan_module_requests_worker(source, options, true, false, cache)?;
     let syntax = match parsed {
         PlanningParse::Parsed(parsed) => {
-            PreparsedSyntax::new(*parsed, (started, std::time::Instant::now()))
+            PreparsedSyntax::new(parsed, (started, std::time::Instant::now()))
         }
         PlanningParse::Cached(parse) => PreparsedSyntax::cached(parse),
     };

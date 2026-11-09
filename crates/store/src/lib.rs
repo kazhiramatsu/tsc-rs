@@ -55,6 +55,48 @@ mod allocator;
 #[cfg(not(target_family = "wasm"))]
 pub use allocator::MiMalloc;
 
+/// Resident bytes in complete pages entirely inside a Vec's unused requested
+/// capacity. This observes mappings without reading/faulting the spare room.
+/// It is neither allocator usable size nor a physical-footprint measurement.
+/// Unsupported platforms or failed OS queries return None.
+pub fn resident_vec_tail_bytes<T>(values: &Vec<T>) -> Option<usize> {
+    if values.capacity() == values.len() || std::mem::size_of::<T>() == 0 {
+        return Some(0);
+    }
+    #[cfg(unix)]
+    {
+        // SAFETY: sysconf takes a constant selector and no pointers.
+        let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
+        let page_size = usize::try_from(page_size).ok().filter(|size| *size != 0)?;
+        let start = values.as_ptr() as usize;
+        let used_end = start.checked_add(values.len().checked_mul(std::mem::size_of::<T>())?)?;
+        let allocated_end =
+            start.checked_add(values.capacity().checked_mul(std::mem::size_of::<T>())?)?;
+        let first = used_end.checked_add(page_size - 1)? / page_size * page_size;
+        let end = allocated_end / page_size * page_size;
+        if end <= first {
+            return Some(0);
+        }
+        let bytes = end - first;
+        let mut residency = vec![0u8; bytes / page_size];
+        // SAFETY: the query range contains only complete pages within the
+        // live Vec allocation. mincore observes page state without reading
+        // its uninitialized contents. The output holds one byte per page.
+        let result = unsafe {
+            libc::mincore(
+                first as *mut libc::c_void,
+                bytes,
+                residency.as_mut_ptr().cast(),
+            )
+        };
+        (result == 0).then(|| residency.iter().filter(|flag| **flag & 1 != 0).count() * page_size)
+    }
+    #[cfg(not(unix))]
+    {
+        None
+    }
+}
+
 pub mod claimed;
 pub mod frozen;
 pub mod recycle;
@@ -460,6 +502,16 @@ impl<T: StoreRecord> StoreVec<T> {
     /// The records' allocated room.
     pub fn capacity(&self) -> usize {
         self.capacity
+    }
+
+    /// Requested bytes in the main allocator. Published/claimed records
+    /// and separately mapped spill buffers belong to the store budget.
+    pub fn heap_capacity_bytes(&self) -> usize {
+        if self.placement == Placement::Heap {
+            self.capacity * std::mem::size_of::<T>()
+        } else {
+            0
+        }
     }
 
     /// The record at `index`, an index below the list's length: a list whose

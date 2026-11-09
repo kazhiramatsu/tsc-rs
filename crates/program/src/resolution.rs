@@ -876,6 +876,17 @@ pub use table::{
     ResolutionTableView, ResolvedModuleView,
 };
 
+impl PackageId {
+    pub(crate) fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
+        for text in [&self.name, &self.submodule_name, &self.version]
+            .into_iter()
+            .chain(self.peer_dependencies.iter())
+        {
+            usage.js_string("strings: stable owners", text);
+        }
+    }
+}
+
 #[cfg(test)]
 #[path = "../tests/unit/resolution/extension_case_tests.rs"]
 mod extension_case_tests;

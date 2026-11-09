@@ -436,3 +436,23 @@ impl<Q: NameKey> std::ops::Index<Q> for SymbolTable {
         self.get(key).expect("symbol table key exists")
     }
 }
+
+impl EscapedNameSet {
+    /// IndexSet's public entry capacity, plus an estimated hash index.
+    /// The dense entries carry both a cached hash and an EscapedName.
+    pub fn memory_usage(&self) -> (usize, usize, usize) {
+        let record = std::mem::size_of::<(usize, EscapedName)>();
+        let cap = self.0.capacity();
+        let buckets = if cap == 0 {
+            0
+        } else {
+            (cap + 1).next_power_of_two()
+        };
+        let controls = if cap == 0 { 0 } else { buckets + 16 };
+        (
+            self.0.len(),
+            self.0.len() * (record + std::mem::size_of::<usize>()) + controls,
+            cap * record + buckets * std::mem::size_of::<usize>() + controls,
+        )
+    }
+}

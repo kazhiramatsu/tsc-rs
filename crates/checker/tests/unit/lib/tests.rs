@@ -8010,3 +8010,68 @@ fn the_serial_check_with_an_operation_leaks_what_the_no_emit_check_leaks() {
         "leaked: the document and the checker state keep the text, as on the no-emit route"
     );
 }
+
+#[test]
+fn snapshot_serves_every_source_after_program_staging_is_dropped() {
+    let files = [
+        InputFile::new("/a.ts", "export const a = 1;"),
+        InputFile::new("/b.ts", "export const b = 'two';"),
+        InputFile::new("/c.ts", "export interface C { value: boolean; }"),
+    ];
+    let options = CompilerOptions::default();
+    for workers in [
+        WorkerBudget::serial(),
+        WorkerBudget::new(std::num::NonZeroUsize::new(3).unwrap()),
+    ] {
+        let domain = IdentityDomain::new();
+        let mut counters = CheckWorkCounters::default();
+        let ParsedProgramInputs {
+            program_sources, ..
+        } = parse_program_inputs(
+            &[],
+            &files,
+            0,
+            &options,
+            "".into(),
+            &domain,
+            None,
+            &mut counters,
+            workers,
+            None,
+        );
+        let weak: Vec<_> = program_sources.iter().map(Arc::downgrade).collect();
+        let data = bind_sources_in_program_order(&program_sources, &domain, workers, None);
+        let mut store = EphemeralDocumentStore::with_documents(domain, []);
+        for (source, data) in program_sources.iter().zip(data) {
+            store
+                .publish(Arc::clone(source), data)
+                .expect("publish source");
+        }
+        let facts = vec![ProgramFileFacts::ORDINARY; program_sources.len()];
+        let snapshot = store
+            .into_snapshot_with_file_facts(facts)
+            .expect("snapshot");
+        drop(program_sources);
+        assert_eq!(snapshot.documents().len(), files.len());
+        let state = state::CheckerState::from_snapshot(&snapshot, &options);
+        for (index, (input, weak)) in files.iter().zip(weak).enumerate() {
+            let source = &snapshot.document(index).parsed.source;
+            assert_eq!(
+                Arc::strong_count(source),
+                1,
+                "only the snapshot owns the source"
+            );
+            assert_eq!(Arc::as_ptr(source), weak.as_ptr(), "same source allocation");
+            assert_eq!(source.file_name, input.name);
+            assert!(Arc::ptr_eq(source.snapshot(), input.snapshot()));
+            assert_eq!(source.text(), input.text());
+            assert!(std::ptr::eq(state.binder.source(index), source.as_ref()));
+            for node in source.arena.node_ids() {
+                assert!(std::ptr::eq(
+                    state.binder.source_of_node(node),
+                    source.as_ref()
+                ));
+            }
+        }
+    }
+}

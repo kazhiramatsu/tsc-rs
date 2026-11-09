@@ -751,6 +751,70 @@ impl<'a> ResolvedModuleView<'a> {
     }
 }
 
+impl ResolutionTable {
+    pub(crate) fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
+        usage.vec("resolution rows", &self.modules);
+        usage.vec("resolution lookup and ranges", &self.module_lookup);
+        usage.vec("resolution lookup and ranges", &self.source_ranges);
+        usage.vec("resolution package ids", &self.package_ids);
+        for package in &self.package_ids {
+            package.add_memory_usage(usage);
+        }
+        for row in &self.modules {
+            usage.js_string("strings: stable owners", &row.specifier);
+            if let Target::Unloaded { path, .. } = &row.target {
+                usage.add(
+                    "resolution boxed paths",
+                    1,
+                    std::mem::size_of::<ProgramPath>(),
+                    std::mem::size_of::<ProgramPath>(),
+                );
+                path.add_memory_usage(usage);
+            }
+            if let Some(rare) = &row.rare {
+                usage.add(
+                    "resolution rare rows",
+                    1,
+                    std::mem::size_of::<Rare>(),
+                    std::mem::size_of::<Rare>(),
+                );
+                for path in [
+                    &rare.resolved_file,
+                    &rare.original_path,
+                    &rare.alternate_result,
+                ]
+                .into_iter()
+                .flatten()
+                {
+                    path.add_memory_usage(usage);
+                }
+                usage.diagnostics(&rare.diagnostics);
+                if let Some(ModuleExtension::Arbitrary(text)) = &rare.arbitrary_extension {
+                    usage.js_string("strings: stable owners", text);
+                }
+            }
+        }
+        usage.btree(
+            "type-reference resolution tree (estimate)",
+            &self.type_references,
+        );
+        for (key, value) in &self.type_references {
+            key.origin.canonical_path().add_memory_usage(usage);
+            usage.js_string("strings: stable owners", &key.specifier);
+            usage.diagnostics(&value.diagnostics);
+            if let ResolutionOutcome::Resolved(target) = &value.outcome {
+                target.target.add_memory_usage(usage);
+                if let Some(path) = &target.original_path {
+                    path.add_memory_usage(usage);
+                }
+                if let Some(package) = &target.package_id {
+                    package.add_memory_usage(usage);
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 #[path = "../tests/unit/resolution_table.rs"]
 mod tests;

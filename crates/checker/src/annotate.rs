@@ -37,12 +37,12 @@ pub(crate) struct DeferredReferenceMembers {
 }
 
 impl DeferredReferenceMembers {
-    pub(crate) fn heap_bytes(&self) -> usize {
+    pub(crate) fn heap_bytes(&self, usage: &mut tsc_diagnostics::MemoryUsage) -> usize {
         std::mem::size_of_val(&*self.unaffected)
             + self.instantiated.as_deref().map_or(0, |table| {
                 std::mem::size_of::<MemberTable>() + table.heap_bytes()
             })
-            + self.bases.heap_bytes()
+            + self.bases.heap_bytes_once(usage)
     }
 }
 
@@ -11245,6 +11245,17 @@ impl<'a> CheckerState<'a> {
     }
 }
 
+/// tsgo thisAssignmentDeclarationKind (TypeScript 7.1).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ThisAssignmentDeclarationKind {
+    None,
+    Typed,
+    Constructor,
+    Method,
+}
+
+pub(crate) use tsc_syntax::{published_text_js, published_text_utf8};
+
 #[cfg(test)]
 #[path = "../tests/unit/annotate/tests.rs"]
 mod tests;
@@ -11309,14 +11320,3 @@ mod js_assignment_widening_tests;
 #[cfg(test)]
 #[path = "../tests/unit/annotate/bigint_annotation_tests.rs"]
 mod bigint_annotation_tests;
-
-/// tsgo thisAssignmentDeclarationKind (TypeScript 7.1).
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ThisAssignmentDeclarationKind {
-    None,
-    Typed,
-    Constructor,
-    Method,
-}
-
-pub(crate) use tsc_syntax::{published_text_js, published_text_utf8};

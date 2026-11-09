@@ -587,6 +587,7 @@ pub fn push_decimal(result: &mut String, value: u32) {
 pub struct TypesMemory {
     pub types: usize,
     pub type_bytes: usize,
+    pub type_record_heap_bytes: usize,
     /// Type lists, texts and payloads the type records own on the heap.
     pub type_heap_bytes: usize,
     pub string_literals: usize,
@@ -615,6 +616,7 @@ impl TypeTables {
         let mut usage = TypesMemory {
             types: self.types.len(),
             type_bytes: self.types.len() * std::mem::size_of::<Type>(),
+            type_record_heap_bytes: self.types.heap_capacity_bytes(),
             ..TypesMemory::default()
         };
         // What the records refer to by id (alias argument lists and member
@@ -4182,16 +4184,13 @@ pub fn js_number_to_string(value: f64) -> String {
     }
 }
 
-#[cfg(test)]
-#[path = "../tests/unit/tables/tests.rs"]
-mod tests;
-
 /// tsgo's limits on a template literal type built by getTemplateLiteralType
 /// (checker.go:29610-29616): its text, in UTF-8 bytes as Go counts them,
 /// and its placeholders. Recursive instantiations that double the text or
 /// the placeholders every step reach them long before the tail-recursion
 /// limit (TypeScript issue 63271).
 pub const MAX_TEMPLATE_LITERAL_TYPE_LENGTH: usize = 50_000_000;
+
 pub const MAX_TEMPLATE_LITERAL_TYPE_SPANS: usize = 100_000;
 
 /// A template literal type over the limits; the checker reports TS2589.
@@ -4240,3 +4239,7 @@ fn utf8_length(text: &TemplateText) -> usize {
     }
     length
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/tables/tests.rs"]
+mod tests;

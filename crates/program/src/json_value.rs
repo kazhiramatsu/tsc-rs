@@ -327,3 +327,32 @@ pub fn append_json_quoted(value: JsStr<'_>, result: &mut String) {
     }
     result.push('"');
 }
+
+impl JsonValue {
+    // Only commutative ownership sums; printed rows are ordered by BTreeMap.
+    #[allow(clippy::iter_over_hash_type)]
+    pub fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
+        const STRINGS: &str = "strings: stable owners";
+        match self {
+            Self::String(text) => usage.js_string(STRINGS, text),
+            Self::Array(values) => {
+                usage.vec("host JSON arrays and tables", values);
+                for value in values {
+                    value.add_memory_usage(usage);
+                }
+            }
+            Self::Object(object) => {
+                usage.vec("host JSON arrays and tables", &object.entries);
+                usage.hash_map("host JSON arrays and tables", &object.indices);
+                for (key, value) in &object.entries {
+                    usage.js_string(STRINGS, key);
+                    value.add_memory_usage(usage);
+                }
+                for key in object.indices.keys() {
+                    usage.js_string(STRINGS, key);
+                }
+            }
+            Self::Null | Self::Bool(_) | Self::Number(_) => {}
+        }
+    }
+}

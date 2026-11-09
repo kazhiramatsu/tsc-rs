@@ -482,6 +482,8 @@ pub struct SubtreeCopy {
 pub struct SyntaxMemory {
     pub nodes: usize,
     pub node_bytes: usize,
+    /// Main-allocator record/metadata capacity; mapped stores are excluded.
+    pub heap_record_bytes: usize,
     pub arrays: usize,
     pub array_bytes: usize,
     pub array_items: usize,
@@ -569,6 +571,13 @@ pub const fn symbol_weight(kind: SyntaxKind) -> u32 {
 impl NodeArena {
     /// Add this arena's allocations to `usage`.
     pub fn add_memory_usage(&self, usage: &mut SyntaxMemory) {
+        usage.heap_record_bytes += self.nodes.heap_capacity_bytes()
+            + self.arrays.heap_capacity_bytes()
+            + self.array_items.heap_capacity_bytes()
+            + self.texts.heap_capacity_bytes()
+            + self.tails.heap_metadata_bytes()
+            + (self.transform_flags.capacity() + self.array_transform_flags.capacity())
+                * std::mem::size_of::<i32>();
         usage.nodes += self.nodes.len();
         usage.node_bytes += self.nodes.capacity() * std::mem::size_of::<Node>()
             + self.tails.chunk_words() * std::mem::size_of::<u32>()
