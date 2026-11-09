@@ -296,6 +296,50 @@ zod −0.14%、vue −0.16%；footprint VS Code 2,617〜2,634 → 2,581〜2,599�
 mimalloc の purge 設定（G1 無効化：命令 −0.2% だが footprint +7〜+20 MiB；G2 reset 化：中立で footprint 増）は不採用——現状の 10 ms decommit が peak に最適。
 main `ede843471` の見込み：VS Code ≈ 105.8 G（1.24×）、1 thread の peak ≈ 2,540 MiB（統合再計測は batch の後）。
 
+**結果 8（2026-11-09 08:2x〜11:4x、memory lane の決着、front end の census の結論、所有者の方針「一つの共有状態」；base main `a93bb8389`、1 thread、
+9 round、低い峰、8 案件出力同一）。** `algo-a` U1b+U2（結果 7 の数値）→ [#937](https://github.com/kazhiramatsu/tsc-rs/pull/937)（types/checker test、
+diffout 8/8、counter 同一、4-checker 制御 = 既知 4 件）→ **merge `d28048bef`**（hosted run
+[42539021192](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42539021192)）。`caches-2` C2+C4（結果 7 の数値）→
+[#938](https://github.com/kazhiramatsu/tsc-rs/pull/938) → **merge `d9423654b`**（hosted run
+[42543368858](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42543368858)）。`members` M4（resolved members の record 80 → 48 B：凍結した
+`Arc<[SymbolId]>` 1 本を members と properties が共有（94% が同一）、索引は 9 member 以上だけ box、構築は完成した表から直接埋めて named member の選別を
+同じ loop で）：命令 **VS Code −0.13%**、playwright −0.15%、next −0.12%、zod −0.12%、vue −0.10%、ts/effect −0.05%、hono ±0；footprint VS Code
+2,620〜2,633 → 2,548〜2,569（≈ **−55**）、zod −21、next −15、effect −12、playwright −6；memory report の resolved members 200.8 → 154.0 MiB →
+[#939](https://github.com/kazhiramatsu/tsc-rs/pull/939)（checker test 1,912 本、diffout 8/8、counter 同一、4-checker 制御 = 既知 4 件；hosted 検査中）。
+`signatures` S4（Signature 136 → 72 B：pool の span をやめ parameters/type parameters を `Box<[_]>`、rare 48 B を索引で）：footprint VS Code
+2,616〜2,624 → 2,568〜2,595（−30〜−48）、next −13、effect −8 だが命令は **8 案件すべて増**（VS Code +0.22%、hono +0.42%、effect +0.30%）→ 不採用。原因は
+未 profile；読み自体は pool の load と範囲検査を失くしているので、VS Code で 603,979 本の parameter list を個別に box する割り当てが疑わしい。中立形は
+「list は bump pool のまま、rare tail の分離だけ」で、signatures は保留。mimalloc の purge 設定は結果 7 のとおり不採用。
+
+front end の census（`fe-census`：F1 常駐 2,212 MiB の内訳 = 構文 630 + binder 336 + checker 1,110 + 文字 136、F2 node payload の kind 別の空き、F3 木
+602 MiB（tsrs 668、tsgo 1,403 より小さい）、F4 relocation の棚卸し）から PLAN-fe を 5 行立てたが、実装 lane は **所有権の壁**に当たった。`fe-sym`（symbol/flow
+を node record へ）：binder は registry と snapshot が共有する `ParsedDocument.source` の node record を借りて動き、program が所有する木の複製は存在しない
+（複製すれば +515 MiB）ので、node に書き込む行は現在の所有 model では成立しない。読みの census：VS Code で `node_symbol` 14,896,419 回、うち 68.5% が
+`check.rs:5473`（6.17 M）と `flow.rs:4084`（4.04 M）の bare id 経路。`fe-flags`：G（binder flags を `Node.flags` へ）は同じ壁に加えて parser の
+IDENTIFIER_IS_IN_JS_DOC_NAMESPACE と binder の HAS_ASYNC_FUNCTIONS が同じ bit を共有していて保留；A（NodeArrayRecord 20 → 16 B、len 14 bit + 溢れ記述子）は
+出力・748 emit file・counter 同一で header −11.7 MiB だが、命令 +0.07〜+0.16%（8 案件すべて増）で **peak は下がらず**（VS Code 2,602〜2,625 → 2,593〜2,630、
+effect は +2〜+6）→ 不採用；T（tail chunk）は slack 2.9 MiB で 0 B。front end の fingerprint oracle は a93bb8389 で基準を取り直し（143,190 行、
+`target/syntax-fingerprint/fingerprints-a93bb8389.tsv`）、A との比較は 0 差。heap の owner census（`heap-owners`：記録外の owner 179 MiB、loader の staging
+17 + 12 MiB が回収可能、巨大 request は arena の予約）から `heap-staging` lane（進行中）。
+
+memory 行の総括：**通ったのは複写・間接参照の除去と事前確保だけ**（N4、M4、K2〜K4、C2/C4）。hot な record を bit 詰めや sentinel や box で縮める形は、
+footprint を 12〜55 MiB 減らしても命令が +0.1〜+0.5% 増え（M2/M3、S2〜S4、A）、owner の法（出力同一、命令で判定）では採れない。
+
+**所有者の方針（2026-11-09 10:5x）：**「parser/binder/checker/emitter で共通の一つの状態を共有するようにしたい。バラバラになってしまったのは、parser、binder、
+checker、emitter というふうに順番に完成させていった影響が大きい」「Rust の所有権を写していけばコピーや重複はないはず」。census が示した残差——binder の
+per-node dense 表 113 MiB、binder の SymbolTable → checker の MemberTable の複写（約 95k 本の完全一致 + 416k 本の複写/合成）、relocation 1.4%、check 中に生きる
+loader の表 ≈ 60 MiB、文字列 clone 18 MiB、emitter の木の複製——はいずれも phase 間で作り直している状態で、fe-sym/fe-flags が当たった壁はその構造的な原因
+である。設計 lane `fork-design` の結論（`handover/arch-arena/forkdesign/`）：目標は tsgo と同じ形、すなわち parser → binder へ move で渡した builder を
+freeze した **一つの `Arc<BoundDocument>`**（text、構文、file 局所の symbol/flow/flags を node 自身に）、同一性は `(DocumentId, LocalId)` で checker の表は
+file ごとの base を足した 32-bit 投影 key、globals/augmentation の merge は checker 所有、emitter は frozen document を借り transform 状態は session 表へ。
+段階は S0（契約・零 cost の view・field × kind 行列・hot read の試算）→ S1（owner 付き view）→ S2（move による公開、file 局所 id：relocation の書き換えが消える）→
+S3（symbol/flow/flags を node へ、dense 表 4〜6 の削除）→ S4（merge の監査）→ S5（binder/checker の SymbolTable 統一 = lane `tables-unify`）→ S6（ordinal と
+worker）→ S7（emitter の木の複製除去）→ S8（incremental parser の削除）、見積 52〜75 人日。期待は memory が核で 36〜108 MiB（条件付き）＋表統一 20〜40 ＋
+staging 0〜29；命令は正の合計をまだ主張できず（bare id の `node_symbol` 読み 10.2 M 回が主 risk、relocation 143 ms は時間の露出）、S0 の hot-read 試算を gate に
+して S1 以降へ進むかを決める。所有者は「そうしてください」と承認し、`fork-S0` と `tables-unify` の lane を起動した（進行中）。多 thread（4 checker の wall と
+work stealing の再評価）は所有者の要請で視野に残し、同一性の目標（tsgo-N 同一か、割り当て非依存の正準出力か）の判断待ち；steal の frontier 計測は lane の後の
+静かな窓で行う。統合再計測（統合値 6）は #939 の merge の後。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と

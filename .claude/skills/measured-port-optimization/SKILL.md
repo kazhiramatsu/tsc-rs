@@ -105,3 +105,11 @@ container growth, allocating predicates); (c) work-count divergence (types/insta
   `target/` and survive. Resume a lane with a short "finish" brief that names what it had already produced; re-run a chain from its log.
 - Accounted bytes are not footprint (type32): the memory report's types row fell 18 MiB on VS Code while the peak footprint rounds moved
   ≈ 4 MiB; judge a memory row by the footprint distribution, and record the accounted rows beside it.
+- Memory rows (2026-11-09, lanes members/signatures/nodelinks/fe-flags): shrinking a hot record by encoding — a representation tag or
+  handle (M2 +0.54%), a boxed list in place of a pooled span (S4 +0.22%, 604k allocations), a bit-packed length with a sentinel (A +0.16%
+  for 12 MiB of headers that were not even at the peak) — costs 0.1–0.5% every time. What paid: removing a copy or an indirection
+  (M4 −0.13% / −55 MiB), pre-sizing and fixed blocks (N4 −0.15% / −37 MiB), packed hash keys (K2–K4, C2/C4). Judge a memory row by the
+  footprint distribution at the peak, and by the hot read's load count before building it.
+- Ownership first (fe-sym/fe-flags, 2026-11-09): a row that writes binder facts into the shared parsed tree cannot land while the binder
+  borrows the registry's `ParsedDocument.source` — the walls are structural (who owns the document), not layout; see the shared-document
+  design in `handover/arch-arena/forkdesign/` before proposing another in-node row.
