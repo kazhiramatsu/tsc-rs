@@ -123,3 +123,14 @@ container growth, allocating predicates); (c) work-count divergence (types/insta
 - Four-checker memory under determinism (fourchk-mem, dup-census): the +252 MiB of accounted growth is 264 MiB of other checkers' declaration
   records minus own, plus 84 MiB of capacity (74 slack); binder tables are already shared by pointer; representation rows can shave ~20–30 MiB.
   The 4-thread peak falls with the 1-thread structural rows, not with per-checker tricks.
+- A lane patch written on an older base can apply cleanly to main and still not compile (S2b on #940: a consumed Vec dropped twice, a test on
+  the old publish API): run `cargo check` and `cargo test --no-run` on main + patch right after the index-only apply check, before a chain.
+- Bimodality is not VS Code-only (2026-11-09): zod (modes ≈ 1.8 % apart) and next (≈ 1.5 %) are bimodal and binary-independent; one 9-round run
+  put 7/9 candidate rounds in the high mode and the lower-half median reported +1.47 % for a patch that never executes in noEmit. Plausibility
+  first (a row cannot regress a configuration it does not run), then the sorted rounds, then 15 rounds for that case; `lowmode.py` should report
+  the lowest cluster (pending).
+- Sequence chains that build (identity gates) after the measurement queue, not interleaved with it — a quiet check at start is not enough — and
+  give grep-based start conditions a text the predecessor prints once and never in its own wait echo (r9 gates fired early on their own text).
+- Emitter rows (census → measured, 2026-11-09): skipping decorator-free subtrees in the legacy decorator pass cut VS Code emit by 7.17 % (−17.3 G;
+  visits −70 %), while removing a 132 MB text copy (R3) or a 9,244-unit path plan (R9) moved instructions by ≤ 0.1 % and only footprint (−10 /
+  −6 MiB on the TypeScript bundle). Visits of 14 M nodes cost 17 G; a memcpy of 132 MB costs almost nothing — price the walk, not the bytes.
