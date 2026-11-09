@@ -672,6 +672,45 @@ fn anonymous_or_mapped_mapper(
 // Preserve the existing imports while the Go algorithms live in one module.
 pub use crate::goslices::{sort_func_like_go, sort_types_like_tsgo};
 
+/// Merge the ascending runs collected by `add_types_to_union`. Pair runs
+/// in balanced passes, so many singleton inputs take O(n log r) work rather
+/// than repeatedly moving a growing prefix. Keep occurrences until the
+/// caller deduplicates the final list, after all flags have been collected.
+pub(crate) fn merge_union_runs(
+    types: &mut Vec<TypeId>,
+    starts: &mut Vec<usize>,
+    mut less: impl FnMut(TypeId, TypeId) -> bool,
+) {
+    if starts.len() < 2 {
+        return;
+    }
+    let mut scratch = Vec::with_capacity(types.len());
+    while starts.len() > 1 {
+        scratch.clear();
+        let next_len = starts.len().div_ceil(2);
+        for (run, i) in (0..starts.len()).step_by(2).enumerate() {
+            let start = starts[i];
+            let middle = starts.get(i + 1).copied().unwrap_or(types.len());
+            let end = starts.get(i + 2).copied().unwrap_or(types.len());
+            starts[run] = start;
+            let (mut left, mut right) = (start, middle);
+            while left < middle && right < end {
+                if less(types[right], types[left]) {
+                    scratch.push(types[right]);
+                    right += 1;
+                } else {
+                    scratch.push(types[left]);
+                    left += 1;
+                }
+            }
+            scratch.extend_from_slice(&types[left..middle]);
+            scratch.extend_from_slice(&types[right..end]);
+        }
+        starts.truncate(next_len);
+        std::mem::swap(types, &mut scratch);
+    }
+}
+
 /// Where `ty` sits in `types`, which is sorted by `order`. Explicit ID
 /// ordering retains its existing search; content ordering uses Go's lower
 /// bound and final equality comparison, adapted to the existing `Result` API.

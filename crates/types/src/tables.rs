@@ -371,6 +371,13 @@ pub struct TypeTables {
     instantiations: InstantiationCache,
 }
 
+// Private union-only summaries; constituent propagation masks exclude them.
+// Only final flattened lists are marked. Raw origins stay unknown.
+const UNION_MERGE_MIN_MEMBERS: usize = 32;
+const UNION_MERGE_MIN_INPUTS: usize = 8;
+const UNION_MEMBERS_CONTENT_ORDERED: ObjectFlags = ObjectFlags::from_bits(1 << 28);
+const UNION_MEMBERS_ID_ORDERED: ObjectFlags = ObjectFlags::from_bits(1 << 31);
+
 /// A position in an interned list that does not borrow the tables, so a
 /// loop that mutates the checker reads the list's items one at a time
 /// (interned lists never change: the items read are the ones a copy would
@@ -2147,7 +2154,11 @@ impl TypeTables {
                 ObjectFlags::CONTAINS_INTERSECTIONS.bits()
             } else {
                 0
-            }),
+            }) | if order.is_some() {
+                UNION_MEMBERS_CONTENT_ORDERED.bits()
+            } else {
+                UNION_MEMBERS_ID_ORDERED.bits()
+            },
         );
         self.get_union_type_from_sorted_list(
             type_set,
@@ -2230,11 +2241,9 @@ impl TypeTables {
     /// tsc-hash: 14b6eea2a85c949d2f78fa0e81a934b7a2168d3e5c42fb693dbcbdee0e65192c
     /// tsc-span: _tsc.js:61358-61367
     ///
-    /// With content ordering, append filtered members in source traversal
-    /// order, keeping duplicate occurrences until after a stable merge of
-    /// sorted runs. This gives Go's stable-sort result under compare_types'
-    /// total order, including its final type-id tie breaker. Explicit ID ordering retains the
-    /// one-by-one ID insertion path.
+    /// Merge a large, known-sorted union input for pairs or batches of at
+    /// least eight inputs. Other shapes keep the flatten/sort or ID-insert
+    /// path. No member-order detection is performed during collection.
     pub fn add_types_to_union(
         &mut self,
         order: TypeOrder<'_>,
@@ -2242,6 +2251,13 @@ impl TypeTables {
         includes: i32,
         types: &[TypeId],
     ) -> i32 {
+        if type_set.is_empty() {
+            if let Some(includes) =
+                self.try_merge_large_union_inputs(order, type_set, includes, types)
+            {
+                return includes;
+            }
+        }
         let Some(ctx) = order else {
             return self.add_types_to_union_in_place(order, type_set, includes, types);
         };
@@ -2298,6 +2314,211 @@ impl TypeTables {
             }
         }
         includes
+    }
+
+    /// The marker is a construction invariant of the final, flattened list.
+    /// Raw origins and lists built in the other order have no matching marker.
+    fn union_input_run<'a>(
+        &'a self,
+        order: TypeOrder<'_>,
+        input: &'a [TypeId],
+    ) -> Option<&'a [TypeId]> {
+        let ty = input[0];
+        if !self.flags_of(ty).intersects(TypeFlags::UNION) {
+            return Some(input);
+        }
+        let marker = if order.is_some() {
+            UNION_MEMBERS_CONTENT_ORDERED
+        } else {
+            UNION_MEMBERS_ID_ORDERED
+        };
+        self.object_flags_of(ty)
+            .intersects(marker)
+            .then(|| self.members_of(ty))
+    }
+
+    fn try_merge_large_union_inputs(
+        &self,
+        order: TypeOrder<'_>,
+        type_set: &mut Vec<TypeId>,
+        mut includes: i32,
+        types: &[TypeId],
+    ) -> Option<i32> {
+        let [left_type, right_type] = types else {
+            return if types.len() >= UNION_MERGE_MIN_INPUTS {
+                self.try_merge_large_union_runs(order, type_set, includes, types)
+            } else {
+                None
+            };
+        };
+        // Two constant-time length checks, without walking the input lists.
+        let large = |ty| match self.type_of(ty).data {
+            TypeData::Union { types, .. } => self.list(types).len() >= UNION_MERGE_MIN_MEMBERS,
+            _ => false,
+        };
+        if !large(*left_type) && !large(*right_type) {
+            return None;
+        }
+        let mut left = self.union_input_run(order, &types[..1])?;
+        let mut right = self.union_input_run(order, &types[1..])?;
+        for (i, &ty) in types.iter().enumerate() {
+            if i == 1 && left_type == right_type {
+                break;
+            }
+            if self.flags_of(ty).intersects(TypeFlags::UNION) {
+                if self.is_named_union_type(ty) {
+                    includes |= TypeFlags::UNION.bits();
+                }
+                #[cfg(feature = "perf-counters")]
+                crate::perf::union_collection(
+                    crate::perf::UnionCollectionSite::Recursive,
+                    self.members_of(ty).len(),
+                );
+            }
+        }
+        // Adjacent equal sources are visited once, as in the base collector.
+        if left_type == right_type {
+            right = &[];
+        }
+        type_set.reserve(left.len() + right.len());
+        #[cfg(feature = "perf-counters")]
+        let sort_length = left.len() + right.len();
+        let less = |a, b| {
+            #[cfg(feature = "perf-counters")]
+            crate::perf::union_sort_comparison(sort_length);
+            self.union_input_less(order, a, b)
+        };
+        // For a small addition to a large run, locate insertion boundaries
+        // with binary search instead of comparing against each long member.
+        let short = left.len().min(right.len());
+        let long = left.len().max(right.len());
+        if short > 0 && short * (usize::BITS - long.leading_zeros()) as usize * 2 < long {
+            let (short_run, mut long_run) = if left.len() < right.len() {
+                (left, right)
+            } else {
+                (right, left)
+            };
+            for &ty in short_run {
+                let index = long_run.partition_point(|&member| member != ty && less(member, ty));
+                for &member in &long_run[..index] {
+                    if self.include_type_in_union(&mut includes, member) {
+                        type_set.push(member);
+                    }
+                }
+                if self.include_type_in_union(&mut includes, ty) {
+                    type_set.push(ty);
+                }
+                long_run = &long_run[index..];
+                if long_run.first() == Some(&ty) {
+                    long_run = &long_run[1..];
+                }
+            }
+            for &member in long_run {
+                if self.include_type_in_union(&mut includes, member) {
+                    type_set.push(member);
+                }
+            }
+            return Some(includes);
+        }
+        while let (Some(&a), Some(&b)) = (left.first(), right.first()) {
+            let ty = if a == b {
+                left = &left[1..];
+                right = &right[1..];
+                a
+            } else if less(a, b) {
+                left = &left[1..];
+                a
+            } else {
+                right = &right[1..];
+                b
+            };
+            if self.include_type_in_union(&mut includes, ty) {
+                type_set.push(ty);
+            }
+        }
+        for &ty in left.iter().chain(right) {
+            if self.include_type_in_union(&mut includes, ty) {
+                type_set.push(ty);
+            }
+        }
+        Some(includes)
+    }
+
+    fn union_input_less(&self, order: TypeOrder<'_>, a: TypeId, b: TypeId) -> bool {
+        match order {
+            Some(ctx) => crate::type_order::compare_types(self, ctx, a, b).is_lt(),
+            None => a < b,
+        }
+    }
+
+    fn try_merge_large_union_runs(
+        &self,
+        order: TypeOrder<'_>,
+        type_set: &mut Vec<TypeId>,
+        mut includes: i32,
+        types: &[TypeId],
+    ) -> Option<i32> {
+        let mut large = false;
+        let mut capacity = 0;
+        // Only batches of at least eight reach this header-only preflight.
+        // Unknown order falls back before collecting or changing flags.
+        for input in types.chunks(1) {
+            let run = self.union_input_run(order, input)?;
+            large |= run.len() >= UNION_MERGE_MIN_MEMBERS;
+            capacity += run.len();
+        }
+        if !large {
+            return None;
+        }
+        type_set.reserve(capacity);
+        let mut starts = Vec::new();
+        let mut last = None;
+        for input in types.chunks(1) {
+            let ty = input[0];
+            if last == Some(ty) {
+                continue;
+            }
+            last = Some(ty);
+            let start = type_set.len();
+            if self.flags_of(ty).intersects(TypeFlags::UNION) {
+                if self.is_named_union_type(ty) {
+                    includes |= TypeFlags::UNION.bits();
+                }
+                let members = self.members_of(ty);
+                #[cfg(feature = "perf-counters")]
+                crate::perf::union_collection(
+                    crate::perf::UnionCollectionSite::Recursive,
+                    members.len(),
+                );
+                for &member in members {
+                    if self.include_type_in_union(&mut includes, member) {
+                        type_set.push(member);
+                    }
+                }
+            } else if self.include_type_in_union(&mut includes, ty) {
+                type_set.push(ty);
+            }
+            // Each input contributes an ascending subsequence. Compare
+            // boundaries only; no comparisons inside an interned list.
+            if start > 0
+                && type_set.len() > start
+                && self.union_input_less(order, type_set[start], type_set[start - 1])
+            {
+                if starts.is_empty() {
+                    starts.push(0);
+                }
+                starts.push(start);
+            }
+        }
+        #[cfg(feature = "perf-counters")]
+        let sort_length = type_set.len();
+        crate::type_order::merge_union_runs(type_set, &mut starts, |a, b| {
+            #[cfg(feature = "perf-counters")]
+            crate::perf::union_sort_comparison(sort_length);
+            self.union_input_less(order, a, b)
+        });
+        type_set.dedup();
+        Some(includes)
     }
 
     /// tsc-port: removeRedundantLiteralTypes @6.0.3
@@ -2477,12 +2698,25 @@ impl TypeTables {
             && self
                 .flags_of(types[1])
                 .intersects(TypeFlags::BOOLEAN_LITERAL);
-        let object_flags = ObjectFlags::from_bits(
-            precomputed_object_flags.bits()
-                | self
-                    .get_propagating_flags_of_types(&types, TypeFlags::NULLABLE)
-                    .bits(),
-        );
+        // Recompute the summary from the final list, never from a source
+        // union's precomputed flags (filtering may have changed its members).
+        let mut object_flags =
+            precomputed_object_flags.bits() & !ObjectFlags::NON_NULLABLE_UNION.bits();
+        let mut kinds = 0;
+        for &member in &types {
+            let member_flags = self.flags_of(member);
+            kinds |= member_flags.bits();
+            if !member_flags.intersects(TypeFlags::NULLABLE) {
+                object_flags |=
+                    self.object_flags_of(member).bits() & ObjectFlags::PROPAGATING_FLAGS.bits();
+            }
+        }
+        let non_nullable_kinds =
+            TypeFlags::DEFINITELY_NON_NULLABLE.bits() & !TypeFlags::INSTANTIABLE.bits();
+        if kinds & !non_nullable_kinds == 0 {
+            object_flags |= ObjectFlags::NON_NULLABLE_UNION.bits();
+        }
+        let object_flags = ObjectFlags::from_bits(object_flags);
         let mut flags = TypeFlags::UNION;
         if boolean_pair {
             flags = TypeFlags::from_bits(flags.bits() | TypeFlags::BOOLEAN.bits());
@@ -2773,7 +3007,9 @@ impl TypeTables {
             let object_flags = ObjectFlags::from_bits(
                 self.object_flags_of(ty).bits()
                     & (ObjectFlags::PRIMITIVE_UNION.bits()
-                        | ObjectFlags::CONTAINS_INTERSECTIONS.bits()),
+                        | ObjectFlags::CONTAINS_INTERSECTIONS.bits()
+                        | UNION_MEMBERS_CONTENT_ORDERED.bits()
+                        | UNION_MEMBERS_ID_ORDERED.bits()),
             );
             return self.get_union_type_from_sorted_list(
                 filtered,

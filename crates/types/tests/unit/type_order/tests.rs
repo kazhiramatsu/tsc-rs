@@ -349,11 +349,10 @@ fn append_first_union_collection_preserves_members_flags_and_keys() {
     }
 }
 
-/// An ID prepass or early duplicate removal changes the unequal pairs
-/// compared here. Adjacent identical source unions are suppressed, while
-/// another occurrence after a filtered never still contributes its members.
+/// Adjacent identical source unions are suppressed, while another
+/// occurrence after a filtered never still contributes its members.
 #[test]
-fn union_sort_receives_traversal_order_and_duplicate_occurrences() {
+fn union_merge_preserves_duplicate_source_results() {
     use crate::{IdentityDomain, SymbolId, TypeTables, UnionReduction};
     let mut tables = TypeTables::new(true, false, &IdentityDomain::new());
     let ctx = TestOrderContext::default();
@@ -374,12 +373,173 @@ fn union_sort_receives_traversal_order_and_duplicate_occurrences() {
     sort_types_like_tsgo(&mut expected, |a, b| {
         super::compare_types(&tables, &ctx, a, b).is_lt()
     });
-    let expected_trace = ctx.symbol_comparisons.take();
     expected.dedup();
     let mut actual = Vec::new();
+    ctx.symbol_comparisons.borrow_mut().clear();
     tables.add_types_to_union(Some(&ctx), &mut actual, 0, &source);
     assert_eq!(actual, expected);
-    assert_eq!(ctx.symbol_comparisons.take(), expected_trace);
+    let actual_trace = ctx.symbol_comparisons.take();
+    let mut without_adjacent_duplicate = Vec::new();
+    tables.add_types_to_union(
+        Some(&ctx),
+        &mut without_adjacent_duplicate,
+        0,
+        &[left, tables.intrinsics.never, left, m, a, m],
+    );
+    assert_eq!(without_adjacent_duplicate, actual);
+    assert_eq!(ctx.symbol_comparisons.take(), actual_trace);
+}
+
+/// Independent flatten/ID-insert oracle, followed by the previous sorter
+/// for content order. Include raw nested origin lists and cross-order runs,
+/// so merging cannot silently assume every interned list uses this order.
+#[test]
+fn union_runs_match_flatten_insert_and_sort_in_both_orders() {
+    use crate::{
+        IdentityDomain, SymbolId, TypeData, TypeFlags, TypeId, TypeTables, UnionReduction,
+    };
+
+    fn old_collect(
+        t: &mut TypeTables,
+        out: &mut Vec<TypeId>,
+        mut flags: i32,
+        src: &[TypeId],
+    ) -> i32 {
+        let mut last = None;
+        for &ty in src {
+            if Some(ty) == last {
+                continue;
+            }
+            if let TypeData::Union { types, origin, .. } = t.type_of(ty).data {
+                if t.alias_symbol(ty).is_some() || origin.is_some() {
+                    flags |= TypeFlags::UNION.bits();
+                }
+                let members = t.list(types).to_vec();
+                flags = old_collect(t, out, flags, &members);
+            } else {
+                flags = t.add_type_to_union(None, out, flags, ty);
+            }
+            last = Some(ty);
+        }
+        flags
+    }
+
+    let ctx = TestOrderContext::default();
+    for strict in [false, true] {
+        let mut t = TypeTables::new(strict, false, &IdentityDomain::new());
+        let literals: Vec<_> = (0..65)
+            .map(|n| t.get_string_literal_type(&format!("s{:03}", 64 - n)))
+            .collect();
+        let content = t.get_union_type(Some(&ctx), &literals[..32], UnionReduction::None);
+        let ids = t.get_union_type(None, &literals[16..], UnionReduction::None);
+        t.set_alias(ids, Some(SymbolId::new(10)), None);
+        let nested = t.create_origin_union_or_intersection_type(
+            TypeFlags::UNION,
+            vec![content, content, t.intrinsics.never, ids, literals[0], ids],
+        );
+        let intersection = t.create_origin_union_or_intersection_type(
+            TypeFlags::INTERSECTION,
+            vec![t.intrinsics.string, t.intrinsics.number],
+        );
+        t.type_mut(intersection).object_flags = crate::ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE;
+        let parameter = t.create_synthesized_type_parameter(None);
+        let mut pool = literals.clone();
+        pool.extend([
+            content,
+            ids,
+            nested,
+            t.intrinsics.never,
+            t.intrinsics.undefined,
+            t.intrinsics.null,
+            t.intrinsics.null_widening,
+            t.intrinsics.wildcard,
+            t.intrinsics.error,
+            intersection,
+            parameter,
+        ]);
+        for order in [None, Some(&ctx as &dyn super::TypeOrderContext)] {
+            for n in [0, 1, 2, 3, 19, 20, 21, 41, 100, 257, 1024] {
+                let mut seed = 0x9e37_79b9_u32;
+                let mut source = Vec::new();
+                for _ in 0..n {
+                    seed ^= seed << 13;
+                    seed ^= seed >> 17;
+                    seed ^= seed << 5;
+                    let ty = pool[seed as usize % pool.len()];
+                    source.extend([ty, ty]);
+                }
+                for initial in [vec![], vec![literals[33]]] {
+                    let initial_flags = TypeFlags::INCLUDES_INSTANTIABLE.bits();
+                    let mut expected = initial.clone();
+                    let expected_flags = old_collect(&mut t, &mut expected, initial_flags, &source);
+                    if let Some(ctx) = order {
+                        crate::goslices::sort_union_types(&mut expected, |a, b| {
+                            super::compare_types(&t, ctx, a, b).is_lt()
+                        });
+                        expected.dedup();
+                    }
+                    let mut actual = initial;
+                    let actual_flags =
+                        t.add_types_to_union(order, &mut actual, initial_flags, &source);
+                    assert_eq!(
+                        actual,
+                        expected,
+                        "strict={strict}, content={}, n={n}",
+                        order.is_some()
+                    );
+                    assert_eq!(actual_flags, expected_flags);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn union_member_order_is_total_with_id_only_ties() {
+    use crate::{IdentityDomain, TypeTables, UnionReduction};
+    let ctx = TestOrderContext::default();
+    let mut t = TypeTables::new(true, false, &IdentityDomain::new());
+    let a = t.get_string_literal_type("a");
+    let z = t.get_string_literal_type("z");
+    let fresh = t.get_fresh_type_of_literal_type(a);
+    let one = t.get_number_literal_type(1.0);
+    let zero = t.get_number_literal_type(0.0);
+    let union = t.get_union_type(Some(&ctx), &[a, z], UnionReduction::None);
+    let parameter = t.create_synthesized_type_parameter(None);
+    let i = &t.intrinsics;
+    let types = [
+        a,
+        z,
+        fresh,
+        one,
+        zero,
+        union,
+        parameter,
+        i.any,
+        i.unknown,
+        i.string,
+        i.number,
+        i.boolean,
+        i.bigint,
+        i.es_symbol,
+        i.void,
+        i.undefined,
+        i.null,
+        i.never,
+        i.non_primitive,
+    ];
+    for &a in &types {
+        for &b in &types {
+            let ab = super::compare_types(&t, &ctx, a, b);
+            assert_eq!(ab.is_eq(), a == b);
+            assert_eq!(ab, super::compare_types(&t, &ctx, b, a).reverse());
+            for &c in &types {
+                if ab.is_le() && super::compare_types(&t, &ctx, b, c).is_le() {
+                    assert!(super::compare_types(&t, &ctx, a, c).is_le());
+                }
+            }
+        }
+    }
 }
 
 #[test]
@@ -488,4 +648,200 @@ fn named_union_membership_retains_search_behavior_across_ordering_modes() {
         origin.is_none(),
         "also retain content-ordered members searched by ID"
     );
+}
+/// Exercise the large-input path and every fallback against an independent
+/// flatten/ID-insert oracle, followed by the base content sorter.
+#[test]
+fn large_union_inputs_match_the_base_in_both_orders() {
+    use crate::{
+        IdentityDomain, ObjectFlags, SymbolId, TypeData, TypeFlags, TypeId, TypeTables,
+        UnionReduction,
+    };
+    fn collect(
+        t: &mut TypeTables,
+        set: &mut Vec<TypeId>,
+        mut includes: i32,
+        src: &[TypeId],
+    ) -> i32 {
+        let mut last = None;
+        for &ty in src {
+            if last == Some(ty) {
+                continue;
+            }
+            last = Some(ty);
+            if let TypeData::Union { types, origin, .. } = t.type_of(ty).data {
+                if t.alias_symbol(ty).is_some() || origin.is_some() {
+                    includes |= TypeFlags::UNION.bits();
+                }
+                let members = t.list(types).to_vec();
+                includes = collect(t, set, includes, &members);
+            } else {
+                includes = t.add_type_to_union(None, set, includes, ty);
+            }
+        }
+        includes
+    }
+    let ctx = TestOrderContext::default();
+    for strict in [false, true] {
+        let mut t = TypeTables::new(strict, false, &IdentityDomain::new());
+        let literals: Vec<_> = (0..130)
+            .map(|n| t.get_string_literal_type(&format!("s{:03}", 129 - n)))
+            .collect();
+        let content = t.get_union_type(Some(&ctx), &literals[..64], UnionReduction::None);
+        let content2 = t.get_union_type(Some(&ctx), &literals[32..96], UnionReduction::None);
+        let ids = t.get_union_type(None, &literals[..64], UnionReduction::None);
+        let ids2 = t.get_union_type(None, &literals[32..96], UnionReduction::None);
+        t.set_alias(content, Some(SymbolId::new(7)), None);
+        t.set_alias(ids, Some(SymbolId::new(8)), None);
+        let unknown = t.get_union_type_from_sorted_list(
+            literals[64..128].to_vec(),
+            ObjectFlags::NONE,
+            None,
+            None,
+            None,
+        );
+        let nested = t.create_origin_union_or_intersection_type(
+            TypeFlags::UNION,
+            vec![content, content, ids, literals[128]],
+        );
+        let parameter = t.create_synthesized_type_parameter(None);
+        let intersection = t.create_origin_union_or_intersection_type(
+            TypeFlags::INTERSECTION,
+            vec![t.intrinsics.string, t.intrinsics.number],
+        );
+        t.type_mut(intersection).object_flags = ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE;
+        let mut sources = vec![
+            vec![content, content2],
+            vec![content2, content],
+            vec![ids, ids2],
+            vec![ids2, ids],
+            vec![content, ids],
+            vec![content, content],
+            vec![ids, ids],
+            vec![content, unknown],
+            vec![ids, nested],
+            vec![nested, content],
+            vec![content, literals[128], content2],
+        ];
+        let small_content = t.get_union_type(Some(&ctx), &literals[96..104], UnionReduction::None);
+        let small_ids = t.get_union_type(None, &literals[96..104], UnionReduction::None);
+        let filtered_content = t.filter_type(content, |_, ty| ty != literals[0]);
+        let filtered_ids = t.filter_type(ids, |_, ty| ty != literals[0]);
+        for (large, small) in [
+            (content, small_content),
+            (ids, small_ids),
+            (filtered_content, small_content),
+            (filtered_ids, small_ids),
+        ] {
+            for len in [3, 7, 8, 9, 16, 50] {
+                let mut source = vec![
+                    large,
+                    large,
+                    small,
+                    literals[129],
+                    t.intrinsics.never,
+                    small,
+                    t.intrinsics.undefined,
+                    literals[128],
+                ];
+                source.resize(len, small);
+                sources.push(source);
+            }
+        }
+        sources.push(vec![
+            content,
+            content2,
+            unknown,
+            small_content,
+            literals[129],
+            content,
+            content,
+            small_content,
+        ]);
+        sources.push(vec![
+            ids,
+            ids2,
+            nested,
+            small_ids,
+            literals[129],
+            ids,
+            ids,
+            small_ids,
+        ]);
+        for u in [content, ids] {
+            for other in [
+                literals[0],
+                literals[33],
+                literals[129],
+                t.intrinsics.never,
+                t.intrinsics.undefined,
+                t.intrinsics.null,
+                t.intrinsics.null_widening,
+                t.intrinsics.wildcard,
+                t.intrinsics.error,
+                parameter,
+                intersection,
+            ] {
+                sources.push(vec![u, other]);
+                sources.push(vec![other, u]);
+            }
+        }
+        for order in [None, Some(&ctx as &dyn super::TypeOrderContext)] {
+            for source in &sources {
+                for initial in [vec![], vec![literals[129]]] {
+                    let initial_flags = TypeFlags::INCLUDES_INSTANTIABLE.bits();
+                    let mut expected = initial.clone();
+                    let expected_flags = collect(&mut t, &mut expected, initial_flags, source);
+                    if let Some(ctx) = order {
+                        crate::goslices::sort_union_types(&mut expected, |a, b| {
+                            super::compare_types(&t, ctx, a, b).is_lt()
+                        });
+                        expected.dedup();
+                    }
+                    let mut actual = initial;
+                    let actual_flags =
+                        t.add_types_to_union(order, &mut actual, initial_flags, source);
+                    assert_eq!(
+                        actual,
+                        expected,
+                        "strict={strict}, content={}, source={source:?}",
+                        order.is_some()
+                    );
+                    assert_eq!(actual_flags, expected_flags);
+                }
+            }
+        }
+    }
+}
+
+/// A known large run plus an earlier singleton needs only logarithmically many
+/// boundary comparisons. Cross-order and unknown lists still use the base sorter.
+#[test]
+fn large_union_merge_does_not_scan_members_for_order() {
+    use crate::{IdentityDomain, SymbolId, TypeData, TypeFlags, TypeTables, UnionReduction};
+    let ctx = TestOrderContext::default();
+    let mut t = TypeTables::new(true, false, &IdentityDomain::new());
+    let literals: Vec<_> = (0..65)
+        .map(|n| {
+            let ty = t.get_string_literal_type(&format!("s{n:03}"));
+            t.set_alias(ty, Some(SymbolId::new(n)), None);
+            ty
+        })
+        .collect();
+    let union = t.get_union_type(Some(&ctx), &literals[1..], UnionReduction::None);
+    ctx.symbol_comparisons.borrow_mut().clear();
+    let mut actual = Vec::new();
+    t.add_types_to_union(Some(&ctx), &mut actual, 0, &[union, literals[0]]);
+    assert_eq!(actual, literals);
+    assert!(ctx.symbol_comparisons.borrow().len() <= 7);
+    let raw = t.create_origin_union_or_intersection_type(TypeFlags::UNION, literals[1..].to_vec());
+    ctx.symbol_comparisons.borrow_mut().clear();
+    actual.clear();
+    t.add_types_to_union(Some(&ctx), &mut actual, 0, &[raw, literals[0]]);
+    assert_eq!(actual, literals);
+    assert!(ctx.symbol_comparisons.borrow().len() > 1);
+    let TypeData::Union { types, .. } = t.type_of(union).data else {
+        panic!("union")
+    };
+    assert_eq!(t.list(types), &literals[1..]);
 }
