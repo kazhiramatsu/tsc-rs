@@ -1,6 +1,37 @@
 use super::*;
 
 #[test]
+fn library_bundles_match_jsdoc_mode_even_for_the_same_snapshot() {
+    let all = InputFile::new(
+        "/s2a-jsdoc-mode.d.ts",
+        "/** @type {number} */ declare const mode: number;",
+    );
+    let mut types = all.clone();
+    types.js_doc_parsing_mode = Some(JSDocParsingMode::ParseForTypeErrors);
+    assert!(Arc::ptr_eq(all.snapshot(), types.snapshot()));
+    let first = lib_bundle(&[&all]);
+    let second = lib_bundle(&[&types]);
+    assert!(!std::ptr::eq(first, second));
+    assert_eq!(
+        first.documents[0].source().js_doc_parsing_mode,
+        JSDocParsingMode::ParseAll
+    );
+    assert_eq!(
+        second.documents[0].source().js_doc_parsing_mode,
+        JSDocParsingMode::ParseForTypeErrors
+    );
+    assert!(first.documents[0].source().arena.len() > second.documents[0].source().arena.len());
+    assert!(std::ptr::eq(first, lib_bundle(&[&all])));
+    assert!(std::ptr::eq(second, lib_bundle(&[&types])));
+    let prepared = PreparedHarnessLibBundle { bundle: first };
+    assert!(prepared.validated(&[&all]).is_some());
+    assert!(prepared.validated(&[&types]).is_none());
+    let owned = build_owned_lib_bundle(&[&all]);
+    assert!(owned.exactly_matches(&[&all]));
+    assert!(!owned.exactly_matches(&[&types]));
+}
+
+#[test]
 fn checker_input_and_source_file_share_the_exact_snapshot_arc() {
     let input = InputFile::new("main.ts", "const value = '😀';\n");
     let source = tsc_syntax::parse_source_file_from_snapshot(
@@ -8026,7 +8057,8 @@ fn snapshot_serves_every_source_after_program_staging_is_dropped() {
         let domain = IdentityDomain::new();
         let mut counters = CheckWorkCounters::default();
         let ParsedProgramInputs {
-            program_sources, ..
+            mut program_sources,
+            ..
         } = parse_program_inputs(
             &[],
             &files,
@@ -8039,29 +8071,44 @@ fn snapshot_serves_every_source_after_program_staging_is_dropped() {
             workers,
             None,
         );
-        let weak: Vec<_> = program_sources.iter().map(Arc::downgrade).collect();
-        let data = bind_sources_in_program_order(&program_sources, &domain, workers, None);
+        // The sources are owned by their builders until `freeze`; the node
+        // buffers identify the parsed trees across the move into the Arc.
+        let node_buffers: Vec<_> = program_sources
+            .iter()
+            .map(|source| source.source().arena.nodes().as_ptr())
+            .collect();
+        let data = bind_sources_in_program_order(&mut program_sources, &domain, workers, None);
         let mut store = EphemeralDocumentStore::with_documents(domain, []);
-        for (source, data) in program_sources.iter().zip(data) {
-            store
-                .publish(Arc::clone(source), data)
-                .expect("publish source");
+        let program_source_count = program_sources.len();
+        let mut data = data.into_iter();
+        for source in program_sources {
+            match source {
+                ProgramSource::New(builder) => {
+                    store
+                        .publish_builder(builder, data.next().expect("a bind of every new source"))
+                        .expect("publish source");
+                }
+                ProgramSource::Shared(document) => store.adopt(document).expect("adopt document"),
+            }
         }
-        let facts = vec![ProgramFileFacts::ORDINARY; program_sources.len()];
+        let facts = vec![ProgramFileFacts::ORDINARY; program_source_count];
         let snapshot = store
             .into_snapshot_with_file_facts(facts)
             .expect("snapshot");
-        drop(program_sources);
         assert_eq!(snapshot.documents().len(), files.len());
         let state = state::CheckerState::from_snapshot(&snapshot, &options);
-        for (index, (input, weak)) in files.iter().zip(weak).enumerate() {
+        for (index, (input, nodes)) in files.iter().zip(node_buffers).enumerate() {
             let source = &snapshot.document(index).parsed.source;
             assert_eq!(
                 Arc::strong_count(source),
                 1,
                 "only the snapshot owns the source"
             );
-            assert_eq!(Arc::as_ptr(source), weak.as_ptr(), "same source allocation");
+            assert_eq!(
+                source.arena.nodes().as_ptr(),
+                nodes,
+                "same tree allocation: the source moved into its Arc, no copy"
+            );
             assert_eq!(source.file_name, input.name);
             assert!(Arc::ptr_eq(source.snapshot(), input.snapshot()));
             assert_eq!(source.text(), input.text());

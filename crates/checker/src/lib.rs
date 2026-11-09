@@ -1746,14 +1746,18 @@ fn check_program_with_libs_at_observed_cache_mode_prepared<'cwd>(
         // Cache-off is the L3 A/B path. Keep the parsed and bound prefix local
         // so repeated disabled-cache calls do not leak one bundle each.
         let identity_domain = IdentityDomain::new();
-        let (lib_sources, lib_work) = parse_lib_sources(
+        let (mut lib_sources, lib_work) = parse_lib_sources(
             &effective_libs,
             &identity_domain,
             WorkerBudget::serial(),
             None,
         );
-        let lib_binders =
-            bind_lib_sources(&lib_sources, &identity_domain, WorkerBudget::serial(), None);
+        let lib_binders = bind_lib_sources(
+            &mut lib_sources,
+            &identity_domain,
+            WorkerBudget::serial(),
+            None,
+        );
         let lib_data = binders_into_data(lib_binders);
         let lib_documents = publish_bound_documents(lib_sources, lib_data);
         return check_program_with_prebound_libs_at_observed(
@@ -1829,14 +1833,18 @@ pub fn check_program_with_owned_libs_at<'cwd>(
         .filter(|lib| !fixture_names.contains(&lib.name.as_js()))
         .collect();
     let identity_domain = IdentityDomain::new();
-    let (lib_sources, lib_work) = parse_lib_sources(
+    let (mut lib_sources, lib_work) = parse_lib_sources(
         &effective_libs,
         &identity_domain,
         WorkerBudget::serial(),
         None,
     );
-    let lib_binders =
-        bind_lib_sources(&lib_sources, &identity_domain, WorkerBudget::serial(), None);
+    let lib_binders = bind_lib_sources(
+        &mut lib_sources,
+        &identity_domain,
+        WorkerBudget::serial(),
+        None,
+    );
     let lib_data = binders_into_data(lib_binders);
     let lib_documents = publish_bound_documents(lib_sources, lib_data);
     let mut observe_phase = |_| {};
@@ -2680,10 +2688,10 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
     } else {
         let identity_domain = IdentityDomain::new();
         let tracing = run.tracing.as_ref();
-        let (lib_sources, lib_work) =
+        let (mut lib_sources, lib_work) =
             parse_lib_sources(&effective_libs, &identity_domain, workers, tracing);
         run.begin_bind_phase();
-        let lib_binders = bind_lib_sources(&lib_sources, &identity_domain, workers, tracing);
+        let lib_binders = bind_lib_sources(&mut lib_sources, &identity_domain, workers, tracing);
         let lib_data = binders_into_data(lib_binders);
         let lib_documents = publish_bound_documents(lib_sources, lib_data);
         // Sharding is a property of the eager whole-Program schedule with
@@ -2802,20 +2810,45 @@ struct HostFacts {
 /// plus the owned facts every checker state needs. No checker identity or
 /// bind result is created here.
 struct ParsedProgramInputs {
-    program_sources: Vec<Arc<tsc_syntax::SourceFile>>,
-    /// With a [`DocumentRegistry`], each source's document: the one a
-    /// Program already holds, or the address the new one is recorded at
-    /// (empty without a registry).
+    program_sources: Vec<ProgramSource>,
+    /// With a [`DocumentRegistry`], whether each source was adopted or the
+    /// address its new document is recorded at (empty without a registry).
+    /// Adopted documents are retained by `program_sources`.
     shared_documents: Vec<SharedDocument>,
     authoritative_program_metadata: Vec<AuthoritativeSourceMetadata>,
     program_diagnostics: Vec<Diagnostic>,
     host: HostFacts,
 }
 
+/// A fresh source retains its write capability until binding completes.
+/// A cache hit is already frozen and never receives that capability.
+// Keep the owned source inline until freeze allocates its shared handle.
+#[allow(clippy::large_enum_variant)]
+enum ProgramSource {
+    New(program::DocumentBuilder),
+    Shared(Arc<BoundDocument>),
+}
+
+impl ProgramSource {
+    fn source(&self) -> &tsc_syntax::SourceFile {
+        match self {
+            Self::New(builder) => builder.source(),
+            Self::Shared(document) => document.source(),
+        }
+    }
+
+    fn source_mut(&mut self) -> Option<&mut tsc_syntax::SourceFile> {
+        match self {
+            Self::New(builder) => Some(builder.source_mut()),
+            Self::Shared(_) => None,
+        }
+    }
+}
+
 /// A program source's document in a [`DocumentRegistry`].
 pub(crate) enum SharedDocument {
     /// The document a Program already holds for the file's text and address.
-    Found(Arc<BoundDocument>),
+    Found,
     /// A new parse, to bind and record at this address.
     New(Box<DocumentAddress>),
     /// A new parse that is not recorded (a transpile source with the API's
@@ -2833,7 +2866,7 @@ enum PendingProgramSource {
     Ready(tsc_syntax::SourceFile),
     Leased(tsc_syntax::SourceFile, tsc_syntax::SyntaxLeases),
     /// The source of a document a Program already holds.
-    Shared(Arc<tsc_syntax::SourceFile>),
+    Shared(Arc<BoundDocument>),
 }
 
 impl PendingProgramSource {
@@ -2866,10 +2899,10 @@ impl PendingProgramSource {
 
     /// The program source: a new parse at its leased identities, or the
     /// source of the shared document.
-    fn into_program_source(self) -> Arc<tsc_syntax::SourceFile> {
+    fn into_program_source(self) -> ProgramSource {
         match self {
-            Self::Shared(source) => source,
-            pending => Arc::new(pending.relocate()),
+            Self::Shared(source) => ProgramSource::Shared(source),
+            pending => ProgramSource::New(program::DocumentBuilder::new(pending.relocate())),
         }
     }
 }
@@ -2952,19 +2985,22 @@ fn parse_program_inputs(
         |file_name: JsStr<'_>,
          text: &str,
          parse_options: &tsc_syntax::ParseOptions,
+         script_kind: tsc_syntax::ScriptKind,
          content_mapped: Option<&Arc<tsc_program::content_mapper::source::ContentMappedSource>>,
          shared_documents: &mut Vec<SharedDocument>|
-         -> Option<Arc<tsc_syntax::SourceFile>> {
+         -> Option<Arc<BoundDocument>> {
             let documents = documents?;
             let mut address = DocumentAddress::new(parse_options, identity_domain);
+            if script_kind == tsc_syntax::ScriptKind::Json {
+                address = address.with_script_kind(script_kind);
+            }
             if let Some(info) = content_mapped {
                 address = address.with_content_mapper(info);
             }
             match documents.get(file_name, text, &address) {
                 Some(document) => {
-                    let source = Arc::clone(&document.parsed.source);
-                    shared_documents.push(SharedDocument::Found(document));
-                    Some(source)
+                    shared_documents.push(SharedDocument::Found);
+                    Some(document)
                 }
                 None => {
                     shared_documents.push(SharedDocument::New(Box::new(address)));
@@ -3090,6 +3126,7 @@ fn parse_program_inputs(
                 file.name.as_js(),
                 file.text(),
                 &parse_options,
+                tsc_syntax::ScriptKind::Json,
                 None,
                 &mut shared_documents,
             ) {
@@ -3134,6 +3171,7 @@ fn parse_program_inputs(
                 file.name.as_js(),
                 file.text(),
                 &parse_options,
+                parse_options.script_kind,
                 file.content_mapped.as_ref(),
                 &mut shared_documents,
             ) {
@@ -3211,7 +3249,7 @@ fn parse_program_inputs(
         serial_started,
     );
     let rewrite_started = std::time::Instant::now();
-    let program_sources: Vec<Arc<tsc_syntax::SourceFile>> = workers.map_ordered(
+    let program_sources: Vec<ProgramSource> = workers.map_ordered(
         pending_sources,
         PendingProgramSource::weight,
         PendingProgramSource::into_program_source,
@@ -3228,7 +3266,7 @@ fn parse_program_inputs(
         }
     });
     let mut program_diagnostics = missing_path_reference_diagnostics(
-        program_sources.iter().map(Arc::as_ref),
+        program_sources.iter().map(ProgramSource::source),
         libs.iter().chain(files.iter()).map(|file| {
             state::CheckerState::normalize_program_path(&file.name, &host_current_directory)
         }),
@@ -3418,7 +3456,7 @@ fn program_file_id(file: usize) -> ProgramFileId {
 /// Program.
 fn syntactic_diagnostics_close_the_check(
     schedule: DiagnosticSchedule,
-    program_sources: &[Arc<tsc_syntax::SourceFile>],
+    program_sources: &[ProgramSource],
     options: &CompilerOptions,
     work_counters: &CheckWorkCounters,
 ) -> Option<CheckResult> {
@@ -3427,7 +3465,7 @@ fn syntactic_diagnostics_close_the_check(
     }
     let started = std::time::Instant::now();
     let file_diagnostics =
-        syntactic_rows_of_sources(program_sources.iter().map(|source| &**source), options);
+        syntactic_rows_of_sources(program_sources.iter().map(ProgramSource::source), options);
     if !matches!(schedule, DiagnosticSchedule::SyntacticDiagnosticsOnly)
         && file_diagnostics
             .iter()
@@ -4295,7 +4333,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let current_directory = current_directory.into();
     let phase_started = std::time::Instant::now();
     let ParsedProgramInputs {
-        program_sources,
+        mut program_sources,
         authoritative_program_metadata,
         program_diagnostics,
         host,
@@ -4354,22 +4392,36 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     observe_phase(CheckPhase::Bind);
     let phase_started = std::time::Instant::now();
     let bind_data = bind_sources_in_program_order(
-        &program_sources,
+        &mut program_sources,
         identity_domain,
         workers,
         run.tracing.as_ref(),
     );
     run.end_bind_phase();
-    for (source_file, data) in program_sources.iter().zip(bind_data) {
-        work_counters.record_bind();
-        document_store
-            .publish(Arc::clone(source_file), data)
-            .expect("completed bind must belong to the ephemeral document domain");
+    let program_source_count = program_sources.len();
+    let mut bind_data = bind_data.into_iter();
+    // Consuming the Vec here frees the serial in-place collect's much larger
+    // PendingProgramSource buffer before the snapshot and the check.
+    for source_file in program_sources {
+        match source_file {
+            ProgramSource::New(builder) => {
+                work_counters.record_bind();
+                document_store
+                    .publish_builder(
+                        builder,
+                        bind_data.next().expect("a bind of every new source"),
+                    )
+                    .expect("completed bind must belong to the ephemeral document domain");
+            }
+            ProgramSource::Shared(document) => document_store
+                .adopt(document)
+                .expect("a shared document must belong to the Program's identity domain"),
+        }
     }
     tsc_types::trace::mark("checker: bind program sources", phase_started);
     observe_phase(CheckPhase::Check);
 
-    if lib_documents.is_empty() && program_sources.is_empty() {
+    if lib_documents.is_empty() && program_source_count == 0 {
         // Same observable result as the serial driver for an empty Program:
         // the whole-Program getter exists and is empty, and the build info
         // of an incremental program has no file facts.
@@ -4395,15 +4447,12 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let file_facts = program_file_facts(
         lib_facts,
         lib_count,
-        program_sources.len(),
+        program_source_count,
         &authoritative_program_metadata,
     );
     let snapshot = document_store
         .into_snapshot_with_file_facts(file_facts)
         .expect("program snapshot identity allocation failed");
-    // The snapshot owns the source Arcs. The serial in-place collect can
-    // leave this Vec holding the much larger PendingProgramSource buffer.
-    drop(program_sources);
     report_program_memory(&snapshot);
     let file_diagnostics = syntactic_file_rows(&snapshot, lib_count, options);
     let mut metadata = run.lib_metadata.clone();
@@ -5083,7 +5132,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     let mut authoritative_failure = None;
     let mut incremental: Option<IncrementalCheckFacts> = None;
     let ParsedProgramInputs {
-        program_sources,
+        mut program_sources,
         authoritative_program_metadata,
         program_diagnostics,
         host,
@@ -5146,7 +5195,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     observe_phase(CheckPhase::Bind);
 
     let bind_data = bind_sources_in_program_order(
-        &program_sources,
+        &mut program_sources,
         identity_domain,
         workers,
         authoritative_run.and_then(|run| run.tracing.as_ref()),
@@ -5154,11 +5203,25 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     if let Some(run) = authoritative_run {
         run.end_bind_phase();
     }
-    for (source_file, data) in program_sources.iter().zip(bind_data) {
-        work_counters.record_bind();
-        document_store
-            .publish(Arc::clone(source_file), data)
-            .expect("completed bind must belong to the ephemeral document domain");
+    let program_source_count = program_sources.len();
+    let mut bind_data = bind_data.into_iter();
+    // Consuming the Vec here frees the serial in-place collect's much larger
+    // PendingProgramSource buffer before the snapshot and the check.
+    for source_file in program_sources {
+        match source_file {
+            ProgramSource::New(builder) => {
+                work_counters.record_bind();
+                document_store
+                    .publish_builder(
+                        builder,
+                        bind_data.next().expect("a bind of every new source"),
+                    )
+                    .expect("completed bind must belong to the ephemeral document domain");
+            }
+            ProgramSource::Shared(document) => document_store
+                .adopt(document)
+                .expect("a shared document must belong to the Program's identity domain"),
+        }
     }
 
     // Checker-state construction (M4 5.0) + the check driver (M4 5.4):
@@ -5170,10 +5233,10 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     // their file diagnostics implicitly.
     observe_phase(CheckPhase::Check);
 
-    if lib_documents.is_empty() && program_sources.is_empty() && collect_global_diagnostics {
+    if lib_documents.is_empty() && program_source_count == 0 && collect_global_diagnostics {
         global_diagnostics = globals::missing_init_global_type_diagnostics(options);
     }
-    if !lib_documents.is_empty() || !program_sources.is_empty() {
+    if !lib_documents.is_empty() || program_source_count != 0 {
         // The store owns all published handles until this snapshot takes
         // ownership. This is the one-shot H0 adapter: dropping the consumed
         // ProgramSession drops the complete store and cannot leave a process
@@ -5184,15 +5247,12 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         let file_facts = program_file_facts(
             lib_facts,
             lib_count,
-            program_sources.len(),
+            program_source_count,
             &authoritative_program_metadata,
         );
         let snapshot = document_store
             .into_snapshot_with_file_facts(file_facts)
             .expect("program snapshot identity allocation failed");
-        // The snapshot owns the source Arcs. The serial in-place collect can
-        // leave this Vec holding the much larger PendingProgramSource buffer.
-        drop(program_sources);
         report_program_memory(&snapshot);
         file_diagnostics = syntactic_file_rows(&snapshot, lib_count, options);
         let authoritative_metadata = authoritative_run.map(|run| {
@@ -6035,7 +6095,9 @@ impl OwnedHarnessLibBundle {
         self.documents.len() == libs.len()
             && self.documents.iter().zip(libs).all(|(document, lib)| {
                 let source = document.source();
-                source.file_name == lib.name && Arc::ptr_eq(source.snapshot(), lib.snapshot())
+                source.file_name == lib.name
+                    && lib_parse_inputs_match(source, lib)
+                    && Arc::ptr_eq(source.snapshot(), lib.snapshot())
             })
     }
 }
@@ -6066,18 +6128,30 @@ impl LibBundle {
             && self.documents.iter().zip(libs).all(|(document, lib)| {
                 let source = document.source();
                 source.file_name == lib.name
+                    && lib_parse_inputs_match(source, lib)
                     && (Arc::ptr_eq(source.snapshot(), lib.snapshot())
                         || source.text() == lib.text())
             })
     }
 }
 
+/// Library bundles are also bound-document caches. A shared text snapshot is
+/// insufficient when its file-affecting parse inputs differ.
+fn lib_parse_inputs_match(source: &tsc_syntax::SourceFile, lib: &InputFile) -> bool {
+    let options = lib_parse_options(lib);
+    source.script_kind == options.script_kind
+        && source.language_variant == options.language_variant()
+        && source.js_doc_parsing_mode == options.js_doc_parsing_mode
+        && source.external_module_indicator_options.force == options.force_external_module
+        && source.external_module_indicator_options.jsx == options.detect_external_module_from_jsx
+}
+
 /// The per-lib-set bundle cache, indexed by the ordered (name, text
-/// fingerprint) list: parsing and binding read no compiler options (tsgo's
-/// parse cache keys a document by its parse options and text alone), so one
-/// bundle serves every option combination. The fingerprint key only selects
-/// a bucket; reuse additionally requires exact ordered file-name and
-/// full-text equality. `TSRS_LIB_BUNDLE_CACHE=0` bypasses this
+/// fingerprint) list. The fingerprint key only selects a bucket; reuse also
+/// requires exact ordered file-name, full-text and file-affecting parse-input
+/// equality. Other compiler options do not affect the bundle (tsgo's parse
+/// cache keys a document by its parse options and text alone).
+/// `TSRS_LIB_BUNDLE_CACHE=0` bypasses this
 /// process-lifetime harness cache and builds a locally owned prefix — the L3
 /// A/B lever proving reuse changes nothing without leaking one fresh bundle
 /// per call.
@@ -6145,12 +6219,11 @@ fn build_lib_bundle(libs: &[&InputFile]) -> &'static LibBundle {
     // The process cache's bundles share one domain with every registry's
     // documents, so a Program shares sources whatever its libraries.
     let identity_domain = crate::program::shared_identity_domain().clone();
-    let (sources, _lib_work) =
+    let (mut sources, _lib_work) =
         parse_lib_sources(libs, &identity_domain, WorkerBudget::serial(), None);
-    let binders = bind_lib_sources(&sources, &identity_domain, WorkerBudget::serial(), None);
+    let binders = bind_lib_sources(&mut sources, &identity_domain, WorkerBudget::serial(), None);
     let data = binders_into_data(binders);
-    let sources = sources.into_iter().map(Arc::new).collect::<Vec<_>>();
-    let documents = publish_bound_documents_from_handles(sources, data);
+    let documents = publish_bound_documents(sources, data);
     // A Program's loader finds the libraries there as tsgo's finds them in
     // its parse cache.
     for (lib, document) in libs.iter().zip(&documents) {
@@ -6168,12 +6241,11 @@ fn build_lib_bundle(libs: &[&InputFile]) -> &'static LibBundle {
 
 fn build_owned_lib_bundle(libs: &[&InputFile]) -> OwnedHarnessLibBundle {
     let identity_domain = IdentityDomain::new();
-    let (sources, _lib_work) =
+    let (mut sources, _lib_work) =
         parse_lib_sources(libs, &identity_domain, WorkerBudget::serial(), None);
-    let binders = bind_lib_sources(&sources, &identity_domain, WorkerBudget::serial(), None);
+    let binders = bind_lib_sources(&mut sources, &identity_domain, WorkerBudget::serial(), None);
     let data = binders_into_data(binders);
-    let sources = sources.into_iter().map(Arc::new).collect::<Vec<_>>();
-    let documents = publish_bound_documents_from_handles(sources, data);
+    let documents = publish_bound_documents(sources, data);
     OwnedHarnessLibBundle {
         documents,
         identity_domain,
@@ -6242,13 +6314,13 @@ fn parse_lib_sources(
 /// Bind the library prefix on the budget's workers at identities reserved
 /// in order from `identity_domain` (see [`bind_reserved_in_program_order`]).
 fn bind_lib_sources<'a>(
-    sources: &'a [tsc_syntax::SourceFile],
+    sources: &'a mut [tsc_syntax::SourceFile],
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
 ) -> Vec<tsc_binder::Binder<'a>> {
-    let sources = sources.iter().collect::<Vec<_>>();
-    bind_reserved_in_program_order(&sources, identity_domain, workers, tracing)
+    let sources = sources.iter_mut().collect::<Vec<_>>();
+    bind_reserved_in_program_order(sources, identity_domain, workers, tracing)
 }
 
 /// A `createSourceFile` span of one parse (tsgo `parseSourceFile`).
@@ -6274,7 +6346,7 @@ fn trace_parse(
 /// bound does not count, see `NodeArena::symbol_bound`) relocates into an
 /// exact lease at the domain's tail, still in Program order.
 fn bind_reserved_in_program_order<'a>(
-    sources: &[&'a tsc_syntax::SourceFile],
+    sources: Vec<&'a mut tsc_syntax::SourceFile>,
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
@@ -6289,23 +6361,20 @@ fn bind_reserved_in_program_order<'a>(
     tsc_types::trace::mark("checker: bind reservations (serial)", phase_started);
     let phase_started = std::time::Instant::now();
     let mut binders = workers.map_ordered(
-        (0..sources.len()).collect(),
-        |&index| sources[index].text().len(),
-        |index| {
+        sources.into_iter().enumerate().collect(),
+        |(_, source)| source.text().len(),
+        |(index, source)| {
             let (symbol_lease, serial_lease) = &reservations[index];
             // tsgo `BindSourceFiles`: one span per file, on the file's row.
             let _span = tracing.map(|tracing| {
                 tracing.begin(
                     TracePhase::Bind,
                     "bindSourceFile",
-                    TraceArgs::new().with(
-                        "path",
-                        sources[index].file_name.to_string_lossy().into_owned(),
-                    ),
+                    TraceArgs::new().with("path", source.file_name.to_string_lossy().into_owned()),
                 )
             });
             let mut binder = tsc_binder::Binder::bind_reserved(
-                sources[index],
+                source,
                 symbol_lease.range(),
                 serial_lease.range().start(),
             );
@@ -6380,13 +6449,16 @@ fn reserve_bind_identities(
 /// Binding is per-file (tsc's binder never reads another file), and the
 /// reservations are the same for every budget.
 fn bind_sources_in_program_order(
-    sources: &[Arc<tsc_syntax::SourceFile>],
+    sources: &mut [ProgramSource],
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
 ) -> Vec<BindData> {
-    let sources = sources.iter().map(Arc::as_ref).collect::<Vec<_>>();
-    bind_reserved_in_program_order(&sources, identity_domain, workers, tracing)
+    let sources = sources
+        .iter_mut()
+        .filter_map(ProgramSource::source_mut)
+        .collect::<Vec<_>>();
+    bind_reserved_in_program_order(sources, identity_domain, workers, tracing)
         .into_iter()
         .map(tsc_binder::Binder::into_bind_data)
         .collect()
@@ -6410,25 +6482,7 @@ fn publish_bound_documents(
     sources
         .into_iter()
         .zip(data)
-        .map(|(source, data)| {
-            let parsed = Arc::new(ParsedDocument::new(Arc::new(source)));
-            Arc::new(BoundDocument::new(parsed, data))
-        })
-        .collect()
-}
-
-fn publish_bound_documents_from_handles(
-    sources: Vec<Arc<tsc_syntax::SourceFile>>,
-    data: Vec<BindData>,
-) -> Vec<Arc<BoundDocument>> {
-    assert_eq!(sources.len(), data.len());
-    sources
-        .into_iter()
-        .zip(data)
-        .map(|(source, data)| {
-            let parsed = Arc::new(ParsedDocument::new(source));
-            Arc::new(BoundDocument::new(parsed, data))
-        })
+        .map(|(source, data)| Arc::new(program::DocumentBuilder::new(source).freeze(data)))
         .collect()
 }
 
