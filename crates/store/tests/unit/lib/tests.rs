@@ -298,3 +298,32 @@ fn a_tail_is_rewritten_only_by_its_owner() {
     other.push(&[2]);
     other.rewrite(position, &[3]);
 }
+
+#[test]
+fn scalar_text_writes_match_checked_bytes_and_keep_utf8_metadata() {
+    let mut checked = StoreVec::<texts::TextWord>::new();
+    let mut scalar = StoreVec::<texts::TextWord>::new();
+    for text in [
+        "",
+        "ascii",
+        "café",
+        "名前😀",
+        "a\0b",
+        "longer text past word boundaries",
+    ] {
+        let a = texts::push_text(&mut checked, text.as_bytes());
+        let b = texts::push_str(&mut scalar, text);
+        assert_eq!(a, b);
+        assert_eq!(&checked[..], &scalar[..]);
+        assert_eq!(texts::text_str_in(&scalar, b), Some(text));
+        let name = names::push_str(text);
+        assert_eq!(names::text(name), text.as_bytes());
+        assert_eq!(names::scalar_text(name), Some(text));
+    }
+    let lone_surrogate = [0xed, 0xa0, 0x80];
+    let index = texts::push_text(&mut scalar, &lone_surrogate);
+    assert_eq!(texts::text_in(&scalar, index), lone_surrogate);
+    assert_eq!(texts::text_str_in(&scalar, index), None);
+    let name = names::push(&lone_surrogate);
+    assert_eq!(names::scalar_text(name), None);
+}

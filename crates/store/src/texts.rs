@@ -38,15 +38,24 @@ pub const fn text_words(len: usize) -> usize {
 /// Append `bytes` to `words` as one text; returns the index of its length
 /// word.
 pub fn push_text(words: &mut StoreVec<TextWord>, bytes: &[u8]) -> usize {
-    let len = u32::try_from(bytes.len())
-        .ok()
-        .filter(|len| len & NOT_UTF8 == 0)
-        .expect("a literal text longer than 2 GiB");
     let flag = if std::str::from_utf8(bytes).is_ok() {
         0
     } else {
         NOT_UTF8
     };
+    push_bytes(words, bytes, flag)
+}
+
+/// Append a text whose UTF-8 validity is carried by its type.
+pub fn push_str(words: &mut StoreVec<TextWord>, text: &str) -> usize {
+    push_bytes(words, text.as_bytes(), 0)
+}
+
+fn push_bytes(words: &mut StoreVec<TextWord>, bytes: &[u8], flag: u32) -> usize {
+    let len = u32::try_from(bytes.len())
+        .ok()
+        .filter(|len| len & NOT_UTF8 == 0)
+        .expect("a literal text longer than 2 GiB");
     let index = words.len();
     words.reserve(text_words(bytes.len()));
     words.push(TextWord(len | flag));
@@ -73,7 +82,8 @@ fn body_bytes(body: &[TextWord], len: usize) -> &[u8] {
 
 /// The bytes as a `str` when the length word says they are UTF-8.
 fn utf8(word: TextWord, bytes: &[u8]) -> Option<&str> {
-    // SAFETY: `push_text` set the flag clear only for bytes that are UTF-8.
+    // SAFETY: `push_text` validates bytes; `push_str` accepts only valid UTF-8.
+    // Both set the flag clear exactly for UTF-8 text.
     (word.0 & NOT_UTF8 == 0).then(|| unsafe { std::str::from_utf8_unchecked(bytes) })
 }
 
