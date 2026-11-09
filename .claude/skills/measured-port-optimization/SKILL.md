@@ -16,8 +16,10 @@ checker in advance; it depends on strong oracles, a reference implementation wit
   (Types/Instantiations) may change when outputs are identical — record them in the PR, never gate on them (owner, 2026-11-08).
 - No mode flags, env knobs or parallel variants; change the existing code path (CLAUDE.md). No `unsafe` outside `store`/`arena`.
 - Measure retired instructions at one thread (`TSRS_WORKERS=1 TSRS_CHECKERS=1`), warm-up 1 + **9 rounds**, and compare the **low mode**
-  (`scripts/perf/lowmode.py`): VS Code's counts are bimodal run to run (two modes ≈ 0.75% apart, independent of the binary); 3-round
-  medians lie for sub-1% deltas. Wall and cpu are reported, not judged. Footprint must not grow.
+  (`scripts/perf/lowmode.py`): a project's counts are multimodal run to run (modes 0.35–1.7 % apart — VS Code ≈ 0.86 %, zod ≈ 1.7 %,
+  next ≈ 1.1–1.5 %, playwright ≈ 1.7 %, vue ≈ 0.6–0.9 %, TypeScript ≈ 0.35 % — independent of the binary; in-mode rounds spread ≤ 0.08 %),
+  so the tool reports the median of each binary's lowest cluster with the cluster's size and flags a low cluster under 3 rounds
+  (re-measure with 15). 3-round medians lie for sub-1% deltas. Wall and cpu are reported, not judged. Footprint must not grow.
 - One heavy job at a time (`nice -n 20`, `cargo -j 2`, `CARGO_INCREMENTAL=0`); ≤ 2 Codex lanes building; measurements in quiet windows.
 
 ## 1. Attribution ladder (coarse → fine; stop when a row is actionable)
@@ -127,8 +129,8 @@ container growth, allocating predicates); (c) work-count divergence (types/insta
   the old publish API): run `cargo check` and `cargo test --no-run` on main + patch right after the index-only apply check, before a chain.
 - Bimodality is not VS Code-only (2026-11-09): zod (modes ≈ 1.8 % apart) and next (≈ 1.5 %) are bimodal and binary-independent; one 9-round run
   put 7/9 candidate rounds in the high mode and the lower-half median reported +1.47 % for a patch that never executes in noEmit. Plausibility
-  first (a row cannot regress a configuration it does not run), then the sorted rounds, then 15 rounds for that case; `lowmode.py` should report
-  the lowest cluster (pending).
+  first (a row cannot regress a configuration it does not run), then the sorted rounds, then 15 rounds for that case; `lowmode.py` reports
+  the lowest cluster and flags a low cluster under 3 rounds (lowest-cluster rule, 2026-11-10).
 - Sequence chains that build (identity gates) after the measurement queue, not interleaved with it — a quiet check at start is not enough — and
   give grep-based start conditions a text the predecessor prints once and never in its own wait echo (r9 gates fired early on their own text).
 - Emitter rows (census → measured, 2026-11-09): skipping decorator-free subtrees in the legacy decorator pass cut VS Code emit by 7.17 % (−17.3 G;

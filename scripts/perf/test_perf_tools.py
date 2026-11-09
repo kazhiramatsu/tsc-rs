@@ -37,18 +37,31 @@ class PerfTools(unittest.TestCase):
         for name, body in text.items():
             self.assertNotRegex(body, re.compile(r'/Users/[a-z]+/'), name)
 
-    def test_lowmode_summary(self):
+    def run_lowmode(self, rows):
         with tempfile.NamedTemporaryFile('w', suffix='.jsonl', delete=False) as handle:
-            for label, counts in [('base', [100, 100, 101, 108, 100]), ('cand', [99, 99, 99, 107, 99])]:
+            for label, counts in rows:
                 for count in counts:
-                    handle.write(json.dumps(dict(case='x/noemit', label=label, instr=count * 10**9)) + '\n')
+                    handle.write(json.dumps(dict(case='x/noemit', label=label, instr=round(count * 10**9))) + '\n')
             path = handle.name
         try:
-            out = subprocess.run([sys.executable, os.path.join(HERE, 'lowmode.py'), path],
-                                 capture_output=True, text=True, check=True)
+            return subprocess.run([sys.executable, os.path.join(HERE, 'lowmode.py'), path],
+                                  capture_output=True, text=True, check=True).stdout
         finally:
             os.unlink(path)
-        self.assertIn('-1.00%', out.stdout)  # low mode 100 -> 99; the high-mode rounds (108, 107) do not move it
+
+    def test_lowmode_summary(self):
+        out = self.run_lowmode([('base', [100, 100, 101, 108, 100]), ('cand', [99, 99, 99, 107, 99])])
+        self.assertIn('-1.00%', out)  # low mode 100 -> 99; the high-mode rounds (108, 107) do not move it
+        self.assertNotIn('WARN', out)
+
+    def test_lowmode_reports_the_lowest_cluster_and_flags_a_thin_one(self):
+        # 7 of 9 base rounds sit in a mode 0.86 % up: the lower-half median would land there and report the
+        # candidate at -0.83 %; the lowest cluster (2 rounds) reports 0.00 % and is flagged for more rounds.
+        high = [100.86, 100.87, 100.88, 100.86, 100.87, 100.88, 100.89]
+        out = self.run_lowmode([('base', [100.00, 100.02] + high), ('cand', [100.02] * 9)])
+        self.assertIn('+0.00%', out)
+        self.assertIn('2/9', out)
+        self.assertIn('WARN low cluster below 3 rounds: x/noemit base (2/9)', out)
 
 
 if __name__ == '__main__':

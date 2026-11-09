@@ -17,7 +17,7 @@ Roots (environment variables, all optional):
 | `build-patches.sh BASE PREFIX [PATCH...]` | one release binary per patch on a common base in one reusable worktree; records provenance; removes only its own worktree |
 | `measure-patches.sh BASE_NAME CAND...` (`ROUNDS=9`) | `serial.py` on the 8 projects (1 thread, warm-up 1 + N rounds) then `diffout.py` output identity per candidate |
 | `serial.py OUT.jsonl LABEL=BIN,... CASE,... [--rounds N] [--warmup N]` | one-core runs under `/usr/bin/time -l`: retired instructions, cpu, peak footprint, rss; prints medians |
-| `lowmode.py RECORD.jsonl` | low-mode (median of the lower half) deltas per binary and project — the right summary for sub-1% deltas, because VS Code's counts are bimodal |
+| `lowmode.py RECORD.jsonl [--gap PERCENT]` | low-mode deltas per binary and project: the median of each binary's lowest cluster of rounds (sorted counts split at gaps above 0.15 %), a table of low-cluster sizes and a warning under 3 rounds — the right summary for sub-1% deltas, because the projects' counts are multimodal (modes 0.35–1.7 % apart, binary-independent) |
 | `diffout.py A B CASE,...` | byte comparison of exit code, stdout and stderr of two binaries, one thread |
 | `binprov.py record|check|pair` | provenance rows for measured binaries (sha256, commit, patch sha, worktree); windows call `check` first |
 | `phasecmp.py A.json.gz B.json.gz` | two samply profiles compared by phase root and by leaf name (the tsgo-inherited function names both ports share) |

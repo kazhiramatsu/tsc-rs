@@ -1,48 +1,90 @@
 #!/usr/bin/env python3
 """Summarize a serial.py JSONL record as low-mode instruction deltas per binary and project.
 
-usage: lowmode.py RECORD.jsonl [--base LABEL]
-The low mode of a binary's rounds is the median of the lower half of its instruction counts: VS Code's single-thread
-counts are bimodal run to run (two modes about 0.75% apart, independent of the binary), so medians of few rounds
-mislead for sub-1% deltas. Use 9 rounds (measure-patches.sh ROUNDS=9) and read this table.
+usage: lowmode.py RECORD.jsonl [--base LABEL] [--gap PERCENT]
+
+A project's one-thread instruction counts are multimodal run to run: on this machine the modes lie 0.35-1.7 % apart
+(VS Code about 0.86 %, zod 1.7 %, next 1.1-1.5 %, playwright 1.7 %, vue 0.6-0.9 %, TypeScript 0.35 %), they do not
+depend on the binary, and the rounds of a quiet window that land in one mode spread by at most 0.08 %. The low mode of
+a binary's rounds is therefore the median of its LOWEST CLUSTER: the sorted counts split wherever two neighbours lie
+more than --gap percent (default 0.15) of the lowest count apart, and the first cluster is the low mode. The second
+table shows how many rounds landed in that cluster; a low cluster of fewer than 3 rounds is flagged (re-measure with
+more rounds, e.g. 15). Use 9 rounds (measure-patches.sh ROUNDS=9) and read both tables. The earlier rule (median of
+the lower half) misreported a neutral row by +1.5 % when 7 of 9 rounds landed in a high mode (zod/next, 2026-11-09).
 """
 import collections
 import json
 import sys
 
+MIN_LOW_ROUNDS = 3
 
-def low(values):
+
+def clusters(values, gap):
+    """Sorted values split where neighbours differ by more than `gap` (a fraction) of the lowest value."""
     values = sorted(values)
-    half = values[: max(1, (len(values) + 1) // 2)]
-    return half[len(half) // 2]
+    out = [[values[0]]]
+    for previous, current in zip(values, values[1:]):
+        if current - previous > gap * values[0]:
+            out.append([current])
+        else:
+            out[-1].append(current)
+    return out
+
+
+def low(values, gap):
+    """The low mode (median of the lowest cluster) and the size of that cluster."""
+    first = clusters(values, gap)[0]
+    return first[len(first) // 2], len(first)
+
+
+def option(name, default, convert):
+    return convert(sys.argv[sys.argv.index(name) + 1]) if name in sys.argv else default
 
 
 def main():
     if len(sys.argv) < 2:
         sys.exit(__doc__)
     path = sys.argv[1]
-    base_label = sys.argv[sys.argv.index('--base') + 1] if '--base' in sys.argv else 'base'
+    base_label = option('--base', 'base', str)
+    gap = option('--gap', 0.15, float) / 100
     by = collections.defaultdict(list)
     order = []
     for line in open(path):
+        if not line.strip():
+            continue
         row = json.loads(line)
-        key = (row['case'], row['label'])
         if row['label'] not in order:
             order.append(row['label'])
-        by[key].append(row['instr'])
-    cases = sorted({case for case, _ in by}, key=lambda c: [k for k in by if k[0] == c][0][0])
+        by[(row['case'], row['label'])].append(row['instr'])
     cases = list(dict.fromkeys(case for case, _ in by))
     labels = [base_label] + [label for label in order if label != base_label]
     width = max(len(label) for label in labels) + 2
+    modes = {key: low(values, gap) for key, values in by.items()}
     print(f"{'label':{width}}" + ''.join(f"{case.split('/')[0]:>11}" for case in cases))
-    base = {case: low(by[(case, base_label)]) for case in cases}
+    base = {case: modes[(case, base_label)][0] for case in cases}
     print(f"{base_label + ' (low-mode G)':{width}}" + ''.join(f"{base[case] / 1e9:11.3f}" for case in cases))
     for label in labels[1:]:
         cells = []
         for case in cases:
-            values = by.get((case, label))
-            cells.append(f"{(low(values) - base[case]) / base[case] * 100:+10.2f}%" if values else f"{'n/a':>11}")
+            mode = modes.get((case, label))
+            cells.append(f"{(mode[0] - base[case]) / base[case] * 100:+10.2f}%" if mode else f"{'n/a':>11}")
         print(f"{label:{width}}" + ''.join(cells))
+    print(f"\n{'low cluster / rounds':{width}}" + ''.join(f"{case.split('/')[0]:>11}" for case in cases))
+    flagged = []
+    for label in labels:
+        cells = []
+        for case in cases:
+            mode = modes.get((case, label))
+            if mode is None:
+                cells.append(f"{'n/a':>11}")
+                continue
+            rounds = len(by[(case, label)])
+            cells.append(f"{mode[1]:>7}/{rounds:<3}")
+            if mode[1] < MIN_LOW_ROUNDS:
+                flagged.append(f"{case} {label} ({mode[1]}/{rounds})")
+        print(f"{label:{width}}" + ''.join(cells))
+    for cell in flagged:
+        print(f"WARN low cluster below {MIN_LOW_ROUNDS} rounds: {cell} -> re-measure with more rounds (gap {gap * 100:g} %)")
 
 
 if __name__ == '__main__':
