@@ -922,6 +922,13 @@ fn load_program_worker(
     // tsgo processRootFiles: the root tasks are the root files, then the
     // selected libraries, then the automatic type directives; the
     // single-threaded work queue then runs them, the last queued first.
+    // Match ordinary geometric growth for the known root batch. Task data
+    // deduplicates paths, so it has no known entry count to reserve here.
+    if root_names.len() != 0 {
+        let root_capacity = root_names.len().next_power_of_two();
+        graph.tasks.reserve(root_capacity);
+        graph.root_tasks.reserve(root_capacity);
+    }
     for index in 0..root_names.len() {
         let root_spelling = root_names.name(index)?;
         let root = normalize_root(root_spelling, &path_context)?;
@@ -7177,6 +7184,7 @@ fn publish_program(
             })?;
     }
 
+    builder.reserve_source_files(staged.library_postorder.len() + staged.ordinary_postorder.len());
     let mut published_ids = vec![None; staged.sources.len()];
     // Hashed, never iterated: every module and type resolution looks its
     // target up here (VS Code: 112k lookups of long path keys).

@@ -453,6 +453,34 @@ fn structural_keys_use_cached_symbols_types_and_container_without_resolving() {
 }
 
 #[test]
+fn structural_key_buffer_is_reused_after_success_and_rejection() {
+    with_program_state(
+        &[("a.ts", "let x = 1; x; x;")],
+        &CompilerOptions::default(),
+        |state| {
+            let refs = identifiers(state, "x");
+            for &node in &refs {
+                state.get_resolved_symbol(node).unwrap();
+            }
+            let mut q = query(state, refs[1]);
+            let key = state.flow_memo_key(&q).unwrap();
+            let allocation = state.flow_memo.key_buffer.as_ptr();
+            let capacity = state.flow_memo.key_buffer.capacity();
+            q.reference = state.binder.source(0).root;
+            assert!(state.flow_memo_key(&q).is_none());
+            assert_eq!(state.flow_memo.key_buffer.as_ptr(), allocation);
+            assert_eq!(state.flow_memo.key_buffer.capacity(), capacity);
+            q.reference = refs[2];
+            let repeated = state.flow_memo_key(&q).unwrap();
+            assert_eq!(repeated.full, key.full);
+            assert_eq!(repeated.hash, key.hash);
+            assert_eq!(state.flow_memo.key_buffer.as_ptr(), allocation);
+            assert_eq!(state.flow_memo.key_buffer.capacity(), capacity);
+        },
+    );
+}
+
+#[test]
 fn property_this_and_optional_chain_key_shapes() {
     let text =
         "declare let o: { p: { q: number } }; o.p.q; o.p.q; o?.p; o['p']; (o).p; this; this;";
