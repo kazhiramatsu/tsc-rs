@@ -38,9 +38,9 @@ fn annotation_type(state: &mut CheckerState, name: &str) -> TypeId {
 
 fn with_state<R>(text: &str, run: impl FnOnce(&mut CheckerState) -> R) -> R {
     let options = CompilerOptions::default();
-    let source = parse(text);
-    let binder = bind_source_file(&source);
-    let mut state = CheckerState::new(&source, &binder, &options);
+    let mut source = parse(text);
+    let binder = bind_source_file(&mut source);
+    let mut state = CheckerState::new(binder.source, &binder, &options);
     run(&mut state)
 }
 

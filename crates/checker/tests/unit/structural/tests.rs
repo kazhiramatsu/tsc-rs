@@ -193,7 +193,7 @@ fn empty_template_fragments_keep_empty_cooked_text() {
     // to turn the empty tail of `a${string}` into the token NAME,
     // breaking template reduction and matching.
     let options = CompilerOptions::default();
-    let source = parse_published_source_file(
+    let mut source = parse_published_source_file(
         "template-regression.ts".to_owned(),
         "declare var c: `${string}`;\n".to_owned(),
         ParseOptions {
@@ -203,9 +203,9 @@ fn empty_template_fragments_keep_empty_cooked_text() {
         None,
     );
     assert!(source.parse_diagnostics.is_empty());
-    let binder = bind_source_file(&source);
-    let mut state = CheckerState::new(&source, &binder, &options);
-    let annotation = find_probe_annotation(&source, "c").expect("annotation");
+    let binder = bind_source_file(&mut source);
+    let mut state = CheckerState::new(binder.source, &binder, &options);
+    let annotation = find_probe_annotation(binder.source, "c").expect("annotation");
     let ty = state
         .get_type_from_type_node(annotation)
         .expect("template annotation resolves");

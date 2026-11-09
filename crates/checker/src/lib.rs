@@ -3810,11 +3810,6 @@ fn report_program_memory(snapshot: &ProgramSnapshot) {
         binder.node_flow_bytes,
     );
     row(
-        "binder: node_flags_mut (per node)",
-        syntax.nodes,
-        binder.node_flags_bytes,
-    );
-    row(
         "binder: flow nodes (FlowNode)",
         binder.flow_nodes,
         binder.flow_bytes,
@@ -3836,7 +3831,6 @@ fn report_program_memory(snapshot: &ProgramSnapshot) {
         + binder.local_bytes
         + binder.node_symbol_bytes
         + binder.node_flow_bytes
-        + binder.node_flags_bytes
         + binder.flow_bytes
         + binder.flow_antecedent_bytes
         + binder.map_bytes

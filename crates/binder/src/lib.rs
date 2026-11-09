@@ -31,9 +31,13 @@ pub use symbols::{
 /// diagnostics.
 ///
 /// The symbols of a published tree are published in the tree's domain.
-pub fn bind_source_file(source_file: &SourceFile) -> Binder<'_> {
-    if let Some(leases) = source_file.arena.identity_leases() {
-        return Binder::bind_in_identity_domain(source_file, &leases.nodes.domain())
+pub fn bind_source_file(source_file: &mut SourceFile) -> Binder<'_> {
+    if let Some(domain) = source_file
+        .arena
+        .identity_leases()
+        .map(|leases| leases.nodes.domain())
+    {
+        return Binder::bind_in_identity_domain(source_file, &domain)
             .expect("bind identity allocation failed");
     }
     let mut binder = Binder::new(source_file);

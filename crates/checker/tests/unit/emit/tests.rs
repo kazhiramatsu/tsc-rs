@@ -1078,8 +1078,8 @@ fn classic_jsx_fragment_retains_only_the_fragment_factory_import() {
         &domain,
     )
     .expect("classic JSX source identity allocation");
-    let dependency = Arc::new(dependency);
-    let source = Arc::new(source);
+    let mut dependency = Arc::new(dependency);
+    let mut source = Arc::new(source);
     let options = CompilerOptions {
         target: Some(ScriptTarget::ES2015.bits()),
         module: Some(ModuleKind::COMMON_JS.bits()),
@@ -1089,17 +1089,25 @@ fn classic_jsx_fragment_retains_only_the_fragment_factory_import() {
         no_unused_locals: Some(true),
         ..CompilerOptions::default()
     };
-    let dependency_worker = BinderWorker::bind_in_identity_domain(&dependency, &domain)
-        .expect("JSX dependency bind identity allocation");
-    let worker = BinderWorker::bind_in_identity_domain(&source, &domain)
-        .expect("classic JSX bind identity allocation");
+    let dependency_worker = BinderWorker::bind_in_identity_domain(
+        Arc::get_mut(&mut dependency).expect("unshared test source"),
+        &domain,
+    )
+    .expect("JSX dependency bind identity allocation")
+    .into_bind_data();
+    let worker = BinderWorker::bind_in_identity_domain(
+        Arc::get_mut(&mut source).expect("unshared test source"),
+        &domain,
+    )
+    .expect("classic JSX bind identity allocation")
+    .into_bind_data();
     let dependency_document = Arc::new(BoundDocument::new(
         Arc::new(ParsedDocument::new(Arc::clone(&dependency))),
-        dependency_worker.into_bind_data(),
+        dependency_worker,
     ));
     let document = Arc::new(BoundDocument::new(
         Arc::new(ParsedDocument::new(Arc::clone(&source))),
-        worker.into_bind_data(),
+        worker,
     ));
     let snapshot =
         ProgramSnapshot::new(vec![dependency_document, document], 0).expect("Program snapshot");
@@ -1198,8 +1206,8 @@ fn null_jsx_fragment_factory_does_not_retain_the_ordinary_factory_import_or_its_
         &domain,
     )
     .expect("null JSX fragment source identity allocation");
-    let dependency = Arc::new(dependency);
-    let source = Arc::new(source);
+    let mut dependency = Arc::new(dependency);
+    let mut source = Arc::new(source);
     let options = CompilerOptions {
         target: Some(ScriptTarget::ES2015.bits()),
         module: Some(ModuleKind::COMMON_JS.bits()),
@@ -1207,17 +1215,25 @@ fn null_jsx_fragment_factory_does_not_retain_the_ordinary_factory_import_or_its_
         no_unused_locals: Some(true),
         ..CompilerOptions::default()
     };
-    let dependency_worker = BinderWorker::bind_in_identity_domain(&dependency, &domain)
-        .expect("JSX dependency bind identity allocation");
-    let worker = BinderWorker::bind_in_identity_domain(&source, &domain)
-        .expect("null JSX fragment bind identity allocation");
+    let dependency_worker = BinderWorker::bind_in_identity_domain(
+        Arc::get_mut(&mut dependency).expect("unshared test source"),
+        &domain,
+    )
+    .expect("JSX dependency bind identity allocation")
+    .into_bind_data();
+    let worker = BinderWorker::bind_in_identity_domain(
+        Arc::get_mut(&mut source).expect("unshared test source"),
+        &domain,
+    )
+    .expect("null JSX fragment bind identity allocation")
+    .into_bind_data();
     let dependency_document = Arc::new(BoundDocument::new(
         Arc::new(ParsedDocument::new(Arc::clone(&dependency))),
-        dependency_worker.into_bind_data(),
+        dependency_worker,
     ));
     let document = Arc::new(BoundDocument::new(
         Arc::new(ParsedDocument::new(Arc::clone(&source))),
-        worker.into_bind_data(),
+        worker,
     ));
     let snapshot =
         ProgramSnapshot::new(vec![dependency_document, document], 0).expect("Program snapshot");
@@ -1319,7 +1335,7 @@ fn emit_import_resolution_filters_only_value_bearing_type_only_origins() {
             module: Some(ModuleKind::COMMON_JS.bits()),
             ..CompilerOptions::default()
         };
-        let sources = inputs
+        let mut sources = inputs
             .iter()
             .map(|(path, text)| {
                 Arc::new(
@@ -1335,13 +1351,17 @@ fn emit_import_resolution_filters_only_value_bearing_type_only_origins() {
             })
             .collect::<Vec<_>>();
         let documents = sources
-            .iter()
+            .iter_mut()
             .map(|source| {
-                let worker = BinderWorker::bind_in_identity_domain(source, &domain)
-                    .expect("emit alias bind identity allocation");
+                let worker = BinderWorker::bind_in_identity_domain(
+                    Arc::get_mut(source).expect("unshared test source"),
+                    &domain,
+                )
+                .expect("emit alias bind identity allocation")
+                .into_bind_data();
                 Arc::new(BoundDocument::new(
                     Arc::new(ParsedDocument::new(Arc::clone(source))),
-                    worker.into_bind_data(),
+                    worker,
                 ))
             })
             .collect();
@@ -1416,7 +1436,7 @@ fn emit_resolver_reanchors_decorator_metadata_imports_to_the_class_scope() {
             ),
         ),
     ];
-    let sources = inputs
+    let mut sources = inputs
         .into_iter()
         .map(|(path, text)| {
             Arc::new(
@@ -1432,13 +1452,17 @@ fn emit_resolver_reanchors_decorator_metadata_imports_to_the_class_scope() {
         })
         .collect::<Vec<_>>();
     let documents = sources
-        .iter()
+        .iter_mut()
         .map(|source| {
-            let worker = BinderWorker::bind_in_identity_domain(source, &domain)
-                .expect("decorator metadata bind identity allocation");
+            let worker = BinderWorker::bind_in_identity_domain(
+                Arc::get_mut(source).expect("unshared test source"),
+                &domain,
+            )
+            .expect("decorator metadata bind identity allocation")
+            .into_bind_data();
             Arc::new(BoundDocument::new(
                 Arc::new(ParsedDocument::new(Arc::clone(source))),
-                worker.into_bind_data(),
+                worker,
             ))
         })
         .collect();
@@ -1507,7 +1531,7 @@ fn import_publication_declaration_references_match_typescript_resolver() {
             };
             let root = case["roots"][0].as_str().unwrap();
             let files = case["files"].as_array().unwrap();
-            let sources = files
+            let mut sources = files
                 .iter()
                 .filter(|row| row["path"] != root)
                 .chain(files.iter().filter(|row| row["path"] == root))
@@ -1528,13 +1552,17 @@ fn import_publication_declaration_references_match_typescript_resolver() {
                 })
                 .collect::<Vec<_>>();
             let documents = sources
-                .iter()
+                .iter_mut()
                 .map(|source| {
-                    let worker = BinderWorker::bind_in_identity_domain(source, &domain)
-                        .expect("resolver binding identity");
+                    let worker = BinderWorker::bind_in_identity_domain(
+                        Arc::get_mut(source).expect("unshared test source"),
+                        &domain,
+                    )
+                    .expect("resolver binding identity")
+                    .into_bind_data();
                     Arc::new(BoundDocument::new(
                         Arc::new(ParsedDocument::new(Arc::clone(source))),
-                        worker.into_bind_data(),
+                        worker,
                     ))
                 })
                 .collect();
@@ -1620,7 +1648,7 @@ fn common_js_esmodule_marker_resolver_reads_the_exact_binder_fact() {
         ("assigned.cjs", "module.exports = 1;", false, true, false),
         ("required.js", "require('./dep');", true, true, true),
     ] {
-        let source = Arc::new(
+        let mut source = Arc::new(
             tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
                 file.to_owned(),
                 TextSnapshot::new(text.to_owned(), DocumentVersion::new("1")),
@@ -1635,11 +1663,16 @@ fn common_js_esmodule_marker_resolver_reads_the_exact_binder_fact() {
             .unwrap(),
         );
         assert!(source.parse_diagnostics.is_empty());
-        let worker = BinderWorker::bind_in_identity_domain(&source, &domain).unwrap();
+        let worker = BinderWorker::bind_in_identity_domain(
+            Arc::get_mut(&mut source).expect("unshared test source"),
+            &domain,
+        )
+        .unwrap()
+        .into_bind_data();
         expected.push((source.root, common_js, external));
         documents.push(Arc::new(BoundDocument::new(
             Arc::new(ParsedDocument::new(Arc::clone(&source))),
-            worker.into_bind_data(),
+            worker,
         )));
     }
     let snapshot = ProgramSnapshot::new(documents, 0).unwrap();
@@ -1685,7 +1718,7 @@ fn common_js_esmodule_marker_resolver_reads_the_exact_binder_fact() {
 fn global_diagnostics_produces_pending_reports_from_expression_queries() {
     let options = CompilerOptions::default();
     let domain = IdentityDomain::new();
-    let source = Arc::new(
+    let mut source = Arc::new(
         tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
             "a.ts".to_owned(),
             TextSnapshot::new(
@@ -1698,7 +1731,12 @@ fn global_diagnostics_produces_pending_reports_from_expression_queries() {
         )
         .unwrap(),
     );
-    let worker = BinderWorker::bind_in_identity_domain(&source, &domain).unwrap();
+    let worker = BinderWorker::bind_in_identity_domain(
+        Arc::get_mut(&mut source).expect("unshared test source"),
+        &domain,
+    )
+    .unwrap()
+    .into_bind_data();
     let access = source
         .arena
         .node_ids()
@@ -1707,7 +1745,7 @@ fn global_diagnostics_produces_pending_reports_from_expression_queries() {
     let snapshot = ProgramSnapshot::new(
         vec![Arc::new(BoundDocument::new(
             Arc::new(ParsedDocument::new(Arc::clone(&source))),
-            worker.into_bind_data(),
+            worker,
         ))],
         0,
     )

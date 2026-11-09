@@ -8,7 +8,7 @@ use crate::state::CheckerState;
 
 fn with_state<R>(text: &str, run: impl FnOnce(&mut CheckerState) -> R) -> R {
     let options = CompilerOptions::default();
-    let source = parse_published_source_file(
+    let mut source = parse_published_source_file(
         "unions-test.ts".to_owned(),
         text.to_owned(),
         ParseOptions {
@@ -18,8 +18,8 @@ fn with_state<R>(text: &str, run: impl FnOnce(&mut CheckerState) -> R) -> R {
         None,
     );
     assert!(source.parse_diagnostics.is_empty());
-    let binder = bind_source_file(&source);
-    let mut state = CheckerState::new(&source, &binder, &options);
+    let binder = bind_source_file(&mut source);
+    let mut state = CheckerState::new(binder.source, &binder, &options);
     run(&mut state)
 }
 

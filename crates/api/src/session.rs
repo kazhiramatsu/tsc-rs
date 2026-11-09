@@ -871,9 +871,9 @@ impl Session {
             // file, so a later Program shares it.
             let registry = self.host.documents();
             let domain = registry.identity_domain();
-            let (file, parse_options) =
+            let (mut file, parse_options) =
                 crate::parse_created_source_file(&file_name, source_text, script_kind, domain);
-            let bind_data = tsc_binder::Binder::bind_in_identity_domain(&file, domain)
+            let bind_data = tsc_binder::Binder::bind_in_identity_domain(&mut file, domain)
                 .expect("created source bind identity allocation failed")
                 .into_bind_data();
             let document =

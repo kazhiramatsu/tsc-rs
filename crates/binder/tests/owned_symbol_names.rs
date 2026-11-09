@@ -24,14 +24,16 @@ fn source_module_names_and_duplicate_diagnostic_paths_keep_js_values() {
         let mut file_name = JsString::from("/work/");
         file_name.push_code_unit(unit);
         file_name.push_str(".ts");
-        let source = tsc_syntax::parse_source_file(
+        let mut source = tsc_syntax::parse_source_file(
             &file_name,
             "export {}; let a; let a;",
             ParseOptions::default(),
             None,
         );
-        let binder = bind_source_file(&source);
-        let symbol = binder.symbols.symbol(binder.node_symbol[&source.root]);
+        let binder = bind_source_file(&mut source);
+        let symbol = binder
+            .symbols
+            .symbol(binder.node_symbol[&binder.source.root]);
         let mut expected = "\"/work/".encode_utf16().collect::<Vec<_>>();
         expected.extend([unit, 0x22]);
         assert_eq!(symbol.escaped_name.as_js().to_utf16(), expected);
@@ -66,7 +68,7 @@ fn find_kind(source: &SourceFile, id: NodeId, kind: u16) -> Option<NodeId> {
 #[test]
 fn binder_names_match_independent_typescript_observations() {
     for case in CASES {
-        let source = tsc_syntax::parse_source_file(
+        let mut source = tsc_syntax::parse_source_file(
             "main.ts",
             case.source,
             ParseOptions {
@@ -75,8 +77,8 @@ fn binder_names_match_independent_typescript_observations() {
             None,
         );
         assert!(source.parse_diagnostics.is_empty(), "{}", case.id);
-        let binder = bind_source_file(&source);
-        let selected = find_kind(&source, source.root, case.kind).unwrap();
+        let binder = bind_source_file(&mut source);
+        let selected = find_kind(binder.source, binder.source.root, case.kind).unwrap();
         let table = match case.table {
             "locals" => &binder.locals[&selected],
             "members" => binder
