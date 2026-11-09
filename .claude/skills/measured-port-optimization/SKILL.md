@@ -113,3 +113,13 @@ container growth, allocating predicates); (c) work-count divergence (types/insta
 - Ownership first (fe-sym/fe-flags, 2026-11-09): a row that writes binder facts into the shared parsed tree cannot land while the binder
   borrows the registry's `ParsedDocument.source` — the walls are structural (who owns the document), not layout; see the shared-document
   design in `handover/arch-arena/forkdesign/` before proposing another in-node row.
+- Side-record ("rare") splits of a hot struct cost instructions in every writing (signatures S2/S3/S4 and the bisected B2: +0.1…+0.5%) even when
+  the moved fields are read under 2 M times; boxing an owned `Vec` list into `Box<[T]>` with exact capacity is free (B1 −0.08%, −26 MiB). Bisect a
+  rejected patch into one-mechanism variants and measure them in ONE clean run before attributing (2026-11-09).
+- Never build while a measurement chain is in its serial window (check `ceilings/logs/*` for an active `serial.py`): chain af's variants read
+  +0.5…+0.85% under my concurrent clippy builds and ≈ 0 / +0.45 / +0.03 in the clean re-run.
+- After a hand-resolved conflict run `cargo clippy -p <crate> --all-targets -- -D warnings` (the hosted job runs `--workspace --all-targets`):
+  `cargo check` does not run clippy lints; `items_after_test_module` caught impl blocks appended after `mod tests` in 16 files (#940).
+- Four-checker memory under determinism (fourchk-mem, dup-census): the +252 MiB of accounted growth is 264 MiB of other checkers' declaration
+  records minus own, plus 84 MiB of capacity (74 slack); binder tables are already shared by pointer; representation rows can shave ~20–30 MiB.
+  The 4-thread peak falls with the 1-thread structural rows, not with per-checker tricks.

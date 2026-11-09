@@ -346,6 +346,55 @@ staging 0〜29；命令は正の合計をまだ主張できず（bare id の `no
 work stealing の再評価）は所有者の要請で視野に残し、同一性の目標（tsgo-N 同一か、割り当て非依存の正準出力か）の判断待ち；steal の frontier 計測は lane の後の
 静かな窓で行う。統合再計測（統合値 6）は #939 の merge の後。
 
+**結果 9（2026-11-09 11:5x〜16:0x、heap-staging の採用、統合値 6、決定性の判断、fork と 4 checker の census；base main `a93bb8389` / `c0a4f8858`、
+1 thread、9 round、低い峰、8 案件出力同一）。** `heap-staging` P1+P2+P3（check 前に loader の staging を解放、planner の Box を take-once slot に保持
+（holder 1,048 → 40 B）、未記録 owner 16 行を memory report に追加）：命令中立（ALL：VS Code −0.04%、hono −0.10%、effect +0.04%、他 ±0.03%）、footprint
+VS Code 2,619〜2,622 → 2,589〜2,610 MiB、next −7、zod −9、ts −3、vue −1、hono −1、**effect +2.4**（解放後の allocator 配置、記録）；main 上で M4/C4 と
+会計の conflict 3 か所を手で解決 → [#940](https://github.com/kazhiramatsu/tsc-rs/pull/940)（test checker 1,926 / program 710 / diagnostics 88 /
+binder 87 / syntax 280 / store 54、diffout 8/8、counter 同一、4-checker 制御 = 既知 4 件）。hosted の rust job は clippy `items_after_test_module`
+で 1 回落ちた（lane の P3 が 16 file で test module の後ろに impl を追加；各 file の test module を末尾へ移して修正、workspace 全 target の clippy を
+手元で通してから push）→ **merge `c0a4f8858`**（hosted run [42565566167](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42565566167)）。
+
+**統合値 6（16:0x、pre-pivot base `a75438da1` 対、`results/patches-1109-1528.jsonl`）：** main `c0a4f8858`（#937〜#940）は VS Code **−13.62%**
+（121.97 → 105.36 G、tsrs 85.44 G の **1.23 倍**；統合値 5 は 1.25 倍）、next −15.66%、vue −15.14%、playwright −14.10%、hono −12.53%、ts −11.84%、
+effect −11.19%、zod −9.91%；peak は VS Code 2,653〜2,666 → **2,411〜2,445 MiB**（tsrs 1,991 の 1.21〜1.23 倍；統合値 5 は 1.31 倍）、next 624〜628 → 566〜571、
+zod 565 → 510、effect 441 → 404.5、playwright 336〜339 → 313〜314、vue 259 → 239、ts 156 → 146、hono 89.5 → 84.5。
+
+**所有者の判断（14:2x）：決定性（tsgo-N 同一性）は維持する——「現時点で崩すメリットがありません」。** 判断材料として示したもの：tsrs の 5 回の試行（lib だけの
+共有は不正確、warm checker の `fork()` は同一だが warm-up が直列で wall +4.5〜8.6%、読み専用部分は繰り返し仕事の 3.6%、凍結 seed は wall +7〜16%、共有判定の
+読み口だけで命令 +1.5〜4.3%）、我々の census（重複の 8 割は project の宣言型）、崩した場合の不利益（時間依存の stealing は run 間の非決定性、tsgo-4 との
+oracle 喪失、利用者に見える並びの差、検証体制の変更）。結果として時間依存の work stealing と checker 間の可変状態共有は対象外、共有 document の fork
+（所有権の話）は継続。**制御（15:5x、main `c0a4f8858`、`steal/identity-1v4/`）：** 既定設定の run 間差は 8 案件すべて 0 行；1 checker と既定の差は 7 案件 0 行、
+zod のみ 8 行（既定で TS5115 が 2 件増え TS2344 が 1 件消える——instantiation 深さの打ち切り）；tsgo（`target/typescript7/bin/tsc` 7.1.0-dev）の既定 vs 我々の
+既定 = 0 行、tsgo `--singleThreaded` vs 我々の 1×1 = 0 行、tsgo 既定 vs tsgo `--singleThreaded` = 同じ 8 行。唯一の差は tsgo 自身の割り当て依存の挙動を
+再現したもの。
+
+**fork（共有 document）の数字。** `fork-S0`（契約、零 cost の view adapter、field × kind 行列）は汎用の node 内 symbol 読み（owner routing + kind dispatch +
+inline/tail + base 加算）を 1 読み 16〜20 操作、VS Code の 1,490 万読みで 0.30〜0.46 G と model し HOLD。絞った emulation `fork-S0b` を release で実測：
+V1（固定 word、dense id、32 B 側表）+1.11%、V2（V1 + (document, local) の routing と base 加算）+1.54%、V0（側表を作るだけで読まない）+0.73% →
+**読み経路だけ ≈ +0.38%（±0.2）、(document, local) の同一性 = +0.43%**（bare-id の読み口 `check.rs:5473` / `flow.rs:4084` が 68.5%）。結論：id は program
+全体の dense のまま（relocation 143 ms は安い publish 手順として残す）、node 内 symbol は実装形で実測する価値あり（emulation は別表経由で本物より重い）。
+`fe-sym`/`fe-flags` は所有権の壁（binder が registry と snapshot が共有する `ParsedDocument.source` を借りる；program 所有の複製は +515 MiB）で実装できず、
+`fork-S2a`（publish 前に唯一所有の document 上で bind する、layout 不変、命令中立）を起動（進行中）。A（NodeArrayRecord 16 B）は不採用（len の 14 bit +
+sentinel 復号が hot 読みに乗り +0.07〜0.16%、header 11.7 MiB は peak に乗らない）。fingerprint oracle の基準は a93bb8389 で取り直し（143,190 行、
+`target/syntax-fingerprint/fingerprints-a93bb8389.tsv`）。
+
+**4 checker の census（決定性の範囲）。** `dup-census`：VS Code 4×4 の型 record 293 万件のうち 89.7 万件（30.6%）が 2 つ以上の checker で同じ構築 recipe、
+冗長 slot 55.7 万 = 21.3 MiB（symbol 11.1、signature 17.0、members 12.1 MiB も）；出所は module export 34.7 万、帰属不明 36.0 万、default lib 17.7 万；
+時間は重複と特定できた scope が各 checker の check の 7.0〜7.9%（lib/global は 1.2〜1.5%）、不均衡の上限 13.1% は stealing 前提で対象外。`fourchk-mem`：
+12 行の +252 MiB = 事前確保の容量 +84（slack 74）+ 他 checker の宣言の record **+264** − 自前 −146 + 帰属不明 +50；binder の member/export 表は既に 4 checker
+で pointer 共有（31.3 万本、不一致 0）；表現で削れるのは signature list の box 化（−13 MiB at 4）と pool の slack（≤ 8）程度。**結論：4 checker の増分は
+per-checker 私有に本質的な重複で、決定性の範囲では 1 thread の構造改善で全体を下げる筋。** `emit-copy`：VS Code の emit（9,244 出力）で emitter が node
+record 1,607 万件 = 597 MiB を毎 run 複製（全件無変更）、transform flag 容量 152 MiB、clone は emit の service time の 0.7%（transform 5.5 s、print 6.6 s dev）
+→ byte と peak の無駄（命令行ではない）；frozen-input の設計（EMIT-SHARED.md）を書き、第 1 段 `fork-S7a`（session 状態を複製 arena から session 表へ）を起動。
+
+**signatures の決着（bisect）。** 汚染のない 1 run（`results/patches-1109-1536.jsonl`）で S4 +0.14%、**B1 list の box 化だけ −0.08%（中立）**、**B2 rare 分離だけ
++0.45%**、B3 builder 経路だけ +0.03%：rare/側 record への分離は移した field の読みが 200 万回未満でも毎回 +0.1〜0.5% を払う（S2/S3/S4/B2 の 4 通り）→ 却下で
+確定；list の box 化は無料で footprint −26 MiB（VS Code 2,607〜2,633 → 2,581〜2,615）、next −4、effect −3 → branch `perf/signature-lists-boxed`
+（`3b9521104` = main `c0a4f8858` + B1 + fixture）を局所検査中。表の統一（T2）は命令側も VS Code +0.07%、zod +0.93%、hono +0.86% で perf 行ではなく、fork の
+S5 に留める。計測の教訓：chain af（14:32〜14:45）は私の workspace clippy と lane 3 本の build と重なり、部分変更 3 つが S4 全体より大きく出た（無効）；
+serial 窓では build を回さない。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
