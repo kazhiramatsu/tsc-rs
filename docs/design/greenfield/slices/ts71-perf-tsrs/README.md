@@ -305,7 +305,8 @@ diffout 8/8、counter 同一、4-checker 制御 = 既知 4 件）→ **merge `d2
 `Arc<[SymbolId]>` 1 本を members と properties が共有（94% が同一）、索引は 9 member 以上だけ box、構築は完成した表から直接埋めて named member の選別を
 同じ loop で）：命令 **VS Code −0.13%**、playwright −0.15%、next −0.12%、zod −0.12%、vue −0.10%、ts/effect −0.05%、hono ±0；footprint VS Code
 2,620〜2,633 → 2,548〜2,569（≈ **−55**）、zod −21、next −15、effect −12、playwright −6；memory report の resolved members 200.8 → 154.0 MiB →
-[#939](https://github.com/kazhiramatsu/tsc-rs/pull/939)（checker test 1,912 本、diffout 8/8、counter 同一、4-checker 制御 = 既知 4 件；hosted 検査中）。
+[#939](https://github.com/kazhiramatsu/tsc-rs/pull/939)（checker test 1,912 本、diffout 8/8、counter 同一、4-checker 制御 = 既知 4 件）→ **merge `b7bdf6e60`**（hosted run
+[42548276412](https://github.com/kazhiramatsu/tsc-rs/actions/runs/42548276412)）。
 `signatures` S4（Signature 136 → 72 B：pool の span をやめ parameters/type parameters を `Box<[_]>`、rare 48 B を索引で）：footprint VS Code
 2,616〜2,624 → 2,568〜2,595（−30〜−48）、next −13、effect −8 だが命令は **8 案件すべて増**（VS Code +0.22%、hono +0.42%、effect +0.30%）→ 不採用。レビュー（所有者「基準を
 満たさなくても書き方の問題があるのでレビューを」）：base の record も signature ごとに `Vec` を持っていたので S4 の `Box<[_]>` は割り当て数を変えておらず、
