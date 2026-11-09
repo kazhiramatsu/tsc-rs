@@ -467,3 +467,16 @@ fn a_shared_string_compares_hashes_and_prints_as_the_owned_string_and_its_clones
         assert_eq!(owned.as_bytes(), shared.as_bytes());
     }
 }
+#[test]
+fn ascii_lowercase_preserves_wtf8_and_storage() {
+    for input in ["ABC", "A longer ASCII path/FILE.TS", "ÄAİıßẞZ"] {
+        let mut value = super::JsString::from(input);
+        let heap_bytes = value.heap_bytes();
+        value.make_ascii_lowercase();
+        assert_eq!(value.as_str(), Some(input.to_ascii_lowercase().as_str()));
+        assert_eq!(value.heap_bytes(), heap_bytes);
+    }
+    let mut value = super::JsString::from_code_units(&[0xd800, 65, 0xdc00]);
+    value.make_ascii_lowercase();
+    assert_eq!(value.to_utf16(), [0xd800, 97, 0xdc00]);
+}

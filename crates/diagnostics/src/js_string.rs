@@ -143,6 +143,15 @@ impl JsString {
         self.0.clear();
     }
 
+    /// Fold ASCII A–Z in place, leaving all other code units unchanged.
+    pub fn make_ascii_lowercase(&mut self) {
+        // ASCII casing cannot change a WTF-8 boundary or a surrogate pair.
+        match &mut self.0 {
+            Storage::Inline { len, bytes } => bytes[..usize::from(*len)].make_ascii_lowercase(),
+            Storage::Heap(bytes) => bytes.make_ascii_lowercase(),
+        }
+    }
+
     /// Truncate at a whole WTF-8 code-point boundary. Invalid byte offsets
     /// leave the string untouched; splitting a pair by UTF-16 unit uses
     /// `substring` instead. Every such prefix is canonical.
