@@ -395,6 +395,31 @@ record 1,607 万件 = 597 MiB を毎 run 複製（全件無変更）、transform
 S5 に留める。計測の教訓：chain af（14:32〜14:45）は私の workspace clippy と lane 3 本の build と重なり、部分変更 3 つが S4 全体より大きく出た（無効）；
 serial 窓では build を回さない。
 
+**結果 10（2026-11-09 17:03〜17:06、製品指標の前線：既定設定と 4 thread 予算の wall / peak、main `c0a4f8858`（統合値 6）対 tsrs；
+`handover/arch-arena/steal/frontier-main-c0a4f8858-1109-1703.jsonl` と `-summary.txt`、`handover/perf-tsrs/frontier.sh`、warm-up 1 + 3 round の
+中央値、6 構成 × 8 案件 = 144 計測、lane も build もない窓（直前の 16:59 の run は chain の build と重なり破棄）；machine は 10 core = 4P + 6E；
+tsrs は `tsrs-sym-nopgo`）。** VS Code（wall / cpu / 使用 core / peak MB / 命令 G）：
+
+| 構成 | tsc-rs `c0a4f8858` | tsrs | 比（wall / peak） |
+|---|---|---|---|
+| 既定（checker 4、tsgo と同じ割り当て 対 tsrs 既定 checker 4） | 2.79 s / 10.47 s / 3.8 / 2,847 / 113.7 | 2.00 s / 8.00 s / 4.0 / 2,281 / 92.6 | **1.40 / 1.25** |
+| 4 thread 予算（`TSRS_WORKERS=4 TSRS_CHECKERS=4` 対 `RAYON_NUM_THREADS=4 --checkers 4`） | 2.95 s / 9.47 s / 3.2 / 2,813 / 113.4 | 2.10 s / 7.17 s / 3.4 / 2,280 / 92.6 | **1.40 / 1.23** |
+| tsrs `--fast`（locality + stealing、答えが変わりうる） | — | 既定 1.23 s / 10.61 s / 8.6 core / 1,825 / 86.3；4 thread 1.78 s / 6.87 s / 3.9 / 1,648 / 81.1 | 既定対既定 2.27 / 1.56 |
+
+8 案件の既定での比（tsc-rs / tsrs 既定、wall；peak）：ts 1.21；1.35、next 1.44；1.27、VS Code 1.40；1.25、zod 1.29；1.18、effect 1.29；1.24、hono 1.38；1.23、
+vue 1.33；1.29、playwright 1.42；1.25。命令は既定でも 1.23 倍（113.7 / 92.6 G）＝ 1 thread の比（統合値 6）と同じで、4 checker の重複は両者とも約 +8%。
+
+読み：(1) **命令 1.23 倍 → cpu 1.31 倍 → wall 1.40 倍。** 命令と cpu の差は IPC（tsrs より約 6% 低い；安い命令を削った残りは memory 待ちが多い）、
+cpu と wall の差は critical path（最長 shard）。(2) **VS Code 4/4 の wall の分解**（同じ窓の 1 回、`steal/trace-rs-w4c4-vscode.txt`、3,036 ms）：load 651 ms
+（21%；read-ahead 4 thread 461 ms、parse task 97 ms、root walk 136 ms）、adopt + bind 302 ms（10%；relocation 約 100 ms + bind 約 170 ms、直列区間）、
+shard check 1,586 / 1,663 / 1,736 / 2,061 ms（最長 shard 0 は平均 1,761 ms の 1.17 倍；均等なら wall −300 ms ≈ 10%——**決定性を崩す stealing の上限は
+VS Code で約 10%**）、merge + render 22 ms。所有権の段（S2a/S3、relocation の除去）が狙うのはこの直列 302 ms と 1 thread の命令。(3) 前回の前線
+（上の「製品指標の前線」、当時 main 138.2 G）との比較：4 thread 予算は 2.95 s / 148.4 G / 3,973 MB → 2.95 s / 113.4 G / 2,813 MB で、命令 −24%・peak −29% なのに
+wall が同じに見えるが、tsrs 側も同じ 92.3 G で 1.96 → 2.10 s（cpu 6.64 → 7.17 s、+8%）なので**窓が違う wall は比べない**；同じ窓の比は 1.51 → 1.40 倍。
+既定は当時 checker 8（6.8 core、2.22 s）→ DET-1（#905、11-05、既定 checker 4、当時 3.28 s）→ 今日 2.79 s；既定対既定の比は 1.20（8 対 4）→ 1.40（4 対 4）。
+(4) tsrs `--fast` との差（既定 2.27 倍）は 10 core 全部と stealing の分で、決定性維持（16:0x の判断）はこの差を受け入れる判断。tsrs の per-checker 時間
+（`TSRS_ASSIGNMENT_STATS=times`）は stderr に出ず未取得。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
