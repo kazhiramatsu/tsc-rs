@@ -109,9 +109,9 @@ pub struct Signature {
     /// tsc signature.typeParameters — generic signature construction
     /// from declarations lands with the 5.2 follow-up; instantiateSignature
     /// writes the fresh clones here (63413-63419).
-    pub type_parameters: Option<Vec<TypeId>>,
+    pub type_parameters: Option<Box<[TypeId]>>,
     /// Parameter symbols in declaration order, `this` excluded.
-    pub parameters: Vec<SymbolId>,
+    pub parameters: Box<[SymbolId]>,
     pub this_parameter: Option<SymbolId>,
     pub min_argument_count: u32,
     /// Lazy return type with tsc's resolving sentinel
@@ -151,7 +151,7 @@ pub struct Signature {
 }
 
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<Signature>() == 136);
+const _: () = assert!(std::mem::size_of::<Signature>() == 120);
 
 impl Signature {
     /// A copy of the signature without its lazily filled caches (the
@@ -1494,8 +1494,8 @@ impl<'a> CheckerState<'a> {
                 signature
                     .type_parameters
                     .as_ref()
-                    .map_or(0, |list| list.capacity() * 4)
-                    + signature.parameters.capacity() * 4
+                    .map_or(0, |list| list.len() * 4)
+                    + signature.parameters.len() * 4
                     + signature
                         .composite_signatures
                         .as_ref()
@@ -2320,7 +2320,7 @@ impl<'a> CheckerState<'a> {
             declaration: None,
             flags: SignatureFlags::NONE,
             type_parameters: None,
-            parameters: Vec::new(),
+            parameters: Vec::new().into_boxed_slice(),
             this_parameter: None,
             min_argument_count: 0,
             resolved_return_type: LinkSlot::Resolved(return_type),

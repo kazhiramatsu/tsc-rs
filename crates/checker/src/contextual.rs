@@ -3092,7 +3092,8 @@ impl<'a> CheckerState<'a> {
             self.has_effective_rest_parameter(left)? || self.has_effective_rest_parameter(right)?;
         let needs_extra_rest_element =
             either_has_effective_rest && !self.has_effective_rest_parameter(longest)?;
-        let mut params: Vec<SymbolId> = Vec::with_capacity(longest_count + 1);
+        let mut params: Vec<SymbolId> =
+            Vec::with_capacity(longest_count + usize::from(needs_extra_rest_element));
         for i in 0..longest_count {
             let mut longest_param_type = self
                 .try_get_type_at_position(longest, i)?
@@ -3252,7 +3253,7 @@ impl<'a> CheckerState<'a> {
             declaration,
             flags,
             type_parameters: type_params,
-            parameters: params,
+            parameters: params.into_boxed_slice(),
             this_parameter: this_param,
             min_argument_count: min_arg_count,
             resolved_return_type: crate::links::LinkSlot::Vacant,

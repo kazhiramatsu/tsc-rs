@@ -270,7 +270,7 @@ fn erased_and_argument_instantiated_signatures_map_lazily() {
             // Promote to a generic signature by hand — generic
             // getSignatureFromDeclaration lands with the follow-up.
             let mut generic = state.signature_of(base).clone();
-            generic.type_parameters = Some(vec![t]);
+            generic.type_parameters = Some(Box::new([t]));
             let generic = state.alloc_signature(generic);
 
             let erased = state.get_erased_signature(generic).expect("erased");
@@ -488,7 +488,7 @@ fn cloned_type_parameters_instantiate_their_target_constraint() {
                 .expect("function-type signature");
             let t = declared_type_parameter(state, "T");
             let mut generic = state.signature_of(base).clone();
-            generic.type_parameters = Some(vec![t]);
+            generic.type_parameters = Some(Box::new([t]));
             let generic = state.alloc_signature(generic);
             // A non-erasing instantiation clones the parameters.
             let identity = state.create_type_mapper(&[t], Some(&[t]));
@@ -555,7 +555,7 @@ fn a_this_only_mapper_keeps_thisless_symbols() {
                 .get_signatures_of_type(ty, crate::state::SignatureKind::Call)
                 .expect("f's signatures");
             assert_eq!(signatures.len(), 2);
-            assert_eq!(state.signature_of(signatures[0]).parameters, vec![declared]);
+            assert_eq!(&state.signature_of(signatures[0]).parameters[..], &[declared]);
         },
     );
 }

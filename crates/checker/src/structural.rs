@@ -7524,7 +7524,7 @@ impl<'a> CheckerState<'a> {
             declaration: left_data.declaration,
             flags,
             type_parameters: type_params,
-            parameters: params,
+            parameters: params.into_boxed_slice(),
             this_parameter: this_param,
             min_argument_count: min_arg_count,
             resolved_return_type: crate::links::LinkSlot::Vacant,
@@ -8083,7 +8083,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let (this_parameter, flags) = (data.this_parameter, data.flags);
-        let single_parameter = match data.parameters.as_slice() {
+        let single_parameter = match data.parameters.as_ref() {
             [parameter] => Some(*parameter),
             _ => None,
         };

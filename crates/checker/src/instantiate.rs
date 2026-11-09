@@ -632,7 +632,7 @@ impl<'a> CheckerState<'a> {
             source.from_method,
         );
         let isolated_signature_kind = source.isolated_signature_kind;
-        let type_parameter_count = source.type_parameters.as_ref().map(Vec::len);
+        let type_parameter_count = source.type_parameters.as_ref().map(|list| list.len());
         let parameter_count = source.parameters.len();
         let mut mapper = mapper;
         let mut fresh_type_parameters: Option<Vec<TypeId>> = None;
@@ -672,8 +672,8 @@ impl<'a> CheckerState<'a> {
         let result = Signature {
             declaration,
             flags: flags & SignatureFlags::PROPAGATING_FLAGS,
-            type_parameters: fresh_type_parameters,
-            parameters,
+            type_parameters: fresh_type_parameters.map(Vec::into_boxed_slice),
+            parameters: parameters.into_boxed_slice(),
             this_parameter,
             min_argument_count,
             resolved_return_type: LinkSlot::Vacant,
@@ -2432,10 +2432,11 @@ impl<'a> CheckerState<'a> {
                 .signature_of(signature)
                 .type_parameters
                 .clone()
-                .unwrap_or_default());
+                .unwrap_or_default()
+                .into_vec());
         }
         let declarations = self.type_parameter_declarations_of(declaration);
-        Ok(self.append_type_parameters(Vec::new(), &declarations))
+        Ok(self.append_type_parameters(Vec::with_capacity(declarations.len()), &declarations))
     }
 
     /// tsrs-native: typed NodeData projection for tsc's direct
@@ -2750,7 +2751,7 @@ impl<'a> CheckerState<'a> {
             if let Some(return_signature) = return_signature {
                 let new_return_signature = self.clone_signature(return_signature);
                 self.signature_mut(new_return_signature).type_parameters =
-                    Some(inferred_type_parameters.to_vec());
+                    Some(inferred_type_parameters.to_vec().into_boxed_slice());
                 let new_return_type =
                     self.get_or_create_type_from_signature(new_return_signature)?;
                 if let Some(mapper) = self.signature_of(instantiated).mapper {

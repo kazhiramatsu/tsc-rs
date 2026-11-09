@@ -71,7 +71,7 @@ impl<'a> CheckerState<'a> {
                             declaration: None,
                             flags: SignatureFlags::IS_NON_INFERRABLE,
                             type_parameters: None,
-                            parameters: Vec::new(),
+                            parameters: Vec::new().into_boxed_slice(),
                             this_parameter: None,
                             min_argument_count: 0,
                             resolved_return_type: LinkSlot::Resolved(return_type),

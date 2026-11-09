@@ -4729,7 +4729,7 @@ pub(super) fn add_property_to_element_list(
                     declaration: None,
                     flags: SignatureFlags::NONE,
                     type_parameters: None,
-                    parameters: Vec::new(),
+                    parameters: Vec::new().into_boxed_slice(),
                     this_parameter: None,
                     min_argument_count: 0,
                     resolved_return_type: crate::links::LinkSlot::Resolved(property_type),
@@ -4778,7 +4778,7 @@ pub(super) fn add_property_to_element_list(
                     declaration: None,
                     flags: SignatureFlags::NONE,
                     type_parameters: None,
-                    parameters: vec![setter_parameter],
+                    parameters: vec![setter_parameter].into_boxed_slice(),
                     this_parameter: None,
                     min_argument_count: 0,
                     resolved_return_type: crate::links::LinkSlot::Resolved(

@@ -4015,6 +4015,9 @@ impl<'a> CheckerState<'a> {
                 || self.is_jsdoc_type_alias(node)
             {
                 let parameter_declarations = self.type_parameter_declarations_of(node);
+                if result.is_empty() {
+                    result = Vec::with_capacity(parameter_declarations.len());
+                }
                 result = self.append_type_parameters(result, &parameter_declarations);
             }
         }
@@ -6625,7 +6628,7 @@ impl<'a> CheckerState<'a> {
         for signature in all {
             let type_parameters = self.signature_of(signature).type_parameters.clone();
             let min = self.get_min_type_argument_count(type_parameters.as_deref());
-            let max = type_parameters.as_ref().map_or(0, Vec::len);
+            let max = type_parameters.as_ref().map_or(0, |list| list.len());
             if type_arg_count >= min && type_arg_count <= max {
                 signatures.push(signature);
             }
@@ -6727,8 +6730,8 @@ impl<'a> CheckerState<'a> {
                 } else {
                     tsc_types::SignatureFlags::CONSTRUCT
                 },
-                type_parameters: local_type_parameters,
-                parameters: Vec::new(),
+                type_parameters: local_type_parameters.map(Vec::into_boxed_slice),
+                parameters: Vec::new().into_boxed_slice(),
                 this_parameter: None,
                 min_argument_count: 0,
                 resolved_return_type: LinkSlot::Resolved(class_type),
@@ -6766,7 +6769,7 @@ impl<'a> CheckerState<'a> {
         for base_signature in base_signatures {
             let base_type_parameters = self.signature_of(base_signature).type_parameters.clone();
             let min = self.get_min_type_argument_count(base_type_parameters.as_deref());
-            let max = base_type_parameters.as_ref().map_or(0, Vec::len);
+            let max = base_type_parameters.as_ref().map_or(0, |list| list.len());
             if !is_javascript && (type_arg_count < min || type_arg_count > max) {
                 continue;
             }
@@ -6784,7 +6787,7 @@ impl<'a> CheckerState<'a> {
                 self.clone_signature(base_signature)
             };
             let data = self.signature_mut(signature);
-            data.type_parameters = local_type_parameters.clone();
+            data.type_parameters = local_type_parameters.clone().map(Vec::into_boxed_slice);
             data.resolved_return_type = LinkSlot::Resolved(class_type);
             data.flags = if is_abstract {
                 tsc_types::SignatureFlags::from_bits(
@@ -10443,7 +10446,6 @@ impl<'a> CheckerState<'a> {
         if is_untyped_signature_in_js_file {
             flags |= SignatureFlags::IS_UNTYPED_SIGNATURE_IN_JS_FILE;
         }
-        let mut parameters: Vec<SymbolId> = Vec::new();
         let mut this_parameter: Option<SymbolId> = None;
         let mut this_tag_in_signature = false;
         let mut min_argument_count = 0u32;
@@ -10451,6 +10453,46 @@ impl<'a> CheckerState<'a> {
             &Published,
             declaration,
         ));
+        // Ordinary declarations only omit a leading `this`. JSDoc
+        // signatures additionally omit this-tags and property-path tags.
+        let parameter_nodes = self.nodes_of(parameter_list);
+        let parameter_count = if matches!(
+            self.kind_of(declaration),
+            SyntaxKind::JSDocSignature | SyntaxKind::JSDocFunctionType
+        ) {
+            parameter_nodes
+                .iter()
+                .enumerate()
+                .skip(parameter_start)
+                .filter(|&(i, &parameter)| {
+                    self.kind_of(parameter) != SyntaxKind::JSDocThisTag
+                        && !self.is_jsdoc_property_path_parameter(parameter)
+                        && !(i == 0
+                            && self
+                                .record_of(parameter)
+                                .as_js_doc_parameter_tag()
+                                .and_then(|data| data.name)
+                                .or_else(|| {
+                                    self.record_of(parameter)
+                                        .as_parameter()
+                                        .and_then(|data| data.name)
+                                })
+                                .and_then(|name| self.identifier_text(name))
+                                == Some("this"))
+                })
+                .count()
+        } else {
+            let leading_this = parameter_start == 0
+                && parameter_nodes.first().is_some_and(|&parameter| {
+                    self.record_of(parameter)
+                        .as_parameter()
+                        .and_then(|data| data.name)
+                        .and_then(|name| self.identifier_text(name))
+                        == Some("this")
+                });
+            parameter_nodes.len().saturating_sub(parameter_start) - usize::from(leading_this)
+        };
+        let mut parameters: Vec<SymbolId> = Vec::with_capacity(parameter_count);
         for (i, &parameter) in self
             .nodes_of(parameter_list)
             .iter()
@@ -10698,8 +10740,8 @@ impl<'a> CheckerState<'a> {
         let signature = Signature {
             declaration: Some(declaration),
             flags,
-            type_parameters,
-            parameters,
+            type_parameters: type_parameters.map(Vec::into_boxed_slice),
+            parameters: parameters.into_boxed_slice(),
             this_parameter,
             min_argument_count,
             resolved_return_type: LinkSlot::Vacant,
