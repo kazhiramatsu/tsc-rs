@@ -53,6 +53,11 @@ pub fn to_file_name_lower_case(path: &str) -> String {
     if is_encoded_dynamic_file_name(path) {
         return path.to_owned();
     }
+    if path.is_ascii() {
+        let mut folded = path.to_owned();
+        folded.make_ascii_lowercase();
+        return folded;
+    }
     fn protected(character: char) -> bool {
         character.is_ascii_lowercase()
             || character.is_ascii_digit()

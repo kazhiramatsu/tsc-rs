@@ -10,14 +10,19 @@ use crate::{HostError, HostErrorKind, HostOperation};
 /// The TypeScript filename case profile on arbitrary JS strings. Lone
 /// surrogates remain unchanged and delimit scalar Unicode casing runs.
 pub fn to_file_name_lower_case_js(path: JsStr<'_>) -> JsString {
-    if let Some(path) = path.as_str() {
-        return crate::to_file_name_lower_case(path).into();
-    }
     if path
         .as_bytes()
         .starts_with(crate::DYNAMIC_URI_FILE_NAME_PREFIX.as_bytes())
     {
         return path.to_owned();
+    }
+    if path.as_bytes().is_ascii() {
+        let mut folded = path.to_owned();
+        folded.make_ascii_lowercase();
+        return folded;
+    }
+    if let Some(path) = path.as_str() {
+        return crate::to_file_name_lower_case(path).into();
     }
     let mut result = JsString::with_capacity(path.as_bytes().len());
     let mut scalar = String::new();
