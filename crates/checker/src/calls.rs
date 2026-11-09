@@ -1643,7 +1643,7 @@ impl<'a> CheckerState<'a> {
             declaration: None,
             flags: SignatureFlags::NONE,
             type_parameters: None,
-            parameters,
+            parameters: parameters.into_boxed_slice(),
             this_parameter,
             min_argument_count,
             resolved_return_type: LinkSlot::Resolved(return_type),
@@ -4974,7 +4974,12 @@ impl<'a> CheckerState<'a> {
             .min()
             .expect("non-empty candidates");
         let max_non_rest_param = num_non_rest.iter().copied().max().expect("non-empty");
-        let mut parameters: Vec<SymbolId> = Vec::with_capacity(max_non_rest_param);
+        let has_rest_parameter = candidates.iter().any(|&candidate| {
+            let data = self.signature_of(candidate);
+            data.flags.intersects(SignatureFlags::HAS_REST_PARAMETER) && !data.parameters.is_empty()
+        });
+        let mut parameters: Vec<SymbolId> =
+            Vec::with_capacity(max_non_rest_param + usize::from(has_rest_parameter));
         for i in 0..max_non_rest_param {
             let symbols: Vec<SymbolId> = candidates
                 .iter()
@@ -5047,7 +5052,7 @@ impl<'a> CheckerState<'a> {
             declaration: first.declaration,
             flags,
             type_parameters: None,
-            parameters,
+            parameters: parameters.into_boxed_slice(),
             this_parameter,
             min_argument_count,
             resolved_return_type: LinkSlot::Resolved(return_type),

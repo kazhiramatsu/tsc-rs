@@ -992,7 +992,7 @@ pub(crate) fn pseudo_type_equivalent_to_type_core(
                 .signature_of(target_signature)
                 .type_parameters
                 .as_ref()
-                .map_or(0, Vec::len);
+                .map_or(0, |list| list.len());
             if target_type_parameter_count != signature.type_parameters.len() {
                 if report_errors {
                     reports.push(signature.signature);

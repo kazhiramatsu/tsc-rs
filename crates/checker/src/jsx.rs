@@ -1396,7 +1396,7 @@ impl<'a> CheckerState<'a> {
             declaration: None,
             flags: tsc_types::SignatureFlags::NONE,
             type_parameters: None,
-            parameters: vec![props],
+            parameters: vec![props].into_boxed_slice(),
             this_parameter: None,
             min_argument_count: 1,
             resolved_return_type: LinkSlot::Resolved(return_type),

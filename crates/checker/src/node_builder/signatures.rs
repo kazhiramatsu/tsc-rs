@@ -218,7 +218,7 @@ pub(crate) fn expanded_parameters(
         .intersects(SignatureFlags::HAS_REST_PARAMETER)
         || signature.parameters.is_empty()
     {
-        return Ok(vec![signature.parameters]);
+        return Ok(vec![signature.parameters.into_vec()]);
     }
     let rest_index = signature.parameters.len() - 1;
     let rest_symbol = signature.parameters[rest_index];
@@ -243,7 +243,7 @@ pub(crate) fn expanded_parameters(
             }
         }
     }
-    Ok(vec![signature.parameters])
+    Ok(vec![signature.parameters.into_vec()])
 }
 
 /// tsgo `getExpandedParameters`' `expandSignatureParametersWithTupleMembers`:
@@ -259,7 +259,7 @@ fn expand_signature_parameters_with_tuple_members(
     let rest_symbol = signature.parameters[rest_index];
     let target = checker.tables.reference_target(rest_type);
     let TypeData::TupleTarget(tuple) = checker.tables.type_of(target).data else {
-        return Ok(signature.parameters);
+        return Ok(signature.parameters.into_vec());
     };
     let tuple = checker.tables.tuple_target(tuple).clone();
     let element_types = checker.get_type_arguments(rest_type)?.to_vec();
@@ -443,7 +443,7 @@ pub(crate) fn signature_to_signature_declaration_helper(
         let restore = save_restore_flags(context);
         context.flags.0 &= !EmitNodeBuilderFlags::SUPPRESS_ANY_RETURN_TYPE.0;
         let parameters = (|| -> BuildResult<Vec<TransformNode>> {
-            let source_parameters =
+            let source_parameters: &[SymbolId] =
                 if expanded_parameters
                     .iter()
                     .enumerate()
