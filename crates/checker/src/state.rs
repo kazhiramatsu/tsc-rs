@@ -868,10 +868,8 @@ pub struct CheckerState<'a> {
     /// are per-file arena indices here, so (file, FlowId) is the
     /// stable identity tsc's lazily assigned flow.id provides. Lives
     /// across queries (never trimmed), like tsc's.
-    pub(crate) flow_loop_caches: rustc_hash::FxHashMap<
-        (usize, tsc_binder::flow::FlowId),
-        rustc_hash::FxHashMap<tsc_types::JsString, TypeId>,
-    >,
+    pub(crate) flow_loop_caches:
+        crate::flow::caches::FlowIdentityCache<rustc_hash::FxHashMap<tsc_types::JsString, TypeId>>,
     /// tsc lastFlowNode/lastFlowNodeReachable (47401-47402): the
     /// single-entry reachability memo — the immediately previous
     /// isReachableFlowNode query (reachability is asked per statement
@@ -885,11 +883,11 @@ pub struct CheckerState<'a> {
     /// memo (a getFlowNodeId-indexed sparse array there; (file, FlowId)
     /// here like flowLoopCaches). Lives across queries. Err unwinds
     /// leave it unwritten — no undecided verdict outlives its walk.
-    pub(crate) flow_node_reachable: rustc_hash::FxHashMap<(usize, tsc_binder::flow::FlowId), bool>,
+    pub(crate) flow_node_reachable: crate::flow::caches::FlowNodeCache,
     /// tsc flowNodePostSuper (47435): the per-SHARED-node memo for
     /// constructor `super()` ordering. Like flowNodeReachable, the
     /// stable key is the owning file plus its arena-local FlowId.
-    pub(crate) flow_node_post_super: rustc_hash::FxHashMap<(usize, tsc_binder::flow::FlowId), bool>,
+    pub(crate) flow_node_post_super: crate::flow::caches::FlowNodeCache,
     /// tsc withinUnreachableCode (46457): once one 7027 range is
     /// reported, elements checked INSIDE it stay silent; saved and
     /// restored by check_source_element like currentNode.
@@ -1482,10 +1480,10 @@ impl<'a> CheckerState<'a> {
         rows.push((
             "flow caches",
             self.flow_loop_caches.len() + self.flow_node_reachable.len(),
-            map_bytes(&self.flow_loop_caches)
+            self.flow_loop_caches.memory_bytes()
                 + self.flow_loop_caches.values().map(map_bytes).sum::<usize>()
-                + map_bytes(&self.flow_node_reachable)
-                + map_bytes(&self.flow_node_post_super),
+                + self.flow_node_reachable.memory_bytes()
+                + self.flow_node_post_super.memory_bytes(),
         ));
         rows.push((
             "inference arenas",
@@ -1870,11 +1868,11 @@ impl<'a> CheckerState<'a> {
             final_array_types: rustc_hash::FxHashMap::default(),
             regular_object_literal_types: rustc_hash::FxHashMap::default(),
             properties_types: rustc_hash::FxHashMap::default(),
-            flow_loop_caches: rustc_hash::FxHashMap::default(),
+            flow_loop_caches: Default::default(),
             last_flow_node: None,
             last_flow_node_reachable: false,
-            flow_node_reachable: rustc_hash::FxHashMap::default(),
-            flow_node_post_super: rustc_hash::FxHashMap::default(),
+            flow_node_reachable: Default::default(),
+            flow_node_post_super: Default::default(),
             within_unreachable_code: false,
             reported_unreachable_nodes: rustc_hash::FxHashSet::default(),
             current_node: None,
@@ -2466,20 +2464,20 @@ impl<'a> CheckerState<'a> {
                     unreachable!("ResolvedBaseTypes resolution targets are types");
                 };
                 // `!!type.baseTypesResolved` (55772).
-                *self.links.type_cold().base_types_resolved.get(ty)
+                self.links.type_cold().base_types_resolved.get(ty)
             }
             TypeSystemPropertyName::RESOLVED_BASE_CONSTRUCTOR_TYPE => {
                 let ResolutionTarget::Type(ty) = target else {
                     unreachable!("ResolvedBaseConstructorType resolution targets are types");
                 };
-                self.links.type_cold().resolved_base_constructor_type.get(ty).resolved()
+                self.links.type_cold().resolved_base_constructor_type.resolved(ty)
                     .is_some()
             }
             TypeSystemPropertyName::WRITE_TYPE => {
                 let ResolutionTarget::Symbol(symbol) = target else {
                     unreachable!("WriteType resolution targets are symbols");
                 };
-                self.links.symbol_cold().write_type.get(symbol).resolved().is_some()
+                self.links.symbol_cold().write_type.resolved(symbol).is_some()
             }
             TypeSystemPropertyName::PARAMETER_INITIALIZER_CONTAINS_UNDEFINED => {
                 let ResolutionTarget::Node(node) = target else {
@@ -2502,9 +2500,7 @@ impl<'a> CheckerState<'a> {
                 // tsgo `aliasSymbolLinks.Get(target).aliasTarget != nil`.
                 self.links
                     .symbol_cold()
-                    .alias_target
-                    .get(symbol)
-                    .resolved()
+                    .alias_target.resolved(symbol)
                     .is_some()
             }
             _ => unreachable!(

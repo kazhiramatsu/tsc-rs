@@ -3416,7 +3416,7 @@ fn create_type_node_from_object_type(
         && (checker
             .is_generic_mapped_type_state(r#type)
             .map_err(|abort| checker_abort_error(checker, context, abort))?
-            || *checker.links.type_cold().mapped_contains_error.get(r#type))
+            || checker.links.type_cold().mapped_contains_error.get(r#type))
     {
         return create_mapped_type_node_from_type(checker, arena, target, r#type, context);
     }

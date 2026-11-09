@@ -551,8 +551,7 @@ impl<'a> CheckerState<'a> {
             .links
             .type_cold()
             .restrictive_instantiation
-            .get(tp)
-            .resolved()
+            .resolved(tp)
         {
             return cached;
         }
@@ -726,8 +725,7 @@ impl<'a> CheckerState<'a> {
                 }
                 // 63442-63444: set accessors also need a var-free
                 // writeType before the fast path applies.
-                if let Some(write_type) = self.links.symbol_cold().write_type.get(symbol).resolved()
-                {
+                if let Some(write_type) = self.links.symbol_cold().write_type.resolved(symbol) {
                     if !self.could_contain_type_variables(write_type) {
                         return true;
                     }
@@ -874,8 +872,7 @@ impl<'a> CheckerState<'a> {
             .links
             .node_cold()
             .outer_type_parameters
-            .get(declaration)
-            .resolved()
+            .resolved(declaration)
         {
             Some(cached) => cached,
             None => {
@@ -2181,13 +2178,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(ty);
         }
-        if let Some(cached) = self
-            .links
-            .type_cold()
-            .permissive_instantiation
-            .get(ty)
-            .resolved()
-        {
+        if let Some(cached) = self.links.type_cold().permissive_instantiation.resolved(ty) {
             return Ok(cached);
         }
         let mapper = self.permissive_mapper;
@@ -2212,8 +2203,7 @@ impl<'a> CheckerState<'a> {
             .links
             .type_cold()
             .restrictive_instantiation
-            .get(ty)
-            .resolved()
+            .resolved(ty)
         {
             return Ok(cached);
         }

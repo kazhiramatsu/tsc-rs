@@ -31,6 +31,9 @@
 //! outer containment boundary. Successful walks always return their
 //! computed answer and participate in the same loop cache as tsc.
 
+#[path = "flow_caches.rs"]
+pub(crate) mod caches;
+
 use tsc_binder::flow::{FlowArena, FlowData, FlowId, FlowNode};
 use tsc_binder::{node_util, SymbolId};
 use tsc_diagnostics::gen as diagnostics;
@@ -1476,8 +1479,7 @@ impl<'a> CheckerState<'a> {
             return Ok(self.create_flow_type(result, true));
         }
         self.flow_loop_caches
-            .entry((query.file, flow))
-            .or_default()
+            .get_or_default((query.file, flow))
             .insert(key, result);
         Ok(FlowType::Type(result))
     }
@@ -1927,7 +1929,7 @@ impl<'a> CheckerState<'a> {
                 // a shared node's reachability is cached only while no
                 // ReduceLabel narrows a label's antecedents.
                 if !no_cache_check && self.reduce_label_overrides.is_empty() {
-                    if let Some(&reachable) = self.flow_node_reachable.get(&(file, flow)) {
+                    if let Some(reachable) = self.flow_node_reachable.get(&(file, flow)) {
                         return Ok(reachable);
                     }
                     let reachable = self.is_reachable_flow_node_worker(file, flow, true)?;
@@ -2050,7 +2052,7 @@ impl<'a> CheckerState<'a> {
             let flags = self.flow_flags_of(file, flow);
             if flags.intersects(FlowFlags::SHARED) {
                 if !no_cache_check {
-                    if let Some(&post_super) = self.flow_node_post_super.get(&(file, flow)) {
+                    if let Some(post_super) = self.flow_node_post_super.get(&(file, flow)) {
                         return post_super;
                     }
                     let post_super = self.is_post_super_flow_node(file, flow, true);
@@ -4373,7 +4375,7 @@ impl<'a> CheckerState<'a> {
     /// The second read after isSymbolAssigned is live in tsc: the
     /// marking pass may SET lastAssignmentPos as a side effect.
     pub(crate) fn is_symbol_assigned_definitely(&mut self, symbol: SymbolId) -> CheckResult<bool> {
-        if let Some(pos) = *self.links.symbol_cold().last_assignment_pos.get(symbol) {
+        if let Some(pos) = self.links.symbol_cold().last_assignment_pos.get(symbol) {
             return Ok(pos < 0);
         }
         Ok(self.is_symbol_assigned(symbol)?
@@ -4441,7 +4443,7 @@ impl<'a> CheckerState<'a> {
                 marked?;
             }
         }
-        let pos = *self.links.symbol_cold().last_assignment_pos.get(symbol);
+        let pos = self.links.symbol_cold().last_assignment_pos.get(symbol);
         Ok(match pos {
             None | Some(0) => true,
             Some(pos) => location.is_some_and(|location| {
@@ -4564,7 +4566,7 @@ impl<'a> CheckerState<'a> {
                         let Some(symbol) = self.get_resolved_symbol(node)? else {
                             continue;
                         };
-                        let previous = *self.links.symbol_cold().last_assignment_pos.get(symbol);
+                        let previous = self.links.symbol_cold().last_assignment_pos.get(symbol);
                         let has_definite_assignment = assignment_target
                             == crate::expr::AssignmentKind::Definite
                             || previous.is_some_and(|pos| pos < 0);
@@ -4608,7 +4610,7 @@ impl<'a> CheckerState<'a> {
                             }
                             if has_definite_assignment {
                                 let current =
-                                    *self.links.symbol_cold().last_assignment_pos.get(symbol);
+                                    self.links.symbol_cold().last_assignment_pos.get(symbol);
                                 if let Some(pos) = current {
                                     if pos > 0 {
                                         self.links.set_symbol_last_assignment_pos(

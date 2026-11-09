@@ -163,6 +163,194 @@ impl<T: SlotId + std::fmt::Debug> std::fmt::Debug for IdSlot<T> {
     }
 }
 
+/// A sparse memo whose table presence carries the vacant state. A stored
+/// `None` is Resolving and `Some(value)` is Resolved. This keeps the same
+/// single-probe reads without a separate enum tag beside a niche-bearing
+/// identity or Arc. Every valid identity remains representable.
+#[derive(Debug)]
+pub struct SparseMemo<K, T> {
+    values: FxHashMap<K, Option<T>>,
+}
+
+impl<K, T> Default for SparseMemo<K, T> {
+    fn default() -> Self {
+        Self {
+            values: FxHashMap::default(),
+        }
+    }
+}
+
+impl<K: Eq + std::hash::Hash, T: Clone> SparseMemo<K, T> {
+    /// A resolved value, cloned exactly when the caller asks for it.
+    #[inline]
+    pub fn resolved(&self, key: K) -> Option<T> {
+        self.values.get(&key).and_then(Clone::clone)
+    }
+
+    #[inline]
+    pub fn is_resolving(&self, key: K) -> bool {
+        matches!(self.values.get(&key), Some(None))
+    }
+
+    /// The complete state for callers that previously cloned a LinkSlot.
+    #[inline]
+    pub fn get(&self, key: K) -> LinkSlot<T> {
+        match self.values.get(&key) {
+            None => LinkSlot::Vacant,
+            Some(None) => LinkSlot::Resolving,
+            Some(Some(value)) => LinkSlot::Resolved(value.clone()),
+        }
+    }
+
+    fn clear(&mut self, key: K) {
+        self.values.remove(&key);
+    }
+
+    fn replace(&mut self, key: K, value: LinkSlot<T>) -> LinkSlot<T> {
+        let old = match value {
+            LinkSlot::Vacant => self.values.remove(&key),
+            LinkSlot::Resolving => self.values.insert(key, None),
+            LinkSlot::Resolved(value) => self.values.insert(key, Some(value)),
+        };
+        match old {
+            None => LinkSlot::Vacant,
+            Some(None) => LinkSlot::Resolving,
+            Some(Some(value)) => LinkSlot::Resolved(value),
+        }
+    }
+
+    /// The write_slot protocol, with one entry probe and no value clone.
+    fn write(&mut self, key: K, next: LinkSlot<T>) {
+        use std::collections::hash_map::Entry;
+        match self.values.entry(key) {
+            Entry::Vacant(entry) => match next {
+                LinkSlot::Vacant => {}
+                LinkSlot::Resolving => {
+                    perf::bump(PerfCounter::LinksSlotResolvingStarted);
+                    note_resolving_transition(false, true);
+                    entry.insert(None);
+                }
+                LinkSlot::Resolved(value) => {
+                    perf::bump(PerfCounter::LinksSlotResolvedDirect);
+                    entry.insert(Some(value));
+                }
+            },
+            Entry::Occupied(mut entry) => {
+                if matches!(next, LinkSlot::Resolving) {
+                    return;
+                }
+                let resolving = entry.get().is_none();
+                if resolving && matches!(next, LinkSlot::Resolved(_)) {
+                    perf::bump(PerfCounter::LinksSlotResolvedFromResolving);
+                }
+                note_resolving_transition(resolving, false);
+                match next {
+                    LinkSlot::Vacant => {
+                        entry.remove();
+                    }
+                    LinkSlot::Resolved(value) => {
+                        *entry.get_mut() = Some(value);
+                    }
+                    LinkSlot::Resolving => unreachable!(),
+                }
+            }
+        }
+    }
+}
+
+impl<K, T> SparseMemo<K, T> {
+    fn memory_usage(&self) -> (usize, usize) {
+        (
+            self.values.len(),
+            self.values.capacity() * (std::mem::size_of::<(K, Option<T>)>() + 1) * 8 / 7,
+        )
+    }
+}
+
+/// A false-by-default sparse flag needs only its identity in a set.
+#[derive(Debug)]
+pub struct SparseFlag<K> {
+    values: rustc_hash::FxHashSet<K>,
+}
+
+impl<K> Default for SparseFlag<K> {
+    fn default() -> Self {
+        Self {
+            values: rustc_hash::FxHashSet::default(),
+        }
+    }
+}
+
+impl<K: Eq + std::hash::Hash> SparseFlag<K> {
+    #[inline]
+    pub fn get(&self, key: K) -> bool {
+        self.values.contains(&key)
+    }
+
+    fn set(&mut self, key: K, value: bool) {
+        if value {
+            self.values.insert(key);
+        } else {
+            self.values.remove(&key);
+        }
+    }
+
+    fn clear(&mut self, key: K) {
+        self.values.remove(&key);
+    }
+}
+
+impl<K> SparseFlag<K> {
+    fn memory_usage(&self) -> (usize, usize) {
+        (
+            self.values.len(),
+            self.values.capacity() * (std::mem::size_of::<K>() + 1) * 8 / 7,
+        )
+    }
+}
+
+/// A sparse optional value: missing means None, so no outer Option tag
+/// needs to be stored in a bucket. An optional payload can still be None.
+#[derive(Debug)]
+pub struct SparseOptional<K, T> {
+    values: FxHashMap<K, T>,
+}
+
+impl<K, T> Default for SparseOptional<K, T> {
+    fn default() -> Self {
+        Self {
+            values: FxHashMap::default(),
+        }
+    }
+}
+
+impl<K: Eq + std::hash::Hash, T: Copy> SparseOptional<K, T> {
+    #[inline]
+    pub fn get(&self, key: K) -> Option<T> {
+        self.values.get(&key).copied()
+    }
+
+    fn set(&mut self, key: K, value: Option<T>) {
+        match value {
+            Some(value) => {
+                self.values.insert(key, value);
+            }
+            None => {
+                self.values.remove(&key);
+            }
+        }
+    }
+}
+
+impl<K, T> SparseOptional<K, T> {
+    fn memory_usage(&self) -> (usize, usize) {
+        (
+            self.values.len(),
+            self.values.capacity() * (std::mem::size_of::<(K, T)>() + 1) * 8 / 7,
+        )
+    }
+}
+
 /// A links field few records set: its values by identity, where an absent
 /// identity reads as the field's default (tsc's unset property).
 ///
@@ -319,11 +507,11 @@ pub struct NodeLinksCold {
     /// (getTypeFromJSDocValueReference 60406): the value-derived
     /// JSDoc type is cached separately from the enclosing type
     /// reference result.
-    pub resolved_jsdoc_type: SparseLinks<NodeId, LinkSlot<TypeId>>,
+    pub resolved_jsdoc_type: SparseMemo<NodeId, TypeId>,
     /// tsc NodeLinks.flags & EnumValuesComputed (85582) on
     /// EnumDeclaration nodes. Unlike tsc this REVERTS on CheckAbort
     /// unwind so a later query recomputes the tail of the member list.
-    pub enum_values_computed: SparseLinks<NodeId, bool>,
+    pub enum_values_computed: SparseFlag<NodeId>,
     /// tsc NodeLinks.calculatedFlags (calculateNodeCheckFlagWorker 88132):
     /// which lazily computed NodeCheckFlags groups have already been
     /// derived for an unchecked (noCheck / excluded) source. Emit-only.
@@ -343,9 +531,9 @@ pub struct NodeLinksCold {
     /// the offending statement OR its enclosing block. Stays false when
     /// grammarErrorOnFirstToken is parse-diagnostics-suppressed, like
     /// tsc's `links.x = grammarError(...)` assignment.
-    pub has_reported_statement_in_ambient_context: SparseLinks<NodeId, bool>,
+    pub has_reported_statement_in_ambient_context: SparseFlag<NodeId>,
     /// tsc links.contextFreeType (getContextFreeTypeOfExpression 80948).
-    pub context_free_type: SparseLinks<NodeId, LinkSlot<TypeId>>,
+    pub context_free_type: SparseMemo<NodeId, TypeId>,
     /// tsc links.parameterInitializerContainsUndefined
     /// (parameterInitializerContainsUndefined 71602) on Parameter
     /// nodes — the removeOptionalityFromDeclaredType input.
@@ -355,7 +543,7 @@ pub struct NodeLinksCold {
     pub jsx_flags: SparseLinks<NodeId, tsc_types::JsxFlags>,
     /// tsc links.outerTypeParameters (getObjectTypeInstantiation 63466)
     /// on the instantiated type's declaration node.
-    pub outer_type_parameters: SparseLinks<NodeId, LinkSlot<tsc_types::TypeListId>>,
+    pub outer_type_parameters: SparseMemo<NodeId, tsc_types::TypeListId>,
     /// tsc links.enumMemberValue (computeEnumMemberValues 85587) on
     /// EnumMember nodes.
     pub enum_member_value: SparseLinks<NodeId, Option<crate::evaluate::EvaluatorResult>>,
@@ -546,7 +734,7 @@ pub struct SymbolLinksCold {
     /// distinct from Symbol.isReferenced ([`LinksTables::symbol_is_referenced`]):
     /// unused locals consume the latter, while alias visibility consumers
     /// read this bit.
-    pub alias_referenced: SparseLinks<SymbolId, bool>,
+    pub alias_referenced: SparseFlag<SymbolId>,
     /// tsc links.typeParameters for generic type-alias symbols
     /// (getDeclaredTypeOfTypeAlias 57416).
     pub type_parameters: SparseLinks<SymbolId, Option<Vec<TypeId>>>,
@@ -554,30 +742,30 @@ pub struct SymbolLinksCold {
     /// 57712) — the early⊕late member table of a late-binding
     /// container; equal to `symbol.members` while no late-bindable
     /// member exists (the pre-5.5 slice).
-    pub resolved_members: SparseLinks<SymbolId, LinkSlot<Arc<tsc_binder::SymbolTable>>>,
+    pub resolved_members: SparseMemo<SymbolId, Arc<tsc_binder::SymbolTable>>,
     /// tsc links.lateSymbol (addDeclarationToLateBoundSymbol 57652) —
     /// the late-bound symbol a member's own binder symbol resolved to.
     pub late_symbol: SparseLinks<SymbolId, Option<SymbolId>>,
     /// tsc links.writeType (getWriteTypeOfAccessors 56787) — the
     /// setter-side type; the WriteType resolution property.
-    pub write_type: SparseLinks<SymbolId, LinkSlot<TypeId>>,
+    pub write_type: SparseMemo<SymbolId, TypeId>,
     /// tsc links.resolvedExports (getResolvedMembersOrExportsOfSymbol
     /// 57712, the static resolutionKind) — equal to `symbol.exports`
     /// while no late-bindable static member exists.
-    pub resolved_exports: SparseLinks<SymbolId, LinkSlot<Arc<tsc_binder::SymbolTable>>>,
+    pub resolved_exports: SparseMemo<SymbolId, Arc<tsc_binder::SymbolTable>>,
     /// tsc symbol.lastAssignmentPos (markNodeAssignments 71523): the
     /// last assignment's extended position in document order; NEGATIVE
     /// = a definite-assignment (`x!`-style or sticky), |i64::MAX| =
     /// "assigned in another function" (unknowable). Position 0 is
     /// treated as unmarked by isPastLastAssignment — tsc's JS
     /// falsiness, kept faithfully there.
-    pub last_assignment_pos: SparseLinks<SymbolId, Option<i64>>,
+    pub last_assignment_pos: SparseOptional<SymbolId, i64>,
     /// tsc links.aliasTarget (resolveAlias 49118): Resolving = the
     /// resolvingSymbol sentinel — NOT write-once (the re-entrant
     /// Circular_definition_of_import_alias_0 write and the
     /// sentinel-on-entry unknownSymbol collapse both rewrite it; M4
     /// 5.8d, the resolvedSignature protocol twin).
-    pub alias_target: SparseLinks<SymbolId, LinkSlot<SymbolId>>,
+    pub alias_target: SparseMemo<SymbolId, SymbolId>,
     /// tsgo AliasSymbolLinks.typeOnlyDeclaration (checker/types.go:213): the
     /// first alias declaration of the resolution chain that makes the symbol
     /// usable only in type positions; written once.
@@ -639,14 +827,14 @@ pub struct SymbolLinksCold {
     /// tsc links.typeParametersChecked (checkTypeParameterListsIdentical
     /// 84876) — the once-latch on multi-declaration class/interface
     /// symbols.
-    pub type_parameters_checked: SparseLinks<SymbolId, bool>,
+    pub type_parameters_checked: SparseFlag<SymbolId>,
     /// tsgo declaredTypeLinks: once per checker, regardless of which
     /// declaration of a merged interface this checker visits first.
-    pub interface_checked: SparseLinks<SymbolId, bool>,
-    pub index_signatures_checked: SparseLinks<SymbolId, bool>,
-    pub enum_checked: SparseLinks<SymbolId, bool>,
+    pub interface_checked: SparseFlag<SymbolId>,
+    pub index_signatures_checked: SparseFlag<SymbolId>,
+    pub enum_checked: SparseFlag<SymbolId>,
     /// tsgo valueSymbolLinks.functionOrConstructorChecked, per checker.
-    pub function_or_constructor_checked: SparseLinks<SymbolId, bool>,
+    pub function_or_constructor_checked: SparseFlag<SymbolId>,
     /// tsc links.typeOnlyExportStarMap (getExportsOfModule 49841):
     /// written WITH the module-flavor resolved_exports; names whose
     /// only path in is a type-only `export type *` declaration.
@@ -654,13 +842,13 @@ pub struct SymbolLinksCold {
         SparseLinks<SymbolId, Option<rustc_hash::FxHashMap<EscapedName, NodeId>>>,
     /// tsc links.exportsChecked (checkExternalModuleExports 86445) —
     /// the per-module once-guard.
-    pub exports_checked: SparseLinks<SymbolId, bool>,
+    pub exports_checked: SparseFlag<SymbolId>,
     /// tsc links.cjsExportMerged (getCommonJsExportEquals 49697).
     pub cjs_export_merged: SparseLinks<SymbolId, Option<SymbolId>>,
     /// tsc links.immediateTarget (getImmediateAliasedSymbol 50092) —
     /// compute-once; the inner Option is the target (None = tsc
     /// undefined result, still computed).
-    pub immediate_target: SparseLinks<SymbolId, Option<Option<SymbolId>>>,
+    pub immediate_target: SparseOptional<SymbolId, Option<SymbolId>>,
 }
 
 impl SymbolLinksCold {
@@ -808,25 +996,25 @@ pub struct TypeLinksCold {
     pub type_parameter_default: SparseLinks<TypeId, IdSlot<TypeId>>,
     /// tsc MappedType.typeParameter (getTypeParameterFromMappedType
     /// 58601): declaration-derived and computed once.
-    pub mapped_type_parameter: SparseLinks<TypeId, LinkSlot<TypeId>>,
+    pub mapped_type_parameter: SparseMemo<TypeId, TypeId>,
     /// tsc MappedType.constraintType (58604).
-    pub mapped_constraint_type: SparseLinks<TypeId, LinkSlot<TypeId>>,
+    pub mapped_constraint_type: SparseMemo<TypeId, TypeId>,
     /// tsc MappedType.nameType (58607). The inner None records a mapped
     /// declaration without an `as` clause.
     pub mapped_name_type: SparseLinks<TypeId, LinkSlot<Option<TypeId>>>,
     /// tsc MappedType.templateType (58610).
-    pub mapped_template_type: SparseLinks<TypeId, LinkSlot<TypeId>>,
+    pub mapped_template_type: SparseMemo<TypeId, TypeId>,
     /// tsc MappedType.modifiersType (58625), consumed when mapped
     /// members/instantiation land in 9.5b.
-    pub mapped_modifiers_type: SparseLinks<TypeId, LinkSlot<TypeId>>,
+    pub mapped_modifiers_type: SparseMemo<TypeId, TypeId>,
     /// tsc MappedType.containsError, set by a mapped-property type
     /// resolution cycle (58581). This is monotone diagnostic state.
-    pub mapped_contains_error: SparseLinks<TypeId, bool>,
+    pub mapped_contains_error: SparseFlag<TypeId>,
     /// tsc MappedType.resolvedApparentType
     /// (getApparentTypeOfMappedType 59071).
-    pub mapped_apparent_type: SparseLinks<TypeId, LinkSlot<TypeId>>,
+    pub mapped_apparent_type: SparseMemo<TypeId, TypeId>,
     /// tsgo IntersectionType.resolvedApparentType (checker.go:22229).
-    pub intersection_apparent_type: SparseLinks<TypeId, LinkSlot<TypeId>>,
+    pub intersection_apparent_type: SparseMemo<TypeId, TypeId>,
     /// tsgo isUniformUnionType (checker.go:28359): whether primitive
     /// union literals have disjoint values, including their enum parents.
     pub uniform_union_type: SparseLinks<TypeId, LinkSlot<bool>>,
@@ -834,10 +1022,10 @@ pub struct TypeLinksCold {
     /// checker-owned because conditional types are immutable in the
     /// types arena. `Resolved(None)` is the stored false sentinel for
     /// `resolvedConstraintOfDistributive`.
-    pub conditional_true_type: SparseLinks<TypeId, LinkSlot<TypeId>>,
-    pub conditional_false_type: SparseLinks<TypeId, LinkSlot<TypeId>>,
-    pub conditional_inferred_true_type: SparseLinks<TypeId, LinkSlot<TypeId>>,
-    pub conditional_default_constraint: SparseLinks<TypeId, LinkSlot<TypeId>>,
+    pub conditional_true_type: SparseMemo<TypeId, TypeId>,
+    pub conditional_false_type: SparseMemo<TypeId, TypeId>,
+    pub conditional_inferred_true_type: SparseMemo<TypeId, TypeId>,
+    pub conditional_default_constraint: SparseMemo<TypeId, TypeId>,
     pub conditional_constraint_of_distributive: SparseLinks<TypeId, LinkSlot<Option<TypeId>>>,
     /// tsc synthType.syntheticType (getTypeWithSyntheticDefaultImportType
     /// 77789-77821) — the esModuleInterop default-wrap memo stamped on
@@ -849,24 +1037,24 @@ pub struct TypeLinksCold {
     pub default_only_type: SparseLinks<TypeId, Option<TypeId>>,
     /// tsc type.resolvedIndexType / resolvedStringIndexType
     /// (getIndexTypeForGenericType 61932).
-    pub resolved_index_type: SparseLinks<TypeId, LinkSlot<TypeId>>,
-    pub resolved_string_index_type: SparseLinks<TypeId, LinkSlot<TypeId>>,
+    pub resolved_index_type: SparseMemo<TypeId, TypeId>,
+    pub resolved_string_index_type: SparseMemo<TypeId, TypeId>,
     /// tsc type.simplifiedForReading / simplifiedForWriting
     /// (getSimplifiedIndexedAccessType 62471-62475). Resolving IS
     /// tsc's circularConstraintType in-flight sentinel (re-entry
     /// returns the type itself); a CheckAbort unwind reverts to
     /// Vacant per the unwind invariant.
-    pub simplified_for_reading: SparseLinks<TypeId, LinkSlot<TypeId>>,
-    pub simplified_for_writing: SparseLinks<TypeId, LinkSlot<TypeId>>,
+    pub simplified_for_reading: SparseMemo<TypeId, TypeId>,
+    pub simplified_for_writing: SparseMemo<TypeId, TypeId>,
     /// tsc type.uniqueLiteralFilledInstantiation (isReducibleIntersection
     /// 59322).
-    pub unique_literal_filled_instantiation: SparseLinks<TypeId, LinkSlot<TypeId>>,
+    pub unique_literal_filled_instantiation: SparseMemo<TypeId, TypeId>,
     /// tsc type.permissiveInstantiation (getPermissiveInstantiation
     /// 63815).
-    pub permissive_instantiation: SparseLinks<TypeId, LinkSlot<TypeId>>,
+    pub permissive_instantiation: SparseMemo<TypeId, TypeId>,
     /// tsc type.restrictiveInstantiation (getRestrictiveInstantiation
     /// 63818; the result self-stamp makes the second write idempotent).
-    pub restrictive_instantiation: SparseLinks<TypeId, LinkSlot<TypeId>>,
+    pub restrictive_instantiation: SparseMemo<TypeId, TypeId>,
     /// tsc TypeReference.cachedEquivalentBaseType
     /// (getSingleBaseForNonAugmentingSubtype 67713), guarded by the
     /// IdenticalBaseTypeCalculated/Exists object flags.
@@ -894,7 +1082,7 @@ pub struct TypeLinksCold {
     pub union_key_property: SparseLinks<TypeId, LinkSlot<UnionKeyProperty>>,
     /// tsc unionType.resolvedReducedType (getReducedType 59289 +
     /// getReducedUnionType's self-stamp 59305).
-    pub resolved_reduced_type: SparseLinks<TypeId, LinkSlot<TypeId>>,
+    pub resolved_reduced_type: SparseMemo<TypeId, TypeId>,
     /// tsc TypeReference.mapper (60197): applied to the node-read
     /// arguments in getTypeArguments (60211); set by
     /// getObjectTypeInstantiation's deferred-reference result arm.
@@ -904,7 +1092,7 @@ pub struct TypeLinksCold {
     /// declaredIndexInfos (resolveDeclaredMembers 57602) — one
     /// ResolvedMembers holding the OWN members, distinct from
     /// resolved_members (which merges heritage).
-    pub declared_members: SparseLinks<TypeId, LinkSlot<MembersId>>,
+    pub declared_members: SparseMemo<TypeId, MembersId>,
     /// tsc InterfaceType.resolvedBaseTypes (getBaseTypes 57218).
     /// MUTABLE like tsc's field: interfaces initialize to [] and push
     /// per base; a mid-cycle reader observes the partial list.
@@ -912,12 +1100,12 @@ pub struct TypeLinksCold {
     /// tsc InterfaceType.baseTypesResolved (57224/57244) — set true
     /// even when the resolution stack flags a cycle, freezing whatever
     /// resolvedBaseTypes holds.
-    pub base_types_resolved: SparseLinks<TypeId, bool>,
+    pub base_types_resolved: SparseFlag<TypeId>,
     /// tsc InterfaceType.resolvedBaseConstructorType
     /// (getBaseConstructorTypeOfClass 57146) — the checked extends
     /// expression type; the ResolvedBaseConstructorType resolution
     /// property.
-    pub resolved_base_constructor_type: SparseLinks<TypeId, LinkSlot<TypeId>>,
+    pub resolved_base_constructor_type: SparseMemo<TypeId, TypeId>,
     /// tsc PromiseOrAwaitedType.promisedTypeOfPromise
     /// (getPromisedTypeOfPromise 82316) — the memoized `then`
     /// onfulfilled parameter type.
@@ -938,7 +1126,7 @@ pub struct TypeLinksCold {
 
 impl TypeLinksCold {
     /// The simplifiedForWriting or simplifiedForReading cache.
-    pub fn simplified(&self, writing: bool) -> &SparseLinks<TypeId, LinkSlot<TypeId>> {
+    pub fn simplified(&self, writing: bool) -> &SparseMemo<TypeId, TypeId> {
         if writing {
             &self.simplified_for_writing
         } else {
@@ -946,7 +1134,7 @@ impl TypeLinksCold {
         }
     }
 
-    fn simplified_mut(&mut self, writing: bool) -> &mut SparseLinks<TypeId, LinkSlot<TypeId>> {
+    fn simplified_mut(&mut self, writing: bool) -> &mut SparseMemo<TypeId, TypeId> {
         if writing {
             &mut self.simplified_for_writing
         } else {
@@ -1793,9 +1981,9 @@ impl LinksTables {
         id: NodeId,
         value: TypeId,
     ) {
-        let slot = self.node_cold.resolved_jsdoc_type.slot(id);
-        note_resolving_transition(slot.is_resolving(), false);
-        *slot = LinkSlot::Resolved(value);
+        let cache = &mut self.node_cold.resolved_jsdoc_type;
+        let previous = cache.replace(id, LinkSlot::Resolved(value));
+        note_resolving_transition(previous.is_resolving(), false);
     }
 
     /// getTypeFromImportTypeNode's resolvedSymbol writes are UNGUARDED
@@ -1865,7 +2053,7 @@ impl LinksTables {
         // A context-free expression type is a reproducible lazy memo.
         // Its callers retain and return the computed type, so rejected
         // candidates need not publish it to the shared node.
-        Self::write_slot(self.node_cold.context_free_type.slot(id), value);
+        self.node_cold.context_free_type.write(id, value);
     }
 
     /// tsrs-native: the links-slot setter behind
@@ -2909,10 +3097,9 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn set_type_resolved_reduced_type(&mut self, id: TypeId, value: TypeId) {
-        Self::write_slot(
-            self.type_cold.resolved_reduced_type.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.type_cold
+            .resolved_reduced_type
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -2989,28 +3176,25 @@ impl LinksTables {
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.typeParameter.
     pub fn set_mapped_type_parameter(&mut self, id: TypeId, value: TypeId) {
-        Self::write_slot(
-            self.type_cold.mapped_type_parameter.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.type_cold
+            .mapped_type_parameter
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// tsrs-native: initialize the type parameter owned by a freshly
     /// allocated mapped-type instantiation.
     pub fn set_fresh_mapped_type_parameter(&mut self, id: TypeId, value: TypeId) {
-        Self::write_slot(
-            self.type_cold.mapped_type_parameter.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.type_cold
+            .mapped_type_parameter
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.constraintType.
     pub fn set_mapped_constraint_type(&mut self, id: TypeId, value: TypeId) {
-        Self::write_slot(
-            self.type_cold.mapped_constraint_type.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.type_cold
+            .mapped_constraint_type
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// tsrs-native: one-write TypeLinks setter for tsc
@@ -3025,19 +3209,17 @@ impl LinksTables {
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.templateType.
     pub fn set_mapped_template_type(&mut self, id: TypeId, value: TypeId) {
-        Self::write_slot(
-            self.type_cold.mapped_template_type.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.type_cold
+            .mapped_template_type
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.modifiersType.
     pub fn set_mapped_modifiers_type(&mut self, id: TypeId, value: TypeId) {
-        Self::write_slot(
-            self.type_cold.mapped_modifiers_type.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.type_cold
+            .mapped_modifiers_type
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// tsrs-native: LinksTables setter for tsc
@@ -3050,17 +3232,16 @@ impl LinksTables {
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.resolvedApparentType.
     pub fn set_mapped_apparent_type(&mut self, id: TypeId, value: TypeId) {
-        Self::write_slot(
-            self.type_cold.mapped_apparent_type.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.type_cold
+            .mapped_apparent_type
+            .write(id, LinkSlot::Resolved(value));
     }
 
     pub fn set_intersection_apparent_type(&mut self, id: TypeId, value: TypeId) {
         // Go assigns after computation, including re-entrant completion.
         self.type_cold
             .intersection_apparent_type
-            .set(id, LinkSlot::Resolved(value));
+            .replace(id, LinkSlot::Resolved(value));
     }
 
     pub fn set_uniform_union_type(&mut self, id: TypeId, value: bool) {
@@ -3077,10 +3258,9 @@ impl LinksTables {
         id: TypeId,
         value: TypeId,
     ) {
-        Self::write_slot(
-            self.type_cold.conditional_true_type.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.type_cold
+            .conditional_true_type
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// tsrs-native: one-write ConditionalType.resolvedFalseType setter.
@@ -3090,10 +3270,9 @@ impl LinksTables {
         id: TypeId,
         value: TypeId,
     ) {
-        Self::write_slot(
-            self.type_cold.conditional_false_type.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.type_cold
+            .conditional_false_type
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// tsrs-native: one-write ConditionalType.resolvedInferredTrueType setter.
@@ -3103,10 +3282,9 @@ impl LinksTables {
         id: TypeId,
         value: TypeId,
     ) {
-        Self::write_slot(
-            self.type_cold.conditional_inferred_true_type.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.type_cold
+            .conditional_inferred_true_type
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// tsrs-native: one-write ConditionalType.resolvedDefaultConstraint setter.
@@ -3116,10 +3294,9 @@ impl LinksTables {
         id: TypeId,
         value: TypeId,
     ) {
-        Self::write_slot(
-            self.type_cold.conditional_default_constraint.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.type_cold
+            .conditional_default_constraint
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// tsrs-native: one-write resolvedConstraintOfDistributive setter.
@@ -3166,7 +3343,7 @@ impl LinksTables {
         writing: bool,
         value: LinkSlot<TypeId>,
     ) {
-        Self::write_slot(self.type_cold.simplified_mut(writing).slot(id), value);
+        self.type_cold.simplified_mut(writing).write(id, value);
     }
 
     /// tsrs-native: Err-unwind twin for the simplified cache — tsc
@@ -3272,10 +3449,9 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn set_node_outer_type_parameters(&mut self, id: NodeId, value: tsc_types::TypeListId) {
-        Self::write_slot(
-            self.node_cold.outer_type_parameters.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.node_cold
+            .outer_type_parameters
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// tsrs-native: createUnionOrIntersectionProperty's identical-
@@ -3393,10 +3569,9 @@ impl LinksTables {
         id: SymbolId,
         value: Arc<tsc_binder::SymbolTable>,
     ) {
-        Self::write_slot(
-            self.symbol_cold.resolved_members.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.symbol_cold
+            .resolved_members
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// The late-binding pre-write/rewrite protocol (57717 → 57763):
@@ -3414,19 +3589,16 @@ impl LinksTables {
         value: Arc<tsc_binder::SymbolTable>,
     ) {
         let _ = speculation_depth;
-        let slot = self.symbol_cold.resolved_members.slot(id);
-        note_resolving_transition(slot.is_resolving(), false);
-        *slot = LinkSlot::Resolved(value);
+        let cache = &mut self.symbol_cold.resolved_members;
+        let previous = cache.replace(id, LinkSlot::Resolved(value));
+        note_resolving_transition(previous.is_resolving(), false);
     }
 
     /// Err-unwind twin for the late-binding protocol.
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn revert_symbol_resolved_members(&mut self, id: SymbolId) {
-        note_resolving_transition(
-            self.symbol_cold.resolved_members.get(id).is_resolving(),
-            false,
-        );
+        note_resolving_transition(self.symbol_cold.resolved_members.is_resolving(id), false);
         self.symbol_cold.resolved_members.clear(id);
     }
 
@@ -3440,19 +3612,16 @@ impl LinksTables {
         value: Arc<tsc_binder::SymbolTable>,
     ) {
         let _ = speculation_depth;
-        let slot = self.symbol_cold.resolved_exports.slot(id);
-        note_resolving_transition(slot.is_resolving(), false);
-        *slot = LinkSlot::Resolved(value);
+        let cache = &mut self.symbol_cold.resolved_exports;
+        let previous = cache.replace(id, LinkSlot::Resolved(value));
+        note_resolving_transition(previous.is_resolving(), false);
     }
 
     /// Err-unwind twin for the resolvedExports flavor.
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn revert_symbol_resolved_exports(&mut self, id: SymbolId) {
-        note_resolving_transition(
-            self.symbol_cold.resolved_exports.get(id).is_resolving(),
-            false,
-        );
+        note_resolving_transition(self.symbol_cold.resolved_exports.is_resolving(id), false);
         self.symbol_cold.resolved_exports.clear(id);
     }
 
@@ -3469,7 +3638,7 @@ impl LinksTables {
         id: SymbolId,
         value: LinkSlot<SymbolId>,
     ) {
-        Self::write_slot(self.symbol_cold.alias_target.slot(id), value);
+        self.symbol_cold.alias_target.write(id, value);
     }
 
     /// tsrs-native: initialize a freshly synthesized alias symbol.
@@ -3477,7 +3646,7 @@ impl LinksTables {
     /// The wrapper symbol and its pre-resolved target are constructed
     /// together; no pre-existing cache entry is published.
     pub fn set_fresh_symbol_alias_target(&mut self, id: SymbolId, value: LinkSlot<SymbolId>) {
-        Self::write_slot(self.symbol_cold.alias_target.slot(id), value);
+        self.symbol_cold.alias_target.write(id, value);
     }
 
     /// tsrs-native: links accessor — AliasSymbolLinks.typeOnlyDeclaration.
@@ -3506,7 +3675,7 @@ impl LinksTables {
     /// seen by the exports resolved afterwards; here both share this slot.
     pub fn clear_symbol_module_exports(&mut self, id: SymbolId) {
         let cold = &mut self.symbol_cold;
-        *cold.resolved_exports.slot(id) = LinkSlot::Vacant;
+        cold.resolved_exports.clear(id);
         cold.type_only_export_star_map.set(id, None);
     }
 
@@ -3520,19 +3689,29 @@ impl LinksTables {
         // table directly. A candidate may consume that table without
         // publishing it to the shared module-symbol memo.
         let cold = &mut self.symbol_cold;
-        let slot = cold.resolved_exports.slot(id);
-        match &*slot {
-            LinkSlot::Vacant | LinkSlot::Resolving => {
-                note_resolving_transition(slot.is_resolving(), false);
-                *slot = LinkSlot::Resolved(exports);
-                cold.type_only_export_star_map
-                    .set(id, type_only_export_star_map);
+        use std::collections::hash_map::Entry;
+        let published = match cold.resolved_exports.values.entry(id) {
+            Entry::Vacant(entry) => {
+                entry.insert(Some(exports));
+                true
             }
-            LinkSlot::Resolved(existing)
-                if Arc::ptr_eq(existing, &exports) || **existing == *exports => {}
-            LinkSlot::Resolved(_) => {
-                panic!("module resolvedExports rewritten with a different table: {id:?}")
-            }
+            Entry::Occupied(mut entry) => match entry.get() {
+                None => {
+                    note_resolving_transition(true, false);
+                    entry.insert(Some(exports));
+                    true
+                }
+                Some(existing) if Arc::ptr_eq(existing, &exports) || **existing == *exports => {
+                    false
+                }
+                Some(_) => {
+                    panic!("module resolvedExports rewritten with a different table: {id:?}")
+                }
+            },
+        };
+        if published {
+            cold.type_only_export_star_map
+                .set(id, type_only_export_star_map);
         }
     }
 
@@ -3547,10 +3726,13 @@ impl LinksTables {
     pub fn set_symbol_immediate_target(&mut self, id: SymbolId, value: Option<SymbolId>) {
         // A speculative alias query may consume the freshly computed
         // immediate target, but must not publish that memo globally.
-        let slot = self.symbol_cold.immediate_target.slot(id);
+        let cache = &mut self.symbol_cold.immediate_target;
+        let slot = cache.get(id);
         match slot {
-            None => *slot = Some(value),
-            Some(existing) if *existing == value => {}
+            None => {
+                cache.set(id, Some(value));
+            }
+            Some(existing) if existing == value => {}
             _ => panic!("immediateTarget rewritten: {slot:?} -> {value:?}"),
         }
     }
@@ -3610,10 +3792,9 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn set_type_declared_members(&mut self, id: TypeId, value: crate::state::MembersId) {
-        Self::write_slot(
-            self.type_cold.declared_members.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.type_cold
+            .declared_members
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// The tsc-mutable `type.resolvedBaseTypes` assignment (57225,
@@ -3643,19 +3824,17 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn set_symbol_write_type(&mut self, _speculation_depth: u32, id: SymbolId, value: TypeId) {
-        Self::write_slot(
-            self.symbol_cold.write_type.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.symbol_cold
+            .write_type
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// tsrs-native: initialize the write type of a freshly synthesized
     /// property symbol.
     pub fn set_fresh_symbol_write_type(&mut self, id: SymbolId, value: TypeId) {
-        Self::write_slot(
-            self.symbol_cold.write_type.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.symbol_cold
+            .write_type
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// getResolvedMembersOrExportsOfSymbol's static-side cache (57763).
@@ -3666,10 +3845,9 @@ impl LinksTables {
         id: SymbolId,
         value: Arc<tsc_binder::SymbolTable>,
     ) {
-        Self::write_slot(
-            self.symbol_cold.resolved_exports.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.symbol_cold
+            .resolved_exports
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// getBaseConstructorTypeOfClass's resolvedBaseConstructorType
@@ -3682,10 +3860,9 @@ impl LinksTables {
         id: TypeId,
         value: TypeId,
     ) {
-        Self::write_slot(
-            self.type_cold.resolved_base_constructor_type.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.type_cold
+            .resolved_base_constructor_type
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// createTupleTargetType's tupleLabelDeclaration stamp (61170).
@@ -3865,10 +4042,9 @@ impl LinksTables {
         id: TypeId,
         value: TypeId,
     ) {
-        Self::write_slot(
-            self.type_cold.resolved_index_type.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.type_cold
+            .resolved_index_type
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -3881,10 +4057,9 @@ impl LinksTables {
         id: TypeId,
         value: TypeId,
     ) {
-        Self::write_slot(
-            self.type_cold.resolved_string_index_type.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.type_cold
+            .resolved_string_index_type
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -3895,10 +4070,9 @@ impl LinksTables {
         id: TypeId,
         value: TypeId,
     ) {
-        Self::write_slot(
-            self.type_cold.unique_literal_filled_instantiation.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.type_cold
+            .unique_literal_filled_instantiation
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -3909,10 +4083,9 @@ impl LinksTables {
         id: TypeId,
         value: TypeId,
     ) {
-        Self::write_slot(
-            self.type_cold.permissive_instantiation.slot(id),
-            LinkSlot::Resolved(value),
-        );
+        self.type_cold
+            .permissive_instantiation
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// getRestrictiveInstantiation self-stamps its result (63825-63826),
@@ -3925,11 +4098,9 @@ impl LinksTables {
         id: TypeId,
         value: TypeId,
     ) {
-        let slot = self.type_cold.restrictive_instantiation.slot(id);
-        match &*slot {
-            LinkSlot::Resolved(existing) if *existing == value => {}
-            _ => Self::write_slot(slot, LinkSlot::Resolved(value)),
-        }
+        self.type_cold
+            .restrictive_instantiation
+            .write(id, LinkSlot::Resolved(value));
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -3963,3 +4134,113 @@ impl LinksTables {
 #[cfg(test)]
 #[path = "../tests/unit/links/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod sparse_tests {
+    use super::*;
+
+    #[test]
+    fn sparse_flags_keep_false_absence_and_full_identity_bounds() {
+        let mut flags = SparseFlag::<SymbolId>::default();
+        let low = SymbolId::new(0);
+        let high = SymbolId::new(u32::MAX - 1);
+        assert!(!flags.get(low));
+        assert!(!flags.get(high));
+        flags.set(high, true);
+        flags.set(high, true);
+        assert!(flags.get(high));
+        assert!(!flags.get(low));
+        assert_eq!(flags.memory_usage().0, 1);
+        flags.set(low, false);
+        assert!(flags.get(high));
+        flags.set(high, false);
+        assert!(!flags.get(high));
+        assert_eq!(flags.memory_usage().0, 0);
+        flags.set(low, true);
+        flags.clear(low);
+        assert!(!flags.get(low));
+    }
+
+    #[test]
+    fn sparse_memo_states_match_the_original_writer_at_identity_bounds() {
+        let initial = debug_resolving_open();
+        for index in [0, 1, u32::MAX - 2, u32::MAX - 1] {
+            let key = SymbolId::new(index);
+            let value = TypeId::new(index);
+            let mut memo = SparseMemo::<SymbolId, TypeId>::default();
+            let mut original = LinkSlot::Vacant;
+            assert_eq!(memo.get(key), LinkSlot::Vacant);
+            assert_eq!(memo.resolved(key), None);
+            assert!(!memo.is_resolving(key));
+            for next in [
+                LinkSlot::Vacant,
+                LinkSlot::Resolving,
+                LinkSlot::Resolving,
+                LinkSlot::Resolved(value),
+                LinkSlot::Resolving,
+                LinkSlot::Resolved(TypeId::new(7)),
+                LinkSlot::Vacant,
+                LinkSlot::Resolved(value),
+                LinkSlot::Vacant,
+            ] {
+                LinksTables::write_slot(&mut original, next.clone());
+                memo.write(key, next);
+                assert_eq!(memo.get(key), original);
+                assert_eq!(memo.resolved(key), original.resolved());
+                assert_eq!(memo.is_resolving(key), original.is_resolving());
+            }
+            assert_eq!(memo.memory_usage().0, 0);
+        }
+        assert_eq!(debug_resolving_open(), initial);
+        assert_eq!(std::mem::size_of::<(SymbolId, Option<TypeId>)>(), 8);
+    }
+
+    #[test]
+    fn sparse_memo_raw_replacements_and_arc_reads_keep_their_meaning() {
+        let mut memo = SparseMemo::<SymbolId, Arc<tsc_binder::SymbolTable>>::default();
+        let key = SymbolId::new(u32::MAX - 1);
+        let other = SymbolId::new(0);
+        let table = Arc::new(tsc_binder::SymbolTable::default());
+        assert_eq!(memo.replace(key, LinkSlot::Resolving), LinkSlot::Vacant);
+        assert!(memo.is_resolving(key));
+        assert_eq!(
+            memo.replace(key, LinkSlot::Resolved(table.clone())),
+            LinkSlot::Resolving
+        );
+        assert_eq!(Arc::strong_count(&table), 2);
+        assert!(!memo.is_resolving(key));
+        assert_eq!(Arc::strong_count(&table), 2);
+        assert!(Arc::ptr_eq(&memo.resolved(key).unwrap(), &table));
+        assert_eq!(Arc::strong_count(&table), 2);
+        assert_eq!(memo.get(other), LinkSlot::Vacant);
+        memo.clear(key);
+        assert_eq!(memo.get(key), LinkSlot::Vacant);
+        assert_eq!(Arc::strong_count(&table), 1);
+        assert_eq!(
+            std::mem::size_of::<(SymbolId, Option<Arc<tsc_binder::SymbolTable>>)>(),
+            16
+        );
+    }
+
+    #[test]
+    fn sparse_optional_distinguishes_absent_computed_none_and_integer_bounds() {
+        let key = SymbolId::new(u32::MAX - 1);
+        let mut targets = SparseOptional::<SymbolId, Option<SymbolId>>::default();
+        assert_eq!(targets.get(key), None);
+        targets.set(key, Some(None));
+        assert_eq!(targets.get(key), Some(None));
+        targets.set(key, Some(Some(key)));
+        assert_eq!(targets.get(key), Some(Some(key)));
+        targets.set(key, None);
+        assert_eq!(targets.get(key), None);
+        let mut positions = SparseOptional::<SymbolId, i64>::default();
+        for value in [i64::MIN, i64::MAX, -1, 0, 1] {
+            positions.set(key, Some(value));
+            assert_eq!(positions.get(key), Some(value));
+            assert_eq!(positions.get(SymbolId::new(0)), None);
+        }
+        positions.set(key, None);
+        assert_eq!(positions.get(key), None);
+        assert_eq!(positions.memory_usage().0, 0);
+    }
+}

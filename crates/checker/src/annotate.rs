@@ -2765,13 +2765,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .type_cold()
-            .mapped_type_parameter
-            .get(ty)
-            .resolved()
-        {
+        if let Some(cached) = self.links.type_cold().mapped_type_parameter.resolved(ty) {
             return Ok(cached);
         }
         let declaration = self.mapped_type_declaration(ty);
@@ -2783,13 +2777,7 @@ impl<'a> CheckerState<'a> {
             .expect("parser invariant: MappedType type_parameter always parsed");
         let symbol = self.get_symbol_of_declaration(parameter)?;
         let resolved = self.get_declared_type_of_type_parameter(symbol);
-        if let Some(cached) = self
-            .links
-            .type_cold()
-            .mapped_type_parameter
-            .get(ty)
-            .resolved()
-        {
+        if let Some(cached) = self.links.type_cold().mapped_type_parameter.resolved(ty) {
             return Ok(cached);
         }
         self.links.set_mapped_type_parameter(ty, resolved);
@@ -2803,26 +2791,14 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .type_cold()
-            .mapped_constraint_type
-            .get(ty)
-            .resolved()
-        {
+        if let Some(cached) = self.links.type_cold().mapped_constraint_type.resolved(ty) {
             return Ok(cached);
         }
         let parameter = self.get_type_parameter_from_mapped_type(ty)?;
         let resolved = self
             .get_constraint_of_type_parameter(parameter)?
             .unwrap_or(self.tables.intrinsics.error);
-        if let Some(cached) = self
-            .links
-            .type_cold()
-            .mapped_constraint_type
-            .get(ty)
-            .resolved()
-        {
+        if let Some(cached) = self.links.type_cold().mapped_constraint_type.resolved(ty) {
             return Ok(cached);
         }
         self.links.set_mapped_constraint_type(ty, resolved);
@@ -2884,13 +2860,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 02e8bed481d8ce476e2ebdf76c56462d5f48c545cd98c5d49ae769f478d34b8d
     /// tsc-span: _tsc.js:58610-58617
     pub(crate) fn get_template_type_from_mapped_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .type_cold()
-            .mapped_template_type
-            .get(ty)
-            .resolved()
-        {
+        if let Some(cached) = self.links.type_cold().mapped_template_type.resolved(ty) {
             return Ok(cached);
         }
         let mapped = self.mapped_type_data(ty);
@@ -2911,13 +2881,7 @@ impl<'a> CheckerState<'a> {
             }
             None => self.tables.intrinsics.error,
         };
-        if let Some(cached) = self
-            .links
-            .type_cold()
-            .mapped_template_type
-            .get(ty)
-            .resolved()
-        {
+        if let Some(cached) = self.links.type_cold().mapped_template_type.resolved(ty) {
             return Ok(cached);
         }
         self.links.set_mapped_template_type(ty, resolved);
@@ -4785,13 +4749,7 @@ impl<'a> CheckerState<'a> {
     /// synthesize their declared members at creation in tsc
     /// (61160-61185) — that synthesis is 5.3c.
     pub(crate) fn resolve_declared_members(&mut self, target: TypeId) -> CheckResult<MembersId> {
-        if let Some(declared) = self
-            .links
-            .type_cold()
-            .declared_members
-            .get(target)
-            .resolved()
-        {
+        if let Some(declared) = self.links.type_cold().declared_members.resolved(target) {
             return Ok(declared);
         }
         let tuple_target = match &self.tables.type_of(target).data {
@@ -4872,13 +4830,7 @@ impl<'a> CheckerState<'a> {
             // synthesizing one of its member types.  The nested call owns
             // the first published table; use it rather than attempting a
             // second declared-members slot transition.
-            if let Some(existing) = self
-                .links
-                .type_cold()
-                .declared_members
-                .get(target)
-                .resolved()
-            {
+            if let Some(existing) = self.links.type_cold().declared_members.resolved(target) {
                 return Ok(existing);
             }
             self.links.set_type_declared_members(target, id);
@@ -4919,13 +4871,7 @@ impl<'a> CheckerState<'a> {
         // publish the declared-members table before this frame reaches its
         // setter; preserve the first table and let its owner finish filling
         // it in place.
-        if let Some(existing) = self
-            .links
-            .type_cold()
-            .declared_members
-            .get(target)
-            .resolved()
-        {
+        if let Some(existing) = self.links.type_cold().declared_members.resolved(target) {
             return Ok(existing);
         }
         self.links.set_type_declared_members(target, id);
@@ -5135,17 +5081,9 @@ impl<'a> CheckerState<'a> {
         is_static: bool,
     ) -> CheckResult<Arc<tsc_binder::SymbolTable>> {
         let cached = if is_static {
-            self.links
-                .symbol_cold()
-                .resolved_exports
-                .get(symbol)
-                .resolved()
+            self.links.symbol_cold().resolved_exports.resolved(symbol)
         } else {
-            self.links
-                .symbol_cold()
-                .resolved_members
-                .get(symbol)
-                .resolved()
+            self.links.symbol_cold().resolved_members.resolved(symbol)
         };
         if let Some(resolved) = cached {
             return Ok(resolved);
@@ -5296,15 +5234,13 @@ impl<'a> CheckerState<'a> {
                             .links
                             .symbol_cold()
                             .resolved_exports
-                            .get(original)
-                            .resolved()
+                            .resolved(original)
                     } else {
                         state
                             .links
                             .symbol_cold()
                             .resolved_members
-                            .get(original)
-                            .resolved()
+                            .resolved(original)
                     };
                     if let Some(table) = table {
                         for (name, &member) in table.iter() {
@@ -5822,7 +5758,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(Vec::new());
         }
-        if !*self.links.type_cold().base_types_resolved.get(ty) {
+        if !self.links.type_cold().base_types_resolved.get(ty) {
             if self.push_type_resolution(
                 crate::state::ResolutionTarget::Type(ty),
                 tsc_types::TypeSystemPropertyName::RESOLVED_BASE_TYPES,
@@ -6202,8 +6138,7 @@ impl<'a> CheckerState<'a> {
             .links
             .type_cold()
             .resolved_base_constructor_type
-            .get(ty)
-            .resolved()
+            .resolved(ty)
         {
             return Ok(resolved);
         }
@@ -6284,8 +6219,7 @@ impl<'a> CheckerState<'a> {
                 .links
                 .type_cold()
                 .resolved_base_constructor_type
-                .get(ty)
-                .resolved()
+                .resolved(ty)
                 .is_none()
             {
                 self.links.set_type_resolved_base_constructor_type(
@@ -6298,8 +6232,7 @@ impl<'a> CheckerState<'a> {
                 .links
                 .type_cold()
                 .resolved_base_constructor_type
-                .get(ty)
-                .resolved()
+                .resolved(ty)
                 .expect("just filled"));
         }
         // 57169: the comparison is against nullWideningType — distinct
@@ -6384,8 +6317,7 @@ impl<'a> CheckerState<'a> {
                 .links
                 .type_cold()
                 .resolved_base_constructor_type
-                .get(ty)
-                .resolved()
+                .resolved(ty)
                 .is_none()
             {
                 self.links.set_type_resolved_base_constructor_type(
@@ -6398,16 +6330,14 @@ impl<'a> CheckerState<'a> {
                 .links
                 .type_cold()
                 .resolved_base_constructor_type
-                .get(ty)
-                .resolved()
+                .resolved(ty)
                 .expect("just filled"));
         }
         if self
             .links
             .type_cold()
             .resolved_base_constructor_type
-            .get(ty)
-            .resolved()
+            .resolved(ty)
             .is_none()
         {
             self.links.set_type_resolved_base_constructor_type(
@@ -6420,8 +6350,7 @@ impl<'a> CheckerState<'a> {
             .links
             .type_cold()
             .resolved_base_constructor_type
-            .get(ty)
-            .resolved()
+            .resolved(ty)
             .expect("just filled"))
     }
 
@@ -7195,7 +7124,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: e244812d509db78f1218b344fc0737b9f010d62f752928c7740aaa30990c8a88
     /// tsc-span: _tsc.js:56787-56803
     pub(crate) fn get_write_type_of_accessors(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.symbol_cold().write_type.get(symbol).resolved() {
+        if let Some(cached) = self.links.symbol_cold().write_type.resolved(symbol) {
             return Ok(cached);
         }
         if !self.push_type_resolution(
@@ -7247,8 +7176,7 @@ impl<'a> CheckerState<'a> {
             .links
             .symbol_cold()
             .write_type
-            .get(symbol)
-            .resolved()
+            .resolved(symbol)
             .is_none()
         {
             self.links
@@ -7258,8 +7186,7 @@ impl<'a> CheckerState<'a> {
             .links
             .symbol_cold()
             .write_type
-            .get(symbol)
-            .resolved()
+            .resolved(symbol)
             .expect("just filled"))
     }
 

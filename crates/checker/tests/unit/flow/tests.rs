@@ -27,7 +27,7 @@ fn assignment_walk_keeps_the_last_write_definite_assignment_and_scratch_prefix()
             state.mark_node_assignments(root).unwrap();
             assert_eq!(state.child_scratch, [root]);
             assert_eq!(
-                *state.links.symbol_cold().last_assignment_pos.get(symbol),
+                state.links.symbol_cold().last_assignment_pos.get(symbol),
                 Some(-expected)
             );
         },

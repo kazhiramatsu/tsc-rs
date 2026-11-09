@@ -1150,3 +1150,22 @@ fn packed_instantiation_keys_preserve_all_shapes_and_bounds() {
     }
     assert_eq!(t.instantiations.len(), expected.len());
 }
+
+#[test]
+fn type_list_interning_keeps_four_byte_candidates_and_exact_boundary_items() {
+    assert_eq!(std::mem::size_of::<TypeListId>(), 4);
+    let mut tables = tables();
+    let items = [TypeId::new(0), TypeId::new(u32::MAX - 1)];
+    let id = tables.intern_type_list(&items);
+    assert_eq!(tables.list(id), &items);
+    assert_eq!(tables.intern_type_list(&items), id);
+    let reversed = [items[1], items[0]];
+    assert_ne!(tables.intern_type_list(&reversed), id);
+    assert_ne!(tables.intern_type_list(&items[..1]), id);
+    for index in 1..1024 {
+        tables.intern_type_list(&[TypeId::new(index)]);
+    }
+    assert_eq!(tables.list(id), &items);
+    assert_eq!(tables.intern_type_list(&items), id);
+    let _: &hashbrown::HashTable<TypeListId> = &tables.list_ids;
+}

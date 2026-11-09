@@ -180,7 +180,7 @@ impl CheckerState<'_> {
                 descriptor.conditional_check_type = Some(trace_id(data.check_type));
                 descriptor.conditional_extends_type = Some(trace_id(data.extends_type));
                 let cold = self.links.type_cold();
-                let resolved = |slot: &crate::links::LinkSlot<TypeId>| {
+                let resolved = |slot: crate::links::LinkSlot<TypeId>| {
                     slot.resolved()
                         .map_or(-1, |branch| i64::from(trace_id(branch)))
                 };

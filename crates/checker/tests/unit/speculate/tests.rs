@@ -195,7 +195,7 @@ fn overload_argument_retains_completed_class_and_interface_base_types() {
             let child = state
                 .get_declared_type_of_symbol(symbol)
                 .expect("Child type");
-            assert!(!*state.links.type_cold().base_types_resolved.get(child));
+            assert!(!state.links.type_cold().base_types_resolved.get(child));
             let nodes = state.binder.source(0).arena.node_ids().collect::<Vec<_>>();
             let call = nodes
                 .iter()
@@ -211,7 +211,7 @@ fn overload_argument_retains_completed_class_and_interface_base_types() {
                 .nth(1)
                 .expect("second overload");
             assert_eq!(state.signature_of(selected).declaration, Some(second));
-            assert!(*state.links.type_cold().base_types_resolved.get(child));
+            assert!(state.links.type_cold().base_types_resolved.get(child));
             let bases = state.get_base_types(child).expect("completed bases");
             assert_eq!(bases.len(), 1);
             assert_eq!(
@@ -1161,7 +1161,7 @@ fn revert_twin_is_legal_under_speculation() {
         state.speculation_depth = 1;
         state.links.revert_node_enum_values_computed(root);
         state.speculation_depth = 0;
-        assert!(!*state.links.node_cold().enum_values_computed.get(root));
+        assert!(!state.links.node_cold().enum_values_computed.get(root));
     });
 }
 

@@ -411,10 +411,10 @@ impl CheckerState<'_> {
         }
         let cold = self.links.type_cold();
         [
-            cold.mapped_type_parameter.get(ty).resolved(),
-            cold.mapped_constraint_type.get(ty).resolved(),
+            cold.mapped_type_parameter.resolved(ty),
+            cold.mapped_constraint_type.resolved(ty),
             cold.mapped_name_type.get(ty).resolved().flatten(),
-            cold.mapped_template_type.get(ty).resolved(),
+            cold.mapped_template_type.resolved(ty),
         ]
     }
 

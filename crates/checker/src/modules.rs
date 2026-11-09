@@ -1068,10 +1068,10 @@ impl<'a> CheckerState<'a> {
         let Some(symbol) = self.emit_alias_declaration_symbol(node) else {
             return Ok(false);
         };
-        if *self.links.symbol_cold().alias_referenced.get(symbol) {
+        if self.links.symbol_cold().alias_referenced.get(symbol) {
             return Ok(true);
         }
-        let Some(target) = self.links.symbol_cold().alias_target.get(symbol).resolved() else {
+        let Some(target) = self.links.symbol_cold().alias_target.resolved(symbol) else {
             return Ok(false);
         };
         let source = self.binder.source_of_node(node);
@@ -1144,7 +1144,7 @@ impl<'a> CheckerState<'a> {
         // `verbatimModuleSyntax` reaches the ordinary emit route since
         // H2.8a-A-RES-EMITTER-FINAL EF7-VERBATIM-GATE; tsc answers these
         // resolver queries independently of the option.
-        if *self.links.symbol_cold().alias_referenced.get(symbol) {
+        if self.links.symbol_cold().alias_referenced.get(symbol) {
             return Ok(());
         }
         self.links
@@ -1869,7 +1869,7 @@ impl<'a> CheckerState<'a> {
                 .intersects(SymbolFlags::ALIAS),
             "Should only get Alias here."
         );
-        if let Some(target) = self.links.symbol_cold().alias_target.get(symbol).resolved() {
+        if let Some(target) = self.links.symbol_cold().alias_target.resolved(symbol) {
             return Ok(target);
         }
         if !self.push_type_resolution(
@@ -1974,8 +1974,7 @@ impl<'a> CheckerState<'a> {
             .links
             .symbol_cold()
             .alias_target
-            .get(symbol)
-            .resolved()
+            .resolved(symbol)
             .is_none()
             && self
                 .find_resolution_cycle_start_index(
@@ -2515,7 +2514,7 @@ impl<'a> CheckerState<'a> {
             let Some(alias) = self.node_symbol(node) else {
                 return Ok(None);
             };
-            if let Some(Some(target)) = *self.links.symbol_cold().immediate_target.get(alias) {
+            if let Some(Some(target)) = self.links.symbol_cold().immediate_target.get(alias) {
                 return Ok(Some(target));
             }
             let alias_symbol = self.binder.symbol(alias);
@@ -3711,7 +3710,7 @@ impl<'a> CheckerState<'a> {
                 .intersects(SymbolFlags::ALIAS),
             "Should only get Alias here."
         );
-        let links_immediate = *self.links.symbol_cold().immediate_target.get(symbol);
+        let links_immediate = self.links.symbol_cold().immediate_target.get(symbol);
         if let Some(immediate) = links_immediate {
             return Ok(immediate);
         }
@@ -8291,12 +8290,8 @@ impl<'a> CheckerState<'a> {
         &mut self,
         module_symbol: SymbolId,
     ) -> CheckResult<Arc<SymbolTable>> {
-        if let LinkSlot::Resolved(exports) = self
-            .links
-            .symbol_cold()
-            .resolved_exports
-            .get(module_symbol)
-            .clone()
+        if let LinkSlot::Resolved(exports) =
+            self.links.symbol_cold().resolved_exports.get(module_symbol)
         {
             return Ok(exports);
         }
@@ -10898,7 +10893,7 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         };
         let module_symbol = self.get_merged_symbol(module_symbol);
-        if *self.links.symbol_cold().exports_checked.get(module_symbol) {
+        if self.links.symbol_cold().exports_checked.get(module_symbol) {
             return Ok(());
         }
         let export_equals_symbol = self

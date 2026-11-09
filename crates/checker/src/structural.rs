@@ -4672,8 +4672,7 @@ impl<'a> CheckerState<'a> {
                 .links
                 .type_cold()
                 .intersection_apparent_type
-                .get(ty)
-                .resolved()
+                .resolved(ty)
             {
                 return Ok(result);
             }
@@ -5292,13 +5291,7 @@ impl<'a> CheckerState<'a> {
                 .object_flags_of(ty)
                 .intersects(ObjectFlags::CONTAINS_INTERSECTIONS)
         {
-            if let Some(cached) = self
-                .links
-                .type_cold()
-                .resolved_reduced_type
-                .get(ty)
-                .resolved()
-            {
+            if let Some(cached) = self.links.type_cold().resolved_reduced_type.resolved(ty) {
                 return Ok(cached);
             }
             let reduced = self.get_reduced_union_type(ty)?;
@@ -5447,8 +5440,7 @@ impl<'a> CheckerState<'a> {
                 .links
                 .type_cold()
                 .resolved_reduced_type
-                .get(reduced)
-                .resolved()
+                .resolved(reduced)
                 .is_none()
         {
             self.links.set_type_resolved_reduced_type(reduced, reduced);
