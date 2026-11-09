@@ -1353,6 +1353,34 @@ fn visit_optional_nodes<L, F>(lookup: &L, id: Option<NodeArrayId>, cb: &mut F) -
 where L: NodeLookup, F: FnMut(NodeId) -> bool { id.and_then(|id| visit_nodes(lookup, id, cb)) }
 '''
 
+
+VISIT_MUT_HELPERS = r'''fn visit_node_mut<L, F>(lookup: &mut L, id: NodeId, cb: &mut F) -> Option<NodeId>
+where L: NodeLookup, F: FnMut(&mut L, NodeId) -> bool { if cb(lookup, id) { Some(id) } else { None } }
+
+fn visit_optional_node_mut<L, F>(lookup: &mut L, id: Option<NodeId>, cb: &mut F) -> Option<NodeId>
+where L: NodeLookup, F: FnMut(&mut L, NodeId) -> bool { id.and_then(|id| visit_node_mut(lookup, id, cb)) }
+
+#[inline]
+fn visit_nodes_mut<L, F>(lookup: &mut L, id: NodeArrayId, cb: &mut F) -> Option<NodeId>
+where L: NodeLookup, F: FnMut(&mut L, NodeId) -> bool {
+    let len = lookup.node_array(id).nodes.len();
+    for index in 0..len {
+        let node = lookup.node_array(id).nodes[index];
+        if cb(lookup, node) { return Some(node); }
+    }
+    None
+}
+
+fn visit_optional_jsdoc_comment_mut<L, F>(lookup: &mut L, comment: Option<&JSDocComment>, cb: &mut F) -> Option<NodeId>
+where L: NodeLookup, F: FnMut(&mut L, NodeId) -> bool {
+    match comment { Some(JSDocComment::Nodes(nodes)) => visit_nodes_mut(lookup, *nodes, cb), _ => None }
+}
+
+#[inline]
+fn visit_optional_nodes_mut<L, F>(lookup: &mut L, id: Option<NodeArrayId>, cb: &mut F) -> Option<NodeId>
+where L: NodeLookup, F: FnMut(&mut L, NodeId) -> bool { id.and_then(|id| visit_nodes_mut(lookup, id, cb)) }
+'''
+
 CHILD_SLOT_TYPES = r'''/// One child position of a node, as [`child_slots`] lists them and
 /// [`apply_child_slots`] writes them back: the visit order and the
 /// conditional JSDoc tag orders are those of [`try_visit_each_child`].
@@ -1468,6 +1496,16 @@ def for_each_child_line(kind, field, array):
     return f"if let Some(result) = {call} {{ return Some(result); }}"
 
 
+
+def for_each_child_mut_line(kind, field, array):
+    line = for_each_child_line(kind, field, array)
+    for helper in ("visit_optional_jsdoc_comment", "visit_optional_nodes", "visit_nodes"):
+        line = line.replace(helper + "(", helper + "_mut(")
+    for helper in ("visit_optional_node", "visit_node"):
+        line = line.replace(helper + "(", helper + "_mut(lookup, ")
+    return line
+
+
 def try_visit_line(kind, field, array):
     name = field.rust_name
     if field.ty == "JSDocComment":
@@ -1539,6 +1577,21 @@ def render_for_each_child_rs(kinds):
         render_children(kind, out, for_each_child_line, "lookup.node(node).kind")
         out += ["None", "}"]
     out += ["_ => None,", "}", "}", ""]
+
+    out.append("/// Visit children in forEachChild order, releasing each lookup borrow before")
+    out.append("/// calling back with the mutable context. Keep the parent payload, child")
+    out.append("/// arrays and node kinds unchanged; no child list is copied or retained.")
+    out.append("pub fn for_each_child_mut<L, F>(lookup: &mut L, id: NodeId, mut cb: F) -> Option<NodeId>")
+    out += ["where", "L: NodeLookup,", "F: FnMut(&mut L, NodeId) -> bool,", "{", "match lookup.node(id).kind {"]
+    for kind in kinds:
+        if not kind.children:
+            continue
+        out.append(f"SyntaxKind::{kind.name} => {{")
+        out.append(f"let data = lookup.node(id).decode_{snake_case(kind.name)}();")
+        render_children(kind, out, for_each_child_mut_line, "lookup.node(node).kind")
+        out += ["None", "}"]
+    out += ["_ => None,", "}", "}", ""]
+    out.append(VISIT_MUT_HELPERS)
 
     out.append("pub fn for_each_child_array<F>(node: &Node, mut cb: F) -> Option<NodeArrayId>")
     out += ["where", "F: FnMut(NodeArrayId) -> bool,", "{", "match node.kind {"]

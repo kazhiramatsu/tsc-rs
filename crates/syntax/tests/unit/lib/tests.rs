@@ -336,3 +336,46 @@ fn keyword_kind_finds_every_keyword_and_nothing_else() {
         assert_eq!(keyword_kind(text), None, "{text:?}");
     }
 }
+
+#[test]
+fn mutable_child_walk_keeps_order_and_early_exit_with_a_mutable_context() {
+    let corpus = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/testdata/tests/cases/conformance/types/typeParameters/typeParameterLists/typeParameterConstModifiers.ts"
+    ));
+    for (name, text, script_kind) in [
+        ("corpus.ts", corpus, ScriptKind::Ts),
+        ("docs.js", "/** @typedef {Object} T\n * @property {string} name */\n/** @param {T} value @returns {string} */ function f(value) { return value.name; }", ScriptKind::Js),
+    ] {
+        let mut source = parse_source_file(name, text, ParseOptions {
+            script_kind,
+            js_doc_parsing_mode: JSDocParsingMode::ParseAll,
+            ..ParseOptions::default()
+        }, None);
+        let nodes: Vec<_> = source.arena.node_ids().collect();
+        for node in nodes {
+            let mut expected = Vec::new();
+            for_each_child(&source, source.node(node), |child| {
+                expected.push(child);
+                false
+            });
+            let mut actual = Vec::new();
+            assert_eq!(for_each_child_mut(&mut source, node, |context,child| {
+                // A callback can read the context after the walk's borrow ends.
+                let _kind = context.node(child).kind;
+                actual.push(child);
+                false
+            }), None);
+            assert_eq!(actual,expected,"{:?}",source.node(node).kind);
+            for stop in 0..expected.len() {
+                let mut visited = Vec::new();
+                let found=for_each_child_mut(&mut source,node,|_,child| {
+                    visited.push(child);
+                    visited.len()==stop+1
+                });
+                assert_eq!(found,Some(expected[stop]));
+                assert_eq!(visited,expected[..=stop]);
+            }
+        }
+    }
+}

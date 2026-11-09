@@ -2125,6 +2125,2190 @@ where
     }
 }
 
+/// Visit children in forEachChild order, releasing each lookup borrow before
+/// calling back with the mutable context. Keep the parent payload, child
+/// arrays and node kinds unchanged; no child list is copied or retained.
+pub fn for_each_child_mut<L, F>(lookup: &mut L, id: NodeId, mut cb: F) -> Option<NodeId>
+where
+    L: NodeLookup,
+    F: FnMut(&mut L, NodeId) -> bool,
+{
+    match lookup.node(id).kind {
+        SyntaxKind::ArrayBindingPattern => {
+            let data = lookup.node(id).decode_array_binding_pattern();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.elements, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ArrayLiteralExpression => {
+            let data = lookup.node(id).decode_array_literal_expression();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.elements, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ArrayType => {
+            let data = lookup.node(id).decode_array_type();
+            if let Some(result) = visit_optional_node_mut(lookup, data.element_type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ArrowFunction => {
+            let data = lookup.node(id).decode_arrow_function();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_node_mut(lookup, data.equals_greater_than_token, &mut cb)
+            {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.body, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::AsExpression => {
+            let data = lookup.node(id).decode_as_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::AwaitExpression => {
+            let data = lookup.node(id).decode_await_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::BinaryExpression => {
+            let data = lookup.node(id).decode_binary_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.left, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.operator_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.right, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::BindingElement => {
+            let data = lookup.node(id).decode_binding_element();
+            if let Some(result) = visit_optional_node_mut(lookup, data.dot_dot_dot_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.property_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.initializer, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::Block => {
+            let data = lookup.node(id).decode_block();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.statements, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::BreakStatement => {
+            let data = lookup.node(id).decode_break_statement();
+            if let Some(result) = visit_optional_node_mut(lookup, data.label, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::CallExpression => {
+            let data = lookup.node(id).decode_call_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.question_dot_token, &mut cb)
+            {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_arguments, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.arguments, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::CallSignature => {
+            let data = lookup.node(id).decode_call_signature();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::CaseBlock => {
+            let data = lookup.node(id).decode_case_block();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.clauses, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::CaseClause => {
+            let data = lookup.node(id).decode_case_clause();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.statements, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::CatchClause => {
+            let data = lookup.node(id).decode_catch_clause();
+            if let Some(result) =
+                visit_optional_node_mut(lookup, data.variable_declaration, &mut cb)
+            {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.block, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ClassDeclaration => {
+            let data = lookup.node(id).decode_class_declaration();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.heritage_clauses, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.members, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ClassExpression => {
+            let data = lookup.node(id).decode_class_expression();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.heritage_clauses, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.members, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ClassStaticBlockDeclaration => {
+            let data = lookup.node(id).decode_class_static_block_declaration();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.body, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::CommaListExpression => {
+            let data = lookup.node(id).decode_comma_list_expression();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.elements, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ComputedPropertyName => {
+            let data = lookup.node(id).decode_computed_property_name();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ConditionalExpression => {
+            let data = lookup.node(id).decode_conditional_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.condition, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.question_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.when_true, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.colon_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.when_false, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ConditionalType => {
+            let data = lookup.node(id).decode_conditional_type();
+            if let Some(result) = visit_optional_node_mut(lookup, data.check_type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.extends_type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.true_type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.false_type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ConstructSignature => {
+            let data = lookup.node(id).decode_construct_signature();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::Constructor => {
+            let data = lookup.node(id).decode_constructor();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.body, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ConstructorType => {
+            let data = lookup.node(id).decode_constructor_type();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ContinueStatement => {
+            let data = lookup.node(id).decode_continue_statement();
+            if let Some(result) = visit_optional_node_mut(lookup, data.label, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::Decorator => {
+            let data = lookup.node(id).decode_decorator();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::DefaultClause => {
+            let data = lookup.node(id).decode_default_clause();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.statements, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::DeleteExpression => {
+            let data = lookup.node(id).decode_delete_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::DoStatement => {
+            let data = lookup.node(id).decode_do_statement();
+            if let Some(result) = visit_optional_node_mut(lookup, data.statement, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ElementAccessExpression => {
+            let data = lookup.node(id).decode_element_access_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.question_dot_token, &mut cb)
+            {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.argument_expression, &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::EnumDeclaration => {
+            let data = lookup.node(id).decode_enum_declaration();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.members, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::EnumMember => {
+            let data = lookup.node(id).decode_enum_member();
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.initializer, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ExportAssignment => {
+            let data = lookup.node(id).decode_export_assignment();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ExportDeclaration => {
+            let data = lookup.node(id).decode_export_declaration();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.export_clause, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.module_specifier, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.attributes, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ExportSpecifier => {
+            let data = lookup.node(id).decode_export_specifier();
+            if let Some(result) = visit_optional_node_mut(lookup, data.property_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ExpressionStatement => {
+            let data = lookup.node(id).decode_expression_statement();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ExpressionWithTypeArguments => {
+            let data = lookup.node(id).decode_expression_with_type_arguments();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_arguments, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ExternalModuleReference => {
+            let data = lookup.node(id).decode_external_module_reference();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ForInStatement => {
+            let data = lookup.node(id).decode_for_in_statement();
+            if let Some(result) = visit_optional_node_mut(lookup, data.initializer, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.statement, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ForOfStatement => {
+            let data = lookup.node(id).decode_for_of_statement();
+            if let Some(result) = visit_optional_node_mut(lookup, data.await_modifier, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.initializer, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.statement, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ForStatement => {
+            let data = lookup.node(id).decode_for_statement();
+            if let Some(result) = visit_optional_node_mut(lookup, data.initializer, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.condition, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.incrementor, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.statement, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::FunctionDeclaration => {
+            let data = lookup.node(id).decode_function_declaration();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.asterisk_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.body, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::FunctionExpression => {
+            let data = lookup.node(id).decode_function_expression();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.asterisk_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.body, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::FunctionType => {
+            let data = lookup.node(id).decode_function_type();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::GetAccessor => {
+            let data = lookup.node(id).decode_get_accessor();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.body, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::HeritageClause => {
+            let data = lookup.node(id).decode_heritage_clause();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.types, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::IfStatement => {
+            let data = lookup.node(id).decode_if_statement();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.then_statement, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.else_statement, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ImportAttribute => {
+            let data = lookup.node(id).decode_import_attribute();
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.value, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ImportAttributes => {
+            let data = lookup.node(id).decode_import_attributes();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.elements, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ImportClause => {
+            let data = lookup.node(id).decode_import_clause();
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.named_bindings, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ImportDeclaration => {
+            let data = lookup.node(id).decode_import_declaration();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.import_clause, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.module_specifier, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.attributes, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ImportEqualsDeclaration => {
+            let data = lookup.node(id).decode_import_equals_declaration();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.module_reference, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ImportSpecifier => {
+            let data = lookup.node(id).decode_import_specifier();
+            if let Some(result) = visit_optional_node_mut(lookup, data.property_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ImportType => {
+            let data = lookup.node(id).decode_import_type();
+            if let Some(result) = visit_optional_node_mut(lookup, data.argument, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.attributes, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.qualifier, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_arguments, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ImportTypeAssertionContainer => {
+            let data = lookup.node(id).decode_import_type_assertion_container();
+            if let Some(result) = visit_optional_node_mut(lookup, data.assert_clause, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::IndexSignature => {
+            let data = lookup.node(id).decode_index_signature();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::IndexedAccessType => {
+            let data = lookup.node(id).decode_indexed_access_type();
+            if let Some(result) = visit_optional_node_mut(lookup, data.object_type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.index_type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::InferType => {
+            let data = lookup.node(id).decode_infer_type();
+            if let Some(result) = visit_optional_node_mut(lookup, data.type_parameter, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::InterfaceDeclaration => {
+            let data = lookup.node(id).decode_interface_declaration();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.heritage_clauses, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.members, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::IntersectionType => {
+            let data = lookup.node(id).decode_intersection_type();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.types, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDoc => {
+            let data = lookup.node(id).decode_js_doc();
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.tags, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocAugmentsTag => {
+            let data = lookup.node(id).decode_js_doc_augments_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.class, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocAuthorTag => {
+            let data = lookup.node(id).decode_js_doc_author_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocCallbackTag => {
+            let data = lookup.node(id).decode_js_doc_callback_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.full_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.type_expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocClassTag => {
+            let data = lookup.node(id).decode_js_doc_class_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocDeprecatedTag => {
+            let data = lookup.node(id).decode_js_doc_deprecated_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocEnumTag => {
+            let data = lookup.node(id).decode_js_doc_enum_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.type_expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocFunctionType => {
+            let data = lookup.node(id).decode_js_doc_function_type();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocImplementsTag => {
+            let data = lookup.node(id).decode_js_doc_implements_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.class, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocImportTag => {
+            let data = lookup.node(id).decode_js_doc_import_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.import_clause, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.module_specifier, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.attributes, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocLink => {
+            let data = lookup.node(id).decode_js_doc_link();
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocLinkCode => {
+            let data = lookup.node(id).decode_js_doc_link_code();
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocLinkPlain => {
+            let data = lookup.node(id).decode_js_doc_link_plain();
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocMemberName => {
+            let data = lookup.node(id).decode_js_doc_member_name();
+            if let Some(result) = visit_optional_node_mut(lookup, data.left, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.right, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocNameReference => {
+            let data = lookup.node(id).decode_js_doc_name_reference();
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocNonNullableType => {
+            let data = lookup.node(id).decode_js_doc_non_nullable_type();
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocNullableType => {
+            let data = lookup.node(id).decode_js_doc_nullable_type();
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocOptionalType => {
+            let data = lookup.node(id).decode_js_doc_optional_type();
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocOverloadTag => {
+            let data = lookup.node(id).decode_js_doc_overload_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.type_expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocOverrideTag => {
+            let data = lookup.node(id).decode_js_doc_override_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocParameterTag => {
+            let data = lookup.node(id).decode_js_doc_parameter_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if data.is_name_first {
+                if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                    return Some(result);
+                }
+                if let Some(result) = visit_optional_node_mut(lookup, data.type_expression, &mut cb)
+                {
+                    return Some(result);
+                }
+            } else {
+                if let Some(result) = visit_optional_node_mut(lookup, data.type_expression, &mut cb)
+                {
+                    return Some(result);
+                }
+                if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                    return Some(result);
+                }
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocPrivateTag => {
+            let data = lookup.node(id).decode_js_doc_private_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocPropertyTag => {
+            let data = lookup.node(id).decode_js_doc_property_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if data.is_name_first {
+                if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                    return Some(result);
+                }
+                if let Some(result) = visit_optional_node_mut(lookup, data.type_expression, &mut cb)
+                {
+                    return Some(result);
+                }
+            } else {
+                if let Some(result) = visit_optional_node_mut(lookup, data.type_expression, &mut cb)
+                {
+                    return Some(result);
+                }
+                if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                    return Some(result);
+                }
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocProtectedTag => {
+            let data = lookup.node(id).decode_js_doc_protected_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocPublicTag => {
+            let data = lookup.node(id).decode_js_doc_public_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocReadonlyTag => {
+            let data = lookup.node(id).decode_js_doc_readonly_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocReturnTag => {
+            let data = lookup.node(id).decode_js_doc_return_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.type_expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocSatisfiesTag => {
+            let data = lookup.node(id).decode_js_doc_satisfies_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.type_expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocSeeTag => {
+            let data = lookup.node(id).decode_js_doc_see_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocSignature => {
+            let data = lookup.node(id).decode_js_doc_signature();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocTag => {
+            let data = lookup.node(id).decode_js_doc_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocTemplateTag => {
+            let data = lookup.node(id).decode_js_doc_template_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.constraint, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocThisTag => {
+            let data = lookup.node(id).decode_js_doc_this_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.type_expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocThrowsTag => {
+            let data = lookup.node(id).decode_js_doc_throws_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.type_expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocTypeExpression => {
+            let data = lookup.node(id).decode_js_doc_type_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocTypeLiteral => {
+            let data = lookup.node(id).decode_js_doc_type_literal();
+            if let Some(result) =
+                visit_optional_nodes_mut(lookup, data.js_doc_property_tags, &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocTypeTag => {
+            let data = lookup.node(id).decode_js_doc_type_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.type_expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocTypedefTag => {
+            let data = lookup.node(id).decode_js_doc_typedef_tag();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            let type_expression_first = data
+                .type_expression
+                .is_some_and(|node| lookup.node(node).kind == SyntaxKind::JSDocTypeExpression);
+            if type_expression_first {
+                if let Some(result) = visit_optional_node_mut(lookup, data.type_expression, &mut cb)
+                {
+                    return Some(result);
+                }
+                if let Some(result) = visit_optional_node_mut(lookup, data.full_name, &mut cb) {
+                    return Some(result);
+                }
+            } else {
+                if let Some(result) = visit_optional_node_mut(lookup, data.full_name, &mut cb) {
+                    return Some(result);
+                }
+                if let Some(result) = visit_optional_node_mut(lookup, data.type_expression, &mut cb)
+                {
+                    return Some(result);
+                }
+            }
+            if let Some(result) =
+                visit_optional_jsdoc_comment_mut(lookup, data.comment.as_ref(), &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JSDocVariadicType => {
+            let data = lookup.node(id).decode_js_doc_variadic_type();
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JsxAttribute => {
+            let data = lookup.node(id).decode_jsx_attribute();
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.initializer, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JsxAttributes => {
+            let data = lookup.node(id).decode_jsx_attributes();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.properties, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JsxClosingElement => {
+            let data = lookup.node(id).decode_jsx_closing_element();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JsxElement => {
+            let data = lookup.node(id).decode_jsx_element();
+            if let Some(result) = visit_optional_node_mut(lookup, data.opening_element, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.children, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.closing_element, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JsxExpression => {
+            let data = lookup.node(id).decode_jsx_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.dot_dot_dot_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JsxFragment => {
+            let data = lookup.node(id).decode_jsx_fragment();
+            if let Some(result) = visit_optional_node_mut(lookup, data.opening_fragment, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.children, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.closing_fragment, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JsxNamespacedName => {
+            let data = lookup.node(id).decode_jsx_namespaced_name();
+            if let Some(result) = visit_optional_node_mut(lookup, data.namespace, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JsxOpeningElement => {
+            let data = lookup.node(id).decode_jsx_opening_element();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_arguments, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.attributes, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JsxSelfClosingElement => {
+            let data = lookup.node(id).decode_jsx_self_closing_element();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_arguments, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.attributes, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::JsxSpreadAttribute => {
+            let data = lookup.node(id).decode_jsx_spread_attribute();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::LabeledStatement => {
+            let data = lookup.node(id).decode_labeled_statement();
+            if let Some(result) = visit_optional_node_mut(lookup, data.label, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.statement, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::LiteralType => {
+            let data = lookup.node(id).decode_literal_type();
+            if let Some(result) = visit_optional_node_mut(lookup, data.literal, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::MappedType => {
+            let data = lookup.node(id).decode_mapped_type();
+            if let Some(result) = visit_optional_node_mut(lookup, data.readonly_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.type_parameter, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name_type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.question_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.members, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::MetaProperty => {
+            let data = lookup.node(id).decode_meta_property();
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::MethodDeclaration => {
+            let data = lookup.node(id).decode_method_declaration();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.asterisk_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.question_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.exclamation_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.body, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::MethodSignature => {
+            let data = lookup.node(id).decode_method_signature();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.question_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::MissingDeclaration => {
+            let data = lookup.node(id).decode_missing_declaration();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ModuleBlock => {
+            let data = lookup.node(id).decode_module_block();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.statements, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ModuleDeclaration => {
+            let data = lookup.node(id).decode_module_declaration();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.attributes, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.body, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::NamedExports => {
+            let data = lookup.node(id).decode_named_exports();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.elements, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::NamedImports => {
+            let data = lookup.node(id).decode_named_imports();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.elements, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::NamedTupleMember => {
+            let data = lookup.node(id).decode_named_tuple_member();
+            if let Some(result) = visit_optional_node_mut(lookup, data.dot_dot_dot_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.question_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::NamespaceExport => {
+            let data = lookup.node(id).decode_namespace_export();
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::NamespaceExportDeclaration => {
+            let data = lookup.node(id).decode_namespace_export_declaration();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::NamespaceImport => {
+            let data = lookup.node(id).decode_namespace_import();
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::NewExpression => {
+            let data = lookup.node(id).decode_new_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.question_dot_token, &mut cb)
+            {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_arguments, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.arguments, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::NonNullExpression => {
+            let data = lookup.node(id).decode_non_null_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ObjectBindingPattern => {
+            let data = lookup.node(id).decode_object_binding_pattern();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.elements, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ObjectLiteralExpression => {
+            let data = lookup.node(id).decode_object_literal_expression();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.properties, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::OptionalType => {
+            let data = lookup.node(id).decode_optional_type();
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::Parameter => {
+            let data = lookup.node(id).decode_parameter();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.dot_dot_dot_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.question_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.initializer, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ParenthesizedExpression => {
+            let data = lookup.node(id).decode_parenthesized_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ParenthesizedType => {
+            let data = lookup.node(id).decode_parenthesized_type();
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::PartiallyEmittedExpression => {
+            let data = lookup.node(id).decode_partially_emitted_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::PostfixUnaryExpression => {
+            let data = lookup.node(id).decode_postfix_unary_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.operand, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::PrefixUnaryExpression => {
+            let data = lookup.node(id).decode_prefix_unary_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.operand, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::PropertyAccessExpression => {
+            let data = lookup.node(id).decode_property_access_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.question_dot_token, &mut cb)
+            {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::PropertyAssignment => {
+            let data = lookup.node(id).decode_property_assignment();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.question_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.exclamation_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.initializer, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::PropertyDeclaration => {
+            let data = lookup.node(id).decode_property_declaration();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.question_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.exclamation_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.initializer, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::PropertySignature => {
+            let data = lookup.node(id).decode_property_signature();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.question_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.initializer, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::QualifiedName => {
+            let data = lookup.node(id).decode_qualified_name();
+            if let Some(result) = visit_optional_node_mut(lookup, data.left, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.right, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::RestType => {
+            let data = lookup.node(id).decode_rest_type();
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ReturnStatement => {
+            let data = lookup.node(id).decode_return_statement();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::SatisfiesExpression => {
+            let data = lookup.node(id).decode_satisfies_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::SetAccessor => {
+            let data = lookup.node(id).decode_set_accessor();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.body, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ShorthandPropertyAssignment => {
+            let data = lookup.node(id).decode_shorthand_property_assignment();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.question_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.exclamation_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.equals_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) =
+                visit_optional_node_mut(lookup, data.object_assignment_initializer, &mut cb)
+            {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::SourceFile => {
+            let data = lookup.node(id).decode_source_file();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.statements, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.end_of_file_token, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::SpreadAssignment => {
+            let data = lookup.node(id).decode_spread_assignment();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::SpreadElement => {
+            let data = lookup.node(id).decode_spread_element();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::SwitchStatement => {
+            let data = lookup.node(id).decode_switch_statement();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.case_block, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::TaggedTemplateExpression => {
+            let data = lookup.node(id).decode_tagged_template_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.tag, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.question_dot_token, &mut cb)
+            {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_arguments, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.template, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::TemplateExpression => {
+            let data = lookup.node(id).decode_template_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.head, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.template_spans, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::TemplateLiteralType => {
+            let data = lookup.node(id).decode_template_literal_type();
+            if let Some(result) = visit_optional_node_mut(lookup, data.head, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.template_spans, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::TemplateLiteralTypeSpan => {
+            let data = lookup.node(id).decode_template_literal_type_span();
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.literal, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::TemplateSpan => {
+            let data = lookup.node(id).decode_template_span();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.literal, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::ThrowStatement => {
+            let data = lookup.node(id).decode_throw_statement();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::TryStatement => {
+            let data = lookup.node(id).decode_try_statement();
+            if let Some(result) = visit_optional_node_mut(lookup, data.try_block, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.catch_clause, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.finally_block, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::TupleType => {
+            let data = lookup.node(id).decode_tuple_type();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.elements, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::TypeAliasDeclaration => {
+            let data = lookup.node(id).decode_type_alias_declaration();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::TypeAssertionExpression => {
+            let data = lookup.node(id).decode_type_assertion_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::TypeLiteral => {
+            let data = lookup.node(id).decode_type_literal();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.members, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::TypeOfExpression => {
+            let data = lookup.node(id).decode_type_of_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::TypeOperator => {
+            let data = lookup.node(id).decode_type_operator();
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::TypeParameter => {
+            let data = lookup.node(id).decode_type_parameter();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.constraint, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#default, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::TypePredicate => {
+            let data = lookup.node(id).decode_type_predicate();
+            if let Some(result) = visit_optional_node_mut(lookup, data.asserts_modifier, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.parameter_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::TypeQuery => {
+            let data = lookup.node(id).decode_type_query();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expr_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_arguments, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::TypeReference => {
+            let data = lookup.node(id).decode_type_reference();
+            if let Some(result) = visit_optional_node_mut(lookup, data.type_name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.type_arguments, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::UnionType => {
+            let data = lookup.node(id).decode_union_type();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.types, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::VariableDeclaration => {
+            let data = lookup.node(id).decode_variable_declaration();
+            if let Some(result) = visit_optional_node_mut(lookup, data.name, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.exclamation_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.r#type, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.initializer, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::VariableDeclarationList => {
+            let data = lookup.node(id).decode_variable_declaration_list();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.declarations, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::VariableStatement => {
+            let data = lookup.node(id).decode_variable_statement();
+            if let Some(result) = visit_optional_nodes_mut(lookup, data.modifiers, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.declaration_list, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::VoidExpression => {
+            let data = lookup.node(id).decode_void_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::WhileStatement => {
+            let data = lookup.node(id).decode_while_statement();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.statement, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::WithStatement => {
+            let data = lookup.node(id).decode_with_statement();
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.statement, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        SyntaxKind::YieldExpression => {
+            let data = lookup.node(id).decode_yield_expression();
+            if let Some(result) = visit_optional_node_mut(lookup, data.asterisk_token, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_node_mut(lookup, data.expression, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
+fn visit_node_mut<L, F>(lookup: &mut L, id: NodeId, cb: &mut F) -> Option<NodeId>
+where
+    L: NodeLookup,
+    F: FnMut(&mut L, NodeId) -> bool,
+{
+    if cb(lookup, id) {
+        Some(id)
+    } else {
+        None
+    }
+}
+
+fn visit_optional_node_mut<L, F>(lookup: &mut L, id: Option<NodeId>, cb: &mut F) -> Option<NodeId>
+where
+    L: NodeLookup,
+    F: FnMut(&mut L, NodeId) -> bool,
+{
+    id.and_then(|id| visit_node_mut(lookup, id, cb))
+}
+
+#[inline]
+fn visit_nodes_mut<L, F>(lookup: &mut L, id: NodeArrayId, cb: &mut F) -> Option<NodeId>
+where
+    L: NodeLookup,
+    F: FnMut(&mut L, NodeId) -> bool,
+{
+    let len = lookup.node_array(id).nodes.len();
+    for index in 0..len {
+        let node = lookup.node_array(id).nodes[index];
+        if cb(lookup, node) {
+            return Some(node);
+        }
+    }
+    None
+}
+
+fn visit_optional_jsdoc_comment_mut<L, F>(
+    lookup: &mut L,
+    comment: Option<&JSDocComment>,
+    cb: &mut F,
+) -> Option<NodeId>
+where
+    L: NodeLookup,
+    F: FnMut(&mut L, NodeId) -> bool,
+{
+    match comment {
+        Some(JSDocComment::Nodes(nodes)) => visit_nodes_mut(lookup, *nodes, cb),
+        _ => None,
+    }
+}
+
+#[inline]
+fn visit_optional_nodes_mut<L, F>(
+    lookup: &mut L,
+    id: Option<NodeArrayId>,
+    cb: &mut F,
+) -> Option<NodeId>
+where
+    L: NodeLookup,
+    F: FnMut(&mut L, NodeId) -> bool,
+{
+    id.and_then(|id| visit_nodes_mut(lookup, id, cb))
+}
+
 pub fn for_each_child_array<F>(node: &Node, mut cb: F) -> Option<NodeArrayId>
 where
     F: FnMut(NodeArrayId) -> bool,

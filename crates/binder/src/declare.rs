@@ -107,9 +107,6 @@ pub struct BinderWorker<'a> {
     pub possibly_exhaustive: FxHashMap<NodeId, bool>,
     /// tsc clause.fallthroughFlowNode (noFallthroughCasesInSwitch).
     pub node_fallthrough_flow: FxHashMap<NodeId, crate::flow::FlowId>,
-    /// Scratch child list shared by every `bind_each_child`: one buffer per
-    /// bind instead of one allocation per node with children.
-    pub child_scratch: Vec<NodeId>,
     /// tsc activeLabelList (a stack; tsc uses a linked list).
     pub active_label_list: Vec<crate::flow::ActiveLabel>,
     pub(crate) active_label_buffers: Vec<Vec<crate::flow::ActiveLabel>>,
@@ -413,7 +410,6 @@ impl<'a> BinderWorker<'a> {
             delayed_type_aliases: Vec::new(),
             js_doc_imports: Vec::new(),
             tree_claim,
-            child_scratch: Vec::new(),
             source,
         }
     }
@@ -1356,7 +1352,6 @@ impl BinderWorker<'_> {
             emit_flags: _,
             delayed_type_aliases: _,
             js_doc_imports: _,
-            child_scratch: _,
             tree_claim: _,
         } = self;
 
@@ -1597,7 +1592,6 @@ impl BinderWorker<'_> {
             emit_flags,
             delayed_type_aliases: _,
             js_doc_imports: _,
-            child_scratch: _,
             tree_claim,
         } = self;
         let mut flow = flow;
