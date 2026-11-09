@@ -307,9 +307,12 @@ diffout 8/8、counter 同一、4-checker 制御 = 既知 4 件）→ **merge `d2
 2,620〜2,633 → 2,548〜2,569（≈ **−55**）、zod −21、next −15、effect −12、playwright −6；memory report の resolved members 200.8 → 154.0 MiB →
 [#939](https://github.com/kazhiramatsu/tsc-rs/pull/939)（checker test 1,912 本、diffout 8/8、counter 同一、4-checker 制御 = 既知 4 件；hosted 検査中）。
 `signatures` S4（Signature 136 → 72 B：pool の span をやめ parameters/type parameters を `Box<[_]>`、rare 48 B を索引で）：footprint VS Code
-2,616〜2,624 → 2,568〜2,595（−30〜−48）、next −13、effect −8 だが命令は **8 案件すべて増**（VS Code +0.22%、hono +0.42%、effect +0.30%）→ 不採用。原因は
-未 profile；読み自体は pool の load と範囲検査を失くしているので、VS Code で 603,979 本の parameter list を個別に box する割り当てが疑わしい。中立形は
-「list は bump pool のまま、rare tail の分離だけ」で、signatures は保留。mimalloc の purge 設定は結果 7 のとおり不採用。
+2,616〜2,624 → 2,568〜2,595（−30〜−48）、next −13、effect −8 だが命令は **8 案件すべて増**（VS Code +0.22%、hono +0.42%、effect +0.30%）→ 不採用。レビュー（所有者「基準を
+満たさなくても書き方の問題があるのでレビューを」）：base の record も signature ごとに `Vec` を持っていたので S4 の `Box<[_]>` は割り当て数を変えておらず、
+`parameters()` の読みはむしろ軽い。S2/S3/S4 に共通で +0.15〜+0.52% を出しているのは **rare 分離**——`SignatureRare` へ移した field（this_parameter、erased/
+canonical/base の cache、optional-call cache、composite、isolated）の読み書きが毎回 `Option<NonZeroU32>` の分岐 + 索引 + 範囲検査を払い、cache の初回書き込みが
+rare entry を確保する。中立形は「hot な cache field と this_parameter は inline、cold な field だけ rare へ」（field 別の読み回数 census のうえで）；
+signatures は S5 として再 brief。mimalloc の purge 設定は結果 7 のとおり不採用。
 
 front end の census（`fe-census`：F1 常駐 2,212 MiB の内訳 = 構文 630 + binder 336 + checker 1,110 + 文字 136、F2 node payload の kind 別の空き、F3 木
 602 MiB（tsrs 668、tsgo 1,403 より小さい）、F4 relocation の棚卸し）から PLAN-fe を 5 行立てたが、実装 lane は **所有権の壁**に当たった。`fe-sym`（symbol/flow
@@ -318,7 +321,9 @@ front end の census（`fe-census`：F1 常駐 2,212 MiB の内訳 = 構文 630 
 `check.rs:5473`（6.17 M）と `flow.rs:4084`（4.04 M）の bare id 経路。`fe-flags`：G（binder flags を `Node.flags` へ）は同じ壁に加えて parser の
 IDENTIFIER_IS_IN_JS_DOC_NAMESPACE と binder の HAS_ASYNC_FUNCTIONS が同じ bit を共有していて保留；A（NodeArrayRecord 20 → 16 B、len 14 bit + 溢れ記述子）は
 出力・748 emit file・counter 同一で header −11.7 MiB だが、命令 +0.07〜+0.16%（8 案件すべて増）で **peak は下がらず**（VS Code 2,602〜2,625 → 2,593〜2,630、
-effect は +2〜+6）→ 不採用；T（tail chunk）は slack 2.9 MiB で 0 B。front end の fingerprint oracle は a93bb8389 で基準を取り直し（143,190 行、
+effect は +2〜+6）→ 不採用（レビュー：len を 14 bit + sentinel にしたため `len()` と `items()` の hot な読みが毎回 and + 比較 + 分岐を払う；20 B の base は hot な
+平文 field 4 本 + flag/modifier cache 4 B で、end は最終要素から導けず modifier cache は 16 bit 必要なので、hot 読みに復号を乗せない 16 B 形はない）；
+T（tail chunk）は slack 2.9 MiB で 0 B。front end の fingerprint oracle は a93bb8389 で基準を取り直し（143,190 行、
 `target/syntax-fingerprint/fingerprints-a93bb8389.tsv`）、A との比較は 0 差。heap の owner census（`heap-owners`：記録外の owner 179 MiB、loader の staging
 17 + 12 MiB が回収可能、巨大 request は arena の予約）から `heap-staging` lane（進行中）。
 
