@@ -23,7 +23,7 @@ use super::{
     is_prologue_statement,
     target_bindings::collect_identifier_texts,
     target_bindings::{TargetBinding, UsedNames},
-    update_node_array_lazily, ArrayElementVisit, LazyChildVisitor,
+    update_children_lazily, update_node_array_lazily, ArrayElementVisit, LazyChildVisitor,
 };
 
 const DECORATE_HELPER_TEXT: &str = r#"var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
@@ -120,6 +120,7 @@ struct LegacyDecoratorVisitor<'context, 'resolver> {
     class_aliases: BTreeMap<NodeId, TargetBinding>,
     computed_names: BTreeMap<NodeId, TargetBinding>,
     metadata_owner_members: BTreeSet<NodeId>,
+    in_class: bool,
 }
 
 /// The source interval that begins after a declaration's modifiers while
@@ -463,10 +464,28 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             class_aliases: BTreeMap::new(),
             computed_names: BTreeMap::new(),
             metadata_owner_members: BTreeSet::new(),
+            in_class: false,
         }
     }
 
+    /// Decorator facts propagate through the runtime tree. Only complete
+    /// facts can prove a subtree irrelevant; creation-site flag hints cannot.
+    /// Within a class transaction even decorator-free children may need class
+    /// alias substitution or a prepared computed-name rewrite.
+    fn can_skip_subtree(&self, node: TransformNode) -> bool {
+        !self.in_class
+            && self.context.arena().transform_flags_complete(node)
+            && !self
+                .context
+                .arena()
+                .transform_flags(node)
+                .contains(TransformFlags::CONTAINS_DECORATORS)
+    }
+
     fn visit(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
+        if self.can_skip_subtree(self.node(id)) {
+            return Ok(Some(id));
+        }
         if let Some(mapped) = self.nodes.get(&id) {
             return Ok(*mapped);
         }
@@ -475,41 +494,21 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         let transformed = match record.data() {
             NodeData::Decorator(_) => None,
             NodeData::Token => Some(original.node()),
-            NodeData::Identifier(data) => {
+            NodeData::Identifier(_) => {
                 if let Some(alias) = self.class_alias_for_reference(original)? {
                     let replacement = self.create_generated_identifier(&alias)?;
                     self.set_original_and_range(replacement, original)?;
                     Some(replacement.node())
                 } else {
-                    Some(self.update_generic(original, NodeData::Identifier(data))?)
+                    Some(self.update_generic(original)?)
                 }
             }
-            NodeData::ClassExpression(mut data) => {
-                // A recovery-tree decorator on a class expression is still a
-                // transformTypeScript producer: its expression is visited even
-                // though transformLegacyDecorators has no statement position
-                // at which it can materialize a helper. Heritage and members
-                // follow that modifier visit in source evaluation order.
-                let _ = self.visit_decorator_expressions(
-                    data.modifiers,
-                    PreparedDecoratorRuntimeRole::VisitationOnly,
-                )?;
-                data.modifiers = self.strip_decorators(data.modifiers)?;
-                if let Some(heritage) = data.heritage_clauses {
-                    data.heritage_clauses = self.visit_nodes(heritage)?;
-                }
-                data.members = self.prepare_class_expression_members(data.members)?;
-                let flags = flags_after_update(
-                    self.context.arena(),
-                    original,
-                    &NodeData::ClassExpression(data),
-                )?;
-                Some(
-                    self.context
-                        .factory()?
-                        .update_node(original, NodeData::ClassExpression(data), flags)?
-                        .node(),
-                )
+            NodeData::ClassExpression(data) => {
+                let enclosing_class = self.in_class;
+                self.in_class = true;
+                let transformed = self.visit_class_expression(original, data);
+                self.in_class = enclosing_class;
+                Some(transformed?)
             }
             NodeData::ClassStaticBlockDeclaration(data) => Some(self.update_class_static_block(
                 original,
@@ -563,22 +562,63 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                     let original_modifiers = data.modifiers;
                     data.name = self.rewrite_computed_member_name(original, data.name)?;
                     data.modifiers = self.strip_decorators(data.modifiers)?;
-                    let updated =
-                        self.update_generic(original, NodeData::PropertyDeclaration(data))?;
+                    let updated = self
+                        .update_changed_children(original, NodeData::PropertyDeclaration(data))?;
                     Some(self.finish_class_element(updated, original, original_modifiers)?)
                 }
             }
             NodeData::Parameter(mut data) => {
                 data.modifiers = self.strip_decorators(data.modifiers)?;
-                Some(self.update_generic(original, NodeData::Parameter(data))?)
+                Some(self.update_changed_children(original, NodeData::Parameter(data))?)
             }
-            data => Some(self.update_generic(original, data)?),
+            _ => Some(self.update_generic(original)?),
         };
         self.nodes.insert(id, transformed);
         Ok(transformed)
     }
 
+    fn visit_class_expression(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::ClassExpressionData,
+    ) -> Result<NodeId, TransformError> {
+        // A recovery-tree decorator on a class expression is still a
+        // transformTypeScript producer: its expression is visited even
+        // though transformLegacyDecorators has no statement position
+        // at which it can materialize a helper. Heritage and members
+        // follow that modifier visit in source evaluation order.
+        let _ = self.visit_decorator_expressions(
+            data.modifiers,
+            PreparedDecoratorRuntimeRole::VisitationOnly,
+        )?;
+        data.modifiers = self.strip_decorators(data.modifiers)?;
+        if let Some(heritage) = data.heritage_clauses {
+            data.heritage_clauses = self.visit_nodes(heritage)?;
+        }
+        data.members = self.prepare_class_expression_members(data.members)?;
+        let flags = flags_after_update(
+            self.context.arena(),
+            original,
+            &NodeData::ClassExpression(data),
+        )?;
+        Ok(self
+            .context
+            .factory()?
+            .update_node(original, NodeData::ClassExpression(data), flags)?
+            .node())
+    }
+
     fn visit_class_declaration(
+        &mut self,
+        id: NodeId,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let enclosing_class = self.in_class;
+        let transformed = self.visit_class_declaration_worker(id);
+        self.in_class = enclosing_class;
+        transformed
+    }
+
+    fn visit_class_declaration_worker(
         &mut self,
         id: NodeId,
     ) -> Result<Vec<TransformNode>, TransformError> {
@@ -616,11 +656,12 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         let has_member_decoration = self.class_has_member_decoration(original_members)?;
         let has_member_decorator_syntax = self.class_has_legacy_decorator_syntax(data.members)?;
         if !has_constructor_decoration && !has_member_decoration && !has_member_decorator_syntax {
-            let updated = self.update_generic(current, NodeData::ClassDeclaration(data))?;
+            let updated = self.update_generic(current)?;
             self.nodes.insert(id, Some(updated));
             self.expanded_classes.insert(id, vec![updated]);
             return Ok(vec![self.node(updated)]);
         }
+        self.in_class = true;
         let explicit_name = data.name;
         // transformTypeScript may have assigned `default_N` to an originally
         // anonymous declaration so later passes can publish its statements.
@@ -4362,7 +4403,12 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         Ok(statements)
     }
 
-    fn update_generic(
+    fn update_generic(&mut self, original: TransformNode) -> Result<NodeId, TransformError> {
+        Ok(update_children_lazily(self, original)?.node())
+    }
+
+    // Specialized member/parameter arms have already edited their payload.
+    fn update_changed_children(
         &mut self,
         original: TransformNode,
         mut data: NodeData,
@@ -4609,6 +4655,10 @@ impl NodeDataChildVisitor for LegacyDecoratorVisitor<'_, '_> {
             if visitor.context.arena().node(visitor.node(node))?.kind
                 == SyntaxKind::ClassDeclaration
             {
+                let original = visitor.node(node);
+                if visitor.can_skip_subtree(original) {
+                    return Ok(ArrayElementVisit::One(original));
+                }
                 return Ok(ArrayElementVisit::Many(
                     visitor.visit_class_declaration(node)?,
                 ));
