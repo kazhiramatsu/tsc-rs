@@ -160,7 +160,7 @@ impl LiveChecker {
 
         let mut work_counters = CheckWorkCounters::default();
         let ParsedProgramInputs {
-            program_sources,
+            mut program_sources,
             shared_documents,
             authoritative_program_metadata,
             program_diagnostics,
@@ -206,29 +206,23 @@ impl LiveChecker {
         );
         // The sources no Program holds a document for are bound, in program
         // order; the others are those documents.
-        let found = |index: usize| match shared_documents.get(index) {
-            Some(SharedDocument::Found(document)) => Some(document),
-            _ => None,
-        };
-        let new_sources = program_sources
-            .iter()
-            .enumerate()
-            .filter(|&(index, _)| found(index).is_none())
-            .map(|(_, source_file)| Arc::clone(source_file))
-            .collect::<Vec<_>>();
         let mut bind_data =
-            bind_sources_in_program_order(&new_sources, &identity_domain, workers, None)
+            bind_sources_in_program_order(&mut program_sources, &identity_domain, workers, None)
                 .into_iter();
-        for (index, source_file) in program_sources.iter().enumerate() {
-            if let Some(document) = found(index) {
-                document_store
-                    .adopt(Arc::clone(document))
-                    .expect("a shared document must belong to the Program's identity domain");
-                continue;
-            }
+        let program_source_count = program_sources.len();
+        for (index, source_file) in program_sources.into_iter().enumerate() {
+            let builder = match source_file {
+                crate::ProgramSource::New(builder) => builder,
+                crate::ProgramSource::Shared(document) => {
+                    document_store
+                        .adopt(document)
+                        .expect("a shared document must belong to the Program's identity domain");
+                    continue;
+                }
+            };
             let document = document_store
-                .publish(
-                    Arc::clone(source_file),
+                .publish_builder(
+                    builder,
                     bind_data.next().expect("a bind of every new source"),
                 )
                 .expect("completed bind must belong to the ephemeral document domain");
@@ -241,7 +235,7 @@ impl LiveChecker {
         let mut file_facts = crate::program_file_facts(
             ProgramFileFacts::DEFAULT_LIBRARY,
             lib_count,
-            program_sources.len(),
+            program_source_count,
             &authoritative_program_metadata,
         );
         let outside_start = file_facts.len().saturating_sub(files_outside_program);

@@ -37,6 +37,7 @@ pub fn next_document_id() -> u64 {
 
 impl ParsedDocument {
     /// tsrs-native: constructs an immutable parsed-document handle.
+    #[cfg(test)]
     pub fn new(source: Arc<SourceFile>) -> Self {
         Self {
             source,
@@ -47,6 +48,50 @@ impl ParsedDocument {
     /// The parse's identity (tsgo's source file node id).
     pub fn id(&self) -> u64 {
         self.id
+    }
+}
+
+/// A source that has not been published to a registry or snapshot.
+///
+/// The source is owned by value until `freeze` allocates its shared handle.
+/// The builder exposes no Arc or Weak before binding completes.
+#[derive(Debug)]
+pub struct DocumentBuilder {
+    source: SourceFile,
+}
+
+impl DocumentBuilder {
+    pub fn new(source: SourceFile) -> Self {
+        Self { source }
+    }
+
+    pub fn source(&self) -> &SourceFile {
+        &self.source
+    }
+
+    /// The exclusive source borrow must end before publication.
+    ///
+    /// ```compile_fail,E0505
+    /// use tsc_checker::program::DocumentBuilder;
+    /// use tsc_binder::{BindData, bind_source_file};
+    /// fn publish_while_binding(mut builder: DocumentBuilder, data: BindData) {
+    ///     let worker = bind_source_file(builder.source_mut());
+    ///     let document = builder.freeze(data);
+    ///     drop(worker);
+    /// }
+    /// ```
+    pub fn source_mut(&mut self) -> &mut SourceFile {
+        &mut self.source
+    }
+
+    /// Consume the builder only after binding has produced its completed data.
+    /// Parse identity is assigned here, in the established publication order.
+    pub fn freeze(self, data: BindData) -> BoundDocument {
+        let parsed = ParsedDocument {
+            source: Arc::new(self.source),
+            id: next_document_id(),
+        };
+        BoundDocument::new(Arc::new(parsed), data)
     }
 }
 
@@ -73,10 +118,20 @@ impl BoundDocument {
 /// What a program source's parse and bind depend on besides its file name
 /// and text (tsgo `ParseCacheKey` without the hash): the parse options at
 /// base-zero identities and the identity domain the document's nodes and
-/// symbols belong to. Parsing and binding read no compiler options.
+/// symbols belong to. Script kind determines the language/JS context;
+/// JSDoc mode and the effective module/JSX indicators include all current
+/// file-affecting compiler/format inputs. Program membership and resolution
+/// remain outside this key. Transpile overrides are not cached.
 #[derive(Clone, Debug)]
 pub struct DocumentAddress {
     parse: ParseOptions,
+    /// The actual grammar kind is separate because the legacy JSON
+    /// `parse_options` shape carries `script_kind = Ts`. Folding the real kind
+    /// into those options would broaden the loader's JSON reuse in
+    /// `DocumentRegistry::find_parse`, a behavior change deliberately not made
+    /// here. This field distinguishes JSON from explicit TypeScript parses
+    /// while preserving which parses match the loader today.
+    script_kind: tsc_syntax::ScriptKind,
     identity_domain: IdentityDomain,
     /// A content mapper's output (tsgo's content-mapped parse cache).
     content_mapper: Option<ContentMapperAddress>,
@@ -115,9 +170,18 @@ impl DocumentAddress {
                 node_array_id_base: 0,
                 ..parse.clone()
             },
+            script_kind: parse.script_kind,
             identity_domain: identity_domain.clone(),
             content_mapper: None,
         }
+    }
+
+    /// The grammar used by an entry point with legacy parse-option defaults
+    /// (JSON). Keep the legacy options as well, preserving existing reuse and
+    /// creation order while distinguishing different actual script kinds.
+    pub fn with_script_kind(mut self, script_kind: tsc_syntax::ScriptKind) -> Self {
+        self.script_kind = script_kind;
+        self
     }
 
     /// The address of a content mapper's output (tsgo
@@ -138,6 +202,7 @@ impl DocumentAddress {
 impl PartialEq for DocumentAddress {
     fn eq(&self, other: &Self) -> bool {
         self.parse == other.parse
+            && self.script_kind == other.script_kind
             && self.identity_domain.same_domain(&other.identity_domain)
             && self.content_mapper == other.content_mapper
     }
@@ -377,22 +442,19 @@ impl EphemeralDocumentStore {
         &self.documents
     }
 
-    /// tsrs-native: publishes a completed bind after ownership validation.
-    /// Publish a fully completed bind. The worker must already have been
-    /// consumed, so a partial bind can never enter the one-shot store.
-    pub fn publish(
+    /// Freeze and publish a uniquely owned source after binding completes.
+    pub fn publish_builder(
         &mut self,
-        source: Arc<SourceFile>,
+        builder: DocumentBuilder,
         data: BindData,
     ) -> Result<Arc<BoundDocument>, EphemeralDocumentStoreError> {
-        if !source.identity_owned_by(&self.identity_domain) {
+        if !builder.source().identity_owned_by(&self.identity_domain) {
             return Err(EphemeralDocumentStoreError::SourceIdentityDomainMismatch);
         }
         if !data.identity_owned_by(&self.identity_domain) {
             return Err(EphemeralDocumentStoreError::BindIdentityDomainMismatch);
         }
-        let parsed = Arc::new(ParsedDocument::new(source));
-        let document = Arc::new(BoundDocument::new(parsed, data));
+        let document = Arc::new(builder.freeze(data));
         self.documents.push(Arc::clone(&document));
         Ok(document)
     }

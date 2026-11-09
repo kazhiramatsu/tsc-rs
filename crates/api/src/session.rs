@@ -876,14 +876,13 @@ impl Session {
             let bind_data = tsc_binder::Binder::bind_in_identity_domain(&file, domain)
                 .expect("created source bind identity allocation failed")
                 .into_bind_data();
-            let document = Arc::new(BoundDocument::new(
-                Arc::new(tsc_checker::program::ParsedDocument::new(Arc::new(file))),
-                bind_data,
-            ));
-            registry.insert(
-                tsc_checker::program::DocumentAddress::new(&parse_options, domain),
-                &document,
-            );
+            let document =
+                Arc::new(tsc_checker::program::DocumentBuilder::new(file).freeze(bind_data));
+            let mut address = tsc_checker::program::DocumentAddress::new(&parse_options, domain);
+            if script_kind == ScriptKind::Json {
+                address = address.with_script_kind(script_kind);
+            }
+            registry.insert(address, &document);
             // The parse's script kind is the one asked for (tsgo keeps it on
             // the source file); a program's file takes its name's.
             let path = self.host.to_path(&file_name);
