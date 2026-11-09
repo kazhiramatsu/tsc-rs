@@ -4011,10 +4011,6 @@ impl InferTypesWalker<'_, '_> {
     }
 }
 
-#[cfg(test)]
-#[path = "../tests/unit/inference/tests.rs"]
-mod tests;
-
 impl CheckerState<'_> {
     pub(crate) fn add_inference_walker_memory_usage(
         &self,
@@ -4036,3 +4032,7 @@ impl CheckerState<'_> {
         usage.hash_table::<usize, ()>("inference visited index (estimate)", len, cap);
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/inference/tests.rs"]
+mod tests;

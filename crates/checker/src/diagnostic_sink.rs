@@ -138,10 +138,6 @@ impl<'a> IntoIterator for &'a DiagnosticSink {
     }
 }
 
-#[cfg(test)]
-#[path = "../tests/unit/state/diagnostic_sink_tests.rs"]
-mod tests;
-
 impl DiagnosticSink {
     // Only commutative ownership sums; printed rows are ordered by BTreeMap.
     #[allow(clippy::iter_over_hash_type)]
@@ -155,3 +151,7 @@ impl DiagnosticSink {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/state/diagnostic_sink_tests.rs"]
+mod tests;

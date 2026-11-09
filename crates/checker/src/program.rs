@@ -1449,10 +1449,6 @@ impl<'a> ProgramBinder<'a> {
     }
 }
 
-#[cfg(test)]
-#[path = "../tests/unit/program/tests.rs"]
-mod tests;
-
 impl ProgramBinder<'_> {
     pub(crate) fn transient_record_heap_bytes(&self) -> usize {
         self.transient.record_heap_bytes()
@@ -1468,6 +1464,7 @@ impl ProgramSnapshot {
         usage.vec("snapshot file facts", &self.file_facts);
     }
 }
+
 impl ProgramBinder<'_> {
     pub(crate) fn add_projection_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
         usage.vec("checker program projections", &self.file_entries);
@@ -1484,3 +1481,7 @@ impl ProgramBinder<'_> {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/program/tests.rs"]
+mod tests;

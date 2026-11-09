@@ -3009,14 +3009,6 @@ impl<'a> CheckerState<'a> {
 #[path = "../tests/unit/state/test_support.rs"]
 pub(crate) mod test_support;
 
-#[cfg(test)]
-#[path = "../tests/unit/state/tests.rs"]
-mod tests;
-
-#[cfg(test)]
-#[path = "../tests/unit/state/resolution_unwind_tests.rs"]
-mod resolution_unwind_tests;
-
 /// The active-mapper instantiation cache key: tsc's
 /// `type.id + getAliasId(aliasSymbol, aliasTypeArguments)` (73584) as one
 /// value instead of a formatted string. The alias arguments count only with
@@ -3039,6 +3031,7 @@ impl<T: Clone> SharedList<T> {
         })
     }
 }
+
 impl ResolvedMembers {
     fn extras_heap_bytes_once(&self, usage: &mut tsc_diagnostics::MemoryUsage) -> usize {
         self.extras.as_ref().map_or(0, |extras| {
@@ -3049,3 +3042,11 @@ impl ResolvedMembers {
         })
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/state/tests.rs"]
+mod tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/state/resolution_unwind_tests.rs"]
+mod resolution_unwind_tests;

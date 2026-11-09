@@ -4184,16 +4184,13 @@ pub fn js_number_to_string(value: f64) -> String {
     }
 }
 
-#[cfg(test)]
-#[path = "../tests/unit/tables/tests.rs"]
-mod tests;
-
 /// tsgo's limits on a template literal type built by getTemplateLiteralType
 /// (checker.go:29610-29616): its text, in UTF-8 bytes as Go counts them,
 /// and its placeholders. Recursive instantiations that double the text or
 /// the placeholders every step reach them long before the tail-recursion
 /// limit (TypeScript issue 63271).
 pub const MAX_TEMPLATE_LITERAL_TYPE_LENGTH: usize = 50_000_000;
+
 pub const MAX_TEMPLATE_LITERAL_TYPE_SPANS: usize = 100_000;
 
 /// A template literal type over the limits; the checker reports TS2589.
@@ -4242,3 +4239,7 @@ fn utf8_length(text: &TemplateText) -> usize {
     }
     length
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/tables/tests.rs"]
+mod tests;

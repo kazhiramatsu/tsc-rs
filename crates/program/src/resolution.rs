@@ -876,10 +876,6 @@ pub use table::{
     ResolutionTableView, ResolvedModuleView,
 };
 
-#[cfg(test)]
-#[path = "../tests/unit/resolution/extension_case_tests.rs"]
-mod extension_case_tests;
-
 impl PackageId {
     pub(crate) fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
         for text in [&self.name, &self.submodule_name, &self.version]
@@ -890,3 +886,7 @@ impl PackageId {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/resolution/extension_case_tests.rs"]
+mod extension_case_tests;

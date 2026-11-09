@@ -130,18 +130,19 @@ fn validate_js_path(path: JsStr<'_>, label: &str) -> Result<(), PreparationError
     Ok(())
 }
 
-#[cfg(test)]
-#[path = "../tests/unit/path/tests.rs"]
-mod tests;
-
 impl CanonicalPath {
     pub(crate) fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
         self.0.add_memory_usage(usage);
     }
 }
+
 impl ProgramPath {
     pub(crate) fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
         self.display.add_memory_usage(usage);
         self.canonical.add_memory_usage(usage);
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/path/tests.rs"]
+mod tests;

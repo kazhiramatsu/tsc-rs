@@ -8699,10 +8699,6 @@ pub fn load_emitting_program_js(
     )
 }
 
-#[cfg(test)]
-#[path = "../tests/unit/loader/typed_error_source_tests.rs"]
-mod typed_error_source_tests;
-
 impl SourceInclusionReason {
     pub(crate) fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
         use SourceInclusionReason::*;
@@ -8775,3 +8771,7 @@ impl SourceInclusionReason {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/loader/typed_error_source_tests.rs"]
+mod typed_error_source_tests;

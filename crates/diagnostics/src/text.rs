@@ -1525,6 +1525,37 @@ fn byte_offset_at_utf16(text: &str, utf16_position: u32) -> Option<u32> {
         .flatten()
 }
 
+impl TextSnapshot {
+    /// Observe existing index tables without initializing lazy state. Source
+    /// characters belong to the separate text heap, never the main-heap sum.
+    pub fn add_memory_usage(snapshot: &Arc<Self>, usage: &mut crate::MemoryUsage) {
+        if !usage.arc("TextSnapshot Arc headers", snapshot) {
+            return;
+        }
+        usage.arc("snapshot version strings", &snapshot.document_version.0);
+        usage.arc("snapshot lineage Arc headers", &snapshot.lineage.store);
+        if !snapshot.text.as_str().is_empty()
+            && usage.claim(snapshot.text.as_str().as_ptr() as usize)
+        {
+            usage.source_text_bytes += snapshot.text.as_str().len();
+        }
+        if usage.arc("position index Arc headers", &snapshot.positions) {
+            let dense = match &snapshot.positions.data {
+                PositionIndexData::StaticDense(dense) => Some(dense),
+                PositionIndexData::LazyDense { dense, .. } => dense.get(),
+                PositionIndexData::PersistentLines(_) => None,
+            };
+            if let Some(dense) = dense {
+                usage.vec("position index tables", &dense.wide);
+                if let Some(lines) = dense.lines.get() {
+                    usage.vec("position index tables", &lines.starts_byte);
+                    usage.vec("position index tables", &lines.starts_utf16);
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 #[path = "../tests/unit/text/tests.rs"]
 mod tests;
@@ -1643,37 +1674,6 @@ mod sparse_position_index_tests {
                 None,
                 "{text:?}"
             );
-        }
-    }
-}
-
-impl TextSnapshot {
-    /// Observe existing index tables without initializing lazy state. Source
-    /// characters belong to the separate text heap, never the main-heap sum.
-    pub fn add_memory_usage(snapshot: &Arc<Self>, usage: &mut crate::MemoryUsage) {
-        if !usage.arc("TextSnapshot Arc headers", snapshot) {
-            return;
-        }
-        usage.arc("snapshot version strings", &snapshot.document_version.0);
-        usage.arc("snapshot lineage Arc headers", &snapshot.lineage.store);
-        if !snapshot.text.as_str().is_empty()
-            && usage.claim(snapshot.text.as_str().as_ptr() as usize)
-        {
-            usage.source_text_bytes += snapshot.text.as_str().len();
-        }
-        if usage.arc("position index Arc headers", &snapshot.positions) {
-            let dense = match &snapshot.positions.data {
-                PositionIndexData::StaticDense(dense) => Some(dense),
-                PositionIndexData::LazyDense { dense, .. } => dense.get(),
-                PositionIndexData::PersistentLines(_) => None,
-            };
-            if let Some(dense) = dense {
-                usage.vec("position index tables", &dense.wide);
-                if let Some(lines) = dense.lines.get() {
-                    usage.vec("position index tables", &lines.starts_byte);
-                    usage.vec("position index tables", &lines.starts_utf16);
-                }
-            }
         }
     }
 }

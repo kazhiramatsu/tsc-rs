@@ -1644,10 +1644,6 @@ impl BinderWorker<'_> {
     }
 }
 
-#[cfg(test)]
-#[path = "../tests/unit/declare/tests.rs"]
-mod tests;
-
 /// The node flags the binder owns: tsc sets and clears them on node.flags
 /// while binding (reachability, `this` use, export context, async emit);
 /// every other bit keeps its parse-time value.
@@ -1665,6 +1661,7 @@ const BINDER_NODE_FLAG_MASK: i32 = unpack_binder_node_flags(u8::MAX);
 // The fifth packed bit is HasAsyncFunctions / IdentifierIsInJSDocNamespace.
 // Keep the specialized read in sync if BINDER_NODE_FLAGS is reordered.
 const JS_DOC_NAMESPACE_OVERLAY_BIT: u8 = 1 << 4;
+
 const _: () = assert!(
     unpack_binder_node_flags(JS_DOC_NAMESPACE_OVERLAY_BIT)
         == NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE.bits()
@@ -2056,3 +2053,7 @@ where
         self.base == other.base && self.iter().eq(other.iter())
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/declare/tests.rs"]
+mod tests;

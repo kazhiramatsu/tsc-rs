@@ -647,10 +647,6 @@ pub fn unescape_leading_underscores(name: &str) -> &str {
     }
 }
 
-#[cfg(test)]
-#[path = "../tests/unit/lib/tests.rs"]
-mod tests;
-
 impl SourceFile {
     /// Heap owners outside the published syntax records and the SourceFile
     /// Arc allocation itself. Called only by memory-report collection.
@@ -698,3 +694,7 @@ impl SourceFile {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/lib/tests.rs"]
+mod tests;

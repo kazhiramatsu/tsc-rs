@@ -751,10 +751,6 @@ impl<'a> ResolvedModuleView<'a> {
     }
 }
 
-#[cfg(test)]
-#[path = "../tests/unit/resolution_table.rs"]
-mod tests;
-
 impl ResolutionTable {
     pub(crate) fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
         usage.vec("resolution rows", &self.modules);
@@ -818,3 +814,7 @@ impl ResolutionTable {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/resolution_table.rs"]
+mod tests;
