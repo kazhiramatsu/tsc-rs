@@ -41,13 +41,13 @@ fn routes_parse_order_arenas_without_changing_program_order() {
         )
         .expect("test source identities")
     };
-    let root = parse("/a.ts", r#"import { b } from "./b"; export const a = b;"#);
-    let dependency = parse("/b.ts", "export const b = 1;");
+    let mut root = parse("/a.ts", r#"import { b } from "./b"; export const a = b;"#);
+    let mut dependency = parse("/b.ts", "export const b = 1;");
 
     let dependency_binder =
-        Binder::bind_in_identity_domain(&dependency, &domain).expect("test bind identities");
+        Binder::bind_in_identity_domain(&mut dependency, &domain).expect("test bind identities");
     let root_binder =
-        Binder::bind_in_identity_domain(&root, &domain).expect("test bind identities");
+        Binder::bind_in_identity_domain(&mut root, &domain).expect("test bind identities");
 
     let mut program = ProgramBinder::new(vec![&dependency_binder, &root_binder]);
     assert_eq!(
@@ -64,27 +64,32 @@ fn routes_parse_order_arenas_without_changing_program_order() {
     assert_eq!(program.source(0).file_name, "/b.ts");
     assert_eq!(program.source(1).file_name, "/a.ts");
 
-    for id in dependency.arena.node_ids() {
+    for id in dependency_binder.source.arena.node_ids() {
         assert_eq!(program.file_index_of_node(id), 0);
-        assert!(std::ptr::eq(program.source_of_node(id), &dependency));
-    }
-    for id in root.arena.node_ids() {
-        assert_eq!(program.file_index_of_node(id), 1);
-        assert!(std::ptr::eq(program.source_of_node(id), &root));
-    }
-
-    for raw in dependency.arena.array_base()..dependency.arena.array_end() {
-        let id = NodeArrayId::new(raw);
         assert!(std::ptr::eq(
-            program.node_array(id).nodes,
-            dependency.arena.node_array(id).nodes
+            program.source_of_node(id),
+            dependency_binder.source
         ));
     }
-    for raw in root.arena.array_base()..root.arena.array_end() {
+    for id in root_binder.source.arena.node_ids() {
+        assert_eq!(program.file_index_of_node(id), 1);
+        assert!(std::ptr::eq(program.source_of_node(id), root_binder.source));
+    }
+
+    for raw in
+        dependency_binder.source.arena.array_base()..dependency_binder.source.arena.array_end()
+    {
         let id = NodeArrayId::new(raw);
         assert!(std::ptr::eq(
             program.node_array(id).nodes,
-            root.arena.node_array(id).nodes
+            dependency_binder.source.arena.node_array(id).nodes
+        ));
+    }
+    for raw in root_binder.source.arena.array_base()..root_binder.source.arena.array_end() {
+        let id = NodeArrayId::new(raw);
+        assert!(std::ptr::eq(
+            program.node_array(id).nodes,
+            root_binder.source.arena.node_array(id).nodes
         ));
     }
 
@@ -144,17 +149,20 @@ fn a_program_view_is_shared_between_threads() {
 
 #[test]
 fn try_new_rejects_unpublished_and_cross_domain_programs() {
-    let local = tsc_syntax::parse_source_file("/local.ts", "let a = 1;", Default::default(), None);
-    let local_binder = tsc_binder::bind_source_file(&local);
+    let mut local =
+        tsc_syntax::parse_source_file("/local.ts", "let a = 1;", Default::default(), None);
+    let local_binder = tsc_binder::bind_source_file(&mut local);
     assert!(matches!(
         ProgramBinder::try_new(vec![&local_binder]),
         Err(ProgramIdentityError::PartialIdentityOwnership { file: 0 })
     ));
 
-    let first = parse_published_source_file("/first.ts", "let a = 1;", Default::default(), None);
-    let second = parse_published_source_file("/second.ts", "let b = 2;", Default::default(), None);
-    let first_binder = tsc_binder::bind_source_file(&first);
-    let second_binder = tsc_binder::bind_source_file(&second);
+    let mut first =
+        parse_published_source_file("/first.ts", "let a = 1;", Default::default(), None);
+    let mut second =
+        parse_published_source_file("/second.ts", "let b = 2;", Default::default(), None);
+    let first_binder = tsc_binder::bind_source_file(&mut first);
+    let second_binder = tsc_binder::bind_source_file(&mut second);
     assert!(matches!(
         ProgramBinder::try_new(vec![&first_binder, &second_binder]),
         Err(ProgramIdentityError::IdentityDomainMismatch { file: 1 })
@@ -173,10 +181,13 @@ fn snapshot_reuses_owned_handles_across_fresh_checker_sessions() {
     source
         .relocate_into_identity_domain(&identity_domain)
         .expect("source identity allocation");
-    let source = Arc::new(source);
+    let mut source = Arc::new(source);
     let options = CompilerOptions::default();
-    let worker: BinderWorker<'_> = BinderWorker::bind_in_identity_domain(&source, &identity_domain)
-        .expect("bind identity allocation");
+    let worker: BinderWorker<'_> = BinderWorker::bind_in_identity_domain(
+        Arc::get_mut(&mut source).expect("unshared test source"),
+        &identity_domain,
+    )
+    .expect("bind identity allocation");
     let data = worker.into_bind_data();
     let parsed = Arc::new(ParsedDocument::new(Arc::clone(&source)));
     let document = Arc::new(BoundDocument::new(parsed, data));

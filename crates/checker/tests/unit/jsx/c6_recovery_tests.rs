@@ -169,8 +169,8 @@ fn synthetic_attribute_recovery_preserves_a_bound_sibling() {
         jsx: Some(1),
         ..CompilerOptions::default()
     };
-    let binder = bind_source_file(&source);
-    let mut state = CheckerState::new(&source, &binder, &options);
+    let binder = bind_source_file(&mut source);
+    let mut state = CheckerState::new(binder.source, &binder, &options);
 
     assert!(state.node_symbol(valid_attribute).is_some());
     assert!(state.node_symbol(unbound_attribute).is_none());

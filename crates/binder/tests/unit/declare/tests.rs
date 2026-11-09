@@ -6,29 +6,82 @@ fn parse(text: &str) -> SourceFile {
 }
 
 #[test]
-fn jsdoc_namespace_predicate_preserves_the_complete_overlay_view() {
+fn record_flags_preserve_parser_bits_and_hide_the_locals_marker() {
     let mut source = parse("let name;");
     let node = source
         .arena
         .node_ids()
-        .find(|&id| source.arena.node(id).kind == tsc_syntax::SyntaxKind::Identifier)
+        .find(|&id| source.arena.node(id).kind == SyntaxKind::Identifier)
         .unwrap();
-    let index = (node.index() - source.arena.node_base()) as usize;
-    for parsed in [0, NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE.bits()] {
-        source.arena.node_mut(node).flags = parsed;
-        let mut binder = BinderWorker::new(&source);
-        assert_eq!(binder.identifier_is_in_jsdoc_namespace(node), parsed != 0);
-        for packed in 0..=u8::MAX {
-            binder.node_flags_mut.0[index] = PackedNodeFlags(packed);
+    let parsed = NodeFlags::JAVA_SCRIPT_FILE.bits() | NodeFlags::AWAIT_CONTEXT.bits();
+    source.arena.node_mut(node).flags = parsed;
+    let mut binder = BinderWorker::new(&mut source);
+    let owned = [
+        NodeFlags::EXPORT_CONTEXT,
+        NodeFlags::CONTAINS_THIS,
+        NodeFlags::HAS_IMPLICIT_RETURN,
+        NodeFlags::HAS_EXPLICIT_RETURN,
+        NodeFlags::HAS_ASYNC_FUNCTIONS,
+        NodeFlags::UNREACHABLE,
+    ];
+    for combination in 0..64 {
+        let expected = owned.iter().enumerate().fold(parsed, |flags, (bit, flag)| {
+            flags
+                | if combination & (1 << bit) != 0 {
+                    flag.bits()
+                } else {
+                    0
+                }
+        });
+        for has_locals in [true, false] {
+            binder.set_has_locals(node, has_locals);
+            binder.set_flags_of(node, NodeFlags::from_bits(expected));
+            assert_eq!(binder.flags_of(node).bits(), expected);
+            assert_eq!(
+                binder.source.arena.node(node).flags,
+                expected | if has_locals { HAS_LOCALS } else { 0 }
+            );
             assert_eq!(
                 binder.identifier_is_in_jsdoc_namespace(node),
-                binder
-                    .flags_of(node)
-                    .intersects(NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE),
-                "parsed={parsed}, packed={packed}"
+                combination & (1 << 4) != 0
             );
         }
     }
+    assert_eq!(std::mem::size_of::<tsc_syntax::Node>(), 32);
+}
+
+#[test]
+fn published_flags_and_locals_are_in_the_bound_record() {
+    let domain = IdentityDomain::new();
+    let mut source = parse_in_domain(
+        "/flags.ts",
+        "export async function f() { this; return; dead(); }",
+        &domain,
+    );
+    let parsed = source
+        .arena
+        .nodes()
+        .iter()
+        .map(|node| node.flags)
+        .collect::<Vec<_>>();
+    assert!(parsed.iter().all(|flags| flags & HAS_LOCALS == 0));
+    let binder = Binder::bind_in_identity_domain(&mut source, &domain).unwrap();
+    let data = BindData::from_binder(&binder);
+    let mut changed = 0;
+    for (id, parsed) in binder.source.arena.node_ids().zip(parsed) {
+        let raw = binder.source.arena.node(id).flags;
+        let visible = binder.flags_of(id);
+        assert_eq!(
+            raw & !(BINDER_NODE_FLAG_MASK | HAS_LOCALS),
+            parsed & !BINDER_NODE_FLAG_MASK
+        );
+        assert_eq!(visible.bits() & HAS_LOCALS, 0);
+        assert_eq!(published_node_flags(id), visible);
+        assert_eq!(data.flags_of(id, &binder.source.arena), visible);
+        assert_eq!(published_has_locals(id), binder.locals.contains_key(&id));
+        changed += usize::from(visible.bits() != parsed);
+    }
+    assert!(changed > 0);
 }
 
 #[test]
@@ -43,7 +96,7 @@ fn bind_relocation_matches_direct_nonzero_symbols_and_private_serials() {
     );
     source.relocate_into_identity_domain(&domain).unwrap();
 
-    let relocated = Binder::bind_in_identity_domain(&source, &domain).unwrap();
+    let relocated = Binder::bind_in_identity_domain(&mut source, &domain).unwrap();
     assert!(relocated.identity_owned_by(&domain));
     let symbol_base = relocated.symbols.identity_lease().unwrap().range().start();
     let serial_base = relocated
@@ -61,7 +114,7 @@ fn bind_relocation_matches_direct_nonzero_symbols_and_private_serials() {
     // A published tree is bound once at a time: the direct bind follows.
     drop(relocated);
 
-    let mut direct = Binder::with_bases(&source, serial_base, symbol_base);
+    let mut direct = Binder::with_bases(&mut source, serial_base, symbol_base);
     direct.bind_source_file();
     assert_eq!(expected.symbols, direct.symbols);
     assert_eq!(expected.node_symbol, direct.node_symbol);
@@ -169,9 +222,10 @@ fn diag_pins(binder: &Binder<'_>) -> Vec<(u32, u32, u32)> {
 
 #[test]
 fn function_overloads_merge() {
-    let source = parse("function f(a: string): void;\nfunction f(a: number): void {}\n");
-    let mut binder = Binder::new(&source);
-    let symbols = declare_all(&mut binder, TableRef::Locals(source.root), None);
+    let mut source = parse("function f(a: string): void;\nfunction f(a: number): void {}\n");
+    let root = source.root;
+    let mut binder = Binder::new(&mut source);
+    let symbols = declare_all(&mut binder, TableRef::Locals(root), None);
     assert_eq!(symbols[0], symbols[1]);
     let symbol = binder.symbols.symbol(symbols[0]);
     assert!(symbol.flags.contains(SymbolFlags::FUNCTION));
@@ -185,18 +239,20 @@ fn function_overloads_merge() {
 
 #[test]
 fn namespace_merges_into_function() {
-    let source = parse("function f() {}\nnamespace f { export const x = 1; }\n");
-    let mut binder = Binder::new(&source);
-    let symbols = declare_all(&mut binder, TableRef::Locals(source.root), None);
+    let mut source = parse("function f() {}\nnamespace f { export const x = 1; }\n");
+    let root = source.root;
+    let mut binder = Binder::new(&mut source);
+    let symbols = declare_all(&mut binder, TableRef::Locals(root), None);
     assert_eq!(symbols[0], symbols[1]);
     assert!(binder.bind_diagnostics.is_empty());
 }
 
 #[test]
 fn interface_merges_into_class() {
-    let source = parse("class D {}\ninterface D {}\n");
-    let mut binder = Binder::new(&source);
-    let symbols = declare_all(&mut binder, TableRef::Locals(source.root), None);
+    let mut source = parse("class D {}\ninterface D {}\n");
+    let root = source.root;
+    let mut binder = Binder::new(&mut source);
+    let symbols = declare_all(&mut binder, TableRef::Locals(root), None);
     assert_eq!(symbols[0], symbols[1]);
     let symbol = binder.symbols.symbol(symbols[0]);
     assert!(symbol
@@ -208,14 +264,15 @@ fn interface_merges_into_class() {
 #[test]
 fn block_scoped_redeclaration_reports_2451_and_detaches_fresh_symbol() {
     // Pins from tsc sf.bindDiagnostics on "let x = 1;\nlet x = 2;".
-    let source = parse("let x = 1;\nlet x = 2;");
-    let mut binder = Binder::new(&source);
-    let symbols = declare_all(&mut binder, TableRef::Locals(source.root), None);
+    let mut source = parse("let x = 1;\nlet x = 2;");
+    let root = source.root;
+    let mut binder = Binder::new(&mut source);
+    let symbols = declare_all(&mut binder, TableRef::Locals(root), None);
     assert_eq!(diag_pins(&binder), [(2451, 4, 1), (2451, 15, 1)]);
     // The fresh conflict symbol is DETACHED: the table keeps the
     // original, whose declarations stay [decl1].
     assert_ne!(symbols[0], symbols[1]);
-    let table = binder.locals.get(&source.root).expect("locals");
+    let table = binder.locals.get(&root).expect("locals");
     assert_eq!(table.get("x"), Some(&symbols[0]));
     assert_eq!(binder.symbols.symbol(symbols[0]).declarations().len(), 1);
 }
@@ -223,9 +280,10 @@ fn block_scoped_redeclaration_reports_2451_and_detaches_fresh_symbol() {
 #[test]
 fn triple_let_conflicts_against_the_original_symbol() {
     // Pins from tsc: "let y = 1;\nlet y = 2;\nlet y = 3;".
-    let source = parse("let y = 1;\nlet y = 2;\nlet y = 3;");
-    let mut binder = Binder::new(&source);
-    declare_all(&mut binder, TableRef::Locals(source.root), None);
+    let mut source = parse("let y = 1;\nlet y = 2;\nlet y = 3;");
+    let root = source.root;
+    let mut binder = Binder::new(&mut source);
+    declare_all(&mut binder, TableRef::Locals(root), None);
     assert_eq!(
         diag_pins(&binder),
         [(2451, 4, 1), (2451, 15, 1), (2451, 4, 1), (2451, 26, 1)]
@@ -237,18 +295,20 @@ fn var_then_function_reports_duplicate_identifier() {
     // tsc pins {(2300,21,1),(2300,4,1)} — tsc's order differs
     // because bindEachFunctionsFirst binds the function BEFORE the
     // var (stage 3.4); source-order declaration flips it.
-    let source = parse("var f: any;\nfunction f() {}");
-    let mut binder = Binder::new(&source);
-    declare_all(&mut binder, TableRef::Locals(source.root), None);
+    let mut source = parse("var f: any;\nfunction f() {}");
+    let root = source.root;
+    let mut binder = Binder::new(&mut source);
+    declare_all(&mut binder, TableRef::Locals(root), None);
     assert_eq!(diag_pins(&binder), [(2300, 4, 1), (2300, 21, 1)]);
 }
 
 #[test]
 fn enum_cannot_merge_with_class_reports_2567() {
     // Pins from tsc: "class C {}\nenum C {}".
-    let source = parse("class C {}\nenum C {}");
-    let mut binder = Binder::new(&source);
-    declare_all(&mut binder, TableRef::Locals(source.root), None);
+    let mut source = parse("class C {}\nenum C {}");
+    let root = source.root;
+    let mut binder = Binder::new(&mut source);
+    declare_all(&mut binder, TableRef::Locals(root), None);
     assert_eq!(diag_pins(&binder), [(2567, 6, 1), (2567, 16, 1)]);
     // messageNeedsName = false: the 2567 text carries no name.
     assert!(!binder.bind_diagnostics[0]
@@ -261,8 +321,8 @@ fn enum_cannot_merge_with_class_reports_2567() {
 fn multiple_default_export_classes_report_2528_with_relateds() {
     // Pins from tsc: "export default class C {}\nexport default class D {}"
     //   2528@(21,1) related 2753@(47,1); 2528@(47,1) related 2752@(21,1).
-    let source = parse("export default class C {}\nexport default class D {}");
-    let mut binder = Binder::new(&source);
+    let mut source = parse("export default class C {}\nexport default class D {}");
+    let mut binder = Binder::new(&mut source);
     let container = binder.symbols.alloc(
         SymbolFlags::NONE,
         crate::escape_leading_underscores("container"),
@@ -291,8 +351,8 @@ fn multiple_default_export_classes_report_2528_with_relateds() {
 fn multiple_export_assignments_report_2528_full_statement_spans() {
     // Pins from tsc: "export default 1;\nexport default 2;"
     //   2528@(0,17) related 2753@(18,17); 2528@(18,17) related 2752@(0,17).
-    let source = parse("export default 1;\nexport default 2;");
-    let mut binder = Binder::new(&source);
+    let mut source = parse("export default 1;\nexport default 2;");
+    let mut binder = Binder::new(&mut source);
     let container = binder.symbols.alloc(
         SymbolFlags::NONE,
         crate::escape_leading_underscores("container"),
@@ -312,10 +372,11 @@ fn multiple_export_assignments_report_2528_full_statement_spans() {
 
 #[test]
 fn escaped_names_key_the_table() {
-    let source = parse("let __proto__ = 1;");
-    let mut binder = Binder::new(&source);
-    declare_all(&mut binder, TableRef::Locals(source.root), None);
-    let table = binder.locals.get(&source.root).expect("locals");
+    let mut source = parse("let __proto__ = 1;");
+    let root = source.root;
+    let mut binder = Binder::new(&mut source);
+    declare_all(&mut binder, TableRef::Locals(root), None);
+    let table = binder.locals.get(&root).expect("locals");
     assert!(table.contains_key("___proto__"));
     assert!(!table.contains_key("__proto__"));
 }
@@ -346,14 +407,14 @@ fn local_bind_with_in_order_relocation_matches_direct_binding_at_the_same_bases(
     ];
 
     let domain = IdentityDomain::new();
-    let sources: Vec<SourceFile> = texts
+    let mut sources: Vec<SourceFile> = texts
         .iter()
         .enumerate()
         .map(|(index, text)| parse_in_domain(&format!("/f{index}.ts"), text, &domain))
         .collect();
     let mut relocated: Vec<Binder<'_>> = std::thread::scope(|scope| {
         let handles: Vec<_> = sources
-            .iter()
+            .iter_mut()
             .rev()
             .map(|source| scope.spawn(|| Binder::bind_local(source)))
             .collect();
@@ -389,18 +450,27 @@ fn local_bind_with_in_order_relocation_matches_direct_binding_at_the_same_bases(
     // Each relocated bind equals a bind constructed directly at its bases.
     // The relocated binders go first: a published tree is bound once at a
     // time.
-    let expected: Vec<(u32, u32, BindData)> = relocated
+    let expected: Vec<(u32, u32, BindData, Vec<i32>)> = relocated
         .iter()
         .map(|binder| {
             (
                 binder.symbol_identity_lease().unwrap().range().start(),
                 binder.private_name_serial_lease().unwrap().range().start(),
                 BindData::from_binder(binder),
+                binder
+                    .source
+                    .arena
+                    .nodes()
+                    .iter()
+                    .map(|node| node.flags)
+                    .collect(),
             )
         })
         .collect();
     drop(relocated);
-    for (source, (symbol_base, serial_base, expected)) in sources.iter().zip(expected) {
+    for (source, (symbol_base, serial_base, expected, expected_flags)) in
+        sources.iter_mut().zip(expected)
+    {
         let mut direct = Binder::with_bases(source, serial_base, symbol_base);
         direct.bind_source_file();
         assert_eq!(
@@ -416,7 +486,16 @@ fn local_bind_with_in_order_relocation_matches_direct_binding_at_the_same_bases(
         assert_eq!(expected.assigned_symbol_ids, direct.assigned_symbol_ids);
         assert_eq!(expected.bind_diagnostics, direct.bind_diagnostics);
         assert_eq!(expected.node_flow, direct.node_flow);
-        assert_eq!(expected.node_flags_mut, direct.node_flags_mut);
+        assert_eq!(
+            expected_flags,
+            direct
+                .source
+                .arena
+                .nodes()
+                .iter()
+                .map(|node| node.flags)
+                .collect::<Vec<_>>()
+        );
     }
 }
 
@@ -425,7 +504,7 @@ fn a_reserved_bind_that_outgrows_its_room_relocates_to_a_direct_binds_symbols() 
     // A room of two symbols for a bind of seven (the file's symbol, `f` and
     // its export twin, and `f`'s four expando members).
     let domain = IdentityDomain::new();
-    let source = parse_in_domain(
+    let mut source = parse_in_domain(
         "/expando.ts",
         "export function f() {}\nf.a = 0;\nf.b = 0;\nf.c = 0;\nf.d = 0;\n",
         &domain,
@@ -438,8 +517,11 @@ fn a_reserved_bind_that_outgrows_its_room_relocates_to_a_direct_binds_symbols() 
             u32::try_from(source.arena.nodes().len()).unwrap(),
         )
         .unwrap();
-    let mut reserved =
-        Binder::bind_reserved(&source, symbol_lease.range(), serial_lease.range().start());
+    let mut reserved = Binder::bind_reserved(
+        &mut source,
+        symbol_lease.range(),
+        serial_lease.range().start(),
+    );
     assert_eq!(reserved.symbols.symbols().len(), 7);
     // As the checker does: the reservations stay held until the relocation.
     assert!(!reserved
@@ -457,7 +539,7 @@ fn a_reserved_bind_that_outgrows_its_room_relocates_to_a_direct_binds_symbols() 
     // A published tree is bound once at a time: the direct bind follows.
     drop(reserved);
 
-    let mut direct = Binder::with_bases(&source, serial_base, symbol_base);
+    let mut direct = Binder::with_bases(&mut source, serial_base, symbol_base);
     direct.bind_source_file();
     assert_eq!(expected.symbols, direct.symbols);
     assert_eq!(expected.node_symbol, direct.node_symbol);
@@ -471,19 +553,21 @@ fn a_reserved_bind_that_outgrows_its_room_relocates_to_a_direct_binds_symbols() 
 #[should_panic(expected = "a published tree is bound once at a time")]
 fn a_published_tree_is_bound_once_at_a_time() {
     let domain = IdentityDomain::new();
-    let source = parse_in_domain("/once.ts", "let a = 1;", &domain);
-    let _first = Binder::bind_in_identity_domain(&source, &domain).unwrap();
-    let _second = Binder::bind_in_identity_domain(&source, &domain).unwrap();
+    let mut source = parse_in_domain("/once.ts", "let a = 1;", &domain);
+    let _first = Binder::bind_in_identity_domain(&mut source, &domain)
+        .unwrap()
+        .into_bind_data();
+    let _second = Binder::bind_in_identity_domain(&mut source, &domain).unwrap();
 }
 
 #[test]
 fn a_dropped_bind_lets_its_tree_be_bound_again() {
     let domain = IdentityDomain::new();
-    let source = parse_in_domain("/again.ts", "let a = 1;", &domain);
-    let first = Binder::bind_in_identity_domain(&source, &domain).unwrap();
+    let mut source = parse_in_domain("/again.ts", "let a = 1;", &domain);
+    let first = Binder::bind_in_identity_domain(&mut source, &domain).unwrap();
     let expected = BindData::from_binder(&first);
     drop(first);
-    let second = Binder::bind_in_identity_domain(&source, &domain).unwrap();
+    let second = Binder::bind_in_identity_domain(&mut source, &domain).unwrap();
     // The second bind's symbols have identities of their own; the tables
     // name the same nodes.
     assert_eq!(expected.classifiable_names, second.classifiable_names);

@@ -1393,8 +1393,8 @@ impl<'a> ProgramBinder<'a> {
     /// tsrs-native: binder-table projection for tsc's direct
     /// `container.locals` property access.
     pub fn locals_of(&self, scope: NodeId) -> Option<&SymbolTable> {
-        // Most nodes have no locals: one byte answers without a route to
-        // the file and a probe of its table.
+        // Most nodes have no locals: the record's private bit answers without
+        // a route to the file and a probe of its table.
         if !tsc_binder::published_has_locals(scope) {
             self.debug_assert_no_locals(scope);
             return None;

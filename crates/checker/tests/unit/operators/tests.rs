@@ -69,8 +69,8 @@ fn with_synthetic_recovery_state<R>(
         "synthetic recovery fixture must start from a valid sibling tree"
     );
     let nodes = mutate(&mut source);
-    let binder = tsc_binder::bind_source_file(&source);
-    let mut state = CheckerState::new(&source, &binder, &options);
+    let binder = tsc_binder::bind_source_file(&mut source);
+    let mut state = CheckerState::new(binder.source, &binder, &options);
     state.merge_module_augmentations();
     run(&mut state, &nodes)
 }

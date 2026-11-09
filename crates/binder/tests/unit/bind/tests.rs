@@ -6,7 +6,7 @@ fn parse(text: &str) -> SourceFile {
     parse_source_file("main.ts", text, ParseOptions::default(), None)
 }
 
-fn bind(source: &SourceFile) -> Binder<'_> {
+fn bind(source: &mut SourceFile) -> Binder<'_> {
     // Leak the options for test lifetimes only.
     let mut binder = Binder::new(source);
     binder.bind_source_file();
@@ -141,13 +141,13 @@ fn module_instance_state_pins() {
 
 #[test]
 fn end_to_end_bind_declares_top_level_symbols() {
-    let source = parse(
+    let mut source = parse(
         "function f(x: number) {}\nfunction f(x: string) {}\n\
              class C { m() {} }\ninterface I { a: string }\n\
              enum E { A, B }\nnamespace N { export const v = 1; }\n",
     );
-    let binder = bind(&source);
-    let locals = binder.locals.get(&source.root).expect("file locals");
+    let binder = bind(&mut source);
+    let locals = binder.locals.get(&binder.source.root).expect("file locals");
     // Overloads merged into one symbol.
     let f = locals["f"];
     assert_eq!(binder.symbols.symbol(f).declarations().len(), 2);
@@ -188,8 +188,8 @@ fn end_to_end_bind_declares_top_level_symbols() {
 fn duplicate_diagnostic_order_matches_functions_first_binding() {
     // Oracle pins: "var f: any;\nfunction f() {}" reports 2300 at
     // (21,1) then (4,1) because the FUNCTION binds first.
-    let source = parse("var f: any;\nfunction f() {}");
-    let binder = bind(&source);
+    let mut source = parse("var f: any;\nfunction f() {}");
+    let binder = bind(&mut source);
     assert_eq!(diag_pins(&binder), [(2300, 21, 1), (2300, 4, 1)]);
 }
 
@@ -198,16 +198,16 @@ fn module_always_strict_reserves_future_reserved_words() {
     // Oracle-pinned: `var private = 1; export {};` in a module file
     // reports 1214 (the Modules-are-automatically-strict variant)
     // at (4,7).
-    let source = parse("var private = 1;\nexport {};\n");
+    let mut source = parse("var private = 1;\nexport {};\n");
     assert!(source.external_module_indicator.is_some());
-    let binder = bind(&source);
+    let binder = bind(&mut source);
     assert_eq!(diag_pins(&binder), [(1214, 4, 7)]);
 }
 
 #[test]
 fn use_strict_prologue_flips_strict_mode() {
-    let source = parse("\"use strict\";\nvar eval = 1;\n");
-    let binder = bind(&source);
+    let mut source = parse("\"use strict\";\nvar eval = 1;\n");
+    let binder = bind(&mut source);
     // Oracle-pinned: 1100 Invalid use of 'eval' in strict mode @(18,4).
     assert_eq!(diag_pins(&binder), [(1100, 18, 4)]);
 }
@@ -215,28 +215,28 @@ fn use_strict_prologue_flips_strict_mode() {
 #[test]
 fn export_assignment_conflict_reports_2528_end_to_end() {
     // Oracle pins from stage 3.2: "export default 1;\nexport default 2;"
-    let source = parse("export default 1;\nexport default 2;");
-    let binder = bind(&source);
+    let mut source = parse("export default 1;\nexport default 2;");
+    let binder = bind(&mut source);
     assert_eq!(diag_pins(&binder), [(2528, 0, 17), (2528, 18, 17)]);
 }
 
 #[test]
 fn export_default_identifier_keeps_current_flow() {
-    let source = parse("export default x;\nconst x = 'x';\n");
+    let mut source = parse("export default x;\nconst x = 'x';\n");
     let export = find_nodes(&source, SyntaxKind::ExportAssignment)[0];
     let expression = match &source.arena.node(export).data() {
         NodeData::ExportAssignment(data) => data.expression.expect("export expression"),
         _ => unreachable!(),
     };
-    let binder = bind(&source);
+    let binder = bind(&mut source);
     assert!(binder.node_flow.contains_key(&expression));
 }
 
 #[test]
 fn external_module_file_symbol_and_export_links() {
-    let source = parse("export function f() {}\nconst local = 1;\n");
-    let binder = bind(&source);
-    let file_symbol = binder.node_symbol[&source.root];
+    let mut source = parse("export function f() {}\nconst local = 1;\n");
+    let binder = bind(&mut source);
+    let file_symbol = binder.node_symbol[&binder.source.root];
     assert_eq!(binder.symbols.symbol(file_symbol).escaped_name, "\"main\"");
     assert!(binder
         .symbols
@@ -244,7 +244,7 @@ fn external_module_file_symbol_and_export_links() {
         .exports()
         .contains_key("f"));
     // Local side of the exported function is linked.
-    let locals = binder.locals.get(&source.root).expect("locals");
+    let locals = binder.locals.get(&binder.source.root).expect("locals");
     let local_f = locals["f"];
     assert!(binder.symbols.symbol(local_f).export_symbol().is_some());
     assert!(locals.contains_key("local"));
@@ -252,9 +252,9 @@ fn external_module_file_symbol_and_export_links() {
 
 #[test]
 fn infer_type_parameter_binds_into_conditional_type_locals() {
-    let source = parse("type T<X> = X extends Array<infer U> ? U : never;\n");
-    let binder = bind(&source);
-    let conditional = find_nodes(&source, SyntaxKind::ConditionalType)[0];
+    let mut source = parse("type T<X> = X extends Array<infer U> ? U : never;\n");
+    let binder = bind(&mut source);
+    let conditional = find_nodes(binder.source, SyntaxKind::ConditionalType)[0];
     let locals = binder.locals.get(&conditional).expect("conditional locals");
     assert!(locals.contains_key("U"));
 }
@@ -267,14 +267,14 @@ fn ambient_module_pattern_and_export_modifier_diagnostics() {
         ("declare module \"a*b*c\" {}\n", 5061u32, 15u32, 7u32),
         ("export declare module \"m\" {}\n", 2668, 0, 6),
     ] {
-        let source = parse(text);
-        let binder = bind(&source);
+        let mut source = parse(text);
+        let binder = bind(&mut source);
         assert_eq!(diag_pins(&binder), [(code, start, length)], "case: {text}");
     }
     // A single star is a valid pattern; it lands in
     // patternAmbientModules.
-    let source = parse("declare module \"good*\" {}\n");
-    let binder = bind(&source);
+    let mut source = parse("declare module \"good*\" {}\n");
+    let binder = bind(&mut source);
     assert!(binder.bind_diagnostics.is_empty());
     assert_eq!(binder.pattern_ambient_modules.len(), 1);
     assert_eq!(binder.pattern_ambient_modules[0].0, "good");
@@ -291,9 +291,9 @@ fn if_statement_join_has_two_antecedents_and_condition_nodes() {
     // bindIfStatement (43277) + createFlowCondition (43107): a
     // narrowable condition creates True/FalseCondition nodes; the
     // post-if label joins both branches.
-    let source = parse("function f(x: any) { if (x) { x; } else { x; } x; }\n");
-    let binder = bind(&source);
-    let f = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
+    let mut source = parse("function f(x: any) { if (x) { x; } else { x; } x; }\n");
+    let binder = bind(&mut source);
+    let f = find_nodes(binder.source, SyntaxKind::FunctionDeclaration)[0];
     let end = binder.node_end_flow[&f];
     let end_flags = flow_flags(&binder, end);
     assert!(end_flags.intersects(tsc_types::FlowFlags::BRANCH_LABEL));
@@ -310,9 +310,9 @@ fn non_narrowing_condition_creates_no_flow_nodes() {
     // createFlowCondition returns its antecedent for non-narrowing
     // expressions: both branches join the SAME node and the label
     // collapses back to Start.
-    let source = parse("function f() { if (1) { } else { } }\n");
-    let binder = bind(&source);
-    let f = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
+    let mut source = parse("function f() { if (1) { } else { } }\n");
+    let binder = bind(&mut source);
+    let f = find_nodes(binder.source, SyntaxKind::FunctionDeclaration)[0];
     let end = binder.node_end_flow[&f];
     assert!(flow_flags(&binder, end).intersects(tsc_types::FlowFlags::START));
 }
@@ -321,8 +321,8 @@ fn non_narrowing_condition_creates_no_flow_nodes() {
 fn while_loop_label_gets_entry_and_back_edge() {
     // bindWhileStatement (43218): preWhileLabel is a LoopLabel with
     // the entry edge and the loop-body back edge.
-    let source = parse("function f(x: any) { while (x) { x; } }\n");
-    let binder = bind(&source);
+    let mut source = parse("function f(x: any) { while (x) { x; } }\n");
+    let binder = bind(&mut source);
     let loop_labels: Vec<_> = (0..binder.flow.len() as u32)
         .map(crate::flow::FlowId::new)
         .filter(|&id| flow_flags(&binder, id).intersects(tsc_types::FlowFlags::LOOP_LABEL))
@@ -335,15 +335,15 @@ fn while_loop_label_gets_entry_and_back_edge() {
 fn code_after_return_is_unreachable() {
     // bindReturnOrThrow (43290) sets currentFlow = unreachableFlow;
     // bindChildren stamps the Unreachable node flag.
-    let source = parse("function f() { return; f(); }\n");
-    let binder = bind(&source);
-    let statements = find_nodes(&source, SyntaxKind::ExpressionStatement);
+    let mut source = parse("function f() { return; f(); }\n");
+    let binder = bind(&mut source);
+    let statements = find_nodes(binder.source, SyntaxKind::ExpressionStatement);
     assert!(binder
         .flags_of(statements[0])
         .intersects(tsc_types::NodeFlags::UNREACHABLE));
     assert!(!binder.node_flow.contains_key(&statements[0]));
     // The function has an explicit return and NO implicit return.
-    let f = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
+    let f = find_nodes(binder.source, SyntaxKind::FunctionDeclaration)[0];
     assert!(!binder
         .flags_of(f)
         .intersects(tsc_types::NodeFlags::HAS_IMPLICIT_RETURN));
@@ -353,8 +353,9 @@ fn code_after_return_is_unreachable() {
 fn try_finally_produces_reduce_labels() {
     // bindTryStatement (43332): finally wiring reduces through
     // ReduceLabel nodes.
-    let source = parse("function f(x: any) { try { x(); } catch (e) { x; } finally { x; } x; }\n");
-    let binder = bind(&source);
+    let mut source =
+        parse("function f(x: any) { try { x(); } catch (e) { x; } finally { x; } x; }\n");
+    let binder = bind(&mut source);
     let reduce_count = (0..binder.flow.len() as u32)
         .map(crate::flow::FlowId::new)
         .filter(|&id| flow_flags(&binder, id).intersects(tsc_types::FlowFlags::REDUCE_LABEL))
@@ -367,11 +368,11 @@ fn narrowing_switch_creates_switch_clause_nodes() {
     // bindCaseBlock (43393) + createFlowSwitchClause (43123): a
     // narrowing switch expression yields per-clause SwitchClause
     // nodes plus the implicit-default clause (bindSwitchStatement).
-    let source = parse(
+    let mut source = parse(
             "function f(x: string | number) { switch (typeof x) { case \"string\": x; break; case \"number\": x; break; } x; }\n",
         );
-    let binder = bind(&source);
-    let switch_statement = find_nodes(&source, SyntaxKind::SwitchStatement)[0];
+    let binder = bind(&mut source);
+    let switch_statement = find_nodes(binder.source, SyntaxKind::SwitchStatement)[0];
     let clauses: Vec<_> = (0..binder.flow.len() as u32)
         .map(crate::flow::FlowId::new)
         .filter(|&id| flow_flags(&binder, id).intersects(tsc_types::FlowFlags::SWITCH_CLAUSE))
@@ -399,15 +400,15 @@ fn narrowing_switch_creates_switch_clause_nodes() {
 fn assignment_creates_flow_mutation_and_stamps_references() {
     // bindAssignmentTargetFlow (43462) + the Identifier flowNode
     // stamp in bindWorker.
-    let source = parse("function f(x: any) { x = 1; x; }\n");
-    let binder = bind(&source);
+    let mut source = parse("function f(x: any) { x = 1; x; }\n");
+    let binder = bind(&mut source);
     let assignments = (0..binder.flow.len() as u32)
         .map(crate::flow::FlowId::new)
         .filter(|&id| flow_flags(&binder, id).intersects(tsc_types::FlowFlags::ASSIGNMENT))
         .count();
     assert_eq!(assignments, 1);
     // The trailing reference's flowNode is the Assignment node.
-    let identifiers = find_nodes(&source, SyntaxKind::Identifier);
+    let identifiers = find_nodes(binder.source, SyntaxKind::Identifier);
     let last_x = *identifiers.last().unwrap();
     let flow = binder
         .node_flow
@@ -421,12 +422,12 @@ fn logical_expression_in_condition_adds_no_top_level_condition_nodes() {
     // bindCondition (43193): logical operators create their edges
     // during sub-expression binding — the a && b condition itself
     // adds no extra nodes on top.
-    let source = parse("function f(a: any, b: any) { if (a && b) { a; } }\n");
-    let binder = bind(&source);
+    let mut source = parse("function f(a: any, b: any) { if (a && b) { a; } }\n");
+    let binder = bind(&mut source);
     // Conditions come from `a` and from `b`, joined by the then/
     // else labels: the then-branch flow has 2 antecedents (a-true
     // via preRight collapse and b-true).
-    let f = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
+    let f = find_nodes(binder.source, SyntaxKind::FunctionDeclaration)[0];
     let end = binder.node_end_flow[&f];
     // post-if joins then-branch and else-label.
     assert!(flow_flags(&binder, end).intersects(tsc_types::FlowFlags::BRANCH_LABEL));
@@ -436,8 +437,8 @@ fn logical_expression_in_condition_adds_no_top_level_condition_nodes() {
 fn optional_chain_creates_outermost_conditions() {
     // bindOptionalChain (43768): the outermost chain contributes
     // True/FalseCondition nodes.
-    let source = parse("function f(a: any) { if (a?.b) { a; } }\n");
-    let binder = bind(&source);
+    let mut source = parse("function f(a: any) { if (a?.b) { a; } }\n");
+    let binder = bind(&mut source);
     let conditions = (0..binder.flow.len() as u32)
         .map(crate::flow::FlowId::new)
         .filter(|&id| {
@@ -461,8 +462,8 @@ fn deep_binary_chain_binds_without_overflow() {
         text.push_str(" + 1");
     }
     text.push_str(";\n");
-    let source = parse(&text);
-    let binder = bind(&source);
+    let mut source = parse(&text);
+    let binder = bind(&mut source);
     assert!(!binder.symbols.is_empty());
 }
 
@@ -471,14 +472,16 @@ fn labeled_statement_break_references_label() {
     // bindLabeledStatement (43437) + bindBreakOrContinueStatement
     // (43320): a referenced label keeps its flag clear; an
     // unreferenced label is stamped Unreachable.
-    let source = parse("function f(x: any) { a: { if (x) break a; x; } b: { x; } }\n");
-    let binder = bind(&source);
-    let labels: Vec<_> = find_nodes(&source, SyntaxKind::LabeledStatement)
+    let mut source = parse("function f(x: any) { a: { if (x) break a; x; } b: { x; } }\n");
+    let binder = bind(&mut source);
+    let labels: Vec<_> = find_nodes(binder.source, SyntaxKind::LabeledStatement)
         .into_iter()
-        .filter_map(|statement| match &source.arena.node(statement).data() {
-            NodeData::LabeledStatement(data) => data.label,
-            _ => None,
-        })
+        .filter_map(
+            |statement| match &binder.source.arena.node(statement).data() {
+                NodeData::LabeledStatement(data) => data.label,
+                _ => None,
+            },
+        )
         .collect();
     assert!(!binder
         .flags_of(labels[0])
@@ -505,9 +508,9 @@ fn nested_function_break_cannot_see_outer_label() {
     // inside a nested function finds no active label: no flow edge
     // crosses the function boundary and the outer label stays
     // unreferenced (stamped Unreachable).
-    let source = parse("outer: { function f() { break outer; } }\n");
-    let binder = bind(&source);
-    let labels = statement_labels(&source);
+    let mut source = parse("outer: { function f() { break outer; } }\n");
+    let binder = bind(&mut source);
+    let labels = statement_labels(binder.source);
     assert!(binder
         .flags_of(labels[0])
         .intersects(tsc_types::NodeFlags::UNREACHABLE));
@@ -526,9 +529,9 @@ fn class_static_block_break_cannot_see_outer_label() {
     // ClassStaticBlockDeclaration is a control-flow container
     // (isImmediatelyInvoked keeps currentFlow flowing through, but
     // the label list still clears): its `break outer` finds nothing.
-    let source = parse("outer: { class C { static { break outer; } } }\n");
-    let binder = bind(&source);
-    let labels = statement_labels(&source);
+    let mut source = parse("outer: { class C { static { break outer; } } }\n");
+    let binder = bind(&mut source);
+    let labels = statement_labels(binder.source);
     assert!(binder
         .flags_of(labels[0])
         .intersects(tsc_types::NodeFlags::UNREACHABLE));
@@ -538,9 +541,9 @@ fn class_static_block_break_cannot_see_outer_label() {
 fn label_list_restores_after_nested_container() {
     // The outer label is visible again once the nested function
     // ends: the trailing break references it (flag stays clear).
-    let source = parse("outer: { function f() {} break outer; }\n");
-    let binder = bind(&source);
-    let labels = statement_labels(&source);
+    let mut source = parse("outer: { function f() {} break outer; }\n");
+    let binder = bind(&mut source);
+    let labels = statement_labels(binder.source);
     assert!(!binder
         .flags_of(labels[0])
         .intersects(tsc_types::NodeFlags::UNREACHABLE));
@@ -570,16 +573,16 @@ fn declaration_file_root_gets_export_context_and_implicit_exports() {
     // const Named` merges into exports.Named beside the exported
     // type alias (exportAsNamespace5's three.d.ts shape:
     // TypeAlias|BlockScopedVariable, 2 declarations).
-    let source = parse_named(
+    let mut source = parse_named(
         "three.d.ts",
         "export type Named = 0;\ndeclare const Named: 0;\n",
         false,
     );
-    let binder = bind(&source);
+    let binder = bind(&mut source);
     assert!(binder
-        .flags_of(source.root)
+        .flags_of(binder.source.root)
         .intersects(tsc_types::NodeFlags::EXPORT_CONTEXT));
-    let file_symbol = binder.node_symbol[&source.root];
+    let file_symbol = binder.node_symbol[&binder.source.root];
     let named = binder.symbols.symbol(file_symbol).exports()["Named"];
     let named = binder.symbols.symbol(named);
     assert_eq!(named.declarations().len(), 2);
@@ -595,14 +598,14 @@ fn javascript_file_flag_drives_js_return_targets() {
     // extension-sniffed: a JS function declaration gets a return
     // target and returnFlowNode (bindContainer 42777/42801); a TS
     // one does not.
-    let js = parse_named("a.js", "function f() { return 1; }\n", true);
-    let binder = bind(&js);
-    let f = find_nodes(&js, SyntaxKind::FunctionDeclaration)[0];
+    let mut js = parse_named("a.js", "function f() { return 1; }\n", true);
+    let binder = bind(&mut js);
+    let f = find_nodes(binder.source, SyntaxKind::FunctionDeclaration)[0];
     assert!(binder.node_return_flow.contains_key(&f));
 
-    let ts = parse("function f() { return 1; }\n");
-    let binder = bind(&ts);
-    let f = find_nodes(&ts, SyntaxKind::FunctionDeclaration)[0];
+    let mut ts = parse("function f() { return 1; }\n");
+    let binder = bind(&mut ts);
+    let f = find_nodes(binder.source, SyntaxKind::FunctionDeclaration)[0];
     assert!(!binder.node_return_flow.contains_key(&f));
 }
 
@@ -617,12 +620,14 @@ fn javascript_file_flag_drives_js_return_targets() {
 fn set_value_declaration_ambient_displacement_reads_root_js_flag() {
     let text = "f.x = 1;\ndeclare var d: number;\n";
     for (javascript_file, ambient_wins) in [(true, true), (false, false)] {
-        let source = parse_named("a.ts", text, javascript_file);
-        let mut binder = Binder::new(&source);
-        let assignment = find_nodes(&source, SyntaxKind::BinaryExpression)[0];
-        let ambient = find_nodes(&source, SyntaxKind::VariableDeclaration)[0];
-        assert!(crate::node_util::node_flags(&source, ambient).intersects(NodeFlags::AMBIENT));
-        assert!(!crate::node_util::node_flags(&source, assignment).intersects(NodeFlags::AMBIENT));
+        let mut source = parse_named("a.ts", text, javascript_file);
+        let mut binder = Binder::new(&mut source);
+        let assignment = find_nodes(binder.source, SyntaxKind::BinaryExpression)[0];
+        let ambient = find_nodes(binder.source, SyntaxKind::VariableDeclaration)[0];
+        assert!(crate::node_util::node_flags(binder.source, ambient).intersects(NodeFlags::AMBIENT));
+        assert!(
+            !crate::node_util::node_flags(binder.source, assignment).intersects(NodeFlags::AMBIENT)
+        );
         let symbol = binder
             .symbols
             .alloc(SymbolFlags::NONE, crate::escape_leading_underscores("x"));
@@ -646,7 +651,7 @@ fn assignment_declarations_bind_oracle_pinned_symbol_faces() {
     // no namespace, so F keeps its Function flag alone. The CommonJS named
     // exports are FunctionScopedVariables in the file's exports, and
     // `module.exports = F` is an Alias (its right side is an entity name).
-    let source = parse_named(
+    let mut source = parse_named(
         "a.js",
         "\
 function F() { this.i = 1; }
@@ -662,8 +667,8 @@ module.exports = F;
 ",
         true,
     );
-    let binder = bind(&source);
-    let root_locals = &binder.locals[&source.root];
+    let binder = bind(&mut source);
+    let root_locals = &binder.locals[&binder.source.root];
     let f = root_locals["F"];
     let f_symbol = binder.symbols.symbol(f);
     assert_eq!(f_symbol.flags, SymbolFlags::FUNCTION);
@@ -697,7 +702,7 @@ module.exports = F;
         67_108_868
     );
 
-    let file = binder.node_symbol[&source.root];
+    let file = binder.node_symbol[&binder.source.root];
     let file_symbol = binder.symbols.symbol(file);
     assert_eq!(file_symbol.flags, SymbolFlags::VALUE_MODULE);
     assert_eq!(
@@ -736,7 +741,7 @@ fn aliased_this_assignments_bind_nothing_and_dynamic_expandos_stay_late_bound() 
     // TypeScript 7.1 (tsgo) has no constructor functions and no aliased-`this`
     // routing: `var self = this; self.x = ...` declares nothing on F, and only
     // the top-level `F[key] = 3` expando records a late-bound assignment.
-    let source = parse_named(
+    let mut source = parse_named(
         "a.js",
         "\
 const key = Symbol();
@@ -753,8 +758,8 @@ F[key] = 3;
 ",
         true,
     );
-    let binder = bind(&source);
-    let root_locals = &binder.locals[&source.root];
+    let binder = bind(&mut source);
+    let root_locals = &binder.locals[&binder.source.root];
     let f = root_locals["F"];
     let g = root_locals["G"];
     let f_symbol = binder.symbols.symbol(f);
@@ -774,7 +779,7 @@ F[key] = 3;
 fn destructured_require_elements_bind_as_aliases_only_at_the_require_boundary() {
     // bindVariableDeclarationOrBindingElement 45004-45020 uses the
     // root VariableDeclaration for a BindingElement's require test.
-    let source = parse_named(
+    let mut source = parse_named(
         "a.js",
         "\
 const { K: Renamed, V } = require('./mod');
@@ -783,8 +788,8 @@ const { V: local } = ordinary;
 ",
         true,
     );
-    let binder = bind(&source);
-    let elements = find_nodes(&source, SyntaxKind::BindingElement);
+    let binder = bind(&mut source);
+    let elements = find_nodes(binder.source, SyntaxKind::BindingElement);
     assert_eq!(elements.len(), 3);
     for &element in &elements[..2] {
         let symbol = binder.node_symbol[&element];
@@ -808,7 +813,7 @@ fn common_js_aliases_of_exports_declare_nothing() {
     // `module.exports` is an expando of a variable whose initializer is no
     // function, class or empty object literal, so it declares nothing; the
     // entity name on the right of module.exports makes export= an Alias.
-    let source = parse_named(
+    let mut source = parse_named(
         "a.js",
         "\
 const e = exports;
@@ -821,8 +826,8 @@ module.exports = imported;
 ",
         true,
     );
-    let binder = bind(&source);
-    let file = binder.node_symbol[&source.root];
+    let binder = bind(&mut source);
+    let file = binder.node_symbol[&binder.source.root];
     let file_symbol = binder.symbols.symbol(file);
     assert_eq!(
         file_symbol
@@ -847,7 +852,7 @@ fn export_equals_takes_the_type_exports_of_its_module() {
     // beside an `export=`, the type and namespace exports of a module source
     // file or an ambient module are also exports of the `export=` symbol,
     // which becomes a namespace module; value exports stay where they are.
-    let ambient = parse_named(
+    let mut ambient = parse_named(
         "a.d.ts",
         "declare module \"m\" {\n\
              function f(): void;\n\
@@ -857,17 +862,16 @@ fn export_equals_takes_the_type_exports_of_its_module() {
          }\n",
         false,
     );
-    let module_file = parse_named(
+    let mut module_file = parse_named(
         "m.ts",
         "function f() {}\nexport = f;\nexport type I = number;\nexport const v = 1;\n",
         false,
     );
+    let ambient_module = find_nodes(&ambient, SyntaxKind::ModuleDeclaration)[0];
+    let module_root = module_file.root;
     for (source, module) in [
-        (
-            &ambient,
-            find_nodes(&ambient, SyntaxKind::ModuleDeclaration)[0],
-        ),
-        (&module_file, module_file.root),
+        (&mut ambient, ambient_module),
+        (&mut module_file, module_root),
     ] {
         let binder = bind(source);
         let module_symbol = binder.symbols.symbol(binder.node_symbol[&module]);
@@ -897,8 +901,8 @@ fn common_js_require_indicator_requires_exactly_one_argument() {
         ("require('a', 'b');\n", false),
         ("require('a');\n", true),
     ] {
-        let source = parse_named("a.js", text, true);
-        let binder = bind(&source);
+        let mut source = parse_named("a.js", text, true);
+        let binder = bind(&mut source);
         assert_eq!(binder.common_js_module_indicator.is_some(), expected);
     }
 
@@ -906,25 +910,25 @@ fn common_js_require_indicator_requires_exactly_one_argument() {
     // (_tsc.js:44460-44462): a require call leaves an otherwise-script
     // TypeScript source a global script (playwright-core's bootstrap.ts
     // keeps its top-level declarations in the declaration output).
-    let source = parse_named("a.ts", "require('a');\n", false);
-    let binder = bind(&source);
+    let mut source = parse_named("a.ts", "require('a');\n", false);
+    let binder = bind(&mut source);
     assert!(binder.common_js_module_indicator.is_none());
-    assert!(!binder.node_symbol.contains_key(&source.root));
+    assert!(!binder.node_symbol.contains_key(&binder.source.root));
 }
 
 #[test]
 fn checked_js_bare_require_variables_bind_as_aliases_unless_typed() {
     // tsgo IsVariableDeclarationInitializedToRequire: only an untyped bare
     // `require("…")` is an alias; a property of one is an ordinary variable.
-    let source = parse_named(
+    let mut source = parse_named(
         "a.js",
         "const bare = require('./m');\n\
              const accessed = require('./m').value;\n\
              /** @type {number} */ const typed = require('./m');\n",
         true,
     );
-    let binder = bind(&source);
-    let declarations = find_nodes(&source, SyntaxKind::VariableDeclaration);
+    let binder = bind(&mut source);
+    let declarations = find_nodes(binder.source, SyntaxKind::VariableDeclaration);
     assert_eq!(declarations.len(), 3);
     let flags: Vec<_> = declarations
         .iter()
@@ -942,7 +946,7 @@ fn forced_external_module_still_accepts_common_js_assignments() {
     // tsc's boolean `true` externalModuleIndicator is represented
     // by the SourceFile root. Unlike a syntax indicator, it does
     // not block the CommonJS indicator or its exports.
-    let source = parse_source_file(
+    let mut source = parse_source_file(
         "a.js",
         "module.exports.x = 1;\n",
         ParseOptions {
@@ -953,15 +957,15 @@ fn forced_external_module_still_accepts_common_js_assignments() {
         None,
     );
     assert_eq!(source.external_module_indicator, Some(source.root));
-    let binder = bind(&source);
+    let binder = bind(&mut source);
     assert!(binder.common_js_module_indicator.is_some());
-    let file = binder.node_symbol[&source.root];
+    let file = binder.node_symbol[&binder.source.root];
     assert!(binder.symbols.symbol(file).exports().contains_key("x"));
 }
 
 #[test]
 fn nested_expando_initializer_shapes_match_tsgo() {
-    let source = parse_named(
+    let mut source = parse_named(
         "a.js",
         "\
 function outer() {
@@ -980,10 +984,10 @@ function outer() {
     // tsgo getInitializerSymbol (TypeScript 7.1): the empty object
     // literal's own symbol takes `x`; a non-empty literal, a defaulted
     // `x || {}` initializer and an IIFE take no expandos.
-    let binder = bind(&source);
-    let outer = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
+    let binder = bind(&mut source);
+    let outer = find_nodes(binder.source, SyntaxKind::FunctionDeclaration)[0];
     let locals = &binder.locals[&outer];
-    let empty_literal = find_nodes(&source, SyntaxKind::ObjectLiteralExpression)[0];
+    let empty_literal = find_nodes(binder.source, SyntaxKind::ObjectLiteralExpression)[0];
     assert!(binder
         .symbols
         .symbol(binder.node_symbol[&empty_literal])
@@ -1008,7 +1012,7 @@ function outer() {
 
 #[test]
 fn jsdoc_typedef_and_properties_bind_real_declaration_nodes() {
-    let source = parse_named(
+    let mut source = parse_named(
         "a.js",
         "/**\n\
              * @typedef {Object} Required\n\
@@ -1017,44 +1021,47 @@ fn jsdoc_typedef_and_properties_bind_real_declaration_nodes() {
              const value = {};\n",
         true,
     );
-    let binder = bind(&source);
-    let alias = binder.locals[&source.root]["Required"];
+    let binder = bind(&mut source);
+    let alias = binder.locals[&binder.source.root]["Required"];
     let alias_symbol = binder.symbols.symbol(alias);
     assert!(alias_symbol.flags.intersects(SymbolFlags::TYPE_ALIAS));
     assert_eq!(alias_symbol.declarations().len(), 1);
     let typedef = alias_symbol.declarations()[0];
-    assert_eq!(kind_of(&source, typedef), SyntaxKind::JSDocTypedefTag);
-    let type_expression = match &source.arena.node(typedef).data() {
+    assert_eq!(kind_of(binder.source, typedef), SyntaxKind::JSDocTypedefTag);
+    let type_expression = match &binder.source.arena.node(typedef).data() {
         NodeData::JSDocTypedefTag(data) => data.type_expression.expect("type literal"),
         _ => unreachable!(),
     };
-    let type_literal = match &source.arena.node(type_expression).data() {
+    let type_literal = match &binder.source.arena.node(type_expression).data() {
         NodeData::JSDocTypeExpression(data) => data.r#type.expect("wrapped type literal"),
         _ => type_expression,
     };
-    assert_eq!(kind_of(&source, type_literal), SyntaxKind::JSDocTypeLiteral);
+    assert_eq!(
+        kind_of(binder.source, type_literal),
+        SyntaxKind::JSDocTypeLiteral
+    );
     let type_symbol = binder.node_symbol[&type_literal];
     let property = binder.symbols.symbol(type_symbol).members()["required"];
     let property_symbol = binder.symbols.symbol(property);
     assert!(property_symbol.flags.intersects(SymbolFlags::PROPERTY));
     assert_eq!(property_symbol.declarations().len(), 1);
     assert_eq!(
-        kind_of(&source, property_symbol.declarations()[0]),
+        kind_of(binder.source, property_symbol.declarations()[0]),
         SyntaxKind::JSDocPropertyTag
     );
 }
 
 #[test]
 fn host_parameter_jsdoc_tag_does_not_redeclare_the_parameter() {
-    let source = parse_named(
+    let mut source = parse_named(
         "a.js",
         "/** @param {number} value */\nfunction f(value) {}\n",
         true,
     );
-    let binder = bind(&source);
-    let function = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
-    let parameter = find_nodes(&source, SyntaxKind::Parameter)[0];
-    let tag = find_nodes(&source, SyntaxKind::JSDocParameterTag)[0];
+    let binder = bind(&mut source);
+    let function = find_nodes(binder.source, SyntaxKind::FunctionDeclaration)[0];
+    let parameter = find_nodes(binder.source, SyntaxKind::Parameter)[0];
+    let tag = find_nodes(binder.source, SyntaxKind::JSDocParameterTag)[0];
     let symbol = binder.locals[&function]["value"];
 
     assert_eq!(binder.symbols.symbol(symbol).declarations(), [parameter]);
@@ -1063,22 +1070,22 @@ fn host_parameter_jsdoc_tag_does_not_redeclare_the_parameter() {
 
 #[test]
 fn dotted_jsdoc_typedef_binds_namespace_then_leaf_alias() {
-    let source = parse_named(
+    let mut source = parse_named(
         "a.js",
         "/** @typedef {number} Types.Count */\nfunction host() {}\n",
         true,
     );
-    let binder = bind(&source);
-    let host = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
+    let binder = bind(&mut source);
+    let host = find_nodes(binder.source, SyntaxKind::FunctionDeclaration)[0];
     assert!(!binder.locals[&host].contains_key("Types"));
-    let types = binder.locals[&source.root]["Types"];
+    let types = binder.locals[&binder.source.root]["Types"];
     let count = binder.symbols.symbol(types).exports()["Count"];
     let count = binder.symbols.symbol(count);
 
     assert!(count.flags.intersects(SymbolFlags::TYPE_ALIAS));
     assert_eq!(count.declarations().len(), 1);
     assert_eq!(
-        kind_of(&source, count.declarations()[0]),
+        kind_of(binder.source, count.declarations()[0]),
         SyntaxKind::JSDocTypedefTag
     );
 }
@@ -1089,27 +1096,29 @@ fn dotted_jsdoc_typedef_on_a_returning_function_merges_with_the_file_variable() 
     // (reparser.go:74-125). The host's JSDoc is bound after a `return` has
     // made the flow unreachable, which must not declare the namespace in the
     // function as well; the namespace merges with the file's `Types`.
-    let source = parse_named(
+    let mut source = parse_named(
         "a.js",
         "const Types = {};\n\
              /** @typedef {number} Types.Count */\n\
              function host() { return 1; }\n",
         true,
     );
-    let binder = bind(&source);
-    let host = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
+    let binder = bind(&mut source);
+    let host = find_nodes(binder.source, SyntaxKind::FunctionDeclaration)[0];
     assert!(binder
         .locals
         .get(&host)
         .is_none_or(|locals| !locals.contains_key("Types")));
-    let types = binder.symbols.symbol(binder.locals[&source.root]["Types"]);
+    let types = binder
+        .symbols
+        .symbol(binder.locals[&binder.source.root]["Types"]);
     assert!(types.flags.intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE));
     assert!(types.flags.intersects(SymbolFlags::NAMESPACE_MODULE));
     assert_eq!(
         types
             .declarations()
             .iter()
-            .map(|&declaration| kind_of(&source, declaration))
+            .map(|&declaration| kind_of(binder.source, declaration))
             .collect::<Vec<_>>(),
         [
             SyntaxKind::VariableDeclaration,
@@ -1121,7 +1130,7 @@ fn dotted_jsdoc_typedef_on_a_returning_function_merges_with_the_file_variable() 
 
 #[test]
 fn dotted_jsdoc_typedef_merges_namespace_face_into_explicit_export_alias() {
-    let source = parse_named(
+    let mut source = parse_named(
         "a.js",
         "/**\n\
              * @namespace myTypes\n\
@@ -1133,8 +1142,8 @@ fn dotted_jsdoc_typedef_merges_namespace_face_into_explicit_export_alias() {
              export { myTypes };\n",
         true,
     );
-    let binder = bind(&source);
-    let file = binder.node_symbol[&source.root];
+    let binder = bind(&mut source);
+    let file = binder.node_symbol[&binder.source.root];
     let exported = binder.symbols.symbol(file).exports()["myTypes"];
     let exported = binder.symbols.symbol(exported);
 
@@ -1143,11 +1152,11 @@ fn dotted_jsdoc_typedef_merges_namespace_face_into_explicit_export_alias() {
     assert!(exported
         .declarations()
         .iter()
-        .any(|&declaration| kind_of(&source, declaration) == SyntaxKind::ExportSpecifier));
+        .any(|&declaration| kind_of(binder.source, declaration) == SyntaxKind::ExportSpecifier));
     assert!(exported
         .declarations()
         .iter()
-        .any(|&declaration| kind_of(&source, declaration) == SyntaxKind::ModuleDeclaration));
+        .any(|&declaration| kind_of(binder.source, declaration) == SyntaxKind::ModuleDeclaration));
 }
 
 #[test]
@@ -1156,19 +1165,19 @@ fn nameless_jsdoc_typedef_anchors_to_no_declaration() {
     // missing name (TS1003); it does not take the name of the next
     // declaration (tsc 6.0 nameForNamelessJSDocTypedef), so `Types.Count`
     // creates no namespace and no type.
-    let source = parse_named("a.js", "/** @typedef {number} */\nTypes.Count;\n", true);
-    let binder = bind(&source);
-    let locals = &binder.locals[&source.root];
+    let mut source = parse_named("a.js", "/** @typedef {number} */\nTypes.Count;\n", true);
+    let binder = bind(&mut source);
+    let locals = &binder.locals[&binder.source.root];
     assert!(!locals.contains_key("Types"));
     assert!(!locals.contains_key("Count"));
-    let typedef = find_nodes(&source, SyntaxKind::JSDocTypedefTag)[0];
+    let typedef = find_nodes(binder.source, SyntaxKind::JSDocTypedefTag)[0];
     let alias = binder.symbols.symbol(binder.node_symbol[&typedef]);
     assert_eq!(alias.flags, SymbolFlags::TYPE_ALIAS);
 }
 
 #[test]
 fn jsdoc_import_clause_binds_in_host_enclosing_scope() {
-    let source = parse_named(
+    let mut source = parse_named(
         "a.js",
         "function f() {\n\
              /** @import { RootOnly } from \"./root\" */\n\
@@ -1186,8 +1195,8 @@ fn jsdoc_import_clause_binds_in_host_enclosing_scope() {
             | ContainerFlags::PROPAGATES_THIS_KEYWORD.0
     );
 
-    let binder = bind(&source);
-    let function = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
+    let binder = bind(&mut source);
+    let function = find_nodes(binder.source, SyntaxKind::FunctionDeclaration)[0];
     let locals = &binder.locals[&function];
     assert!(locals.contains_key("Foo"));
     assert!(binder
@@ -1195,14 +1204,14 @@ fn jsdoc_import_clause_binds_in_host_enclosing_scope() {
         .symbol(locals["Foo"])
         .flags
         .intersects(SymbolFlags::ALIAS));
-    assert!(!binder.locals[&source.root].contains_key("Foo"));
-    assert!(binder.locals[&source.root].contains_key("RootOnly"));
+    assert!(!binder.locals[&binder.source.root].contains_key("Foo"));
+    assert!(binder.locals[&binder.source.root].contains_key("RootOnly"));
     assert!(!locals.contains_key("RootOnly"));
 }
 
 #[test]
 fn jsdoc_template_callback_and_class_tags_use_effective_hosts() {
-    let source = parse_named(
+    let mut source = parse_named(
         "a.js",
         "/**\n\
              * @template T\n\
@@ -1215,10 +1224,10 @@ fn jsdoc_template_callback_and_class_tags_use_effective_hosts() {
              function C() {}\n",
         true,
     );
-    let binder = bind(&source);
-    let callback = find_nodes(&source, SyntaxKind::JSDocCallbackTag)[0];
+    let binder = bind(&mut source);
+    let callback = find_nodes(binder.source, SyntaxKind::JSDocCallbackTag)[0];
     assert!(binder.locals[&callback].contains_key("T"));
-    let signature = find_nodes(&source, SyntaxKind::JSDocSignature)[0];
+    let signature = find_nodes(binder.source, SyntaxKind::JSDocSignature)[0];
     let signature_type = binder.node_symbol[&signature];
     assert!(binder
         .symbols
@@ -1228,7 +1237,7 @@ fn jsdoc_template_callback_and_class_tags_use_effective_hosts() {
 
     // TypeScript 7.1 has no constructor functions: `@class` no longer adds
     // the Class flag.
-    let class_function = binder.locals[&source.root]["C"];
+    let class_function = binder.locals[&binder.source.root]["C"];
     let flags = binder.symbols.symbol(class_function).flags;
     assert!(flags.intersects(SymbolFlags::FUNCTION));
     assert!(!flags.intersects(SymbolFlags::CLASS));
@@ -1238,15 +1247,15 @@ fn jsdoc_template_callback_and_class_tags_use_effective_hosts() {
 fn jsdoc_type_bare_property_access_declares_nothing() {
     // TypeScript 7.1 binds no special property declarations: a JSDoc-typed
     // `F.count;` statement is an expression, not a declaration of `count`.
-    let source = parse_named(
+    let mut source = parse_named(
         "a.js",
         "function F() {}\n\
              /** @type {number} */\n\
              F.count;\n",
         true,
     );
-    let binder = bind(&source);
-    let function = binder.locals[&source.root]["F"];
+    let binder = bind(&mut source);
+    let function = binder.locals[&binder.source.root]["F"];
     assert!(!binder
         .symbols
         .symbol(function)
@@ -1282,8 +1291,8 @@ fn function_in_block_reports_nothing_like_tsgo() {
     // tsgo's binder never reports TS1250 (its message helper,
     // binder.go:1380, has no caller) and reads no options: a function
     // declaration in a block is block scoped and reported nowhere.
-    let source = parse("{ function g() {} }\n");
-    let mut binder = Binder::new(&source);
+    let mut source = parse("{ function g() {} }\n");
+    let mut binder = Binder::new(&mut source);
     binder.bind_source_file();
     assert_eq!(diag_pins(&binder), []);
 }
@@ -1294,14 +1303,14 @@ fn expandos_bind_on_initializer_symbols_after_the_file() {
     // JavaScript) variable hands its expando members to the initializer's
     // own symbol; the lookup runs after the whole file, so a later class is
     // found; a missing entity creates no namespace or global augmentation.
-    let source = parse_named(
+    let mut source = parse_named(
         "a.js",
         "const f = function () {};\nf.a = 1;\nC.b = 2;\nclass C {}\nmissing.c = 3;\nf.nested.d = 4;\n",
         true,
     );
-    let binder = bind(&source);
-    let locals = &binder.locals[&source.root];
-    let function_expression = find_nodes(&source, SyntaxKind::FunctionExpression)[0];
+    let binder = bind(&mut source);
+    let locals = &binder.locals[&binder.source.root];
+    let function_expression = find_nodes(binder.source, SyntaxKind::FunctionExpression)[0];
     let function_symbol = binder
         .symbols
         .symbol(binder.node_symbol[&function_expression]);
@@ -1326,8 +1335,8 @@ fn expandos_bind_on_initializer_symbols_after_the_file() {
 fn only_an_unreachable_executable_node_carries_unreachable_after_bind() {
     // tsgo bindChildren (binder.go:1645-1660) stamps Unreachable on an
     // unreachable potentially-executable node and clears nothing; the
-    // flag overlay starts from the parse flags on every bind.
-    let source = parse("function f() { a(); return; b(); }\n");
+    // source starts with the parser's flags.
+    let mut source = parse("function f() { a(); return; b(); }\n");
     let statements = find_nodes(&source, SyntaxKind::ExpressionStatement);
     assert_eq!(statements.len(), 2);
     let flags = |binder: &Binder<'_>| {
@@ -1340,20 +1349,20 @@ fn only_an_unreachable_executable_node_carries_unreachable_after_bind() {
             })
             .collect::<Vec<_>>()
     };
-    let first = bind(&source);
+    let first = bind(&mut source);
     assert_eq!(flags(&first), [false, true]);
-    // A second bind of the same tree starts from the parse flags again.
-    let second = bind(&source);
+    // A second bind of the same tree preserves the reachability result.
+    let second = bind(&mut source);
     assert_eq!(flags(&second), [false, true]);
 }
 
 #[test]
 fn the_parsers_symbol_bound_covers_the_symbols_of_the_declarations_it_counts() {
     use tsc_syntax::arena::FILE_SYMBOLS;
-    let bound_and_used = |source: &SourceFile| {
+    let bound_and_used = |source: &mut SourceFile| {
         let binder = bind(source);
         (
-            source.arena.symbol_bound(),
+            binder.source.arena.symbol_bound(),
             u32::try_from(binder.symbols.len()).expect("few symbols"),
         )
     };
@@ -1375,13 +1384,13 @@ fn the_parsers_symbol_bound_covers_the_symbols_of_the_declarations_it_counts() {
         "export function f() {}\nf.a = 0;\nf.b = 0;\nf[\"c\"] = 0;\n",
         "export const g = () => {};\ng.x = 1;\n",
     ] {
-        let (bound, used) = bound_and_used(&parse(text));
+        let (bound, used) = bound_and_used(&mut parse(text));
         assert_eq!(bound, used + FILE_SYMBOLS, "{text}");
     }
     // An upper bound for the rest: destructuring, an assignment to a member
     // of an object (no expando) and of `this` (not an entity name), an
     // ambient namespace (an export context), a CommonJS file and a JSON file.
-    let sources = [
+    let mut sources = [
         parse("export const { b, c: [d] } = e, f = 1;\nexport default function () {}\n"),
         parse("const o = { p: 1 };\no.p = 2;\nclass C { q = 0; m() { this.q = 1; } }\n"),
         parse_named(
@@ -1404,7 +1413,7 @@ fn the_parsers_symbol_bound_covers_the_symbols_of_the_declarations_it_counts() {
             ),
         ),
     ];
-    for source in &sources {
+    for source in &mut sources {
         let (bound, used) = bound_and_used(source);
         assert!(used <= bound, "{:?}: {used} > {bound}", source.file_name);
     }

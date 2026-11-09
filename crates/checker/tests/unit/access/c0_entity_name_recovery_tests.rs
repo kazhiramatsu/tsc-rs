@@ -134,8 +134,8 @@ fn recovered_entity_names_keep_source_text_and_valid_siblings_keep_entity_render
         at(missing_element_chain_receiver),
     );
     let options = CompilerOptions::default();
-    let binder = bind_source_file(&source);
-    let mut state = CheckerState::new(&source, &binder, &options);
+    let binder = bind_source_file(&mut source);
+    let mut state = CheckerState::new(binder.source, &binder, &options);
 
     assert_eq!(
         state

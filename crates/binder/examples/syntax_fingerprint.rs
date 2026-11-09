@@ -53,7 +53,7 @@
 //! creation order is observable only after walk-reachable objects are numbered.
 //! Node records, arrays, payloads and JSDoc are read through `parse_node`,
 //! `array`, `children` and `observable_fields`; binder side tables and flag
-//! overlays through `bind_node`. File facts and diagnostics also cross the
+//! flags through `bind_node`. File facts and diagnostics also cross the
 //! trait. An arena implementation must preserve these orders and facts, not
 //! the current storage layout.
 
@@ -64,7 +64,7 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 
 use tsc_binder::flow::{FlowData, FlowId};
-use tsc_binder::{bind_source_file, Binder, SymbolId, SymbolTable};
+use tsc_binder::{Binder, SymbolId, SymbolTable};
 use tsc_diagnostics::{Diagnostic, MessageChain, RelatedInfo};
 use tsc_syntax::{
     for_each_child, for_each_observable_field, JSDocComment, JSDocParsingMode, NodeArrayId,
@@ -189,15 +189,15 @@ struct BindFileFacts<'a> {
 }
 
 /// Today's storage adapter. This is the only code that knows how the
-/// parser and binder store the facts above. `Binder` borrows its parsed
-/// source and owns the same tables subsequently published as `BindData`.
+/// parser and binder store the facts above. `Binder` exclusively borrows
+/// its source and owns the tables subsequently published as `BindData`.
 impl FingerprintSource for Binder<'_> {
     fn root(&self) -> NodeId {
         self.source.root
     }
 
     fn parse_file(&self) -> ParseFileFacts<'_> {
-        let source = self.source;
+        let source = &*self.source;
         ParseFileFacts {
             language: format!("{:?} {:?}", source.language_variant, source.script_kind),
             is_declaration_file: source.is_declaration_file,
@@ -538,14 +538,26 @@ fn fingerprint(
         force_external_module: module_extension && !declaration,
         ..ParseOptions::default()
     };
-    let source = tsc_syntax::parse_source_file(file_name, text, options, None);
-    let binder = bind_source_file(&source);
-    fingerprint_source(&binder)
+    let mut source = tsc_syntax::parse_source_file(file_name, text, options, None);
+    let mut binder = Binder::new(&mut source);
+    let tree = Tree::walk(&binder);
+    let parse = tree.parse_hash(&binder);
+    binder.bind_source_file();
+    fingerprint_bound_source(&tree, parse, &binder)
 }
 
+#[cfg(test)]
 fn fingerprint_source(source: &impl FingerprintSource) -> (u64, u64, usize, u64) {
     let tree = Tree::walk(source);
     let parse = tree.parse_hash(source);
+    fingerprint_bound_source(&tree, parse, source)
+}
+
+fn fingerprint_bound_source(
+    tree: &Tree,
+    parse: u64,
+    source: &impl FingerprintSource,
+) -> (u64, u64, usize, u64) {
     let bind = tree.bind_hash(source);
     let mut diagnostics = Fnv::new();
     for list in source.parse_file().diagnostics {

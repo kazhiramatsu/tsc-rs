@@ -28,10 +28,10 @@ fn parse(text: &str) -> SourceFile {
 
 #[test]
 fn declarationless_type_alias_caches_error_while_valid_alias_keeps_its_type() {
-    let source = parse("type Live = string;\n");
+    let mut source = parse("type Live = string;\n");
     let options = CompilerOptions::default();
-    let binder = bind_source_file(&source);
-    let mut state = CheckerState::new(&source, &binder, &options);
+    let binder = bind_source_file(&mut source);
+    let mut state = CheckerState::new(binder.source, &binder, &options);
 
     let live = state
         .resolve_file_scope_name("Live", SymbolFlags::TYPE_ALIAS)
@@ -61,21 +61,22 @@ fn declarationless_type_alias_caches_error_while_valid_alias_keeps_its_type() {
 
 #[test]
 fn unexpected_signature_uses_cached_unknown_signature_beside_a_valid_signature() {
-    let source = parse("type Live = (value: string) => number;\n");
+    let mut source = parse("type Live = (value: string) => number;\n");
     let options = CompilerOptions::default();
-    let binder = bind_source_file(&source);
-    let mut state = CheckerState::new(&source, &binder, &options);
-    let function_type = source
+    let binder = bind_source_file(&mut source);
+    let mut state = CheckerState::new(binder.source, &binder, &options);
+    let function_type = binder
+        .source
         .arena
         .node_ids()
-        .find(|&node| source.arena.node(node).kind == SyntaxKind::FunctionType)
+        .find(|&node| binder.source.arena.node(node).kind == SyntaxKind::FunctionType)
         .expect("valid signature sibling");
     let live = state
         .get_signature_from_declaration(function_type)
         .expect("valid signature");
     assert_ne!(live, state.unknown_signature);
 
-    let root = source.root;
+    let root = binder.source.root;
     let recovered = state
         .get_signature_from_declaration(root)
         .expect("unexpected declaration recovers");
@@ -121,8 +122,8 @@ fn missing_late_bindable_argument_is_error_type_beside_a_valid_element_name() {
     let at = |node: NodeId| NodeId::new(node.index() + source.arena.node_base());
     let (valid, missing) = (at(valid), at(missing));
     let options = CompilerOptions::default();
-    let binder = bind_source_file(&source);
-    let mut state = CheckerState::new(&source, &binder, &options);
+    let binder = bind_source_file(&mut source);
+    let mut state = CheckerState::new(binder.source, &binder, &options);
 
     let live = state
         .late_bindable_name_type(valid)
@@ -136,10 +137,10 @@ fn missing_late_bindable_argument_is_error_type_beside_a_valid_element_name() {
 
 #[test]
 fn malformed_annotation_inputs_resolve_to_error_type_without_unwinding() {
-    let source = parse("const live = 1;\n");
+    let mut source = parse("const live = 1;\n");
     let options = CompilerOptions::default();
-    let binder = bind_source_file(&source);
-    let mut state = CheckerState::new(&source, &binder, &options);
+    let binder = bind_source_file(&mut source);
+    let mut state = CheckerState::new(binder.source, &binder, &options);
 
     let declarationless = state.binder.create_symbol(
         SymbolFlags::VARIABLE,
@@ -157,7 +158,7 @@ fn malformed_annotation_inputs_resolve_to_error_type_without_unwinding() {
     );
 
     let recovered_binding_type = state
-        .get_type_from_binding_element(source.root, false, true)
+        .get_type_from_binding_element(binder.source.root, false, true)
         .expect("non-binding element recovers");
     assert!(state.tables.is_error_type(recovered_binding_type));
 }

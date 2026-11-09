@@ -65,9 +65,9 @@ fn with_program_state_impl<R>(
     run: impl FnOnce(&mut CheckerState) -> R,
 ) -> R {
     let domain = IdentityDomain::new();
-    let sources = parse_program(files, require_clean_parse, &domain);
+    let mut sources = parse_program(files, require_clean_parse, &domain);
     let binders: Vec<Binder<'_>> = sources
-        .iter()
+        .iter_mut()
         .map(|source| {
             Binder::bind_in_identity_domain(source, &domain).expect("test bind identities")
         })

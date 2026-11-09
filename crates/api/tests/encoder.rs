@@ -289,3 +289,30 @@ fn module_references_follow_tsgo_parser() {
     let references = collect_external_module_references(&javascript);
     assert_eq!(texts(&javascript, &references.imports), ["x"]);
 }
+
+#[test]
+fn private_locals_marker_does_not_enter_api_or_ls_flags() {
+    let mut file = parse_source_file(
+        "/test.ts",
+        "export async function f() { this; return; unreachable(); }",
+        ScriptKind::Ts,
+    );
+    assert!(file.arena.nodes().iter().all(|node| node.flags >= 0));
+    let data = tsc_binder::bind_source_file(&mut file).into_bind_data();
+    assert!(file.arena.nodes().iter().any(|node| node.flags < 0));
+    let facts = SourceFileFacts {
+        script_kind: ScriptKind::Ts,
+        bind_data: Some(&data),
+        ..SourceFileFacts::default()
+    };
+    let with_marker = encode_source_file(&file, &facts).0;
+    for node in file.arena.nodes_mut() {
+        let public = node.flags & i32::MAX;
+        assert_eq!(
+            tsc_ls::tree::mapped_node_flags(node.flags),
+            tsc_ls::tree::mapped_node_flags(public)
+        );
+        node.flags = public;
+    }
+    assert_eq!(encode_source_file(&file, &facts).0, with_marker);
+}

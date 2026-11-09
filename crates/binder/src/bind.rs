@@ -2104,8 +2104,7 @@ impl<'a> BinderWorker<'a> {
         self.in_assignment_pattern = false;
         // tsgo bindChildren (binder.go:1645-1660) sets Unreachable on an
         // unreachable potentially-executable node and never clears it: the
-        // flag overlay starts from the parse flags on every bind
-        // (`BinderNodeFlags::new`), so no node arrives with it set.
+        // newly parsed source has no Unreachable flags.
         let current_flow = self.current_flow.expect("bindChildren runs under a flow");
         if current_flow == self.unreachable_flow {
             if can_have_flow_node(self.source, node) {

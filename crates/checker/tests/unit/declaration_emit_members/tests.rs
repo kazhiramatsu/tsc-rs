@@ -151,7 +151,7 @@ fn dm_serialize_type_of_expando_property_in_synthetic_scope() {
 #[test]
 fn dm_symbol_declaration_order_facts_follow_binder_declarations() {
     let options = CompilerOptions::default();
-    let source = tsc_syntax::parse_published_source_file(
+    let mut source = tsc_syntax::parse_published_source_file(
         "/main.ts".to_owned(),
         "function f(x: string): string;\n\
          function f(x: number): number;\n\
@@ -168,7 +168,7 @@ fn dm_symbol_declaration_order_facts_follow_binder_declarations() {
         .node_array(data.statements.expect("statements"))
         .nodes
         .to_vec();
-    let binder = tsc_binder::bind_source_file(&source);
+    let binder = tsc_binder::bind_source_file(&mut source);
     let mut state = CheckerState::from_program(vec![&binder], &options);
     state.merge_module_augmentations();
     let session = crate::emit::CheckerSession::from_checked_state(state);
@@ -204,7 +204,7 @@ fn dm_function_properties_need_an_implementation() {
     // tsgo shouldEmitFunctionProperties (util.go:155-162): a function whose
     // declarations are all bodiless writes no expando namespace.
     let options = CompilerOptions::default();
-    let source = tsc_syntax::parse_published_source_file(
+    let mut source = tsc_syntax::parse_published_source_file(
         "/main.ts".to_owned(),
         "declare function g(): void;\n\
          declare function g(x: number): void;"
@@ -220,7 +220,7 @@ fn dm_function_properties_need_an_implementation() {
         .node_array(data.statements.expect("statements"))
         .nodes
         .to_vec();
-    let binder = tsc_binder::bind_source_file(&source);
+    let binder = tsc_binder::bind_source_file(&mut source);
     let mut state = CheckerState::from_program(vec![&binder], &options);
     state.merge_module_augmentations();
     let session = crate::emit::CheckerSession::from_checked_state(state);

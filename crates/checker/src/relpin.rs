@@ -63,7 +63,7 @@ pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
     text.push_str(&format!("declare var __relpin_source: {};\n", query.source));
     text.push_str(&format!("declare var __relpin_target: {};\n", query.target));
 
-    let source_file = tsc_syntax::parse_published_source_file(
+    let mut source_file = tsc_syntax::parse_published_source_file(
         "relpin.ts".to_owned(),
         text,
         tsc_syntax::ParseOptions {
@@ -80,15 +80,15 @@ pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
             ),
         };
     }
-    let binder = tsc_binder::bind_source_file(&source_file);
-    let mut state = CheckerState::new(&source_file, &binder, query.options);
+    let binder = tsc_binder::bind_source_file(&mut source_file);
+    let mut state = CheckerState::new(binder.source, &binder, query.options);
 
-    let Some(source_annotation) = find_probe_annotation(&source_file, "__relpin_source") else {
+    let Some(source_annotation) = find_probe_annotation(binder.source, "__relpin_source") else {
         return RelpinVerdict::Unavailable {
             reason: "probe source annotation not found in scratch program".to_owned(),
         };
     };
-    let Some(target_annotation) = find_probe_annotation(&source_file, "__relpin_target") else {
+    let Some(target_annotation) = find_probe_annotation(binder.source, "__relpin_target") else {
         return RelpinVerdict::Unavailable {
             reason: "probe target annotation not found in scratch program".to_owned(),
         };

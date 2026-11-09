@@ -47,7 +47,7 @@ pub enum TableRef {
 /// Numeric identity side tables use `FxHashMap`; ordered name tables retain
 /// `SymbolTable`. Construct identity maps with `Default` or `collect`.
 pub struct BinderWorker<'a> {
-    pub source: &'a SourceFile,
+    pub source: &'a mut SourceFile,
     /// tsc isInJSFile of the file: the root's parse-time JavaScriptFile flag,
     /// read once (the walk asks for every node).
     pub(crate) in_js_file: bool,
@@ -81,11 +81,6 @@ pub struct BinderWorker<'a> {
     pub last_container: Option<NodeId>,
     /// tsc container.nextContainer chain (addToContainerChain).
     pub next_container: FxHashMap<NodeId, NodeId>,
-    /// tsc mutates node.flags during binding (HasImplicitReturn,
-    /// ContainsThis, ExportContext, Unreachable, emit flags); this is
-    /// the binder's mutable view over the parse-time flags.
-    /// Parse-time-only readers (node_util) keep reading the arena.
-    pub node_flags_mut: BinderNodeFlags,
     /// tsc file.patternAmbientModules (bindModuleDeclaration).
     pub pattern_ambient_modules: Vec<(JsString, JsString, SymbolId)>,
 
@@ -160,7 +155,6 @@ pub struct BindData {
     pub next_symbol_id: u32,
     pub private_name_serial_lease: Option<IdentityLease>,
     pub next_container: FxHashMap<NodeId, NodeId>,
-    pub node_flags_mut: BinderNodeFlags,
     pub pattern_ambient_modules: Vec<(JsString, JsString, SymbolId)>,
     pub flow: crate::flow::FlowArena,
     pub unreachable_flow: crate::flow::FlowId,
@@ -210,7 +204,6 @@ pub struct BinderMemory {
     pub local_bytes: usize,
     pub node_symbol_bytes: usize,
     pub node_flow_bytes: usize,
-    pub node_flags_bytes: usize,
     pub flow_nodes: usize,
     pub flow_bytes: usize,
     pub flow_antecedent_bytes: usize,
@@ -236,8 +229,7 @@ impl BindData {
         usage.heap_record_bytes += self.symbols.record_heap_bytes()
             + self.node_symbol.slots.heap_capacity_bytes()
             + self.node_flow.slots.heap_capacity_bytes()
-            + map_bytes(&self.node_flow.overflow)
-            + self.node_flags_mut.0.heap_capacity_bytes();
+            + map_bytes(&self.node_flow.overflow);
         usage.declaration_store_bytes += self.symbols.declaration_store_bytes();
         usage.symbols += symbols;
         usage.symbol_bytes += symbol_bytes;
@@ -251,7 +243,6 @@ impl BindData {
                 .sum::<usize>();
         usage.node_symbol_bytes += self.node_symbol.heap_bytes();
         usage.node_flow_bytes += self.node_flow.heap_bytes();
-        usage.node_flags_bytes += self.node_flags_mut.heap_bytes();
         let (flow_nodes, flow_bytes, antecedent_bytes) = self.flow.memory_usage();
         usage.flow_nodes += flow_nodes;
         usage.flow_bytes += flow_bytes;
@@ -286,7 +277,6 @@ impl BindData {
             next_symbol_id: binder.next_symbol_id,
             private_name_serial_lease: binder.private_name_serial_lease.clone(),
             next_container: binder.next_container.clone(),
-            node_flags_mut: binder.node_flags_mut.clone(),
             pattern_ambient_modules: binder.pattern_ambient_modules.clone(),
             flow: binder.flow.frozen(),
             unreachable_flow: binder.unreachable_flow,
@@ -329,24 +319,23 @@ impl BindData {
     /// The binder's view of tsc node.flags for `node` of `arena`, this
     /// document's syntax.
     pub fn flags_of(&self, node: NodeId, arena: &NodeArena) -> NodeFlags {
-        let index = (node.index() - arena.node_base()) as usize;
-        self.node_flags_mut.get(index, arena.nodes()[index].flags)
+        NodeFlags::from_bits(arena.node(node).flags & !HAS_LOCALS)
     }
 }
 
 impl<'a> BinderWorker<'a> {
-    pub fn new(source: &'a SourceFile) -> Self {
+    pub fn new(source: &'a mut SourceFile) -> Self {
         Self::with_symbol_id_seed(source, 1)
     }
 
-    pub fn with_symbol_id_seed(source: &'a SourceFile, next_symbol_id: u32) -> Self {
+    pub fn with_symbol_id_seed(source: &'a mut SourceFile, next_symbol_id: u32) -> Self {
         Self::with_bases(source, next_symbol_id, 0)
     }
 
     /// Program bind (M4 5.0): file N's symbols allocate from
     /// `symbol_base` so SymbolIds are program-unique, mirroring the
     /// parse-side NodeId bases (ParseOptions::node_id_base).
-    pub fn with_bases(source: &'a SourceFile, next_symbol_id: u32, symbol_base: u32) -> Self {
+    pub fn with_bases(source: &'a mut SourceFile, next_symbol_id: u32, symbol_base: u32) -> Self {
         // About one symbol per six nodes: size the arena once instead of
         // growing (and moving every symbol) a dozen times.
         let symbols =
@@ -354,7 +343,7 @@ impl<'a> BinderWorker<'a> {
         Self::with_symbols(source, next_symbol_id, symbols)
     }
 
-    fn with_symbols(source: &'a SourceFile, next_symbol_id: u32, symbols: SymbolArena) -> Self {
+    fn with_symbols(source: &'a mut SourceFile, next_symbol_id: u32, symbols: SymbolArena) -> Self {
         // Before the tables below claim the tree's node positions.
         let tree_claim = TreeClaim {
             _claim: source.arena.identity_leases().map(|leases| {
@@ -376,7 +365,6 @@ impl<'a> BinderWorker<'a> {
         // dozen times while a large source binds (about one declaration per
         // eight nodes in ordinary code).
         Self {
-            source,
             in_js_file: crate::node_util::node_flags(source, source.root)
                 .intersects(NodeFlags::JAVA_SCRIPT_FILE),
             common_js_module_indicator: None,
@@ -396,7 +384,6 @@ impl<'a> BinderWorker<'a> {
             expando_assignments: Vec::new(),
             last_container: None,
             next_container: FxHashMap::default(),
-            node_flags_mut: BinderNodeFlags::new(&source.arena),
             pattern_ambient_modules: Vec::new(),
             flow,
             unreachable_flow,
@@ -427,33 +414,32 @@ impl<'a> BinderWorker<'a> {
             js_doc_imports: Vec::new(),
             tree_claim,
             child_scratch: Vec::new(),
+            source,
         }
     }
 
-    /// The binder's mutable view of tsc node.flags. `node_flags_mut` is
-    /// indexed by the file-local node index (program binds parse each
-    /// file with a NodeId base — see ParseOptions::node_id_base).
+    /// tsc node.flags, written in place while this worker exclusively borrows
+    /// the source. The locals marker is private to the binder/checker.
     pub fn flags_of(&self, node: NodeId) -> NodeFlags {
-        let index = (node.index() - self.source.arena.node_base()) as usize;
-        self.node_flags_mut
-            .get(index, self.source.arena.nodes()[index].flags)
+        NodeFlags::from_bits(self.source.arena.node(node).flags & !HAS_LOCALS)
     }
 
-    /// IdentifierIsInJSDocNamespace aliases HasAsyncFunctions, a binder-owned
-    /// bit. Read that packed overlay bit directly, preserving flags_of's view
-    /// without loading parse flags or expanding the complete overlay byte.
+    /// IdentifierIsInJSDocNamespace aliases HasAsyncFunctions. On identifiers
+    /// the parser supplies this bit and binding preserves it.
     #[inline]
     pub(crate) fn identifier_is_in_jsdoc_namespace(&self, node: NodeId) -> bool {
-        let index = (node.index() - self.source.arena.node_base()) as usize;
-        self.node_flags_mut.0[index].0 & JS_DOC_NAMESPACE_OVERLAY_BIT != 0
+        self.source.arena.node(node).flags & NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE.bits()
+            != 0
     }
 
-    /// Keep `node`'s `HAS_LOCALS` bit equal to whether it has a locals table:
-    /// every site that creates or drops a table calls this, and a name lookup
-    /// tests the bit before it looks for a table.
+    /// Keep the private marker equal to whether `node` has a locals table.
     pub(crate) fn set_has_locals(&mut self, node: NodeId, has_locals: bool) {
-        let index = (node.index() - self.source.arena.node_base()) as usize;
-        self.node_flags_mut.set_has_locals(index, has_locals);
+        let flags = &mut self.source.arena.node_mut(node).flags;
+        if has_locals {
+            *flags |= HAS_LOCALS;
+        } else {
+            *flags &= !HAS_LOCALS;
+        }
     }
 
     /// `node`'s locals table, created (with its bit) on first use.
@@ -463,13 +449,14 @@ impl<'a> BinderWorker<'a> {
     }
 
     pub fn set_flags_of(&mut self, node: NodeId, flags: NodeFlags) {
-        let index = (node.index() - self.source.arena.node_base()) as usize;
+        let record = self.source.arena.node_mut(node);
         debug_assert_eq!(
             flags.bits() & !BINDER_NODE_FLAG_MASK,
-            self.source.arena.nodes()[index].flags & !BINDER_NODE_FLAG_MASK,
+            record.flags & !(BINDER_NODE_FLAG_MASK | HAS_LOCALS),
             "the binder changes only the node flags it owns"
         );
-        self.node_flags_mut.set(index, flags);
+        record.flags =
+            (record.flags & !BINDER_NODE_FLAG_MASK) | (flags.bits() & BINDER_NODE_FLAG_MASK);
     }
 
     pub fn next_symbol_id(&self) -> u32 {
@@ -507,7 +494,7 @@ impl<'a> BinderWorker<'a> {
         self.source.text().len()
     }
 
-    pub fn bind_local(source: &'a SourceFile) -> Self {
+    pub fn bind_local(source: &'a mut SourceFile) -> Self {
         let mut binder = Self::with_bases(source, 1, 0);
         binder.bind_source_file();
         binder
@@ -517,7 +504,11 @@ impl<'a> BinderWorker<'a> {
     /// built in the store over `symbols`, private-name serials allocate from
     /// `serial_base`. The reservations are published afterwards with
     /// [`Self::attach_reserved_leases`], so no identity is rewritten.
-    pub fn bind_reserved(source: &'a SourceFile, symbols: IdentityRange, serial_base: u32) -> Self {
+    pub fn bind_reserved(
+        source: &'a mut SourceFile,
+        symbols: IdentityRange,
+        serial_base: u32,
+    ) -> Self {
         let mut binder = Self::with_symbols(
             source,
             serial_base,
@@ -581,7 +572,7 @@ impl<'a> BinderWorker<'a> {
     /// Bind one source locally and publish its symbol and private-name
     /// identities once their exact counts are known.
     pub fn bind_in_identity_domain(
-        source: &'a SourceFile,
+        source: &'a mut SourceFile,
         domain: &IdentityDomain,
     ) -> Result<Self, IdentityError> {
         if !source.identity_owned_by(domain) {
@@ -1337,7 +1328,6 @@ impl BinderWorker<'_> {
             expando_assignments: _,
             last_container: _,
             next_container: _,
-            node_flags_mut: _,
             pattern_ambient_modules,
             flow: _,
             unreachable_flow: _,
@@ -1579,7 +1569,6 @@ impl BinderWorker<'_> {
             expando_assignments: _,
             last_container: _,
             next_container,
-            node_flags_mut,
             pattern_ambient_modules,
             flow,
             unreachable_flow,
@@ -1627,7 +1616,6 @@ impl BinderWorker<'_> {
             next_symbol_id,
             private_name_serial_lease,
             next_container,
-            node_flags_mut,
             pattern_ambient_modules,
             flow,
             unreachable_flow,
@@ -1644,144 +1632,30 @@ impl BinderWorker<'_> {
     }
 }
 
-/// The node flags the binder owns: tsc sets and clears them on node.flags
-/// while binding (reachability, `this` use, export context, async emit);
-/// every other bit keeps its parse-time value.
-const BINDER_NODE_FLAGS: [NodeFlags; 6] = [
-    NodeFlags::EXPORT_CONTEXT,
-    NodeFlags::CONTAINS_THIS,
-    NodeFlags::HAS_IMPLICIT_RETURN,
-    NodeFlags::HAS_EXPLICIT_RETURN,
-    NodeFlags::HAS_ASYNC_FUNCTIONS,
-    NodeFlags::UNREACHABLE,
-];
+/// Exactly the six bits tsc's binder sets and clears in node.flags.
+const BINDER_NODE_FLAG_MASK: i32 = NodeFlags::EXPORT_CONTEXT.bits()
+    | NodeFlags::CONTAINS_THIS.bits()
+    | NodeFlags::HAS_IMPLICIT_RETURN.bits()
+    | NodeFlags::HAS_EXPLICIT_RETURN.bits()
+    | NodeFlags::HAS_ASYNC_FUNCTIONS.bits()
+    | NodeFlags::UNREACHABLE.bits();
 
-const BINDER_NODE_FLAG_MASK: i32 = unpack_binder_node_flags(u8::MAX);
+/// Bit 31 is free in the parser's flags layout. A locals lookup can test
+/// this marker in the record before routing to the file's locals map. It
+/// is masked by flags_of and is absent from the tsgo wire flag mapping.
+const HAS_LOCALS: i32 = i32::MIN;
+const _: () = assert!(BINDER_NODE_FLAG_MASK & HAS_LOCALS == 0);
 
-// The fifth packed bit is HasAsyncFunctions / IdentifierIsInJSDocNamespace.
-// Keep the specialized read in sync if BINDER_NODE_FLAGS is reordered.
-const JS_DOC_NAMESPACE_OVERLAY_BIT: u8 = 1 << 4;
-
-const _: () = assert!(
-    unpack_binder_node_flags(JS_DOC_NAMESPACE_OVERLAY_BIT)
-        == NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE.bits()
-);
-
-/// A bit of the overlay byte past the node flags: the node is a scope with
-/// locals (a key of the bound file's `locals`), so a name lookup tests one
-/// byte before it looks for the table.
-const HAS_LOCALS: u8 = 1 << BINDER_NODE_FLAGS.len();
-
-/// `unpack_binder_node_flags` of every byte the overlay can hold.
-const BINDER_NODE_FLAG_VALUES: [i32; 256] = {
-    let mut values = [0; 256];
-    let mut bits = 0;
-    while bits < 256 {
-        values[bits] = unpack_binder_node_flags(bits as u8);
-        bits += 1;
-    }
-    values
-};
-
-/// The binder's view of tsc node.flags for one source: the parse-time flags
-/// in the arena with the binder-owned bits overlaid, one byte per node (bit
-/// `i` stands for `BINDER_NODE_FLAGS[i]`) instead of a copy of every
-/// node's flags.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct BinderNodeFlags(StoreVec<PackedNodeFlags>);
-
-/// The binder-owned bits of one node's flags.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[repr(transparent)]
-pub struct PackedNodeFlags(u8);
-
-impl StoreRecord for PackedNodeFlags {
-    const REGION: usize = 6;
-}
-
-impl PackedNodeFlags {
-    /// `parsed` with the binder-owned bits replaced.
-    #[inline]
-    fn over(self, parsed: i32) -> NodeFlags {
-        NodeFlags::from_bits(
-            parsed & !BINDER_NODE_FLAG_MASK | BINDER_NODE_FLAG_VALUES[self.0 as usize],
-        )
-    }
-}
-
-/// tsc `node.flags` of a published, bound node.
+/// tsc `node.flags` of a published, bound node, excluding the private marker.
 #[inline(always)]
 pub fn published_node_flags(node: NodeId) -> NodeFlags {
-    let parsed = tsc_syntax::published_node(node).flags;
-    tsc_store::get::<PackedNodeFlags>(node.position()).over(parsed)
+    NodeFlags::from_bits(tsc_syntax::published_node(node).flags & !HAS_LOCALS)
 }
 
 /// Whether a published, bound node has locals (`container.locals`).
 #[inline(always)]
 pub fn published_has_locals(node: NodeId) -> bool {
-    tsc_store::get::<PackedNodeFlags>(node.position()).0 & HAS_LOCALS != 0
-}
-
-impl BinderNodeFlags {
-    fn new(arena: &NodeArena) -> Self {
-        let mut flags = if arena.is_published() {
-            StoreVec::claim(arena.node_base() + 1, arena.len() as u32)
-        } else {
-            let mut flags = StoreVec::with_capacity(arena.len());
-            flags.resize(arena.len(), PackedNodeFlags::default());
-            flags
-        };
-        for (slot, node) in flags.iter_mut().zip(arena.nodes()) {
-            *slot = PackedNodeFlags(pack_binder_node_flags(node.flags));
-        }
-        Self(flags)
-    }
-
-    /// Bytes this overlay owns, for memory accounting.
-    pub fn heap_bytes(&self) -> usize {
-        self.0.capacity()
-    }
-
-    /// The flags of the node at `index`, whose parse-time flags are `parsed`.
-    fn get(&self, index: usize, parsed: i32) -> NodeFlags {
-        self.0[index].over(parsed)
-    }
-
-    fn set(&mut self, index: usize, flags: NodeFlags) {
-        let has_locals = self.0[index].0 & HAS_LOCALS;
-        self.0[index] = PackedNodeFlags(pack_binder_node_flags(flags.bits()) | has_locals);
-    }
-
-    /// Set or clear the `HAS_LOCALS` bit of the node at `index`.
-    fn set_has_locals(&mut self, index: usize, has_locals: bool) {
-        if has_locals {
-            self.0[index].0 |= HAS_LOCALS;
-        } else {
-            self.0[index].0 &= !HAS_LOCALS;
-        }
-    }
-}
-
-fn pack_binder_node_flags(flags: i32) -> u8 {
-    let mut bits = 0;
-    for (bit, flag) in BINDER_NODE_FLAGS.iter().enumerate() {
-        if flags & flag.bits() != 0 {
-            bits |= 1 << bit;
-        }
-    }
-    bits
-}
-
-const fn unpack_binder_node_flags(bits: u8) -> i32 {
-    let mut flags = 0;
-    let mut bit = 0;
-    while bit < BINDER_NODE_FLAGS.len() {
-        if bits & (1 << bit) != 0 {
-            flags |= BINDER_NODE_FLAGS[bit].bits();
-        }
-        bit += 1;
-    }
-    flags
+    tsc_syntax::published_node(node).flags & HAS_LOCALS != 0
 }
 
 /// tsc node.symbol for one source: one slot per node of the file, indexed by

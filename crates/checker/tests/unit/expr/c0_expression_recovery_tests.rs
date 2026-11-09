@@ -80,8 +80,8 @@ fn missing_expression_slots_use_operator_specific_recovery_values() {
     );
 
     let options = CompilerOptions::default();
-    let binder = bind_source_file(&source);
-    let mut state = CheckerState::new(&source, &binder, &options);
+    let binder = bind_source_file(&mut source);
+    let mut state = CheckerState::new(binder.source, &binder, &options);
 
     for recovered in [
         state
