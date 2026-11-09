@@ -4488,23 +4488,28 @@ impl<'a> CheckerState<'a> {
         self.deferred_reference_members.insert(ty, None);
         let prepared = (|| -> CheckResult<Option<DeferredReferenceMembers>> {
             let source = self.resolve_declared_members(target)?;
-            let (mut parameters, this_type) = match self.tables.type_of(target).data {
+            let (parameters, this_type) = match self.tables.type_of(target).data {
                 TypeData::GenericType {
                     type_parameters,
                     this_type,
                     ..
-                } => (self.tables.list(type_parameters).to_vec(), this_type),
+                } => (self.tables.list(type_parameters), this_type),
                 TypeData::TupleTarget(data) => {
                     let data = self.tables.tuple_target(data);
-                    (
-                        self.tables.list(data.type_parameters).to_vec(),
-                        data.this_type,
-                    )
+                    (self.tables.list(data.type_parameters), data.this_type)
                 }
                 _ => return Ok(None),
             };
-            parameters.push(this_type);
-            let mut arguments = self.get_type_arguments(ty)?.to_vec();
+            let mut all_parameters = Vec::with_capacity(parameters.len() + 1);
+            all_parameters.extend_from_slice(parameters);
+            all_parameters.push(this_type);
+            let parameters = all_parameters;
+            let resolved_arguments = self.get_type_arguments(ty)?;
+            let mut arguments = Vec::with_capacity(
+                resolved_arguments.len()
+                    + usize::from(resolved_arguments.len() != parameters.len()),
+            );
+            arguments.extend_from_slice(resolved_arguments);
             if arguments.len() != parameters.len() {
                 arguments.push(ty);
             }
@@ -4519,6 +4524,9 @@ impl<'a> CheckerState<'a> {
             let mut unaffected = Vec::new();
             for &symbol in &properties {
                 if self.symbol_unaffected_by_instantiation(symbol, mapper) {
+                    if unaffected.is_empty() {
+                        unaffected.reserve(properties.len());
+                    }
                     unaffected.push(symbol);
                 }
             }

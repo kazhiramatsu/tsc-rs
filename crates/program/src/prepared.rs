@@ -2378,6 +2378,11 @@ impl PreparedProgramBuilder {
         self.diagnostics = diagnostics;
     }
 
+    /// The loader knows its complete publication order before adding files.
+    pub(crate) fn reserve_source_files(&mut self, additional: usize) {
+        self.source_files.reserve_exact(additional);
+    }
+
     pub fn add_source_file(
         &mut self,
         source: PreparedSourceFile,

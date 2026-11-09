@@ -141,6 +141,8 @@ pub(crate) struct FlowMemo {
     #[cfg(feature = "flow-memo-shadow")]
     shadow_slots: Vec<Option<ShadowOrigin>>,
     checkpoints: Vec<FlowId>,
+    /// Reused only while constructing a structural key; no resolving calls.
+    key_buffer: Vec<u8>,
     #[cfg(any(test, feature = "flow-memo-shadow"))]
     shadow_hits: Vec<ShadowHit>,
     #[cfg(any(test, feature = "flow-memo-shadow"))]
@@ -160,6 +162,7 @@ impl FlowMemo {
             #[cfg(feature = "flow-memo-shadow")]
             shadow_slots: Vec::new(),
             checkpoints: Vec::new(),
+            key_buffer: Vec::new(),
             #[cfg(any(test, feature = "flow-memo-shadow"))]
             shadow_hits: Vec::new(),
             #[cfg(any(test, feature = "flow-memo-shadow"))]
@@ -288,7 +291,8 @@ impl FlowMemo {
             self.slots.iter().filter(|slot| slot.ty.is_some()).count(),
             self.slots.capacity() * std::mem::size_of::<Slot>()
                 + self.frames.capacity() * std::mem::size_of::<FlowFrame>()
-                + self.checkpoints.capacity() * std::mem::size_of::<FlowId>(),
+                + self.checkpoints.capacity() * std::mem::size_of::<FlowId>()
+                + self.key_buffer.capacity(),
         )
     }
 
@@ -510,7 +514,7 @@ impl CheckerState<'_> {
 
     /// Only reads cached links and syntax. In particular, never resolves a
     /// symbol or assigns a node/symbol identity while constructing a key.
-    pub(crate) fn flow_memo_key(&self, query: &FlowQuery) -> Option<MemoKey> {
+    pub(crate) fn flow_memo_key(&mut self, query: &FlowQuery) -> Option<MemoKey> {
         if query.synthetic_props.is_some() || query.synthetic_this_root {
             return None;
         }
@@ -547,23 +551,32 @@ impl CheckerState<'_> {
         }
         // An identifier root is one tag plus a u32, followed by the three
         // fixed u32 key fields. Property fragments reserve their bytes too.
-        let mut bytes = Vec::with_capacity(1 + 4 + 3 * 4);
-        self.write_flow_memo_reference(query.reference, &mut bytes)?;
-        bytes.extend_from_slice(&query.declared_type.index().to_le_bytes());
-        bytes.extend_from_slice(&query.initial_type.index().to_le_bytes());
-        bytes.extend_from_slice(
-            &query
-                .flow_container
-                .map_or(0, NodeId::position)
-                .to_le_bytes(),
-        );
-        // Like tsrs, inline/reduce modes gate frames rather than being key
-        // fields. Synthetic modes above have no structural reference key.
-        Some(MemoKey {
-            hash: packed.unwrap_or_else(|| hash_key(&bytes) | (1 << 95)),
-            #[cfg(any(test, feature = "flow-memo-shadow"))]
-            full: bytes.into(),
-        })
+        let mut bytes = std::mem::take(&mut self.flow_memo.key_buffer);
+        bytes.clear();
+        bytes.reserve(1 + 4 + 3 * 4);
+        // Restore the buffer on rejection too: a partial reference key is
+        // discarded by the next clear, without losing its allocation.
+        let result = self
+            .write_flow_memo_reference(query.reference, &mut bytes)
+            .map(|()| {
+                bytes.extend_from_slice(&query.declared_type.index().to_le_bytes());
+                bytes.extend_from_slice(&query.initial_type.index().to_le_bytes());
+                bytes.extend_from_slice(
+                    &query
+                        .flow_container
+                        .map_or(0, NodeId::position)
+                        .to_le_bytes(),
+                );
+                // Like tsrs, inline/reduce modes gate frames rather than being
+                // key fields. Synthetic modes have no structural reference key.
+                MemoKey {
+                    hash: packed.unwrap_or_else(|| hash_key(&bytes) | (1 << 95)),
+                    #[cfg(any(test, feature = "flow-memo-shadow"))]
+                    full: bytes.as_slice().into(),
+                }
+            });
+        self.flow_memo.key_buffer = bytes;
+        result
     }
 
     fn write_flow_memo_reference(&self, node: NodeId, bytes: &mut Vec<u8>) -> Option<()> {
