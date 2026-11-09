@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 
+pub use tsc_store::resident_vec_tail_bytes;
+
 pub mod escaped_name;
 pub mod flags;
 pub mod goslices;

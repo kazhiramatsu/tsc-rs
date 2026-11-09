@@ -182,6 +182,11 @@ impl Tails {
         self.end = position + chunk_words(class);
     }
 
+    /// Heap metadata, separate from the mapped tail-word chunks.
+    pub fn heap_metadata_bytes(&self) -> usize {
+        self.chunks.capacity() * std::mem::size_of::<(u32, u8)>()
+    }
+
     /// The words of the chunks this tree holds, for memory accounting.
     pub fn chunk_words(&self) -> usize {
         self.chunks

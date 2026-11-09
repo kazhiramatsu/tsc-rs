@@ -587,6 +587,7 @@ pub fn push_decimal(result: &mut String, value: u32) {
 pub struct TypesMemory {
     pub types: usize,
     pub type_bytes: usize,
+    pub type_record_heap_bytes: usize,
     /// Type lists, texts and payloads the type records own on the heap.
     pub type_heap_bytes: usize,
     pub string_literals: usize,
@@ -615,6 +616,7 @@ impl TypeTables {
         let mut usage = TypesMemory {
             types: self.types.len(),
             type_bytes: self.types.len() * std::mem::size_of::<Type>(),
+            type_record_heap_bytes: self.types.heap_capacity_bytes(),
             ..TypesMemory::default()
         };
         // What the records refer to by id (alias argument lists and member

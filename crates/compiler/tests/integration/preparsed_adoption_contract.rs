@@ -211,6 +211,13 @@ fn first_session_adopts_every_loader_parse_and_a_repeat_session_parses_again() {
     let prepared = loaded_program(&host(), four_workers());
     assert_eq!(prepared.source_files().len(), 4);
     assert!(all_slots_available(&prepared));
+    let mut available = tsc_diagnostics::MemoryUsage::default();
+    prepared.add_memory_usage(&mut available);
+    assert_eq!(available.available_slots, 4);
+    assert_eq!(available.consumed_slots, 0);
+    let shared_slots = prepared.clone();
+    shared_slots.add_memory_usage(&mut available);
+    assert_eq!(available.available_slots, 4, "shared slots count once");
 
     let first = ProgramSession::new(prepared.clone())
         .with_worker_budget(four_workers())
@@ -228,6 +235,10 @@ fn first_session_adopts_every_loader_parse_and_a_repeat_session_parses_again() {
         .source_files()
         .iter()
         .all(|source| !source.preparsed_syntax().is_available()));
+    let mut consumed = tsc_diagnostics::MemoryUsage::default();
+    prepared.add_memory_usage(&mut consumed);
+    assert_eq!(consumed.available_slots, 0);
+    assert_eq!(consumed.consumed_slots, 4);
 
     let second = ProgramSession::new(prepared)
         .with_worker_budget(four_workers())

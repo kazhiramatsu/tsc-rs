@@ -650,3 +650,51 @@ pub fn unescape_leading_underscores(name: &str) -> &str {
 #[cfg(test)]
 #[path = "../tests/unit/lib/tests.rs"]
 mod tests;
+
+impl SourceFile {
+    /// Heap owners outside the published syntax records and the SourceFile
+    /// Arc allocation itself. Called only by memory-report collection.
+    pub fn add_owned_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
+        const STRINGS: &str = "strings: stable owners";
+        usage.js_string(STRINGS, &self.file_name);
+        TextSnapshot::add_memory_usage(&self.snapshot, usage);
+        usage.diagnostics(&self.parse_diagnostics);
+        usage.diagnostics(&self.js_doc_diagnostics);
+        usage.vec("source metadata vectors", &self.referenced_files);
+        usage.vec("source metadata vectors", &self.type_reference_directives);
+        usage.vec("source metadata vectors", &self.lib_reference_directives);
+        usage.vec("source metadata vectors", &self.amd_dependencies);
+        usage.vec("source metadata vectors", &self.renamed_dependencies);
+        usage.vec("source metadata vectors", &self.comment_directives);
+        usage.vec("source metadata vectors", &self.diagnostic_directives);
+        for reference in self
+            .referenced_files
+            .iter()
+            .chain(&self.lib_reference_directives)
+        {
+            usage.js_string(STRINGS, &reference.file_name);
+        }
+        for reference in &self.type_reference_directives {
+            usage.js_string(STRINGS, &reference.file_name);
+        }
+        for dependency in &self.amd_dependencies {
+            usage.js_string(STRINGS, &dependency.path);
+            if let Some(name) = &dependency.name {
+                usage.string(STRINGS, name);
+            }
+        }
+        for (from, to) in &self.renamed_dependencies {
+            usage.js_string(STRINGS, from);
+            usage.js_string(STRINGS, to);
+        }
+        if let Some(name) = &self.module_name {
+            usage.js_string(STRINGS, name);
+        }
+        if let Some(name) = &self.jsx_import_source_pragma {
+            usage.string(STRINGS, name);
+        }
+        if let Some(name) = &self.jsx_runtime_pragma {
+            usage.string(STRINGS, name);
+        }
+    }
+}

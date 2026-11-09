@@ -4,6 +4,8 @@
 pub mod gen;
 pub mod js_string;
 pub mod line_map;
+pub mod memory;
+pub use memory::{MemoryRow, MemoryUsage};
 /// The pretty diagnostic writer and error summary, ported from tsgo.
 pub mod render;
 pub mod spanmap;

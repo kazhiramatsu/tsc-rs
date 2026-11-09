@@ -37,12 +37,12 @@ pub(crate) struct DeferredReferenceMembers {
 }
 
 impl DeferredReferenceMembers {
-    pub(crate) fn heap_bytes(&self) -> usize {
+    pub(crate) fn heap_bytes(&self, usage: &mut tsc_diagnostics::MemoryUsage) -> usize {
         std::mem::size_of_val(&*self.unaffected)
             + self.instantiated.as_deref().map_or(0, |table| {
                 std::mem::size_of::<MemberTable>() + table.heap_bytes()
             })
-            + self.bases.heap_bytes()
+            + self.bases.heap_bytes_once(usage)
     }
 }
 

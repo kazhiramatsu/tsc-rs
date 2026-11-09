@@ -141,3 +141,17 @@ impl<'a> IntoIterator for &'a DiagnosticSink {
 #[cfg(test)]
 #[path = "../tests/unit/state/diagnostic_sink_tests.rs"]
 mod tests;
+
+impl DiagnosticSink {
+    // Only commutative ownership sums; printed rows are ordered by BTreeMap.
+    #[allow(clippy::iter_over_hash_type)]
+    pub(crate) fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
+        usage.diagnostics(&self.diagnostics);
+        if let Some(index) = &self.index {
+            usage.hash_map("diagnostic duplicate index", index);
+            for positions in index.values() {
+                usage.vec("diagnostic duplicate index", positions);
+            }
+        }
+    }
+}

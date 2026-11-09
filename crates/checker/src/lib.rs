@@ -129,6 +129,7 @@ pub mod functions;
 pub mod globals;
 pub mod incremental;
 mod location;
+mod memory;
 pub use incremental::{
     IncrementalCheckFacts, IncrementalFileFacts, IncrementalPlan, IncrementalPlanner,
     IncrementalRequest,
@@ -581,6 +582,9 @@ pub enum AuthoritativeModuleLookupFailure {
 /// entry. Legacy checker entries install no provider and retain their
 /// existing in-memory heuristic resolver.
 pub trait AuthoritativeModuleProvider: Sync {
+    /// Retained host/prepared owners, visited only by TSRS_MEMORY_REPORT.
+    fn add_memory_usage(&self, _usage: &mut tsc_diagnostics::MemoryUsage) {}
+
     /// tsgo checkerpool: Imports() length and one target per resolved-module
     /// cache entry. Duplicate targets from distinct specifier/mode keys remain.
     /// Providers without a Program expose a disconnected graph.
@@ -3783,6 +3787,11 @@ fn report_program_memory(snapshot: &ProgramSnapshot) {
         binder.flow_antecedent_bytes,
     );
     row("binder: node-keyed hash maps", 0, binder.map_bytes);
+    row(
+        "binder: classifiable_names",
+        binder.classifiable_names,
+        binder.classifiable_name_bytes,
+    );
     let binder_total = binder.symbol_bytes
         + binder.symbol_owned_bytes
         + table_bytes
@@ -3792,7 +3801,8 @@ fn report_program_memory(snapshot: &ProgramSnapshot) {
         + binder.node_flags_bytes
         + binder.flow_bytes
         + binder.flow_antecedent_bytes
-        + binder.map_bytes;
+        + binder.map_bytes
+        + binder.classifiable_name_bytes;
     row("binder: total", binder.symbols, binder_total);
     let mut kinds: Vec<_> = syntax.kinds.iter().collect();
     kinds.sort_by(|a, b| b.1.cmp(a.1));
@@ -3951,7 +3961,7 @@ fn run_checker_shard<'a>(
             shard_started,
         );
     }
-    state.report_memory(&format!("shard {shard_index}"));
+    state.report_memory(&format!("shard {shard_index}"), snapshot, shard_index == 0);
     state.line_profile.flush();
     let mut output = ShardOutput {
         fixture,
@@ -4391,6 +4401,9 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let snapshot = document_store
         .into_snapshot_with_file_facts(file_facts)
         .expect("program snapshot identity allocation failed");
+    // The snapshot owns the source Arcs. The serial in-place collect can
+    // leave this Vec holding the much larger PendingProgramSource buffer.
+    drop(program_sources);
     report_program_memory(&snapshot);
     let file_diagnostics = syntactic_file_rows(&snapshot, lib_count, options);
     let mut metadata = run.lib_metadata.clone();
@@ -4926,7 +4939,7 @@ fn check_snapshot_serially(
             check_started,
         );
     }
-    state.report_memory("serial");
+    state.report_memory("serial", snapshot, true);
     let checker_rows_by_file = checker_diagnostics_by_file(&state, &state.diagnostics);
     for &file in &program_file_ids {
         if state.skip_type_checking_file(file) || !is_selected(file) {
@@ -5177,6 +5190,9 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         let snapshot = document_store
             .into_snapshot_with_file_facts(file_facts)
             .expect("program snapshot identity allocation failed");
+        // The snapshot owns the source Arcs. The serial in-place collect can
+        // leave this Vec holding the much larger PendingProgramSource buffer.
+        drop(program_sources);
         report_program_memory(&snapshot);
         file_diagnostics = syntactic_file_rows(&snapshot, lib_count, options);
         let authoritative_metadata = authoritative_run.map(|run| {

@@ -133,7 +133,7 @@ impl PreparsedSourceFile {
 /// a cache never changes the equality of the prepared source that owns it.
 #[derive(Clone, Default)]
 pub struct PreparsedSyntax {
-    slot: Arc<Mutex<Option<PreparsedSourceFile>>>,
+    slot: Arc<Mutex<Option<Box<PreparsedSourceFile>>>>,
     /// When the planner's parse ran (`--generateTrace`'s `createSourceFile`
     /// span); kept after the tree is adopted.
     parse_span: Option<(std::time::Instant, std::time::Instant)>,
@@ -145,7 +145,7 @@ pub struct PreparsedSyntax {
 
 impl PreparsedSyntax {
     pub(crate) fn new(
-        parsed: PreparsedSourceFile,
+        parsed: Box<PreparsedSourceFile>,
         parse_span: (std::time::Instant, std::time::Instant),
     ) -> Self {
         Self {
@@ -181,7 +181,7 @@ impl PreparsedSyntax {
     /// Take the retained tree. `None` once it has been adopted (or if the
     /// slot lock was poisoned), in which case the caller parses.
     pub fn take(&self) -> Option<PreparsedSourceFile> {
-        self.slot.lock().ok()?.take()
+        self.slot.lock().ok()?.take().map(|parsed| *parsed)
     }
 }
 
@@ -1878,6 +1878,141 @@ pub struct PreparedProgram {
     diagnostics: PreparationDiagnostics,
 }
 
+impl PreparsedSyntax {
+    fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
+        // size_of_val observes the actual slot representation, including
+        // padding, both before and after the independent boxing patch.
+        if !usage.arc("preparsed slot Arc storage", &self.slot) {
+            return;
+        }
+        match self.slot.lock() {
+            Ok(slot) if slot.is_some() => usage.available_slots += 1,
+            Ok(_) if self.parse_span.is_some() => usage.consumed_slots += 1,
+            Ok(_) => usage.empty_slots += 1,
+            Err(_) => usage.poisoned_slots += 1,
+        }
+    }
+}
+
+impl PreparedProgram {
+    /// Retained owners at the checker report's checkpoint. Loader staging
+    /// moved into these vectors is counted here; destroyed builder/task
+    /// tables are not live owners at this checkpoint.
+    pub fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
+        const STRINGS: &str = "strings: stable owners";
+        usage.vec("prepared source rows", &self.source_files);
+        usage.hash_map("prepared canonical lookup", &self.source_by_canonical);
+        usage.vec("prepared roots", &self.roots);
+        usage.vec("prepared library ids", &self.library_files);
+        usage.btree("prepared auxiliary tree (estimate)", &self.auxiliary_files);
+        usage.btree("prepared package tree (estimate)", &self.packages);
+        usage.vec("prepared package probes", &self.package_json_probes);
+        usage.vec("prepared resolution trace", &self.resolution_trace);
+        usage.vec("prepared package redirects", &self.package_redirect_files);
+        usage.vec(
+            "prepared import extension paths",
+            &self.import_extension_files,
+        );
+        usage.vec("prepared dependency symlinks", &self.dependency_symlinks);
+        self.path_context.current_directory.add_memory_usage(usage);
+        for source in &self.source_files {
+            source.path.add_memory_usage(usage);
+            if let Some(path) = &source.real_path {
+                path.add_memory_usage(usage);
+            }
+            if let Some(path) = &source.package_scope {
+                path.add_memory_usage(usage);
+            }
+            TextSnapshot::add_memory_usage(&source.snapshot, usage);
+            source.preparsed_syntax.add_memory_usage(usage);
+            usage.vec("prepared alternate paths", &source.alternate_display_paths);
+            for path in &source.alternate_display_paths {
+                usage.js_string(STRINGS, path);
+            }
+            for paths in [
+                &source.package_redirect_paths,
+                &source.project_reference_source_paths,
+            ] {
+                usage.vec("prepared redirect paths", paths);
+                for path in paths {
+                    path.add_memory_usage(usage);
+                }
+            }
+            usage.vec(
+                "loader inclusion reasons (retained)",
+                &source.inclusion_reasons,
+            );
+            for reason in &source.inclusion_reasons {
+                reason.add_memory_usage(usage);
+            }
+            if let Some(reference) = &source.project_reference {
+                if usage.arc("prepared referenced project options", &reference.options) {
+                    usage.js_string(STRINGS, &reference.options.common_source_directory);
+                    if let Some(path) = &reference.options.out_dir {
+                        usage.js_string(STRINGS, path);
+                    }
+                }
+            }
+        }
+        for root in &self.roots {
+            root.path.add_memory_usage(usage);
+            if let Some(diagnostic) = &root.missing_diagnostic {
+                usage.diagnostic(diagnostic);
+            }
+        }
+        for (key, file) in &self.auxiliary_files {
+            key.add_memory_usage(usage);
+            file.path.add_memory_usage(usage);
+            TextSnapshot::add_memory_usage(&file.snapshot, usage);
+            usage.vec("prepared alternate paths", &file.alternate_display_paths);
+            for path in &file.alternate_display_paths {
+                usage.js_string(STRINGS, path);
+            }
+        }
+        for (key, package) in &self.packages {
+            key.add_memory_usage(usage);
+            package.package_json.add_memory_usage(usage);
+            TextSnapshot::add_memory_usage(&package.snapshot, usage);
+            usage.vec("prepared alternate paths", &package.alternate_display_paths);
+            for path in &package.alternate_display_paths {
+                usage.js_string(STRINGS, path);
+            }
+            for text in package.name.iter().chain(package.version.iter()) {
+                usage.js_string(STRINGS, text);
+            }
+        }
+        for probe in &self.package_json_probes {
+            usage.js_string(STRINGS, &probe.path);
+        }
+        for line in &self.resolution_trace {
+            usage.string(STRINGS, line);
+        }
+        for file in &self.package_redirect_files {
+            file.path.add_memory_usage(usage);
+            usage.vec("loader inclusion reasons (retained)", &file.reasons);
+            for reason in &file.reasons {
+                reason.add_memory_usage(usage);
+            }
+        }
+        for path in &self.import_extension_files {
+            usage.js_string(STRINGS, path);
+        }
+        for link in &self.dependency_symlinks {
+            for path in [&link.adjacent, &link.real, &link.symlink]
+                .into_iter()
+                .chain(link.adjacent_types.iter())
+            {
+                usage.js_string(STRINGS, path);
+            }
+        }
+        usage.diagnostics(&self.diagnostics.config);
+        usage.diagnostics(&self.diagnostics.options);
+        usage.diagnostics(&self.diagnostics.program);
+        usage.diagnostics(&self.diagnostics.content_mapper);
+        self.resolutions.add_memory_usage(usage);
+    }
+}
+
 /// A runtime dependency of a package scope whose package directory a symlink
 /// reaches (tsgo `GetSymlinkCache`'s second pass, see
 /// [`PreparedProgram::dependency_symlinks`]): the scope's own
@@ -3399,3 +3534,59 @@ fn insert_resolution<K: Eq + Ord + TableKey, T: Eq>(
 #[cfg(test)]
 #[path = "../tests/unit/prepared/compact_resolution_tests.rs"]
 mod compact_resolution_tests;
+
+#[cfg(test)]
+mod preparsed_slot_tests {
+    use super::*;
+
+    fn planning_box() -> Box<PreparsedSourceFile> {
+        let options = ParseOptions::default();
+        let source = tsc_syntax::parse_source_file(
+            "/slot.ts",
+            "export const value = 1;",
+            options.clone(),
+            None,
+        );
+        Box::new(PreparsedSourceFile::new(options, source))
+    }
+
+    #[test]
+    fn slot_keeps_the_planning_box_and_is_consumed_once_across_clones() {
+        let parsed = planning_box();
+        let pointer = std::ptr::from_ref(parsed.as_ref());
+        let now = std::time::Instant::now();
+        let syntax = PreparsedSyntax::new(parsed, (now, now));
+        let clone = syntax.clone();
+        assert!(syntax.is_available());
+        assert_eq!(
+            std::ptr::from_ref(syntax.slot.lock().unwrap().as_deref().unwrap()),
+            pointer
+        );
+        let adopted = clone.take().expect("first session adopts");
+        assert_eq!(adopted.source().file_name, "/slot.ts");
+        assert!(!syntax.is_available());
+        assert!(
+            syntax.slot.lock().unwrap().is_none(),
+            "no box retained after adoption"
+        );
+        assert!(syntax.take().is_none());
+        assert!(clone.take().is_none());
+        assert_eq!(syntax.parse_span(), Some((now, now)));
+    }
+
+    #[test]
+    fn a_poisoned_slot_remains_unavailable_to_every_clone() {
+        let now = std::time::Instant::now();
+        let syntax = PreparsedSyntax::new(planning_box(), (now, now));
+        let clone = syntax.clone();
+        assert!(std::thread::spawn(move || {
+            let _guard = clone.slot.lock().unwrap();
+            panic!("poison the cache lock");
+        })
+        .join()
+        .is_err());
+        assert!(!syntax.is_available());
+        assert!(syntax.take().is_none());
+        assert!(syntax.clone().take().is_none());
+    }
+}

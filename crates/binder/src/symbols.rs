@@ -663,3 +663,12 @@ pub fn empty_symbol_table() -> Arc<SymbolTable> {
     }
     EMPTY.with(Arc::clone)
 }
+
+impl SymbolArena {
+    pub fn record_heap_bytes(&self) -> usize {
+        self.symbols.heap_capacity_bytes()
+    }
+    pub fn declaration_store_bytes(&self) -> usize {
+        self.declarations.live_bytes()
+    }
+}

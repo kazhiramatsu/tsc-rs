@@ -4244,3 +4244,25 @@ mod sparse_tests {
         assert_eq!(positions.memory_usage().0, 0);
     }
 }
+
+impl LinksTables {
+    pub(crate) fn add_omitted_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
+        usage.hash_map("memo: union properties", &self.union_property_cache);
+        usage.hash_map(
+            "memo: conditional instantiations",
+            &self.conditional_instantiations,
+        );
+        usage.hash_map("memo: alias instantiations", &self.alias_instantiations);
+    }
+}
+
+impl LinksTables {
+    pub(crate) fn print_reserved_memory(&self, label: &str) -> usize {
+        crate::memory::print_reserved_vec(label, "links_type", &self.ty.records)
+            + crate::memory::print_reserved_vec(
+                label,
+                "links_transient_symbol",
+                &self.transient_symbols,
+            )
+    }
+}

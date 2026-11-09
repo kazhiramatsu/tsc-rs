@@ -4014,3 +4014,25 @@ impl InferTypesWalker<'_, '_> {
 #[cfg(test)]
 #[path = "../tests/unit/inference/tests.rs"]
 mod tests;
+
+impl CheckerState<'_> {
+    pub(crate) fn add_inference_walker_memory_usage(
+        &self,
+        usage: &mut tsc_diagnostics::MemoryUsage,
+    ) {
+        let buffers = &self.inference_walk_buffers;
+        usage.vec("inference walker buffers", &buffers.inferences);
+        usage.vec("inference walker buffers", &buffers.source_stack);
+        usage.vec("inference walker buffers", &buffers.target_stack);
+        let cap = self.inference_visited.capacity();
+        let len = self.inference_visited.len();
+        let record = std::mem::size_of::<(usize, InferenceKey, InferencePriority)>();
+        usage.add(
+            "inference visited entries (estimate)",
+            len,
+            len * record,
+            cap * record,
+        );
+        usage.hash_table::<usize, ()>("inference visited index (estimate)", len, cap);
+    }
+}

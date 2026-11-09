@@ -215,6 +215,11 @@ pub struct BinderMemory {
     pub flow_bytes: usize,
     pub flow_antecedent_bytes: usize,
     pub map_bytes: usize,
+    pub classifiable_names: usize,
+    pub classifiable_name_initialized_bytes: usize,
+    pub classifiable_name_bytes: usize,
+    pub heap_record_bytes: usize,
+    pub declaration_store_bytes: usize,
 }
 
 impl BindData {
@@ -224,6 +229,16 @@ impl BindData {
             map.capacity() * (std::mem::size_of::<(K, V)>() + 1) * 8 / 7
         }
         let (symbols, symbol_bytes, owned) = self.symbols.memory_usage(&mut usage.tables);
+        let (names, initialized, requested) = self.classifiable_names.memory_usage();
+        usage.classifiable_names += names;
+        usage.classifiable_name_initialized_bytes += initialized;
+        usage.classifiable_name_bytes += requested;
+        usage.heap_record_bytes += self.symbols.record_heap_bytes()
+            + self.node_symbol.slots.heap_capacity_bytes()
+            + self.node_flow.slots.heap_capacity_bytes()
+            + map_bytes(&self.node_flow.overflow)
+            + self.node_flags_mut.0.heap_capacity_bytes();
+        usage.declaration_store_bytes += self.symbols.declaration_store_bytes();
         usage.symbols += symbols;
         usage.symbol_bytes += symbol_bytes;
         usage.symbol_owned_bytes += owned;
