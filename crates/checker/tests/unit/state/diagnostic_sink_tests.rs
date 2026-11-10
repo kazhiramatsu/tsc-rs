@@ -10,6 +10,21 @@ fn row(start: u32) -> Diagnostic {
     )
 }
 
+#[test]
+fn inference_effect_serial_observes_duplicates_and_rollback() {
+    let mut sink = DiagnosticSink::default();
+    sink.insert_unique(row(0));
+    let before = sink.attempts;
+    sink.insert_unique(row(0));
+    assert_eq!(sink.len(), 1);
+    assert_ne!(sink.attempts, before);
+    let before = sink.attempts;
+    sink.push(row(1));
+    sink.truncate(1);
+    assert_eq!(sink.len(), 1);
+    assert_ne!(sink.attempts, before);
+}
+
 fn indexed_sink() -> DiagnosticSink {
     let mut sink = DiagnosticSink::default();
     for start in 0..64 {

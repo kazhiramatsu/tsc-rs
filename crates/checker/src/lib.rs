@@ -128,6 +128,7 @@ mod flow_memo;
 pub mod functions;
 pub mod globals;
 pub mod incremental;
+mod infer_memo;
 mod location;
 mod memory;
 pub use incremental::{
