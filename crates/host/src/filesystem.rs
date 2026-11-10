@@ -1,8 +1,11 @@
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::env;
+use std::ffi::OsStr;
 use std::fs;
+use std::hash::{Hash, Hasher};
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf, Prefix};
 use std::sync::{Arc, RwLock};
 use tsc_diagnostics::{JsStr, JsString};
 
@@ -46,31 +49,212 @@ const OBSERVATION_SHARDS: usize = 32;
 /// observations are kept; a host error is reported every time.
 #[derive(Debug, Default)]
 struct ObservationCache {
-    presence: [RwLock<HashMap<PathBuf, Presence>>; OBSERVATION_SHARDS],
-    realpath: [RwLock<HashMap<PathBuf, Option<PathBuf>>>; OBSERVATION_SHARDS],
+    presence: [RwLock<HashMap<ObservationKey, Presence>>; OBSERVATION_SHARDS],
+    realpath: [RwLock<HashMap<ObservationKey, Option<PathBuf>>>; OBSERVATION_SHARDS],
+}
+
+/// The original native spelling and its cached lookup fingerprint.
+/// A boxed spelling plus one word has the same header size as `PathBuf`.
+/// The table compares Paths on collisions and retains the original shard
+/// and Path equality semantics for alias spellings.
+#[derive(Debug)]
+struct ObservationKey {
+    path: Box<OsStr>,
+    fingerprint: u64,
+}
+
+#[derive(Clone, Copy)]
+struct ObservationQuery<'a> {
+    path: &'a OsStr,
+    fingerprint: u64,
+}
+
+impl<'a> ObservationQuery<'a> {
+    fn new(path: &'a Path) -> Self {
+        let path = path.as_os_str();
+        let mut fingerprint = 0xcbf2_9ce4_8422_2325_u64;
+        for &byte in path.as_encoded_bytes() {
+            fingerprint ^= u64::from(byte);
+            fingerprint = fingerprint.wrapping_mul(0x0100_0000_01b3);
+        }
+        Self { path, fingerprint }
+    }
+
+    fn shard(self) -> usize {
+        (self.fingerprint % OBSERVATION_SHARDS as u64) as usize
+    }
+
+    fn into_owned(self) -> ObservationKey {
+        ObservationKey {
+            path: self.path.into(),
+            fingerprint: self.fingerprint,
+        }
+    }
+}
+
+// A borrowed query carries both fields without allocating a temporary key.
+// Both views hash the lookup fingerprint and retain Path equality. Normal
+// slash spellings reuse the shard hash; aliases compute their lookup hash on a miss.
+trait ObservationLookup {
+    fn path(&self) -> &OsStr;
+    fn fingerprint(&self) -> u64;
+}
+
+impl ObservationLookup for ObservationKey {
+    fn path(&self) -> &OsStr {
+        &self.path
+    }
+    fn fingerprint(&self) -> u64 {
+        self.fingerprint
+    }
+}
+impl ObservationLookup for ObservationQuery<'_> {
+    fn path(&self) -> &OsStr {
+        self.path
+    }
+    fn fingerprint(&self) -> u64 {
+        self.fingerprint
+    }
+}
+impl Hash for ObservationKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.fingerprint.hash(state);
+    }
+}
+impl Hash for dyn ObservationLookup + '_ {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.fingerprint().hash(state);
+    }
+}
+impl PartialEq for dyn ObservationLookup + '_ {
+    fn eq(&self, other: &Self) -> bool {
+        self.fingerprint() == other.fingerprint()
+            && (self.path() == other.path() || Path::new(self.path()) == Path::new(other.path()))
+    }
+}
+impl PartialEq for ObservationKey {
+    fn eq(&self, other: &Self) -> bool {
+        (self as &dyn ObservationLookup) == (other as &dyn ObservationLookup)
+    }
+}
+impl Eq for ObservationKey {}
+impl Eq for dyn ObservationLookup + '_ {}
+impl<'a> Borrow<dyn ObservationLookup + 'a> for ObservationKey {
+    fn borrow(&self) -> &(dyn ObservationLookup + 'a) {
+        self
+    }
+}
+
+const OBSERVATION_FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+fn append_observation_fingerprint(fingerprint: &mut u64, bytes: &[u8]) {
+    for &byte in bytes {
+        *fingerprint ^= u64::from(byte);
+        *fingerprint = fingerprint.wrapping_mul(0x0100_0000_01b3);
+    }
+}
+
+// Equal Paths have equal component sequences, including the parsed prefix
+// kind (drive letters compare without case). Hash that sequence into a
+// deterministic spelling, without allocating or resolving '..'. Ordinary
+// normalized slash paths have exactly their existing raw FNV fingerprint.
+fn canonical_observation_fingerprint(path: &OsStr) -> u64 {
+    let mut fingerprint = OBSERVATION_FNV_OFFSET;
+    let mut separator = false;
+    for component in Path::new(path).components() {
+        match component {
+            Component::Prefix(prefix) => {
+                append_observation_prefix(&mut fingerprint, prefix.kind());
+                separator = false;
+            }
+            Component::RootDir => {
+                append_observation_fingerprint(&mut fingerprint, b"/");
+                separator = false;
+            }
+            other => {
+                if separator {
+                    append_observation_fingerprint(&mut fingerprint, b"/");
+                }
+                append_observation_fingerprint(
+                    &mut fingerprint,
+                    other.as_os_str().as_encoded_bytes(),
+                );
+                separator = true;
+            }
+        }
+    }
+    fingerprint
+}
+fn append_observation_prefix(fingerprint: &mut u64, prefix: Prefix<'_>) {
+    match prefix {
+        Prefix::Disk(drive) => append_observation_fingerprint(fingerprint, &[drive, b':']),
+        Prefix::VerbatimDisk(drive) => {
+            append_observation_fingerprint(fingerprint, b"//?/");
+            append_observation_fingerprint(fingerprint, &[drive, b':']);
+        }
+        Prefix::UNC(server, share) => {
+            append_observation_fingerprint(fingerprint, b"//");
+            append_observation_fingerprint(fingerprint, server.as_encoded_bytes());
+            append_observation_fingerprint(fingerprint, b"/");
+            append_observation_fingerprint(fingerprint, share.as_encoded_bytes());
+        }
+        Prefix::VerbatimUNC(server, share) => {
+            append_observation_fingerprint(fingerprint, b"//?/UNC/");
+            append_observation_fingerprint(fingerprint, server.as_encoded_bytes());
+            append_observation_fingerprint(fingerprint, b"/");
+            append_observation_fingerprint(fingerprint, share.as_encoded_bytes());
+        }
+        Prefix::DeviceNS(name) => {
+            append_observation_fingerprint(fingerprint, b"//./");
+            append_observation_fingerprint(fingerprint, name.as_encoded_bytes());
+        }
+        Prefix::Verbatim(name) => {
+            append_observation_fingerprint(fingerprint, b"//?/");
+            append_observation_fingerprint(fingerprint, name.as_encoded_bytes());
+        }
+    }
+}
+
+fn lookup_observation<'a, T>(
+    table: &'a HashMap<ObservationKey, T>,
+    query: ObservationQuery<'_>,
+) -> Result<&'a T, u64> {
+    if let Some(value) = table.get(&query as &dyn ObservationLookup) {
+        return Ok(value);
+    }
+    lookup_observation_alias(table, query)
+}
+
+#[cold]
+fn lookup_observation_alias<'a, T>(
+    table: &'a HashMap<ObservationKey, T>,
+    query: ObservationQuery<'_>,
+) -> Result<&'a T, u64> {
+    let fingerprint = canonical_observation_fingerprint(query.path);
+    if fingerprint != query.fingerprint {
+        if let Some(value) = table.get(&ObservationQuery {
+            fingerprint,
+            ..query
+        } as &dyn ObservationLookup)
+        {
+            return Ok(value);
+        }
+    }
+    Err(fingerprint)
 }
 
 impl ObservationCache {
-    fn shard(path: &Path) -> usize {
-        // FNV-1a over the path bytes: cheap, and the shard only spreads
-        // lock contention.
-        let mut hash = 0xcbf2_9ce4_8422_2325_u64;
-        for &byte in path.as_os_str().as_encoded_bytes() {
-            hash ^= u64::from(byte);
-            hash = hash.wrapping_mul(0x0100_0000_01b3);
-        }
-        (hash % OBSERVATION_SHARDS as u64) as usize
-    }
-
     fn presence(&self, path: &Path, operation: HostOperation) -> Result<Presence, HostError> {
-        let shard = &self.presence[Self::shard(path)];
-        if let Some(present) = shard
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .get(path)
-        {
-            return Ok(*present);
-        }
+        let query = ObservationQuery::new(path);
+        let shard = &self.presence[query.shard()];
+        let fingerprint = {
+            let table = shard
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            match lookup_observation(&table, query) {
+                Ok(present) => return Ok(*present),
+                Err(fingerprint) => fingerprint,
+            }
+        };
         let present = match metadata_if_present(path, operation)? {
             None => Presence::Missing,
             Some(metadata) if metadata.is_file() => Presence::File {
@@ -82,7 +266,14 @@ impl ObservationCache {
         shard
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .insert(path.to_path_buf(), present);
+            .insert(
+                ObservationQuery {
+                    fingerprint,
+                    ..query
+                }
+                .into_owned(),
+                present,
+            );
         Ok(present)
     }
 
@@ -91,19 +282,29 @@ impl ObservationCache {
         path: &Path,
         compute: impl FnOnce() -> Result<Option<PathBuf>, HostError>,
     ) -> Result<Option<PathBuf>, HostError> {
-        let shard = &self.realpath[Self::shard(path)];
-        if let Some(physical) = shard
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .get(path)
-        {
-            return Ok(physical.clone());
-        }
+        let query = ObservationQuery::new(path);
+        let shard = &self.realpath[query.shard()];
+        let fingerprint = {
+            let table = shard
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            match lookup_observation(&table, query) {
+                Ok(physical) => return Ok(physical.clone()),
+                Err(fingerprint) => fingerprint,
+            }
+        };
         let physical = compute()?;
         shard
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .insert(path.to_path_buf(), physical.clone());
+            .insert(
+                ObservationQuery {
+                    fingerprint,
+                    ..query
+                }
+                .into_owned(),
+                physical.clone(),
+            );
         Ok(physical)
     }
 }
