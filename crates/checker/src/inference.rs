@@ -835,14 +835,14 @@ impl<'a> CheckerState<'a> {
     /// (inferReverseMappedTypeWorker 68438, the 7.4 higher-order path
     /// 80788) pass their own Vec — never a throwaway arena context.
     /// The closure family (68646-69233) lives on `InferTypesWalker`.
-    pub(crate) fn infer_types(
+    pub(crate) fn infer_types_walk(
         &mut self,
         inferences: &[InferenceInfoId],
         original_source: TypeId,
         original_target: TypeId,
         priority: InferencePriority,
         contravariant: bool,
-    ) -> CheckResult<()> {
+    ) -> (CheckResult<()>, u32, bool) {
         let visited = std::mem::take(&mut self.inference_visited);
         // The slot snapshot and the stacks reuse the buffers of the last
         // walk (a walk started inside this one finds them taken and gets
@@ -873,6 +873,8 @@ impl<'a> CheckerState<'a> {
             source_stack,
             target_stack,
             expanding_flags: ExpandingFlags::NONE,
+            steps: 0,
+            cleared: false,
         };
         let result = walker.infer_from_types(original_source, original_target);
         let InferTypesWalker {
@@ -881,6 +883,8 @@ impl<'a> CheckerState<'a> {
             inferences: mut slots,
             mut source_stack,
             mut target_stack,
+            steps,
+            cleared,
             ..
         } = walker;
         clear_inference_visited(&mut visited, &visited_touched);
@@ -895,7 +899,7 @@ impl<'a> CheckerState<'a> {
                 target_stack,
             };
         }
-        result
+        (result, steps, cleared)
     }
 
     /// tsc-port: inferTypeForHomomorphicMappedType @6.0.3
@@ -1875,6 +1879,8 @@ struct InferTypesWalker<'r, 'a> {
     source_stack: Vec<TypeId>,
     target_stack: Vec<TypeId>,
     expanding_flags: ExpandingFlags,
+    steps: u32,
+    cleared: bool,
 }
 
 /// tsgo invokeOnce's visited map (inference.go:11-17): one per inference
@@ -1932,6 +1938,7 @@ impl InferTypesWalker<'_, '_> {
     /// the free-fn split lets the arena borrow stay disjoint from the
     /// id list.
     fn clear_cached(&mut self) {
+        self.cleared = true;
         clear_cached_inferences(&mut self.st.inference_info_arena, &self.inferences);
     }
 
@@ -2055,6 +2062,7 @@ impl InferTypesWalker<'_, '_> {
     /// - Arms 5/6 (union/intersection reduction) rewrite source and
     ///   target in place before every later arm reads them.
     fn infer_from_types(&mut self, source: TypeId, target: TypeId) -> CheckResult<()> {
+        self.steps = self.steps.wrapping_add(1);
         let mut source = source;
         let mut target = target;
         if !self.st.could_contain_type_variables(target) || self.st.tables.is_no_infer_type(target)

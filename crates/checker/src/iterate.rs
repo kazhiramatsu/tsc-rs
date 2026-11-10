@@ -383,7 +383,11 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<(T, Vec<Diagnostic>)> {
         let saved = std::mem::take(&mut self.diagnostics);
         let result = f(self);
-        let collected = std::mem::replace(&mut self.diagnostics, saved).into_vec();
+        let collected = std::mem::replace(&mut self.diagnostics, saved);
+        // Captured diagnostics still count as attempted effects of the walk,
+        // including deduplicated attempts, even when its caller suppresses them.
+        self.diagnostics.attempts = self.diagnostics.attempts.wrapping_add(collected.attempts);
+        let collected = collected.into_vec();
         match result {
             Ok(value) => Ok((value, collected)),
             Err(err) => {
@@ -1802,3 +1806,7 @@ fn is_es2015_or_later_iterable(name: &str) -> bool {
             | "Uint8ClampedArray"
     )
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/iterate/tests.rs"]
+mod tests;

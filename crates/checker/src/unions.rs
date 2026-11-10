@@ -195,10 +195,12 @@ impl<'a> CheckerState<'a> {
                     != 0
             {
                 self.union_front_cache.impure += 1;
+                self.impure_union_reductions = self.impure_union_reductions.wrapping_add(1);
                 self.remove_string_literals_matched_by_template_literals(&mut type_set)?;
             }
             if includes & TypeFlags::INCLUDES_CONSTRAINED_TYPE_VARIABLE.bits() != 0 {
                 self.union_front_cache.impure += 1;
+                self.impure_union_reductions = self.impure_union_reductions.wrapping_add(1);
                 self.remove_constrained_type_variables(&mut type_set)?;
             }
             if reduction == UnionReduction::Subtype {

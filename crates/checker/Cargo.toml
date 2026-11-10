@@ -16,6 +16,7 @@ path = "src/lib.rs"
 phase-ledger = ["tsc-types/phase-ledger"]
 flow-memo-shadow = []
 union-cache-shadow = []
+infer-memo-shadow = []
 perf-counters = ["tsc-binder/perf-counters", "tsc-types/perf-counters"]
 
 [dependencies]

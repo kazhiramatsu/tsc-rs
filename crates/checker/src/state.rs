@@ -646,6 +646,9 @@ pub struct CheckerState<'a> {
     /// table so a walk does not grow one from empty (tsgo allocates one per
     /// inferTypes call).
     pub(crate) inference_visited: crate::inference::InferenceVisited,
+    pub(crate) infer_memo: crate::infer_memo::InferMemo,
+    pub(crate) expression_checks: u64,
+    pub(crate) impure_union_reductions: u64,
     /// The inference walk's slot snapshot and its two stacks, kept between
     /// walks with their room (a walk inside a walk takes empty ones).
     pub(crate) inference_walk_buffers: crate::inference::InferenceWalkBuffers,
@@ -1424,6 +1427,8 @@ impl<'a> CheckerState<'a> {
         self.flow_memo.report(label);
         #[cfg(feature = "union-cache-shadow")]
         self.union_front_cache.report();
+        #[cfg(feature = "infer-memo-shadow")]
+        self.infer_memo.report(label);
         if std::env::var_os("TSRS_MEMORY_REPORT").is_none() {
             return;
         }
@@ -1920,6 +1925,9 @@ impl<'a> CheckerState<'a> {
             relations: RelationCaches::with_capacity_hint(program_symbols),
             subtype_reduction_cache: rustc_hash::FxHashMap::default(),
             inference_visited: Default::default(),
+            infer_memo: crate::infer_memo::InferMemo::new(),
+            expression_checks: 0,
+            impure_union_reductions: 0,
             inference_walk_buffers: Default::default(),
             array_variances: SharedList::from(crate::variance::ARRAY_VARIANCES),
             speculation_depth: 0,
@@ -2989,6 +2997,7 @@ impl<'a> CheckerState<'a> {
         message: &'static DiagnosticMessage,
         args: &[JsStr<'_>],
     ) -> usize {
+        self.diagnostics.attempts += 1;
         let diagnostic = self.create_error_js(location, message, args);
         // tsgo's lookupOrIssueError adds through DiagnosticsCollection.Add
         // (ast/diagnostic.go:269-297), which returns an existing diagnostic

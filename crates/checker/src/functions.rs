@@ -5301,6 +5301,7 @@ impl<'a> CheckerState<'a> {
         for info in related {
             diagnostic.related.push(info);
         }
+        self.diagnostics.attempts += 1;
         if !self.diagnostics.contains(&diagnostic) {
             self.diagnostics.push(diagnostic);
         }

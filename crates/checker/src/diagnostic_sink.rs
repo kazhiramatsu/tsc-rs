@@ -14,6 +14,9 @@ use tsc_diagnostics::{Diagnostic, DiagnosticList};
 pub struct DiagnosticSink {
     diagnostics: DiagnosticList,
     index: Option<HashMap<u64, Vec<usize>>>,
+    /// Monotone effect serial, including deduplicated attempts and edits.
+    /// Speculation rollback must not restore it.
+    pub(crate) attempts: u64,
 }
 
 /// Only select a candidate bucket here: equality still compares the complete
@@ -31,6 +34,11 @@ fn bucket(diagnostic: &Diagnostic) -> u64 {
 impl DiagnosticSink {
     /// Append without deduplication, matching Vec::push even for duplicates.
     pub fn push(&mut self, diagnostic: Diagnostic) {
+        self.attempts = self.attempts.wrapping_add(1);
+        self.push_inner(diagnostic);
+    }
+
+    fn push_inner(&mut self, diagnostic: Diagnostic) {
         let position = self.diagnostics.len();
         if let Some(index) = &mut self.index {
             index.entry(bucket(&diagnostic)).or_default().push(position);
@@ -40,6 +48,7 @@ impl DiagnosticSink {
 
     /// Roll back both the ledger and its index, preserving earlier duplicates.
     pub fn truncate(&mut self, len: usize) {
+        self.attempts = self.attempts.wrapping_add(1);
         if let Some(index) = &mut self.index {
             for diagnostic in self.diagnostics.iter().skip(len).rev() {
                 let key = bucket(diagnostic);
@@ -55,6 +64,7 @@ impl DiagnosticSink {
 
     /// Return the first exact match, or append and return the new index.
     pub(crate) fn insert_unique(&mut self, diagnostic: Diagnostic) -> usize {
+        self.attempts = self.attempts.wrapping_add(1);
         // Small ledgers are cheaper to scan and need no additional allocation.
         if self.index.is_none() && self.diagnostics.len() < 32 {
             if let Some(position) = self.diagnostics.iter().position(|row| *row == diagnostic) {
@@ -79,7 +89,7 @@ impl DiagnosticSink {
             }
         }
         let position = self.diagnostics.len();
-        self.push(diagnostic);
+        self.push_inner(diagnostic);
         position
     }
 
@@ -90,6 +100,7 @@ impl DiagnosticSink {
         position: usize,
         edit: impl FnOnce(&mut Diagnostic) -> R,
     ) -> R {
+        self.attempts = self.attempts.wrapping_add(1);
         let index = self.index.take();
         let diagnostic = &mut self.diagnostics[position];
         let previous = bucket(diagnostic);
@@ -110,6 +121,7 @@ impl From<DiagnosticList> for DiagnosticSink {
         Self {
             diagnostics,
             index: None,
+            attempts: 0,
         }
     }
 }
@@ -124,6 +136,7 @@ impl Deref for DiagnosticSink {
 
 impl DerefMut for DiagnosticSink {
     fn deref_mut(&mut self) -> &mut Self::Target {
+        self.attempts = self.attempts.wrapping_add(1);
         self.index = None;
         &mut self.diagnostics
     }

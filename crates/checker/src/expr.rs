@@ -105,6 +105,7 @@ impl<'a> CheckerState<'a> {
         force_tuple: bool,
     ) -> CheckResult<TypeId> {
         let _sample = self.trace_node_sample("checkExpression", node);
+        self.expression_checks = self.expression_checks.wrapping_add(1);
         let save_current_node = self.current_node;
         self.current_node = Some(node);
         self.instantiation_count = 0;
@@ -954,6 +955,7 @@ impl<'a> CheckerState<'a> {
             Some(end_utf16.saturating_sub(start_utf16)),
             MessageChain::new(message, &args),
         );
+        self.diagnostics.attempts += 1;
         if !self.diagnostics.contains(&diagnostic) {
             self.diagnostics.push(diagnostic);
         }
