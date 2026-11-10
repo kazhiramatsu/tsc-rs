@@ -351,6 +351,26 @@ impl<'a> CheckerState<'a> {
         self.map_type_with_mapper(ty, mapper)
     }
 
+    /// tsgo mapTypeWithCompositeMapper (mapper.go): apply the stored and
+    /// incoming mappers directly to one type argument.
+    #[inline]
+    fn map_type_with_composite_mapper(
+        &mut self,
+        ty: TypeId,
+        mapper1: Option<MapperId>,
+        mapper2: MapperId,
+    ) -> CheckResult<TypeId> {
+        let Some(mapper1) = mapper1 else {
+            return self.get_mapped_type(ty, mapper2);
+        };
+        let mapped = self.get_mapped_type(ty, mapper1)?;
+        if mapped != ty {
+            self.instantiate_type(mapped, Some(mapper2))
+        } else {
+            self.get_mapped_type(ty, mapper2)
+        }
+    }
+
     /// tsc-port: getMappedType @6.0.3
     /// tsc-hash: 1de145bdc6a4fc936f2d547c707305081eede73870da72023bc151fa83e65252
     /// tsc-span: _tsc.js:63327-63358
@@ -955,11 +975,10 @@ impl<'a> CheckerState<'a> {
         } else {
             self.links.read_ty(ty, |links| links.instantiated_mapper)
         };
-        let combined_mapper = self.combine_type_mappers(type_mapper, mapper);
         let mut type_arguments: Vec<TypeId> = Vec::with_capacity(parameter_count);
         let mut parameters = self.tables.cursor(type_parameters);
         while let Some(tp) = parameters.next(&self.tables) {
-            type_arguments.push(self.get_mapped_type(tp, combined_mapper)?);
+            type_arguments.push(self.map_type_with_composite_mapper(tp, type_mapper, mapper)?);
         }
         let new_alias_symbol = alias_symbol.or(self.tables.alias_symbol(ty));
         let new_alias_type_arguments = if alias_symbol.is_some() {
