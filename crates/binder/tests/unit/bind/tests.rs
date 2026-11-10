@@ -1418,3 +1418,55 @@ fn the_parsers_symbol_bound_covers_the_symbols_of_the_declarations_it_counts() {
         assert!(used <= bound, "{:?}: {used} > {bound}", source.file_name);
     }
 }
+
+#[test]
+fn contextual_identifier_keyword_filter_preserves_reserved_words_and_spans() {
+    // Pinned to main-cd0aba55d CLI output in the lane's 14-case golden set.
+    for word in [
+        "implements",
+        "interface",
+        "let",
+        "package",
+        "private",
+        "protected",
+        "public",
+        "static",
+        "yield",
+    ] {
+        let text = format!("var {word} = 1; export {{}};\n");
+        let mut source = parse(&text);
+        assert!(source.parse_diagnostics.is_empty(), "{word}");
+        let binder = bind(&mut source);
+        assert_eq!(diag_pins(&binder), [(1214, 4, word.len() as u32)], "{word}");
+    }
+    let mut source = parse("var await = 1; export {};\n");
+    let binder = bind(&mut source);
+    assert_eq!(diag_pins(&binder), [(1262, 4, 5)]);
+}
+
+#[test]
+fn contextual_identifier_keyword_filter_keeps_identifier_names_and_contextual_words() {
+    for text in [
+        "const obj={private:1,protected:2,public:3,static:4,yield:5,await:6,implements:7,interface:8}; obj.private; obj.await; interface I { private: number; await: number; yield: number } export {};\n",
+        "var type=1; var async=2; var of=3; var get=4; export {};\n",
+    ] {
+        let mut source=parse(text);
+        assert!(source.parse_diagnostics.is_empty());
+        let binder=bind(&mut source);
+        assert!(binder.bind_diagnostics.is_empty(),"{text}");
+    }
+}
+
+#[test]
+fn contextual_identifier_keyword_filter_keeps_escaped_display_and_parse_gate() {
+    let mut source = parse("var \\u0070rivate=1; export {};\n");
+    assert!(source.parse_diagnostics.is_empty());
+    let binder = bind(&mut source);
+    assert_eq!(binder.bind_diagnostics.len(), 1);
+    assert_eq!(binder.bind_diagnostics[0].code(), 1214);
+    assert_eq!(binder.bind_diagnostics[0].start, Some(4));
+    let mut source = parse("var private=1; var x = ; export {};\n");
+    assert!(!source.parse_diagnostics.is_empty());
+    let binder = bind(&mut source);
+    assert!(binder.bind_diagnostics.is_empty());
+}
