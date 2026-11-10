@@ -14,7 +14,10 @@
 //! are projected only for mode-mismatch diagnostics while their
 //! ordinary resolver verdict remains suppressed).
 
-use std::sync::Arc;
+use std::borrow::Cow;
+use std::sync::{Arc, OnceLock};
+
+use rustc_hash::FxHashSet;
 use tsc_binder::{
     escape_leading_underscores, node_util, unescape_leading_underscores, SymbolId, SymbolTable,
 };
@@ -95,7 +98,7 @@ pub(crate) struct UnresolvedProgramModule {
 }
 
 /// tsgo `core.UnprefixedNodeCoreModules`: the Node core modules importable
-/// without the `node:` prefix, in byte order (looked up by binary search).
+/// without the `node:` prefix, in byte order.
 pub const UNPREFIXED_NODE_CORE_MODULES: &[&str] = &[
     "assert",
     "assert/strict",
@@ -159,22 +162,26 @@ pub const UNPREFIXED_NODE_CORE_MODULES: &[&str] = &[
 /// tsc-hash: 0e632ec6b143db94f7d3289fd8c884f1e2d5cba30ad853d6cd66d2e6f35149da
 /// tsc-span: _tsc.js:19947-20016
 pub fn is_node_core_module<'n>(name: impl Into<JsStr<'n>>) -> bool {
-    // The names are ASCII, so the text's bytes compare as the names do;
-    // a specifier is not interned just to be looked up. Both lists are in
-    // byte order, so each lookup is a binary search.
-    let name = name.into().as_bytes();
-    let listed = |names: &[&str], name: &[u8]| {
-        names
-            .binary_search_by(|known| known.as_bytes().cmp(name))
-            .is_ok()
-    };
-    if listed(UNPREFIXED_NODE_CORE_MODULES, name)
-        || listed(EXCLUSIVELY_PREFIXED_NODE_CORE_MODULES, name)
-    {
-        return true;
-    }
-    name.strip_prefix(b"node:")
-        .is_some_and(|unprefixed| listed(UNPREFIXED_NODE_CORE_MODULES, unprefixed))
+    // Like tsgo core.NodeCoreModules, build the complete membership once,
+    // then probe it once by the specifier's bytes without interning it.
+    static MODULES: OnceLock<FxHashSet<Cow<'static, [u8]>>> = OnceLock::new();
+    MODULES
+        .get_or_init(|| {
+            let mut modules = FxHashSet::with_capacity_and_hasher(
+                UNPREFIXED_NODE_CORE_MODULES.len() * 2
+                    + EXCLUSIVELY_PREFIXED_NODE_CORE_MODULES.len(),
+                Default::default(),
+            );
+            for name in UNPREFIXED_NODE_CORE_MODULES {
+                modules.insert(Cow::Borrowed(name.as_bytes()));
+                modules.insert(Cow::Owned(format!("node:{name}").into_bytes()));
+            }
+            for name in EXCLUSIVELY_PREFIXED_NODE_CORE_MODULES {
+                modules.insert(Cow::Borrowed(name.as_bytes()));
+            }
+            modules
+        })
+        .contains(name.into().as_bytes())
 }
 
 /// The Node core modules importable only with the `node:` prefix, in byte
