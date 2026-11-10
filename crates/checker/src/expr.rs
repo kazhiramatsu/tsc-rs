@@ -658,23 +658,51 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    fn is_import_meta_property_named(&self, node: NodeId, name: &str) -> bool {
+        Published.node(node).as_meta_property().is_some_and(|meta| {
+            meta.keyword_token == SyntaxKind::ImportKeyword
+                && meta.name.is_some_and(|name_node| {
+                    Published
+                        .node(name_node)
+                        .as_identifier()
+                        .is_some_and(|identifier| identifier.escaped_text == name)
+                })
+        })
+    }
+
     /// tsgo `ast.IsImportCall`: `import(...)`, `import.defer(...)` or
     /// `import.source(...)`.
     pub fn is_import_call(&self, node: NodeId) -> bool {
-        tsc_syntax::utilities::is_import_call(&self.binder.source_of_node(node).arena, node)
+        let record = Published.node(node);
+        record.kind == SyntaxKind::CallExpression
+            && record.expression_field().is_some_and(|expression| {
+                self.kind_of(expression) == SyntaxKind::ImportKeyword
+                    || (self.is_import_meta_property_named(expression, "defer")
+                        || self.is_import_meta_property_named(expression, "source"))
+            })
     }
 
     /// tsgo `ast.IsSourcePhaseImport`.
     pub(crate) fn is_source_phase_import(&self, node: NodeId) -> bool {
-        tsc_syntax::utilities::is_source_phase_import(&self.binder.source_of_node(node).arena, node)
+        let record = Published.node(node);
+        if let Some(declaration) = record.as_import_declaration() {
+            return declaration.import_clause.is_some_and(|clause| {
+                Published
+                    .node(clause)
+                    .as_import_clause()
+                    .is_some_and(|clause| clause.phase_modifier == Some(SyntaxKind::SourceKeyword))
+            });
+        }
+        self.is_source_phase_import_call(node)
     }
 
     /// tsgo `ast.IsSourcePhaseImportCall`.
     pub(crate) fn is_source_phase_import_call(&self, node: NodeId) -> bool {
-        tsc_syntax::utilities::is_source_phase_import_call(
-            &self.binder.source_of_node(node).arena,
-            node,
-        )
+        let record = Published.node(node);
+        record.kind == SyntaxKind::CallExpression
+            && record
+                .expression_field()
+                .is_some_and(|expression| self.is_import_meta_property_named(expression, "source"))
     }
 
     /// tsc-port: checkParenthesizedExpression @6.0.3
