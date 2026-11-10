@@ -2745,7 +2745,7 @@ impl<'a> CheckerState<'a> {
     /// (pub(crate): isConstantReference's binding-pattern arm consumes
     /// it since 6.6f.)
     pub(crate) fn is_var_const_like(&self, node: NodeId) -> bool {
-        let block_scope_kind = node_util::get_combined_node_flags(&Published, node).bits()
+        let block_scope_kind = self.get_combined_node_flags_cached(node).bits()
             & (NodeFlags::LET.bits() | NodeFlags::CONST.bits() | NodeFlags::USING.bits());
         block_scope_kind == NodeFlags::CONST.bits()
             || block_scope_kind == NodeFlags::USING.bits()
@@ -3840,11 +3840,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<bool> {
         match self.kind_of(target) {
             SyntaxKind::ParenthesizedExpression | SyntaxKind::NonNullExpression => {
-                let inner = match self.data_of(target) {
-                    NodeData::ParenthesizedExpression(data) => data.expression,
-                    NodeData::NonNullExpression(data) => data.expression,
-                    _ => None,
-                };
+                let inner = self.record_of(target).expression_field();
                 if let Some(inner) = inner {
                     if self.is_jsdoc_type_cast(inner) {
                         return Ok(false);
@@ -3918,12 +3914,10 @@ impl<'a> CheckerState<'a> {
                 if self.meta_property_is_new(source) != self.meta_property_is_new(target) {
                     return Ok(false);
                 }
-                let (NodeData::MetaProperty(source_data), NodeData::MetaProperty(target_data)) =
-                    (self.data_of(source), self.data_of(target))
-                else {
-                    return Ok(false);
-                };
-                let (source_name, target_name) = (source_data.name, target_data.name);
+                let (source_name, target_name) = (
+                    self.record_of(source).name_field(),
+                    self.record_of(target).name_field(),
+                );
                 Ok(self.escaped_text_of(source_name) == self.escaped_text_of(target_name))
             }
             SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier => {
@@ -3955,12 +3949,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::NonNullExpression
             | SyntaxKind::ParenthesizedExpression
             | SyntaxKind::SatisfiesExpression => {
-                let inner = match self.data_of(source) {
-                    NodeData::NonNullExpression(data) => data.expression,
-                    NodeData::ParenthesizedExpression(data) => data.expression,
-                    NodeData::SatisfiesExpression(data) => data.expression,
-                    _ => None,
-                };
+                let inner = self.record_of(source).expression_field();
                 match inner {
                     Some(inner) if !self.is_jsdoc_type_cast(inner) => {
                         self.is_matching_reference(inner, target)
@@ -4085,11 +4074,12 @@ impl<'a> CheckerState<'a> {
     }
 
     /// The `.expression` receiver of an access expression.
-    /// tsrs-native: NodeData accessor.
     fn access_expression_of(&self, node: NodeId) -> Option<NodeId> {
-        match self.data_of(node) {
-            NodeData::PropertyAccessExpression(data) => data.expression,
-            NodeData::ElementAccessExpression(data) => data.expression,
+        let record = self.record_of(node);
+        match record.kind {
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
+                record.expression_field()
+            }
             _ => None,
         }
     }
@@ -4938,7 +4928,8 @@ impl<'a> CheckerState<'a> {
         }
         let root_is_const_variable = self.kind_of(root_declaration)
             == SyntaxKind::VariableDeclaration
-            && node_util::get_combined_node_flags(&Published, root_declaration)
+            && self
+                .get_combined_node_flags_cached(root_declaration)
                 .intersects(NodeFlags::CONSTANT);
         let root_is_parameter = self.kind_of(root_declaration) == SyntaxKind::Parameter;
         if !root_is_const_variable && !root_is_parameter {

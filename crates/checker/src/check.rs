@@ -2089,7 +2089,7 @@ impl<'a> CheckerState<'a> {
     fn check_attached_jsdoc(&mut self, host: NodeId) {
         let documents = self.direct_jsdoc_documents(host);
         let in_js_file = self.is_in_js_file(host);
-        for document in documents {
+        for &document in documents {
             self.check_jsdoc_comment_links(document);
             let tags = match self.record_of(document).as_js_doc() {
                 Some(data) => self.nodes_of(data.tags),
@@ -2316,7 +2316,7 @@ impl<'a> CheckerState<'a> {
                 },
             )
             .and_then(|expression| self.identifier_from_entity_name_expression(expression));
-        for doc in self.direct_jsdoc_documents(node) {
+        for &doc in self.direct_jsdoc_documents(node) {
             let Some(doc) = self.record_of(doc).as_js_doc() else {
                 continue;
             };

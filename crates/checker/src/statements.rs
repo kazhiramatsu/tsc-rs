@@ -381,8 +381,7 @@ impl<'a> CheckerState<'a> {
                             &diagnostics::Type_0_is_not_assignable_to_type_1,
                         )?;
                     }
-                    let block_scope_kind = node_util::get_combined_node_flags(&Published, node)
-                        .bits()
+                    let block_scope_kind = self.get_combined_node_flags_cached(node).bits()
                         & NodeFlags::BLOCK_SCOPED.bits();
                     if block_scope_kind == NodeFlags::AWAIT_USING.bits() {
                         let async_disposable =
@@ -648,7 +647,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 57e3c0212046b4cd336bb4f34f4e79e57b807638cda2bb54225f0e6ad2115e89
     /// tsc-span: _tsc.js:83371-83399
     fn check_var_declared_names_not_shadowed(&mut self, node: NodeId) -> CheckResult<()> {
-        if node_util::get_combined_node_flags(&Published, node).intersects(NodeFlags::BLOCK_SCOPED)
+        if self
+            .get_combined_node_flags_cached(node)
+            .intersects(NodeFlags::BLOCK_SCOPED)
             || node_util::is_part_of_parameter_declaration(&Published, node)
         {
             return Ok(());
@@ -693,8 +694,8 @@ impl<'a> CheckerState<'a> {
         let Some(local_declaration) = self.binder.symbol(local).value_declaration else {
             return Ok(());
         };
-        let local_source = self.binder.source_of_node(local_declaration);
-        if !node_util::get_combined_node_flags(local_source, local_declaration)
+        if !self
+            .get_combined_node_flags_cached(local_declaration)
             .intersects(NodeFlags::BLOCK_SCOPED)
         {
             return Ok(());
@@ -865,8 +866,7 @@ impl<'a> CheckerState<'a> {
         if self.allow_block_declarations(parent) {
             return;
         }
-        let block_scope_kind = node_util::get_combined_node_flags(&Published, declaration_list)
-            .bits()
+        let block_scope_kind = self.get_combined_node_flags_cached(declaration_list).bits()
             & NodeFlags::BLOCK_SCOPED.bits();
         if block_scope_kind == 0 {
             return;
@@ -903,7 +903,7 @@ impl<'a> CheckerState<'a> {
         let Some(name) = name else {
             return Ok(false);
         };
-        let node_flags = node_util::get_combined_node_flags(&Published, node);
+        let node_flags = self.get_combined_node_flags_cached(node);
         let block_scope_kind = node_flags.bits() & NodeFlags::BLOCK_SCOPED.bits();
         let name_is_pattern = node_util::is_binding_pattern(&Published, name);
         if name_is_pattern {
@@ -1036,8 +1036,8 @@ impl<'a> CheckerState<'a> {
             && !self.parent_of(node).is_some_and(|parent| {
                 node_util::is_parameter_property_declaration(&Published, node, parent)
             });
-        let block_scope_kind = node_util::get_combined_node_flags(&Published, node).bits()
-            & NodeFlags::BLOCK_SCOPED.bits();
+        let block_scope_kind =
+            self.get_combined_node_flags_cached(node).bits() & NodeFlags::BLOCK_SCOPED.bits();
         let is_const_like = self.kind_of(node) == SyntaxKind::VariableDeclaration
             && (block_scope_kind == NodeFlags::CONST.bits()
                 || block_scope_kind == NodeFlags::USING.bits()

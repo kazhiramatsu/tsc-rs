@@ -1345,6 +1345,8 @@ pub struct CheckerState<'a> {
     /// `Some(None)` records an attempted miss so repeated JSX nodes do
     /// not duplicate the runtime-module diagnostic.
     pub(crate) jsx_implicit_import_containers: rustc_hash::FxHashMap<usize, Option<SymbolId>>,
+    /// tsgo getCombinedNodeFlagsCached: the last tree-stable node and result.
+    pub(crate) combined_node_flags_cache: std::cell::Cell<Option<(NodeId, tsc_types::NodeFlags)>>,
     /// tsc `node.jsDoc.jsDocCache` (getJSDocTagsWorker): effective,
     /// ownership-filtered tags are syntax-stable and computed once per
     /// host. The checker keeps the cache outside the immutable arena.
@@ -2090,6 +2092,7 @@ impl<'a> CheckerState<'a> {
             requested_external_emit_helpers: rustc_hash::FxHashMap::default(),
             distributed_type_parameters: rustc_hash::FxHashMap::default(),
             jsx_implicit_import_containers: rustc_hash::FxHashMap::default(),
+            combined_node_flags_cache: Default::default(),
             jsdoc_tag_cache: Default::default(),
             global_type_memos: Default::default(),
             decorator_context_override_type_cache: Default::default(),

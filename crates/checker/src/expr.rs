@@ -3298,7 +3298,7 @@ impl<'a> CheckerState<'a> {
         declaration: NodeId,
         ty: TypeId,
     ) -> CheckResult<TypeId> {
-        let constant = node_util::get_combined_node_flags(&Published, declaration).bits()
+        let constant = self.get_combined_node_flags_cached(declaration).bits()
             & tsc_types::NodeFlags::CONSTANT.bits()
             != 0;
         if constant || self.is_declaration_readonly(declaration) {

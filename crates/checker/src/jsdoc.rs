@@ -274,13 +274,12 @@ impl<'a> CheckerState<'a> {
             .is_some_and(|docs| !Published.node_array(docs).nodes.is_empty())
     }
 
-    /// tsrs-native: owned arena projection of tsc's direct `node.jsDoc`
-    /// array access.
-    pub(crate) fn direct_jsdoc_documents(&self, node: NodeId) -> Vec<NodeId> {
+    /// The parser-owned documents attached directly to this node.
+    pub(crate) fn direct_jsdoc_documents(&self, node: NodeId) -> &'a [NodeId] {
         Published
             .node(node)
             .js_doc()
-            .map(|docs| Published.node_array(docs).nodes.to_vec())
+            .map(|docs| Published.node_array(docs).nodes)
             .unwrap_or_default()
     }
 
@@ -565,12 +564,12 @@ impl<'a> CheckerState<'a> {
                 .is_some_and(|initializer| self.has_jsdoc_nodes(initializer))
         {
             let initializer = self.initializer_of(host).expect("tested Some");
-            result.extend(self.owned_jsdoc_tags(host, &self.direct_jsdoc_documents(initializer)));
+            result.extend(self.owned_jsdoc_tags(host, self.direct_jsdoc_documents(initializer)));
         }
         let mut current = Some(host);
         while let Some(node) = current {
             if self.has_jsdoc_nodes(node) {
-                result.extend(self.owned_jsdoc_tags(host, &self.direct_jsdoc_documents(node)));
+                result.extend(self.owned_jsdoc_tags(host, self.direct_jsdoc_documents(node)));
             }
             match self.kind_of(node) {
                 SyntaxKind::Parameter => {

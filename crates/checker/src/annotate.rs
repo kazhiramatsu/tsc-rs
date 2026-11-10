@@ -8148,11 +8148,6 @@ impl<'a> CheckerState<'a> {
     /// rest by kind.
     #[inline]
     pub fn get_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
-        // CommonJS `require` (tsgo getTypeOfVariableOrParameterOrPropertyWorker,
-        // checker.go:16903): the synthetic require symbol is `any`.
-        if symbol == self.require_symbol {
-            return Ok(self.tables.intrinsics.any);
-        }
         perf::bump(PerfCounter::TypeOfSymbolQueries);
         if let Some(resolved) = self
             .links
@@ -8166,6 +8161,11 @@ impl<'a> CheckerState<'a> {
 
     #[inline(never)]
     fn get_type_of_symbol_worker(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
+        // tsgo tests the synthetic CommonJS require symbol in the unresolved
+        // variable/property worker; resolved symbol types need no comparison.
+        if symbol == self.require_symbol {
+            return Ok(self.tables.intrinsics.any);
+        }
         let check_flags = self.links.read_symbol(symbol, |links| links.check_flags);
         if check_flags.intersects(CheckFlags::DEFERRED_TYPE) {
             return self.get_type_of_symbol_with_deferred_type(symbol);
@@ -9028,7 +9028,7 @@ impl<'a> CheckerState<'a> {
                 .intersects(ModifierFlags::EXPORT);
             let ambient = self.node_flags(declaration) & tsc_types::NodeFlags::AMBIENT.bits() != 0;
             if !name_is_binding_pattern && !exported && !ambient {
-                let constant = node_util::get_combined_node_flags(&Published, declaration).bits()
+                let constant = self.get_combined_node_flags_cached(declaration).bits()
                     & tsc_types::NodeFlags::CONSTANT.bits()
                     != 0;
                 let initializer = self.initializer_of(declaration);

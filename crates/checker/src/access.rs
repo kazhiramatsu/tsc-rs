@@ -25,6 +25,18 @@ use crate::state::{CheckResult, CheckerState, SignatureId};
 use tsc_binder::NameKey;
 
 impl<'a> CheckerState<'a> {
+    /// tsgo checker.getCombinedNodeFlagsCached (checker.go:19104).
+    pub(crate) fn get_combined_node_flags_cached(&self, node: NodeId) -> NodeFlags {
+        if let Some((last_node, flags)) = self.combined_node_flags_cache.get() {
+            if last_node == node {
+                return flags;
+            }
+        }
+        let flags = node_util::get_combined_node_flags(&Published, node);
+        self.combined_node_flags_cache.set(Some((node, flags)));
+        flags
+    }
+
     /// tsc-port: entityNameToString @6.0.3
     /// tsc-hash: 1d98dd7fd01a30bb4a1bf4062755311f4a0d24d9d7254db4941dd58e0e1d4333
     /// tsc-span: _tsc.js:13886-13908
@@ -1521,7 +1533,7 @@ impl<'a> CheckerState<'a> {
         {
             return false;
         }
-        node_util::get_combined_node_flags(&Published, declaration)
+        self.get_combined_node_flags_cached(declaration)
             .intersects(NodeFlags::DEPRECATED)
     }
 
@@ -1564,8 +1576,8 @@ impl<'a> CheckerState<'a> {
     fn jsdoc_deprecated_tag_of_declarations(&self, declarations: &[NodeId]) -> Option<NodeId> {
         declarations.iter().find_map(|&declaration| {
             self.direct_jsdoc_documents(declaration)
-                .into_iter()
-                .find_map(|document| match self.record_of(document).as_js_doc() {
+                .iter()
+                .find_map(|&document| match self.record_of(document).as_js_doc() {
                     Some(data) => self
                         .nodes_of(data.tags)
                         .into_iter()
