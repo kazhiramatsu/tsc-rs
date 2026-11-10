@@ -60,10 +60,16 @@ impl<'a> BinderWorker<'a> {
     /// time).
     pub fn bind(&mut self, node: Option<NodeId>) {
         let Some(node) = node else { return };
+        // A TS identifier has no child/container or JSDoc work. Keep its
+        // binding outside the declaration dispatch and its larger frame.
+        let kind = kind_of(self.source, node);
+        if kind == SyntaxKind::Identifier && !self.is_in_js_file() {
+            self.bind_identifier(node);
+            return;
+        }
         // A function declaration of a statement list binds before the other
         // statements; tsgo's namespaces reparsed from its JSDoc are statements
         // of their own, bound in their place (bind_each_functions_first).
-        let kind = kind_of(self.source, node);
         let functions_first = kind == SyntaxKind::FunctionDeclaration
             && parent_of(self.source, node).is_some_and(|parent| {
                 matches!(
@@ -92,33 +98,10 @@ impl<'a> BinderWorker<'a> {
     /// tsc-span: _tsc.js:44287-44527
     pub(crate) fn bind_worker(&mut self, node: NodeId, kind: SyntaxKind) {
         match kind {
-            SyntaxKind::Identifier | SyntaxKind::ThisKeyword => {
-                if kind == SyntaxKind::Identifier && self.identifier_is_in_jsdoc_namespace(node) {
-                    let mut declaration = parent_of(self.source, node);
-                    while declaration
-                        .is_some_and(|candidate| !is_jsdoc_type_alias(self.source, candidate))
-                    {
-                        declaration =
-                            declaration.and_then(|candidate| parent_of(self.source, candidate));
-                    }
-                    if let Some(declaration) = declaration {
-                        self.bind_block_scoped_declaration(
-                            declaration,
-                            SymbolFlags::TYPE_ALIAS,
-                            SymbolFlags::TYPE_ALIAS_EXCLUDES,
-                        );
-                    }
-                    return;
-                }
-                if kind == SyntaxKind::ThisKeyword {
-                    self.seen_this_keyword = true;
-                }
+            SyntaxKind::Identifier => self.bind_identifier(node),
+            SyntaxKind::ThisKeyword => {
+                self.seen_this_keyword = true;
                 if let Some(current_flow) = self.current_flow {
-                    // tsc bindWorker calls isExpression here, the
-                    // syntax-kind predicate. Identifier and `this`
-                    // are both left-hand-side expression kinds, so
-                    // every occurrence carries currentFlow, including
-                    // an identifier directly under export default.
                     self.node_flow.insert(node, current_flow);
                 }
                 self.check_contextual_identifier(node);
@@ -368,6 +351,46 @@ impl<'a> BinderWorker<'a> {
             SyntaxKind::ExportAssignment => self.bind_export_assignment(node),
             SyntaxKind::SourceFile => self.bind_source_file_if_external_module(),
             _ => {}
+        }
+    }
+
+    #[inline(always)]
+    fn bind_identifier(&mut self, node: NodeId) {
+        if self.identifier_is_in_jsdoc_namespace(node) {
+            self.bind_identifier_namespace(node);
+            return;
+        }
+        let name = self
+            .source
+            .arena
+            .node(node)
+            .as_identifier()
+            .expect("an Identifier binding has an Identifier payload")
+            .escaped_text;
+        if !name.may_be_contextual_identifier() {
+            if let Some(current_flow) = self.current_flow {
+                self.node_flow.insert(node, current_flow);
+            }
+            return;
+        }
+        if let Some(current_flow) = self.current_flow {
+            self.node_flow.insert(node, current_flow);
+        }
+        self.check_contextual_identifier(node);
+    }
+
+    #[inline(never)]
+    fn bind_identifier_namespace(&mut self, node: NodeId) {
+        let mut declaration = parent_of(self.source, node);
+        while declaration.is_some_and(|candidate| !is_jsdoc_type_alias(self.source, candidate)) {
+            declaration = declaration.and_then(|candidate| parent_of(self.source, candidate));
+        }
+        if let Some(declaration) = declaration {
+            self.bind_block_scoped_declaration(
+                declaration,
+                SymbolFlags::TYPE_ALIAS,
+                SymbolFlags::TYPE_ALIAS_EXCLUDES,
+            );
         }
     }
 
@@ -1759,6 +1782,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-span: _tsc.js:44104-44122
     ///
     /// OBSERVABLE gate: fires only when file.parseDiagnostics is EMPTY.
+    #[inline(never)]
     fn check_contextual_identifier(&mut self, node: NodeId) {
         if !self.source.parse_diagnostics.is_empty() {
             return;

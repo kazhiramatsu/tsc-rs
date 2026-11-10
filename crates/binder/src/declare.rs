@@ -422,7 +422,7 @@ impl<'a> BinderWorker<'a> {
 
     /// IdentifierIsInJSDocNamespace aliases HasAsyncFunctions. On identifiers
     /// the parser supplies this bit and binding preserves it.
-    #[inline]
+    #[inline(always)]
     pub(crate) fn identifier_is_in_jsdoc_namespace(&self, node: NodeId) -> bool {
         self.source.arena.node(node).flags & NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE.bits()
             != 0

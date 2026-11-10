@@ -110,3 +110,44 @@ fn scalar_cache_and_js_cache_share_name_identity_in_both_insertion_orders() {
         assert_eq!(held.escape_str(&text), held.escape(text.as_str().into()));
     }
 }
+
+#[test]
+fn contextual_name_hints_are_exact_across_intern_and_escape_paths() {
+    let mut cache = HeldNameCache::take();
+    for word in [
+        "implements",
+        "interface",
+        "let",
+        "package",
+        "private",
+        "protected",
+        "public",
+        "static",
+        "yield",
+        "await",
+    ] {
+        let name = EscapedName::from_identifier_escaped_text(word);
+        assert!(name.may_be_contextual_identifier());
+        assert_eq!(cache.escape_str(word), name);
+        assert_eq!(cache.escape(word.into()), name);
+        assert!(EscapedName::from_escaped_text(word.into()).may_be_contextual_identifier());
+        let suffix = format!("{word}_name");
+        assert!(!cache.escape_str(&suffix).may_be_contextual_identifier());
+    }
+    for word in [
+        "",
+        "ordinary",
+        "string",
+        "number",
+        "async",
+        "type",
+        "__private",
+        "Private",
+        "privaté",
+        "awaited",
+    ] {
+        let name = cache.escape_str(word);
+        assert!(!name.may_be_contextual_identifier());
+        assert_eq!(name, cache.escape(word.into()));
+    }
+}
