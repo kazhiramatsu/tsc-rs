@@ -1619,7 +1619,7 @@ impl<'a> CheckerState<'a> {
         let Some(declaration) = data.value_declaration else {
             return false;
         };
-        let combined = node_util::get_combined_node_flags(&Published, declaration);
+        let combined = self.get_combined_node_flags_cached(declaration);
         combined.intersects(NodeFlags::from_bits(
             NodeFlags::CONST.bits() | NodeFlags::USING.bits(),
         ))

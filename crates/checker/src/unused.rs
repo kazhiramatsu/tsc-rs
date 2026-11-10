@@ -645,7 +645,8 @@ impl<'a> CheckerState<'a> {
                             )
                         });
                 in_for_in_or_of
-                    || node_util::get_combined_node_flags(&Published, node)
+                    || self
+                        .get_combined_node_flags_cached(node)
                         .intersects(NodeFlags::USING)
             }
             SyntaxKind::BindingElement => {

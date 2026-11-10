@@ -6217,9 +6217,7 @@ impl<'a> CheckerState<'a> {
     /// flags of the value declaration.
     fn get_declaration_node_flags_from_symbol(&self, symbol: SymbolId) -> i32 {
         match self.binder.symbol(symbol).value_declaration {
-            Some(declaration) => {
-                tsc_binder::node_util::get_combined_node_flags(&Published, declaration).bits()
-            }
+            Some(declaration) => self.get_combined_node_flags_cached(declaration).bits(),
             None => 0,
         }
     }
@@ -8724,8 +8722,9 @@ impl<'a> CheckerState<'a> {
     ///
     /// Union/intersection index infos need member resolution for those
     /// kinds — M4 rows.
-    // Keep the full getter boundary distinct from contextual structured lookup.
-    #[inline(never)]
+    // tsrs R4.14: inline the resolved-list path. structured_member_headers
+    // already keeps member preparation in its out-of-line worker.
+    #[inline]
     pub fn get_index_infos_of_type(&mut self, ty: TypeId) -> CheckResult<crate::state::IndexInfos> {
         let reduced = self.get_reduced_apparent_type(ty)?;
         self.get_index_infos_of_structured_type(reduced)
@@ -8733,6 +8732,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsgo checker.go:19394: contextual index lookup already has its
     /// structured type, so it does not reduce or obtain an apparent type.
+    #[inline]
     pub(crate) fn get_index_infos_of_structured_type(
         &mut self,
         ty: TypeId,
