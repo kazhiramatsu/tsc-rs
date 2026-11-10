@@ -3831,8 +3831,8 @@ fn import_attributes_types_report_their_grammar_rows_like_tsgo() {
     );
 }
 
-/// tsgo `core.NodeCoreModules`: the lists are in byte order (the lookup is a
-/// binary search), and every name is found, with and without `node:`.
+/// tsgo `core.NodeCoreModules`: the source lists stay sorted, and every
+/// name is found, with and without `node:` where allowed.
 #[test]
 fn node_core_module_lists_are_sorted_and_found() {
     use super::{
@@ -3864,12 +3864,39 @@ fn node_core_module_lists_are_sorted_and_found() {
         "",
         "./fs",
         "fs/",
+        "node",
         "node:",
+        "fsx",
+        "Node:fs",
         "node:node:fs",
+        "ƒs",
+        "node:ｆｓ",
         "Fs",
         "zlib2",
         "a",
     ] {
         assert!(!is_node_core_module(name), "{name:?}");
+    }
+    let long_name = "a".repeat(200);
+    assert!(!is_node_core_module(long_name.as_str()));
+    // Mutating a member's bytes must not create additional membership.
+    let members: Vec<_> = UNPREFIXED_NODE_CORE_MODULES
+        .iter()
+        .flat_map(|name| [(*name).to_owned(), format!("node:{name}")])
+        .chain(
+            EXCLUSIVELY_PREFIXED_NODE_CORE_MODULES
+                .iter()
+                .map(|name| (*name).to_owned()),
+        )
+        .collect();
+    for name in &members {
+        for suffix in ["/", "x", "\0", "é"] {
+            let candidate = format!("{name}{suffix}");
+            assert_eq!(
+                is_node_core_module(candidate.as_str()),
+                members.contains(&candidate),
+                "{candidate:?}"
+            );
+        }
     }
 }
