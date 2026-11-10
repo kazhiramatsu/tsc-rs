@@ -77,6 +77,34 @@ impl<'a> CheckerState<'a> {
         alias_type_arguments: Option<&[TypeId]>,
         origin: Option<TypeId>,
     ) -> CheckResult<TypeId> {
+        if types.len() >= 2 {
+            return self.get_union_type_front_cached(
+                types,
+                reduction,
+                alias_symbol,
+                alias_type_arguments,
+                origin,
+            );
+        }
+        self.get_union_type_ex_uncached(
+            types,
+            reduction,
+            alias_symbol,
+            alias_type_arguments,
+            origin,
+        )
+    }
+
+    /// The original entry, including the two-union cache. Shadow verification
+    /// calls this directly, so it bypasses only the new front cache.
+    pub(crate) fn get_union_type_ex_uncached(
+        &mut self,
+        types: &[TypeId],
+        reduction: UnionReduction,
+        alias_symbol: Option<tsc_binder::SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+        origin: Option<TypeId>,
+    ) -> CheckResult<TypeId> {
         if types.is_empty() {
             return Ok(self.tables.intrinsics.never);
         }
@@ -166,9 +194,11 @@ impl<'a> CheckerState<'a> {
                     & (TypeFlags::TEMPLATE_LITERAL.bits() | TypeFlags::STRING_MAPPING.bits())
                     != 0
             {
+                self.union_front_cache.impure += 1;
                 self.remove_string_literals_matched_by_template_literals(&mut type_set)?;
             }
             if includes & TypeFlags::INCLUDES_CONSTRAINED_TYPE_VARIABLE.bits() != 0 {
+                self.union_front_cache.impure += 1;
                 self.remove_constrained_type_variables(&mut type_set)?;
             }
             if reduction == UnionReduction::Subtype {

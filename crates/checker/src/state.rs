@@ -887,6 +887,8 @@ pub struct CheckerState<'a> {
     /// Bounded flow answers and their dependency registers; independent of
     /// speculation rollback.
     pub(crate) flow_memo: crate::flow_memo::FlowMemo,
+    /// Exact, bounded memo for ordered union input lists.
+    pub(crate) union_front_cache: crate::union_front_cache::UnionFrontCache,
     /// tsc sharedFlowNodes/sharedFlowTypes (69395-69396), with each
     /// answer's dependencies; each query scans only its own
     /// window (sharedFlowStart..) and truncates back on exit — also on
@@ -1420,6 +1422,8 @@ impl<'a> CheckerState<'a> {
     ) {
         #[cfg(feature = "flow-memo-shadow")]
         self.flow_memo.report(label);
+        #[cfg(feature = "union-cache-shadow")]
+        self.union_front_cache.report();
         if std::env::var_os("TSRS_MEMORY_REPORT").is_none() {
             return;
         }
@@ -1989,6 +1993,7 @@ impl<'a> CheckerState<'a> {
             mapped_types_in_progress: Vec::new(),
             flow_analysis_disabled: false,
             flow_memo: crate::flow_memo::FlowMemo::new(),
+            union_front_cache: Default::default(),
             shared_flow: Vec::new(),
             reduce_label_overrides: rustc_hash::FxHashMap::default(),
             evolving_array_types: rustc_hash::FxHashMap::default(),
