@@ -1769,9 +1769,6 @@ impl<'a> BinderWorker<'a> {
         {
             return;
         }
-        if is_identifier_name(self.source, node) {
-            return;
-        }
         let escaped_text = match &self.source.arena.node(node).data() {
             NodeData::Identifier(data) => data.escaped_text,
             _ => return,
@@ -1781,6 +1778,17 @@ impl<'a> BinderWorker<'a> {
             return;
         };
         let keyword = original_keyword_kind as u16;
+        // Only these names can produce a contextual-identifier diagnostic.
+        // Ordinary names need neither the parent/name walk nor a display string.
+        if !(keyword >= SyntaxKind::ImplementsKeyword as u16
+            && keyword <= SyntaxKind::YieldKeyword as u16
+            || original_keyword_kind == SyntaxKind::AwaitKeyword)
+        {
+            return;
+        }
+        if is_identifier_name(self.source, node) {
+            return;
+        }
         let display = declaration_name_to_string(self.source, Some(node));
         if keyword >= SyntaxKind::ImplementsKeyword as u16
             && keyword <= SyntaxKind::YieldKeyword as u16
