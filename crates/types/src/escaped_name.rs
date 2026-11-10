@@ -142,6 +142,13 @@ impl EscapedName {
         names::scalar_text(self.0)
     }
 
+    /// Whether this name can need the binder's contextual-identifier check.
+    /// False is exact; true includes unclassified/non-scalar stored names.
+    #[inline(always)]
+    pub fn may_be_contextual_identifier(self) -> bool {
+        tsc_store::names::may_be_contextual_identifier(self.index())
+    }
+
     /// The text of an identifier's name, which is always UTF-8.
     #[cfg_attr(feature = "perf-counters", track_caller)]
     pub fn identifier_text(&self) -> &'static str {

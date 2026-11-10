@@ -27,6 +27,8 @@ const TEXT: usize = FIRST_REGION + TEXT_REGION * REGION_BYTES;
 const LEN_MASK: u32 = (1 << 30) - 1;
 /// A record's flag: the text has a lone surrogate, so it is no `str`.
 const NOT_SCALAR: u32 = 1 << 31;
+/// The interner proved that this scalar name cannot need a contextual diagnostic.
+const NOT_CONTEXTUAL_IDENTIFIER: u32 = 1 << 30;
 
 /// A name: where its text starts in the text region, and the text's byte
 /// length and flags. All zeros is the empty text.
@@ -49,17 +51,51 @@ static CURSOR: AtomicUsize = AtomicUsize::new(0);
 /// Store a new name's text and return its id. Every call makes a new id;
 /// the caller hands the id to readers after this returns.
 pub fn push(text: &[u8]) -> u32 {
+    push_with_contextual_hint(text, true)
+}
+
+/// Store with the interner's contextual-name classification. A false hint
+/// must rule out every contextual identifier; unclassified callers use `push`.
+pub fn push_with_contextual_hint(text: &[u8], contextual: bool) -> u32 {
     let flags = if std::str::from_utf8(text).is_ok() {
         0
     } else {
         NOT_SCALAR
     };
-    push_bytes(text, flags)
+    push_bytes(
+        text,
+        flags
+            | if contextual || flags & NOT_SCALAR != 0 {
+                0
+            } else {
+                NOT_CONTEXTUAL_IDENTIFIER
+            },
+    )
 }
 
 /// Store a name whose UTF-8 validity is carried by its type.
 pub fn push_str(text: &str) -> u32 {
-    push_bytes(text.as_bytes(), 0)
+    push_str_with_contextual_hint(text, true)
+}
+
+/// The scalar-text form of [`push_with_contextual_hint`].
+pub fn push_str_with_contextual_hint(text: &str, contextual: bool) -> u32 {
+    push_bytes(
+        text.as_bytes(),
+        if contextual {
+            0
+        } else {
+            NOT_CONTEXTUAL_IDENTIFIER
+        },
+    )
+}
+
+/// A conservative name hint: legacy records and non-scalar names still take
+/// the caller's full validation path. The record's size and text are unchanged.
+#[inline(always)]
+pub fn may_be_contextual_identifier(id: u32) -> bool {
+    let flags = crate::get::<NameRecord>(id).len_flags;
+    flags & NOT_CONTEXTUAL_IDENTIFIER == 0
 }
 
 fn push_bytes(text: &[u8], flags: u32) -> u32 {
@@ -130,3 +166,7 @@ pub fn usage() -> (usize, usize) {
     let text = CURSOR.load(Ordering::Relaxed);
     (names, text + names * std::mem::size_of::<NameRecord>())
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/names/tests.rs"]
+mod tests;

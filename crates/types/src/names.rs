@@ -136,11 +136,21 @@ thread_local! {
 
 /// The id of `text`, interning it on first sight.
 pub(crate) fn intern(text: JsStr<'_>) -> u32 {
-    intern_with(text, || tsc_store::names::push(text.as_bytes()))
+    intern_with(text, || {
+        tsc_store::names::push_with_contextual_hint(
+            text.as_bytes(),
+            contextual_identifier_name(text.as_bytes()),
+        )
+    })
 }
 
 pub(crate) fn intern_str(text: &str) -> u32 {
-    intern_with(text.into(), || tsc_store::names::push_str(text))
+    intern_with(text.into(), || {
+        tsc_store::names::push_str_with_contextual_hint(
+            text,
+            contextual_identifier_name(text.as_bytes()),
+        )
+    })
 }
 
 fn intern_with(text: JsStr<'_>, store: impl FnOnce() -> u32) -> u32 {
@@ -385,6 +395,22 @@ impl Drop for HeldNameCache {
         // A thread past its locals' destruction drops the cache instead.
         let _ = NAME_CACHE.try_with(|cell| cell.set(Some(cache)));
     }
+}
+
+fn contextual_identifier_name(text: &[u8]) -> bool {
+    matches!(
+        text,
+        b"implements"
+            | b"interface"
+            | b"let"
+            | b"package"
+            | b"private"
+            | b"protected"
+            | b"public"
+            | b"static"
+            | b"yield"
+            | b"await"
+    )
 }
 
 #[cfg(test)]

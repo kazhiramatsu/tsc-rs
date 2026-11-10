@@ -1470,3 +1470,27 @@ fn contextual_identifier_keyword_filter_keeps_escaped_display_and_parse_gate() {
     let binder = bind(&mut source);
     assert!(binder.bind_diagnostics.is_empty());
 }
+
+#[test]
+fn unclassified_stored_names_keep_contextual_diagnostics() {
+    let mut source = parse("var private = 1;\nexport {};\n");
+    let id = find_nodes(&source, SyntaxKind::Identifier)
+        .into_iter()
+        .find(|&id| {
+            source
+                .arena
+                .node(id)
+                .as_identifier()
+                .unwrap()
+                .escaped_text
+                .identifier_text()
+                == "private"
+        })
+        .unwrap();
+    let legacy = EscapedName::from_index(tsc_store::names::push_str("private"));
+    let mut data = source.arena.node(id).as_identifier().unwrap();
+    data.escaped_text = legacy;
+    source.arena.set_data(id, NodeData::Identifier(data));
+    let binder = bind(&mut source);
+    assert_eq!(diag_pins(&binder), [(1214, 4, 7)]);
+}
