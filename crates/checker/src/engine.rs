@@ -31,28 +31,6 @@ use crate::state::{CheckResult, CheckerState};
 use tsc_binder::NameKey;
 use tsc_types::perf::{self, PerfCounter};
 
-#[derive(Debug)]
-struct SimpleTypeRelationOutcome {
-    related: bool,
-    enum_error: Option<EnumRelationError>,
-}
-
-impl SimpleTypeRelationOutcome {
-    const fn related() -> Self {
-        Self {
-            related: true,
-            enum_error: None,
-        }
-    }
-
-    const fn unrelated(enum_error: Option<EnumRelationError>) -> Self {
-        Self {
-            related: false,
-            enum_error,
-        }
-    }
-}
-
 fn enum_relation_value_text(value: &EvalValue) -> JsString {
     match value {
         EvalValue::Num(value) => tsc_types::js_number_to_string(*value).into(),
@@ -225,37 +203,69 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         relation: RelationKind,
     ) -> CheckResult<bool> {
-        Ok(self
-            .simple_type_relation(source, target, relation, /*collect_enum_error*/ false)?
-            .related)
+        self.simple_type_relation(source, target, relation, /*enum_error*/ None)
     }
 
+    #[inline]
     fn simple_type_relation(
         &mut self,
         source: TypeId,
         target: TypeId,
         relation: RelationKind,
-        collect_enum_error: bool,
-    ) -> CheckResult<SimpleTypeRelationOutcome> {
-        let mut enum_error = None;
+        enum_error: Option<&mut Option<EnumRelationError>>,
+    ) -> CheckResult<bool> {
         let s = self.tables.flags_of(source).bits();
         let t = self.tables.flags_of(target).bits();
+        // tsrs H1.10; tsgo relater.go:205-280. For these flag families,
+        // only the final unknown-like target-union rule can succeed.
+        const STRUCTURED: i32 = TypeFlags::OBJECT.bits()
+            | TypeFlags::UNION.bits()
+            | TypeFlags::INTERSECTION.bits()
+            | TypeFlags::TYPE_PARAMETER.bits()
+            | TypeFlags::INDEX.bits()
+            | TypeFlags::INDEXED_ACCESS.bits()
+            | TypeFlags::CONDITIONAL.bits()
+            | TypeFlags::SUBSTITUTION.bits();
+        if (s | t) & !STRUCTURED == 0 {
+            let related = t & TypeFlags::UNION.bits() != 0
+                && matches!(
+                    relation,
+                    RelationKind::Assignable | RelationKind::Comparable
+                )
+                && self.is_unknown_like_union_type(target)?;
+            return Ok(related);
+        }
+        self.simple_type_relation_worker(source, target, relation, enum_error, s, t)
+    }
+
+    #[inline(never)]
+    fn simple_type_relation_worker(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        relation: RelationKind,
+        enum_error: Option<&mut Option<EnumRelationError>>,
+        s: i32,
+        t: i32,
+    ) -> CheckResult<bool> {
+        let collect_enum_error = enum_error.is_some();
+        let mut collected_error = None;
         if t & TypeFlags::ANY.bits() != 0
             || s & TypeFlags::NEVER.bits() != 0
             || source == self.tables.intrinsics.wildcard
         {
-            return Ok(SimpleTypeRelationOutcome::related());
+            return Ok(true);
         }
         if t & TypeFlags::UNKNOWN.bits() != 0
             && !(relation == RelationKind::StrictSubtype && s & TypeFlags::ANY.bits() != 0)
         {
-            return Ok(SimpleTypeRelationOutcome::related());
+            return Ok(true);
         }
         if t & TypeFlags::NEVER.bits() != 0 {
-            return Ok(SimpleTypeRelationOutcome::unrelated(None));
+            return Ok(false);
         }
         if s & TypeFlags::STRING_LIKE.bits() != 0 && t & TypeFlags::STRING.bits() != 0 {
-            return Ok(SimpleTypeRelationOutcome::related());
+            return Ok(true);
         }
         if s & TypeFlags::STRING_LITERAL.bits() != 0
             && s & TypeFlags::ENUM_LITERAL.bits() != 0
@@ -263,10 +273,10 @@ impl<'a> CheckerState<'a> {
             && t & TypeFlags::ENUM_LITERAL.bits() == 0
             && self.literal_values_equal(source, target)
         {
-            return Ok(SimpleTypeRelationOutcome::related());
+            return Ok(true);
         }
         if s & TypeFlags::NUMBER_LIKE.bits() != 0 && t & TypeFlags::NUMBER.bits() != 0 {
-            return Ok(SimpleTypeRelationOutcome::related());
+            return Ok(true);
         }
         if s & TypeFlags::NUMBER_LITERAL.bits() != 0
             && s & TypeFlags::ENUM_LITERAL.bits() != 0
@@ -274,16 +284,16 @@ impl<'a> CheckerState<'a> {
             && t & TypeFlags::ENUM_LITERAL.bits() == 0
             && self.literal_values_equal(source, target)
         {
-            return Ok(SimpleTypeRelationOutcome::related());
+            return Ok(true);
         }
         if s & TypeFlags::BIG_INT_LIKE.bits() != 0 && t & TypeFlags::BIG_INT.bits() != 0 {
-            return Ok(SimpleTypeRelationOutcome::related());
+            return Ok(true);
         }
         if s & TypeFlags::BOOLEAN_LIKE.bits() != 0 && t & TypeFlags::BOOLEAN.bits() != 0 {
-            return Ok(SimpleTypeRelationOutcome::related());
+            return Ok(true);
         }
         if s & TypeFlags::ES_SYMBOL_LIKE.bits() != 0 && t & TypeFlags::ES_SYMBOL.bits() != 0 {
-            return Ok(SimpleTypeRelationOutcome::related());
+            return Ok(true);
         }
         if s & TypeFlags::ENUM.bits() != 0 && t & TypeFlags::ENUM.bits() != 0 {
             let source_symbol = self
@@ -301,9 +311,9 @@ impl<'a> CheckerState<'a> {
             {
                 match self.enum_type_relation(source_symbol, target_symbol, collect_enum_error)? {
                     EnumRelationOutcome::Related => {
-                        return Ok(SimpleTypeRelationOutcome::related());
+                        return Ok(true);
                     }
-                    EnumRelationOutcome::Unrelated(error) => enum_error = error,
+                    EnumRelationOutcome::Unrelated(error) => collected_error = error,
                 }
             }
         }
@@ -321,9 +331,9 @@ impl<'a> CheckerState<'a> {
             if s & TypeFlags::UNION.bits() != 0 && t & TypeFlags::UNION.bits() != 0 {
                 match self.enum_type_relation(source_symbol, target_symbol, collect_enum_error)? {
                     EnumRelationOutcome::Related => {
-                        return Ok(SimpleTypeRelationOutcome::related());
+                        return Ok(true);
                     }
-                    EnumRelationOutcome::Unrelated(error) => enum_error = error,
+                    EnumRelationOutcome::Unrelated(error) => collected_error = error,
                 }
             }
             if s & TypeFlags::LITERAL.bits() != 0
@@ -332,9 +342,9 @@ impl<'a> CheckerState<'a> {
             {
                 match self.enum_type_relation(source_symbol, target_symbol, collect_enum_error)? {
                     EnumRelationOutcome::Related => {
-                        return Ok(SimpleTypeRelationOutcome::related());
+                        return Ok(true);
                     }
-                    EnumRelationOutcome::Unrelated(error) => enum_error = error,
+                    EnumRelationOutcome::Unrelated(error) => collected_error = error,
                 }
             }
         }
@@ -343,14 +353,14 @@ impl<'a> CheckerState<'a> {
                 && t & TypeFlags::UNION_OR_INTERSECTION.bits() == 0)
                 || t & (TypeFlags::UNDEFINED.bits() | TypeFlags::VOID.bits()) != 0)
         {
-            return Ok(SimpleTypeRelationOutcome::related());
+            return Ok(true);
         }
         if s & TypeFlags::NULL.bits() != 0
             && ((!self.tables.strict_null_checks
                 && t & TypeFlags::UNION_OR_INTERSECTION.bits() == 0)
                 || t & TypeFlags::NULL.bits() != 0)
         {
-            return Ok(SimpleTypeRelationOutcome::related());
+            return Ok(true);
         }
         if s & TypeFlags::OBJECT.bits() != 0 && t & TypeFlags::NON_PRIMITIVE.bits() != 0 {
             let strict_subtype_exclusion = relation == RelationKind::StrictSubtype
@@ -360,19 +370,19 @@ impl<'a> CheckerState<'a> {
                     .object_flags_of(source)
                     .intersects(ObjectFlags::FRESH_LITERAL);
             if !strict_subtype_exclusion {
-                return Ok(SimpleTypeRelationOutcome::related());
+                return Ok(true);
             }
         }
         if relation == RelationKind::Assignable || relation == RelationKind::Comparable {
             if s & TypeFlags::ANY.bits() != 0 {
-                return Ok(SimpleTypeRelationOutcome::related());
+                return Ok(true);
             }
             if s & TypeFlags::NUMBER.bits() != 0
                 && (t & TypeFlags::ENUM.bits() != 0
                     || (t & TypeFlags::NUMBER_LITERAL.bits() != 0
                         && t & TypeFlags::ENUM_LITERAL.bits() != 0))
             {
-                return Ok(SimpleTypeRelationOutcome::related());
+                return Ok(true);
             }
             if s & TypeFlags::NUMBER_LITERAL.bits() != 0
                 && s & TypeFlags::ENUM_LITERAL.bits() == 0
@@ -381,13 +391,16 @@ impl<'a> CheckerState<'a> {
                         && t & TypeFlags::ENUM_LITERAL.bits() != 0
                         && self.literal_values_equal(source, target)))
             {
-                return Ok(SimpleTypeRelationOutcome::related());
+                return Ok(true);
             }
             if self.is_unknown_like_union_type(target)? {
-                return Ok(SimpleTypeRelationOutcome::related());
+                return Ok(true);
             }
         }
-        Ok(SimpleTypeRelationOutcome::unrelated(enum_error))
+        if let Some(enum_error) = enum_error {
+            *enum_error = collected_error;
+        }
+        Ok(false)
     }
 
     fn literal_values_equal(&self, source: TypeId, target: TypeId) -> bool {
@@ -1588,16 +1601,19 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         target: TypeId,
         report_errors: bool,
     ) -> CheckResult<bool> {
-        let outcome = self.st.simple_type_relation(
+        // tsgo relater.go:2640-2641 passes an optional error reporter.
+        // Keep diagnostics with the relater while returning only the boolean.
+        let mut enum_error = None;
+        let related = self.st.simple_type_relation(
             source,
             target,
             self.relation,
-            /*collect_enum_error*/ report_errors,
+            report_errors.then_some(&mut enum_error),
         )?;
-        if let Some(error) = outcome.enum_error {
+        if let Some(error) = enum_error {
             self.report_enum_relation_error(error)?;
         }
-        Ok(outcome.related)
+        Ok(related)
     }
 
     /// tsc-port: isRelatedTo @6.0.3
