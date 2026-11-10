@@ -15,6 +15,7 @@ path = "src/lib.rs"
 [features]
 phase-ledger = ["tsc-types/phase-ledger"]
 flow-memo-shadow = []
+union-cache-shadow = []
 perf-counters = ["tsc-binder/perf-counters", "tsc-types/perf-counters"]
 
 [dependencies]

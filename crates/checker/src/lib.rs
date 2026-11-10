@@ -180,6 +180,7 @@ mod tracing;
 pub(crate) mod type_order;
 #[doc(hidden)]
 pub mod type_writer;
+mod union_front_cache;
 pub mod unions;
 mod unused;
 pub mod variance;
