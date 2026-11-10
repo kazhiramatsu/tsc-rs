@@ -84,6 +84,12 @@ fn lexical_paths_match_repeated_typescript_values() {
 fn relative_segments_are_found_between_separators() {
     for (path, expected) in [
         ("a/b", false),
+        ("/", false),
+        ("a/", false),
+        ("//", true),
+        ("a//", true),
+        ("a/..", true),
+        ("http://host/path", true),
         ("./a", true),
         ("a/../b", true),
         ("a/.", true),

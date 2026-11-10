@@ -258,12 +258,18 @@ pub fn combine_paths(parent: JsStr<'_>, child: JsStr<'_>) -> JsString {
 }
 
 fn has_relative_segment(path: JsStr<'_>) -> bool {
-    // `/` is ASCII, so the WTF-8 bytes split where the path's separators are.
-    let bytes = path.as_bytes();
-    bytes.windows(2).any(|pair| pair == b"//")
-        || bytes
-            .split(|&byte| byte == b'/')
-            .any(|segment| segment == b"." || segment == b"..")
+    // `/` is ASCII in WTF-8. Visit separators once: each search also
+    // identifies the complete preceding component, so dots inside an
+    // ordinary file name never make it a relative segment.
+    let mut remaining = path.as_bytes();
+    while let Some(end) = memchr::memchr(b'/', remaining) {
+        let segment = &remaining[..end];
+        if segment == b"." || segment == b".." || remaining.get(end + 1) == Some(&b'/') {
+            return true;
+        }
+        remaining = &remaining[end + 1..];
+    }
+    remaining == b"." || remaining == b".."
 }
 
 fn simple_normalize(path: PathText<'_>) -> Result<PathText<'_>, PathText<'_>> {
