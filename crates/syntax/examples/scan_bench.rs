@@ -17,9 +17,8 @@ use tsc_syntax as parser;
 mod chars {
     pub use tsc_syntax::{is_identifier_part, is_identifier_start};
 }
-mod keywords {
-    pub use tsc_syntax::keyword_kind;
-}
+#[path = "../src/keywords.rs"]
+mod keywords;
 #[allow(dead_code)]
 #[path = "../src/scanner.rs"]
 mod scanner;
