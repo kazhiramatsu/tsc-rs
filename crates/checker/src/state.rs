@@ -609,6 +609,7 @@ pub struct CheckerState<'a> {
     pub(crate) child_scratch: Vec<tsc_syntax::NodeId>,
     pub(crate) property_scratch: Vec<crate::structural::PropertyScratch>,
     pub(crate) property_name_sets: Vec<rustc_hash::FxHashSet<tsc_types::EscapedName>>,
+    pub(crate) unaffected_members: crate::unaffected_members::UnaffectedMembers,
     pub tables: TypeTables,
     /// tsc strictFunctionTypes via getStrictOptionValue.
     pub strict_function_types: bool,
@@ -1543,7 +1544,8 @@ impl<'a> CheckerState<'a> {
                     .values()
                     .flatten()
                     .map(|members| members.heap_bytes(&mut usage))
-                    .sum::<usize>(),
+                    .sum::<usize>()
+                + self.unaffected_members.heap_bytes(),
         ));
         rows.push((
             "type mappers",
@@ -1909,6 +1911,7 @@ impl<'a> CheckerState<'a> {
             child_scratch: Vec::new(),
             property_scratch: Vec::new(),
             property_name_sets: Vec::new(),
+            unaffected_members: Default::default(),
             tables,
             strict_function_types,
             stable_type_ordering,

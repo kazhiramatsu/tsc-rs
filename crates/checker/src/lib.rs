@@ -1,4 +1,5 @@
 #![forbid(unsafe_code)]
+mod unaffected_members;
 
 // Decode only the candidate kind of each arm. Evaluate the record once,
 // preserve arm/guard order, and leave early returns in the caller's scope.

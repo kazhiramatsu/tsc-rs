@@ -76,6 +76,7 @@ pub(crate) fn checker_owners(
     for sources in state.merged_symbol_sources.values() {
         usage.vec("memo: merged symbol sources", sources);
     }
+    state.unaffected_members.add_memory_usage(usage);
     usage.hash_map("memo: contextual positions", &state.contextual_relevant);
     for (_, positions) in state.contextual_relevant.values() {
         usage.arc("memo: contextual position lists", positions);

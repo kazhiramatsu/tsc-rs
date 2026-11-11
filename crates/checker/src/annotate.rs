@@ -4521,20 +4521,7 @@ impl<'a> CheckerState<'a> {
             // Freeze the identity decision at the original eager boundary:
             // warming a declaration's type later must not change whether
             // this reference has a distinct instantiated symbol.
-            let mut unaffected = Vec::new();
-            for &symbol in &properties {
-                if self.symbol_unaffected_by_instantiation(symbol, mapper) {
-                    if unaffected.is_empty() {
-                        unaffected.reserve(properties.len());
-                    }
-                    unaffected.push(symbol);
-                }
-            }
-            // This set is queried only for membership, never traversed to
-            // instantiate symbols. Keep the frozen decisions in id order.
-            unaffected.sort_unstable();
-            unaffected.dedup();
-            let unaffected = unaffected.into_boxed_slice();
+            let unaffected = self.freeze_unaffected_members(target, source, mapper, &properties);
             let calls = self.members_of(source).call_signatures().to_vec();
             let mut calls = self.instantiate_signature_list(&calls, mapper)?;
             let constructs = self.members_of(source).construct_signatures().to_vec();
