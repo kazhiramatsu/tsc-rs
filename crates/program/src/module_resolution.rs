@@ -252,6 +252,13 @@ impl HostModuleResolution {
         (self.outcome, self.diagnostics)
     }
 
+    /// Whether the resolution is its outcome alone: it reported nothing and
+    /// was not traced, so a request for the same target can share it (see
+    /// [`ModuleResolver::relative_request_target`]).
+    pub(crate) fn is_outcome_only(&self) -> bool {
+        self.diagnostics.is_empty() && self.trace.is_empty()
+    }
+
     pub fn outcome(&self) -> &ResolutionOutcome<HostResolvedModule> {
         &self.outcome
     }
@@ -997,6 +1004,52 @@ impl<'a> ModuleResolver<'a> {
 
     pub(crate) fn lexical_paths(&self) -> &PurePathCache {
         &self.lexical_paths
+    }
+
+    /// The target a path-relative request probes, when the request's whole
+    /// resolution is a function of that target and its mode.
+    ///
+    /// tsgo `nodeModuleNameResolverWorker` reads the containing directory of
+    /// a relative name once, to form `candidate =
+    /// normalizePath(combinePaths(containingDirectory, moduleName))`, and
+    /// `nodeLoadModuleByRelativeName` then works on the candidate alone: the
+    /// extension probes, the directory and package lookups and the package
+    /// of the selected file all follow from it. Requests from two
+    /// directories that name one target therefore make the same host
+    /// observations and get the same outcome. That needs the one optional
+    /// setting a relative name consults (`rootDirs`, which starts from the
+    /// containing directory) to be absent and no API resolution in front; a
+    /// traced request names its containing file, and a redirected
+    /// resolver's requests are not the program's.
+    pub(crate) fn relative_request_target(
+        &self,
+        containing_file: JsStr<'_>,
+        specifier: JsStr<'_>,
+    ) -> Option<LexicalPath> {
+        if !is_path_relative_specifier(specifier)
+            || specifier.contains("\0")
+            || self.trace.is_some()
+            || self.redirect_config.is_some()
+            || self.module_resolution_override.is_some()
+            || self
+                .root_dirs
+                .as_deref()
+                .is_some_and(|roots| !roots.is_empty())
+        {
+            return None;
+        }
+        let context = self
+            .lexical_paths
+            .file_context(containing_file, self.current_directory_text())
+            .ok()?;
+        let target = self
+            .lexical_paths
+            .normalize(specifier, Some(context.directory.as_js()), true)
+            .ok()?;
+        Some(preserve_node_directory_spelling(
+            target,
+            has_node_directory_spelling(specifier),
+        ))
     }
 
     pub fn path_context(&self) -> &PathContext {

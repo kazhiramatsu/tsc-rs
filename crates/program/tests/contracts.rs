@@ -51,6 +51,8 @@ mod path_identity_contract;
 mod prepared_program_contract;
 #[path = "integration/project_references_contract.rs"]
 mod project_references_contract;
+#[path = "integration/relative_target_resolution_contract.rs"]
+mod relative_target_resolution_contract;
 #[path = "integration/source_read_ahead_contract.rs"]
 mod source_read_ahead_contract;
 #[path = "integration/typescript_library_catalog_contract.rs"]
