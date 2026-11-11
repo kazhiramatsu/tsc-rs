@@ -947,9 +947,10 @@ fn load_program_worker(
     tsc_types::trace::mark("load: parse tasks", phase_started);
     tsc_types::trace::mark(
         &format!(
-            "load: root walk ({} pre-resolved hits, {} directory hits, {} left, {} resolutions)",
+            "load: root walk ({} pre-resolved hits, {} directory hits, {} target hits, {} left, {} resolutions)",
             graph.pre_resolved_hits,
             graph.directory_resolution_hits,
+            graph.target_resolution_hits,
             graph.pre_resolved.len(),
             graph.module_resolutions.len()
         ),
@@ -1833,8 +1834,12 @@ struct ParallelReadAhead<'a> {
     stopped: AtomicBool,
     queued: Sharded<CanonicalPath, ()>,
     resolutions: Sharded<(LexicalPath, JsString, ResolutionMode), HostModuleResolution>,
+    /// The resolutions by target ([`StagedGraph::target_resolutions`]),
+    /// shared by all workers as `resolutions` is.
+    target_resolutions: Sharded<(LexicalPath, ResolutionMode), HostModuleResolution>,
     resolved: AtomicUsize,
     reused: AtomicUsize,
+    target_reused: AtomicUsize,
 }
 
 impl ParallelReadAhead<'_> {
@@ -2051,16 +2056,36 @@ impl ParallelReadAhead<'_> {
                         host
                     }
                     None => {
-                        // Left for the walk to resolve and report.
-                        let Ok(host) = resolver.resolve_with_facts(
-                            containing_file,
-                            key.specifier(),
-                            key.mode(),
-                        ) else {
-                            resolutions.push(None);
-                            continue;
+                        let target_key = resolver
+                            .relative_request_target(containing_file, key.specifier())
+                            .map(|target| (target, key.mode()));
+                        let shared = target_key
+                            .as_ref()
+                            .and_then(|target_key| self.target_resolutions.get_cloned(target_key));
+                        let host = match shared {
+                            Some(host) => {
+                                self.target_reused.fetch_add(1, Ordering::Relaxed);
+                                host
+                            }
+                            None => {
+                                // Left for the walk to resolve and report.
+                                let Ok(host) = resolver.resolve_with_facts(
+                                    containing_file,
+                                    key.specifier(),
+                                    key.mode(),
+                                ) else {
+                                    resolutions.push(None);
+                                    continue;
+                                };
+                                self.resolved.fetch_add(1, Ordering::Relaxed);
+                                if let Some(target_key) = target_key {
+                                    if host.is_outcome_only() {
+                                        self.target_resolutions.insert(target_key, host.clone());
+                                    }
+                                }
+                                host
+                            }
                         };
-                        self.resolved.fetch_add(1, Ordering::Relaxed);
                         self.resolutions.insert(directory_key, host.clone());
                         host
                     }
@@ -2506,6 +2531,16 @@ struct StagedGraph<'host, 'options, 'resolver> {
     directory_resolutions:
         rustc_hash::FxHashMap<(LexicalPath, JsString, ResolutionMode), HostModuleResolution>,
     directory_resolution_hits: usize,
+    /// One resolution per (target of a path-relative request, mode), for the
+    /// requests whose outcome is a function of that target
+    /// ([`ModuleResolver::relative_request_target`]). The files of a project
+    /// name each of its modules from many directories (VS Code: 54,906
+    /// directory and specifier pairs for 7,455 targets), and each pair misses
+    /// the per-directory cache once; the resolver then probes the same
+    /// candidates, directories and package scope again. Hashed, never
+    /// iterated.
+    target_resolutions: rustc_hash::FxHashMap<(LexicalPath, ResolutionMode), HostModuleResolution>,
+    target_resolution_hits: usize,
     /// One resolver per referenced project whose output is in the program
     /// (tsgo GetCompilerOptionsWithRedirect: the module names of such an
     /// output resolve with its project's options), by the project's
@@ -2586,6 +2621,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             automatic_type_resolution_indices: Vec::new(),
             library_resolution_traces: BTreeMap::new(),
             directory_resolutions: rustc_hash::FxHashMap::default(),
+            target_resolutions: rustc_hash::FxHashMap::default(),
+            target_resolution_hits: 0,
             directory_resolution_hits: 0,
             project_resolvers: BTreeMap::new(),
             read_ahead_package_json_probes: Vec::new(),
@@ -2708,8 +2745,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             stopped: AtomicBool::new(false),
             queued: Sharded::new(),
             resolutions: Sharded::new(),
+            target_resolutions: Sharded::new(),
             resolved: AtomicUsize::new(0),
             reused: AtomicUsize::new(0),
+            target_reused: AtomicUsize::new(0),
         };
         let mut seeds: Vec<(ProgramPath, usize)> = Vec::new();
         for path in roots {
@@ -2764,8 +2803,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         );
         let ParallelReadAhead {
             resolutions,
+            target_resolutions,
             resolved,
             reused,
+            target_reused,
             ..
         } = pass;
         let mut sources: Vec<ReadAheadSource> = Vec::new();
@@ -2798,12 +2839,16 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             );
         }
         let reused = reused.into_inner();
+        let target_reused = target_reused.into_inner();
         self.directory_resolution_hits += reused;
+        self.target_resolution_hits += target_reused;
         self.directory_resolutions
             .extend(resolutions.into_entries());
+        self.target_resolutions
+            .extend(target_resolutions.into_entries());
         tsc_types::trace::mark(
             &format!(
-                "load: read-ahead in parallel ({} threads: {read} sources, {} resolutions, {reused} directory reuses)",
+                "load: read-ahead in parallel ({} threads: {read} sources, {} resolutions, {reused} directory reuses, {target_reused} target reuses)",
                 workers.max_workers(),
                 resolved.into_inner(),
             ),
@@ -3514,10 +3559,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let resolved = requests
             .into_iter()
             .map(|(containing_file, key, loads_source)| {
-                let result = self
-                    .resolver
-                    .resolve_with_facts(&containing_file, key.specifier(), key.mode())
-                    .ok();
+                let result = self.resolve_program_request(&containing_file, &key).ok();
                 (key, loads_source, result)
             })
             .collect();
@@ -4615,6 +4657,36 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         self.reference_view().symlinked_output(file)
     }
 
+    /// A request of the program's own resolver, behind the per-target memo:
+    /// a path-relative request whose target another directory already
+    /// resolved takes that resolution, the same pure host observation the
+    /// resolver would make again (see [`Self::target_resolutions`]).
+    fn resolve_program_request(
+        &mut self,
+        containing_file: &JsString,
+        key: &ResolutionKey,
+    ) -> Result<HostModuleResolution, ResolutionError> {
+        let target_key = self
+            .resolver
+            .relative_request_target(containing_file.as_js(), key.specifier())
+            .map(|target| (target, key.mode()));
+        if let Some(target_key) = &target_key {
+            if let Some(host) = self.target_resolutions.get(target_key) {
+                self.target_resolution_hits += 1;
+                return Ok(host.clone());
+            }
+        }
+        let host =
+            self.resolver
+                .resolve_with_facts(containing_file, key.specifier(), key.mode())?;
+        if let Some(target_key) = target_key {
+            if host.is_outcome_only() {
+                self.target_resolutions.insert(target_key, host.clone());
+            }
+        }
+        Ok(host)
+    }
+
     /// tsgo ResolveModuleName with the redirect's options: the resolver of
     /// the referenced project `file` belongs to, created on first use.
     fn resolve_module_for_file(
@@ -4624,9 +4696,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         key: &ResolutionKey,
     ) -> Result<HostModuleResolution, ResolutionError> {
         let Some(project) = self.project_for_resolution(file) else {
-            return self
-                .resolver
-                .resolve_with_facts(containing_file, key.specifier(), key.mode());
+            return self.resolve_program_request(containing_file, key);
         };
         if !self.project_resolvers.contains_key(project.canonical()) {
             let resolver = ModuleResolver::new_with_program_options(
