@@ -13,6 +13,7 @@ use std::sync::Arc;
 use tsc_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 
 use crate::{
+    session::IdentifierCensusSnapshot,
     transform::{CarriedBindingKey, CarriedGeneratedNames, CarriedNodeKey, GeneratedBindingId},
     EmitFlags, GlobalNameOracle, TransformArena, TransformError, TransformNode, TransformSourceId,
     TransformationContext,
@@ -61,7 +62,7 @@ enum OrdinaryTempNamePolicy {
 
 /// A set of used identifier spellings shared between the name allocators of
 /// an emit unit: each starts from the arena's census
-/// ([`TransformArena::identifier_texts`] or the parsed census below), which
+/// ([`TransformArena::identifier_census`] or the parsed census below), which
 /// it never copies, and records the generated names it adds beside it, so the
 /// source is scanned once per unit instead of once per transformer. The set
 /// is hashed: every reader asks for membership only, and a census of a large
@@ -71,11 +72,38 @@ enum OrdinaryTempNamePolicy {
 pub(super) struct UsedNames {
     /// The census this set started from, shared with the source's cell and
     /// every other allocator that started from it; never written.
-    shared: Arc<FxHashSet<String>>,
+    shared: SharedNames,
     /// The names inserted since. Keeping them apart means the first generated
     /// name of a pass no longer copies the whole census (tens of thousands
     /// of spellings for a large source) to add one entry.
     added: FxHashSet<String>,
+}
+
+/// The names a [`UsedNames`] started from.
+#[derive(Clone, Debug)]
+enum SharedNames {
+    /// A set collected for the purpose: the parsed census, or the identifiers
+    /// of one subtree.
+    Set(Arc<FxHashSet<String>>),
+    /// The identifiers an emit source had when the allocator was made. Their
+    /// texts are hashed on the first question, which a pass that generates
+    /// no name never asks.
+    Census(IdentifierCensusSnapshot),
+}
+
+impl Default for SharedNames {
+    fn default() -> Self {
+        Self::Set(Arc::default())
+    }
+}
+
+impl SharedNames {
+    fn contains(&self, name: &str) -> bool {
+        match self {
+            Self::Set(names) => names.contains(name),
+            Self::Census(census) => census.contains(name),
+        }
+    }
 }
 
 impl UsedNames {
@@ -95,7 +123,16 @@ impl UsedNames {
 impl From<Arc<FxHashSet<String>>> for UsedNames {
     fn from(names: Arc<FxHashSet<String>>) -> Self {
         Self {
-            shared: names,
+            shared: SharedNames::Set(names),
+            added: FxHashSet::default(),
+        }
+    }
+}
+
+impl From<IdentifierCensusSnapshot> for UsedNames {
+    fn from(census: IdentifierCensusSnapshot) -> Self {
+        Self {
+            shared: SharedNames::Census(census),
             added: FxHashSet::default(),
         }
     }
@@ -1850,10 +1887,10 @@ mod tests;
 
 /// Every identifier text of the source's nodes at this moment (parsed and
 /// synthesized alike), shared through the arena's census: see
-/// [`TransformArena::identifier_texts`].
+/// [`TransformArena::identifier_census`].
 pub(super) fn collect_identifier_texts(
     arena: &TransformArena,
     source: TransformSourceId,
 ) -> UsedNames {
-    UsedNames::from(arena.identifier_texts(source))
+    UsedNames::from(arena.identifier_census(source))
 }

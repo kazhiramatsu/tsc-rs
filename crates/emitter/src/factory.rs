@@ -13,7 +13,7 @@ use tsc_syntax::{
 };
 use tsc_types::{JsStr, JsString, ModifierFlags, NodeFlags, TokenFlags};
 
-use crate::session::{EmitSession, SourceEmitState};
+use crate::session::{EmitSession, IdentifierCensusSnapshot, SourceEmitState};
 
 use crate::{
     transform::GeneratedBindingId, EmitFlags, EmitMetadata, EmitResolverNode, JavaScriptString,
@@ -479,32 +479,21 @@ impl TransformArena {
             .get_or_init(|| source.source.text().contains("\\u{")))
     }
 
-    /// The identifier texts of every node of `source` at this moment,
-    /// parsed and synthesized alike, as one shared set: the file-level
-    /// census each name allocator of an emit unit starts from. The census is
-    /// extended in place over the nodes appended since the last call, so
-    /// every caller receives exactly the set it would have collected itself
-    /// without rescanning the source per transformer. Generated names go
-    /// into a caller's copy-on-write handle, never into the census.
-    pub(crate) fn identifier_texts(&self, source: TransformSourceId) -> Arc<FxHashSet<String>> {
+    /// The identifiers of every node of `source` at this moment, parsed and
+    /// synthesized alike: the file-level census each name allocator of an
+    /// emit unit starts from. The census is extended in place over the nodes
+    /// appended since the last call, and the snapshot returned ends at this
+    /// moment, so every caller receives exactly the set it would have
+    /// collected itself without rescanning the source per transformer.
+    /// Generated names go into the caller's own set, never into the census.
+    pub(crate) fn identifier_census(&self, source: TransformSourceId) -> IdentifierCensusSnapshot {
         let Ok(syntax) = self.source(source) else {
-            return Arc::default();
+            return IdentifierCensusSnapshot::default();
         };
-        let nodes = syntax.source.arena.nodes();
-        let mut census = syntax.session.identifier_census.borrow_mut();
-        if census.scanned < nodes.len() {
-            let scanned = census.scanned;
-            let names = Arc::make_mut(&mut census.names);
-            for node in &nodes[scanned..] {
-                if let Some(data) = node.as_identifier() {
-                    if !names.contains(data.text()) {
-                        names.insert(data.text().to_owned());
-                    }
-                }
-            }
-            census.scanned = nodes.len();
-        }
-        Arc::clone(&census.names)
+        syntax
+            .session
+            .identifier_census
+            .snapshot(syntax.source.arena.nodes())
     }
 
     /// The cell holding `source`'s parsed-identifier census (tsc's
