@@ -341,7 +341,12 @@ fn transform_implied_node_format_dependent_module<'dependencies>(
 ) -> Box<dyn Transformer + 'dependencies> {
     let esm = transform_ecmascript_module_with_host(options, Some(host));
     let cjs = transform_module_with_host(options, resolver, host);
-    Box::new(ImpliedNodeFormatDependentModuleTransformer { host, esm, cjs })
+    Box::new(ImpliedNodeFormatDependentModuleTransformer {
+        host,
+        esm,
+        cjs,
+        last_branch: std::cell::Cell::new(None),
+    })
 }
 
 struct TypeScriptTransformer<'resolver> {
@@ -2267,6 +2272,11 @@ struct ImpliedNodeFormatDependentModuleTransformer<'host> {
     host: &'host dyn EmitHost,
     esm: Box<dyn Transformer + 'host>,
     cjs: Box<dyn Transformer + 'host>,
+    /// The branch of the source asked about last. The printer offers every
+    /// node to the substitution and notification hooks, a file's nodes come
+    /// together, and a file's emit module format does not change during an
+    /// emit: the host is asked once per run of nodes, not once per node.
+    last_branch: std::cell::Cell<Option<(TransformSourceId, ImpliedModuleBranch)>>,
 }
 
 impl<'host> ImpliedNodeFormatDependentModuleTransformer<'host> {
@@ -2275,6 +2285,11 @@ impl<'host> ImpliedNodeFormatDependentModuleTransformer<'host> {
         context: &TransformationContext,
         source: TransformSourceId,
     ) -> Result<ImpliedModuleBranch, TransformError> {
+        if let Some((last, branch)) = self.last_branch.get() {
+            if last == source {
+                return Ok(branch);
+            }
+        }
         let program_source = context
             .arena()
             .source(source)?
@@ -2284,11 +2299,13 @@ impl<'host> ImpliedNodeFormatDependentModuleTransformer<'host> {
             .host
             .get_emit_module_format_of_file(program_source)
             .ok_or(TransformError::MissingProgramSourceForModuleFormat(source))?;
-        Ok(if format >= 5 {
+        let branch = if format >= 5 {
             ImpliedModuleBranch::Esm
         } else {
             ImpliedModuleBranch::CommonJs
-        })
+        };
+        self.last_branch.set(Some((source, branch)));
+        Ok(branch)
     }
 
     fn branch_mut(&mut self, branch: ImpliedModuleBranch) -> &mut (dyn Transformer + 'host) {

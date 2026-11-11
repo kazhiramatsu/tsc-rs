@@ -5450,6 +5450,65 @@ fn module_transformer_selection_absent_host_and_missing_format_keep_distinct_bou
     }
 }
 
+/// The implied-format module transformer picks its ES module or CommonJS
+/// child per source. The printer offers every node to its substitution and
+/// notification hooks; the file's format is the host's answer for the
+/// source, so the number of questions must not grow with the file.
+#[test]
+fn implied_module_format_is_asked_per_source_not_per_node() {
+    fn format_questions(text: &str) -> usize {
+        let options = CompilerOptions {
+            target: Some(99),
+            module: Some(199),
+            ..CompilerOptions::default()
+        };
+        let host = ModuleFactoryHost::new(options.clone(), Some(99));
+        let mut transformers = super::get_script_transformers_for_source(
+            &options,
+            &host,
+            &host,
+            SourceFileId::from_raw(17),
+        )
+        .expect("module transformers");
+        transformers.retain(|transformer| transformer.name() != "inlineConstEnums");
+        let module = transformers.pop().expect("module transformer");
+        assert_eq!(module.name(), "transformImpliedNodeFormatDependentModule");
+        let parsed = parse_source_file("/project/a.ts", text, Default::default(), None);
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(17)));
+        let mut result = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            vec![module],
+            false,
+        )
+        .expect("module transform");
+        let printed =
+            crate::create_printer(crate::PrinterOptions::new(crate::NewLineKind::LineFeed))
+                .print(&mut result, crate::PrintRequest::SourceFile(source), None)
+                .expect("printed module");
+        assert!(printed.text().contains("export const first = 1;"));
+        assert!(host
+            .format_calls
+            .borrow()
+            .iter()
+            .all(|id| *id == SourceFileId::from_raw(17)));
+        let questions = host.format_calls.borrow().len();
+        questions
+    }
+
+    let small = format_questions("export const first = 1;\n");
+    let mut text = String::from("export const first = 1;\n");
+    for index in 0..40 {
+        text.push_str(&format!(
+            "export function f{index}(a: number) {{ return a + first + {index}; }}\n"
+        ));
+    }
+    let large = format_questions(&text);
+    assert!(small >= 1);
+    assert_eq!(large, small);
+}
+
 #[test]
 fn missing_declaration_transform_flags_do_not_propagate_decorator_effects() {
     for text in [
