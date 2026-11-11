@@ -12,6 +12,8 @@
 //! reporting adapter needed to retain tsc's final source location for
 //! object-literal and JSX diagnostics.
 
+use std::rc::Rc;
+
 use rustc_hash::FxHashSet as HashSet;
 
 use tsc_diagnostics::{
@@ -1052,7 +1054,7 @@ impl<'a> CheckerState<'a> {
                                 &diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead,
                                 &[],
                             );
-                            checker.error_state.related_info.push(info);
+                            checker.associate_related_info(info);
                         }
                     }
                 }
@@ -1095,7 +1097,12 @@ impl<'a> CheckerState<'a> {
         // the relater's related information and every chain built over it
         // (NewDiagnosticChain) takes it too, so each nested entry carries
         // it; the head's copy is the diagnostic's own.
-        let related_info = std::mem::take(&mut checker.error_state.related_info);
+        let related_info = checker
+            .error_state
+            .related_info
+            .take()
+            .map(Rc::unwrap_or_clone)
+            .unwrap_or_default();
         fn carry_related(chain: &mut MessageChain, related: &[tsc_diagnostics::RelatedInfo]) {
             for next in &mut chain.next {
                 next.related = related.to_vec();
@@ -1168,18 +1175,22 @@ pub(crate) struct RelationErrorOutput {
 /// relater.go:2574-2578).
 #[derive(Clone)]
 struct ErrorChainEntry {
+    next: Option<Rc<ErrorChainEntry>>,
     message: &'static DiagnosticMessage,
     args: Vec<JsString>,
 }
 
 #[derive(Clone, Default)]
 pub(crate) struct RelationErrorState {
-    /// tsgo's `errorChain`, innermost row first: the last entry is the
-    /// newest, outermost row. The signature return-type markers stay in
+    /// tsgo's immutable `errorChain`, outermost row first. Snapshots keep
+    /// its head instead of copying every row and message argument.
+    /// The signature return-type markers stay in
     /// it for `report_error_js`'s transformations and are elided when the
     /// diagnostic chain is built (createDiagnosticChainFromErrorChain).
-    error_chain: Vec<ErrorChainEntry>,
-    related_info: Vec<RelatedInfo>,
+    error_chain: Option<Rc<ErrorChainEntry>>,
+    /// Go snapshots a slice header. An absent list allocates nothing;
+    /// appending to a shared prefix keeps the saved snapshot unchanged.
+    related_info: Option<Rc<Vec<RelatedInfo>>>,
     /// Rust owns diagnostic chains instead of retaining tsgo's pointer
     /// identity. This revision is the identity token used by
     /// structuredTypeRelatedTo's `errorChain == saveErrorState.errorChain`
@@ -1214,20 +1225,32 @@ impl RelationErrorState {
     /// The rows elided in the compatibility pyramid (the signature
     /// return-type markers) are skipped; the chain is consumed.
     fn take_diagnostic_chain(&mut self) -> Option<MessageChain> {
-        let entries = std::mem::take(&mut self.error_chain);
-        let mut chain: Option<MessageChain> = None;
-        for entry in entries {
+        fn build(entry: Option<&ErrorChainEntry>) -> Option<MessageChain> {
+            let entry = entry?;
+            let next = build(entry.next.as_deref());
             if entry.message.elided_in_compatibility_pyramid {
-                continue;
+                return next;
             }
             let head = MessageChain::new_js(entry.message, &entry.args);
-            chain = Some(match chain.take() {
+            Some(match next {
                 Some(next) => head.with_next(vec![next]),
                 None => head,
-            });
+            })
         }
-        chain
+        let entries = self.error_chain.take();
+        build(entries.as_deref())
     }
+}
+
+/// Go chainDepth (relater.go): count the immutable next links.
+fn error_chain_depth(chain: &Option<Rc<ErrorChainEntry>>) -> usize {
+    let mut current = chain.as_deref();
+    let mut depth = 0;
+    while let Some(entry) = current {
+        depth += 1;
+        current = entry.next.as_deref();
+    }
+    depth
 }
 
 /// tsgo's `chainDepth` comparison in the indexed-access constraint retry
@@ -1237,14 +1260,16 @@ fn indexed_access_error_info_selection<'s>(
     original: &'s RelationErrorState,
     current: &'s RelationErrorState,
 ) -> Option<&'s RelationErrorState> {
-    if original.error_chain.is_empty() || current.error_chain.is_empty() {
+    if original.error_chain.is_none() || current.error_chain.is_none() {
         return None;
     }
-    Some(if original.error_chain.len() <= current.error_chain.len() {
-        original
-    } else {
-        current
-    })
+    Some(
+        if error_chain_depth(&original.error_chain) <= error_chain_depth(&current.error_chain) {
+            original
+        } else {
+            current
+        },
+    )
 }
 
 fn variance_error_info_selection<'s>(
@@ -1253,8 +1278,8 @@ fn variance_error_info_selection<'s>(
     saved: &'s RelationErrorState,
 ) -> &'s RelationErrorState {
     original
-        .filter(|state| !state.error_chain.is_empty())
-        .or_else(|| (!current.error_chain.is_empty()).then_some(current))
+        .filter(|state| state.error_chain.is_some())
+        .or_else(|| current.error_chain.is_some().then_some(current))
         .unwrap_or(saved)
 }
 
@@ -1959,36 +1984,40 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
 
     /// tsgo: Relater.getChainMessage (relater.go:4934-4948)
     fn chain_message(&self, index: usize) -> Option<&'static DiagnosticMessage> {
-        self.error_state
-            .error_chain
-            .iter()
-            .rev()
-            .nth(index)
-            .map(|entry| entry.message)
+        self.chain_entry(index).map(|entry| entry.message)
     }
 
     fn chain_args(&self, index: usize) -> &[JsString] {
-        self.error_state
-            .error_chain
-            .iter()
-            .rev()
-            .nth(index)
-            .map_or(&[][..], |entry| &entry.args)
+        self.chain_entry(index).map_or(&[], |entry| &entry.args)
+    }
+
+    fn chain_entry(&self, index: usize) -> Option<&ErrorChainEntry> {
+        let mut entry = self.error_state.error_chain.as_deref();
+        for _ in 0..index {
+            entry = entry?.next.as_deref();
+        }
+        entry
     }
 
     fn push_chain(&mut self, message: &'static DiagnosticMessage, args: Vec<JsString>) {
-        self.error_state
-            .error_chain
-            .push(ErrorChainEntry { message, args });
+        let next = self.error_state.error_chain.take();
+        self.error_state.error_chain = Some(Rc::new(ErrorChainEntry {
+            next,
+            message,
+            args,
+        }));
         self.error_state.error_info_revision = self.error_state.error_info_revision.wrapping_add(1);
     }
 
     /// `r.errorChain = r.errorChain.next.next` and its siblings.
     fn pop_chain(&mut self, count: usize) {
-        let length = self.error_state.error_chain.len();
-        self.error_state
-            .error_chain
-            .truncate(length.saturating_sub(count));
+        for _ in 0..count {
+            self.error_state.error_chain = self
+                .error_state
+                .error_chain
+                .as_ref()
+                .and_then(|entry| entry.next.clone());
+        }
         self.error_state.error_info_revision = self.error_state.error_info_revision.wrapping_add(1);
     }
 
@@ -2115,7 +2144,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// owned revision token: an empty chain is tsgo's nil.
     /// tsrs-native: Option-valued projection of the owned relation-error state.
     pub(crate) fn capture_current_error_info(&self) -> Option<RelationErrorState> {
-        (!self.error_state.error_chain.is_empty()).then(|| self.error_state.clone())
+        self.error_state
+            .error_chain
+            .is_some()
+            .then(|| self.error_state.clone())
     }
 
     /// tsrs-native: owned-state restore for tsc's closure-local
@@ -2177,7 +2209,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-hash: bc1b1569bdd899799ee9342731376814b5bc2cafa3b6f9653778aeb73b7e1c50
     /// tsc-span: _tsc.js:65047-65055
     pub(crate) fn associate_related_info(&mut self, info: RelatedInfo) {
-        self.error_state.related_info.push(info);
+        let related = self
+            .error_state
+            .related_info
+            .get_or_insert_with(|| Rc::new(Vec::new()));
+        Rc::make_mut(related).push(info);
     }
 
     /// tsc-port: reportRelationError @6.0.3
@@ -2275,7 +2311,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 )?;
             } else {
                 // `r.errorChain = nil // Only report this error once`
-                self.error_state.error_chain.clear();
+                self.error_state.error_chain = None;
                 self.error_state.error_info_revision =
                     self.error_state.error_info_revision.wrapping_add(1);
                 self.report_error_js(
