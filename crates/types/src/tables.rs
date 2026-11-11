@@ -2960,6 +2960,59 @@ impl TypeTables {
         self.members_of(ty).first() == Some(&self.intrinsics.missing)
     }
 
+    /// Whether every member of the union `source` is a member of the union
+    /// `target`: the loop of tsgo isTypeSubsetOfUnion (relater.go:2869-2874),
+    /// which searches the target once per source member. Two lists built in
+    /// `order` hold their common members in the same sequence, so one
+    /// forward walk of the target by identity gives the same answer without
+    /// comparing types. A few members looked for in a much larger target
+    /// keep the searches, and so does a list without this order's marker.
+    pub fn union_members_subset(
+        &self,
+        order: TypeOrder<'_>,
+        source: TypeId,
+        target: TypeId,
+    ) -> bool {
+        let (
+            TypeData::Union {
+                types: source_types,
+                ..
+            },
+            TypeData::Union {
+                types: target_types,
+                ..
+            },
+        ) = (&self.type_of(source).data, &self.type_of(target).data)
+        else {
+            unreachable!("the subset test of two unions");
+        };
+        let source_types = self.list(*source_types);
+        let target_types = self.list(*target_types);
+        let marker = if order.is_some() {
+            UNION_MEMBERS_CONTENT_ORDERED
+        } else {
+            UNION_MEMBERS_ID_ORDERED
+        };
+        if self.object_flags_of(source).intersects(marker)
+            && self.object_flags_of(target).intersects(marker)
+        {
+            if source_types.len() > target_types.len() {
+                return false;
+            }
+            // A search halves the target with one type comparison per
+            // step; a comparison costs about thirty identity tests (83
+            // instructions each on the TypeScript compiler's sources).
+            let steps = (usize::BITS - target_types.len().leading_zeros()) as usize;
+            if source_types.len() * steps * 32 >= target_types.len() {
+                let mut rest = target_types.iter();
+                return source_types.iter().all(|&t| rest.any(|&u| u == t));
+            }
+        }
+        source_types
+            .iter()
+            .all(|&t| crate::type_order::contains_type(self, order, target_types, t))
+    }
+
     /// tsc-port: everyType @6.0.3
     /// tsc-hash: c4dd71e9f3d68c0f125a76cc961b9eafb0217706e0cfa0c096d2df786cc22253
     /// tsc-span: _tsc.js:69985-69987
