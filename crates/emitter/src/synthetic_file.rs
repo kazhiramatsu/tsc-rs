@@ -13,8 +13,8 @@ use tsc_types::NodeFlags;
 use crate::writer::{PositionKey, PrintPositions};
 use crate::{
     create_printer, transform_nodes, NewLineKind, PrintRequest, PrinterError, PrinterOptions,
-    SourceFileTextMode, StandaloneWriter, TransformArena, TransformNode, TransformNodeArray,
-    TransformationResult,
+    SourceFileTextMode, StandaloneWriter, TransformArena, TransformError, TransformNode,
+    TransformNodeArray, TransformationResult,
 };
 
 /// A node printed and positioned for insertion.
@@ -94,7 +94,8 @@ pub fn print_and_position(
         .to_owned();
     let positions = printed.positions().expect("a change tracker print");
     let source = transformation.arena().source(node.source())?.syntax();
-    let (arena, root) = assign_positions_to_node(&source.arena, node, positions);
+    let (arena, root) =
+        assign_positions_to_node(transformation.arena(), &source.arena, node, positions)?;
     let file = create_synthetic_source_file(arena, root, text.clone(), print.language_variant);
     Ok(PositionedNode {
         snippet_escapes: printed.snippet_escapes().to_vec(),
@@ -141,10 +142,11 @@ pub fn print_and_position_node(
 /// new `ModifierList` of the visited modifiers, which has no position; a
 /// copied node has no JSDoc (tsgo keeps a node's JSDoc in its file).
 fn assign_positions_to_node(
+    session: &TransformArena,
     source: &NodeArena,
     node: TransformNode,
     positions: &PrintPositions,
-) -> (NodeArena, NodeId) {
+) -> Result<(NodeArena, NodeId), TransformError> {
     let mut copy = source.copy_subtree(node.node());
     let mut modifiers = Vec::new();
     for &(old, new) in &copy.nodes {
@@ -153,6 +155,7 @@ fn assign_positions_to_node(
         let record = copy.arena.node_mut(new);
         record.pos = positions.pos(key) as u32;
         record.end = positions.end(key) as u32;
+        record.set_multi_line(session.multi_line(TransformNode::new(node.source(), old))?);
         modifiers.extend(node_util::modifiers_of_data(&record.data()));
     }
     for &(old, new) in &copy.arrays {
@@ -176,7 +179,7 @@ fn assign_positions_to_node(
             copy.arena.node_mut(child).parent = Some(parent);
         }
     }
-    (copy.arena, copy.root)
+    Ok((copy.arena, copy.root))
 }
 
 /// tsgo `CreateSyntheticSourceFile`: a source file of `text` whose

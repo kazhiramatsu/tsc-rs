@@ -24,6 +24,7 @@ mod position;
 mod printer;
 mod resolver;
 mod route;
+mod session;
 mod sink;
 mod source_map;
 pub mod source_mapper;

@@ -16622,7 +16622,7 @@ fn initialize_transform_flags(
     source: TransformSourceId,
 ) -> Result<(), TransformError> {
     let root = arena.root(source)?.node();
-    let (classified_nodes, classified_arrays) = arena.source(source)?.classified_transform_flags();
+    let (classified_nodes, classified_arrays) = arena.classified_transform_flags(source)?;
     let (node_end, array_end) = {
         let syntax = arena.source(source)?.syntax();
         (syntax.arena.node_end(), syntax.arena.array_end())
@@ -16663,9 +16663,7 @@ fn initialize_transform_flags(
     {
         compute_transform_flags(arena, source, root)?;
     }
-    arena
-        .source_mut(source)?
-        .set_classified_transform_flags(node_end, array_end);
+    arena.set_classified_transform_flags(source, node_end, array_end)?;
     Ok(())
 }
 
@@ -16857,10 +16855,18 @@ fn snapshot_transform_flags(
 ) -> Result<(Vec<i32>, Vec<i32>), TransformError> {
     let syntax = arena.source(source)?.syntax();
     let nodes = (syntax.arena.node_base()..syntax.arena.node_end())
-        .map(|node| syntax.arena.transform_flags(NodeId::new(node)))
+        .map(|node| {
+            arena
+                .transform_flags(TransformNode::new(source, NodeId::new(node)))
+                .bits()
+        })
         .collect();
     let arrays = (syntax.arena.array_base()..syntax.arena.array_end())
-        .map(|array| syntax.arena.array_transform_flags(NodeArrayId::new(array)))
+        .map(|array| {
+            arena
+                .array_transform_flags(TransformNodeArray::new(source, NodeArrayId::new(array)))
+                .bits()
+        })
         .collect();
     Ok((nodes, arrays))
 }

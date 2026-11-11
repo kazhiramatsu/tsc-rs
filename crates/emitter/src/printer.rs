@@ -3357,7 +3357,6 @@ impl Printer {
         }
         let record = *transformation.arena().node(node)?;
         let changed = self.node_is_changed(transformation, node)?;
-        let multi_line = record.multi_line() == Some(true);
         let declaration_source = transformation
             .arena()
             .source(node.source())?
@@ -5596,8 +5595,9 @@ impl Printer {
                 }
                 Ok(())
             }
-            NodeData::ArrayLiteralExpression(data) if json_source => self
-                .emit_json_delimited_expression_list(
+            NodeData::ArrayLiteralExpression(data) if json_source => {
+                let multi_line = transformation.arena().multi_line(node)? == Some(true);
+                self.emit_json_delimited_expression_list(
                     transformation,
                     node,
                     data.elements,
@@ -5608,19 +5608,23 @@ impl Printer {
                     ExpressionSyntaxContext::DISALLOWED_COMMA,
                     expression_context,
                     writer,
-                ),
-            NodeData::ArrayLiteralExpression(data) => self.emit_formatted_node_list(
-                transformation,
-                node,
-                data.elements,
-                Some(ListBrackets::Square),
-                multi_line,
-                DelimitedListFormat::LITERAL,
-                EmitHint::Expression,
-                ExpressionSyntaxContext::DISALLOWED_COMMA,
-                expression_context,
-                writer,
-            ),
+                )
+            }
+            NodeData::ArrayLiteralExpression(data) => {
+                let multi_line = transformation.arena().multi_line(node)? == Some(true);
+                self.emit_formatted_node_list(
+                    transformation,
+                    node,
+                    data.elements,
+                    Some(ListBrackets::Square),
+                    multi_line,
+                    DelimitedListFormat::LITERAL,
+                    EmitHint::Expression,
+                    ExpressionSyntaxContext::DISALLOWED_COMMA,
+                    expression_context,
+                    writer,
+                )
+            }
             NodeData::ArrayBindingPattern(data) => self.emit_formatted_node_list(
                 transformation,
                 node,
@@ -6023,8 +6027,9 @@ impl Printer {
                 }
                 Ok(())
             }
-            NodeData::ObjectLiteralExpression(data) if json_source => self
-                .emit_json_delimited_expression_list(
+            NodeData::ObjectLiteralExpression(data) if json_source => {
+                let multi_line = transformation.arena().multi_line(node)? == Some(true);
+                self.emit_json_delimited_expression_list(
                     transformation,
                     node,
                     data.properties,
@@ -6035,8 +6040,10 @@ impl Printer {
                     ExpressionSyntaxContext::NORMAL,
                     expression_context,
                     writer,
-                ),
+                )
+            }
             NodeData::ObjectLiteralExpression(data) => {
+                let multi_line = transformation.arena().multi_line(node)? == Some(true);
                 // tsc-port: emitObjectLiteralExpression @6.0.3 (the
                 // Indented arm)
                 // tsc-span: _tsc.js:118208-118222
@@ -7913,6 +7920,7 @@ impl Printer {
                 )
             }
             NodeData::NewExpression(data) => {
+                let multi_line = transformation.arena().multi_line(node)? == Some(true);
                 let expression = data
                     .expression
                     .and_then(|expression| {
@@ -8209,6 +8217,7 @@ impl Printer {
                 )
             }
             NodeData::CallExpression(data) => {
+                let multi_line = transformation.arena().multi_line(node)? == Some(true);
                 let call_is_optional_chain = NodeFlags::from_bits(record.flags)
                     .contains(NodeFlags::OPTIONAL_CHAIN)
                     || data.question_dot_token.is_some();
@@ -8946,6 +8955,7 @@ impl Printer {
                 result
             }
             NodeData::Block(data) => {
+                let multi_line = transformation.arena().multi_line(node)? == Some(true);
                 let function_body = self.is_function_body_block(transformation, node)?;
                 if function_body {
                     self.note_declaration_generated_identifiers(transformation, node)?;
@@ -13979,7 +13989,7 @@ impl Printer {
                         .is_some_and(|text| text.chars().any(is_line_break)),
                     SourceRange::Synthesized => false,
                 };
-            if record.multi_line() == Some(true) || source_is_multiline {
+            if transformation.arena().multi_line(node)? == Some(true) || source_is_multiline {
                 writer.write_line(false);
                 writer.increase_indent();
                 self.emit_comments_before_close_brace(
