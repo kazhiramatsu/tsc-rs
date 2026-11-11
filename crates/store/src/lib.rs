@@ -37,10 +37,18 @@
 //! types stored here is a valid value, so a stale identity reads an empty
 //! record rather than a dangling one.
 //!
-//! The reservation is address space only: untouched pages cost nothing. It
-//! needs a user address space of 47 bits (macOS, Windows and Linux on x86-64
-//! and arm64 with 48-bit addressing); a system that refuses it stops the
-//! process at the first publication, with the reason.
+//! The stores take address space only: untouched pages cost nothing. They
+//! need a user address space of 47 bits (macOS, Windows and Linux on x86-64
+//! and arm64 with 48-bit addressing); a system that refuses a range stops the
+//! process where the range is first needed, with the reason.
+//!
+//! On Unix a region is mapped as its ranges are committed, a gigabyte of
+//! address space at a time (see `system::commit`): the kernel's work for a
+//! mapping grows with its size whether or not a page is touched (on macOS
+//! one mapping of the whole 10 TiB span cost every process about 27 ms and
+//! 77 M instructions, 10 ms in `mmap` and the rest when the process exits),
+//! and a compile uses a few gigabytes of it. A region's mapped prefix only
+//! grows, so every range that was ever published stays readable.
 
 #[cfg(not(target_pointer_width = "64"))]
 compile_error!("the stores need a 64-bit address space");
@@ -199,7 +207,8 @@ fn reserved() -> bool {
     RESERVE.is_completed()
 }
 
-/// Reserve the address range; the first publication does this once.
+/// Prepare the address range; the first publication does this once. Windows
+/// reserves the whole span here; Unix maps each region as it is committed.
 fn reserve() {
     RESERVE.call_once(|| {
         let bytes = REGIONS * REGION_BYTES;
@@ -229,20 +238,74 @@ fn scrub(start: usize, bytes: usize) {
     system::reset(first, last - first);
 }
 
-/// The system's side of the reservation on Unix, where a private anonymous
+/// The system's side of the stores on Unix, where a private anonymous
 /// mapping reads as zeros and takes memory only for the pages written.
 #[cfg(unix)]
 mod system {
-    /// Reserve `bytes` at the fixed address `start`.
-    pub(super) fn reserve(start: usize, bytes: usize) -> bool {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Mutex, PoisonError};
+
+    use super::{FIRST_REGION, REGIONS, REGION_BYTES};
+
+    /// How many bytes of each region are mapped, from the region's base. A
+    /// region's mapping only grows, in whole [`STEP`]s, and is never
+    /// unmapped: a range that was committed once stays readable (as zeros
+    /// after its records are dropped).
+    static MAPPED: [AtomicUsize; REGIONS] = [const { AtomicUsize::new(0) }; REGIONS];
+
+    /// Serializes the growth of the regions' mappings.
+    static GROWING: Mutex<()> = Mutex::new(());
+
+    /// The address space a region's mapping grows by: mapping and later
+    /// unmapping a gigabyte costs the kernel a few microseconds, and a
+    /// region of a large program needs a handful of steps.
+    const STEP: usize = 1 << 30;
+
+    /// Nothing is mapped ahead of use: see [`commit`].
+    pub(super) fn reserve(_start: usize, _bytes: usize) -> bool {
+        true
+    }
+
+    /// Back a range of one region with memory before it is read or written:
+    /// the region's mapping grows to cover it.
+    #[inline]
+    pub(super) fn commit(start: usize, bytes: usize) {
+        if bytes == 0 {
+            return;
+        }
+        let offset = start - FIRST_REGION;
+        let region = offset / REGION_BYTES;
+        let end = offset % REGION_BYTES + bytes;
+        if end > MAPPED[region].load(Ordering::Acquire) {
+            grow(region, end);
+        }
+    }
+
+    /// Map region `region` through its first `end` bytes.
+    #[cold]
+    #[inline(never)]
+    fn grow(region: usize, end: usize) {
+        assert!(
+            end <= REGION_BYTES,
+            "a store range past the end of its region"
+        );
+        let _growing = GROWING.lock().unwrap_or_else(PoisonError::into_inner);
+        let mapped = MAPPED[region].load(Ordering::Relaxed);
+        if end <= mapped {
+            return;
+        }
+        let target = end.next_multiple_of(STEP).min(REGION_BYTES);
+        let start = FIRST_REGION + region * REGION_BYTES + mapped;
+        let bytes = target - mapped;
         #[cfg(target_os = "linux")]
         let placement = libc::MAP_FIXED_NOREPLACE;
         #[cfg(not(target_os = "linux"))]
         let placement = 0;
-        // SAFETY: an anonymous private mapping at a hint address; a kernel
-        // that cannot honor the hint returns another address or fails, and
+        // SAFETY: an anonymous private mapping at a hint address in this
+        // region, right behind what the region has mapped; a kernel that
+        // cannot honor the hint returns another address or fails, and
         // nothing has been placed in the range yet.
-        let mapped = unsafe {
+        let got = unsafe {
             libc::mmap(
                 start as *mut libc::c_void,
                 bytes,
@@ -252,13 +315,13 @@ mod system {
                 0,
             )
         };
-        mapped as usize == start
+        assert!(
+            got as usize == start,
+            "could not map {bytes} bytes of a store at {start:#x}: {}",
+            std::io::Error::last_os_error()
+        );
+        MAPPED[region].store(target, Ordering::Release);
     }
-
-    /// Back a range with memory before it is written: the mapping already
-    /// does.
-    #[inline(always)]
-    pub(super) fn commit(_start: usize, _bytes: usize) {}
 
     /// A private mapping of `bytes`, anywhere.
     pub(super) fn map(bytes: usize) -> *mut u8 {
@@ -293,11 +356,22 @@ mod system {
         );
     }
 
-    /// Give whole pages back; they read as zeros from here on.
+    /// Give whole pages back; they read as zeros from here on. Pages past
+    /// the region's mapping were never touched and stay unmapped.
     pub(super) fn reset(start: usize, bytes: usize) {
-        // SAFETY: remapping whole pages of the reservation over themselves
-        // gives zero pages back and returns the old ones; only this range's
-        // owner touches them.
+        let offset = start - FIRST_REGION;
+        let begin = offset % REGION_BYTES;
+        let mapped = MAPPED[offset / REGION_BYTES].load(Ordering::Acquire);
+        if begin >= mapped {
+            return;
+        }
+        let bytes = bytes.min(mapped - begin);
+        if bytes == 0 {
+            return;
+        }
+        // SAFETY: remapping whole pages of a region's mapping over
+        // themselves gives zero pages back and returns the old ones; only
+        // this range's owner touches them.
         let mapped = unsafe {
             libc::mmap(
                 start as *mut libc::c_void,
@@ -477,13 +551,13 @@ impl<T: StoreRecord> StoreVec<T> {
             "a store range past the end of its region"
         );
         let bytes = room as usize * std::mem::size_of::<T>();
+        system::commit(address::<T>(position), bytes);
         debug_assert!(
             (0..bytes)
-                // SAFETY: the bytes of the claimed slots, in the reservation.
+                // SAFETY: the bytes of the claimed slots, committed above.
                 .all(|offset| unsafe { *((address::<T>(position) + offset) as *const u8) } == 0),
             "a store range claimed twice"
         );
-        system::commit(address::<T>(position), bytes);
         Self {
             // SAFETY: an address in the reservation is not null.
             records: unsafe { NonNull::new_unchecked(address::<T>(position) as *mut T) },
