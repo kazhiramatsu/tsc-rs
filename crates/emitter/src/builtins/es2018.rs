@@ -2850,7 +2850,7 @@ impl<'context> Es2018Visitor<'context> {
                     parent: SyntaxKind::FunctionDeclaration,
                     field: "async generator body",
                 })?;
-        let outer_body_is_multi_line = self.context.arena().node(body)?.multi_line() == Some(true)
+        let outer_body_is_multi_line = self.context.arena().multi_line(body)? == Some(true)
             || super_capture.owns_access && super_capture.has_element_access;
         // `factory.getGeneratedNameForNode(node.name)` (tsgo
         // transformAsyncGeneratorFunctionBody, estransforms/forawait.go:803-806):

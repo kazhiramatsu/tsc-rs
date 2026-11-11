@@ -1,4 +1,4 @@
-use std::cell::{OnceCell, RefCell};
+use std::cell::OnceCell;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -12,6 +12,8 @@ use tsc_syntax::{
     SourceFile, SyntaxKind, TypeReferenceDirective,
 };
 use tsc_types::{JsStr, JsString, ModifierFlags, NodeFlags, TokenFlags};
+
+use crate::session::{EmitSession, SourceEmitState};
 
 use crate::{
     transform::GeneratedBindingId, EmitFlags, EmitMetadata, EmitResolverNode, JavaScriptString,
@@ -145,30 +147,11 @@ pub struct TransformSource {
     parsed_node_identity_lease: Option<tsc_types::IdentityLease>,
     source: SourceFile,
     has_no_default_lib: Option<bool>,
-    /// The identifier texts of every node at the last census, with the node
-    /// count it covers (see [`TransformArena::identifier_texts`]).
-    identifier_census: RefCell<IdentifierCensus>,
-    /// The parsed identifiers only (tsc's `SourceFile.identifiers`), filled
-    /// once by their collector (see
-    /// [`TransformArena::parsed_identifier_names_cell`]).
-    parsed_identifier_names: OnceCell<Arc<FxHashSet<String>>>,
-    /// Whether the source text contains an `\u{` escape anywhere (see
-    /// [`TransformArena::source_text_has_extended_unicode_escape`]).
-    text_has_extended_unicode_escape: OnceCell<bool>,
-    /// Synthesized nodes whose transform flags aggregate their whole
-    /// subtree (see [`TransformArena::transform_flags_complete`]).
-    complete_synthesized: FxHashSet<NodeId>,
-    /// The node and node-array id ends up to which the transform-flag
-    /// classifier has run (zero before the first classification); the next
-    /// pass classifies only the ids appended since.
-    classified_transform_flags: (u32, u32),
-    /// Whether generated-binding metadata was ever merged onto a parsed
-    /// node (see [`TransformArena::parsed_nodes_carry_no_generated_binding`]).
-    generated_binding_on_parsed_node: bool,
+    session: SourceEmitState,
 }
 
-/// Structural equality covers the emit copy and its provenance; the two
-/// censuses are derived from the nodes and stay out of it.
+/// Structural equality covers detached syntax and provenance; session flags
+/// and derived source caches stay out of it, as before.
 impl PartialEq for TransformSource {
     fn eq(&self, other: &Self) -> bool {
         self.program_source == other.program_source
@@ -180,25 +163,7 @@ impl PartialEq for TransformSource {
     }
 }
 
-/// The identifier texts among the first `scanned` nodes of an emit source,
-/// shared with every name allocator that started from them.
-#[derive(Clone, Debug, Default)]
-struct IdentifierCensus {
-    names: Arc<FxHashSet<String>>,
-    scanned: usize,
-}
-
 impl TransformSource {
-    /// The node and node-array id ends the transform-flag classifier has
-    /// covered (zero before the first classification).
-    pub(crate) fn classified_transform_flags(&self) -> (u32, u32) {
-        self.classified_transform_flags
-    }
-
-    pub(crate) fn set_classified_transform_flags(&mut self, nodes: u32, arrays: u32) {
-        self.classified_transform_flags = (nodes, arrays);
-    }
-
     pub const fn program_source(&self) -> Option<SourceFileId> {
         self.program_source
     }
@@ -229,7 +194,7 @@ impl TransformSource {
 }
 
 /// A source's emit copy prepared ahead of its emit: the detached clone of
-/// the parsed syntax with its parse-time transform flags classified, exactly
+/// the parsed syntax with its separate session flags classified, exactly
 /// what `add_source` followed by the first classification produces. A driver
 /// prepares the large sources while the checkers run and hands them to the
 /// emit through [`crate::EmitHost::take_prepared_source`].
@@ -246,7 +211,9 @@ impl PreparedEmitSource {
     }
 }
 
-/// Emit-only mutable syntax copies plus sparse transform/emit side tables.
+/// Emit-only detached syntax and document session facts. Source-local session
+/// state travels inside each TransformSource; cross-source facts live in
+/// `session`. Detached syntax and hasNoDefaultLib remain mutable here.
 /// Parsed `SourceFile` values and their identity leases are never mutated.
 #[derive(Debug)]
 pub struct TransformArena {
@@ -255,37 +222,12 @@ pub struct TransformArena {
     /// built nodes (the NodeBuilder's `serializedTypes` reuse) keys on it.
     id: u64,
     sources: Vec<TransformSource>,
-    // Transform flags live inline on the detached node/array records of each
-    // emit source (tsc's Node.transformFlags); no side table.
-    metadata: FxHashMap<TransformNode, EmitMetadata>,
-    literal_properties: FxHashMap<TransformNode, LiteralNodeProperties>,
-    next_generated_binding_id: u64,
-    node_builder_cache: NodeBuilderCache,
+    pub(crate) session: EmitSession,
     /// Whether a deep clone copies the subtrees without positions as well
     /// (tsgo `DeepCloneNode` always does), rather than sharing them: a node
     /// printed with its descendants' positions assigned from the print (the
     /// change tracker's) must not appear twice in a tree.
     copies_position_free_subtrees: bool,
-}
-
-/// A cache the checker's node builder keeps for the nodes it built in this
-/// arena (tsgo's `serializedTypes` of the emit resolver's one node builder):
-/// it lives exactly as long as the node handles it holds, only an arena that
-/// asked for it keeps one, and a clone starts without one.
-#[derive(Default)]
-struct NodeBuilderCache {
-    kept: bool,
-    cache: Option<Box<dyn std::any::Any + Send + Sync>>,
-}
-
-impl std::fmt::Debug for NodeBuilderCache {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("NodeBuilderCache")
-            .field("kept", &self.kept)
-            .field("cache", &self.cache.is_some())
-            .finish()
-    }
 }
 
 static NEXT_TRANSFORM_ARENA_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -295,10 +237,7 @@ impl TransformArena {
         Self {
             id: NEXT_TRANSFORM_ARENA_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             sources: Vec::new(),
-            metadata: FxHashMap::default(),
-            literal_properties: FxHashMap::default(),
-            next_generated_binding_id: 0,
-            node_builder_cache: NodeBuilderCache::default(),
+            session: EmitSession::default(),
             copies_position_free_subtrees: false,
         }
     }
@@ -318,18 +257,18 @@ impl TransformArena {
     /// arena's emit is one emit resolver's (a declaration emit), and tsgo's
     /// emit resolver keeps one node builder for all its requests.
     pub fn keep_node_builder_cache(&mut self) {
-        self.node_builder_cache.kept = true;
+        self.session.node_builder_cache.kept = true;
     }
 
     /// Take the node builder's cache for this arena, if it keeps one.
     pub fn take_node_builder_cache(&mut self) -> Option<Box<dyn std::any::Any + Send + Sync>> {
-        self.node_builder_cache.cache.take()
+        self.session.node_builder_cache.cache.take()
     }
 
     /// Leave the node builder's cache with this arena when it keeps one.
     pub fn set_node_builder_cache(&mut self, cache: Box<dyn std::any::Any + Send + Sync>) {
-        if self.node_builder_cache.kept {
-            self.node_builder_cache.cache = Some(cache);
+        if self.session.node_builder_cache.kept {
+            self.session.node_builder_cache.cache = Some(cache);
         }
     }
 }
@@ -350,10 +289,7 @@ impl Clone for TransformArena {
         Self {
             id: NEXT_TRANSFORM_ARENA_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             sources: self.sources.clone(),
-            metadata: self.metadata.clone(),
-            literal_properties: self.literal_properties.clone(),
-            next_generated_binding_id: self.next_generated_binding_id,
-            node_builder_cache: NodeBuilderCache::default(),
+            session: self.session.clone(),
             copies_position_free_subtrees: self.copies_position_free_subtrees,
         }
     }
@@ -364,9 +300,9 @@ impl Clone for TransformArena {
 impl PartialEq for TransformArena {
     fn eq(&self, other: &Self) -> bool {
         self.sources == other.sources
-            && self.metadata == other.metadata
-            && self.literal_properties == other.literal_properties
-            && self.next_generated_binding_id == other.next_generated_binding_id
+            && self.session.metadata == other.session.metadata
+            && self.session.literal_properties == other.session.literal_properties
+            && self.session.next_generated_binding_id == other.session.next_generated_binding_id
     }
 }
 
@@ -378,12 +314,13 @@ impl TransformArena {
     /// Number of generated bindings this arena has allocated. Zero means no
     /// generated identifier exists in its trees, so nothing needs naming.
     pub(crate) fn generated_binding_count(&self) -> u64 {
-        self.next_generated_binding_id
+        self.session.next_generated_binding_id
     }
 
     pub(crate) fn allocate_generated_binding_id(&mut self) -> GeneratedBindingId {
-        let id = GeneratedBindingId::new(self.next_generated_binding_id);
-        self.next_generated_binding_id = self
+        let id = GeneratedBindingId::new(self.session.next_generated_binding_id);
+        self.session.next_generated_binding_id = self
+            .session
             .next_generated_binding_id
             .checked_add(1)
             .expect("generated binding identity overflow");
@@ -476,12 +413,7 @@ impl TransformArena {
                 .map(|leases| leases.nodes.clone()),
             source: detached,
             has_no_default_lib: None,
-            identifier_census: RefCell::default(),
-            parsed_identifier_names: OnceCell::new(),
-            text_has_extended_unicode_escape: OnceCell::new(),
-            complete_synthesized: FxHashSet::default(),
-            classified_transform_flags: (0, 0),
-            generated_binding_on_parsed_node: false,
+            session: SourceEmitState::default(),
         });
         id
     }
@@ -499,7 +431,7 @@ impl TransformArena {
     ) -> bool {
         self.sources
             .get(source.0 as usize)
-            .is_some_and(|source| !source.generated_binding_on_parsed_node)
+            .is_some_and(|source| !source.session.generated_binding_on_parsed_node)
     }
 
     /// Whether `node`'s transform flags describe its whole subtree, so a
@@ -513,7 +445,7 @@ impl TransformArena {
         match self.sources.get(node.source.raw() as usize) {
             Some(source) => {
                 source.contains_parsed_node(node.node)
-                    || source.complete_synthesized.contains(&node.node)
+                    || source.session.complete_synthesized.contains(&node.node)
             }
             None => false,
         }
@@ -528,7 +460,7 @@ impl TransformArena {
     ) {
         if node.source == original.source && self.transform_flags_complete(original) {
             if let Some(source) = self.sources.get_mut(node.source.raw() as usize) {
-                source.complete_synthesized.insert(node.node);
+                source.session.complete_synthesized.insert(node.node);
             }
         }
     }
@@ -542,6 +474,7 @@ impl TransformArena {
     ) -> Result<bool, TransformError> {
         let source = self.source(source)?;
         Ok(*source
+            .session
             .text_has_extended_unicode_escape
             .get_or_init(|| source.source.text().contains("\\u{")))
     }
@@ -554,11 +487,11 @@ impl TransformArena {
     /// without rescanning the source per transformer. Generated names go
     /// into a caller's copy-on-write handle, never into the census.
     pub(crate) fn identifier_texts(&self, source: TransformSourceId) -> Arc<FxHashSet<String>> {
-        let Ok(source) = self.source(source) else {
+        let Ok(syntax) = self.source(source) else {
             return Arc::default();
         };
-        let nodes = source.source.arena.nodes();
-        let mut census = source.identifier_census.borrow_mut();
+        let nodes = syntax.source.arena.nodes();
+        let mut census = syntax.session.identifier_census.borrow_mut();
         if census.scanned < nodes.len() {
             let scanned = census.scanned;
             let names = Arc::make_mut(&mut census.names);
@@ -581,12 +514,12 @@ impl TransformArena {
         &self,
         source: TransformSourceId,
     ) -> Result<&OnceCell<Arc<FxHashSet<String>>>, TransformError> {
-        Ok(&self.source(source)?.parsed_identifier_names)
+        Ok(&self.source(source)?.session.parsed_identifier_names)
     }
 
     /// Take `id`'s source out of an arena that was used only to prepare it
     /// (see [`crate::prepare_emit_source`]): the arena's other tables are
-    /// empty, so the source alone is the whole emit copy.
+    /// empty; its source-local facts travel with the detached syntax.
     pub fn into_prepared_source(mut self, id: TransformSourceId) -> PreparedEmitSource {
         PreparedEmitSource(self.sources.swap_remove(id.0 as usize))
     }
@@ -819,28 +752,55 @@ impl TransformArena {
             .map(|_| TransformNodeArray { source, array })
     }
 
-    /// tsc Node.transformFlags of a node of this emit session; an unknown
-    /// handle reads as no flags, as the former side table did.
+    /// Classifier watermarks belong to the emit session, never its syntax.
+    pub(crate) fn classified_transform_flags(
+        &self,
+        source: TransformSourceId,
+    ) -> Result<(u32, u32), TransformError> {
+        Ok(self.source(source)?.session.classified_transform_flags)
+    }
+
+    pub(crate) fn set_classified_transform_flags(
+        &mut self,
+        source: TransformSourceId,
+        nodes: u32,
+        arrays: u32,
+    ) -> Result<(), TransformError> {
+        self.source_mut(source)?.session.classified_transform_flags = (nodes, arrays);
+        Ok(())
+    }
+
+    /// Unknown handles and unwritten slots read as no flags. Storage grows
+    /// only on a write, to the syntax length at that moment, as before.
     #[inline]
     pub fn transform_flags(&self, node: TransformNode) -> TransformFlags {
         match self.sources.get(node.source.raw() as usize) {
             Some(source) if source.source.arena.contains_node(node.node) => {
-                TransformFlags::from_bits(source.source.arena.transform_flags(node.node))
+                let slot = (node.node.index() - source.source.arena.node_base()) as usize;
+                TransformFlags::from_bits(
+                    source
+                        .session
+                        .transform_flags
+                        .get(slot)
+                        .copied()
+                        .unwrap_or(0),
+                )
             }
             _ => TransformFlags::NONE,
         }
     }
 
-    /// Write tsc Node.transformFlags on a node of this emit session; a write
-    /// to an unknown handle is dropped, as such a node also read as no flags.
+    /// A write to an unknown handle is dropped, as before.
     #[inline]
     pub fn set_transform_flags(&mut self, node: TransformNode, flags: TransformFlags) {
         if let Some(source) = self.sources.get_mut(node.source.raw() as usize) {
             if source.source.arena.contains_node(node.node) {
-                source
-                    .source
-                    .arena
-                    .set_transform_flags(node.node, flags.bits());
+                let slot = (node.node.index() - source.source.arena.node_base()) as usize;
+                let table = &mut source.session.transform_flags;
+                if table.len() <= slot {
+                    table.resize(source.source.arena.len(), 0);
+                }
+                table[slot] = flags.bits();
             }
         }
     }
@@ -849,7 +809,15 @@ impl TransformArena {
     pub fn array_transform_flags(&self, array: TransformNodeArray) -> TransformFlags {
         match self.sources.get(array.source.raw() as usize) {
             Some(source) if source.source.arena.contains_array(array.array) => {
-                TransformFlags::from_bits(source.source.arena.array_transform_flags(array.array))
+                let slot = (array.array.index() - source.source.arena.array_base()) as usize;
+                TransformFlags::from_bits(
+                    source
+                        .session
+                        .array_transform_flags
+                        .get(slot)
+                        .copied()
+                        .unwrap_or(0),
+                )
             }
             _ => TransformFlags::NONE,
         }
@@ -859,16 +827,37 @@ impl TransformArena {
     pub fn set_array_transform_flags(&mut self, array: TransformNodeArray, flags: TransformFlags) {
         if let Some(source) = self.sources.get_mut(array.source.raw() as usize) {
             if source.source.arena.contains_array(array.array) {
-                source
-                    .source
-                    .arena
-                    .set_array_transform_flags(array.array, flags.bits());
+                let slot = (array.array.index() - source.source.arena.array_base()) as usize;
+                let table = &mut source.session.array_transform_flags;
+                if table.len() <= slot {
+                    table.resize(source.source.arena.node_arrays().len(), 0);
+                }
+                table[slot] = flags.bits();
             }
         }
     }
 
+    /// Parsed-id overrides precede syntax. Synthesized nodes own their
+    /// multiLine directly in the detached record, without a table lookup.
+    pub fn multi_line(&self, node: TransformNode) -> Result<Option<bool>, TransformError> {
+        let source = self.source(node.source)?;
+        if !source.source.arena.contains_node(node.node) {
+            return Err(TransformError::UnknownNode(node));
+        }
+        let record = source.source.arena.node(node.node);
+        if source.contains_parsed_node(node.node) {
+            if let Some(value) = self
+                .literal_properties(node)
+                .and_then(LiteralNodeProperties::multi_line)
+            {
+                return Ok(Some(value));
+            }
+        }
+        Ok(record.multi_line())
+    }
+
     pub fn literal_properties(&self, node: TransformNode) -> Option<&LiteralNodeProperties> {
-        self.literal_properties.get(&node)
+        self.session.literal_properties.get(&node)
     }
 
     /// Validate identity before creating node-owned literal properties.
@@ -877,7 +866,7 @@ impl TransformArena {
         node: TransformNode,
     ) -> Result<&mut LiteralNodeProperties, TransformError> {
         self.node(node)?;
-        Ok(self.literal_properties.entry(node).or_default())
+        Ok(self.session.literal_properties.entry(node).or_default())
     }
 
     /// tsgo's `TokenFlagsSingleQuote` on string literals without source
@@ -946,8 +935,22 @@ impl TransformArena {
 
     /// cloneNode copies own properties after setOriginalNode merges emitNode.
     fn copy_literal_properties(&mut self, original: TransformNode, cloned: TransformNode) {
-        if let Some(properties) = self.literal_properties.get(&original).cloned() {
-            self.literal_properties.insert(cloned, properties);
+        if let Some(mut properties) = self.session.literal_properties.get(&original).cloned() {
+            // A parsed-id formatting override becomes the clone's own syntax.
+            // Synthesized originals already copied it with their record bits.
+            let multi_line = properties.multi_line.take();
+            if let Some(value) = multi_line {
+                self.sources[cloned.source.raw() as usize]
+                    .source
+                    .arena
+                    .node_mut(cloned.node)
+                    .set_multi_line(Some(value));
+            }
+            // Preserve even an explicitly empty literal-properties record;
+            // only a consumed formatting-only override needs no clone entry.
+            if multi_line.is_none() || properties != LiteralNodeProperties::default() {
+                self.session.literal_properties.insert(cloned, properties);
+            }
         }
     }
 
@@ -983,7 +986,7 @@ impl TransformArena {
             (previous, current)
         {
             if text(previous.text) != text(current.text) {
-                if let Some(properties) = self.literal_properties.get_mut(&node) {
+                if let Some(properties) = self.session.literal_properties.get_mut(&node) {
                     properties.string_literal_text_source = None;
                 }
             }
@@ -1001,6 +1004,7 @@ impl TransformArena {
         }
         match current_raw {
             Some(raw) => self
+                .session
                 .literal_properties
                 .entry(node)
                 .or_default()
@@ -1008,7 +1012,7 @@ impl TransformArena {
                     std::str::from_utf8(&raw).expect("a UTF-8 raw template text"),
                 )),
             None => {
-                if let Some(properties) = self.literal_properties.get_mut(&node) {
+                if let Some(properties) = self.session.literal_properties.get_mut(&node) {
                     properties.clear_raw_template_text();
                 }
             }
@@ -1016,7 +1020,7 @@ impl TransformArena {
     }
 
     pub fn metadata(&self, node: TransformNode) -> Option<&EmitMetadata> {
-        self.metadata.get(&node)
+        self.session.metadata.get(&node)
     }
 
     /// Inspect the source-numbered base attached to a generated identifier.
@@ -1039,7 +1043,7 @@ impl TransformArena {
     }
 
     pub fn metadata_mut(&mut self, node: TransformNode) -> &mut EmitMetadata {
-        self.metadata.entry(node).or_default()
+        self.session.metadata.entry(node).or_default()
     }
 
     /// `root`'s subtree as a printer of another emit context reads it: tsgo's
@@ -1069,6 +1073,7 @@ impl TransformArena {
                 _ => None,
             };
             if let Some(metadata) = self
+                .session
                 .metadata
                 .get_mut(&TransformNode::new(root.source, node))
             {
@@ -1095,7 +1100,7 @@ impl TransformArena {
 
     /// Room for `additional` more metadata entries before the map rehashes.
     pub(crate) fn reserve_metadata(&mut self, additional: usize) {
-        self.metadata.reserve(additional);
+        self.session.metadata.reserve(additional);
     }
 
     /// tsc-port: removeAllComments @6.0.3
@@ -1137,10 +1142,10 @@ impl TransformArena {
     }
 
     pub fn clear_session_metadata(&mut self) {
-        self.metadata.clear();
+        self.session.metadata.clear();
         for source in &mut self.sources {
-            source.source.arena.clear_transform_flags();
-            source.source.arena.clear_array_transform_flags();
+            source.session.transform_flags.clear();
+            source.session.array_transform_flags.clear();
         }
     }
 
@@ -1148,8 +1153,13 @@ impl TransformArena {
     /// tsc-hash: e6e639e966314faf444b9b68796893745ffb06eb0adcf1180d6935332d8797a3
     /// tsc-span: _tsc.js:11400-11410
     pub fn get_original_node(&self, mut node: TransformNode) -> TransformNode {
-        let mut remaining = self.metadata.len().saturating_add(1);
-        while let Some(original) = self.metadata.get(&node).and_then(EmitMetadata::original) {
+        let mut remaining = self.session.metadata.len().saturating_add(1);
+        while let Some(original) = self
+            .session
+            .metadata
+            .get(&node)
+            .and_then(EmitMetadata::original)
+        {
             if remaining == 0 || original == node {
                 break;
             }
@@ -1167,7 +1177,7 @@ impl TransformArena {
         node: TransformNode,
     ) -> Option<TransformNode> {
         let mut current = node;
-        let mut remaining = self.metadata.len().saturating_add(1);
+        let mut remaining = self.session.metadata.len().saturating_add(1);
         loop {
             let metadata = self.metadata(current);
             if !metadata.is_some_and(EmitMetadata::generated_binding_print_order) {
@@ -1188,8 +1198,8 @@ impl TransformArena {
     /// `_tsc.js:96194-96228`). It must therefore retain its function boundary
     /// when class-fields emit notifications look up lexical environments.
     pub(crate) fn get_emit_original_node(&self, mut node: TransformNode) -> TransformNode {
-        let mut remaining = self.metadata.len().saturating_add(1);
-        while let Some(metadata) = self.metadata.get(&node) {
+        let mut remaining = self.session.metadata.len().saturating_add(1);
+        while let Some(metadata) = self.session.metadata.get(&node) {
             if metadata.original_is_semantic {
                 break;
             }
@@ -1218,7 +1228,7 @@ impl TransformArena {
         &self,
         mut node: TransformNode,
     ) -> Result<Option<TransformNode>, TransformError> {
-        let mut remaining = self.metadata.len().saturating_add(1);
+        let mut remaining = self.session.metadata.len().saturating_add(1);
         loop {
             let source = self.source(node.source())?;
             let record = self.node(node)?;
@@ -1231,7 +1241,12 @@ impl TransformArena {
                 return Ok(Some(node));
             }
 
-            let Some(original) = self.metadata.get(&node).and_then(EmitMetadata::original) else {
+            let Some(original) = self
+                .session
+                .metadata
+                .get(&node)
+                .and_then(EmitMetadata::original)
+            else {
                 return Ok(None);
             };
             if remaining == 0 || original == node {
@@ -1259,20 +1274,27 @@ impl TransformArena {
             // been validated against this arena; an absent (cross-arena)
             // handle still fails above.
         }
-        if self.metadata.get(&node).and_then(EmitMetadata::original) == original
+        if self
+            .session
+            .metadata
+            .get(&node)
+            .and_then(EmitMetadata::original)
+            == original
             && !self
+                .session
                 .metadata
                 .get(&node)
                 .is_some_and(|metadata| metadata.original_is_semantic)
         {
             return Ok(());
         }
-        let source_metadata = original.and_then(|original| self.metadata.get(&original).cloned());
+        let source_metadata =
+            original.and_then(|original| self.session.metadata.get(&original).cloned());
         let node_is_member_name = matches!(
             self.node(node)?.data(),
             NodeData::Identifier(_) | NodeData::PrivateIdentifier(_)
         );
-        let metadata = self.metadata.entry(node).or_default();
+        let metadata = self.session.metadata.entry(node).or_default();
         metadata.original = original;
         metadata.original_is_semantic = false;
         let mut carries_generated_binding = false;
@@ -1288,7 +1310,7 @@ impl TransformArena {
         if carries_generated_binding {
             if let Some(source) = self.sources.get_mut(node.source.0 as usize) {
                 if source.contains_parsed_node(node.node) {
-                    source.generated_binding_on_parsed_node = true;
+                    source.session.generated_binding_on_parsed_node = true;
                 }
             }
         }
@@ -1316,7 +1338,7 @@ impl TransformArena {
                 actual: original.source,
             });
         }
-        let metadata = self.metadata.entry(node).or_default();
+        let metadata = self.session.metadata.entry(node).or_default();
         metadata.original = Some(original);
         metadata.original_is_semantic = true;
         Ok(())
@@ -5279,9 +5301,8 @@ impl<'arena> NodeFactory<'arena> {
         let syntax = &mut self.arena.source_mut(source)?.source;
         let array_id = syntax.arena.alloc_synthetic_array(&raw);
         syntax.arena.node_array_mut(array_id).has_trailing_comma = has_trailing_comma;
-        syntax
-            .arena
-            .set_array_transform_flags(array_id, flags.bits());
+        self.arena
+            .set_array_transform_flags(TransformNodeArray::new(source, array_id), flags);
         Ok(TransformNodeArray {
             source,
             array: array_id,
@@ -5392,7 +5413,6 @@ impl<'arena> NodeFactory<'arena> {
             }
             let copied = arena.node_mut(id);
             copied.set_literal_flags(literal_flags);
-            copied.parent = None;
         }
         self.arena.set_transform_flags(clone, transform_flags);
         self.arena.set_original_node(clone, Some(original))?;
@@ -7752,13 +7772,24 @@ impl<'arena> NodeFactory<'arena> {
         node: TransformNode,
         multi_line: bool,
     ) -> Result<TransformNode, TransformError> {
-        self.arena.node(node)?;
-        self.arena
-            .source_mut(node.source)?
-            .source
-            .arena
-            .node_mut(node.node)
-            .set_multi_line(Some(multi_line));
+        let source = self.arena.source_mut(node.source)?;
+        if !source.source.arena.contains_node(node.node) {
+            return Err(TransformError::UnknownNode(node));
+        }
+        if source.contains_parsed_node(node.node) {
+            self.arena
+                .session
+                .literal_properties
+                .entry(node)
+                .or_default()
+                .multi_line = Some(multi_line);
+        } else {
+            source
+                .source
+                .arena
+                .node_mut(node.node)
+                .set_multi_line(Some(multi_line));
+        }
         Ok(node)
     }
 
@@ -7855,6 +7886,7 @@ fn subtree_is_its_own_copy(
     let own_copy = record.pos == u32::MAX
         && record.end == u32::MAX
         && arena
+            .session
             .metadata
             .get(&TransformNode::new(source, node))
             .is_none_or(|metadata| {
@@ -7976,7 +8008,6 @@ impl<'a> CrossSourceReuseClone<'a> {
             }
             let copied = arena.node_mut(cloned);
             copied.set_literal_flags(record.literal_flags());
-            copied.parent = None;
         }
         self.nodes.insert(node, cloned);
         let cloned = TransformNode::new(self.target, cloned);
@@ -7985,7 +8016,7 @@ impl<'a> CrossSourceReuseClone<'a> {
         if self.sharing_root.is_some() {
             // The clone hook copies the emit node without its synthetic
             // comments (emitNode.copyFrom, printer/emitcontext.go:562-574).
-            if let Some(metadata) = self.arena.metadata.get_mut(&cloned) {
+            if let Some(metadata) = self.arena.session.metadata.get_mut(&cloned) {
                 metadata.leading_comments.clear();
                 metadata.trailing_comments.clear();
             }

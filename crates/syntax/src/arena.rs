@@ -35,13 +35,6 @@ pub struct NodeArena {
     /// The tree's literal texts (see `tsc_store::texts`): a text's identity is
     /// its length word's position, counted from `text_base`.
     texts: StoreVec<TextWord>,
-    /// tsc Node.transformFlags per node slot, written only on an emit
-    /// session's copy of a tree (the emitter's transform-flag classifier and
-    /// factory); a parsed arena keeps none, so its node records carry no
-    /// field for them. Shorter than `nodes` until a write reaches a slot.
-    transform_flags: Vec<i32>,
-    /// tsc NodeArray.transformFlags per array slot, kept like `transform_flags`.
-    array_transform_flags: Vec<i32>,
     /// Program-wide id bases (M4 5.0): tsc nodes are heap objects with
     /// program-unique identity; per-file arenas get the same property
     /// by allocating NodeId/NodeArrayId from a per-file base so a
@@ -80,8 +73,6 @@ impl Clone for NodeArena {
             arrays: self.arrays.clone(),
             array_items: self.array_items.clone(),
             texts: self.texts.clone(),
-            transform_flags: self.transform_flags.clone(),
-            array_transform_flags: self.array_transform_flags.clone(),
             node_base: self.node_base,
             array_base: self.array_base,
             item_base: self.item_base,
@@ -575,16 +566,12 @@ impl NodeArena {
             + self.arrays.heap_capacity_bytes()
             + self.array_items.heap_capacity_bytes()
             + self.texts.heap_capacity_bytes()
-            + self.tails.heap_metadata_bytes()
-            + (self.transform_flags.capacity() + self.array_transform_flags.capacity())
-                * std::mem::size_of::<i32>();
+            + self.tails.heap_metadata_bytes();
         usage.nodes += self.nodes.len();
         usage.node_bytes += self.nodes.capacity() * std::mem::size_of::<Node>()
-            + self.tails.chunk_words() * std::mem::size_of::<u32>()
-            + self.transform_flags.capacity() * std::mem::size_of::<i32>();
+            + self.tails.chunk_words() * std::mem::size_of::<u32>();
         usage.arrays += self.arrays.len();
-        usage.array_bytes += self.arrays.capacity() * std::mem::size_of::<NodeArrayRecord>()
-            + self.array_transform_flags.capacity() * std::mem::size_of::<i32>();
+        usage.array_bytes += self.arrays.capacity() * std::mem::size_of::<NodeArrayRecord>();
         usage.array_items += self.array_items.len();
         usage.array_item_bytes += self.array_items.capacity() * std::mem::size_of::<NodeId>();
         // Literal texts live in the tree's text store, counted as one row.
@@ -971,30 +958,6 @@ impl NodeArena {
         &mut self.nodes[index]
     }
 
-    /// tsc Node.transformFlags of `id`: none until an emit session writes them.
-    pub fn transform_flags(&self, id: NodeId) -> i32 {
-        debug_assert!(self.contains_node(id));
-        self.transform_flags
-            .get((id.index() - self.node_base) as usize)
-            .copied()
-            .unwrap_or(0)
-    }
-
-    /// Write tsc Node.transformFlags of `id` (an emit session's copy).
-    pub fn set_transform_flags(&mut self, id: NodeId, flags: i32) {
-        debug_assert!(self.contains_node(id));
-        let slot = (id.index() - self.node_base) as usize;
-        if self.transform_flags.len() <= slot {
-            self.transform_flags.resize(self.nodes.len(), 0);
-        }
-        self.transform_flags[slot] = flags;
-    }
-
-    /// Forget every node's transform flags (an emit session's reset).
-    pub fn clear_transform_flags(&mut self) {
-        self.transform_flags.clear();
-    }
-
     /// Attach the parser's JSDoc list to `host` (the tree's builder owns it
     /// alone, so a tail is rewritten in place).
     pub fn set_js_doc(&mut self, host: NodeId, js_doc: NodeArrayId) {
@@ -1087,30 +1050,6 @@ impl NodeArena {
     /// How many elements the arena's arrays hold together.
     pub fn array_item_count(&self) -> usize {
         self.array_items.len()
-    }
-
-    /// tsc NodeArray.transformFlags of `id`: none until an emit session writes them.
-    pub fn array_transform_flags(&self, id: NodeArrayId) -> i32 {
-        debug_assert!(self.contains_array(id));
-        self.array_transform_flags
-            .get((id.index() - self.array_base) as usize)
-            .copied()
-            .unwrap_or(0)
-    }
-
-    /// Write tsc NodeArray.transformFlags of `id` (an emit session's copy).
-    pub fn set_array_transform_flags(&mut self, id: NodeArrayId, flags: i32) {
-        debug_assert!(self.contains_array(id));
-        let slot = (id.index() - self.array_base) as usize;
-        if self.array_transform_flags.len() <= slot {
-            self.array_transform_flags.resize(self.arrays.len(), 0);
-        }
-        self.array_transform_flags[slot] = flags;
-    }
-
-    /// Forget every array's transform flags (an emit session's reset).
-    pub fn clear_array_transform_flags(&mut self) {
-        self.array_transform_flags.clear();
     }
 
     pub fn len(&self) -> usize {

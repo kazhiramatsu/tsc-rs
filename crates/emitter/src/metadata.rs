@@ -427,6 +427,8 @@ impl EmitEnumMemberValue {
 /// property transition, never by setOriginalNode's emitNode merge.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct LiteralNodeProperties {
+    /// Emit override for a parsed id; synthesized multiLine lives in syntax.
+    pub(crate) multi_line: Option<bool>,
     /// TypeScript's synthetic `StringLiteral.singleQuote` preference. JSX
     /// attribute lowering preserves the source delimiter after decoding
     /// entities, so the cooked value and quote choice must travel together.
@@ -442,6 +444,10 @@ pub struct LiteralNodeProperties {
 }
 
 impl LiteralNodeProperties {
+    pub const fn multi_line(&self) -> Option<bool> {
+        self.multi_line
+    }
+
     pub const fn string_literal_single_quote(&self) -> Option<bool> {
         self.string_literal_single_quote
     }

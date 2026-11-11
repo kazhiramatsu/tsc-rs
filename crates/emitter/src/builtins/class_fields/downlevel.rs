@@ -8579,7 +8579,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 field: "body",
             })?;
         let body_record = *self.context.arena().node(body)?;
-        let original_multi_line = body_record.multi_line();
+        let original_multi_line = self.context.arena().multi_line(body)?;
         let Some(mut block) = body_record.as_block() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Constructor,

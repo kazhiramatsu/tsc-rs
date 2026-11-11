@@ -353,9 +353,8 @@ pub struct NodeArray<'a> {
 }
 
 /// The stored form of a tsc NodeArray: its elements are the `len` ids at
-/// `items` in the arena's item store. tsc NodeArray.transformFlags lives
-/// beside the records in `NodeArena`, written only on an emit session's
-/// copy of a tree.
+/// `items` in the arena's item store. Transform flags are emitter-session
+/// facts and are not stored with syntax.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NodeArrayRecord {
     pub(crate) items: u32,
@@ -432,9 +431,6 @@ pub struct Node {
     pub pos: u32,
     pub end: u32,
     pub parent: Option<NodeId>,
-    /// tsc Node.transformFlags lives beside the records in `NodeArena`,
-    /// written only on an emit session's copy of a tree.
-    ///
     /// The payload's words (see [`Node::data`]).
     words: [u32; 3],
 }
@@ -565,8 +561,8 @@ pub fn published_node_array(id: NodeArrayId) -> NodeArray<'static> {
 }
 
 /// `literal_flags` bits 0-1: tsc's multiLine. tsc keeps it on Block,
-/// ArrayLiteralExpression and ObjectLiteralExpression; the emitter also
-/// sets it where tsc sets EmitFlags.MultiLine, so every kind carries it.
+/// ArrayLiteralExpression and ObjectLiteralExpression. Synthesized nodes own
+/// these bits too; only parsed-id overrides live in the emitter session.
 const MULTI_LINE_BITS: u16 = 0b0011;
 /// `literal_flags` bits 2-3: StringLiteral.hasExtendedUnicodeEscape or
 /// RegularExpressionLiteral.isUnterminated.

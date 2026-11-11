@@ -3062,8 +3062,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             if old_count >= statements.len() {
                 self.context
                     .arena()
-                    .node(body)?
-                    .multi_line()
+                    .multi_line(body)?
                     .unwrap_or(!statements.is_empty())
             } else {
                 !statements.is_empty()
