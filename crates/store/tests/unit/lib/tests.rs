@@ -39,6 +39,46 @@ fn a_published_list_is_read_by_position_and_by_slice() {
     assert_eq!(list[3].value, 3);
 }
 
+/// On Unix a region is mapped as its ranges are committed, a step of address
+/// space at a time. Ranges far apart in one region, a range that crosses a
+/// step, and a claimed table past everything published so far are all
+/// written and read where their identities say; a dropped range still reads
+/// as zeros (a stale identity names an empty record, never unmapped memory).
+#[test]
+fn a_region_is_mapped_through_the_ranges_it_was_asked_for() {
+    // The tests' `u32` region: one step of the mapping (1 GiB) holds 2^28
+    // records, and the other tests stay within its first step.
+    let step = 1u32 << 28;
+
+    // Deep in the region first: everything below is mapped with it.
+    let mut high: StoreVec<u32> = StoreVec::new();
+    high.push(7);
+    high.publish(step * 5 + 3);
+    assert_eq!(*get::<u32>(step * 5 + 3), 7);
+
+    // A list whose slots straddle the next step.
+    let mut straddling: StoreVec<u32> = StoreVec::new();
+    for value in 1..=8 {
+        straddling.push(value);
+    }
+    straddling.publish(step * 6 - 4);
+    assert_eq!(*get::<u32>(step * 6 - 4), 1);
+    assert_eq!(*get::<u32>(step * 6 + 3), 8);
+    assert_eq!(slice::<u32>(step * 6 - 1, 2), [4, 5]);
+
+    // A table claimed past everything so far: zeroed, writable, final.
+    let mut table: StoreVec<u32> = StoreVec::claim(step * 9 + 100, 1_000);
+    assert!(table.iter().all(|record| *record == 0));
+    table[999] = 9;
+    assert_eq!(*get::<u32>(step * 9 + 1_099), 9);
+
+    drop(high);
+    drop(straddling);
+    assert_eq!(*get::<u32>(step * 5 + 3), 0);
+    assert_eq!(*get::<u32>(step * 6 + 3), 0);
+    assert_eq!(*get::<u32>(step * 9 + 1_099), 9);
+}
+
 #[test]
 fn a_dropped_list_drops_its_records_and_zeroes_its_slots() {
     let owned = Arc::new(7);
