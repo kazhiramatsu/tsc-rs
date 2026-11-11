@@ -16612,7 +16612,7 @@ pub(crate) fn collect_prepared_source_censuses(
     arena: &TransformArena,
     source: TransformSourceId,
 ) -> Result<(), TransformError> {
-    let _ = arena.identifier_texts(source);
+    let _ = arena.identifier_census(source);
     target_bindings::ParsedSourceIdentifierNames::collect(arena, source)?;
     Ok(())
 }

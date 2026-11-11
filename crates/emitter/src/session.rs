@@ -4,11 +4,13 @@
 //! range-relative representation and lazy growth; metadata remains sparse.
 //! Preparing a source transfers its source facts together with its syntax.
 
-use std::cell::{OnceCell, RefCell};
-use std::sync::Arc;
+use std::cell::OnceCell;
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use rustc_hash::{FxHashMap, FxHashSet};
+use tsc_syntax::nodes::{IdentifierData, Node};
 use tsc_syntax::NodeId;
+use tsc_types::EscapedName;
 
 use crate::{EmitMetadata, LiteralNodeProperties, TransformNode};
 
@@ -22,8 +24,8 @@ pub(crate) struct SourceEmitState {
     pub complete_synthesized: FxHashSet<NodeId>,
     /// Absolute ends classified so far; zero requests the initial root walk.
     pub classified_transform_flags: (u32, u32),
-    /// Identifier texts through the last scanned node, shared with allocators.
-    pub identifier_census: RefCell<IdentifierCensus>,
+    /// The identifiers through the last scanned node, shared with allocators.
+    pub identifier_census: SharedIdentifierCensus,
     /// Parsed identifiers only, initialized once by their collector.
     pub parsed_identifier_names: OnceCell<Arc<FxHashSet<String>>>,
     /// Whether source text contains a Unicode code-point escape.
@@ -32,11 +34,95 @@ pub(crate) struct SourceEmitState {
     pub generated_binding_on_parsed_node: bool,
 }
 
-/// Append-only census shared with name allocators through copy-on-write Arcs.
+/// The identifiers of an emit source in node order: an append-only census
+/// shared with the name allocators, each of which starts from the identifiers
+/// the source had when the allocator was made (a prefix of `names`).
+///
+/// Covering a node costs one push. The texts are hashed when an allocator
+/// first asks whether a spelling is used, which most emitted files never do
+/// (tsgo collects a file's identifiers on its first unique-name request too).
 #[derive(Clone, Debug, Default)]
-pub(crate) struct IdentifierCensus {
-    pub names: Arc<FxHashSet<String>>,
-    pub scanned: usize,
+struct IdentifierCensus {
+    /// The names of the identifier nodes among the first `scanned` nodes, in
+    /// node order, each read when the census first covered its node.
+    names: Vec<EscapedName>,
+    scanned: usize,
+    /// For each text among the first `hashed` names, the index of the first
+    /// name that spells it.
+    first: FxHashMap<&'static str, u32>,
+    hashed: usize,
+}
+
+impl IdentifierCensus {
+    fn hash_through(&mut self, len: u32) {
+        while self.hashed < len as usize {
+            let name = IdentifierData {
+                escaped_text: self.names[self.hashed],
+            };
+            let index = u32::try_from(self.hashed).expect("identifier census exceeds u32");
+            self.first.entry(name.text()).or_insert(index);
+            self.hashed += 1;
+        }
+    }
+}
+
+fn lock(census: &Mutex<IdentifierCensus>) -> MutexGuard<'_, IdentifierCensus> {
+    census.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// A source's identifier census, shared with the snapshots taken of it. A
+/// cloned source owns a copy: the nodes it appends are not the original's.
+#[derive(Debug, Default)]
+pub(crate) struct SharedIdentifierCensus(Arc<Mutex<IdentifierCensus>>);
+
+impl Clone for SharedIdentifierCensus {
+    fn clone(&self) -> Self {
+        Self(Arc::new(Mutex::new(lock(&self.0).clone())))
+    }
+}
+
+impl SharedIdentifierCensus {
+    /// Cover the nodes appended since the last call (`nodes` is every node
+    /// of the source) and take the snapshot of the identifiers so far.
+    pub(crate) fn snapshot(&self, nodes: &[Node]) -> IdentifierCensusSnapshot {
+        let mut census = lock(&self.0);
+        if census.scanned < nodes.len() {
+            let scanned = census.scanned;
+            for node in &nodes[scanned..] {
+                if let Some(data) = node.as_identifier() {
+                    census.names.push(data.escaped_text);
+                }
+            }
+            census.scanned = nodes.len();
+        }
+        let len = u32::try_from(census.names.len()).expect("identifier census exceeds u32");
+        drop(census);
+        IdentifierCensusSnapshot {
+            census: Arc::clone(&self.0),
+            len,
+        }
+    }
+}
+
+/// The identifier texts of the nodes an emit source had when the snapshot
+/// was taken: the first `len` names of its census. Identifiers the source
+/// gains later, and a later spelling of a node the census has covered, are
+/// not part of it.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct IdentifierCensusSnapshot {
+    census: Arc<Mutex<IdentifierCensus>>,
+    len: u32,
+}
+
+impl IdentifierCensusSnapshot {
+    pub(crate) fn contains(&self, name: &str) -> bool {
+        let mut census = lock(&self.census);
+        census.hash_through(self.len);
+        census
+            .first
+            .get(name)
+            .is_some_and(|&first| first < self.len)
+    }
 }
 
 /// A declaration resolver's serialized-node cache, bounded by arena identity.

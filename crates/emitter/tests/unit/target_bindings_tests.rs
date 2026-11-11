@@ -3,8 +3,8 @@ use std::collections::BTreeSet;
 use tsc_syntax::parse_source_file;
 
 use super::{
-    allocate_ordinary_temp_name, AncestorBindingPolicy, GeneratedBindingScopes,
-    OrdinaryTempNamePolicy, ParsedSourceIdentifierNames, TransformArena,
+    allocate_ordinary_temp_name, collect_identifier_texts, AncestorBindingPolicy,
+    GeneratedBindingScopes, OrdinaryTempNamePolicy, ParsedSourceIdentifierNames, TransformArena,
 };
 
 #[test]
@@ -82,6 +82,115 @@ fn parsed_identifier_snapshot_retains_erased_file_level_collisions() {
         "_default_3",
         "candidate lookup is immutable for independent FileLevel IDs",
     );
+}
+
+/// An allocator starts from the identifiers its source had when the allocator
+/// was made. The census reads a node once, when it first covers it, and the
+/// texts are hashed on the first question: neither a later node, nor a later
+/// spelling of a covered node, nor a later allocator's question may change
+/// what an earlier allocator answers.
+#[test]
+fn identifier_census_snapshots_end_where_they_were_taken() {
+    let parsed = parse_source_file(
+        "identifier-census.ts",
+        "const alpha = beta;\n",
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, None);
+
+    let before = collect_identifier_texts(&arena, source);
+    let covered = arena.factory().create_identifier(source, "gamma").unwrap();
+    let middle = collect_identifier_texts(&arena, source);
+    arena.factory().create_identifier(source, "delta").unwrap();
+    let uncovered = arena.factory().create_identifier(source, "theta").unwrap();
+    // `gamma` was read by the middle census and keeps that spelling;
+    // `theta` is read by the next census, after its rename.
+    arena
+        .set_generated_identifier_text(covered, "epsilon")
+        .unwrap();
+    arena
+        .set_generated_identifier_text(uncovered, "iota")
+        .unwrap();
+    let after = collect_identifier_texts(&arena, source);
+
+    // The latest allocator asks first, so its names are hashed before the
+    // earlier allocators ask.
+    for (name, used) in [
+        ("alpha", true),
+        ("beta", true),
+        ("gamma", true),
+        ("delta", true),
+        ("iota", true),
+        ("epsilon", false),
+        ("theta", false),
+        ("zeta", false),
+    ] {
+        assert_eq!(after.contains(name), used, "after: {name}");
+    }
+    for (name, used) in [
+        ("alpha", true),
+        ("beta", true),
+        ("gamma", true),
+        ("delta", false),
+        ("iota", false),
+        ("epsilon", false),
+        ("theta", false),
+    ] {
+        assert_eq!(middle.contains(name), used, "middle: {name}");
+    }
+    for (name, used) in [
+        ("alpha", true),
+        ("beta", true),
+        ("gamma", false),
+        ("delta", false),
+        ("iota", false),
+    ] {
+        assert_eq!(before.contains(name), used, "before: {name}");
+    }
+
+    // A generated name goes into the allocator's own set, never into the
+    // census the other allocators share.
+    let mut allocator = before.clone();
+    assert!(!allocator.insert("alpha".to_owned()));
+    assert!(allocator.insert("gamma".to_owned()));
+    assert!(!allocator.insert("gamma".to_owned()));
+    assert!(allocator.contains("gamma"));
+    assert!(!before.contains("gamma"));
+}
+
+/// A cloned arena continues with its own census: the identifiers each side
+/// appends after the clone are not the other's.
+#[test]
+fn a_cloned_arena_owns_its_identifier_census() {
+    let parsed = parse_source_file(
+        "identifier-census-clone.ts",
+        "const alpha = beta;\n",
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, None);
+    let shared = collect_identifier_texts(&arena, source);
+
+    let mut copy = arena.clone();
+    copy.factory()
+        .create_identifier(source, "onlyInCopy")
+        .unwrap();
+    arena
+        .factory()
+        .create_identifier(source, "onlyInOriginal")
+        .unwrap();
+    let copy_names = collect_identifier_texts(&copy, source);
+    let original_names = collect_identifier_texts(&arena, source);
+
+    assert!(copy_names.contains("alpha") && copy_names.contains("onlyInCopy"));
+    assert!(!copy_names.contains("onlyInOriginal"));
+    assert!(original_names.contains("beta") && original_names.contains("onlyInOriginal"));
+    assert!(!original_names.contains("onlyInCopy"));
+    assert!(shared.contains("alpha") && shared.contains("beta"));
+    assert!(!shared.contains("onlyInCopy") && !shared.contains("onlyInOriginal"));
 }
 
 #[test]
