@@ -998,6 +998,17 @@ impl<'a> CheckerState<'a> {
             return self.replace_primitives_with_literals(filtered, value_type);
         }
         if self.is_unit_type(value_type) {
+            // tsgo flow.go:601-606: a uniform union gives the unit up by
+            // its position in the member list, without asking every
+            // constituent whether it is comparable (`kind !== SyntaxKind.X`
+            // over an enum of hundreds of members).
+            if self.is_uniform_union_type(ty) {
+                let regular_type = self.regular_type_of_literal_type(value_type);
+                let filtered = self.remove_type(ty, regular_type);
+                if filtered != ty {
+                    return Ok(filtered);
+                }
+            }
             return self.filter_type_with(ty, |state, t| {
                 Ok(!(state.is_unit_like_type(t)? && state.are_types_comparable(t, value_type)?))
             });

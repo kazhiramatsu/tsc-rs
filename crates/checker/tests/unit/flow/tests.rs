@@ -318,3 +318,92 @@ fn a_flow_node_past_two_bytes_is_read_from_the_files_overflow() {
         },
     );
 }
+
+#[test]
+fn inequality_narrows_a_uniform_union_as_tsgo_does() {
+    // tsgo flow.go:601-606 takes the compared unit out of a uniform union
+    // by its position (removeType) and filters by comparability otherwise.
+    // Every message is tsgo 7.1.0-dev's (aa8149273) for the same program:
+    // enum members with a computed member kept, string and number literal
+    // unions, `undefined` beside literals, a named union inside a union
+    // (the origin survives when the removed literal is named by it), the
+    // boolean pair, a two-member enum union, a number literal against an
+    // enum (the comparable filter: the computed member goes too), a
+    // non-unit comparand, a computed comparand and a chain of two tests.
+    let text = "\
+declare function f(): number;
+enum E { A = 1, B = 2, C = 3, D = f() }
+enum S { X = \"x\", Y = \"y\", Z = \"z\" }
+type L = \"a\" | \"b\" | \"c\";
+type N = 1 | 2 | 3;
+type M = L | undefined;
+type Named = \"p\" | \"q\";
+type Outer = Named | \"r\";
+declare const e: E;
+declare const s: S;
+declare const l: L;
+declare const n: N;
+declare const m: M;
+declare const o: Outer;
+declare const b: boolean;
+declare const two: E.A | E.B;
+function t1() { if (e !== E.A) { const x: never = e; } else { const y: never = e; } }
+function t2() { if (e === E.B) { return; } const x: never = e; }
+function t3() { if (s !== S.Y) { const x: never = s; } }
+function t4() { if (l !== \"b\") { const x: never = l; } }
+function t5() { if (n !== 2) { const x: never = n; } }
+function t6() { if (m !== \"a\") { const x: never = m; } }
+function t7() { if (o !== \"p\") { const x: never = o; } }
+function t8() { if (o !== \"r\") { const x: never = o; } }
+function t9() { if (b !== true) { const x: never = b; } }
+function t10() { if (two !== E.A) { const x: never = two; } }
+function t11() { if (e !== 1) { const x: never = e; } }
+function t12() { if (l !== (\"z\" as string)) { const x: never = l; } }
+function t13() { if (e !== E.D) { const x: never = e; } }
+function t14(k: E.A | E.B | E.C) { if (k !== E.A && k !== E.C) { const x: never = k; } }
+";
+    let options = CompilerOptions {
+        strict: Some(true),
+        ..CompilerOptions::default()
+    };
+    with_program_state(&[("a.ts", text)], &options, |state| {
+        state.check_source_file(0);
+        let narrowed = state
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 2322)
+            .map(|diagnostic| {
+                let message = diagnostic
+                    .message
+                    .text
+                    .as_str()
+                    .expect("scalar diagnostic observation");
+                message
+                    .strip_prefix("Type '")
+                    .and_then(|rest| rest.strip_suffix("' is not assignable to type 'never'."))
+                    .expect("an assignment to never")
+                    .to_owned()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            narrowed,
+            [
+                "E.B | E.C | E.D",
+                "E.A",
+                "E.A | E.C | E.D",
+                "S.X | S.Z",
+                "\"a\" | \"c\"",
+                "1 | 3",
+                "\"b\" | \"c\" | undefined",
+                "\"q\" | \"r\"",
+                "Named",
+                "false",
+                "E.B",
+                "E.B | E.C",
+                "L",
+                "E.A | E.B | E.C",
+                "E.B",
+            ]
+        );
+    });
+}
