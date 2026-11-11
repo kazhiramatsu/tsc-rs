@@ -118,7 +118,13 @@ const KEYWORD_SLOTS: [u8; 10 * 64] = {
 
 #[inline]
 pub(crate) fn keyword_kind(text: &str) -> Option<SyntaxKind> {
-    let bytes = text.as_bytes();
+    keyword_kind_bytes(text.as_bytes())
+}
+
+/// An ASCII scanner run already has a byte range; keyword recognition needs
+/// no UTF-8 boundary checks or conversion of that range into a string.
+#[inline]
+pub(crate) fn keyword_kind_bytes(bytes: &[u8]) -> Option<SyntaxKind> {
     if !(2..=11).contains(&bytes.len()) {
         return None;
     }

@@ -1599,3 +1599,34 @@ fn a_restored_state_keeps_its_cooked_value() {
     assert_eq!(scanner.scan(), SyntaxKind::Identifier);
     assert_eq!(scanner.token_value(), "c");
 }
+
+#[test]
+fn identifier_batches_stop_at_tokens_unicode_escapes_and_range_ends() {
+    for length in 1..=97 {
+        let identifier = format!("a{}", "b".repeat(length - 1));
+        for (suffix, cooked, consumed) in [
+            (";tail", "".to_owned(), 0),
+            (" tail", "".to_owned(), 0),
+            ("é;", "é".to_owned(), "é".len()),
+            ("𐐀;", "𐐀".to_owned(), "𐐀".len()),
+            (r"\u0061;", "a".to_owned(), 6),
+        ] {
+            let text = format!("{identifier}{suffix}");
+            let mut scanner = Scanner::new(&text, LanguageVariant::Standard);
+            assert_eq!(scanner.scan(), SyntaxKind::Identifier, "{length} {suffix}");
+            assert_eq!(
+                scanner.token_value(),
+                format!("{identifier}{cooked}").as_str()
+            );
+            assert_eq!(scanner.pos(), identifier.len() + consumed);
+            assert!(scanner.errors().is_empty());
+        }
+        let text = format!("{identifier}more");
+        let mut scanner = Scanner::new(&text, LanguageVariant::Standard);
+        scanner.reset_range(0, identifier.len());
+        assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+        assert_eq!(scanner.token_value(), identifier.as_str());
+        assert_eq!(scanner.pos(), identifier.len());
+        assert_eq!(scanner.scan(), SyntaxKind::EndOfFileToken);
+    }
+}

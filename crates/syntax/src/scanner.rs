@@ -1393,12 +1393,28 @@ impl<'text> Scanner<'text> {
     fn scan_identifier(&mut self) -> SyntaxKind {
         let start = self.pos;
         let rest = &self.text.as_bytes()[start + 1..self.end];
-        self.pos = start
-            + 1
-            + rest
-                .iter()
-                .position(|&byte| !IDENTIFIER_PART[byte as usize])
-                .unwrap_or(rest.len());
+        // A bounded batch lets the compiler unroll the byte-table tests:
+        // the common run pays no loop counter/bounds branch per byte.
+        let (batches, tail) = rest.as_chunks::<32>();
+        let mut scanned = 0;
+        'parts: {
+            for batch in batches {
+                for (i, &byte) in batch.iter().enumerate() {
+                    if !IDENTIFIER_PART[byte as usize] {
+                        scanned += i;
+                        break 'parts;
+                    }
+                }
+                scanned += batch.len();
+            }
+            for &byte in tail {
+                if !IDENTIFIER_PART[byte as usize] {
+                    break;
+                }
+                scanned += 1;
+            }
+        }
+        self.pos = start + 1 + scanned;
         self.value_source(start, self.pos);
         if self
             .byte_at(self.pos)
@@ -1406,8 +1422,8 @@ impl<'text> Scanner<'text> {
         {
             return self.scan_identifier_with_unicode_or_escape();
         }
-        self.token =
-            keywords::keyword_kind(&self.text[start..self.pos]).unwrap_or(SyntaxKind::Identifier);
+        self.token = keywords::keyword_kind_bytes(&self.text.as_bytes()[start..self.pos])
+            .unwrap_or(SyntaxKind::Identifier);
         self.token
     }
 
