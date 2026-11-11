@@ -668,6 +668,65 @@ fn os_writes_report_go_path_errors() {
     std::fs::remove_dir_all(&root).unwrap();
 }
 
+/// tsgo `osvfs.WriteFile` truncates as it opens. The process's file system
+/// overwrites an existing file in place and cuts it only when it was longer:
+/// whatever the file held, it ends as exactly the new contents, it stays the
+/// same file (a hard link to it reads the new contents), and a write
+/// through a symbolic link goes to its target.
+#[cfg(unix)]
+#[test]
+fn os_writes_leave_exactly_the_new_contents() {
+    use std::os::unix::fs::MetadataExt;
+
+    let root = std::env::temp_dir().join(format!("tsc-rs-osfs-rewrite-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let root_path = std::fs::canonicalize(&root).unwrap();
+    let root_path = root_path.to_str().unwrap();
+    let fs = OsFs::new(true);
+    let path = format!("{root_path}/a.js");
+
+    // A new file.
+    fs.write(&path, b"first contents").unwrap();
+    assert_eq!(fs.read(&path).unwrap(), b"first contents");
+    let inode = std::fs::metadata(&path).unwrap().ino();
+    let link = format!("{root_path}/hard-link.js");
+    std::fs::hard_link(&path, &link).unwrap();
+
+    for contents in [
+        // The same length, a longer text, a shorter one, an empty one, and
+        // a text again.
+        b"FIRST CONTENTS".as_slice(),
+        b"a longer text than the file held before",
+        b"short",
+        b"",
+        b"x",
+    ] {
+        fs.write(&path, contents).unwrap();
+        assert_eq!(fs.read(&path).unwrap(), contents);
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().len(),
+            contents.len() as u64
+        );
+        assert_eq!(std::fs::metadata(&path).unwrap().ino(), inode);
+        assert_eq!(fs.read(&link).unwrap(), contents);
+    }
+
+    let symlink = format!("{root_path}/symlink.js");
+    std::os::unix::fs::symlink(&path, &symlink).unwrap();
+    fs.write(&path, b"a text longer than the next one").unwrap();
+    fs.write(&symlink, b"through the link").unwrap();
+    assert_eq!(fs.read(&path).unwrap(), b"through the link");
+    assert!(std::fs::symlink_metadata(&symlink)
+        .unwrap()
+        .file_type()
+        .is_symlink());
+
+    // A device has no length to cut: the write succeeds as tsgo's does.
+    fs.write("/dev/null", b"discarded").unwrap();
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
 /// tsgo `cachedvfs`: what the cache answered about an entry (its metadata,
 /// existence and accessible entries) it answers again whatever the file
 /// system below now holds; reads go through.
