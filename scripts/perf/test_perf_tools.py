@@ -37,11 +37,14 @@ class PerfTools(unittest.TestCase):
         for name, body in text.items():
             self.assertNotRegex(body, re.compile(r'/Users/[a-z]+/'), name)
 
-    def run_lowmode(self, rows):
+    def run_lowmode(self, rows, cycles=None):
         with tempfile.NamedTemporaryFile('w', suffix='.jsonl', delete=False) as handle:
             for label, counts in rows:
-                for count in counts:
-                    handle.write(json.dumps(dict(case='x/noemit', label=label, instr=round(count * 10**9))) + '\n')
+                for index, count in enumerate(counts):
+                    row = dict(case='x/noemit', label=label, instr=round(count * 10**9))
+                    if cycles is not None:
+                        row['cycles'] = round(cycles[label][index] * 10**9)
+                    handle.write(json.dumps(row) + '\n')
             path = handle.name
         try:
             return subprocess.run([sys.executable, os.path.join(HERE, 'lowmode.py'), path],
@@ -62,6 +65,17 @@ class PerfTools(unittest.TestCase):
         self.assertIn('+0.00%', out)
         self.assertIn('2/9', out)
         self.assertIn('WARN low cluster below 3 rounds: x/noemit base (2/9)', out)
+
+    def test_lowmode_prints_median_cycles_when_the_record_has_them(self):
+        rows = [('base', [100, 100, 100]), ('cand', [100, 100, 100])]
+        out = self.run_lowmode(rows, cycles=dict(base=[30.0, 31.0, 30.5], cand=[29.0, 30.2, 29.9]))
+        self.assertIn('cycles, median of all rounds', out)
+        self.assertIn('30.500', out)   # the base's median
+        self.assertIn('-1.97%', out)   # 30.5 -> 29.9
+        self.assertNotIn('cycles', self.run_lowmode(rows))  # a record without cycles keeps the two tables
+
+    def test_serial_records_cycles(self):
+        self.assertIn("cycles=f('cycles elapsed')", open(os.path.join(HERE, 'serial.py')).read())
 
 
 if __name__ == '__main__':

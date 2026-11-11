@@ -9,7 +9,10 @@ first runs --warmup times unmeasured (default 1), then the binaries run
 interleaved for --rounds measured rounds (default 3). Each measured run is
 printed and appended to OUT.jsonl; the end prints the median per (case,
 label) and the change against the first label. Instructions and memory are
-the numbers to judge by (wall time is noisy on a shared machine).
+the numbers to judge by (wall time is noisy on a shared machine). Each run's
+`cycles elapsed` is recorded too: instructions do not show stalls (cache
+misses, mispredicted branches), cycles do, at a run-to-run spread of about
+1.5 % (lowmode.py prints their medians beside the instruction table).
 
 Why the warm-up (2026-11-04): the first run of a project pays its cold start
 (page cache, kernel work counted in the process's retired instructions), up
@@ -41,6 +44,7 @@ def run(label, binary, case):
         return int(m.group(1)) if m else None
     user = float(re.search(r'([\d.]+) user', err).group(1)); sys_ = float(re.search(r'([\d.]+) sys', err).group(1))
     return dict(label=label, case=case, wall=wall, cpu=user + sys_, instr=f('instructions retired'),
+                cycles=f('cycles elapsed'),
                 rss=f('maximum resident set size'), foot=f('peak memory footprint'),
                 reclaims=f('page reclaims'), rc=p.returncode,
                 out=len(p.stdout), t=time.strftime('%H:%M:%S'))

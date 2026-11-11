@@ -20,6 +20,8 @@ checker in advance; it depends on strong oracles, a reference implementation wit
   next ≈ 1.1–1.5 %, playwright ≈ 1.7 %, vue ≈ 0.6–0.9 %, TypeScript ≈ 0.35 % — independent of the binary; in-mode rounds spread ≤ 0.08 %),
   so the tool reports the median of each binary's lowest cluster with the cluster's size and flags a low cluster under 3 rounds
   (re-measure with 15). 3-round medians lie for sub-1% deltas. Wall and cpu are reported, not judged. Footprint must not grow.
+  `serial.py` also records each run's cycles and `lowmode.py` prints their medians: instructions do not show stalls, cycles do, at a
+  run-to-run spread of about 1.5 % (read a cycle difference under 1 % only from 15 or more rounds).
 - One heavy job at a time (`nice -n 20`, `cargo -j 2`, `CARGO_INCREMENTAL=0`); ≤ 2 Codex lanes building; measurements in quiet windows.
 
 ## 1. Attribution ladder (coarse → fine; stop when a row is actionable)
@@ -95,6 +97,19 @@ container growth, allocating predicates); (c) work-count divergence (types/insta
   contain (two chains deadlocked for 2 h). The fingerprint oracle takes the `syntax_fingerprint` example binary
   (`cargo build --release -p tsc-rs-binder --example syntax_fingerprint`), not the CLI. Check a chain ~30 min after launch.
 
+- Instruction parity is not time parity (2026-11-11): the checker ran tsrs's instruction count (67.4 vs 66.8 G on VS Code) and still took
+  0.5–0.65 s longer (IPC 2.96 vs 3.31); the memo rows of 11-10 removed 7.7 G (10 %) of its instructions and 0.19 s (3.6 %) of its time.
+  `--noCheck --noEmit` isolates the front end (ours 27–28 G vs tsrs 18.9 G: the whole instruction gap). Top-down counters need no root:
+  `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun xctrace record --template 'CPU Counters' … --launch -- BIN ARGS`, then
+  `xctrace export --xpath '…/table[@schema="CounterMetricAggregatedForProcess"]'` (rows: useful, back-end, front-end, discarded in 1/10000);
+  ours 34 / 13 / 33 / 20 %, tsrs 37 / 9 / 36 / 19 %. A row that removes stalls (allocation traffic, growth copies, cache-missing loads) shows
+  in cycles, not in instructions — price it there. Libc/kernel call counts of both binaries: a `DYLD_INSERT_LIBRARIES` counting dylib (it
+  does not pass through `/usr/bin/time`); the file-system calls of ours and tsrs are the same, the memory calls are not.
+- Check what a cache key really distinguishes before comparing miss counts with the reference (row L1, 2026-11-11): our resolver misses
+  equalled tsgo's (57,192), and 86 % of them re-resolved a file another directory had already resolved (54,906 directory/specifier pairs,
+  7,455 targets on VS Code). Equal counts against the reference prove the port is faithful, not that the work is needed.
+- A cache above a layer must respect that layer's contract: the resolver's tests pin that a repeated request probes the host again, so the
+  per-target memo lives in the loader, beside the per-directory cache that already assumes pure host observations.
 - Syscall counts are not instructions (tax-l L2, 2026-11-08): replacing 17,364 `stat` probes with a cached `read_dir` per directory passed
   its count gate (6 probes per directory) and still cost +1.2% on VS Code and +2.7% on next.js — the listing and its cache cost more
   instructions than the probes saved. A row that trades one kind of syscall for another needs an instruction estimate of both sides.

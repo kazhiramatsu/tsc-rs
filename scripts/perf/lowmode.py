@@ -11,9 +11,16 @@ more than --gap percent (default 0.15) of the lowest count apart, and the first 
 table shows how many rounds landed in that cluster; a low cluster of fewer than 3 rounds is flagged (re-measure with
 more rounds, e.g. 15). Use 9 rounds (measure-patches.sh ROUNDS=9) and read both tables. The earlier rule (median of
 the lower half) misreported a neutral row by +1.5 % when 7 of 9 rounds landed in a high mode (zod/next, 2026-11-09).
+
+When the record carries `cycles` (serial.py since 2026-11-11), a third table gives each binary's median cycles per
+project against the base. Cycles are what the time is made of: a row can remove instructions that never stalled and
+leave the time where it was, or remove stalls without removing an instruction. They spread by about 1.5 % run to run
+and do not form the instruction counts' tight clusters, so the table is the plain median of all rounds; read a
+difference under 1 % only from 15 or more rounds.
 """
 import collections
 import json
+import statistics
 import sys
 
 MIN_LOW_ROUNDS = 3
@@ -48,6 +55,7 @@ def main():
     base_label = option('--base', 'base', str)
     gap = option('--gap', 0.15, float) / 100
     by = collections.defaultdict(list)
+    cycles = collections.defaultdict(list)
     order = []
     for line in open(path):
         if not line.strip():
@@ -56,6 +64,8 @@ def main():
         if row['label'] not in order:
             order.append(row['label'])
         by[(row['case'], row['label'])].append(row['instr'])
+        if row.get('cycles'):
+            cycles[(row['case'], row['label'])].append(row['cycles'])
     cases = list(dict.fromkeys(case for case, _ in by))
     labels = [base_label] + [label for label in order if label != base_label]
     width = max(len(label) for label in labels) + 2
@@ -85,6 +95,17 @@ def main():
         print(f"{label:{width}}" + ''.join(cells))
     for cell in flagged:
         print(f"WARN low cluster below {MIN_LOW_ROUNDS} rounds: {cell} -> re-measure with more rounds (gap {gap * 100:g} %)")
+    if all(cycles.get((case, base_label)) for case in cases):
+        medians = {key: statistics.median(values) for key, values in cycles.items()}
+        print(f"\n{'cycles, median of all rounds':{width}}" + ''.join(f"{case.split('/')[0]:>11}" for case in cases))
+        print(f"{base_label + ' (G)':{width}}" + ''.join(f"{medians[(case, base_label)] / 1e9:11.3f}" for case in cases))
+        for label in labels[1:]:
+            cells = []
+            for case in cases:
+                median = medians.get((case, label))
+                base_median = medians[(case, base_label)]
+                cells.append(f"{(median - base_median) / base_median * 100:+10.2f}%" if median else f"{'n/a':>11}")
+            print(f"{label:{width}}" + ''.join(cells))
 
 
 if __name__ == '__main__':
