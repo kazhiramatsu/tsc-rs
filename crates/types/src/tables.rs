@@ -3028,6 +3028,51 @@ impl TypeTables {
         }
     }
 
+    /// tsgo checker.go:27133-27150 removeType: `ty` without `target`. A
+    /// union gives the member up by its position in the sorted member list
+    /// (a search and one copy, no predicate per member); a denormalized
+    /// union origin that names `target` keeps the filter, which rebuilds
+    /// that origin. A type that is not a member leaves `ty` as it is.
+    pub fn remove_type(&mut self, order: TypeOrder<'_>, ty: TypeId, target: TypeId) -> TypeId {
+        if !self.flags_of(ty).intersects(TypeFlags::UNION) {
+            return if ty == target {
+                self.intrinsics.never
+            } else {
+                ty
+            };
+        }
+        let TypeData::Union { types, origin, .. } = self.type_of(ty).data else {
+            unreachable!("union flag implies union data");
+        };
+        if let Some(origin) = origin {
+            if self.flags_of(origin).intersects(TypeFlags::UNION)
+                && crate::type_order::contains_type(self, order, self.members_of(origin), target)
+            {
+                return self.filter_type(ty, |_, t| t != target);
+            }
+        }
+        let members = self.list(types);
+        let Ok(index) = crate::type_order::search_type(self, order, members, target) else {
+            return ty;
+        };
+        if members.len() == 2 {
+            return members[1 - index];
+        }
+        let mut filtered = Vec::with_capacity(members.len() - 1);
+        filtered.extend_from_slice(&members[..index]);
+        filtered.extend_from_slice(&members[index + 1..]);
+        // The flags `filter_type` forwards: the list is the same sorted
+        // list with one member less.
+        let object_flags = ObjectFlags::from_bits(
+            self.object_flags_of(ty).bits()
+                & (ObjectFlags::PRIMITIVE_UNION.bits()
+                    | ObjectFlags::CONTAINS_INTERSECTIONS.bits()
+                    | UNION_MEMBERS_CONTENT_ORDERED.bits()
+                    | UNION_MEMBERS_ID_ORDERED.bits()),
+        );
+        self.get_union_type_from_sorted_list(filtered, object_flags, None, None, None)
+    }
+
     /// tsc-port: removeFromEach @6.0.3
     /// tsc-hash: ad294a4d1ee7064aac25b0e83ddceca1d8b633837436f1dad73006e6d47c664e
     /// tsc-span: _tsc.js:61732-61736

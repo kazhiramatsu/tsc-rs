@@ -845,3 +845,80 @@ fn large_union_merge_does_not_scan_members_for_order() {
     };
     assert_eq!(t.list(types), &literals[1..]);
 }
+
+/// tsgo removeType: a member leaves a union by its position in the member
+/// list, and the result is the union the filter interns — in both member
+/// orders, for a denormalized origin that names the member (the filter
+/// rebuilds it) and for one that hides the member inside a named union.
+#[test]
+fn remove_type_gives_the_union_the_filter_gives() {
+    use crate::{IdentityDomain, SymbolId, TypeData, TypeTables, UnionReduction};
+    let ctx = TestOrderContext::default();
+    let mut t = TypeTables::new(true, false, &IdentityDomain::new());
+    // Ids ascend while the texts descend: the two member orders differ.
+    let literals: Vec<_> = (0..48)
+        .map(|n| t.get_string_literal_type(&format!("s{:03}", 99 - n)))
+        .collect();
+    let content = Some(&ctx as &dyn super::TypeOrderContext);
+    for (order, other) in [(content, None), (None, content)] {
+        let union = t.get_union_type(order, &literals[..32], UnionReduction::None);
+        for &member in &literals[..32] {
+            let removed = t.remove_type(order, union, member);
+            let filtered = t.filter_type(union, |_, ty| ty != member);
+            assert_eq!(removed, filtered);
+            assert_eq!(t.members_of(removed).len(), 31);
+            assert!(!t.members_of(removed).contains(&member));
+            assert_eq!(t.object_flags_of(removed), t.object_flags_of(union));
+            // A search in the other order may miss the member; it never
+            // answers with another union.
+            let crossed = t.remove_type(other, union, member);
+            assert!(crossed == union || crossed == filtered);
+        }
+        assert_eq!(t.remove_type(order, union, literals[40]), union);
+
+        let pair = t.get_union_type(order, &literals[33..35], UnionReduction::None);
+        assert_eq!(t.remove_type(order, pair, literals[33]), literals[34]);
+        assert_eq!(t.remove_type(order, pair, literals[34]), literals[33]);
+
+        let never = t.intrinsics.never;
+        assert_eq!(t.remove_type(order, literals[0], literals[0]), never);
+        assert_eq!(t.remove_type(order, literals[0], literals[1]), literals[0]);
+
+        let named = t.get_union_type(order, &literals[35..37], UnionReduction::None);
+        t.set_alias(
+            named,
+            Some(SymbolId::new(if order.is_some() { 1 } else { 2 })),
+            None,
+        );
+        let outer = t.get_union_type(
+            order,
+            &[named, literals[37], literals[38]],
+            UnionReduction::None,
+        );
+        let TypeData::Union { origin, .. } = t.type_of(outer).data else {
+            panic!("union")
+        };
+        let origin = origin.expect("a named union and two literals keep an origin");
+        assert!(t.members_of(origin).contains(&named));
+
+        // The origin names the literal: the result keeps a rebuilt origin.
+        let removed = t.remove_type(order, outer, literals[37]);
+        assert_eq!(removed, t.filter_type(outer, |_, ty| ty != literals[37]));
+        assert_eq!(t.members_of(removed).len(), 3);
+        let TypeData::Union { origin, .. } = t.type_of(removed).data else {
+            panic!("union")
+        };
+        let rebuilt = origin.expect("the filter rebuilds the origin");
+        assert_eq!(t.members_of(rebuilt).len(), 2);
+        assert!(t.members_of(rebuilt).contains(&named));
+
+        // The origin hides the literal inside the named union: no origin.
+        let removed = t.remove_type(order, outer, literals[35]);
+        assert_eq!(removed, t.filter_type(outer, |_, ty| ty != literals[35]));
+        assert_eq!(t.members_of(removed).len(), 3);
+        let TypeData::Union { origin, .. } = t.type_of(removed).data else {
+            panic!("union")
+        };
+        assert!(origin.is_none());
+    }
+}

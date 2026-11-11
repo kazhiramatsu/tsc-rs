@@ -482,6 +482,12 @@ impl<'a> CheckerState<'a> {
             .get_regular_type_of_literal_type(ctx.order(), ty)
     }
 
+    /// `tables.remove_type` (tsgo removeType) with this checker's order.
+    pub(crate) fn remove_type(&mut self, ty: TypeId, target: TypeId) -> TypeId {
+        let ctx = order_ctx!(self);
+        self.tables.remove_type(ctx.order(), ty, target)
+    }
+
     /// `tables.add_optionality` with this checker's order.
     pub(crate) fn add_optionality(
         &mut self,
