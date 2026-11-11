@@ -615,22 +615,18 @@ pub fn escape_leading_underscores(name: &str) -> String {
 impl nodes::IdentifierData {
     /// tsc `idText`: the identifier's text, which is its escaped text
     /// without the underscore escapeLeadingUnderscores adds to
-    /// `__`-prefixed names. An identifier's name is always UTF-8.
+    /// `__`-prefixed names. An identifier's name is always UTF-8: the name
+    /// table recorded that when it stored the text, so the read does not
+    /// validate the bytes again.
     pub fn text(&self) -> &'static str {
-        self.escaped_text
-            .unescape()
-            .as_str()
-            .expect("identifier text is UTF-8")
+        unescape_leading_underscores(self.escaped_text.identifier_text())
     }
 }
 
 impl nodes::PrivateIdentifierData {
     /// tsc `idText`; see [`nodes::IdentifierData::text`].
     pub fn text(&self) -> &'static str {
-        self.escaped_text
-            .unescape()
-            .as_str()
-            .expect("identifier text is UTF-8")
+        unescape_leading_underscores(self.escaped_text.identifier_text())
     }
 }
 
