@@ -830,7 +830,8 @@ impl<'a> Orchestrator<'a> {
             self.generate_graph();
             return self.clean_command_line();
         }
-        let result = self.start("", false, route);
+        // The process exits after this build: its last project may stay.
+        let result = self.start("", false, true, route);
         self.close_content_mappers();
         let result = result?;
         let mut stdout = result.stdout;
@@ -848,11 +849,13 @@ impl<'a> Orchestrator<'a> {
 
     /// tsgo `start`: the graph (reusing the old tasks once there is one),
     /// the order of `project` (every project when empty), without the
-    /// project itself for its references, and its build.
+    /// project itself for its references, and its build. `one_shot`: the
+    /// process exits when the build is done (see `build_or_clean_order`).
     fn start(
         &mut self,
         project: &str,
         only_references: bool,
+        one_shot: bool,
         route: &mut CliRoute<'_>,
     ) -> Result<OrchestratorResult, CliError> {
         self.generate_graph();
@@ -865,7 +868,7 @@ impl<'a> Orchestrator<'a> {
             }
             order.pop();
         }
-        self.build_or_clean_order(&order, route)
+        self.build_or_clean_order(&order, one_shot, route)
     }
 
     /// tsgo `recheckAllProjects`: the projects of `project`'s order are
@@ -925,15 +928,21 @@ impl<'a> Orchestrator<'a> {
         route: &mut CliRoute<'_>,
     ) -> Result<OrchestratorResult, CliError> {
         let order = self.order.clone();
-        self.build_or_clean_order(&order, route)
+        self.build_or_clean_order(&order, false, route)
     }
 
     /// tsgo `buildOrCleanOrder` up to its report: the projects in `order`,
     /// their reports, the exit status, the errors reported (a task that is
     /// not pending reports its errors again) and the statistics.
+    ///
+    /// Each project's program and checker states are dropped when the
+    /// project is done, as tsgo's are collected: the build holds one project
+    /// at a time. Only the last program of a `one_shot` build, after which
+    /// the process exits, is left to the exit.
     fn build_or_clean_order(
         &mut self,
         order: &[usize],
+        one_shot: bool,
         route: &mut CliRoute<'_>,
     ) -> Result<OrchestratorResult, CliError> {
         let mut stdout = String::new();
@@ -949,9 +958,20 @@ impl<'a> Orchestrator<'a> {
         let mut result = OrchestratorResult::default();
         if self.errors.is_empty() {
             result.statistics.projects = order.len();
-            for &task in order {
+            // The last project that builds a program: a solution after it
+            // (a config with references and no files) builds none.
+            let last_program = one_shot
+                .then(|| {
+                    order.iter().rposition(|&task| {
+                        self.tasks[task]
+                            .plan_and_options()
+                            .is_some_and(|(plan, _)| !is_solution(plan))
+                    })
+                })
+                .flatten();
+            for (position, &task) in order.iter().enumerate() {
                 self.tasks[task].reset_result();
-                self.build_project(task, route)?;
+                self.build_project(task, last_program == Some(position), route)?;
             }
             for &task in order {
                 let task_state = &mut self.tasks[task];
@@ -1017,7 +1037,12 @@ impl<'a> Orchestrator<'a> {
     /// tsgo `BuildTask.buildProject`: a pending task gets its status and
     /// is built or settled; one that is not pending (a watch's later cycle)
     /// reports its errors again.
-    fn build_project(&mut self, task: usize, route: &mut CliRoute<'_>) -> Result<(), CliError> {
+    fn build_project(
+        &mut self,
+        task: usize,
+        process_exits_next: bool,
+        route: &mut CliRoute<'_>,
+    ) -> Result<(), CliError> {
         if self.tasks[task].pending {
             let status = self.up_to_date_status(task);
             self.tasks[task].status = Some(status);
@@ -1035,7 +1060,8 @@ impl<'a> Orchestrator<'a> {
                     self.tasks[task].exit_status = 1;
                 }
             } else {
-                let has_changed_dts_file = self.compile_and_emit(task, route)?;
+                let has_changed_dts_file =
+                    self.compile_and_emit(task, process_exits_next, route)?;
                 self.update_downstream(task, has_changed_dts_file);
             }
         } else if !self.tasks[task].errors.is_empty() {
@@ -1190,6 +1216,7 @@ impl<'a> Orchestrator<'a> {
     fn compile_and_emit(
         &mut self,
         task: usize,
+        process_exits_next: bool,
         route: &mut CliRoute<'_>,
     ) -> Result<bool, CliError> {
         self.tasks[task].errors.clear();
@@ -1251,6 +1278,7 @@ impl<'a> Orchestrator<'a> {
             &self.catalog,
             &plan,
             old_info.as_deref(),
+            process_exits_next,
             route,
         )?;
         // tsgo `writeFile`: a watch keeps the time it wrote an output of a
@@ -1650,7 +1678,7 @@ impl<'a> Orchestrator<'a> {
         else {
             return UpToDateStatus::new(StatusKind::ConfigFileNotFound);
         };
-        if plan.file_names().is_empty() && plan.project_references().is_some() {
+        if is_solution(&plan) {
             return UpToDateStatus::new(StatusKind::Solution);
         }
         let config = self.tasks[task].config.clone();
@@ -2670,7 +2698,7 @@ impl ApiOrchestrator {
     pub fn build(&mut self, project: &str) -> Result<OrchestratorResult, String> {
         self.call(|orchestrator, route| {
             orchestrator.recheck_all_projects(project);
-            orchestrator.start(project, false, route)
+            orchestrator.start(project, false, false, route)
         })
     }
 
@@ -2679,7 +2707,7 @@ impl ApiOrchestrator {
     pub fn build_references(&mut self, project: &str) -> Result<OrchestratorResult, String> {
         self.call(|orchestrator, route| {
             orchestrator.recheck_all_projects(project);
-            orchestrator.start(project, true, route)
+            orchestrator.start(project, true, false, route)
         })
     }
 
@@ -2737,6 +2765,12 @@ pub(crate) fn run_build(
     );
     orchestrator.locale = route.locale;
     orchestrator.run(route)
+}
+
+/// tsgo's solution status: a config with project references and no files of
+/// its own, whose build makes no program.
+fn is_solution(plan: &ConfigRootPlan) -> bool {
+    plan.file_names().is_empty() && plan.project_references().is_some()
 }
 
 /// tsgo `ResolvedProjectReferencePaths`: the config file of every
