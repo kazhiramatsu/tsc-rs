@@ -131,3 +131,33 @@ fn first_admission_tree_depth_is_not_replaced_by_a_later_shallow_route() {
     assert_eq!(exceeded.js_path().unwrap(), "/project/shared.ts");
     assert_eq!(exceeded.observed(), 2);
 }
+
+#[test]
+fn automatic_type_occurrences_charge_the_budget_before_resolution_with_or_without_tracing() {
+    let host = MemoryCompilerHost::builder("/project")
+        .file("/project/main.ts", b"export {};".to_vec())
+        .build()
+        .unwrap();
+    for trace in [false, true] {
+        let error = load_no_lib_program(
+            &host,
+            &[PathBuf::from("/project/main.ts")],
+            CompilerOptions {
+                no_emit: Some(true),
+                trace_resolution: Some(trace),
+                ..Default::default()
+            },
+            ProgramOptions::default().with_no_lib(true).with_types(vec![
+                "z".into(),
+                "a".into(),
+                "z".into(),
+            ]),
+            ProgramLoadLimits::new(128, 2, 64, 1024, 1024).with_workers(WorkerBudget::serial()),
+        )
+        .unwrap_err();
+        let exceeded = error.limit_exceeded().unwrap();
+        assert_eq!(exceeded.limit(), ProgramLoadLimit::RequestEdges);
+        assert_eq!(exceeded.maximum(), 2);
+        assert_eq!(exceeded.observed(), 3);
+    }
+}

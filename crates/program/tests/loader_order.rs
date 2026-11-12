@@ -67,6 +67,59 @@ fn depth_restart() {
 fn trace_occurrences() {
     check("trace_occurrences");
 }
+
+#[test]
+fn project_trace_occurrences() {
+    check("project_trace_occurrences");
+}
+
+#[test]
+fn trace_type_occurrences() {
+    check("trace_type_occurrences");
+}
+#[test]
+fn trace_package_occurrences() {
+    check("trace_package_occurrences");
+}
+#[test]
+fn trace_synthetic_occurrences() {
+    check("trace_synthetic_occurrences");
+    for trace in [false, true] {
+        let program = load(
+            &fixture("trace_synthetic_occurrences"),
+            WorkerBudget::serial(),
+            trace,
+        );
+        assert_eq!(program.resolutions().modules().len(), 1);
+    }
+}
+
+/// Own API contracts from O17/O35: occurrence traces do not multiply rows,
+/// and an unresolved repeated name still carries one diagnostic per occurrence.
+#[test]
+fn tracing_preserves_unique_type_rows_and_occurrence_diagnostics() {
+    let mut missing = fixture("automatic_order");
+    let mut config: serde_json::Value =
+        serde_json::from_str(&missing.files["tsconfig.json"]).unwrap();
+    config["compilerOptions"]["types"] = serde_json::json!(["absent", "absent"]);
+    missing
+        .files
+        .insert("tsconfig.json".to_owned(), config.to_string());
+    for trace in [false, true] {
+        let resolved = load(&fixture("automatic_order"), WorkerBudget::serial(), trace);
+        assert_eq!(resolved.resolutions().type_reference_len(), 2);
+        let unresolved = load(&missing, WorkerBudget::serial(), trace);
+        assert_eq!(unresolved.resolutions().type_reference_len(), 1);
+        let (_, row) = unresolved.resolutions().type_references().next().unwrap();
+        assert_eq!(
+            row.diagnostics()
+                .iter()
+                .map(|row| row.code())
+                .collect::<Vec<_>>(),
+            [2688, 2688]
+        );
+    }
+}
 #[test]
 fn missing_occurrences() {
     check("missing_occurrences");
