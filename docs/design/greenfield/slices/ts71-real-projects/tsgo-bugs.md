@@ -218,7 +218,7 @@ tsgo（TypeScript 7.1、vendored commit aa814927）と比べていて、tsgo の
   `--explainFiles`：tsgo は `dep.ts` の理由を 2 行、tsc-rs（main 70b7bb9a9）は 1 行（fixture は lane fe-fused の
   `fixtures/duplicate-dynamic-import`）。
 - tsc-rs の扱い：tsgo に合わせる（行 F4：import の出現の一覧を tsgo の走査の順序と重複どおりにする。checker の割り当てに使う import の数は
-  既に同じ規則 — `crates/program/src/module_requests.rs` の `dynamic_import_count`）。着地したらここに PR 番号を足す。
+  既に同じ規則 — `crates/program/src/module_requests.rs` の `dynamic_import_count`）。#985 で着地（main 97c9dd621）。
 - 報告：未投稿（報告候補：comment の中の語で import が重複するのは意図した挙動ではなさそう）。
 
 ### 18. `--watch` の source cache は file 名の表記を見ない（`--explainFiles` の file 名が one-shot と変わる）
@@ -235,3 +235,20 @@ tsgo（TypeScript 7.1、vendored commit aa814927）と比べていて、tsgo の
 - tsc-rs の扱い：bounded（one-shot の tsgo と同じ表記を watch でも出す）。合わせるには watch の host に「正規化した path で引く parse cache」の
   protocol が要り、loader の読み込み口をまたぐ — front end の作り直し（lane fe-fused / direct-land）の後に判断する。
 - 報告：未投稿（報告候補：cache の key に表記と parse option が入っていない — 表記だけでなく、option の違う要求にも古い tree を返しうる）。
+
+### 19. file の redirect / module 形式の説明は「最初に求めた側の表記」で cache され、以後の `--explainFiles` にも出る
+
+- 見つけた日・場所：2026-11-12、lane fe-fused / loader-diffs-3 の最小入力 `casing-package-explain`（`"type": "module"` の package で、
+  `main.ts` が `./Dep.js` を import し、`files` に `dep.ts` がある）。
+- 現象：`tsc -p . --explainFiles` で、TS1261 の末尾に `File is ECMAScript module because '<絶対 path>/package.json' has field "type" …`
+  が付き、その後の `--explainFiles` の `Dep.ts` の項目も **絶対 path** の同じ行になる（他の file は相対 path）。構文 error がある
+  program では診断が materialize されないので、同じ file が相対 path で出る。
+- 根拠：tsgo `compiler/includeprocessor.go:125-184` は file の説明（project 出力・package redirect・module 形式）を **file path だけを key に**
+  cache し、表記を決める renderer が key に入っていない。処理診断（TS1261・TS1149・TS6059・TS6307）は絶対 path で求め
+  （`processingDiagnostic.go:100-108`）、`--explainFiles` は相対 path で求める（`program.go:2144-2158`）ので、先に求めた側の表記が残る。
+  構文 error のときは `GetDiagnosticsOfAnyProgram` が program の getter を飛ばす（`program.go:2033-2070`）。
+- 再現：上の入力（`handover/arch-arena/lanes/loader-diffs-3/final-1112/fixtures/casing-package-explain/`；規則 10 項と完全な出力は同じ
+  packet の `F5-RULE.md`）。
+- tsc-rs の扱い：tsgo に合わせる（#985：説明は処理診断が最初に materialize されるとき — command・API・language service の semantic
+  getter、build info の error 状態の収集 — に付け、loader は cache を先に埋めない；fixture 23 + 18 + 2 + 30 件で固定）。
+- 報告：未投稿（報告候補：cache の key に表記が入っていないため、同じ一覧の中で絶対 path と相対 path が混ざる）。
