@@ -8,6 +8,7 @@ use tsc_diagnostics::{
 use tsc_host::to_file_name_lower_case_js;
 use tsc_syntax::{ParseOptions, ScriptKind, SourceFile};
 use tsc_types::CompilerOptions;
+use tsc_types::IdentityDomain;
 
 use crate::error::{PreparationError, PreparationErrorKind, PreparationOperation};
 use crate::inclusion_reason::SourceInclusionReasons;
@@ -113,7 +114,7 @@ impl PreparsedSourceFile {
         &self.options
     }
 
-    /// The planner's parse, at local (base-zero) identities.
+    /// The planner's parse. Logical options use zero identity bases; when placed directly the arena may already hold final-address lease views.
     pub fn source(&self) -> &SourceFile {
         &self.source
     }
@@ -145,9 +146,23 @@ pub struct PreparsedSyntax {
     /// parsing (the slot stays empty): kept in the cache until the checker
     /// session takes it from there.
     cached: Option<crate::CachedParse>,
+    direct_layout: Option<Arc<[tsc_syntax::placement::Placement]>>,
+    identity_domain: Option<IdentityDomain>,
 }
 
 impl PreparsedSyntax {
+    /// The finite Program's owner, retained even after its parse is adopted.
+    pub fn identity_domain(&self) -> Option<&IdentityDomain> {
+        self.identity_domain.as_ref()
+    }
+
+    pub fn has_direct_layout(&self) -> bool {
+        self.direct_layout.is_some()
+    }
+    pub fn direct_layout(&self) -> Option<&Arc<[tsc_syntax::placement::Placement]>> {
+        self.direct_layout.as_ref()
+    }
+
     pub(crate) fn new(
         parsed: Box<PreparsedSourceFile>,
         parse_span: (std::time::Instant, std::time::Instant),
@@ -156,6 +171,8 @@ impl PreparsedSyntax {
             slot: Arc::new(Mutex::new(Some(parsed))),
             parse_span: Some(parse_span),
             cached: None,
+            direct_layout: None,
+            identity_domain: None,
         }
     }
 
@@ -424,8 +441,17 @@ impl PreparedSourceFile {
         }
     }
 
-    /// The retained planner parse slot (empty unless this source was loaded
-    /// through a parse that recorded one and no session has adopted it yet).
+    /// Retain the finite load/check owner in the immutable document handle.
+    pub(crate) fn mark_identity_domain(&mut self, domain: &IdentityDomain) {
+        self.preparsed_syntax.identity_domain = Some(domain.clone());
+    }
+
+    /// Attach the finite command's immutable placement provenance.
+    pub(crate) fn mark_direct_layout(&mut self, layout: Arc<[tsc_syntax::placement::Placement]>) {
+        self.preparsed_syntax.direct_layout = Some(layout);
+    }
+
+    /// The retained planner parse slot, when it has not been adopted yet.
     pub fn preparsed_syntax(&self) -> &PreparsedSyntax {
         &self.preparsed_syntax
     }
@@ -1473,6 +1499,7 @@ pub struct ProgramOptions {
     /// The parses other Programs hold (the project system's compiler host,
     /// tsgo `ParseCache`), which the loader takes instead of parsing.
     parse_cache: crate::ParseCacheHandle,
+    identity: ProgramIdentity,
 }
 
 /// A [`crate::content_mapper::Project`] in a program's options: programs are
@@ -1494,7 +1521,29 @@ impl fmt::Debug for ContentMapperProjectHandle {
     }
 }
 
+/// Execution ownership is not Program content, just as its parse cache is not.
+#[derive(Clone, Debug, Default)]
+struct ProgramIdentity(Option<IdentityDomain>);
+
+impl PartialEq for ProgramIdentity {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+impl Eq for ProgramIdentity {}
+
 impl ProgramOptions {
+    /// Give a finite load and its checker the same explicit identity owner.
+    /// Cache-backed project and editor callers retain their existing domains.
+    pub fn with_identity_domain(mut self, domain: IdentityDomain) -> Self {
+        self.identity = ProgramIdentity(Some(domain));
+        self
+    }
+
+    pub fn identity_domain(&self) -> Option<&IdentityDomain> {
+        self.identity.0.as_ref()
+    }
+
     pub fn with_module_resolution_override(
         mut self,
         value: crate::ModuleResolutionOverrideHandle,

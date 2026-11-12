@@ -1855,11 +1855,16 @@ impl<'a> CheckerState<'a> {
         let strict_function_types = options.strict_option_value(options.strict_function_types);
         let stable_type_ordering = options.stable_type_ordering_effective();
         let exact_optional = options.exact_optional_property_types.unwrap_or(false);
-        let mut tables = TypeTables::new(
-            strict_null_checks,
-            exact_optional,
-            crate::program::shared_identity_domain(),
-        );
+        // ProgramBinder has validated one domain for every document. The
+        // checker's own type lease belongs to that same session owner.
+        let identity_domain = binder
+            .source(0)
+            .arena
+            .identity_leases()
+            .expect("validated Program syntax ownership")
+            .nodes
+            .domain();
+        let mut tables = TypeTables::new(strict_null_checks, exact_optional, &identity_domain);
 
         // The checker init block's symbols (46488-46496, 47006), in
         // tsc allocation order.

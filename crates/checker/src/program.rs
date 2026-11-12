@@ -207,7 +207,6 @@ impl PartialEq for DocumentAddress {
             && self.content_mapper == other.content_mapper
     }
 }
-
 /// The identity domain of every shared document: the process cache's library
 /// bundles and the documents of every [`DocumentRegistry`]. tsgo's parse
 /// cache hands a parse to any Program (a pointer belongs to no domain); one

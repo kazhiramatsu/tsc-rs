@@ -23,6 +23,15 @@ pub struct Fixture {
 }
 
 pub fn load(fixture: &Fixture, workers: WorkerBudget, trace: bool) -> PreparedProgram {
+    load_with_domain(fixture, workers, trace, None)
+}
+
+pub fn load_with_domain(
+    fixture: &Fixture,
+    workers: WorkerBudget,
+    trace: bool,
+    domain: Option<tsc_types::IdentityDomain>,
+) -> PreparedProgram {
     let mut config: serde_json::Value =
         serde_json::from_str(&fixture.files["tsconfig.json"]).expect("fixture config");
     config["compilerOptions"]["traceResolution"] = trace.into();
@@ -49,6 +58,10 @@ pub fn load(fixture: &Fixture, workers: WorkerBudget, trace: bool) -> PreparedPr
         },
     )
     .expect("parse fixture config");
+    let plan = match domain {
+        Some(domain) => plan.with_identity_domain(domain),
+        None => plan,
+    };
     load_config_program_with_no_emit_override(
         &host,
         &plan,

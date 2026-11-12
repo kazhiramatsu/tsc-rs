@@ -46,6 +46,9 @@ use crate::text::{decode_host_text, HostTextDecodeError};
 use crate::workers::WorkerBudget;
 use crate::PreparationError;
 
+#[path = "level_zero_placement.rs"]
+mod level_zero_placement;
+
 /// The deepest source chain admitted by the recursive H0.4 loader worker.
 ///
 /// A caller may declare a larger resource ceiling, but the structural ceiling
@@ -916,7 +919,9 @@ fn load_program_worker(
     // of the walk (on workers with their own caches, or before the file's
     // visit), so a traced load follows the walk alone: the order of tsgo's
     // single-threaded work group. The results are the same either way.
-    if compiler_options.trace_resolution != Some(true) {
+    if compiler_options.trace_resolution != Some(true)
+        && !graph.read_ahead_direct(&prefetch_roots, normalized_root_count)
+    {
         graph.read_ahead(&prefetch_roots);
     }
     let mut normalized_roots = prefetch_roots.into_iter().take(normalized_root_count);
@@ -2628,6 +2633,8 @@ struct CompleteGraph {
 }
 
 struct StagedGraph<'host, 'options, 'resolver> {
+    direct_layout: bool,
+    direct_stripes: level_zero_placement::Stripes,
     host: &'host dyn CompilerHost,
     /// The host module resolution observes: `host`, or for a program that
     /// reads the sources of its referenced projects, the host that finds
@@ -2767,6 +2774,8 @@ struct StagedGraphConfig<'host, 'options, 'resolver> {
 impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
     fn new(config: StagedGraphConfig<'host, 'options, 'resolver>) -> Self {
         Self {
+            direct_layout: false,
+            direct_stripes: level_zero_placement::Stripes::default(),
             host: config.host,
             resolution_host: config.resolution_host,
             compiler_options: config.compiler_options,
@@ -4312,6 +4321,20 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     }
 
     fn finish(mut self) -> Result<CompleteGraph, ProgramLoadError> {
+        {
+            if let Some(domain) = self.program_options.identity_domain() {
+                for source in &mut self.sources {
+                    source.prepared.mark_identity_domain(domain);
+                }
+            }
+            if self.direct_layout {
+                let layout = self.direct_stripes.layout();
+                self.direct_stripes.seal();
+                for source in &mut self.sources {
+                    source.prepared.mark_direct_layout(Arc::clone(&layout));
+                }
+            }
+        }
         self.resolve_root_sources();
         self.record_unloaded_targets()?;
         let collected = self.collect_files()?;

@@ -382,3 +382,44 @@ fn an_explanation_returned_before_a_diagnostic_getter_keeps_its_first_rendering(
         assert_eq!(explain(&program), case.later);
     }
 }
+
+#[test]
+fn direct_placement_leaves_include_details_for_the_first_consumer() {
+    let cases: Vec<Expected> = serde_json::from_str(include_str!(
+        "../../program/tests/fixtures/include-consumer-api.json"
+    ))
+    .unwrap();
+    for case in cases.into_iter().filter(|case| case.first == "explain") {
+        let mut fixture = corpus::fixture(&case.name);
+        if case.syntax {
+            fixture
+                .files
+                .get_mut("main.ts")
+                .unwrap()
+                .push_str("\nconst broken = ;\n");
+        }
+        let program = corpus::load_with_domain(
+            &fixture,
+            WorkerBudget::serial(),
+            false,
+            Some(tsc_types::IdentityDomain::new()),
+        );
+        assert!(program
+            .source_files()
+            .iter()
+            .any(|source| source.preparsed_syntax().has_direct_layout()));
+        let shared = program.clone();
+        tsc_compiler::ProgramSession::new(program)
+            .with_declarations(|session| {
+                assert_eq!(
+                    explain(&shared),
+                    case.explanation,
+                    "Ready adoption must not prime the include processor"
+                );
+                session.get_program_diagnostics()?;
+                assert_eq!(explain(&shared), case.later);
+                Ok(())
+            })
+            .unwrap();
+    }
+}

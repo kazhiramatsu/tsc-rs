@@ -11539,10 +11539,143 @@ fn context_flags_for_function_body(is_generator: bool, is_async: bool) -> (NodeF
     (set, clear)
 }
 
-#[cfg(test)]
-#[path = "../tests/unit/parser/tests.rs"]
-mod tests;
+/// Directive-only planning for bundled declaration libraries. A source with
+/// any potentially load-bearing syntax declines this path. Its full parse
+/// is performed by the loader's placement stripe or by ordinary adoption.
+pub(crate) fn direct_library_metadata(text: &str) -> Option<(bool, Vec<crate::FileReference>)> {
+    use crate::SyntaxKind as K;
+    let raw = leading_reference_directives(text);
+    if !raw.errors.is_empty()
+        || !raw.paths.is_empty()
+        || !raw.types.is_empty()
+        || !raw.amd_dependencies.is_empty()
+        || raw.module_name.is_some()
+        || raw.has_jsx_import_source_pragma
+        || raw.has_jsx_runtime_pragma
+        || text.contains("\\u")
+    {
+        return None;
+    }
+    // Hosted import syntax is inside comments, outside the ordinary token
+    // stream. Decline every spelling except empty import() and import.meta
+    // prose, and @import prose whose immediate module-specifier expression
+    // cannot be a string literal. In particular lib.dom mentions CSS's
+    // "@import at-rule", "@import rule." and "@import, ..."; those must not
+    // disable direct placement of the entire DOM library. Escaped keywords
+    // were conservatively excluded above.
+    for (index, _) in text.match_indices("import") {
+        let before = text[..index].chars().next_back();
+        let after = text[index + 6..].chars().next();
+        let identifier_part = |ch: char| ch.is_alphanumeric() || matches!(ch, '_' | '$');
+        if before.is_some_and(identifier_part) || after.is_some_and(identifier_part) {
+            continue;
+        }
+        let rest = text[index + 6..].trim_start();
+        if before == Some('@') {
+            let mut tokens =
+                crate::scan_byte_tokens(rest, crate::scanner::LanguageVariant::Standard);
+            let first = tokens.next().map(|t| t.kind).unwrap_or(K::EndOfFileToken);
+            let second = tokens.next().map(|t| t.kind).unwrap_or(K::EndOfFileToken);
+            let prose = first == K::CommaToken
+                || first == K::Identifier
+                    && matches!(second, K::MinusToken | K::DotToken | K::EndOfFileToken);
+            if !prose {
+                return None;
+            }
+        } else if !rest.starts_with(".meta")
+            && !rest
+                .strip_prefix('(')
+                .is_some_and(|r| r.trim_start().starts_with(')'))
+        {
+            return None;
+        }
+    }
+    let mut external = false;
+    let mut brace_depth = 0usize;
+    let mut template_braces = Vec::new();
+    let mut scanner = Scanner::new(text, crate::scanner::LanguageVariant::Standard);
+    loop {
+        let kind = scanner.scan();
+        if kind == K::EndOfFileToken {
+            break;
+        }
+        // A raw token iterator cannot resume after a template interpolation:
+        // the closing backtick would swallow subsequent declarations as text.
+        // Rescan exactly at each matching interpolation close, including nested
+        // templates, so an import after a template can never be hidden.
+        if kind == K::CloseBraceToken && template_braces.last() == Some(&brace_depth) {
+            match scanner.re_scan_template_token(false) {
+                K::TemplateTail => {
+                    template_braces.pop();
+                }
+                K::TemplateMiddle => {}
+                _ => return None,
+            }
+            continue;
+        }
+        match kind {
+            K::ImportKeyword | K::SlashToken | K::SlashEqualsToken => return None,
+            K::TemplateHead => template_braces.push(brace_depth),
+            K::OpenBraceToken => brace_depth += 1,
+            K::CloseBraceToken => brace_depth = brace_depth.checked_sub(1)?,
+            K::ModuleKeyword => {
+                let saved = scanner.save();
+                if scanner.scan() == K::StringLiteral {
+                    return None;
+                }
+                scanner.restore(saved);
+            }
+            K::ExportKeyword => {
+                if brace_depth != 0 || !template_braces.is_empty() {
+                    return None;
+                }
+                if scanner.scan() != K::OpenBraceToken || scanner.scan() != K::CloseBraceToken {
+                    return None;
+                }
+                let saved = scanner.save();
+                if scanner.scan() == K::FromKeyword {
+                    return None;
+                }
+                scanner.restore(saved);
+                external = true;
+            }
+            _ => {}
+        }
+    }
+    if brace_depth != 0 || !template_braces.is_empty() {
+        return None;
+    }
+    Some((
+        external,
+        raw.libs
+            .into_iter()
+            .map(|r| crate::FileReference {
+                file_name: r.file_name.into(),
+                pos: text[..r.start].encode_utf16().count() as u32,
+                end: text[..r.end].encode_utf16().count() as u32,
+                preserve: r.preserve,
+            })
+            .collect(),
+    ))
+}
+
+pub(crate) fn leading_library_references(text: &str) -> Vec<crate::FileReference> {
+    leading_reference_directives(text)
+        .libs
+        .into_iter()
+        .map(|reference| crate::FileReference {
+            file_name: reference.file_name.into(),
+            pos: text[..reference.start].encode_utf16().count() as u32,
+            end: text[..reference.end].encode_utf16().count() as u32,
+            preserve: reference.preserve,
+        })
+        .collect()
+}
 
 #[cfg(test)]
 #[path = "../tests/unit/parser/recovery.rs"]
 mod recovery_tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/parser/tests.rs"]
+mod tests;

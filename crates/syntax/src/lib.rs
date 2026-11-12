@@ -27,7 +27,7 @@ pub mod utilities;
 use std::sync::Arc;
 
 use tsc_diagnostics::{DiagnosticList, DocumentVersion, JsString, PositionIndex, TextSnapshot};
-use tsc_types::{IdentityDomain, IdentityError, IdentitySpace};
+use tsc_types::{IdentityDomain, IdentityError};
 
 pub use arena::{NodeArena, NodeArrayRole, SubtreeCopy, SyntaxLeases, SyntaxMemory};
 pub use chars::{is_identifier_part, is_identifier_start};
@@ -388,60 +388,6 @@ impl SourceFile {
         let leases = self.lease_identities(domain)?;
         self.relocate_with_leases(leases)
     }
-
-    /// Lease this tree's identity ranges from `domain` without touching the
-    /// tree. Leasing is the only order-dependent step of a relocation: a
-    /// caller leases several trees in program order and may then rewrite
-    /// them on worker threads with [`Self::relocate_with_leases`].
-    pub fn lease_identities(&self, domain: &IdentityDomain) -> Result<SyntaxLeases, IdentityError> {
-        let count = |len: usize, space| {
-            u32::try_from(len).map_err(|_| IdentityError::Exhausted {
-                space,
-                requested: u32::MAX,
-                limit: u32::MAX,
-            })
-        };
-        let leases = domain.lease_batch(&[
-            (
-                IdentitySpace::Node,
-                count(self.arena.nodes().len(), IdentitySpace::Node)?,
-            ),
-            (
-                IdentitySpace::NodeArray,
-                count(self.arena.node_arrays().len(), IdentitySpace::NodeArray)?,
-            ),
-            (
-                IdentitySpace::NodeArrayItem,
-                count(self.arena.array_item_count(), IdentitySpace::NodeArrayItem)?,
-            ),
-            (
-                IdentitySpace::NodeText,
-                count(self.arena.text_word_count(), IdentitySpace::NodeText)?,
-            ),
-        ])?;
-        let mut leases = leases.into_iter();
-        match (leases.next(), leases.next(), leases.next(), leases.next()) {
-            (Some(nodes), Some(arrays), Some(array_items), Some(texts)) => Ok(SyntaxLeases {
-                nodes,
-                arrays,
-                array_items,
-                texts,
-            }),
-            _ => Err(IdentityError::ReservationMismatch),
-        }
-    }
-
-    /// Rewrite every identity of this tree into the leased ranges and move
-    /// it to the store (the second half of
-    /// [`Self::relocate_into_identity_domain`]).
-    pub fn relocate_with_leases(&mut self, leases: SyntaxLeases) -> Result<(), IdentityError> {
-        let relocation = self.arena.identity_relocation(&leases)?;
-        relocation.node(&mut self.root)?;
-        if let Some(indicator) = &mut self.external_module_indicator {
-            relocation.node(indicator)?;
-        }
-        self.arena.apply_identity_relocation(relocation, leases)
-    }
 }
 
 /// A source file's own tree, for the walkers and `node_util`.
@@ -691,6 +637,8 @@ impl SourceFile {
         }
     }
 }
+
+pub use arena::placement;
 
 #[cfg(test)]
 #[path = "../tests/unit/lib/tests.rs"]

@@ -1338,6 +1338,11 @@ fn run_config(
         route.checker_budget().checkers(),
     );
     let limits = route.limits();
+    let finite_plan = (!mode.watch).then(|| {
+        plan.clone()
+            .with_identity_domain(tsc_types::IdentityDomain::new())
+    });
+    let plan = finite_plan.as_ref().unwrap_or(plan);
     let config_file_name = plan.config_file_name().to_string_lossy().into_owned();
     // tsgo `startTracingIfNeeded` (a command's compilation; never a build's).
     let tracing = (!mode.build && !mode.watch)
@@ -1628,6 +1633,11 @@ fn run_explicit_files(
     old_source: OldBuildInfoSource<'_>,
 ) -> Result<BuildProjectRun, CliError> {
     let limits = route.limits();
+    let program_options = if mode.watch {
+        program_options
+    } else {
+        program_options.with_identity_domain(tsc_types::IdentityDomain::new())
+    };
     let load_clock = route.system.now();
     let tracing = (!mode.watch)
         .then(|| start_tracing(route, &options, ""))

@@ -669,6 +669,45 @@ pub fn plan_source_requests_retaining_syntax(
     options: &CompilerOptions,
     cache: Option<&dyn ParseCache>,
 ) -> Result<(SourceRequestPlan, PreparsedSyntax), ResolutionError> {
+    if cache.is_none()
+        && source.path().display().starts_with("bundled:///libs/")
+        && source.path().display().ends_with(".d.ts")
+        && source.script_kind() == tsc_syntax::ScriptKind::Ts
+        && source.content_mapped().is_none()
+        && matches!(options.emit_module_kind(), 0..=7 | 99 | 100..=200)
+        && matches!(options.emit_module_resolution_kind(), 3 | 99 | 100)
+    {
+        if let Some((external, libs)) = tsc_syntax::placement::library_metadata(source.text()) {
+            let observed_request_occurrence_count = libs.len();
+            return Ok((
+                SourceRequestPlan {
+                    is_external_module: external,
+                    import_count: 0,
+                    path_references: Vec::new(),
+                    module_requests: Vec::new(),
+                    unpreprocessed_module_requests: BTreeSet::new(),
+                    module_request_loads: Vec::new(),
+                    module_request_spans: Vec::new(),
+                    module_request_occurrences: Vec::new(),
+                    module_request_occurrence_counts: Vec::new(),
+                    module_request_order: Vec::new(),
+                    type_reference_directives: Vec::new(),
+                    lib_reference_directives: libs
+                        .into_iter()
+                        .map(|r| PlannedLibReferenceDirective {
+                            file_name: r.file_name,
+                            pos: r.pos,
+                            end: r.end,
+                            preserve: r.preserve,
+                        })
+                        .collect(),
+                    observed_request_occurrence_count,
+                    synthetic_imports: false,
+                },
+                PreparsedSyntax::default(),
+            ));
+        }
+    }
     // The loader never asks for a request outside `SourceFile.imports`, so
     // it skips the whole-file walk for misplaced imports and exports.
     let started = std::time::Instant::now();
@@ -760,6 +799,54 @@ fn plan_module_requests_worker(
     nested_requests: bool,
     cache: Option<&dyn ParseCache>,
 ) -> Result<(SourceRequestPlan, PlanningParse), ResolutionError> {
+    plan_module_requests_with_parser(
+        source,
+        options,
+        expanded,
+        nested_requests,
+        cache,
+        |parse_options| {
+            parse_source_file_from_snapshot(
+                source.path().display().to_owned(),
+                Arc::clone(source.snapshot()),
+                parse_options,
+                None,
+            )
+        },
+    )
+}
+
+pub fn plan_source_requests_in_stripe(
+    source: &PreparedSourceFile,
+    options: &CompilerOptions,
+    stripe: &mut tsc_syntax::placement::SyntaxStripe,
+) -> Result<(SourceRequestPlan, PreparsedSyntax), ResolutionError> {
+    let started = std::time::Instant::now();
+    let (plan, parsed) =
+        plan_module_requests_with_parser(source, options, true, false, None, |parse_options| {
+            stripe.parse(
+                source.path().display().to_owned(),
+                Arc::clone(source.snapshot()),
+                parse_options,
+            )
+        })?;
+    let PlanningParse::Parsed(parsed) = parsed else {
+        unreachable!("direct parser has no cache")
+    };
+    Ok((
+        plan,
+        PreparsedSyntax::new(parsed, (started, std::time::Instant::now())),
+    ))
+}
+
+fn plan_module_requests_with_parser(
+    source: &PreparedSourceFile,
+    options: &CompilerOptions,
+    expanded: bool,
+    nested_requests: bool,
+    cache: Option<&dyn ParseCache>,
+    parse: impl FnOnce(ParseOptions) -> SourceFile,
+) -> Result<(SourceRequestPlan, PlanningParse), ResolutionError> {
     let module_kind = options.emit_module_kind();
     if (!expanded && !(100..=199).contains(&module_kind))
         || (expanded && !matches!(module_kind, 0..=7 | 99 | 100..=200))
@@ -799,12 +886,7 @@ fn plan_module_requests_worker(
     let mut fresh = None;
     let parsed: &SourceFile = match &cached {
         Some(cached) => cached.source(),
-        None => fresh.insert(parse_source_file_from_snapshot(
-            file_name.to_owned(),
-            Arc::clone(source.snapshot()),
-            parse_options.clone(),
-            None,
-        )),
+        None => fresh.insert(parse(parse_options.clone())),
     };
     let path_references: Vec<PlannedPathReference> = parsed
         .referenced_files
@@ -2095,4 +2177,81 @@ fn unsupported_at(
         source,
         format!("{} at source offset {position}", detail.into()),
     )
+}
+
+#[cfg(test)]
+mod direct_library_tests {
+    use super::*;
+    #[test]
+    fn document_script_kinds_and_load_bearing_library_text_keep_the_regular_parser() {
+        let name = "bundled:///libs/custom.d.ts";
+        let path = crate::ProgramPath::from_js_parts(name.into(), name.into()).unwrap();
+        let options = CompilerOptions::default();
+        for text in [
+            "import type { X } from 'pkg';",
+            "/** @import { X } from 'pkg' */ declare const value: number;",
+            "/** @import X 'pkg' */ declare const value: number;",
+            "export { X } from 'pkg';",
+            "export {} from 'pkg';",
+            "declare module 'pkg' {}",
+            "/// <reference types=\"node\" />",
+            "/** @type {import('pkg').X} */ declare const x: unknown;",
+            "declare namespace N { export {} }",
+        ] {
+            let source = PreparedSourceFile::new(path.clone(), text);
+            let expected = plan_module_requests_worker(&source, &options, true, false, None)
+                .unwrap()
+                .0;
+            let (actual, syntax) =
+                plan_source_requests_retaining_syntax(&source, &options, None).unwrap();
+            assert_eq!(actual, expected, "{text}");
+            assert!(
+                syntax.is_available(),
+                "unsupported metadata shape must retain a real parse"
+            );
+        }
+        let source =
+            PreparedSourceFile::new(path, "{}").with_script_kind(tsc_syntax::ScriptKind::Json);
+        let (_, syntax) = plan_source_requests_retaining_syntax(&source, &options, None).unwrap();
+        assert!(syntax.is_available());
+    }
+
+    #[test]
+    fn bundled_library_metadata_plans_equal_the_complete_parser() {
+        let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(
+            "../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/internal/bundled/libs",
+        );
+        let mut count = 0;
+        let mut entries: Vec<_> = std::fs::read_dir(directory)
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        entries.sort_by_key(|e| e.file_name());
+        for entry in entries {
+            if !entry.file_name().to_string_lossy().ends_with(".d.ts") {
+                continue;
+            }
+            let name = format!("bundled:///libs/{}", entry.file_name().to_string_lossy());
+            let path =
+                crate::ProgramPath::from_js_parts(name.as_str().into(), name.as_str().into())
+                    .unwrap();
+            let source =
+                PreparedSourceFile::new(path, std::fs::read_to_string(entry.path()).unwrap());
+            for kind in [1, 99, 100, 199, 200] {
+                let options = CompilerOptions {
+                    module: Some(kind),
+                    ..CompilerOptions::default()
+                };
+                let expected = plan_module_requests_worker(&source, &options, true, false, None)
+                    .unwrap()
+                    .0;
+                let (actual, syntax) =
+                    plan_source_requests_retaining_syntax(&source, &options, None).unwrap();
+                assert_eq!(actual, expected, "{name}, module {kind}");
+                assert!(syntax.take().is_none(), "{name} was not deferred");
+            }
+            count += 1;
+        }
+        assert!(count >= 100, "complete bundled catalog, got {count}");
+    }
 }

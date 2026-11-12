@@ -251,6 +251,18 @@ impl RangeAllocator {
             return Ok(IdentityRange::new(start, end));
         }
 
+        self.allocate_bump(space, count, lease_id)
+    }
+
+    fn allocate_bump(
+        &mut self,
+        space: IdentitySpace,
+        count: u32,
+        lease_id: u64,
+    ) -> Result<IdentityRange, IdentityError> {
+        if count == 0 {
+            return Ok(IdentityRange::new(self.bump, self.bump));
+        }
         let end = self
             .bump
             .checked_add(count)
@@ -511,6 +523,8 @@ impl IdentityDomain {
                 range,
                 lease_id,
                 claimed: AtomicBool::new(false),
+                parent: None,
+                retained_end: std::sync::atomic::AtomicU32::new(range.end()),
             }),
         }
     }
@@ -538,16 +552,25 @@ struct IdentityLeaseInner {
     lease_id: u64,
     /// Whether an [`IdentityClaim`] is live.
     claimed: AtomicBool,
+    parent: Option<IdentityLease>,
+    retained_end: std::sync::atomic::AtomicU32,
 }
 
 impl Drop for IdentityLeaseInner {
     fn drop(&mut self) {
+        if self.parent.is_some() {
+            return;
+        }
+        let range = IdentityRange::new(
+            self.range.start(),
+            self.retained_end.load(Ordering::Relaxed),
+        );
         let mut state = self
             .domain
             .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        state.allocators[self.space.index()].release(self.range, self.lease_id);
+        state.allocators[self.space.index()].release(range, self.lease_id);
     }
 }
 
@@ -685,6 +708,9 @@ pub struct IdentitySpaceStats {
     pub bump: u32,
     pub free_ranges: usize,
 }
+
+#[path = "direct_rooms.rs"]
+pub mod direct;
 
 #[cfg(test)]
 #[path = "../tests/unit/identity/tests.rs"]

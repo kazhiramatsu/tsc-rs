@@ -124,6 +124,7 @@ mod project_references;
 mod resolution;
 mod resolution_cache;
 mod resolution_error;
+mod source_reads;
 mod symlinks;
 mod text;
 pub mod uri;
@@ -248,3 +249,5 @@ pub use tsc_types::{CompilerOptionNumber, CompilerOptions, ModuleSuffix};
 pub use workers::{
     run_thread_start_hook, set_thread_start_hook, WorkerBudget, MAX_WORKERS, WORKER_STACK_BYTES,
 };
+
+pub use module_requests::plan_source_requests_in_stripe;
