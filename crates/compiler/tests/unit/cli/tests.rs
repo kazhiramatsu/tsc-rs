@@ -169,7 +169,11 @@ fn checker_command_counts_clamp_to_one_instead_of_selecting_the_default() {
 
 #[test]
 fn checker_defaults_environment_and_option_precedence_follow_tsgo() {
-    struct BudgetSystem(Option<&'static str>);
+    /// A checker budget reads two variables: the count and the fast preset.
+    struct BudgetSystem {
+        checkers: Option<&'static str>,
+        fast: Option<&'static str>,
+    }
     impl System for BudgetSystem {
         fn fs(&self) -> &dyn tsc_host::vfs::FileSystem {
             panic!("a checker budget does not read files")
@@ -187,8 +191,12 @@ fn checker_defaults_environment_and_option_precedence_follow_tsgo() {
             std::time::Duration::ZERO
         }
         fn env_var(&self, name: &str) -> Option<String> {
-            assert_eq!(name, CHECKERS_ENV);
-            self.0.map(str::to_owned)
+            match name {
+                CHECKERS_ENV => self.checkers,
+                FAST_ENV => self.fast,
+                other => panic!("a checker budget does not read {other}"),
+            }
+            .map(str::to_owned)
         }
         fn output_is_terminal(&self) -> bool {
             false
@@ -199,7 +207,7 @@ fn checker_defaults_environment_and_option_precedence_follow_tsgo() {
         fn write_output(&self, _: &str) {}
         fn write_error(&self, _: &str) {}
     }
-    for (environment, explicit, single, expected) in [
+    let tsgo_rows = [
         (None, None, false, 4),
         (Some("bad"), None, false, 4),
         (Some("0"), None, false, 1),
@@ -209,13 +217,54 @@ fn checker_defaults_environment_and_option_precedence_follow_tsgo() {
         (Some("8"), Some(0.0), false, 1),
         (Some("8"), Some(8.0), true, 1),
         (Some("1000"), None, false, 256),
-    ] {
-        let budget =
-            CommandBudgets::of(Some(single), explicit).checker_budget(&BudgetSystem(environment));
-        assert_eq!(
-            budget.checkers(),
-            expected,
-            "environment={environment:?}, explicit={explicit:?}, single={single}"
-        );
+    ];
+    // Without the preset (the variable unset, or holding anything but `1`)
+    // the pool is tsgo's: its counts and its file association.
+    for fast in [None, Some(""), Some("0"), Some("true")] {
+        for (environment, explicit, single, expected) in tsgo_rows {
+            let budget = CommandBudgets::of(Some(single), explicit).checker_budget(&BudgetSystem {
+                checkers: environment,
+                fast,
+            });
+            assert_eq!(
+                budget.checkers(),
+                expected,
+                "environment={environment:?}, explicit={explicit:?}, single={single}, fast={fast:?}"
+            );
+            assert_eq!(
+                budget.assignment(),
+                CheckerAssignment::Tsgo,
+                "environment={environment:?}, explicit={explicit:?}, single={single}, fast={fast:?}"
+            );
+        }
+    }
+    // The preset keeps a requested count and changes the association; with
+    // no count its pool follows the Program, up to twelve checkers.
+    // `--singleThreaded` is the serial mode with or without it.
+    for fast in ["1", " 1 "] {
+        for (environment, explicit, single, expected, assignment) in [
+            (None, None, false, 12, CheckerAssignment::Locality),
+            (Some("bad"), None, false, 12, CheckerAssignment::Locality),
+            (Some("2"), None, false, 2, CheckerAssignment::Locality),
+            (Some("8"), Some(2.0), false, 2, CheckerAssignment::Locality),
+            (Some("1000"), None, false, 256, CheckerAssignment::Locality),
+            (Some("8"), Some(8.0), true, 1, CheckerAssignment::Tsgo),
+            (None, None, true, 1, CheckerAssignment::Tsgo),
+        ] {
+            let budget = CommandBudgets::of(Some(single), explicit).checker_budget(&BudgetSystem {
+                checkers: environment,
+                fast: Some(fast),
+            });
+            assert_eq!(
+                budget.checkers(),
+                expected,
+                "environment={environment:?}, explicit={explicit:?}, single={single}, fast={fast:?}"
+            );
+            assert_eq!(
+                budget.assignment(),
+                assignment,
+                "environment={environment:?}, explicit={explicit:?}, single={single}, fast={fast:?}"
+            );
+        }
     }
 }

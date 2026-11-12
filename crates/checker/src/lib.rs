@@ -196,7 +196,7 @@ use tsc_diagnostics::{
 };
 use tsc_program::WorkerBudget;
 
-pub use crate::shard::{CheckerBudget, MAX_CHECKERS};
+pub use crate::shard::{CheckerAssignment, CheckerBudget, MAX_CHECKERS};
 
 /// Whether checkSourceFile runs the unused-identifier pass when neither
 /// `noUnusedLocals` nor `noUnusedParameters` turns its rows into errors.
@@ -4489,12 +4489,34 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         _ => None,
     };
 
+    // The files a checker works for: the fast preset sizes its pool by them
+    // and its association weighs nothing else. A declaration or JSON file
+    // that is not type checked is no work; a JavaScript file that is not
+    // checked still is (its emit runs on the checker that owns it).
+    let locality = checkers.assignment() == shard::CheckerAssignment::Locality;
+    let checked = snapshot
+        .documents()
+        .iter()
+        .enumerate()
+        .map(|(file, document)| {
+            let source = document.source();
+            locality
+                && selected.as_deref().is_none_or(|selected| selected[file])
+                && !((source.is_declaration_file || source.file_name.as_js().ends_with(".json"))
+                    && should_skip_type_checking_file(
+                        source,
+                        snapshot.file_facts(program_file_id(file)),
+                        options,
+                    ))
+        })
+        .collect::<Vec<_>>();
     // tsgo checkerpool.go: associate all Program files, including skipped
     // declarations, JSON and default libraries. Checking/emit options do not
     // modify the weights or pool size.
-    let checker_count = checkers
-        .checkers()
-        .clamp(1, snapshot.documents().len().clamp(1, shard::MAX_CHECKERS));
+    let checker_count = checkers.checkers_for(
+        snapshot.documents().len(),
+        checked.iter().filter(|&&checked| checked).count(),
+    );
     let node_counts = snapshot
         .documents()
         .iter()
@@ -4515,6 +4537,8 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         .collect::<Vec<_>>();
     let mut imports = vec![0; node_counts.len()];
     let mut adjacent = vec![Vec::new(); node_counts.len()];
+    // The files each file imports, for the locality association's modules.
+    let mut targets_of = vec![Vec::new(); if locality { node_counts.len() } else { 0 }];
     let indices = metadata
         .iter()
         .take(node_counts.len())
@@ -4534,19 +4558,73 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             if file != other {
                 adjacent[file].push(other);
                 adjacent[other].push(file);
+                if locality {
+                    targets_of[file].push(other);
+                }
             }
         }
     }
     drop(provider);
-    let associations = shard::associate_files(
-        &base_weights,
-        &imports,
-        &declarations,
-        &adjacent,
-        checker_count,
-    );
-    let queue =
-        shard::ShardFileQueue::associated(lib_count, &node_counts, &associations, checker_count);
+    let queue = if locality {
+        let names = snapshot
+            .documents()
+            .iter()
+            .zip(&checked)
+            .map(|(document, &checked)| {
+                if checked {
+                    document
+                        .source()
+                        .file_name
+                        .as_js()
+                        .to_string_lossy()
+                        .to_ascii_lowercase()
+                } else {
+                    String::new()
+                }
+            })
+            .collect::<Vec<_>>();
+        let parse_nodes = snapshot
+            .documents()
+            .iter()
+            .map(|document| document.source().arena.parse_node_count())
+            .collect::<Vec<_>>();
+        let associations = shard::associate_files_by_locality(
+            &names,
+            &base_weights,
+            &imports,
+            &checked,
+            &adjacent,
+            &targets_of,
+            &parse_nodes,
+            checker_count,
+        );
+        // Lane 0 holds every file no checker works for; each checker still
+        // resolves its share of their declarations.
+        let checked_nodes = node_counts
+            .iter()
+            .zip(&checked)
+            .map(|(&nodes, &checked)| if checked { nodes } else { 0 })
+            .collect::<Vec<_>>();
+        let unchecked_nodes =
+            node_counts.iter().sum::<usize>() - checked_nodes.iter().sum::<usize>();
+        let mut queue = shard::ShardFileQueue::associated(
+            lib_count,
+            &checked_nodes,
+            &associations,
+            checker_count,
+        );
+        queue.reserve_on_every_lane(unchecked_nodes / queue.shard_count());
+        queue
+    } else {
+        let associations = shard::associate_files(
+            &base_weights,
+            &imports,
+            &declarations,
+            &adjacent,
+            checker_count,
+        );
+        shard::ShardFileQueue::associated(lib_count, &node_counts, &associations, checker_count)
+    };
     let shard_count = queue.shard_count();
 
     // An owned copy for the serial replay (W2c), taken before any shard slot
