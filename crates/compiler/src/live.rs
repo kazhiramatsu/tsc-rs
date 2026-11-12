@@ -238,8 +238,8 @@ impl LiveProgram {
     /// the programmatic option rows, the program rows located outside the
     /// sources (the include processor's global rows) and, for a Program
     /// that emits, the output-path rows tsgo's `verifyCompilerOptions` adds
-    /// (the batch session's emit preflight), sorted and deduplicated. The
-    /// content mapper's rows are not ported.
+    /// (the batch session's emit preflight), and the content mapper rows,
+    /// sorted and deduplicated.
     pub fn program_diagnostics(&self) -> DiagnosticList {
         let mut options = self.prepared.diagnostics().options().to_vec();
         options.extend(programmatic_option_diagnostics(&self.prepared));

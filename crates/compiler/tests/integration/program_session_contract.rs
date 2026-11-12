@@ -3628,3 +3628,79 @@ fn misplaced_global_scope_imports_resolve_module_names_the_program_skipped() {
         ]
     );
 }
+
+/// GetProgramDiagnostics includes the mapper's locationless diagnostic even
+/// without syntactic errors (tsgo program.go:842-849). Each reporting adapter
+/// must publish it once; the syntactic-error supplement must not duplicate it.
+#[test]
+fn content_mapper_program_diagnostic_without_syntactic_errors_is_reported_once() {
+    let row = diagnostic(
+        18070,
+        "The content mapper 'vue-mapper' failed 5 times and will not be used.",
+    );
+    let program = with_minimal_lib(
+        &[("/project/main.ts", "export {};\n")],
+        PreparationDiagnostics::default().with_content_mapper(vec![row.clone()]),
+        |_| {},
+    );
+    let live = tsc_compiler::LiveProgram::new(program.clone()).unwrap();
+    assert_eq!(live.program_diagnostics(), std::slice::from_ref(&row));
+    let outcome = ProgramSession::new(program.clone())
+        .run_no_emit_command()
+        .unwrap();
+    assert!(outcome.syntactic_diagnostics().is_empty());
+    assert_eq!(outcome.options_diagnostics(), std::slice::from_ref(&row));
+    assert_eq!(
+        outcome.diagnostics().cloned().collect::<Vec<_>>(),
+        std::slice::from_ref(&row)
+    );
+    assert_eq!(outcome.into_diagnostics(), std::slice::from_ref(&row));
+    let outcome = ProgramSession::new(program)
+        .emit_command_for_harness(&mut tsc_compiler::MemoryOutputSink::default())
+        .unwrap();
+    assert_eq!(outcome.diagnostics(), [row]);
+}
+
+#[test]
+fn content_mapper_diagnostic_survives_both_no_emit_reporting_adapters_with_syntax_errors() {
+    let row = diagnostic(
+        18070,
+        "The content mapper 'vue-mapper' failed 5 times and will not be used.",
+    );
+    let program = with_minimal_lib(
+        &[("/project/main.ts", "export const value = ;\n")],
+        PreparationDiagnostics::default().with_content_mapper(vec![row.clone()]),
+        |_| {},
+    );
+    let outcome = ProgramSession::new(program.clone())
+        .run_no_emit_command()
+        .unwrap();
+    assert_eq!(outcome.syntactic_diagnostics().len(), 1);
+    assert_eq!(outcome.syntactic_diagnostics()[0].code(), 1109);
+    assert_eq!(
+        outcome
+            .diagnostics()
+            .map(Diagnostic::code)
+            .collect::<Vec<_>>(),
+        [18070, 1109]
+    );
+    assert_eq!(
+        outcome
+            .into_diagnostics()
+            .iter()
+            .map(Diagnostic::code)
+            .collect::<Vec<_>>(),
+        [18070, 1109]
+    );
+    let outcome = ProgramSession::new(program)
+        .emit_command_for_harness(&mut tsc_compiler::MemoryOutputSink::default())
+        .unwrap();
+    assert_eq!(
+        outcome
+            .diagnostics()
+            .iter()
+            .map(Diagnostic::code)
+            .collect::<Vec<_>>(),
+        [18070, 1109]
+    );
+}

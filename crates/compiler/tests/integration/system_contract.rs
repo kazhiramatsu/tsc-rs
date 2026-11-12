@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
 use tsc_harness::content_mappers::{
-    package_json, RecordingSpawner, TestSpawner, DYNAMIC_VERBATIM_MAPPER,
+    package_json, RecordingSpawner, TestSpawner, DYNAMIC_VERBATIM_MAPPER, FAILING_MAPPER,
     SUPPLEMENTAL_DIAGNOSTICS_MAPPER, SUPPLEMENTAL_MAPPER, VERBATIM_MAPPER,
 };
 use tsc_program::content_mapper::host::Spawner;
@@ -1332,5 +1332,71 @@ fn a_build_watch_shares_a_mapper_process_between_projects() {
             "{}",
             system.take_output()
         );
+    }
+}
+
+/// tsgo aa8149273, mapper_failure, --singleThreaded: the locationless
+/// diagnostic precedes the five per-file failures on every command route.
+#[test]
+fn a_disabled_content_mapper_is_reported_before_its_file_errors() {
+    let expected = "error TS18070: The content mapper 'vue-mapper' failed 5 times and will not be used.\n".to_owned()
+        + &(2..7).map(|i| format!(
+            "c{i}.vue(1,1): error TS18069: The content mapper 'vue-mapper' failed to transform this file.\n  The content mapper process failed while handling the transform request.\n"
+        )).collect::<String>();
+    for extra in [
+        vec!["--noEmit"],
+        vec![],
+        vec!["--noEmit", "--incremental"],
+        vec!["--incremental"],
+        vec!["--listFilesOnly"],
+        vec!["--watch", "--noEmit"],
+        vec!["--watch"],
+        vec!["-b"],
+        vec!["-b", "--noEmit"],
+        vec!["-b", "--watch"],
+    ] {
+        let config = r#"{
+            "compilerOptions": { "noLib": true, "types": [], "module": "nodenext" },
+            "files": ["globals.d.ts", "c0.vue", "c1.vue", "c2.vue", "c3.vue", "c4.vue", "c5.vue", "c6.vue"],
+            "contentMappers": [{ "package": "vue", "extensions": [".vue"] }]
+        }"#;
+        let manifest = package_json(FAILING_MAPPER).replace("\"mapper\"", "\"vue-mapper\"");
+        let mut seeds = vec![
+            ("/work/tsconfig.json".to_owned(), Seed::file(config)),
+            ("/work/globals.d.ts".to_owned(), Seed::file(LIBRARY)),
+            (
+                "/work/node_modules/vue/package.json".to_owned(),
+                Seed::file(&manifest),
+            ),
+        ];
+        seeds.extend((0..7).map(|i| (format!("/work/c{i}.vue"), Seed::file("<template />"))));
+        let system = MemorySystem::from_seeds(seeds, true);
+        let mut arguments = args(&extra);
+        if extra.first() != Some(&"-b") {
+            arguments.extend(args(&["-p", "tsconfig.json"]));
+        }
+        arguments.extend(args(&["--pretty", "false", "--runExternalCode"]));
+        let result = execute_command_line(&system, &arguments, Some(&system));
+        let output = system.take_output();
+        let diagnostics: String = output
+            .lines()
+            .filter(|line| line.contains("error TS") || line.starts_with("  The content mapper"))
+            .map(|line| format!("{line}\n"))
+            .collect();
+        assert_eq!(diagnostics, expected, "route {extra:?}: {output}");
+        if !extra.contains(&"--watch") {
+            assert_eq!(
+                result.status,
+                if extra.contains(&"--listFilesOnly") {
+                    1
+                } else {
+                    2
+                },
+                "{extra:?}"
+            );
+        }
+        if extra.contains(&"--listFilesOnly") {
+            assert!(output.ends_with("/work/c6.vue\n"), "{output}");
+        }
     }
 }

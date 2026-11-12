@@ -12,7 +12,7 @@ use std::sync::Arc;
 use common::*;
 use tsc_compiler::locale::Locale;
 use tsc_harness::content_mappers::{
-    package_json, RecordingSpawner, TestSpawner, TRANSFORMING_MAPPER,
+    package_json, RecordingSpawner, TestSpawner, FAILING_MAPPER, TRANSFORMING_MAPPER,
 };
 use tsc_host::vfs::{FileSystem, Seed};
 use tsc_lsproto::{
@@ -721,4 +721,62 @@ fn a_mapper_manifest_change_reloads_the_config_and_its_package_is_watched() {
     let program = program(&session, "file:///home/project/main.ts");
     let text = source_text(&program, "/home/project/app.box").expect("app.box is rebuilt");
     assert!(text.contains("export const version = 7;"), "{text:?}");
+}
+
+/// GetProjectDiagnostics includes GetProgramDiagnostics; the LSP publishes
+/// its locationless mapper failure on the project's config, independently of
+/// the per-file syntactic failures (tsgo project.GetProjectDiagnostics).
+#[test]
+fn a_mapper_disabled_during_load_is_published_on_the_config() {
+    let config = r#"{
+        "compilerOptions": { "noLib": true, "types": [] },
+        "files": ["main.ts", "c0.vue", "c1.vue", "c2.vue", "c3.vue", "c4.vue", "c5.vue", "c6.vue"],
+        "contentMappers": [{ "package": "vue", "extensions": [".vue"] }]
+    }"#;
+    let manifest = package_json(FAILING_MAPPER).replace("\"mapper\"", "\"vue-mapper\"");
+    let mut seeds = vec![
+        ("/home/project/tsconfig.json".to_owned(), Seed::file(config)),
+        ("/home/project/main.ts".to_owned(), Seed::file("export {};")),
+        (
+            "/home/project/node_modules/vue/package.json".to_owned(),
+            Seed::file(&manifest),
+        ),
+    ];
+    seeds.extend((0..7).map(|i| {
+        (
+            format!("/home/project/c{i}.vue"),
+            Seed::file("<template />"),
+        )
+    }));
+    let (session, _, client) =
+        setup_with_spawner(seeds, "/home/project", Arc::new(TestSpawner::default()));
+    open(&session, "file:///home/project/main.ts", "export {};");
+    let (_, project) = session
+        .get_snapshot_and_default_project(&uri("file:///home/project/main.ts"))
+        .unwrap();
+    let diagnostics = project.project_diagnostics();
+    assert_eq!(
+        diagnostics.iter().filter(|row| row.code() == 18070).count(),
+        1
+    );
+    assert!(!diagnostics.iter().any(|row| row.code() == 18069));
+    session.wait_for_background_tasks();
+    let calls = client.publish_diagnostics_calls();
+    let published = calls
+        .iter()
+        .rev()
+        .find(|call| call.uri.as_str() == "file:///home/project/tsconfig.json")
+        .expect("config diagnostics published");
+    let rows: Vec<_> = published
+        .diagnostics
+        .iter()
+        .filter(|row| matches!(row.code, Some(tsc_lsproto::IntegerOrString::Integer(18070))))
+        .collect();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(
+        rows[0].message,
+        tsc_lsproto::StringOrMarkupContent::String(
+            "The content mapper 'vue-mapper' failed 5 times and will not be used.".to_owned()
+        )
+    );
 }
