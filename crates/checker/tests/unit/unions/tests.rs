@@ -204,3 +204,52 @@ fn subtype_key_reuse_keeps_discriminants_with_different_names_separate() {
         },
     );
 }
+
+#[test]
+fn template_union_end_guard_keeps_tsgo_ascii_and_surrogate_diagnostics() {
+    // Pinned tsgo aa8149273, fixtures/D2.ts, --strict --target esnext --noEmit.
+    // Each union includes both matching ends and a rejected prefix/suffix.
+    let text = r#"type Folded = "pre-x-end" | "pre--end" | "wrong" | "pre-x-bad" | `pre-${string}-end`;
+declare let folded: Folded;
+const observe: never = folded;
+declare let mismatch: "wrong";
+const rejected: `pre-${string}-end` = mismatch;
+type Unicode = "\uD800ok\uDC00" | "\uD800bad" | "\uFFFDok\uDC00" | `\uD800${string}\uDC00`;
+declare let unicode: Unicode;
+const observeUnicode: never = unicode;
+type Emoji = "😀ok終" | "😀bad" | `😀${string}終`;
+declare let emoji: Emoji;
+const observeEmoji: never = emoji;
+"#;
+    let options = tsc_types::CompilerOptions {
+        strict: Some(true),
+        target: Some(tsc_types::ScriptTarget::ES_NEXT.bits()),
+        ..tsc_types::CompilerOptions::default()
+    };
+    crate::state::test_support::with_program_state(&[("a.ts", text)], &options, |state| {
+        state.check_source_file(0);
+        let messages = state
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 2322)
+            .map(|diagnostic| {
+                tsc_diagnostics::render::flattened_message(&diagnostic.message, "\n", None)
+                    .as_str()
+                    .unwrap()
+                    .to_owned()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            messages,
+            [
+                r#"Type 'Folded' is not assignable to type 'never'.
+  Type '"pre-x-bad"' is not assignable to type 'never'."#,
+                r#"Type '"wrong"' is not assignable to type '`pre-${string}-end`'."#,
+                r#"Type 'Unicode' is not assignable to type 'never'.
+  Type '"\uD800bad"' is not assignable to type 'never'."#,
+                r#"Type 'Emoji' is not assignable to type 'never'.
+  Type '"😀bad"' is not assignable to type 'never'."#,
+            ]
+        );
+    });
+}

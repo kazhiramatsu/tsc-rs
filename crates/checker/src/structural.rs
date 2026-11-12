@@ -9046,7 +9046,11 @@ impl<'a> CheckerState<'a> {
     /// [`Self::literal_parts_fit_template_ends`] for one string literal,
     /// read in place: union reduction tries every string literal against
     /// every template literal, so the test copies nothing.
-    fn literal_fits_template_ends(&self, source: tsc_types::JsStr<'_>, target: TypeId) -> bool {
+    pub(crate) fn literal_fits_template_ends(
+        &self,
+        source: tsc_types::JsStr<'_>,
+        target: TypeId,
+    ) -> bool {
         let TypeData::TemplateLiteral(target_template) = self.tables.type_of(target).data else {
             unreachable!("template flag implies template data");
         };
