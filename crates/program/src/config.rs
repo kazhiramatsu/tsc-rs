@@ -5760,6 +5760,7 @@ fn config_root_reasons<'j0, 'j1>(
     config_file_name: impl Into<JsStr<'j1>>,
     case_sensitive: bool,
 ) -> Result<Vec<RootFileReason>, ConfigParseError> {
+    use crate::config_matcher::{InputComponent, MatchInput};
     let config_base_path = config_base_path.into();
     let config_file_name = config_file_name.into();
     // The first `files` entry with a given key owns the reason (the former
@@ -5800,6 +5801,12 @@ fn config_root_reasons<'j0, 'j1>(
     }
     let config_file = Arc::new(config_file_name.to_owned());
     let default_include = files.is_none() && include.is_none();
+    // Siblings share the pattern states of their directory. Cache borrowed
+    // directory spellings, and reuse one filename's UTF-16 scratch, rather
+    // than normalizing/splitting every root's full path again.
+    let mut directory_states: rustc_hash::FxHashMap<JsStr<'_>, Vec<Option<Vec<usize>>>> =
+        rustc_hash::FxHashMap::default();
+    let mut name = InputComponent::new("".into(), case_sensitive);
 
     Ok(file_names
         .iter()
@@ -5810,18 +5817,61 @@ fn config_root_reasons<'j0, 'j1>(
                     return RootFileReason::FilesList { spec: spec.clone() };
                 }
             }
-            // tsgo `getMatchedIncludeSpec`: the first include spec that
-            // matches, a JSON file's too (Strada skipped the specs not
-            // ending in `.json` for one). The file's components are taken
-            // apart once for every spec.
-            let input = (!include_patterns.is_empty())
-                .then(|| crate::config_matcher::MatchInput::new(file_name.as_js(), case_sensitive))
-                .flatten();
-            if let Some((_, _, spec)) = input.as_ref().and_then(|input| {
-                include_patterns
-                    .iter()
-                    .find(|(pattern, _, _)| pattern.matches_input(input))
-            }) {
+            let path = file_name.as_js();
+            let parts = (!include_patterns.is_empty()
+                && !path.as_bytes().contains(&b'\\')
+                && !path.ends_with("/"))
+            .then(|| crate::js_path::root_parts(path))
+            .flatten()
+            .and_then(|(root, _)| {
+                let (directory, name) = path.rsplit_once("/")?;
+                if name.is_empty() || name == "." || name == ".." {
+                    return None;
+                }
+                Some((
+                    if directory.as_bytes().len() < root.as_bytes().len() {
+                        root
+                    } else {
+                        directory
+                    },
+                    name,
+                ))
+            });
+            // tsgo getMatchedIncludeSpec chooses the first matching spec,
+            // including a JSON file's. Unusual host spellings retain full
+            // path normalization and the same matcher.
+            let matched = if include_patterns.is_empty() {
+                None
+            } else if let Some((directory, file_name)) = parts {
+                name.set_text(file_name, case_sensitive);
+                let states = directory_states.entry(directory).or_insert_with(|| {
+                    let input = MatchInput::new(directory, case_sensitive);
+                    include_patterns
+                        .iter()
+                        .map(|(pattern, _, _)| {
+                            input
+                                .as_ref()
+                                .and_then(|input| pattern.directory_states(input))
+                        })
+                        .collect()
+                });
+                include_patterns.iter().zip(states.iter()).find_map(
+                    |((pattern, _, spec), states)| {
+                        states
+                            .as_ref()
+                            .is_some_and(|states| pattern.accepts_entry(states, &name))
+                            .then_some(spec)
+                    },
+                )
+            } else {
+                MatchInput::new(path, case_sensitive).and_then(|input| {
+                    include_patterns
+                        .iter()
+                        .find(|(pattern, _, _)| pattern.matches_input(&input))
+                        .map(|(_, _, spec)| spec)
+                })
+            };
+            if let Some(spec) = matched {
                 return RootFileReason::IncludePattern {
                     spec: spec.clone(),
                     config_file: config_file.clone(),

@@ -254,3 +254,197 @@ fn per_directory_states_agree_with_whole_path_matching() {
         }
     }
 }
+#[test]
+fn directory_entry_acceptance_matches_the_whole_path_matcher() {
+    use super::{InputComponent, MatchInput};
+    for case_sensitive in [false, true] {
+        for base in ["/project", "c:/project", "file://host/project"] {
+            for spec in [
+                "**/*.ts",
+                "**/**/foo*.min.js",
+                "node_modules/pkg/*.d.ts",
+                "a/**/b/*",
+                ".hidden/*.ts",
+                "**/.dot.ts",
+            ] {
+                let pattern = ConfigFilePattern::new(spec, base, case_sensitive)
+                    .unwrap()
+                    .unwrap();
+                for directory in ["", "/a", "/a/b", "/a/b/c", "/.hidden", "/node_modules/pkg"] {
+                    let directory = format!("{base}{directory}");
+                    let input = MatchInput::new(directory.as_str().into(), case_sensitive).unwrap();
+                    let states = pattern.directory_states(&input);
+                    for name in [
+                        "index.ts",
+                        "INDEX.TS",
+                        ".dot.ts",
+                        "foo.min.js",
+                        "é.ts",
+                        "node_modules",
+                    ] {
+                        let path = format!("{directory}/{name}");
+                        let name = InputComponent::new(name.into(), case_sensitive);
+                        let actual = states
+                            .as_ref()
+                            .is_some_and(|states| pattern.accepts_entry(states, &name));
+                        assert_eq!(
+                            actual,
+                            pattern.matches(path.as_str()),
+                            "{spec} {path} {case_sensitive}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn wildcard_cursor_matches_the_original_component_dp() {
+    use super::{min_js_dot_index, regex_code_unit_eq, GlobComponent, GlobToken, InputComponent};
+    fn old(glob: &GlobComponent, input: &InputComponent, last: bool, case_sensitive: bool) -> bool {
+        if glob.has_wildcard && input.common_package_folder {
+            return false;
+        }
+        let input_count = input.characters.len();
+        let min_js_dot = last
+            .then(|| min_js_dot_index(&input.characters, case_sensitive))
+            .flatten();
+        // The DP rows live on the stack for every ordinary component name.
+        const INLINE_ROW: usize = 128;
+        let mut inline_rows = [[false; INLINE_ROW]; 2];
+        let mut heap_rows = Vec::new();
+        let (mut previous, mut current): (&mut [bool], &mut [bool]) = if input_count < INLINE_ROW {
+            let [first, second] = &mut inline_rows;
+            (&mut first[..=input_count], &mut second[..=input_count])
+        } else {
+            heap_rows.resize(2 * (input_count + 1), false);
+            heap_rows.split_at_mut(input_count + 1)
+        };
+        previous[0] = true;
+
+        for (token_index, token) in glob.tokens.iter().enumerate() {
+            current.fill(false);
+            match token {
+                GlobToken::Literal(literal) => {
+                    for input_index in 1..=input_count {
+                        current[input_index] = previous[input_index - 1]
+                            && regex_code_unit_eq(
+                                *literal,
+                                input.characters[input_index - 1],
+                                case_sensitive,
+                            );
+                    }
+                }
+                GlobToken::Question => {
+                    for input_index in 1..=input_count {
+                        let character = input.characters[input_index - 1];
+                        current[input_index] = previous[input_index - 1]
+                            && character != u16::from(b'/')
+                            && !(token_index == 0 && character == u16::from(b'.'));
+                    }
+                }
+                GlobToken::Star => {
+                    current[0] = previous[0];
+                    for input_index in 1..=input_count {
+                        let character_index = input_index - 1;
+                        let may_consume = input.characters[character_index] != u16::from(b'/')
+                            && !(token_index == 0
+                                && character_index == 0
+                                && input.characters[character_index] == u16::from(b'.'))
+                            && min_js_dot != Some(character_index);
+                        current[input_index] =
+                            previous[input_index] || (current[input_index - 1] && may_consume);
+                    }
+                }
+            }
+            std::mem::swap(&mut previous, &mut current);
+        }
+
+        previous[input_count]
+    }
+    let mut patterns = vec![String::new()];
+    for _ in 0..4 {
+        let previous = patterns.clone();
+        patterns.extend(previous.into_iter().flat_map(|prefix| {
+            ['a', '.', '/', '*', '?']
+                .into_iter()
+                .map(move |c| format!("{prefix}{c}"))
+        }));
+    }
+    patterns.sort();
+    patterns.dedup();
+    patterns.extend(
+        [
+            "*.min.js", "*.js", "*.*", "**a", "?*.js", "K*", "𐀀?*", "*İ*", "file://*",
+        ]
+        .into_iter()
+        .map(str::to_owned),
+    );
+    let inputs = [
+        "",
+        "a",
+        ".",
+        "a.a",
+        ".a",
+        "aa",
+        "/a",
+        "a/b",
+        "a/",
+        "aa.min.js",
+        "a.a.min.js",
+        "a.min.js",
+        "A.MIN.JS",
+        ".min.js",
+        "a.min.JSX",
+        "a..min.js",
+        "node_modules",
+        "NODE_MODULES",
+        "İx",
+        "Kx",
+        "kx",
+        "𐀀a",
+        "file://host",
+        "áÁ",
+    ];
+    for pattern in patterns {
+        let glob = GlobComponent::compile(pattern.as_str().into());
+        for name in inputs {
+            for case_sensitive in [false, true] {
+                let input = InputComponent::new(name.into(), case_sensitive);
+                for last in [false, true] {
+                    assert_eq!(
+                        glob.matches(&input, last, case_sensitive),
+                        old(&glob, &input, last, case_sensitive),
+                        "{pattern:?} {name:?} last={last} case={case_sensitive}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn package_folders_keep_non_unicode_regexp_case_rules() {
+    use super::{regex_canonicalize_code_unit, regex_code_unit_eq, InputComponent};
+    for left in 0_u16..128 {
+        for right in 0_u16..128 {
+            assert_eq!(
+                regex_code_unit_eq(left, right, false),
+                regex_canonicalize_code_unit(left) == regex_canonicalize_code_unit(right)
+            );
+        }
+    }
+    for name in [
+        "node_modules",
+        "NODE_MODULES",
+        "bower_components",
+        "JSPM_PACKAGES",
+    ] {
+        assert!(InputComponent::new(name.into(), false).common_package_folder);
+    }
+    for name in ["node_moduleſ", "jspm_pacKages"] {
+        assert!(!InputComponent::new(name.into(), false).common_package_folder);
+    }
+    assert!(!InputComponent::new("NODE_MODULES".into(), true).common_package_folder);
+}
