@@ -807,17 +807,44 @@ impl Snapshot {
     /// `has_errors_outside_cache`: config parsing, syntactic, program
     /// (options), global or file-located include-processor diagnostics
     /// exist.
-    fn ensure_has_errors(&mut self, has_errors_outside_cache: bool) {
+    fn ensure_has_errors(
+        &mut self,
+        has_errors_outside_cache: bool,
+        mut include_diagnostics: Option<&mut dyn FnMut(usize) -> bool>,
+    ) {
         if self.has_errors.is_some() {
             return;
         }
         let incremental = is_incremental(&self.program.options);
-        let has_emit_rows = self.emit_rows.iter().any(Option::is_some);
+        // Go ensureHasErrorsForState (execute/incremental/program.go:386-425)
+        // asks for include-processing rows in this emit-row pass. A cached
+        // error state never asks; an emit row can close the pass first.
+        let mut has_include_rows = false;
+        let has_emit_rows = if incremental && include_diagnostics.is_some() {
+            self.emit_rows.iter().enumerate().any(|(file, rows)| {
+                if rows.is_some() {
+                    return true;
+                }
+                if !has_include_rows {
+                    if let Some(get) = include_diagnostics.as_mut() {
+                        has_include_rows = get(file);
+                    }
+                }
+                false
+            })
+        } else {
+            self.emit_rows.iter().any(Option::is_some)
+        };
+        if !incremental && !has_emit_rows {
+            if let Some(get) = include_diagnostics.as_mut() {
+                has_include_rows = (0..self.program.files.len()).any(get);
+            }
+        }
         if has_emit_rows {
             // Record this for only non incremental build info
             self.has_errors = Some(!incremental);
             self.has_semantic_errors = false;
-        } else if has_errors_outside_cache {
+        } else if has_include_rows || has_errors_outside_cache {
             self.has_errors = Some(true);
             self.has_semantic_errors = false;
         } else {
@@ -873,8 +900,12 @@ impl Snapshot {
 
     /// tsgo `emitBuildInfo` up to the write: the document when one is to be
     /// written, `None` when nothing changed since the old build info.
-    pub fn to_build_info(&mut self, has_errors_outside_cache: bool) -> Option<BuildInfo> {
-        self.ensure_has_errors(has_errors_outside_cache);
+    pub fn to_build_info(
+        &mut self,
+        has_errors_outside_cache: bool,
+        include_diagnostics: Option<&mut dyn FnMut(usize) -> bool>,
+    ) -> Option<BuildInfo> {
+        self.ensure_has_errors(has_errors_outside_cache, include_diagnostics);
         self.ensure_package_jsons();
         if !self.build_info_emit_pending {
             return None;
@@ -885,8 +916,12 @@ impl Snapshot {
     /// The state a watch run keeps for its next cycle (tsgo's watcher keeps
     /// the incremental program in memory): the snapshot as an incremental
     /// program's build info, whatever the options say.
-    pub fn to_watch_state(&mut self, has_errors_outside_cache: bool) -> BuildInfo {
-        self.ensure_has_errors(has_errors_outside_cache);
+    pub fn to_watch_state(
+        &mut self,
+        has_errors_outside_cache: bool,
+        include_diagnostics: Option<&mut dyn FnMut(usize) -> bool>,
+    ) -> BuildInfo {
+        self.ensure_has_errors(has_errors_outside_cache, include_diagnostics);
         self.ensure_package_jsons();
         self.serialize(true)
     }
@@ -1655,7 +1690,7 @@ pub fn build_fresh_build_info(input: &FreshSnapshotInput<'_>) -> BuildInfo {
     let (updates, deleted) = fresh_emit_updates(&snapshot, input.state);
     snapshot.record_emit(updates, &deleted);
     snapshot
-        .to_build_info(input.has_errors_outside_cache)
+        .to_build_info(input.has_errors_outside_cache, None)
         .expect("a fresh incremental program always writes its build info")
 }
 
@@ -1945,7 +1980,7 @@ mod tests {
         snapshot.store_fresh_rows(1, vec![error_row()]);
         snapshot.store_fresh_rows(2, Vec::new());
         snapshot.finish_check();
-        let info = snapshot.to_build_info(false).expect("written");
+        let info = snapshot.to_build_info(false, None).expect("written");
         assert_eq!(info.to_json(), STEP0);
     }
 
@@ -1961,7 +1996,7 @@ mod tests {
         assert_eq!(snapshot.files_without_rows(), vec![false, false, false]);
         assert_eq!(snapshot.cached_rows(1).map(<[_]>::len), Some(1));
         snapshot.finish_check();
-        assert!(snapshot.to_build_info(false).is_none());
+        assert!(snapshot.to_build_info(false, None).is_none());
     }
 
     #[test]
@@ -1987,7 +2022,7 @@ mod tests {
         assert_eq!(snapshot.files_without_rows(), vec![false, true, false]);
         snapshot.store_fresh_rows(1, Vec::new());
         snapshot.finish_check();
-        let info = snapshot.to_build_info(false).expect("written");
+        let info = snapshot.to_build_info(false, None).expect("written");
         assert_eq!(
             info.to_json(),
             r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/b.ts","./src/a.ts","./lib/min.d.ts"],"fileInfos":["1ee67a763a8635e8d85574ccc6e5740e",{"version":"68269c3d41c4ac083f31e281de1aadf5","signature":"03ee330dc35a9c186b6cc67781eafb11","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1]],"options":{"module":99,"strict":true,"target":9},"referencedMap":[[2,1]],"affectedFilesPendingEmit":[2,1]}"#
@@ -2024,7 +2059,7 @@ mod tests {
         row.message_args = vec!["string".into(), "number".into()];
         snapshot.store_fresh_rows(1, vec![row]);
         snapshot.finish_check();
-        let info = snapshot.to_build_info(false).expect("written");
+        let info = snapshot.to_build_info(false, None).expect("written");
         assert_eq!(
             info.to_json(),
             r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/b.ts","./src/a.ts","./lib/min.d.ts"],"fileInfos":[{"version":"9f46d33e18af1e10a7882e45535f7c95","signature":"b9dd207cca22183dade38bf73fc60850","impliedNodeFormat":1},{"version":"68269c3d41c4ac083f31e281de1aadf5","signature":"03ee330dc35a9c186b6cc67781eafb11","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1]],"options":{"module":99,"strict":true,"target":9},"referencedMap":[[2,1]],"semanticDiagnosticsPerFile":[[2,[{"pos":38,"end":39,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["string","number"]}]]],"affectedFilesPendingEmit":[2,1]}"#
@@ -2045,7 +2080,7 @@ mod tests {
         assert!(snapshot.has_changed_files());
         // No affected-files handling, no check.
         snapshot.finish_check();
-        let info = snapshot.to_build_info(true).expect("written");
+        let info = snapshot.to_build_info(true, None).expect("written");
         assert_eq!(
             info.to_json(),
             r#"{"version":"7.1.0-dev","errors":true,"root":[[1,3]],"fileNames":["./src/b.ts","./src/a.ts","./lib/min.d.ts"],"fileInfos":[{"version":"ea9eacd8a716e4489f851e65d64a8a5e","signature":"b9dd207cca22183dade38bf73fc60850","impliedNodeFormat":1},{"version":"68269c3d41c4ac083f31e281de1aadf5","signature":"03ee330dc35a9c186b6cc67781eafb11","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1]],"options":{"module":99,"strict":true,"target":9},"referencedMap":[[2,1]],"semanticDiagnosticsPerFile":[[2,[{"pos":38,"end":39,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["string","number"]}]]],"changeFileSet":[1],"affectedFilesPendingEmit":[2,1]}"#
@@ -2100,7 +2135,7 @@ mod tests {
         snapshot.store_fresh_rows(2, Vec::new());
         snapshot.store_fresh_rows(3, Vec::new());
         snapshot.finish_check();
-        let info = snapshot.to_build_info(false).expect("written");
+        let info = snapshot.to_build_info(false, None).expect("written");
         assert_eq!(
             info.to_json(),
             r#"{"version":"7.1.0-dev","root":[[1,4]],"fileNames":["./src/b.ts","./src/a.ts","./src/g.d.ts","./lib/min.d.ts"],"fileInfos":[{"version":"9f46d33e18af1e10a7882e45535f7c95","signature":"b9dd207cca22183dade38bf73fc60850","impliedNodeFormat":1},{"version":"68269c3d41c4ac083f31e281de1aadf5","signature":"03ee330dc35a9c186b6cc67781eafb11","impliedNodeFormat":1},{"version":"bc421679236b667e480887667bd8f44b","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1]],"options":{"module":99,"strict":true,"target":9},"referencedMap":[[2,1]],"semanticDiagnosticsPerFile":[[2,[{"pos":38,"end":39,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["string","number"]}]]],"affectedFilesPendingEmit":[2,1]}"#
@@ -2201,7 +2236,7 @@ mod tests {
             }],
             &[],
         );
-        let info = snapshot.to_build_info(false).expect("written");
+        let info = snapshot.to_build_info(false, None).expect("written");
         assert_eq!(
             info.to_json(),
             r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["../src/b.ts","../src/a.ts","../lib/min.d.ts"],"fileInfos":[{"version":"c13e2f81e6f9d398368a8f1c415aa26e","signature":"49278f68676c75a5466dfa39c6559d18","impliedNodeFormat":1},{"version":"b6df5f2b27e276d9e3e67069347c11a5","signature":"03ee330dc35a9c186b6cc67781eafb11","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1]],"options":{"composite":true,"module":99,"outDir":"./","rootDir":"..","strict":true,"target":9},"referencedMap":[[2,1]],"latestChangedDtsFile":"./src/a.d.ts"}"#
@@ -2258,7 +2293,7 @@ mod tests {
             ],
             &[],
         );
-        let info = snapshot.to_build_info(false).expect("written");
+        let info = snapshot.to_build_info(false, None).expect("written");
         assert_eq!(
             info.to_json(),
             r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["../src/b.ts","../src/a.ts","../lib/min.d.ts"],"fileInfos":[{"version":"5e6668347c7a11276510f95c8d489e3b","signature":"83a814ac21695c9615a460ea7365b64f","impliedNodeFormat":1},{"version":"b6df5f2b27e276d9e3e67069347c11a5","signature":"03ee330dc35a9c186b6cc67781eafb11","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1]],"options":{"composite":true,"module":99,"outDir":"./","rootDir":"..","strict":true,"target":9},"referencedMap":[[2,1]],"latestChangedDtsFile":"./src/b.d.ts"}"#
@@ -2327,7 +2362,7 @@ mod tests {
             ],
             &[2],
         );
-        let info = snapshot.to_build_info(false).expect("written");
+        let info = snapshot.to_build_info(false, None).expect("written");
         assert_eq!(
             info.to_json(),
             r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["../src/a.ts","../src/b.ts","../lib/min.d.ts"],"fileInfos":[{"version":"dcc03016c1e9fa8a9c06f4a9279fde2a","signature":"67cd7ccc14045107336f34154f76a8ca","impliedNodeFormat":1},{"version":"fd1625d5addd2389e2c382f96f76510c","signature":"e1d275f86bf4a4a1f6fd0e8d8709f902","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"declaration":true,"module":99,"outDir":"./","rootDir":"..","strict":true,"target":9}}"#

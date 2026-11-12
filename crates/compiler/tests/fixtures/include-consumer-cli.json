@@ -1,0 +1,788 @@
+[
+  {
+    "name": "noemit_clean",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles"
+    ],
+    "watch": false,
+    "status": 2,
+    "stdout": "main.ts(1,8): error TS1261: Already included file name '/work/Dep.ts' differs from file name '/work/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/work/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 2,
+      "stdout": "main.ts(1,8): error TS1261: Already included file name '/work/Dep.ts' differs from file name '/work/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/work/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "emit_clean",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":false,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"outDir\":\"./out\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles"
+    ],
+    "watch": false,
+    "status": 2,
+    "stdout": "main.ts(1,8): error TS1261: Already included file name '/work/Dep.ts' differs from file name '/work/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/work/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 2,
+      "stdout": "main.ts(1,8): error TS1261: Already included file name '/work/Dep.ts' differs from file name '/work/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/work/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "emit_noEmitOnError_clean",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":false,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"outDir\":\"./out\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--noEmitOnError"
+    ],
+    "watch": false,
+    "status": 1,
+    "stdout": "main.ts(1,8): error TS1261: Already included file name '/work/Dep.ts' differs from file name '/work/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/work/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 1,
+      "stdout": "main.ts(1,8): error TS1261: Already included file name '/work/Dep.ts' differs from file name '/work/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/work/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "listFilesOnly_clean",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--listFilesOnly"
+    ],
+    "watch": false,
+    "status": 0,
+    "stdout": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 0,
+      "stdout": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "build_clean",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":false,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"outDir\":\"./out\",\"composite\":true,\"rootDir\":\".\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-b",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles"
+    ],
+    "watch": false,
+    "status": 2,
+    "stdout": "main.ts(1,8): error TS1261: Already included file name '/work/Dep.ts' differs from file name '/work/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/work/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 2,
+      "stdout": "main.ts(1,8): error TS1261: Already included file name '/work/Dep.ts' differs from file name '/work/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/work/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "build_noemit_clean",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"composite\":true,\"rootDir\":\".\",\"outDir\":\"./out\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-b",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles"
+    ],
+    "watch": false,
+    "status": 2,
+    "stdout": "main.ts(1,8): error TS1261: Already included file name '/work/Dep.ts' differs from file name '/work/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/work/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 2,
+      "stdout": "main.ts(1,8): error TS1261: Already included file name '/work/Dep.ts' differs from file name '/work/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/work/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "watch_noemit_clean",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './outside/dep.js';\n",
+      "outside/dep.ts": "export {};\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"rootDir\":\"./src\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--watch",
+      "--preserveWatchOutput"
+    ],
+    "watch": true,
+    "status": null,
+    "stdout": "error TS6059: File '/work/main.ts' is not under 'rootDir' '/work/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\noutside/dep.ts\n   Imported via './outside/dep.js' from file 'main.ts'\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\n",
+    "stderr": ""
+  },
+  {
+    "name": "watch_emit_clean",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './outside/dep.js';\n",
+      "outside/dep.ts": "export {};\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":false,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"rootDir\":\"./src\",\"outDir\":\"./out\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--watch",
+      "--preserveWatchOutput"
+    ],
+    "watch": true,
+    "status": null,
+    "stdout": "error TS6059: File '/work/main.ts' is not under 'rootDir' '/work/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\noutside/dep.ts\n   Imported via './outside/dep.js' from file 'main.ts'\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\n",
+    "stderr": ""
+  },
+  {
+    "name": "build_watch_clean",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './outside/dep.js';\n",
+      "outside/dep.ts": "export {};\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":false,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"rootDir\":\".\",\"outDir\":\"./out\",\"composite\":true},\"files\":[\"globals.d.ts\",\"main.ts\"]}"
+    },
+    "args": [
+      "-b",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--watch",
+      "--preserveWatchOutput"
+    ],
+    "watch": true,
+    "status": null,
+    "stdout": "main.ts(1,8): error TS6307: File '/work/outside/dep.ts' is not listed within the file list of project '/work/tsconfig.json'. Projects must list all files or use an 'include' pattern.\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\noutside/dep.ts\n   Imported via './outside/dep.js' from file 'main.ts'\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": ""
+  },
+  {
+    "name": "incremental_noemit_clean",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--incremental"
+    ],
+    "watch": false,
+    "status": 2,
+    "stdout": "main.ts(1,8): error TS1261: Already included file name '/work/Dep.ts' differs from file name '/work/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/work/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 2,
+      "stdout": "main.ts(1,8): error TS1261: Already included file name '/work/Dep.ts' differs from file name '/work/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/work/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "incremental_emit_clean",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":false,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"outDir\":\"./out\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--incremental"
+    ],
+    "watch": false,
+    "status": 2,
+    "stdout": "main.ts(1,8): error TS1261: Already included file name '/work/Dep.ts' differs from file name '/work/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/work/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 2,
+      "stdout": "main.ts(1,8): error TS1261: Already included file name '/work/Dep.ts' differs from file name '/work/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/work/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "incremental_listFilesOnly_clean",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--incremental",
+      "--listFilesOnly"
+    ],
+    "watch": false,
+    "status": 0,
+    "stdout": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 0,
+      "stdout": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "emitting_listFilesOnly_clean",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":false,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"outDir\":\"./out\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--listFilesOnly"
+    ],
+    "watch": false,
+    "status": 0,
+    "stdout": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 0,
+      "stdout": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "build_noCheck_clean",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"composite\":true,\"rootDir\":\".\",\"outDir\":\"./out\",\"noCheck\":true},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-b",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles"
+    ],
+    "watch": false,
+    "status": 0,
+    "stdout": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "incremental_emit_noEmitOnError_clean",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":false,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"outDir\":\"./out\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--incremental",
+      "--noEmitOnError"
+    ],
+    "watch": false,
+    "status": 1,
+    "stdout": "main.ts(1,8): error TS1261: Already included file name '/work/Dep.ts' differs from file name '/work/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/work/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 1,
+      "stdout": "main.ts(1,8): error TS1261: Already included file name '/work/Dep.ts' differs from file name '/work/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/work/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "noemit_syntax",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n\nconst broken = ;\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles"
+    ],
+    "watch": false,
+    "status": 2,
+    "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 2,
+      "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "emit_syntax",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n\nconst broken = ;\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":false,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"outDir\":\"./out\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles"
+    ],
+    "watch": false,
+    "status": 2,
+    "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 2,
+      "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "emit_noEmitOnError_syntax",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n\nconst broken = ;\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":false,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"outDir\":\"./out\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--noEmitOnError"
+    ],
+    "watch": false,
+    "status": 1,
+    "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 1,
+      "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "listFilesOnly_syntax",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n\nconst broken = ;\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--listFilesOnly"
+    ],
+    "watch": false,
+    "status": 1,
+    "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 1,
+      "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "build_syntax",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n\nconst broken = ;\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":false,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"outDir\":\"./out\",\"composite\":true,\"rootDir\":\".\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-b",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles"
+    ],
+    "watch": false,
+    "status": 2,
+    "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 2,
+      "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "build_noemit_syntax",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n\nconst broken = ;\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"composite\":true,\"rootDir\":\".\",\"outDir\":\"./out\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-b",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles"
+    ],
+    "watch": false,
+    "status": 2,
+    "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 2,
+      "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "watch_noemit_syntax",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './outside/dep.js';\n\nconst broken = ;\n",
+      "outside/dep.ts": "export {};\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"rootDir\":\"./src\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--watch",
+      "--preserveWatchOutput"
+    ],
+    "watch": true,
+    "status": null,
+    "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\noutside/dep.ts\n   Imported via './outside/dep.js' from file 'main.ts'\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": ""
+  },
+  {
+    "name": "watch_emit_syntax",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './outside/dep.js';\n\nconst broken = ;\n",
+      "outside/dep.ts": "export {};\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":false,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"rootDir\":\"./src\",\"outDir\":\"./out\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--watch",
+      "--preserveWatchOutput"
+    ],
+    "watch": true,
+    "status": null,
+    "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\noutside/dep.ts\n   Imported via './outside/dep.js' from file 'main.ts'\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": ""
+  },
+  {
+    "name": "build_watch_syntax",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './outside/dep.js';\n\nconst broken = ;\n",
+      "outside/dep.ts": "export {};\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":false,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"rootDir\":\".\",\"outDir\":\"./out\",\"composite\":true},\"files\":[\"globals.d.ts\",\"main.ts\"]}"
+    },
+    "args": [
+      "-b",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--watch",
+      "--preserveWatchOutput"
+    ],
+    "watch": true,
+    "status": null,
+    "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\noutside/dep.ts\n   Imported via './outside/dep.js' from file 'main.ts'\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": ""
+  },
+  {
+    "name": "incremental_noemit_syntax",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n\nconst broken = ;\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--incremental"
+    ],
+    "watch": false,
+    "status": 2,
+    "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 2,
+      "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "incremental_emit_syntax",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n\nconst broken = ;\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":false,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"outDir\":\"./out\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--incremental"
+    ],
+    "watch": false,
+    "status": 2,
+    "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 2,
+      "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "incremental_listFilesOnly_syntax",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n\nconst broken = ;\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--incremental",
+      "--listFilesOnly"
+    ],
+    "watch": false,
+    "status": 1,
+    "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 1,
+      "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "emitting_listFilesOnly_syntax",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n\nconst broken = ;\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":false,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"outDir\":\"./out\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--listFilesOnly"
+    ],
+    "watch": false,
+    "status": 1,
+    "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 1,
+      "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "build_noCheck_syntax",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n\nconst broken = ;\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"composite\":true,\"rootDir\":\".\",\"outDir\":\"./out\",\"noCheck\":true},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-b",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles"
+    ],
+    "watch": false,
+    "status": 2,
+    "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 2,
+      "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "incremental_emit_noEmitOnError_syntax",
+    "files": {
+      "dep.ts": "export {};\n",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\n\nconst broken = ;\n",
+      "package.json": "{\"type\":\"module\"}",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":false,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"outDir\":\"./out\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}"
+    },
+    "args": [
+      "-p",
+      "tsconfig.json",
+      "--pretty",
+      "false",
+      "--explainFiles",
+      "--incremental",
+      "--noEmitOnError"
+    ],
+    "watch": false,
+    "status": 1,
+    "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "stderr": "",
+    "warm": {
+      "status": 1,
+      "stdout": "main.ts(3,16): error TS1109: Expression expected.\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/work/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+      "stderr": ""
+    }
+  }
+]

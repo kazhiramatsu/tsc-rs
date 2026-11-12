@@ -199,6 +199,7 @@ impl<'session, 'program> DeclarationSession<'session, 'program> {
     /// in getter order without replacing this session's checker or declaration
     /// cache. Semantic checking completes lazily on the first such request.
     pub fn get_program_diagnostics(&mut self) -> Result<super::ProgramDiagnostics, DriverError> {
+        self.prepared.diagnostics().program();
         let preflight = tsc_emitter::preflight_emit(self.host, EmitSelection::WholeProgram)
             .map_err(DriverError::Emit)?;
         let mut checked = self.current_diagnostics();

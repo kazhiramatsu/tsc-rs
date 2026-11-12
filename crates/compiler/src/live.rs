@@ -29,9 +29,9 @@ use tsc_program::{
 use tsc_types::{JsStr, JsString};
 
 use crate::{
-    get_emit_declarations, include_processor_rows, map_authoritative_failure,
-    program_rows_outside_sources, programmatic_option_diagnostics, project_checker_inputs,
-    CheckedEmitHost, DeclarationSession, DriverError, PreparedEmitHost, PreparedModuleProvider,
+    get_emit_declarations, map_authoritative_failure, program_rows_outside_sources,
+    programmatic_option_diagnostics, project_checker_inputs, CheckedEmitHost, DeclarationSession,
+    DriverError, PreparedEmitHost, PreparedModuleProvider,
 };
 
 /// One Program and its checkers, kept for queries (tsgo `compiler.Program`
@@ -121,11 +121,15 @@ impl LiveProgram {
             )],
             Some(_) => content_mapped_replacements(prepared, id, old, &text, host)?,
         };
-        let rows = include_processor_rows(prepared);
+        let rows = super::unmaterialized_program_rows(prepared)
+            .filter_map(|row| {
+                super::prepared_source_of_diagnostic(prepared, row.file_name.as_ref()?.as_js())
+            })
+            .collect::<Vec<_>>();
         let mut reused = None::<PreparedProgram>;
         for (id, new) in replacements {
             let old = prepared.source_file(id)?;
-            if rows.iter().any(|(source, _)| *source == id) {
+            if rows.contains(&id) {
                 return None;
             }
             let options = options_for_source(prepared, old)?;

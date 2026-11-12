@@ -8140,6 +8140,7 @@ fn text_count_after_serial_check(leak_at_end: bool, with_operation: bool) -> usi
             tsc_program::WorkerBudget::serial(),
             crate::IncrementalRequest::NONE,
             leak_at_end,
+            SyntacticDiagnosticsGate::CheckEverySource,
             |_, _, _| operations += 1,
         );
         assert_eq!(operations, 1, "the operation runs once, after the check");

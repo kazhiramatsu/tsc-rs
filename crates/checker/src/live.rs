@@ -11,7 +11,7 @@
 //! them together, so a project system can keep a Program between requests.
 //! It uses no thread of its own.
 
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use self_cell::self_cell;
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory, DiagnosticList};
@@ -59,6 +59,26 @@ struct LiveOwner {
     passes: Vec<FileDiagnosticPasses>,
     /// The Program's preparation diagnostics.
     program_diagnostics: Vec<Diagnostic>,
+    materialized_program_diagnostics: OnceLock<DiagnosticList>,
+}
+
+impl LiveOwner {
+    fn program_diagnostics(&self) -> &[Diagnostic] {
+        self.materialized_program_diagnostics.get_or_init(|| {
+            let mut rows = self.program_diagnostics.clone();
+            for (token, mut row) in self.provider.include_processor_diagnostics() {
+                if let Some(metadata) = self
+                    .metadata
+                    .iter()
+                    .find(|metadata| metadata.token == token)
+                {
+                    row.file_name = Some(metadata.file_name.clone());
+                    rows.push(row);
+                }
+            }
+            rows
+        })
+    }
 }
 
 /// The checkers and the bookkeeping of the files the diagnostics checker
@@ -257,6 +277,7 @@ impl LiveChecker {
             lib_count,
             passes,
             program_diagnostics,
+            materialized_program_diagnostics: OnceLock::new(),
         };
         let cell = LiveCell::new(owner, |owner| {
             let state = new_checker_state(owner);
@@ -326,7 +347,7 @@ impl LiveChecker {
                 program_diagnostics,
                 ..
             } => program_diagnostics,
-            Live::Checked(cell) => &cell.borrow_owner().program_diagnostics,
+            Live::Checked(cell) => cell.borrow_owner().program_diagnostics(),
         }
     }
 
@@ -406,7 +427,7 @@ impl LiveChecker {
                 &state,
                 file,
                 &[],
-                &owner.program_diagnostics,
+                owner.program_diagnostics(),
                 &owner.options,
             )
         }))
@@ -439,7 +460,7 @@ impl LiveChecker {
                         &state,
                         file,
                         &[],
-                        &owner.program_diagnostics,
+                        owner.program_diagnostics(),
                         &owner.options,
                     ));
                 }

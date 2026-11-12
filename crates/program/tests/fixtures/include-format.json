@@ -1,0 +1,638 @@
+[
+  {
+    "name": "format_ts1261",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}",
+      "package.json": "{\"type\":\"module\"}",
+      "main.ts": "import './Dep.js';\n",
+      "dep.ts": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/Dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": "main.ts",
+        "line": 1,
+        "column": 8,
+        "code": 1261,
+        "message": "Already included file name '/project/Dep.ts' differs from file name '/project/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/project/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\""
+      }
+    ]
+  },
+  {
+    "name": "format_ts1149",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"dep.ts\",\"main.ts\"]}",
+      "package.json": "{\"type\":\"module\"}",
+      "main.ts": "import './Dep.js';\n",
+      "dep.ts": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ndep.ts\n   Part of 'files' list in tsconfig.json\n   Imported via './Dep.js' from file 'main.ts'\n   File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": "main.ts",
+        "line": 1,
+        "column": 8,
+        "code": 1149,
+        "message": "File name '/project/Dep.ts' differs from already included file name '/project/dep.ts' only in casing.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json\n    Imported via './Dep.js' from file '/project/main.ts'\n  File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\""
+      }
+    ]
+  },
+  {
+    "name": "format_two_casing_diagnostics",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"dep.ts\",\"main.ts\"]}",
+      "package.json": "{\"type\":\"module\"}",
+      "main.ts": "import './Dep.js';\nimport './DEP.js';\n",
+      "dep.ts": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ndep.ts\n   Part of 'files' list in tsconfig.json\n   Imported via './Dep.js' from file 'main.ts'\n   Imported via './DEP.js' from file 'main.ts'\n   File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": "main.ts",
+        "line": 1,
+        "column": 8,
+        "code": 1149,
+        "message": "File name '/project/Dep.ts' differs from already included file name '/project/dep.ts' only in casing.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json\n    Imported via './Dep.js' from file '/project/main.ts'\n    Imported via './DEP.js' from file '/project/main.ts'\n  File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\""
+      },
+      {
+        "file": "main.ts",
+        "line": 2,
+        "column": 8,
+        "code": 1149,
+        "message": "File name '/project/DEP.ts' differs from already included file name '/project/dep.ts' only in casing.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json\n    Imported via './Dep.js' from file '/project/main.ts'\n    Imported via './DEP.js' from file '/project/main.ts'\n  File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\""
+      }
+    ]
+  },
+  {
+    "name": "format_commonjs",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"dep.ts\",\"main.ts\"]}",
+      "package.json": "{\"type\":\"commonjs\"}",
+      "main.ts": "import './Dep.js';\n",
+      "dep.ts": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ndep.ts\n   Part of 'files' list in tsconfig.json\n   Imported via './Dep.js' from file 'main.ts'\n   File is CommonJS module because '/project/package.json' has field \"type\" whose value is not \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is CommonJS module because 'package.json' has field \"type\" whose value is not \"module\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": "main.ts",
+        "line": 1,
+        "column": 8,
+        "code": 1149,
+        "message": "File name '/project/Dep.ts' differs from already included file name '/project/dep.ts' only in casing.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json\n    Imported via './Dep.js' from file '/project/main.ts'\n  File is CommonJS module because '/project/package.json' has field \"type\" whose value is not \"module\""
+      }
+    ]
+  },
+  {
+    "name": "format_no_type",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"dep.ts\",\"main.ts\"]}",
+      "package.json": "{}",
+      "main.ts": "import './Dep.js';\n",
+      "dep.ts": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ndep.ts\n   Part of 'files' list in tsconfig.json\n   Imported via './Dep.js' from file 'main.ts'\n   File is CommonJS module because '/project/package.json' does not have field \"type\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is CommonJS module because 'package.json' does not have field \"type\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": "main.ts",
+        "line": 1,
+        "column": 8,
+        "code": 1149,
+        "message": "File name '/project/Dep.ts' differs from already included file name '/project/dep.ts' only in casing.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json\n    Imported via './Dep.js' from file '/project/main.ts'\n  File is CommonJS module because '/project/package.json' does not have field \"type\""
+      }
+    ]
+  },
+  {
+    "name": "format_relative_first",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "package.json": "{\"type\":\"module\"}",
+      "main.ts": "import './dep.js';\n",
+      "dep.ts": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ndep.ts\n   Imported via './dep.js' from file 'main.ts'\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": []
+  },
+  {
+    "name": "format_rootdir",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"rootDir\":\"./src\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "package.json": "{\"type\":\"module\"}",
+      "main.ts": "import './outside/dep.js';\n",
+      "dep.ts": "export {};\n",
+      "outside/dep.ts": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/outside/dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\noutside/dep.ts\n   Imported via './outside/dep.js' from file 'main.ts'\n   File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": null,
+        "line": null,
+        "column": null,
+        "code": 6059,
+        "message": "File '/project/main.ts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\""
+      }
+    ]
+  },
+  {
+    "name": "format_filelist",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"composite\":true},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "package.json": "{\"type\":\"module\"}",
+      "main.ts": "import './dep.js';\n",
+      "dep.ts": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ndep.ts\n   Imported via './dep.js' from file 'main.ts'\n   File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": "main.ts",
+        "line": 1,
+        "column": 8,
+        "code": 6307,
+        "message": "File '/project/dep.ts' is not listed within the file list of project '/project/tsconfig.json'. Projects must list all files or use an 'include' pattern.\n  File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\""
+      }
+    ]
+  },
+  {
+    "name": "format_two_file_diagnostics",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"composite\":true,\"rootDir\":\"./src\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "package.json": "{\"type\":\"module\"}",
+      "main.ts": "import './dep.js';\n",
+      "dep.ts": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ndep.ts\n   Imported via './dep.js' from file 'main.ts'\n   File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": null,
+        "line": null,
+        "column": null,
+        "code": 6059,
+        "message": "File '/project/main.ts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\""
+      }
+    ]
+  },
+  {
+    "name": "format_missing_root",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"missing.ts\"]}",
+      "package.json": "{\"type\":\"module\"}",
+      "main.ts": "export {};\n",
+      "dep.ts": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": null,
+        "line": null,
+        "column": null,
+        "code": 6053,
+        "message": "File '/project/missing.ts' not found.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json"
+      }
+    ]
+  },
+  {
+    "name": "format_unsupported_root",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"bad.txt\"]}",
+      "package.json": "{\"type\":\"module\"}",
+      "main.ts": "export {};\n",
+      "dep.ts": "export {};\n",
+      "bad.txt": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": null,
+        "line": null,
+        "column": null,
+        "code": 6054,
+        "message": "File '/project/bad.txt' has an unsupported extension. The only supported extensions are '.ts', '.tsx', '.d.ts', '.cts', '.d.cts', '.mts', '.d.mts'.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json"
+      }
+    ]
+  },
+  {
+    "name": "format_javascript_root",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"bad.js\"]}",
+      "package.json": "{\"type\":\"module\"}",
+      "main.ts": "export {};\n",
+      "dep.ts": "export {};\n",
+      "bad.js": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": null,
+        "line": null,
+        "column": null,
+        "code": 6504,
+        "message": "File '/project/bad.js' is a JavaScript file. Did you mean to enable the 'allowJs' option?\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json"
+      }
+    ]
+  },
+  {
+    "name": "format_extensionless_root",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"missing\"]}",
+      "package.json": "{\"type\":\"module\"}",
+      "main.ts": "export {};\n",
+      "dep.ts": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": null,
+        "line": null,
+        "column": null,
+        "code": 6231,
+        "message": "Could not resolve the path '/project/missing' with the extensions: '.ts', '.tsx', '.d.ts', '.cts', '.d.cts', '.mts', '.d.mts'.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json"
+      }
+    ]
+  },
+  {
+    "name": "format_missing_path",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "package.json": "{\"type\":\"module\"}",
+      "main.ts": "/// <reference path=\"./missing.ts\" />\nexport {};\n",
+      "dep.ts": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": "main.ts",
+        "line": 1,
+        "column": 22,
+        "code": 6053,
+        "message": "File './missing.ts' not found."
+      }
+    ]
+  },
+  {
+    "name": "format_unsupported_path",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "package.json": "{\"type\":\"module\"}",
+      "main.ts": "/// <reference path=\"./bad.txt\" />\nexport {};\n",
+      "dep.ts": "export {};\n",
+      "bad.txt": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": "main.ts",
+        "line": 1,
+        "column": 22,
+        "code": 6054,
+        "message": "File './bad.txt' has an unsupported extension. The only supported extensions are '.ts', '.tsx', '.d.ts', '.cts', '.d.cts', '.mts', '.d.mts'."
+      }
+    ]
+  },
+  {
+    "name": "format_javascript_path",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "package.json": "{\"type\":\"module\"}",
+      "main.ts": "/// <reference path=\"./bad.js\" />\nexport {};\n",
+      "dep.ts": "export {};\n",
+      "bad.js": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": "main.ts",
+        "line": 1,
+        "column": 22,
+        "code": 6504,
+        "message": "File './bad.js' is a JavaScript file. Did you mean to enable the 'allowJs' option?"
+      }
+    ]
+  },
+  {
+    "name": "format_self_reference",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "package.json": "{\"type\":\"module\"}",
+      "main.ts": "/// <reference path=\"./main.ts\" />\nexport {};\n",
+      "dep.ts": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": "main.ts",
+        "line": 1,
+        "column": 22,
+        "code": 1006,
+        "message": "A file cannot have a reference to itself."
+      }
+    ]
+  },
+  {
+    "name": "format_unknown_type",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "package.json": "{\"type\":\"module\"}",
+      "main.ts": "/// <reference types=\"missing\" />\nexport {};\n",
+      "dep.ts": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": "main.ts",
+        "line": 1,
+        "column": 23,
+        "code": 2688,
+        "message": "Cannot find type definition file for 'missing'."
+      }
+    ]
+  },
+  {
+    "name": "format_unknown_lib",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "package.json": "{\"type\":\"module\"}",
+      "main.ts": "/// <reference lib=\"missing\" />\nexport {};\n",
+      "dep.ts": "export {};\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": []
+  },
+  {
+    "name": "format_project_redirect",
+    "case_sensitive": false,
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"app/main.ts\",\"lib/src/value.ts\"],\"references\":[{\"path\":\"./lib\"}]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "app/main.ts": "import { value } from \"../lib/src/value\";\n",
+      "lib/tsconfig.json": "{\"compilerOptions\":{\"composite\":true,\"noLib\":true,\"types\":[],\"outDir\":\"dist\",\"rootDir\":\"src\"},\"files\":[\"src/value.ts\"]}",
+      "lib/src/value.ts": "export const value = 1;\n",
+      "lib/dist/value.d.ts": "export declare const value = 1;\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/lib/dist/value.d.ts",
+      "/project/app/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nlib/dist/value.d.ts\n   Imported via \"../lib/src/value\" from file 'app/main.ts'\n   Part of 'files' list in tsconfig.json\n   File is output of project reference source 'lib/src/value.ts'\napp/main.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": []
+  },
+  {
+    "name": "format_package_redirect",
+    "case_sensitive": false,
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"a/main.ts\",\"b/main.ts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "a/node_modules/pkg/package.json": "{\"name\":\"pkg\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}",
+      "a/node_modules/pkg/index.d.ts": "/// <reference path=\"./a-only.d.ts\" />\nimport \"./a-only\";\nexport declare const value: number;\n",
+      "a/node_modules/pkg/a-only.d.ts": "export {};\n",
+      "b/node_modules/pkg/package.json": "{\"name\":\"pkg\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}",
+      "b/node_modules/pkg/index.d.ts": "/// <reference path=\"./b-only.d.ts\" />\nimport \"./b-only\";\nexport declare const value: number;\n",
+      "b/node_modules/pkg/b-only.d.ts": "export {};\n",
+      "a/main.ts": "import { value } from \"pkg\";\n",
+      "b/main.ts": "import { value } from \"pkg\";\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/a/node_modules/pkg/a-only.d.ts",
+      "/project/a/node_modules/pkg/index.d.ts",
+      "/project/a/main.ts",
+      "/project/b/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\na/node_modules/pkg/a-only.d.ts\n   Referenced via './a-only.d.ts' from file 'a/node_modules/pkg/index.d.ts'\n   Imported via \"./a-only\" from file 'a/node_modules/pkg/index.d.ts' with packageId 'pkg/a-only.d.ts@1.0.0'\na/node_modules/pkg/index.d.ts\n   Imported via \"pkg\" from file 'a/main.ts' with packageId 'pkg/index.d.ts@1.0.0'\na/main.ts\n   Part of 'files' list in tsconfig.json\nb/node_modules/pkg/index.d.ts\n   Imported via \"pkg\" from file 'b/main.ts' with packageId 'pkg/index.d.ts@1.0.0'\n   File redirects to file 'a/node_modules/pkg/index.d.ts'\nb/main.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": []
+  },
+  {
+    "name": "format_project_output_diagnostic_single_root",
+    "case_sensitive": false,
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"app/main.ts\",\"lib/dist/Value.d.ts\"],\"references\":[{\"path\":\"./lib\"}]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "app/main.ts": "import { value } from \"../lib/src/value\";\n",
+      "lib/tsconfig.json": "{\"compilerOptions\":{\"composite\":true,\"noLib\":true,\"types\":[],\"outDir\":\"dist\",\"rootDir\":\"src\"},\"files\":[\"src/value.ts\"]}",
+      "lib/src/value.ts": "export const value = 1;\n",
+      "lib/dist/value.d.ts": "export declare const value = 1;\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/lib/dist/value.d.ts",
+      "/project/app/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nlib/dist/value.d.ts\n   Imported via \"../lib/src/value\" from file 'app/main.ts'\n   Part of 'files' list in tsconfig.json\n   File is output of project reference source '/project/lib/src/value.ts'\napp/main.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": "app/main.ts",
+        "line": 1,
+        "column": 23,
+        "code": 1261,
+        "message": "Already included file name '/project/lib/dist/value.d.ts' differs from file name '/project/lib/dist/Value.d.ts' only in casing.\n  The file is in the program because:\n    Imported via \"../lib/src/value\" from file '/project/app/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is output of project reference source '/project/lib/src/value.ts'"
+      }
+    ]
+  },
+  {
+    "name": "format_package_redirect_diagnostic",
+    "case_sensitive": false,
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"a/main.ts\",\"b/main.ts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "a/node_modules/pkg/package.json": "{\"name\":\"pkg\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}",
+      "a/node_modules/pkg/index.d.ts": "/// <reference path=\"./a-only.d.ts\" />\nimport \"./a-only\";\nexport declare const value: number;\n",
+      "a/node_modules/pkg/a-only.d.ts": "export {};\n",
+      "b/node_modules/pkg/package.json": "{\"name\":\"pkg\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}",
+      "b/node_modules/pkg/index.d.ts": "/// <reference path=\"./b-only.d.ts\" />\nimport \"./b-only\";\nexport declare const value: number;\n",
+      "b/node_modules/pkg/b-only.d.ts": "export {};\n",
+      "a/main.ts": "import { value } from \"pkg\";\n",
+      "b/main.ts": "import { value } from \"pkg\";\nimport \"./node_modules/pkg/Index\";\n"
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/a/node_modules/pkg/a-only.d.ts",
+      "/project/a/node_modules/pkg/index.d.ts",
+      "/project/a/main.ts",
+      "/project/b/node_modules/pkg/b-only.d.ts",
+      "/project/b/node_modules/pkg/index.d.ts",
+      "/project/b/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\na/node_modules/pkg/a-only.d.ts\n   Referenced via './a-only.d.ts' from file 'a/node_modules/pkg/index.d.ts'\n   Imported via \"./a-only\" from file 'a/node_modules/pkg/index.d.ts' with packageId 'pkg/a-only.d.ts@1.0.0'\na/node_modules/pkg/index.d.ts\n   Imported via \"pkg\" from file 'a/main.ts' with packageId 'pkg/index.d.ts@1.0.0'\na/main.ts\n   Part of 'files' list in tsconfig.json\nb/node_modules/pkg/b-only.d.ts\n   Referenced via './b-only.d.ts' from file 'b/node_modules/pkg/index.d.ts'\n   Imported via \"./b-only\" from file 'b/node_modules/pkg/index.d.ts' with packageId 'pkg/b-only.d.ts@1.0.0'\nb/node_modules/pkg/index.d.ts\n   Imported via \"pkg\" from file 'b/main.ts' with packageId 'pkg/index.d.ts@1.0.0'\n   Imported via \"./node_modules/pkg/Index\" from file 'b/main.ts' with packageId 'pkg/Index.d.ts@1.0.0'\nb/main.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": "b/main.ts",
+        "line": 2,
+        "column": 8,
+        "code": 1149,
+        "message": "File name '/project/b/node_modules/pkg/Index.d.ts' differs from already included file name '/project/b/node_modules/pkg/index.d.ts' only in casing.\n  The file is in the program because:\n    Imported via \"pkg\" from file '/project/b/main.ts' with packageId 'pkg/index.d.ts@1.0.0'\n    Imported via \"./node_modules/pkg/Index\" from file '/project/b/main.ts' with packageId 'pkg/Index.d.ts@1.0.0'"
+      }
+    ]
+  }
+]

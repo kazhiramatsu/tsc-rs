@@ -1122,25 +1122,23 @@ impl<'p> IncrementalDriver<'p> {
         if (state.check_global_rows && command.semantic_cached()) || state.planner_global_rows {
             return true;
         }
-        let Some(file_name) = &self.state_file_name else {
-            return false;
-        };
-        let assembly = Assembly::new(
-            self.prepared,
-            &state.facts,
-            file_name,
-            self.policy.hash_with_text,
-        );
         self.prepared
             .diagnostics()
-            .program()
+            .unmaterialized_program()
             .iter()
             .any(|diagnostic| {
                 diagnostic
                     .file_name
                     .as_ref()
-                    .and_then(|name| assembly.index_of(name.as_js()))
-                    .is_some_and(|index| !state.facts.get(index).is_some_and(|facts| facts.skipped))
+                    .and_then(|name| {
+                        super::prepared_source_of_diagnostic(self.prepared, name.as_js())
+                    })
+                    .is_some_and(|source| {
+                        !state
+                            .facts
+                            .get(source.index())
+                            .is_some_and(|facts| facts.skipped)
+                    })
             })
     }
 
@@ -1194,6 +1192,35 @@ impl<'p> IncrementalDriver<'p> {
         let mut guard = self.state();
         let state = guard.as_mut()?;
         let outside = self.has_errors_outside_cache(state, command);
+        let consumes_include_diagnostics = self.writes_build_info
+            && !self.prepared.build_info_emit_blocked()
+            && !self
+                .prepared
+                .diagnostics()
+                .unmaterialized_program()
+                .is_empty();
+        let facts = &state.facts;
+        let mut processing_rows = None::<Vec<bool>>;
+        let mut include_diagnostics = |file: usize| {
+            if facts.get(file).is_some_and(|facts| facts.skipped) {
+                return false;
+            }
+            // GetIncludeProcessorDiagnostics first skips the file, then
+            // materializes the whole collection (compiler/program.go:864-868).
+            let rows = processing_rows.get_or_insert_with(|| {
+                let mut rows = vec![false; self.prepared.source_files().len()];
+                for diagnostic in self.prepared.diagnostics().program() {
+                    if let Some(source) = diagnostic.file_name.as_ref().and_then(|name| {
+                        super::prepared_source_of_diagnostic(self.prepared, name.as_js())
+                    }) {
+                        rows[source.index()] = true;
+                    }
+                }
+                rows
+            });
+            rows.get(file).copied().unwrap_or(false)
+        };
+
         // tsgo snapshotToBuildInfo: the identities of the program's content
         // mapper project, read as the build info is made.
         let identities = content_mapper_identities(self.prepared);
@@ -1204,7 +1231,11 @@ impl<'p> IncrementalDriver<'p> {
         }
         if self.policy.watch {
             if let Some(file_name) = &self.state_file_name {
-                let info = state.snapshot.to_watch_state(outside);
+                let info = state.snapshot.to_watch_state(
+                    outside,
+                    consumes_include_diagnostics
+                        .then_some(&mut include_diagnostics as &mut dyn FnMut(usize) -> bool),
+                );
                 *self
                     .watch_state
                     .lock()
@@ -1226,7 +1257,11 @@ impl<'p> IncrementalDriver<'p> {
                 tsc_program::content_mapper::source::project_diagnostic(&failure),
             ));
         }
-        let info = state.snapshot.to_build_info(outside)?;
+        let info = state.snapshot.to_build_info(
+            outside,
+            consumes_include_diagnostics
+                .then_some(&mut include_diagnostics as &mut dyn FnMut(usize) -> bool),
+        )?;
         Some(Ok(BuildInfoDocument {
             file_name,
             text: info.to_json(),

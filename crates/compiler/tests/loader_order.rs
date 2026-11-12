@@ -24,6 +24,7 @@ fn check(name: &str) {
     for workers in [
         WorkerBudget::serial(),
         WorkerBudget::new(NonZeroUsize::new(4).unwrap()),
+        WorkerBudget::automatic(),
     ] {
         let program = corpus::load(&fixture, workers, false);
         let outcome = ProgramSession::new(program)
@@ -70,6 +71,17 @@ fn check(name: &str) {
 fn missing_directives() {
     check("missing_directives");
 }
+
+#[test]
+fn processing_diagnostic_redirect_and_format_cache() {
+    let fixtures: Vec<corpus::Fixture> = serde_json::from_str(include_str!(
+        "../../program/tests/fixtures/include-format.json"
+    ))
+    .unwrap();
+    for fixture in fixtures {
+        check(&fixture.name);
+    }
+}
 #[test]
 fn missing_roots_gate_directive_diagnostics() {
     check("missing_occurrences");
@@ -106,6 +118,7 @@ fn check_build_info(name: &str) {
     for workers in [
         WorkerBudget::serial(),
         WorkerBudget::new(NonZeroUsize::new(4).unwrap()),
+        WorkerBudget::automatic(),
     ] {
         let outcome = ProgramSession::new(corpus::load(&fixture, workers, false))
             .run_no_emit_command()

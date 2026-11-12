@@ -1,8 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
-use tsc_diagnostics::{Diagnostic, DiagnosticList, DocumentVersion, JsStr, JsString, TextSnapshot};
+use tsc_diagnostics::{
+    Diagnostic, DiagnosticList, DocumentVersion, JsStr, JsString, MessageChain, TextSnapshot,
+};
 use tsc_host::to_file_name_lower_case_js;
 use tsc_syntax::{ParseOptions, ScriptKind, SourceFile};
 use tsc_types::CompilerOptions;
@@ -1800,6 +1802,8 @@ pub struct PreparationDiagnostics {
     config: DiagnosticList,
     options: DiagnosticList,
     program: DiagnosticList,
+    processing_details: Vec<ProcessingDiagnosticDetails>,
+    include_details: IncludeDetailsCache,
     /// tsgo `contentMapperDiagnostics`: the content mappers that could not
     /// be initialized or failed too often (reported also when the files
     /// have syntactic errors).
@@ -1816,6 +1820,8 @@ impl PreparationDiagnostics {
             config,
             options,
             program,
+            processing_details: Vec::new(),
+            include_details: IncludeDetailsCache::default(),
             content_mapper: Vec::new(),
         }
     }
@@ -1838,8 +1844,42 @@ impl PreparationDiagnostics {
         &self.options
     }
 
+    /// Materialize all processing diagnostics, as tsgo's include processor
+    /// does on its first diagnostic getter (includeprocessor.go:35-42).
     pub fn program(&self) -> &[Diagnostic] {
+        if self.processing_details.is_empty() {
+            return &self.program;
+        }
+        self.include_details.0.diagnostics.get_or_init(|| {
+            let mut rows = self.program.clone();
+            for pending in &self.processing_details {
+                let details = self
+                    .include_details
+                    .get_or_init(&pending.path, || pending.details.clone());
+                let message = &mut rows[pending.index].message;
+                if !details.is_empty() {
+                    message.next_present = true;
+                    message
+                        .next
+                        .extend(details.into_iter().map(MessageChain::without_location));
+                }
+            }
+            rows
+        })
+    }
+
+    /// Inspect location/presence for the check's gate without asking Go's
+    /// include processor for diagnostics. Messages are materialized by program().
+    pub fn unmaterialized_program(&self) -> &[Diagnostic] {
         &self.program
+    }
+
+    pub(crate) fn with_processing_details(
+        mut self,
+        details: Vec<ProcessingDiagnosticDetails>,
+    ) -> Self {
+        self.processing_details = details;
+        self
     }
 }
 
@@ -1883,7 +1923,54 @@ pub struct PreparedProgram {
     resolutions: ResolutionTable,
     dependency_symlinks: Vec<DependencySymlink>,
     diagnostics: PreparationDiagnostics,
+    pub(crate) include_details: IncludeDetailsCache,
 }
+
+/// The absolute fallback belongs to a keyed processing diagnostic; it is
+/// attached only when the diagnostic collection is first requested.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ProcessingDiagnosticDetails {
+    pub index: usize,
+    pub path: CanonicalPath,
+    pub details: Vec<MessageChain>,
+}
+
+/// tsgo includeprocessor.go:125-184 caches the first *rendered* redirect and
+/// format explanation by file path, without the file-name renderer in its key.
+/// This is program state, never source/parse-cache state. Like PreparsedSyntax,
+/// observing this cache does not change the prepared program's content equality.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct IncludeDetailsCache(Arc<IncludeDetailsState>);
+
+#[derive(Debug, Default)]
+struct IncludeDetailsState {
+    details: Mutex<rustc_hash::FxHashMap<CanonicalPath, Vec<MessageChain>>>,
+    diagnostics: OnceLock<DiagnosticList>,
+}
+
+impl IncludeDetailsCache {
+    pub(crate) fn get_or_init(
+        &self,
+        path: &CanonicalPath,
+        render: impl FnOnce() -> Vec<MessageChain>,
+    ) -> Vec<MessageChain> {
+        self.0
+            .details
+            .lock()
+            .expect("include details cache poisoned")
+            .entry(path.clone())
+            .or_insert_with(render)
+            .clone()
+    }
+}
+
+impl PartialEq for IncludeDetailsCache {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for IncludeDetailsCache {}
 
 impl PreparsedSyntax {
     fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
@@ -2132,6 +2219,10 @@ impl PreparedProgram {
             "replacement source path must be unchanged"
         );
         let mut program = self.clone();
+        // ReuseProgram constructs a new Program with a fresh includeProcessor
+        // (tsgo program.go:427-438), even though its include records are shared.
+        program.include_details = IncludeDetailsCache::default();
+        program.diagnostics.include_details = program.include_details.clone();
         program.source_files[id.index()] = source;
         program
     }
@@ -2971,6 +3062,7 @@ impl PreparedProgramBuilder {
             import_extension_files: self.import_extension_files,
             resolutions,
             dependency_symlinks: self.dependency_symlinks,
+            include_details: self.diagnostics.include_details.clone(),
             diagnostics: self.diagnostics,
         }
     }
@@ -3032,7 +3124,7 @@ impl PreparedProgramBuilder {
             .config()
             .iter()
             .chain(self.diagnostics.options())
-            .chain(self.diagnostics.program())
+            .chain(self.diagnostics.unmaterialized_program())
             .chain(
                 self.resolutions
                     .modules
@@ -3065,7 +3157,7 @@ impl PreparedProgramBuilder {
             };
             if !self
                 .diagnostics
-                .program()
+                .unmaterialized_program()
                 .iter()
                 .any(|diagnostic| diagnostic == expected)
             {

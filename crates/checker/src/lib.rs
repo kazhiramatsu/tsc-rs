@@ -2143,6 +2143,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit<'cwd>(
         WorkerBudget::serial(),
         IncrementalRequest::NONE,
         false,
+        SyntacticDiagnosticsGate::CheckEverySource,
         operation,
     )
 }
@@ -2162,6 +2163,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_workers<'cwd>(
     workers: WorkerBudget,
     incremental: IncrementalRequest<'_>,
     leak_at_end: bool,
+    gate: SyntacticDiagnosticsGate,
     mut operation: impl FnMut(&ProgramSnapshot, &CheckerSession<'_>, &CheckResult),
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
@@ -2177,7 +2179,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_workers<'cwd>(
         Some(&mut operation),
         None,
         LibraryPrefixCompletion::Complete,
-        DiagnosticSchedule::Eager,
+        gate.schedule(),
         workers,
         incremental,
         leak_at_end,
@@ -2244,6 +2246,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bun
     current_directory: impl Into<JsStr<'cwd>>,
     provider: &dyn AuthoritativeModuleProvider,
     bundle: &OwnedHarnessLibBundle,
+    gate: SyntacticDiagnosticsGate,
     mut operation: impl FnMut(&ProgramSnapshot, &CheckerSession<'_>, &CheckResult),
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
@@ -2259,7 +2262,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bun
         Some(&mut operation),
         Some(bundle),
         LibraryPrefixCompletion::Complete,
-        DiagnosticSchedule::Eager,
+        gate.schedule(),
         WorkerBudget::serial(),
         IncrementalRequest::NONE,
         false,
@@ -2524,6 +2527,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_checkers<'cwd>(
     checkers: CheckerBudget,
     sharded_emit: &mut ShardedEmit<'_>,
     incremental: IncrementalRequest<'_>,
+    gate: SyntacticDiagnosticsGate,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
     check_program_with_authoritative_modules_at_cache_mode_with_source(
@@ -2538,7 +2542,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_checkers<'cwd>(
         None,
         None,
         LibraryPrefixCompletion::Complete,
-        DiagnosticSchedule::Eager,
+        gate.schedule(),
         workers,
         checkers,
         Some(sharded_emit),
@@ -3280,7 +3284,7 @@ fn parse_program_inputs(
             RedirectProvider::Owned(factory.provider())
         }
     });
-    let mut program_diagnostics = missing_path_reference_diagnostics(
+    let program_diagnostics = missing_path_reference_diagnostics(
         program_sources.iter().map(ProgramSource::source),
         libs.iter().chain(files.iter()).map(|file| {
             state::CheckerState::normalize_program_path(&file.name, &host_current_directory)
@@ -3293,29 +3297,6 @@ fn parse_program_inputs(
         options,
         &host_current_directory,
     );
-    // The Program's include-processor rows join the semantic diagnostics of
-    // the source they belong to, under that source's checker name.
-    if let Some(run) = authoritative_run {
-        let rows = match run.provider {
-            AuthoritativeProviderSource::Shared(provider) => {
-                provider.include_processor_diagnostics()
-            }
-            AuthoritativeProviderSource::PerChecker(factory) => {
-                factory.provider().include_processor_diagnostics()
-            }
-        };
-        for (token, mut row) in rows {
-            if let Some(metadata) = run
-                .lib_metadata
-                .iter()
-                .chain(&authoritative_program_metadata)
-                .find(|metadata| metadata.token == token)
-            {
-                row.file_name = Some(metadata.file_name.clone());
-                program_diagnostics.push(row);
-            }
-        }
-    }
 
     let file_paths = files
         .iter()
@@ -3356,6 +3337,47 @@ fn parse_program_inputs(
             package_json_names: Arc::new(package_json_names),
         },
     }
+}
+
+/// Materialize include-processor rows at a diagnostic consumer, never
+/// while parsing/binding the Program (tsgo program.go:843-868).
+fn append_include_processor_diagnostics(
+    rows: &mut Vec<Diagnostic>,
+    run: &AuthoritativeRun<'_>,
+    program_metadata: &[AuthoritativeSourceMetadata],
+) {
+    let included = match run.provider {
+        AuthoritativeProviderSource::Shared(provider) => provider.include_processor_diagnostics(),
+        AuthoritativeProviderSource::PerChecker(factory) => {
+            factory.provider().include_processor_diagnostics()
+        }
+    };
+    for (token, mut row) in included {
+        if let Some(metadata) = run
+            .lib_metadata
+            .iter()
+            .chain(program_metadata)
+            .find(|metadata| metadata.token == token)
+        {
+            row.file_name = Some(metadata.file_name.clone());
+            rows.push(row);
+        }
+    }
+}
+
+fn include_processor_diagnostics_of_state(state: &state::CheckerState<'_>) -> Vec<Diagnostic> {
+    let Some(provider) = state.authoritative_module_provider else {
+        return Vec::new();
+    };
+    provider
+        .include_processor_diagnostics()
+        .into_iter()
+        .filter_map(|(token, mut row)| {
+            let &file = state.authoritative_source_index_by_token.get(&token)?;
+            row.file_name = Some(state.binder.source(file).file_name.clone());
+            Some(row)
+        })
+        .collect()
 }
 
 /// Stage 3: construct one checker state over the shared immutable snapshot.
@@ -3547,16 +3569,13 @@ fn program_file_id(file: usize) -> ProgramFileId {
 /// Program.
 fn syntactic_diagnostics_close_the_check(
     schedule: DiagnosticSchedule,
-    program_sources: &[ProgramSource],
-    options: &CompilerOptions,
+    file_diagnostics: &[FileDiagnosticPasses],
     work_counters: &CheckWorkCounters,
 ) -> Option<CheckResult> {
     if !schedule.closed_by_syntactic_diagnostics() {
         return None;
     }
     let started = std::time::Instant::now();
-    let file_diagnostics =
-        syntactic_rows_of_sources(program_sources.iter().map(ProgramSource::source), options);
     if !matches!(schedule, DiagnosticSchedule::SyntacticDiagnosticsOnly)
         && file_diagnostics
             .iter()
@@ -3569,7 +3588,7 @@ fn syntactic_diagnostics_close_the_check(
         started,
     );
     Some(assemble_check_result(
-        &file_diagnostics,
+        file_diagnostics,
         Some(&[]),
         &[],
         &[],
@@ -4469,7 +4488,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let ParsedProgramInputs {
         mut program_sources,
         authoritative_program_metadata,
-        program_diagnostics,
+        mut program_diagnostics,
         host,
         ..
     } = parse_program_inputs(
@@ -4485,37 +4504,54 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         None,
     );
     tsc_types::trace::mark("checker: parse/adopt program sources", phase_started);
-    if let Some(result) = syntactic_diagnostics_close_the_check(
+    let file_diagnostics =
+        syntactic_rows_of_sources(program_sources.iter().map(ProgramSource::source), options);
+    let closed = syntactic_diagnostics_close_the_check(
         run.diagnostic_schedule,
-        &program_sources,
-        options,
+        &file_diagnostics,
         &work_counters,
-    ) {
-        if run.incremental_facts {
-            // The serial driver binds, initializes one checker for the module
-            // facts of the build info and checks no source.
-            drop(program_sources);
-            return check_program_with_prebound_libs_at_observed(
-                libs,
-                files,
-                options,
-                current_directory,
-                lib_documents,
-                identity_domain,
-                work_counters,
-                collect_global_diagnostics,
-                observe_phase,
-                Some(run),
-                None,
-                planner,
-                lib_facts,
-                workers,
+    );
+    let syntactic_closed = closed.is_some();
+    if let Some(result) = closed {
+        if result.syntactic_diagnostics.is_empty() {
+            append_include_processor_diagnostics(
+                &mut program_diagnostics,
+                run,
+                &authoritative_program_metadata,
             );
         }
-        return CheckExecution {
-            result,
-            authoritative_failure: None,
-        };
+        if sharded_emit.is_none() {
+            if run.incremental_facts {
+                drop(program_sources);
+                return check_program_with_prebound_libs_at_observed(
+                    libs,
+                    files,
+                    options,
+                    current_directory,
+                    lib_documents,
+                    identity_domain,
+                    work_counters,
+                    collect_global_diagnostics,
+                    observe_phase,
+                    Some(run),
+                    None,
+                    planner,
+                    lib_facts,
+                    workers,
+                );
+            }
+            return CheckExecution {
+                result,
+                authoritative_failure: None,
+            };
+        }
+    }
+    if !syntactic_closed {
+        append_include_processor_diagnostics(
+            &mut program_diagnostics,
+            run,
+            &authoritative_program_metadata,
+        );
     }
 
     let lib_count = lib_documents.len();
@@ -4588,9 +4624,33 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         .into_snapshot_with_file_facts(file_facts)
         .expect("program snapshot identity allocation failed");
     report_program_memory(&snapshot);
-    let file_diagnostics = syntactic_file_rows(&snapshot, lib_count, options);
     let mut metadata = run.lib_metadata.clone();
     metadata.extend(authoritative_program_metadata.iter().cloned());
+    if syntactic_closed {
+        // Syntax closes getters, but emit still needs an initialized resolver.
+        // Reuse the existing serial snapshot executor for this closed request.
+        work_counters.record_checker_shards(1, 1);
+        perf::add(PerfCounter::CheckerShardsRun, 1);
+        perf::add(PerfCounter::CheckerShardThreads, 1);
+        let provider = factory.provider();
+        return check_snapshot_serially(
+            &snapshot,
+            lib_count,
+            options,
+            &program_diagnostics,
+            file_diagnostics,
+            Some((&*provider, &metadata)),
+            host,
+            false,
+            false,
+            false,
+            work_counters,
+            sharded_emit,
+            false,
+            run.incremental_facts,
+            planner,
+        );
+    }
     let complete_library_prefix = run.library_prefix == LibraryPrefixCompletion::Complete;
 
     // The incremental program's planner runs over one initialized checker on
@@ -5154,10 +5214,6 @@ fn check_snapshot_serially(
             "checker: options diagnostics close the check of the sources (init only)",
             init_started,
         );
-        debug_assert!(
-            sharded_emit.is_none(),
-            "an emitting session checks the files it emits"
-        );
         let partial_checks = state.partial_check_records.clone();
         let authoritative_failure = state.take_authoritative_module_failure();
         state.line_profile.flush();
@@ -5183,13 +5239,15 @@ fn check_snapshot_serially(
             work_counters,
             incremental,
         );
-        if leak_state {
-            std::mem::forget(state);
-        }
-        return CheckExecution {
+        return finish_snapshot_execution(
+            snapshot,
+            state,
+            program_diagnostics,
             result,
             authoritative_failure,
-        };
+            sharded_emit,
+            leak_state,
+        );
     }
     let program_file_ids = state.binder.file_ids().skip(lib_count).collect::<Vec<_>>();
     let mut global_checker_diagnostics_by_file = vec![Vec::new(); state.binder.file_count()];
@@ -5299,9 +5357,31 @@ fn check_snapshot_serially(
         work_counters,
         incremental,
     );
+    finish_snapshot_execution(
+        snapshot,
+        state,
+        program_diagnostics,
+        result,
+        authoritative_failure,
+        sharded_emit,
+        leak_state,
+    )
+}
+
+/// Closing diagnostic getters does not close Emit: its resolver prepares
+/// sources as needed (GetEmitResolver), without requesting include diagnostics.
+fn finish_snapshot_execution(
+    snapshot: &ProgramSnapshot,
+    state: state::CheckerState<'_>,
+    program_diagnostics: &[Diagnostic],
+    result: CheckResult,
+    authoritative_failure: Option<AuthoritativeModuleFailure>,
+    sharded_emit: Option<&mut ShardedEmit<'_>>,
+    leak_state: bool,
+) -> CheckExecution {
     let state = match sharded_emit {
         Some(sharded_emit) if authoritative_failure.is_none() => {
-            let every_file = (0..all_program_file_ids.len()).collect::<Vec<_>>();
+            let every_file = (0..state.binder.file_count()).collect::<Vec<_>>();
             let session = CheckerSession::from_checked_state(state).with_program_diagnostics(
                 program_diagnostics.to_vec(),
                 result.program_semantic_diagnostics.clone(),
@@ -5350,7 +5430,6 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     workers: WorkerBudget,
 ) -> CheckExecution {
     let current_directory = current_directory.into();
-    let mut file_diagnostics = Vec::new();
     // An authoritative Program session exposes the whole-Program semantic
     // getter even when root filtering produces no SourceFiles (for example a
     // lone `.js` root with `allowJs` disabled). The observable getter result
@@ -5364,7 +5443,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     let ParsedProgramInputs {
         mut program_sources,
         authoritative_program_metadata,
-        program_diagnostics,
+        mut program_diagnostics,
         host,
         ..
     } = parse_program_inputs(
@@ -5380,39 +5459,52 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         None,
     );
 
-    if let Some(result) = authoritative_run.and_then(|run| {
+    let mut file_diagnostics =
+        syntactic_rows_of_sources(program_sources.iter().map(ProgramSource::source), options);
+    let closed = authoritative_run.and_then(|run| {
         syntactic_diagnostics_close_the_check(
             run.diagnostic_schedule,
-            &program_sources,
-            options,
+            &file_diagnostics,
             &work_counters,
         )
-    }) {
-        // An incremental program still binds and initializes the checker
-        // for the module facts of its build info (tsgo computes them when
-        // the incremental program is created); no source is checked.
-        if !authoritative_run.is_some_and(|run| run.incremental_facts) {
+    });
+    let syntactic_closed = closed.is_some();
+    if let Some(result) = closed {
+        if result.syntactic_diagnostics.is_empty() {
+            if let Some(run) = authoritative_run {
+                append_include_processor_diagnostics(
+                    &mut program_diagnostics,
+                    run,
+                    &authoritative_program_metadata,
+                );
+            }
+        }
+        if emit_operation.is_none() && !authoritative_run.is_some_and(|run| run.incremental_facts) {
             return CheckExecution {
                 result,
                 authoritative_failure: None,
             };
         }
     }
-    let syntactic_closed = authoritative_run.is_some_and(|run| {
-        run.incremental_facts
-            && syntactic_diagnostics_close_the_check(
-                run.diagnostic_schedule,
-                &program_sources,
-                options,
-                &work_counters,
-            )
-            .is_some()
-    });
 
     // The production H0 path publishes through a direct, session-owned store.
     // Library documents may already come from the separately authorized
     // harness cache, but fixture documents are never inserted into a global
     // map or kept past the ProgramSnapshot below.
+    if let Some(run) = authoritative_run {
+        if !matches!(
+            run.diagnostic_schedule,
+            DiagnosticSchedule::OnDemand | DiagnosticSchedule::EagerAfterEmit
+        ) && !syntactic_closed
+        {
+            append_include_processor_diagnostics(
+                &mut program_diagnostics,
+                run,
+                &authoritative_program_metadata,
+            );
+        }
+    }
+
     let lib_count = lib_documents.len();
     let leak_at_end = authoritative_run.is_some_and(|run| run.leak_at_end);
     let mut document_store = EphemeralDocumentStore::with_documents(
@@ -5484,7 +5576,6 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             .into_snapshot_with_file_facts(file_facts)
             .expect("program snapshot identity allocation failed");
         report_program_memory(&snapshot);
-        file_diagnostics = syntactic_file_rows(&snapshot, lib_count, options);
         let authoritative_metadata = authoritative_run.map(|run| {
             let mut metadata = run.lib_metadata.clone();
             metadata.extend(authoritative_program_metadata.iter().cloned());
@@ -5583,6 +5674,13 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 &snapshot, &session, &unchecked,
             );
             state = session.into_state();
+            if let Some(run) = authoritative_run {
+                append_include_processor_diagnostics(
+                    &mut program_diagnostics,
+                    run,
+                    &authoritative_program_metadata,
+                );
+            }
         }
         if collect_global_diagnostics {
             global_diagnostics = state.visible_global_diagnostics.clone();
@@ -5646,9 +5744,10 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             _ => None,
         };
         let is_selected = |file: ProgramFileId| {
-            selected
-                .as_ref()
-                .is_none_or(|selected| selected[file.index()])
+            !syntactic_closed
+                && selected
+                    .as_ref()
+                    .is_none_or(|selected| selected[file.index()])
         };
 
         // getDiagnosticsWorker snapshots global diagnostics around each

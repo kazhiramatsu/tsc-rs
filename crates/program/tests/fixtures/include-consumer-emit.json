@@ -1,0 +1,22 @@
+[
+  {
+    "name": "format_ts1261",
+    "syntax": false,
+    "first": "emit_write",
+    "explanation": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "messages": [
+      "Already included file name '/project/Dep.ts' differs from file name '/project/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/project/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because 'package.json' has field \"type\" with value \"module\""
+    ],
+    "later": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n"
+  },
+  {
+    "name": "format_ts1261",
+    "syntax": true,
+    "first": "emit_write",
+    "explanation": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "messages": [
+      "Already included file name '/project/Dep.ts' differs from file name '/project/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/project/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because 'package.json' has field \"type\" with value \"module\""
+    ],
+    "later": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n"
+  }
+]

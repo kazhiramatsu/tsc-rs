@@ -1400,3 +1400,82 @@ fn a_disabled_content_mapper_is_reported_before_its_file_errors() {
         }
     }
 }
+
+/// Go execute/tsc/emit.go:74-159 runs diagnostic getters and emit before
+/// consuming ExplainFiles. Watch and build use that same command producer.
+#[test]
+fn processing_explanations_follow_command_build_and_watch_consumers() {
+    let cases: Vec<serde_json::Value> =
+        serde_json::from_str(include_str!("../fixtures/include-consumer-cli.json")).unwrap();
+    for case in cases {
+        for budget in [Some("1"), Some("4"), None] {
+            let files = case["files"]
+                .as_object()
+                .unwrap()
+                .iter()
+                .map(|(path, text)| (format!("/work/{path}"), Seed::file(text.as_str().unwrap())))
+                .collect();
+            let mut system = MemorySystem::from_seeds(files, false);
+            for name in ["TSRS_WORKERS", "TSRS_CHECKERS"] {
+                match budget {
+                    Some(value) => {
+                        system.env.insert(name.to_owned(), value.to_owned());
+                    }
+                    None => {
+                        system.env.remove(name);
+                    }
+                }
+            }
+            let arguments = case["args"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|arg| arg.as_str().unwrap().to_owned())
+                .collect::<Vec<_>>();
+            let result = execute_command_line(&system, &arguments, Some(&system));
+            if let Some(status) = case["status"].as_i64() {
+                assert_eq!(result.status, status as i32, "{} {budget:?}", case["name"]);
+            }
+            let output = system.take_output();
+            let body = if case["watch"].as_bool().unwrap() {
+                assert!(result.watcher.is_some(), "{}: watch", case["name"]);
+                // The two status lines contain the host's current clock;
+                // compare every diagnostic and listing byte between them.
+                output
+                    .lines()
+                    .filter(|line| {
+                        !line.contains("Starting compilation in watch mode...")
+                            && !line.contains("Watching for file changes.")
+                            && !line.trim().is_empty()
+                    })
+                    .map(|line| format!("{line}\n"))
+                    .collect::<String>()
+            } else {
+                output
+            };
+            assert_eq!(
+                body,
+                case["stdout"].as_str().unwrap(),
+                "{} {budget:?}",
+                case["name"]
+            );
+            assert_eq!(case["stderr"], "");
+            if let Some(warm) = case.get("warm") {
+                let again = execute_command_line(&system, &arguments, Some(&system));
+                assert_eq!(
+                    again.status,
+                    warm["status"].as_i64().unwrap() as i32,
+                    "{} warm {budget:?}",
+                    case["name"]
+                );
+                assert_eq!(
+                    system.take_output(),
+                    warm["stdout"].as_str().unwrap(),
+                    "{} warm {budget:?}",
+                    case["name"]
+                );
+                assert_eq!(warm["stderr"], "");
+            }
+        }
+    }
+}
