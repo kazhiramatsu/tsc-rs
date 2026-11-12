@@ -213,8 +213,13 @@ impl<'a> Decoder<'a> {
                 let trailing_comma = elements.last().is_some_and(|&(_, last)| last < end);
                 let elements = elements.iter().map(|&(node, _)| node).collect::<Vec<_>>();
                 let (pos, end) = self.range(pos, end);
-                self.lists[index] =
-                    Some(self.arena.alloc_array(&elements, pos, end, trailing_comma));
+                self.lists[index] = Some(self.arena.alloc_array(
+                    &elements,
+                    pos,
+                    end,
+                    trailing_comma,
+                    tsc_syntax::NodeArrayRole::Children,
+                ));
                 continue;
             }
             let node = self
@@ -768,10 +773,13 @@ impl Children<'_> {
             .filter_map(|&child| self.nodes[child])
             .collect::<Vec<_>>();
         self.next = self.children.len();
-        Some(
-            self.arena
-                .alloc_array(&elements, u32::MAX as usize, u32::MAX as usize, false),
-        )
+        Some(self.arena.alloc_array(
+            &elements,
+            u32::MAX as usize,
+            u32::MAX as usize,
+            false,
+            tsc_syntax::NodeArrayRole::Children,
+        ))
     }
 
     /// A property tsc-rs's tree has no place for.

@@ -274,7 +274,13 @@ fn explicit_walk_matches_the_reference_with_shared_children_and_a_back_edge() {
             none,
         );
         // inner = [shared, parent]: a back edge to its ancestor.
-        let inner_array = syntax.alloc_array(&[shared, parent], 0, 0, false);
+        let inner_array = syntax.alloc_array(
+            &[shared, parent],
+            0,
+            0,
+            false,
+            tsc_syntax::NodeArrayRole::Children,
+        );
         let inner = syntax.alloc_node(
             NodeData::ArrayLiteralExpression(ArrayLiteralExpressionData {
                 elements: Some(inner_array),
@@ -283,7 +289,13 @@ fn explicit_walk_matches_the_reference_with_shared_children_and_a_back_edge() {
             0,
             none,
         );
-        let outer_array = syntax.alloc_array(&[shared, shared, inner], 0, 0, false);
+        let outer_array = syntax.alloc_array(
+            &[shared, shared, inner],
+            0,
+            0,
+            false,
+            tsc_syntax::NodeArrayRole::Children,
+        );
         syntax.set_data(
             parent,
             NodeData::ArrayLiteralExpression(ArrayLiteralExpressionData {

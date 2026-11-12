@@ -12,6 +12,15 @@ use tsc_types::{
     IdentityError, IdentityLease, IdentityRange, IdentitySpace, ModifierFlags, NodeFlags,
 };
 
+/// The semantic role of a newly allocated list. Ordinary lists do not
+/// derive modifier metadata. A generic builder can later attach a Children
+/// list to a declaration's typed modifiers field, which establishes its role.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NodeArrayRole {
+    Children,
+    Modifiers,
+}
+
 /// The identity ranges one tree is published to.
 #[derive(Clone, Debug)]
 pub struct SyntaxLeases {
@@ -873,21 +882,48 @@ impl NodeArena {
         self.push_node(kind, NodeData::missing(kind), pos, pos, NodeFlags::NONE)
     }
 
-    /// Allocate an array of this tree's `nodes`. Like tsgo's `ModifierList`,
-    /// the array keeps the modifier flags of its elements, so that a
-    /// declaration's syntactic modifier flags are one read.
+    /// Allocate a list with its explicit parser/storage role. Only a
+    /// modifier list derives tsgo's ModifierList.ModifierFlags.
     pub fn alloc_array(
         &mut self,
         nodes: &[NodeId],
         pos: usize,
         end: usize,
         has_trailing_comma: bool,
+        role: NodeArrayRole,
     ) -> NodeArrayId {
         let mut modifier_flags = ModifierFlags::NONE;
-        for &node in nodes {
-            modifier_flags |= modifier_to_flag(self.node(node).kind);
+        if role == NodeArrayRole::Modifiers {
+            for &node in nodes {
+                modifier_flags |= modifier_to_flag(self.node(node).kind);
+            }
         }
         self.push_array(nodes, pos, end, has_trailing_comma, modifier_flags)
+    }
+
+    /// Generic AST builders allocate lists before their owning declaration.
+    /// Attachment to its modifiers field gives that list its explicit role.
+    /// Parsed modifier lists already hold their flags; elements are immutable.
+    fn ensure_modifier_list_flags(&mut self, array: NodeArrayId) {
+        // A reused published list belongs to its source and already carries
+        // that source's metadata. Only this builder's lists can be promoted.
+        if !(self.array_base..self.array_end()).contains(&array.index()) {
+            return;
+        }
+        let index = self.array_index(array);
+        if self.arrays[index].modifier_flags != 0 {
+            return;
+        }
+        let flags = self
+            .node_array(array)
+            .nodes
+            .iter()
+            .fold(ModifierFlags::NONE, |flags, &node| {
+                flags | modifier_to_flag(self.node(node).kind)
+            });
+        if flags != ModifierFlags::NONE {
+            self.arrays[index].modifier_flags = flags.bits() as u16;
+        }
     }
 
     fn push_array(
@@ -926,14 +962,20 @@ impl NodeArena {
     }
 
     pub fn empty_array(&mut self, pos: usize) -> NodeArrayId {
-        self.alloc_array(&[], pos, pos, false)
+        self.alloc_array(&[], pos, pos, false, crate::NodeArrayRole::Children)
     }
 
     /// tsc factory-created arrays that are not parsed list ranges carry
     /// `pos = end = -1`. NodeArray uses unsigned parser offsets, so the
     /// all-ones value is the arena representation of that synthetic span.
     pub fn alloc_synthetic_array(&mut self, nodes: &[NodeId]) -> NodeArrayId {
-        self.alloc_array(nodes, u32::MAX as usize, u32::MAX as usize, false)
+        self.alloc_array(
+            nodes,
+            u32::MAX as usize,
+            u32::MAX as usize,
+            false,
+            crate::NodeArrayRole::Children,
+        )
     }
 
     /// tsc createMissingList: an empty list tagged so isMissingList checks
@@ -979,6 +1021,9 @@ impl NodeArena {
         let index = self.node_index(id);
         let js_doc = self.nodes[index].js_doc();
         self.nodes[index].encode(&data, js_doc, &mut self.tails, false);
+        if let Some(modifiers) = self.nodes[index].modifiers_field() {
+            self.ensure_modifier_list_flags(modifiers);
+        }
     }
 
     /// Give `id` another kind and payload (the API decoder reshapes some of
@@ -1391,6 +1436,9 @@ impl NodeArena {
         self.identifier_count += u32::from(kind == SyntaxKind::Identifier);
         let mut node = Node::new(kind, pos as u32, end as u32, flags.bits());
         node.encode(&data, None, &mut self.tails, false);
+        if let Some(modifiers) = node.modifiers_field() {
+            self.ensure_modifier_list_flags(modifiers);
+        }
         self.nodes.push(node);
         id
     }
