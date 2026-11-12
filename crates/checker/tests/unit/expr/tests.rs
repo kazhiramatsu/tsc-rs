@@ -886,3 +886,76 @@ fn homomorphic_mapped_type_inherits_const_type_parameter() {
         },
     );
 }
+
+#[test]
+fn const_variable_guards_keep_deferred_non_variadic_tuple_resolution() {
+    use tsc_types::CompilerOptions;
+    let text =
+        "type Id<T> = T; type Deferred = [Id<{ member: 1 }>]; declare let probeTuple: Deferred;";
+    crate::state::test_support::with_program_state(
+        &[("a.ts", text)],
+        &CompilerOptions::default(),
+        |state| {
+            let node =
+                crate::relpin::find_probe_annotation(state.binder.source(0), "probeTuple").unwrap();
+            let ty = state.get_type_from_type_node(node).unwrap();
+            assert!(state.tables.is_tuple_type(ty));
+            assert!(state.tables.try_type_argument_list(ty).is_none());
+            assert!(!state.could_contain_type_variables(ty));
+            let before = state.tables.len();
+            assert!(!state.is_const_type_variable(Some(ty), 0).unwrap());
+            assert!(state.tables.try_type_argument_list(ty).is_some());
+            assert!(
+                state.tables.len() > before,
+                "the old false query resolves element types"
+            );
+        },
+    );
+}
+
+#[test]
+fn const_variable_guards_keep_tsgo_literal_and_mapped_inference() {
+    let text = r#"function keep<const T>(value: T): T { return value; }
+const kept = keep({ name: "fixed", list: [1, 2] });
+const nameOk: "fixed" = kept.name;
+const wrongName: "other" = kept.name;
+function primitive(value: "a" | "b" | number) {}
+primitive("wrong");
+function mixed<const T>(value: T | "plain" | { object: number }): T | "plain" | { object: number } { return value; }
+const mixedValue = mixed({ nested: "fixed" });
+const badMixed: never = mixedValue;
+function mapped<const T>(value: { [K in keyof T]: T[K] }): T { return value; }
+const mappedValue = mapped({ key: "literal" });
+const mappedOk: "literal" = mappedValue.key;
+type Id<T> = T;
+type Deferred = [Id<{ member: 1 }>];
+declare let probeTuple: Deferred;
+const tupleBad: [string] = probeTuple;
+"#;
+    let options = tsc_types::CompilerOptions {
+        strict: Some(true),
+        target: Some(tsc_types::ScriptTarget::ES_NEXT.bits()),
+        ..tsc_types::CompilerOptions::default()
+    };
+    crate::state::test_support::with_program_state(&[("a.ts", text)], &options, |state| {
+        state.check_source_file(0);
+        let messages = state
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| matches!(diagnostic.code(), 2322 | 2345))
+            .map(|diagnostic| {
+                tsc_diagnostics::render::flattened_message(&diagnostic.message, "\n", None)
+                    .as_str()
+                    .unwrap()
+                    .to_owned()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(messages, [
+            r#"Type '"fixed"' is not assignable to type '"other"'."#,
+            r#"Argument of type '"wrong"' is not assignable to parameter of type 'number | "a" | "b"'."#,
+            r#"Type '"plain" | { object: number; } | { readonly nested: "fixed"; }' is not assignable to type 'never'.
+  Type '"plain"' is not assignable to type 'never'."#,
+            "Type 'Deferred' is not assignable to type '[string]'.\n  Type '{ member: 1; }' is not assignable to type 'string'.",
+        ]);
+    });
+}
