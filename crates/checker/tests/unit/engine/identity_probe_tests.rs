@@ -160,3 +160,79 @@ fn kept_recursion_entries_match_fresh_walks_at_every_depth() {
         },
     );
 }
+
+#[test]
+fn normalization_gate_matches_the_full_loop_for_all_normalizing_kinds() {
+    fn observe(worker: bool) -> (Vec<TypeId>, usize, u64, u64, Vec<u32>) {
+        let source = r#"
+            interface Box<T> { value: T }
+            function f<T extends string, V extends unknown[], O, K extends keyof O>() {
+                var primitive: string;
+                var literal: 'x';
+                var parameter: T;
+                var reference: Box<T>;
+                var union: Box<T> | string;
+                var intersection: Box<T> & { tag: 1 };
+                var conditional: T extends unknown ? T : never;
+                var indexed: O[K];
+                var tuple: [T, ...V];
+            }
+        "#;
+        with_program_state(&[("a.ts", source)], &CompilerOptions::default(), |state| {
+            let mut inputs = Vec::new();
+            for name in [
+                "primitive",
+                "literal",
+                "parameter",
+                "reference",
+                "union",
+                "intersection",
+                "conditional",
+                "indexed",
+                "tuple",
+            ] {
+                inputs.push(resolve(state, name));
+            }
+            assert!(state
+                .tables
+                .flags_of(inputs[6])
+                .intersects(tsc_types::TypeFlags::CONDITIONAL));
+            assert!(state
+                .tables
+                .flags_of(inputs[7])
+                .intersects(tsc_types::TypeFlags::INDEXED_ACCESS));
+            let tuple = *inputs.last().unwrap();
+            assert!(state.is_generic_tuple_type(tuple));
+            assert!(state
+                .tables
+                .object_flags_of(tuple)
+                .intersects(tsc_types::ObjectFlags::REFERENCE));
+            let fresh = state.tables.get_fresh_type_of_literal_type(inputs[1]);
+            assert!(state.tables.is_fresh_literal_type(fresh));
+            inputs.push(fresh);
+            let substitution = state
+                .tables
+                .get_or_create_substitution_type(inputs[2], state.tables.intrinsics.string);
+            inputs.push(substitution);
+            let mut normalized = Vec::new();
+            for ty in inputs {
+                for writing in [false, true] {
+                    let result = if worker {
+                        state.get_normalized_type_worker(ty, writing)
+                    } else {
+                        state.get_normalized_type(ty, writing)
+                    };
+                    normalized.push(result.unwrap());
+                }
+            }
+            (
+                normalized,
+                state.tables.len(),
+                state.instantiation_count,
+                state.total_instantiation_count,
+                state.diagnostics.iter().map(|d| d.code()).collect(),
+            )
+        })
+    }
+    assert_eq!(observe(false), observe(true));
+}
