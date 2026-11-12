@@ -1172,8 +1172,16 @@ struct ProjectRunMode {
     build: bool,
     summary: bool,
     /// A watch run's cycle (`--watch`): the state is kept for the next
-    /// cycle and nothing is leaked.
+    /// cycle.
     watch: bool,
+    /// The process exits right after this run, so its program and checker
+    /// states are left to the exit: dropping them would only delay it. A
+    /// one-shot command does; a watch cycle does not, and of a build's
+    /// projects only the last program of a one-shot `tsc -b` does. tsgo's
+    /// programs are collected as a build goes on; a build that left every
+    /// project to the exit held all of them at once, and a build watch one
+    /// more with every rebuild.
+    leak: bool,
 }
 
 impl ProjectRunMode {
@@ -1181,17 +1189,25 @@ impl ProjectRunMode {
         build: false,
         summary: true,
         watch: false,
-    };
-    const BUILD: Self = Self {
-        build: true,
-        summary: false,
-        watch: false,
+        leak: true,
     };
     const WATCH: Self = Self {
         build: false,
         summary: true,
         watch: true,
+        leak: false,
     };
+
+    /// A project of a build; `leak` for the last program of a one-shot
+    /// build.
+    const fn build(leak: bool) -> Self {
+        Self {
+            build: true,
+            summary: false,
+            watch: false,
+            leak,
+        }
+    }
 }
 
 /// The old build info a project's run reuses: read by the command, or
@@ -1206,12 +1222,15 @@ enum OldBuildInfoSource<'a> {
 }
 
 /// tsgo `compileAndEmit`'s program run of one project of a build.
+/// `process_exits_next`: the program is the last one of a one-shot build,
+/// which may leave it and its checker states to the process exit.
 pub(crate) fn run_config_for_build(
     host: &dyn CompilerHost,
     current_directory: &Path,
     catalog: &LibraryCatalog,
     plan: &ConfigRootPlan,
     old: Option<&BuildInfo>,
+    process_exits_next: bool,
     route: &mut CliRoute<'_>,
 ) -> Result<BuildProjectRun, CliError> {
     let mut source_texts = DiagnosticSourceMap::new();
@@ -1226,7 +1245,7 @@ pub(crate) fn run_config_for_build(
         plan,
         source_texts,
         route,
-        ProjectRunMode::BUILD,
+        ProjectRunMode::build(process_exits_next),
         OldBuildInfoSource::Given(old),
     )
 }
@@ -1654,12 +1673,12 @@ fn execute_prepared(
     // config-file parsing diagnostics was reported. The command session runs
     // that getter over its own checker sessions
     // (`ProgramSession::run_no_emit_command`).
-    // A watch run keeps its process: nothing is leaked from one cycle to the
-    // next.
+    // Only a run after which the process exits leaves its program and
+    // checker states behind (`ProjectRunMode::leak`).
     let session = ProgramSession::new(prepared)
         .with_worker_budget(route.worker_budget())
-        .with_checker_budget(route.checker_budget().with_leaked_states(!mode.watch))
-        .with_leaked_program(!mode.watch)
+        .with_checker_budget(route.checker_budget().with_leaked_states(mode.leak))
+        .with_leaked_program(mode.leak)
         .with_command_options_diagnostics(!additional_diagnostics.is_empty())
         .with_build_mode(mode.build)
         .with_old_build_info(old_build_info)
@@ -1912,7 +1931,7 @@ fn execute_emitting_prepared(
     let write_workers = route.worker_budget().max_workers();
     let (worker_budget, checker_budget) = (
         route.worker_budget(),
-        route.checker_budget().with_leaked_states(!mode.watch),
+        route.checker_budget().with_leaked_states(mode.leak),
     );
     let testing = route.testing.is_some();
     let tracing = route.tracing.clone();
@@ -1933,7 +1952,7 @@ fn execute_emitting_prepared(
     let mut outcome = ProgramSession::new(prepared)
         .with_worker_budget(worker_budget)
         .with_checker_budget(checker_budget)
-        .with_leaked_program(!mode.watch)
+        .with_leaked_program(mode.leak)
         .with_build_mode(mode.build)
         .with_old_build_info(old_build_info)
         .with_testing(testing)
