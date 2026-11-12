@@ -2602,3 +2602,43 @@ fn property_scratch_reuse_keeps_names_and_deferred_recipes_separate() {
         },
     );
 }
+
+#[test]
+fn unmatched_property_filters_keep_tsgo_static_optional_partial_diagnostics() {
+    // Pinned tsgo aa8149273, D5.ts, --strict --target esnext --noEmit:
+    // static private, Optional and Partial properties are excluded; required
+    // properties still report the same first missing member.
+    let text = r#"class Base { static #privateField: number; static optional?: string; static required: number; }
+class Derived extends Base { static own = 1; }
+const staticOk: typeof Base = Derived;
+declare const source: { required: number };
+const optionalOk: { required: number; optional?: string } = source;
+const missing: { required: number; absent: string } = source;
+declare const partial: { tag: "a"; value: number } | { tag: "a"; extra?: string };
+const partialOk: { tag: "a"; value?: number; extra?: string } = partial;
+const requiredBad: { optional: string } = {};
+"#;
+    let options = CompilerOptions {
+        strict: Some(true),
+        target: Some(tsc_types::ScriptTarget::ES_NEXT.bits()),
+        ..CompilerOptions::default()
+    };
+    crate::state::test_support::with_program_state(&[("a.ts", text)], &options, |state| {
+        state.check_source_file(0);
+        let messages = state
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 2741)
+            .map(|diagnostic| {
+                tsc_diagnostics::render::flattened_message(&diagnostic.message, "\n", None)
+                    .as_str()
+                    .unwrap()
+                    .to_owned()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(messages, [
+            "Property 'absent' is missing in type '{ required: number; }' but required in type '{ required: number; absent: string; }'.",
+            "Property 'optional' is missing in type '{}' but required in type '{ optional: string; }'.",
+        ]);
+    });
+}

@@ -362,6 +362,20 @@ impl<'a> CheckerState<'a> {
             }
             let mut matched = false;
             for &template in &templates {
+                if self
+                    .tables
+                    .flags_of(template)
+                    .intersects(TypeFlags::TEMPLATE_LITERAL)
+                {
+                    let Some(tsc_types::LiteralValue::String(value)) = self.tables.literal_value(t)
+                    else {
+                        unreachable!("string-literal flag implies string payload");
+                    };
+                    // The matcher starts with this pure borrowed-text rejection.
+                    if !self.literal_fits_template_ends(value, template) {
+                        continue;
+                    }
+                }
                 if self.is_type_matched_by_template_literal_or_string_mapping(t, template)? {
                     matched = true;
                     break;
