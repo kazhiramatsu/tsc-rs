@@ -1943,7 +1943,7 @@ impl<'a> CheckerState<'a> {
                 TypeData::Union { origin, .. } if flags.intersects(TypeFlags::UNION) => *origin,
                 _ => None,
             };
-            let source_types: Vec<TypeId> = match origin {
+            let source_types = match origin {
                 Some(origin)
                     if self
                         .tables
@@ -1951,19 +1951,25 @@ impl<'a> CheckerState<'a> {
                         .intersects(TypeFlags::UNION_OR_INTERSECTION) =>
                 {
                     match &self.tables.type_of(origin).data {
-                        TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
-                        TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+                        TypeData::Union { types, .. } => *types,
+                        TypeData::Intersection { types } => *types,
                         _ => unreachable!("origin union/intersection flag implies member data"),
                     }
                 }
                 _ => match &self.tables.type_of(ty).data {
-                    TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
-                    TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+                    TypeData::Union { types, .. } => *types,
+                    TypeData::Intersection { types } => *types,
                     _ => unreachable!("union/intersection flag implies member data"),
                 },
             };
-            let new_types = self.instantiate_types(&source_types, mapper)?;
-            if new_types == source_types && alias_symbol == self.tables.alias_symbol(ty) {
+            let mut members = self.tables.cursor(source_types);
+            let mut new_types = Vec::with_capacity(members.len());
+            while let Some(member) = members.next(&self.tables) {
+                new_types.push(self.instantiate_type(member, Some(mapper))?);
+            }
+            if new_types == self.tables.list(source_types)
+                && alias_symbol == self.tables.alias_symbol(ty)
+            {
                 return Ok(ty);
             }
             let new_alias_symbol = alias_symbol.or(self.tables.alias_symbol(ty));

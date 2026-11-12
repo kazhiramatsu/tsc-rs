@@ -695,3 +695,39 @@ const badLiteralCase: LiteralCase = "wrong";
         );
     });
 }
+
+#[test]
+fn union_instantiation_keeps_its_source_members_while_nested_lists_grow() {
+    let members = |element: &str| {
+        (0..40)
+            .map(|index| format!("[{element}, {index}]"))
+            .collect::<Vec<_>>()
+            .join(" | ")
+    };
+    let text = format!(
+        "function f<T>() {{ var v: {}; var w: {}; }}",
+        members("T"),
+        members("string"),
+    );
+    with_program_state(
+        &[("a.ts", text.as_str())],
+        &CompilerOptions::default(),
+        |state| {
+            let annotation = annotation_of_var(state, "v");
+            let ty = state.get_type_from_type_node(annotation).unwrap();
+            let tsc_types::TypeData::Union { types, .. } = state.tables.type_of(ty).data else {
+                panic!("tuple union");
+            };
+            let original = state.tables.list(types).to_vec();
+            assert_eq!(original.len(), 40);
+            let parameter = declared_type_parameter(state, "T");
+            let string = state.tables.intrinsics.string;
+            let mapper = state.create_type_mapper(&[parameter], Some(&[string]));
+            let mapped = state.instantiate_type(ty, Some(mapper)).unwrap();
+            assert_eq!(state.tables.list(types), original);
+            let annotation = annotation_of_var(state, "w");
+            let expected = state.get_type_from_type_node(annotation).unwrap();
+            assert_eq!(mapped, expected);
+        },
+    );
+}
