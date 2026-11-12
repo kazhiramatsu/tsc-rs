@@ -93,7 +93,16 @@ fn automatic_duplicate_names() {
 
 #[test]
 fn incremental_file_root_reference_and_probe_order() {
-    let fixture = corpus::fixture("incremental_package_order");
+    check_build_info("incremental_package_order");
+}
+
+#[test]
+fn incremental_project_reference_package_probe_order() {
+    check_build_info("project_options_incremental");
+}
+
+fn check_build_info(name: &str) {
+    let fixture = corpus::fixture(name);
     for workers in [
         WorkerBudget::serial(),
         WorkerBudget::new(NonZeroUsize::new(4).unwrap()),

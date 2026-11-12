@@ -4933,10 +4933,17 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 || containing_file.clone(),
                 |output| output.source().to_owned(),
             );
-        self.project_resolvers
+        let resolver = self
+            .project_resolvers
             .get_mut(project.canonical())
-            .expect("inserted above")
-            .resolve_with_facts(&containing_file, key.specifier(), key.mode())
+            .expect("inserted above");
+        // tsgo ResolutionData.packageJsonInfoCache is shared with redirected
+        // resolutions. Hand off just that table, keeping project-specific
+        // options/results separate and the ordinary program path unchanged.
+        resolver.swap_package_json_cache(self.resolver);
+        let result = resolver.resolve_with_facts(&containing_file, key.specifier(), key.mode());
+        resolver.swap_package_json_cache(self.resolver);
+        result
     }
 
     /// tsgo filesParser.parse with the single-threaded work group: the root

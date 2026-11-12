@@ -770,8 +770,10 @@ struct InputResolutionRequest {
 /// Sequential Node16/NodeNext/Bundler resolver for the H0.2 package-map
 /// slices.
 ///
-/// One resolver owns a per-run `package.json` cache. Host methods remain
-/// fallible and are never translated into ordinary lookup misses.
+/// Resolvers cache per-run package metadata. The loader lends the program's
+/// package cache to a redirected resolver for a request. Other resolver state
+/// stays separate. Host methods remain fallible and are never translated into
+/// ordinary lookup misses.
 pub struct ModuleResolver<'a> {
     lexical_paths: PurePathCache,
     host: &'a dyn CompilerHost,
@@ -1475,6 +1477,13 @@ impl<'a> ModuleResolver<'a> {
                 None => trace!(self, gen::package_json_does_not_have_a_0_field, name),
             }
         }
+    }
+
+    /// Let a redirected resolver borrow the program's package-json cache.
+    /// The loader returns ownership after the request; options-dependent
+    /// resolver state and scope memos remain with their own resolver.
+    pub(crate) fn swap_package_json_cache(&mut self, other: &mut ModuleResolver<'_>) {
+        std::mem::swap(&mut self.package_cache, &mut other.package_cache);
     }
 
     pub fn observed_package_metadata(&self) -> impl Iterator<Item = &PackageMetadata> {

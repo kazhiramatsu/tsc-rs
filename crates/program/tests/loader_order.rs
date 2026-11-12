@@ -104,6 +104,10 @@ fn project_options() {
     check("project_options");
 }
 #[test]
+fn project_options_incremental() {
+    check("project_options_incremental");
+}
+#[test]
 fn conflicting_package_identity() {
     check("conflicting_package_identity");
 }

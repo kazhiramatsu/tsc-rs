@@ -376,10 +376,82 @@
       "/project/app/main.ts"
     ],
     "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nlib/node_modules/pkg/require.d.ts\n   Imported via \"pkg\" from file 'lib/dist/value.d.ts' with packageId 'pkg/require.d.ts@1.0.0'\nlib/dist/value.d.ts\n   Imported via \"../lib/src/value\" from file 'app/main.ts'\n   File is output of project reference source 'lib/src/value.ts'\n   File is CommonJS module because 'package.json' does not have field \"type\"\napp/main.ts\n   Part of 'files' list in tsconfig.json\n",
-    "trace": "",
+    "trace": "======== Resolving module '../lib/src/value' from '/project/app/main.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/lib/src/value', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/lib/src/value.ts' exists - use it as a name resolution result.\n======== Module name '../lib/src/value' was successfully resolved to '/project/lib/src/value.ts'. ========\n======== Resolving module 'pkg' from '/project/lib/src/value.ts'. ========\nUsing compiler options of project reference redirect '/project/lib/tsconfig.json'.\nExplicitly specified module resolution kind: 'Node16'.\nResolving in CJS mode with conditions 'require', 'types', 'node'.\nFile '/project/lib/src/package.json' does not exist.\nFile '/project/lib/package.json' does not exist according to earlier cached lookups.\nFile '/project/package.json' exists according to earlier cached lookups.\nLoading module 'pkg' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.\nSearching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.\nDirectory '/project/lib/src/node_modules' does not exist, skipping all lookups in it.\nFound 'package.json' at '/project/lib/node_modules/pkg/package.json'.\nEntering conditional exports.\nSaw non-matching condition 'import'.\nMatched 'exports' condition 'require'.\nUsing 'exports' subpath '.' with target './require.d.ts'.\nFile '/project/lib/node_modules/pkg/require.d.ts' exists - use it as a name resolution result.\n'package.json' does not have a 'peerDependencies' field.\nResolved under condition 'require'.\nExiting conditional exports.\nResolving real path for '/project/lib/node_modules/pkg/require.d.ts', result '/project/lib/node_modules/pkg/require.d.ts'.\n======== Module name 'pkg' was successfully resolved to '/project/lib/node_modules/pkg/require.d.ts' with Package ID 'pkg/require.d.ts@1.0.0'. ========\n",
     "diagnostics": [],
-    "check_trace": false,
-    "trace_exclusion": "Known existing difference D02: project resolver cache history"
+    "check_trace": true
+  },
+  {
+    "name": "project_options_incremental",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\",\"incremental\":true,\"tsBuildInfoFile\":\"./state.tsbuildinfo\"},\"files\":[\"globals.d.ts\",\"app/main.ts\"],\"references\":[{\"path\":\"./lib\"}]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "app/main.ts": "import { value } from \"../lib/src/value\";\n",
+      "lib/tsconfig.json": "{\"compilerOptions\":{\"composite\":true,\"noLib\":true,\"types\":[],\"module\":\"node16\",\"moduleResolution\":\"node16\",\"outDir\":\"dist\",\"rootDir\":\"src\"},\"files\":[\"src/value.ts\"]}",
+      "lib/src/value.ts": "import \"zbare\";\nimport \"abare\";\nexport { value } from \"pkg\";\n",
+      "lib/dist/value.d.ts": "import \"zbare\";\nimport \"abare\";\nexport { value } from \"pkg\";\n",
+      "lib/node_modules/pkg/package.json": "{\"name\":\"pkg\",\"version\":\"1.0.0\",\"exports\":{\".\":{\"import\":\"./import.d.ts\",\"require\":\"./require.d.ts\"}}}",
+      "lib/node_modules/pkg/import.d.ts": "export declare const value: \"import\";\n",
+      "lib/node_modules/pkg/require.d.ts": "export declare const value: \"require\";\n",
+      "lib/node_modules/zbare/index.d.ts": "export {};\n",
+      "lib/node_modules/abare/index.d.ts": "export {};\n"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/lib/node_modules/zbare/index.d.ts",
+      "/project/lib/node_modules/abare/index.d.ts",
+      "/project/lib/node_modules/pkg/require.d.ts",
+      "/project/lib/dist/value.d.ts",
+      "/project/app/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nlib/node_modules/zbare/index.d.ts\n   Imported via \"zbare\" from file 'lib/dist/value.d.ts'\nlib/node_modules/abare/index.d.ts\n   Imported via \"abare\" from file 'lib/dist/value.d.ts'\nlib/node_modules/pkg/require.d.ts\n   Imported via \"pkg\" from file 'lib/dist/value.d.ts' with packageId 'pkg/require.d.ts@1.0.0'\nlib/dist/value.d.ts\n   Imported via \"../lib/src/value\" from file 'app/main.ts'\n   File is output of project reference source 'lib/src/value.ts'\n   File is CommonJS module because 'package.json' does not have field \"type\"\napp/main.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "======== Resolving module '../lib/src/value' from '/project/app/main.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/lib/src/value', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/lib/src/value.ts' exists - use it as a name resolution result.\n======== Module name '../lib/src/value' was successfully resolved to '/project/lib/src/value.ts'. ========\n======== Resolving module 'zbare' from '/project/lib/src/value.ts'. ========\nUsing compiler options of project reference redirect '/project/lib/tsconfig.json'.\nExplicitly specified module resolution kind: 'Node16'.\nResolving in CJS mode with conditions 'require', 'types', 'node'.\nFile '/project/lib/src/package.json' does not exist.\nFile '/project/lib/package.json' does not exist according to earlier cached lookups.\nFile '/project/package.json' exists according to earlier cached lookups.\nLoading module 'zbare' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.\nSearching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.\nDirectory '/project/lib/src/node_modules' does not exist, skipping all lookups in it.\nFile '/project/lib/node_modules/zbare/package.json' does not exist.\nFile '/project/lib/node_modules/zbare.ts' does not exist.\nFile '/project/lib/node_modules/zbare.tsx' does not exist.\nFile '/project/lib/node_modules/zbare.d.ts' does not exist.\nFile '/project/lib/node_modules/zbare/index.ts' does not exist.\nFile '/project/lib/node_modules/zbare/index.tsx' does not exist.\nFile '/project/lib/node_modules/zbare/index.d.ts' exists - use it as a name resolution result.\nResolving real path for '/project/lib/node_modules/zbare/index.d.ts', result '/project/lib/node_modules/zbare/index.d.ts'.\n======== Module name 'zbare' was successfully resolved to '/project/lib/node_modules/zbare/index.d.ts'. ========\n======== Resolving module 'abare' from '/project/lib/src/value.ts'. ========\nUsing compiler options of project reference redirect '/project/lib/tsconfig.json'.\nExplicitly specified module resolution kind: 'Node16'.\nResolving in CJS mode with conditions 'require', 'types', 'node'.\nFile '/project/lib/src/package.json' does not exist according to earlier cached lookups.\nFile '/project/lib/package.json' does not exist according to earlier cached lookups.\nFile '/project/package.json' exists according to earlier cached lookups.\nLoading module 'abare' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.\nSearching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.\nDirectory '/project/lib/src/node_modules' does not exist, skipping all lookups in it.\nFile '/project/lib/node_modules/abare/package.json' does not exist.\nFile '/project/lib/node_modules/abare.ts' does not exist.\nFile '/project/lib/node_modules/abare.tsx' does not exist.\nFile '/project/lib/node_modules/abare.d.ts' does not exist.\nFile '/project/lib/node_modules/abare/index.ts' does not exist.\nFile '/project/lib/node_modules/abare/index.tsx' does not exist.\nFile '/project/lib/node_modules/abare/index.d.ts' exists - use it as a name resolution result.\nResolving real path for '/project/lib/node_modules/abare/index.d.ts', result '/project/lib/node_modules/abare/index.d.ts'.\n======== Module name 'abare' was successfully resolved to '/project/lib/node_modules/abare/index.d.ts'. ========\n======== Resolving module 'pkg' from '/project/lib/src/value.ts'. ========\nUsing compiler options of project reference redirect '/project/lib/tsconfig.json'.\nExplicitly specified module resolution kind: 'Node16'.\nResolving in CJS mode with conditions 'require', 'types', 'node'.\nFile '/project/lib/src/package.json' does not exist according to earlier cached lookups.\nFile '/project/lib/package.json' does not exist according to earlier cached lookups.\nFile '/project/package.json' exists according to earlier cached lookups.\nLoading module 'pkg' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration.\nSearching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.\nDirectory '/project/lib/src/node_modules' does not exist, skipping all lookups in it.\nFound 'package.json' at '/project/lib/node_modules/pkg/package.json'.\nEntering conditional exports.\nSaw non-matching condition 'import'.\nMatched 'exports' condition 'require'.\nUsing 'exports' subpath '.' with target './require.d.ts'.\nFile '/project/lib/node_modules/pkg/require.d.ts' exists - use it as a name resolution result.\n'package.json' does not have a 'peerDependencies' field.\nResolved under condition 'require'.\nExiting conditional exports.\nResolving real path for '/project/lib/node_modules/pkg/require.d.ts', result '/project/lib/node_modules/pkg/require.d.ts'.\n======== Module name 'pkg' was successfully resolved to '/project/lib/node_modules/pkg/require.d.ts' with Package ID 'pkg/require.d.ts@1.0.0'. ========\n",
+    "diagnostics": [],
+    "check_trace": true,
+    "build_info": {
+      "fileNames": [
+        "./globals.d.ts",
+        "./lib/node_modules/zbare/index.d.ts",
+        "./lib/node_modules/abare/index.d.ts",
+        "./lib/node_modules/pkg/require.d.ts",
+        "./lib/dist/value.d.ts",
+        "./app/main.ts"
+      ],
+      "root": [
+        1,
+        6
+      ],
+      "referencedMap": [
+        [
+          6,
+          1
+        ],
+        [
+          5,
+          2
+        ]
+      ],
+      "fileIdsList": [
+        [
+          5
+        ],
+        [
+          2,
+          3,
+          4
+        ]
+      ],
+      "packageJsons": [
+        "./lib/node_modules/pkg/package.json",
+        "./package.json"
+      ],
+      "missingPackageJsons": [
+        "./lib/node_modules/abare/package.json",
+        "./lib/node_modules/package.json",
+        "./lib/node_modules/zbare/package.json"
+      ]
+    }
   },
   {
     "name": "conflicting_package_identity",

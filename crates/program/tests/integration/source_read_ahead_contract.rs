@@ -41,6 +41,7 @@ struct TracedHost {
     inner: MemoryCompilerHost,
     read_ahead: bool,
     reads: RefCell<Vec<String>>,
+    package_json_file_probes: RefCell<Vec<String>>,
     faults: RefCell<BTreeMap<PathBuf, VecDeque<HostError>>>,
 }
 
@@ -50,6 +51,7 @@ impl TracedHost {
             inner,
             read_ahead,
             reads: RefCell::new(Vec::new()),
+            package_json_file_probes: RefCell::new(Vec::new()),
             faults: RefCell::new(BTreeMap::new()),
         }
     }
@@ -93,6 +95,11 @@ impl CompilerHost for TracedHost {
     }
 
     fn file_exists(&self, path: &Path) -> Result<bool, HostError> {
+        if path.file_name().is_some_and(|name| name == "package.json") {
+            self.package_json_file_probes
+                .borrow_mut()
+                .push(path.to_string_lossy().into_owned());
+        }
         self.inner.file_exists(path)
     }
 
@@ -1085,4 +1092,86 @@ fn parallel_read_ahead_follows_every_edge_and_loads_the_sequential_program() {
         .source_files()
         .iter()
         .all(|source| source.preparsed_syntax().is_available()));
+}
+
+#[path = "../support/loader_order.rs"]
+#[allow(dead_code)]
+mod loader_order_corpus;
+
+/// A non-opt-in, order-observing host: redirected resolutions use the same
+/// package metadata observations, with options-dependent results kept apart.
+/// The reference's cached-lookup trace pins one metadata probe; the exact
+/// host read sequence is our API contract, not the reference CLI's file list.
+#[test]
+fn redirected_project_metadata_is_probed_once_in_source_read_order() {
+    let fixture = loader_order_corpus::fixture("project_options");
+    for workers in [WorkerBudget::serial(), parallel()] {
+        let mut builder =
+            MemoryCompilerHost::builder("/project").case_sensitive(fixture.case_sensitive);
+        for (name, text) in &fixture.files {
+            builder = builder.file(format!("/project/{name}"), text.as_bytes());
+        }
+        let host = TracedHost::new(builder.build().unwrap(), false);
+        let plan = tsc_program::parse_config_root_plan(
+            &tsc_program::CompilerConfigHost::new(&host),
+            tsc_program::ConfigRootPlanRequest {
+                file_name: "/project/tsconfig.json".into(),
+                text: fixture.files["tsconfig.json"].clone(),
+                base_path: "/project".into(),
+            },
+        )
+        .unwrap();
+        let program = tsc_program::load_config_program_with_no_emit_override(
+            &host,
+            &plan,
+            &tsc_program::LibraryCatalog::typescript_7_1(PathBuf::from("/project/lib")),
+            ProgramLoadLimits::new(128, 1024, 64, 1 << 20, 1 << 24).with_workers(workers),
+        )
+        .unwrap();
+        let reads = host.reads();
+        let probes = host.package_json_file_probes.borrow();
+        eprintln!("{workers:?}: reads={reads:?}; package probes={probes:?}");
+        assert_eq!(
+            reads
+                .iter()
+                .filter(|path| *path == "/project/package.json")
+                .count(),
+            1
+        );
+        assert_eq!(
+            probes
+                .iter()
+                .filter(|path| *path == "/project/package.json")
+                .count(),
+            1
+        );
+        assert_eq!(
+            probes
+                .iter()
+                .filter(|path| *path == "/project/lib/package.json")
+                .count(),
+            1
+        );
+        let expected_reads: &[&str] = &[
+            "/project/lib/tsconfig.json",
+            "/project/package.json",
+            "/project/app/main.ts",
+            "/project/lib/dist/value.d.ts",
+            "/project/lib/node_modules/pkg/package.json",
+            "/project/lib/node_modules/pkg/require.d.ts",
+            "/project/globals.d.ts",
+        ];
+        let expected_probes: &[&str] = &[
+            "/project/app/package.json",
+            "/project/package.json",
+            "/project/lib/dist/package.json",
+            "/project/lib/package.json",
+            "/project/lib/src/package.json",
+            "/project/lib/node_modules/pkg/package.json",
+        ];
+        assert_eq!(probes.as_slice(), expected_probes);
+        assert_eq!(reads, expected_reads);
+        let expected: Vec<_> = fixture.list_files.iter().map(String::as_str).collect();
+        assert_eq!(source_paths(&program), expected);
+    }
 }
