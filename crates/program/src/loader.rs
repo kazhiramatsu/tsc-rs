@@ -40,8 +40,7 @@ use crate::prepared::{
 use crate::project_references::ResolvedProjectReferences;
 use crate::resolution::{
     ModuleExtension, ModuleResolution, PackageId, ResolutionError, ResolutionKey, ResolutionMode,
-    ResolutionOutcome, ResolvedModuleTarget, TypeReferenceResolution, TypeReferenceResolutionKey,
-    UnloadedModuleReason,
+    ResolutionOutcome, TypeReferenceResolution, TypeReferenceResolutionKey, UnloadedModuleReason,
 };
 use crate::text::{decode_host_text, HostTextDecodeError};
 use crate::workers::WorkerBudget;
@@ -2580,10 +2579,20 @@ pub enum LibraryRootReason {
 }
 
 struct StagedModuleResolution {
+    source: usize,
+    target: StagedModuleTarget,
     key: ResolutionKey,
     host: HostModuleResolution,
     loads_source: bool,
     unloaded_reason: Option<UnloadedModuleReason>,
+}
+
+#[derive(Clone, Copy)]
+enum StagedModuleTarget {
+    Lookup,
+    TaskData(usize),
+    Source(usize, bool),
+    Unloaded,
 }
 
 struct StagedTypeResolution {
@@ -4370,6 +4379,15 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 None => kept[source].then_some((path, source)),
             })
             .collect();
+        for resolution in &mut self.module_resolutions {
+            if let StagedModuleTarget::Source(source, exact_path) = resolution.target {
+                resolution.target = match redirect_targets.get(&source) {
+                    Some(&target) => StagedModuleTarget::Source(target, false),
+                    None if kept[source] => StagedModuleTarget::Source(source, exact_path),
+                    None => StagedModuleTarget::Unloaded,
+                };
+            }
+        }
         // Only a collected file's resolutions are the program's (tsgo
         // resolvedModules[path] = task.resolutionsInFile inside the collect
         // walk): the rows of a redirected copy and of a source reached only
@@ -6511,6 +6529,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 };
                 let index = self.module_resolutions.len();
                 self.module_resolutions.push(StagedModuleResolution {
+                    source,
+                    target: StagedModuleTarget::Lookup,
                     key,
                     host,
                     loads_source,
@@ -6731,6 +6751,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 elide_on_depth,
                 tree_depth,
             );
+            self.module_resolutions[resolution].target =
+                StagedModuleTarget::TaskData(self.parse.tasks[subtask].data);
             self.parse.tasks[task].payload_mut().subtasks.push(subtask);
         }
         targets.clear();
@@ -7178,39 +7200,58 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// reads why from the resolution.
     fn record_unloaded_targets(&mut self) -> Result<(), ProgramLoadError> {
         for index in 0..self.module_resolutions.len() {
-            if self.module_resolutions[index].unloaded_reason.is_some()
-                || !self.module_resolutions[index].loads_source
-            {
-                continue;
-            }
             let (canonical, is_javascript) = match self.module_resolutions[index].host.outcome() {
                 ResolutionOutcome::Resolved(target) => (
-                    target.resolved_file().canonical().clone(),
+                    target.resolved_file().canonical(),
                     target.extension().is_javascript(),
                 ),
                 ResolutionOutcome::NotFound => continue,
             };
-            let loaded = self
-                .parse
-                .task_data_by_path
-                .get(&canonical)
-                .is_some_and(|&data| {
-                    self.parse.task_data[data]
-                        .spellings
-                        .iter()
-                        .any(|&task| self.task_source(task).is_some())
+            let data = match self.module_resolutions[index].target {
+                StagedModuleTarget::TaskData(data) => Some(data),
+                StagedModuleTarget::Lookup => self.parse.task_data_by_path.get(canonical).copied(),
+                StagedModuleTarget::Source(..) | StagedModuleTarget::Unloaded => {
+                    unreachable!("targets are bound once after task execution")
+                }
+            };
+            let queued = matches!(
+                self.module_resolutions[index].target,
+                StagedModuleTarget::TaskData(_)
+            );
+            let loaded = data.and_then(|data| {
+                self.parse.task_data[data]
+                    .spellings
+                    .iter()
+                    .find_map(|&task| {
+                        let source = self.task_source(task)?;
+                        let exact_path = queued
+                            && self.parse.task_data[data].spellings.len() == 1
+                            && self.parse.tasks[self.task_target(task)]
+                                .redirect()
+                                .is_none();
+                        Some((source, exact_path))
+                    })
+            });
+            let reason = if loaded.is_some()
+                || self.module_resolutions[index].unloaded_reason.is_some()
+                || !self.module_resolutions[index].loads_source
+            {
+                None
+            } else if self.project_reference_redirect(canonical)?.is_some() {
+                Some(UnloadedModuleReason::ProjectReferenceOutputNotBuilt)
+            } else if is_javascript {
+                Some(UnloadedModuleReason::NodeModulesDepth)
+            } else {
+                None
+            };
+            self.module_resolutions[index].target = loaded
+                .map_or(StagedModuleTarget::Unloaded, |(source, exact)| {
+                    StagedModuleTarget::Source(source, exact)
                 });
-            if loaded {
+            if reason.is_none() {
                 continue;
             }
-            let reason = if self.project_reference_redirect(&canonical)?.is_some() {
-                UnloadedModuleReason::ProjectReferenceOutputNotBuilt
-            } else if is_javascript {
-                UnloadedModuleReason::NodeModulesDepth
-            } else {
-                continue;
-            };
-            self.module_resolutions[index].unloaded_reason = Some(reason);
+            self.module_resolutions[index].unloaded_reason = reason;
         }
         Ok(())
     }
@@ -7598,11 +7639,25 @@ fn publish_program(
         .ok()?;
         source_by_canonical.get(redirected.canonical()).copied()
     };
+    let mut loaded_modules = crate::resolution::LoadedModules::default();
     for resolution in staged.module_resolutions {
+        let source =
+            published_ids[resolution.source].expect("only collected sources publish resolutions");
+        let owned_source = match resolution.target {
+            StagedModuleTarget::Source(target, _) => published_ids[target],
+            StagedModuleTarget::Unloaded | StagedModuleTarget::Lookup => None,
+            StagedModuleTarget::TaskData(_) => unreachable!("finish binds every resolved target"),
+        }
+        .or_else(|| match resolution.host.outcome() {
+            ResolutionOutcome::Resolved(module) => {
+                redirected_source(module.resolved_file().canonical())
+            }
+            ResolutionOutcome::NotFound => None,
+        });
+        let exact_path = matches!(resolution.target, StagedModuleTarget::Source(_, true));
         let bound = bind_module_resolution(
             resolution.host,
-            &source_by_canonical,
-            &redirected_source,
+            owned_source,
             &package_map,
             resolution.loads_source,
             resolution.unloaded_reason,
@@ -7623,7 +7678,13 @@ fn publish_program(
             )
         })?;
         builder
-            .add_module_resolution(resolution.key, Ok(bound))
+            .stage_loaded_module_resolution(
+                &mut loaded_modules,
+                source,
+                resolution.key,
+                bound,
+                exact_path,
+            )
             .map_err(|error| {
                 ProgramLoadError::preparation(ProgramLoadOperation::BindResolutions, error)
             })?;
@@ -7661,15 +7722,14 @@ fn publish_program(
         )
         .with_content_mapper(staged.content_mapper_diagnostics),
     );
-    builder.build().map_err(|error| {
+    builder.finish_load(loaded_modules).map_err(|error| {
         ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
     })
 }
 
 fn bind_module_resolution(
     host: HostModuleResolution,
-    source_by_canonical: &FxHashMap<CanonicalPath, SourceFileId>,
-    redirected_source: &dyn Fn(&CanonicalPath) -> Option<SourceFileId>,
+    owned_source: Option<SourceFileId>,
     package_map: &BTreeMap<JsString, bool>,
     loads_source: bool,
     unloaded_reason: Option<UnloadedModuleReason>,
@@ -7690,20 +7750,10 @@ fn bind_module_resolution(
                     .unwrap_or(false),
             )
         });
-    let owned_source = source_by_canonical
-        .get(module.resolved_file().canonical())
-        .copied()
-        .or_else(|| redirected_source(module.resolved_file().canonical()));
-    let target = if no_resolve && owned_source.is_none() {
-        ResolvedModuleTarget::Unloaded {
-            resolved_file: module.resolved_file().clone(),
-            reason: unloaded_reason.unwrap_or(UnloadedModuleReason::NoResolve),
-        }
+    let membership = if no_resolve && owned_source.is_none() {
+        Err(unloaded_reason.unwrap_or(UnloadedModuleReason::NoResolve))
     } else if let (None, Some(reason)) = (owned_source, unloaded_reason) {
-        ResolvedModuleTarget::Unloaded {
-            resolved_file: module.resolved_file().clone(),
-            reason,
-        }
+        Err(reason)
     } else if module.extension().is_javascript() && owned_source.is_none() {
         return Err(ResolutionError::unsupported(
             "unexplained-unloaded-javascript",
@@ -7713,19 +7763,13 @@ fn bind_module_resolution(
             ),
         ));
     } else if is_arbitrary_declaration_extension(module.extension()) && owned_source.is_none() {
-        ResolvedModuleTarget::Unloaded {
-            resolved_file: module.resolved_file().clone(),
-            reason: if loads_source {
-                UnloadedModuleReason::ArbitraryExtensionWithoutOption
-            } else {
-                UnloadedModuleReason::ResolutionOnly
-            },
-        }
+        Err(if loads_source {
+            UnloadedModuleReason::ArbitraryExtensionWithoutOption
+        } else {
+            UnloadedModuleReason::ResolutionOnly
+        })
     } else if let Some(source) = owned_source {
-        ResolvedModuleTarget::Source {
-            source,
-            resolved_file: module.resolved_file().clone(),
-        }
+        Ok(source)
     } else {
         return Err(ResolutionError::unsupported(
             "resolution-only-source-target",
@@ -7735,7 +7779,7 @@ fn bind_module_resolution(
             ),
         ));
     };
-    let mut resolution = ModuleResolution::resolved(module.into_resolved_module(target)?)
+    let mut resolution = ModuleResolution::resolved(module.into_program_module(membership))
         .with_diagnostics(diagnostics)
         .with_types_package_exists(types_package_exists)
         .with_package_bundles_types(package_bundles_types);

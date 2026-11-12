@@ -10257,3 +10257,68 @@ fn warm_file_contexts_keep_override_calls_and_exact_display_directories() {
         assert_eq!(*mode, ResolutionMode::CommonJs);
     }
 }
+
+#[test]
+fn a_callback_reusing_another_resolvers_result_keeps_case_profile_validation() {
+    struct Override(HostResolvedModule);
+    impl tsc_program::ModuleResolutionOverride for Override {
+        fn resolve(
+            &self,
+            _: tsc_diagnostics::JsStr<'_>,
+            _: tsc_diagnostics::JsStr<'_>,
+            _: ResolutionMode,
+        ) -> tsc_program::OverriddenResolution {
+            tsc_program::OverriddenResolution::Resolved(Box::new(self.0.clone()))
+        }
+    }
+    let contents = b"import './Upper';";
+    let sensitive = MemoryCompilerHost::builder("/work")
+        .case_sensitive(true)
+        .file("/work/main.ts", contents.to_vec())
+        .file("/work/Upper.ts", b"export {};".to_vec())
+        .build()
+        .unwrap();
+    let mut options = options_for_module(1);
+    options.no_emit = Some(true);
+    let mut resolver = ModuleResolver::new(&sensitive, &options).unwrap();
+    let module = resolved(
+        resolver
+            .resolve("/work/main.ts", "./Upper", ResolutionMode::CommonJs)
+            .unwrap(),
+    );
+    let owned = module
+        .clone()
+        .into_resolved_module(ResolvedModuleTarget::Source {
+            source: SourceFileId::from_raw(0),
+            resolved_file: module.resolved_file().clone(),
+        })
+        .unwrap();
+    assert!(!owned.is_custom_resolution());
+    let insensitive = MemoryCompilerHost::builder("/work")
+        .case_sensitive(false)
+        .file("/work/main.ts", contents.to_vec())
+        .file("/work/Upper.ts", b"export {};".to_vec())
+        .build()
+        .unwrap();
+    let program_options = ProgramOptions::default()
+        .with_no_lib(true)
+        .with_module_resolution_override(tsc_program::ModuleResolutionOverrideHandle(
+            std::sync::Arc::new(Override(module)),
+        ));
+    let error = tsc_program::load_no_lib_program(
+        &insensitive,
+        &[PathBuf::from("/work/main.ts")],
+        options,
+        program_options,
+        tsc_program::ProgramLoadLimits::new(16, 16, 16, 1 << 20, 1 << 20),
+    )
+    .unwrap_err();
+    assert!(
+        matches!(error, tsc_program::ProgramLoadError::Preparation { .. }),
+        "{error:?}"
+    );
+    assert!(
+        error.to_string().contains("canonical path is not folded"),
+        "{error}"
+    );
+}

@@ -12,6 +12,7 @@ use crate::inclusion_reason::SourceInclusionReasons;
 use crate::module_resolution::{is_external_module_name_relative, validate_owned_path_text};
 use crate::path::{CanonicalPath, ProgramPath};
 use crate::project_references::ResolvedProjectReferences;
+use crate::resolution::LoadedModules;
 use crate::resolution::{
     ModuleResolution, ResolutionError, ResolutionKey, ResolutionMode, ResolutionOutcome,
     ResolvedModuleTarget, TypeReferenceResolution, TypeReferenceResolutionKey,
@@ -2747,6 +2748,43 @@ impl PreparedProgramBuilder {
         self.record_result(result)
     }
 
+    /// Source identities and resolver-owned target facts have already been
+    /// established by the loader. API-supplied resolutions still undergo
+    /// their ordinary validation; the loader's own facts are asserted.
+    pub(crate) fn stage_loaded_module_resolution(
+        &mut self,
+        loaded: &mut LoadedModules,
+        source: SourceFileId,
+        key: ResolutionKey,
+        resolution: ModuleResolution,
+        exact_path: bool,
+    ) -> Result<(), PreparationError> {
+        debug_assert!(self.ensure_healthy().is_ok());
+        debug_assert_eq!(
+            self.require_resolution_source(&key, PreparationOperation::AddModuleResolution),
+            Ok(source)
+        );
+        // A callback can return a result cloned from another resolver;
+        // is_custom_resolution alone does not prove the producer is ours.
+        let external = self.program_options.module_resolution_override().is_some()
+            || matches!(resolution.outcome(), ResolutionOutcome::Resolved(module) if module.is_custom_resolution());
+        if external {
+            let result = self.validate_module_target(&key, &resolution);
+            self.record_result(result)?;
+        } else {
+            debug_assert!(self.validate_module_target(&key, &resolution).is_ok());
+        }
+        // Only external facts and located diagnostics need build-time checks.
+        // Ordinary loader rows never enter the public builder's fat staging.
+        if external || !resolution.diagnostics().is_empty() {
+            self.resolutions
+                .modules
+                .insert(source, key.clone(), resolution.clone())?;
+        }
+        loaded.push(source, key, resolution, exact_path, &self.source_files);
+        Ok(())
+    }
+
     fn try_add_module_resolution(
         &mut self,
         key: ResolutionKey,
@@ -2806,29 +2844,7 @@ impl PreparedProgramBuilder {
     }
 
     pub fn build(self) -> Result<PreparedProgram, PreparationError> {
-        if let Some(error) = self.fatal_error {
-            return Err(error);
-        }
-        match self.mode {
-            PreparedProgramMode::NoEmit if self.compiler_options.no_emit != Some(true) => {
-                return Err(PreparationError::new_js(
-                    PreparationErrorKind::InvalidInput,
-                    PreparationOperation::BuildPreparedProgram,
-                    None,
-                    "H0 PreparedProgram requires compilerOptions.noEmit to be explicitly true",
-                ));
-            }
-            PreparedProgramMode::Emit if self.compiler_options.no_emit == Some(true) => {
-                return Err(PreparationError::new_js(
-                    PreparationErrorKind::InvalidInput,
-                    PreparationOperation::BuildPreparedProgram,
-                    None,
-                    "H1 emitting PreparedProgram rejects effective compilerOptions.noEmit=true",
-                ));
-            }
-            PreparedProgramMode::NoEmit | PreparedProgramMode::Emit => {}
-        }
-
+        self.validate_build_mode()?;
         self.validate_case_profile()?;
         self.validate_roots()?;
 
@@ -2864,12 +2880,80 @@ impl PreparedProgramBuilder {
         self.validate_missing_root_diagnostics()?;
         self.validate_diagnostic_sources()?;
 
+        Ok(self.freeze())
+    }
+
+    /// Complete the graph the loader established. Public builder inputs use
+    /// `build`; only immutable compiler-produced facts skip repeated checks.
+    pub(crate) fn finish_load(
+        mut self,
+        loaded: LoadedModules,
+    ) -> Result<PreparedProgram, PreparationError> {
+        self.validate_build_mode()?;
+        if self.program_options.module_resolution_override().is_some() {
+            // Keep the full external-input validation and its error order.
+            self.validate_case_profile()?;
+        } else {
+            self.validate_load_case_profile()?;
+            debug_assert!(self.validate_case_profile().is_ok());
+        }
+        debug_assert!(self.validate_roots().is_ok());
+        debug_assert!(self
+            .library_files
+            .iter()
+            .enumerate()
+            .all(|(i, id)| id.index() == i));
+        debug_assert!(self.source_files.iter().all(|source| source
+            .package_scope()
+            .is_none_or(|scope| self.packages.contains_key(scope))));
+        self.validate_missing_root_diagnostics()?;
+        // Mapper diagnostics are external data, not a resolver invariant.
+        self.validate_diagnostic_sources()?;
+        let resolutions = loaded.finish(
+            &self.source_files,
+            std::mem::take(&mut self.resolutions.type_references),
+        );
+        Ok(self.freeze_with_resolutions(resolutions))
+    }
+
+    fn validate_build_mode(&self) -> Result<(), PreparationError> {
+        if let Some(error) = &self.fatal_error {
+            return Err(error.clone());
+        }
+        match self.mode {
+            PreparedProgramMode::NoEmit if self.compiler_options.no_emit != Some(true) => {
+                return Err(PreparationError::new_js(
+                    PreparationErrorKind::InvalidInput,
+                    PreparationOperation::BuildPreparedProgram,
+                    None,
+                    "H0 PreparedProgram requires compilerOptions.noEmit to be explicitly true",
+                ));
+            }
+            PreparedProgramMode::Emit if self.compiler_options.no_emit == Some(true) => {
+                return Err(PreparationError::new_js(
+                    PreparationErrorKind::InvalidInput,
+                    PreparationOperation::BuildPreparedProgram,
+                    None,
+                    "H1 emitting PreparedProgram rejects effective compilerOptions.noEmit=true",
+                ));
+            }
+            PreparedProgramMode::NoEmit | PreparedProgramMode::Emit => {}
+        }
+
+        Ok(())
+    }
+
+    fn freeze(mut self) -> PreparedProgram {
         let resolutions = ResolutionTable::build(
-            self.resolutions.modules,
-            self.resolutions.type_references,
+            std::mem::take(&mut self.resolutions.modules),
+            std::mem::take(&mut self.resolutions.type_references),
             &self.source_files,
         );
-        Ok(PreparedProgram {
+        self.freeze_with_resolutions(resolutions)
+    }
+
+    fn freeze_with_resolutions(self, resolutions: ResolutionTable) -> PreparedProgram {
+        PreparedProgram {
             mode: self.mode,
             path_context: self.path_context,
             compiler_options: self.compiler_options,
@@ -2888,7 +2972,7 @@ impl PreparedProgramBuilder {
             resolutions,
             dependency_symlinks: self.dependency_symlinks,
             diagnostics: self.diagnostics,
-        })
+        }
     }
 
     fn ensure_healthy(&self) -> Result<(), PreparationError> {
@@ -3077,6 +3161,52 @@ impl PreparedProgramBuilder {
                 self.validate_canonical_case(directive.target().canonical())?;
                 if let Some(original_path) = directive.original_path() {
                     self.validate_canonical_case(original_path.canonical())?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_load_case_profile(&self) -> Result<(), PreparationError> {
+        if self.path_context.use_case_sensitive_file_names() {
+            return Ok(());
+        }
+        for file in self.auxiliary_files.values() {
+            self.validate_canonical_case(file.path().canonical())?;
+        }
+        if let Some(paths) = self.program_options.type_roots() {
+            for path in paths {
+                self.validate_canonical_case(path.canonical())?;
+            }
+        }
+        if let Some(path) = self.program_options.config_file_path() {
+            self.validate_canonical_case(path.canonical())?;
+        }
+        if let Some(paths) = self.program_options.root_dirs() {
+            for path in paths {
+                self.validate_canonical_case(path.canonical())?;
+            }
+        }
+        for resolution in self.resolutions.modules.values() {
+            if let ResolutionOutcome::Resolved(module) = resolution.outcome() {
+                if !module.is_custom_resolution() {
+                    continue;
+                }
+                self.validate_canonical_case(module.target().resolved_file().canonical())?;
+                if let Some(path) = module.original_path() {
+                    self.validate_canonical_case(path.canonical())?;
+                }
+                if let Some(path) = resolution.alternate_result() {
+                    self.validate_canonical_case(path.canonical())?;
+                }
+            }
+        }
+        for (key, resolution) in &self.resolutions.type_references {
+            self.validate_canonical_case(key.origin().canonical_path())?;
+            if let ResolutionOutcome::Resolved(directive) = resolution.outcome() {
+                self.validate_canonical_case(directive.target().canonical())?;
+                if let Some(path) = directive.original_path() {
+                    self.validate_canonical_case(path.canonical())?;
                 }
             }
         }
