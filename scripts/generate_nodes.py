@@ -348,7 +348,7 @@ pub struct NodeArray<'a> {
     /// tsc createMissingList's isMissingList marker.
     pub is_missing_list: bool,
     /// tsgo `ModifierList.ModifierFlags`: the flags of the elements that are
-    /// modifiers or decorators (`modifier_to_flag`), as any array stores them.
+    /// modifiers or decorators (`modifier_to_flag`); ordinary lists hold NONE.
     pub modifier_flags: tsc_types::ModifierFlags,
 }
 
