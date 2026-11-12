@@ -2305,8 +2305,13 @@ impl<'a> CheckerState<'a> {
 
     #[inline(never)]
     fn could_contain_type_variables_worker(&mut self, ty: TypeId) -> bool {
-        let object_flags = self.tables.object_flags_of(ty);
         let flags = self.tables.flags_of(ty);
+        // Keep the Go worker's gate as well as the entry's inline gate:
+        // only structured/instantiable types acquire the computed bits.
+        if !flags.intersects(TypeFlags::STRUCTURED_OR_INSTANTIABLE) {
+            return false;
+        }
+        let object_flags = self.tables.object_flags_of(ty);
         let result = flags.intersects(TypeFlags::INSTANTIABLE)
             || (flags.intersects(TypeFlags::OBJECT)
                 && !self.is_non_generic_top_level_type(ty)
@@ -2349,16 +2354,17 @@ impl<'a> CheckerState<'a> {
                         .into_iter()
                         .any(|member| self.could_contain_type_variables(member))
                 });
-        if flags.intersects(TypeFlags::OBJECT_FLAGS_TYPE) {
-            let updated = self.tables.object_flags_of(ty).bits()
-                | ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED.bits()
-                | if result {
-                    ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES.bits()
-                } else {
-                    0
-                };
-            self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(updated);
-        }
+        // Go checker.go:22690 caches every eligible type, including type
+        // parameters, indexed accesses and conditional/template types.
+        // ObjectFlagsType excludes those instantiable types.
+        let updated = self.tables.object_flags_of(ty).bits()
+            | ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED.bits()
+            | if result {
+                ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES.bits()
+            } else {
+                0
+            };
+        self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(updated);
         result
     }
 
@@ -3716,3 +3722,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../tests/unit/instantiate/class_container_tests.rs"]
 mod class_container_tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/instantiate/containment_cache_tests.rs"]
+mod containment_cache_tests;
