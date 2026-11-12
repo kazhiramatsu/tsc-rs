@@ -147,3 +147,26 @@ fn check_build_info(name: &str) {
         assert_eq!(&actual, expected, "build-info ordering {workers:?}");
     }
 }
+
+// Static outputs captured from tsgo aa8149273, including its trivia-hit quirk.
+#[test]
+fn raw_text_import_scan_occurrences() {
+    for name in [
+        "scan_reproducer",
+        "scan_two_trivia_hits",
+        "scan_three_trivia_hits",
+        "scan_callee_trivia",
+        "scan_argument_comment",
+        "scan_js_require",
+        "scan_static_comment",
+        "scan_nonliteral",
+        "scan_static_then_dynamic",
+        "scan_js_import_type",
+        "scan_js_eof_import_type",
+        "scan_js_import_declaration",
+        "scan_casing_reasons",
+        "scan_duplicate_name_reasons",
+    ] {
+        check(name);
+    }
+}

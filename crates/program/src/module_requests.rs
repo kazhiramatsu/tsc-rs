@@ -48,10 +48,30 @@ fn import_node_at_position(source: &SourceFile, position: u32) -> NodeId {
             for_each_child(&source.arena, node, |id| {
                 if contains(id) {
                     child = Some(id);
-                    true
-                } else {
-                    false
+                } else if javascript && source.arena.node(id).kind == SyntaxKind::EndOfFileToken {
+                    // Go reparses these EOF tags as source-file statements
+                    // (parser.go:442-445). Ours retains their JSDoc attachment.
+                    if let Some(docs) = source.arena.node(id).js_doc() {
+                        child = source.arena.node_array(docs).nodes.iter().find_map(|&doc| {
+                            let tags = source.arena.node(doc).as_js_doc()?.tags?;
+                            source
+                                .arena
+                                .node_array(tags)
+                                .nodes
+                                .iter()
+                                .copied()
+                                .find(|&tag| {
+                                    matches!(
+                                        source.arena.node(tag).kind,
+                                        SyntaxKind::JSDocTypedefTag
+                                            | SyntaxKind::JSDocCallbackTag
+                                            | SyntaxKind::JSDocImportTag
+                                    ) && contains(tag)
+                                })
+                        });
+                    }
                 }
+                child.is_some()
             });
         }
         let Some(child) = child else {
@@ -67,13 +87,16 @@ fn import_node_at_position(source: &SourceFile, position: u32) -> NodeId {
 /// tsgo ast.ForEachDynamicImportOrRequireCall scans raw text, then asks for
 /// the containing syntax node. Occurrences of "import" or "require" inside
 /// a dynamic call's leading argument trivia can count that same call again.
-fn dynamic_import_count(source: &SourceFile) -> usize {
+fn for_each_dynamic_import(
+    source: &SourceFile,
+    mut occurrence: impl FnMut(NodeId) -> Result<(), ResolutionError>,
+) -> Result<usize, ResolutionError> {
     let javascript = source.is_source_file_js();
     if !javascript
         && !NodeFlags::from_bits(source.arena.node(source.root).flags)
             .contains(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT)
     {
-        return 0;
+        return Ok(0);
     }
     let text = source.text().as_bytes();
     let mut cursor = 0;
@@ -106,6 +129,7 @@ fn dynamic_import_count(source: &SourceFile) -> usize {
                         .is_some_and(|&first| string_literal_like_text(source, first).is_some())
                 {
                     count += 1;
+                    occurrence(id)?;
                 }
             }
             NodeData::ImportType(import)
@@ -118,12 +142,13 @@ fn dynamic_import_count(source: &SourceFile) -> usize {
                     }) =>
             {
                 count += 1;
+                occurrence(id)?;
             }
             _ => {}
         }
         cursor += word.len();
     }
-    count
+    Ok(count)
 }
 
 /// Source-phase imports are present in parser Imports(), although the loader
@@ -845,23 +870,16 @@ fn plan_module_requests_worker(
         unpreprocessed_module_requests: &mut unpreprocessed_module_requests,
     })?;
 
-    // `forEachDynamicImportOrRequireCall` is a separate whole-file walk in
-    // tsc. In particular, module-declaration boundaries affect the static
-    // collector above but do not hide import types or dynamic import calls.
-    // tsgo walks the whole file only when the parser saw a dynamic import
-    // or import type (PossiblyContainsDynamicImport) or the file is
-    // JavaScript (require calls, JSDoc `@import`; parser/references.go:16).
-    // In a TypeScript file the walk below records nothing else: it does not
-    // descend into JSDoc there, and records a `require(...)` call only in
-    // JavaScript. The static-import slice fails closed on JSDoc imports and
-    // require calls in any file, so it alone also walks a file that merely
-    // contains a `/**` comment or the word `require`.
-    let root_flags = NodeFlags::from_bits(parsed.arena.node(parsed.root).flags);
+    // The remaining tree walk collects reparsed JSDoc @import declarations
+    // and the checker-only EOF JSDoc requests. TS calls/types use only the
+    // raw-text scan below. The static slice also walks to reject unsupported
+    // syntax, as before.
     let text = source.text();
-    let dynamic_walk = root_flags.contains(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT)
-        || javascript_file
+    let dynamic_walk = javascript_file
         || (!expanded
-            && (memchr::memmem::find(text.as_bytes(), b"/**").is_some()
+            && (NodeFlags::from_bits(parsed.arena.node(parsed.root).flags)
+                .contains(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT)
+                || memchr::memmem::find(text.as_bytes(), b"/**").is_some()
                 || memchr::memmem::find(text.as_bytes(), b"require").is_some()));
     let mut stack = if dynamic_walk {
         vec![parsed.root]
@@ -871,73 +889,17 @@ fn plan_module_requests_worker(
     while let Some(node_id) = stack.pop() {
         let node = parsed.arena.node(node_id);
         match node.data() {
-            NodeData::ImportType(import_type) => {
-                if !expanded {
-                    return Err(unsupported_at(
-                        source,
-                        node.pos,
-                        "an import type is outside the static-import slice",
-                    ));
-                }
-                if let Some(argument) = import_type.argument {
-                    if let Some(argument) = parsed.arena.node(argument).as_literal_type() {
-                        if let Some(literal) = argument.literal {
-                            let literal = parsed.arena.node(literal);
-                            if let Some(literal_data) = literal.as_string_literal() {
-                                let mode_override = import_type.attributes.and_then(|attributes| {
-                                    resolution_mode_override(parsed, attributes)
-                                });
-                                let mode = mode_override.unwrap_or(static_mode);
-                                dynamic_occurrences.push(ModuleRequestOccurrence {
-                                    pos: literal.pos,
-                                    end: literal.end,
-                                    loads_source: javascript_file
-                                        || !NodeFlags::from_bits(node.flags)
-                                            .contains(NodeFlags::JS_DOC),
-                                    key: ResolutionKey::new(
-                                        source.path().canonical().clone(),
-                                        parsed.arena.text_js(literal_data.text).to_owned(),
-                                        mode,
-                                    ),
-                                });
-                                // Invalid type-import attributes still reach
-                                // checker resolution during recovery. The
-                                // checker may probe either Node16/NodeNext
-                                // branch while reporting the grammar error,
-                                // so retain both mode rows when the explicit
-                                // override was not valid. This keeps the
-                                // authoritative table complete without
-                                // changing valid overrides or legacy modes.
-                                if import_type.attributes.is_some()
-                                    && mode_override.is_none()
-                                    && import_syntax_affects_resolution
-                                {
-                                    for alternate in
-                                        [ResolutionMode::CommonJs, ResolutionMode::EsNext]
-                                    {
-                                        if alternate != mode {
-                                            dynamic_occurrences.push(ModuleRequestOccurrence {
-                                                pos: literal.pos,
-                                                end: literal.end,
-                                                loads_source: javascript_file
-                                                    || !NodeFlags::from_bits(node.flags)
-                                                        .contains(NodeFlags::JS_DOC),
-                                                key: ResolutionKey::new(
-                                                    source.path().canonical().clone(),
-                                                    parsed
-                                                        .arena
-                                                        .text_js(literal_data.text)
-                                                        .to_owned(),
-                                                    alternate,
-                                                ),
-                                            });
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+            NodeData::ImportType(_) | NodeData::CallExpression(_) if !expanded => {
+                collect_dynamic_module_reference(
+                    parsed,
+                    source,
+                    node_id,
+                    expanded,
+                    static_mode,
+                    dynamic_mode,
+                    import_syntax_affects_resolution,
+                    &mut dynamic_occurrences,
+                )?;
             }
             NodeData::JSDocImportTag(import) => {
                 if !expanded {
@@ -968,95 +930,6 @@ fn plan_module_requests_worker(
                                 ),
                             });
                         }
-                    }
-                }
-            }
-            NodeData::CallExpression(call) => {
-                let callee = call.expression;
-                // tsgo resolves no source phase import
-                // (fileloader.go resolveImportsAndModuleAugmentations).
-                if is_import_call(&parsed.arena, node_id)
-                    && !is_source_phase_import_call(&parsed.arena, node_id)
-                {
-                    if !expanded {
-                        return Err(unsupported_at(
-                            source,
-                            node.pos,
-                            "a dynamic import call is outside the static-import slice",
-                        ));
-                    }
-                    let arguments = call
-                        .arguments
-                        .map(|arguments| parsed.arena.node_array(arguments).nodes)
-                        .unwrap_or_default();
-                    // TypeScript's collector records the first string-literal-like
-                    // argument whenever at least one argument exists. The
-                    // optional second argument carries import attributes and
-                    // does not suppress the host resolution request.
-                    if !arguments.is_empty() {
-                        let argument = parsed.arena.node(arguments[0]);
-                        if let Some(specifier) = string_literal_like_text(parsed, arguments[0]) {
-                            dynamic_occurrences.push(ModuleRequestOccurrence {
-                                pos: argument.pos,
-                                end: argument.end,
-                                loads_source: true,
-                                key: ResolutionKey::new(
-                                    source.path().canonical().clone(),
-                                    specifier.to_owned(),
-                                    dynamic_mode,
-                                ),
-                            });
-                        }
-                    }
-                }
-                let is_require = callee.is_some_and(|callee| {
-                    matches!(
-                        parsed.arena.node(callee).data(),
-                        NodeData::Identifier(identifier) if identifier.escaped_text == "require"
-                    )
-                });
-                let arguments = call
-                    .arguments
-                    .map(|arguments| parsed.arena.node_array(arguments).nodes)
-                    .unwrap_or_default();
-                if is_require
-                    && arguments.len() == 1
-                    && matches!(
-                        parsed.arena.node(arguments[0]).kind,
-                        SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
-                    )
-                {
-                    if !expanded {
-                        return Err(unsupported_at(
-                            source,
-                            node.pos,
-                            "a require call is outside the static-import slice",
-                        ));
-                    }
-                    if javascript_file {
-                        // collectExternalModuleReferences only treats
-                        // require() as a module request in JavaScript files.
-                        // It records CommonJS even when ordinary static
-                        // imports emit as ESM, and no mode when import syntax
-                        // does not affect resolution (bundler without package
-                        // maps).
-                        let argument = arguments[0];
-                        let specifier = string_literal_like_text(parsed, argument)
-                            .expect("guarded string-literal-like require argument");
-                        dynamic_occurrences.push(ModuleRequestOccurrence {
-                            pos: parsed.arena.node(argument).pos,
-                            end: parsed.arena.node(argument).end,
-                            loads_source: true,
-                            key: ResolutionKey::new(
-                                source.path().canonical().clone(),
-                                specifier.to_owned(),
-                                if import_syntax_affects_resolution {
-                                    ResolutionMode::CommonJs
-                                } else {
-                                    ResolutionMode::Unspecified
-                                },
-                            ),
-                        });
                     }
                 }
             }
@@ -1134,14 +1007,30 @@ fn plan_module_requests_worker(
         )?;
     }
 
+    let static_import_count = static_occurrences.len();
+    // Reparsed JSDoc @import declarations belong to the static statement
+    // inventory. Append scan hits afterwards; do not sort them by argument
+    // position (two different hits may select the same call).
+    static_occurrences.append(&mut dynamic_occurrences);
     static_occurrences.sort_by_key(|occurrence| occurrence.pos);
-    dynamic_occurrences.sort_by_key(|occurrence| occurrence.pos);
+    let dynamic_import_count = for_each_dynamic_import(parsed, |node_id| {
+        collect_dynamic_module_reference(
+            parsed,
+            source,
+            node_id,
+            expanded,
+            static_mode,
+            dynamic_mode,
+            import_syntax_affects_resolution,
+            &mut dynamic_occurrences,
+        )
+    })?;
     augmentation_occurrences.sort_by_key(|occurrence| occurrence.pos);
     // checkerpool.go weighs parser imports, not the resolver's moduleNames.
     // Alternate resolution-mode rows refer to the same syntactic occurrence.
-    let import_count = static_occurrences.len()
+    let import_count = static_import_count
         + hosted_import_count
-        + dynamic_import_count(parsed)
+        + dynamic_import_count
         + source_phase_static_import_count(parsed);
     let mut module_requests = Vec::new();
     let mut module_request_loads = Vec::new();
@@ -1310,6 +1199,179 @@ pub(crate) fn is_declaration_file_name<'a>(file_name: impl Into<JsStr<'a>>) -> b
         .next_back()
         .unwrap_or(base_name);
     base_name.ends_with(".ts") && base_name.contains(".d.")
+}
+
+// Called once for each raw-text hit, including hits that select the same node.
+#[allow(clippy::too_many_arguments)]
+fn collect_dynamic_module_reference(
+    parsed: &SourceFile,
+    source: &PreparedSourceFile,
+    node_id: NodeId,
+    expanded: bool,
+    static_mode: ResolutionMode,
+    dynamic_mode: ResolutionMode,
+    import_syntax_affects_resolution: bool,
+    dynamic_occurrences: &mut Vec<ModuleRequestOccurrence>,
+) -> Result<(), ResolutionError> {
+    let javascript_file = parsed.is_source_file_js();
+    let node = parsed.arena.node(node_id);
+    match node.data() {
+        NodeData::ImportType(import_type) => {
+            if !expanded {
+                return Err(unsupported_at(
+                    source,
+                    node.pos,
+                    "an import type is outside the static-import slice",
+                ));
+            }
+            if let Some(argument) = import_type.argument {
+                if let Some(argument) = parsed.arena.node(argument).as_literal_type() {
+                    if let Some(literal) = argument.literal {
+                        let literal = parsed.arena.node(literal);
+                        if let Some(literal_data) = literal.as_string_literal() {
+                            let mode_override = import_type.attributes.and_then(|attributes| {
+                                resolution_mode_override(parsed, attributes)
+                            });
+                            let mode = mode_override.unwrap_or(static_mode);
+                            dynamic_occurrences.push(ModuleRequestOccurrence {
+                                pos: literal.pos,
+                                end: literal.end,
+                                loads_source: javascript_file
+                                    || !NodeFlags::from_bits(node.flags)
+                                        .contains(NodeFlags::JS_DOC),
+                                key: ResolutionKey::new(
+                                    source.path().canonical().clone(),
+                                    parsed.arena.text_js(literal_data.text).to_owned(),
+                                    mode,
+                                ),
+                            });
+                            // Invalid type-import attributes still reach
+                            // checker resolution during recovery. The
+                            // checker may probe either Node16/NodeNext
+                            // branch while reporting the grammar error,
+                            // so retain both mode rows when the explicit
+                            // override was not valid. This keeps the
+                            // authoritative table complete without
+                            // changing valid overrides or legacy modes.
+                            if import_type.attributes.is_some()
+                                && mode_override.is_none()
+                                && import_syntax_affects_resolution
+                            {
+                                for alternate in [ResolutionMode::CommonJs, ResolutionMode::EsNext]
+                                {
+                                    if alternate != mode {
+                                        dynamic_occurrences.push(ModuleRequestOccurrence {
+                                            pos: literal.pos,
+                                            end: literal.end,
+                                            loads_source: javascript_file
+                                                || !NodeFlags::from_bits(node.flags)
+                                                    .contains(NodeFlags::JS_DOC),
+                                            key: ResolutionKey::new(
+                                                source.path().canonical().clone(),
+                                                parsed.arena.text_js(literal_data.text).to_owned(),
+                                                alternate,
+                                            ),
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        NodeData::CallExpression(call) => {
+            let callee = call.expression;
+            // tsgo resolves no source phase import
+            // (fileloader.go resolveImportsAndModuleAugmentations).
+            if is_import_call(&parsed.arena, node_id)
+                && !is_source_phase_import_call(&parsed.arena, node_id)
+            {
+                if !expanded {
+                    return Err(unsupported_at(
+                        source,
+                        node.pos,
+                        "a dynamic import call is outside the static-import slice",
+                    ));
+                }
+                let arguments = call
+                    .arguments
+                    .map(|arguments| parsed.arena.node_array(arguments).nodes)
+                    .unwrap_or_default();
+                // TypeScript's collector records the first string-literal-like
+                // argument whenever at least one argument exists. The
+                // optional second argument carries import attributes and
+                // does not suppress the host resolution request.
+                if !arguments.is_empty() {
+                    let argument = parsed.arena.node(arguments[0]);
+                    if let Some(specifier) = string_literal_like_text(parsed, arguments[0]) {
+                        dynamic_occurrences.push(ModuleRequestOccurrence {
+                            pos: argument.pos,
+                            end: argument.end,
+                            loads_source: true,
+                            key: ResolutionKey::new(
+                                source.path().canonical().clone(),
+                                specifier.to_owned(),
+                                dynamic_mode,
+                            ),
+                        });
+                    }
+                }
+            }
+            let is_require = callee.is_some_and(|callee| {
+                matches!(
+                    parsed.arena.node(callee).data(),
+                    NodeData::Identifier(identifier) if identifier.escaped_text == "require"
+                )
+            });
+            let arguments = call
+                .arguments
+                .map(|arguments| parsed.arena.node_array(arguments).nodes)
+                .unwrap_or_default();
+            if is_require
+                && arguments.len() == 1
+                && matches!(
+                    parsed.arena.node(arguments[0]).kind,
+                    SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
+                )
+            {
+                if !expanded {
+                    return Err(unsupported_at(
+                        source,
+                        node.pos,
+                        "a require call is outside the static-import slice",
+                    ));
+                }
+                if javascript_file {
+                    // collectExternalModuleReferences only treats
+                    // require() as a module request in JavaScript files.
+                    // It records CommonJS even when ordinary static
+                    // imports emit as ESM, and no mode when import syntax
+                    // does not affect resolution (bundler without package
+                    // maps).
+                    let argument = arguments[0];
+                    let specifier = string_literal_like_text(parsed, argument)
+                        .expect("guarded string-literal-like require argument");
+                    dynamic_occurrences.push(ModuleRequestOccurrence {
+                        pos: parsed.arena.node(argument).pos,
+                        end: parsed.arena.node(argument).end,
+                        loads_source: true,
+                        key: ResolutionKey::new(
+                            source.path().canonical().clone(),
+                            specifier.to_owned(),
+                            if import_syntax_affects_resolution {
+                                ResolutionMode::CommonJs
+                            } else {
+                                ResolutionMode::Unspecified
+                            },
+                        ),
+                    });
+                }
+            }
+        }
+        _ => {}
+    }
+    Ok(())
 }
 
 struct ModuleRequestOccurrence {
