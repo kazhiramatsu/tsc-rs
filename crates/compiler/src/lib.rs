@@ -1913,8 +1913,7 @@ impl ProgramSession {
                 options_diagnostics: outcome.options_diagnostics,
                 global_diagnostics: outcome.global_diagnostics,
                 semantic_diagnostics: outcome.semantic_diagnostics,
-                // The no-emit pass kept them in its options rows.
-                content_mapper_diagnostics: DiagnosticList::new(),
+                content_mapper_diagnostics: outcome.content_mapper_diagnostics,
                 declaration_diagnostics,
                 work_counters: outcome.work_counters,
                 checked_source_files: 0,
@@ -4050,14 +4049,10 @@ impl ProgramSession {
                     semantic_diagnostics,
                 )
             } else {
-                // tsgo emitFilesAndReportErrors: the content mapper rows are
-                // reported with syntactic errors too.
-                (
-                    self.prepared.diagnostics().content_mapper().to_vec(),
-                    Vec::new(),
-                    Vec::new(),
-                )
+                (Vec::new(), Vec::new(), Vec::new())
             };
+
+        let content_mapper_diagnostics = self.prepared.diagnostics().content_mapper().to_vec();
 
         // `checked.suggestion_diagnostics` is deliberately dropped here.
         // Suggestions remain a legacy per-file getter surface and are not
@@ -4071,6 +4066,7 @@ impl ProgramSession {
             NoEmitOutcome {
                 config_diagnostics,
                 syntactic_diagnostics,
+                content_mapper_diagnostics,
                 options_diagnostics,
                 global_diagnostics,
                 semantic_diagnostics,
@@ -4102,7 +4098,7 @@ pub struct NativeHarnessCollection {
     pub capture_suggestions: bool,
 }
 
-/// The five diagnostic collections exposed by the no-emit driver.
+/// The diagnostic collections exposed by the no-emit driver.
 ///
 /// Buckets retain their getter-local ordering. [`diagnostics`](Self::diagnostics)
 /// and [`into_diagnostics`](Self::into_diagnostics) expose the command driver
@@ -4111,6 +4107,9 @@ pub struct NativeHarnessCollection {
 pub struct NoEmitOutcome {
     config_diagnostics: DiagnosticList,
     syntactic_diagnostics: DiagnosticList,
+    // GetDiagnosticsOfAnyProgram also reports these before syntactic errors.
+    // Without syntactic errors they already belong to options_diagnostics.
+    content_mapper_diagnostics: DiagnosticList,
     options_diagnostics: DiagnosticList,
     global_diagnostics: DiagnosticList,
     semantic_diagnostics: DiagnosticList,
@@ -4142,6 +4141,7 @@ impl PartialEq for NoEmitOutcome {
     fn eq(&self, other: &Self) -> bool {
         self.config_diagnostics == other.config_diagnostics
             && self.syntactic_diagnostics == other.syntactic_diagnostics
+            && self.content_mapper_diagnostics == other.content_mapper_diagnostics
             && self.options_diagnostics == other.options_diagnostics
             && self.global_diagnostics == other.global_diagnostics
             && self.semantic_diagnostics == other.semantic_diagnostics
@@ -4253,6 +4253,12 @@ impl NoEmitOutcome {
         &self.options_diagnostics
     }
 
+    /// The loader's content mapper diagnostics, also present in the options
+    /// diagnostics when there are no syntactic errors.
+    pub fn content_mapper_diagnostics(&self) -> &[Diagnostic] {
+        &self.content_mapper_diagnostics
+    }
+
     pub fn global_diagnostics(&self) -> &[Diagnostic] {
         &self.global_diagnostics
     }
@@ -4308,6 +4314,11 @@ impl NoEmitOutcome {
     pub fn diagnostics(&self) -> impl Iterator<Item = &Diagnostic> {
         self.config_diagnostics
             .iter()
+            .chain(
+                self.content_mapper_diagnostics
+                    .iter()
+                    .filter(|_| !self.syntactic_diagnostics.is_empty()),
+            )
             .chain(&self.syntactic_diagnostics)
             .chain(&self.options_diagnostics)
             .chain(&self.global_diagnostics)
@@ -4318,6 +4329,11 @@ impl NoEmitOutcome {
     /// Consume the outcome and flatten it in no-emit command bucket order.
     pub fn into_diagnostics(self) -> DiagnosticList {
         let capacity = self.config_diagnostics.len()
+            + if self.syntactic_diagnostics.is_empty() {
+                0
+            } else {
+                self.content_mapper_diagnostics.len()
+            }
             + self.syntactic_diagnostics.len()
             + self.options_diagnostics.len()
             + self.global_diagnostics.len()
@@ -4325,6 +4341,9 @@ impl NoEmitOutcome {
             + self.declaration_diagnostics.len();
         let mut diagnostics = Vec::with_capacity(capacity);
         diagnostics.extend(self.config_diagnostics);
+        if !self.syntactic_diagnostics.is_empty() {
+            diagnostics.extend(self.content_mapper_diagnostics);
+        }
         diagnostics.extend(self.syntactic_diagnostics);
         diagnostics.extend(self.options_diagnostics);
         diagnostics.extend(self.global_diagnostics);

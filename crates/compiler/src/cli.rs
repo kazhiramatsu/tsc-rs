@@ -1688,6 +1688,9 @@ fn execute_prepared(
     let options_are_empty = outcome.options_diagnostics().is_empty();
     let globals_are_empty = outcome.global_diagnostics().is_empty();
     let mut diagnostics = std::mem::take(&mut outcome.config_diagnostics);
+    if !syntax_is_empty {
+        diagnostics.extend(std::mem::take(&mut outcome.content_mapper_diagnostics));
+    }
     diagnostics.extend(std::mem::take(&mut outcome.syntactic_diagnostics));
     if syntax_is_empty {
         diagnostics.extend(std::mem::take(&mut outcome.options_diagnostics));
