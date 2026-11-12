@@ -479,7 +479,25 @@ impl<'a> CheckerState<'a> {
     ///
     /// Deferred (node-carrying) references normalize to their eager
     /// twin (createNormalizedTypeReference over the forced arguments).
-    pub fn get_normalized_type(&mut self, mut ty: TypeId, writing: bool) -> CheckResult<TypeId> {
+    #[inline]
+    pub fn get_normalized_type(&mut self, ty: TypeId, writing: bool) -> CheckResult<TypeId> {
+        if !self.tables.flags_of(ty).intersects(
+            TypeFlags::FRESHABLE
+                | TypeFlags::UNION_OR_INTERSECTION
+                | TypeFlags::SUBSTITUTION
+                | TypeFlags::SIMPLIFIABLE,
+        ) && !self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::REFERENCE)
+        {
+            return Ok(ty);
+        }
+        self.get_normalized_type_worker(ty, writing)
+    }
+
+    #[inline(never)]
+    fn get_normalized_type_worker(&mut self, mut ty: TypeId, writing: bool) -> CheckResult<TypeId> {
         loop {
             let flags = self.tables.flags_of(ty);
             // An indexed access or conditional type (the simplifiable kinds)
