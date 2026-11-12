@@ -173,6 +173,11 @@ projects and method: [docs/performance.md](docs/performance.md). These
 numbers predate the faster program loading of pull requests #760 and #761,
 and will be measured again.
 
+On a machine with more cores than four checkers use, `TSRS_FAST=1` in the
+environment selects a faster, still deterministic checker pool; its
+diagnostics can differ from `tsgo`'s where they depend on the order in which
+files are checked: [the fast preset](docs/performance.md#the-fast-preset).
+
 ## Language server (experimental)
 
 `tsc-rs --lsp --stdio` serves the Language Server Protocol over stdio, like
