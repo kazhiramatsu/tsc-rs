@@ -665,10 +665,6 @@ impl NodeArena {
         self.symbol_bound += symbols;
     }
 
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     /// The subtree at `root` copied into a new arena: each node and node
     /// array reachable from it (JSDoc included), renumbered from zero, at
     /// the same positions and without parents.
@@ -718,6 +714,11 @@ impl NodeArena {
     /// far fewer, and the unused capacity of a large reservation stays
     /// untouched memory.
     pub fn reserve_for_text(&mut self, text_len: usize) {
+        // A direct stripe already owns its final capacity. A scratch-buffer
+        // hint must not spill a room whose actual records still fit.
+        if self.nodes.is_published() {
+            return;
+        }
         self.nodes.reserve(text_len / 5);
         self.arrays.reserve(text_len / 40);
         self.array_items.reserve(text_len / 20);
@@ -1635,6 +1636,9 @@ impl NodeLookup for NodeArena {
         self.text_str(id)
     }
 }
+
+#[path = "placement.rs"]
+pub mod placement;
 
 #[cfg(test)]
 #[path = "../tests/unit/arena/tests.rs"]

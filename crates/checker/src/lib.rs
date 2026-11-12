@@ -585,6 +585,12 @@ pub enum AuthoritativeModuleLookupFailure {
 /// entry. Legacy checker entries install no provider and retain their
 /// existing in-memory heuristic resolver.
 pub trait AuthoritativeModuleProvider: Sync {
+    /// The receiving finite Program's owner, independent of a retained tree's
+    /// original capabilities. Registry-backed callers keep their own domain.
+    fn identity_domain(&self) -> Option<&IdentityDomain> {
+        None
+    }
+
     /// Retained host/prepared owners, visited only by TSRS_MEMORY_REPORT.
     fn add_memory_usage(&self, _usage: &mut tsc_diagnostics::MemoryUsage) {}
 
@@ -1976,6 +1982,11 @@ impl DiagnosticSchedule {
 pub trait AuthoritativeModuleProviderFactory: Sync {
     fn provider(&self) -> Box<dyn AuthoritativeModuleProvider + '_>;
 
+    /// The finite Program's load/check owner, when this caller owns one.
+    fn identity_domain(&self) -> Option<&IdentityDomain> {
+        None
+    }
+
     /// The program's `--generateTrace` session (see
     /// [`AuthoritativeModuleProvider::tracing`]).
     fn tracing(&self) -> Option<Arc<Tracing>> {
@@ -2040,6 +2051,13 @@ impl AuthoritativeRun<'_> {
 }
 
 impl AuthoritativeProviderSource<'_> {
+    fn identity_domain(self) -> Option<IdentityDomain> {
+        match self {
+            Self::Shared(provider) => provider.identity_domain().cloned(),
+            Self::PerChecker(factory) => factory.identity_domain().cloned(),
+        }
+    }
+
     fn tracing(self) -> Option<Arc<Tracing>> {
         match self {
             Self::Shared(provider) => provider.tracing(),
@@ -2705,7 +2723,17 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
             )
         }
     } else {
-        let identity_domain = IdentityDomain::new();
+        // A finite load's immutable handles retain the same owner used by
+        // its room planner. Other one-shot clients keep a private domain.
+        let identity_domain = provider
+            .identity_domain()
+            .or_else(|| {
+                libs.iter()
+                    .chain(files)
+                    .find_map(|file| file.preparsed_syntax.identity_domain())
+                    .cloned()
+            })
+            .unwrap_or_default();
         let tracing = run.tracing.as_ref();
         let (mut lib_sources, lib_work) =
             parse_lib_sources(&effective_libs, &identity_domain, workers, tracing);
@@ -3211,7 +3239,7 @@ fn parse_program_inputs(
                 let leases = source_file
                     .lease_identities(identity_domain)
                     .expect("source identity allocation failed");
-                PendingProgramSource::Leased(source_file, leases)
+                pending_leased_source(source_file, leases)
             }
             None => {
                 work_counters.record_parse(file.text().len());
@@ -3267,13 +3295,28 @@ fn parse_program_inputs(
         "checker: adopt (serial: parse options, leases)",
         serial_started,
     );
+    let rewrite_mark = tsc_types::trace::enabled().then(|| {
+        format!(
+            "checker: adopt (parallel rewrite: {} sources; {} ready)",
+            pending_sources
+                .iter()
+                .filter(|s| matches!(s, PendingProgramSource::Leased(..)))
+                .count(),
+            pending_sources
+                .iter()
+                .filter(|s| matches!(s, PendingProgramSource::Ready(..)))
+                .count()
+        )
+    });
     let rewrite_started = std::time::Instant::now();
     let program_sources: Vec<ProgramSource> = workers.map_ordered(
         pending_sources,
         PendingProgramSource::weight,
         PendingProgramSource::into_program_source,
     );
-    tsc_types::trace::mark("checker: adopt (parallel rewrite)", rewrite_started);
+    if let Some(mark) = rewrite_mark {
+        tsc_types::trace::mark(&mark, rewrite_started);
+    }
 
     let host_current_directory = resolve_host_current_directory(current_directory);
     // A referenced project's source is loaded as its output (tsgo
@@ -4503,6 +4546,15 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         workers,
         None,
     );
+    trace_direct_adoption(
+        libs,
+        files,
+        lib_documents
+            .iter()
+            .map(|document| document.source())
+            .chain(program_sources.iter().map(ProgramSource::source)),
+    );
+
     tsc_types::trace::mark("checker: parse/adopt program sources", phase_started);
     let file_diagnostics =
         syntactic_rows_of_sources(program_sources.iter().map(ProgramSource::source), options);
@@ -5457,6 +5509,15 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         &mut work_counters,
         workers,
         None,
+    );
+
+    trace_direct_adoption(
+        libs,
+        files,
+        lib_documents
+            .iter()
+            .map(|document| document.source())
+            .chain(program_sources.iter().map(ProgramSource::source)),
     );
 
     let mut file_diagnostics =
@@ -6594,7 +6655,6 @@ fn lib_parse_options(lib: &InputFile) -> tsc_syntax::ParseOptions {
             .unwrap_or(tsc_syntax::JSDocParsingMode::ParseAll),
     }
 }
-
 /// Materialize the library prefix: adopt each library's loader-planned tree
 /// when it is provably the parse this session would perform, otherwise parse.
 /// Returns the sources with the parse work actually performed.
@@ -6604,6 +6664,7 @@ fn parse_lib_sources(
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
 ) -> (Vec<tsc_syntax::SourceFile>, LibParseWork) {
+    let adopt_started = std::time::Instant::now();
     let mut work = LibParseWork::default();
     let mut pending: Vec<PendingProgramSource> = Vec::new();
     for lib in libs {
@@ -6614,7 +6675,7 @@ fn parse_lib_sources(
                 let leases = source
                     .lease_identities(identity_domain)
                     .expect("library source identity allocation failed");
-                PendingProgramSource::Leased(source, leases)
+                pending_leased_source(source, leases)
             }
             None => {
                 work.parsed += 1;
@@ -6632,11 +6693,20 @@ fn parse_lib_sources(
             }
         });
     }
+    if tsc_types::trace::enabled() {
+        let rewrite = pending
+            .iter()
+            .filter(|source| matches!(source, PendingProgramSource::Leased(..)))
+            .count();
+        let ready_direct = work.adopted - rewrite as u64;
+        eprintln!("[syntax-placement] level library adoption: ready_direct={ready_direct} rewrite={rewrite} fresh_private_exact={}", work.parsed);
+    }
     let sources = workers.map_ordered(
         pending,
         PendingProgramSource::weight,
         PendingProgramSource::relocate,
     );
+    tsc_types::trace::mark("checker: libraries exact/adopt", adopt_started);
     (sources, work)
 }
 
@@ -6687,6 +6757,7 @@ fn bind_reserved_in_program_order<'a>(
         .iter()
         .map(|source| reserve_bind_identities(source, identity_domain))
         .collect::<Vec<_>>();
+    write_direct_manifest(&sources, &reservations);
     tsc_types::trace::mark("checker: bind reservations (serial)", phase_started);
     let phase_started = std::time::Instant::now();
     let mut binders = workers.map_ordered(
@@ -6814,6 +6885,90 @@ fn publish_bound_documents(
         .map(|(source, data)| Arc::new(program::DocumentBuilder::new(source).freeze(data)))
         .collect()
 }
+
+fn pending_leased_source(
+    source: tsc_syntax::SourceFile,
+    leases: tsc_syntax::SyntaxLeases,
+) -> PendingProgramSource {
+    if source.arena.is_published()
+        && source.arena.identity_leases().is_some_and(|held| {
+            held.nodes == leases.nodes
+                && held.arrays == leases.arrays
+                && held.array_items == leases.array_items
+                && held.texts == leases.texts
+        })
+    {
+        PendingProgramSource::Ready(source)
+    } else {
+        PendingProgramSource::Leased(source, leases)
+    }
+}
+
+fn trace_direct_adoption<'a>(
+    libs: &[InputFile],
+    files: &[InputFile],
+    sources: impl IntoIterator<Item = &'a tsc_syntax::SourceFile>,
+) {
+    if !tsc_types::trace::enabled() {
+        return;
+    }
+    let Some(layout) = libs
+        .iter()
+        .chain(files)
+        .find_map(|file| file.preparsed_syntax.direct_layout())
+    else {
+        return;
+    };
+    let statistics = tsc_syntax::placement::adoption_statistics(layout, sources);
+    eprintln!("[syntax-placement] final adoption: planned_direct_sources={} adopted_direct_sources={} dropped_direct_sources={} dropped_bytes={} dropped_ids={:?} dropped_only_pages_guide={:?}",
+        statistics.planned_sources, statistics.adopted_sources, statistics.dropped_sources, statistics.dropped_bytes, statistics.dropped_ids, statistics.dropped_only_pages_guide);
+}
+
+fn write_direct_manifest(
+    sources: &[&mut tsc_syntax::SourceFile],
+    reservations: &[(IdentityLease, IdentityLease)],
+) {
+    use std::io::Write;
+    use std::sync::{Mutex, OnceLock};
+    static OUTPUT: OnceLock<Option<Mutex<std::fs::File>>> = OnceLock::new();
+    let output = OUTPUT.get_or_init(|| {
+        std::env::var_os("TSRS_DIRECT_MANIFEST")
+            .map(|path| Mutex::new(std::fs::File::create(path).expect("create identity manifest")))
+    });
+    let Some(output) = output else {
+        return;
+    };
+    let mut output = output.lock().expect("manifest lock");
+    for (source, (symbols, serials)) in sources.iter().zip(reservations) {
+        let held = source
+            .arena
+            .identity_leases()
+            .expect("manifest source is published");
+        write!(output, "{:?}", source.file_name).expect("manifest path");
+        for lease in [
+            &held.nodes,
+            &held.arrays,
+            &held.array_items,
+            &held.texts,
+            symbols,
+            serials,
+        ] {
+            write!(
+                output,
+                "\t{}..{}",
+                lease.range().start(),
+                lease.range().end()
+            )
+            .expect("manifest range");
+        }
+        writeln!(output).expect("manifest line");
+    }
+    output.flush().expect("flush identity manifest");
+}
+
+#[cfg(test)]
+#[path = "../tests/unit/lib/placement.rs"]
+mod direct_contract_tests;
 
 #[cfg(test)]
 #[path = "../tests/unit/lib/tests.rs"]

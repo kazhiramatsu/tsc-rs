@@ -1239,6 +1239,16 @@ impl ConfigRootPlan {
         self
     }
 
+    /// The finite Program's explicit load/check identity owner.
+    pub fn with_identity_domain(mut self, domain: tsc_types::IdentityDomain) -> Self {
+        self.module_resolution_options.program_options = self
+            .module_resolution_options
+            .program_options
+            .clone()
+            .with_identity_domain(domain);
+        self
+    }
+
     /// The plan whose program takes the parses other Programs hold.
     pub fn with_parse_cache(mut self, cache: crate::ParseCacheHandle) -> Self {
         self.module_resolution_options.program_options = self

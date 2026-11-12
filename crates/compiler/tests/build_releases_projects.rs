@@ -191,12 +191,44 @@ fn type_leases() -> usize {
         .active_ranges
 }
 
+/// Both reserved rooms and initialized source views must return with a project.
+fn syntax_leases() -> [(usize, u64); 4] {
+    let stats = IdentityDomain::new().stats().expect("identity statistics");
+    [
+        IdentitySpace::Node,
+        IdentitySpace::NodeArray,
+        IdentitySpace::NodeArrayItem,
+        IdentitySpace::NodeText,
+    ]
+    .map(|space| {
+        let stats = stats.space(space);
+        (stats.active_ranges, stats.active_values)
+    })
+}
+
 #[test]
 fn a_build_holds_one_project_at_a_time() {
+    // A single project's retained rooms are the reference for a larger build.
+    let single = MemorySystem::workspace(1);
+    let single_before = syntax_leases();
+    let result = execute_command_line(&single, &args(&["-b", ROOT]), Some(&single));
+    assert_eq!(result.status, 0, "{}", single.take_output());
+    let single_after = syntax_leases();
+    let retained = std::array::from_fn::<_, 4, _>(|index| {
+        (
+            single_after[index].0 - single_before[index].0,
+            single_after[index].1 - single_before[index].1,
+        )
+    });
+    assert!(retained
+        .iter()
+        .all(|&(ranges, values)| ranges > 0 && values > 0));
+
     // A one-shot build of five projects and the solution that references
     // them: four are dropped as the build goes on, the last program is left
     // to the process exit (the solution, last in the order, builds none).
     let system = MemorySystem::workspace(5);
+    let syntax_before = syntax_leases();
     let before = type_leases();
     let result = execute_command_line(&system, &args(&["-b", ROOT]), Some(&system));
     let output = system.take_output();
@@ -216,8 +248,62 @@ fn a_build_holds_one_project_at_a_time() {
         "a one-shot build leaves its last program's checker state to the process exit, and no other"
     );
 
+    let syntax_after = syntax_leases();
+    assert_eq!(
+        std::array::from_fn::<_, 4, _>(|index| (
+            syntax_after[index].0 - syntax_before[index].0,
+            syntax_after[index].1 - syntax_before[index].1,
+        )),
+        retained,
+        "five projects retain only the last project's syntax rooms and views"
+    );
+
+    // A plain watch keeps incremental facts, while exact syntax leases belong
+    // to each cycle. It must not inherit either one-shot command's rooms.
+    let watched = MemorySystem::workspace(1);
+    let syntax_before_watch = syntax_leases();
+    let types_before_watch = type_leases();
+    let result = execute_command_line(
+        &watched,
+        &args(&["-p", &format!("{ROOT}/p0"), "--watch"]),
+        Some(&watched),
+    );
+    assert_eq!(result.status, 0, "{}", watched.take_output());
+    let mut plain = result.watcher.expect("--watch starts a watcher");
+    assert_eq!(syntax_leases(), syntax_before_watch);
+    assert_eq!(type_leases(), types_before_watch);
+    for cycle in 1..=3 {
+        let path = format!("{ROOT}/p0/index.ts");
+        watched
+            .fs
+            .write(
+                &path,
+                format!("export const value0: number = {cycle}0;\n").as_bytes(),
+            )
+            .unwrap();
+        watched.changed(&path);
+        plain.do_cycle();
+        let output = watched.take_output();
+        assert!(
+            output.contains("Found 0 errors. Watching for file changes."),
+            "{output}"
+        );
+        assert_eq!(
+            syntax_leases(),
+            syntax_before_watch,
+            "plain watch cycle {cycle}"
+        );
+        assert_eq!(
+            type_leases(),
+            types_before_watch,
+            "plain watch cycle {cycle}"
+        );
+    }
+    drop(plain);
+
     // A build watch: neither its first build nor a rebuild leaves a state.
     let system = MemorySystem::workspace(3);
+    let syntax_before = syntax_leases();
     let before = type_leases();
     let result = execute_command_line(&system, &args(&["-b", ROOT, "--watch"]), Some(&system));
     assert_eq!(result.status, 0, "{}", system.take_output());
@@ -231,6 +317,11 @@ fn a_build_holds_one_project_at_a_time() {
         type_leases(),
         before,
         "the first build of a watch keeps no checker state"
+    );
+    assert_eq!(
+        syntax_leases(),
+        syntax_before,
+        "a build watch retains no syntax rooms after its initial build"
     );
     for cycle in 1..=4 {
         let path = format!("{ROOT}/p1/index.ts");
@@ -257,6 +348,11 @@ fn a_build_holds_one_project_at_a_time() {
             type_leases(),
             before,
             "rebuild {cycle} of a build watch keeps no checker state"
+        );
+        assert_eq!(
+            syntax_leases(),
+            syntax_before,
+            "rebuild {cycle} of a build watch retains no syntax rooms or views"
         );
     }
 }

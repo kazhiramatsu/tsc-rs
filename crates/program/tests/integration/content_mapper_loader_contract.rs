@@ -143,6 +143,9 @@ fn load_with_limits(
         &mut ConfigExtendedCache::default(),
     )
     .unwrap();
+    {
+        plan = plan.with_identity_domain(tsc_types::IdentityDomain::new());
+    }
     assert!(plan.errors().is_empty(), "{:?}", plan.errors());
     if let Some(project) = &project {
         plan = plan.with_content_mapper_project(ContentMapperProjectHandle(

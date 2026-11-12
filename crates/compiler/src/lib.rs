@@ -568,6 +568,10 @@ struct PreparedProviderFactory<'a> {
 }
 
 impl AuthoritativeModuleProviderFactory for PreparedProviderFactory<'_> {
+    fn identity_domain(&self) -> Option<&tsc_types::IdentityDomain> {
+        self.prepared.program_options().identity_domain()
+    }
+
     fn provider(&self) -> Box<dyn AuthoritativeModuleProvider + '_> {
         Box::new(PreparedModuleProvider {
             prepared: self.prepared,
@@ -1152,6 +1156,10 @@ impl<P: std::borrow::Borrow<PreparedProgram> + Sync> AuthoritativeModuleProvider
         self.prepared()
             .project_reference_output_of_source(file_name)
             .is_some()
+    }
+
+    fn identity_domain(&self) -> Option<&tsc_types::IdentityDomain> {
+        self.prepared().program_options().identity_domain()
     }
 
     fn program_options_for_module_specifiers(&self) -> Option<&tsc_program::ProgramOptions> {
@@ -2006,6 +2014,10 @@ impl ProgramSession {
             failure: std::sync::Mutex<Option<AuthoritativeModuleFailure>>,
         }
         impl AuthoritativeModuleProvider for ObservedProvider<'_> {
+            fn identity_domain(&self) -> Option<&tsc_types::IdentityDomain> {
+                self.inner.identity_domain()
+            }
+
             fn program_options_for_module_specifiers(
                 &self,
             ) -> Option<&tsc_program::ProgramOptions> {
