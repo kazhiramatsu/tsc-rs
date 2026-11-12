@@ -203,3 +203,20 @@ tsgo（TypeScript 7.1、vendored commit aa814927）と比べていて、tsgo の
 - 根拠：未確認（pattern module を解決すると module symbol の links が変わり、`declare` keyword からの型定義探索が空になる経路が疑わしい）。
 - tsc-rs の扱い：bounded（同じ条件では同じ答え；session の差は状態の順序）。Excalidraw の session の 1 件（typeDefinition）はこの扱い。
 - 報告：未投稿（報告候補：どちらの答えが意図かは本家の判断）。
+
+### 17. 直前の comment に `import` という語がある dynamic import は、include の理由が 2 回出る
+
+- 見つけた日・場所：2026-11-12、VS Code の `src/vs/platform/agentHost/node/agentHostServerMain.ts`（`// Dynamic import to avoid loading test code.`
+  の次の行の `import('../test/node/mockAgent.js')`）。`--explainFiles` で `vs/platform/agentHost/test/node/mockAgent.ts` の
+  「Imported via '../test/node/mockAgent.js' from file '…/agentHostServerMain.ts'」が tsgo では 2 行、tsc-rs では 1 行。
+- 現象：dynamic import（JS では `require` も）の呼び出しの leading trivia に `import` / `require` という文字列があると、その呼び出しが
+  import の一覧に重複して入る。file の一覧・診断は変わらず、include の理由（と import の数）だけが増える。
+- 根拠：tsgo `ast/utilities.go:2844-2872` `ForEachDynamicImportOrRequireCall` は source の文字列から `import` / `require` を探し、
+  見つかった位置の node を `GetNodeAtPosition` で引く。comment の中の一致は、その comment を leading trivia に持つ呼び出しに解決されるので、
+  本物の `import(` の一致と合わせて同じ呼び出しが 2 回 callback に渡る。
+- 再現：`main.ts` に `// Dynamic import to avoid loading test code.` と `import('./dep.js').then(() => {});` の 2 行、`dep.ts` を置き、
+  `--explainFiles`：tsgo は `dep.ts` の理由を 2 行、tsc-rs（main 70b7bb9a9）は 1 行（fixture は lane fe-fused の
+  `fixtures/duplicate-dynamic-import`）。
+- tsc-rs の扱い：tsgo に合わせる（行 F4：import の出現の一覧を tsgo の走査の順序と重複どおりにする。checker の割り当てに使う import の数は
+  既に同じ規則 — `crates/program/src/module_requests.rs` の `dynamic_import_count`）。着地したらここに PR 番号を足す。
+- 報告：未投稿（報告候補：comment の中の語で import が重複するのは意図した挙動ではなさそう）。
