@@ -220,3 +220,18 @@ tsgo（TypeScript 7.1、vendored commit aa814927）と比べていて、tsgo の
 - tsc-rs の扱い：tsgo に合わせる（行 F4：import の出現の一覧を tsgo の走査の順序と重複どおりにする。checker の割り当てに使う import の数は
   既に同じ規則 — `crates/program/src/module_requests.rs` の `dynamic_import_count`）。着地したらここに PR 番号を足す。
 - 報告：未投稿（報告候補：comment の中の語で import が重複するのは意図した挙動ではなさそう）。
+
+### 18. `--watch` の source cache は file 名の表記を見ない（`--explainFiles` の file 名が one-shot と変わる）
+
+- 見つけた日・場所：2026-11-12、lane loader-diffs-3 の最小入力 `watch-canonical-source-name`（`files` が `globals.d.ts`・`main.ts`・`dep.ts`、
+  `main.ts` は `import './Dep.js';`、大文字小文字を区別しない file system）。
+- 現象：`tsc -p . --explainFiles` は TS1261 に続けて file を `Dep.ts`（import の表記）で並べるが、同じ入力の
+  `tsc -p . --explainFiles --watch` は `dep.ts` で並べる（TS1261 の本文はどちらも `Dep.ts` と `dep.ts` を名指す）。理由の行は同じ。
+- 根拠：tsgo `execute/watcher.go:35-52` `watchCompilerHost.GetSourceFile` は parse 済みの source を `opts.PathKey`（正規化した path）と
+  mtime だけで cache し、hit すると要求された `opts.FileName` の表記も他の parse option も見ずに cache の `SourceFile` を返す。config の
+  root として先に `dep.ts` が parse されるので、後の import の `Dep.ts` の要求が同じ `SourceFile`（file 名 `dep.ts`）を受け取る。
+- 再現：上の 5 file（`handover/arch-arena/lanes/loader-diffs-3/final-1112/fixtures/watch-canonical-source-name/`；完全な出力は同じ packet の
+  `DIFFS-found.md` の F7）。one-shot の tsgo（aa8149273）は `Dep.ts`、watch は `dep.ts`、tsc-rs は両方 `Dep.ts`。
+- tsc-rs の扱い：bounded（one-shot の tsgo と同じ表記を watch でも出す）。合わせるには watch の host に「正規化した path で引く parse cache」の
+  protocol が要り、loader の読み込み口をまたぐ — front end の作り直し（lane fe-fused / direct-land）の後に判断する。
+- 報告：未投稿（報告候補：cache の key に表記と parse option が入っていない — 表記だけでなく、option の違う要求にも古い tree を返しうる）。
