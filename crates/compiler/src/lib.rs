@@ -100,7 +100,7 @@ pub use tsc_emitter::EmitRouteKind;
 /// session escapes this boundary.
 #[derive(Debug)]
 pub struct ProgramSession {
-    prepared: PreparedProgram,
+    prepared: Arc<PreparedProgram>,
     /// H2.8c research route (see [`EmitRouteKind`]); ordinary sessions keep
     /// the Program route and every existing option refusal.
     emit_route: EmitRouteKind,
@@ -1527,9 +1527,9 @@ fn map_authoritative_failure(
 }
 
 impl ProgramSession {
-    pub fn new(prepared: PreparedProgram) -> Self {
+    pub fn new(prepared: impl Into<Arc<PreparedProgram>>) -> Self {
         Self {
-            prepared,
+            prepared: prepared.into(),
             emit_route: EmitRouteKind::Program,
             source_api_facts: BTreeMap::new(),
             worker_budget: WorkerBudget::serial(),
@@ -1760,7 +1760,7 @@ impl ProgramSession {
             .map_err(DriverError::Emit)?;
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
         let provider = PreparedModuleProvider {
-            prepared: &prepared,
+            prepared: prepared.as_ref(),
             request_plans: std::sync::Mutex::new(BTreeMap::new()),
             tracing: None,
         };
@@ -1802,6 +1802,7 @@ impl ProgramSession {
                 worker_budget,
                 IncrementalRequest::NONE,
                 false,
+                SyntacticDiagnosticsGate::CheckEverySource,
                 &mut checked_operation,
             )
         } else {
@@ -2042,7 +2043,7 @@ impl ProgramSession {
         }
         let provider = ObservedProvider {
             inner: PreparedModuleProvider {
-                prepared: &prepared,
+                prepared: prepared.as_ref(),
                 request_plans: std::sync::Mutex::new(BTreeMap::new()),
                 tracing: None,
             },
@@ -2061,6 +2062,7 @@ impl ProgramSession {
             worker_budget,
             IncrementalRequest::NONE,
             false,
+            SyntacticDiagnosticsGate::CheckEverySource,
             |snapshot, checker, checked| {
                 if let Some(partial) = checked.partial_checks.first() {
                     operation_result = Some(Err(DriverError::IncompleteCheck {
@@ -2135,7 +2137,7 @@ impl ProgramSession {
 
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
         let provider = PreparedModuleProvider {
-            prepared: &prepared,
+            prepared: prepared.as_ref(),
             request_plans: std::sync::Mutex::new(BTreeMap::new()),
             tracing: None,
         };
@@ -2181,6 +2183,7 @@ impl ProgramSession {
             worker_budget,
             IncrementalRequest::NONE,
             false,
+            SyntacticDiagnosticsGate::CheckEverySource,
             &mut operation,
         );
         drop(checked);
@@ -2255,7 +2258,7 @@ impl ProgramSession {
 
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
         let provider = PreparedModuleProvider {
-            prepared: &prepared,
+            prepared: prepared.as_ref(),
             request_plans: std::sync::Mutex::new(BTreeMap::new()),
             tracing: tracing.clone(),
         };
@@ -2267,7 +2270,7 @@ impl ProgramSession {
         // which the planner cannot see from the checker.
         let options_rows = !prepared.diagnostics().options().is_empty()
             || !programmatic_option_diagnostics(&prepared).is_empty()
-            || !program_rows_outside_sources(&prepared).is_empty()
+            || has_program_rows_outside_sources(&prepared)
             || preflight
                 .as_ref()
                 .is_some_and(|preflight| !preflight.diagnostics().is_empty());
@@ -2466,6 +2469,7 @@ impl ProgramSession {
                 &inputs.current_directory,
                 &provider,
                 bundle,
+                SyntacticDiagnosticsGate::CloseTheCheck,
                 &mut operation,
             )
         } else {
@@ -2484,6 +2488,7 @@ impl ProgramSession {
                         .then_some(&mut planner as &mut IncrementalPlanner<'_>),
                 },
                 leak_program,
+                SyntacticDiagnosticsGate::CloseTheCheck,
                 &mut operation,
             )
         }
@@ -2598,7 +2603,7 @@ impl ProgramSession {
         // which the planner cannot see from the checker.
         let options_rows = !prepared.diagnostics().options().is_empty()
             || !programmatic_option_diagnostics(&prepared).is_empty()
-            || !program_rows_outside_sources(&prepared).is_empty()
+            || has_program_rows_outside_sources(&prepared)
             || !preflight_diagnostics.is_empty();
         let driver = incremental::IncrementalDriver::new(
             &prepared,
@@ -2637,7 +2642,7 @@ impl ProgramSession {
             .collect::<Vec<Option<JsString>>>();
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
         let factory = PreparedProviderFactory {
-            prepared: &prepared,
+            prepared: prepared.as_ref(),
             tracing: tracing.clone(),
         };
         tsc_types::trace::mark("emit: unit names and checker inputs", inputs_started);
@@ -3207,6 +3212,7 @@ impl ProgramSession {
                     planner: incremental_facts_requested
                         .then_some(&mut planner as &mut IncrementalPlanner<'_>),
                 },
+                SyntacticDiagnosticsGate::CloseTheCheck,
             )
             .map_err(|failure| map_authoritative_failure(&prepared, failure))?;
             (checked, sharded_emit.emissions.take())
@@ -3479,34 +3485,17 @@ impl ProgramSession {
     /// diagnostic kind of the second Program and checks every source.
     fn syntactic_diagnostics_gate(
         &self,
-        available_options: &[Diagnostic],
+        has_options_diagnostics: bool,
     ) -> SyntacticDiagnosticsGate {
         if self.native_harness.is_some() {
             SyntacticDiagnosticsGate::CheckEverySource
         } else if self.list_files_only {
             SyntacticDiagnosticsGate::SyntacticDiagnosticsOnly
-        } else if available_options.is_empty() && !self.command_options_diagnostics {
+        } else if !has_options_diagnostics && !self.command_options_diagnostics {
             SyntacticDiagnosticsGate::CloseTheCheck
         } else {
             SyntacticDiagnosticsGate::GlobalDiagnosticsOnly
         }
-    }
-
-    /// The options diagnostics of the command's no-emit report, which tsc
-    /// gathers as the Program's options diagnostics
-    /// (`getOptionsDiagnostics`): the config's option rows, the programmatic
-    /// option rows and the Program rows outside every source (the rows a
-    /// source owns are its include-processor diagnostics, joined to its
-    /// semantic diagnostics). Each public getter applies
-    /// sortAndDeduplicateDiagnostics to its combined result.
-    fn available_options_diagnostics(&self) -> Vec<Diagnostic> {
-        let mut available_options = self.prepared.diagnostics().options().to_vec();
-        available_options.extend(programmatic_option_diagnostics(&self.prepared));
-        available_options.extend(program_rows_outside_sources(&self.prepared));
-        // tsgo GetProgramDiagnostics: the content mapper rows.
-        available_options.extend(self.prepared.diagnostics().content_mapper().iter().cloned());
-        sort_and_dedupe_diagnostics(&mut available_options);
-        available_options
     }
 
     fn native_output_diagnostics(&self) -> Vec<Diagnostic> {
@@ -3574,7 +3563,7 @@ impl ProgramSession {
         let inputs = project_checker_inputs(&self.prepared, &self.source_api_facts)?;
         let has_roots = !self.prepared.roots().is_empty();
         let provider = PreparedModuleProvider {
-            prepared: &self.prepared,
+            prepared: self.prepared.as_ref(),
             request_plans: std::sync::Mutex::new(BTreeMap::new()),
             tracing: self.tracing.clone(),
         };
@@ -3594,8 +3583,25 @@ impl ProgramSession {
         // auxiliary files feed getOptionsDiagnostics; rows owned by a
         // program SourceFile feed that source's getSemanticDiagnostics. The
         // options rows are known before the check and gate it.
-        let available_options = self.available_options_diagnostics();
-        let syntactic_diagnostics_gate = self.syntactic_diagnostics_gate(&available_options);
+        let mut available_options = self.prepared.diagnostics().options().to_vec();
+        available_options.extend(programmatic_option_diagnostics(&self.prepared));
+        available_options.extend(self.prepared.diagnostics().content_mapper().iter().cloned());
+        // Resolution diagnostics are already rendered and immutable. Retain
+        // their options rows in the existing pass, without asking the include
+        // processor to materialize its pending diagnostics before syntax.
+        available_options.extend(
+            resolution_rows(&self.prepared)
+                .filter(|row| program_row_is_outside_sources(&self.prepared, row))
+                .cloned(),
+        );
+        let has_options = !available_options.is_empty()
+            || self
+                .prepared
+                .diagnostics()
+                .unmaterialized_program()
+                .iter()
+                .any(|row| program_row_is_outside_sources(&self.prepared, row));
+        let syntactic_diagnostics_gate = self.syntactic_diagnostics_gate(has_options);
         let incremental_facts_requested = self.command_build_info
             && (tsc_incremental::options::is_incremental(self.prepared.compiler_options())
                 || self.build_mode
@@ -3607,8 +3613,7 @@ impl ProgramSession {
             &self.source_api_facts,
             incremental::AffectedPolicy {
                 emits: false,
-                options_diagnostics: !available_options.is_empty()
-                    || self.command_options_diagnostics,
+                options_diagnostics: has_options || self.command_options_diagnostics,
                 build: self.build_mode,
                 hash_with_text: self.testing,
                 watch: self.watch,
@@ -3651,10 +3656,13 @@ impl ProgramSession {
             let mut unchecked = true;
             let mut operation = |snapshot: &ProgramSnapshot,
                                  session: &CheckerSession<'_>,
-                                 checked: &CheckResult| {
+                                 _checked: &CheckResult| {
                 if std::mem::take(&mut unchecked) {
                     if let Some(preflight) = preflight.take() {
-                        let gate = emit_session_diagnostics(&self.prepared, checked).gate();
+                        // This entry rejects noEmitOnError. Go Emit therefore
+                        // requests no diagnostic getters before WriteFile
+                        // (HandleNoEmitOptions, compiler/program.go:1999-2003).
+                        let gate = EmitDiagnosticGate::default();
                         let host = CheckedEmitHost {
                             prepared: &emit_host,
                             snapshot,
@@ -3755,6 +3763,11 @@ impl ProgramSession {
                         .then_some(&mut planner as &mut IncrementalPlanner<'_>),
                 },
                 self.checker_budget.leaks_states(),
+                if native_harness {
+                    SyntacticDiagnosticsGate::CheckEverySource
+                } else {
+                    SyntacticDiagnosticsGate::CloseTheCheck
+                },
                 &mut operation,
             )
         } else if declaration_getter {
@@ -3858,7 +3871,7 @@ impl ProgramSession {
                 self.prepared.compiler_options(),
                 &inputs.current_directory,
                 &PreparedProviderFactory {
-                    prepared: &self.prepared,
+                    prepared: self.prepared.as_ref(),
                     tracing: self.tracing.clone(),
                 },
                 self.worker_budget,
@@ -3868,6 +3881,11 @@ impl ProgramSession {
                     facts: incremental_facts_requested,
                     planner: incremental_facts_requested
                         .then_some(&mut planner as &mut IncrementalPlanner<'_>),
+                },
+                if native_harness {
+                    SyntacticDiagnosticsGate::CheckEverySource
+                } else {
+                    SyntacticDiagnosticsGate::CloseTheCheck
                 },
             )
         } else if self.checker_budget.is_sharded() {
@@ -3879,7 +3897,7 @@ impl ProgramSession {
                 self.prepared.compiler_options(),
                 &inputs.current_directory,
                 &PreparedProviderFactory {
-                    prepared: &self.prepared,
+                    prepared: self.prepared.as_ref(),
                     tracing: self.tracing.clone(),
                 },
                 self.worker_budget,
@@ -3941,6 +3959,20 @@ impl ProgramSession {
         let config_diagnostics = preparation.config().to_vec();
         let mut syntactic_diagnostics = checked.syntactic_diagnostics;
         sort_and_dedupe_diagnostics(&mut syntactic_diagnostics);
+        if syntactic_diagnostics.is_empty() || native_harness {
+            // GetProgramDiagnostics now consumes the processing collection.
+            // The resolution rows were retained above; do not walk them again.
+            available_options.extend(
+                preparation
+                    .program()
+                    .iter()
+                    .filter(|row| program_row_is_outside_sources(&self.prepared, row))
+                    .cloned(),
+            );
+            sort_and_dedupe_diagnostics(&mut available_options);
+        } else {
+            available_options.clear();
+        }
         let partial_checks = checked.partial_checks;
         // tsgo emitBuildInfo of the --noEmit command: the incremental
         // program's facts, the rows it cached (only when the command asked
@@ -3949,38 +3981,42 @@ impl ProgramSession {
         let mut available_semantic = checked
             .program_semantic_diagnostics
             .expect("authoritative checker sessions publish whole-Program semantic diagnostics");
-        let build_info = incremental_facts.as_ref().and_then(|facts| {
-            let command = incremental::CommandDiagnosticFacts {
-                config: !config_diagnostics.is_empty(),
-                syntactic: !syntactic_diagnostics.is_empty(),
-                options: !available_options.is_empty() || self.command_options_diagnostics,
-                global: has_roots && !checked.global_diagnostics.is_empty(),
-            };
-            driver.store_check(
-                facts,
-                command.semantic_cached()
-                    && self.prepared.compiler_options().no_check != Some(true),
-            );
-            // The rows of the files the check did not cover come from the
-            // old state (tsgo getSemanticDiagnosticsOfFile from the cache).
-            available_semantic.extend(driver.cached_semantic_diagnostics());
-            if declaration_requested && !self.command_options_diagnostics {
-                let from_cache = driver.record_declaration_diagnostics(&declaration_diagnostics);
-                if !from_cache.is_empty() {
-                    declaration_diagnostics.extend(from_cache);
-                    sort_and_dedupe_diagnostics(&mut declaration_diagnostics);
+        let build_info = incremental_facts
+            .as_ref()
+            .filter(|_| !self.list_files_only)
+            .and_then(|facts| {
+                let command = incremental::CommandDiagnosticFacts {
+                    config: !config_diagnostics.is_empty(),
+                    syntactic: !syntactic_diagnostics.is_empty(),
+                    options: !available_options.is_empty() || self.command_options_diagnostics,
+                    global: has_roots && !checked.global_diagnostics.is_empty(),
+                };
+                driver.store_check(
+                    facts,
+                    command.semantic_cached()
+                        && self.prepared.compiler_options().no_check != Some(true),
+                );
+                // The rows of the files the check did not cover come from the
+                // old state (tsgo getSemanticDiagnosticsOfFile from the cache).
+                available_semantic.extend(driver.cached_semantic_diagnostics());
+                if declaration_requested && !self.command_options_diagnostics {
+                    let from_cache =
+                        driver.record_declaration_diagnostics(&declaration_diagnostics);
+                    if !from_cache.is_empty() {
+                        declaration_diagnostics.extend(from_cache);
+                        sort_and_dedupe_diagnostics(&mut declaration_diagnostics);
+                    }
                 }
-            }
-            match driver.build_info(command)? {
-                Ok(document) => Some(document),
-                Err(diagnostic) => {
-                    // tsgo emitBuildInfo's failure joins the emit's
-                    // diagnostics.
-                    declaration_diagnostics.push(diagnostic);
-                    None
+                match driver.build_info(command)? {
+                    Ok(document) => Some(document),
+                    Err(diagnostic) => {
+                        // tsgo emitBuildInfo's failure joins the emit's
+                        // diagnostics.
+                        declaration_diagnostics.push(diagnostic);
+                        None
+                    }
                 }
-            }
-        });
+            });
         let program_report = self.testing.then(|| driver.program_report()).flatten();
         let watch_state = driver.take_watch_state();
         sort_and_dedupe_diagnostics(&mut available_semantic);
@@ -4584,7 +4620,9 @@ fn emit_session_diagnostics(
     options.extend(programmatic_option_diagnostics(prepared));
     // The rows located in a source joined its semantic diagnostics in the
     // checker (include-processor diagnostics); the rest are options rows.
-    options.extend(program_rows_outside_sources(prepared));
+    if checked.syntactic_diagnostics.is_empty() {
+        options.extend(program_rows_outside_sources(prepared));
+    }
     // tsgo GetProgramDiagnostics: the content mapper rows.
     options.extend(preparation.content_mapper().iter().cloned());
     let mut semantic = checked
@@ -4905,24 +4943,26 @@ fn check_work_counters(checked: &CheckResult) -> NoEmitWorkCounters {
     }
 }
 
-/// The Program's own rows: the loader's rows and the resolution diagnostics.
-fn program_rows(prepared: &PreparedProgram) -> impl Iterator<Item = &Diagnostic> {
+fn resolution_rows(prepared: &PreparedProgram) -> impl Iterator<Item = &Diagnostic> {
     prepared
-        .diagnostics()
-        .program()
-        .iter()
-        .chain(
-            prepared
-                .resolutions()
-                .type_references()
-                .flat_map(|(_, resolution)| resolution.diagnostics()),
-        )
+        .resolutions()
+        .type_references()
+        .flat_map(|(_, resolution)| resolution.diagnostics())
         .chain(
             prepared
                 .resolutions()
                 .modules()
                 .flat_map(|(_, resolution)| resolution.diagnostics()),
         )
+}
+
+/// The Program's own rows: the loader's rows and the resolution diagnostics.
+fn program_rows(prepared: &PreparedProgram) -> impl Iterator<Item = &Diagnostic> {
+    prepared
+        .diagnostics()
+        .program()
+        .iter()
+        .chain(resolution_rows(prepared))
 }
 
 /// tsgo's include-processor diagnostics: the Program rows located in a
@@ -4940,21 +4980,34 @@ fn include_processor_rows(prepared: &PreparedProgram) -> Vec<(SourceFileId, Diag
         .collect()
 }
 
-/// The Program rows outside every prepared source: file-less rows and rows
-/// of the config or other auxiliary files, which are options diagnostics.
+fn program_row_is_outside_sources(prepared: &PreparedProgram, diagnostic: &Diagnostic) -> bool {
+    diagnostic.file_name.as_ref().is_none_or(|file_name| {
+        prepared_source_of_diagnostic(prepared, file_name.as_js()).is_none()
+    })
+}
+
+fn unmaterialized_program_rows(prepared: &PreparedProgram) -> impl Iterator<Item = &Diagnostic> {
+    prepared
+        .diagnostics()
+        .unmaterialized_program()
+        .iter()
+        .chain(resolution_rows(prepared))
+}
+
+fn has_program_rows_outside_sources(prepared: &PreparedProgram) -> bool {
+    unmaterialized_program_rows(prepared)
+        .any(|diagnostic| program_row_is_outside_sources(prepared, diagnostic))
+}
+
+/// GetProgramDiagnostics materializes every processing row before selecting
+/// the global ones (tsgo program.go:843-848).
 fn program_rows_outside_sources(prepared: &PreparedProgram) -> Vec<Diagnostic> {
     program_rows(prepared)
-        .filter(|diagnostic| {
-            diagnostic.file_name.as_ref().is_none_or(|file_name| {
-                prepared_source_of_diagnostic(prepared, file_name.as_js()).is_none()
-            })
-        })
+        .filter(|diagnostic| program_row_is_outside_sources(prepared, diagnostic))
         .cloned()
         .collect()
 }
 
-/// The prepared source whose display, canonical, alternate or real path
-/// names `file_name`.
 fn prepared_source_of_diagnostic(
     prepared: &PreparedProgram,
     file_name: JsStr<'_>,

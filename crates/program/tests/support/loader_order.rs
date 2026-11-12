@@ -59,11 +59,24 @@ pub fn load(fixture: &Fixture, workers: WorkerBudget, trace: bool) -> PreparedPr
 }
 
 pub fn fixture(name: &str) -> Fixture {
+    if name.starts_with("format_") {
+        return serde_json::from_str::<Vec<Fixture>>(include_str!(
+            "../fixtures/include-format.json"
+        ))
+        .expect("include-format fixture corpus")
+        .into_iter()
+        .find(|f| f.name == name)
+        .expect("named include-format fixture");
+    }
     let fixtures: Vec<Fixture> =
         serde_json::from_str(include_str!("../fixtures/loader-order.json"))
             .expect("fixture corpus");
+    let scan_fixtures: Vec<Fixture> =
+        serde_json::from_str(include_str!("../fixtures/import-scan.json"))
+            .expect("import scan corpus");
     fixtures
         .into_iter()
+        .chain(scan_fixtures)
         .find(|f| f.name == name)
         .expect("named fixture")
 }

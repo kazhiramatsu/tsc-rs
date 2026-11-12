@@ -24,6 +24,7 @@ fn check(name: &str) {
     for workers in [
         WorkerBudget::serial(),
         WorkerBudget::new(NonZeroUsize::new(4).unwrap()),
+        WorkerBudget::automatic(),
     ] {
         let program = corpus::load(&fixture, workers, false);
         let outcome = ProgramSession::new(program)
@@ -70,6 +71,17 @@ fn check(name: &str) {
 fn missing_directives() {
     check("missing_directives");
 }
+
+#[test]
+fn processing_diagnostic_redirect_and_format_cache() {
+    let fixtures: Vec<corpus::Fixture> = serde_json::from_str(include_str!(
+        "../../program/tests/fixtures/include-format.json"
+    ))
+    .unwrap();
+    for fixture in fixtures {
+        check(&fixture.name);
+    }
+}
 #[test]
 fn missing_roots_gate_directive_diagnostics() {
     check("missing_occurrences");
@@ -106,6 +118,7 @@ fn check_build_info(name: &str) {
     for workers in [
         WorkerBudget::serial(),
         WorkerBudget::new(NonZeroUsize::new(4).unwrap()),
+        WorkerBudget::automatic(),
     ] {
         let outcome = ProgramSession::new(corpus::load(&fixture, workers, false))
             .run_no_emit_command()
@@ -132,5 +145,28 @@ fn check_build_info(name: &str) {
             .map(|(key, value)| (key.clone(), value.clone()))
             .collect();
         assert_eq!(&actual, expected, "build-info ordering {workers:?}");
+    }
+}
+
+// Static outputs captured from tsgo aa8149273, including its trivia-hit quirk.
+#[test]
+fn raw_text_import_scan_occurrences() {
+    for name in [
+        "scan_reproducer",
+        "scan_two_trivia_hits",
+        "scan_three_trivia_hits",
+        "scan_callee_trivia",
+        "scan_argument_comment",
+        "scan_js_require",
+        "scan_static_comment",
+        "scan_nonliteral",
+        "scan_static_then_dynamic",
+        "scan_js_import_type",
+        "scan_js_eof_import_type",
+        "scan_js_import_declaration",
+        "scan_casing_reasons",
+        "scan_duplicate_name_reasons",
+    ] {
+        check(name);
     }
 }

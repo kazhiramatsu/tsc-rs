@@ -1,0 +1,675 @@
+[
+  {
+    "name": "scan_reproducer",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\ninterface Promise<T> {}\ndeclare var Promise: any;\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"incremental\":true,\"tsBuildInfoFile\":\"./state.tsbuildinfo\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "package.json": "{\"name\":\"scan-fixture\",\"type\":\"module\"}",
+      "main.ts": "// Dynamic import to avoid loading test code.\nimport('./dep.js').then(() => {});\n",
+      "dep.ts": "export interface Value {}\nexport const value = 1;\n"
+    },
+    "build_info": {
+      "root": [
+        1,
+        3
+      ],
+      "packageJsons": [
+        "./package.json"
+      ],
+      "fileNames": [
+        "./globals.d.ts",
+        "./dep.ts",
+        "./main.ts"
+      ],
+      "fileIdsList": [
+        [
+          2
+        ]
+      ],
+      "referencedMap": [
+        [
+          3,
+          1
+        ]
+      ]
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ndep.ts\n   Imported via './dep.js' from file 'main.ts'\n   Imported via './dep.js' from file 'main.ts'\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n",
+    "check_trace": false,
+    "trace_exclusion": "F2 occurrence resolver calls are a separate patch; the raw oracle is retained.",
+    "diagnostics": [
+      {
+        "file": "main.ts",
+        "line": 2,
+        "column": 20,
+        "code": 2339,
+        "message": "Property 'then' does not exist on type 'Promise<typeof import(\"/project/dep\")>'."
+      }
+    ]
+  },
+  {
+    "name": "scan_two_trivia_hits",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\ninterface Promise<T> {}\ndeclare var Promise: any;\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"incremental\":true,\"tsBuildInfoFile\":\"./state.tsbuildinfo\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "package.json": "{\"name\":\"scan-fixture\",\"type\":\"module\"}",
+      "main.ts": "// import require\nimport('./dep.js');\n",
+      "dep.ts": "export interface Value {}\nexport const value = 1;\n"
+    },
+    "build_info": {
+      "root": [
+        1,
+        3
+      ],
+      "packageJsons": [
+        "./package.json"
+      ],
+      "fileNames": [
+        "./globals.d.ts",
+        "./dep.ts",
+        "./main.ts"
+      ],
+      "fileIdsList": [
+        [
+          2
+        ]
+      ],
+      "referencedMap": [
+        [
+          3,
+          1
+        ]
+      ]
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ndep.ts\n   Imported via './dep.js' from file 'main.ts'\n   Imported via './dep.js' from file 'main.ts'\n   Imported via './dep.js' from file 'main.ts'\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n",
+    "check_trace": false,
+    "trace_exclusion": "F2 occurrence resolver calls are a separate patch; the raw oracle is retained.",
+    "diagnostics": []
+  },
+  {
+    "name": "scan_three_trivia_hits",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\ninterface Promise<T> {}\ndeclare var Promise: any;\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"incremental\":true,\"tsBuildInfoFile\":\"./state.tsbuildinfo\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "package.json": "{\"name\":\"scan-fixture\",\"type\":\"module\"}",
+      "main.ts": "// import require import\nimport('./dep.js');\n",
+      "dep.ts": "export interface Value {}\nexport const value = 1;\n"
+    },
+    "build_info": {
+      "root": [
+        1,
+        3
+      ],
+      "packageJsons": [
+        "./package.json"
+      ],
+      "fileNames": [
+        "./globals.d.ts",
+        "./dep.ts",
+        "./main.ts"
+      ],
+      "fileIdsList": [
+        [
+          2
+        ]
+      ],
+      "referencedMap": [
+        [
+          3,
+          1
+        ]
+      ]
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ndep.ts\n   Imported via './dep.js' from file 'main.ts'\n   Imported via './dep.js' from file 'main.ts'\n   Imported via './dep.js' from file 'main.ts'\n   Imported via './dep.js' from file 'main.ts'\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n",
+    "check_trace": false,
+    "trace_exclusion": "F2 occurrence resolver calls are a separate patch; the raw oracle is retained.",
+    "diagnostics": []
+  },
+  {
+    "name": "scan_callee_trivia",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\ninterface Promise<T> {}\ndeclare var Promise: any;\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"incremental\":true,\"tsBuildInfoFile\":\"./state.tsbuildinfo\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "package.json": "{\"name\":\"scan-fixture\",\"type\":\"module\"}",
+      "main.ts": "import /* import require */ ('./dep.js');\n",
+      "dep.ts": "export interface Value {}\nexport const value = 1;\n"
+    },
+    "build_info": {
+      "root": [
+        1,
+        3
+      ],
+      "packageJsons": [
+        "./package.json"
+      ],
+      "fileNames": [
+        "./globals.d.ts",
+        "./dep.ts",
+        "./main.ts"
+      ],
+      "fileIdsList": [
+        [
+          2
+        ]
+      ],
+      "referencedMap": [
+        [
+          3,
+          1
+        ]
+      ]
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ndep.ts\n   Imported via './dep.js' from file 'main.ts'\n   Imported via './dep.js' from file 'main.ts'\n   Imported via './dep.js' from file 'main.ts'\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n",
+    "check_trace": false,
+    "trace_exclusion": "F2 occurrence resolver calls are a separate patch; the raw oracle is retained.",
+    "diagnostics": []
+  },
+  {
+    "name": "scan_argument_comment",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\ninterface Promise<T> {}\ndeclare var Promise: any;\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"incremental\":true,\"tsBuildInfoFile\":\"./state.tsbuildinfo\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "package.json": "{\"name\":\"scan-fixture\",\"type\":\"module\"}",
+      "main.ts": "import(/* import require import */ './dep.js');\n",
+      "dep.ts": "export interface Value {}\nexport const value = 1;\n"
+    },
+    "build_info": {
+      "root": [
+        1,
+        3
+      ],
+      "packageJsons": [
+        "./package.json"
+      ],
+      "fileNames": [
+        "./globals.d.ts",
+        "./dep.ts",
+        "./main.ts"
+      ],
+      "fileIdsList": [
+        [
+          2
+        ]
+      ],
+      "referencedMap": [
+        [
+          3,
+          1
+        ]
+      ]
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ndep.ts\n   Imported via './dep.js' from file 'main.ts'\n   Imported via './dep.js' from file 'main.ts'\n   Imported via './dep.js' from file 'main.ts'\n   Imported via './dep.js' from file 'main.ts'\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n",
+    "check_trace": false,
+    "trace_exclusion": "F2 occurrence resolver calls are a separate patch; the raw oracle is retained.",
+    "diagnostics": []
+  },
+  {
+    "name": "scan_js_require",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\ninterface Promise<T> {}\ndeclare var Promise: any;\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"incremental\":true,\"tsBuildInfoFile\":\"./state.tsbuildinfo\",\"allowJs\":true,\"checkJs\":true},\"files\":[\"globals.d.ts\",\"main.js\"]}",
+      "package.json": "{\"name\":\"scan-fixture\",\"type\":\"module\"}",
+      "main.js": "// require import\nrequire(/* require */ './dep.js');\n",
+      "dep.ts": "export interface Value {}\nexport const value = 1;\n"
+    },
+    "build_info": {
+      "root": [
+        1,
+        3
+      ],
+      "packageJsons": [
+        "./package.json"
+      ],
+      "fileNames": [
+        "./globals.d.ts",
+        "./dep.ts",
+        "./main.js"
+      ]
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/dep.ts",
+      "/project/main.js"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ndep.ts\n   Imported via './dep.js' from file 'main.js'\n   Imported via './dep.js' from file 'main.js'\n   Imported via './dep.js' from file 'main.js'\n   Imported via './dep.js' from file 'main.js'\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.js\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "======== Resolving module './dep.js' from '/project/main.js'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in CJS mode with conditions 'require', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.js'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in CJS mode with conditions 'require', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.js'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in CJS mode with conditions 'require', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.js'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in CJS mode with conditions 'require', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n",
+    "check_trace": false,
+    "trace_exclusion": "F2 occurrence resolver calls are a separate patch; the raw oracle is retained.",
+    "diagnostics": []
+  },
+  {
+    "name": "scan_static_comment",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\ninterface Promise<T> {}\ndeclare var Promise: any;\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"incremental\":true,\"tsBuildInfoFile\":\"./state.tsbuildinfo\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "package.json": "{\"name\":\"scan-fixture\",\"type\":\"module\"}",
+      "main.ts": "// import import require\nimport './dep.js';\n",
+      "dep.ts": "export interface Value {}\nexport const value = 1;\n"
+    },
+    "build_info": {
+      "root": [
+        1,
+        3
+      ],
+      "packageJsons": [
+        "./package.json"
+      ],
+      "fileNames": [
+        "./globals.d.ts",
+        "./dep.ts",
+        "./main.ts"
+      ],
+      "fileIdsList": [
+        [
+          2
+        ]
+      ],
+      "referencedMap": [
+        [
+          3,
+          1
+        ]
+      ]
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ndep.ts\n   Imported via './dep.js' from file 'main.ts'\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n",
+    "check_trace": false,
+    "trace_exclusion": "F2 occurrence resolver calls are a separate patch; the raw oracle is retained.",
+    "diagnostics": []
+  },
+  {
+    "name": "scan_nonliteral",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\ninterface Promise<T> {}\ndeclare var Promise: any;\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"incremental\":true,\"tsBuildInfoFile\":\"./state.tsbuildinfo\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "package.json": "{\"name\":\"scan-fixture\",\"type\":\"module\"}",
+      "main.ts": "declare const name: string;\n// import require\nimport(/* import */ name);\n",
+      "dep.ts": "export interface Value {}\nexport const value = 1;\n"
+    },
+    "build_info": {
+      "root": [
+        [
+          1,
+          2
+        ]
+      ],
+      "packageJsons": [
+        "./package.json"
+      ],
+      "fileNames": [
+        "./globals.d.ts",
+        "./main.ts"
+      ]
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "\n",
+    "check_trace": false,
+    "trace_exclusion": "F2 occurrence resolver calls are a separate patch; the raw oracle is retained.",
+    "diagnostics": []
+  },
+  {
+    "name": "scan_static_then_dynamic",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\ninterface Promise<T> {}\ndeclare var Promise: any;\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"incremental\":true,\"tsBuildInfoFile\":\"./state.tsbuildinfo\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "package.json": "{\"name\":\"scan-fixture\",\"type\":\"module\"}",
+      "main.ts": "// import\nimport('./dep.js');\nimport './static.js';\n",
+      "dep.ts": "export interface Value {}\nexport const value = 1;\n",
+      "static.ts": "export {};\n"
+    },
+    "build_info": {
+      "root": [
+        1,
+        4
+      ],
+      "packageJsons": [
+        "./package.json"
+      ],
+      "fileNames": [
+        "./globals.d.ts",
+        "./static.ts",
+        "./dep.ts",
+        "./main.ts"
+      ],
+      "fileIdsList": [
+        [
+          2,
+          3
+        ]
+      ],
+      "referencedMap": [
+        [
+          4,
+          1
+        ]
+      ]
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/static.ts",
+      "/project/dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nstatic.ts\n   Imported via './static.js' from file 'main.ts'\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\ndep.ts\n   Imported via './dep.js' from file 'main.ts'\n   Imported via './dep.js' from file 'main.ts'\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "======== Resolving module './static.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/static.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/static.js' has a '.js' extension - stripping it.\nFile '/project/static.ts' exists - use it as a name resolution result.\n======== Module name './static.js' was successfully resolved to '/project/static.ts'. ========\n======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n",
+    "check_trace": false,
+    "trace_exclusion": "F2 occurrence resolver calls are a separate patch; the raw oracle is retained.",
+    "diagnostics": []
+  },
+  {
+    "name": "scan_js_import_type",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\ninterface Promise<T> {}\ndeclare var Promise: any;\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"incremental\":true,\"tsBuildInfoFile\":\"./state.tsbuildinfo\",\"allowJs\":true,\"checkJs\":true},\"files\":[\"globals.d.ts\",\"main.js\"]}",
+      "package.json": "{\"name\":\"scan-fixture\",\"type\":\"module\"}",
+      "main.js": "/** import import\n * @type {import('./dep.js').Value} */\nlet value;\n",
+      "dep.ts": "export interface Value {}\nexport const value = 1;\n"
+    },
+    "build_info": {
+      "root": [
+        1,
+        3
+      ],
+      "packageJsons": [
+        "./package.json"
+      ],
+      "fileNames": [
+        "./globals.d.ts",
+        "./dep.ts",
+        "./main.js"
+      ],
+      "fileIdsList": [
+        [
+          2
+        ]
+      ],
+      "referencedMap": [
+        [
+          3,
+          1
+        ]
+      ]
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/dep.ts",
+      "/project/main.js"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ndep.ts\n   Imported via './dep.js' from file 'main.js'\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.js\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "======== Resolving module './dep.js' from '/project/main.js'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n",
+    "check_trace": false,
+    "trace_exclusion": "F2 occurrence resolver calls are a separate patch; the raw oracle is retained.",
+    "diagnostics": []
+  },
+  {
+    "name": "scan_js_eof_import_type",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\ninterface Promise<T> {}\ndeclare var Promise: any;\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"incremental\":true,\"tsBuildInfoFile\":\"./state.tsbuildinfo\",\"allowJs\":true,\"checkJs\":true},\"files\":[\"globals.d.ts\",\"main.js\"]}",
+      "package.json": "{\"name\":\"scan-fixture\",\"type\":\"module\"}",
+      "main.js": "/** @typedef {import('./dep.js').Value} Value */\n",
+      "dep.ts": "export interface Value {}\nexport const value = 1;\n"
+    },
+    "build_info": {
+      "root": [
+        1,
+        3
+      ],
+      "packageJsons": [
+        "./package.json"
+      ],
+      "fileNames": [
+        "./globals.d.ts",
+        "./dep.ts",
+        "./main.js"
+      ],
+      "fileIdsList": [
+        [
+          2
+        ]
+      ],
+      "referencedMap": [
+        [
+          3,
+          1
+        ]
+      ]
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/dep.ts",
+      "/project/main.js"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ndep.ts\n   Imported via './dep.js' from file 'main.js'\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.js\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "======== Resolving module './dep.js' from '/project/main.js'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n",
+    "check_trace": false,
+    "trace_exclusion": "F2 occurrence resolver calls are a separate patch; the raw oracle is retained.",
+    "diagnostics": []
+  },
+  {
+    "name": "scan_js_import_declaration",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\ninterface Promise<T> {}\ndeclare var Promise: any;\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"incremental\":true,\"tsBuildInfoFile\":\"./state.tsbuildinfo\",\"allowJs\":true,\"checkJs\":true},\"files\":[\"globals.d.ts\",\"main.js\"]}",
+      "package.json": "{\"name\":\"scan-fixture\",\"type\":\"module\"}",
+      "main.js": "/** @import { Value } from './dep.js' */\nimport './static.js';\n// import\nimport('./dep.js');\n",
+      "dep.ts": "export interface Value {}\nexport const value = 1;\n",
+      "static.ts": "export {};\n"
+    },
+    "build_info": {
+      "root": [
+        1,
+        4
+      ],
+      "packageJsons": [
+        "./package.json"
+      ],
+      "fileNames": [
+        "./globals.d.ts",
+        "./dep.ts",
+        "./static.ts",
+        "./main.js"
+      ],
+      "fileIdsList": [
+        [
+          2,
+          3
+        ]
+      ],
+      "referencedMap": [
+        [
+          4,
+          1
+        ]
+      ]
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/dep.ts",
+      "/project/static.ts",
+      "/project/main.js"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ndep.ts\n   Imported via './dep.js' from file 'main.js'\n   Imported via './dep.js' from file 'main.js'\n   Imported via './dep.js' from file 'main.js'\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nstatic.ts\n   Imported via './static.js' from file 'main.js'\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nmain.js\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "======== Resolving module './dep.js' from '/project/main.js'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './static.js' from '/project/main.js'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/static.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/static.js' has a '.js' extension - stripping it.\nFile '/project/static.ts' exists - use it as a name resolution result.\n======== Module name './static.js' was successfully resolved to '/project/static.ts'. ========\n======== Resolving module './dep.js' from '/project/main.js'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.js'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n",
+    "check_trace": false,
+    "trace_exclusion": "F2 occurrence resolver calls are a separate patch; the raw oracle is retained.",
+    "diagnostics": []
+  },
+  {
+    "name": "scan_casing_reasons",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\ninterface Promise<T> {}\ndeclare var Promise: any;\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"incremental\":true,\"tsBuildInfoFile\":\"./state.tsbuildinfo\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}",
+      "package.json": "{\"name\":\"scan-fixture\",\"type\":\"module\"}",
+      "main.ts": "import './Dep.js';\n// import require\nimport('./dep.js');\n",
+      "dep.ts": "export interface Value {}\nexport const value = 1;\n"
+    },
+    "build_info": {
+      "root": [
+        [
+          1,
+          3
+        ]
+      ],
+      "packageJsons": [
+        "./package.json"
+      ],
+      "fileNames": [
+        "./globals.d.ts",
+        "./dep.ts",
+        "./main.ts"
+      ],
+      "fileIdsList": [
+        [
+          2
+        ]
+      ],
+      "referencedMap": [
+        [
+          3,
+          1
+        ]
+      ]
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/Dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Imported via './dep.js' from file 'main.ts'\n   Imported via './dep.js' from file 'main.ts'\n   Imported via './dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "======== Resolving module './Dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/Dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/Dep.js' has a '.js' extension - stripping it.\nFile '/project/Dep.ts' exists - use it as a name resolution result.\n======== Module name './Dep.js' was successfully resolved to '/project/Dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n",
+    "check_trace": false,
+    "trace_exclusion": "F2 occurrence resolver calls are a separate patch; the raw oracle is retained.",
+    "diagnostics": [
+      {
+        "file": "main.ts",
+        "line": 1,
+        "column": 8,
+        "code": 1261,
+        "message": "Already included file name '/project/Dep.ts' differs from file name '/project/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/project/main.ts'\n    Imported via './dep.js' from file '/project/main.ts'\n    Imported via './dep.js' from file '/project/main.ts'\n    Imported via './dep.js' from file '/project/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\""
+      },
+      {
+        "file": "main.ts",
+        "line": 3,
+        "column": 8,
+        "code": 1149,
+        "message": "File name '/project/dep.ts' differs from already included file name '/project/Dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/project/main.ts'\n    Imported via './dep.js' from file '/project/main.ts'\n    Imported via './dep.js' from file '/project/main.ts'\n    Imported via './dep.js' from file '/project/main.ts'\n    Part of 'files' list in tsconfig.json\n  File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\""
+      }
+    ]
+  },
+  {
+    "name": "scan_duplicate_name_reasons",
+    "case_sensitive": false,
+    "files": {
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\ninterface Promise<T> {}\ndeclare var Promise: any;\n",
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\",\"incremental\":true,\"tsBuildInfoFile\":\"./state.tsbuildinfo\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"other.ts\"]}",
+      "package.json": "{\"name\":\"scan-fixture\",\"type\":\"module\"}",
+      "main.ts": "// import require\nimport('./Dep.js');\n",
+      "dep.ts": "export interface Value {}\nexport const value = 1;\n",
+      "other.ts": "import './dep.js';\n"
+    },
+    "build_info": {
+      "root": [
+        1,
+        [
+          3,
+          4
+        ]
+      ],
+      "packageJsons": [
+        "./package.json"
+      ],
+      "fileNames": [
+        "./globals.d.ts",
+        "./dep.ts",
+        "./main.ts",
+        "./other.ts"
+      ],
+      "fileIdsList": [
+        [
+          2
+        ]
+      ],
+      "referencedMap": [
+        [
+          3,
+          1
+        ],
+        [
+          4,
+          1
+        ]
+      ]
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/Dep.ts",
+      "/project/main.ts",
+      "/project/other.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Imported via './Dep.js' from file 'main.ts'\n   Imported via './Dep.js' from file 'main.ts'\n   Imported via './dep.js' from file 'other.ts'\n   File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\"\nmain.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\nother.ts\n   Part of 'files' list in tsconfig.json\n   File is ECMAScript module because 'package.json' has field \"type\" with value \"module\"\n",
+    "trace": "======== Resolving module './Dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/Dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/Dep.js' has a '.js' extension - stripping it.\nFile '/project/Dep.ts' exists - use it as a name resolution result.\n======== Module name './Dep.js' was successfully resolved to '/project/Dep.ts'. ========\n======== Resolving module './Dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/Dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/Dep.js' has a '.js' extension - stripping it.\nFile '/project/Dep.ts' exists - use it as a name resolution result.\n======== Module name './Dep.js' was successfully resolved to '/project/Dep.ts'. ========\n======== Resolving module './Dep.js' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/Dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/Dep.js' has a '.js' extension - stripping it.\nFile '/project/Dep.ts' exists - use it as a name resolution result.\n======== Module name './Dep.js' was successfully resolved to '/project/Dep.ts'. ========\n======== Resolving module './dep.js' from '/project/other.ts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/dep.js', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile name '/project/dep.js' has a '.js' extension - stripping it.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep.js' was successfully resolved to '/project/dep.ts'. ========\n",
+    "check_trace": false,
+    "trace_exclusion": "F2 occurrence resolver calls are a separate patch; the raw oracle is retained.",
+    "diagnostics": [
+      {
+        "file": "other.ts",
+        "line": 1,
+        "column": 8,
+        "code": 1149,
+        "message": "File name '/project/dep.ts' differs from already included file name '/project/Dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/project/main.ts'\n    Imported via './Dep.js' from file '/project/main.ts'\n    Imported via './Dep.js' from file '/project/main.ts'\n    Imported via './dep.js' from file '/project/other.ts'\n  File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\""
+      }
+    ]
+  }
+]

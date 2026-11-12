@@ -812,45 +812,50 @@ fn source_file_count_limit_accepts_the_boundary_and_rejects_one_more() {
 
 #[test]
 fn request_edge_limit_counts_duplicate_import_occurrences_before_deduplication() {
-    let host = MemoryCompilerHost::builder("/work")
-        .file(
-            "/work/a.ts",
-            b"import './b';\nimport './b';\nexport {};".to_vec(),
-        )
-        .file("/work/b.ts", b"export {};".to_vec())
-        .build()
-        .expect("build memory host");
+    // Both inventories have two occurrences in tsgo: distinct static imports,
+    // or two raw-text hits selecting one dynamic call (F4's scan_reproducer).
+    let sources: [&[u8]; 2] = [
+        b"import './b';\nimport './b';\nexport {};",
+        b"// import\nimport('./b');\nexport {};",
+    ];
+    for text in sources {
+        let host = MemoryCompilerHost::builder("/work")
+            .file("/work/a.ts", text.to_vec())
+            .file("/work/b.ts", b"export {};".to_vec())
+            .build()
+            .expect("build memory host");
 
-    load(
-        &host,
-        &["/work/a.ts"],
-        limits(
-            GENEROUS_LIMIT,
-            2,
-            GENEROUS_LIMIT,
-            GENEROUS_LIMIT,
-            GENEROUS_LIMIT,
-        ),
-    )
-    .expect("two import occurrences fit a two-edge limit");
-    let error = load(
-        &host,
-        &["/work/a.ts"],
-        limits(
-            GENEROUS_LIMIT,
+        load(
+            &host,
+            &["/work/a.ts"],
+            limits(
+                GENEROUS_LIMIT,
+                2,
+                GENEROUS_LIMIT,
+                GENEROUS_LIMIT,
+                GENEROUS_LIMIT,
+            ),
+        )
+        .expect("two import occurrences fit a two-edge limit");
+        let error = load(
+            &host,
+            &["/work/a.ts"],
+            limits(
+                GENEROUS_LIMIT,
+                1,
+                GENEROUS_LIMIT,
+                GENEROUS_LIMIT,
+                GENEROUS_LIMIT,
+            ),
+        );
+        assert_limit_error(
+            error.expect_err("the duplicate import occurrence exceeds a one-edge limit"),
+            ProgramLoadLimit::RequestEdges,
+            Path::new("/work/a.ts"),
             1,
-            GENEROUS_LIMIT,
-            GENEROUS_LIMIT,
-            GENEROUS_LIMIT,
-        ),
-    );
-    assert_limit_error(
-        error.expect_err("the duplicate import occurrence exceeds a one-edge limit"),
-        ProgramLoadLimit::RequestEdges,
-        Path::new("/work/a.ts"),
-        1,
-        2,
-    );
+            2,
+        );
+    }
 }
 
 #[test]

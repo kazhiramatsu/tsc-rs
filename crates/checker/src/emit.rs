@@ -120,6 +120,17 @@ impl<'program> CheckerSession<'program> {
             return Ok((diagnostics.clone(), state.partial_check_records.clone()));
         }
         let files = state.binder.file_ids().collect::<Vec<_>>();
+        // GetIncludeProcessorDiagnostics skips files excluded from checking;
+        // an all-skipped semantic request never consumes the include processor.
+        if files
+            .iter()
+            .any(|&file| !state.skip_type_checking_file(file))
+        {
+            context
+                .preparation
+                .extend(crate::include_processor_diagnostics_of_state(&state));
+            tsc_diagnostics::sort_and_dedupe_diagnostics(&mut context.preparation);
+        }
         let mut new_globals = vec![Vec::new(); files.len()];
         for file in &files {
             if state.skip_type_checking_file(*file) {

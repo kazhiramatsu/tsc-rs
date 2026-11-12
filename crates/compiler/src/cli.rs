@@ -1705,10 +1705,10 @@ fn execute_prepared(
             mode,
         );
     }
+    let prepared = Arc::new(prepared);
     let session_started = std::time::Instant::now();
     let list_emitted_files = prepared.compiler_options().list_emitted_files == Some(true);
     let list_files_only = prepared.compiler_options().list_files_only == Some(true);
-    let listing = listing_lines(&prepared, current_directory);
     let package_json_lookups = package_json_lookup_paths(&prepared);
     // tsc emitFilesAndReportErrors (_tsc.js:129433-129440): a --noEmit
     // command with getEmitDeclarations(options) reports the declaration
@@ -1718,7 +1718,7 @@ fn execute_prepared(
     // (`ProgramSession::run_no_emit_command`).
     // Only a run after which the process exits leaves its program and
     // checker states behind (`ProjectRunMode::leak`).
-    let session = ProgramSession::new(prepared)
+    let session = ProgramSession::new(Arc::clone(&prepared))
         .with_worker_budget(route.worker_budget())
         .with_checker_budget(route.checker_budget().with_leaked_states(mode.leak))
         .with_leaked_program(mode.leak)
@@ -1829,7 +1829,7 @@ fn execute_prepared(
         .testing
         .map(|testing| testing.on_emitted_files(&emitted_files))
         .unwrap_or_default();
-    status_writes.extend(listing);
+    status_writes.extend(listing_lines(&prepared, current_directory));
     let status_writes = between_list_file_markers(route, status_writes);
     let work_counters = outcome.work_counters();
     let render_started = std::time::Instant::now();
@@ -1969,6 +1969,7 @@ fn execute_emitting_prepared(
     old_build_info: Option<OldState>,
     mode: ProjectRunMode,
 ) -> Result<BuildProjectRun, CliError> {
+    let prepared = Arc::new(prepared);
     // The real filesystem is stateless: its artifacts are written on the
     // worker budget; an injected (observing) filesystem keeps ordered writes.
     let write_workers = route.worker_budget().max_workers();
@@ -1989,10 +1990,9 @@ fn execute_emitting_prepared(
             &mut ordered_sink
         };
     let list_emitted_files = prepared.compiler_options().list_emitted_files == Some(true);
-    let listing = listing_lines(&prepared, current_directory);
     let package_json_lookups = package_json_lookup_paths(&prepared);
     let session_started = std::time::Instant::now();
-    let mut outcome = ProgramSession::new(prepared)
+    let mut outcome = ProgramSession::new(Arc::clone(&prepared))
         .with_worker_budget(worker_budget)
         .with_checker_budget(checker_budget)
         .with_leaked_program(mode.leak)
@@ -2017,7 +2017,7 @@ fn execute_emitting_prepared(
         .into();
     let (mut status_writes, exit_code) =
         emit_command_status(cwd, &emit, &diagnostics, list_emitted_files);
-    status_writes.extend(listing);
+    status_writes.extend(listing_lines(&prepared, current_directory));
     let status_writes = between_list_file_markers(route, status_writes);
     let emitted_files = emit
         .emitted_files()

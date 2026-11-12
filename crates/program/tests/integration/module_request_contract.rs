@@ -341,7 +341,7 @@ fn type_only_exports_take_the_resolution_mode_attribute_like_type_only_imports()
 }
 
 #[test]
-fn jsdoc_imports_retain_source_order_and_exact_resolution_mode_keys() {
+fn jsdoc_import_declarations_precede_scan_hits_with_exact_resolution_mode_keys() {
     let source = source_at(
         "/a.js",
         concat!(
@@ -371,8 +371,8 @@ fn jsdoc_imports_retain_source_order_and_exact_resolution_mode_keys() {
             ))
             .collect::<Vec<_>>(),
         [
-            ("after-jsdoc", ResolutionMode::CommonJs),
             ("foo", ResolutionMode::EsNext),
+            ("after-jsdoc", ResolutionMode::CommonJs),
             ("foo", ResolutionMode::CommonJs),
             ("fallback", ResolutionMode::CommonJs),
         ]
@@ -1776,5 +1776,5 @@ fn checker_import_count_matches_tsgos_text_scan_inside_argument_trivia() {
     );
     let plan = plan_source_requests(&input, &node_options()).unwrap();
     assert_eq!(plan.import_count(), 2);
-    assert_eq!(plan.module_request_occurrences().len(), 1);
+    assert_eq!(plan.module_request_occurrences().len(), 2);
 }

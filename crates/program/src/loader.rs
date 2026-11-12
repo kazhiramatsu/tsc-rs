@@ -2618,6 +2618,7 @@ struct CompleteGraph {
     /// The deduplicated package copies: path, owner, program index and the
     /// copy's own include reasons (see `PackageRedirectFile`).
     package_redirect_files: Vec<(ProgramPath, usize, usize, Vec<SourceInclusionReason>)>,
+    processing_details: Vec<crate::prepared::ProcessingDiagnosticDetails>,
     /// The `--traceResolution` lines, in replay order.
     resolution_trace: Vec<String>,
     /// See `PreparedProgram::import_extension_files`.
@@ -4420,6 +4421,26 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     crate::resolution::TypeReferenceResolutionOrigin::Automatic(_) => true,
                 });
         }
+        let mut processing_details = Vec::new();
+        let diagnostic_details = |index: usize| {
+            let source = &self.sources[index].prepared;
+            (
+                source.path().canonical().clone(),
+                redirect_and_format_details(
+                    source,
+                    redirect_targets
+                        .get(&index)
+                        .map(|&target| self.sources[target].prepared.path().display()),
+                    source.package_scope().and_then(|key| {
+                        self.resolver
+                            .observed_package_metadata()
+                            .find(|package| package.package_json().canonical() == key)
+                    }),
+                    self.compiler_options,
+                    &same_file_name,
+                ),
+            )
+        };
         if self
             .compiler_options
             .force_consistent_casing_in_file_names_effective()
@@ -4429,22 +4450,33 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 .iter()
                 .enumerate()
                 .filter(|(source, _)| kept[*source])
-                .flat_map(|(_, source)| {
+                .flat_map(|(source_index, source)| {
                     source
                         .alternate_inclusion_reasons
                         .iter()
                         .map(|(alias, reason)| {
-                            casing_alias_diagnostic(
-                                &source.prepared,
-                                alias.as_js(),
-                                &source.inclusion_reasons,
-                                &reason.materialize(&reason_sources),
-                                self.program_options.config_file(),
+                            (
+                                casing_alias_diagnostic(
+                                    &source.prepared,
+                                    alias.as_js(),
+                                    &source.inclusion_reasons,
+                                    &reason.materialize(&reason_sources),
+                                    self.program_options.config_file(),
+                                ),
+                                diagnostic_details(source_index),
                             )
                         })
+                        .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>();
-            self.program_diagnostics.extend(casing_diagnostics);
+            for (diagnostic, (path, details)) in casing_diagnostics {
+                processing_details.push(crate::prepared::ProcessingDiagnosticDetails {
+                    index: self.program_diagnostics.len(),
+                    path,
+                    details,
+                });
+                self.program_diagnostics.push(diagnostic);
+            }
         }
         // On a case-sensitive host tsc keeps distinct physical spellings in
         // `filesByName` and independently checks them through
@@ -4456,21 +4488,37 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             .iter()
             .map(|conflict| {
                 let existing = &self.sources[conflict.existing_source];
-                casing_distinct_file_diagnostic(
-                    &existing.prepared,
-                    conflict.incoming_path.as_js(),
-                    &existing.inclusion_reasons,
-                    &conflict.incoming_reason.materialize(&reason_sources),
-                    self.program_options.config_file(),
+                (
+                    casing_distinct_file_diagnostic(
+                        &existing.prepared,
+                        conflict.incoming_path.as_js(),
+                        &existing.inclusion_reasons,
+                        &conflict.incoming_reason.materialize(&reason_sources),
+                        self.program_options.config_file(),
+                    ),
+                    diagnostic_details(conflict.existing_source),
                 )
             })
             .collect::<Vec<_>>();
-        self.program_diagnostics
-            .extend(case_sensitive_casing_diagnostics);
+        for (diagnostic, (path, details)) in case_sensitive_casing_diagnostics {
+            processing_details.push(crate::prepared::ProcessingDiagnosticDetails {
+                index: self.program_diagnostics.len(),
+                path,
+                details,
+            });
+            self.program_diagnostics.push(diagnostic);
+        }
         let (option_diagnostics, root_diagnostics) = self.output_directory_diagnostics();
         let (reference_diagnostics, build_info_emit_blocked) = self.project_reference_diagnostics();
         self.program_diagnostics.extend(reference_diagnostics);
-        self.program_diagnostics.extend(root_diagnostics);
+        for (diagnostic, (path, details)) in root_diagnostics {
+            processing_details.push(crate::prepared::ProcessingDiagnosticDetails {
+                index: self.program_diagnostics.len(),
+                path,
+                details,
+            });
+            self.program_diagnostics.push(diagnostic);
+        }
         let mut library_postorder = collected
             .order
             .iter()
@@ -4521,6 +4569,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             resolution_trace: self.resolution_trace,
             import_extension_files: self.import_extension_files,
             build_info_emit_blocked,
+            processing_details,
         })
     }
 
@@ -4662,7 +4711,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// tsc-span: _tsc.js:124639-124657
     /// Root diagnostics join the Program collection; its consumers select
     /// fileless option diagnostics and source-owned semantic diagnostics.
-    fn output_directory_diagnostics(&self) -> (Vec<Diagnostic>, Vec<Diagnostic>) {
+    fn output_directory_diagnostics(&self) -> (Vec<Diagnostic>, Vec<ExplainingFileDiagnostic>) {
         use crate::output_directories::{
             canonical_emit_path, common_source_directory, directory_relative_to_config,
             inferred_common_source_directory, source_file_may_be_emitted_for_options,
@@ -7799,7 +7848,8 @@ fn publish_program(
             staged.option_diagnostics,
             staged.program_diagnostics,
         )
-        .with_content_mapper(staged.content_mapper_diagnostics),
+        .with_content_mapper(staged.content_mapper_diagnostics)
+        .with_processing_details(staged.processing_details),
     );
     builder.finish_load(loaded_modules).map_err(|error| {
         ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
@@ -8551,13 +8601,15 @@ fn append_output_option_diagnostic(
 
 /// The rootDir violation of `source` (tsc checkSourceFilesBelongToPath),
 /// explained like every program diagnostic about a file.
+type ExplainingFileDiagnostic = (Diagnostic, (CanonicalPath, Vec<MessageChain>));
+
 fn root_directory_diagnostic(
     source: &StagedSource,
     root: JsStr<'_>,
     config: Option<&ProgramConfigFile>,
     options: &CompilerOptions,
     package: Option<&PackageMetadata>,
-) -> Diagnostic {
+) -> ExplainingFileDiagnostic {
     explaining_file_diagnostic(
         source,
         MessageChain::new_js_parts(
@@ -8578,7 +8630,7 @@ fn file_list_diagnostic(
     config: Option<&ProgramConfigFile>,
     options: &CompilerOptions,
     package: Option<&PackageMetadata>,
-) -> Diagnostic {
+) -> ExplainingFileDiagnostic {
     explaining_file_diagnostic(
         source,
         MessageChain::new_js_parts(
@@ -8600,7 +8652,7 @@ fn explaining_file_diagnostic(
     config: Option<&ProgramConfigFile>,
     options: &CompilerOptions,
     package: Option<&PackageMetadata>,
-) -> Diagnostic {
+) -> ExplainingFileDiagnostic {
     let reasons = &source.inclusion_reasons;
     let located = reasons.iter().enumerate().find_map(|(index, reason)| {
         source_inclusion_location(reason).map(|location| (index, location))
@@ -8618,12 +8670,8 @@ fn explaining_file_diagnostic(
         )
         .without_location()]);
     }
-    if let Some(detail) =
-        root_module_format_detail(&source.prepared, package, options, &same_file_name)
-    {
-        message.next_present = true;
-        message.next.push(detail.without_location());
-    }
+    let details =
+        redirect_and_format_details(&source.prepared, None, package, options, &same_file_name);
     let (file, start, length) =
         located
             .as_ref()
@@ -8647,7 +8695,37 @@ fn explaining_file_diagnostic(
         }
     }
     diagnostic.related_information_present = !diagnostic.related.is_empty();
-    diagnostic
+    (
+        diagnostic,
+        (source.prepared.path().canonical().clone(), details),
+    )
+}
+
+/// tsgo includeprocessor.go:149-182: project output, package redirect, then
+/// (only for a source rather than a redirect) its implied module format.
+fn redirect_and_format_details(
+    source: &PreparedSourceFile,
+    redirect: Option<JsStr<'_>>,
+    package: Option<&PackageMetadata>,
+    options: &CompilerOptions,
+    to_file_name: &dyn Fn(JsStr<'_>) -> JsString,
+) -> Vec<MessageChain> {
+    let mut details = Vec::new();
+    if let Some(origin) = source.project_reference_source_paths().last() {
+        details.push(MessageChain::new_js(
+            &gen::File_is_output_of_project_reference_source_0,
+            &[to_file_name(origin.display())],
+        ));
+    }
+    if let Some(target) = redirect {
+        details.push(MessageChain::new_js(
+            &gen::File_redirects_to_file_0,
+            &[to_file_name(target)],
+        ));
+    } else if let Some(detail) = root_module_format_detail(source, package, options, to_file_name) {
+        details.push(detail);
+    }
+    details
 }
 
 /// tsc-port: explainIfFileIsRedirectAndImpliedFormat @6.0.3 (module-format branch)
@@ -8766,6 +8844,7 @@ fn root_inclusion_related_information(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn casing_diagnostic(
     existing: &PreparedSourceFile,
     incoming: JsStr<'_>,
@@ -8797,18 +8876,14 @@ fn casing_diagnostic(
     if !incoming_reason_is_recorded_on_existing {
         all_reasons.push(incoming_reason);
     }
-    let mut reasons = all_reasons
+    let reasons = all_reasons
         .iter()
         .filter_map(|reason| source_inclusion_reason_message(reason, &same_file_name))
         .collect::<Vec<_>>();
-    // Root aliases retain one reason per explicit root occurrence (the
-    // program-preprocessing contract exposes that multiplicity).  A root
-    // spelling arriving after an import/reference is different: tsc reports
-    // the dependency chain once and does not repeat the same files-list
-    // reason for the alias occurrence.
-    if incoming_reason_is_recorded_on_existing && root_arrived_after_reference {
-        reasons.dedup();
-    }
+    // The incoming reason is already in a collapsed alias's inventory; a
+    // distinct file's reason was appended above. These are occurrence records
+    // (tsgo processingDiagnostic.go:77-98 deduplicates reason pointers, not
+    // rendered text), so equal messages must remain separate.
     let message = MessageChain::new_js(message, &arguments).with_next(vec![MessageChain::new(
         &gen::The_file_is_in_the_program_because,
         &[],
@@ -8987,51 +9062,67 @@ impl PreparedProgram {
         let sources = self.source_files();
         let mut redirects = self.package_redirect_files().to_vec();
         redirects.sort_by_key(|redirect| redirect.index);
-        let mut explained: Vec<(JsString, Vec<JsString>)> = Vec::new();
-        let explain_source = |source: &PreparedSourceFile| -> (JsString, Vec<JsString>) {
-            let mut lines: Vec<JsString> = source
+        let mut explained = Vec::new();
+        let explain_source = |source: &PreparedSourceFile| {
+            let lines: Vec<JsString> = source
                 .inclusion_reasons()
                 .iter()
                 .filter_map(|reason| source_inclusion_reason_message(reason, &to_file_name))
                 .map(|chain| chain.text)
                 .collect();
-            if let Some(origin) = source.project_reference_source_paths().last() {
-                lines.push(
-                    MessageChain::new_js(
-                        &gen::File_is_output_of_project_reference_source_0,
-                        &[to_file_name(origin.display())],
-                    )
-                    .text,
-                );
-            }
-            let package = source
-                .package_scope()
-                .and_then(|scope| packages.get(scope).copied());
-            if let Some(detail) =
-                root_module_format_detail(source, package, self.compiler_options(), &to_file_name)
-            {
-                lines.push(detail.text);
-            }
-            (to_file_name(source.path().display()), lines)
-        };
-        let explain_redirect =
-            |redirect: &crate::PackageRedirectFile| -> (JsString, Vec<JsString>) {
-                let mut lines: Vec<JsString> = redirect
-                    .reasons
-                    .iter()
-                    .filter_map(|reason| source_inclusion_reason_message(reason, &to_file_name))
-                    .map(|chain| chain.text)
-                    .collect();
-                let target = &sources[redirect.target.index()];
-                lines.push(
-                    MessageChain::new_js(
-                        &gen::File_redirects_to_file_0,
-                        &[to_file_name(target.path().display())],
-                    )
-                    .text,
-                );
-                (to_file_name(redirect.path.display()), lines)
+            let details = {
+                let package = source
+                    .package_scope()
+                    .and_then(|scope| packages.get(scope).copied());
+                redirect_and_format_details(
+                    source,
+                    None,
+                    package,
+                    self.compiler_options(),
+                    &to_file_name,
+                )
             };
+            (
+                to_file_name(source.path().display()),
+                lines,
+                source.path().canonical().clone(),
+                details,
+            )
+        };
+        let explain_redirect = |redirect: &crate::PackageRedirectFile| {
+            let lines: Vec<JsString> = redirect
+                .reasons
+                .iter()
+                .filter_map(|reason| source_inclusion_reason_message(reason, &to_file_name))
+                .map(|chain| chain.text)
+                .collect();
+            let details = {
+                let mut details = Vec::new();
+                if let Some(origin) = self
+                    .program_options()
+                    .project_references()
+                    .and_then(|references| references.source_for_output(redirect.path.canonical()))
+                {
+                    details.push(MessageChain::new_js(
+                        &gen::File_is_output_of_project_reference_source_0,
+                        &[to_file_name(origin.source())],
+                    ));
+                }
+                details.push(MessageChain::new_js(
+                    &gen::File_redirects_to_file_0,
+                    &[to_file_name(
+                        sources[redirect.target.index()].path().display(),
+                    )],
+                ));
+                details
+            };
+            (
+                to_file_name(redirect.path.display()),
+                lines,
+                redirect.path.canonical().clone(),
+                details,
+            )
+        };
         let mut next_source = 0usize;
         for redirect in &redirects {
             while explained.len() < redirect.index && next_source < sources.len() {
@@ -9045,6 +9136,17 @@ impl PreparedProgram {
             next_source += 1;
         }
         explained
+            .into_iter()
+            .map(|(name, mut lines, path, details)| {
+                lines.extend(
+                    self.include_details
+                        .get_or_init(&path, || details)
+                        .into_iter()
+                        .map(|chain| chain.text),
+                );
+                (name, lines)
+            })
+            .collect()
     }
 }
 

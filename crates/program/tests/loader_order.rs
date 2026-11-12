@@ -15,6 +15,9 @@ fn check(name: &str) {
         WorkerBudget::automatic(),
     ] {
         let program = load(&fixture, workers, false);
+        // These expectations were captured from the CLI: after syntactic
+        // success it asks for GetProgramDiagnostics before ExplainFiles.
+        program.diagnostics().program();
         let paths: Vec<_> = program
             .source_files()
             .iter()
@@ -46,6 +49,36 @@ fn check(name: &str) {
 #[test]
 fn dfs_reasons() {
     check("dfs_reasons");
+}
+
+#[test]
+fn processing_diagnostic_redirect_and_format_cache() {
+    let fixtures: Vec<corpus::Fixture> =
+        serde_json::from_str(include_str!("fixtures/include-format.json")).unwrap();
+    for fixture in fixtures {
+        check(&fixture.name);
+    }
+}
+
+#[test]
+fn explain_files_keeps_the_first_rendered_format_details() {
+    let program = load(
+        &fixture("format_relative_first"),
+        WorkerBudget::serial(),
+        false,
+    );
+    let first: Vec<_> = program.explain_files("/project".into());
+    let later: Vec<_> = program.explain_files("/".into());
+    for ((_, first), (_, later)) in first.iter().zip(&later) {
+        let details = |reasons: &[tsc_diagnostics::JsString]| {
+            reasons
+                .iter()
+                .filter(|reason| reason.to_string_lossy().starts_with("File is "))
+                .cloned()
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(details(first), details(later));
+    }
 }
 #[test]
 fn respell_parent() {
@@ -436,4 +469,27 @@ fn runtime_dependency_links_follow_staged_admission_order() {
             ),
         ]
     );
+}
+
+// Static outputs captured from tsgo aa8149273, including its trivia-hit quirk.
+#[test]
+fn raw_text_import_scan_occurrences() {
+    for name in [
+        "scan_reproducer",
+        "scan_two_trivia_hits",
+        "scan_three_trivia_hits",
+        "scan_callee_trivia",
+        "scan_argument_comment",
+        "scan_js_require",
+        "scan_static_comment",
+        "scan_nonliteral",
+        "scan_static_then_dynamic",
+        "scan_js_import_type",
+        "scan_js_eof_import_type",
+        "scan_js_import_declaration",
+        "scan_casing_reasons",
+        "scan_duplicate_name_reasons",
+    ] {
+        check(name);
+    }
 }
