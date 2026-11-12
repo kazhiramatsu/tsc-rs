@@ -169,6 +169,43 @@ fn a_list_built_in_claimed_room_publishes_in_place_or_moves_out() {
     assert_eq!(*get::<u32>(ROOM + 40), 4);
 }
 
+/// A room is address space to grow into: claiming one reads its head and
+/// leaves the rest untouched. A debug build used to read every byte of the
+/// room to see that it was free; where a read of untouched anonymous memory
+/// gets a page of its own (macOS), each 2 GiB type room a process held then
+/// cost 2 GiB of memory, and the test binaries that hold many checkers grew
+/// to 84 GB and 97 GB.
+#[cfg(unix)]
+#[test]
+fn claiming_a_room_leaves_its_pages_untouched() {
+    // 256 MiB of the tests' `u32` region, past every other test's slots.
+    let position = (1u32 << 28) * 11;
+    let room = 1u32 << 26;
+    let list = StoreVec::<u32>::claim_room(position, room);
+    assert_eq!(list.capacity(), room as usize);
+
+    // SAFETY: sysconf takes a constant selector and no pointers.
+    let page = usize::try_from(unsafe { libc::sysconf(libc::_SC_PAGESIZE) }).unwrap();
+    // Everything past the first 4 MiB: a kernel may back the head that was
+    // read with one large page.
+    let start = address::<u32>(position) + (4 << 20);
+    let bytes = room as usize * std::mem::size_of::<u32>() - (4 << 20);
+    assert_eq!(start % page, 0);
+    let mut residency = vec![0u8; bytes / page];
+    // SAFETY: whole pages inside the room's mapping; mincore observes the
+    // page state without reading the pages, one output byte per page.
+    let result = unsafe {
+        libc::mincore(
+            start as *mut libc::c_void,
+            bytes,
+            residency.as_mut_ptr().cast(),
+        )
+    };
+    assert_eq!(result, 0, "{}", std::io::Error::last_os_error());
+    let touched = residency.iter().filter(|flag| **flag & 1 != 0).count();
+    assert_eq!(touched, 0, "claiming a room touched {touched} of its pages");
+}
+
 #[test]
 fn a_large_list_grows_through_a_mapping_of_its_own() {
     let count = MAPPED_THRESHOLD / std::mem::size_of::<Record>() + 5;
