@@ -51,7 +51,7 @@ The API has five parts:
   write the encoding and its node index table. `session::Session` answers
   the API's requests over the project system, `ipc::Conn` serves it over
   the MessagePack (`msgpack`) or JSON-RPC (`ipc::jsonrpc`) protocol, and
-  `server::run_server` is [`tsc-rs --api`](../README.md#api-server-experimental).
+  `server::run_server` is [`tsc-rs --api`](usage.md#api-server-experimental).
 
 Memory: whatever global allocator your process uses, a program's source
 texts (`tsc_diagnostics::SharedText`) are allocated in a dedicated mimalloc

@@ -12,6 +12,65 @@ projects. The earlier measurement of the tsc 6.0.3 compatible build, which
 also compares TypeScript 6.0.3 (`tsc` on Node.js), is in
 [performance-6.0.3.md](performance-6.0.3.md).
 
+The newest numbers come first. The detailed tables after them (more output
+modes, CPU time, output comparison) are from October 12, 2026 and an older,
+slower build.
+
+## Latest numbers
+
+Type check (`--noEmit`) of eight open-source projects, November 13, 2026:
+wall-clock time and peak memory (the peak memory footprint reported by
+`/usr/bin/time -l`), median of 9 interleaved runs after one warm-up run, on
+an Apple M5 (4 performance and 6 efficiency cores, 32 GiB, macOS 26.5.1) with
+no other heavy job running. Every compiler ran `-p <config> --pretty false` with
+its default settings.
+
+| Project | tsgo | tsrs | tsc-rs |
+| --- | ---: | ---: | ---: |
+| VS Code `src` | 4.48 s · 6,291 MiB | 1.88 s · 2,286 MiB | 2.20 s · 2,742 MiB |
+| Next.js `packages/next` | 1.30 s · 1,522 MiB | 0.48 s · 577 MiB | 0.59 s · 702 MiB |
+| zod | 0.88 s · 1,570 MiB | 0.31 s · 581 MiB | 0.35 s · 677 MiB |
+| Effect `packages/effect` | 0.77 s · 1,096 MiB | 0.30 s · 432 MiB | 0.33 s · 532 MiB |
+| Playwright | 0.55 s · 905 MiB | 0.20 s · 352 MiB | 0.25 s · 434 MiB |
+| Vue | 0.52 s · 659 MiB | 0.19 s · 231 MiB | 0.27 s · 296 MiB |
+| TypeScript `src/compiler` | 0.35 s · 366 MiB | 0.14 s · 139 MiB | 0.18 s · 190 MiB |
+| hono | 0.16 s · 261 MiB | 0.06 s · 109 MiB | 0.07 s · 134 MiB |
+
+tsc-rs printed exactly `tsgo`'s output (diagnostics and exit status) on all
+eight projects.
+
+The opt-in modes that use more cores — `--fast` in tsrs, `TSRS_FAST=1` in
+tsc-rs ([the fast preset](#the-fast-preset)):
+
+| Project | tsrs `--fast` | tsc-rs `TSRS_FAST=1` |
+| --- | ---: | ---: |
+| VS Code `src` | 1.09 s · 1,840 MiB | 1.58 s · 2,922 MiB |
+| Next.js `packages/next` | 0.26 s · 561 MiB | 0.37 s · 798 MiB |
+| zod | 0.19 s · 504 MiB | 0.29 s · 810 MiB |
+| Effect `packages/effect` | 0.20 s · 387 MiB | 0.28 s · 592 MiB |
+| Playwright | 0.14 s · 347 MiB | 0.20 s · 523 MiB |
+| Vue | 0.12 s · 253 MiB | 0.19 s · 366 MiB |
+| TypeScript `src/compiler` | 0.12 s · 137 MiB | 0.18 s · 187 MiB |
+| hono | 0.05 s · 96 MiB | 0.06 s · 147 MiB |
+
+Compilers:
+
+- tsc-rs: main at
+  [`486437be6`](https://github.com/kazhiramatsu/tsc-rs/commit/486437be6),
+  `cargo build --release`.
+- `tsgo`: TypeScript 7.1 built from the commit tsc-rs follows (`aa814927`).
+- [tsrs](https://github.com/oxc-project/tsrs) 0.23.0 (TypeScript
+  7.1.0-beta), built from source with its release profile.
+- No profile-guided optimization (PGO) on either Rust compiler: both are
+  plain release builds. The binaries tsrs publishes are PGO builds (and
+  BOLT-optimized on Linux); a PGO build of tsc-rs is not part of this
+  comparison either.
+
+The projects are those of [Measured projects](#measured-projects) below at
+the same commits, plus [Playwright](https://github.com/microsoft/playwright)
+(`ec31a7bf7`) and [Vue](https://github.com/vuejs/core) (`4ab865a84`), each
+with its own `tsconfig.json` and `noEmit`.
+
 ## Measured projects
 
 Each project was checked out at the commit shown, with its dependencies
@@ -208,25 +267,14 @@ differs (37 errors instead of 35). The files written for hono, zod and
 Effect (JavaScript, declarations and maps) were identical with and without
 the preset.
 
-Type check (`--noEmit`), wall time in seconds, median of 9 runs on a
-ten-core Apple M-series machine (four performance and six efficiency cores),
-2026-11-12, with tsrs 0.23.0 beside:
-
-| Project | tsc-rs | tsc-rs `TSRS_FAST=1` | tsrs | tsrs `--fast` |
-| --- | ---: | ---: | ---: | ---: |
-| VS Code `src` | 2.32 | 1.72 | 2.01 | 1.20 |
-| Next.js `packages/next` | 0.62 | 0.38 | 0.49 | 0.27 |
-| Playwright | 0.27 | 0.21 | 0.21 | 0.15 |
-| Vue | 0.29 | 0.20 | 0.20 | 0.13 |
-| TypeScript `src/compiler` | 0.18 | 0.18 | 0.15 | 0.13 |
-| hono | 0.07 | 0.07 | 0.06 | 0.05 |
+Its numbers beside the default and tsrs: [Latest numbers](#latest-numbers).
 
 The preset uses more memory, as every checker keeps its own type tables
 (VS Code: 2.7 GiB by default, 2.9 GiB with the preset).
 
 ## Content mappers
 
-On the four projects of the [content mapper](../README.md#content-mappers)
+On the four projects of the [content mapper](usage.md#content-mappers)
 comparison, `-p <config> --runExternalCode --noEmit --pretty false`, median
 wall-clock time of seven runs after one warm-up, measured for pull request
 #766 on October 12, 2026 (the same machine and tsgo build):

@@ -194,7 +194,7 @@ emitted file trees were compared byte for byte.
 
 These comparisons were made with tsc 6.0.3's creation order on both sides
 (`stableTypeOrdering: false` in tsc-rs since that order stopped being the
-default; see the [README](../README.md#compatibility)). Diagnostics were
+default; see the [README](compatibility.md)). Diagnostics were
 identical on every configuration except Effect, where
 tsc-rs with its default eight checkers reports two errors in
 `src/Stream.ts` (TS2375 at line 5009 and TS2345 at line 5059, both about

@@ -2,250 +2,66 @@
 
 A TypeScript compiler written in Rust.
 
-**Status:** compatibility with tsc 6.0.3 is complete, with some
-limitations (release [`v0.1.0`](https://github.com/kazhiramatsu/tsc-rs/releases/tag/v0.1.0)).
-Compatibility with **TypeScript 7.1** (the native compiler, `tsgo`) is in
-progress on `main`; see [Compatibility](#compatibility).
-
-- Same `tsconfig.json` and command line as `tsc`: `-p`, `--noEmit`,
-  `--watch`, `-b`.
-- Checks `.vue` and `.astro` files through content mappers, as `tsgo` does
-  ([Content mappers](#content-mappers)).
-- Fast and memory-efficient ([Performance](#performance)).
-- No Node.js required.
-
-Also experimental: a [language server](#language-server-experimental), an
-[API server](#api-server-experimental) and a [Rust API](#rust-api-experimental).
-
-## Install
-
-Requires [Rust (rustup)](https://www.rust-lang.org/tools/install), Git and a
-native linker (on macOS, the Xcode Command Line Tools).
+It follows TypeScript 7.1's `tsc` (the native compiler, `tsgo`): the same
+`tsconfig.json`, the same command line, the same diagnostics and the same
+output files. This page is about how fast it is; for everything else, what
+you know about `tsc` applies.
 
 ```sh
-git clone https://github.com/kazhiramatsu/tsc-rs.git
-cd tsc-rs
+git clone https://github.com/kazhiramatsu/tsc-rs.git && cd tsc-rs
 cargo install --locked --path crates/cli   # installs tsc-rs into ~/.cargo/bin
-tsc-rs --version                           # Version 7.1.0-dev
+tsc-rs -p .                                # use it like tsc
 ```
-
-## Usage
-
-Use it like `tsc`:
-
-```sh
-tsc-rs -p .                 # compile the project of ./tsconfig.json
-tsc-rs --noEmit -p .        # type-check only
-tsc-rs --watch -p .         # compile again on every change
-tsc-rs -b                   # build the project and the projects it references
-tsc-rs --ignoreConfig a.ts  # compile single files, ignoring tsconfig.json
-```
-
-In `package.json`, replace `tsc` with `tsc-rs`. Write `tsc-rs`, not `tsc`
-or `npx tsc`, which run the installed `typescript` package.
-
-```json
-{ "scripts": { "build": "tsc-rs -p .", "typecheck": "tsc-rs --noEmit -p ." } }
-```
-
-Every `tsconfig.json` option can also be given on the command line
-(`--strict`, `--outDir dist`, `--sourceMap`, …). Other options:
-
-| Option | Use |
-| --- | --- |
-| `--noEmitOnError` | Write nothing when there are errors |
-| `--pretty false` | Plain diagnostics |
-| `-b --verbose`, `--dry`, `--force`, `--clean` | Build mode: explain, preview, rebuild all, delete outputs |
-| `--listFiles`, `--explainFiles`, `--listEmittedFiles` | List the program's files, why each is included, the files written |
-| `--showConfig`, `--init` | Print the configuration in effect, create a `tsconfig.json` |
-| `--diagnostics`, `--generateTrace <dir>` | Statistics, performance trace |
-| `--locale <tag>` | Translated messages (`ja`, `de`, `zh-CN`, …) |
-| `--checkers <n>` | Checker threads (default: 4; clamped to 1–256 and the file count; also `TSRS_CHECKERS`) |
-| `--runExternalCode` | Run the [content mappers](#content-mappers) of `tsconfig.json` |
-
-Exit status: `0` no errors, `1` errors and nothing written, `2` errors and
-output written, `4` (`-b` only) a cycle of project references.
-
-## Content mappers
-
-TypeScript 7.1 checks other languages' files, such as `.vue` and `.astro`,
-through content mappers: programs from npm packages that turn each file
-into TypeScript. List them in `tsconfig.json` and run with
-`--runExternalCode`, which allows tsc-rs to start them:
-
-```json
-{ "contentMappers": [{ "package": "@astrojs/ts-content-mapper", "extensions": [".astro"] }] }
-```
-
-As with `tsgo`, errors point into the original files, and with
-`declaration` a mapped file gets a declaration file (`Card.d.astro.ts`) but
-no JavaScript. On two Astro and two Vue projects, the output matched
-`tsgo`'s. Content mappers also run in `-b` builds, under `--watch` and in
-the API server (`tsc-rs --api --runExternalCode`): `--incremental` and
-`-b` build again when a mapper's version or options change, and `--watch`
-restarts a mapper whose package changes.
-
-## Compatibility
-
-`main` follows TypeScript 7.1 at commit `aa814927`, vendored under
-`vendor/typescript-native/`. This work is in progress; so far:
-
-- **Conformance:** in TypeScript 7.1's own test suite, every compared
-  configuration (13,577 of 15,339; `tsgo`'s runner skips the others)
-  matches `tsgo`'s baselines: diagnostics, emitted files, source maps,
-  module resolution traces, `.types` and `.symbols`, and content mapper
-  output.
-- **Real projects:** `tsc-rs --noEmit` printed the same output as `tsgo` on
-  all 9,067 DefinitelyTyped packages, all 2,756 azure-sdk-for-js
-  configurations and all 38 material-ui projects (October 2026, one
-  checker). On the 157 tsconfigs of astro, remix, nuxt, SolidJS and svelte,
-  the diagnostics and the emitted JavaScript and declaration files are the
-  same as `tsgo`'s (October 17, 2026).
-- **Language server:** in 4,583 of the 4,584 sessions of TypeScript 7.1's
-  language server tests, tsc-rs answers exactly as `tsgo` does; `tsgo`'s
-  own answer to the last one varies from run to run (October 15, 2026). In
-  generated sessions over eight real projects (hono, zod, effect, the
-  TypeScript compiler, playwright-core, vue, next.js and VS Code's
-  `src/vs/base`; 653,464 requests), 69 answers differ (hono 18, vue 1,
-  playwright-core 50): 68 completions whose auto-import module specifier
-  `tsgo` itself picks differently from session to session (tsc-rs gives its
-  most frequent answer, and where one of `tsgo`'s answers names a module
-  that does not export the symbol, the one that does) and one hover whose
-  display depends on which files `tsgo`'s checker saw first (October 17,
-  2026). In a session over svelte's JavaScript sources (368 files, 61,659
-  requests) 49 answers differ: 47 completions whose auto-import module
-  specifier depends on the order in
-  which `tsgo` fills its specifier cache in a file's first completion (it
-  varies between runs), one hover that depends on which files `tsgo`'s
-  checker saw first, and one definition where `tsgo` reports an empty range
-  for a `@this` parameter; a session over SolidJS's sources (23 files, 3,824
-  requests) answers identically; sessions over astro's `packages/astro/src`
-  (680 files, 113,109 requests), nuxt's `packages/*/src` (507 files, 85,414
-  requests) and remix's `packages/*/src` (796 files, 118,095 requests)
-  differ in 13 answers, all nuxt completions whose auto-import module
-  specifier `tsgo` itself picks differently from run to run; a session over
-  webpack's `lib/**/*.js` (790 JavaScript files, 134,174 requests) differs in
-  55 answers after eight rounds of fixes: 43 hovers whose
-  `Array<T>.length` qualifier depends on the session's order, 3
-  signature-help labels whose union members `tsgo` orders by first use,
-  one file's diagnostics whose inferred type argument differs, 5
-  references of an `@import` default name `tsgo` misses and 3 `@this`
-  definitions `tsgo` answers at an empty range; sessions over
-  preact (33 files, 5,307 requests), SvelteKit's `packages/kit/src` (382
-  files, 50,333 requests), ESLint's `lib` (389 files, 68,905 requests) and
-  prettier's `src` (541 files, 79,819 requests) differ in 3, 1, 1 and 3
-  answers; sessions over NestJS's `packages` (1,000 files, 144,763
-  requests), RxJS's `packages/rxjs/src` (231 files, 41,628 requests),
-  Excalidraw's `packages/excalidraw` (501 files, 85,695 requests) and
-  puppeteer-core's `src` (214 files, 36,954 requests) differ in 1, 0, 77
-  and 0 answers after the ninth round of fixes, the 77 Excalidraw
-  completions whose auto-import source `tsgo` lists only once its session
-  has seen the package's own index (October 18, 2026).
-- **TypeScript 7 rules:** the default `target` is ES2026, and the options
-  TypeScript 7 removed (`baseUrl`, `outFile`, `target: "es5"`, the `amd`,
-  `umd` and `system` modules, …) are errors.
-
-tsc 6.0.3 compatibility is complete in release
-[`v0.1.0`](https://github.com/kazhiramatsu/tsc-rs/releases/tag/v0.1.0)
-(branch `release/6.0.3`), with the limitations listed in
-[its README](https://github.com/kazhiramatsu/tsc-rs/blob/v0.1.0/README.md#current-limitations)
-(for example, no watch mode or `--build`).
 
 ## Performance
 
-Type check (`--noEmit`), median wall-clock time and peak memory on an Apple
-M5 (10 cores, 32 GiB), against `tsgo` built from the TypeScript commit
-tsc-rs follows (October 12, 2026):
+Type check (`--noEmit`) of eight open-source projects: wall-clock time and
+peak memory, median of 9 runs on an Apple M5 (4 performance and 6 efficiency
+cores, 32 GiB), November 13, 2026. Every compiler ran with its default
+settings.
 
-| Project | tsc-rs | tsgo |
+| Project | tsgo | tsrs | tsc-rs |
+| --- | ---: | ---: | ---: |
+| VS Code `src` | 4.48 s · 6,291 MiB | 1.88 s · 2,286 MiB | 2.20 s · 2,742 MiB |
+| Next.js `packages/next` | 1.30 s · 1,522 MiB | 0.48 s · 577 MiB | 0.59 s · 702 MiB |
+| zod | 0.88 s · 1,570 MiB | 0.31 s · 581 MiB | 0.35 s · 677 MiB |
+| Effect `packages/effect` | 0.77 s · 1,096 MiB | 0.30 s · 432 MiB | 0.33 s · 532 MiB |
+| Playwright | 0.55 s · 905 MiB | 0.20 s · 352 MiB | 0.25 s · 434 MiB |
+| Vue | 0.52 s · 659 MiB | 0.19 s · 231 MiB | 0.27 s · 296 MiB |
+| TypeScript `src/compiler` | 0.35 s · 366 MiB | 0.14 s · 139 MiB | 0.18 s · 190 MiB |
+| hono | 0.16 s · 261 MiB | 0.06 s · 109 MiB | 0.07 s · 134 MiB |
+
+tsc-rs printed exactly `tsgo`'s diagnostics on all eight projects.
+
+tsrs and tsc-rs each have an opt-in mode that spreads the check over more
+cores and may report a few diagnostics differently from `tsgo`: `--fast` in
+tsrs, the environment variable `TSRS_FAST=1` in tsc-rs (its result is the
+same on every machine and in every run).
+
+| Project | tsrs `--fast` | tsc-rs `TSRS_FAST=1` |
 | --- | ---: | ---: |
-| hono | 124 ms, 304 MiB | 150 ms, 276 MiB |
-| zod | 512 ms, 1,323 MiB | 814 ms, 1,606 MiB |
-| TypeScript `src/compiler` | 317 ms, 290 MiB | 343 ms, 379 MiB |
-| Next.js `packages/next` | 715 ms, 1,290 MiB | 1,240 ms, 1,535 MiB |
-| Effect `packages/effect` | 469 ms, 1,016 MiB | 721 ms, 1,091 MiB |
-| VS Code `src` | 3,529 ms, 5,499 MiB | 4,518 ms, 6,369 MiB |
+| VS Code `src` | 1.09 s · 1,840 MiB | 1.58 s · 2,922 MiB |
+| Next.js `packages/next` | 0.26 s · 561 MiB | 0.37 s · 798 MiB |
+| zod | 0.19 s · 504 MiB | 0.29 s · 810 MiB |
+| Effect `packages/effect` | 0.20 s · 387 MiB | 0.28 s · 592 MiB |
+| Playwright | 0.14 s · 347 MiB | 0.20 s · 523 MiB |
+| Vue | 0.12 s · 253 MiB | 0.19 s · 366 MiB |
+| TypeScript `src/compiler` | 0.12 s · 137 MiB | 0.18 s · 187 MiB |
+| hono | 0.05 s · 96 MiB | 0.06 s · 147 MiB |
 
-Over all 26 configurations measured (type checks and builds with outputs),
-tsc-rs took 0.58–0.93 of `tsgo`'s time and 0.71–1.10 of its memory. To use
-less memory, lower `--checkers`. Full results, CPU time, content mapper
-projects and method: [docs/performance.md](docs/performance.md). These
-numbers predate the faster program loading of pull requests #760 and #761,
-and will be measured again.
+- `tsgo` is TypeScript 7.1 built from the commit tsc-rs follows
+  (`aa814927`). [tsrs](https://github.com/oxc-project/tsrs) is version
+  0.23.0.
+- tsrs and tsc-rs were both built from source as plain release builds,
+  without profile-guided optimization (PGO). The binaries tsrs publishes are
+  PGO builds.
+- Method, more measurements and the fast preset:
+  [docs/performance.md](docs/performance.md).
 
-On a machine with more cores than four checkers use, `TSRS_FAST=1` in the
-environment selects a faster, still deterministic checker pool; its
-diagnostics can differ from `tsgo`'s where they depend on the order in which
-files are checked: [the fast preset](docs/performance.md#the-fast-preset).
+## Everything else
 
-## Language server (experimental)
-
-`tsc-rs --lsp --stdio` serves the Language Server Protocol over stdio, like
-`tsgo --lsp --stdio`. Implemented: diagnostics, hover, completion (with
-auto-imports and snippets), signature help, go to definition (also type definition,
-implementation and source definition), references, rename (also of files),
-document highlights, call hierarchy, code lens, document and workspace
-symbols, folding and selection ranges, semantic tokens, inlay hints, linked
-editing of JSX tags, formatting, quick fixes and organize imports, also in
-content mapper files (`.vue`, `.astro`), with the mappers of a project's
-config or (for files outside projects) of editor extensions. JavaScript
-projects get their typings from npm (automatic type acquisition). For an
-editor that cannot watch files itself, the server watches them on macOS and
-Windows, as `tsgo` does. It has not been tried with editors yet.
-
-## API server (experimental)
-
-`tsc-rs --api` serves TypeScript 7.1's JavaScript API client, like
-`tsgo --api`:
-
-```sh
-tsc-rs --api --cwd /path/to/workspace   # MessagePack over stdio (--async: JSON-RPC, --pipe <path>: socket)
-```
-
-With `--runExternalCode`, projects run their [content mappers](#content-mappers).
-The language server also serves the client over a pipe
-(`custom/initializeAPISession`), with the editor's projects and open files
-(`getCurrentLanguageServerSnapshot`).
-
-Implemented: snapshots and projects, config parsing, source files,
-transpilation, module resolution, symbol, type and signature queries, scope
-lookups, type nodes, `printNode`, `formatNodeForInsertion`, diagnostics,
-emit, the build orchestrator and the language-service requests
-(completions, references, signature usages, JSDoc, import edits); the
-client's tests all pass.
-Details: [design notes](docs/design/greenfield/slices/ts71-api-server/README.md).
-
-## Rust API (experimental)
-
-The compiler is a set of crates (`tsc-rs-compiler`, `tsc-rs-program`,
-`tsc-rs-host`, `tsc-rs-diagnostics`, `tsc-rs-api`) that Rust programs can
-use to check and compile projects in-process. Interfaces may change. Try
-the [type-check example](crates/compiler/examples/type_check.rs):
-
-```sh
-cargo run --locked --manifest-path crates/compiler/Cargo.toml --example type_check -- \
-  examples/type-check/tsconfig.json \
-  vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/internal/bundled/libs
-```
-
-Guide: [docs/rust-api.md](docs/rust-api.md).
-
-## Limitations
-
-- The [language server](#language-server-experimental) is incomplete and
-  untested in editors.
-- `-b` builds projects one at a time.
-- `--diagnostics` prints fewer statistics than `tsgo`.
-- Memory grows with the number of checkers.
-- `tsc-rs --api --pipe` does not support Windows named pipes.
-- `--pprofDir` (and the language server's profile commands) writes CPU
-  profiles only, on Unix; heap and allocation profiles are not supported.
-
-## Development
-
-Building from source, tests and CI: [docs/setup.md](docs/setup.md).
-Design documents: [docs/design/README.md](docs/design/README.md).
-
-## License
-
-[MIT](LICENSE).
+The same as `tsc`. [Usage](docs/usage.md) (install, options, content
+mappers, language server, API server, Rust API) ·
+[Compatibility](docs/compatibility.md) (how it is checked against `tsgo`,
+and the differences that remain) · [Development](docs/setup.md) ·
+[MIT license](LICENSE)

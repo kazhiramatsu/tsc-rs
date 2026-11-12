@@ -51,7 +51,7 @@ The `gates` check requires both jobs to succeed; a change that touches only
 These results demonstrate the behavior covered by those tests. Some cases
 have recorded differences from the reference; a passing run does not imply
 complete TypeScript compatibility. See the README's
-[limitations](../README.md#limitations) for the user-facing restrictions.
+[limitations](compatibility.md#limitations) for the user-facing restrictions.
 
 ### Run locally
 
