@@ -649,6 +649,95 @@ fn named_union_membership_retains_search_behavior_across_ordering_modes() {
         "also retain content-ordered members searched by ID"
     );
 }
+/// The subset test of two unions walks the target once when both lists were
+/// built in the asked order, and answers what a search per member answers:
+/// subsets and near-subsets of every size, a source larger than its target,
+/// two members looked for in a very large target (the searches stay), and
+/// lists built in the other order (the searches stay).
+#[test]
+fn union_subset_walk_answers_what_a_search_per_member_answers() {
+    use crate::{IdentityDomain, TypeTables, UnionReduction};
+    let ctx = TestOrderContext::default();
+    let mut t = TypeTables::new(true, false, &IdentityDomain::new());
+    // Ids ascend while the texts descend: the two member orders differ.
+    let literals: Vec<_> = (0..1400)
+        .map(|n| t.get_string_literal_type(&format!("s{:04}", 9999 - n)))
+        .collect();
+    let content = Some(&ctx as &dyn super::TypeOrderContext);
+    let mut seed = 0x2545_f491_4f6c_dd1d_u64;
+    let mut next = move |bound: usize| {
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
+        (seed % bound as u64) as usize
+    };
+    let mut cases = Vec::new();
+    for round in 0..200 {
+        let target_len = [2, 3, 8, 33, 64, 350][round % 6];
+        let start = next(literals.len() - target_len - 40);
+        let target: Vec<_> = literals[start..start + target_len].to_vec();
+        // A subset of the target, sometimes with one foreign member.
+        let mut source: Vec<_> = target.iter().copied().filter(|_| next(3) != 0).collect();
+        if round % 4 == 1 {
+            source.push(literals[start + target_len + next(40)]);
+        }
+        if round % 4 == 2 {
+            source.insert(0, literals[start.saturating_sub(1 + next(8))]);
+        }
+        if source.len() >= 2 {
+            cases.push((source, target));
+        }
+    }
+    // A source larger than its target, an equal pair, and a few members in
+    // a target large enough to keep the searches.
+    cases.push((literals[10..20].to_vec(), literals[12..18].to_vec()));
+    cases.push((literals[10..20].to_vec(), literals[10..20].to_vec()));
+    cases.push((
+        vec![literals[100], literals[900]],
+        literals[..1300].to_vec(),
+    ));
+    cases.push((
+        vec![literals[100], literals[1350]],
+        literals[..1300].to_vec(),
+    ));
+    cases.push((
+        vec![literals[1350], literals[100]],
+        literals[..1300].to_vec(),
+    ));
+    let mut walked = 0;
+    for (source, target) in &cases {
+        let truth = source.iter().all(|ty| target.contains(ty));
+        for (order, other) in [(content, None), (None, content)] {
+            let source_union = t.get_union_type(order, source, UnionReduction::None);
+            let target_union = t.get_union_type(order, target, UnionReduction::None);
+            let searched = t
+                .members_of(source_union)
+                .iter()
+                .all(|&ty| super::contains_type(&t, order, t.members_of(target_union), ty));
+            assert_eq!(searched, truth);
+            assert_eq!(
+                t.union_members_subset(order, source_union, target_union),
+                truth,
+                "{} members in {}",
+                source.len(),
+                target.len()
+            );
+            walked += 1;
+            // Lists built in the other order keep the searches of the
+            // asked order, whatever those answer.
+            let crossed = t
+                .members_of(source_union)
+                .iter()
+                .all(|&ty| super::contains_type(&t, other, t.members_of(target_union), ty));
+            assert_eq!(
+                t.union_members_subset(other, source_union, target_union),
+                crossed
+            );
+        }
+    }
+    assert!(walked > 300);
+}
+
 /// Exercise the large-input path and every fallback against an independent
 /// flatten/ID-insert oracle, followed by the base content sorter.
 #[test]

@@ -4184,30 +4184,13 @@ impl<'a> CheckerState<'a> {
         if !self.tables.flags_of(target).intersects(TypeFlags::UNION) {
             return Ok(false);
         }
-        let TypeData::Union {
-            types: target_types,
-            ..
-        } = &self.tables.type_of(target).data
-        else {
-            unreachable!("union flag implies union data");
-        };
         if self.tables.flags_of(source).intersects(TypeFlags::UNION) {
-            let TypeData::Union {
-                types: source_types,
-                ..
-            } = &self.tables.type_of(source).data
-            else {
-                unreachable!("union flag implies union data");
-            };
+            // Every member of the source in the target: one forward walk
+            // of two lists in this checker's order, or a search per member.
             let ctx = crate::type_order::order_ctx!(self);
-            return Ok(self.tables.list(*source_types).iter().all(|&t| {
-                tsc_types::type_order::contains_type(
-                    &self.tables,
-                    ctx.order(),
-                    self.tables.list(*target_types),
-                    t,
-                )
-            }));
+            return Ok(self
+                .tables
+                .union_members_subset(ctx.order(), source, target));
         }
         if self
             .tables
