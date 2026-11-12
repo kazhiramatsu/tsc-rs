@@ -144,6 +144,10 @@ const RETURN_GRANULE: usize = 1 << 14;
 /// stay resident for the next tree.
 const RETURN_THRESHOLD: usize = 1 << 20;
 
+/// How much of a claimed room a debug build reads to see that the room is
+/// free (see [`StoreVec::claim_room`]).
+const ROOM_HEAD_BYTES: usize = RETURN_GRANULE;
+
 /// A record kept in a store.
 ///
 /// All-zero bytes must be a valid `Self` (see the crate documentation), and
@@ -218,6 +222,16 @@ fn reserve() {
             std::io::Error::last_os_error()
         );
     });
+}
+
+/// Whether the `bytes` from `start` read as zeros.
+///
+/// # Safety
+///
+/// The bytes are committed memory of a region.
+unsafe fn reads_as_zeros(start: usize, bytes: usize) -> bool {
+    // SAFETY: the caller's contract, for each byte.
+    (0..bytes).all(|offset| unsafe { *((start + offset) as *const u8) } == 0)
 }
 
 /// Return the bytes of a dropped range to the zeroed state.
@@ -535,6 +549,18 @@ impl<T: StoreRecord> StoreVec<T> {
     /// claimed once per lease.
     pub fn claim(position: u32, len: u32) -> Self {
         let mut list = Self::claim_room(position, len);
+        // Every slot of the table is read as a zeroed record from here on,
+        // so all of them are looked at (a room's are not: see `claim_room`).
+        debug_assert!(
+            // SAFETY: the claimed slots, committed by `claim_room`.
+            unsafe {
+                reads_as_zeros(
+                    address::<T>(position),
+                    len as usize * std::mem::size_of::<T>(),
+                )
+            },
+            "a store range claimed twice"
+        );
         list.len = len as usize;
         list.placement = Placement::Published;
         list
@@ -552,10 +578,17 @@ impl<T: StoreRecord> StoreVec<T> {
         );
         let bytes = room as usize * std::mem::size_of::<T>();
         system::commit(address::<T>(position), bytes);
+        // Only the head of the room is read. A room is address space to grow
+        // into (a checker's type room is 2 GiB) and its records start at its
+        // first slot, so a room that is still held, or was dropped without
+        // being scrubbed, shows there. Reading all of it backs every page of
+        // it with memory on a system that gives a read of untouched anonymous
+        // memory a page of its own (macOS): 2 GiB for each type room a
+        // process ever held at once, which took the debug test binaries that
+        // hold many checkers to a hundred gigabytes.
         debug_assert!(
-            (0..bytes)
-                // SAFETY: the bytes of the claimed slots, committed above.
-                .all(|offset| unsafe { *((address::<T>(position) + offset) as *const u8) } == 0),
+            // SAFETY: the head of the claimed slots, committed above.
+            unsafe { reads_as_zeros(address::<T>(position), bytes.min(ROOM_HEAD_BYTES)) },
             "a store range claimed twice"
         );
         Self {
