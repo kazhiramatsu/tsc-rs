@@ -3,9 +3,12 @@
 //!
 //! A checker owns its caches and visits its associated files in Program order.
 //! Neither worker scheduling nor file check durations can change ownership:
-//! under either association the owner of a file is a function of the Program.
+//! under either association the owner of a file is a function of the Program,
+//! and so is the checker of every statement range of a file that the fast
+//! preset checks in ranges.
 
 use std::num::NonZeroUsize;
+use std::ops::Range;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 /// tsgo `newCheckerPoolWithTracing`: max(min(requested, files, 256), 1).
@@ -324,10 +327,71 @@ const MODULE_AFFINITY: f64 = 1.0;
 /// with nothing measurable left to gain.
 const REFINEMENT_PASSES: usize = 3;
 
+/// A declaration file that weighs at least this percentage of a mean checker
+/// load is checked in statement ranges on several checkers, each range about
+/// one in [`SPLIT_PIECE_DIVISOR`] of a mean load. The weight of a generated
+/// declaration file can understate its check several times over (the 2.9 MB
+/// declaration file of schema types in Next.js: 5 % of the weight, a fifth
+/// of a one-checker check), so a file well under a whole load can be what
+/// the check waits for; a lighter file costs about its weight, and cutting
+/// it only makes more checkers resolve what its statements use.
+const SPLIT_MIN_SHARE_PERCENT: usize = 40;
+const SPLIT_PIECE_DIVISOR: usize = 8;
+
 /// What a checker pays to hold a module: it resolves the part of the module
 /// its files use, which grows slower than the module.
 fn module_worth(nodes: usize) -> f64 {
     (nodes as f64).sqrt()
+}
+
+/// A file the fast preset checks in statement ranges.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct SplitFile {
+    pub(crate) file: usize,
+    /// Contiguous ranges of the file's top-level statements, each with the
+    /// checker that checks it. The first is the range of the file's own
+    /// checker; no two ranges share a checker.
+    pub(crate) pieces: Vec<(Range<usize>, usize)>,
+}
+
+/// The fast preset's association: every file's checker, and the files
+/// checked in statement ranges, in ascending file index.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(crate) struct LocalityAssociation {
+    pub(crate) checkers: Vec<usize>,
+    pub(crate) splits: Vec<SplitFile>,
+}
+
+/// At most `count` contiguous ranges of statements with about equal text,
+/// given every statement's text length; none when there would be fewer than
+/// two.
+fn statement_pieces(lengths: &[u32], count: usize) -> Vec<Range<usize>> {
+    let count = count.min(lengths.len());
+    if count < 2 {
+        return Vec::new();
+    }
+    let total = lengths.iter().map(|&length| u64::from(length)).sum::<u64>();
+    let mut pieces = Vec::with_capacity(count);
+    let mut start = 0;
+    let mut text = 0u64;
+    for (index, &length) in lengths.iter().enumerate() {
+        text += u64::from(length);
+        // Range k closes once the text so far reaches k / count of the
+        // whole, while a statement remains for every range still to come.
+        let closing = pieces.len() + 1;
+        if closing < count
+            && text * count as u64 >= total * closing as u64
+            && lengths.len() - (index + 1) >= count - closing
+        {
+            pieces.push(start..index + 1);
+            start = index + 1;
+        }
+    }
+    pieces.push(start..lengths.len());
+    if pieces.len() < 2 {
+        return Vec::new();
+    }
+    pieces
 }
 
 /// The fast preset's association. What an extra checker repeats is the
@@ -354,6 +418,14 @@ fn module_worth(nodes: usize) -> f64 {
 ///    the checker where the worth of the modules held, summed over the
 ///    checkers, falls most, never above the load cap of the placement.
 ///
+/// A file can be more than any checker should carry alone: one that weighs
+/// [`SPLIT_MIN_SHARE_PERCENT`] of a mean load (it is then a group of its own)
+/// and whose statements can be checked apart (`statement_lengths` gives the
+/// text length of each, or nothing) is cut into ranges of statements. Its
+/// group keeps the first range; every other range is placed like a group
+/// without edges or modules — on the lightest checker at its turn — and the
+/// ranges of one file go to different checkers and stay there.
+///
 /// Import edges alone miss two things: a module that no checker type checks
 /// (a library declaration file carries no weight, so it is in no group) and
 /// the size of the module an edge leads to. What the checkers repeat follows
@@ -372,12 +444,16 @@ pub(crate) fn associate_files_by_locality(
     adjacent: &[Vec<usize>],
     targets: &[Vec<usize>],
     nodes: &[usize],
+    statement_lengths: &dyn Fn(usize) -> Vec<u32>,
     checkers: usize,
-) -> Vec<usize> {
+) -> LocalityAssociation {
     let checkers = checkers.clamp(1, base_weights.len().clamp(1, MAX_CHECKERS));
     let mut associations = vec![0; base_weights.len()];
     if checkers == 1 {
-        return associations;
+        return LocalityAssociation {
+            checkers: associations,
+            splits: Vec::new(),
+        };
     }
     let source_weights = base_weights
         .iter()
@@ -400,7 +476,10 @@ pub(crate) fn associate_files_by_locality(
         .filter(|&file| weights[file] > 0)
         .collect::<Vec<_>>();
     if order.is_empty() {
-        return associations;
+        return LocalityAssociation {
+            checkers: associations,
+            splits: Vec::new(),
+        };
     }
     order.sort_unstable_by(|&a, &b| names[a].cmp(&names[b]).then(a.cmp(&b)));
     let total: usize = order.iter().map(|&file| weights[file]).sum();
@@ -417,6 +496,7 @@ pub(crate) fn associate_files_by_locality(
     let mut groups = rustc_hash::FxHashMap::<&str, usize>::default();
     let mut group_of = vec![usize::MAX; weights.len()];
     let mut group_weights = Vec::new();
+    let mut group_sizes = Vec::new();
     for &file in &order {
         let name = names[file].as_str();
         let key = name
@@ -428,9 +508,11 @@ pub(crate) fn associate_files_by_locality(
         let group = *groups.entry(key).or_insert(next);
         if group == next {
             group_weights.push(0);
+            group_sizes.push(0usize);
         }
         group_of[file] = group;
         group_weights[group] += weights[file];
+        group_sizes[group] += 1;
     }
     // One adjacency entry per file-level import edge and direction.
     let mut group_adjacent = vec![Vec::new(); group_weights.len()];
@@ -454,6 +536,51 @@ pub(crate) fn associate_files_by_locality(
         modules.sort_unstable();
         modules.dedup();
     }
+    // The files checked in statement ranges, in ascending file index: the
+    // file's group keeps the first range's weight, the other ranges follow
+    // the groups; `exclusive` numbers the ranges of one file alike.
+    let share = total / checkers;
+    let piece_weight = (share / SPLIT_PIECE_DIVISOR).max(1);
+    let mut exclusive = vec![0u32; group_weights.len()];
+    let mut split_groups = Vec::<(usize, Vec<Range<usize>>, usize)>::new();
+    for file in 0..weights.len() {
+        let group = group_of[file];
+        if group == usize::MAX
+            || group_sizes[group] != 1
+            || weights[file] * 100 < share * SPLIT_MIN_SHARE_PERCENT
+        {
+            continue;
+        }
+        let lengths = statement_lengths(file);
+        let pieces = statement_pieces(&lengths, weights[file].div_ceil(piece_weight).min(checkers));
+        if pieces.is_empty() {
+            continue;
+        }
+        let text = lengths
+            .iter()
+            .map(|&length| u128::from(length))
+            .sum::<u128>()
+            .max(1);
+        let id = u32::try_from(split_groups.len() + 1).expect("fewer splits than files");
+        let first_other = group_weights.len();
+        for (index, piece) in pieces.iter().enumerate() {
+            let piece_text = lengths[piece.clone()]
+                .iter()
+                .map(|&length| u128::from(length))
+                .sum::<u128>();
+            let weight = ((weights[file] as u128 * piece_text / text) as usize).max(1);
+            if index == 0 {
+                group_weights[group] = weight;
+                exclusive[group] = id;
+            } else {
+                group_weights.push(weight);
+                group_adjacent.push(Vec::new());
+                group_modules.push(Vec::new());
+                exclusive.push(id);
+            }
+        }
+        split_groups.push((file, pieces, first_other));
+    }
     let worth = nodes
         .iter()
         .map(|&nodes| module_worth(nodes))
@@ -463,21 +590,47 @@ pub(crate) fn associate_files_by_locality(
         &group_adjacent,
         &group_modules,
         &worth,
+        &exclusive,
         checkers,
     );
     for &file in &order {
         associations[file] = placed[group_of[file]];
     }
-    associations
+    let splits = split_groups
+        .into_iter()
+        .map(|(file, pieces, first_other)| SplitFile {
+            file,
+            pieces: pieces
+                .into_iter()
+                .enumerate()
+                .map(|(index, statements)| {
+                    let group = if index == 0 {
+                        group_of[file]
+                    } else {
+                        first_other + index - 1
+                    };
+                    (statements, placed[group])
+                })
+                .collect(),
+        })
+        .collect();
+    LocalityAssociation {
+        checkers: associations,
+        splits,
+    }
 }
 
 /// Steps 3 and 4 of [`associate_files_by_locality`]: tsgo's FENNEL step over
-/// the groups with the module term, then the refinement.
+/// the groups with the module term, then the refinement. Groups with the
+/// same nonzero `exclusive` number (the statement ranges of one file) are
+/// placed on different checkers and not moved afterwards; there are never
+/// more of them than checkers.
 fn place_groups(
     weights: &[usize],
     adjacent: &[Vec<usize>],
     modules: &[Vec<usize>],
     worth: &[f64],
+    exclusive: &[u32],
     checkers: usize,
 ) -> Vec<usize> {
     let files = worth.len();
@@ -498,6 +651,10 @@ fn place_groups(
     // one pass, adding the module's worth or zero: no branch on the data, and
     // each checker's sum still runs in ascending module index.
     let mut held = vec![0u32; files * checkers];
+    // taken[(number - 1) * checkers + checker]: the checker has a range of
+    // that file.
+    let numbers = exclusive.iter().copied().max().unwrap_or(0) as usize;
+    let mut taken = vec![false; numbers * checkers];
     let mut placed = vec![usize::MAX; weights.len()];
     let mut loads = vec![0usize; checkers];
     let mut neighbors = vec![0usize; checkers];
@@ -525,10 +682,14 @@ fn place_groups(
                 *sum += if count != 0 { worth[module] } else { 0.0 };
             }
         }
+        let taken = exclusive[group]
+            .checked_sub(1)
+            .map(|number| &mut taken[number as usize * checkers..][..checkers]);
+        let free = |checker: usize| taken.as_ref().is_none_or(|taken| !taken[checker]);
         let mut best = None;
         let mut best_score = f64::NEG_INFINITY;
         for (checker, &load) in loads.iter().enumerate() {
-            if load + weights[group] > cap {
+            if load + weights[group] > cap || !free(checker) {
                 continue;
             }
             let old = load as f64;
@@ -547,8 +708,14 @@ fn place_groups(
         }
         let checker = best.unwrap_or_else(|| {
             // Ascending index breaks ties, including fallback when no bin fits.
-            (0..checkers).min_by_key(|&checker| loads[checker]).unwrap()
+            (0..checkers)
+                .filter(|&checker| free(checker))
+                .min_by_key(|&checker| loads[checker])
+                .expect("a file has no more ranges than there are checkers")
         });
+        if let Some(taken) = taken {
+            taken[checker] = true;
+        }
         placed[group] = checker;
         loads[checker] += weights[group];
         for &module in &modules[group] {
@@ -560,6 +727,9 @@ fn place_groups(
     for _ in 0..REFINEMENT_PASSES {
         let mut moved = false;
         for &group in &sequence {
+            if exclusive[group] != 0 {
+                continue;
+            }
             let from = placed[group];
             // What leaves `from` with the group (the modules only it holds
             // there), and what each other checker would newly hold.
@@ -612,6 +782,8 @@ fn place_groups(
 #[derive(Debug)]
 pub(crate) struct ShardFileQueue {
     lanes: Vec<Lane>,
+    /// The statements its own checker checks of a file checked in ranges.
+    owned_statements: rustc_hash::FxHashMap<usize, Range<usize>>,
     aborted: AtomicBool,
 }
 
@@ -619,6 +791,9 @@ pub(crate) struct ShardFileQueue {
 struct Lane {
     fixtures: Vec<usize>,
     libraries: Vec<usize>,
+    /// Statement ranges of other lanes' files, checked before the lane's own
+    /// files.
+    pieces: Vec<(usize, Range<usize>)>,
     weight: usize,
     next_fixture: AtomicUsize,
     next_library: AtomicUsize,
@@ -644,8 +819,37 @@ impl ShardFileQueue {
         }
         Self {
             lanes,
+            owned_statements: rustc_hash::FxHashMap::default(),
             aborted: AtomicBool::new(false),
         }
+    }
+
+    /// Adds the statement ranges of `splits` (in ascending file index, so
+    /// every lane's ranges are too). A range reserves its share of the
+    /// file's nodes on its lane.
+    pub(crate) fn split(&mut self, splits: &[SplitFile], node_counts: &[usize]) {
+        for split in splits {
+            let Some(((own, _), others)) = split.pieces.split_first() else {
+                continue;
+            };
+            self.owned_statements.insert(split.file, own.clone());
+            for (statements, checker) in others {
+                let lane = &mut self.lanes[*checker];
+                lane.pieces.push((split.file, statements.clone()));
+                lane.weight += node_counts[split.file] / split.pieces.len();
+            }
+        }
+    }
+
+    /// The statement ranges of other lanes' files this lane checks first.
+    pub(crate) fn pieces(&self, shard: usize) -> &[(usize, Range<usize>)] {
+        &self.lanes[shard].pieces
+    }
+
+    /// The statements `file`'s own checker checks, if the file is checked in
+    /// ranges.
+    pub(crate) fn owned_statements(&self, file: usize) -> Option<Range<usize>> {
+        self.owned_statements.get(&file).cloned()
     }
 
     pub(crate) fn abort(&self) {
@@ -837,6 +1041,18 @@ mod tests {
         }
 
         fn associate(&self, checkers: usize) -> Vec<usize> {
+            let association = self.associate_with(checkers, &|_| Vec::new());
+            assert!(association.splits.is_empty());
+            association.checkers
+        }
+
+        /// The association when `statement_lengths` says which files can be
+        /// checked in statement ranges.
+        fn associate_with(
+            &self,
+            checkers: usize,
+            statement_lengths: &dyn Fn(usize) -> Vec<u32>,
+        ) -> LocalityAssociation {
             associate_files_by_locality(
                 &self.names,
                 &self.base,
@@ -845,6 +1061,7 @@ mod tests {
                 &self.adjacent,
                 &self.targets,
                 &self.base,
+                statement_lengths,
                 checkers,
             )
         }
@@ -989,7 +1206,117 @@ mod tests {
         let mut unchecked = locality_program();
         unchecked.checked.fill(false);
         assert_eq!(unchecked.associate(3), [0; 10]);
-        assert!(associate_files_by_locality(&[], &[], &[], &[], &[], &[], &[], 4).is_empty());
+        let empty =
+            associate_files_by_locality(&[], &[], &[], &[], &[], &[], &[], &|_| Vec::new(), 4);
+        assert_eq!(empty, LocalityAssociation::default());
+    }
+
+    #[test]
+    fn statement_ranges_have_about_equal_text() {
+        assert_eq!(
+            statement_pieces(&[10; 8], 4),
+            [0..2, 2..4, 4..6, 6..8],
+            "equal statements"
+        );
+        // A range closes at the statement that brings the text so far to its
+        // part of the whole.
+        assert_eq!(statement_pieces(&[100, 1, 1, 1], 2), [0..1, 1..4]);
+        assert_eq!(statement_pieces(&[1, 100, 1, 1], 2), [0..2, 2..4]);
+        assert_eq!(
+            statement_pieces(&[5, 30, 5, 5, 30, 5, 5, 30, 5], 3),
+            [0..3, 3..6, 6..9]
+        );
+        // No more ranges than statements, and a statement for every range.
+        assert_eq!(statement_pieces(&[7, 7, 7], 8), [0..1, 1..2, 2..3]);
+        assert_eq!(statement_pieces(&[50, 50, 1, 1], 3), [0..1, 1..2, 2..4]);
+        // The text that would close the first range comes with the last
+        // statement: nothing to cut.
+        assert!(statement_pieces(&[1, 1, 100], 3).is_empty());
+        // Fewer than two ranges is no split.
+        assert!(statement_pieces(&[10, 10, 10], 1).is_empty());
+        assert!(statement_pieces(&[10], 4).is_empty());
+        assert!(statement_pieces(&[], 4).is_empty());
+    }
+
+    /// A declaration file of 40 % of the program beside six source files in
+    /// three directories, each file a group of its own at four checkers.
+    fn heavy_declaration_program() -> LocalityProgram {
+        LocalityProgram::new(
+            &[
+                "/p/big.d.ts",
+                "/p/a/x.ts",
+                "/p/a/y.ts",
+                "/p/b/x.ts",
+                "/p/b/y.ts",
+                "/p/c/x.ts",
+                "/p/c/y.ts",
+            ],
+            &[4000, 1000, 1000, 1000, 1000, 1000, 1000],
+            &[0; 7],
+            &[],
+            &[],
+        )
+    }
+
+    #[test]
+    fn a_heavy_declaration_file_is_checked_in_ranges_on_different_checkers() {
+        let program = heavy_declaration_program();
+        // Whole, the file is a checker's entire load and more.
+        assert_eq!(program.associate(4), [0, 1, 2, 3, 1, 2, 3]);
+        // With eight equal statements it is 1.6 mean loads, so it is cut
+        // into as many ranges as there are checkers. The file's group keeps
+        // the first range; the others are placed in turn on the lightest
+        // checker that has none of the file yet.
+        let lengths = |file: usize| if file == 0 { vec![10; 8] } else { Vec::new() };
+        let association = program.associate_with(4, &lengths);
+        assert_eq!(association.checkers, [0, 0, 1, 2, 3, 1, 2]);
+        assert_eq!(
+            association.splits,
+            [SplitFile {
+                file: 0,
+                pieces: vec![(0..2, 0), (2..4, 3), (4..6, 1), (6..8, 2)],
+            }]
+        );
+        let split = &association.splits[0];
+        assert_eq!(split.pieces[0].1, association.checkers[0]);
+        let mut checkers = split
+            .pieces
+            .iter()
+            .map(|&(_, checker)| checker)
+            .collect::<Vec<_>>();
+        checkers.sort_unstable();
+        checkers.dedup();
+        assert_eq!(checkers.len(), split.pieces.len());
+
+        // A file whose statements cannot be checked apart stays whole, as
+        // does one below the bound (here 0.18 mean loads).
+        let single = |file: usize| if file == 0 { vec![80] } else { Vec::new() };
+        assert!(program.associate_with(4, &single).splits.is_empty());
+        let light = LocalityProgram::new(
+            &["/p/small.d.ts", "/p/a/x.ts", "/p/a/y.ts", "/p/b/x.ts"],
+            &[300, 1000, 1000, 1000],
+            &[0; 4],
+            &[],
+            &[],
+        );
+        let lengths = |file: usize| if file == 0 { vec![10; 8] } else { Vec::new() };
+        assert!(light.associate_with(2, &lengths).splits.is_empty());
+
+        // The queue: the owner keeps the file with its own range; every
+        // other range is on its checker's lane, before that lane's files.
+        let nodes = [4000, 1000, 1000, 1000, 1000, 1000, 1000];
+        let mut queue = ShardFileQueue::associated(0, &nodes, &association.checkers, 4);
+        queue.split(&association.splits, &nodes);
+        assert_eq!(queue.owned_statements(0), Some(0..2));
+        assert_eq!(queue.owned_statements(1), None);
+        assert!(queue.pieces(0).is_empty());
+        assert_eq!(queue.pieces(1), [(0, 4..6)]);
+        assert_eq!(queue.pieces(2), [(0, 6..8)]);
+        assert_eq!(queue.pieces(3), [(0, 2..4)]);
+        assert_eq!(queue.next_fixture(0), Some(0));
+        assert_eq!(queue.next_fixture(0), Some(1));
+        assert_eq!(queue.next_fixture(0), None);
+        assert_eq!(queue.reserved_nodes(3), 1000 + 4000 / 4);
     }
 
     #[test]

@@ -155,9 +155,66 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4fac0ca4e39f116ddab5a55ab69ba01689c7194437677ab3cfd3d18556e55992
     /// tsc-span: _tsc.js:86969-86986
     pub fn check_source_file(&mut self, file_index: usize) {
+        self.check_source_file_owning(file_index, None);
+    }
+
+    /// [`Self::check_source_file`] for the checker that owns the file. With
+    /// `statements`, only that range of the file's top-level statements is
+    /// checked here beside the file-level steps: the fast preset checks the
+    /// other statements of a heavy declaration file on other checkers
+    /// ([`Self::check_source_file_statements`]).
+    pub(crate) fn check_source_file_owning(
+        &mut self,
+        file_index: usize,
+        statements: Option<std::ops::Range<usize>>,
+    ) {
         let root = self.binder.source(file_index).root;
-        self.check_source_file_worker(root);
+        self.check_source_file_worker(root, statements);
         // 86985: reportedUnreachableNodes resets per checked file.
+        self.reported_unreachable_nodes.clear();
+    }
+
+    /// The top-level statements `statements` of a declaration file as
+    /// checkSourceFile checks them — the statements, then the nodes they
+    /// deferred and the deferred diagnostics — without the file-level steps
+    /// (grammar of the file, the end-of-file token, module exports), which
+    /// stay with the checker that owns the file. tsrs-native: the fast
+    /// preset's statement ranges.
+    ///
+    /// Only a declaration file whose top-level statements are all
+    /// declarations is checked this way. Its statements share no state but
+    /// the source-file node; it has no function bodies, so no control flow,
+    /// no unreachable code and (everything in it being ambient) no unused
+    /// identifiers to report; and nothing later needs the checker that
+    /// checked it.
+    pub(crate) fn check_source_file_statements(
+        &mut self,
+        file_index: usize,
+        statements: std::ops::Range<usize>,
+    ) {
+        let source = self.binder.source(file_index);
+        let root = source.root;
+        debug_assert!(source.is_declaration_file);
+        if self
+            .links
+            .read_node(root, |links| links.check_flags)
+            .intersects(NodeCheckFlags::TYPE_CHECKED)
+            || self.skip_type_checking(root)
+        {
+            return;
+        }
+        let Some(data) = self.record_of(root).as_source_file() else {
+            unreachable!("a Program file's root is a source file");
+        };
+        for &statement in &self.nodes_of(data.statements)[statements] {
+            self.check_source_element(Some(statement));
+        }
+        self.check_deferred_nodes(root);
+        // Nothing is reported as unused in an ambient context: the nodes the
+        // statements registered are dropped, as the owner's pass would drop
+        // them.
+        self.potentially_unused_identifiers.remove(&root);
+        self.produce_deferred_diagnostics();
         self.reported_unreachable_nodes.clear();
     }
 
@@ -175,7 +232,11 @@ impl<'a> CheckerState<'a> {
     ///   from 5.8a and runs immediately after the unused drain.
     /// - checkExternalModuleExports (86505): module export checking is
     ///   5.8d (needs alias declaration resolution).
-    fn check_source_file_worker(&mut self, root: NodeId) {
+    fn check_source_file_worker(
+        &mut self,
+        root: NodeId,
+        statements: Option<std::ops::Range<usize>>,
+    ) {
         if self
             .links
             .read_node(root, |links| links.check_flags)
@@ -211,7 +272,12 @@ impl<'a> CheckerState<'a> {
         };
         let end_of_file_token = data.end_of_file_token;
         let is_declaration_file = self.binder.source_of_node(root).is_declaration_file;
-        for statement in self.nodes_of(data.statements) {
+        let all = self.nodes_of(data.statements);
+        let own = match statements {
+            Some(statements) => &all[statements],
+            None => &all[..],
+        };
+        for &statement in own {
             self.check_source_element(Some(statement));
         }
         self.check_source_element(end_of_file_token);

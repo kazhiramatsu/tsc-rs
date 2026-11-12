@@ -328,10 +328,12 @@ const CHECKERS_ENV: &str = "TSRS_CHECKERS";
 ///   affinity ([`CheckerAssignment::Locality`]), so a checker repeats less
 ///   of the other checkers' work;
 /// - without `--checkers` / `TSRS_CHECKERS` the pool follows the Program: one
-///   checker per 32 type-checked files, between 4 and 12.
+///   checker per 32 type-checked files, between 4 and 12;
+/// - a declaration file heavy enough to hold its checker back is checked in
+///   ranges of statements on several checkers.
 ///
-/// Neither depends on the machine or on timing: the same Program gives the
-/// same output on every machine and in every run. That output is tsgo's
+/// None of this depends on the machine or on timing: the same Program gives
+/// the same output on every machine and in every run. That output is tsgo's
 /// except where a diagnostic depends on which files a checker saw first
 /// (tsgo itself reports such programs differently at different checker
 /// counts). `--singleThreaded` is unaffected. This is not a command-line
