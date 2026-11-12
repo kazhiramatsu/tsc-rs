@@ -8,6 +8,7 @@ use tsc_syntax::{ParseOptions, ScriptKind, SourceFile};
 use tsc_types::CompilerOptions;
 
 use crate::error::{PreparationError, PreparationErrorKind, PreparationOperation};
+use crate::inclusion_reason::SourceInclusionReasons;
 use crate::module_resolution::{is_external_module_name_relative, validate_owned_path_text};
 use crate::path::{CanonicalPath, ProgramPath};
 use crate::project_references::ResolvedProjectReferences;
@@ -241,7 +242,7 @@ pub struct PreparedSourceFile {
     found_searching_node_modules: bool,
     /// Why the file is in the program, one entry per occurrence (tsgo
     /// `fileIncludeReasons`), in the order the loader recorded them.
-    inclusion_reasons: Vec<crate::SourceInclusionReason>,
+    inclusion_reasons: SourceInclusionReasons,
     /// The loader's request-planning parse, available for adoption by the
     /// first session that proves it used identical parse options. Always
     /// present (empty when nothing was retained) and excluded from content
@@ -351,7 +352,7 @@ impl PreparedSourceFile {
             package_redirect_paths: Vec::new(),
             project_reference_source_paths: Vec::new(),
             real_path: None,
-            inclusion_reasons: Vec::new(),
+            inclusion_reasons: SourceInclusionReasons::default(),
             snapshot,
             // A prepared source is normally a direct program input. Loaders
             // that admit an external-library dependency retain that distinct
@@ -538,6 +539,11 @@ impl PreparedSourceFile {
     }
 
     pub fn with_inclusion_reasons(mut self, reasons: Vec<crate::SourceInclusionReason>) -> Self {
+        self.inclusion_reasons = reasons.into();
+        self
+    }
+
+    pub(crate) fn with_inclusion_reason_records(mut self, reasons: SourceInclusionReasons) -> Self {
         self.inclusion_reasons = reasons;
         self
     }
@@ -1938,13 +1944,7 @@ impl PreparedProgram {
                     path.add_memory_usage(usage);
                 }
             }
-            usage.vec(
-                "loader inclusion reasons (retained)",
-                &source.inclusion_reasons,
-            );
-            for reason in &source.inclusion_reasons {
-                reason.add_memory_usage(usage);
-            }
+            source.inclusion_reasons.add_memory_usage(usage);
             if let Some(reference) = &source.project_reference {
                 if usage.arc("prepared referenced project options", &reference.options) {
                     usage.js_string(STRINGS, &reference.options.common_source_directory);

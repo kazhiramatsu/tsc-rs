@@ -5055,3 +5055,25 @@ fn a_source_reached_under_two_spellings_plans_its_requests_for_each() {
         .map(|name| Some(name.to_owned()))
     );
 }
+#[test]
+fn duplicate_missing_roots_retain_their_diagnostic_origin() {
+    let host = MemoryCompilerHost::builder("/project").build().unwrap();
+    let program = load_with_options(
+        &host,
+        &["/project/missing.ts", "/project/missing.ts"],
+        compiler_options(),
+        program_options(),
+        generous_limits(),
+    )
+    .expect("duplicate missing roots share the same diagnostic");
+    assert_eq!(program.roots().len(), 2);
+    assert_eq!(
+        program
+            .diagnostics()
+            .program()
+            .iter()
+            .filter(|row| row.code() == 6053)
+            .count(),
+        1
+    );
+}
