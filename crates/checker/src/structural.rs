@@ -957,14 +957,19 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 unreachable!("Conditional target flag implies data");
             };
             let target_data = *self.st.tables.conditional_data(target_data);
-            let target_root = self.st.tables.conditional_root(target_data.root).clone();
+            let target_has_infer_parameters = !self
+                .st
+                .tables
+                .conditional_root(target_data.root)
+                .infer_type_parameters
+                .is_empty();
             let same_conditional_root = match &self.st.tables.type_of(source).data {
                 TypeData::Conditional(source_data) => {
                     self.st.tables.conditional_data(*source_data).root == target_data.root
                 }
                 _ => false,
             };
-            if target_root.infer_type_parameters.is_empty()
+            if !target_has_infer_parameters
                 && !self.st.is_distribution_dependent(target_data.root)?
                 && !same_conditional_root
             {
@@ -1274,12 +1279,18 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     unreachable!("Conditional target flag implies data");
                 };
                 let target_data = *self.st.tables.conditional_data(target_data);
-                let source_root = self.st.tables.conditional_root(source_data.root).clone();
+                let infer_parameters = tsc_types::tables::TypeListCopy::new(
+                    &self
+                        .st
+                        .tables
+                        .conditional_root(source_data.root)
+                        .infer_type_parameters,
+                );
                 let mut source_extends = source_data.extends_type;
                 let mut mapper = None;
-                if !source_root.infer_type_parameters.is_empty() {
+                if !infer_parameters.is_empty() {
                     let context = self.st.create_inference_context(
-                        &source_root.infer_type_parameters,
+                        &infer_parameters,
                         None,
                         InferenceFlags::NONE,
                         Some(CompareTypesFn::RelationFrame),
