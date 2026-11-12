@@ -3860,11 +3860,11 @@ impl TypeTables {
         let mut spans = TemplateSpans {
             new_types: Vec::new(),
             new_texts: Vec::new(),
-            text: texts[0].clone(),
+            text: texts[0].units().to_vec(),
             text_bytes: utf8_length(&texts[0]),
             moved_bytes: 0,
         };
-        if !self.add_spans(&mut spans, texts, types)? {
+        if !self.add_spans(&mut spans, TemplateSpanSource::Borrowed(texts, types))? {
             return Ok(self.intrinsics.string);
         }
         let TemplateSpans {
@@ -3874,9 +3874,9 @@ impl TypeTables {
             ..
         } = spans;
         if new_types.is_empty() {
-            return Ok(self.get_string_literal_type_from_text(&text));
+            return Ok(self.get_string_literal_type_from_utf16(&text));
         }
-        new_texts.push(text);
+        new_texts.push(TemplateText::from_utf16_owned(text));
         if new_texts.iter().all(|t| t.is_empty()) {
             if new_types
                 .iter()
@@ -3918,39 +3918,41 @@ impl TypeTables {
     fn add_spans(
         &mut self,
         spans: &mut TemplateSpans,
-        texts: &[TemplateText],
-        types: &[TypeId],
+        source: TemplateSpanSource<'_>,
     ) -> Result<bool, TemplateLiteralTooLarge> {
-        for (i, &t) in types.iter().enumerate() {
+        for i in 0..source.len(self) {
+            let t = source.ty(self, i);
             let flags = self.flags_of(t);
             if flags.intersects(TypeFlags::from_bits(
                 TypeFlags::LITERAL.bits() | TypeFlags::NULL.bits() | TypeFlags::UNDEFINED.bits(),
             )) {
-                match self.get_template_string_for_type(t) {
-                    Some(segment) => {
-                        spans.push_text(&segment);
-                        spans.push_text(&texts[i + 1]);
+                if let Some(LiteralValue::String(value)) = self.literal_value(t) {
+                    spans.push_js(value);
+                } else {
+                    match self.get_template_string_for_type(t) {
+                        Some(segment) => {
+                            spans.push_text(&segment);
+                        }
+                        None => return Ok(false),
                     }
-                    None => return Ok(false),
                 }
+                spans.push_text(source.text(self, i + 1));
             } else if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
                 let TypeData::TemplateLiteral(inner) = self.type_of(t).data else {
                     unreachable!("template flag implies template data");
                 };
-                let inner = self.template_literal(inner);
-                let inner_texts: Vec<TemplateText> = inner.texts.to_vec();
-                let inner_types: Vec<TypeId> = self.list(inner.types).to_vec();
-                spans.push_text(&inner_texts[0]);
-                if !self.add_spans(spans, &inner_texts, &inner_types)? {
+                spans.push_text(&self.template_literal(inner).texts[0]);
+                if !self.add_spans(spans, TemplateSpanSource::Stored(inner))? {
                     return Ok(false);
                 }
-                spans.push_text(&texts[i + 1]);
+                spans.push_text(source.text(self, i + 1));
             } else if self.is_generic_index_type(t) || self.is_pattern_literal_placeholder_type(t) {
                 spans.new_types.push(t);
-                let text = std::mem::replace(&mut spans.text, texts[i + 1].clone());
-                spans.new_texts.push(text);
+                let next_text = source.text(self, i + 1);
+                let text = std::mem::replace(&mut spans.text, next_text.units().to_vec());
+                spans.new_texts.push(TemplateText::from_utf16_owned(text));
                 spans.moved_bytes += spans.text_bytes;
-                spans.text_bytes = utf8_length(&texts[i + 1]);
+                spans.text_bytes = utf8_length(next_text);
             } else {
                 return Ok(false);
             }
@@ -4295,20 +4297,56 @@ pub const MAX_TEMPLATE_LITERAL_TYPE_SPANS: usize = 100_000;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TemplateLiteralTooLarge;
 
+/// Top-level borrowed spans or immutable table-owned spans. Reading one
+/// element at a time keeps no table borrow across genericity recursion.
+#[derive(Clone, Copy)]
+enum TemplateSpanSource<'a> {
+    Borrowed(&'a [TemplateText], &'a [TypeId]),
+    Stored(TemplateLiteralId),
+}
+
+impl TemplateSpanSource<'_> {
+    fn len(&self, tables: &TypeTables) -> usize {
+        match *self {
+            Self::Borrowed(_, types) => types.len(),
+            Self::Stored(id) => tables.list(tables.template_literal(id).types).len(),
+        }
+    }
+
+    fn ty(&self, tables: &TypeTables, index: usize) -> TypeId {
+        match *self {
+            Self::Borrowed(_, types) => types[index],
+            Self::Stored(id) => tables.list(tables.template_literal(id).types)[index],
+        }
+    }
+
+    fn text<'a>(&'a self, tables: &'a TypeTables, index: usize) -> &'a TemplateText {
+        match *self {
+            Self::Borrowed(texts, _) => &texts[index],
+            Self::Stored(id) => &tables.template_literal(id).texts[index],
+        }
+    }
+}
+
 /// The spans getTemplateLiteralType collects, with the UTF-8 lengths of
 /// the finished segments and of the one being written.
 struct TemplateSpans {
     new_types: Vec<TypeId>,
     new_texts: Vec<TemplateText>,
-    text: TemplateText,
+    text: Vec<u16>,
     text_bytes: usize,
     moved_bytes: usize,
 }
 
 impl TemplateSpans {
     fn push_text(&mut self, segment: &TemplateText) {
-        self.text.push_text(segment);
+        self.text.extend_from_slice(segment.units());
         self.text_bytes += utf8_length(segment);
+    }
+
+    fn push_js(&mut self, segment: crate::JsStr<'_>) {
+        self.text.extend(segment.code_units());
+        self.text_bytes += segment.as_bytes().len();
     }
 }
 

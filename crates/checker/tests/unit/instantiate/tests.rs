@@ -636,3 +636,62 @@ fn imported_all_defaults_alias_without_arguments_is_non_generic() {
     );
     assert_eq!(result.work_counters.instantiations(), 9);
 }
+
+#[test]
+fn template_builders_keep_tsgo_case_mapping_and_surrogate_diagnostics() {
+    // Pinned tsgo aa8149273, fixtures/A1.ts, strict/esnext/noEmit.
+    let text = r#"export {};
+type Uppercase<S extends string> = intrinsic;
+type Lowercase<S extends string> = intrinsic;
+type Capitalize<S extends string> = intrinsic;
+type Uncapitalize<S extends string> = intrinsic;
+type Nested = `pre-${`inner-${"x" | "y"}`}-post`;
+const badNested: Nested = "wrong";
+type Upper = Uppercase<"straße" | "\uD800ß" | "a\uDC00">;
+const badUpper: Upper = "wrong";
+type Lower = Lowercase<"ΟΣ" | "İ" | "\uD800A">;
+const badLower: Lower = "wrong";
+type Capped = Capitalize<`a${string}z`> | Uncapitalize<`B${number}Z`>;
+const badCapped: Capped = "wrong";
+type SurrogateSeam = `${"\uD800"}${"\uDC00"}`;
+const badSeam: SurrogateSeam = "wrong";
+type MappedTemplate = Uppercase<`pre${string}tail`> | Lowercase<`PRE${number}TAIL`>;
+const badMappedTemplate: MappedTemplate = "wrong";
+type EmptyPrefix = Capitalize<`${string}tail`> | Uncapitalize<`${string}TAIL`>;
+const badEmptyPrefix: EmptyPrefix = "wrong";
+type LiteralCase = Capitalize<"ßeta" | "\uD800alpha"> | Uncapitalize<"İOTA" | "\uDC00X">;
+const badLiteralCase: LiteralCase = "wrong";
+"#;
+    let options = tsc_types::CompilerOptions {
+        strict: Some(true),
+        target: Some(tsc_types::ScriptTarget::ES_NEXT.bits()),
+        ..Default::default()
+    };
+    crate::state::test_support::with_program_state(&[("a.ts", text)], &options, |state| {
+        state.check_source_file(0);
+        let messages = state
+            .diagnostics
+            .iter()
+            .filter(|d| d.code() == 2322)
+            .map(|d| {
+                tsc_diagnostics::render::flattened_message(&d.message, "\n", None)
+                    .as_str()
+                    .unwrap()
+                    .to_owned()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            messages,
+            [
+                r#"Type '"wrong"' is not assignable to type '"pre-inner-x-post" | "pre-inner-y-post"'."#,
+                r#"Type '"wrong"' is not assignable to type '"A\uDC00" | "STRASSE" | "\uD800SS"'."#,
+                r#"Type '"wrong"' is not assignable to type '"i̇" | "ος" | "\uD800a"'."#,
+                r#"Type '"wrong"' is not assignable to type 'Capped'."#,
+                r#"Type '"wrong"' is not assignable to type '"𐀀"'."#,
+                r#"Type '"wrong"' is not assignable to type 'MappedTemplate'."#,
+                r#"Type '"wrong"' is not assignable to type 'EmptyPrefix'."#,
+                r#"Type '"wrong"' is not assignable to type 'LiteralCase'."#,
+            ]
+        );
+    });
+}
