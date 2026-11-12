@@ -2334,7 +2334,13 @@ fn conditional_type_to_type_node(
         unreachable!("conditional worker receives a conditional type")
     };
     let data = *checker.tables.conditional_data(data);
-    let root = checker.tables.conditional_root(data.root).clone();
+    let root = checker.tables.conditional_root(data.root);
+    let (root_check_type, root_extends_type, root_node, root_is_distributive) = (
+        root.check_type,
+        root.extends_type,
+        root.node,
+        root.is_distributive,
+    );
     let Some(check_type) =
         type_to_type_node_helper(checker, arena, target, data.check_type, context)?
     else {
@@ -2345,7 +2351,7 @@ fn conditional_type_to_type_node(
     if context
         .flags
         .contains(tsc_emitter::EmitNodeBuilderFlags::GENERATE_NAMES_FOR_SHADOWED_TYPE_PARAMS)
-        && root.is_distributive
+        && root_is_distributive
         && !checker
             .tables
             .flags_of(data.check_type)
@@ -2356,13 +2362,17 @@ fn conditional_type_to_type_node(
         let name = identifier_text(arena, name).unwrap_or("T").to_owned();
         let new_variable = create_named_type_reference(arena, target, &name, None)?;
         add_approximate_length(context, 37);
-        let mapper = checker.prepend_type_mapping(root.check_type, new_parameter, data.mapper);
-        let old_infer = context
-            .infer_type_parameters
-            .replace(root.infer_type_parameters.to_vec());
+        let mapper = checker.prepend_type_mapping(root_check_type, new_parameter, data.mapper);
+        let old_infer = context.infer_type_parameters.replace(
+            checker
+                .tables
+                .conditional_root(data.root)
+                .infer_type_parameters
+                .to_vec(),
+        );
         let extends = (|| {
             let instantiated_extends = checker
-                .instantiate_type(root.extends_type, Some(mapper))
+                .instantiate_type(root_extends_type, Some(mapper))
                 .map_err(|abort| checker_abort_error(checker, context, abort))?;
             type_to_type_node_helper(checker, arena, target, instantiated_extends, context)
         })();
@@ -2370,7 +2380,7 @@ fn conditional_type_to_type_node(
         let Some(extends) = extends? else {
             return Ok(None);
         };
-        let NodeData::ConditionalType(root_node) = checker.data_of(NodeId::new(root.node)) else {
+        let NodeData::ConditionalType(root_node) = checker.data_of(NodeId::new(root_node)) else {
             context.encountered_error = true;
             return Ok(None);
         };
@@ -2454,9 +2464,13 @@ fn conditional_type_to_type_node(
         .map(Some);
     }
 
-    let old_infer = context
-        .infer_type_parameters
-        .replace(root.infer_type_parameters.to_vec());
+    let old_infer = context.infer_type_parameters.replace(
+        checker
+            .tables
+            .conditional_root(data.root)
+            .infer_type_parameters
+            .to_vec(),
+    );
     let extends = type_to_type_node_helper(checker, arena, target, data.extends_type, context);
     context.infer_type_parameters = old_infer;
     let Some(extends) = extends? else {

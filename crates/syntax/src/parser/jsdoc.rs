@@ -196,7 +196,8 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
     }
 
     fn finish_node_list(&mut self, mark: usize, pos: usize, end: usize) -> crate::NodeArrayId {
-        self.parser.finish_node_list(mark, pos, end, false)
+        self.parser
+            .finish_node_list(mark, pos, end, false, crate::NodeArrayRole::Children)
     }
 
     /// tsgo parseJSDocIdentifierName (jsdoc.go:1341-1355): a missing name is
@@ -572,6 +573,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 self.tags_pos.unwrap_or(start),
                 self.tags_end.unwrap_or(end),
                 false,
+                crate::NodeArrayRole::Children,
             );
             self.tags.clear();
             Some(tags)

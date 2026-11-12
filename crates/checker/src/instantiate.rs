@@ -194,7 +194,7 @@ fn js_template_text_case(text: &tsc_types::TemplateText, upper: bool) -> tsc_typ
         }
     }
     flush_run(&mut scalar_run, &mut mapped_units);
-    tsc_types::TemplateText::from_utf16(&mapped_units)
+    tsc_types::TemplateText::from_utf16_owned(mapped_units)
 }
 
 fn js_template_text_capitalize(
@@ -215,7 +215,7 @@ fn js_template_text_capitalize(
     };
     let mut units = mapped.encode_utf16().collect::<Vec<_>>();
     units.extend_from_slice(rest);
-    tsc_types::TemplateText::from_utf16(&units)
+    tsc_types::TemplateText::from_utf16_owned(units)
 }
 
 impl<'a> CheckerState<'a> {
@@ -3318,26 +3318,26 @@ impl<'a> CheckerState<'a> {
             return Ok(mapped.expect("string mapping over unions never drops members"));
         }
         if flags.intersects(TypeFlags::STRING_LITERAL) {
-            let value = match self.tables.literal_value(ty) {
-                Some(tsc_types::LiteralValue::String(value)) => {
-                    tsc_types::TemplateText::from_js(value)
-                }
-                _ => unreachable!("string-literal flag implies string payload"),
-            };
             let name = self.binder.symbol(symbol).escaped_name;
-            let mapped = apply_string_mapping(intrinsic_type_kind(name), &value);
+            let kind = intrinsic_type_kind(name);
+            let Some(tsc_types::LiteralValue::String(value)) = self.tables.literal_value(ty) else {
+                unreachable!("string-literal flag implies string payload");
+            };
+            // A scalar input already has the encoding used by Rust's JS
+            // case conversion. Only lone surrogates need the UTF-16 path.
+            if let Some(value) = value.as_str() {
+                let mapped = apply_scalar_string_mapping(kind, value);
+                return Ok(self.tables.get_string_literal_type(mapped.as_str()));
+            }
+            let value = tsc_types::TemplateText::from_js(value);
+            let mapped = apply_string_mapping(kind, &value);
             return Ok(self.tables.get_string_literal_type_from_text(&mapped));
         }
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
-            let (texts, types) = match &self.tables.type_of(ty).data {
-                TypeData::TemplateLiteral(data) => {
-                    let data = self.tables.template_literal(*data);
-                    (data.texts.to_vec(), self.tables.list(data.types).to_vec())
-                }
-                _ => unreachable!("template flag implies template data"),
+            let TypeData::TemplateLiteral(template) = self.tables.type_of(ty).data else {
+                unreachable!("template flag implies template data");
             };
-            let (new_texts, new_types) =
-                self.apply_template_string_mapping(symbol, texts, types)?;
+            let (new_texts, new_types) = self.apply_template_string_mapping(symbol, template)?;
             return self.get_template_literal_type_from_texts(&new_texts, &new_types);
         }
         // Mapping<Mapping<T>> === Mapping<T>
@@ -3370,36 +3370,53 @@ impl<'a> CheckerState<'a> {
     fn apply_template_string_mapping(
         &mut self,
         symbol: SymbolId,
-        texts: Vec<tsc_types::TemplateText>,
-        types: Vec<TypeId>,
+        template: tsc_types::TemplateLiteralId,
     ) -> CheckResult<(Vec<tsc_types::TemplateText>, Vec<TypeId>)> {
         let name = self.binder.symbol(symbol).escaped_name;
+        let types = self.tables.template_literal(template).types;
         match intrinsic_type_kind(name) {
             Some(IntrinsicTypeKind::Uppercase) | Some(IntrinsicTypeKind::Lowercase) => {
                 let upper = intrinsic_type_kind(name) == Some(IntrinsicTypeKind::Uppercase);
-                let new_texts = texts
+                // Text mapping is pure; borrow the stored payload before the
+                // resolving type callbacks. The list cursor survives appends.
+                let new_texts = self
+                    .tables
+                    .template_literal(template)
+                    .texts
                     .iter()
                     .map(|text| js_template_text_case(text, upper))
                     .collect();
-                let mut new_types = Vec::with_capacity(types.len());
-                for t in types {
-                    new_types.push(self.get_string_mapping_type(symbol, t)?);
+                let mut cursor = self.tables.cursor(types);
+                let mut new_types = Vec::with_capacity(self.tables.list(types).len());
+                while let Some(ty) = cursor.next(&self.tables) {
+                    new_types.push(self.get_string_mapping_type(symbol, ty)?);
                 }
                 Ok((new_texts, new_types))
             }
             Some(IntrinsicTypeKind::Capitalize) | Some(IntrinsicTypeKind::Uncapitalize) => {
                 let upper = intrinsic_type_kind(name) == Some(IntrinsicTypeKind::Capitalize);
-                if texts[0].is_empty() {
-                    let mut new_types = types.clone();
-                    new_types[0] = self.get_string_mapping_type(symbol, types[0])?;
-                    Ok((texts, new_types))
+                if self.tables.template_literal(template).texts[0].is_empty() {
+                    let first = self.tables.list(types)[0];
+                    let first = self.get_string_mapping_type(symbol, first)?;
+                    let mut new_types = self.tables.list(types).to_vec();
+                    new_types[0] = first;
+                    Ok((
+                        self.tables.template_literal(template).texts.to_vec(),
+                        new_types,
+                    ))
                 } else {
-                    let mut new_texts = texts.clone();
-                    new_texts[0] = js_template_text_capitalize(&texts[0], upper);
-                    Ok((new_texts, types))
+                    let texts = &self.tables.template_literal(template).texts;
+                    let first = js_template_text_capitalize(&texts[0], upper);
+                    let mut new_texts = Vec::with_capacity(texts.len());
+                    new_texts.push(first);
+                    new_texts.extend_from_slice(&texts[1..]);
+                    Ok((new_texts, self.tables.list(types).to_vec()))
                 }
             }
-            _ => Ok((texts, types)),
+            _ => Ok((
+                self.tables.template_literal(template).texts.to_vec(),
+                self.tables.list(types).to_vec(),
+            )),
         }
     }
 
@@ -3696,6 +3713,28 @@ impl<'a> CheckerState<'a> {
                 }
                 _ => false,
             })
+    }
+}
+
+/// The existing case mapping for a borrowed scalar string. Capitalize
+/// transforms one UTF-16 unit: an initial supplementary scalar is unchanged.
+fn apply_scalar_string_mapping(kind: Option<IntrinsicTypeKind>, value: &str) -> String {
+    match kind {
+        Some(IntrinsicTypeKind::Uppercase) => js_to_upper_case(value),
+        Some(IntrinsicTypeKind::Lowercase) => js_to_lower_case(value),
+        Some(IntrinsicTypeKind::Capitalize | IntrinsicTypeKind::Uncapitalize) => {
+            let Some(first) = value.chars().next().filter(|first| first.len_utf16() == 1) else {
+                return value.to_owned();
+            };
+            let mut mapped = if kind == Some(IntrinsicTypeKind::Capitalize) {
+                first.to_uppercase().to_string()
+            } else {
+                first.to_lowercase().to_string()
+            };
+            mapped.push_str(&value[first.len_utf8()..]);
+            mapped
+        }
+        _ => value.to_owned(),
     }
 }
 

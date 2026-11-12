@@ -178,3 +178,64 @@ fn conditional_checker_consumers_do_not_fabricate_constraints_or_cycles() {
         },
     );
 }
+
+#[test]
+fn conditional_root_snapshots_keep_reference_inference_tail_and_outer_parameters() {
+    // Pinned tsgo aa8149273, A2.ts, strict/esnext/noEmit.
+    let text = r#"type Select<T> = T extends string ? { s: T } : { n: T };
+type Unwrap<T> = T extends { value: infer U } ? { value: U } : { absent: T };
+declare const yes: Select<"x">;
+declare const no: Select<1>;
+declare const inferred: Unwrap<{ value: "v" }>;
+declare const absent: Unwrap<0>;
+const badYes: never = yes;
+const badNo: never = no;
+const badInferred: never = inferred;
+const badAbsent: never = absent;
+function deferred<T>(select: Select<T>, unwrap: Unwrap<T>) {
+    const badSelect: never = select;
+    const badUnwrap: never = unwrap;
+}
+type Walk<T extends unknown[], Acc extends unknown[] = []> = T extends [infer H, ...infer R] ? Walk<R, [...Acc, { value: H }]> : Acc;
+declare let walk: Walk<[1, "x", true]>;
+const badWalk: never = walk;
+function many<A, B, C, D, E, F, G, H, I, J>(value: A extends B ? [C, D, E, F, G, H, I, J] : [J, I, H, G, F, E, D, C]) {
+    const badMany: never = value;
+}
+"#;
+    let options = CompilerOptions {
+        strict: Some(true),
+        target: Some(tsc_types::ScriptTarget::ES_NEXT.bits()),
+        ..Default::default()
+    };
+    with_program_state(&[("a.ts", text)], &options, |state| {
+        state.check_source_file(0);
+        let messages = state
+            .diagnostics
+            .iter()
+            .filter(|d| d.code() == 2322)
+            .map(|d| {
+                tsc_diagnostics::render::flattened_message(&d.message, "\n", None)
+                    .as_str()
+                    .unwrap()
+                    .to_owned()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            messages,
+            [
+                r#"Type '{ s: "x"; }' is not assignable to type 'never'."#,
+                r#"Type '{ n: 1; }' is not assignable to type 'never'."#,
+                r#"Type '{ value: "v"; }' is not assignable to type 'never'."#,
+                r#"Type '{ absent: 0; }' is not assignable to type 'never'."#,
+                r#"Type '{ s: T; } | { n: T; }' is not assignable to type 'never'.
+  Type '{ s: T; }' is not assignable to type 'never'."#,
+                r#"Type '{ value: unknown; } | { absent: T; }' is not assignable to type 'never'.
+  Type '{ value: unknown; }' is not assignable to type 'never'."#,
+                r#"Type '[{ value: 1; }, { value: "x"; }, { value: true; }]' is not assignable to type 'never'."#,
+                r#"Type '[C, D, E, F, G, H, I, J] | [J, I, H, G, F, E, D, C]' is not assignable to type 'never'.
+  Type '[C, D, E, F, G, H, I, J]' is not assignable to type 'never'."#,
+            ]
+        );
+    });
+}

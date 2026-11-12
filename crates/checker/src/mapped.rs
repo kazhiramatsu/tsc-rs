@@ -366,12 +366,13 @@ impl<'a> CheckerState<'a> {
                 unreachable!("Conditional flag implies conditional data");
             };
             let data = *self.tables.conditional_data(data);
-            let root = self.tables.conditional_root(data.root).clone();
-            if root.is_distributive {
+            let root = self.tables.conditional_root(data.root);
+            let (root_check_type, root_is_distributive) = (root.check_type, root.is_distributive);
+            if root_is_distributive {
                 let constraint = self.get_lower_bound_of_key_type(data.check_type)?;
                 if constraint != data.check_type {
                     let mapper =
-                        self.prepend_type_mapping(root.check_type, constraint, data.mapper);
+                        self.prepend_type_mapping(root_check_type, constraint, data.mapper);
                     return self.get_conditional_type_instantiation(
                         ty, mapper, /*for_constraint*/ false, None, None,
                     );

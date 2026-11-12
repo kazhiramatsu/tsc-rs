@@ -1766,10 +1766,11 @@ impl<'text> Parser<'text> {
         pos: usize,
         end: usize,
         has_trailing_comma: bool,
+        role: crate::NodeArrayRole,
     ) -> crate::NodeArrayId {
-        let array = self
-            .arena
-            .alloc_array(&self.node_stack[mark..], pos, end, has_trailing_comma);
+        let array =
+            self.arena
+                .alloc_array(&self.node_stack[mark..], pos, end, has_trailing_comma, role);
         self.truncate_node_list(mark);
         array
     }
@@ -1806,7 +1807,13 @@ impl<'text> Parser<'text> {
         }
 
         self.parsing_context = saved_context;
-        self.finish_node_list(mark, list_pos, self.node_pos(), false)
+        self.finish_node_list(
+            mark,
+            list_pos,
+            self.node_pos(),
+            false,
+            crate::NodeArrayRole::Children,
+        )
     }
 
     fn parse_delimited_list(
@@ -1889,7 +1896,13 @@ impl<'text> Parser<'text> {
         let has_trailing_comma = self.node_stack[mark..]
             .last()
             .is_some_and(|&last| (self.arena.node(last).end as usize) < end);
-        Some(self.finish_node_list(mark, list_pos, end, has_trailing_comma))
+        Some(self.finish_node_list(
+            mark,
+            list_pos,
+            end,
+            has_trailing_comma,
+            crate::NodeArrayRole::Children,
+        ))
     }
 
     fn is_list_terminator(&mut self, context: ParsingContext) -> bool {
@@ -5241,7 +5254,13 @@ impl<'text> Parser<'text> {
             self.truncate_node_list(mark);
             None
         } else {
-            Some(self.finish_node_list(mark, pos, self.node_pos(), false))
+            Some(self.finish_node_list(
+                mark,
+                pos,
+                self.node_pos(),
+                false,
+                crate::NodeArrayRole::Modifiers,
+            ))
         }
     }
 
@@ -5252,7 +5271,13 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let modifier = self.parse_token_node();
         let end = self.arena.node(modifier).end as usize;
-        Some(self.arena.alloc_array(&[modifier], pos, end, false))
+        Some(self.arena.alloc_array(
+            &[modifier],
+            pos,
+            end,
+            false,
+            crate::NodeArrayRole::Modifiers,
+        ))
     }
 
     fn parse_parenthesized_arrow_function_expression(
@@ -5366,9 +5391,13 @@ impl<'text> Parser<'text> {
         let parameter_node = self.arena.node(parameter);
         let (parameter_pos, parameter_end) =
             (parameter_node.pos as usize, parameter_node.end as usize);
-        let parameters = self
-            .arena
-            .alloc_array(&[parameter], parameter_pos, parameter_end, false);
+        let parameters = self.arena.alloc_array(
+            &[parameter],
+            parameter_pos,
+            parameter_end,
+            false,
+            crate::NodeArrayRole::Children,
+        );
         let equals_greater_than_token =
             self.parse_expected_token(SyntaxKind::EqualsGreaterThanToken, None);
         let body = self.parse_arrow_function_expression_body(
@@ -5807,7 +5836,13 @@ impl<'text> Parser<'text> {
                     *self.node_stack[mark..]
                         .last_mut()
                         .expect("rebalance only fires on a non-empty child list") = new_last;
-                    children = self.finish_node_list(mark, children_pos, end, false);
+                    children = self.finish_node_list(
+                        mark,
+                        children_pos,
+                        end,
+                        false,
+                        crate::NodeArrayRole::Children,
+                    );
                     closing_element = last_closing;
                 } else {
                     closing_element =
@@ -5998,7 +6033,13 @@ impl<'text> Parser<'text> {
             }
         }
         self.parsing_context = save_parsing_context;
-        self.finish_node_list(mark, list_pos, self.node_pos(), false)
+        self.finish_node_list(
+            mark,
+            list_pos,
+            self.node_pos(),
+            false,
+            crate::NodeArrayRole::Children,
+        )
     }
 
     /// tsc parseJsxAttributes.
@@ -7731,7 +7772,13 @@ impl<'text> Parser<'text> {
                 break;
             }
         }
-        let template_spans = self.finish_node_list(mark, spans_pos, self.node_pos(), false);
+        let template_spans = self.finish_node_list(
+            mark,
+            spans_pos,
+            self.node_pos(),
+            false,
+            crate::NodeArrayRole::Children,
+        );
         self.finish_node_data(
             NodeData::TemplateExpression(TemplateExpressionData {
                 head: Some(head),
@@ -7997,7 +8044,13 @@ impl<'text> Parser<'text> {
                 break;
             }
         }
-        let template_spans = self.finish_node_list(mark, spans_pos, self.node_pos(), false);
+        let template_spans = self.finish_node_list(
+            mark,
+            spans_pos,
+            self.node_pos(),
+            false,
+            crate::NodeArrayRole::Children,
+        );
         self.finish_node_data(
             NodeData::TemplateLiteralType(TemplateLiteralTypeData {
                 head: Some(head),
@@ -8687,7 +8740,13 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let modifier = self.parse_token_node();
         let end = self.arena.node(modifier).end as usize;
-        Some(self.arena.alloc_array(&[modifier], pos, end, false))
+        Some(self.arena.alloc_array(
+            &[modifier],
+            pos,
+            end,
+            false,
+            crate::NodeArrayRole::Modifiers,
+        ))
     }
 
     fn parse_function_or_constructor_type(&mut self) -> NodeId {
@@ -9151,7 +9210,13 @@ impl<'text> Parser<'text> {
                     .unwrap_or_else(|| parse_constituent_type(self));
                 self.node_stack.push(next);
             }
-            let array = self.finish_node_list(mark, pos, self.node_pos(), false);
+            let array = self.finish_node_list(
+                mark,
+                pos,
+                self.node_pos(),
+                false,
+                crate::NodeArrayRole::Children,
+            );
             r#type = self.finish_node_data(create_type_node(array), pos);
         }
         r#type
@@ -10109,7 +10174,13 @@ impl<'text> Parser<'text> {
             self.retain_reparse_recovery(&saved_diagnostics, &saved_recovery, prev_pos..u32::MAX);
         }
 
-        self.finish_node_list(mark, array_pos, array_end, false)
+        self.finish_node_list(
+            mark,
+            array_pos,
+            array_end,
+            false,
+            crate::NodeArrayRole::Children,
+        )
     }
 
     /// The parser's finish of a node built from `data`. This path, down to
@@ -10292,7 +10363,13 @@ impl<'text> Parser<'text> {
                         .expect("non-empty JSDoc list"),
                 )
                 .end as usize;
-            let js_doc = self.finish_node_list(mark, array_start, array_end, false);
+            let js_doc = self.finish_node_list(
+                mark,
+                array_start,
+                array_end,
+                false,
+                crate::NodeArrayRole::Children,
+            );
             self.arena.set_js_doc(host, js_doc);
             self.arena.attach_js_doc(host);
             if deprecated {
@@ -10903,7 +10980,10 @@ fn parse_json_text_with_options(
     let pos = parser.node_pos();
 
     let (statements, end_of_file_token) = if parser.token() == SyntaxKind::EndOfFileToken {
-        let statements = parser.arena.alloc_array(&[], pos, pos, false);
+        let statements =
+            parser
+                .arena
+                .alloc_array(&[], pos, pos, false, crate::NodeArrayRole::Children);
         let end_of_file_token = parser.parse_token_node();
         (statements, end_of_file_token)
     } else {
@@ -10947,7 +11027,13 @@ fn parse_json_text_with_options(
 
         let expression = if parser.node_stack.len() - mark > 1 {
             let expressions_end = parser.node_pos();
-            let elements = parser.finish_node_list(mark, pos, expressions_end, false);
+            let elements = parser.finish_node_list(
+                mark,
+                pos,
+                expressions_end,
+                false,
+                crate::NodeArrayRole::Children,
+            );
             parser.finish_node_data(
                 NodeData::ArrayLiteralExpression(ArrayLiteralExpressionData {
                     elements: Some(elements),
@@ -10965,9 +11051,13 @@ fn parse_json_text_with_options(
             }),
             pos,
         );
-        let statements = parser
-            .arena
-            .alloc_array(&[statement], pos, parser.node_pos(), false);
+        let statements = parser.arena.alloc_array(
+            &[statement],
+            pos,
+            parser.node_pos(),
+            false,
+            crate::NodeArrayRole::Children,
+        );
         let end_of_file_token =
             parser.parse_expected_token(SyntaxKind::EndOfFileToken, Some(&gen::Unexpected_token));
         if validate_value {

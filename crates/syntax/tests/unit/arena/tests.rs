@@ -14,7 +14,7 @@ fn finalizes_parent_links_and_error_aggregation() {
         1,
         NodeFlags::THIS_NODE_HAS_ERROR,
     );
-    let statements = arena.alloc_array(&[stmt], 0, 1, false);
+    let statements = arena.alloc_array(&[stmt], 0, 1, false, crate::NodeArrayRole::Children);
     let eof = arena.alloc_token(SyntaxKind::EndOfFileToken, 1, 1, NodeFlags::NONE);
     let root = arena.alloc_node(
         NodeData::SourceFile(SourceFileData {
@@ -65,7 +65,13 @@ fn jsdoc_child_order_and_comment_union_follow_tsc() {
         28,
         NodeFlags::JS_DOC,
     );
-    let comments = arena.alloc_array(&[comment_text], 17, 28, false);
+    let comments = arena.alloc_array(
+        &[comment_text],
+        17,
+        28,
+        false,
+        crate::NodeArrayRole::Children,
+    );
 
     for (is_name_first, expected) in [
         (true, vec![tag_name, name, type_expression, comment_text]),
@@ -155,4 +161,35 @@ fn synthetic_node_array_preserves_tsc_negative_span() {
     assert_eq!(arena.node_array(array).pos, u32::MAX);
     assert_eq!(arena.node_array(array).end, u32::MAX);
     assert!(!arena.node_array(array).has_trailing_comma);
+}
+
+#[test]
+fn only_modifier_lists_derive_modifier_metadata() {
+    let mut arena = NodeArena::new();
+    let modifier = arena.alloc_token(SyntaxKind::ExportKeyword, 0, 6, NodeFlags::NONE);
+    let children = arena.alloc_array(&[modifier], 0, 6, false, crate::NodeArrayRole::Children);
+    let modifiers = arena.alloc_array(&[modifier], 0, 6, false, crate::NodeArrayRole::Modifiers);
+    assert_eq!(
+        arena.node_array(children).modifier_flags,
+        ModifierFlags::NONE
+    );
+    assert_eq!(
+        arena.node_array(modifiers).modifier_flags,
+        ModifierFlags::EXPORT
+    );
+    // A factory/decoder can know a generic list's role only on attachment.
+    let statement = arena.alloc_node(
+        NodeData::VariableStatement(crate::nodes::VariableStatementData {
+            modifiers: Some(children),
+            declaration_list: None,
+        }),
+        0,
+        6,
+        NodeFlags::NONE,
+    );
+    assert_eq!(arena.node(statement).modifiers_field(), Some(children));
+    assert_eq!(
+        arena.node_array(children).modifier_flags,
+        ModifierFlags::EXPORT
+    );
 }

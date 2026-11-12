@@ -139,10 +139,16 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.tables.intrinsics.error);
             }
 
-            let root_data = self.tables.conditional_root(root).clone();
-            let actual_check_type = self.get_actual_type_variable(root_data.check_type)?;
+            let root_data = self.tables.conditional_root(root);
+            let (root_check_type, root_extends_type, root_node, root_alias_symbol) = (
+                root_data.check_type,
+                root_data.extends_type,
+                root_data.node,
+                root_data.alias_symbol,
+            );
+            let actual_check_type = self.get_actual_type_variable(root_check_type)?;
             let check_type = self.instantiate_type(actual_check_type, mapper)?;
-            let extends_type = self.instantiate_type(root_data.extends_type, mapper)?;
+            let extends_type = self.instantiate_type(root_extends_type, mapper)?;
             if check_type == self.tables.intrinsics.error
                 || extends_type == self.tables.intrinsics.error
             {
@@ -154,10 +160,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.tables.intrinsics.wildcard);
             }
 
-            let Some(node) = self
-                .record_of(NodeId::new(root_data.node))
-                .as_conditional_type()
-            else {
+            let Some(node) = self.record_of(NodeId::new(root_node)).as_conditional_type() else {
                 unreachable!("conditional root points at a ConditionalType node");
             };
             let check_node = node
@@ -183,9 +186,17 @@ impl<'a> CheckerState<'a> {
                 self.is_deferred_conditional_type(check_type, check_tuples)?;
 
             let mut combined_mapper = None;
-            if !root_data.infer_type_parameters.is_empty() {
+            if !self
+                .tables
+                .conditional_root(root)
+                .infer_type_parameters
+                .is_empty()
+            {
+                let infer_parameters = tsc_types::tables::TypeListCopy::new(
+                    &self.tables.conditional_root(root).infer_type_parameters,
+                );
                 let context = self.create_inference_context(
-                    &root_data.infer_type_parameters,
+                    &infer_parameters,
                     None,
                     InferenceFlags::NONE,
                     None,
@@ -216,7 +227,7 @@ impl<'a> CheckerState<'a> {
 
             let inferred_extends_type = match combined_mapper {
                 Some(combined_mapper) => {
-                    self.instantiate_type(root_data.extends_type, Some(combined_mapper))?
+                    self.instantiate_type(root_extends_type, Some(combined_mapper))?
                 }
                 None => extends_type,
             };
@@ -268,11 +279,10 @@ impl<'a> CheckerState<'a> {
                     if let TypeData::Conditional(false_data) = self.tables.type_of(false_type).data
                     {
                         let false_data = *self.tables.conditional_data(false_data);
-                        let new_root = self.tables.conditional_root(false_data.root).clone();
+                        let new_root = self.tables.conditional_root(false_data.root);
                         if self.parent_of(NodeId::new(new_root.node))
-                            == Some(NodeId::new(root_data.node))
-                            && (!new_root.is_distributive
-                                || new_root.check_type == root_data.check_type)
+                            == Some(NodeId::new(root_node))
+                            && (!new_root.is_distributive || new_root.check_type == root_check_type)
                         {
                             root = false_data.root;
                             continue;
@@ -332,11 +342,17 @@ impl<'a> CheckerState<'a> {
                 }
             }
 
-            let result_alias_symbol = alias_symbol.or(root_data.alias_symbol);
+            let result_alias_symbol = alias_symbol.or(root_alias_symbol);
             let result_alias_arguments = if alias_symbol.is_some() {
                 alias_type_arguments.map(<[TypeId]>::to_vec)
             } else {
-                match root_data.alias_type_arguments.as_deref() {
+                let arguments = self
+                    .tables
+                    .conditional_root(root)
+                    .alias_type_arguments
+                    .as_deref()
+                    .map(tsc_types::tables::TypeListCopy::new);
+                match arguments.as_deref() {
                     Some(arguments) => match mapper {
                         Some(mapper) => Some(self.instantiate_types(arguments, mapper)?),
                         None => Some(arguments.to_vec()),
@@ -344,8 +360,8 @@ impl<'a> CheckerState<'a> {
                     None => None,
                 }
             };
-            let result_check_type = self.instantiate_type(root_data.check_type, mapper)?;
-            let result_extends_type = self.instantiate_type(root_data.extends_type, mapper)?;
+            let result_check_type = self.instantiate_type(root_check_type, mapper)?;
+            let result_extends_type = self.instantiate_type(root_extends_type, mapper)?;
             let result = self.tables.create_conditional_type(
                 tsc_types::ConditionalTypeData {
                     root,
@@ -378,23 +394,29 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
         let data = *self.tables.conditional_data(data);
-        let new_root = self.tables.conditional_root(data.root).clone();
-        let Some(outer_parameters) = new_root.outer_type_parameters.as_deref() else {
+        let new_root = self.tables.conditional_root(data.root);
+        let (root_check_type, root_is_distributive) =
+            (new_root.check_type, new_root.is_distributive);
+        let Some(outer_parameters) = new_root
+            .outer_type_parameters
+            .as_deref()
+            .map(tsc_types::tables::TypeListCopy::new)
+        else {
             return Ok(None);
         };
         let type_parameter_mapper = self.combine_type_mappers(data.mapper, new_mapper);
         let mut type_arguments = Vec::with_capacity(outer_parameters.len());
-        for &parameter in outer_parameters {
+        for &parameter in &outer_parameters {
             type_arguments.push(self.get_mapped_type(parameter, type_parameter_mapper)?);
         }
-        let new_root_mapper = self.create_type_mapper(outer_parameters, Some(&type_arguments[..]));
-        let new_check_type = if new_root.is_distributive {
-            Some(self.get_mapped_type(new_root.check_type, new_root_mapper)?)
+        let new_root_mapper = self.create_type_mapper(&outer_parameters, Some(&type_arguments[..]));
+        let new_check_type = if root_is_distributive {
+            Some(self.get_mapped_type(root_check_type, new_root_mapper)?)
         } else {
             None
         };
         if new_check_type.is_none()
-            || new_check_type == Some(new_root.check_type)
+            || new_check_type == Some(root_check_type)
             || !self
                 .tables
                 .flags_of(new_check_type.expect("checked above"))
@@ -413,11 +435,13 @@ impl<'a> CheckerState<'a> {
         &mut self,
         root: ConditionalRootId,
     ) -> CheckResult<bool> {
-        let root = self.tables.conditional_root(root).clone();
-        if !root.is_distributive {
+        let root = self.tables.conditional_root(root);
+        let (root_node, root_check_type, root_is_distributive) =
+            (root.node, root.check_type, root.is_distributive);
+        if !root_is_distributive {
             return Ok(false);
         }
-        let Some(node) = self.record_of(NodeId::new(root.node)).as_conditional_type() else {
+        let Some(node) = self.record_of(NodeId::new(root_node)).as_conditional_type() else {
             unreachable!("conditional root points at a ConditionalType node");
         };
         let true_node = node
@@ -427,8 +451,8 @@ impl<'a> CheckerState<'a> {
             .false_type
             .expect("parser invariant: ConditionalType false_type always parsed");
         Ok(
-            self.is_type_parameter_possibly_referenced(root.check_type, true_node)?
-                || self.is_type_parameter_possibly_referenced(root.check_type, false_node)?,
+            self.is_type_parameter_possibly_referenced(root_check_type, true_node)?
+                || self.is_type_parameter_possibly_referenced(root_check_type, false_node)?,
         )
     }
 
@@ -447,12 +471,17 @@ impl<'a> CheckerState<'a> {
             unreachable!("Conditional flag implies conditional data");
         };
         let data = *self.tables.conditional_data(data);
-        let root = self.tables.conditional_root(data.root).clone();
-        let Some(outer_parameters) = root.outer_type_parameters.as_deref() else {
+        let root = self.tables.conditional_root(data.root);
+        let (root_check_type, root_is_distributive) = (root.check_type, root.is_distributive);
+        let Some(outer_parameters) = root
+            .outer_type_parameters
+            .as_deref()
+            .map(tsc_types::tables::TypeListCopy::new)
+        else {
             return Ok(ty);
         };
         let mut type_arguments = Vec::with_capacity(outer_parameters.len());
-        for &parameter in outer_parameters {
+        for &parameter in &outer_parameters {
             type_arguments.push(self.get_mapped_type(parameter, mapper)?);
         }
         // tsc's "C" prefix, getTypeListId and getAliasId as one value.
@@ -469,15 +498,15 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
 
-        let new_mapper = self.create_type_mapper(outer_parameters, Some(&type_arguments[..]));
-        let distribution_type = if root.is_distributive {
-            let mapped = self.get_mapped_type(root.check_type, new_mapper)?;
+        let new_mapper = self.create_type_mapper(&outer_parameters, Some(&type_arguments[..]));
+        let distribution_type = if root_is_distributive {
+            let mapped = self.get_mapped_type(root_check_type, new_mapper)?;
             Some(self.get_reduced_type(mapped)?)
         } else {
             None
         };
         let result = if let Some(distribution_type) = distribution_type.filter(|&distribution| {
-            distribution != root.check_type
+            distribution != root_check_type
                 && self
                     .tables
                     .flags_of(distribution)
@@ -487,7 +516,7 @@ impl<'a> CheckerState<'a> {
                 distribution_type,
                 &mut |state, member| {
                     let member_mapper =
-                        state.prepend_type_mapping(root.check_type, member, Some(new_mapper));
+                        state.prepend_type_mapping(root_check_type, member, Some(new_mapper));
                     state.get_conditional_type(
                         data.root,
                         Some(member_mapper),
@@ -578,14 +607,15 @@ impl<'a> CheckerState<'a> {
             unreachable!("Conditional flag implies conditional data");
         };
         let data = *self.tables.conditional_data(data);
-        let root = self.tables.conditional_root(data.root).clone();
+        let root = self.tables.conditional_root(data.root);
+        let (root_check_type, root_is_distributive) = (root.check_type, root.is_distributive);
         let already_restrictive = self
             .links
             .type_cold()
             .restrictive_instantiation
             .resolved(ty)
             == Some(ty);
-        if root.is_distributive && !already_restrictive {
+        if root_is_distributive && !already_restrictive {
             let simplified = self.get_simplified_type(data.check_type, /*writing*/ false)?;
             let constraint = if simplified == data.check_type {
                 self.get_constraint_of_type(simplified)?
@@ -594,7 +624,7 @@ impl<'a> CheckerState<'a> {
             };
             if let Some(constraint) = constraint.filter(|&constraint| constraint != data.check_type)
             {
-                let mapper = self.prepend_type_mapping(root.check_type, constraint, data.mapper);
+                let mapper = self.prepend_type_mapping(root_check_type, constraint, data.mapper);
                 let instantiated = self.get_conditional_type_instantiation(
                     ty, mapper, /*for_constraint*/ true, None, None,
                 )?;

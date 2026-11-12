@@ -88,6 +88,13 @@ impl TemplateText {
         }
     }
 
+    /// Take the completed UTF-16 builder without copying its units.
+    pub fn from_utf16_owned(units: Vec<u16>) -> Self {
+        Self {
+            units: units.into_boxed_slice(),
+        }
+    }
+
     pub fn from_js(text: crate::JsStr<'_>) -> Self {
         let bytes = text.as_bytes();
         if bytes.is_ascii() {

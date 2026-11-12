@@ -29,7 +29,7 @@ use std::sync::Arc;
 use tsc_diagnostics::{DiagnosticList, DocumentVersion, JsString, PositionIndex, TextSnapshot};
 use tsc_types::{IdentityDomain, IdentityError, IdentitySpace};
 
-pub use arena::{NodeArena, SubtreeCopy, SyntaxLeases, SyntaxMemory};
+pub use arena::{NodeArena, NodeArrayRole, SubtreeCopy, SyntaxLeases, SyntaxMemory};
 pub use chars::{is_identifier_part, is_identifier_start};
 pub use for_each_child::{
     apply_child_slots, child_slots, for_each_child, for_each_child_array, for_each_child_mut,

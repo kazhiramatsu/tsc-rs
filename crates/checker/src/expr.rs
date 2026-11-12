@@ -3624,6 +3624,20 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let flags = self.tables.flags_of(ty);
+        let object_flags = self.tables.object_flags_of(ty);
+        // Read the existing containment memo only. Keep branches that may
+        // resolve constraints or deferred tuple arguments, even for a
+        // non-generic alias whose containment memo is negative.
+        if object_flags
+            & (ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED
+                | ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES)
+            == ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED
+            && !flags.intersects(TypeFlags::UNION_OR_INTERSECTION)
+            && !object_flags.intersects(ObjectFlags::MAPPED)
+            && !self.tables.is_tuple_type(ty)
+        {
+            return Ok(false);
+        }
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
             let symbol = self.tables.type_of(ty).symbol;
             return Ok(symbol.is_some_and(|s| {
@@ -3633,6 +3647,11 @@ impl<'a> CheckerState<'a> {
             }));
         }
         if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
+            if flags.intersects(TypeFlags::UNION)
+                && object_flags.intersects(ObjectFlags::PRIMITIVE_UNION)
+            {
+                return Ok(false);
+            }
             let types = match &self.tables.type_of(ty).data {
                 TypeData::Union { types, .. } | TypeData::Intersection { types } => {
                     self.tables.list(*types).to_vec()
@@ -3640,7 +3659,9 @@ impl<'a> CheckerState<'a> {
                 _ => return Ok(false),
             };
             for member in types {
-                if self.is_const_type_variable(Some(member), depth)? {
+                if self.may_be_const_type_variable(member)
+                    && self.is_const_type_variable(Some(member), depth)?
+                {
                     return Ok(true);
                 }
             }
@@ -3697,6 +3718,24 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(false)
+    }
+
+    /// Reject only shapes whose const-variable query has no resolving
+    /// calls. All tuples remain eligible: even a non-variadic tuple may
+    /// first resolve its deferred arguments in the original query.
+    #[inline]
+    fn may_be_const_type_variable(&self, ty: TypeId) -> bool {
+        self.tables.flags_of(ty).intersects(
+            TypeFlags::TYPE_PARAMETER
+                | TypeFlags::UNION_OR_INTERSECTION
+                | TypeFlags::INDEXED_ACCESS
+                | TypeFlags::CONDITIONAL
+                | TypeFlags::SUBSTITUTION,
+        ) || self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::MAPPED)
+            || self.tables.is_tuple_type(ty)
     }
 
     /// tsc-port: isConstMappedType @6.0.3

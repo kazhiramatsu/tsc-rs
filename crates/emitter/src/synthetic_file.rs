@@ -201,7 +201,13 @@ fn create_synthetic_source_file(
         let record = arena.node(node);
         (record.pos as usize, record.end as usize)
     };
-    let statements = arena.alloc_array(&[node], node_pos, node_end, false);
+    let statements = arena.alloc_array(
+        &[node],
+        node_pos,
+        node_end,
+        false,
+        tsc_syntax::NodeArrayRole::Children,
+    );
     let root = arena.alloc_node(
         NodeData::SourceFile(SourceFileData {
             statements: Some(statements),
