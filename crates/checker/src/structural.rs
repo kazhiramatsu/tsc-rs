@@ -6512,9 +6512,6 @@ impl<'a> CheckerState<'a> {
         let properties = self.get_properties_of_type(target)?;
         let source_members = self.resolved_property_source(source);
         for target_prop in properties {
-            if self.is_static_private_identifier_property(target_prop) {
-                continue;
-            }
             let flags = self.symbol_flags(target_prop);
             if require_optional_properties
                 || !(flags.intersects(SymbolFlags::OPTIONAL)
@@ -6522,6 +6519,11 @@ impl<'a> CheckerState<'a> {
                         .get_check_flags(target_prop)
                         .intersects(CheckFlags::PARTIAL))
             {
+                // Both filters only read flags/declarations. Optional and partial
+                // properties do not need the static-private declaration lookup.
+                if self.is_static_private_identifier_property(target_prop) {
+                    continue;
+                }
                 let name = self.binder.symbol(target_prop).escaped_name;
                 match self.get_resolved_property(source_members, source, name)? {
                     None => return Ok(Some(target_prop)),
