@@ -8876,18 +8876,14 @@ fn casing_diagnostic(
     if !incoming_reason_is_recorded_on_existing {
         all_reasons.push(incoming_reason);
     }
-    let mut reasons = all_reasons
+    let reasons = all_reasons
         .iter()
         .filter_map(|reason| source_inclusion_reason_message(reason, &same_file_name))
         .collect::<Vec<_>>();
-    // Root aliases retain one reason per explicit root occurrence (the
-    // program-preprocessing contract exposes that multiplicity).  A root
-    // spelling arriving after an import/reference is different: tsc reports
-    // the dependency chain once and does not repeat the same files-list
-    // reason for the alias occurrence.
-    if incoming_reason_is_recorded_on_existing && root_arrived_after_reference {
-        reasons.dedup();
-    }
+    // The incoming reason is already in a collapsed alias's inventory; a
+    // distinct file's reason was appended above. These are occurrence records
+    // (tsgo processingDiagnostic.go:77-98 deduplicates reason pointers, not
+    // rendered text), so equal messages must remain separate.
     let message = MessageChain::new_js(message, &arguments).with_next(vec![MessageChain::new(
         &gen::The_file_is_in_the_program_because,
         &[],

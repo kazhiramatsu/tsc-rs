@@ -1,0 +1,58 @@
+[
+  {
+    "name": "reason_static_occurrences",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './Dep.js';\nimport './Dep.js';\n",
+      "dep.ts": "export {};\n",
+      "package.json": "{}"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/Dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via './Dep.js' from file 'main.ts'\n   Imported via './Dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\nmain.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": "main.ts",
+        "line": 1,
+        "column": 8,
+        "code": 1261,
+        "message": "Already included file name '/project/Dep.ts' differs from file name '/project/dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './Dep.js' from file '/project/main.ts'\n    Imported via './Dep.js' from file '/project/main.ts'\n    Part of 'files' list in tsconfig.json"
+      }
+    ]
+  },
+  {
+    "name": "reason_root_occurrences",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"dep.ts\",\"Dep.ts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "main.ts": "import './dep.js';\n",
+      "dep.ts": "export {};\n",
+      "package.json": "{}"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/dep.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ndep.ts\n   Imported via './dep.js' from file 'main.ts'\n   Part of 'files' list in tsconfig.json\nmain.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "",
+    "check_trace": false,
+    "diagnostics": [
+      {
+        "file": "main.ts",
+        "line": 1,
+        "column": 8,
+        "code": 1261,
+        "message": "Already included file name '/project/dep.ts' differs from file name '/project/Dep.ts' only in casing.\n  The file is in the program because:\n    Imported via './dep.js' from file '/project/main.ts'\n    Part of 'files' list in tsconfig.json"
+      }
+    ]
+  }
+]
