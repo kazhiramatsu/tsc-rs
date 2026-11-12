@@ -26,6 +26,7 @@ fn legacy_build(
         specifier,
         mode,
         resolution,
+        ..
     } in rows
     {
         let start = u32::try_from(modules.len()).expect("module row index fits u32");
@@ -241,6 +242,15 @@ fn grouped_freeze_matches_the_old_table_for_shuffled_rows() {
             .insert(*source, key.clone(), ModuleResolution::not_found())
             .is_err());
         let expected = legacy_build(staged.clone(), BTreeMap::new(), &sources);
+        let mut loaded = LoadedModules::default();
+        for (source, key, resolution) in &entries {
+            loaded.push(*source, key.clone(), resolution.clone(), false, &sources);
+        }
+        assert_eq!(
+            loaded.finish(&sources, BTreeMap::new()),
+            expected,
+            "round {round}: direct loader compaction and package encounter order"
+        );
         let actual = ResolutionTable::build(staged, BTreeMap::new(), &sources);
         assert_eq!(
             actual, expected,

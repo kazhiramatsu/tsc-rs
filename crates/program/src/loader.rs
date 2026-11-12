@@ -1,6 +1,7 @@
 use crate::js_string_ops::types_package_name;
 use crate::lexical_path_cache::{LexicalPath, PurePathCache};
 use rustc_hash::{FxHashMap, FxHashSet as HashSet};
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
@@ -18,11 +19,12 @@ use crate::content_mapper::source::{
     VirtualSources, MAX_CONTENT_MAPPER_FAILURES,
 };
 use crate::content_mapper::{errors::TransformFailure, host::Request, Mapper};
+use crate::inclusion_reason::{InclusionReasonRecord, InclusionSource, SourceInclusionReasons};
 use crate::json::{json_object_get, parse_json_object};
 use crate::library::{replacement_package_name, LibraryCatalog};
 use crate::module_requests::{
     is_declaration_file_name, plan_source_requests_retaining_syntax, PlannedLibReferenceDirective,
-    PlannedModuleRequest, PlannedPathReference, PlannedTypeReferenceDirective, SourceRequestPlan,
+    PlannedPathReference, PlannedTypeReferenceDirective, SourceRequestPlan,
 };
 use crate::module_resolution::PackageJsonProbe;
 use crate::module_resolution::{
@@ -38,8 +40,7 @@ use crate::prepared::{
 use crate::project_references::ResolvedProjectReferences;
 use crate::resolution::{
     ModuleExtension, ModuleResolution, PackageId, ResolutionError, ResolutionKey, ResolutionMode,
-    ResolutionOutcome, ResolvedModuleTarget, TypeReferenceResolution, TypeReferenceResolutionKey,
-    UnloadedModuleReason,
+    ResolutionOutcome, TypeReferenceResolution, TypeReferenceResolutionKey, UnloadedModuleReason,
 };
 use crate::text::{decode_host_text, HostTextDecodeError};
 use crate::workers::WorkerBudget;
@@ -897,6 +898,8 @@ fn load_program_worker(
         };
         prefetch_roots.push(root);
     }
+    // Only this prefix belongs to roots; library/type seeds follow it.
+    let normalized_root_count = prefetch_roots.len();
     let phase_started = std::time::Instant::now();
     // What the walk loads after the roots (the selected libraries and the
     // automatic type directives' targets) reads ahead with them, so those
@@ -916,7 +919,7 @@ fn load_program_worker(
     if compiler_options.trace_resolution != Some(true) {
         graph.read_ahead(&prefetch_roots);
     }
-    drop(prefetch_roots);
+    let mut normalized_roots = prefetch_roots.into_iter().take(normalized_root_count);
     tsc_types::trace::mark("load: read-ahead", phase_started);
     let phase_started = std::time::Instant::now();
     // tsgo processRootFiles: the root tasks are the root files, then the
@@ -926,17 +929,23 @@ fn load_program_worker(
     // deduplicates paths, so it has no known entry count to reserve here.
     if root_names.len() != 0 {
         let root_capacity = root_names.len().next_power_of_two();
-        graph.tasks.reserve(root_capacity);
+        graph.parse.tasks.reserve(root_capacity);
         graph.root_tasks.reserve(root_capacity);
     }
     for index in 0..root_names.len() {
         let root_spelling = root_names.name(index)?;
-        let root = normalize_root(root_spelling, &path_context)?;
+        // Normalization is pure and was already done for the read-ahead.
+        // A failed prefix stops there; reproduce that error in root order.
+        let root = match normalized_roots.next() {
+            Some(root) => root,
+            None => normalize_root(root_spelling, &path_context)?,
+        };
         let reason = root_reasons
             .and_then(|reasons| reasons.get(index).cloned())
             .unwrap_or(RootFileReason::Explicit);
         graph.load_root(root, root_spelling, reason)?;
     }
+    drop(normalized_roots);
     if root_names.len() != 0 {
         if program_options.no_lib() != Some(true) {
             graph.load_selected_libraries()?;
@@ -1424,9 +1433,9 @@ impl SourceInclusionReason {
 
     /// Records the resolution's package identity on the reasons whose
     /// explanation names it.
-    fn with_package_id(mut self, package_id: Option<&PackageId>) -> Self {
+    pub(crate) fn set_package_id(&mut self, package_id: Option<&PackageId>) {
         let text = package_id.map(PackageId::display_text);
-        match &mut self {
+        match self {
             Self::Import { package_id, .. }
             | Self::SyntheticImport { package_id, .. }
             | Self::TypeReference { package_id, .. }
@@ -1438,11 +1447,10 @@ impl SourceInclusionReason {
             | Self::LibraryReference { .. }
             | Self::ContentMapperSupplemental { .. } => {}
         }
-        self
     }
 
     /// The file whose reference this is, as recorded.
-    fn parent_mut(&mut self) -> Option<&mut JsString> {
+    pub(crate) fn parent_mut(&mut self) -> Option<&mut JsString> {
         match self {
             Self::Import { parent, .. }
             | Self::SyntheticImport { parent, .. }
@@ -1460,21 +1468,21 @@ impl SourceInclusionReason {
 
 #[derive(Clone, Debug)]
 struct DiscoveryReason {
-    inclusion: SourceInclusionReason,
-    package_id: Option<PackageId>,
+    inclusion: InclusionReasonRecord,
+    package_id: Option<Arc<PackageId>>,
 }
 
 impl DiscoveryReason {
     fn root(reason: RootFileReason) -> Self {
         Self {
-            inclusion: SourceInclusionReason::Root(reason),
+            inclusion: SourceInclusionReason::Root(reason).into(),
             package_id: None,
         }
     }
 
     fn dependency(inclusion: SourceInclusionReason) -> Self {
         Self {
-            inclusion,
+            inclusion: inclusion.into(),
             package_id: None,
         }
     }
@@ -1485,14 +1493,15 @@ impl DiscoveryReason {
                 name,
                 package_id: None,
                 implicit,
-            },
+            }
+            .into(),
             package_id: None,
         }
     }
 
     fn with_package_id(mut self, package_id: Option<PackageId>) -> Self {
         self.inclusion = self.inclusion.with_package_id(package_id.as_ref());
-        self.package_id = package_id;
+        self.package_id = package_id.map(Arc::new);
         self
     }
 }
@@ -1535,8 +1544,8 @@ struct StagedSource {
     root_inclusions: Vec<JsString>,
     /// The include reasons in collect order (tsgo `fileIncludeReasons`),
     /// attached by the collect walk.
-    inclusion_reasons: Vec<SourceInclusionReason>,
-    alternate_inclusion_reasons: Vec<(JsString, SourceInclusionReason)>,
+    inclusion_reasons: SourceInclusionReasons,
+    alternate_inclusion_reasons: Vec<(JsString, InclusionReasonRecord)>,
     /// tsgo `!sourceFilesFoundSearchingNodeModules`: the least depth any
     /// task of the path ran at is zero (`TaskData::lowest_depth`); decided
     /// by the collect walk.
@@ -1556,6 +1565,7 @@ struct StagedSource {
     /// that load a source (none for a synthetic request) and the resolution
     /// the read-ahead computed for them.
     module_requests: Vec<StagedModuleRequest>,
+    pre_resolved_modules: Vec<Option<HostModuleResolution>>,
     /// The request of each occurrence that loads its target, in tsgo's
     /// `moduleNames` order.
     module_request_occurrences: Vec<u32>,
@@ -1568,18 +1578,22 @@ struct StagedSource {
 }
 
 struct StagedModuleRequest {
-    request: PlannedModuleRequest,
-    pre_resolved: Option<HostModuleResolution>,
+    key: Option<ResolutionKey>,
+    loads_source: bool,
+    spans: Vec<(u32, u32)>,
+    occurrence_count: u32,
+    resolution_index: Option<usize>,
 }
 
-/// A resolved module request whose target a file's occurrences load, with
-/// the inclusion reasons of those occurrences left to take.
+/// A resolved target and the next occurrence whose span the walk consumes.
 struct ImportTarget {
-    target: ProgramPath,
+    resolution: usize,
     external: bool,
     elide_on_depth: bool,
     package_id: Option<PackageId>,
-    inclusions: std::vec::IntoIter<SourceInclusionReason>,
+    next: usize,
+    synthetic: usize,
+    specifier: Option<Arc<JsString>>,
 }
 
 impl StagedSource {
@@ -1600,7 +1614,7 @@ impl StagedSource {
 struct CaseSensitiveCasingConflict {
     existing_source: usize,
     incoming_path: JsString,
-    incoming_reason: SourceInclusionReason,
+    incoming_reason: InclusionReasonRecord,
 }
 
 struct StagedRoot {
@@ -1650,35 +1664,208 @@ enum TaskOrigin {
 /// task whose spelling the data already registered when it runs is an alias
 /// of the registered task (`loaded_task`) and loads nothing itself.
 struct ParseTask {
+    reason: DiscoveryReason,
+    increase_depth: bool,
+    elide_on_depth: bool,
+    data: usize,
+    queued_with_data: bool,
+    loaded_task: Option<usize>,
+    is_automatic_types: bool,
+    // A spelling already registered on its TaskData can only be an alias.
+    // Its origin, class, children and file state are never consumed.
+    load: TaskLoad,
+}
+
+enum TaskLoad {
+    Alias(usize),
+    File(Box<ParseTaskLoad>),
+}
+
+struct ParseTaskLoad {
     path: ProgramPath,
     origin: TaskOrigin,
-    reason: DiscoveryReason,
     class: SourceClass,
-    /// tsgo `increaseDepth`: the reference resolved into an external
-    /// library, so the target runs one depth deeper.
-    increase_depth: bool,
-    /// tsgo `elideOnDepth`: a JavaScript file from `node_modules` is not
-    /// loaded at a depth beyond `maxNodeModuleJsDepth`.
-    elide_on_depth: bool,
-    /// The depth in the task tree, for the source-depth limit.
     tree_depth: usize,
-    data: usize,
-    /// tsgo `loaded` of `taskDataByPath.LoadOrStore`: the data existed when
-    /// the task was queued, so the task registers its spelling (or finds
-    /// it registered) when it runs.
-    queued_with_data: bool,
     subtasks: Vec<usize>,
     loaded: bool,
     started_subtasks: bool,
-    loaded_task: Option<usize>,
     source: Option<usize>,
     redirect: Option<usize>,
+}
+
+const _: () = assert!(std::mem::size_of::<ParseTask>() <= 96);
+
+impl ParseTask {
+    fn payload(&self) -> &ParseTaskLoad {
+        match &self.load {
+            TaskLoad::File(load) => load,
+            TaskLoad::Alias(_) => panic!("a registered spelling has load state"),
+        }
+    }
+
+    fn payload_mut(&mut self) -> &mut ParseTaskLoad {
+        match &mut self.load {
+            TaskLoad::File(load) => load,
+            TaskLoad::Alias(_) => panic!("a registered spelling has load state"),
+        }
+    }
+
+    fn loaded(&self) -> bool {
+        match &self.load {
+            TaskLoad::File(load) => load.loaded,
+            TaskLoad::Alias(_) => false,
+        }
+    }
+
+    fn source(&self) -> Option<usize> {
+        match &self.load {
+            TaskLoad::File(load) => load.source,
+            TaskLoad::Alias(_) => None,
+        }
+    }
+
+    fn redirect(&self) -> Option<usize> {
+        match &self.load {
+            TaskLoad::File(load) => load.redirect,
+            TaskLoad::Alias(_) => None,
+        }
+    }
+}
+
+/// Task construction owns only graph bookkeeping. Borrowed resolver paths
+/// remain borrowed for an already registered spelling.
+#[derive(Default)]
+struct ParseTasks {
+    tasks: Vec<ParseTask>,
+    task_data: Vec<TaskData>,
+    task_data_by_path: FxHashMap<CanonicalPath, usize>,
+    alias_root_origins: FxHashMap<usize, TaskOrigin>,
+    // Allocation identities are only a lookup shortcut. Holding both shared
+    // path strings prevents address reuse; a miss uses canonical equality.
+    paths_by_identity: FxHashMap<(usize, usize), CachedTaskPath>,
+}
+
+struct CachedTaskPath {
+    _path: ProgramPath,
+    data: usize,
+    registered: Option<usize>,
+}
+
+impl ParseTasks {
+    fn path(&self, task: usize) -> &ProgramPath {
+        match &self.tasks[task].load {
+            TaskLoad::File(load) => &load.path,
+            TaskLoad::Alias(owner) => &self.tasks[*owner].payload().path,
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn new_task(
+        &mut self,
+        path: Cow<'_, ProgramPath>,
+        origin: TaskOrigin,
+        reason: DiscoveryReason,
+        class: SourceClass,
+        increase_depth: bool,
+        elide_on_depth: bool,
+        tree_depth: usize,
+    ) -> usize {
+        let task = self.tasks.len();
+        let identity = matches!(path, Cow::Borrowed(_)).then(|| {
+            (
+                path.canonical().as_js().as_bytes().as_ptr() as usize,
+                path.display().as_bytes().as_ptr() as usize,
+            )
+        });
+        let cached = identity
+            .and_then(|identity| self.paths_by_identity.get(&identity))
+            .map(|cached| (cached.data, cached.registered));
+        let (data, queued_with_data) = match cached {
+            Some((data, _)) => (data, true),
+            None => match self.task_data_by_path.get(path.canonical()) {
+                Some(&data) => (data, true),
+                None => {
+                    let data = self.task_data.len();
+                    self.task_data.push(TaskData {
+                        spellings: vec![task],
+                        lowest_depth: usize::MAX,
+                        started_subtasks: false,
+                        package_id: None,
+                    });
+                    self.task_data_by_path
+                        .insert(path.canonical().clone(), data);
+                    (data, false)
+                }
+            },
+        };
+        let alias = cached.and_then(|(_, registered)| registered).or_else(|| {
+            queued_with_data
+                .then(|| {
+                    self.task_data[data]
+                        .spellings
+                        .iter()
+                        .copied()
+                        .find(|&registered| self.path(registered).display() == path.display())
+                })
+                .flatten()
+        });
+        if let Some(identity) = identity {
+            let registered = if queued_with_data { alias } else { Some(task) };
+            if cached.is_none() {
+                self.paths_by_identity.insert(
+                    identity,
+                    CachedTaskPath {
+                        _path: path.as_ref().clone(),
+                        data,
+                        registered,
+                    },
+                );
+            } else if registered.is_some()
+                && cached.is_some_and(|(_, registered)| registered.is_none())
+            {
+                self.paths_by_identity
+                    .get_mut(&identity)
+                    .expect("cached above")
+                    .registered = registered;
+            }
+        }
+        let is_automatic_types = matches!(origin, TaskOrigin::AutomaticTypes);
+        let load = if let Some(owner) = alias {
+            if matches!(origin, TaskOrigin::Root { .. }) {
+                self.alias_root_origins.insert(task, origin);
+            }
+            TaskLoad::Alias(owner)
+        } else {
+            TaskLoad::File(Box::new(ParseTaskLoad {
+                path: path.into_owned(),
+                origin,
+                class,
+                tree_depth,
+                subtasks: Vec::new(),
+                loaded: false,
+                started_subtasks: false,
+                source: None,
+                redirect: None,
+            }))
+        };
+        self.tasks.push(ParseTask {
+            reason,
+            increase_depth,
+            elide_on_depth,
+            data,
+            queued_with_data,
+            loaded_task: None,
+            is_automatic_types,
+            load,
+        });
+        task
+    }
 }
 
 /// tsgo `parseTaskData`: what the tasks of one path share.
 struct TaskData {
     /// The task registered for each spelling (tsgo `tasks` by file name).
-    spellings: Vec<(JsString, usize)>,
+    spellings: Vec<usize>,
     /// tsgo `lowestDepth`: the least depth any task of the path ran at.
     lowest_depth: usize,
     started_subtasks: bool,
@@ -2364,21 +2551,13 @@ fn parse_root_ahead(
             tsc_types::trace::mark(&format!("load: parse and plan {name}"), plan_started);
         }
         Box::new(match planned {
-            Ok((plan, syntax)) => {
-                if !plan.module_requests().is_empty() {
-                    // The walk slices each request's text for its inclusion
-                    // reason through the UTF-16 index: built here, on the
-                    // worker, instead of on the loading thread per source.
-                    let _ = prepared.snapshot().positions().utf16_len();
-                }
-                PrefetchedParse {
-                    implied,
-                    implied_for_emit,
-                    prepared: prepared.with_preparsed_syntax(syntax),
-                    plan: Ok(plan),
-                    resolutions: Vec::new(),
-                }
-            }
+            Ok((plan, syntax)) => PrefetchedParse {
+                implied,
+                implied_for_emit,
+                prepared: prepared.with_preparsed_syntax(syntax),
+                plan: Ok(plan),
+                resolutions: Vec::new(),
+            },
             Err(error) => PrefetchedParse {
                 implied,
                 implied_for_emit,
@@ -2400,10 +2579,20 @@ pub enum LibraryRootReason {
 }
 
 struct StagedModuleResolution {
+    source: usize,
+    target: StagedModuleTarget,
     key: ResolutionKey,
     host: HostModuleResolution,
     loads_source: bool,
     unloaded_reason: Option<UnloadedModuleReason>,
+}
+
+#[derive(Clone, Copy)]
+enum StagedModuleTarget {
+    Lookup,
+    TaskData(usize),
+    Source(usize, bool),
+    Unloaded,
 }
 
 struct StagedTypeResolution {
@@ -2459,12 +2648,11 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// another spelling keeps that one), old to new.
     respelled: FxHashMap<JsString, JsString>,
     sources: Vec<StagedSource>,
+    import_targets: Vec<Option<ImportTarget>>,
     /// tsgo filesParser: the parse tasks, their shared data by path, the
     /// root tasks in tsgo's order and the single-threaded work queue (a
     /// stack: the last queued task runs first).
-    tasks: Vec<ParseTask>,
-    task_data: Vec<TaskData>,
-    task_data_by_path: FxHashMap<CanonicalPath, usize>,
+    parse: ParseTasks,
     root_tasks: Vec<usize>,
     stack: Vec<(usize, usize)>,
     /// The missing-library diagnostics by path: a root of the same path
@@ -2474,7 +2662,6 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// (`finish`); the diagnostics located by program order read it.
     program_order: Vec<usize>,
     roots: Vec<StagedRoot>,
-    module_resolution_by_key: rustc_hash::FxHashMap<ResolutionKey, usize>,
     module_resolutions: Vec<StagedModuleResolution>,
     type_resolution_by_key: BTreeMap<TypeReferenceResolutionKey, usize>,
     type_resolutions: Vec<StagedTypeResolution>,
@@ -2594,15 +2781,13 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             case_sensitive_casing_conflicts: Vec::new(),
             respelled: FxHashMap::default(),
             sources: Vec::new(),
-            tasks: Vec::new(),
-            task_data: Vec::new(),
-            task_data_by_path: FxHashMap::default(),
+            import_targets: Vec::new(),
+            parse: ParseTasks::default(),
             root_tasks: Vec::new(),
             stack: Vec::new(),
             missing_library_diagnostics: FxHashMap::default(),
             program_order: Vec::new(),
             roots: Vec::new(),
-            module_resolution_by_key: rustc_hash::FxHashMap::default(),
             module_resolutions: Vec::new(),
             type_resolution_by_key: BTreeMap::new(),
             type_resolutions: Vec::new(),
@@ -3246,7 +3431,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             let resolved_ahead = self.project_for_resolution(canonical).is_none();
             for (key, loads_source) in plan.module_requests_with_loadability() {
                 if !resolved_ahead
-                    || self.module_resolution_by_key.contains_key(key)
+                    || self.module_resolution_index(key).is_some()
                     || self.pre_resolved.contains_key(key)
                 {
                     continue;
@@ -3669,8 +3854,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         root_spelling: JsStr<'_>,
         root_reason: RootFileReason,
     ) -> usize {
-        let task = self.new_task(
-            path,
+        let task = self.parse.new_task(
+            Cow::Owned(path),
             TaskOrigin::Root {
                 spelling: root_spelling.to_owned(),
                 reason: root_reason.clone(),
@@ -3844,8 +4029,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// subtasks are the automatic type directives' targets.
     fn load_automatic_type_directives(&mut self) -> Result<(), ProgramLoadError> {
         let containing_file = self.automatic_types_containing_file()?;
-        let task = self.new_task(
-            containing_file,
+        let task = self.parse.new_task(
+            Cow::Owned(containing_file),
             TaskOrigin::AutomaticTypes,
             DiscoveryReason::dependency(SourceInclusionReason::Synthetic),
             SourceClass::Ordinary,
@@ -3864,7 +4049,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             return Ok(());
         }
 
-        let containing_file = self.tasks[task].path.clone();
+        let containing_file = self.parse.path(task).clone();
         let request_edges = self.request_edges.saturating_add(names.len());
         self.enforce_limit(
             ProgramLoadOperation::DiscoverAutomaticTypes,
@@ -3952,8 +4137,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 ));
             }
             // One subtask per name (tsgo adds one per resolved directive).
-            let subtask = self.new_task(
-                target,
+            let subtask = self.parse.new_task(
+                Cow::Owned(target),
                 TaskOrigin::TypeReference,
                 DiscoveryReason::automatic_type(name.clone(), uses_wildcard)
                     .with_package_id(package_id),
@@ -3962,7 +4147,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 false,
                 1,
             );
-            self.tasks[task].subtasks.push(subtask);
+            self.parse.tasks[task].payload_mut().subtasks.push(subtask);
         }
         Ok(())
     }
@@ -4101,8 +4286,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 ),
                 replacement: path.canonical() != catalog_path.canonical(),
             };
-            let task = self.new_task(
-                path,
+            let task = self.parse.new_task(
+                Cow::Owned(path),
                 TaskOrigin::LibraryRoot(reason.clone()),
                 DiscoveryReason::dependency(SourceInclusionReason::LibraryRoot(reason)),
                 class,
@@ -4120,11 +4305,25 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         self.record_unloaded_targets()?;
         let collected = self.collect_files()?;
         self.program_order = collected.order.clone();
+        // Collection has fixed the parent spellings. Reasons reference this
+        // one immutable source table instead of owning a path and text each.
+        let reason_sources = Arc::new(
+            self.sources
+                .iter()
+                .map(|source| InclusionSource {
+                    path: source.prepared.path().clone(),
+                    snapshot: Arc::clone(source.prepared.snapshot()),
+                })
+                .collect::<Vec<_>>(),
+        );
+        for source in &mut self.sources {
+            source.inclusion_reasons.bind_sources(&reason_sources);
+        }
         // tsgo prints a reason's file by its program name: the references
         // recorded under a spelling the collection replaced follow it.
         if !self.respelled.is_empty() {
             let respelled = std::mem::take(&mut self.respelled);
-            let follow = |reason: &mut SourceInclusionReason| {
+            let follow = |reason: &mut InclusionReasonRecord| {
                 if let Some(parent) = reason.parent_mut() {
                     if let Some(spelling) = respelled.get(parent) {
                         *parent = spelling.clone();
@@ -4132,7 +4331,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 }
             };
             for source in &mut self.sources {
-                source.inclusion_reasons.iter_mut().for_each(follow);
+                source
+                    .inclusion_reasons
+                    .records_mut()
+                    .iter_mut()
+                    .for_each(follow);
                 source
                     .alternate_inclusion_reasons
                     .iter_mut()
@@ -4155,7 +4358,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let mut package_redirect_files = Vec::new();
         for &(source, target, index) in &collected.redirects {
             redirect_targets.insert(source, target);
-            let reasons = std::mem::take(&mut self.sources[source].inclusion_reasons);
+            let reasons = std::mem::take(&mut self.sources[source].inclusion_reasons).into_text();
             let path = self.sources[source].prepared.path().clone();
             self.sources[target]
                 .prepared
@@ -4176,6 +4379,15 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 None => kept[source].then_some((path, source)),
             })
             .collect();
+        for resolution in &mut self.module_resolutions {
+            if let StagedModuleTarget::Source(source, exact_path) = resolution.target {
+                resolution.target = match redirect_targets.get(&source) {
+                    Some(&target) => StagedModuleTarget::Source(target, false),
+                    None if kept[source] => StagedModuleTarget::Source(source, exact_path),
+                    None => StagedModuleTarget::Unloaded,
+                };
+            }
+        }
         // Only a collected file's resolutions are the program's (tsgo
         // resolvedModules[path] = task.resolutionsInFile inside the collect
         // walk): the rows of a redirected copy and of a source reached only
@@ -4216,7 +4428,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                                 &source.prepared,
                                 alias.as_js(),
                                 &source.inclusion_reasons,
-                                reason,
+                                &reason.materialize(&reason_sources),
                                 self.program_options.config_file(),
                             )
                         })
@@ -4238,7 +4450,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     &existing.prepared,
                     conflict.incoming_path.as_js(),
                     &existing.inclusion_reasons,
-                    &conflict.incoming_reason,
+                    &conflict.incoming_reason.materialize(&reason_sources),
                     self.program_options.config_file(),
                 )
             })
@@ -4727,70 +4939,13 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             .resolve_with_facts(&containing_file, key.specifier(), key.mode())
     }
 
-    /// tsgo filesParser: a task for one arrival at `path`. The data of the
-    /// path is created (and the task registered under its spelling) when no
-    /// task of the path was queued before (`taskDataByPath.LoadOrStore`).
-    #[allow(clippy::too_many_arguments)]
-    fn new_task(
-        &mut self,
-        path: ProgramPath,
-        origin: TaskOrigin,
-        reason: DiscoveryReason,
-        class: SourceClass,
-        increase_depth: bool,
-        elide_on_depth: bool,
-        tree_depth: usize,
-    ) -> usize {
-        let task = self.tasks.len();
-        let (data, queued_with_data) = match self.task_data_by_path.get(path.canonical()) {
-            Some(&data) => (data, true),
-            None => {
-                let data = self.task_data.len();
-                self.task_data.push(TaskData {
-                    spellings: vec![(path.display().to_owned(), task)],
-                    lowest_depth: usize::MAX,
-                    started_subtasks: false,
-                    package_id: None,
-                });
-                self.task_data_by_path
-                    .insert(path.canonical().clone(), data);
-                (data, false)
-            }
-        };
-        self.tasks.push(ParseTask {
-            path,
-            origin,
-            reason,
-            class,
-            increase_depth,
-            elide_on_depth,
-            tree_depth,
-            data,
-            queued_with_data,
-            subtasks: Vec::new(),
-            loaded: false,
-            started_subtasks: false,
-            loaded_task: None,
-            source: None,
-            redirect: None,
-        });
-        task
-    }
-
-    /// tsgo filesParser.start: queue the tasks in order at `depth`.
-    fn start_tasks(&mut self, tasks: &[usize], depth: usize) {
-        for &task in tasks {
-            self.stack.push((task, depth));
-        }
-    }
-
     /// tsgo filesParser.parse with the single-threaded work group: the root
     /// tasks are queued in order and the queue runs the last queued task
     /// first (core/workgroup.go singleThreadedWorkGroup.pop), so a task's
     /// subtasks run, the last first, before anything queued earlier.
     fn run_tasks(&mut self) -> Result<(), ProgramLoadError> {
-        let roots = self.root_tasks.clone();
-        self.start_tasks(&roots, 0);
+        self.stack
+            .extend(self.root_tasks.iter().map(|&task| (task, 0)));
         while let Some((task, depth)) = self.stack.pop() {
             self.execute_task(task, depth)?;
         }
@@ -4800,65 +4955,80 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// tsgo filesParser.start's queued function for one task
     /// (compiler/filesparser.go:278-328).
     fn execute_task(&mut self, task: usize, depth: usize) -> Result<(), ProgramLoadError> {
-        let data = self.tasks[task].data;
+        let data = self.parse.tasks[task].data;
         let mut start_subtasks = false;
-        if self.tasks[task].queued_with_data {
-            let spelling = self.tasks[task].path.display().to_owned();
-            match self.task_data[data]
-                .spellings
-                .iter()
-                .find(|(existing, _)| existing.as_js() == spelling.as_js())
-            {
-                Some(&(_, existing)) => self.tasks[task].loaded_task = Some(existing),
-                None => {
-                    self.task_data[data].spellings.push((spelling, task));
-                    // A new task for the file name: load its subtasks if any
-                    // other spelling's were started.
-                    start_subtasks = self.task_data[data].started_subtasks;
+        if self.parse.tasks[task].queued_with_data {
+            let known_alias = match &self.parse.tasks[task].load {
+                TaskLoad::Alias(owner) => Some(*owner),
+                TaskLoad::File(_) => None,
+            };
+            if let Some(owner) = known_alias {
+                // Cache only the stable spelling owner; loading is still
+                // recorded at execution, never when the task is queued.
+                self.parse.tasks[task].loaded_task = Some(owner);
+            } else {
+                let spelling = self.parse.path(task).display();
+                match self.parse.task_data[data]
+                    .spellings
+                    .iter()
+                    .find(|&&existing| self.parse.path(existing).display() == spelling)
+                {
+                    Some(&existing) => self.parse.tasks[task].loaded_task = Some(existing),
+                    None => {
+                        self.parse.task_data[data].spellings.push(task);
+                        // A new task for the file name: load its subtasks if any
+                        // other spelling's were started.
+                        start_subtasks = self.parse.task_data[data].started_subtasks;
+                    }
                 }
             }
         }
-        if self.task_data[data].package_id.is_none() {
-            if let Some(package_id) = self.tasks[task].reason.package_id.clone() {
-                self.task_data[data].package_id = Some(package_id);
+        if self.parse.task_data[data].package_id.is_none() {
+            if let Some(package_id) = self.parse.tasks[task].reason.package_id.as_deref().cloned() {
+                self.parse.task_data[data].package_id = Some(package_id);
             }
         }
-        let current_depth = depth.saturating_add(usize::from(self.tasks[task].increase_depth));
-        let lowered = current_depth < self.task_data[data].lowest_depth;
+        let current_depth =
+            depth.saturating_add(usize::from(self.parse.tasks[task].increase_depth));
+        let lowered = current_depth < self.parse.task_data[data].lowest_depth;
         if lowered {
-            self.task_data[data].lowest_depth = current_depth;
+            self.parse.task_data[data].lowest_depth = current_depth;
             start_subtasks = true;
-            self.task_data[data].started_subtasks = true;
+            self.parse.task_data[data].started_subtasks = true;
         }
-        if self.tasks[task].elide_on_depth
+        if self.parse.tasks[task].elide_on_depth
             && self
                 .compiler_options
                 .node_modules_depth_exceeds_limit(current_depth)
         {
             return Ok(());
         }
-        let registered = self.task_data[data]
-            .spellings
-            .iter()
-            .map(|&(_, task)| task)
-            .collect::<Vec<_>>();
-        for by_name in registered {
+        // Loading may append tasks, but it cannot register another spelling:
+        // registration happens only when an item is popped from the stack.
+        let registered = self.parse.task_data[data].spellings.len();
+        for index in 0..registered {
+            let by_name = self.parse.task_data[data].spellings[index];
             let mut load_subtasks = start_subtasks;
-            if !self.tasks[by_name].loaded {
+            if !self.parse.tasks[by_name].loaded() {
                 self.load_task(by_name)?;
-                if self.tasks[by_name].redirect.is_some() {
+                if self.parse.tasks[by_name].redirect().is_some() {
                     // A redirected task always loads its redirect.
                     load_subtasks = true;
-                    self.task_data[data].started_subtasks = true;
+                    self.parse.task_data[data].started_subtasks = true;
                 }
             }
             // tsgo (#64632): an arrival at a lower depth restarts the
             // subtasks, so the imports the deeper visit elided load.
-            if load_subtasks && (lowered || !self.tasks[by_name].started_subtasks) {
-                self.tasks[by_name].started_subtasks = true;
-                let subtasks = self.tasks[by_name].subtasks.clone();
-                let lowest_depth = self.task_data[data].lowest_depth;
-                self.start_tasks(&subtasks, lowest_depth);
+            if load_subtasks && (lowered || !self.parse.tasks[by_name].payload().started_subtasks) {
+                self.parse.tasks[by_name].payload_mut().started_subtasks = true;
+                let lowest_depth = self.parse.task_data[data].lowest_depth;
+                self.stack.extend(
+                    self.parse.tasks[by_name]
+                        .payload()
+                        .subtasks
+                        .iter()
+                        .map(|&subtask| (subtask, lowest_depth)),
+                );
             }
         }
         Ok(())
@@ -4867,11 +5037,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// tsgo parseTask.load: the automatic directives, a project-reference
     /// redirect, or the file's admission and its subtasks.
     fn load_task(&mut self, task: usize) -> Result<(), ProgramLoadError> {
-        self.tasks[task].loaded = true;
-        if matches!(self.tasks[task].origin, TaskOrigin::AutomaticTypes) {
+        self.parse.tasks[task].payload_mut().loaded = true;
+        if self.parse.tasks[task].is_automatic_types {
             return self.load_automatic_types_task(task);
         }
-        let path = self.tasks[task].path.clone();
+        let path = self.parse.path(task).clone();
         if let Some((output, _source_name)) = self.project_reference_redirect(path.canonical())? {
             // tsgo parseTask.redirect: the file loaded instead gets this
             // task's include reason, not its package id (a redirected parse
@@ -4884,12 +5054,12 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             // it). increaseDepth and elideOnDepth are not copied either.
             let reason = DiscoveryReason {
                 package_id: None,
-                ..self.tasks[task].reason.clone()
+                ..self.parse.tasks[task].reason.clone()
             };
-            let class = self.tasks[task].class;
-            let tree_depth = self.tasks[task].tree_depth;
-            let redirect = self.new_task(
-                output,
+            let class = self.parse.tasks[task].payload().class;
+            let tree_depth = self.parse.tasks[task].payload().tree_depth;
+            let redirect = self.parse.new_task(
+                Cow::Owned(output),
                 TaskOrigin::Redirect,
                 reason,
                 class,
@@ -4897,22 +5067,33 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 false,
                 tree_depth,
             );
-            self.tasks[task].subtasks = vec![redirect];
-            self.tasks[task].redirect = Some(redirect);
+            self.parse.tasks[task].payload_mut().subtasks = vec![redirect];
+            self.parse.tasks[task].payload_mut().redirect = Some(redirect);
             return Ok(());
         }
         let source = self.admit_source(task)?;
-        self.tasks[task].source = source;
+        self.parse.tasks[task].payload_mut().source = source;
         match source {
             Some(source) => self.plan_subtasks(task, source),
             None => self.report_missing_target(task),
         }
     }
 
+    fn task_origin(&self, task: usize) -> &TaskOrigin {
+        match &self.parse.tasks[task].load {
+            TaskLoad::File(load) => &load.origin,
+            TaskLoad::Alias(_) => self
+                .parse
+                .alias_root_origins
+                .get(&task)
+                .expect("an alias root retains its diagnostic origin"),
+        }
+    }
+
     /// The registered task of a task's spelling (tsgo `loadedTask`).
     fn task_target(&self, task: usize) -> usize {
         let mut current = task;
-        while let Some(alias) = self.tasks[current].loaded_task {
+        while let Some(alias) = self.parse.tasks[current].loaded_task {
             current = alias;
         }
         current
@@ -4922,11 +5103,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     fn task_source(&self, task: usize) -> Option<usize> {
         let mut current = self.task_target(task);
         loop {
-            if let Some(redirect) = self.tasks[current].redirect {
+            if let Some(redirect) = self.parse.tasks[current].redirect() {
                 current = self.task_target(redirect);
                 continue;
             }
-            return self.tasks[current].source;
+            return self.parse.tasks[current].source();
         }
     }
 
@@ -4936,8 +5117,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// reported a file the host no longer returns); a root is reported once
     /// the tasks ran, a redirect through the import's unloaded reason.
     fn report_missing_target(&mut self, task: usize) -> Result<(), ProgramLoadError> {
-        let path = self.tasks[task].path.clone();
-        match self.tasks[task].origin.clone() {
+        let path = self.parse.path(task).clone();
+        match self.parse.tasks[task].payload().origin.clone() {
             // A supplemental output always comes with its file.
             TaskOrigin::Root { .. }
             | TaskOrigin::Redirect
@@ -5002,9 +5183,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// source instead (tsgo parses each spelling; the port keeps one source
     /// per path and the collect walk keeps the first collected spelling).
     fn admit_source(&mut self, task: usize) -> Result<Option<usize>, ProgramLoadError> {
-        let path = self.tasks[task].path.clone();
-        let class = self.tasks[task].class;
-        let tree_depth = self.tasks[task].tree_depth;
+        let path = self.parse.path(task).clone();
+        let class = self.parse.tasks[task].payload().class;
+        let tree_depth = self.parse.tasks[task].payload().tree_depth;
         if let Some(&existing) = self.source_by_canonical.get(path.canonical()) {
             self.bind_existing_source(existing, task)?;
             return Ok(Some(existing));
@@ -5358,6 +5539,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             lib_reference_directives,
             module_request_order,
             module_request_occurrences,
+            module_request_occurrence_counts,
         } = plan
             .as_mut()
             .map_or_else(Default::default, SourceRequestPlan::take_admission_parts);
@@ -5365,16 +5547,26 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         // when this is its plan, else by key) is the same pure host
         // observation the resolver would make at the request's turn.
         let module_requests = plan.map_or_else(Vec::new, |mut plan| {
-            prefetched_resolutions.resize_with(plan.module_requests().len(), || None);
-            plan.take_module_requests()
-                .into_iter()
-                .zip(prefetched_resolutions)
-                .map(|(request, resolution)| {
-                    let pre_resolved =
-                        resolution.or_else(|| self.pre_resolved.remove(&request.key));
+            let request_count = plan.module_requests().len();
+            plan.take_module_requests_iter()
+                .zip(module_request_occurrence_counts)
+                .enumerate()
+                .map(|(index, (request, occurrence_count))| {
+                    if prefetched_resolutions
+                        .get(index)
+                        .is_none_or(Option::is_none)
+                    {
+                        if let Some(host) = self.pre_resolved.remove(&request.key) {
+                            prefetched_resolutions.resize_with(request_count, || None);
+                            prefetched_resolutions[index] = Some(host);
+                        }
+                    }
                     StagedModuleRequest {
-                        request,
-                        pre_resolved,
+                        key: Some(request.key),
+                        loads_source: request.loads_source,
+                        spans: request.spans,
+                        occurrence_count,
+                        resolution_index: None,
                     }
                 })
                 .collect::<Vec<_>>()
@@ -5393,7 +5585,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         self.sources.push(StagedSource {
             prepared,
             root_inclusions: Vec::new(),
-            inclusion_reasons: Vec::new(),
+            inclusion_reasons: SourceInclusionReasons::default(),
             alternate_inclusion_reasons: Vec::new(),
             has_non_external_reason: false,
             library_priority: class.library_priority(),
@@ -5403,6 +5595,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             type_reference_directives,
             lib_reference_directives,
             module_requests,
+            pre_resolved_modules: prefetched_resolutions,
             module_request_occurrences,
             module_request_order,
             supplemental,
@@ -5618,8 +5811,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// existing-source branch): the spelling is remembered as an alias and
     /// the library classification merges.
     fn bind_existing_source(&mut self, source: usize, task: usize) -> Result<(), ProgramLoadError> {
-        let path = self.tasks[task].path.clone();
-        let class = self.tasks[task].class;
+        let path = self.parse.path(task).clone();
+        let class = self.parse.tasks[task].payload().class;
         let first_path = self.sources[source].prepared.path().clone();
         if first_path.display() != path.display()
             && !self.normalized_display_paths_are_equal(&first_path, &path)?
@@ -5660,7 +5853,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             );
             self.sources[source].library_replacement |= class.is_replacement();
         }
-        self.tasks[task].source = Some(source);
+        self.parse.tasks[task].payload_mut().source = Some(source);
         Ok(())
     }
 
@@ -5688,11 +5881,14 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         // tsgo parseTask.load: a content mapper's supplemental outputs follow
         // the imports.
         let canonical = self.sources[source].prepared.path().display().to_owned();
-        let tree_depth = self.tasks[task].tree_depth.saturating_add(1);
-        let class = self.tasks[task].class;
+        let tree_depth = self.parse.tasks[task]
+            .payload()
+            .tree_depth
+            .saturating_add(1);
+        let class = self.parse.tasks[task].payload().class;
         for path in self.sources[source].supplemental.clone() {
-            let subtask = self.new_task(
-                path,
+            let subtask = self.parse.new_task(
+                Cow::Owned(path),
                 TaskOrigin::ContentMapperSupplemental,
                 DiscoveryReason::dependency(SourceInclusionReason::ContentMapperSupplemental {
                     canonical: canonical.clone(),
@@ -5702,7 +5898,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 false,
                 tree_depth,
             );
-            self.tasks[task].subtasks.push(subtask);
+            self.parse.tasks[task].payload_mut().subtasks.push(subtask);
         }
         Ok(())
     }
@@ -5818,7 +6014,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let catalog = self
             .library_catalog
             .expect("library-enabled graph has an injected catalog");
-        let tree_depth = self.tasks[task].tree_depth.saturating_add(1);
+        let tree_depth = self.parse.tasks[task]
+            .payload()
+            .tree_depth
+            .saturating_add(1);
         for directive in directives {
             let lib_name = to_file_name_lower_case_js(directive.file_name());
             let Some(file_name) = catalog.reference_file_name(&lib_name) else {
@@ -5852,8 +6051,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 ),
                 replacement: target.canonical() != catalog_path.canonical(),
             };
-            let subtask = self.new_task(
-                target,
+            let subtask = self.parse.new_task(
+                Cow::Owned(target),
                 TaskOrigin::LibReference {
                     parent: source,
                     pos: directive.pos(),
@@ -5865,7 +6064,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 false,
                 tree_depth,
             );
-            self.tasks[task].subtasks.push(subtask);
+            self.parse.tasks[task].payload_mut().subtasks.push(subtask);
         }
         Ok(())
     }
@@ -5938,7 +6137,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             .split_ascii(b'/')
             .next_back()
             .is_some_and(|name| name.contains("."));
-        let tree_depth = self.tasks[task].tree_depth.saturating_add(1);
+        let tree_depth = self.parse.tasks[task]
+            .payload()
+            .tree_depth
+            .saturating_add(1);
         let class = self.sources[source].source_class();
         if has_extension {
             let target = make_program_path(
@@ -6108,8 +6310,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         tree_depth: usize,
     ) {
         let parent = self.sources[source].prepared.path().display().to_owned();
-        let subtask = self.new_task(
-            target,
+        let subtask = self.parse.new_task(
+            Cow::Owned(target),
             TaskOrigin::PathReference {
                 parent: source,
                 pos: reference.pos(),
@@ -6127,7 +6329,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             false,
             tree_depth,
         );
-        self.tasks[task].subtasks.push(subtask);
+        self.parse.tasks[task].payload_mut().subtasks.push(subtask);
     }
 
     /// tsgo resolveTypeReferenceDirectives: every directive is resolved,
@@ -6194,7 +6396,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             }
         }
 
-        let tree_depth = self.tasks[task].tree_depth.saturating_add(1);
+        let tree_depth = self.parse.tasks[task]
+            .payload()
+            .tree_depth
+            .saturating_add(1);
         for directive in &directives {
             let index = self.type_resolution_by_key[directive.key()];
             let target = match &self.type_resolutions[index].host {
@@ -6223,8 +6428,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 end: directive.end(),
                 package_id: None,
             };
-            let subtask = self.new_task(
-                target,
+            let subtask = self.parse.new_task(
+                Cow::Owned(target),
                 TaskOrigin::TypeReference,
                 DiscoveryReason::dependency(type_inclusion).with_package_id(package_id),
                 SourceClass::Ordinary,
@@ -6232,7 +6437,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 false,
                 tree_depth,
             );
-            self.tasks[task].subtasks.push(subtask);
+            self.parse.tasks[task].payload_mut().subtasks.push(subtask);
         }
         Ok(())
     }
@@ -6241,9 +6446,12 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// tsc-hash: 5fb6c5d9e11130467d843f258aeb726b1cbca21cd00923b0f1c7da3097f9cc98
     /// tsc-span: _tsc.js:124595-124635
     fn plan_module_requests(&mut self, task: usize, source: usize) -> Result<(), ProgramLoadError> {
-        let tree_depth = self.tasks[task].tree_depth.saturating_add(1);
+        let tree_depth = self.parse.tasks[task]
+            .payload()
+            .tree_depth
+            .saturating_add(1);
         let request_count = self.sources[source].module_requests.len();
-        let mut phase_indices = Vec::with_capacity(request_count);
+        let mut pre_resolved = std::mem::take(&mut self.sources[source].pre_resolved_modules);
         let containing_file = self.sources[source].prepared.path().display().to_owned();
         let containing_canonical = self.sources[source].prepared.path().canonical().clone();
         let containing_file_is_declaration = is_declaration_file_name(containing_file.as_js());
@@ -6253,68 +6461,27 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let containing_project = self
             .project_for_resolution(&containing_canonical)
             .map(|project| project.canonical().clone());
-        let occurrences = self.sources[source].module_request_occurrences.clone();
-        let mut occurrence_counts = vec![0_u32; request_count];
-        for &request in &occurrences {
-            occurrence_counts[request as usize] += 1;
-        }
         // A source reached under several spellings is planned once per
         // spelling: its requests stay with it, and only the read-ahead's
         // resolution is taken (a later planning finds the key resolved).
-        for (request_index, &occurrence_count) in occurrence_counts.iter().enumerate() {
-            let (key, loads_source, pre_resolved) = {
+        for request_index in 0..request_count {
+            let (owned_key, loads_source, resolution_index) = {
                 let request = &mut self.sources[source].module_requests[request_index];
                 (
-                    request.request.key.clone(),
-                    request.request.loads_source,
-                    request.pre_resolved.take(),
+                    request.key.take(),
+                    request.loads_source,
+                    request.resolution_index,
                 )
             };
-            // One inclusion reason per occurrence that loads the target:
-            // processImportedModules adds the resolved file once for every
-            // import of it (tsgo fileloader.go:928-940), and the file's
-            // explanation then lists each import. An occurrence without a
-            // span is a synthetic import, ahead of the others: `tslib` (tsgo
-            // externalHelpersModuleNameText) or the JSX runtime.
-            let staged = &self.sources[source];
-            let spans = &staged.module_requests[request_index].request.spans;
-            let synthetic = (occurrence_count as usize).saturating_sub(spans.len());
-            let inclusions = {
-                let prepared = &staged.prepared;
-                let positions = prepared.snapshot().positions();
-                std::iter::repeat_with(|| SourceInclusionReason::SyntheticImport {
-                    parent: containing_file.clone(),
-                    specifier: key.specifier().to_owned(),
-                    import_helpers: key.specifier() == JsStr::from("tslib"),
-                    package_id: None,
-                })
-                .take(synthetic)
-                .chain(spans.iter().map(|&(pos, end)| {
-                    let start_byte = positions
-                        .utf16_to_byte(pos)
-                        .expect("module request starts at a source token boundary");
-                    let end_byte = positions
-                        .utf16_to_byte(end)
-                        .expect("module request ends at a source token boundary");
-                    SourceInclusionReason::Import {
-                        parent: containing_file.clone(),
-                        reference_text: prepared.text()[start_byte as usize..end_byte as usize]
-                            .to_owned(),
-                        pos,
-                        end,
-                        package_id: None,
-                    }
-                }))
-                .collect::<Vec<_>>()
-            };
-            let index = if let Some(index) = self.module_resolution_by_key.get(&key).copied() {
+            let index = if let Some(index) = resolution_index {
                 self.module_resolutions[index].loads_source |= loads_source;
                 index
             } else {
+                let key = owned_key.expect("the first resolution consumes its request key");
                 // A resolution the read-ahead computed for this exact request
                 // is the same pure host observation the resolver would make
                 // here; it is taken in this request's turn.
-                let host = match pre_resolved {
+                let host = match pre_resolved.get_mut(request_index).and_then(Option::take) {
                     Some(host) => {
                         self.pre_resolved_hits += 1;
                         host
@@ -6362,27 +6529,34 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 };
                 let index = self.module_resolutions.len();
                 self.module_resolutions.push(StagedModuleResolution {
-                    key: key.clone(),
+                    source,
+                    target: StagedModuleTarget::Lookup,
+                    key,
                     host,
                     loads_source,
                     unloaded_reason: None,
                 });
-                self.module_resolution_by_key.insert(key, index);
+                self.sources[source].module_requests[request_index].resolution_index = Some(index);
                 index
             };
-            phase_indices.push((request_index, index, inclusions));
+            debug_assert_eq!(
+                self.sources[source].module_requests[request_index].resolution_index,
+                Some(index)
+            );
         }
 
         // As with type directives, all requests in this source are resolved
         // before the first successful target starts its DFS. The targets
         // to load, by request, become subtasks in occurrence order below.
-        let mut targets: Vec<Option<ImportTarget>> = Vec::new();
+        let mut targets = std::mem::take(&mut self.import_targets);
         targets.resize_with(request_count, || None);
-        for (request_index, index, inclusions) in phase_indices {
+        for (request_index, slot) in targets.iter_mut().enumerate() {
+            let index = self.sources[source].module_requests[request_index]
+                .resolution_index
+                .expect("every request was resolved above");
             let loads_source = self.module_resolutions[index].loads_source;
             let target = match self.module_resolutions[index].host.outcome() {
                 ResolutionOutcome::Resolved(target) => Some((
-                    target.resolved_file().clone(),
                     target.extension().clone(),
                     target.is_external_library_import(),
                     target.original_path().is_some(),
@@ -6392,7 +6566,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 ResolutionOutcome::NotFound => None,
             };
             let Some((
-                target,
                 extension,
                 external,
                 has_original_path,
@@ -6427,21 +6600,23 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             }
             // tsgo fileloader.go:911: a resolved file of a referenced project
             // (one of its sources or outputs) is not loaded as JavaScript.
-            let redirected = self.project_for_resolution(target.canonical()).is_some();
+            let redirected = self
+                .project_for_resolution(self.module_target_path(index).canonical())
+                .is_some();
             // tsgo isJsFileFromNodeModules: the subtask of a JavaScript file
             // found searching node_modules is elided beyond
             // maxNodeModuleJsDepth when it runs (`elideOnDepth`).
             let elide_on_depth = extension.is_javascript()
                 && !redirected
                 && external
-                && path_contains_node_modules(target.canonical().as_js());
+                && path_contains_node_modules(self.module_target_path(index).canonical().as_js());
             if extension.is_javascript() && !redirected {
                 let reason = unloaded_javascript_reason(
                     &extension,
                     self.compiler_options,
                     external,
                     has_original_path,
-                    target.canonical(),
+                    self.module_target_path(index).canonical(),
                     loads_source,
                 );
                 self.module_resolutions[index].unloaded_reason = reason;
@@ -6465,6 +6640,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     Some(UnloadedModuleReason::ResolutionOnly);
                 continue;
             }
+            let target = self.module_target_path(index);
             // Resolver-owned external symlink handling has already replaced
             // this target with its physical resolvedFileName. Visit that
             // identity directly; the lexical spelling remains on the host
@@ -6478,19 +6654,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         "a JSON target was resolved while resolveJsonModule is disabled",
                     ));
                 }
-                targets[request_index] = Some(ImportTarget {
-                    target,
-                    external,
-                    elide_on_depth,
-                    package_id,
-                    inclusions: inclusions.into_iter(),
-                });
-                continue;
-            }
-            // A content mapper's file is loaded as its mapper's output.
-            if !is_loadable_typescript_extension(&extension)
+            } else if !is_loadable_typescript_extension(&extension)
                 && !extension.is_javascript()
-                && self.content_mapper_for(&target).is_none()
+                && self.content_mapper_for(target).is_none()
             {
                 return Err(ProgramLoadError::unsupported_js(
                     ProgramLoadOperation::ResolveModule,
@@ -6502,43 +6668,126 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     ),
                 ));
             }
-            targets[request_index] = Some(ImportTarget {
-                target,
+            let request = &self.sources[source].module_requests[request_index];
+            let synthetic = (request.occurrence_count as usize).saturating_sub(request.spans.len());
+            let specifier = (synthetic != 0)
+                .then(|| Arc::new(self.module_resolutions[index].key.specifier().to_owned()));
+            *slot = Some(ImportTarget {
+                resolution: index,
                 external,
                 elide_on_depth,
                 package_id,
-                inclusions: inclusions.into_iter(),
+                next: 0,
+                synthetic,
+                specifier,
             });
         }
         // One subtask per occurrence of an import (tsgo
         // processImportedModules adds the resolved file once per import of
         // it, in `moduleNames` order), so the target carries one inclusion
         // reason per occurrence, in the order of the file's imports.
-        for request in occurrences {
+        for occurrence in 0..self.sources[source].module_request_occurrences.len() {
+            let request = self.sources[source].module_request_occurrences[occurrence];
             let Some(target) = targets[request as usize].as_mut() else {
                 continue;
             };
-            let Some(inclusion) = target.inclusions.next() else {
-                continue;
+            let request_data = &self.sources[source].module_requests[request as usize];
+            let occurrence = target.next;
+            target.next += 1;
+            let inclusion = if occurrence < target.synthetic {
+                let specifier = Arc::clone(
+                    target
+                        .specifier
+                        .as_ref()
+                        .expect("a synthetic import has its specifier"),
+                );
+                let import_helpers = specifier.as_js() == JsStr::from("tslib");
+                InclusionReasonRecord::SyntheticImport {
+                    parent: source,
+                    specifier,
+                    import_helpers,
+                    package_id: None,
+                }
+            } else {
+                let Some(&(pos, end)) = request_data.spans.get(occurrence - target.synthetic)
+                else {
+                    continue;
+                };
+                InclusionReasonRecord::Import {
+                    parent: source,
+                    pos,
+                    end,
+                    package_id: None,
+                }
             };
-            let (path, external, elide_on_depth, package_id) = (
-                target.target.clone(),
-                target.external,
-                target.elide_on_depth,
-                target.package_id.clone(),
-            );
-            let subtask = self.new_task(
-                path,
+            let resolution = target.resolution;
+            let (external, elide_on_depth, package_id) =
+                if target.next >= request_data.occurrence_count as usize {
+                    let target = targets[request as usize]
+                        .take()
+                        .expect("the final inclusion still owns its target");
+                    (target.external, target.elide_on_depth, target.package_id)
+                } else {
+                    (
+                        target.external,
+                        target.elide_on_depth,
+                        target.package_id.clone(),
+                    )
+                };
+            let path = match self.module_resolutions[resolution].host.outcome() {
+                ResolutionOutcome::Resolved(module) => module.resolved_file(),
+                ResolutionOutcome::NotFound => unreachable!("an import task has a resolved target"),
+            };
+            let subtask = self.parse.new_task(
+                Cow::Borrowed(path),
                 TaskOrigin::Import,
-                DiscoveryReason::dependency(inclusion).with_package_id(package_id),
+                DiscoveryReason {
+                    inclusion,
+                    package_id: None,
+                }
+                .with_package_id(package_id),
                 SourceClass::Ordinary,
                 external,
                 elide_on_depth,
                 tree_depth,
             );
-            self.tasks[task].subtasks.push(subtask);
+            self.module_resolutions[resolution].target =
+                StagedModuleTarget::TaskData(self.parse.tasks[subtask].data);
+            self.parse.tasks[task].payload_mut().subtasks.push(subtask);
         }
+        targets.clear();
+        self.import_targets = targets;
         Ok(())
+    }
+
+    fn module_target_path(&self, resolution: usize) -> &ProgramPath {
+        match self.module_resolutions[resolution].host.outcome() {
+            ResolutionOutcome::Resolved(module) => module.resolved_file(),
+            ResolutionOutcome::NotFound => {
+                unreachable!("target policy follows a successful resolution")
+            }
+        }
+    }
+
+    fn module_request_key<'a>(&'a self, request: &'a StagedModuleRequest) -> &'a ResolutionKey {
+        request.key.as_ref().unwrap_or_else(|| {
+            &self.module_resolutions[request
+                .resolution_index
+                .expect("a consumed key has a resolution")]
+            .key
+        })
+    }
+
+    /// Requests already belong to their canonical source and are unique by
+    /// (specifier, mode) within it. Only trace replay and read-ahead planning
+    /// need a lookup by key; the walk keeps the index on the request itself.
+    fn module_resolution_index(&self, key: &ResolutionKey) -> Option<usize> {
+        let &source = self.source_by_canonical.get(key.source())?;
+        self.sources[source]
+            .module_requests
+            .iter()
+            .find(|request| self.module_request_key(request) == key)?
+            .resolution_index
     }
 
     fn enforce_limit(
@@ -6581,7 +6830,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         // not `false` (compiler/filesparser.go:362-368).
         let deduplicate_packages = self.compiler_options.deduplicate_packages != Some(false);
         let case_sensitive = self.resolver.path_context().use_case_sensitive_file_names();
-        let mut seen: Vec<Option<JsString>> = vec![None; self.task_data.len()];
+        let mut seen: Vec<Option<JsString>> = vec![None; self.parse.task_data.len()];
         let mut registered: BTreeMap<PackageId, usize> = BTreeMap::new();
         let mut order: Vec<usize> = Vec::with_capacity(self.sources.len());
         let mut ordinary_count = 0usize;
@@ -6595,7 +6844,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         loop {
             let next = match frames.last_mut() {
                 Some((task, index)) => {
-                    let subtasks = &self.tasks[*task].subtasks;
+                    let subtasks = &self.parse.tasks[*task].payload().subtasks;
                     if *index < subtasks.len() {
                         let subtask = subtasks[*index];
                         *index += 1;
@@ -6659,7 +6908,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             return;
         }
         let mut lines = Vec::new();
-        if matches!(self.tasks[task].origin, TaskOrigin::AutomaticTypes) {
+        if self.parse.tasks[task].is_automatic_types {
             for &index in &self.automatic_type_resolution_indices {
                 lines.extend(
                     self.type_resolutions[index]
@@ -6668,7 +6917,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         .map(ResolutionTrace::text),
                 );
             }
-        } else if let Some(source) = self.tasks[task].source {
+        } else if let Some(source) = self.parse.tasks[task].source() {
             for directive in &self.sources[source].type_reference_directives {
                 if let Some(&index) = self.type_resolution_by_key.get(directive.key()) {
                     lines.extend(
@@ -6688,7 +6937,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             let synthetic = staged
                 .module_requests
                 .iter()
-                .map(|request| &request.request.key)
+                .map(|request| self.module_request_key(request))
                 .filter(|key| !ordered.contains(key));
             let containing_file = staged.prepared.path().display().to_owned();
             // A referenced project's file resolves with its own resolver
@@ -6697,7 +6946,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 .project_for_resolution(staged.prepared.path().canonical())
                 .is_some();
             for key in synthetic.chain(staged.module_request_order.iter()) {
-                if let Some(&index) = self.module_resolution_by_key.get(key) {
+                if let Some(index) = self.module_resolution_index(key) {
                     lines.extend(
                         self.module_resolutions[index]
                             .host
@@ -6742,28 +6991,27 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         redirect_index: usize,
         redirects: &mut Vec<(usize, usize, usize)>,
     ) -> Result<Option<usize>, ProgramLoadError> {
-        let reason = self.tasks[task].reason.inclusion.clone();
+        let reason = self.parse.tasks[task].reason.inclusion.clone();
         // A redirect's reason reaches its output through its subtask; the
         // automatic type directives' task is an implementation detail.
-        if self.tasks[task].redirect.is_none()
-            && !matches!(self.tasks[task].origin, TaskOrigin::AutomaticTypes)
+        if self.parse.tasks[task].redirect().is_none() && !self.parse.tasks[task].is_automatic_types
         {
             let target = self.task_target(task);
             self.add_include_reason(target, reason.clone());
         }
         let task = self.task_target(task);
-        if !self.tasks[task].loaded {
+        if !self.parse.tasks[task].loaded() {
             return Ok(None);
         }
-        let data = self.tasks[task].data;
-        let spelling = self.tasks[task].path.display().to_owned();
+        let data = self.parse.tasks[task].data;
+        let spelling = self.parse.path(task).display().to_owned();
         if let Some(checked) = seen[data].clone() {
             // Another spelling of a walked path is a casing alias of the
             // kept file (tsgo addProcessingDiagnosticsForFileCasing).
             if checked.as_js() != spelling.as_js() {
-                if let Some(source) = self.tasks[task].source {
+                if let Some(source) = self.parse.tasks[task].source() {
                     let first_path = self.sources[source].prepared.path().clone();
-                    let path = self.tasks[task].path.clone();
+                    let path = self.parse.path(task).clone();
                     if !self.normalized_display_paths_are_equal(&first_path, &path)? {
                         self.sources[source]
                             .alternate_inclusion_reasons
@@ -6775,7 +7023,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         }
         seen[data] = Some(spelling.clone());
         self.replay_resolution_traces(task);
-        let source = self.tasks[task].source;
+        let source = self.parse.tasks[task].source();
         if let Some(source) = source {
             // The kept spelling is the first collected (tsgo keeps that
             // task's parse); the one that admitted the file becomes an alias.
@@ -6796,7 +7044,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             // (tsgo tasksSeenByNameIgnoreCase).
             if case_sensitive {
                 let path_lower_case =
-                    crate::js_path::file_name_lower_case(self.tasks[task].path.canonical().as_js());
+                    crate::js_path::file_name_lower_case(self.parse.path(task).canonical().as_js());
                 if let Some(&existing_source) = self.files_by_name_ignore_case.get(&path_lower_case)
                 {
                     if existing_source != source {
@@ -6814,7 +7062,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             }
         }
         if deduplicate_packages {
-            if let Some(package_id) = self.task_data[data].package_id.clone() {
+            if let Some(package_id) = self.parse.task_data[data].package_id.clone() {
                 if let Some(&owner) = registered.get(&package_id) {
                     if let Some(source) = source {
                         if owner != source {
@@ -6842,9 +7090,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         library_count: &mut usize,
         recorded_redirects: &mut HashSet<CanonicalPath>,
     ) {
-        if let Some(redirect) = self.tasks[task].redirect {
+        if let Some(redirect) = self.parse.tasks[task].redirect() {
             if let Some(output) = self.task_source(redirect) {
-                let path = self.tasks[task].path.clone();
+                let path = self.parse.path(task).clone();
                 if recorded_redirects.insert(path.canonical().clone()) {
                     self.sources[output]
                         .prepared
@@ -6854,34 +7102,34 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             }
             return;
         }
-        if matches!(self.tasks[task].origin, TaskOrigin::AutomaticTypes) {
+        if self.parse.tasks[task].is_automatic_types {
             return;
         }
-        let Some(source) = self.tasks[task].source else {
+        let Some(source) = self.parse.tasks[task].source() else {
             return;
         };
-        let data = self.tasks[task].data;
+        let data = self.parse.tasks[task].data;
         order.push(source);
         if self.sources[source].library_priority.is_some() {
             *library_count += 1;
         } else {
             *ordinary_count += 1;
         }
-        self.sources[source].has_non_external_reason = self.task_data[data].lowest_depth == 0;
+        self.sources[source].has_non_external_reason = self.parse.task_data[data].lowest_depth == 0;
     }
 
     /// tsgo filesParser.addIncludeReason: a redirect's reason goes to its
     /// redirect task as queued (not to that task's alias), a loaded task's
     /// to its path.
-    fn add_include_reason(&mut self, task: usize, reason: SourceInclusionReason) {
+    fn add_include_reason(&mut self, task: usize, reason: InclusionReasonRecord) {
         let mut current = task;
         loop {
-            if let Some(redirect) = self.tasks[current].redirect {
+            if let Some(redirect) = self.parse.tasks[current].redirect() {
                 current = redirect;
                 continue;
             }
-            if self.tasks[current].loaded {
-                if let Some(source) = self.tasks[current].source {
+            if self.parse.tasks[current].loaded() {
+                if let Some(source) = self.parse.tasks[current].source() {
                     self.sources[source].inclusion_reasons.push(reason);
                 }
             }
@@ -6909,7 +7157,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     // tsgo collectFiles: a root redirected to a referenced
                     // project's output that is not built is neither a file
                     // of the program nor a diagnostic.
-                    if self.tasks[task].redirect.is_some() {
+                    if self.parse.tasks[task].redirect().is_some() {
                         dropped.push(index);
                         continue;
                     }
@@ -6920,7 +7168,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         Some(diagnostic) => diagnostic.clone(),
                         None => {
                             let TaskOrigin::Root { spelling, reason } =
-                                self.tasks[task].origin.clone()
+                                self.task_origin(task).clone()
                             else {
                                 unreachable!("a root's task has a root origin");
                             };
@@ -6952,35 +7200,58 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// reads why from the resolution.
     fn record_unloaded_targets(&mut self) -> Result<(), ProgramLoadError> {
         for index in 0..self.module_resolutions.len() {
-            if self.module_resolutions[index].unloaded_reason.is_some()
-                || !self.module_resolutions[index].loads_source
-            {
-                continue;
-            }
             let (canonical, is_javascript) = match self.module_resolutions[index].host.outcome() {
                 ResolutionOutcome::Resolved(target) => (
-                    target.resolved_file().canonical().clone(),
+                    target.resolved_file().canonical(),
                     target.extension().is_javascript(),
                 ),
                 ResolutionOutcome::NotFound => continue,
             };
-            let loaded = self.task_data_by_path.get(&canonical).is_some_and(|&data| {
-                self.task_data[data]
+            let data = match self.module_resolutions[index].target {
+                StagedModuleTarget::TaskData(data) => Some(data),
+                StagedModuleTarget::Lookup => self.parse.task_data_by_path.get(canonical).copied(),
+                StagedModuleTarget::Source(..) | StagedModuleTarget::Unloaded => {
+                    unreachable!("targets are bound once after task execution")
+                }
+            };
+            let queued = matches!(
+                self.module_resolutions[index].target,
+                StagedModuleTarget::TaskData(_)
+            );
+            let loaded = data.and_then(|data| {
+                self.parse.task_data[data]
                     .spellings
                     .iter()
-                    .any(|&(_, task)| self.task_source(task).is_some())
+                    .find_map(|&task| {
+                        let source = self.task_source(task)?;
+                        let exact_path = queued
+                            && self.parse.task_data[data].spellings.len() == 1
+                            && self.parse.tasks[self.task_target(task)]
+                                .redirect()
+                                .is_none();
+                        Some((source, exact_path))
+                    })
             });
-            if loaded {
+            let reason = if loaded.is_some()
+                || self.module_resolutions[index].unloaded_reason.is_some()
+                || !self.module_resolutions[index].loads_source
+            {
+                None
+            } else if self.project_reference_redirect(canonical)?.is_some() {
+                Some(UnloadedModuleReason::ProjectReferenceOutputNotBuilt)
+            } else if is_javascript {
+                Some(UnloadedModuleReason::NodeModulesDepth)
+            } else {
+                None
+            };
+            self.module_resolutions[index].target = loaded
+                .map_or(StagedModuleTarget::Unloaded, |(source, exact)| {
+                    StagedModuleTarget::Source(source, exact)
+                });
+            if reason.is_none() {
                 continue;
             }
-            let reason = if self.project_reference_redirect(&canonical)?.is_some() {
-                UnloadedModuleReason::ProjectReferenceOutputNotBuilt
-            } else if is_javascript {
-                UnloadedModuleReason::NodeModulesDepth
-            } else {
-                continue;
-            };
-            self.module_resolutions[index].unloaded_reason = Some(reason);
+            self.module_resolutions[index].unloaded_reason = reason;
         }
         Ok(())
     }
@@ -7278,7 +7549,7 @@ fn publish_program(
             .with_may_be_emitted(may_be_emitted)
             .with_may_emit_forced_declaration(may_emit_forced_declaration)
             .with_found_searching_node_modules(!staged_source.has_non_external_reason)
-            .with_inclusion_reasons(staged_source.inclusion_reasons);
+            .with_inclusion_reason_records(staged_source.inclusion_reasons);
         let canonical = prepared.path().canonical().clone();
         let package_redirects = prepared.package_redirect_paths().to_vec();
         let source_id = builder.add_source_file(prepared).map_err(|error| {
@@ -7368,11 +7639,25 @@ fn publish_program(
         .ok()?;
         source_by_canonical.get(redirected.canonical()).copied()
     };
+    let mut loaded_modules = crate::resolution::LoadedModules::default();
     for resolution in staged.module_resolutions {
+        let source =
+            published_ids[resolution.source].expect("only collected sources publish resolutions");
+        let owned_source = match resolution.target {
+            StagedModuleTarget::Source(target, _) => published_ids[target],
+            StagedModuleTarget::Unloaded | StagedModuleTarget::Lookup => None,
+            StagedModuleTarget::TaskData(_) => unreachable!("finish binds every resolved target"),
+        }
+        .or_else(|| match resolution.host.outcome() {
+            ResolutionOutcome::Resolved(module) => {
+                redirected_source(module.resolved_file().canonical())
+            }
+            ResolutionOutcome::NotFound => None,
+        });
+        let exact_path = matches!(resolution.target, StagedModuleTarget::Source(_, true));
         let bound = bind_module_resolution(
             resolution.host,
-            &source_by_canonical,
-            &redirected_source,
+            owned_source,
             &package_map,
             resolution.loads_source,
             resolution.unloaded_reason,
@@ -7393,7 +7678,13 @@ fn publish_program(
             )
         })?;
         builder
-            .add_module_resolution(resolution.key, Ok(bound))
+            .stage_loaded_module_resolution(
+                &mut loaded_modules,
+                source,
+                resolution.key,
+                bound,
+                exact_path,
+            )
             .map_err(|error| {
                 ProgramLoadError::preparation(ProgramLoadOperation::BindResolutions, error)
             })?;
@@ -7431,15 +7722,14 @@ fn publish_program(
         )
         .with_content_mapper(staged.content_mapper_diagnostics),
     );
-    builder.build().map_err(|error| {
+    builder.finish_load(loaded_modules).map_err(|error| {
         ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
     })
 }
 
 fn bind_module_resolution(
     host: HostModuleResolution,
-    source_by_canonical: &FxHashMap<CanonicalPath, SourceFileId>,
-    redirected_source: &dyn Fn(&CanonicalPath) -> Option<SourceFileId>,
+    owned_source: Option<SourceFileId>,
     package_map: &BTreeMap<JsString, bool>,
     loads_source: bool,
     unloaded_reason: Option<UnloadedModuleReason>,
@@ -7460,20 +7750,10 @@ fn bind_module_resolution(
                     .unwrap_or(false),
             )
         });
-    let owned_source = source_by_canonical
-        .get(module.resolved_file().canonical())
-        .copied()
-        .or_else(|| redirected_source(module.resolved_file().canonical()));
-    let target = if no_resolve && owned_source.is_none() {
-        ResolvedModuleTarget::Unloaded {
-            resolved_file: module.resolved_file().clone(),
-            reason: unloaded_reason.unwrap_or(UnloadedModuleReason::NoResolve),
-        }
+    let membership = if no_resolve && owned_source.is_none() {
+        Err(unloaded_reason.unwrap_or(UnloadedModuleReason::NoResolve))
     } else if let (None, Some(reason)) = (owned_source, unloaded_reason) {
-        ResolvedModuleTarget::Unloaded {
-            resolved_file: module.resolved_file().clone(),
-            reason,
-        }
+        Err(reason)
     } else if module.extension().is_javascript() && owned_source.is_none() {
         return Err(ResolutionError::unsupported(
             "unexplained-unloaded-javascript",
@@ -7483,19 +7763,13 @@ fn bind_module_resolution(
             ),
         ));
     } else if is_arbitrary_declaration_extension(module.extension()) && owned_source.is_none() {
-        ResolvedModuleTarget::Unloaded {
-            resolved_file: module.resolved_file().clone(),
-            reason: if loads_source {
-                UnloadedModuleReason::ArbitraryExtensionWithoutOption
-            } else {
-                UnloadedModuleReason::ResolutionOnly
-            },
-        }
+        Err(if loads_source {
+            UnloadedModuleReason::ArbitraryExtensionWithoutOption
+        } else {
+            UnloadedModuleReason::ResolutionOnly
+        })
     } else if let Some(source) = owned_source {
-        ResolvedModuleTarget::Source {
-            source,
-            resolved_file: module.resolved_file().clone(),
-        }
+        Ok(source)
     } else {
         return Err(ResolutionError::unsupported(
             "resolution-only-source-target",
@@ -7505,7 +7779,7 @@ fn bind_module_resolution(
             ),
         ));
     };
-    let mut resolution = ModuleResolution::resolved(module.into_resolved_module(target)?)
+    let mut resolution = ModuleResolution::resolved(module.into_program_module(membership))
         .with_diagnostics(diagnostics)
         .with_types_package_exists(types_package_exists)
         .with_package_bundles_types(package_bundles_types);
@@ -8853,3 +9127,7 @@ impl SourceInclusionReason {
 #[cfg(test)]
 #[path = "../tests/unit/loader/typed_error_source_tests.rs"]
 mod typed_error_source_tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/loader/task_storage_tests.rs"]
+mod task_storage_tests;

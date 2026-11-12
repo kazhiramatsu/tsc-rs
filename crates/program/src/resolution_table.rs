@@ -144,6 +144,9 @@ struct StagedRow {
     specifier: JsString,
     mode: ResolutionMode,
     resolution: ModuleResolution,
+    /// A queued target with one spelling and no project/package redirect
+    /// has exactly the spelling of its collected source.
+    exact_source_path: bool,
 }
 
 impl StagedModules {
@@ -178,6 +181,7 @@ impl StagedModules {
                     specifier: key.specifier,
                     mode: key.mode,
                     resolution,
+                    exact_source_path: false,
                 });
                 Ok(())
             }
@@ -186,6 +190,181 @@ impl StagedModules {
 
     pub(crate) fn values(&self) -> impl Iterator<Item = &ModuleResolution> {
         self.rows.iter().map(|row| &row.resolution)
+    }
+}
+
+fn compact_module_row(
+    importing_source: SourceFileId,
+    specifier: JsString,
+    mode: ResolutionMode,
+    resolution: ModuleResolution,
+    exact_source_path: bool,
+    sources: &[PreparedSourceFile],
+    packages: &mut BTreeMap<PackageId, NonZeroU32>,
+) -> Row {
+    let ModuleResolution {
+        outcome,
+        alternate_result,
+        types_package_exists,
+        package_bundles_types,
+        diagnostics,
+    } = resolution;
+    let mut rare = Rare {
+        alternate_result,
+        diagnostics,
+        ..Rare::default()
+    };
+    let mut flags =
+        flag(types_package_exists, TYPES_PACKAGE) | flag(package_bundles_types, BUNDLES_TYPES);
+    let mut extension = ExtensionTag::Ts;
+    let mut package_id = None;
+    let target = match outcome {
+        ResolutionOutcome::NotFound => Target::NotFound,
+        ResolutionOutcome::Resolved(module) => {
+            let ResolvedModule {
+                target,
+                extension: ext,
+                original_path,
+                is_external_library_import,
+                resolved_using_ts_extension,
+                resolved_using_extra_extensions,
+                is_custom_resolution,
+                package_id: package,
+            } = module;
+            (extension, rare.arbitrary_extension) = ExtensionTag::from_owned(ext);
+            rare.original_path = original_path;
+            flags |= flag(is_external_library_import, EXTERNAL)
+                | flag(resolved_using_ts_extension, TS_EXTENSION)
+                | flag(resolved_using_extra_extensions, EXTRA_EXTENSION)
+                | flag(is_custom_resolution, CUSTOM);
+            if let Some(package) = package {
+                let next = NonZeroU32::new(
+                    u32::try_from(packages.len() + 1).expect("package id fits u32"),
+                )
+                .unwrap();
+                package_id = Some(*packages.entry(package).or_insert(next));
+            }
+            match target {
+                ResolvedModuleTarget::Source {
+                    source,
+                    resolved_file,
+                } => {
+                    // ProgramPath equality includes BOTH display and canonical.
+                    debug_assert!(
+                        !exact_source_path || &resolved_file == sources[source.index()].path()
+                    );
+                    if !exact_source_path && &resolved_file != sources[source.index()].path() {
+                        rare.resolved_file = Some(resolved_file);
+                    }
+                    Target::Source(source)
+                }
+                ResolvedModuleTarget::Unloaded {
+                    resolved_file,
+                    reason,
+                } => Target::Unloaded {
+                    path: Box::new(resolved_file),
+                    reason,
+                },
+            }
+        }
+    };
+    Row {
+        specifier,
+        mode,
+        importing_source,
+        target,
+        extension,
+        flags,
+        package_id,
+        rare: (!rare.is_empty()).then(|| Box::new(rare)),
+    }
+}
+
+/// Loader rows are already unique and bound to final source identities.
+/// Compact them immediately; only their observable order remains to be fixed.
+#[derive(Default)]
+pub(crate) struct LoadedModules {
+    by_source: Vec<Vec<Row>>,
+    packages: BTreeMap<PackageId, NonZeroU32>,
+}
+
+impl LoadedModules {
+    pub(crate) fn push(
+        &mut self,
+        source: SourceFileId,
+        key: ResolutionKey,
+        resolution: ModuleResolution,
+        exact_source_path: bool,
+        sources: &[PreparedSourceFile],
+    ) {
+        self.by_source
+            .resize_with(self.by_source.len().max(source.index() + 1), Vec::new);
+        self.by_source[source.index()].push(compact_module_row(
+            source,
+            key.specifier,
+            key.mode,
+            resolution,
+            exact_source_path,
+            sources,
+            &mut self.packages,
+        ));
+    }
+
+    pub(crate) fn finish(
+        self,
+        sources: &[PreparedSourceFile],
+        type_references: BTreeMap<TypeReferenceResolutionKey, TypeReferenceResolution>,
+    ) -> ResolutionTable {
+        let mut groups: Vec<_> = self
+            .by_source
+            .into_iter()
+            .enumerate()
+            .filter(|(_, rows)| !rows.is_empty())
+            .collect();
+        groups.sort_unstable_by(|(a, _), (b, _)| {
+            sources[*a]
+                .path()
+                .canonical()
+                .cmp(sources[*b].path().canonical())
+        });
+        let count = groups.iter().map(|(_, rows)| rows.len()).sum();
+        let mut modules = Vec::with_capacity(count);
+        let mut source_ranges = vec![0..0; sources.len()];
+        let mut provisional = vec![None; self.packages.len()];
+        for (package, id) in self.packages {
+            provisional[id.get() as usize - 1] = Some(package);
+        }
+        let mut remap = vec![None; provisional.len()];
+        let mut package_ids = Vec::with_capacity(provisional.len());
+        for (source, mut rows) in groups {
+            rows.sort_unstable_by(|a, b| {
+                (a.specifier.as_js(), a.mode).cmp(&(b.specifier.as_js(), b.mode))
+            });
+            let start = u32::try_from(modules.len()).expect("module row index fits u32");
+            for mut row in rows {
+                if let Some(id) = row.package_id {
+                    let index = id.get() as usize - 1;
+                    row.package_id = Some(*remap[index].get_or_insert_with(|| {
+                        package_ids
+                            .push(provisional[index].take().expect("first package occurrence"));
+                        NonZeroU32::new(
+                            u32::try_from(package_ids.len()).expect("package id fits u32"),
+                        )
+                        .unwrap()
+                    }));
+                }
+                modules.push(row);
+            }
+            source_ranges[source] =
+                start..u32::try_from(modules.len()).expect("module row index fits u32");
+        }
+        ResolutionTable {
+            module_lookup: module_lookup_index(&modules, &source_ranges),
+            modules,
+            source_ranges,
+            package_ids,
+            type_references,
+        }
     }
 }
 
@@ -274,6 +453,7 @@ impl ResolutionTable {
                 specifier,
                 mode,
                 resolution,
+                exact_source_path,
             } = rows[index]
                 .take()
                 .expect("each staged row has one source index");
@@ -283,79 +463,15 @@ impl ResolutionTable {
                 range.start = start;
             }
             range.end = start.checked_add(1).expect("module range fits u32");
-            let ModuleResolution {
-                outcome,
-                alternate_result,
-                types_package_exists,
-                package_bundles_types,
-                diagnostics,
-            } = resolution;
-            let mut rare = Rare {
-                alternate_result,
-                diagnostics,
-                ..Rare::default()
-            };
-            let mut flags = flag(types_package_exists, TYPES_PACKAGE)
-                | flag(package_bundles_types, BUNDLES_TYPES);
-            let mut extension = ExtensionTag::Ts;
-            let mut package_id = None;
-            let target = match outcome {
-                ResolutionOutcome::NotFound => Target::NotFound,
-                ResolutionOutcome::Resolved(module) => {
-                    let ResolvedModule {
-                        target,
-                        extension: ext,
-                        original_path,
-                        is_external_library_import,
-                        resolved_using_ts_extension,
-                        resolved_using_extra_extensions,
-                        is_custom_resolution,
-                        package_id: package,
-                    } = module;
-                    (extension, rare.arbitrary_extension) = ExtensionTag::from_owned(ext);
-                    rare.original_path = original_path;
-                    flags |= flag(is_external_library_import, EXTERNAL)
-                        | flag(resolved_using_ts_extension, TS_EXTENSION)
-                        | flag(resolved_using_extra_extensions, EXTRA_EXTENSION)
-                        | flag(is_custom_resolution, CUSTOM);
-                    if let Some(package) = package {
-                        let next = NonZeroU32::new(
-                            u32::try_from(packages.len() + 1).expect("package id fits u32"),
-                        )
-                        .unwrap();
-                        package_id = Some(*packages.entry(package).or_insert(next));
-                    }
-                    match target {
-                        ResolvedModuleTarget::Source {
-                            source,
-                            resolved_file,
-                        } => {
-                            // ProgramPath equality includes BOTH display and canonical.
-                            if &resolved_file != sources[source.index()].path() {
-                                rare.resolved_file = Some(resolved_file);
-                            }
-                            Target::Source(source)
-                        }
-                        ResolvedModuleTarget::Unloaded {
-                            resolved_file,
-                            reason,
-                        } => Target::Unloaded {
-                            path: Box::new(resolved_file),
-                            reason,
-                        },
-                    }
-                }
-            };
-            modules.push(Row {
+            modules.push(compact_module_row(
+                importing_source,
                 specifier,
                 mode,
-                importing_source,
-                target,
-                extension,
-                flags,
-                package_id,
-                rare: (!rare.is_empty()).then(|| Box::new(rare)),
-            });
+                resolution,
+                exact_source_path,
+                sources,
+                &mut packages,
+            ));
         }
         // The temporary interning index owns the identities during building;
         // consume it so the immutable side table owns each identity only once.

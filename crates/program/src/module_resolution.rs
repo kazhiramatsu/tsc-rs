@@ -116,6 +116,32 @@ impl HostResolvedModule {
             )));
         }
 
+        Ok(self.map_target(|_| target))
+    }
+
+    /// The loader's membership decision refers to this very host result. Move
+    /// its path instead of cloning it to satisfy the public caller contract.
+    pub(crate) fn into_program_module(
+        self,
+        membership: Result<crate::prepared::SourceFileId, crate::resolution::UnloadedModuleReason>,
+    ) -> ResolvedModule {
+        self.map_target(|resolved_file| match membership {
+            Ok(source) => ResolvedModuleTarget::Source {
+                source,
+                resolved_file,
+            },
+            Err(reason) => ResolvedModuleTarget::Unloaded {
+                resolved_file,
+                reason,
+            },
+        })
+    }
+
+    fn map_target(
+        self,
+        target: impl FnOnce(ProgramPath) -> ResolvedModuleTarget,
+    ) -> ResolvedModule {
+        let target = target(self.resolved_file);
         let mut resolved = ResolvedModule::new(target, self.extension)
             .with_external_library_import(self.is_external_library_import)
             .with_resolved_using_ts_extension(self.resolved_using_ts_extension)
@@ -127,7 +153,7 @@ impl HostResolvedModule {
         if let Some(package_id) = self.package_id {
             resolved = resolved.with_package_id(package_id);
         }
-        Ok(resolved)
+        resolved
     }
 }
 

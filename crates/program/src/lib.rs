@@ -104,6 +104,7 @@ pub use js_path::{
 };
 pub use tsc_host::to_file_name_lower_case_js;
 pub use tsc_host::{is_encoded_dynamic_file_name, DYNAMIC_URI_FILE_NAME_PREFIX};
+mod inclusion_reason;
 mod js_string_ops;
 mod json;
 mod json_value;

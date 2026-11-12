@@ -238,8 +238,17 @@ impl ConfigFilePattern {
     /// this pattern as a whole path (the entry is the path's last
     /// component).
     pub(crate) fn accepts_entry(&self, states: &[usize], name: &InputComponent) -> bool {
-        self.advance_directory_states(states, name, true)
-            .contains(&self.components.len())
+        // With one component left, only a transition through the final glob
+        // can reach the accepting state. Skip recursive epsilon transitions
+        // directly instead of allocating, sorting and deduplicating states.
+        states.iter().any(|&state| {
+            let mut state = state;
+            while matches!(self.components.get(state), Some(PatternComponent::Recursive)) {
+                state += 1;
+            }
+            state + 1 == self.components.len()
+                && matches!(self.components.get(state), Some(PatternComponent::Glob(glob)) if glob.matches(name, true, self.case_sensitive))
+        })
     }
 
     fn live_states(&self, states: Vec<usize>) -> Option<Vec<usize>> {
@@ -367,6 +376,61 @@ impl GlobComponent {
         let min_js_dot = is_last_path_component
             .then(|| min_js_dot_index(&input.characters, case_sensitive))
             .flatten();
+        // A star cannot consume the special min.js dot, while a question
+        // mark can. That barrier needs the full component automaton.
+        if let Some(dot) = min_js_dot {
+            return self.matches_min_js(input, case_sensitive, dot);
+        }
+        // A star's alternatives differ only in how much of this component
+        // it consumes. Keep the last star and extend it on a mismatch; an
+        // earlier star cannot cross a slash either.
+        let mut token = 0;
+        let mut character = 0;
+        let mut star = None;
+        while character < input_count {
+            let unit = input.characters[character];
+            match self.tokens.get(token) {
+                Some(GlobToken::Literal(literal))
+                    if regex_code_unit_eq(*literal, unit, case_sensitive) =>
+                {
+                    token += 1;
+                    character += 1;
+                }
+                Some(GlobToken::Question)
+                    if unit != u16::from(b'/') && !(token == 0 && unit == u16::from(b'.')) =>
+                {
+                    token += 1;
+                    character += 1;
+                }
+                Some(GlobToken::Star) => {
+                    star = Some((token, character));
+                    token += 1;
+                }
+                _ => {
+                    let Some((star_token, consumed)) = star else {
+                        return false;
+                    };
+                    let unit = input.characters[consumed];
+                    if unit == u16::from(b'/')
+                        || (star_token == 0 && consumed == 0 && unit == u16::from(b'.'))
+                    {
+                        return false;
+                    }
+                    let next = consumed + 1;
+                    star = Some((star_token, next));
+                    token = star_token + 1;
+                    character = next;
+                }
+            }
+        }
+        self.tokens[token..]
+            .iter()
+            .all(|token| matches!(token, GlobToken::Star))
+    }
+
+    fn matches_min_js(&self, input: &InputComponent, case_sensitive: bool, dot: usize) -> bool {
+        let input_count = input.characters.len();
+        let min_js_dot = Some(dot);
         // The DP rows live on the stack for every ordinary component name.
         const INLINE_ROW: usize = 128;
         let mut inline_rows = [[false; INLINE_ROW]; 2];
@@ -443,8 +507,19 @@ impl InputComponent {
             characters: text.code_units().collect(),
             common_package_folder: COMMON_PACKAGE_FOLDERS
                 .iter()
-                .any(|folder| regex_text_eq(text, (*folder).into(), case_sensitive)),
+                .any(|folder| package_folder_eq(text, (*folder).into(), case_sensitive)),
         }
+    }
+
+    /// Reuse the filename scratch while explaining the roots of one config.
+    pub(crate) fn set_text(&mut self, text: JsStr<'_>, case_sensitive: bool) {
+        self.text.clear();
+        self.text.push_js(text);
+        self.characters.clear();
+        self.characters.extend(text.code_units());
+        self.common_package_folder = COMMON_PACKAGE_FOLDERS
+            .iter()
+            .any(|folder| package_folder_eq(text, (*folder).into(), case_sensitive));
     }
 
     fn recursive_wildcard_allowed(&self) -> bool {
@@ -552,22 +627,27 @@ fn min_js_dot_index(characters: &[u16], case_sensitive: bool) -> Option<usize> {
         .then_some(start)
 }
 
-fn regex_text_eq(left: JsStr<'_>, right: JsStr<'_>, case_sensitive: bool) -> bool {
-    let mut left = left.code_units();
-    let mut right = right.code_units();
-    loop {
-        match (left.next(), right.next()) {
-            (Some(left), Some(right)) if regex_code_unit_eq(left, right, case_sensitive) => {}
-            (None, None) => return true,
-            _ => return false,
-        }
+// The folder names are ASCII. Non-Unicode RegExp Canonicalize never maps
+// a non-ASCII code unit to ASCII, so byte comparison also rejects lookalikes.
+fn package_folder_eq(left: JsStr<'_>, right: JsStr<'_>, case_sensitive: bool) -> bool {
+    debug_assert!(right.as_bytes().is_ascii());
+    if case_sensitive {
+        left.as_bytes() == right.as_bytes()
+    } else {
+        left.as_bytes().eq_ignore_ascii_case(right.as_bytes())
     }
 }
 
 fn regex_code_unit_eq(left: u16, right: u16, case_sensitive: bool) -> bool {
-    left == right
-        || (!case_sensitive
-            && regex_canonicalize_code_unit(left) == regex_canonicalize_code_unit(right))
+    if left == right {
+        true
+    } else if case_sensitive {
+        false
+    } else if (left | right) < 0x80 {
+        (left as u8).eq_ignore_ascii_case(&(right as u8))
+    } else {
+        regex_canonicalize_code_unit(left) == regex_canonicalize_code_unit(right)
+    }
 }
 
 /// ECMAScript `Canonicalize` for a non-Unicode, ignore-case RegExp. TypeScript

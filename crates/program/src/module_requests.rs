@@ -313,6 +313,7 @@ pub struct SourceRequestPlan {
     /// `moduleNames` order (the synthetic imports, the imports, then the
     /// module augmentations).
     module_request_occurrences: Vec<u32>,
+    module_request_occurrence_counts: Vec<u32>,
     module_request_order: Vec<ResolutionKey>,
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     lib_reference_directives: Vec<PlannedLibReferenceDirective>,
@@ -337,6 +338,7 @@ pub(crate) struct AdmissionPlanParts {
     pub lib_reference_directives: Vec<PlannedLibReferenceDirective>,
     pub module_request_order: Vec<ResolutionKey>,
     pub module_request_occurrences: Vec<u32>,
+    pub module_request_occurrence_counts: Vec<u32>,
 }
 
 impl SourceRequestPlan {
@@ -353,6 +355,9 @@ impl SourceRequestPlan {
             lib_reference_directives: std::mem::take(&mut self.lib_reference_directives),
             module_request_order: std::mem::take(&mut self.module_request_order),
             module_request_occurrences: std::mem::take(&mut self.module_request_occurrences),
+            module_request_occurrence_counts: std::mem::take(
+                &mut self.module_request_occurrence_counts,
+            ),
         }
     }
 
@@ -379,7 +384,9 @@ impl SourceRequestPlan {
                 .iter()
                 .map(|v| v.capacity() * std::mem::size_of::<(u32, u32)>())
                 .sum::<usize>()
-            + self.module_request_occurrences.capacity() * std::mem::size_of::<u32>();
+            + (self.module_request_occurrences.capacity()
+                + self.module_request_occurrence_counts.capacity())
+                * std::mem::size_of::<u32>();
         c::maximum("plan.vector_capacity_bytes", bytes);
         c::plan(
             file,
@@ -479,6 +486,12 @@ impl SourceRequestPlan {
     /// the spans of its loading occurrences (see
     /// [`Self::module_request_spans`]), moved out of the plan.
     pub fn take_module_requests(&mut self) -> Vec<PlannedModuleRequest> {
+        self.take_module_requests_iter().collect()
+    }
+
+    pub(crate) fn take_module_requests_iter(
+        &mut self,
+    ) -> impl ExactSizeIterator<Item = PlannedModuleRequest> {
         let keys = std::mem::take(&mut self.module_requests);
         let loads = std::mem::take(&mut self.module_request_loads);
         let spans = std::mem::take(&mut self.module_request_spans);
@@ -490,7 +503,6 @@ impl SourceRequestPlan {
                 loads_source,
                 spans,
             })
-            .collect()
     }
 
     /// Whether a resolved target participates in program source discovery.
@@ -1233,6 +1245,10 @@ fn plan_module_requests_worker(
     // an augmentation body observe that ordinary authoritative row.
     unpreprocessed_module_requests.retain(|key| !request_index.contains_key(key));
 
+    let mut module_request_occurrence_counts = vec![0_u32; module_requests.len()];
+    for &request in &module_request_occurrences {
+        module_request_occurrence_counts[request as usize] += 1;
+    }
     let plan = SourceRequestPlan {
         is_external_module: parsed.external_module_indicator.is_some(),
         import_count,
@@ -1242,6 +1258,7 @@ fn plan_module_requests_worker(
         module_request_loads,
         module_request_spans,
         module_request_occurrences,
+        module_request_occurrence_counts,
         module_request_order,
         type_reference_directives,
         lib_reference_directives,
