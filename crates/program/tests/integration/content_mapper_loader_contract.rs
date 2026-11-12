@@ -314,7 +314,36 @@ fn a_mapper_failing_five_times_is_not_used_again() {
         .filter(|file| !file.content_mapped().unwrap().diagnostics.is_empty())
         .count();
     assert_eq!(reported, 5);
-    assert_eq!(project.unwrap().calls.lock().unwrap().len(), 5);
+    assert_eq!(project.as_ref().unwrap().calls.lock().unwrap().len(), 5);
+    assert_eq!(
+        *project.unwrap().calls.lock().unwrap(),
+        [
+            "/p/src/c6.vue",
+            "/p/src/c5.vue",
+            "/p/src/c4.vue",
+            "/p/src/c3.vue",
+            "/p/src/c2.vue",
+        ]
+    );
+    // tsgo aa8149273 --singleThreaded on seven c0..c6 roots diagnoses
+    // c2..c6: the work group runs the last root first. Count alone does
+    // not pin which sources retain transform failures.
+    let reported_files: Vec<_> = prepared
+        .source_files()
+        .iter()
+        .filter(|file| !file.content_mapped().unwrap().diagnostics.is_empty())
+        .map(|file| file.path().display().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(
+        reported_files,
+        [
+            "/p/src/c2.vue",
+            "/p/src/c3.vue",
+            "/p/src/c4.vue",
+            "/p/src/c5.vue",
+            "/p/src/c6.vue",
+        ]
+    );
     let texts: Vec<_> = prepared
         .diagnostics()
         .content_mapper()
@@ -352,6 +381,54 @@ fn a_mapper_that_cannot_start_is_reported_once_without_a_file() {
     assert_eq!(
         diagnostic.message_text(),
         "The content mapper 'vue-mapper' could not be initialized."
+    );
+}
+
+#[test]
+fn independent_mapper_initialization_diagnostics_keep_execution_order() {
+    const CONFIG: &str = r#"{
+        "compilerOptions": { "noLib": true, "types": [], "module": "nodenext" },
+        "files": ["src/a.svelte", "src/z.vue"],
+        "contentMappers": [
+            { "package": "vue", "extensions": [".vue"] },
+            { "package": "svelte", "extensions": [".svelte"] }
+        ]
+    }"#;
+    let (prepared, project) = load_with(
+        CONFIG,
+        &[
+            ("/p/src/a.svelte", "x"),
+            ("/p/src/z.vue", "y"),
+            (
+                "/p/node_modules/svelte/package.json",
+                r#"{"name":"svelte-mapper","version":"1.0.0","typescript":{"contentMapper":{"exec":["svelte-mapper"]}}}"#,
+            ),
+        ],
+        fake(|_, _| {
+            Err(TransformFailure::Initialize(InitializeError {
+                kind: InitializeErrorKind::ProcessExit { exit_code: 3 },
+                mapper_name: "unavailable".to_owned(),
+            }))
+        }),
+    );
+    let texts: Vec<_> = prepared
+        .diagnostics()
+        .content_mapper()
+        .iter()
+        .map(|d| d.message_text().to_string_lossy().into_owned())
+        .collect();
+    // Raw API order precedes the command's diagnostic sort: last root
+    // executes first, even though its mapper label sorts last.
+    assert_eq!(
+        texts,
+        [
+            "The content mapper 'vue-mapper' could not be initialized.",
+            "The content mapper 'svelte-mapper' could not be initialized.",
+        ]
+    );
+    assert_eq!(
+        *project.unwrap().calls.lock().unwrap(),
+        ["/p/src/z.vue", "/p/src/a.svelte"]
     );
 }
 

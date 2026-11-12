@@ -1,0 +1,581 @@
+[
+  {
+    "name": "dfs_reasons",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"shared.ts\",\"last.ts\",\"main.ts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "main.ts": "/// <reference path=\"./path.ts\" />\nimport \"./shared\";\nimport \"./shared\";\nimport \"./side\";\n",
+      "path.ts": "import \"./leaf\";\n",
+      "leaf.ts": "export {};\n",
+      "shared.ts": "import \"./leaf\";\n",
+      "side.ts": "import \"./main\";\n",
+      "last.ts": "import \"./shared\";\n"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/leaf.ts",
+      "/project/path.ts",
+      "/project/shared.ts",
+      "/project/side.ts",
+      "/project/main.ts",
+      "/project/last.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nleaf.ts\n   Imported via \"./leaf\" from file 'path.ts'\n   Imported via \"./leaf\" from file 'shared.ts'\npath.ts\n   Referenced via './path.ts' from file 'main.ts'\nshared.ts\n   Imported via \"./shared\" from file 'main.ts'\n   Imported via \"./shared\" from file 'main.ts'\n   Part of 'files' list in tsconfig.json\n   Imported via \"./shared\" from file 'last.ts'\nside.ts\n   Imported via \"./side\" from file 'main.ts'\nmain.ts\n   Part of 'files' list in tsconfig.json\n   Imported via \"./main\" from file 'side.ts'\nlast.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "======== Resolving module './shared' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/shared', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/shared.ts' exists - use it as a name resolution result.\n======== Module name './shared' was successfully resolved to '/project/shared.ts'. ========\n======== Resolving module './shared' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/shared', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/shared.ts' exists - use it as a name resolution result.\n======== Module name './shared' was successfully resolved to '/project/shared.ts'. ========\n======== Resolving module './side' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/side', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/side.ts' exists - use it as a name resolution result.\n======== Module name './side' was successfully resolved to '/project/side.ts'. ========\n======== Resolving module './leaf' from '/project/path.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/leaf', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/leaf.ts' exists - use it as a name resolution result.\n======== Module name './leaf' was successfully resolved to '/project/leaf.ts'. ========\n======== Resolving module './leaf' from '/project/shared.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/leaf', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/leaf.ts' exists - use it as a name resolution result.\n======== Module name './leaf' was successfully resolved to '/project/leaf.ts'. ========\n======== Resolving module './main' from '/project/side.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/main', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/main.ts' exists - use it as a name resolution result.\n======== Module name './main' was successfully resolved to '/project/main.ts'. ========\n======== Resolving module './shared' from '/project/last.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/shared', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/shared.ts' exists - use it as a name resolution result.\n======== Module name './shared' was successfully resolved to '/project/shared.ts'. ========\n",
+    "diagnostics": [],
+    "check_trace": true
+  },
+  {
+    "name": "respell_parent",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"Main.ts\",\"other.ts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "main.ts": "import \"./Dep\";\n",
+      "dep.ts": "export {};\n",
+      "other.ts": "import \"./main\";\n"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/Dep.ts",
+      "/project/Main.ts",
+      "/project/other.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nDep.ts\n   Imported via \"./Dep\" from file 'Main.ts'\nMain.ts\n   Part of 'files' list in tsconfig.json\n   Imported via \"./main\" from file 'other.ts'\nother.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "======== Resolving module './Dep' from '/project/Main.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/Dep', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/Dep.ts' exists - use it as a name resolution result.\n======== Module name './Dep' was successfully resolved to '/project/Dep.ts'. ========\n======== Resolving module './main' from '/project/other.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/main', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/main.ts' exists - use it as a name resolution result.\n======== Module name './main' was successfully resolved to '/project/main.ts'. ========\n",
+    "diagnostics": [
+      {
+        "file": "other.ts",
+        "line": 1,
+        "column": 8,
+        "code": 1149,
+        "message": "File name '/project/main.ts' differs from already included file name '/project/Main.ts' only in casing.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json\n    Imported via \"./main\" from file '/project/other.ts'"
+      }
+    ],
+    "check_trace": true
+  },
+  {
+    "name": "package_redirect",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"a/main.ts\",\"b/main.ts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "a/node_modules/pkg/package.json": "{\"name\":\"pkg\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}",
+      "a/node_modules/pkg/index.d.ts": "/// <reference path=\"./a-only.d.ts\" />\nimport \"./a-only\";\nexport declare const value: number;\n",
+      "a/node_modules/pkg/a-only.d.ts": "export {};\n",
+      "b/node_modules/pkg/package.json": "{\"name\":\"pkg\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}",
+      "b/node_modules/pkg/index.d.ts": "/// <reference path=\"./b-only.d.ts\" />\nimport \"./b-only\";\nexport declare const value: number;\n",
+      "b/node_modules/pkg/b-only.d.ts": "export {};\n",
+      "a/main.ts": "import { value } from \"pkg\";\n",
+      "b/main.ts": "import { value } from \"pkg\";\n"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/a/node_modules/pkg/a-only.d.ts",
+      "/project/a/node_modules/pkg/index.d.ts",
+      "/project/a/main.ts",
+      "/project/b/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\na/node_modules/pkg/a-only.d.ts\n   Referenced via './a-only.d.ts' from file 'a/node_modules/pkg/index.d.ts'\n   Imported via \"./a-only\" from file 'a/node_modules/pkg/index.d.ts' with packageId 'pkg/a-only.d.ts@1.0.0'\na/node_modules/pkg/index.d.ts\n   Imported via \"pkg\" from file 'a/main.ts' with packageId 'pkg/index.d.ts@1.0.0'\na/main.ts\n   Part of 'files' list in tsconfig.json\nb/node_modules/pkg/index.d.ts\n   Imported via \"pkg\" from file 'b/main.ts' with packageId 'pkg/index.d.ts@1.0.0'\n   File redirects to file 'a/node_modules/pkg/index.d.ts'\nb/main.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "======== Resolving module 'pkg' from '/project/a/main.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nFile '/project/a/package.json' does not exist according to earlier cached lookups.\nFile '/project/package.json' exists according to earlier cached lookups.\nLoading module 'pkg' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.\nSearching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.\nFound 'package.json' at '/project/a/node_modules/pkg/package.json'.\nFile '/project/a/node_modules/pkg.ts' does not exist.\nFile '/project/a/node_modules/pkg.tsx' does not exist.\nFile '/project/a/node_modules/pkg.d.ts' does not exist.\n'package.json' does not have a 'typesVersions' field.\n'package.json' does not have a 'typings' field.\n'package.json' has 'types' field 'index.d.ts' that references '/project/a/node_modules/pkg/index.d.ts'.\nFile '/project/a/node_modules/pkg/index.d.ts' exists - use it as a name resolution result.\n'package.json' does not have a 'peerDependencies' field.\nResolving real path for '/project/a/node_modules/pkg/index.d.ts', result '/project/a/node_modules/pkg/index.d.ts'.\n======== Module name 'pkg' was successfully resolved to '/project/a/node_modules/pkg/index.d.ts' with Package ID 'pkg/index.d.ts@1.0.0'. ========\n======== Resolving module './a-only' from '/project/a/node_modules/pkg/index.d.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/a/node_modules/pkg/a-only', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/a/node_modules/pkg/a-only.ts' does not exist.\nFile '/project/a/node_modules/pkg/a-only.tsx' does not exist.\nFile '/project/a/node_modules/pkg/a-only.d.ts' exists - use it as a name resolution result.\nFile '/project/a/node_modules/pkg/package.json' exists according to earlier cached lookups.\n'package.json' does not have a 'peerDependencies' field.\n======== Module name './a-only' was successfully resolved to '/project/a/node_modules/pkg/a-only.d.ts' with Package ID 'pkg/a-only.d.ts@1.0.0'. ========\n======== Resolving module 'pkg' from '/project/b/main.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nFile '/project/b/package.json' does not exist according to earlier cached lookups.\nFile '/project/package.json' exists according to earlier cached lookups.\nLoading module 'pkg' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.\nSearching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.\nFound 'package.json' at '/project/b/node_modules/pkg/package.json'.\nFile '/project/b/node_modules/pkg.ts' does not exist.\nFile '/project/b/node_modules/pkg.tsx' does not exist.\nFile '/project/b/node_modules/pkg.d.ts' does not exist.\n'package.json' does not have a 'typesVersions' field.\n'package.json' does not have a 'typings' field.\n'package.json' has 'types' field 'index.d.ts' that references '/project/b/node_modules/pkg/index.d.ts'.\nFile '/project/b/node_modules/pkg/index.d.ts' exists - use it as a name resolution result.\n'package.json' does not have a 'peerDependencies' field.\nResolving real path for '/project/b/node_modules/pkg/index.d.ts', result '/project/b/node_modules/pkg/index.d.ts'.\n======== Module name 'pkg' was successfully resolved to '/project/b/node_modules/pkg/index.d.ts' with Package ID 'pkg/index.d.ts@1.0.0'. ========\n======== Resolving module './b-only' from '/project/b/node_modules/pkg/index.d.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/b/node_modules/pkg/b-only', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/b/node_modules/pkg/b-only.ts' does not exist.\nFile '/project/b/node_modules/pkg/b-only.tsx' does not exist.\nFile '/project/b/node_modules/pkg/b-only.d.ts' exists - use it as a name resolution result.\nFile '/project/b/node_modules/pkg/package.json' exists according to earlier cached lookups.\n'package.json' does not have a 'peerDependencies' field.\n======== Module name './b-only' was successfully resolved to '/project/b/node_modules/pkg/b-only.d.ts' with Package ID 'pkg/b-only.d.ts@1.0.0'. ========\n",
+    "diagnostics": [],
+    "check_trace": true
+  },
+  {
+    "name": "package_no_dedupe",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\",\"deduplicatePackages\":false},\"files\":[\"globals.d.ts\",\"a/main.ts\",\"b/main.ts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "a/node_modules/pkg/package.json": "{\"name\":\"pkg\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}",
+      "a/node_modules/pkg/index.d.ts": "/// <reference path=\"./a-only.d.ts\" />\nimport \"./a-only\";\nexport declare const value: number;\n",
+      "a/node_modules/pkg/a-only.d.ts": "export {};\n",
+      "b/node_modules/pkg/package.json": "{\"name\":\"pkg\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}",
+      "b/node_modules/pkg/index.d.ts": "/// <reference path=\"./b-only.d.ts\" />\nimport \"./b-only\";\nexport declare const value: number;\n",
+      "b/node_modules/pkg/b-only.d.ts": "export {};\n",
+      "a/main.ts": "import { value } from \"pkg\";\n",
+      "b/main.ts": "import { value } from \"pkg\";\n"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/a/node_modules/pkg/a-only.d.ts",
+      "/project/a/node_modules/pkg/index.d.ts",
+      "/project/a/main.ts",
+      "/project/b/node_modules/pkg/b-only.d.ts",
+      "/project/b/node_modules/pkg/index.d.ts",
+      "/project/b/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\na/node_modules/pkg/a-only.d.ts\n   Referenced via './a-only.d.ts' from file 'a/node_modules/pkg/index.d.ts'\n   Imported via \"./a-only\" from file 'a/node_modules/pkg/index.d.ts' with packageId 'pkg/a-only.d.ts@1.0.0'\na/node_modules/pkg/index.d.ts\n   Imported via \"pkg\" from file 'a/main.ts' with packageId 'pkg/index.d.ts@1.0.0'\na/main.ts\n   Part of 'files' list in tsconfig.json\nb/node_modules/pkg/b-only.d.ts\n   Referenced via './b-only.d.ts' from file 'b/node_modules/pkg/index.d.ts'\n   Imported via \"./b-only\" from file 'b/node_modules/pkg/index.d.ts' with packageId 'pkg/b-only.d.ts@1.0.0'\nb/node_modules/pkg/index.d.ts\n   Imported via \"pkg\" from file 'b/main.ts' with packageId 'pkg/index.d.ts@1.0.0'\nb/main.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "======== Resolving module 'pkg' from '/project/a/main.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nFile '/project/a/package.json' does not exist according to earlier cached lookups.\nFile '/project/package.json' exists according to earlier cached lookups.\nLoading module 'pkg' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.\nSearching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.\nFound 'package.json' at '/project/a/node_modules/pkg/package.json'.\nFile '/project/a/node_modules/pkg.ts' does not exist.\nFile '/project/a/node_modules/pkg.tsx' does not exist.\nFile '/project/a/node_modules/pkg.d.ts' does not exist.\n'package.json' does not have a 'typesVersions' field.\n'package.json' does not have a 'typings' field.\n'package.json' has 'types' field 'index.d.ts' that references '/project/a/node_modules/pkg/index.d.ts'.\nFile '/project/a/node_modules/pkg/index.d.ts' exists - use it as a name resolution result.\n'package.json' does not have a 'peerDependencies' field.\nResolving real path for '/project/a/node_modules/pkg/index.d.ts', result '/project/a/node_modules/pkg/index.d.ts'.\n======== Module name 'pkg' was successfully resolved to '/project/a/node_modules/pkg/index.d.ts' with Package ID 'pkg/index.d.ts@1.0.0'. ========\n======== Resolving module './a-only' from '/project/a/node_modules/pkg/index.d.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/a/node_modules/pkg/a-only', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/a/node_modules/pkg/a-only.ts' does not exist.\nFile '/project/a/node_modules/pkg/a-only.tsx' does not exist.\nFile '/project/a/node_modules/pkg/a-only.d.ts' exists - use it as a name resolution result.\nFile '/project/a/node_modules/pkg/package.json' exists according to earlier cached lookups.\n'package.json' does not have a 'peerDependencies' field.\n======== Module name './a-only' was successfully resolved to '/project/a/node_modules/pkg/a-only.d.ts' with Package ID 'pkg/a-only.d.ts@1.0.0'. ========\n======== Resolving module 'pkg' from '/project/b/main.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nFile '/project/b/package.json' does not exist according to earlier cached lookups.\nFile '/project/package.json' exists according to earlier cached lookups.\nLoading module 'pkg' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.\nSearching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.\nFound 'package.json' at '/project/b/node_modules/pkg/package.json'.\nFile '/project/b/node_modules/pkg.ts' does not exist.\nFile '/project/b/node_modules/pkg.tsx' does not exist.\nFile '/project/b/node_modules/pkg.d.ts' does not exist.\n'package.json' does not have a 'typesVersions' field.\n'package.json' does not have a 'typings' field.\n'package.json' has 'types' field 'index.d.ts' that references '/project/b/node_modules/pkg/index.d.ts'.\nFile '/project/b/node_modules/pkg/index.d.ts' exists - use it as a name resolution result.\n'package.json' does not have a 'peerDependencies' field.\nResolving real path for '/project/b/node_modules/pkg/index.d.ts', result '/project/b/node_modules/pkg/index.d.ts'.\n======== Module name 'pkg' was successfully resolved to '/project/b/node_modules/pkg/index.d.ts' with Package ID 'pkg/index.d.ts@1.0.0'. ========\n======== Resolving module './b-only' from '/project/b/node_modules/pkg/index.d.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/b/node_modules/pkg/b-only', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/b/node_modules/pkg/b-only.ts' does not exist.\nFile '/project/b/node_modules/pkg/b-only.tsx' does not exist.\nFile '/project/b/node_modules/pkg/b-only.d.ts' exists - use it as a name resolution result.\nFile '/project/b/node_modules/pkg/package.json' exists according to earlier cached lookups.\n'package.json' does not have a 'peerDependencies' field.\n======== Module name './b-only' was successfully resolved to '/project/b/node_modules/pkg/b-only.d.ts' with Package ID 'pkg/b-only.d.ts@1.0.0'. ========\n",
+    "diagnostics": [],
+    "check_trace": true
+  },
+  {
+    "name": "depth_restart",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"commonjs\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\",\"allowJs\":true,\"maxNodeModuleJsDepth\":1},\"files\":[\"globals.d.ts\",\"main.ts\",\"node_modules/a/index.js\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "main.ts": "import \"a\";\nimport \"b\";\n",
+      "node_modules/a/index.js": "require(\"b\");\n",
+      "node_modules/b/index.js": "require(\"c\");\n",
+      "node_modules/c/index.js": "module.exports = 1;\n"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/node_modules/b/index.js",
+      "/project/node_modules/a/index.js",
+      "/project/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nnode_modules/b/index.js\n   Imported via \"b\" from file 'node_modules/a/index.js'\n   Imported via \"b\" from file 'main.ts'\nnode_modules/a/index.js\n   Imported via \"a\" from file 'main.ts'\n   Part of 'files' list in tsconfig.json\nmain.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "",
+    "diagnostics": [],
+    "check_trace": false,
+    "trace_exclusion": "Disk ancestor fallback probes are outside the isolated fixture; raw trace retained in work evidence"
+  },
+  {
+    "name": "trace_occurrences",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"first.ts\",\"second.ts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"fixture\",\"type\":\"module\"}",
+      "first.ts": "/// <reference types=\"ok\" />\nimport \"./dep\";\nimport \"./dep\";\n",
+      "types/ok/index.d.ts": "interface OK {}\n",
+      "second.ts": "import \"./dep\";\n",
+      "dep.ts": "export {};\n"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/types/ok/index.d.ts",
+      "/project/dep.ts",
+      "/project/first.ts",
+      "/project/second.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\ntypes/ok/index.d.ts\n   Type library referenced via 'ok' from file 'first.ts'\ndep.ts\n   Imported via \"./dep\" from file 'first.ts'\n   Imported via \"./dep\" from file 'first.ts'\n   Imported via \"./dep\" from file 'second.ts'\nfirst.ts\n   Part of 'files' list in tsconfig.json\nsecond.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "======== Resolving type reference directive 'ok', containing file '/project/first.ts', root directory '/project/types'. ========\nResolving with primary search path '/project/types'.\nFile '/project/types/ok.d.ts' does not exist.\nFile '/project/types/ok/package.json' does not exist.\nFile '/project/types/ok/index.d.ts' exists - use it as a name resolution result.\nResolving real path for '/project/types/ok/index.d.ts', result '/project/types/ok/index.d.ts'.\n======== Type reference directive 'ok' was successfully resolved to '/project/types/ok/index.d.ts', primary: true. ========\n======== Resolving module './dep' from '/project/first.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/dep', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep' from '/project/first.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/dep', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep' was successfully resolved to '/project/dep.ts'. ========\n======== Resolving module './dep' from '/project/second.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/dep', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/dep.ts' exists - use it as a name resolution result.\n======== Module name './dep' was successfully resolved to '/project/dep.ts'. ========\n",
+    "diagnostics": [],
+    "check_trace": true
+  },
+  {
+    "name": "missing_occurrences",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"z.ts\",\"a.ts\",\"absent.ts\",\"absent.ts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "z.ts": "/// <reference path=\"./gone.ts\" />\n/// <reference path=\"./gone.ts\" />\n/// <reference types=\"lost\" />\n/// <reference types=\"lost\" />\nexport {};\n",
+      "a.ts": "/// <reference path=\"./gone.ts\" />\nexport {};\n"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/z.ts",
+      "/project/a.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nz.ts\n   Part of 'files' list in tsconfig.json\na.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "",
+    "diagnostics": [
+      {
+        "file": null,
+        "line": null,
+        "column": null,
+        "code": 6053,
+        "message": "File '/project/absent.ts' not found.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json"
+      }
+    ],
+    "check_trace": false,
+    "trace_exclusion": "Disk ancestor fallback probes are outside the isolated fixture; raw trace retained in work evidence"
+  },
+  {
+    "name": "automatic_order",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[\"z\",\"a\",\"z\"],\"typeRoots\":[\"./node_modules/@types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "main.ts": "export {};\n",
+      "node_modules/@types/z/index.d.ts": "/// <reference path=\"./leaf.d.ts\" />\n",
+      "node_modules/@types/z/leaf.d.ts": "interface Z {}\n",
+      "node_modules/@types/a/index.d.ts": "interface A {}\n"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/main.ts",
+      "/project/node_modules/@types/z/leaf.d.ts",
+      "/project/node_modules/@types/z/index.d.ts",
+      "/project/node_modules/@types/a/index.d.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nmain.ts\n   Part of 'files' list in tsconfig.json\nnode_modules/@types/z/leaf.d.ts\n   Referenced via './leaf.d.ts' from file 'node_modules/@types/z/index.d.ts'\nnode_modules/@types/z/index.d.ts\n   Entry point of type library 'z' specified in compilerOptions\n   Entry point of type library 'z' specified in compilerOptions\nnode_modules/@types/a/index.d.ts\n   Entry point of type library 'a' specified in compilerOptions\n",
+    "trace": "",
+    "diagnostics": [],
+    "check_trace": false,
+    "trace_exclusion": "Known existing difference D01: cached lookup on repeated type name"
+  },
+  {
+    "name": "project_redirect",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"app/main.ts\",\"lib/src/value.ts\"],\"references\":[{\"path\":\"./lib\"}]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "app/main.ts": "import { value } from \"../lib/src/value\";\n",
+      "lib/tsconfig.json": "{\"compilerOptions\":{\"composite\":true,\"noLib\":true,\"types\":[],\"outDir\":\"dist\",\"rootDir\":\"src\"},\"files\":[\"src/value.ts\"]}",
+      "lib/src/value.ts": "export const value = 1;\n",
+      "lib/dist/value.d.ts": "export declare const value = 1;\n"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/lib/dist/value.d.ts",
+      "/project/app/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nlib/dist/value.d.ts\n   Imported via \"../lib/src/value\" from file 'app/main.ts'\n   Part of 'files' list in tsconfig.json\n   File is output of project reference source 'lib/src/value.ts'\napp/main.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "======== Resolving module '../lib/src/value' from '/project/app/main.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/lib/src/value', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/lib/src/value.ts' exists - use it as a name resolution result.\n======== Module name '../lib/src/value' was successfully resolved to '/project/lib/src/value.ts'. ========\n",
+    "diagnostics": [],
+    "check_trace": true
+  },
+  {
+    "name": "extension_suggestion",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"nodenext\",\"moduleResolution\":\"nodenext\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"z.mts\",\"a.mts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "z.mts": "import { value } from \"./value\";\n",
+      "a.mts": "import \"./other\";\n",
+      "value.ts": "export const value = 1;\n",
+      "other.mts": "export {};\n"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/z.mts",
+      "/project/a.mts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nz.mts\n   Part of 'files' list in tsconfig.json\na.mts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "======== Resolving module './value' from '/project/z.mts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/value', target file types: TypeScript, JavaScript, Declaration, JSON.\nDirectory '/project/value' does not exist, skipping all lookups in it.\n======== Module name './value' was not resolved. ========\n======== Resolving module './other' from '/project/a.mts'. ========\nExplicitly specified module resolution kind: 'NodeNext'.\nResolving in ESM mode with conditions 'import', 'types', 'node'.\nLoading module as file / folder, candidate module location '/project/other', target file types: TypeScript, JavaScript, Declaration, JSON.\nDirectory '/project/other' does not exist, skipping all lookups in it.\n======== Module name './other' was not resolved. ========\n",
+    "diagnostics": [
+      {
+        "file": "a.mts",
+        "line": 1,
+        "column": 8,
+        "code": 2835,
+        "message": "Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Did you mean './other.mjs'?"
+      },
+      {
+        "file": "z.mts",
+        "line": 1,
+        "column": 23,
+        "code": 2835,
+        "message": "Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Did you mean './value.js'?"
+      }
+    ],
+    "check_trace": true
+  },
+  {
+    "name": "replacement_library",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":false,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\",\"lib\":[\"es5\"],\"libReplacement\":true},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "main.ts": "/// <reference lib=\"es5\" />\nexport {};\n",
+      "node_modules/@typescript/lib-es5/package.json": "{\"name\":\"@typescript/lib-es5\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}",
+      "node_modules/@typescript/lib-es5/index.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface Function {}\ninterface IArguments {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/node_modules/@typescript/lib-es5/index.d.ts",
+      "/project/globals.d.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "node_modules/@typescript/lib-es5/index.d.ts\n   Library referenced via 'es5' from file 'main.ts'\n   Library 'lib.es5.d.ts' specified in compilerOptions\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nmain.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "======== Resolving module '@typescript/lib-es5' from '/project/__lib_node_modules_lookup_lib.es5.d.ts__.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'require', 'types'.\nFound 'package.json' at '/project/package.json'.\nLoading module '@typescript/lib-es5' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.\nSearching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.\nFound 'package.json' at '/project/node_modules/@typescript/lib-es5/package.json'.\nFile '/project/node_modules/@typescript/lib-es5.ts' does not exist.\nFile '/project/node_modules/@typescript/lib-es5.tsx' does not exist.\nFile '/project/node_modules/@typescript/lib-es5.d.ts' does not exist.\n'package.json' does not have a 'typesVersions' field.\n'package.json' does not have a 'typings' field.\n'package.json' has 'types' field 'index.d.ts' that references '/project/node_modules/@typescript/lib-es5/index.d.ts'.\nFile '/project/node_modules/@typescript/lib-es5/index.d.ts' exists - use it as a name resolution result.\n'package.json' does not have a 'peerDependencies' field.\nResolving real path for '/project/node_modules/@typescript/lib-es5/index.d.ts', result '/project/node_modules/@typescript/lib-es5/index.d.ts'.\n======== Module name '@typescript/lib-es5' was successfully resolved to '/project/node_modules/@typescript/lib-es5/index.d.ts' with Package ID '@typescript/lib-es5/index.d.ts@1.0.0'. ========\n",
+    "diagnostics": [],
+    "check_trace": true
+  },
+  {
+    "name": "missing_directives",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"z.ts\",\"a.ts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "z.ts": "/// <reference path=\"./gone-z.ts\" />\n/// <reference path=\"./gone-z.ts\" />\n/// <reference types=\"lost\" />\n/// <reference types=\"lost\" />\nexport {};\n",
+      "a.ts": "/// <reference path=\"./gone-a.ts\" />\nexport {};\n"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/z.ts",
+      "/project/a.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nz.ts\n   Part of 'files' list in tsconfig.json\na.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "",
+    "diagnostics": [
+      {
+        "file": "a.ts",
+        "line": 1,
+        "column": 22,
+        "code": 6053,
+        "message": "File './gone-a.ts' not found."
+      },
+      {
+        "file": "z.ts",
+        "line": 1,
+        "column": 22,
+        "code": 6053,
+        "message": "File './gone-z.ts' not found."
+      },
+      {
+        "file": "z.ts",
+        "line": 2,
+        "column": 22,
+        "code": 6053,
+        "message": "File './gone-z.ts' not found."
+      },
+      {
+        "file": "z.ts",
+        "line": 3,
+        "column": 23,
+        "code": 2688,
+        "message": "Cannot find type definition file for 'lost'."
+      },
+      {
+        "file": "z.ts",
+        "line": 4,
+        "column": 23,
+        "code": 2688,
+        "message": "Cannot find type definition file for 'lost'."
+      }
+    ],
+    "check_trace": false,
+    "trace_exclusion": "Disk ancestor fallback probes are outside the isolated fixture; raw trace retained in work evidence"
+  },
+  {
+    "name": "project_options",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"app/main.ts\"],\"references\":[{\"path\":\"./lib\"}]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "app/main.ts": "import { value } from \"../lib/src/value\";\n",
+      "lib/tsconfig.json": "{\"compilerOptions\":{\"composite\":true,\"noLib\":true,\"types\":[],\"module\":\"node16\",\"moduleResolution\":\"node16\",\"outDir\":\"dist\",\"rootDir\":\"src\"},\"files\":[\"src/value.ts\"]}",
+      "lib/src/value.ts": "export { value } from \"pkg\";\n",
+      "lib/dist/value.d.ts": "export { value } from \"pkg\";\n",
+      "lib/node_modules/pkg/package.json": "{\"name\":\"pkg\",\"version\":\"1.0.0\",\"exports\":{\".\":{\"import\":\"./import.d.ts\",\"require\":\"./require.d.ts\"}}}",
+      "lib/node_modules/pkg/import.d.ts": "export declare const value: \"import\";\n",
+      "lib/node_modules/pkg/require.d.ts": "export declare const value: \"require\";\n"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/lib/node_modules/pkg/require.d.ts",
+      "/project/lib/dist/value.d.ts",
+      "/project/app/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nlib/node_modules/pkg/require.d.ts\n   Imported via \"pkg\" from file 'lib/dist/value.d.ts' with packageId 'pkg/require.d.ts@1.0.0'\nlib/dist/value.d.ts\n   Imported via \"../lib/src/value\" from file 'app/main.ts'\n   File is output of project reference source 'lib/src/value.ts'\n   File is CommonJS module because 'package.json' does not have field \"type\"\napp/main.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "",
+    "diagnostics": [],
+    "check_trace": false,
+    "trace_exclusion": "Known existing difference D02: project resolver cache history"
+  },
+  {
+    "name": "conflicting_package_identity",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"main.ts\",\"copies/main.ts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "main.ts": "import \"one\";\nimport \"two\";\n",
+      "copies/main.ts": "import \"one\";\n",
+      "node_modules/one/package.json": "{\"name\":\"one\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}",
+      "node_modules/two/package.json": "{\"name\":\"two\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}",
+      "node_modules/one/index.d.ts": "export {};\n",
+      "node_modules/two/index.d.ts": "export {};\n",
+      "shared/index.d.ts": "export {};\n",
+      "copies/node_modules/one/package.json": "{\"name\":\"one\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}",
+      "copies/node_modules/one/index.d.ts": "export {};\n"
+    },
+    "case_sensitive": false,
+    "symlinks": {
+      "node_modules/one/index.d.ts": "shared/index.d.ts",
+      "node_modules/two/index.d.ts": "shared/index.d.ts"
+    },
+    "single_threaded": true,
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/shared/index.d.ts",
+      "/project/main.ts",
+      "/project/copies/node_modules/one/index.d.ts",
+      "/project/copies/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nshared/index.d.ts\n   Imported via \"one\" from file 'main.ts' with packageId 'one/index.d.ts@1.0.0'\n   Imported via \"two\" from file 'main.ts' with packageId 'two/index.d.ts@1.0.0'\nmain.ts\n   Part of 'files' list in tsconfig.json\ncopies/node_modules/one/index.d.ts\n   Imported via \"one\" from file 'copies/main.ts' with packageId 'one/index.d.ts@1.0.0'\ncopies/main.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "======== Resolving module 'one' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nFile '/project/package.json' exists according to earlier cached lookups.\nLoading module 'one' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.\nSearching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.\nFound 'package.json' at '/project/node_modules/one/package.json'.\nFile '/project/node_modules/one.ts' does not exist.\nFile '/project/node_modules/one.tsx' does not exist.\nFile '/project/node_modules/one.d.ts' does not exist.\n'package.json' does not have a 'typesVersions' field.\n'package.json' does not have a 'typings' field.\n'package.json' has 'types' field 'index.d.ts' that references '/project/node_modules/one/index.d.ts'.\nFile '/project/node_modules/one/index.d.ts' exists - use it as a name resolution result.\n'package.json' does not have a 'peerDependencies' field.\nResolving real path for '/project/node_modules/one/index.d.ts', result '/project/shared/index.d.ts'.\n======== Module name 'one' was successfully resolved to '/project/shared/index.d.ts' with Package ID 'one/index.d.ts@1.0.0'. ========\n======== Resolving module 'two' from '/project/main.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nFile '/project/package.json' exists according to earlier cached lookups.\nLoading module 'two' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.\nSearching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.\nFound 'package.json' at '/project/node_modules/two/package.json'.\nFile '/project/node_modules/two.ts' does not exist.\nFile '/project/node_modules/two.tsx' does not exist.\nFile '/project/node_modules/two.d.ts' does not exist.\n'package.json' does not have a 'typesVersions' field.\n'package.json' does not have a 'typings' field.\n'package.json' has 'types' field 'index.d.ts' that references '/project/node_modules/two/index.d.ts'.\nFile '/project/node_modules/two/index.d.ts' exists - use it as a name resolution result.\n'package.json' does not have a 'peerDependencies' field.\nResolving real path for '/project/node_modules/two/index.d.ts', result '/project/shared/index.d.ts'.\n======== Module name 'two' was successfully resolved to '/project/shared/index.d.ts' with Package ID 'two/index.d.ts@1.0.0'. ========\n======== Resolving module 'one' from '/project/copies/main.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nFile '/project/copies/package.json' does not exist according to earlier cached lookups.\nFile '/project/package.json' exists according to earlier cached lookups.\nLoading module 'one' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.\nSearching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.\nFound 'package.json' at '/project/copies/node_modules/one/package.json'.\nFile '/project/copies/node_modules/one.ts' does not exist.\nFile '/project/copies/node_modules/one.tsx' does not exist.\nFile '/project/copies/node_modules/one.d.ts' does not exist.\n'package.json' does not have a 'typesVersions' field.\n'package.json' does not have a 'typings' field.\n'package.json' has 'types' field 'index.d.ts' that references '/project/copies/node_modules/one/index.d.ts'.\nFile '/project/copies/node_modules/one/index.d.ts' exists - use it as a name resolution result.\n'package.json' does not have a 'peerDependencies' field.\nResolving real path for '/project/copies/node_modules/one/index.d.ts', result '/project/copies/node_modules/one/index.d.ts'.\n======== Module name 'one' was successfully resolved to '/project/copies/node_modules/one/index.d.ts' with Package ID 'one/index.d.ts@1.0.0'. ========\n",
+    "diagnostics": [],
+    "check_trace": true
+  },
+  {
+    "name": "package_mixed_versions",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"a/main.ts\",\"b/main.ts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "a/main.ts": "import { value } from \"pkg\";\n",
+      "b/main.ts": "import { value } from \"pkg\";\n",
+      "a/node_modules/pkg/package.json": "{\"name\":\"pkg\",\"version\":\"1.0.0\",\"main\":\"index.js\"}",
+      "a/node_modules/pkg/index.js": "exports.value = 1;\n",
+      "b/node_modules/pkg/package.json": "{\"name\":\"pkg\",\"version\":\"2.0.0\",\"types\":\"index.d.ts\"}",
+      "b/node_modules/pkg/index.d.ts": "export declare const value: number;\n"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/a/main.ts",
+      "/project/b/node_modules/pkg/index.d.ts",
+      "/project/b/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\na/main.ts\n   Part of 'files' list in tsconfig.json\nb/node_modules/pkg/index.d.ts\n   Imported via \"pkg\" from file 'b/main.ts' with packageId 'pkg/index.d.ts@2.0.0'\nb/main.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "",
+    "diagnostics": [
+      {
+        "file": "a/main.ts",
+        "line": 1,
+        "column": 23,
+        "code": 7016,
+        "message": "Could not find a declaration file for module 'pkg'. '/project/a/node_modules/pkg/index.js' implicitly has an 'any' type.\n  If the 'pkg' package actually exposes this module, try adding a new declaration (.d.ts) file containing `declare module 'pkg';`"
+      }
+    ],
+    "check_trace": false,
+    "trace_exclusion": "Disk ancestor fallback probes are outside the isolated fixture; raw trace retained in work evidence"
+  },
+  {
+    "name": "package_mixed_versions_reversed",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\"},\"files\":[\"globals.d.ts\",\"b/main.ts\",\"a/main.ts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "a/main.ts": "import { value } from \"pkg\";\n",
+      "b/main.ts": "import { value } from \"pkg\";\n",
+      "a/node_modules/pkg/package.json": "{\"name\":\"pkg\",\"version\":\"1.0.0\",\"main\":\"index.js\"}",
+      "a/node_modules/pkg/index.js": "exports.value = 1;\n",
+      "b/node_modules/pkg/package.json": "{\"name\":\"pkg\",\"version\":\"2.0.0\",\"types\":\"index.d.ts\"}",
+      "b/node_modules/pkg/index.d.ts": "export declare const value: number;\n"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/b/node_modules/pkg/index.d.ts",
+      "/project/b/main.ts",
+      "/project/a/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\nb/node_modules/pkg/index.d.ts\n   Imported via \"pkg\" from file 'b/main.ts' with packageId 'pkg/index.d.ts@2.0.0'\nb/main.ts\n   Part of 'files' list in tsconfig.json\na/main.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "",
+    "diagnostics": [
+      {
+        "file": "a/main.ts",
+        "line": 1,
+        "column": 23,
+        "code": 7016,
+        "message": "Could not find a declaration file for module 'pkg'. '/project/a/node_modules/pkg/index.js' implicitly has an 'any' type.\n  If the 'pkg' package actually exposes this module, try adding a new declaration (.d.ts) file containing `declare module 'pkg';`"
+      }
+    ],
+    "check_trace": false,
+    "trace_exclusion": "Disk ancestor fallback probes are outside the isolated fixture; raw trace retained in work evidence"
+  },
+  {
+    "name": "library_trace_tail_order",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":false,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\",\"lib\":[\"es2015\",\"es5\"],\"libReplacement\":true},\"files\":[\"globals.d.ts\",\"main.ts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "main.ts": "/// <reference lib=\"es5\" />\n/// <reference lib=\"es2015\" />\nexport {};\n",
+      "node_modules/@typescript/lib-es5/package.json": "{\"name\":\"@typescript/lib-es5\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}",
+      "node_modules/@typescript/lib-es5/index.d.ts": "interface ES5 {}\n",
+      "node_modules/@typescript/lib-es2015/package.json": "{\"name\":\"@typescript/lib-es2015\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}",
+      "node_modules/@typescript/lib-es2015/index.d.ts": "interface ES2015 {}\n"
+    },
+    "case_sensitive": false,
+    "list_files": [
+      "/project/node_modules/@typescript/lib-es5/index.d.ts",
+      "/project/node_modules/@typescript/lib-es2015/index.d.ts",
+      "/project/globals.d.ts",
+      "/project/main.ts"
+    ],
+    "explain_files": "node_modules/@typescript/lib-es5/index.d.ts\n   Library referenced via 'es5' from file 'main.ts'\n   Library 'lib.es5.d.ts' specified in compilerOptions\nnode_modules/@typescript/lib-es2015/index.d.ts\n   Library referenced via 'es2015' from file 'main.ts'\n   Library 'lib.es2015.d.ts' specified in compilerOptions\nglobals.d.ts\n   Part of 'files' list in tsconfig.json\nmain.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "======== Resolving module '@typescript/lib-es2015' from '/project/__lib_node_modules_lookup_lib.es2015.d.ts__.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'require', 'types'.\nFound 'package.json' at '/project/package.json'.\nLoading module '@typescript/lib-es2015' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.\nSearching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.\nFound 'package.json' at '/project/node_modules/@typescript/lib-es2015/package.json'.\nFile '/project/node_modules/@typescript/lib-es2015.ts' does not exist.\nFile '/project/node_modules/@typescript/lib-es2015.tsx' does not exist.\nFile '/project/node_modules/@typescript/lib-es2015.d.ts' does not exist.\n'package.json' does not have a 'typesVersions' field.\n'package.json' does not have a 'typings' field.\n'package.json' has 'types' field 'index.d.ts' that references '/project/node_modules/@typescript/lib-es2015/index.d.ts'.\nFile '/project/node_modules/@typescript/lib-es2015/index.d.ts' exists - use it as a name resolution result.\n'package.json' does not have a 'peerDependencies' field.\nResolving real path for '/project/node_modules/@typescript/lib-es2015/index.d.ts', result '/project/node_modules/@typescript/lib-es2015/index.d.ts'.\n======== Module name '@typescript/lib-es2015' was successfully resolved to '/project/node_modules/@typescript/lib-es2015/index.d.ts' with Package ID '@typescript/lib-es2015/index.d.ts@1.0.0'. ========\n======== Resolving module '@typescript/lib-es5' from '/project/__lib_node_modules_lookup_lib.es5.d.ts__.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'require', 'types'.\nFile '/project/package.json' exists according to earlier cached lookups.\nLoading module '@typescript/lib-es5' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.\nSearching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.\nFound 'package.json' at '/project/node_modules/@typescript/lib-es5/package.json'.\nFile '/project/node_modules/@typescript/lib-es5.ts' does not exist.\nFile '/project/node_modules/@typescript/lib-es5.tsx' does not exist.\nFile '/project/node_modules/@typescript/lib-es5.d.ts' does not exist.\n'package.json' does not have a 'typesVersions' field.\n'package.json' does not have a 'typings' field.\n'package.json' has 'types' field 'index.d.ts' that references '/project/node_modules/@typescript/lib-es5/index.d.ts'.\nFile '/project/node_modules/@typescript/lib-es5/index.d.ts' exists - use it as a name resolution result.\n'package.json' does not have a 'peerDependencies' field.\nResolving real path for '/project/node_modules/@typescript/lib-es5/index.d.ts', result '/project/node_modules/@typescript/lib-es5/index.d.ts'.\n======== Module name '@typescript/lib-es5' was successfully resolved to '/project/node_modules/@typescript/lib-es5/index.d.ts' with Package ID '@typescript/lib-es5/index.d.ts@1.0.0'. ========\n",
+    "diagnostics": [],
+    "check_trace": true
+  },
+  {
+    "name": "incremental_package_order",
+    "files": {
+      "tsconfig.json": "{\"compilerOptions\":{\"noLib\":true,\"noEmit\":true,\"types\":[],\"typeRoots\":[\"./types\"],\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"target\":\"es2022\",\"incremental\":true,\"tsBuildInfoFile\":\"./state.tsbuildinfo\"},\"files\":[\"globals.d.ts\",\"a/main.ts\",\"b/main.ts\"]}",
+      "globals.d.ts": "interface Array<T> {}\ninterface Boolean {}\ninterface CallableFunction {}\ninterface Function {}\ninterface IArguments {}\ninterface NewableFunction {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\n",
+      "package.json": "{\"name\":\"loader-order\"}",
+      "a/node_modules/pkg/package.json": "{\"name\":\"pkg\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}",
+      "a/node_modules/pkg/index.d.ts": "/// <reference path=\"./a-only.d.ts\" />\nimport \"./a-only\";\nexport declare const value: number;\n",
+      "a/node_modules/pkg/a-only.d.ts": "export {};\n",
+      "b/node_modules/pkg/package.json": "{\"name\":\"pkg\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}",
+      "b/node_modules/pkg/index.d.ts": "/// <reference path=\"./b-only.d.ts\" />\nimport \"./b-only\";\nexport declare const value: number;\n",
+      "b/node_modules/pkg/b-only.d.ts": "export {};\n",
+      "a/main.ts": "import { value } from \"pkg\";\n",
+      "b/main.ts": "import { value } from \"pkg\";\n"
+    },
+    "case_sensitive": false,
+    "build_info": {
+      "root": [
+        1,
+        [
+          4,
+          5
+        ]
+      ],
+      "packageJsons": [
+        "./a/node_modules/pkg/package.json",
+        "./b/node_modules/pkg/package.json",
+        "./package.json"
+      ],
+      "fileNames": [
+        "./globals.d.ts",
+        "./a/node_modules/pkg/a-only.d.ts",
+        "./a/node_modules/pkg/index.d.ts",
+        "./a/main.ts",
+        "./b/main.ts"
+      ],
+      "fileIdsList": [
+        [
+          3
+        ],
+        [
+          2
+        ]
+      ],
+      "referencedMap": [
+        [
+          4,
+          1
+        ],
+        [
+          3,
+          2
+        ],
+        [
+          5,
+          1
+        ]
+      ]
+    },
+    "list_files": [
+      "/project/globals.d.ts",
+      "/project/a/node_modules/pkg/a-only.d.ts",
+      "/project/a/node_modules/pkg/index.d.ts",
+      "/project/a/main.ts",
+      "/project/b/main.ts"
+    ],
+    "explain_files": "globals.d.ts\n   Part of 'files' list in tsconfig.json\na/node_modules/pkg/a-only.d.ts\n   Referenced via './a-only.d.ts' from file 'a/node_modules/pkg/index.d.ts'\n   Imported via \"./a-only\" from file 'a/node_modules/pkg/index.d.ts' with packageId 'pkg/a-only.d.ts@1.0.0'\na/node_modules/pkg/index.d.ts\n   Imported via \"pkg\" from file 'a/main.ts' with packageId 'pkg/index.d.ts@1.0.0'\na/main.ts\n   Part of 'files' list in tsconfig.json\nb/node_modules/pkg/index.d.ts\n   Imported via \"pkg\" from file 'b/main.ts' with packageId 'pkg/index.d.ts@1.0.0'\n   File redirects to file 'a/node_modules/pkg/index.d.ts'\nb/main.ts\n   Part of 'files' list in tsconfig.json\n",
+    "trace": "======== Resolving module 'pkg' from '/project/a/main.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nFile '/project/a/package.json' does not exist according to earlier cached lookups.\nFile '/project/package.json' exists according to earlier cached lookups.\nLoading module 'pkg' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.\nSearching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.\nFound 'package.json' at '/project/a/node_modules/pkg/package.json'.\nFile '/project/a/node_modules/pkg.ts' does not exist.\nFile '/project/a/node_modules/pkg.tsx' does not exist.\nFile '/project/a/node_modules/pkg.d.ts' does not exist.\n'package.json' does not have a 'typesVersions' field.\n'package.json' does not have a 'typings' field.\n'package.json' has 'types' field 'index.d.ts' that references '/project/a/node_modules/pkg/index.d.ts'.\nFile '/project/a/node_modules/pkg/index.d.ts' exists - use it as a name resolution result.\n'package.json' does not have a 'peerDependencies' field.\nResolving real path for '/project/a/node_modules/pkg/index.d.ts', result '/project/a/node_modules/pkg/index.d.ts'.\n======== Module name 'pkg' was successfully resolved to '/project/a/node_modules/pkg/index.d.ts' with Package ID 'pkg/index.d.ts@1.0.0'. ========\n======== Resolving module './a-only' from '/project/a/node_modules/pkg/index.d.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/a/node_modules/pkg/a-only', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/a/node_modules/pkg/a-only.ts' does not exist.\nFile '/project/a/node_modules/pkg/a-only.tsx' does not exist.\nFile '/project/a/node_modules/pkg/a-only.d.ts' exists - use it as a name resolution result.\nFile '/project/a/node_modules/pkg/package.json' exists according to earlier cached lookups.\n'package.json' does not have a 'peerDependencies' field.\n======== Module name './a-only' was successfully resolved to '/project/a/node_modules/pkg/a-only.d.ts' with Package ID 'pkg/a-only.d.ts@1.0.0'. ========\n======== Resolving module 'pkg' from '/project/b/main.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nFile '/project/b/package.json' does not exist according to earlier cached lookups.\nFile '/project/package.json' exists according to earlier cached lookups.\nLoading module 'pkg' from 'node_modules' folder, target file types: TypeScript, JavaScript, Declaration, JSON.\nSearching all ancestor node_modules directories for preferred extensions: TypeScript, Declaration.\nFound 'package.json' at '/project/b/node_modules/pkg/package.json'.\nFile '/project/b/node_modules/pkg.ts' does not exist.\nFile '/project/b/node_modules/pkg.tsx' does not exist.\nFile '/project/b/node_modules/pkg.d.ts' does not exist.\n'package.json' does not have a 'typesVersions' field.\n'package.json' does not have a 'typings' field.\n'package.json' has 'types' field 'index.d.ts' that references '/project/b/node_modules/pkg/index.d.ts'.\nFile '/project/b/node_modules/pkg/index.d.ts' exists - use it as a name resolution result.\n'package.json' does not have a 'peerDependencies' field.\nResolving real path for '/project/b/node_modules/pkg/index.d.ts', result '/project/b/node_modules/pkg/index.d.ts'.\n======== Module name 'pkg' was successfully resolved to '/project/b/node_modules/pkg/index.d.ts' with Package ID 'pkg/index.d.ts@1.0.0'. ========\n======== Resolving module './b-only' from '/project/b/node_modules/pkg/index.d.ts'. ========\nExplicitly specified module resolution kind: 'Bundler'.\nResolving in CJS mode with conditions 'import', 'types'.\nLoading module as file / folder, candidate module location '/project/b/node_modules/pkg/b-only', target file types: TypeScript, JavaScript, Declaration, JSON.\nFile '/project/b/node_modules/pkg/b-only.ts' does not exist.\nFile '/project/b/node_modules/pkg/b-only.tsx' does not exist.\nFile '/project/b/node_modules/pkg/b-only.d.ts' exists - use it as a name resolution result.\nFile '/project/b/node_modules/pkg/package.json' exists according to earlier cached lookups.\n'package.json' does not have a 'peerDependencies' field.\n======== Module name './b-only' was successfully resolved to '/project/b/node_modules/pkg/b-only.d.ts' with Package ID 'pkg/b-only.d.ts@1.0.0'. ========\n",
+    "diagnostics": [],
+    "check_trace": true
+  }
+]
