@@ -183,6 +183,47 @@ measurement (pull request #758): the order of a conditional type's `infer`
 type parameters, and the reuse of a type serialized for an earlier
 declaration.
 
+## The fast preset
+
+By default tsc-rs checks with four checkers and associates files with them
+as tsgo does, and its output is tsgo's byte for byte. More checkers under
+that association repeat much of each other's work, so more cores buy little.
+Setting `TSRS_FAST=1` in the environment (it is not a command-line option)
+selects a preset for machines with more cores:
+
+- files are associated with checkers by directory and by the modules they
+  import, so that the files of one checker resolve largely the same
+  declarations;
+- the number of checkers follows the program: one per 32 type-checked files,
+  between 4 and 12 (`--checkers` and `TSRS_CHECKERS` still set it);
+- a declaration file heavy enough to hold its checker back is checked in
+  ranges of statements on several checkers.
+
+All three follow from the program alone — not from the core count or from
+timing — so the same program gives the same output on every machine and in
+every run. That output is the default's except where a diagnostic depends on
+which files a checker saw first; tsgo itself reports such programs
+differently at different checker counts. Of the eight projects below only zod
+differs (37 errors instead of 35). The files written for hono, zod and
+Effect (JavaScript, declarations and maps) were identical with and without
+the preset.
+
+Type check (`--noEmit`), wall time in seconds, median of 9 runs on a
+ten-core Apple M-series machine (four performance and six efficiency cores),
+2026-11-12, with tsrs 0.23.0 beside:
+
+| Project | tsc-rs | tsc-rs `TSRS_FAST=1` | tsrs | tsrs `--fast` |
+| --- | ---: | ---: | ---: | ---: |
+| VS Code `src` | 2.32 | 1.72 | 2.01 | 1.20 |
+| Next.js `packages/next` | 0.62 | 0.38 | 0.49 | 0.27 |
+| Playwright | 0.27 | 0.21 | 0.21 | 0.15 |
+| Vue | 0.29 | 0.20 | 0.20 | 0.13 |
+| TypeScript `src/compiler` | 0.18 | 0.18 | 0.15 | 0.13 |
+| hono | 0.07 | 0.07 | 0.06 | 0.05 |
+
+The preset uses more memory, as every checker keeps its own type tables
+(VS Code: 2.7 GiB by default, 2.9 GiB with the preset).
+
 ## Content mappers
 
 On the four projects of the [content mapper](../README.md#content-mappers)

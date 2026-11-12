@@ -37,7 +37,7 @@ use tsc_checker::{
     OwnedHarnessLibBundle, ProgramSnapshot, ShardEmission, ShardedEmit, SyntacticDiagnosticsGate,
     UnsupportedAuthoritativeResolution,
 };
-pub use tsc_checker::{BoundDocument, CheckerBudget, DocumentRegistry};
+pub use tsc_checker::{BoundDocument, CheckerAssignment, CheckerBudget, DocumentRegistry};
 use tsc_diagnostics::{
     gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, JsStr, JsString, MessageChain,
 };

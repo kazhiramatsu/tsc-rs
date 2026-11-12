@@ -196,7 +196,7 @@ use tsc_diagnostics::{
 };
 use tsc_program::WorkerBudget;
 
-pub use crate::shard::{CheckerBudget, MAX_CHECKERS};
+pub use crate::shard::{CheckerAssignment, CheckerBudget, MAX_CHECKERS};
 
 /// Whether checkSourceFile runs the unused-identifier pass when neither
 /// `noUnusedLocals` nor `noUnusedParameters` turns its rows into errors.
@@ -841,6 +841,7 @@ pub struct CheckWorkCounters {
     checker_threads: u64,
     checker_serial_replay: u64,
     checker_replay_reasons: u64,
+    checker_statement_ranges: u64,
     /// tsgo's `Identifiers`, `Symbols`, `Types` and `Instantiations`
     /// statistics: the program's identifier nodes and binder symbols (once),
     /// plus the checkers' symbols, types and `instantiationCount`s, summed
@@ -965,6 +966,16 @@ impl CheckWorkCounters {
         self.checker_replay_reasons = u64::from(reasons);
     }
 
+    /// tsrs-native: the statement ranges of declaration files that a checker
+    /// other than the file's own checked (the fast preset); 0 otherwise.
+    pub const fn checker_statement_ranges(self) -> u64 {
+        self.checker_statement_ranges
+    }
+
+    fn record_statement_ranges(&mut self, ranges: u64) {
+        self.checker_statement_ranges = ranges;
+    }
+
     fn record_adoption(&mut self) {
         self.adopted_documents += 1;
     }
@@ -987,6 +998,7 @@ impl CheckWorkCounters {
             checker_threads: 0,
             checker_serial_replay: 0,
             checker_replay_reasons: 0,
+            checker_statement_ranges: 0,
             identifiers: 0,
             symbols: 0,
             types: 0,
@@ -3436,16 +3448,92 @@ fn check_program_file(
     file: ProgramFileId,
     globals_by_file: &mut [Vec<Diagnostic>],
 ) {
+    check_program_file_owning(state, file, None, globals_by_file);
+}
+
+/// [`check_program_file`] on the file's own checker; with `statements`, the
+/// other top-level statements of the file are checked by other checkers
+/// ([`check_program_file_statements`]).
+fn check_program_file_owning(
+    state: &mut state::CheckerState<'_>,
+    file: ProgramFileId,
+    statements: Option<std::ops::Range<usize>>,
+    globals_by_file: &mut [Vec<Diagnostic>],
+) {
     if state.skip_type_checking_file(file) {
         return;
     }
     let global_start = state.visible_global_diagnostics.len();
-    state.check_source_file(file.index());
+    state.check_source_file_owning(file.index(), statements);
     globals_by_file[file.index()].extend(
         state.visible_global_diagnostics[global_start..]
             .iter()
             .cloned(),
     );
+}
+
+/// Check a range of the top-level statements of another checker's
+/// declaration file and attribute the global rows the range produced to the
+/// file. Returns where the checker's rows of the range begin.
+fn check_program_file_statements(
+    state: &mut state::CheckerState<'_>,
+    file: ProgramFileId,
+    statements: std::ops::Range<usize>,
+    globals_by_file: &mut [Vec<Diagnostic>],
+) -> usize {
+    let rows_start = state.diagnostics.len();
+    let global_start = state.visible_global_diagnostics.len();
+    state.check_source_file_statements(file.index(), statements);
+    globals_by_file[file.index()].extend(
+        state.visible_global_diagnostics[global_start..]
+            .iter()
+            .cloned(),
+    );
+    rows_start
+}
+
+/// The text length of every top-level statement of a declaration file whose
+/// top-level statements are all declarations, and nothing for any other
+/// file: the files the fast preset may check in statement ranges
+/// (`CheckerState::check_source_file_statements`). An executable statement
+/// rules a file out: tsc reports "Statements are not allowed in ambient
+/// contexts" at the first one of a block only, a fact two ranges would each
+/// decide for themselves.
+fn splittable_statement_lengths(source: &tsc_syntax::SourceFile) -> Vec<u32> {
+    if !source.is_declaration_file {
+        return Vec::new();
+    }
+    let Some(statements) = source
+        .arena
+        .node(source.root)
+        .as_source_file()
+        .and_then(|data| data.statements)
+    else {
+        return Vec::new();
+    };
+    let mut lengths = Vec::new();
+    for &statement in source.arena.node_array(statements).nodes {
+        let node = source.arena.node(statement);
+        if !matches!(
+            node.kind,
+            tsc_syntax::SyntaxKind::InterfaceDeclaration
+                | tsc_syntax::SyntaxKind::TypeAliasDeclaration
+                | tsc_syntax::SyntaxKind::ClassDeclaration
+                | tsc_syntax::SyntaxKind::FunctionDeclaration
+                | tsc_syntax::SyntaxKind::VariableStatement
+                | tsc_syntax::SyntaxKind::EnumDeclaration
+                | tsc_syntax::SyntaxKind::ModuleDeclaration
+                | tsc_syntax::SyntaxKind::ImportDeclaration
+                | tsc_syntax::SyntaxKind::ImportEqualsDeclaration
+                | tsc_syntax::SyntaxKind::ExportDeclaration
+                | tsc_syntax::SyntaxKind::ExportAssignment
+                | tsc_syntax::SyntaxKind::NamespaceExportDeclaration
+        ) {
+            return Vec::new();
+        }
+        lengths.push(node.end.saturating_sub(node.pos).max(1));
+    }
+    lengths
 }
 
 fn program_file_id(file: usize) -> ProgramFileId {
@@ -3566,6 +3654,31 @@ impl LedgerSnapshot {
         self.rows.extend(
             state
                 .diagnostics
+                .iter()
+                .filter(|row| row.file_name.as_ref() == Some(name))
+                .cloned(),
+        );
+        self.globals_by_file[file] = globals_by_file[file].clone();
+        if let Some(ranges) = state.partially_checked_ranges.get(&file) {
+            self.partially_checked_ranges.insert(file, ranges.clone());
+        }
+    }
+
+    /// The rows a checker added to another checker's `file` while it checked
+    /// a range of the file's statements (its rows from `rows_start` on).
+    /// Rows the checker holds in the file from its own files are not the
+    /// range's: the file's own checker finds those itself, as it does for a
+    /// file that is not checked in ranges.
+    fn capture_statements(
+        &mut self,
+        state: &state::CheckerState<'_>,
+        file: usize,
+        rows_start: usize,
+        globals_by_file: &[Vec<Diagnostic>],
+    ) {
+        let name = &state.binder.source(file).file_name;
+        self.rows.extend(
+            state.diagnostics[rows_start..]
                 .iter()
                 .filter(|row| row.file_name.as_ref() == Some(name))
                 .cloned(),
@@ -3917,6 +4030,25 @@ fn run_checker_shard<'a>(
     let mut files = Vec::new();
     #[cfg(feature = "phase-ledger")]
     tsc_types::phase_ledger::switch(tsc_types::phase_ledger::Phase::Semantic);
+    // The fast preset's statement ranges of other checkers' declaration files
+    // come first, so what a range reports for its file is all this checker
+    // holds in the file then. The file stays its own checker's.
+    for (file, statements) in queue.pieces(shard_index) {
+        if queue.aborted() {
+            break;
+        }
+        let rows_start = check_program_file_statements(
+            &mut state,
+            program_file_id(*file),
+            statements.clone(),
+            &mut globals_by_file,
+        );
+        captured.capture_statements(&state, *file, rows_start, &globals_by_file);
+        if state.order_guard.reasons() != 0 && replay_on_order {
+            queue.abort();
+            break;
+        }
+    }
     if complete_library_prefix {
         while let Some(file) = queue.next_library(shard_index) {
             debug_assert!(std::ptr::eq(
@@ -3942,7 +4074,12 @@ fn run_checker_shard<'a>(
             snapshot.document(file).source()
         ));
         if selected.is_none_or(|selected| selected[file]) {
-            check_program_file(&mut state, program_file_id(file), &mut globals_by_file);
+            check_program_file_owning(
+                &mut state,
+                program_file_id(file),
+                queue.owned_statements(file),
+                &mut globals_by_file,
+            );
             captured.capture_file(&state, file, &globals_by_file);
         }
         files.push(file);
@@ -4489,12 +4626,34 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         _ => None,
     };
 
+    // The files a checker works for: the fast preset sizes its pool by them
+    // and its association weighs nothing else. A declaration or JSON file
+    // that is not type checked is no work; a JavaScript file that is not
+    // checked still is (its emit runs on the checker that owns it).
+    let locality = checkers.assignment() == shard::CheckerAssignment::Locality;
+    let checked = snapshot
+        .documents()
+        .iter()
+        .enumerate()
+        .map(|(file, document)| {
+            let source = document.source();
+            locality
+                && selected.as_deref().is_none_or(|selected| selected[file])
+                && !((source.is_declaration_file || source.file_name.as_js().ends_with(".json"))
+                    && should_skip_type_checking_file(
+                        source,
+                        snapshot.file_facts(program_file_id(file)),
+                        options,
+                    ))
+        })
+        .collect::<Vec<_>>();
     // tsgo checkerpool.go: associate all Program files, including skipped
     // declarations, JSON and default libraries. Checking/emit options do not
     // modify the weights or pool size.
-    let checker_count = checkers
-        .checkers()
-        .clamp(1, snapshot.documents().len().clamp(1, shard::MAX_CHECKERS));
+    let checker_count = checkers.checkers_for(
+        snapshot.documents().len(),
+        checked.iter().filter(|&&checked| checked).count(),
+    );
     let node_counts = snapshot
         .documents()
         .iter()
@@ -4515,6 +4674,8 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         .collect::<Vec<_>>();
     let mut imports = vec![0; node_counts.len()];
     let mut adjacent = vec![Vec::new(); node_counts.len()];
+    // The files each file imports, for the locality association's modules.
+    let mut targets_of = vec![Vec::new(); if locality { node_counts.len() } else { 0 }];
     let indices = metadata
         .iter()
         .take(node_counts.len())
@@ -4534,19 +4695,91 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             if file != other {
                 adjacent[file].push(other);
                 adjacent[other].push(file);
+                if locality {
+                    targets_of[file].push(other);
+                }
             }
         }
     }
     drop(provider);
-    let associations = shard::associate_files(
-        &base_weights,
-        &imports,
-        &declarations,
-        &adjacent,
-        checker_count,
-    );
-    let queue =
-        shard::ShardFileQueue::associated(lib_count, &node_counts, &associations, checker_count);
+    let queue = if locality {
+        let names = snapshot
+            .documents()
+            .iter()
+            .zip(&checked)
+            .map(|(document, &checked)| {
+                if checked {
+                    document
+                        .source()
+                        .file_name
+                        .as_js()
+                        .to_string_lossy()
+                        .to_ascii_lowercase()
+                } else {
+                    String::new()
+                }
+            })
+            .collect::<Vec<_>>();
+        let parse_nodes = snapshot
+            .documents()
+            .iter()
+            .map(|document| document.source().arena.parse_node_count())
+            .collect::<Vec<_>>();
+        // A heavy declaration file outside the default library is checked
+        // in statement ranges where its statements allow it.
+        let statement_lengths = |file: usize| {
+            if file < lib_count {
+                Vec::new()
+            } else {
+                splittable_statement_lengths(snapshot.document(file).source())
+            }
+        };
+        let association = shard::associate_files_by_locality(
+            &names,
+            &base_weights,
+            &imports,
+            &checked,
+            &adjacent,
+            &targets_of,
+            &parse_nodes,
+            &statement_lengths,
+            checker_count,
+        );
+        // Lane 0 holds every file no checker works for; each checker still
+        // resolves its share of their declarations.
+        let checked_nodes = node_counts
+            .iter()
+            .zip(&checked)
+            .map(|(&nodes, &checked)| if checked { nodes } else { 0 })
+            .collect::<Vec<_>>();
+        let unchecked_nodes =
+            node_counts.iter().sum::<usize>() - checked_nodes.iter().sum::<usize>();
+        let mut queue = shard::ShardFileQueue::associated(
+            lib_count,
+            &checked_nodes,
+            &association.checkers,
+            checker_count,
+        );
+        queue.split(&association.splits, &checked_nodes);
+        work_counters.record_statement_ranges(
+            association
+                .splits
+                .iter()
+                .map(|split| split.pieces.len() as u64 - 1)
+                .sum(),
+        );
+        queue.reserve_on_every_lane(unchecked_nodes / queue.shard_count());
+        queue
+    } else {
+        let associations = shard::associate_files(
+            &base_weights,
+            &imports,
+            &declarations,
+            &adjacent,
+            checker_count,
+        );
+        shard::ShardFileQueue::associated(lib_count, &node_counts, &associations, checker_count)
+    };
     let shard_count = queue.shard_count();
 
     // An owned copy for the serial replay (W2c), taken before any shard slot

@@ -7075,6 +7075,165 @@ fn sharded_checkers_check_merged_symbols_at_each_owner() {
     }
 }
 
+/// The fast preset checks a heavy declaration file in statement ranges on
+/// several checkers. What it publishes for the file is what one checker
+/// publishes: rows spread over the statements (constraint violations,
+/// redeclared variables, merged interfaces whose type parameters differ,
+/// unresolved names, heritage clashes), a row that one range reports about a
+/// declaration merged with another range's (the `shared` member of `Merged`,
+/// declared in the first and the last block), and the rows of other files
+/// that use the file's declarations.
+#[test]
+fn the_fast_association_checks_a_heavy_declaration_file_in_statement_ranges() {
+    struct Provider;
+    impl AuthoritativeModuleProvider for Provider {
+        fn resolve_module(
+            &self,
+            _: AuthoritativeModuleRequest<'_>,
+        ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
+            unreachable!("the fixture has no imports")
+        }
+    }
+    struct Factory;
+    impl AuthoritativeModuleProviderFactory for Factory {
+        fn provider(&self) -> Box<dyn AuthoritativeModuleProvider + '_> {
+            Box::new(Provider)
+        }
+    }
+
+    let libs = [InputFile::new(
+        "/lib.split-probe.d.ts".to_owned(),
+        "interface IArguments {}\ninterface Array<T> { length: number; [index: number]: T; }\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface Boolean {}\ninterface Number {}\ninterface String {}\ninterface RegExp {}\n"
+            .to_owned(),
+    )];
+    // 120 blocks of declarations; one block in six carries errors.
+    let mut heavy = String::new();
+    for block in 0..120 {
+        heavy.push_str(&format!(
+            "interface Shape{block}<T extends string> {{ name: T; size: number; next?: Shape{block}<T>; }}\n\
+             type Named{block} = Shape{block}<\"n{block}\">;\n\
+             declare function make{block}(value: Named{block}): Shape{block}<string>;\n\
+             declare const value{block}: Named{block};\n"
+        ));
+        if block % 6 == 0 {
+            heavy.push_str(&format!(
+                "type Wrong{block} = Shape{block}<number>;\n\
+                 declare const value{block}: number;\n\
+                 interface Clash{block}<A> {{ a: A; }}\n\
+                 interface Clash{block}<B> {{ b: B; }}\n\
+                 declare const missing{block}: Missing{block};\n\
+                 interface Narrow{block} extends Shape{block}<string> {{ size: string; }}\n\
+                 interface Merged {{ fromHeavy{block}: number; shared: {}; }}\n",
+                if block == 0 { "number" } else { "string" }
+            ));
+        }
+    }
+    let files = [
+        InputFile::new("/types/heavy.d.ts".to_owned(), heavy),
+        InputFile::new(
+            "/src/a/one.ts".to_owned(),
+            "export const one: Named1 = value1;\n".to_owned(),
+        ),
+        InputFile::new(
+            "/src/a/two.ts".to_owned(),
+            "export const two: Shape2<string> = make2(value2);\nexport const bad: Named3 = value4;\n".to_owned(),
+        ),
+        InputFile::new(
+            "/src/b/three.ts".to_owned(),
+            "export function three(shape: Shape5<\"n5\">): number { return shape.size; }\n".to_owned(),
+        ),
+        InputFile::new(
+            "/src/b/four.ts".to_owned(),
+            "export const four: number = value7.size;\n".to_owned(),
+        ),
+    ];
+    let metadata =
+        |token: u32, file: &InputFile, may_be_emitted: bool| AuthoritativeSourceMetadata {
+            token: AuthoritativeSourceToken(token),
+            file_name: file.name.clone(),
+            may_be_emitted,
+            implied_node_format: None,
+            implied_node_format_for_emit: None,
+            project_reference: None,
+        };
+    let lib_metadata = [metadata(0, &libs[0], false)];
+    let file_metadata = files
+        .iter()
+        .enumerate()
+        .map(|(index, file)| metadata(index as u32 + 1, file, index != 0))
+        .collect::<Vec<_>>();
+    let options = CompilerOptions {
+        no_emit: Some(true),
+        strict: Some(true),
+        ..CompilerOptions::default()
+    };
+    let run = |budget: CheckerBudget| {
+        check_program_with_authoritative_modules_at_cache_mode_with_source(
+            &libs,
+            &files,
+            &lib_metadata,
+            &file_metadata,
+            &options,
+            "/",
+            AuthoritativeProviderSource::PerChecker(&Factory),
+            false,
+            None,
+            None,
+            crate::LibraryPrefixCompletion::Complete,
+            crate::DiagnosticSchedule::Eager,
+            tsc_program::WorkerBudget::serial(),
+            budget,
+            None,
+            crate::IncrementalRequest::NONE,
+            false,
+        )
+        .expect("authoritative result")
+    };
+    let budget =
+        |checkers: usize| CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap());
+    let serial = run(budget(1));
+    assert_eq!(serial.work_counters.checker_statement_ranges(), 0);
+    let count = |code: u32| {
+        serial
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == code)
+            .count()
+    };
+    // The fixture reports in every part of the heavy file and outside it.
+    for (code, what) in [
+        (2344, "constraint violations"),
+        (2428, "merged type parameters"),
+        (2304, "unresolved names"),
+        (2430, "heritage clashes"),
+        (2451, "redeclared variables"),
+    ] {
+        assert!(count(code) >= 20, "{what}: {}", count(code));
+    }
+    assert!(count(2717) >= 1, "a member redeclared in another range");
+    assert_eq!(
+        diagnostic_owners(&serial, 2322),
+        ["/src/a/two.ts"],
+        "a row outside the heavy file"
+    );
+
+    for checkers in [2usize, 3, 4, 5] {
+        // tsgo's association never checks a file in ranges.
+        let whole = run(budget(checkers));
+        assert_eq!(whole.work_counters.checker_statement_ranges(), 0);
+        assert_eq!(whole, serial, "tsgo association, checkers={checkers}");
+        // The fast association cuts the heavy file into one range per
+        // checker (it is most of the program) and publishes the same result.
+        let ranges = run(budget(checkers).with_assignment(crate::CheckerAssignment::Locality));
+        assert_eq!(
+            ranges.work_counters.checker_statement_ranges(),
+            checkers as u64 - 1,
+            "checkers={checkers}"
+        );
+        assert_eq!(ranges, serial, "fast association, checkers={checkers}");
+    }
+}
+
 /// W2: a sharded budget publishes exactly the serial CheckResult over the
 /// same shared snapshot, including cross-file rows (merged-interface
 /// duplicate index signatures reported for both declaring files while the

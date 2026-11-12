@@ -42,7 +42,10 @@ use crate::system::{
     CommandLineTesting, NativeSystem, ProgramReport, System, SystemEmitFileSystem,
 };
 use crate::watch::{BuildWatcher, CommandWatcher, Watcher};
-use crate::{CheckerBudget, EmitFileSystem, FsOutputSink, NoEmitWorkCounters, ProgramSession};
+use crate::{
+    CheckerAssignment, CheckerBudget, EmitFileSystem, FsOutputSink, NoEmitWorkCounters,
+    ProgramSession,
+};
 use tsc_types::tracing::{Args as TraceArgs, Phase as TracePhase, Tracing};
 
 const EXIT_SUCCESS: i32 = 0;
@@ -315,14 +318,54 @@ fn cli_worker_budget(system: &dyn System) -> WorkerBudget {
 /// uses tsgo's deterministic file association. The default is four checkers.
 const CHECKERS_ENV: &str = "TSRS_CHECKERS";
 
+/// The fast preset of the CLI's checker pool: `TSRS_FAST=1` (any other value
+/// or an unset variable leaves it off). The default pool is tsgo's: four
+/// checkers and tsgo's file association, whose output is tsgo's byte for
+/// byte. The preset trades that guarantee for speed on machines with more
+/// cores:
+///
+/// - files are associated with checkers by directory locality and module
+///   affinity ([`CheckerAssignment::Locality`]), so a checker repeats less
+///   of the other checkers' work;
+/// - without `--checkers` / `TSRS_CHECKERS` the pool follows the Program: one
+///   checker per 32 type-checked files, between 4 and 12;
+/// - a declaration file heavy enough to hold its checker back is checked in
+///   ranges of statements on several checkers.
+///
+/// None of this depends on the machine or on timing: the same Program gives
+/// the same output on every machine and in every run. That output is tsgo's
+/// except where a diagnostic depends on which files a checker saw first
+/// (tsgo itself reports such programs differently at different checker
+/// counts). `--singleThreaded` is unaffected. This is not a command-line
+/// option.
+const FAST_ENV: &str = "TSRS_FAST";
+
+fn cli_fast_preset(system: &dyn System) -> bool {
+    system
+        .env_var(FAST_ENV)
+        .is_some_and(|value| value.trim() == "1")
+}
+
+/// `checkers` under the process's preset.
+fn preset_checker_budget(system: &dyn System, checkers: std::num::NonZeroUsize) -> CheckerBudget {
+    let budget = CheckerBudget::new(checkers);
+    if cli_fast_preset(system) {
+        budget.with_assignment(CheckerAssignment::Locality)
+    } else {
+        budget
+    }
+}
+
 fn cli_checker_budget(system: &dyn System) -> CheckerBudget {
     match system
         .env_var(CHECKERS_ENV)
         .and_then(|value| value.trim().parse::<isize>().ok())
     {
-        Some(checkers) => CheckerBudget::new(
+        Some(checkers) => preset_checker_budget(
+            system,
             std::num::NonZeroUsize::new(checkers.max(1) as usize).expect("clamped checker count"),
         ),
+        None if cli_fast_preset(system) => CheckerBudget::fast(),
         None => CheckerBudget::automatic(),
     }
     // The CLI process exits right after publishing: dropping the checker
@@ -364,7 +407,7 @@ impl CommandBudgets {
         if self.single_threaded {
             CheckerBudget::serial().with_leaked_states(true)
         } else if let Some(checkers) = self.checkers {
-            CheckerBudget::new(checkers).with_leaked_states(true)
+            preset_checker_budget(system, checkers).with_leaked_states(true)
         } else {
             cli_checker_budget(system)
         }
