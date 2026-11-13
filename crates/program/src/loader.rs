@@ -7113,7 +7113,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         // not `false` (compiler/filesparser.go:362-368).
         let deduplicate_packages = self.compiler_options.deduplicate_packages != Some(false);
         let case_sensitive = self.resolver.path_context().use_case_sensitive_file_names();
-        let mut seen: Vec<Option<JsString>> = vec![None; self.parse.task_data.len()];
+        let mut seen: Vec<Option<usize>> = vec![None; self.parse.task_data.len()];
         let mut registered: BTreeMap<PackageId, usize> = BTreeMap::new();
         let mut order: Vec<usize> = Vec::with_capacity(self.sources.len());
         let mut ordinary_count = 0usize;
@@ -7122,7 +7122,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let mut recorded_redirects: HashSet<CanonicalPath> = HashSet::default();
         // The entered tasks with the index of their next subtask.
         let mut frames: Vec<(usize, usize)> = Vec::new();
-        let roots = self.root_tasks.clone();
+        let root_count = self.root_tasks.len();
         let mut next_root = 0usize;
         loop {
             let next = match frames.last_mut() {
@@ -7137,9 +7137,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     }
                 }
                 None => {
-                    if next_root < roots.len() {
+                    if next_root < root_count {
                         next_root += 1;
-                        Some(roots[next_root - 1])
+                        Some(self.root_tasks[next_root - 1])
                     } else {
                         break;
                     }
@@ -7198,24 +7198,16 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 if self.parse.tasks[target].loaded() {
                     loaded += 1;
                     spelling_bytes += self.parse.path(target).display().as_bytes().len();
-                    seen_bytes += seen[self.parse.tasks[target].data]
-                        .as_ref()
-                        .expect("a loaded visit recorded its first spelling")
-                        .as_bytes()
-                        .len();
+                    let first = seen[self.parse.tasks[target].data]
+                        .expect("a loaded visit recorded its first spelling");
+                    seen_bytes += self.parse.path(first).display().as_bytes().len();
                 }
             };
             for &task in &self.root_tasks {
                 count(task);
             }
-            for (data, spelling) in self.parse.task_data.iter().zip(&seen) {
-                let Some(spelling) = spelling else { continue };
-                let task = data
-                    .spellings
-                    .iter()
-                    .copied()
-                    .find(|&task| self.parse.path(task).display() == spelling.as_js())
-                    .expect("the first collected spelling was registered");
+            for (data, &task) in self.parse.task_data.iter().zip(&seen) {
+                let Some(task) = task else { continue };
                 if deduplicate_packages
                     && data.package_id.as_ref().is_some_and(|id| {
                         registered
@@ -7258,35 +7250,37 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     fn enter_collected_task(
         &mut self,
         task: usize,
-        seen: &mut [Option<JsString>],
+        seen: &mut [Option<usize>],
         registered: &mut BTreeMap<PackageId, usize>,
         deduplicate_packages: bool,
         case_sensitive: bool,
         redirect_index: usize,
         redirects: &mut Vec<(usize, usize, usize)>,
     ) -> Result<Option<usize>, ProgramLoadError> {
-        let reason = self.parse.tasks[task].reason.inclusion.clone();
-        // A redirect's reason reaches its output through its subtask; the
-        // automatic type directives' task is an implementation detail.
-        if self.parse.tasks[task].redirect().is_none() && !self.parse.tasks[task].is_automatic_types
-        {
-            let target = self.task_target(task);
-            self.add_include_reason(target, reason.clone());
-        }
+        let reason_task = task;
         let task = self.task_target(task);
+        // Each incoming task contributes its reason before the seen check.
+        // A redirect forwards it; the automatic-types task contributes none.
+        if self.parse.tasks[reason_task].redirect().is_none()
+            && !self.parse.tasks[reason_task].is_automatic_types
+        {
+            let reason = self.parse.tasks[reason_task].reason.inclusion.clone();
+            self.add_include_reason(task, reason);
+        }
         if !self.parse.tasks[task].loaded() {
             return Ok(None);
         }
         let data = self.parse.tasks[task].data;
-        let spelling = self.parse.path(task).display().to_owned();
-        if let Some(checked) = seen[data].clone() {
-            // Another spelling of a walked path is a casing alias of the
-            // kept file (tsgo addProcessingDiagnosticsForFileCasing).
-            if checked.as_js() != spelling.as_js() {
+        if let Some(checked) = seen[data] {
+            // Task paths stay immutable while prepared source spellings can
+            // change. Keep the first task, not another owned path spelling.
+            if self.parse.path(checked).display() != self.parse.path(task).display() {
                 if let Some(source) = self.parse.tasks[task].source() {
                     let first_path = self.sources[source].prepared.path().clone();
                     let path = self.parse.path(task).clone();
                     if !self.normalized_display_paths_are_equal(&first_path, &path)? {
+                        let spelling = self.parse.path(task).display().to_owned();
+                        let reason = self.parse.tasks[reason_task].reason.inclusion.clone();
                         self.sources[source]
                             .alternate_inclusion_reasons
                             .push((spelling, reason));
@@ -7295,20 +7289,21 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             }
             return Ok(None);
         }
-        seen[data] = Some(spelling.clone());
+        seen[data] = Some(task);
         self.replay_resolution_traces(task);
         let source = self.parse.tasks[task].source();
         if let Some(source) = source {
             // The kept spelling is the first collected (tsgo keeps that
             // task's parse); the one that admitted the file becomes an alias.
-            if self.sources[source].prepared.path().display() != spelling.as_js() {
+            let spelling = self.parse.path(task).display();
+            if self.sources[source].prepared.path().display() != spelling {
                 self.respelled.insert(
                     self.sources[source].prepared.path().display().to_owned(),
-                    spelling.clone(),
+                    spelling.to_owned(),
                 );
                 self.sources[source]
                     .prepared
-                    .respell(spelling.as_js())
+                    .respell(spelling)
                     .map_err(|error| {
                         ProgramLoadError::preparation(ProgramLoadOperation::ReadSource, error)
                     })?;
@@ -7325,8 +7320,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         self.case_sensitive_casing_conflicts
                             .push(CaseSensitiveCasingConflict {
                                 existing_source,
-                                incoming_path: spelling,
-                                incoming_reason: reason,
+                                incoming_path: self.parse.path(task).display().to_owned(),
+                                incoming_reason: self.parse.tasks[reason_task]
+                                    .reason
+                                    .inclusion
+                                    .clone(),
                             });
                     }
                 } else {
