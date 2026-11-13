@@ -1011,3 +1011,137 @@ fn remove_type_gives_the_union_the_filter_gives() {
         assert!(origin.is_none());
     }
 }
+
+#[test]
+fn small_stored_union_runs_preserve_members_origins_and_memoization() {
+    use crate::{IdentityDomain, SymbolId, TypeData, TypeTables, UnionReduction};
+    let ctx = TestOrderContext::default();
+    let mut tables = TypeTables::new(true, false, &IdentityDomain::new());
+    let literals: Vec<_> = (0..6)
+        .map(|i| {
+            let ty = tables.get_string_literal_type(&format!("s{i}"));
+            tables.set_alias(ty, Some(SymbolId::new(100 + i)), None);
+            ty
+        })
+        .collect();
+    let inner = tables.get_union_type(Some(&ctx), &literals[1..5], UnionReduction::None);
+    tables.set_alias(inner, Some(SymbolId::new(1000)), None);
+    let sources = [literals[0], inner, literals[5]];
+    ctx.symbol_comparisons.borrow_mut().clear();
+    let actual = tables.get_union_type(Some(&ctx), &sources, UnionReduction::None);
+    assert_eq!(tables.members_of(actual), literals);
+    assert_eq!(
+        &*ctx.symbol_comparisons.borrow(),
+        &[
+            (SymbolId::new(101), SymbolId::new(100)),
+            (SymbolId::new(105), SymbolId::new(104)),
+        ],
+        "only the two source boundaries need content comparisons"
+    );
+    let TypeData::Union { origin, .. } = tables.type_of(actual).data else {
+        panic!("union")
+    };
+    assert_eq!(tables.alias_symbol(actual), None);
+    assert_eq!(
+        tables.members_of(origin.expect("named origin")),
+        &[literals[0], literals[5], inner]
+    );
+    assert_eq!(
+        tables.get_union_type(Some(&ctx), &sources, UnionReduction::None),
+        actual
+    );
+}
+
+#[test]
+fn balanced_union_merges_search_skewed_runs_and_keep_duplicate_occurrences() {
+    use crate::{IdentityDomain, TypeTables};
+    let mut tables = TypeTables::new(true, false, &IdentityDomain::new());
+    let ids: Vec<_> = (0..130)
+        .map(|i| tables.get_string_literal_type(&format!("s{i:03}")))
+        .collect();
+    for reverse in [false, true] {
+        let long = ids[..128].to_vec();
+        let short = vec![ids[5], ids[17], ids[129]];
+        let (left, right) = if reverse {
+            (short, long)
+        } else {
+            (long, short)
+        };
+        let mut actual = left.clone();
+        actual.extend_from_slice(&right);
+        let mut expected = actual.clone();
+        expected.sort();
+        let mut starts = vec![0, left.len()];
+        let mut probes = Vec::new();
+        super::merge_union_runs(&mut actual, &mut starts, |a, b| {
+            probes.push((a, b));
+            a < b
+        });
+        assert_eq!(actual, expected);
+        assert!(
+            probes.len() <= 24,
+            "three insertions into a 128-element run"
+        );
+        assert!(probes.iter().all(|(a, b)| a != b));
+    }
+    let mut actual = ids[..64].to_vec();
+    actual.extend_from_slice(&ids[..64]);
+    let mut expected = actual.clone();
+    expected.sort();
+    let mut starts = vec![0, 64];
+    super::merge_union_runs(&mut actual, &mut starts, |_, _| {
+        panic!("equal heads already determine the next two occurrences")
+    });
+    assert_eq!(
+        actual, expected,
+        "deduplication remains the caller's operation"
+    );
+}
+
+#[test]
+fn named_union_finishing_reuses_markers_and_checks_unmarked_lists() {
+    use crate::{IdentityDomain, SymbolId, TypeFlags, TypeTables, UnionReduction};
+    let ctx = TestOrderContext::default();
+    let mut tables = TypeTables::new(true, false, &IdentityDomain::new());
+    let literals: Vec<_> = (0..6)
+        .map(|i| {
+            let ty = tables.get_string_literal_type(&format!("s{i}"));
+            tables.set_alias(ty, Some(SymbolId::new(200 + i)), None);
+            ty
+        })
+        .collect();
+    let known = tables.get_union_type(Some(&ctx), &literals[1..5], UnionReduction::None);
+    tables.set_alias(known, Some(SymbolId::new(1000)), None);
+    let raw =
+        tables.create_origin_union_or_intersection_type(TypeFlags::UNION, literals[1..5].to_vec());
+    tables.set_alias(raw, Some(SymbolId::new(1001)), None);
+    for inner in [known, raw] {
+        let sources = [inner, literals[0], literals[5]];
+        let mut collected = Vec::new();
+        let includes = tables.add_types_to_union(None, &mut collected, 0, &sources);
+        ctx.symbol_comparisons.borrow_mut().clear();
+        let actual = tables.finish_union_type_set(
+            Some(&ctx),
+            literals.clone(),
+            includes,
+            &sources,
+            None,
+            None,
+            None,
+        );
+        assert_eq!(tables.members_of(actual), literals);
+        if inner == known {
+            assert!(ctx.symbol_comparisons.borrow().is_empty());
+        } else {
+            assert_eq!(
+                &*ctx.symbol_comparisons.borrow(),
+                &[
+                    (SymbolId::new(201), SymbolId::new(202)),
+                    (SymbolId::new(202), SymbolId::new(203)),
+                    (SymbolId::new(203), SymbolId::new(204)),
+                ],
+                "a raw origin still uses the original adjacent scan"
+            );
+        }
+    }
+}

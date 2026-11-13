@@ -2101,16 +2101,23 @@ impl TypeTables {
         if origin.is_none() && includes & TypeFlags::UNION.bits() != 0 {
             let mut named_unions: Vec<TypeId> = Vec::new();
             self.add_named_unions(&mut named_unions, types);
-            // A union may have been built under the other ordering mode.
-            // Preserve the old binary-search behavior for such member lists.
+            // Final flattened lists carry their construction order. Raw
+            // origins and lists made in the other mode still need the scan,
+            // which preserves their existing membership-search behavior.
             let members_are_sorted = named_unions.iter().all(|&union| {
-                self.members_of(union).windows(2).all(|pair| match order {
-                    Some(ctx) => {
-                        crate::type_order::compare_types(self, ctx, pair[0], pair[1])
-                            != Ordering::Greater
-                    }
-                    None => pair[0] <= pair[1],
-                })
+                let marker = if order.is_some() {
+                    UNION_MEMBERS_CONTENT_ORDERED
+                } else {
+                    UNION_MEMBERS_ID_ORDERED
+                };
+                self.object_flags_of(union).intersects(marker)
+                    || self.members_of(union).windows(2).all(|pair| match order {
+                        Some(ctx) => {
+                            crate::type_order::compare_types(self, ctx, pair[0], pair[1])
+                                != Ordering::Greater
+                        }
+                        None => pair[0] <= pair[1],
+                    })
             });
             let named_members: Option<rustc_hash::FxHashSet<TypeId>> =
                 members_are_sorted.then(|| {
@@ -2243,9 +2250,9 @@ impl TypeTables {
     /// tsc-hash: 14b6eea2a85c949d2f78fa0e81a934b7a2168d3e5c42fb693dbcbdee0e65192c
     /// tsc-span: _tsc.js:61358-61367
     ///
-    /// Merge a large, known-sorted union input for pairs or batches of at
-    /// least eight inputs. Other shapes keep the flatten/sort or ID-insert
-    /// path. No member-order detection is performed during collection.
+    /// Collect stored member runs in the requested order, then merge them.
+    /// Content ordering accepts small union runs too; scalar inputs and
+    /// unmarked lists use the existing collector and sorter.
     pub fn add_types_to_union(
         &mut self,
         order: TypeOrder<'_>,
@@ -2255,7 +2262,7 @@ impl TypeTables {
     ) -> i32 {
         if type_set.is_empty() {
             if let Some(includes) =
-                self.try_merge_large_union_inputs(order, type_set, includes, types)
+                self.try_merge_stored_union_inputs(order, type_set, includes, types)
             {
                 return includes;
             }
@@ -2339,7 +2346,7 @@ impl TypeTables {
             .then(|| self.members_of(ty))
     }
 
-    fn try_merge_large_union_inputs(
+    fn try_merge_stored_union_inputs(
         &self,
         order: TypeOrder<'_>,
         type_set: &mut Vec<TypeId>,
@@ -2347,11 +2354,7 @@ impl TypeTables {
         types: &[TypeId],
     ) -> Option<i32> {
         let [left_type, right_type] = types else {
-            return if types.len() >= UNION_MERGE_MIN_INPUTS {
-                self.try_merge_large_union_runs(order, type_set, includes, types)
-            } else {
-                None
-            };
+            return self.try_merge_stored_union_runs(order, type_set, includes, types);
         };
         // Two constant-time length checks, without walking the input lists.
         let large = |ty| match self.type_of(ty).data {
@@ -2359,7 +2362,7 @@ impl TypeTables {
             _ => false,
         };
         if !large(*left_type) && !large(*right_type) {
-            return None;
+            return self.try_merge_stored_union_runs(order, type_set, includes, types);
         }
         let mut left = self.union_input_run(order, &types[..1])?;
         let mut right = self.union_input_run(order, &types[1..])?;
@@ -2453,7 +2456,7 @@ impl TypeTables {
         }
     }
 
-    fn try_merge_large_union_runs(
+    fn try_merge_stored_union_runs(
         &self,
         order: TypeOrder<'_>,
         type_set: &mut Vec<TypeId>,
@@ -2461,15 +2464,22 @@ impl TypeTables {
         types: &[TypeId],
     ) -> Option<i32> {
         let mut large = false;
+        let mut stored_run = false;
         let mut capacity = 0;
-        // Only batches of at least eight reach this header-only preflight.
-        // Unknown order falls back before collecting or changing flags.
+        // Only stored runs in the requested order can bypass the fallback
+        // collector and sorter. Preflight leaves the output and flags alone.
         for input in types.chunks(1) {
             let run = self.union_input_run(order, input)?;
             large |= run.len() >= UNION_MERGE_MIN_MEMBERS;
+            stored_run |= self.flags_of(input[0]).intersects(TypeFlags::UNION) && run.len() > 1;
             capacity += run.len();
         }
-        if !large {
+        let merge_stored = if order.is_some() {
+            stored_run
+        } else {
+            types.len() >= UNION_MERGE_MIN_INPUTS && large
+        };
+        if !merge_stored {
             return None;
         }
         type_set.reserve(capacity);
