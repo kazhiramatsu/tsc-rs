@@ -22838,11 +22838,24 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         node: TransformNode,
     ) -> Result<ExpressionCommentPhaseOwner, PrinterError> {
-        let metadata = transformation.arena().metadata(node);
+        let arena = transformation.arena();
+        let metadata = arena.metadata(node);
+        let (range, kind) =
+            if let Some(range) = metadata.and_then(crate::EmitMetadata::comment_range) {
+                (range, arena.node(node)?.kind)
+            } else {
+                let source = arena.source(node.source())?.syntax();
+                let record = arena.node(node)?;
+                let range = CommentRange::new(
+                    node.source(),
+                    SourceRange::from_raw(record.pos, record.end, source.positions())?,
+                );
+                (range, record.kind)
+            };
         Ok(ExpressionCommentPhaseOwner {
-            range: self.comment_range_for_node(transformation, node)?,
+            range,
             flags: metadata.map_or(EmitFlags::NONE, crate::EmitMetadata::flags),
-            kind: transformation.arena().node(node)?.kind,
+            kind,
         })
     }
 
