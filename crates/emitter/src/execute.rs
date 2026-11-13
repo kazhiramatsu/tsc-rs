@@ -953,7 +953,6 @@ pub fn emit_planned_units_with_kinds(
     let attach = |unit: usize| move |failure: EmitFailure| UnitEmitError { unit, failure };
     let first = requests.first().map_or(0, |request| request.unit);
     let new_line = new_line_kind(options).map_err(attach(first))?;
-    let declaration_paths: &PlanDeclarationPaths = preflight.declaration_paths(host);
     let mut printer = create_printer(
         PrinterOptions::new(new_line)
             .with_remove_comments(options.remove_comments == Some(true))
@@ -1083,7 +1082,7 @@ pub fn emit_planned_units_with_kinds(
                 resolver,
                 host,
                 preflight,
-                declaration_paths,
+                preflight.declaration_paths(host),
                 unit.root(),
                 declaration_path,
                 unit.paths().declaration_map_path(),
