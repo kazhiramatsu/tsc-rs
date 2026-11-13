@@ -4478,8 +4478,15 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             .map(|(_, source)| source.prepared.path().canonical().clone())
             .collect::<rustc_hash::FxHashSet<_>>();
         if !dropped_paths.is_empty() {
-            self.module_resolutions
-                .retain(|resolution| !dropped_paths.contains(resolution.key.source()));
+            self.module_resolutions.retain(|resolution| {
+                let retained = kept[resolution.source];
+                debug_assert_eq!(
+                    retained,
+                    !dropped_paths.contains(resolution.key.source()),
+                    "a staged resolution's source agrees with its canonical key",
+                );
+                retained
+            });
             self.type_resolutions
                 .retain(|resolution| match resolution.key.origin() {
                     crate::resolution::TypeReferenceResolutionOrigin::Source(source) => {
