@@ -363,10 +363,35 @@ pub(crate) struct AdmissionPlanParts {
     pub lib_reference_directives: Vec<PlannedLibReferenceDirective>,
     pub module_request_order: Vec<ResolutionKey>,
     pub module_request_occurrences: Vec<u32>,
-    pub module_request_occurrence_counts: Vec<u32>,
+}
+
+/// The loader keeps the planner's arrays rather than rebuilding each request.
+/// Keys move into the contiguous resolution batch when that source is planned;
+/// its immutable occurrence metadata stays available for another spelling.
+#[derive(Default)]
+pub(crate) struct LoaderModuleRequests {
+    pub keys: Vec<ResolutionKey>,
+    pub loads_source: Vec<bool>,
+    pub spans: Vec<Vec<(u32, u32)>>,
+    pub occurrence_counts: Vec<u32>,
+}
+
+impl LoaderModuleRequests {
+    pub fn len(&self) -> usize {
+        self.loads_source.len()
+    }
 }
 
 impl SourceRequestPlan {
+    pub(crate) fn take_loader_module_requests(&mut self) -> LoaderModuleRequests {
+        LoaderModuleRequests {
+            keys: std::mem::take(&mut self.module_requests),
+            loads_source: std::mem::take(&mut self.module_request_loads),
+            spans: std::mem::take(&mut self.module_request_spans),
+            occurrence_counts: std::mem::take(&mut self.module_request_occurrence_counts),
+        }
+    }
+
     pub const fn import_count(&self) -> usize {
         self.import_count
     }
@@ -380,9 +405,6 @@ impl SourceRequestPlan {
             lib_reference_directives: std::mem::take(&mut self.lib_reference_directives),
             module_request_order: std::mem::take(&mut self.module_request_order),
             module_request_occurrences: std::mem::take(&mut self.module_request_occurrences),
-            module_request_occurrence_counts: std::mem::take(
-                &mut self.module_request_occurrence_counts,
-            ),
         }
     }
 
