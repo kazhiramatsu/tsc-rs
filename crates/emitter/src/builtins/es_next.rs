@@ -101,6 +101,10 @@ struct EsNextTransformer {
 }
 
 impl Transformer for EsNextTransformer {
+    fn is_identity_substitution(&self) -> bool {
+        true
+    }
+
     fn name(&self) -> &'static str {
         "transformESNext"
     }

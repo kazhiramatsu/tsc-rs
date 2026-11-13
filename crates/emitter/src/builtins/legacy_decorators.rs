@@ -64,6 +64,10 @@ struct LegacyDecoratorTransformer<'resolver> {
 }
 
 impl Transformer for LegacyDecoratorTransformer<'_> {
+    fn is_identity_substitution(&self) -> bool {
+        true
+    }
+
     fn name(&self) -> &'static str {
         "transformLegacyDecorators"
     }

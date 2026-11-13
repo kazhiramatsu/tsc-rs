@@ -976,6 +976,14 @@ pub trait Transformer {
         Ok(root)
     }
 
+    /// True only for an implementation that keeps the default identity
+    /// substitution. Unknown implementations remain in the global callback
+    /// chain, including ones whose kind was enabled by another transformer.
+    /// The answer must stay fixed after transform_root completes.
+    fn is_identity_substitution(&self) -> bool {
+        false
+    }
+
     fn substitute_node(
         &mut self,
         _context: &mut TransformationContext,
@@ -1010,6 +1018,7 @@ pub struct TransformationResult<'transformers> {
     context: TransformationContext,
     roots: Box<[TransformRoot]>,
     transformers: Vec<Box<dyn Transformer + 'transformers>>,
+    substitution_transformers: Vec<usize>,
 }
 
 /// Emit-time hooks enabled for one node after applying its per-node flags.
@@ -1104,8 +1113,8 @@ impl TransformationResult<'_> {
         if !self.context.is_substitution_enabled(node)? {
             return Ok(node);
         }
-        for transformer in &mut self.transformers {
-            node = transformer.substitute_node(&mut self.context, hint, node)?;
+        for &index in &self.substitution_transformers {
+            node = self.transformers[index].substitute_node(&mut self.context, hint, node)?;
             self.context.arena.node(node)?;
         }
         Ok(node)
@@ -1231,10 +1240,18 @@ pub fn transform_nodes<'transformers>(
             return Err(error);
         }
     };
+    let substitution_transformers = transformers
+        .iter()
+        .enumerate()
+        .filter_map(|(index, transformer)| {
+            (!transformer.is_identity_substitution()).then_some(index)
+        })
+        .collect();
     Ok(TransformationResult {
         context,
         roots: transformed.into_boxed_slice(),
         transformers,
+        substitution_transformers,
     })
 }
 
