@@ -4710,14 +4710,13 @@ impl<'text> Parser<'text> {
         let escaped_text = self.current_token_name();
         // tsc factory createIdentifier (21609): escapedText is the
         // ESCAPED form; `text` (idText) stays raw.
-        let id = self.arena.alloc_node(
+        self.next_token_without_check();
+        self.alloc_and_finish(
             NodeData::Identifier(IdentifierData { escaped_text }),
             pos,
             end,
             NodeFlags::NONE,
-        );
-        self.next_token_without_check();
-        self.finish_node_at(id, pos, end)
+        )
     }
 
     fn parse_private_identifier(&mut self) -> NodeId {
@@ -4725,14 +4724,13 @@ impl<'text> Parser<'text> {
         let end = self.scanner.pos();
         let escaped_text = self.current_token_name();
         // tsc factory createPrivateIdentifier: escapedText is escaped.
-        let id = self.arena.alloc_node(
+        self.next_token_without_check();
+        self.alloc_and_finish(
             NodeData::PrivateIdentifier(PrivateIdentifierData { escaped_text }),
             pos,
             end,
             NodeFlags::NONE,
-        );
-        self.next_token_without_check();
-        self.finish_node_at(id, pos, end)
+        )
     }
 
     fn parse_expression(&mut self) -> NodeId {
@@ -10235,6 +10233,13 @@ impl<'text> Parser<'text> {
         ) {
             self.arena.add_symbol_bound(u32::from(self.javascript_file));
         }
+        // The payload constructor already has the final range and kind.
+        // Write finishNode's flags with the header instead of resolving the
+        // new identity and writing the header a second time.
+        let mut flags = flags | self.context_flags;
+        if self.parse_error_before_next_finished_node {
+            flags |= NodeFlags::THIS_NODE_HAS_ERROR;
+        }
         let id = self.arena.alloc_node(data, pos, end, flags);
         // The payload's children are the stored record's forEachChild children.
         #[cfg(debug_assertions)]
@@ -10247,7 +10252,19 @@ impl<'text> Parser<'text> {
             );
             false
         });
-        self.finish_node_fields(id, pos, end);
+        if self.parse_error_before_next_finished_node {
+            self.parse_error_before_next_finished_node = false;
+            self.error_nodes.push(id);
+        }
+        // At each typed call site kind is constant, so an ineligible host
+        // needs neither the position-table lookup nor a record lookup.
+        if kind.is_some_and(parser_calls_with_jsdoc_for_kind)
+            && !flags.contains(NodeFlags::JS_DOC)
+            && self.has_jsdoc_comments
+            && self.jsdoc_positions.contains(&pos)
+        {
+            self.jsdoc_candidates.push(id);
+        }
         id
     }
 

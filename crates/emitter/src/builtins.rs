@@ -18145,6 +18145,8 @@ fn compute_transform_flags_forward(
     source: TransformSourceId,
     root: NodeId,
 ) -> Result<(), TransformError> {
+    // Keep old values stable if this source is classified again.
+    arena.materialize_deferred_array_flags(source);
     let Some(plan) = flag_propagation_plan(arena, source, root)? else {
         // Keep the existing general walk for API/recovery graphs whose
         // children are not ordered before their parents. No flag was written.
@@ -18172,13 +18174,7 @@ fn compute_transform_flags_forward(
             let array_ref = arena
                 .node_array_ref(source, array)
                 .expect("generated child array belongs to its source");
-            let mut flags = TransformFlags::NONE;
-            for &element in arena.node_array(array_ref)?.nodes {
-                let child = TransformNode::new(source, element);
-                let kind = arena.node(child)?.kind;
-                flags |= arena.transform_flags(child) & !TransformFlags::subtree_exclusions(kind);
-            }
-            arena.set_array_transform_flags(array_ref, flags);
+            arena.defer_array_transform_flags(array_ref, id);
         }
         let child_flags = match FactoryTransformChildren::of(&record) {
             FactoryTransformChildren::All => accumulated[index],
@@ -18190,7 +18186,7 @@ fn compute_transform_flags_forward(
             | child_flags;
         let flags = complete_class_transform_flags(arena, source, &record, flags)?
             | static_this_substitute_flags(arena, node);
-        arena.set_transform_flags(node, flags);
+        arena.set_ordered_transform_flags(node, flags);
         let propagated = arena.propagate_record_flags(source, &record, flags)?;
         if plan.live[index] & FLAG_PRIMARY_PARENT != 0 {
             if let Some(parent) = record.parent {

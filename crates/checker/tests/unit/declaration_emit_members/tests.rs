@@ -319,3 +319,91 @@ fn dm_late_bound_index_signatures() {
         },
     );
 }
+
+#[test]
+fn declaration_alias_views_preserve_stored_keys_and_order_after_preparation() {
+    use std::sync::Arc;
+    use tsc_binder::SymbolTable;
+    use tsc_types::{EscapedName, SymbolFlags};
+
+    with_program_state(
+        &[("/main.ts", "export {};")],
+        &CompilerOptions::default(),
+        |checker| {
+            let first_key = EscapedName::escape("storedFirst".into());
+            let second_key = EscapedName::escape("default".into());
+            let first = checker
+                .binder
+                .create_symbol(SymbolFlags::ALIAS, EscapedName::escape("symbolName".into()));
+            let second = checker
+                .binder
+                .create_symbol(SymbolFlags::ALIAS, EscapedName::escape("otherName".into()));
+            let ordinary = checker.binder.create_symbol(
+                SymbolFlags::FUNCTION,
+                EscapedName::escape("ordinary".into()),
+            );
+            let table = Arc::new(SymbolTable::from_iter([
+                (first_key, first),
+                (EscapedName::escape("ordinary".into()), ordinary),
+                (second_key, second),
+            ]));
+            assert!(checker.declaration_emit_alias_table(Some(&table)).is_none());
+            assert!(checker.declaration_emit_alias_tables.is_none());
+            checker
+                .emit_precalculate_declaration_emit_visibility(checker.binder.source(0).root)
+                .expect("declaration preparation");
+            let cold = checker
+                .declaration_emit_alias_table(Some(&table))
+                .expect("prepared alias view");
+            let warm = checker
+                .declaration_emit_alias_table(Some(&table))
+                .expect("warm alias view");
+            assert!(Arc::ptr_eq(&cold, &warm));
+            assert_eq!(
+                cold.iter()
+                    .map(|(name, &symbol)| (*name, symbol))
+                    .collect::<Vec<_>>(),
+                vec![(first_key, first), (second_key, second)]
+            );
+            assert_eq!(table.len(), 3);
+            assert!(checker
+                .declaration_emit_alias_table(Some(&Arc::new(SymbolTable::default())))
+                .is_none());
+        },
+    );
+}
+
+#[test]
+fn declaration_alias_views_follow_copy_on_write_export_snapshots() {
+    use std::sync::Arc;
+    use tsc_binder::SymbolTable;
+    use tsc_types::{EscapedName, SymbolFlags};
+
+    with_program_state(
+        &[("/main.ts", "export {};")],
+        &CompilerOptions::default(),
+        |checker| {
+            let a = EscapedName::escape("a".into());
+            let b = EscapedName::escape("b".into());
+            let first = checker.binder.create_symbol(SymbolFlags::ALIAS, a);
+            let second = checker.binder.create_symbol(SymbolFlags::ALIAS, b);
+            let mut exports = Arc::new(SymbolTable::from_iter([(a, first)]));
+            checker
+                .emit_precalculate_declaration_emit_visibility(checker.binder.source(0).root)
+                .expect("declaration preparation");
+            let old_address = Arc::as_ptr(&exports);
+            let old = checker
+                .declaration_emit_alias_table(Some(&exports))
+                .expect("original export view");
+            Arc::make_mut(&mut exports).insert(b, second);
+            assert_ne!(Arc::as_ptr(&exports), old_address);
+            let updated = checker
+                .declaration_emit_alias_table(Some(&exports))
+                .expect("replacement export view");
+            assert_eq!(old.len(), 1);
+            assert_eq!(old.get(b), None);
+            assert_eq!(updated.get(b), Some(&second));
+            assert_eq!(updated.len(), 2);
+        },
+    );
+}

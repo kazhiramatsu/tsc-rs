@@ -107,3 +107,92 @@ fn forward_flags_match_the_old_classifier_on_corpus_files() {
         .join()
         .unwrap();
 }
+
+#[test]
+fn a_node_flag_edit_preserves_unread_array_aggregates() {
+    let file = parse_source_file(
+        "deferred.ts",
+        "const values = [this, await value, 1n];",
+        Default::default(),
+        None,
+    );
+    let mut actual = TransformArena::new();
+    let source = actual.add_source(&file, None);
+    let root = actual.root(source).unwrap().node();
+    let mut reference = actual.clone();
+    super::compute_transform_flags_reference(&mut reference, source, root).unwrap();
+    super::compute_transform_flags_forward(&mut actual, source, root).unwrap();
+    let array = (file.arena.array_base()..file.arena.array_end())
+        .find_map(|id| {
+            let id = tsc_syntax::NodeArrayId::new(id);
+            let array = reference.node_array_ref(source, id)?;
+            (!reference.node_array(array).unwrap().nodes.is_empty()
+                && reference.array_transform_flags(array) != crate::TransformFlags::NONE)
+                .then_some(array)
+        })
+        .unwrap();
+    let before = reference.array_transform_flags(array);
+    let child = crate::TransformNode::new(source, actual.node_array(array).unwrap().nodes[0]);
+    let changed = crate::TransformFlags::from_bits(!actual.transform_flags(child).bits());
+    actual.set_transform_flags(child, changed);
+    reference.set_transform_flags(child, changed);
+    assert_eq!(actual.array_transform_flags(array), before);
+    assert_eq!(
+        super::snapshot_transform_flags(&actual, source).unwrap(),
+        super::snapshot_transform_flags(&reference, source).unwrap()
+    );
+}
+
+#[test]
+fn an_explicit_array_override_and_a_cloned_session_keep_their_values() {
+    let file = parse_source_file(
+        "override.ts",
+        "const values = [this, await value];",
+        Default::default(),
+        None,
+    );
+    let mut actual = TransformArena::new();
+    let source = actual.add_source(&file, None);
+    let root = actual.root(source).unwrap().node();
+    super::compute_transform_flags_forward(&mut actual, source, root).unwrap();
+    let mut cloned = actual.clone();
+    let array = (file.arena.array_base()..file.arena.array_end())
+        .find_map(|id| {
+            let array = actual.node_array_ref(source, tsc_syntax::NodeArrayId::new(id))?;
+            (!actual.node_array(array).unwrap().nodes.is_empty()).then_some(array)
+        })
+        .unwrap();
+    let before = cloned.array_transform_flags(array);
+    let override_flags = crate::TransformFlags::from_bits(!before.bits());
+    actual.set_array_transform_flags(array, override_flags);
+    let child = crate::TransformNode::new(source, actual.node_array(array).unwrap().nodes[0]);
+    actual.set_transform_flags(child, crate::TransformFlags::NONE);
+    assert_eq!(actual.array_transform_flags(array), override_flags);
+    assert_eq!(cloned.array_transform_flags(array), before);
+    cloned.clear_session_metadata();
+    assert_eq!(
+        cloned.array_transform_flags(array),
+        crate::TransformFlags::NONE
+    );
+}
+
+#[test]
+fn reclassification_replaces_only_the_new_walks_array_values() {
+    let file = parse_source_file(
+        "again.ts",
+        "const values = [this, await value];",
+        Default::default(),
+        None,
+    );
+    let mut actual = TransformArena::new();
+    let source = actual.add_source(&file, None);
+    let root = actual.root(source).unwrap().node();
+    super::compute_transform_flags_forward(&mut actual, source, root).unwrap();
+    let mut reference = actual.clone();
+    super::compute_transform_flags_reference(&mut reference, source, root).unwrap();
+    super::compute_transform_flags_forward(&mut actual, source, root).unwrap();
+    assert_eq!(
+        super::snapshot_transform_flags(&actual, source).unwrap(),
+        super::snapshot_transform_flags(&reference, source).unwrap()
+    );
+}
