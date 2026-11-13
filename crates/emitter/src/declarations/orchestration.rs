@@ -266,7 +266,7 @@ pub(crate) fn emit_declaration_unit(
             declaration_path,
             map_path,
             source_path,
-            &printed,
+            printed,
             diagnostics.clone(),
             new_line,
         )?;
@@ -279,7 +279,7 @@ pub(crate) fn emit_declaration_unit(
         (
             EmitArtifact::declaration(
                 declaration_path,
-                crate::artifact::EmitCallbackText::from_generated(printed.generated_text().clone()),
+                crate::artifact::EmitCallbackText::from_generated(printed.into_generated_text()),
                 options.emit_bom == Some(true),
                 Some(source_files),
                 EmitTextMetadata::new(diagnostics.clone(), None),

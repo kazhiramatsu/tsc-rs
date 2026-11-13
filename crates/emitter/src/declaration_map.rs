@@ -56,7 +56,7 @@ pub fn finish_declaration_map(
     declaration_path: JsStr<'_>,
     map_path: JsStr<'_>,
     source_path: JsStr<'_>,
-    printed: &PrintedText,
+    printed: PrintedText,
     diagnostics: Vec<Diagnostic>,
     new_line: NewLineKind,
 ) -> Result<DeclarationMapEmit, EmitFailure> {
@@ -81,7 +81,7 @@ fn finish_declaration_map_for_output(
     map_path: JsStr<'_>,
     source_path: Option<JsStr<'_>>,
     source_files: &[JsString],
-    printed: &PrintedText,
+    printed: PrintedText,
     diagnostics: Vec<Diagnostic>,
     new_line: NewLineKind,
 ) -> Result<DeclarationMapEmit, EmitFailure> {
@@ -102,9 +102,10 @@ fn finish_declaration_map_for_output(
         Some(map_path),
         source_path,
     )?;
-    let mut text = printed.generated_text().clone();
-    let mut url_position = printed.end().position();
-    if printed.end().column() != 0 {
+    let end = printed.end();
+    let mut text = printed.into_generated_text();
+    let mut url_position = end.position();
+    if end.column() != 0 {
         text.push_str(new_line.text());
         url_position = url_position
             .checked_add(new_line.text().len() as u32)
