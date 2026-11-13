@@ -7900,7 +7900,10 @@ fn publish_program(
         source_by_canonical.get(redirected.canonical()).copied()
     };
     timer.mark("load: publish package map");
-    let mut loaded_modules = crate::resolution::LoadedModules::default();
+    let mut loaded_modules = crate::resolution::LoadedModules::new(
+        published_ids.iter().flatten().count(),
+        staged.module_resolutions.len(),
+    );
     for resolution in staged.module_resolutions {
         let source =
             published_ids[resolution.source].expect("only collected sources publish resolutions");

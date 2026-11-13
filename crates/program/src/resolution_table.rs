@@ -281,14 +281,26 @@ fn compact_module_row(
 }
 
 /// Loader rows are already unique and bound to final source identities.
-/// Compact them immediately; only their observable order remains to be fixed.
+/// Publication writes their final storage and lookup hashes together. Only
+/// compact indices are sorted at freeze; the owned rows never move again.
 #[derive(Default)]
 pub(crate) struct LoadedModules {
-    by_source: Vec<Vec<Row>>,
+    modules: Vec<Row>,
+    module_lookup: Vec<ModuleLookup>,
+    source_ranges: Vec<Range<u32>>,
     packages: BTreeMap<PackageId, NonZeroU32>,
 }
 
 impl LoadedModules {
+    pub(crate) fn new(source_count: usize, row_count: usize) -> Self {
+        Self {
+            modules: Vec::with_capacity(row_count),
+            module_lookup: Vec::with_capacity(row_count),
+            source_ranges: vec![0..0; source_count],
+            packages: BTreeMap::new(),
+        }
+    }
+
     pub(crate) fn push(
         &mut self,
         source: SourceFileId,
@@ -297,9 +309,20 @@ impl LoadedModules {
         exact_source_path: bool,
         sources: &[PreparedSourceFile],
     ) {
-        self.by_source
-            .resize_with(self.by_source.len().max(source.index() + 1), Vec::new);
-        self.by_source[source.index()].push(compact_module_row(
+        let index = u32::try_from(self.modules.len()).expect("module row index fits u32");
+        let range = &mut self.source_ranges[source.index()];
+        if range.start == range.end {
+            range.start = index;
+        }
+        // The loader resolves a source's entire batch before queuing children;
+        // graph retention removes whole source batches and preserves this order.
+        debug_assert_eq!(range.end.max(range.start), index);
+        range.end = index.checked_add(1).expect("module range fits u32");
+        self.module_lookup.push(ModuleLookup {
+            hash: module_lookup_hash(key.specifier(), key.mode()),
+            row: index,
+        });
+        self.modules.push(compact_module_row(
             source,
             key.specifier,
             key.mode,
@@ -311,58 +334,49 @@ impl LoadedModules {
     }
 
     pub(crate) fn finish(
-        self,
+        mut self,
         sources: &[PreparedSourceFile],
         type_references: BTreeMap<TypeReferenceResolutionKey, TypeReferenceResolution>,
     ) -> ResolutionTable {
         let mut groups: Vec<_> = self
-            .by_source
-            .into_iter()
+            .source_ranges
+            .iter()
             .enumerate()
-            .filter(|(_, rows)| !rows.is_empty())
+            .filter_map(|(source, range)| (range.start != range.end).then_some(source))
             .collect();
-        groups.sort_unstable_by(|(a, _), (b, _)| {
+        groups.sort_unstable_by(|a, b| {
             sources[*a]
                 .path()
                 .canonical()
                 .cmp(sources[*b].path().canonical())
         });
-        let count = groups.iter().map(|(_, rows)| rows.len()).sum();
-        let mut modules = Vec::with_capacity(count);
-        let mut source_ranges = vec![0..0; sources.len()];
-        let mut provisional = vec![None; self.packages.len()];
-        for (package, id) in self.packages {
-            provisional[id.get() as usize - 1] = Some(package);
-        }
-        let mut remap = vec![None; provisional.len()];
-        let mut package_ids = Vec::with_capacity(provisional.len());
-        for (source, mut rows) in groups {
-            rows.sort_unstable_by(|a, b| {
+        let mut module_order = Vec::with_capacity(self.modules.len());
+        for source in groups {
+            let range = &self.source_ranges[source];
+            let start = module_order.len();
+            module_order.extend(range.clone());
+            module_order[start..].sort_unstable_by(|a, b| {
+                let a = &self.modules[*a as usize];
+                let b = &self.modules[*b as usize];
                 (a.specifier.as_js(), a.mode).cmp(&(b.specifier.as_js(), b.mode))
             });
-            let start = u32::try_from(modules.len()).expect("module row index fits u32");
-            for mut row in rows {
-                if let Some(id) = row.package_id {
-                    let index = id.get() as usize - 1;
-                    row.package_id = Some(*remap[index].get_or_insert_with(|| {
-                        package_ids
-                            .push(provisional[index].take().expect("first package occurrence"));
-                        NonZeroU32::new(
-                            u32::try_from(package_ids.len()).expect("package id fits u32"),
-                        )
-                        .unwrap()
-                    }));
-                }
-                modules.push(row);
-            }
-            source_ranges[source] =
-                start..u32::try_from(modules.len()).expect("module row index fits u32");
+            self.module_lookup[range.start as usize..range.end as usize]
+                .sort_unstable_by_key(|entry| (entry.hash, entry.row));
         }
+        // IDs are private indices. Keep publication's interning order; views
+        // expose package values, and iteration uses canonical module_order.
+        let mut packages = self
+            .packages
+            .into_iter()
+            .map(|(package, id)| (id, package))
+            .collect::<Vec<_>>();
+        packages.sort_unstable_by_key(|(id, _)| *id);
         ResolutionTable {
-            module_lookup: module_lookup_index(&modules, &source_ranges),
-            modules,
-            source_ranges,
-            package_ids,
+            modules: self.modules,
+            module_order,
+            module_lookup: self.module_lookup,
+            source_ranges: self.source_ranges,
+            package_ids: packages.into_iter().map(|(_, package)| package).collect(),
             type_references,
         }
     }
@@ -408,16 +422,48 @@ fn module_lookup_index(modules: &[Row], ranges: &[Range<u32>]) -> Vec<ModuleLook
 ///     program.resolutions().modules_mut().clear();
 /// }
 /// ```
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default)]
 pub struct ResolutionTable {
     modules: Vec<Row>,
+    // Empty for the public builder, whose rows are already in canonical order.
+    module_order: Vec<u32>,
     module_lookup: Vec<ModuleLookup>,
     source_ranges: Vec<Range<u32>>,
     package_ids: Vec<PackageId>,
     type_references: BTreeMap<TypeReferenceResolutionKey, TypeReferenceResolution>,
 }
 
+impl PartialEq for ResolutionTable {
+    fn eq(&self, other: &Self) -> bool {
+        self.modules.len() == other.modules.len()
+            && self.type_references == other.type_references
+            && self.ordered_rows().zip(other.ordered_rows()).all(|(a, b)| {
+                a.specifier == b.specifier
+                    && a.mode == b.mode
+                    && a.importing_source == b.importing_source
+                    && a.target == b.target
+                    && a.rare == b.rare
+                    && a.extension == b.extension
+                    && a.flags == b.flags
+                    && a.package_id
+                        .map(|id| &self.package_ids[id.get() as usize - 1])
+                        == b.package_id
+                            .map(|id| &other.package_ids[id.get() as usize - 1])
+            })
+    }
+}
+
+impl Eq for ResolutionTable {}
+
 impl ResolutionTable {
+    fn ordered_rows(&self) -> ModuleRows<'_> {
+        ModuleRows {
+            rows: &self.modules,
+            order: &self.module_order,
+            indices: 0..self.modules.len(),
+        }
+    }
+
     pub(crate) fn build(
         staged: StagedModules,
         type_references: BTreeMap<TypeReferenceResolutionKey, TypeReferenceResolution>,
@@ -483,6 +529,7 @@ impl ResolutionTable {
         let package_ids = packages.into_iter().map(|(_, package)| package).collect();
         Self {
             module_lookup: module_lookup_index(&modules, &source_ranges),
+            module_order: Vec::new(),
             modules,
             source_ranges,
             package_ids,
@@ -597,7 +644,7 @@ impl<'a> ResolutionTableView<'a> {
     pub fn modules(
         self,
     ) -> impl ExactSizeIterator<Item = (ResolutionKeyView<'a>, ModuleResolutionView<'a>)> {
-        self.table.modules.iter().map(move |row| {
+        self.table.ordered_rows().map(move |row| {
             (
                 ResolutionKeyView {
                     source: self.sources[row.importing_source.index()]
@@ -641,7 +688,8 @@ impl<'a> ResolutionTableView<'a> {
             row_size: std::mem::size_of::<Row>(),
             row_bytes: self.table.modules.capacity() * std::mem::size_of::<Row>(),
             range_bytes: self.table.source_ranges.capacity() * std::mem::size_of::<Range<u32>>(),
-            index_bytes: self.table.module_lookup.capacity() * std::mem::size_of::<ModuleLookup>(),
+            index_bytes: self.table.module_lookup.capacity() * std::mem::size_of::<ModuleLookup>()
+                + self.table.module_order.capacity() * std::mem::size_of::<u32>(),
             rare_boxes,
             rare_bytes: rare_boxes * std::mem::size_of::<Rare>(),
             unloaded_paths,
@@ -803,6 +851,35 @@ impl<'a> ModuleResolutionView<'a> {
     }
 }
 
+/// The public builder owns sorted rows; the loader owns publication-order
+/// rows and a compact canonical iteration index. Both expose the same rows.
+struct ModuleRows<'a> {
+    rows: &'a [Row],
+    order: &'a [u32],
+    indices: Range<usize>,
+}
+
+impl<'a> Iterator for ModuleRows<'a> {
+    type Item = &'a Row;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let index = self.indices.next()?;
+        Some(
+            &self.rows[if self.order.is_empty() {
+                index
+            } else {
+                self.order[index] as usize
+            }],
+        )
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.indices.size_hint()
+    }
+}
+
+impl ExactSizeIterator for ModuleRows<'_> {}
+
 /// Resolved facts borrowing the table's rare metadata and source paths.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ResolvedModuleView<'a> {
@@ -871,6 +948,7 @@ impl ResolutionTable {
     pub(crate) fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
         usage.vec("resolution rows", &self.modules);
         usage.vec("resolution lookup and ranges", &self.module_lookup);
+        usage.vec("resolution lookup and ranges", &self.module_order);
         usage.vec("resolution lookup and ranges", &self.source_ranges);
         usage.vec("resolution package ids", &self.package_ids);
         for package in &self.package_ids {
