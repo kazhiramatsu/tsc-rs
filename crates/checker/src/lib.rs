@@ -632,6 +632,16 @@ pub trait AuthoritativeModuleProvider: Sync {
         Vec::new()
     }
 
+    /// Reuse a loader package-reader result only for this exact host snapshot.
+    /// Providers without prepared package metadata leave parsing to the caller.
+    fn package_json_value(
+        &self,
+        _file_name: JsStr<'_>,
+        _snapshot: &Arc<TextSnapshot>,
+    ) -> Option<Arc<tsc_program::JsonValue>> {
+        None
+    }
+
     /// tsgo `getParseFileRedirect`: whether a file name is a referenced
     /// project's source, which the program loads as that project's output.
     fn is_project_reference_source(&self, _file_name: JsStr<'_>) -> bool {
@@ -2849,7 +2859,7 @@ struct HostFacts {
     file_paths: Arc<rustc_hash::FxHashSet<JsString>>,
     input_snapshots: Arc<rustc_hash::FxHashMap<JsString, Arc<TextSnapshot>>>,
     package_json_module_types: Arc<rustc_hash::FxHashMap<JsString, state::PackageJsonModuleType>>,
-    package_json_values: Arc<rustc_hash::FxHashMap<JsString, tsc_program::JsonValue>>,
+    package_json_values: Arc<rustc_hash::FxHashMap<JsString, Arc<tsc_program::JsonValue>>>,
     package_json_names: Arc<rustc_hash::FxHashMap<JsString, JsString>>,
 }
 
@@ -2970,9 +2980,16 @@ fn parse_program_inputs(
     workers: WorkerBudget,
     documents: Option<&DocumentRegistry>,
 ) -> ParsedProgramInputs {
+    let admission_started = std::time::Instant::now();
+    let redirect_provider = authoritative_run.map(|run| match run.provider {
+        AuthoritativeProviderSource::Shared(provider) => RedirectProvider::Shared(provider),
+        AuthoritativeProviderSource::PerChecker(factory) => {
+            RedirectProvider::Owned(factory.provider())
+        }
+    });
     // Every host package.json, parsed once (a later input with the same
     // path replaces an earlier one).
-    let package_json_values: rustc_hash::FxHashMap<JsString, tsc_program::JsonValue> = files
+    let package_json_values: rustc_hash::FxHashMap<JsString, Arc<tsc_program::JsonValue>> = files
         .iter()
         .filter(|file| {
             file.name
@@ -2985,7 +3002,14 @@ fn parse_program_inputs(
         .map(|file| {
             (
                 state::CheckerState::normalize_program_path(&file.name, ""),
-                parse_host_package_json(file),
+                redirect_provider
+                    .as_ref()
+                    .and_then(|provider| {
+                        provider
+                            .get()
+                            .package_json_value(file.name.as_js(), file.snapshot())
+                    })
+                    .unwrap_or_else(|| Arc::new(parse_host_package_json(file))),
             )
         })
         .collect();
@@ -3018,6 +3042,10 @@ fn parse_program_inputs(
         }
         last_index_by_name.insert(file.name.as_js(), index);
     }
+    tsc_types::trace::mark(
+        "checker: admission (package facts, source order)",
+        admission_started,
+    );
 
     // Fixture parse pass: every published source receives exact node/array
     // leases from the same domain as the library prefix. JSON files remain in
@@ -3106,6 +3134,9 @@ fn parse_program_inputs(
                         .any(|extension| file.name.ends_with(extension));
                     if explicit_module_format {
                         true
+                    } else if authoritative_run.is_some() {
+                        authoritative_implied_node_format
+                            == Some(AuthoritativeResolutionMode::EsNext)
                     } else {
                         let normalized =
                             state::CheckerState::normalize_program_path(&file.name, "");
@@ -3118,10 +3149,9 @@ fn parse_program_inputs(
                         let package_eligible = [".ts", ".tsx", ".js", ".jsx"]
                             .iter()
                             .any(|extension| file.name.ends_with(extension));
-                        let package_scope_is_module = if authoritative_run.is_some() {
-                            authoritative_implied_node_format
-                                == Some(AuthoritativeResolutionMode::EsNext)
-                        } else if package_lookup_enabled && package_eligible {
+                        if !package_lookup_enabled || !package_eligible {
+                            false
+                        } else {
                             let mut directory = normalized
                                 .as_js()
                                 .rsplit_once("/")
@@ -3143,10 +3173,7 @@ fn parse_program_inputs(
                                 };
                                 directory = parent;
                             }
-                        } else {
-                            false
-                        };
-                        package_scope_is_module
+                        }
                     }
                 }
                 // Legacy (and invalid values, which option validation
@@ -3321,12 +3348,6 @@ fn parse_program_inputs(
     let host_current_directory = resolve_host_current_directory(current_directory);
     // A referenced project's source is loaded as its output (tsgo
     // getParseFileRedirect): a reference to it is resolved.
-    let redirect_provider = authoritative_run.map(|run| match run.provider {
-        AuthoritativeProviderSource::Shared(provider) => RedirectProvider::Shared(provider),
-        AuthoritativeProviderSource::PerChecker(factory) => {
-            RedirectProvider::Owned(factory.provider())
-        }
-    });
     let program_diagnostics = missing_path_reference_diagnostics(
         program_sources.iter().map(ProgramSource::source),
         libs.iter().chain(files.iter()).map(|file| {

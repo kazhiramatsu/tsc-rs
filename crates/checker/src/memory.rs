@@ -146,7 +146,9 @@ pub(crate) fn checker_owners(
             usage.hash_map(TABLES, &state.host_package_json_values);
             for (path, value) in state.host_package_json_values.iter() {
                 usage.js_string(STRINGS, path);
-                value.add_memory_usage(usage);
+                if usage.arc("package JSON Arc headers", value) {
+                    value.add_memory_usage(usage);
+                }
             }
         }
         if usage.arc("host fact Arc headers", &state.host_package_json_names) {

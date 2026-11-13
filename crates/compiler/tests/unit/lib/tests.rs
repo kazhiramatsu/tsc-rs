@@ -2,6 +2,72 @@ use super::*;
 use tsc_program::{PathContext, ProgramPath};
 
 #[test]
+fn prepared_package_objects_are_shared_only_with_the_exact_host_snapshot() {
+    for case_sensitive in [true, false] {
+        for text in [
+            r#"{"name":"pkg", "type":"module", "exports":{".":"./main.js"}}"#,
+            "\u{feff}{ // JSONC\n \"name\": \"pkg\\ud800\", \"type\": \"commonjs\", }",
+            r#"{"__proto__":{"name":"inherited"}, "type":null, trailing: true}"#,
+            "{ invalid",
+        ] {
+            let directory = ProgramPath::from_trusted_parts("/work", "/work").unwrap();
+            let mut builder = PreparedProgram::builder(
+                PathContext::new(directory, case_sensitive),
+                CompilerOptions {
+                    no_emit: Some(true),
+                    ..CompilerOptions::default()
+                },
+            );
+            let display = "/work/Package/package.json";
+            let canonical = if case_sensitive {
+                display
+            } else {
+                "/work/package/package.json"
+            };
+            builder
+                .add_package_metadata(tsc_program::PackageMetadata::new(
+                    ProgramPath::from_trusted_parts(display, canonical).unwrap(),
+                    text,
+                ))
+                .unwrap();
+            let prepared = builder.build().unwrap();
+            let package = prepared.packages().next().unwrap();
+            let uncached = package.clone();
+            let expected = tsc_program::JsonValue::Object(
+                tsc_program::read_package_json_object_from_snapshot(
+                    package.package_json().display(),
+                    package.snapshot(),
+                ),
+            );
+            let provider = PreparedModuleProvider {
+                prepared: &prepared,
+                request_plans: Default::default(),
+                tracing: None,
+            };
+            let value = provider
+                .package_json_value(display.into(), package.snapshot())
+                .unwrap();
+            assert!(Arc::ptr_eq(&value, package.parsed_json()));
+            assert_eq!(*value, expected);
+            assert_eq!(
+                *package, uncached,
+                "cache initialization preserves metadata equality"
+            );
+            let other_snapshot = tsc_diagnostics::TextSnapshot::new(
+                text.to_owned(),
+                tsc_diagnostics::DocumentVersion::default(),
+            );
+            assert!(provider
+                .package_json_value(display.into(), &other_snapshot)
+                .is_none());
+            assert!(provider
+                .package_json_value("/work/unknown/package.json".into(), package.snapshot())
+                .is_none());
+        }
+    }
+}
+
+#[test]
 fn prepared_to_checker_projection_preserves_the_exact_snapshot_arc() {
     let path = ProgramPath::from_trusted_parts("main.ts", "main.ts").expect("test path");
     let source = PreparedSourceFile::new(path, "export const value = 1;");
