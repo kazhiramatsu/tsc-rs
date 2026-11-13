@@ -36,6 +36,10 @@ struct ConstEnumInliner<'resolver> {
 }
 
 impl Transformer for ConstEnumInliner<'_> {
+    fn is_identity_substitution(&self) -> bool {
+        true
+    }
+
     fn name(&self) -> &'static str {
         "inlineConstEnums"
     }

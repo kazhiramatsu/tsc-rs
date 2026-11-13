@@ -1117,9 +1117,9 @@ impl PrintedText {
         self.text.units()
     }
 
-    /// Both faces of the generated value, for the artifact boundary.
-    pub(crate) fn generated_text(&self) -> &GeneratedText {
-        &self.text
+    /// Transfer both faces of the generated value to the artifact boundary.
+    pub(crate) fn into_generated_text(self) -> GeneratedText {
+        self.text
     }
 
     pub const fn end(&self) -> GeneratedUtf16Location {
@@ -3300,6 +3300,28 @@ impl Printer {
         deferred_source_comments: &mut DeferredExpressionSourceCommentsState,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
+        // Unchanged identifiers never open a name-generation scope. Emit
+        // their original spelling before entering the kind dispatcher's
+        // large frame; changed and rootless names still use that worker.
+        {
+            let record = transformation.arena().node(node)?;
+            if matches!(
+                record.data(),
+                NodeData::Identifier(_) | NodeData::PrivateIdentifier(_)
+            ) && !NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED)
+                && record.parent.is_some()
+                && !self.emission_plan.structured_nodes.contains(&node)
+                && transformation
+                    .arena()
+                    .metadata(node)
+                    .and_then(crate::EmitMetadata::original)
+                    .is_none()
+            {
+                let text = self.original_text_without_leading_trivia(transformation, node)?;
+                self.write_identifier_text(writer, &text);
+                return Ok(());
+            }
+        }
         let pushed = self.push_name_generation_scope(transformation.arena(), node)?;
         self.emit_transformed_node_worker_unscoped(
             transformation,
@@ -3331,30 +3353,6 @@ impl Printer {
         deferred_source_comments: &mut DeferredExpressionSourceCommentsState,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        // An unchanged identifier (the most emitted node) takes the copy
-        // path that the `_ if !changed` arm below would take, before the
-        // record (and its identifier text) is cloned for the arms: its only
-        // arms are guarded by `changed`, and identifiers are not dormant
-        // declaration syntax.
-        {
-            let record = transformation.arena().node(node)?;
-            if matches!(
-                record.data(),
-                NodeData::Identifier(_) | NodeData::PrivateIdentifier(_)
-            ) && !NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED)
-                && record.parent.is_some()
-                && !self.emission_plan.structured_nodes.contains(&node)
-                && transformation
-                    .arena()
-                    .metadata(node)
-                    .and_then(crate::EmitMetadata::original)
-                    .is_none()
-            {
-                let text = self.original_text_without_leading_trivia(transformation, node)?;
-                self.write_identifier_text(writer, &text);
-                return Ok(());
-            }
-        }
         let record = *transformation.arena().node(node)?;
         let changed = self.node_is_changed(transformation, node)?;
         let declaration_source = transformation

@@ -10322,3 +10322,72 @@ fn a_callback_reusing_another_resolvers_result_keeps_case_profile_validation() {
         "{error}"
     );
 }
+
+#[test]
+fn loader_metadata_normalizes_callback_paths_before_observing_package_scope() {
+    struct Override;
+    impl tsc_program::ModuleResolutionOverride for Override {
+        fn resolve(
+            &self,
+            _: tsc_diagnostics::JsStr<'_>,
+            _: tsc_diagnostics::JsStr<'_>,
+            _: ResolutionMode,
+        ) -> tsc_program::OverriddenResolution {
+            tsc_program::OverriddenResolution::Resolved(Box::new(HostResolvedModule::from_api(
+                ProgramPath::from_js_parts("/work/deep/../dep.ts".into(), "/work/dep.ts".into())
+                    .unwrap(),
+                None,
+                None,
+            )))
+        }
+    }
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"import './dep'; export {};".to_vec())
+        .file("/work/dep.ts", b"export const value = 1;".to_vec())
+        .file("/work/deep/../dep.ts", b"export const value = 1;".to_vec())
+        .file("/work/package.json", br#"{"type":"commonjs"}"#.to_vec())
+        .file("/work/deep/package.json", br#"{"type":"module"}"#.to_vec())
+        .build()
+        .unwrap();
+    for workers in [
+        tsc_program::WorkerBudget::serial(),
+        tsc_program::WorkerBudget::new(std::num::NonZeroUsize::new(4).unwrap()),
+        tsc_program::WorkerBudget::automatic(),
+    ] {
+        let options = CompilerOptions {
+            no_emit: Some(true),
+            module: Some(199),
+            module_resolution: Some(99),
+            ..CompilerOptions::default()
+        };
+        let program = tsc_program::load_no_lib_program(
+            &host,
+            &[PathBuf::from("/work/deep/../main.ts")],
+            options,
+            ProgramOptions::default()
+                .with_no_lib(true)
+                .with_module_resolution_override(tsc_program::ModuleResolutionOverrideHandle(
+                    std::sync::Arc::new(Override),
+                )),
+            tsc_program::ProgramLoadLimits::new(16, 16, 16, 1 << 20, 1 << 20).with_workers(workers),
+        )
+        .unwrap();
+        let dependency = program
+            .source_files()
+            .iter()
+            .find(|source| source.path().canonical().as_js() == "/work/dep.ts")
+            .unwrap();
+        assert_eq!(
+            dependency.package_scope().unwrap().as_js(),
+            "/work/package.json"
+        );
+        assert_eq!(
+            dependency.implied_node_format(),
+            Some(ResolutionMode::CommonJs)
+        );
+        assert!(program
+            .package_json_probes()
+            .iter()
+            .all(|probe| !probe.path.contains("/../")));
+    }
+}

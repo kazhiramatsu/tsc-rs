@@ -730,7 +730,7 @@ pub fn load_program_with_root_reasons(
         .iter()
         .map(|(_, reason)| reason.clone())
         .collect::<Vec<_>>();
-    load_program_worker(
+    let prepared = load_program_worker(
         PreparedProgramMode::NoEmit,
         host,
         RootNames::Js(&root_names),
@@ -740,7 +740,12 @@ pub fn load_program_with_root_reasons(
         false,
         limits,
         Some(&root_reasons),
-    )
+    );
+    let mut timer = tsc_types::trace::Timer::new();
+    drop(root_reasons);
+    drop(root_names);
+    timer.mark("load: root input cleanup");
+    prepared
 }
 
 /// [`load_emitting_program`] with each root's inclusion reason, as
@@ -761,7 +766,7 @@ pub fn load_emitting_program_with_root_reasons(
         .iter()
         .map(|(_, reason)| reason.clone())
         .collect::<Vec<_>>();
-    load_program_worker(
+    let prepared = load_program_worker(
         PreparedProgramMode::Emit,
         host,
         RootNames::Js(&root_names),
@@ -771,7 +776,12 @@ pub fn load_emitting_program_with_root_reasons(
         false,
         limits,
         Some(&root_reasons),
-    )
+    );
+    let mut timer = tsc_types::trace::Timer::new();
+    drop(root_reasons);
+    drop(root_names);
+    timer.mark("load: root input cleanup");
+    prepared
 }
 
 #[derive(Clone, Copy)]
@@ -927,6 +937,7 @@ fn load_program_worker(
     let mut normalized_roots = prefetch_roots.into_iter().take(normalized_root_count);
     tsc_types::trace::mark("load: read-ahead", phase_started);
     let phase_started = std::time::Instant::now();
+    let mut root_timer = tsc_types::trace::Timer::new();
     // tsgo processRootFiles: the root tasks are the root files, then the
     // selected libraries, then the automatic type directives; the
     // single-threaded work queue then runs them, the last queued first.
@@ -951,13 +962,16 @@ fn load_program_worker(
         graph.load_root(root, root_spelling, reason)?;
     }
     drop(normalized_roots);
+    root_timer.mark("load: queue roots");
     if root_names.len() != 0 {
         if program_options.no_lib() != Some(true) {
             graph.load_selected_libraries()?;
         }
         graph.load_automatic_type_directives()?;
     }
+    root_timer.mark("load: queue libraries and automatic types");
     graph.run_tasks()?;
+    root_timer.mark("load: run parse tasks");
     tsc_types::trace::mark("load: parse tasks", phase_started);
     tsc_types::trace::mark(
         &format!(
@@ -970,6 +984,7 @@ fn load_program_worker(
         ),
         phase_started,
     );
+    let mut finish_timer = tsc_types::trace::Timer::new();
     if tsc_types::trace::enabled() {
         // The sources whose read-ahead resolutions the walk never took: read
         // ahead in vain, so worth knowing about.
@@ -993,9 +1008,14 @@ fn load_program_worker(
             );
         }
     }
-    let mut staged = graph.finish()?;
+    finish_timer.mark("load: read-ahead audit");
+    let mut graph_timer = tsc_types::trace::Timer::new();
+    let mut staged = graph.finish(&mut graph_timer)?;
+    graph_timer.mark("load: graph cleanup");
+    finish_timer.mark("load: graph finish including cleanup");
     tsc_types::trace::mark("load: root walk and graph finish", phase_started);
     let phase_started = std::time::Instant::now();
+    let mut package_timer = tsc_types::trace::Timer::new();
     // The package.json files the walk probed, taken before the dependency
     // prelude below: tsgo's symlink walk (program.go GetSymlinkCache →
     // ResolvePackageDirectory) tests package directories without reading a
@@ -1014,6 +1034,7 @@ fn load_program_worker(
         &compiler_options,
         program_options.config_file_path().map(ProgramPath::display),
     )?;
+    package_timer.mark("load: runtime dependency symlinks");
     let mut packages_by_path = BTreeMap::new();
     for package in resolver.observed_package_metadata() {
         packages_by_path
@@ -1046,10 +1067,13 @@ fn load_program_worker(
         }
     }
     let packages = packages_by_path.into_values().collect::<Vec<_>>();
+    package_timer.mark("load: collect package metadata");
     drop(resolver);
+    package_timer.mark("load: resolver cleanup");
     tsc_types::trace::mark("load: dependency symlinks and packages", phase_started);
 
-    publish_program(
+    let mut publish_timer = tsc_types::trace::Timer::new();
+    let prepared = publish_program(
         mode,
         staged,
         packages,
@@ -1057,7 +1081,9 @@ fn load_program_worker(
         path_context,
         compiler_options,
         program_options,
-    )
+    );
+    publish_timer.mark("load: publish program including cleanup");
+    prepared
 }
 
 /// tsgo-port: Program.GetSymlinkCache @aa814927 (program.go:2330-2378),
@@ -4320,7 +4346,20 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         Ok(())
     }
 
-    fn finish(mut self) -> Result<CompleteGraph, ProgramLoadError> {
+    fn finish(
+        mut self,
+        timer: &mut tsc_types::trace::Timer,
+    ) -> Result<CompleteGraph, ProgramLoadError> {
+        if tsc_types::trace::enabled() {
+            eprintln!(
+                "[load census] staged: sources {}, tasks {}, task data {}, roots {}, module rows {}, type rows {}, source path bytes {}, module source key bytes {}",
+                self.sources.len(), self.parse.tasks.len(), self.parse.task_data.len(),
+                self.roots.len(), self.module_resolutions.len(), self.type_resolutions.len(),
+                self.sources.iter().map(|source| source.prepared.path().display().as_bytes().len()).sum::<usize>(),
+                self.module_resolutions.iter().map(|resolution| resolution.key.source().as_js().as_bytes().len()).sum::<usize>(),
+            );
+        }
+        timer.mark("load: graph staged census");
         {
             if let Some(domain) = self.program_options.identity_domain() {
                 for source in &mut self.sources {
@@ -4335,9 +4374,13 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 }
             }
         }
+        timer.mark("load: graph identity metadata");
         self.resolve_root_sources();
+        timer.mark("load: graph root sources");
         self.record_unloaded_targets()?;
-        let collected = self.collect_files()?;
+        timer.mark("load: graph resolution targets");
+        let collected = self.collect_files(timer)?;
+        timer.mark("load: graph collection cleanup");
         self.program_order = collected.order.clone();
         // Collection has fixed the parent spellings. Reasons reference this
         // one immutable source table instead of owning a path and text each.
@@ -4379,6 +4422,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 follow(&mut conflict.incoming_reason);
             }
         }
+        timer.mark("load: graph inclusion sources and spellings");
         let mut kept = vec![false; self.sources.len()];
         for &source in &collected.order {
             kept[source] = true;
@@ -4444,6 +4488,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     crate::resolution::TypeReferenceResolutionOrigin::Automatic(_) => true,
                 });
         }
+        timer.mark("load: graph redirects and retained resolutions");
         let mut processing_details = Vec::new();
         let diagnostic_details = |index: usize| {
             let source = &self.sources[index].prepared;
@@ -4531,8 +4576,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             });
             self.program_diagnostics.push(diagnostic);
         }
+        timer.mark("load: graph casing diagnostics");
         let (option_diagnostics, root_diagnostics) = self.output_directory_diagnostics();
+        timer.mark("load: graph output directory diagnostics");
         let (reference_diagnostics, build_info_emit_blocked) = self.project_reference_diagnostics();
+        timer.mark("load: graph project reference diagnostics");
         self.program_diagnostics.extend(reference_diagnostics);
         for (diagnostic, (path, details)) in root_diagnostics {
             processing_details.push(crate::prepared::ProcessingDiagnosticDetails {
@@ -4576,6 +4624,15 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         for resolver in self.project_resolvers.values_mut() {
             package_json_probes.extend(resolver.take_package_json_probes());
         }
+        timer.mark("load: graph library order and probes");
+        if tsc_types::trace::enabled() {
+            eprintln!(
+                "[load census] collected: sources {}, redirects {}, module rows {}, type rows {}, inclusion records {}",
+                collected.order.len(), collected.redirects.len(), self.module_resolutions.len(), self.type_resolutions.len(),
+                self.sources.iter().map(|source| source.inclusion_reasons.record_count()).sum::<usize>(),
+            );
+        }
+        timer.mark("load: graph census");
         Ok(CompleteGraph {
             sources: self.sources,
             library_postorder,
@@ -5290,16 +5347,21 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let package_scope = if class.library_priority().is_some() {
             None
         } else {
-            self.resolver
-                .package_scope_for_file(path.display())
-                .map_err(|error| {
-                    ProgramLoadError::resolution_js(
-                        ProgramLoadOperation::ObservePackageScope,
-                        Some(path.display().to_owned()),
-                        None,
-                        error,
-                    )
-                })?
+            // Root tasks retain normalize_root's result. Discovered files
+            // can preserve a moduleSuffixes or callback-selected spelling.
+            let scope = if matches!(self.task_origin(task), TaskOrigin::Root { .. }) {
+                self.resolver.package_scope_for_normalized_file(&path)
+            } else {
+                self.resolver.package_scope_for_file(path.display())
+            };
+            scope.map_err(|error| {
+                ProgramLoadError::resolution_js(
+                    ProgramLoadOperation::ObservePackageScope,
+                    Some(path.display().to_owned()),
+                    None,
+                    error,
+                )
+            })?
         };
         // A retained read-ahead result stands in for the host call it already
         // made (see `prefetch_roots`); otherwise the host is queried here. A
@@ -7043,12 +7105,15 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// it; a later source with the same identity becomes a redirect to the
     /// owner and its subtasks are not walked) and marks the files found
     /// searching node_modules (the path's `lowest_depth` above zero).
-    fn collect_files(&mut self) -> Result<CollectedFiles, ProgramLoadError> {
+    fn collect_files(
+        &mut self,
+        timer: &mut tsc_types::trace::Timer,
+    ) -> Result<CollectedFiles, ProgramLoadError> {
         // tsgo keeps the package-id map only while `deduplicatePackages` is
         // not `false` (compiler/filesparser.go:362-368).
         let deduplicate_packages = self.compiler_options.deduplicate_packages != Some(false);
         let case_sensitive = self.resolver.path_context().use_case_sensitive_file_names();
-        let mut seen: Vec<Option<JsString>> = vec![None; self.parse.task_data.len()];
+        let mut seen: Vec<Option<usize>> = vec![None; self.parse.task_data.len()];
         let mut registered: BTreeMap<PackageId, usize> = BTreeMap::new();
         let mut order: Vec<usize> = Vec::with_capacity(self.sources.len());
         let mut ordinary_count = 0usize;
@@ -7057,7 +7122,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let mut recorded_redirects: HashSet<CanonicalPath> = HashSet::default();
         // The entered tasks with the index of their next subtask.
         let mut frames: Vec<(usize, usize)> = Vec::new();
-        let roots = self.root_tasks.clone();
+        let root_count = self.root_tasks.len();
         let mut next_root = 0usize;
         loop {
             let next = match frames.last_mut() {
@@ -7072,9 +7137,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     }
                 }
                 None => {
-                    if next_root < roots.len() {
+                    if next_root < root_count {
                         next_root += 1;
-                        Some(roots[next_root - 1])
+                        Some(self.root_tasks[next_root - 1])
                     } else {
                         break;
                     }
@@ -7112,6 +7177,56 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         for lines in std::mem::take(&mut self.library_resolution_traces).into_values() {
             self.resolution_trace.extend(lines);
         }
+        timer.mark("load: graph collect files");
+        if tsc_types::trace::enabled() {
+            // Reconstruct incoming visits from the collected parents rather
+            // than adding counters to the hot walk. A package copy entered
+            // `seen` but did not walk its children; its registered owner did.
+            let mut visits = 0usize;
+            let mut loaded = 0usize;
+            let mut include_attempts = 0usize;
+            let mut spelling_bytes = 0usize;
+            let mut seen_bytes = 0usize;
+            let mut count = |task: usize| {
+                visits += 1;
+                if self.parse.tasks[task].redirect().is_none()
+                    && !self.parse.tasks[task].is_automatic_types
+                {
+                    include_attempts += 1;
+                }
+                let target = self.task_target(task);
+                if self.parse.tasks[target].loaded() {
+                    loaded += 1;
+                    spelling_bytes += self.parse.path(target).display().as_bytes().len();
+                    let first = seen[self.parse.tasks[target].data]
+                        .expect("a loaded visit recorded its first spelling");
+                    seen_bytes += self.parse.path(first).display().as_bytes().len();
+                }
+            };
+            for &task in &self.root_tasks {
+                count(task);
+            }
+            for (data, &task) in self.parse.task_data.iter().zip(&seen) {
+                let Some(task) = task else { continue };
+                if deduplicate_packages
+                    && data.package_id.as_ref().is_some_and(|id| {
+                        registered
+                            .get(id)
+                            .is_some_and(|&owner| self.parse.tasks[task].source() != Some(owner))
+                    })
+                {
+                    continue;
+                }
+                for &subtask in &self.parse.tasks[task].payload().subtasks {
+                    count(subtask);
+                }
+            }
+            eprintln!(
+                "[load census] collection: visits {visits}, loaded visits {loaded}, include attempts {include_attempts}, visited spelling bytes {spelling_bytes}, first spelling bytes {seen_bytes}, root indices {}",
+                self.root_tasks.len(),
+            );
+        }
+        timer.mark("load: graph collection census");
         Ok(CollectedFiles { order, redirects })
     }
 
@@ -7135,35 +7250,37 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     fn enter_collected_task(
         &mut self,
         task: usize,
-        seen: &mut [Option<JsString>],
+        seen: &mut [Option<usize>],
         registered: &mut BTreeMap<PackageId, usize>,
         deduplicate_packages: bool,
         case_sensitive: bool,
         redirect_index: usize,
         redirects: &mut Vec<(usize, usize, usize)>,
     ) -> Result<Option<usize>, ProgramLoadError> {
-        let reason = self.parse.tasks[task].reason.inclusion.clone();
-        // A redirect's reason reaches its output through its subtask; the
-        // automatic type directives' task is an implementation detail.
-        if self.parse.tasks[task].redirect().is_none() && !self.parse.tasks[task].is_automatic_types
-        {
-            let target = self.task_target(task);
-            self.add_include_reason(target, reason.clone());
-        }
+        let reason_task = task;
         let task = self.task_target(task);
+        // Each incoming task contributes its reason before the seen check.
+        // A redirect forwards it; the automatic-types task contributes none.
+        if self.parse.tasks[reason_task].redirect().is_none()
+            && !self.parse.tasks[reason_task].is_automatic_types
+        {
+            let reason = self.parse.tasks[reason_task].reason.inclusion.clone();
+            self.add_include_reason(task, reason);
+        }
         if !self.parse.tasks[task].loaded() {
             return Ok(None);
         }
         let data = self.parse.tasks[task].data;
-        let spelling = self.parse.path(task).display().to_owned();
-        if let Some(checked) = seen[data].clone() {
-            // Another spelling of a walked path is a casing alias of the
-            // kept file (tsgo addProcessingDiagnosticsForFileCasing).
-            if checked.as_js() != spelling.as_js() {
+        if let Some(checked) = seen[data] {
+            // Task paths stay immutable while prepared source spellings can
+            // change. Keep the first task, not another owned path spelling.
+            if self.parse.path(checked).display() != self.parse.path(task).display() {
                 if let Some(source) = self.parse.tasks[task].source() {
                     let first_path = self.sources[source].prepared.path().clone();
                     let path = self.parse.path(task).clone();
                     if !self.normalized_display_paths_are_equal(&first_path, &path)? {
+                        let spelling = self.parse.path(task).display().to_owned();
+                        let reason = self.parse.tasks[reason_task].reason.inclusion.clone();
                         self.sources[source]
                             .alternate_inclusion_reasons
                             .push((spelling, reason));
@@ -7172,20 +7289,21 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             }
             return Ok(None);
         }
-        seen[data] = Some(spelling.clone());
+        seen[data] = Some(task);
         self.replay_resolution_traces(task);
         let source = self.parse.tasks[task].source();
         if let Some(source) = source {
             // The kept spelling is the first collected (tsgo keeps that
             // task's parse); the one that admitted the file becomes an alias.
-            if self.sources[source].prepared.path().display() != spelling.as_js() {
+            let spelling = self.parse.path(task).display();
+            if self.sources[source].prepared.path().display() != spelling {
                 self.respelled.insert(
                     self.sources[source].prepared.path().display().to_owned(),
-                    spelling.clone(),
+                    spelling.to_owned(),
                 );
                 self.sources[source]
                     .prepared
-                    .respell(spelling.as_js())
+                    .respell(spelling)
                     .map_err(|error| {
                         ProgramLoadError::preparation(ProgramLoadOperation::ReadSource, error)
                     })?;
@@ -7202,8 +7320,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         self.case_sensitive_casing_conflicts
                             .push(CaseSensitiveCasingConflict {
                                 existing_source,
-                                incoming_path: spelling,
-                                incoming_reason: reason,
+                                incoming_path: self.parse.path(task).display().to_owned(),
+                                incoming_reason: self.parse.tasks[reason_task]
+                                    .reason
+                                    .inclusion
+                                    .clone(),
                             });
                     }
                 } else {
@@ -7582,6 +7703,7 @@ fn publish_program(
     compiler_options: CompilerOptions,
     program_options: ProgramOptions,
 ) -> Result<PreparedProgram, ProgramLoadError> {
+    let mut timer = tsc_types::trace::Timer::new();
     let case_sensitive_file_names = path_context.use_case_sensitive_file_names();
     // tsgo NewProgram ends with collectContentMapperOptionDiagnostics.
     staged
@@ -7613,6 +7735,7 @@ fn publish_program(
     builder =
         builder.with_import_extension_files(std::mem::take(&mut staged.import_extension_files));
     builder = builder.with_build_info_emit_blocked(staged.build_info_emit_blocked);
+    timer.mark("load: publish probes and options");
     let config_file = program_options.config_file().cloned();
     let config_diagnostics = program_options.config_parsing_diagnostics().to_vec();
     let mut auxiliary_paths = HashSet::default();
@@ -7676,6 +7799,7 @@ fn publish_program(
             })?;
     }
 
+    timer.mark("load: publish auxiliary files");
     builder.reserve_source_files(staged.library_postorder.len() + staged.ordinary_postorder.len());
     let mut published_ids = vec![None; staged.sources.len()];
     // Hashed, never iterated: every module and type resolution looks its
@@ -7733,6 +7857,7 @@ fn publish_program(
         }
     }
 
+    timer.mark("load: publish sources");
     let package_redirect_files = std::mem::take(&mut staged.package_redirect_files)
         .into_iter()
         .map(
@@ -7763,12 +7888,14 @@ fn publish_program(
         })?;
     }
 
+    timer.mark("load: publish roots and redirects");
     for package in packages {
         builder.add_package_metadata(package).map_err(|error| {
             ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
         })?;
     }
 
+    timer.mark("load: publish packages");
     let package_map =
         package_map_from_facts(staged.module_resolutions.iter().filter_map(|resolution| {
             let ResolutionOutcome::Resolved(module) = resolution.host.outcome() else {
@@ -7790,6 +7917,7 @@ fn publish_program(
         .ok()?;
         source_by_canonical.get(redirected.canonical()).copied()
     };
+    timer.mark("load: publish package map");
     let mut loaded_modules = crate::resolution::LoadedModules::default();
     for resolution in staged.module_resolutions {
         let source =
@@ -7841,6 +7969,7 @@ fn publish_program(
             })?;
     }
 
+    timer.mark("load: publish module resolutions");
     for resolution in staged.type_resolutions {
         let bound = bind_type_resolution(resolution.host, &source_by_canonical, &redirected_source)
             .map_err(|error| {
@@ -7865,6 +7994,7 @@ fn publish_program(
             })?;
     }
 
+    timer.mark("load: publish type resolutions");
     builder.set_diagnostics(
         PreparationDiagnostics::new(
             config_diagnostics,
@@ -7874,9 +8004,12 @@ fn publish_program(
         .with_content_mapper(staged.content_mapper_diagnostics)
         .with_processing_details(staged.processing_details),
     );
-    builder.finish_load(loaded_modules).map_err(|error| {
+    timer.mark("load: publish diagnostics");
+    let prepared = builder.finish_load(loaded_modules).map_err(|error| {
         ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
-    })
+    });
+    timer.mark("load: finish prepared program including cleanup");
+    prepared
 }
 
 fn bind_module_resolution(

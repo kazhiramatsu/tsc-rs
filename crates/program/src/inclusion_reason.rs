@@ -129,6 +129,10 @@ pub(crate) struct SourceInclusionReasons {
 }
 
 impl SourceInclusionReasons {
+    pub(crate) fn record_count(&self) -> usize {
+        self.records.len()
+    }
+
     pub(crate) fn push(&mut self, reason: InclusionReasonRecord) {
         debug_assert!(self.text.get().is_none());
         self.records.push(reason);

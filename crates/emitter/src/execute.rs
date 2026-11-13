@@ -953,7 +953,6 @@ pub fn emit_planned_units_with_kinds(
     let attach = |unit: usize| move |failure: EmitFailure| UnitEmitError { unit, failure };
     let first = requests.first().map_or(0, |request| request.unit);
     let new_line = new_line_kind(options).map_err(attach(first))?;
-    let declaration_paths: &PlanDeclarationPaths = preflight.declaration_paths(host);
     let mut printer = create_printer(
         PrinterOptions::new(new_line)
             .with_remove_comments(options.remove_comments == Some(true))
@@ -1083,7 +1082,7 @@ pub fn emit_planned_units_with_kinds(
                 resolver,
                 host,
                 preflight,
-                declaration_paths,
+                preflight.declaration_paths(host),
                 unit.root(),
                 declaration_path,
                 unit.paths().declaration_map_path(),
@@ -1263,9 +1262,10 @@ fn emit_javascript_unit(
         )?;
         // The callback keeps the generated value's raw units; only
         // its sink projection substitutes U+FFFD.
-        let mut javascript_text = printed.generated_text().clone();
-        let mut url_position = printed.end().position();
-        if printed.end().column() != 0 {
+        let end = printed.end();
+        let mut javascript_text = printed.into_generated_text();
+        let mut url_position = end.position();
+        if end.column() != 0 {
             javascript_text.push_str(new_line.text());
             url_position = url_position
                 .checked_add(new_line.text().len() as u32)
@@ -1292,7 +1292,7 @@ fn emit_javascript_unit(
     } else {
         emission.artifacts.push(EmitArtifact::javascript(
             javascript_path,
-            EmitCallbackText::from_generated(printed.generated_text().clone()),
+            EmitCallbackText::from_generated(printed.into_generated_text()),
             options.emit_bom == Some(true),
             Some(source_files.clone()),
             EmitTextMetadata::new(transform_diagnostics, None),

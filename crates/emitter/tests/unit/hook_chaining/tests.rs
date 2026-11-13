@@ -172,3 +172,72 @@ fn substitution_only_registration_never_fires_notification_hooks() {
         .expect("after");
     assert!(log.borrow().is_empty());
 }
+
+#[test]
+fn identity_substitution_keeps_global_enablement_and_initial_validation() {
+    struct IdentityEnabler;
+    impl Transformer for IdentityEnabler {
+        fn name(&self) -> &'static str {
+            "identity-enabler"
+        }
+        fn is_identity_substitution(&self) -> bool {
+            true
+        }
+        fn initialize(
+            &mut self,
+            context: &mut TransformationContext,
+        ) -> Result<(), TransformError> {
+            context.enable_substitution(SyntaxKind::Identifier)
+        }
+    }
+    struct Observer(Rc<RefCell<Vec<TransformNode>>>);
+    impl Transformer for Observer {
+        fn name(&self) -> &'static str {
+            "observer"
+        }
+        // This transformer does not enable a kind itself and does not opt
+        // into identity substitution. Another transformer's bit enables it.
+        fn substitute_node(
+            &mut self,
+            _: &mut TransformationContext,
+            _: EmitHint,
+            node: TransformNode,
+        ) -> Result<TransformNode, TransformError> {
+            self.0.borrow_mut().push(node);
+            Ok(node)
+        }
+    }
+    let syntax =
+        tsc_syntax::parse_source_file("hooks.ts", "const value = 1;", Default::default(), None);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&syntax, None);
+    let id = syntax
+        .arena
+        .node_ids()
+        .find(|&id| syntax.arena.node(id).kind == SyntaxKind::Identifier)
+        .unwrap();
+    let node = arena.node_ref(source, id).unwrap();
+    let log = Rc::new(RefCell::new(Vec::new()));
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![Box::new(IdentityEnabler), Box::new(Observer(log.clone()))],
+        false,
+    )
+    .unwrap();
+    assert_eq!(
+        result.substitute_node(EmitHint::Expression, node).unwrap(),
+        node
+    );
+    let invalid = TransformNode::new(source, tsc_syntax::NodeId::new(u32::MAX - 1));
+    assert!(matches!(
+        result.substitute_node(EmitHint::Expression, invalid),
+        Err(TransformError::UnknownNode(_))
+    ));
+    assert_eq!(*log.borrow(), vec![node]);
+    assert_eq!(
+        result.substitute_node(EmitHint::Expression, node).unwrap(),
+        node
+    );
+    assert_eq!(*log.borrow(), vec![node, node]);
+}
