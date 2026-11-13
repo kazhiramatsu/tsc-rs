@@ -219,6 +219,66 @@ fn js_template_text_capitalize(
 }
 
 impl<'a> CheckerState<'a> {
+    // A checked-out list belongs to this call until the callback returns.
+    // Recursive instantiation checks out another list, so no borrow into a
+    // growing scratch buffer crosses a recursive call. Return the allocation
+    // on both successful and failed checks; only its capacity is retained.
+    pub(crate) fn with_instantiation_type_list<R>(
+        &mut self,
+        use_list: impl FnOnce(&mut Self, &mut Vec<TypeId>) -> R,
+    ) -> R {
+        let mut list = self.instantiation_type_lists.pop().unwrap_or_default();
+        let result = use_list(self, &mut list);
+        list.clear();
+        self.instantiation_type_lists.push(list);
+        result
+    }
+
+    fn with_instantiation_text_list<R>(
+        &mut self,
+        use_list: impl FnOnce(&mut Self, &mut Vec<tsc_types::TemplateText>) -> R,
+    ) -> R {
+        let mut list = self.instantiation_text_lists.pop().unwrap_or_default();
+        let result = use_list(self, &mut list);
+        list.clear();
+        self.instantiation_text_lists.push(list);
+        result
+    }
+
+    fn instantiate_type_list_into(
+        &mut self,
+        types: tsc_types::TypeListId,
+        mapper: MapperId,
+        result: &mut Vec<TypeId>,
+    ) -> CheckResult<()> {
+        let mut types = self.tables.cursor(types);
+        result.reserve(types.len());
+        while let Some(ty) = types.next(&self.tables) {
+            result.push(self.instantiate_type(ty, Some(mapper))?);
+        }
+        Ok(())
+    }
+
+    fn with_instantiated_alias_arguments<R>(
+        &mut self,
+        source_arguments: Option<tsc_types::TypeListId>,
+        mapper: MapperId,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+        use_arguments: impl FnOnce(&mut Self, Option<&[TypeId]>) -> CheckResult<R>,
+    ) -> CheckResult<R> {
+        if alias_symbol.is_some() {
+            return use_arguments(self, alias_type_arguments);
+        }
+        match source_arguments {
+            Some(arguments) => self.with_instantiation_type_list(|state, result| {
+                state.instantiate_type_list_into(arguments, mapper, result)?;
+                use_arguments(state, Some(result))
+            }),
+            None => use_arguments(self, None),
+        }
+    }
+
     /// tsrs-native: arena accessor for TypeMapper values; tsc stores
     /// mapper objects by reference.
     pub(crate) fn mapper(&self, id: MapperId) -> &TypeMapper {
@@ -315,6 +375,23 @@ impl<'a> CheckerState<'a> {
         } else {
             self.make_array_type_mapper(sources, targets)
         }
+    }
+
+    pub(crate) fn create_type_mapper_from_stored_sources(
+        &mut self,
+        sources: impl FnOnce(&tsc_types::TypeTables) -> &[TypeId],
+        targets: &[TypeId],
+    ) -> MapperId {
+        let sources = sources(&self.tables);
+        if sources.len() == 1 {
+            return self.make_unary_type_mapper(sources[0], targets[0]);
+        }
+        let start = u32::try_from(self.mapper_lists.len()).expect("mapper list arena fits u32");
+        let len = u32::try_from(sources.len()).expect("mapper list length fits u32");
+        self.mapper_lists.extend_from_slice(sources);
+        let sources = MapperList { start, len };
+        let targets = Some(self.alloc_mapper_list(targets));
+        self.alloc_mapper(TypeMapper::Array { sources, targets })
     }
 
     /// tsc-port: createTypeEraser @6.0.3
@@ -975,126 +1052,137 @@ impl<'a> CheckerState<'a> {
         } else {
             self.links.read_ty(ty, |links| links.instantiated_mapper)
         };
-        let mut type_arguments: Vec<TypeId> = Vec::with_capacity(parameter_count);
-        let mut parameters = self.tables.cursor(type_parameters);
-        while let Some(tp) = parameters.next(&self.tables) {
-            type_arguments.push(self.map_type_with_composite_mapper(tp, type_mapper, mapper)?);
-        }
-        let new_alias_symbol = alias_symbol.or(self.tables.alias_symbol(ty));
-        let new_alias_type_arguments = if alias_symbol.is_some() {
-            alias_type_arguments.map(<[TypeId]>::to_vec)
-        } else {
-            match self.tables.alias_type_argument_list(ty) {
-                Some(arguments) => {
-                    let arguments = self.tables.list_copy(arguments);
-                    Some(self.instantiate_types(&arguments, mapper)?)
-                }
-                None => None,
+        self.with_instantiation_type_list(|state, type_arguments| {
+            type_arguments.reserve(parameter_count);
+            let mut parameters = state.tables.cursor(type_parameters);
+            while let Some(tp) = parameters.next(&state.tables) {
+                type_arguments.push(state.map_type_with_composite_mapper(
+                    tp,
+                    type_mapper,
+                    mapper,
+                )?);
             }
-        };
-        let id_key = self.tables.instantiation_key(
-            &type_arguments,
-            new_alias_symbol,
-            new_alias_type_arguments.as_deref(),
-            object_flags.intersects(ObjectFlags::SINGLE_SIGNATURE_TYPE),
-        );
-        // 63489-63492: the target's instantiations map is seeded with
-        // itself under its own type-parameter list id (the interned ids
-        // directly: the same key instantiation_key would build).
-        let target_alias_symbol = self.tables.alias_symbol(target);
-        let self_key = tsc_types::InstantiationKey {
-            arguments: type_parameters,
-            alias_symbol: target_alias_symbol,
-            alias_arguments: target_alias_symbol.and(self.tables.alias_type_argument_list(target)),
-            single_signature: false,
-        };
-        if self.tables.instantiation_get(target, self_key).is_none() {
-            self.tables.instantiation_insert(target, self_key, target);
-        }
-        if let Some(existing) = self.tables.instantiation_get(target, id_key) {
-            return Ok(existing);
-        }
-        let parameters = self.tables.list_copy(type_parameters);
-        let mut new_mapper = self.create_type_mapper(&parameters, Some(&type_arguments));
-        // 63496-63498: a SingleSignatureType target (isolated
-        // signature types — constructible since 7.4's contextual
-        // re-key and higher-order paths made getOrCreateTypeFrom-
-        // Signature reachable) chains the INCOMING mapper behind the
-        // fresh pair mapper (tsc's `&& mapper` guard is vacuous here:
-        // instantiateType never dispatches without one).
-        if self
-            .tables
-            .object_flags_of(target)
-            .intersects(ObjectFlags::SINGLE_SIGNATURE_TYPE)
-        {
-            new_mapper = self.combine_type_mappers(Some(new_mapper), mapper);
-        }
-        let target_object_flags = self.tables.object_flags_of(target);
-        let result = if target_object_flags.intersects(ObjectFlags::REFERENCE) {
-            // 63499: a fresh deferred reference over the SAME node with
-            // the instantiation mapper — `type.target`/`type.node`, not
-            // the canonical target's.
-            let reference_target = self.tables.reference_target(ty);
-            self.create_deferred_type_reference(
-                reference_target,
-                declaration,
-                Some(new_mapper),
-                new_alias_symbol,
-                new_alias_type_arguments.as_deref(),
-            )?
-        } else if target_object_flags.intersects(ObjectFlags::MAPPED) {
-            self.instantiate_mapped_type(
-                target,
-                new_mapper,
-                new_alias_symbol,
-                new_alias_type_arguments.as_deref(),
-            )?
-        } else {
-            self.instantiate_anonymous_type(
-                target,
-                new_mapper,
-                new_alias_symbol,
-                new_alias_type_arguments.as_deref(),
-            )?
-        };
-        self.tables.instantiation_insert(target, id_key, result);
-        // 63503-63514: propagate couldContainTypeVariables over the
-        // type arguments onto the result's memo bits.
-        let result_object_flags = self.tables.object_flags_of(result);
-        if self
-            .tables
-            .flags_of(result)
-            .intersects(TypeFlags::OBJECT_FLAGS_TYPE)
-            && !result_object_flags.intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED)
-        {
-            let mut result_could_contain = false;
-            for &argument in &type_arguments {
-                if self.could_contain_type_variables(argument) {
-                    result_could_contain = true;
-                    break;
-                }
-            }
-            let latest = self.tables.object_flags_of(result);
-            if !latest.intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED) {
-                let updated = if latest.intersects(
-                    ObjectFlags::MAPPED | ObjectFlags::ANONYMOUS | ObjectFlags::REFERENCE,
-                ) {
-                    latest.bits()
-                        | ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED.bits()
-                        | if result_could_contain {
-                            ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES.bits()
-                        } else {
-                            0
+            let new_alias_symbol = alias_symbol.or(state.tables.alias_symbol(ty));
+            state.with_instantiated_alias_arguments(
+                state.tables.alias_type_argument_list(ty),
+                mapper,
+                alias_symbol,
+                alias_type_arguments,
+                |state, new_alias_type_arguments| {
+                    let id_key = state.tables.instantiation_key(
+                        type_arguments,
+                        new_alias_symbol,
+                        new_alias_type_arguments,
+                        object_flags.intersects(ObjectFlags::SINGLE_SIGNATURE_TYPE),
+                    );
+                    // 63489-63492: the target's instantiations map is seeded with
+                    // itself under its own type-parameter list id (the interned ids
+                    // directly: the same key instantiation_key would build).
+                    let target_alias_symbol = state.tables.alias_symbol(target);
+                    let self_key = tsc_types::InstantiationKey {
+                        arguments: type_parameters,
+                        alias_symbol: target_alias_symbol,
+                        alias_arguments: target_alias_symbol
+                            .and(state.tables.alias_type_argument_list(target)),
+                        single_signature: false,
+                    };
+                    if state.tables.instantiation_get(target, self_key).is_none() {
+                        state.tables.instantiation_insert(target, self_key, target);
+                    }
+                    if let Some(existing) = state.tables.instantiation_get(target, id_key) {
+                        return Ok(existing);
+                    }
+                    let mut new_mapper = state.create_type_mapper_from_stored_sources(
+                        |tables| tables.list(type_parameters),
+                        type_arguments,
+                    );
+                    // 63496-63498: a SingleSignatureType target (isolated
+                    // signature types — constructible since 7.4's contextual
+                    // re-key and higher-order paths made getOrCreateTypeFrom-
+                    // Signature reachable) chains the INCOMING mapper behind the
+                    // fresh pair mapper (tsc's `&& mapper` guard is vacuous here:
+                    // instantiateType never dispatches without one).
+                    if state
+                        .tables
+                        .object_flags_of(target)
+                        .intersects(ObjectFlags::SINGLE_SIGNATURE_TYPE)
+                    {
+                        new_mapper = state.combine_type_mappers(Some(new_mapper), mapper);
+                    }
+                    let target_object_flags = state.tables.object_flags_of(target);
+                    let result = if target_object_flags.intersects(ObjectFlags::REFERENCE) {
+                        // 63499: a fresh deferred reference over the SAME node with
+                        // the instantiation mapper — `type.target`/`type.node`, not
+                        // the canonical target's.
+                        let reference_target = state.tables.reference_target(ty);
+                        state.create_deferred_type_reference(
+                            reference_target,
+                            declaration,
+                            Some(new_mapper),
+                            new_alias_symbol,
+                            new_alias_type_arguments,
+                        )?
+                    } else if target_object_flags.intersects(ObjectFlags::MAPPED) {
+                        state.instantiate_mapped_type(
+                            target,
+                            new_mapper,
+                            new_alias_symbol,
+                            new_alias_type_arguments,
+                        )?
+                    } else {
+                        state.instantiate_anonymous_type(
+                            target,
+                            new_mapper,
+                            new_alias_symbol,
+                            new_alias_type_arguments,
+                        )?
+                    };
+                    state.tables.instantiation_insert(target, id_key, result);
+                    // 63503-63514: propagate couldContainTypeVariables over the
+                    // type arguments onto the result's memo bits.
+                    let result_object_flags = state.tables.object_flags_of(result);
+                    if state
+                        .tables
+                        .flags_of(result)
+                        .intersects(TypeFlags::OBJECT_FLAGS_TYPE)
+                        && !result_object_flags
+                            .intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED)
+                    {
+                        let mut result_could_contain = false;
+                        for &argument in type_arguments.iter() {
+                            if state.could_contain_type_variables(argument) {
+                                result_could_contain = true;
+                                break;
+                            }
                         }
-                } else if !result_could_contain {
-                    latest.bits() | ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED.bits()
-                } else {
-                    latest.bits()
-                };
-                self.tables.type_mut(result).object_flags = ObjectFlags::from_bits(updated);
-            }
-        }
-        Ok(result)
+                        let latest = state.tables.object_flags_of(result);
+                        if !latest.intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED) {
+                            let updated = if latest.intersects(
+                                ObjectFlags::MAPPED
+                                    | ObjectFlags::ANONYMOUS
+                                    | ObjectFlags::REFERENCE,
+                            ) {
+                                latest.bits()
+                                    | ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED.bits()
+                                    | if result_could_contain {
+                                        ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES.bits()
+                                    } else {
+                                        0
+                                    }
+                            } else if !result_could_contain {
+                                latest.bits()
+                                    | ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED.bits()
+                            } else {
+                                latest.bits()
+                            };
+                            state.tables.type_mut(result).object_flags =
+                                ObjectFlags::from_bits(updated);
+                        }
+                    }
+                    Ok(result)
+                },
+            )
+        })
     }
 
     /// tsc-port: maybeTypeParameterReference @6.0.3
@@ -1343,8 +1431,7 @@ impl<'a> CheckerState<'a> {
         );
         let source_symbol = source.symbol;
         let source_alias_symbol = self.tables.alias_symbol(ty);
-        let source_alias_type_arguments =
-            self.tables.alias_type_arguments(ty).map(<[TypeId]>::to_vec);
+        let source_alias_type_arguments = self.tables.alias_type_argument_list(ty);
         let source_object_flags = self.tables.object_flags_of(ty);
         let result = if source_object_flags.intersects(ObjectFlags::MAPPED) {
             let type_parameter = self.get_type_parameter_from_mapped_type(ty)?;
@@ -1395,27 +1482,28 @@ impl<'a> CheckerState<'a> {
                 .set_fresh_type_deferred_reference_links(result, node, None);
         }
         let new_alias_symbol = alias_symbol.or(source_alias_symbol);
-        let new_alias_type_arguments = if alias_symbol.is_some() {
-            alias_type_arguments.map(<[TypeId]>::to_vec)
-        } else {
-            match source_alias_type_arguments {
-                Some(arguments) => Some(self.instantiate_types(&arguments, mapper)?),
-                None => None,
-            }
-        };
-        if let Some(arguments) = &new_alias_type_arguments {
-            object_flags |= self
-                .tables
-                .get_propagating_flags_of_types(arguments, TypeFlags::from_bits(0))
-                .bits();
-        }
-        let new_alias_type_arguments = self
-            .tables
-            .intern_alias_arguments(new_alias_type_arguments.as_deref());
-        self.tables
-            .set_alias(result, new_alias_symbol, new_alias_type_arguments);
-        self.tables.type_mut(result).object_flags = ObjectFlags::from_bits(object_flags);
-        Ok(result)
+        self.with_instantiated_alias_arguments(
+            source_alias_type_arguments,
+            mapper,
+            alias_symbol,
+            alias_type_arguments,
+            |state, new_alias_type_arguments| {
+                if let Some(arguments) = new_alias_type_arguments {
+                    object_flags |= state
+                        .tables
+                        .get_propagating_flags_of_types(arguments, TypeFlags::from_bits(0))
+                        .bits();
+                }
+                let new_alias_type_arguments = state
+                    .tables
+                    .intern_alias_arguments(new_alias_type_arguments);
+                state
+                    .tables
+                    .set_alias(result, new_alias_symbol, new_alias_type_arguments);
+                state.tables.type_mut(result).object_flags = ObjectFlags::from_bits(object_flags);
+                Ok(result)
+            },
+        )
     }
 
     /// tsc-port: instantiateMappedType @6.0.3
@@ -1518,18 +1606,19 @@ impl<'a> CheckerState<'a> {
                 let TypeData::Intersection { types } = self.tables.type_of(constituent).data else {
                     unreachable!("intersection flag implies intersection data");
                 };
-                let types = self.tables.list(types);
-                let members = types.to_vec();
-                let mut instantiated = Vec::with_capacity(members.len());
-                for member in members {
-                    instantiated.push(self.instantiate_mapped_type_constituent(
-                        member,
-                        mapped_type,
-                        type_variable,
-                        mapper,
-                    )?);
-                }
-                return self.get_intersection_type(&instantiated, IntersectionFlags::NONE);
+                return self.with_instantiation_type_list(|state, instantiated| {
+                    let mut members = state.tables.cursor(types);
+                    instantiated.reserve(members.len());
+                    while let Some(member) = members.next(&state.tables) {
+                        instantiated.push(state.instantiate_mapped_type_constituent(
+                            member,
+                            mapped_type,
+                            type_variable,
+                            mapper,
+                        )?);
+                    }
+                    state.get_intersection_type(instantiated, IntersectionFlags::NONE)
+                });
             }
         }
 
@@ -1692,19 +1781,20 @@ impl<'a> CheckerState<'a> {
             let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
                 unreachable!("union flag implies union data");
             };
-            let types = self.tables.list(types);
-            let types = types.to_vec();
-            let mut mapped = Vec::with_capacity(types.len());
-            for member in types {
-                mapped.push(mapper(self, member)?);
-            }
-            self.get_union_type_ex_with_origin(
-                &mapped,
-                UnionReduction::Literal,
-                alias_symbol,
-                alias_type_arguments,
-                None,
-            )
+            self.with_instantiation_type_list(|state, mapped| {
+                let mut members = state.tables.cursor(types);
+                mapped.reserve(members.len());
+                while let Some(member) = members.next(&state.tables) {
+                    mapped.push(mapper(state, member)?);
+                }
+                state.get_union_type_ex_with_origin(
+                    mapped,
+                    UnionReduction::Literal,
+                    alias_symbol,
+                    alias_type_arguments,
+                    None,
+                )
+            })
         } else {
             Ok(self
                 .map_type(
@@ -1834,12 +1924,16 @@ impl<'a> CheckerState<'a> {
         if self.tables.alias_symbol(ty).is_none() {
             return false;
         }
-        let Some(arguments) = self.tables.alias_type_arguments(ty).map(<[TypeId]>::to_vec) else {
+        let Some(arguments) = self.tables.alias_type_argument_list(ty) else {
             return false;
         };
-        arguments
-            .iter()
-            .any(|&argument| self.could_contain_type_variables(argument))
+        let mut arguments = self.tables.cursor(arguments);
+        while let Some(argument) = arguments.next(&self.tables) {
+            if self.could_contain_type_variables(argument) {
+                return true;
+            }
+        }
+        false
     }
 
     /// tsgo: getCircularTypeNames (checker.go:22546-22564). The types that
@@ -1918,13 +2012,18 @@ impl<'a> CheckerState<'a> {
                     // (node-carrying) references fall through to
                     // getObjectTypeInstantiation.
                     let target = self.tables.reference_target(ty);
-                    let resolved: Vec<TypeId> = self.tables.type_arguments(ty).to_vec();
-                    let new_type_arguments = self.instantiate_types(&resolved, mapper)?;
-                    return if new_type_arguments != resolved {
-                        self.create_normalized_type_reference_forced(target, &new_type_arguments)
-                    } else {
-                        Ok(ty)
-                    };
+                    let resolved = self
+                        .tables
+                        .try_type_argument_list(ty)
+                        .expect("eager references have resolved type arguments");
+                    return self.with_instantiation_type_list(|state, arguments| {
+                        state.instantiate_type_list_into(resolved, mapper, arguments)?;
+                        if arguments == state.tables.list(resolved) {
+                            Ok(ty)
+                        } else {
+                            state.create_normalized_type_reference_forced(target, arguments)
+                        }
+                    });
                 }
                 if object_flags.intersects(ObjectFlags::REVERSE_MAPPED) {
                     return self.instantiate_reverse_mapped_type(ty, mapper);
@@ -1962,46 +2061,45 @@ impl<'a> CheckerState<'a> {
                     _ => unreachable!("union/intersection flag implies member data"),
                 },
             };
-            let mut members = self.tables.cursor(source_types);
-            let mut new_types = Vec::with_capacity(members.len());
-            while let Some(member) = members.next(&self.tables) {
-                new_types.push(self.instantiate_type(member, Some(mapper))?);
-            }
-            if new_types == self.tables.list(source_types)
-                && alias_symbol == self.tables.alias_symbol(ty)
-            {
-                return Ok(ty);
-            }
-            let new_alias_symbol = alias_symbol.or(self.tables.alias_symbol(ty));
-            let new_alias_type_arguments = if alias_symbol.is_some() {
-                alias_type_arguments.map(<[TypeId]>::to_vec)
-            } else {
-                match self.tables.alias_type_arguments(ty).map(<[TypeId]>::to_vec) {
-                    Some(arguments) => Some(self.instantiate_types(&arguments, mapper)?),
-                    None => None,
+            return self.with_instantiation_type_list(|state, new_types| {
+                state.instantiate_type_list_into(source_types, mapper, new_types)?;
+                if new_types == state.tables.list(source_types)
+                    && alias_symbol == state.tables.alias_symbol(ty)
+                {
+                    return Ok(ty);
                 }
-            };
-            let origin_is_intersection = origin.is_some_and(|origin| {
-                self.tables
-                    .flags_of(origin)
-                    .intersects(TypeFlags::INTERSECTION)
+                let new_alias_symbol = alias_symbol.or(state.tables.alias_symbol(ty));
+                state.with_instantiated_alias_arguments(
+                    state.tables.alias_type_argument_list(ty),
+                    mapper,
+                    alias_symbol,
+                    alias_type_arguments,
+                    |state, new_alias_type_arguments| {
+                        let origin_is_intersection = origin.is_some_and(|origin| {
+                            state
+                                .tables
+                                .flags_of(origin)
+                                .intersects(TypeFlags::INTERSECTION)
+                        });
+                        if flags.intersects(TypeFlags::INTERSECTION) || origin_is_intersection {
+                            state.get_intersection_type_ex(
+                                new_types,
+                                IntersectionFlags::NONE,
+                                new_alias_symbol,
+                                new_alias_type_arguments,
+                            )
+                        } else {
+                            state.get_union_type_ex_with_origin(
+                                new_types,
+                                UnionReduction::Literal,
+                                new_alias_symbol,
+                                new_alias_type_arguments,
+                                None,
+                            )
+                        }
+                    },
+                )
             });
-            return if flags.intersects(TypeFlags::INTERSECTION) || origin_is_intersection {
-                self.get_intersection_type_ex(
-                    &new_types,
-                    IntersectionFlags::NONE,
-                    new_alias_symbol,
-                    new_alias_type_arguments.as_deref(),
-                )
-            } else {
-                self.get_union_type_ex_with_origin(
-                    &new_types,
-                    UnionReduction::Literal,
-                    new_alias_symbol,
-                    new_alias_type_arguments.as_deref(),
-                    None,
-                )
-            };
         }
         if flags.intersects(TypeFlags::INDEX) {
             // 63749: the StringsOnly bit deliberately drops on
@@ -2013,15 +2111,17 @@ impl<'a> CheckerState<'a> {
             return self.get_index_type(new_inner, tsc_types::IndexFlags::NONE);
         }
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
-            let (texts, types) = match &self.tables.type_of(ty).data {
-                TypeData::TemplateLiteral(data) => {
-                    let data = self.tables.template_literal(*data);
-                    (data.texts.to_vec(), self.tables.list(data.types).to_vec())
-                }
-                _ => unreachable!("template flag implies template data"),
+            let TypeData::TemplateLiteral(template) = self.tables.type_of(ty).data else {
+                unreachable!("template flag implies template data");
             };
-            let new_types = self.instantiate_types(&types, mapper)?;
-            return self.get_template_literal_type_from_texts(&texts, &new_types);
+            let types = self.tables.template_literal(template).types;
+            return self.with_instantiation_text_list(|state, texts| {
+                texts.extend_from_slice(&state.tables.template_literal(template).texts);
+                state.with_instantiation_type_list(|state, new_types| {
+                    state.instantiate_type_list_into(types, mapper, new_types)?;
+                    state.get_template_literal_type_from_texts(texts, new_types)
+                })
+            });
         }
         if flags.intersects(TypeFlags::STRING_MAPPING) {
             let TypeData::StringMapping { ty: inner } = self.tables.type_of(ty).data else {
@@ -2037,31 +2137,31 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::INDEXED_ACCESS) {
             let new_alias_symbol = alias_symbol.or(self.tables.alias_symbol(ty));
-            let new_alias_type_arguments = if alias_symbol.is_some() {
-                alias_type_arguments.map(<[TypeId]>::to_vec)
-            } else {
-                match self.tables.alias_type_arguments(ty).map(<[TypeId]>::to_vec) {
-                    Some(arguments) => Some(self.instantiate_types(&arguments, mapper)?),
-                    None => None,
-                }
-            };
-            let TypeData::IndexedAccess {
-                object_type,
-                index_type,
-                access_flags,
-            } = self.tables.type_of(ty).data
-            else {
-                unreachable!("indexed-access flag implies indexed-access data");
-            };
-            let new_object = self.instantiate_type(object_type, Some(mapper))?;
-            let new_index = self.instantiate_type(index_type, Some(mapper))?;
-            return self.get_indexed_access_type(
-                new_object,
-                new_index,
-                access_flags,
-                /*access_node*/ None,
-                new_alias_symbol,
-                new_alias_type_arguments.as_deref(),
+            return self.with_instantiated_alias_arguments(
+                self.tables.alias_type_argument_list(ty),
+                mapper,
+                alias_symbol,
+                alias_type_arguments,
+                |state, new_alias_type_arguments| {
+                    let TypeData::IndexedAccess {
+                        object_type,
+                        index_type,
+                        access_flags,
+                    } = state.tables.type_of(ty).data
+                    else {
+                        unreachable!("indexed-access flag implies indexed-access data");
+                    };
+                    let new_object = state.instantiate_type(object_type, Some(mapper))?;
+                    let new_index = state.instantiate_type(index_type, Some(mapper))?;
+                    state.get_indexed_access_type(
+                        new_object,
+                        new_index,
+                        access_flags,
+                        /*access_node*/ None,
+                        new_alias_symbol,
+                        new_alias_type_arguments,
+                    )
+                },
             );
         }
         if flags.intersects(TypeFlags::CONDITIONAL) {
@@ -3289,32 +3389,34 @@ impl<'a> CheckerState<'a> {
             }
             _ => own_types,
         };
-        let mut types = self.tables.cursor(types);
-        let mut mapped_types: Vec<TypeId> = Vec::with_capacity(types.len());
-        let mut changed = false;
-        while let Some(t) = types.next(&self.tables) {
-            let mapped = if self.tables.flags_of(t).intersects(TypeFlags::UNION) {
-                self.map_type(t, mapper, no_reductions)?
-            } else {
-                mapper(self, t)?
-            };
-            changed = changed || mapped != Some(t);
-            if let Some(mapped) = mapped {
-                mapped_types.push(mapped);
+        self.with_instantiation_type_list(|state, mapped_types| {
+            let mut types = state.tables.cursor(types);
+            mapped_types.reserve(types.len());
+            let mut changed = false;
+            while let Some(t) = types.next(&state.tables) {
+                let mapped = if state.tables.flags_of(t).intersects(TypeFlags::UNION) {
+                    state.map_type(t, mapper, no_reductions)?
+                } else {
+                    mapper(state, t)?
+                };
+                changed = changed || mapped != Some(t);
+                if let Some(mapped) = mapped {
+                    mapped_types.push(mapped);
+                }
             }
-        }
-        if !changed {
-            return Ok(Some(ty));
-        }
-        if mapped_types.is_empty() {
-            return Ok(None);
-        }
-        let reduction = if no_reductions {
-            UnionReduction::None
-        } else {
-            UnionReduction::Literal
-        };
-        Ok(Some(self.get_union_type_ex(&mapped_types, reduction)?))
+            if !changed {
+                return Ok(Some(ty));
+            }
+            if mapped_types.is_empty() {
+                return Ok(None);
+            }
+            let reduction = if no_reductions {
+                UnionReduction::None
+            } else {
+                UnionReduction::Literal
+            };
+            Ok(Some(state.get_union_type_ex(mapped_types, reduction)?))
+        })
     }
 
     /// tsc-port: getStringMappingType @6.0.3
