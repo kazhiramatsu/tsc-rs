@@ -848,7 +848,7 @@ pub enum PackageJsonType {
 /// The decoded JSON text remains owned so later H0 resolver slices can add
 /// fields such as `exports`, `imports`, and `typesVersions` without rereading
 /// the host or losing the exact source spelling.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct PackageMetadata {
     package_json: ProgramPath,
     alternate_display_paths: Vec<JsString>,
@@ -857,7 +857,24 @@ pub struct PackageMetadata {
     version: Option<JsString>,
     module_type: PackageJsonType,
     type_field_truthiness: Option<bool>,
+    /// The loader's exact package-reader result. Trusted API metadata fills
+    /// this cache on demand; cache state is not part of metadata equality.
+    parsed_json: OnceLock<Arc<crate::JsonValue>>,
 }
+
+impl PartialEq for PackageMetadata {
+    fn eq(&self, other: &Self) -> bool {
+        self.package_json == other.package_json
+            && self.alternate_display_paths == other.alternate_display_paths
+            && self.snapshot == other.snapshot
+            && self.name == other.name
+            && self.version == other.version
+            && self.module_type == other.module_type
+            && self.type_field_truthiness == other.type_field_truthiness
+    }
+}
+
+impl Eq for PackageMetadata {}
 
 impl PackageMetadata {
     pub fn new(package_json: ProgramPath, text: impl Into<String>) -> Self {
@@ -869,6 +886,7 @@ impl PackageMetadata {
             version: None,
             module_type: PackageJsonType::Unspecified,
             type_field_truthiness: None,
+            parsed_json: OnceLock::new(),
         }
     }
 
@@ -906,6 +924,7 @@ impl PackageMetadata {
             version,
             module_type,
             type_field_truthiness: None,
+            parsed_json: OnceLock::new(),
         }
     }
 
@@ -935,6 +954,27 @@ impl PackageMetadata {
 
     pub const fn module_type(&self) -> PackageJsonType {
         self.module_type
+    }
+
+    /// The same immutable object the resolver read, including package-reader
+    /// recovery and prototype semantics. API-built metadata uses that reader
+    /// once over its retained snapshot.
+    pub fn parsed_json(&self) -> &Arc<crate::JsonValue> {
+        self.parsed_json.get_or_init(|| {
+            Arc::new(crate::JsonValue::Object(
+                crate::read_package_json_object_from_snapshot(
+                    self.package_json.display(),
+                    &self.snapshot,
+                ),
+            ))
+        })
+    }
+
+    pub(crate) fn with_parsed_json_object(self, object: crate::JsonObject) -> Self {
+        self.parsed_json
+            .set(Arc::new(crate::JsonValue::Object(object)))
+            .expect("new package metadata has no parsed object");
+        self
     }
 
     /// The package parser owns JavaScript truthiness independently of the
@@ -2110,6 +2150,11 @@ impl PreparedProgram {
             key.add_memory_usage(usage);
             package.package_json.add_memory_usage(usage);
             TextSnapshot::add_memory_usage(&package.snapshot, usage);
+            if let Some(value) = package.parsed_json.get() {
+                if usage.arc("package JSON Arc headers", value) {
+                    value.add_memory_usage(usage);
+                }
+            }
             usage.vec("prepared alternate paths", &package.alternate_display_paths);
             for path in &package.alternate_display_paths {
                 usage.js_string(STRINGS, path);

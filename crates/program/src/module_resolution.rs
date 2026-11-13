@@ -5675,12 +5675,11 @@ impl<'a> ModuleResolver<'a> {
             Some(_) => PackageJsonType::Other,
             None => PackageJsonType::Unspecified,
         };
-        let metadata = Arc::new(
+        let metadata =
             PackageMetadata::from_trusted_snapshot(package_path, text, name, version, module_type)
                 .with_type_field_truthiness(
                     json_object_get(&object, "type").is_some_and(js_json_value_is_truthy),
-                ),
-        );
+                );
         let PeerDependencyLookup {
             suffix: peer_dependencies,
             probes: peer_probes,
@@ -5702,7 +5701,7 @@ impl<'a> ModuleResolver<'a> {
             types: non_empty_string_field(&object, "types"),
             main: non_empty_string_field(&object, "main"),
             tsconfig: non_empty_string_field(&object, "tsconfig"),
-            metadata,
+            metadata: Arc::new(metadata.with_parsed_json_object(object)),
             peer_dependencies,
             peer_probes,
             peer_dependencies_trace,

@@ -8282,3 +8282,97 @@ fn snapshot_serves_every_source_after_program_staging_is_dropped() {
         }
     }
 }
+
+#[test]
+fn adoption_path_reference_rows_keep_source_and_reference_order_on_workers() {
+    let files = [
+        InputFile::new("/work/a.ts", "/// <reference path='./first.ts' />\n/// <reference path='./present.ts' />\n/// <reference path='./second.ts' />\n"),
+        InputFile::new("/work/ignored.txt", "/// <reference path='./ignored.ts' />\n"),
+        InputFile::new("/work/b.ts", "/// <reference path='./third.ts' />\n"),
+        InputFile::new("/work/present.ts", "export {};\n"),
+        InputFile::host_only_from_snapshot("/work/package.json", TextSnapshot::new("{}".to_owned(), DocumentVersion::default())),
+        InputFile::host_only_from_snapshot(
+            "/work/./present.ts",
+            TextSnapshot::new("host-only replacement".to_owned(), DocumentVersion::default()),
+        ),
+    ];
+    for no_resolve in [false, true] {
+        for workers in [1, 2, 4, 8] {
+            let mut counters = CheckWorkCounters::default();
+            let inputs = parse_program_inputs(
+                &[],
+                &files,
+                0,
+                &CompilerOptions {
+                    no_resolve: Some(no_resolve),
+                    ..CompilerOptions::default()
+                },
+                "/work".into(),
+                &IdentityDomain::new(),
+                None,
+                &mut counters,
+                WorkerBudget::new(std::num::NonZeroUsize::new(workers).unwrap()),
+                None,
+            );
+            let rows = inputs
+                .program_diagnostics
+                .iter()
+                .map(|row| {
+                    (
+                        row.file_name
+                            .as_ref()
+                            .unwrap()
+                            .to_string_lossy()
+                            .into_owned(),
+                        row.code(),
+                        row.message_text().to_string_lossy().into_owned(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            if no_resolve {
+                assert!(rows.is_empty());
+            } else {
+                assert_eq!(
+                    rows,
+                    [
+                        (
+                            "/work/a.ts".to_owned(),
+                            6053,
+                            "File './first.ts' not found.".to_owned()
+                        ),
+                        (
+                            "/work/a.ts".to_owned(),
+                            6053,
+                            "File './second.ts' not found.".to_owned()
+                        ),
+                        (
+                            "/work/b.ts".to_owned(),
+                            6053,
+                            "File './third.ts' not found.".to_owned()
+                        ),
+                    ]
+                );
+            }
+            assert_eq!(inputs.program_sources.len(), 3);
+            assert_eq!(inputs.host.input_snapshots.len(), files.len() - 1);
+            assert!(inputs
+                .host
+                .file_paths
+                .contains(&JsString::from("/work/ignored.txt")));
+            assert!(Arc::ptr_eq(
+                inputs
+                    .host
+                    .input_snapshots
+                    .get(&JsString::from("/work/present.ts"))
+                    .unwrap(),
+                files.last().unwrap().snapshot(),
+            ));
+            let present = inputs
+                .program_sources
+                .iter()
+                .find(|source| source.source().file_name.as_js() == "/work/present.ts")
+                .unwrap();
+            assert_eq!(present.source().text(), "export {};\n");
+        }
+    }
+}

@@ -632,6 +632,16 @@ pub trait AuthoritativeModuleProvider: Sync {
         Vec::new()
     }
 
+    /// Reuse a loader package-reader result only for this exact host snapshot.
+    /// Providers without prepared package metadata leave parsing to the caller.
+    fn package_json_value(
+        &self,
+        _file_name: JsStr<'_>,
+        _snapshot: &Arc<TextSnapshot>,
+    ) -> Option<Arc<tsc_program::JsonValue>> {
+        None
+    }
+
     /// tsgo `getParseFileRedirect`: whether a file name is a referenced
     /// project's source, which the program loads as that project's output.
     fn is_project_reference_source(&self, _file_name: JsStr<'_>) -> bool {
@@ -1550,54 +1560,71 @@ impl RedirectProvider<'_> {
     }
 }
 
-fn missing_path_reference_diagnostics<'cwd, 'a>(
-    sources: impl IntoIterator<Item = &'a tsc_syntax::SourceFile>,
-    host_files: impl Iterator<Item = JsString>,
-    is_redirected: impl Fn(&JsString) -> bool,
-    options: &CompilerOptions,
-    current_directory: impl Into<JsStr<'cwd>>,
-) -> DiagnosticList {
-    let current_directory = current_directory.into();
-    // tsc's processReferencedFiles/processTypeReferenceDirectives gate is
-    // outside getSourceFileFromReferenceWorker. Keep this bridge on the same
-    // side of that noResolve boundary.
-    if options.no_resolve == Some(true) {
-        return Vec::new();
+/// Host membership and redirect answers are projected before the worker
+/// stage; a per-checker provider never becomes a shared mutable service.
+struct PathReferenceHost {
+    known_paths: rustc_hash::FxHashSet<JsString>,
+    redirected_paths: rustc_hash::FxHashSet<JsString>,
+}
+
+impl PathReferenceHost {
+    fn resolved_reference_paths<'a>(
+        source: &'a tsc_syntax::SourceFile,
+        options: &'a CompilerOptions,
+        current_directory: JsStr<'a>,
+    ) -> impl Iterator<Item = (&'a tsc_syntax::FileReference, JsString)> {
+        // Most sources have no path references. Do not normalize every
+        // source's name just to discover an empty reference list.
+        let source_directory = if source.referenced_files.is_empty() {
+            JsString::new()
+        } else {
+            let path =
+                state::CheckerState::normalize_program_path(&source.file_name, current_directory);
+            path.as_js()
+                .rsplit_once("/")
+                .map_or("/".into(), |(directory, _)| directory.to_owned())
+        };
+        source
+            .referenced_files
+            .iter()
+            .filter(move |reference| is_supported_path_reference(&reference.file_name, options))
+            .map(move |reference| {
+                let resolved = state::CheckerState::normalize_program_path(
+                    &reference.file_name,
+                    &source_directory,
+                );
+                (reference, resolved)
+            })
     }
-    let known_paths: rustc_hash::FxHashSet<JsString> = host_files.collect();
-    let mut diagnostics = Vec::new();
-    for source in sources {
-        let source_path =
-            state::CheckerState::normalize_program_path(&source.file_name, current_directory);
-        let source_directory = source_path
-            .as_js()
-            .rsplit_once("/")
-            .map_or("/".into(), |(directory, _)| directory);
-        for reference in &source.referenced_files {
-            if !is_supported_path_reference(&reference.file_name, options) {
-                continue;
-            }
-            let resolved =
-                state::CheckerState::normalize_program_path(&reference.file_name, source_directory);
-            if known_paths.contains(&resolved) || is_redirected(&resolved) {
-                continue;
-            }
-            // The reference as written, like the program loader's row
-            // (tsgo's `diagnosticFileName`, compiler/fileloader.go:697).
-            diagnostics.push(Diagnostic::new_js(
-                Some(source.file_name.clone()),
-                Some(reference.pos),
-                Some(reference.end.saturating_sub(reference.pos)),
-                tsc_diagnostics::MessageChain::new_js(
-                    &tsc_diagnostics::gen::File_0_not_found,
-                    &[node_builder::specifier::normalized_slashes(
-                        &reference.file_name,
-                    )],
-                ),
-            ));
+
+    fn diagnostics(
+        &self,
+        source: &tsc_syntax::SourceFile,
+        options: &CompilerOptions,
+        current_directory: JsStr<'_>,
+    ) -> DiagnosticList {
+        if options.no_resolve == Some(true) {
+            return Vec::new();
         }
+        Self::resolved_reference_paths(source, options, current_directory)
+            .filter(|(_, path)| {
+                !self.known_paths.contains(path) && !self.redirected_paths.contains(path)
+            })
+            .map(|(reference, _)| {
+                Diagnostic::new_js(
+                    Some(source.file_name.clone()),
+                    Some(reference.pos),
+                    Some(reference.end.saturating_sub(reference.pos)),
+                    tsc_diagnostics::MessageChain::new_js(
+                        &tsc_diagnostics::gen::File_0_not_found,
+                        &[node_builder::specifier::normalized_slashes(
+                            &reference.file_name,
+                        )],
+                    ),
+                )
+            })
+            .collect()
     }
-    diagnostics
 }
 
 fn parse_host_package_json(file: &InputFile) -> tsc_program::JsonValue {
@@ -1773,13 +1800,12 @@ fn check_program_with_libs_at_observed_cache_mode_prepared<'cwd>(
             WorkerBudget::serial(),
             None,
         );
-        let lib_binders = bind_lib_sources(
+        let lib_data = bind_lib_sources(
             &mut lib_sources,
             &identity_domain,
             WorkerBudget::serial(),
             None,
         );
-        let lib_data = binders_into_data(lib_binders);
         let lib_documents = publish_bound_documents(lib_sources, lib_data);
         return check_program_with_prebound_libs_at_observed(
             libs,
@@ -1860,13 +1886,12 @@ pub fn check_program_with_owned_libs_at<'cwd>(
         WorkerBudget::serial(),
         None,
     );
-    let lib_binders = bind_lib_sources(
+    let lib_data = bind_lib_sources(
         &mut lib_sources,
         &identity_domain,
         WorkerBudget::serial(),
         None,
     );
-    let lib_data = binders_into_data(lib_binders);
     let lib_documents = publish_bound_documents(lib_sources, lib_data);
     let mut observe_phase = |_| {};
 
@@ -2738,8 +2763,7 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
         let (mut lib_sources, lib_work) =
             parse_lib_sources(&effective_libs, &identity_domain, workers, tracing);
         run.begin_bind_phase();
-        let lib_binders = bind_lib_sources(&mut lib_sources, &identity_domain, workers, tracing);
-        let lib_data = binders_into_data(lib_binders);
+        let lib_data = bind_lib_sources(&mut lib_sources, &identity_domain, workers, tracing);
         let lib_documents = publish_bound_documents(lib_sources, lib_data);
         // Sharding is a property of the eager whole-Program schedule with
         // per-checker providers; the on-demand schedule and emit callbacks
@@ -2849,7 +2873,7 @@ struct HostFacts {
     file_paths: Arc<rustc_hash::FxHashSet<JsString>>,
     input_snapshots: Arc<rustc_hash::FxHashMap<JsString, Arc<TextSnapshot>>>,
     package_json_module_types: Arc<rustc_hash::FxHashMap<JsString, state::PackageJsonModuleType>>,
-    package_json_values: Arc<rustc_hash::FxHashMap<JsString, tsc_program::JsonValue>>,
+    package_json_values: Arc<rustc_hash::FxHashMap<JsString, Arc<tsc_program::JsonValue>>>,
     package_json_names: Arc<rustc_hash::FxHashMap<JsString, JsString>>,
 }
 
@@ -2924,6 +2948,13 @@ impl PendingProgramSource {
         }
     }
 
+    fn source(&self) -> &tsc_syntax::SourceFile {
+        match self {
+            Self::Ready(source) | Self::Leased(source, _) => source,
+            Self::Shared(document) => document.source(),
+        }
+    }
+
     fn source_mut(&mut self) -> &mut tsc_syntax::SourceFile {
         match self {
             Self::Ready(source) | Self::Leased(source, _) => source,
@@ -2970,9 +3001,16 @@ fn parse_program_inputs(
     workers: WorkerBudget,
     documents: Option<&DocumentRegistry>,
 ) -> ParsedProgramInputs {
+    let admission_started = std::time::Instant::now();
+    let redirect_provider = authoritative_run.map(|run| match run.provider {
+        AuthoritativeProviderSource::Shared(provider) => RedirectProvider::Shared(provider),
+        AuthoritativeProviderSource::PerChecker(factory) => {
+            RedirectProvider::Owned(factory.provider())
+        }
+    });
     // Every host package.json, parsed once (a later input with the same
     // path replaces an earlier one).
-    let package_json_values: rustc_hash::FxHashMap<JsString, tsc_program::JsonValue> = files
+    let package_json_values: rustc_hash::FxHashMap<JsString, Arc<tsc_program::JsonValue>> = files
         .iter()
         .filter(|file| {
             file.name
@@ -2985,7 +3023,14 @@ fn parse_program_inputs(
         .map(|file| {
             (
                 state::CheckerState::normalize_program_path(&file.name, ""),
-                parse_host_package_json(file),
+                redirect_provider
+                    .as_ref()
+                    .and_then(|provider| {
+                        provider
+                            .get()
+                            .package_json_value(file.name.as_js(), file.snapshot())
+                    })
+                    .unwrap_or_else(|| Arc::new(parse_host_package_json(file))),
             )
         })
         .collect();
@@ -3018,6 +3063,10 @@ fn parse_program_inputs(
         }
         last_index_by_name.insert(file.name.as_js(), index);
     }
+    tsc_types::trace::mark(
+        "checker: admission (package facts, source order)",
+        admission_started,
+    );
 
     // Fixture parse pass: every published source receives exact node/array
     // leases from the same domain as the library prefix. JSON files remain in
@@ -3106,6 +3155,9 @@ fn parse_program_inputs(
                         .any(|extension| file.name.ends_with(extension));
                     if explicit_module_format {
                         true
+                    } else if authoritative_run.is_some() {
+                        authoritative_implied_node_format
+                            == Some(AuthoritativeResolutionMode::EsNext)
                     } else {
                         let normalized =
                             state::CheckerState::normalize_program_path(&file.name, "");
@@ -3118,10 +3170,9 @@ fn parse_program_inputs(
                         let package_eligible = [".ts", ".tsx", ".js", ".jsx"]
                             .iter()
                             .any(|extension| file.name.ends_with(extension));
-                        let package_scope_is_module = if authoritative_run.is_some() {
-                            authoritative_implied_node_format
-                                == Some(AuthoritativeResolutionMode::EsNext)
-                        } else if package_lookup_enabled && package_eligible {
+                        if !package_lookup_enabled || !package_eligible {
+                            false
+                        } else {
                             let mut directory = normalized
                                 .as_js()
                                 .rsplit_once("/")
@@ -3143,10 +3194,7 @@ fn parse_program_inputs(
                                 };
                                 directory = parent;
                             }
-                        } else {
-                            false
-                        };
-                        package_scope_is_module
+                        }
                     }
                 }
                 // Legacy (and invalid values, which option validation
@@ -3295,6 +3343,41 @@ fn parse_program_inputs(
         "checker: adopt (serial: parse options, leases)",
         serial_started,
     );
+    let host_started = std::time::Instant::now();
+    let host_current_directory = resolve_host_current_directory(current_directory);
+    let mut reference_host = PathReferenceHost {
+        known_paths: rustc_hash::FxHashSet::default(),
+        redirected_paths: rustc_hash::FxHashSet::default(),
+    };
+    if options.no_resolve != Some(true)
+        && pending_sources
+            .iter()
+            .any(|source| !source.source().referenced_files.is_empty())
+    {
+        reference_host.known_paths = libs
+            .iter()
+            .chain(files)
+            .map(|file| {
+                state::CheckerState::normalize_program_path(&file.name, &host_current_directory)
+            })
+            .collect();
+        if let Some(provider) = &redirect_provider {
+            for source in &pending_sources {
+                for (_, resolved) in PathReferenceHost::resolved_reference_paths(
+                    source.source(),
+                    options,
+                    host_current_directory.as_js(),
+                ) {
+                    if !reference_host.known_paths.contains(&resolved)
+                        && provider.get().is_project_reference_source(resolved.as_js())
+                    {
+                        reference_host.redirected_paths.insert(resolved);
+                    }
+                }
+            }
+        }
+    }
+    tsc_types::trace::mark("checker: path reference host facts (serial)", host_started);
     let rewrite_mark = tsc_types::trace::enabled().then(|| {
         format!(
             "checker: adopt (parallel rewrite: {} sources; {} ready)",
@@ -3309,51 +3392,35 @@ fn parse_program_inputs(
         )
     });
     let rewrite_started = std::time::Instant::now();
-    let program_sources: Vec<ProgramSource> = workers.map_ordered(
-        pending_sources,
-        PendingProgramSource::weight,
-        PendingProgramSource::into_program_source,
-    );
+    let completed = workers.map_ordered(pending_sources, PendingProgramSource::weight, |pending| {
+        let source = pending.into_program_source();
+        let diagnostics =
+            reference_host.diagnostics(source.source(), options, host_current_directory.as_js());
+        (source, diagnostics)
+    });
     if let Some(mark) = rewrite_mark {
         tsc_types::trace::mark(&mark, rewrite_started);
     }
+    let tail_started = std::time::Instant::now();
+    drop(reference_host);
+    let mut program_sources = Vec::with_capacity(completed.len());
+    let mut program_diagnostics = Vec::new();
+    for (source, diagnostics) in completed {
+        program_sources.push(source);
+        program_diagnostics.extend(diagnostics);
+    }
 
-    let host_current_directory = resolve_host_current_directory(current_directory);
-    // A referenced project's source is loaded as its output (tsgo
-    // getParseFileRedirect): a reference to it is resolved.
-    let redirect_provider = authoritative_run.map(|run| match run.provider {
-        AuthoritativeProviderSource::Shared(provider) => RedirectProvider::Shared(provider),
-        AuthoritativeProviderSource::PerChecker(factory) => {
-            RedirectProvider::Owned(factory.provider())
-        }
-    });
-    let program_diagnostics = missing_path_reference_diagnostics(
-        program_sources.iter().map(ProgramSource::source),
-        libs.iter().chain(files.iter()).map(|file| {
-            state::CheckerState::normalize_program_path(&file.name, &host_current_directory)
-        }),
-        |path| {
-            redirect_provider
-                .as_ref()
-                .is_some_and(|provider| provider.get().is_project_reference_source(path.as_js()))
-        },
-        options,
-        &host_current_directory,
-    );
-
-    let file_paths = files
-        .iter()
-        .map(|file| state::CheckerState::normalize_program_path(&file.name, ""))
-        .collect();
-    let input_snapshots = files
-        .iter()
-        .map(|file| {
-            (
-                state::CheckerState::normalize_program_path(&file.name, ""),
-                Arc::clone(file.snapshot()),
-            )
-        })
-        .collect();
+    let mut file_paths =
+        rustc_hash::FxHashSet::with_capacity_and_hasher(files.len(), Default::default());
+    let mut input_snapshots =
+        rustc_hash::FxHashMap::with_capacity_and_hasher(files.len(), Default::default());
+    // Host facts include every input, including excluded and host-only rows.
+    // Normalize once; retain the path set and the snapshots' last-wins rule.
+    for file in files {
+        let path = state::CheckerState::normalize_program_path(&file.name, "");
+        file_paths.insert(path.clone());
+        input_snapshots.insert(path, Arc::clone(file.snapshot()));
+    }
     let package_json_names = package_json_values
         .iter()
         .filter_map(|(path, value)| {
@@ -3366,6 +3433,10 @@ fn parse_program_inputs(
             Some((path.clone(), name.to_owned()))
         })
         .collect();
+    tsc_types::trace::mark(
+        "checker: program diagnostics and host facts (ordered merge)",
+        tail_started,
+    );
     ParsedProgramInputs {
         program_sources,
         shared_documents,
@@ -4620,10 +4691,10 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         run.tracing.as_ref(),
     );
     run.end_bind_phase();
+    let publication_started = std::time::Instant::now();
     let program_source_count = program_sources.len();
     let mut bind_data = bind_data.into_iter();
-    // Consuming the Vec here frees the serial in-place collect's much larger
-    // PendingProgramSource buffer before the snapshot and the check.
+    // Consume new builders in Program order: freeze assigns document IDs here.
     for source_file in program_sources {
         match source_file {
             ProgramSource::New(builder) => {
@@ -4640,6 +4711,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
                 .expect("a shared document must belong to the Program's identity domain"),
         }
     }
+    tsc_types::trace::mark("checker: ordered document publication", publication_started);
     tsc_types::trace::mark("checker: bind program sources", phase_started);
     observe_phase(CheckPhase::Check);
 
@@ -5586,10 +5658,10 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     if let Some(run) = authoritative_run {
         run.end_bind_phase();
     }
+    let publication_started = std::time::Instant::now();
     let program_source_count = program_sources.len();
     let mut bind_data = bind_data.into_iter();
-    // Consuming the Vec here frees the serial in-place collect's much larger
-    // PendingProgramSource buffer before the snapshot and the check.
+    // Consume new builders in Program order: freeze assigns document IDs here.
     for source_file in program_sources {
         match source_file {
             ProgramSource::New(builder) => {
@@ -5606,6 +5678,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 .expect("a shared document must belong to the Program's identity domain"),
         }
     }
+    tsc_types::trace::mark("checker: ordered document publication", publication_started);
 
     // Checker-state construction (M4 5.0) + the check driver (M4 5.4):
     // initializeTypeChecker merges globals in Program order (default
@@ -6611,8 +6684,7 @@ fn build_lib_bundle(libs: &[&InputFile]) -> &'static LibBundle {
     let identity_domain = crate::program::shared_identity_domain().clone();
     let (mut sources, _lib_work) =
         parse_lib_sources(libs, &identity_domain, WorkerBudget::serial(), None);
-    let binders = bind_lib_sources(&mut sources, &identity_domain, WorkerBudget::serial(), None);
-    let data = binders_into_data(binders);
+    let data = bind_lib_sources(&mut sources, &identity_domain, WorkerBudget::serial(), None);
     let documents = publish_bound_documents(sources, data);
     // A Program's loader finds the libraries there as tsgo's finds them in
     // its parse cache.
@@ -6633,8 +6705,7 @@ fn build_owned_lib_bundle(libs: &[&InputFile]) -> OwnedHarnessLibBundle {
     let identity_domain = IdentityDomain::new();
     let (mut sources, _lib_work) =
         parse_lib_sources(libs, &identity_domain, WorkerBudget::serial(), None);
-    let binders = bind_lib_sources(&mut sources, &identity_domain, WorkerBudget::serial(), None);
-    let data = binders_into_data(binders);
+    let data = bind_lib_sources(&mut sources, &identity_domain, WorkerBudget::serial(), None);
     let documents = publish_bound_documents(sources, data);
     OwnedHarnessLibBundle {
         documents,
@@ -6712,12 +6783,12 @@ fn parse_lib_sources(
 
 /// Bind the library prefix on the budget's workers at identities reserved
 /// in order from `identity_domain` (see [`bind_reserved_in_program_order`]).
-fn bind_lib_sources<'a>(
-    sources: &'a mut [tsc_syntax::SourceFile],
+fn bind_lib_sources(
+    sources: &mut [tsc_syntax::SourceFile],
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
-) -> Vec<tsc_binder::Binder<'a>> {
+) -> Vec<BindData> {
     let sources = sources.iter_mut().collect::<Vec<_>>();
     bind_reserved_in_program_order(sources, identity_domain, workers, tracing)
 }
@@ -6744,12 +6815,12 @@ fn trace_parse(
 /// that outgrows a reservation (rare: the declarations the parser's symbol
 /// bound does not count, see `NodeArena::symbol_bound`) relocates into an
 /// exact lease at the domain's tail, still in Program order.
-fn bind_reserved_in_program_order<'a>(
-    sources: Vec<&'a mut tsc_syntax::SourceFile>,
+fn bind_reserved_in_program_order(
+    sources: Vec<&mut tsc_syntax::SourceFile>,
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
-) -> Vec<tsc_binder::Binder<'a>> {
+) -> Vec<BindData> {
     #[cfg(feature = "phase-ledger")]
     let _ledger = tsc_types::phase_ledger::scope(tsc_types::phase_ledger::Phase::Bind);
     let phase_started = std::time::Instant::now();
@@ -6760,13 +6831,19 @@ fn bind_reserved_in_program_order<'a>(
     write_direct_manifest(&sources, &reservations);
     tsc_types::trace::mark("checker: bind reservations (serial)", phase_started);
     let phase_started = std::time::Instant::now();
-    let mut binders = workers.map_ordered(
+    // Keep the common result inline; only the larger, rare overflow borrows a source.
+    #[allow(clippy::large_enum_variant)]
+    enum BindCompletion<'a> {
+        Attached(BindData),
+        Overflow(Box<tsc_binder::Binder<'a>>),
+    }
+    let completions = workers.map_ordered(
         sources.into_iter().enumerate().collect(),
         |(_, source)| source.text().len(),
         |(index, source)| {
             let (symbol_lease, serial_lease) = &reservations[index];
             // tsgo `BindSourceFiles`: one span per file, on the file's row.
-            let _span = tracing.map(|tracing| {
+            let bind_span = tracing.map(|tracing| {
                 tracing.begin(
                     TracePhase::Bind,
                     "bindSourceFile",
@@ -6781,7 +6858,12 @@ fn bind_reserved_in_program_order<'a>(
             let attached = binder
                 .attach_reserved_leases(identity_domain, symbol_lease.clone(), serial_lease.clone())
                 .expect("bind identity reservation failed");
-            (binder, attached)
+            drop(bind_span);
+            if attached {
+                BindCompletion::Attached(binder.into_bind_data())
+            } else {
+                BindCompletion::Overflow(Box::new(binder))
+            }
         },
     );
     tsc_types::trace::mark(
@@ -6790,21 +6872,29 @@ fn bind_reserved_in_program_order<'a>(
     );
     let phase_started = std::time::Instant::now();
     let mut overflowed = 0usize;
-    for (binder, attached) in &mut binders {
-        if !*attached {
-            binder
-                .relocate_into_identity_domain(identity_domain)
-                .expect("bind identity relocation failed");
-            overflowed += 1;
-        }
-    }
+    // Keep every reservation alive until the last overflow has replayed:
+    // releasing any unused range sooner changes first-fit allocation.
+    let data = completions
+        .into_iter()
+        .map(|completion| match completion {
+            BindCompletion::Attached(data) => data,
+            BindCompletion::Overflow(mut binder) => {
+                binder
+                    .relocate_into_identity_domain(identity_domain)
+                    .expect("bind identity relocation failed");
+                overflowed += 1;
+                binder.into_bind_data()
+            }
+        })
+        .collect();
+    drop(reservations);
     if tsc_types::trace::enabled() {
         tsc_types::trace::mark(
             &format!("checker: bind overflow relocation ({overflowed} sources)"),
             phase_started,
         );
     }
-    binders.into_iter().map(|(binder, _)| binder).collect()
+    data
 }
 
 /// One symbol range and one private-name-serial range for `source`, leased
@@ -6859,19 +6949,6 @@ fn bind_sources_in_program_order(
         .filter_map(ProgramSource::source_mut)
         .collect::<Vec<_>>();
     bind_reserved_in_program_order(sources, identity_domain, workers, tracing)
-        .into_iter()
-        .map(tsc_binder::Binder::into_bind_data)
-        .collect()
-}
-
-/// Consume completed bind workers into immutable document handles. The
-/// worker borrow of the source/options ends at `into_bind_data`; snapshots
-/// retain only the Arc-owned parsed source and checker-facing BindData.
-fn binders_into_data(binders: Vec<tsc_binder::Binder<'_>>) -> Vec<BindData> {
-    binders
-        .into_iter()
-        .map(tsc_binder::Binder::into_bind_data)
-        .collect()
 }
 
 fn publish_bound_documents(

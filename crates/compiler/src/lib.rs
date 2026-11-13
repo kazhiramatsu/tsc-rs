@@ -1173,6 +1173,22 @@ impl<P: std::borrow::Borrow<PreparedProgram> + Sync> AuthoritativeModuleProvider
             .collect()
     }
 
+    fn package_json_value(
+        &self,
+        file_name: JsStr<'_>,
+        snapshot: &Arc<tsc_diagnostics::TextSnapshot>,
+    ) -> Option<Arc<tsc_program::JsonValue>> {
+        let prepared = self.prepared();
+        let canonical = if prepared.path_context().use_case_sensitive_file_names() {
+            file_name.to_owned()
+        } else {
+            tsc_host::to_file_name_lower_case_js(file_name)
+        };
+        let path = tsc_program::CanonicalPath::from_js_normalized(canonical.as_js()).ok()?;
+        let package = prepared.package(&path)?;
+        Arc::ptr_eq(snapshot, package.snapshot()).then(|| Arc::clone(package.parsed_json()))
+    }
+
     fn resolve_module(
         &self,
         request: AuthoritativeModuleRequest<'_>,
@@ -2026,6 +2042,14 @@ impl ProgramSession {
 
             fn include_processor_diagnostics(&self) -> Vec<(AuthoritativeSourceToken, Diagnostic)> {
                 self.inner.include_processor_diagnostics()
+            }
+
+            fn package_json_value(
+                &self,
+                file_name: JsStr<'_>,
+                snapshot: &Arc<tsc_diagnostics::TextSnapshot>,
+            ) -> Option<Arc<tsc_program::JsonValue>> {
+                self.inner.package_json_value(file_name, snapshot)
             }
 
             fn symlink_facts(&self) -> Option<tsc_program::SymlinkFacts> {

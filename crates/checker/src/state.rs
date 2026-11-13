@@ -1329,8 +1329,9 @@ pub struct CheckerState<'a> {
     /// resolver seam reads `exports`/`imports` targets and must retain
     /// object insertion order because Node condition objects are
     /// first-match, not unordered maps.
-    pub(crate) host_package_json_values:
-        std::sync::Arc<rustc_hash::FxHashMap<tsc_types::JsString, tsc_program::JsonValue>>,
+    pub(crate) host_package_json_values: std::sync::Arc<
+        rustc_hash::FxHashMap<tsc_types::JsString, std::sync::Arc<tsc_program::JsonValue>>,
+    >,
     /// Normalized package.json path → its non-empty `"name"` field.
     /// Bare self-name imports are undecidable only inside a matching
     /// package scope; an unrelated package.json must not hide 2307.
