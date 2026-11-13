@@ -1562,6 +1562,24 @@ impl<'a> ModuleResolver<'a> {
             .map(|package| package.metadata.as_ref().clone()))
     }
 
+    /// The loader has already normalized its roots. Other selected spellings
+    /// keep the public string entry's normalization and validation.
+    pub(crate) fn package_scope_for_normalized_file(
+        &mut self,
+        file: &ProgramPath,
+    ) -> Result<Option<PackageMetadata>, ResolutionError> {
+        debug_assert!(normalize_absolute_js_path(
+            file.display(),
+            Some(self.current_directory_text()),
+            true,
+        )
+        .is_ok_and(|normalized| normalized.as_js() == file.display()));
+        let directory = self.lexical_paths.directory(file.display());
+        Ok(self
+            .find_nearest_package_scope(directory.as_js())?
+            .map(|package| package.metadata.as_ref().clone()))
+    }
+
     /// Resolve a bare package name through a package `exports` map.
     ///
     /// tsc-port: resolveModuleName @6.0.3

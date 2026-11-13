@@ -5347,16 +5347,21 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let package_scope = if class.library_priority().is_some() {
             None
         } else {
-            self.resolver
-                .package_scope_for_file(path.display())
-                .map_err(|error| {
-                    ProgramLoadError::resolution_js(
-                        ProgramLoadOperation::ObservePackageScope,
-                        Some(path.display().to_owned()),
-                        None,
-                        error,
-                    )
-                })?
+            // Root tasks retain normalize_root's result. Discovered files
+            // can preserve a moduleSuffixes or callback-selected spelling.
+            let scope = if matches!(self.task_origin(task), TaskOrigin::Root { .. }) {
+                self.resolver.package_scope_for_normalized_file(&path)
+            } else {
+                self.resolver.package_scope_for_file(path.display())
+            };
+            scope.map_err(|error| {
+                ProgramLoadError::resolution_js(
+                    ProgramLoadOperation::ObservePackageScope,
+                    Some(path.display().to_owned()),
+                    None,
+                    error,
+                )
+            })?
         };
         // A retained read-ahead result stands in for the host call it already
         // made (see `prefetch_roots`); otherwise the host is queried here. A
