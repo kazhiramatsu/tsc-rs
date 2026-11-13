@@ -75,3 +75,56 @@ function generic<T extends string, U extends { x: T }, V>(
         );
     });
 }
+
+#[test]
+fn variable_containment_entry_keeps_primitive_headers_and_eligible_cache_bits() {
+    fn observe(worker: bool) -> (Vec<bool>, Vec<i32>, usize, u64) {
+        let text = "interface Box<T> { value: T } function f<T>() { var x: Box<T>; var y: Box<string>; var z: T | number; }";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            let mut inputs = vec![
+                state.tables.intrinsics.string,
+                state.tables.intrinsics.number,
+                state.tables.intrinsics.unknown,
+                state.tables.intrinsics.never,
+            ];
+            let literal = state.tables.get_string_literal_type("x");
+            inputs.push(literal);
+            inputs.push(state.tables.get_fresh_type_of_literal_type(literal));
+            let primitive_headers: Vec<_> = inputs
+                .iter()
+                .map(|&ty| state.tables.object_flags_of(ty))
+                .collect();
+            inputs.push(state.empty_object_type);
+            for name in ["x", "y", "z"] {
+                let node =
+                    crate::relpin::find_probe_annotation(state.binder.source(0), name).unwrap();
+                inputs.push(state.get_type_from_type_node(node).unwrap());
+            }
+            let mut answers = Vec::new();
+            for _ in 0..2 {
+                for &ty in &inputs {
+                    answers.push(if worker {
+                        state.could_contain_type_variables_worker(ty)
+                    } else {
+                        state.could_contain_type_variables(ty)
+                    });
+                }
+            }
+            for (&ty, flags) in inputs.iter().zip(primitive_headers) {
+                assert_eq!(state.tables.object_flags_of(ty), flags);
+            }
+            assert!(answers[..7].iter().all(|&answer| !answer));
+            assert!(answers[7]);
+            (
+                answers,
+                inputs
+                    .iter()
+                    .map(|&ty| state.tables.object_flags_of(ty).bits())
+                    .collect(),
+                state.tables.len(),
+                state.total_instantiation_count,
+            )
+        })
+    }
+    assert_eq!(observe(false), observe(true));
+}

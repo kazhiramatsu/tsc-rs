@@ -2306,6 +2306,13 @@ impl<'a> CheckerState<'a> {
         if object_flags.intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED) {
             return object_flags.intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES);
         }
+        if !self
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::STRUCTURED_OR_INSTANTIABLE)
+        {
+            return false;
+        }
         self.could_contain_type_variables_worker(ty)
     }
 
