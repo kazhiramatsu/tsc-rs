@@ -21,7 +21,11 @@ mod metadata;
 mod outcome;
 mod plan;
 mod position;
+mod print_pool;
 mod printer;
+
+#[doc(hidden)]
+pub use print_pool::{EmitPrintPool, PrintPoolPeak};
 mod resolver;
 mod route;
 mod session;
@@ -60,7 +64,8 @@ pub use execute::{
     source_mapping_url, source_root_field, validate_declaration_diagnostics_request,
     validate_emit_options, validate_emit_request, validate_forced_declaration_request,
     EmitDiagnosticGate, EmitFilesSession, EmitFilesStart, ForcedDeclarationEmitter,
-    ForcedDeclarationOutput, MapLaneInputs, UnitEmission, UnitEmitError, UnitEmitRequest,
+    ForcedDeclarationOutput, MapLaneInputs, PlannedUnitEmitter, UnitEmission, UnitEmitError,
+    UnitEmitRequest,
 };
 pub use factory::PreparedEmitSource;
 pub use factory::{

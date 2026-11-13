@@ -373,6 +373,10 @@ struct TypeScriptTransformer<'resolver> {
 }
 
 impl Transformer for TypeScriptTransformer<'_> {
+    fn has_inert_print_hooks(&self) -> bool {
+        self.namespace_container_names.is_empty() && self.enum_container_names.is_empty()
+    }
+
     fn name(&self) -> &'static str {
         "transformTypeScript"
     }
@@ -832,6 +836,10 @@ struct EcmaScriptModuleTransformer<'host> {
 }
 
 impl Transformer for EcmaScriptModuleTransformer<'_> {
+    fn has_inert_print_hooks(&self) -> bool {
+        !self.import_helpers && self.helper_aliases.is_empty()
+    }
+
     fn name(&self) -> &'static str {
         "transformECMAScriptModule"
     }
@@ -2317,6 +2325,10 @@ impl<'host> ImpliedNodeFormatDependentModuleTransformer<'host> {
 }
 
 impl Transformer for ImpliedNodeFormatDependentModuleTransformer<'_> {
+    fn has_inert_print_hooks(&self) -> bool {
+        self.esm.has_inert_print_hooks() && self.cjs.has_inert_print_hooks()
+    }
+
     fn name(&self) -> &'static str {
         "transformImpliedNodeFormatDependentModule"
     }
@@ -2459,6 +2471,10 @@ impl CommonJsModuleTransformer<'_> {
 }
 
 impl Transformer for CommonJsModuleTransformer<'_> {
+    fn has_inert_print_hooks(&self) -> bool {
+        !self.import_helpers && self.retained.is_empty()
+    }
+
     fn name(&self) -> &'static str {
         "transformModule"
     }
@@ -18040,6 +18056,10 @@ mod template_flags_tests;
 #[cfg(test)]
 #[path = "../tests/unit/builtins/flag_walk.rs"]
 mod flag_walk_tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/prepared_print.rs"]
+mod prepared_print_tests;
 
 /// Which real child edges receive the result of a node. Ordinary parser
 /// trees use the record's parent; shared/moved API children add sparse edges.

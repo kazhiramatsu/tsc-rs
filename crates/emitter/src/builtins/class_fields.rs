@@ -76,6 +76,12 @@ struct ClassFieldsTransformer<'resolver> {
 }
 
 impl Transformer for ClassFieldsTransformer<'_> {
+    fn has_inert_print_hooks(&self) -> bool {
+        self.class_aliases.is_empty()
+            && self.static_emit_environments.is_empty()
+            && !self.static_this_substitution_enabled
+    }
+
     fn name(&self) -> &'static str {
         "transformClassFields"
     }

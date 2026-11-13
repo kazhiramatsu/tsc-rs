@@ -34,6 +34,25 @@ pub(crate) struct SourceEmitState {
     pub generated_binding_on_parsed_node: bool,
 }
 
+impl SourceEmitState {
+    // This adds storage sizes, independent of identifier iteration order.
+    #[allow(clippy::iter_over_hash_type)]
+    pub(crate) fn print_input_usage(&self, u: &mut tsc_diagnostics::MemoryUsage) {
+        u.vec("flags", &self.transform_flags);
+        u.vec("flags", &self.array_transform_flags);
+        u.hash_set("synthesized completeness", &self.complete_synthesized);
+        self.identifier_census.print_input_usage(u);
+        if let Some(names) = self.parsed_identifier_names.get() {
+            if u.arc("parsed identifiers", names) {
+                u.hash_set("parsed identifier lookup", names);
+                for name in names.iter() {
+                    u.string("parsed identifier text", name);
+                }
+            }
+        }
+    }
+}
+
 /// The identifiers of an emit source in node order: an append-only census
 /// shared with the name allocators, each of which starts from the identifiers
 /// the source had when the allocator was made (a prefix of `names`).
@@ -82,6 +101,15 @@ impl Clone for SharedIdentifierCensus {
 }
 
 impl SharedIdentifierCensus {
+    fn print_input_usage(&self, u: &mut tsc_diagnostics::MemoryUsage) {
+        if !u.arc("identifier census", &self.0) {
+            return;
+        }
+        let census = lock(&self.0);
+        u.vec("identifier census names", &census.names);
+        u.hash_map("identifier census lookup", &census.first);
+    }
+
     /// Cover the nodes appended since the last call (`nodes` is every node
     /// of the source) and take the snapshot of the identifiers so far.
     pub(crate) fn snapshot(&self, nodes: &[Node]) -> IdentifierCensusSnapshot {

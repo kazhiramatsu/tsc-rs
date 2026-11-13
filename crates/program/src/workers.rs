@@ -511,6 +511,23 @@ impl<J> Drop for ReleaseOnUnwind<'_, J> {
     }
 }
 
+/// An embedding's allocator cleanup when a persistent worker has no queued
+/// work. The CLI installs its collector; libraries keep their allocator policy.
+static WORKER_IDLE_HOOK: std::sync::OnceLock<fn()> = std::sync::OnceLock::new();
+
+/// Install the optional idle hook once, as with the thread-start hook.
+pub fn set_worker_idle_hook(hook: fn()) {
+    let _ = WORKER_IDLE_HOOK.set(hook);
+}
+
+/// Release worker-local scratch without holding a scheduler lock. Called
+/// again when an owner has retired a result allocated by the idle worker.
+pub fn run_worker_idle_hook() {
+    if let Some(hook) = WORKER_IDLE_HOOK.get() {
+        hook();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

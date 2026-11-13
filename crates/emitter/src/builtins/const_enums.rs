@@ -36,6 +36,10 @@ struct ConstEnumInliner<'resolver> {
 }
 
 impl Transformer for ConstEnumInliner<'_> {
+    fn has_inert_print_hooks(&self) -> bool {
+        true
+    }
+
     fn is_identity_substitution(&self) -> bool {
         true
     }

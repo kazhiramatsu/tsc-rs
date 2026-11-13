@@ -1153,6 +1153,14 @@ impl PrintedText {
     }
 }
 
+/// A transformed root whose generated names have been prepared for this print.
+/// The compiler can retain it with its owned context before printing the text.
+#[derive(Debug)]
+pub(crate) struct PreparedSourceFilePrint {
+    source_id: TransformSourceId,
+    root: TransformNode,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Printer {
     options: PrinterOptions,
@@ -2048,6 +2056,19 @@ impl Printer {
         recording: Option<crate::source_map::SourceMapRecordingInputs>,
         global_name_oracle: Option<&dyn GlobalNameOracle>,
     ) -> Result<PrintedText, PrinterError> {
+        let prepared =
+            self.prepare_source_file_print(transformation, source_id, global_name_oracle)?;
+        self.print_prepared_source_file(transformation, prepared, recording)
+    }
+
+    /// Prepare names while the owning resolver is available. Everything after
+    /// this point uses the transformed context and any retained emit hooks.
+    pub(crate) fn prepare_source_file_print(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        source_id: TransformSourceId,
+        global_name_oracle: Option<&dyn GlobalNameOracle>,
+    ) -> Result<PreparedSourceFilePrint, PrinterError> {
         if !transformation.roots().iter().any(
             |root| matches!(root, crate::TransformRoot::SourceFile(source) if *source == source_id),
         ) {
@@ -2061,6 +2082,17 @@ impl Printer {
             global_name_oracle,
             carried.as_ref(),
         )?;
+        Ok(PreparedSourceFilePrint { source_id, root })
+    }
+
+    /// Print the same prepared root, including comments, hooks and map records.
+    pub(crate) fn print_prepared_source_file(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        prepared: PreparedSourceFilePrint,
+        recording: Option<crate::source_map::SourceMapRecordingInputs>,
+    ) -> Result<PrintedText, PrinterError> {
+        let PreparedSourceFilePrint { source_id, root } = prepared;
         self.prepare_emission_plan(transformation, root)?;
         // updateSourceFile marks a forced JSON declaration root as a
         // declaration file. Its synthesized statements use normal declaration

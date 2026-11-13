@@ -941,35 +941,242 @@ pub fn emit_planned_units_with_kinds(
     host: &dyn EmitHost,
     preflight: &EmitPreflight,
     requests: &[UnitEmitRequest],
-    mut sink: Option<&mut dyn OutputSink>,
+    sink: Option<&mut dyn OutputSink>,
 ) -> Result<Vec<UnitEmission>, UnitEmitError> {
-    let mut emissions = Vec::with_capacity(requests.len());
-    // An eager worker sink writes ordinary source roots as they are printed
-    // (bundle roots always write through a supplied sink).
-    let eager_source_roots = sink
-        .as_deref()
-        .is_some_and(OutputSink::writes_source_roots_eagerly);
-    let options = host.compiler_options();
-    let attach = |unit: usize| move |failure: EmitFailure| UnitEmitError { unit, failure };
-    let first = requests.first().map_or(0, |request| request.unit);
-    let new_line = new_line_kind(options).map_err(attach(first))?;
-    let mut printer = create_printer(
-        PrinterOptions::new(new_line)
-            .with_remove_comments(options.remove_comments == Some(true))
-            .with_no_emit_helpers(options.no_emit_helpers == Some(true))
-            .with_import_helpers(options.import_helpers == Some(true))
-            .with_module_kind(options.emit_module_kind())
-            .with_target(options.emit_script_target())
-            .with_source_file_text_mode(SourceFileTextMode::Canonical),
-    );
-    let javascript_map_options_enabled = javascript_map_options_enabled(options);
-    // `TSRS_FILE_TRACE=1` prints one line per emitted unit with its wall
-    // time and timeline position (the checker prints the checked files).
-    let unit_trace = file_trace_enabled();
-    for request in requests {
+    PlannedUnitEmitter::new(resolver, host, preflight).emit(requests, sink)
+}
+
+struct PendingUnitEmission {
+    emission: UnitEmission,
+    javascript: Option<JavaScriptWork>,
+    declaration_failure: Option<EmitFailure>,
+    _credit: Option<crate::print_pool::PrintCredit>,
+    trace: Option<(std::time::Instant, f64, String)>,
+    _span: Option<tsc_types::tracing::Span>,
+}
+
+impl PendingUnitEmission {
+    fn is_ready(&mut self) -> bool {
+        self.javascript
+            .as_mut()
+            .is_none_or(JavaScriptWork::is_ready)
+    }
+
+    fn finish(
+        mut self,
+        sink: &mut Option<&mut dyn OutputSink>,
+        eager_source_roots: bool,
+    ) -> Result<UnitEmission, UnitEmitError> {
+        let attach = |failure| UnitEmitError {
+            unit: self.emission.unit,
+            failure,
+        };
+        if let Some(work) = self.javascript.take() {
+            let (products, credit) = work.finish();
+            self._credit = credit;
+            let mut products = products.map_err(attach)?;
+            // The owner may have prepared declarations while the JavaScript
+            // printed. Publish neither until the unit's JS result is known.
+            if eager_source_roots {
+                if let Some(sink) = sink.as_deref_mut() {
+                    self.emission.written_paths.extend(write_artifacts(
+                        std::mem::take(&mut products.artifacts),
+                        sink,
+                        &mut self.emission.diagnostics,
+                    ));
+                }
+            }
+            products.artifacts.append(&mut self.emission.artifacts);
+            self.emission.artifacts = products.artifacts;
+            products
+                .map_observations
+                .append(&mut self.emission.map_observations);
+            self.emission.map_observations = products.map_observations;
+        }
+        // JS reaches an eager sink even if the subsequent declaration failed,
+        // exactly as in the inline path. A JS failure wins within this unit.
+        if let Some(failure) = self.declaration_failure.take() {
+            return Err(UnitEmitError {
+                unit: self.emission.unit,
+                failure,
+            });
+        }
+        if eager_source_roots {
+            if let Some(sink) = sink.as_deref_mut() {
+                self.emission.written_paths.extend(write_artifacts(
+                    std::mem::take(&mut self.emission.artifacts),
+                    sink,
+                    &mut self.emission.diagnostics,
+                ));
+            }
+        }
+        if let Some((started, at, path)) = self.trace {
+            eprintln!(
+                "[unit] ms={:.3} at={:.1} js={} decl={} {path}",
+                started.elapsed().as_secs_f64() * 1e3,
+                at,
+                self.emission.javascript_path.is_some(),
+                self.emission.declaration_path.is_some()
+            );
+        }
+        Ok(self.emission)
+    }
+}
+
+#[derive(Clone, Copy)]
+struct UnitEmitSettings {
+    new_line: NewLineKind,
+    javascript_maps: bool,
+    eager_source_roots: bool,
+    trace: bool,
+}
+
+/// One implementation of the owner-side emit sequence. A print pool changes
+/// only where eligible prepared JavaScript finishes; absent spare workers,
+/// every stage completes in place.
+#[doc(hidden)]
+pub struct PlannedUnitEmitter<'a> {
+    resolver: &'a dyn EmitResolver,
+    host: &'a dyn EmitHost,
+    preflight: &'a EmitPreflight,
+    print_pool: Option<&'a crate::print_pool::EmitPrintPool>,
+}
+
+impl<'a> PlannedUnitEmitter<'a> {
+    pub fn new(
+        resolver: &'a dyn EmitResolver,
+        host: &'a dyn EmitHost,
+        preflight: &'a EmitPreflight,
+    ) -> Self {
+        Self {
+            resolver,
+            host,
+            preflight,
+            print_pool: None,
+        }
+    }
+
+    pub fn with_print_pool(mut self, pool: Option<&'a crate::print_pool::EmitPrintPool>) -> Self {
+        self.print_pool = pool;
+        self
+    }
+
+    pub fn emit(
+        &self,
+        requests: &[UnitEmitRequest],
+        mut sink: Option<&mut dyn OutputSink>,
+    ) -> Result<Vec<UnitEmission>, UnitEmitError> {
+        let options = self.host.compiler_options();
+        let first = requests.first().map_or(0, |request| request.unit);
+        let new_line = new_line_kind(options).map_err(|failure| UnitEmitError {
+            unit: first,
+            failure,
+        })?;
+        let settings = UnitEmitSettings {
+            new_line,
+            javascript_maps: javascript_map_options_enabled(options),
+            eager_source_roots: sink
+                .as_deref()
+                .is_some_and(OutputSink::writes_source_roots_eagerly),
+            trace: file_trace_enabled(),
+        };
+        let mut printer = create_printer(
+            PrinterOptions::new(new_line)
+                .with_remove_comments(options.remove_comments == Some(true))
+                .with_no_emit_helpers(options.no_emit_helpers == Some(true))
+                .with_import_helpers(options.import_helpers == Some(true))
+                .with_module_kind(options.emit_module_kind())
+                .with_target(options.emit_script_target())
+                .with_source_file_text_mode(SourceFileTextMode::Canonical),
+        );
+        let mut emissions = Vec::with_capacity(requests.len());
+        let mut pending = std::collections::VecDeque::<PendingUnitEmission>::new();
+        let mut failure = None;
+        for request in requests {
+            // Retire completed products before mounting another tree. Their
+            // owner frees text allocated by the print worker; the credit's
+            // retirement also wakes that worker for allocator collection.
+            while pending
+                .front_mut()
+                .is_some_and(PendingUnitEmission::is_ready)
+            {
+                emissions.push(
+                    pending
+                        .pop_front()
+                        .expect("ready unit")
+                        .finish(&mut sink, settings.eager_source_roots)?,
+                );
+            }
+            // Each owner retains at most two unit results, including its next
+            // preparation. This also bounds output text awaiting publication.
+            if pending.len() == 2 {
+                emissions.push(
+                    pending
+                        .pop_front()
+                        .expect("oldest pending unit")
+                        .finish(&mut sink, settings.eager_source_roots)?,
+                );
+            }
+            match self.prepare_unit(
+                *request,
+                &mut printer,
+                &mut sink,
+                settings,
+                !pending.is_empty(),
+            ) {
+                Ok(unit) => {
+                    if self.print_pool.is_none()
+                        || (pending.is_empty() && unit.javascript.is_none())
+                    {
+                        emissions.push(unit.finish(&mut sink, settings.eager_source_roots)?);
+                    } else {
+                        let failed = unit.declaration_failure.is_some();
+                        pending.push_back(unit);
+                        if failed {
+                            break;
+                        }
+                    }
+                }
+                Err(error) => {
+                    failure = Some(error);
+                    break;
+                }
+            }
+        }
+        // Drain in owner/plan order before reporting a later preparation
+        // failure. Every earlier successful eager prefix remains published.
+        while let Some(unit) = pending.pop_front() {
+            emissions.push(unit.finish(&mut sink, settings.eager_source_roots)?);
+        }
+        match failure {
+            Some(error) => Err(error),
+            None => Ok(emissions),
+        }
+    }
+
+    fn prepare_unit(
+        &self,
+        request: UnitEmitRequest,
+        printer: &mut crate::Printer,
+        sink: &mut Option<&mut dyn OutputSink>,
+        settings: UnitEmitSettings,
+        has_prior_pending: bool,
+    ) -> Result<PendingUnitEmission, UnitEmitError> {
+        let resolver = self.resolver;
+        let host = self.host;
+        let preflight = self.preflight;
+        let options = host.compiler_options();
+        let new_line = settings.new_line;
+        let javascript_map_options_enabled = settings.javascript_maps;
+        let eager_source_roots = settings.eager_source_roots;
+        let unit_trace = settings.trace;
+
         let unit_index = request.unit;
         let unit = &preflight.plan().units()[unit_index];
-        let attach = attach(unit_index);
+        let attach = |failure| UnitEmitError {
+            unit: unit_index,
+            failure,
+        };
         let unit_started = unit_trace.then(|| {
             (
                 std::time::Instant::now(),
@@ -978,7 +1185,11 @@ pub fn emit_planned_units_with_kinds(
         });
         let mut emission = UnitEmission {
             unit: unit_index,
-            artifacts: Vec::with_capacity(2),
+            artifacts: if request.javascript && unit.paths().javascript_path().is_some() {
+                Vec::new()
+            } else {
+                Vec::with_capacity(2)
+            },
             diagnostics: Vec::new(),
             map_observations: Vec::new(),
             written_paths: std::collections::BTreeSet::new(),
@@ -1000,11 +1211,18 @@ pub fn emit_planned_units_with_kinds(
         let _unit_span = host.tracing().map(|tracing| {
             tracing.begin(
                 Phase::Emit,
-                "emit",
+                if self.print_pool.is_some() {
+                    "prepareEmitUnit"
+                } else {
+                    "emit"
+                },
                 TraceArgs::new().with("path", source.path().to_string_lossy().into_owned()),
             )
         });
         let mut javascript_printed = false;
+        let mut javascript_work = None;
+        let mut javascript_credit = None;
+        let mut declaration_failure = None;
         // A member the request leaves out is neither printed nor listed.
         let javascript_path = unit
             .paths()
@@ -1034,29 +1252,43 @@ pub fn emit_planned_units_with_kinds(
                             .with("jsFilePath", javascript_path.to_string_lossy().into_owned()),
                     )
                 });
-                emit_javascript_unit(
+                let work = emit_javascript_unit(
                     resolver,
                     host,
                     preflight,
                     unit,
                     options,
-                    &mut printer,
+                    printer,
                     new_line,
                     javascript_map_options_enabled,
                     source_id,
                     source_path,
                     javascript_path,
                     javascript_map_path.as_ref(),
-                    &mut emission,
+                    self.print_pool,
+                    _span,
                 )
                 .map_err(attach)?;
+                if work.is_complete() {
+                    let (products, credit) = work.finish();
+                    let products = products.map_err(attach)?;
+                    if has_prior_pending {
+                        javascript_work = Some(JavaScriptWork::Complete(Ok(products), credit));
+                    } else {
+                        emission.artifacts = products.artifacts;
+                        emission.map_observations = products.map_observations;
+                        javascript_credit = credit;
+                    }
+                } else {
+                    javascript_work = Some(work);
+                }
                 javascript_printed = true;
             }
         }
 
         // Source outputs retain the whole-Program failure boundary: a later
         // unsupported source must fail before any artifact reaches the sink.
-        if eager_source_roots {
+        if eager_source_roots && !has_prior_pending && javascript_work.is_none() {
             if let Some(sink) = sink.as_deref_mut() {
                 emission.written_paths.extend(write_artifacts(
                     std::mem::take(&mut emission.artifacts),
@@ -1087,19 +1319,23 @@ pub fn emit_planned_units_with_kinds(
                 declaration_path,
                 unit.paths().declaration_map_path(),
                 false,
-            )
-            .map_err(attach)?;
-            emission.emit_skipped |= declaration.decl_blocked;
-            emission.diagnostics.extend(declaration.diagnostics);
-            if let Some(observation) = declaration.map_observation {
-                emission.map_observations.push(observation);
-            }
-            if let Some(map) = declaration.map_artifact {
-                printed_declaration_map_path = Some(map.path().to_owned());
-                emission.artifacts.push(map);
-            }
-            if let Some(artifact) = declaration.artifact {
-                emission.artifacts.push(artifact);
+            );
+            match declaration {
+                Ok(declaration) => {
+                    emission.emit_skipped |= declaration.decl_blocked;
+                    emission.diagnostics.extend(declaration.diagnostics);
+                    if let Some(observation) = declaration.map_observation {
+                        emission.map_observations.push(observation);
+                    }
+                    if let Some(map) = declaration.map_artifact {
+                        printed_declaration_map_path = Some(map.path().to_owned());
+                        emission.artifacts.push(map);
+                    }
+                    if let Some(artifact) = declaration.artifact {
+                        emission.artifacts.push(artifact);
+                    }
+                }
+                Err(error) => declaration_failure = Some(error),
             }
         }
         // Without a declaration path (`emitDeclarationOnly` without
@@ -1107,35 +1343,181 @@ pub fn emit_planned_units_with_kinds(
         // the emit skipped: the run reports its diagnostics with outputs
         // generated (exit 2), where tsc 6.0's emitDeclarationFileOrBundle
         // marked it skipped (exit 1).
-        if eager_source_roots {
-            if let Some(sink) = sink.as_deref_mut() {
-                emission.written_paths.extend(write_artifacts(
-                    std::mem::take(&mut emission.artifacts),
-                    sink,
-                    &mut emission.diagnostics,
-                ));
-            }
-        }
         emission.javascript_path = javascript_path.filter(|_| javascript_printed);
         emission.javascript_map_path = javascript_map_path.filter(|_| javascript_printed);
         emission.declaration_path = declaration_path;
         emission.declaration_map_path = printed_declaration_map_path;
-        if let Some((started, at)) = unit_started {
-            let path = host
-                .source_file(source_id)
-                .map(|source| source.path().to_string_lossy().into_owned())
-                .unwrap_or_default();
-            eprintln!(
-                "[unit] ms={:.3} at={:.1} js={} decl={} {path}",
-                started.elapsed().as_secs_f64() * 1e3,
-                at,
-                emission.javascript_path.is_some(),
-                emission.declaration_path.is_some(),
-            );
-        }
-        emissions.push(emission);
+        let trace = unit_started
+            .map(|(started, at)| (started, at, source.path().to_string_lossy().into_owned()));
+        Ok(PendingUnitEmission {
+            emission,
+            javascript: javascript_work,
+            declaration_failure,
+            _credit: javascript_credit,
+            trace,
+            _span: if self.print_pool.is_none() {
+                _unit_span
+            } else {
+                None
+            },
+        })
     }
-    Ok(emissions)
+}
+
+enum OutputPath<'a> {
+    Borrowed(JsStr<'a>),
+    Owned(JsString),
+}
+
+impl OutputPath<'_> {
+    fn as_js(&self) -> JsStr<'_> {
+        match self {
+            Self::Borrowed(path) => *path,
+            Self::Owned(path) => path.as_js(),
+        }
+    }
+
+    fn into_string(self) -> JsString {
+        match self {
+            Self::Borrowed(path) => path.to_owned(),
+            Self::Owned(path) => path,
+        }
+    }
+
+    fn into_owned(self) -> OutputPath<'static> {
+        OutputPath::Owned(self.into_string())
+    }
+}
+
+enum MappingUrl {
+    Inline,
+    External(Result<String, EmitFailure>),
+}
+
+struct JavaScriptPrintInputs<'a> {
+    path: OutputPath<'a>,
+    map_path: Option<OutputPath<'a>>,
+    source_files: Vec<JsString>,
+    recording: Option<SourceMapRecordingInputs>,
+    mapping_url: Option<MappingUrl>,
+    new_line: NewLineKind,
+    emit_bom: bool,
+    transform_diagnostics: DiagnosticList,
+    _span: Option<tsc_types::tracing::Span>,
+    worker_trace: Option<std::sync::Arc<tsc_types::tracing::Tracing>>,
+}
+
+impl JavaScriptPrintInputs<'_> {
+    fn into_owned(self) -> JavaScriptPrintInputs<'static> {
+        JavaScriptPrintInputs {
+            path: self.path.into_owned(),
+            map_path: self.map_path.map(OutputPath::into_owned),
+            source_files: self.source_files,
+            recording: self.recording,
+            mapping_url: self.mapping_url,
+            new_line: self.new_line,
+            emit_bom: self.emit_bom,
+            transform_diagnostics: self.transform_diagnostics,
+            _span: self._span,
+            worker_trace: self.worker_trace,
+        }
+    }
+
+    fn input_charge(&self) -> Option<usize> {
+        if matches!(self.mapping_url, Some(MappingUrl::External(Err(_))))
+            || self
+                .recording
+                .as_ref()
+                .is_some_and(|input| input.original_positions.is_some())
+        {
+            return None;
+        }
+        let mut bytes = 4096 + self.path.as_js().as_bytes().len() * 2;
+        if let Some(path) = &self.map_path {
+            bytes += path.as_js().as_bytes().len() * 2;
+        }
+        if let Some(MappingUrl::External(Ok(url))) = &self.mapping_url {
+            bytes += url.capacity();
+        }
+        let mut usage = tsc_diagnostics::MemoryUsage::default();
+        usage.vec("source paths", &self.source_files);
+        for path in &self.source_files {
+            usage.js_string("source paths", path);
+        }
+        usage.diagnostics(&self.transform_diagnostics);
+        if let Some(input) = &self.recording {
+            for path in [
+                &input.file,
+                &input.source_root,
+                &input.sources_directory_path,
+                &input.current_directory,
+            ] {
+                usage.js_string("map input paths", path);
+            }
+        }
+        bytes.checked_add(usage.total().requested.checked_mul(2)?)
+    }
+}
+
+struct JavaScriptProducts {
+    artifacts: Vec<EmitArtifact>,
+    map_observations: Vec<SourceMapObservation>,
+}
+
+impl Default for JavaScriptProducts {
+    fn default() -> Self {
+        Self {
+            artifacts: Vec::with_capacity(2),
+            map_observations: Vec::new(),
+        }
+    }
+}
+
+enum JavaScriptWork {
+    Complete(
+        Result<JavaScriptProducts, EmitFailure>,
+        Option<crate::print_pool::PrintCredit>,
+    ),
+    Pending(crate::print_pool::PendingPrint<Result<JavaScriptProducts, EmitFailure>>),
+}
+
+impl JavaScriptWork {
+    fn is_ready(&mut self) -> bool {
+        match self {
+            Self::Complete(..) => true,
+            Self::Pending(work) => work.is_ready(),
+        }
+    }
+
+    fn is_complete(&self) -> bool {
+        matches!(self, Self::Complete(..))
+    }
+
+    fn finish(
+        self,
+    ) -> (
+        Result<JavaScriptProducts, EmitFailure>,
+        Option<crate::print_pool::PrintCredit>,
+    ) {
+        match self {
+            Self::Complete(result, credit) => (result, credit),
+            Self::Pending(pending) => {
+                let (result, credit) = pending.finish();
+                (result, Some(credit))
+            }
+        }
+    }
+}
+
+enum JavaScriptRetirement {
+    Background(Option<crate::print_pool::PrintCredit>),
+    Worker,
+}
+
+struct RetiredJavaScriptArena {
+    // Field order releases storage before the credit's last holder.
+    arena: TransformArena,
+    _credit: Option<crate::print_pool::PrintCredit>,
 }
 
 /// tsc-port: emitJsFileOrBundle @6.0.3 (_tsc.js:116594-116598 and the print
@@ -1155,8 +1537,10 @@ fn emit_javascript_unit(
     source_path: Option<JsStr<'_>>,
     javascript_path: JsStr<'_>,
     javascript_map_path: Option<&JsString>,
-    emission: &mut UnitEmission,
-) -> Result<(), EmitFailure> {
+    pool: Option<&crate::print_pool::EmitPrintPool>,
+    span: Option<tsc_types::tracing::Span>,
+) -> Result<JavaScriptWork, EmitFailure> {
+    let mut credit = pool.map(crate::print_pool::EmitPrintPool::acquire);
     let _ = preflight;
     let mut arena = TransformArena::new();
     let transform_root = mount_emit_root(&mut arena, host, unit.root(), true)?;
@@ -1201,7 +1585,6 @@ fn emit_javascript_unit(
     };
     let source_files = transformed_source_paths(&transformation, &transformed_root, host)?;
     let TransformRoot::SourceFile(root_source) = &transformed_root;
-    let print_request = PrintRequest::SourceFile(*root_source);
     let transform_diagnostics = transformation.diagnostics().to_vec();
     // tsc-port: shouldEmitSourceMaps @6.0.3
     // tsc-hash: 313b475b45d97ba74f69e4e404efd89763caf5fcc7ca9f94c293edf8fdea4f52
@@ -1222,44 +1605,143 @@ fn emit_javascript_unit(
             source_path,
         )
     });
-    let printed = printer.print_javascript_with_global_names(
+    let prepared = printer.prepare_source_file_print(
         &mut transformation,
-        print_request,
-        recording_inputs,
-        &ResolverGlobalNameOracle(resolver),
+        *root_source,
+        Some(&ResolverGlobalNameOracle(resolver)),
     )?;
+    let mapping_url = recording_enabled.then(|| {
+        if options.inline_source_map == Some(true) {
+            MappingUrl::Inline
+        } else {
+            // Retain an error until after printing, preserving the original
+            // precedence of a print failure over a malformed map URL.
+            MappingUrl::External(source_mapping_url_for_output(
+                &map_lane_inputs(host),
+                options,
+                "",
+                javascript_path,
+                javascript_map_path.map(JsString::as_js),
+                source_path,
+            ))
+        }
+    });
+    let mut inputs = JavaScriptPrintInputs {
+        path: OutputPath::Borrowed(javascript_path),
+        map_path: javascript_map_path.map(|path| OutputPath::Borrowed(path.as_js())),
+        source_files,
+        recording: recording_inputs,
+        mapping_url,
+        new_line,
+        emit_bom: options.emit_bom == Some(true),
+        transform_diagnostics,
+        _span: span,
+        worker_trace: None,
+    };
+    if let (Some(pool), Some(mut lease)) = (pool, credit.take()) {
+        let charge = transformation
+            .has_inert_print_hooks()
+            .then(|| transformation.print_input_charge())
+            .flatten()
+            .and_then(|tree| tree.checked_add(inputs.input_charge()?));
+        if charge.is_some_and(|bytes| lease.try_charge(bytes)) {
+            if let Some(owned) = transformation.take_owned_print() {
+                if let (Some(span), Some(bytes)) = (inputs._span.as_mut(), charge) {
+                    span.set_arg("ownedPrintCharge", bytes as u64);
+                }
+                drop(inputs._span.take());
+                inputs.worker_trace = host.tracing().cloned();
+                let inputs = inputs.into_owned();
+                let options = printer.options();
+                return Ok(JavaScriptWork::Pending(pool.submit(lease, move |cached| {
+                    let printer = cached.get_or_insert_with(|| create_printer(options));
+                    debug_assert_eq!(printer.options(), options);
+                    let outcome = print_prepared_javascript(
+                        owned.into_result(),
+                        printer,
+                        prepared,
+                        inputs,
+                        JavaScriptRetirement::Worker,
+                    );
+                    if outcome.is_err() {
+                        // A failed logical printer is never reused by an
+                        // unrelated unit assigned to the same worker.
+                        *cached = None;
+                    }
+                    outcome
+                })));
+            }
+        }
+        credit = Some(lease);
+    }
+    let retirement = JavaScriptRetirement::Background(credit.clone());
+    let outcome = print_prepared_javascript(transformation, printer, prepared, inputs, retirement);
+    Ok(JavaScriptWork::Complete(outcome, credit))
+}
+
+fn print_prepared_javascript(
+    mut transformation: crate::TransformationResult<'_>,
+    printer: &mut crate::Printer,
+    prepared: crate::printer::PreparedSourceFilePrint,
+    inputs: JavaScriptPrintInputs<'_>,
+    retirement: JavaScriptRetirement,
+) -> Result<JavaScriptProducts, EmitFailure> {
+    let JavaScriptPrintInputs {
+        path,
+        mut map_path,
+        source_files,
+        recording,
+        mapping_url,
+        new_line,
+        emit_bom,
+        transform_diagnostics,
+        _span,
+        worker_trace,
+    } = inputs;
+    let _worker_span = worker_trace.as_ref().map(|tracing| {
+        tracing.begin(
+            Phase::Emit,
+            "printPreparedJavaScript",
+            TraceArgs::new().with("jsFilePath", path.as_js().to_string_lossy().into_owned()),
+        )
+    });
+    let mut products = JavaScriptProducts::default();
+    let printed = printer.print_prepared_source_file(&mut transformation, prepared, recording)?;
     transformation.dispose();
-    // Dropping a large source's emit copy (its nodes, their identifier texts,
-    // the transforms' additions) takes milliseconds on the tail of the run;
-    // the disposed arena is released on a detached thread instead. A refused
-    // thread simply drops it here.
     let arena = transformation.into_arena();
-    if arena.node_count() >= 32 * 1024 {
+    let background = matches!(retirement, JavaScriptRetirement::Background(_));
+    let retired = RetiredJavaScriptArena {
+        arena,
+        _credit: match retirement {
+            JavaScriptRetirement::Background(credit) => credit,
+            JavaScriptRetirement::Worker => None,
+        },
+    };
+    if background && retired.arena.node_count() >= 32 * 1024 {
         let _ = std::thread::Builder::new()
             .name("tsc-rs-release".to_owned())
-            .spawn(move || drop(arena));
+            .spawn(move || drop(retired));
     } else {
-        drop(arena);
+        // Worker work retains its credit through actual arena destruction.
+        drop(retired);
     }
-    if recording_enabled {
-        let map_path = javascript_map_path;
+    if let Some(mapping_url) = mapping_url {
         let mut generator = printed.source_map().cloned().ok_or(EmitFailure::Contract(
             EmitContractViolation::SourceMapRecordingUnavailable,
         ))?;
         let map_json = generator.to_json_string();
-        emission.map_observations.push(SourceMapObservation::new(
-            javascript_path.to_owned(),
+        products.map_observations.push(SourceMapObservation::new(
+            path.as_js().to_owned(),
             generator.raw_sources().to_vec(),
             map_json.clone().into_boxed_str(),
         ));
-        let url = source_mapping_url_for_output(
-            &map_lane_inputs(host),
-            options,
-            &map_json,
-            javascript_path,
-            map_path.map(JsString::as_js),
-            source_path,
-        )?;
+        let url = match mapping_url {
+            MappingUrl::Inline => format!(
+                "data:application/json;base64,{}",
+                base64_encode(map_json.as_bytes())
+            ),
+            MappingUrl::External(url) => url?,
+        };
         // The callback keeps the generated value's raw units; only
         // its sink projection substitutes U+FFFD.
         let end = printed.end();
@@ -1275,30 +1757,30 @@ fn emit_javascript_unit(
         }
         javascript_text.push_str("//# sourceMappingURL=");
         javascript_text.push_str(&url);
-        if let Some(map_path) = map_path {
-            emission.artifacts.push(EmitArtifact::javascript_map(
-                map_path.clone(),
+        if let Some(map_path) = map_path.take() {
+            products.artifacts.push(EmitArtifact::javascript_map(
+                map_path.into_string(),
                 map_json,
                 Some(source_files.clone()),
             ));
         }
-        emission.artifacts.push(EmitArtifact::javascript(
-            javascript_path,
+        products.artifacts.push(EmitArtifact::javascript(
+            path.into_string(),
             EmitCallbackText::from_generated(javascript_text),
-            options.emit_bom == Some(true),
+            emit_bom,
             Some(source_files.clone()),
             EmitTextMetadata::new(transform_diagnostics, Some(url_position)),
         ));
     } else {
-        emission.artifacts.push(EmitArtifact::javascript(
-            javascript_path,
+        products.artifacts.push(EmitArtifact::javascript(
+            path.into_string(),
             EmitCallbackText::from_generated(printed.into_generated_text()),
-            options.emit_bom == Some(true),
+            emit_bom,
             Some(source_files.clone()),
             EmitTextMetadata::new(transform_diagnostics, None),
         ));
     }
-    Ok(())
+    Ok(products)
 }
 
 /// Phase 3 of emitFiles: write every retained artifact in plan order,

@@ -2050,3 +2050,200 @@ fn a_program_that_reports_before_it_emits_keeps_the_first_programs_order() {
     assert!(handed_back.is_err());
     assert!(sink.writes().is_empty());
 }
+
+#[test]
+fn sharded_emit_keeps_both_output_kinds_and_maps_in_plan_order() {
+    use std::num::NonZeroUsize;
+    use tsc_compiler::{CheckerBudget, WorkerBudget};
+
+    let texts = (0..24)
+        .map(|index| {
+            let text = format!(
+                "export namespace N{index} {{\n\
+                 export const value = {index};\n\
+                 export function add(x: number) {{ return x + value; }}\n\
+                 }}\n\
+                 export const result = N{index}.add(N{index}.value);\n\
+                 export class C{index} {{ static value = result; field = result; }}\n\
+                 export const anonymous = new class {{ value = result; read() {{ return this.value; }} }};\n\
+                 {}",
+                "// differing source weights\n".repeat(index * 11)
+            );
+            if index % 3 == 0 { text } else {
+                let begin = text.find("export class").unwrap();
+                format!("export const result = {index};\n{}", &text[begin..])
+            }
+        })
+        .collect::<Vec<_>>();
+    let names = (0..texts.len())
+        .map(|index| format!("/project/unit{index}.ts"))
+        .collect::<Vec<_>>();
+    let sources = names
+        .iter()
+        .zip(&texts)
+        .map(|(name, text)| (name.as_str(), text.as_str()))
+        .collect::<Vec<_>>();
+    for module in [1, 99] {
+        for no_emit_on_error in [false, true] {
+            let run = |workers, checkers| {
+                let prepared = prepared_with_sources_and_minimal_lib(
+                    CompilerOptions {
+                        target: Some(9),
+                        module: Some(module),
+                        declaration: Some(true),
+                        declaration_map: Some(true),
+                        source_map: Some(true),
+                        list_emitted_files: Some(true),
+                        no_emit_on_error: Some(no_emit_on_error),
+                        out_dir: Some("/project/out".into()),
+                        ..CompilerOptions::default()
+                    },
+                    &sources,
+                );
+                let mut sink = MemoryOutputSink::new();
+                let outcome = ProgramSession::new(prepared)
+                    .with_worker_budget(WorkerBudget::new(NonZeroUsize::new(workers).unwrap()))
+                    .with_checker_budget(CheckerBudget::new(NonZeroUsize::new(checkers).unwrap()))
+                    .emit(&mut sink)
+                    .expect("both output kinds");
+                (outcome, sink)
+            };
+            let serial = run(1, 1);
+            assert_eq!(serial.1.writes().len(), sources.len() * 4);
+            for (workers, checkers) in [(1, 4), (4, 1), (4, 4), (10, 4)] {
+                assert_eq!(run(workers, checkers), serial,
+                    "workers={workers}, checkers={checkers}, module={module}, noEmitOnError={no_emit_on_error}");
+            }
+        }
+    }
+}
+
+#[test]
+fn shared_sink_keeps_each_units_javascript_before_its_declaration() {
+    use std::{num::NonZeroUsize, sync::Mutex, time::Duration};
+    use tsc_compiler::{CheckerBudget, EmitArtifactKind, WorkerBudget};
+    use tsc_emitter::SharedOutputSink;
+
+    #[derive(Default)]
+    struct ProbeSink(Mutex<Vec<EmitArtifact>>);
+    impl SharedOutputSink for ProbeSink {
+        fn write_shared(
+            &self,
+            artifact: EmitArtifact,
+        ) -> Result<EmitWriteDisposition, EmitIoError> {
+            if artifact.kind() == EmitArtifactKind::JavaScript {
+                // Model an ordinary slow filesystem write, exposing the
+                // unit's old JS-before-declaration publication boundary.
+                std::thread::sleep(Duration::from_millis(25));
+            }
+            self.0.lock().unwrap().push(artifact);
+            Ok(EmitWriteDisposition::Written)
+        }
+    }
+    impl OutputSink for ProbeSink {
+        fn write(&mut self, artifact: EmitArtifact) -> Result<EmitWriteDisposition, EmitIoError> {
+            self.write_shared(artifact)
+        }
+        fn shared(&self) -> Option<&dyn SharedOutputSink> {
+            Some(self)
+        }
+    }
+
+    let names = (0..16)
+        .map(|i| format!("/project/source{i}.ts"))
+        .collect::<Vec<_>>();
+    let sources = names
+        .iter()
+        .map(|name| (name.as_str(), "export const value = 1;\n"))
+        .collect::<Vec<_>>();
+    let mut sink = ProbeSink::default();
+    ProgramSession::new(prepared_with_sources_and_minimal_lib(
+        CompilerOptions {
+            target: Some(9),
+            module: Some(99),
+            declaration: Some(true),
+            no_emit_on_error: Some(true),
+            out_dir: Some("/project/out".into()),
+            ..CompilerOptions::default()
+        },
+        &sources,
+    ))
+    .with_worker_budget(WorkerBudget::new(NonZeroUsize::new(4).unwrap()))
+    .with_checker_budget(CheckerBudget::new(NonZeroUsize::new(2).unwrap()))
+    .emit(&mut sink)
+    .unwrap();
+    let writes = sink.0.into_inner().unwrap();
+    let mut written_js = std::collections::BTreeSet::new();
+    let mut early_declarations = 0;
+    for artifact in &writes {
+        let path = artifact.path().to_string_lossy().into_owned();
+        match artifact.kind() {
+            EmitArtifactKind::JavaScript => {
+                written_js.insert(path);
+            }
+            EmitArtifactKind::Declaration
+                if !written_js.contains(&path.replace(".d.ts", ".js")) =>
+            {
+                early_declarations += 1;
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(
+        early_declarations, 0,
+        "a unit's JavaScript reaches the sink before its declaration"
+    );
+}
+
+#[test]
+fn sharded_emit_preserves_ordered_sink_failures_for_both_kinds_and_maps() {
+    use std::num::NonZeroUsize;
+    use tsc_compiler::{CheckerBudget, WorkerBudget};
+    let names = (0..4)
+        .map(|i| format!("/project/file{i}.ts"))
+        .collect::<Vec<_>>();
+    let sources = names
+        .iter()
+        .map(|name| (name.as_str(), "export const value = 1;\n"))
+        .collect::<Vec<_>>();
+    let run = |workers, checkers, failed: &Path| {
+        let prepared = prepared_with_sources_and_minimal_lib(
+            CompilerOptions {
+                target: Some(9),
+                module: Some(99),
+                declaration: Some(true),
+                source_map: Some(true),
+                declaration_map: Some(true),
+                list_emitted_files: Some(true),
+                no_emit_on_error: Some(true),
+                out_dir: Some("/project/out".into()),
+                ..CompilerOptions::default()
+            },
+            &sources,
+        );
+        let mut filesystem = InjectedFileSystem {
+            fail_path: failed.to_path_buf(),
+            attempts: Vec::new(),
+            files: BTreeMap::new(),
+        };
+        let outcome = ProgramSession::new(prepared)
+            .with_worker_budget(WorkerBudget::new(NonZeroUsize::new(workers).unwrap()))
+            .with_checker_budget(CheckerBudget::new(NonZeroUsize::new(checkers).unwrap()))
+            .emit(&mut FsOutputSink::new(&mut filesystem))
+            .unwrap();
+        (outcome, filesystem.attempts, filesystem.files)
+    };
+    let success = run(1, 1, Path::new("/never-written"));
+    assert_eq!(success.1.len(), 16);
+    for failed in &success.1 {
+        let expected = run(1, 1, failed);
+        for (workers, checkers) in [(4, 4), (10, 4)] {
+            assert_eq!(
+                run(workers, checkers, failed),
+                expected,
+                "workers={workers}, checkers={checkers}, failed={failed:?}"
+            );
+        }
+    }
+    assert_eq!(run(10, 4, Path::new("/never-written")), success);
+}

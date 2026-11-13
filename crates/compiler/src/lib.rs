@@ -2775,6 +2775,23 @@ impl ProgramSession {
                 .map(|_| std::sync::Mutex::new(PreludeSlot::Pending))
                 .collect()
         };
+        let print_owners = if declaration_output {
+            checker_budget.checkers()
+        } else {
+            worker_budget.max_workers()
+        };
+        let print_pool = tsc_emitter::EmitPrintPool::for_budget(
+            worker_budget.max_workers(),
+            print_owners,
+            16 * 1024 * 1024,
+        );
+        if let Some(pool) = &print_pool {
+            pool.set_reserved_workers(if eager_emit_enabled {
+                prelude_candidates.len().min(2)
+            } else {
+                0
+            });
+        }
         let prelude = |snapshot: &ProgramSnapshot| {
             let started = std::time::Instant::now();
             let next = std::sync::atomic::AtomicUsize::new(0);
@@ -2823,6 +2840,9 @@ impl ProgramSession {
                 }
                 prepare_next();
             });
+            if let Some(pool) = &print_pool {
+                pool.set_reserved_workers(0);
+            }
             if tsc_types::trace::enabled() {
                 tsc_types::trace::mark(
                     &format!(
@@ -3032,15 +3052,14 @@ impl ProgramSession {
                 let results = worker_budget.map_ordered(jobs, weight, |(shard, units)| {
                     let mut eager = eager_sink.map(tsc_emitter::EagerUnitSink);
                     sessions[shard].with_emit_resolver(|resolver| {
-                        tsc_emitter::emit_planned_units_with_kinds(
-                            resolver,
-                            &checked_host,
-                            &preflight,
-                            &requests_for(&units),
-                            eager
-                                .as_mut()
-                                .map(|sink| sink as &mut dyn tsc_emitter::OutputSink),
-                        )
+                        tsc_emitter::PlannedUnitEmitter::new(resolver, &checked_host, &preflight)
+                            .with_print_pool(print_pool.as_ref())
+                            .emit(
+                                &requests_for(&units),
+                                eager
+                                    .as_mut()
+                                    .map(|sink| sink as &mut dyn tsc_emitter::OutputSink),
+                            )
                     })
                 });
                 let mut units = Vec::with_capacity(results.len());
@@ -3131,6 +3150,24 @@ impl ProgramSession {
                 // shard's units are one ordered pool job anyway, so the last
                 // shard simply finishes them in order.
                 let (emitted, failure, owns_tail) = session.with_emit_resolver(|resolver| {
+                    if declaration_output && print_pool.is_some() {
+                        let units = units.iter().map(|&(unit, _)| unit).collect::<Vec<_>>();
+                        return match tsc_emitter::PlannedUnitEmitter::new(
+                            resolver,
+                            &checked_host,
+                            &preflight,
+                        )
+                        .with_print_pool(print_pool.as_ref())
+                        .emit(
+                            &requests_for(&units),
+                            eager_unit_sink
+                                .as_mut()
+                                .map(|sink| sink as &mut dyn tsc_emitter::OutputSink),
+                        ) {
+                            Ok(emitted) => (emitted, None, false),
+                            Err(error) => (Vec::new(), Some(error), false),
+                        };
+                    }
                     let mut emitted = Vec::new();
                     let mut remaining = units.clone();
                     // The shard that finds every check finished before it
@@ -3253,6 +3290,20 @@ impl ProgramSession {
             .map_err(|failure| map_authoritative_failure(&prepared, failure))?;
             (checked, sharded_emit.emissions.take())
         };
+
+        if tsc_types::trace::enabled() {
+            if let Some(pool) = &print_pool {
+                let peak = pool.peak();
+                eprintln!(
+                    "[emit-print] peak_units={} charged_bytes={} submitted={} workers={}",
+                    peak.units, peak.charged_bytes, peak.submitted, peak.workers
+                );
+            }
+        }
+        // Owners consumed or canceled pending results before the guard's
+        // checkpoint. Canceled jobs have no checker borrow; join every print
+        // worker before finishing writes.
+        drop(print_pool);
 
         // tsgo emitBuildInfo after the emit (or the skipped emit) of an
         // incremental program.

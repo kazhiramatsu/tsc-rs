@@ -110,6 +110,7 @@ fn main() {
     // Every worker thread and checker shard starts with the same request;
     // the main thread reads, coordinates and runs the first shard itself.
     tsc_program::set_thread_start_hook(prefer_interactive_scheduling);
+    tsc_program::set_worker_idle_hook(collect_memory);
     prefer_interactive_scheduling();
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
     #[cfg(feature = "phase-ledger")]
