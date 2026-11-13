@@ -931,6 +931,138 @@ fn module_indicators_preserve_import_meta_order_and_top_level_precedence() {
     }
 }
 
+#[test]
+fn payload_finishing_matches_allocated_node_finishing() {
+    for context in [
+        NodeFlags::NONE,
+        NodeFlags::JSON_FILE,
+        NodeFlags::JS_DOC,
+        NodeFlags::AWAIT_CONTEXT | NodeFlags::AMBIENT,
+    ] {
+        for flags in [
+            NodeFlags::NONE,
+            NodeFlags::JS_DOC,
+            NodeFlags::THIS_NODE_HAS_ERROR,
+        ] {
+            for pending_error in [false, true] {
+                for has_jsdoc in [false, true] {
+                    let make_parser = || {
+                        let mut parser = Parser::new(
+                            "finish.ts".into(),
+                            "                    ",
+                            LanguageVariant::Standard,
+                            false,
+                        );
+                        parser.context_flags = context;
+                        parser.has_jsdoc_comments = has_jsdoc;
+                        parser.jsdoc_positions.insert(4);
+                        parser
+                            .arena
+                            .alloc_token(SyntaxKind::AnyKeyword, 1, 3, NodeFlags::NONE);
+                        parser
+                    };
+                    let mut actual = make_parser();
+                    let mut reference = make_parser();
+                    for data in [
+                        NodeData::Identifier(IdentifierData {
+                            escaped_text: tsc_types::EscapedName::escape("name".into()),
+                        }),
+                        NodeData::VariableStatement(VariableStatementData {
+                            modifiers: None,
+                            declaration_list: Some(NodeId::new(0)),
+                        }),
+                        NodeData::TypeReference(TypeReferenceData {
+                            type_name: Some(NodeId::new(0)),
+                            type_arguments: None,
+                        }),
+                    ] {
+                        actual.parse_error_before_next_finished_node = pending_error;
+                        reference.parse_error_before_next_finished_node = pending_error;
+                        let id = actual.alloc_and_finish(data, 4, 12, flags);
+                        let reference_id = reference.arena.alloc_node(data, 4, 12, flags);
+                        reference.finish_node_at(reference_id, 4, 12);
+                        assert_eq!(id, reference_id);
+                        assert_finished_headers_match(&actual, &reference, id);
+                        assert_eq!(
+                            actual.arena.node(NodeId::new(0)).parent,
+                            reference.arena.node(NodeId::new(0)).parent
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn identifier_finishing_observes_errors_from_the_following_scan() {
+    for (text, private) in [
+        (r"name \u{zz}", false),
+        (r"#name \u{zz}", true),
+        ("name /** @see doc */ next", false),
+    ] {
+        let make_parser = || Parser::new("scan.ts".into(), text, LanguageVariant::Standard, false);
+        let mut actual = make_parser();
+        let mut reference = make_parser();
+        actual.next_token();
+        reference.next_token();
+        let pos = reference.node_pos();
+        let end = reference.scanner.pos();
+        let escaped_text = reference.current_token_name();
+        let data = if private {
+            NodeData::PrivateIdentifier(PrivateIdentifierData { escaped_text })
+        } else {
+            NodeData::Identifier(IdentifierData { escaped_text })
+        };
+        let reference_id = reference.arena.alloc_node(data, pos, end, NodeFlags::NONE);
+        reference.next_token_without_check();
+        reference.finish_node_at(reference_id, pos, end);
+        let id = if private {
+            actual.parse_private_identifier()
+        } else {
+            actual.parse_identifier()
+        };
+        assert_eq!(id, reference_id);
+        assert_finished_headers_match(&actual, &reference, id);
+        let diagnostics = |parser: &Parser<'_>| {
+            parser
+                .parse_diagnostics
+                .iter()
+                .map(|d| (d.code(), d.start, d.length, d.message_text().to_owned()))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(diagnostics(&actual), diagnostics(&reference));
+        assert_eq!(actual.token(), reference.token());
+        if text.contains("zz") {
+            assert!(!actual.parse_diagnostics.is_empty());
+            assert!(NodeFlags::from_bits(actual.arena.node(id).flags)
+                .contains(NodeFlags::THIS_NODE_HAS_ERROR));
+        }
+    }
+}
+
+fn assert_finished_headers_match(actual: &Parser<'_>, reference: &Parser<'_>, id: NodeId) {
+    let node = actual.arena.node(id);
+    let expected = reference.arena.node(id);
+    assert_eq!(
+        (node.kind, node.pos, node.end, node.flags, node.parent),
+        (
+            expected.kind,
+            expected.pos,
+            expected.end,
+            expected.flags,
+            expected.parent
+        )
+    );
+    assert_eq!(node.data(), expected.data());
+    assert_eq!(actual.error_nodes, reference.error_nodes);
+    assert_eq!(actual.jsdoc_candidates, reference.jsdoc_candidates);
+    assert_eq!(
+        actual.parse_error_before_next_finished_node,
+        reference.parse_error_before_next_finished_node
+    );
+}
+
 /// tsc speculationHelper (29538) restores the token, the
 /// diagnostics length, and (assert-unchanged) contextFlags —
 /// never sourceFlags — and parseImportType (31292) sets
