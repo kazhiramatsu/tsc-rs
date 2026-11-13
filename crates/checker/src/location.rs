@@ -73,7 +73,7 @@ impl CheckerState<'_> {
         if let (Some(class_type), Some((_, false))) = (class_type, heritage) {
             // An ExpressionWithTypeArguments is a type node except in the
             // extends clause of a class.
-            let base_types = self.get_base_types(class_type)?;
+            let base_types = self.get_base_type_list(class_type)?;
             if let Some(&base_type) = base_types.first() {
                 let this_type = self.interface_this_type(class_type);
                 return self.get_type_with_this_argument(base_type, this_type, false);

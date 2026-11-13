@@ -783,7 +783,7 @@ fn large_union_inputs_match_the_base_in_both_orders() {
         t.set_alias(content, Some(SymbolId::new(7)), None);
         t.set_alias(ids, Some(SymbolId::new(8)), None);
         let unknown = t.get_union_type_from_sorted_list(
-            literals[64..128].to_vec(),
+            &literals[64..128],
             ObjectFlags::NONE,
             None,
             None,
@@ -923,7 +923,7 @@ fn large_union_merge_does_not_scan_members_for_order() {
     t.add_types_to_union(Some(&ctx), &mut actual, 0, &[union, literals[0]]);
     assert_eq!(actual, literals);
     assert!(ctx.symbol_comparisons.borrow().len() <= 7);
-    let raw = t.create_origin_union_or_intersection_type(TypeFlags::UNION, literals[1..].to_vec());
+    let raw = t.create_origin_union_or_intersection_type(TypeFlags::UNION, &literals[1..]);
     ctx.symbol_comparisons.borrow_mut().clear();
     actual.clear();
     t.add_types_to_union(Some(&ctx), &mut actual, 0, &[raw, literals[0]]);
@@ -1112,8 +1112,7 @@ fn named_union_finishing_reuses_markers_and_checks_unmarked_lists() {
         .collect();
     let known = tables.get_union_type(Some(&ctx), &literals[1..5], UnionReduction::None);
     tables.set_alias(known, Some(SymbolId::new(1000)), None);
-    let raw =
-        tables.create_origin_union_or_intersection_type(TypeFlags::UNION, literals[1..5].to_vec());
+    let raw = tables.create_origin_union_or_intersection_type(TypeFlags::UNION, &literals[1..5]);
     tables.set_alias(raw, Some(SymbolId::new(1001)), None);
     for inner in [known, raw] {
         let sources = [inner, literals[0], literals[5]];

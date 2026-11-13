@@ -90,8 +90,12 @@ impl<'a> CheckerState<'a> {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("intersection flag implies intersection data");
             };
-            let types = self.tables.list_copy(types);
-            return self.add_types_to_intersection(type_set, includes, &types);
+            let mut members = self.tables.cursor(types);
+            while let Some(member) = members.next(&self.tables) {
+                let regular = self.regular_type_of_literal_type(member);
+                includes = self.add_type_to_intersection(type_set, includes, regular)?;
+            }
+            return Ok(includes);
         }
         if self.is_empty_anonymous_object_type(ty)? {
             if includes & TypeFlags::INCLUDES_EMPTY_OBJECT.bits() == 0 {
@@ -211,8 +215,26 @@ impl<'a> CheckerState<'a> {
         alias_symbol: Option<tsc_binder::SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
     ) -> CheckResult<TypeId> {
-        let mut type_set: Vec<TypeId> = Vec::new();
-        let includes = self.add_types_to_intersection(&mut type_set, 0, types)?;
+        self.with_instantiation_type_list(|state, type_set| {
+            state.get_intersection_type_with_buffer(
+                types,
+                flags,
+                alias_symbol,
+                alias_type_arguments,
+                type_set,
+            )
+        })
+    }
+
+    fn get_intersection_type_with_buffer(
+        &mut self,
+        types: &[TypeId],
+        flags: IntersectionFlags,
+        alias_symbol: Option<tsc_binder::SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+        type_set: &mut Vec<TypeId>,
+    ) -> CheckResult<TypeId> {
+        let includes = self.add_types_to_intersection(type_set, 0, types)?;
         // objectFlags picks up IsConstrainedTypeVariable only in the
         // M4 step-6 branch below; zero until then.
         let object_flags = ObjectFlags::from_bits(0);
@@ -248,7 +270,7 @@ impl<'a> CheckerState<'a> {
         }
         if includes & (TypeFlags::TEMPLATE_LITERAL.bits() | TypeFlags::STRING_MAPPING.bits()) != 0
             && includes & TypeFlags::STRING_LITERAL.bits() != 0
-            && self.extract_redundant_template_literals(&mut type_set)?
+            && self.extract_redundant_template_literals(type_set)?
         {
             return Ok(self.tables.intrinsics.never);
         }
@@ -288,7 +310,7 @@ impl<'a> CheckerState<'a> {
                 && includes & TypeFlags::DEFINITELY_NON_NULLABLE.bits() != 0))
             && !flags.intersects(IntersectionFlags::NO_SUPERTYPE_REDUCTION)
         {
-            self.remove_redundant_supertypes(&mut type_set, includes)?;
+            self.remove_redundant_supertypes(type_set, includes)?;
         }
         if includes & TypeFlags::INCLUDES_MISSING_TYPE.bits() != 0 {
             let undefined = self.tables.intrinsics.undefined;
@@ -330,9 +352,9 @@ impl<'a> CheckerState<'a> {
             {
                 if let Some(constraint) = self.get_base_constraint_of_type(type_variable)? {
                     let all_primitive_like = {
-                        let members = self.union_members_or_self(constraint);
+                        let mut members = self.union_members_or_self(constraint);
                         let mut all = true;
-                        for &member in members.iter() {
+                        while let Some(member) = members.next(&self.tables) {
                             if !(self
                                 .tables
                                 .flags_of(member)
@@ -354,9 +376,9 @@ impl<'a> CheckerState<'a> {
                             .flags_of(constraint)
                             .intersects(TypeFlags::UNION)
                         {
-                            let members = self.union_members_or_self(constraint);
+                            let mut members = self.union_members_or_self(constraint);
                             let mut any = false;
-                            for member in members {
+                            while let Some(member) = members.next(&self.tables) {
                                 if self.is_type_strict_subtype_of(member, primitive_type)? {
                                     any = true;
                                     break;
@@ -377,7 +399,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         let key = IntersectionKey {
-            list: self.tables.intern_type_list(&type_set),
+            list: self.tables.intern_type_list(type_set),
             alias: if flags.intersects(IntersectionFlags::NO_CONSTRAINT_REDUCTION) {
                 IntersectionAlias::NoConstraintReduction
             } else {
@@ -389,7 +411,7 @@ impl<'a> CheckerState<'a> {
         }
         let result = if includes & TypeFlags::UNION.bits() != 0 {
             self.distribute_intersection_over_unions(
-                &mut type_set,
+                type_set,
                 flags,
                 alias_symbol,
                 alias_type_arguments,
@@ -397,7 +419,7 @@ impl<'a> CheckerState<'a> {
             )?
         } else {
             self.tables.create_intersection_type(
-                type_set,
+                &*type_set,
                 object_flags,
                 alias_symbol,
                 alias_type_arguments,
@@ -424,7 +446,7 @@ impl<'a> CheckerState<'a> {
             .intersect_unions_of_primitive_types(ctx.order(), type_set)
         {
             return self.get_intersection_type_ex(
-                &type_set.clone(),
+                type_set.as_slice(),
                 flags,
                 alias_symbol,
                 alias_type_arguments,
@@ -452,7 +474,7 @@ impl<'a> CheckerState<'a> {
                 undefined
             };
             self.tables.remove_from_each(type_set, TypeFlags::UNDEFINED);
-            let inner = self.get_intersection_type(&type_set.clone(), flags)?;
+            let inner = self.get_intersection_type(type_set.as_slice(), flags)?;
             return self.get_union_type_ex_with_origin(
                 &[inner, contained],
                 UnionReduction::Literal,
@@ -478,7 +500,7 @@ impl<'a> CheckerState<'a> {
         if all_contain_null {
             let null = self.tables.intrinsics.null;
             self.tables.remove_from_each(type_set, TypeFlags::NULL);
-            let inner = self.get_intersection_type(&type_set.clone(), flags)?;
+            let inner = self.get_intersection_type(type_set.as_slice(), flags)?;
             return self.get_union_type_ex_with_origin(
                 &[inner, null],
                 UnionReduction::Literal,
@@ -501,28 +523,30 @@ impl<'a> CheckerState<'a> {
         if !self.check_cross_product_union(type_set) {
             return Ok(self.tables.intrinsics.error);
         }
-        let constituents = self.get_cross_product_intersections(type_set, flags)?;
-        let has_intersection = constituents
-            .iter()
-            .any(|&t| self.tables.flags_of(t).intersects(TypeFlags::INTERSECTION));
-        let origin = if has_intersection
-            && self.tables.get_constituent_count_of_types(&constituents)
-                > self.tables.get_constituent_count_of_types(type_set)
-        {
-            Some(self.tables.create_origin_union_or_intersection_type(
-                TypeFlags::INTERSECTION,
-                type_set.clone(),
-            ))
-        } else {
-            None
-        };
-        self.get_union_type_ex_with_origin(
-            &constituents,
-            UnionReduction::Literal,
-            alias_symbol,
-            alias_type_arguments,
-            origin,
-        )
+        self.with_instantiation_type_list(|state, constituents| {
+            state.get_cross_product_intersections(type_set, flags, constituents)?;
+            let has_intersection = constituents
+                .iter()
+                .any(|&t| state.tables.flags_of(t).intersects(TypeFlags::INTERSECTION));
+            let origin = if has_intersection
+                && state.tables.get_constituent_count_of_types(constituents)
+                    > state.tables.get_constituent_count_of_types(type_set)
+            {
+                Some(state.tables.create_origin_union_or_intersection_type(
+                    TypeFlags::INTERSECTION,
+                    type_set.as_slice(),
+                ))
+            } else {
+                None
+            };
+            state.get_union_type_ex_with_origin(
+                constituents,
+                UnionReduction::Literal,
+                alias_symbol,
+                alias_type_arguments,
+                origin,
+            )
+        })
     }
 
     /// tsc-port: getCrossProductIntersections @6.0.3
@@ -532,32 +556,35 @@ impl<'a> CheckerState<'a> {
         &mut self,
         types: &[TypeId],
         flags: IntersectionFlags,
-    ) -> CheckResult<Vec<TypeId>> {
+        intersections: &mut Vec<TypeId>,
+    ) -> CheckResult<()> {
         let count = self.cross_product_union_size(types);
-        let mut intersections = Vec::new();
-        for i in 0..count {
-            let mut constituents = types.to_vec();
-            let mut n = i;
-            for j in (0..types.len()).rev() {
-                if self.tables.flags_of(types[j]).intersects(TypeFlags::UNION) {
-                    let TypeData::Union {
-                        types: source_types,
-                        ..
-                    } = self.tables.type_of(types[j]).data
-                    else {
-                        unreachable!("union flag implies union data");
-                    };
-                    let length = self.tables.list(source_types).len();
-                    constituents[j] = self.tables.list(source_types)[n % length];
-                    n /= length;
+        self.with_instantiation_type_list(|state, constituents| {
+            for i in 0..count {
+                constituents.clear();
+                constituents.extend_from_slice(types);
+                let mut n = i;
+                for j in (0..types.len()).rev() {
+                    if state.tables.flags_of(types[j]).intersects(TypeFlags::UNION) {
+                        let TypeData::Union {
+                            types: source_types,
+                            ..
+                        } = state.tables.type_of(types[j]).data
+                        else {
+                            unreachable!("union flag implies union data");
+                        };
+                        let length = state.tables.list(source_types).len();
+                        constituents[j] = state.tables.list(source_types)[n % length];
+                        n /= length;
+                    }
+                }
+                let t = state.get_intersection_type(constituents, flags)?;
+                if !state.tables.flags_of(t).intersects(TypeFlags::NEVER) {
+                    intersections.push(t);
                 }
             }
-            let t = self.get_intersection_type(&constituents, flags)?;
-            if !self.tables.flags_of(t).intersects(TypeFlags::NEVER) {
-                intersections.push(t);
-            }
-        }
-        Ok(intersections)
+            Ok(())
+        })
     }
 
     /// tsc-port: getCrossProductUnionSize @6.0.3

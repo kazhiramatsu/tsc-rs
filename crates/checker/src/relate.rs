@@ -13,6 +13,7 @@
 //! stage 4.6.
 
 use rustc_hash::FxHashMap as HashMap;
+use std::sync::Arc;
 
 use tsc_binder::SymbolId;
 use tsc_syntax::SyntaxKind;
@@ -62,7 +63,7 @@ impl RelationKind {
 pub struct RelationCache {
     pairs: hashbrown::HashTable<u64>,
     wide_pairs: HashMap<(u32, u32, i32), RelationComparisonResult>,
-    generics: HashMap<Box<str>, RelationComparisonResult>,
+    generics: HashMap<Arc<str>, RelationComparisonResult>,
 }
 
 const RESULT_BITS: u32 = 6;
@@ -173,7 +174,7 @@ impl RelationCache {
     #[inline(never)]
     fn insert_generic(
         &mut self,
-        text: Box<str>,
+        text: Arc<str>,
         value: RelationComparisonResult,
     ) -> Option<RelationComparisonResult> {
         self.generics.insert(text, value)
@@ -204,10 +205,9 @@ impl RelationCache {
                 * 8
                 / 7
             + self.generics.capacity()
-                * (std::mem::size_of::<(Box<str>, RelationComparisonResult)>() + 1)
+                * (std::mem::size_of::<(Arc<str>, RelationComparisonResult)>() + 1)
                 * 8
                 / 7
-            + self.generics.keys().map(|text| text.len()).sum::<usize>()
     }
 }
 
@@ -224,7 +224,7 @@ pub enum RelationKey {
         target: u32,
         intersection: i32,
     },
-    Generic(Box<str>),
+    Generic(Arc<str>),
 }
 
 impl RelationKey {
@@ -261,6 +261,8 @@ impl std::fmt::Display for RelationKey {
 #[derive(Debug, Default)]
 pub struct RelationCaches {
     per_relation: [RelationCache; 5],
+    generic_keys: rustc_hash::FxHashSet<Arc<str>>,
+    key_buffers: Vec<(String, Vec<TypeId>)>,
     pub enum_relation: HashMap<String, RelationComparisonResult>,
 }
 
@@ -320,6 +322,8 @@ impl RelationCaches {
                 generics: HashMap::default(),
             }),
             enum_relation: HashMap::default(),
+            generic_keys: rustc_hash::FxHashSet::default(),
+            key_buffers: Vec::new(),
         }
     }
 
@@ -335,6 +339,20 @@ impl RelationCaches {
                 .enum_relation
                 .keys()
                 .map(String::capacity)
+                .sum::<usize>();
+        bytes += self.generic_keys.capacity() * (std::mem::size_of::<Arc<str>>() + 1) * 8 / 7
+            + self
+                .generic_keys
+                .iter()
+                .map(|key| key.len() + 2 * std::mem::size_of::<usize>())
+                .sum::<usize>()
+            + self.key_buffers.capacity() * std::mem::size_of::<(String, Vec<TypeId>)>()
+            + self
+                .key_buffers
+                .iter()
+                .map(|(text, parameters)| {
+                    text.capacity() + parameters.capacity() * std::mem::size_of::<TypeId>()
+                })
                 .sum::<usize>();
         for cache in &self.per_relation {
             entries += cache.len();
@@ -415,25 +433,58 @@ impl<'a> CheckerState<'a> {
         intersection_state: IntersectionState,
         ignore_constraints: bool,
     ) -> CheckResult<RelationKey> {
-        let mut type_parameters: Vec<TypeId> = Vec::new();
+        let (mut result, mut type_parameters) =
+            self.relations.key_buffers.pop().unwrap_or_default();
+        let key = self.write_generic_type_reference_relation_key(
+            source,
+            target,
+            intersection_state,
+            ignore_constraints,
+            &mut type_parameters,
+            &mut result,
+        );
+        let key = key.map(|()| {
+            if let Some(key) = self.relations.generic_keys.get(result.as_str()) {
+                RelationKey::Generic(key.clone())
+            } else {
+                let key: Arc<str> = Arc::from(result.as_str());
+                self.relations.generic_keys.insert(key.clone());
+                RelationKey::Generic(key)
+            }
+        });
+        result.clear();
+        type_parameters.clear();
+        self.relations.key_buffers.push((result, type_parameters));
+        key
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn write_generic_type_reference_relation_key(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        intersection_state: IntersectionState,
+        ignore_constraints: bool,
+        type_parameters: &mut Vec<TypeId>,
+        result: &mut String,
+    ) -> CheckResult<()> {
         let mut constraint_marker = "";
-        let mut result = String::with_capacity(64);
         self.get_type_reference_id(
             source,
             0,
             ignore_constraints,
-            &mut type_parameters,
+            type_parameters,
             &mut constraint_marker,
-            &mut result,
+            result,
         )?;
         result.push(',');
         self.get_type_reference_id(
             target,
             0,
             ignore_constraints,
-            &mut type_parameters,
+            type_parameters,
             &mut constraint_marker,
-            &mut result,
+            result,
         )?;
         if !constraint_marker.is_empty() {
             result.insert(0, '*');
@@ -444,9 +495,9 @@ impl<'a> CheckerState<'a> {
             if intersection < 0 {
                 result.push('-');
             }
-            tsc_types::tables::push_decimal(&mut result, intersection.unsigned_abs());
+            tsc_types::tables::push_decimal(result, intersection.unsigned_abs());
         }
-        Ok(RelationKey::Generic(result.into_boxed_str()))
+        Ok(())
     }
 
     fn get_type_reference_id(

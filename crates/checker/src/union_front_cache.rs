@@ -427,7 +427,7 @@ mod tests {
             ];
             let origin = state
                 .tables
-                .create_origin_union_or_intersection_type(TypeFlags::UNION, inputs.to_vec());
+                .create_origin_union_or_intersection_type(TypeFlags::UNION, inputs);
             let lookups = state.union_front_cache.stats.lookups;
             let bypass = state.union_front_cache.stats.origin;
             let first = state

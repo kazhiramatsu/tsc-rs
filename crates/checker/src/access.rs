@@ -3086,7 +3086,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let declared = self.get_declared_type_of_class_or_interface(parent)?;
-        let base_types = self.get_base_types(declared)?;
+        let base_types = self.get_base_type_list(declared)?;
         let Some(&first_base) = base_types.first() else {
             return Ok(false);
         };
@@ -3963,9 +3963,9 @@ impl<'a> CheckerState<'a> {
         } else {
             self.get_index_type(object_type, tsc_types::IndexFlags::NONE)?
         };
-        let constituents = self.union_members_or_self(index_type);
+        let mut constituents = self.union_members_or_self(index_type);
         let mut every_assignable = true;
-        for t in constituents {
+        while let Some(t) = constituents.next(&self.tables) {
             let ok = self.is_type_assignable_to(t, key_of_object)?
                 || has_number_index_info && self.is_applicable_index_type(t, number)?;
             if !ok {
@@ -3996,9 +3996,9 @@ impl<'a> CheckerState<'a> {
         if self.is_generic_object_type_state(object_type)? {
             if let Some(property_name) = self.property_name_from_type_usable(index_type) {
                 let apparent = self.get_apparent_type(object_type)?;
-                let apparent_members = self.union_members_or_self(apparent);
+                let mut apparent_members = self.union_members_or_self(apparent);
                 let mut property_symbol = None;
-                for t in apparent_members {
+                while let Some(t) = apparent_members.next(&self.tables) {
                     if let Some(found) = self.get_property_of_type_full(t, property_name)? {
                         property_symbol = Some(found);
                         break;

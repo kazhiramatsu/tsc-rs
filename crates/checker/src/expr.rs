@@ -2687,7 +2687,7 @@ impl<'a> CheckerState<'a> {
         };
         let class_symbol = self.get_merged_symbol(class_symbol);
         let class_type = self.get_declared_type_of_class_or_interface(class_symbol)?;
-        let base_types = self.get_base_types(class_type)?;
+        let base_types = self.get_base_type_list(class_type)?;
         let Some(&base_class_type) = base_types.first() else {
             return Ok(self.tables.intrinsics.error);
         };

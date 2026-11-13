@@ -6072,7 +6072,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
     ) -> CheckResult<bool> {
         // tsgo checker.go:8865: the base types of the reference's target.
-        let base_types = self.get_base_types(self.get_target_type(ty))?;
+        let base_types = self.get_base_type_list(self.get_target_type(ty))?;
         if base_types.is_empty() {
             return Ok(false);
         }

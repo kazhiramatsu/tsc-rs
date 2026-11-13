@@ -1096,7 +1096,7 @@ pub struct TypeLinksCold {
     /// tsc InterfaceType.resolvedBaseTypes (getBaseTypes 57218).
     /// MUTABLE like tsc's field: interfaces initialize to [] and push
     /// per base; a mid-cycle reader observes the partial list.
-    pub resolved_base_types: SparseLinks<TypeId, Option<Vec<TypeId>>>,
+    pub resolved_base_types: SparseLinks<TypeId, Option<crate::state::SharedList<TypeId>>>,
     /// tsc InterfaceType.baseTypesResolved (57224/57244) — set true
     /// even when the resolution stack flags a cycle, freezing whatever
     /// resolvedBaseTypes holds.
@@ -3806,10 +3806,12 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: TypeId,
-        value: Vec<TypeId>,
+        value: impl Into<crate::state::SharedList<TypeId>>,
     ) {
         let _ = speculation_depth;
-        self.type_cold.resolved_base_types.set(id, Some(value));
+        self.type_cold
+            .resolved_base_types
+            .set(id, Some(value.into()));
     }
 
     /// `type.baseTypesResolved = true` (57244).
@@ -4133,6 +4135,10 @@ impl LinksTables {
 
 impl LinksTables {
     pub(crate) fn add_omitted_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
+        for bases in self.type_cold.resolved_base_types.values.values().flatten() {
+            let bytes = bases.heap_bytes_once(usage);
+            usage.add("resolved base type lists", bases.len(), bytes, bytes);
+        }
         usage.hash_map("memo: union properties", &self.union_property_cache);
         usage.hash_map(
             "memo: conditional instantiations",

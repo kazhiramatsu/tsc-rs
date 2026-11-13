@@ -86,9 +86,9 @@ impl<'a> CheckerState<'a> {
         }
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNION) {
-            let members = self.union_members_or_self(ty);
+            let mut members = self.union_members_or_self(ty);
             let mut index_types = Vec::with_capacity(members.len());
-            for member in members {
+            while let Some(member) = members.next(&self.tables) {
                 index_types.push(self.get_index_type(member, index_flags)?);
             }
             return self.get_intersection_type(&index_types, IntersectionFlags::NONE);
@@ -194,8 +194,8 @@ impl<'a> CheckerState<'a> {
                 .object_flags_of(ty)
                 .intersects(ObjectFlags::CONTAINS_INTERSECTIONS)
         {
-            let members = self.union_members_or_self(ty);
-            for member in members {
+            let mut members = self.union_members_or_self(ty);
+            while let Some(member) = members.next(&self.tables) {
                 if self.is_generic_reducible_type(member)? {
                     return Ok(true);
                 }
@@ -1061,10 +1061,10 @@ impl<'a> CheckerState<'a> {
                 .flags_of(index_type)
                 .intersects(TypeFlags::BOOLEAN)
         {
-            let members = self.union_members_or_self(index_type);
+            let mut members = self.union_members_or_self(index_type);
             let mut property_types: Vec<TypeId> = Vec::with_capacity(members.len());
             let mut was_missing_property = false;
-            for member in members {
+            while let Some(member) = members.next(&self.tables) {
                 let member_flags = AccessFlags::from_bits(
                     access_flags.bits()
                         | if was_missing_property {
@@ -1858,9 +1858,9 @@ impl<'a> CheckerState<'a> {
         }
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNION) {
-            let members = self.union_members_or_self(ty);
-            for member in &members {
-                if !self.is_js_literal_type(*member)? {
+            let mut members = self.union_members_or_self(ty);
+            while let Some(member) = members.next(&self.tables) {
+                if !self.is_js_literal_type(member)? {
                     return Ok(false);
                 }
             }

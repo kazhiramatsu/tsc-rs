@@ -97,6 +97,10 @@ pub(crate) fn checker_owners(
             usage.vec("checker widening context lists", properties);
         }
     }
+    usage.vec("property scratch lists", &state.property_scratch);
+    for scratch in &state.property_scratch {
+        scratch.add_memory_usage(usage);
+    }
     state.links.add_omitted_memory_usage(usage);
     for context in &state.inference_context_arena {
         usage.vec("inference context deep lists", &context.inferences);

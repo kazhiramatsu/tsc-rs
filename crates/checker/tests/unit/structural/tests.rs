@@ -2642,3 +2642,41 @@ const requiredBad: { optional: string } = {};
         ]);
     });
 }
+
+#[test]
+fn property_name_counts_keep_first_occurrences_across_growth_and_clear() {
+    let mut counts = super::PropertyNameCounts::default();
+    counts.clear();
+    let names: Vec<_> = (0..80)
+        .map(|i| tsc_types::EscapedName::from_identifier_escaped_text(&format!("property{i}")))
+        .collect();
+    for &name in &names {
+        counts.add(name);
+    }
+    for &name in names.iter().rev() {
+        counts.add(name);
+    }
+    assert_eq!(
+        counts.entries,
+        names.iter().map(|&name| (name, 2)).collect::<Vec<_>>()
+    );
+    let capacity = counts.slots.capacity();
+    counts.clear();
+    for &name in names.iter().rev().take(3) {
+        counts.add(name);
+    }
+    assert_eq!(
+        counts.entries,
+        names
+            .iter()
+            .rev()
+            .take(3)
+            .map(|&name| (name, 1))
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(counts.slots.capacity(), capacity);
+    counts.generation = u32::MAX;
+    counts.clear();
+    counts.add(names[0]);
+    assert_eq!(counts.entries, vec![(names[0], 1)]);
+}

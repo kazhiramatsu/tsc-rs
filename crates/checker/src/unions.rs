@@ -142,13 +142,34 @@ impl<'a> CheckerState<'a> {
         alias_type_arguments: Option<&[TypeId]>,
         origin: Option<TypeId>,
     ) -> CheckResult<TypeId> {
-        let mut type_set: Vec<TypeId> = Vec::new();
+        self.with_instantiation_type_list(|state, type_set| {
+            state.get_union_type_ex_with_buffer(
+                types,
+                reduction,
+                alias_symbol,
+                alias_type_arguments,
+                origin,
+                type_set,
+            )
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn get_union_type_ex_with_buffer(
+        &mut self,
+        types: &[TypeId],
+        reduction: UnionReduction,
+        alias_symbol: Option<tsc_binder::SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+        origin: Option<TypeId>,
+        type_set: &mut Vec<TypeId>,
+    ) -> CheckResult<TypeId> {
         #[cfg(feature = "perf-counters")]
         perf::union_collection(perf::UnionCollectionSite::Checker, types.len());
         let includes = {
             let ctx = crate::type_order::order_ctx!(self);
             self.tables
-                .add_types_to_union(ctx.order(), &mut type_set, 0, types)
+                .add_types_to_union(ctx.order(), type_set, 0, types)
         };
         if reduction != UnionReduction::None {
             if includes & TypeFlags::ANY_OR_UNKNOWN.bits() != 0 {
@@ -184,7 +205,7 @@ impl<'a> CheckerState<'a> {
                 let ctx = crate::type_order::order_ctx!(self);
                 self.tables.remove_redundant_literal_types(
                     ctx.order(),
-                    &mut type_set,
+                    type_set,
                     includes,
                     /*reduce_void_undefined*/ reduction == UnionReduction::Subtype,
                 );
@@ -196,20 +217,17 @@ impl<'a> CheckerState<'a> {
             {
                 self.union_front_cache.impure += 1;
                 self.impure_union_reductions = self.impure_union_reductions.wrapping_add(1);
-                self.remove_string_literals_matched_by_template_literals(&mut type_set)?;
+                self.remove_string_literals_matched_by_template_literals(type_set)?;
             }
             if includes & TypeFlags::INCLUDES_CONSTRAINED_TYPE_VARIABLE.bits() != 0 {
                 self.union_front_cache.impure += 1;
                 self.impure_union_reductions = self.impure_union_reductions.wrapping_add(1);
-                self.remove_constrained_type_variables(&mut type_set)?;
+                self.remove_constrained_type_variables(type_set)?;
             }
-            if reduction == UnionReduction::Subtype {
-                let Some(reduced) =
-                    self.remove_subtypes(type_set, includes & TypeFlags::OBJECT.bits() != 0)?
-                else {
-                    return Ok(self.tables.intrinsics.error);
-                };
-                type_set = reduced;
+            if reduction == UnionReduction::Subtype
+                && !self.remove_subtypes(type_set, includes & TypeFlags::OBJECT.bits() != 0)?
+            {
+                return Ok(self.tables.intrinsics.error);
             }
             if type_set.is_empty() {
                 return Ok(if includes & TypeFlags::NULL.bits() != 0 {
@@ -398,21 +416,23 @@ impl<'a> CheckerState<'a> {
     /// while two class targets reduce only along an actual derivation chain.
     fn remove_subtypes(
         &mut self,
-        mut types: Vec<TypeId>,
+        types: &mut Vec<TypeId>,
         has_object_types: bool,
-    ) -> CheckResult<Option<Vec<TypeId>>> {
+    ) -> CheckResult<bool> {
         if types.len() < 2 {
-            return Ok(Some(types));
+            return Ok(true);
         }
-        let id = self.tables.intern_type_list(&types);
+        let id = self.tables.intern_type_list(types);
         perf::bump(PerfCounter::SubtypeReductionLookups);
         if let Some(cached) = self.subtype_reduction_cache.get(&id) {
             perf::bump(PerfCounter::SubtypeReductionHits);
-            return Ok(Some(cached.clone()));
+            types.clear();
+            types.extend_from_slice(cached);
+            return Ok(true);
         }
         let mut has_empty_object = false;
         if has_object_types {
-            for &t in &types {
+            for &t in types.iter() {
                 if self.tables.flags_of(t).intersects(TypeFlags::OBJECT)
                     && !self.tables.is_tuple_type(t)
                 {
@@ -451,19 +471,16 @@ impl<'a> CheckerState<'a> {
                         false
                     };
                 if source_has_union_constraint {
-                    let other_types = types
-                        .iter()
-                        .copied()
-                        .map(|candidate| {
+                    let other_union = self.with_instantiation_type_list(|state, other_types| {
+                        other_types.extend(types.iter().copied().map(|candidate| {
                             if candidate == source {
-                                self.tables.intrinsics.never
+                                state.tables.intrinsics.never
                             } else {
                                 candidate
                             }
-                        })
-                        .collect::<Vec<_>>();
-                    let other_union =
-                        self.get_union_type_ex(&other_types, UnionReduction::Literal)?;
+                        }));
+                        state.get_union_type_ex(other_types, UnionReduction::Literal)
+                    })?;
                     if self.is_type_strict_subtype_of(source, other_union)? {
                         types.remove(i);
                     }
@@ -505,7 +522,7 @@ impl<'a> CheckerState<'a> {
                                 &diagnostics::Expression_produces_a_union_type_that_is_too_complex_to_represent,
                                 &[],
                             );
-                            return Ok(None);
+                            return Ok(false);
                         }
                     }
                     count += 1;
@@ -585,7 +602,7 @@ impl<'a> CheckerState<'a> {
         }
         // The reduction is a pure cache (tsc's subtypeReductionCache).
         self.subtype_reduction_cache.insert(id, types.clone());
-        Ok(Some(types))
+        Ok(true)
     }
 
     /// tsc-port: getCommonSupertype @6.0.3

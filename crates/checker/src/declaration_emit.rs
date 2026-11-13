@@ -745,7 +745,7 @@ impl CheckerState<'_> {
         };
         let parent_type = self.get_declared_type_of_symbol(parent)?;
         let name = self.binder.symbol(symbol).escaped_name;
-        for base in self.get_base_types(parent_type)? {
+        for base in self.get_base_type_list(parent_type)? {
             let Some(base_property) = self.get_property_of_type_full(base, name)? else {
                 continue;
             };
