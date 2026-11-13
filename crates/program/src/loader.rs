@@ -1117,6 +1117,17 @@ fn resolve_runtime_dependency_symlinks(
         ) {
             continue;
         }
+        // Admission already recorded this source's nearest package scope.
+        // Keep the resolver visits while tracing: their cache messages are
+        // observable even when the scope's dependencies were handled earlier.
+        if compiler_options.trace_resolution != Some(true)
+            && source
+                .prepared
+                .package_scope()
+                .is_some_and(|scope| seen_scopes.contains(scope))
+        {
+            continue;
+        }
         let Some(package) = resolver
             .package_scope_for_file(file.display())
             .map_err(|error| {
@@ -4478,8 +4489,15 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             .map(|(_, source)| source.prepared.path().canonical().clone())
             .collect::<rustc_hash::FxHashSet<_>>();
         if !dropped_paths.is_empty() {
-            self.module_resolutions
-                .retain(|resolution| !dropped_paths.contains(resolution.key.source()));
+            self.module_resolutions.retain(|resolution| {
+                let retained = kept[resolution.source];
+                debug_assert_eq!(
+                    retained,
+                    !dropped_paths.contains(resolution.key.source()),
+                    "a staged resolution's source agrees with its canonical key",
+                );
+                retained
+            });
             self.type_resolutions
                 .retain(|resolution| match resolution.key.origin() {
                     crate::resolution::TypeReferenceResolutionOrigin::Source(source) => {
