@@ -397,35 +397,49 @@ impl<'a> CheckerState<'a> {
         let new_root = self.tables.conditional_root(data.root);
         let (root_check_type, root_is_distributive) =
             (new_root.check_type, new_root.is_distributive);
-        let Some(outer_parameters) = new_root
-            .outer_type_parameters
-            .as_deref()
-            .map(tsc_types::tables::TypeListCopy::new)
+        let Some(parameter_count) = new_root.outer_type_parameters.as_deref().map(<[_]>::len)
         else {
             return Ok(None);
         };
         let type_parameter_mapper = self.combine_type_mappers(data.mapper, new_mapper);
-        let mut type_arguments = Vec::with_capacity(outer_parameters.len());
-        for &parameter in &outer_parameters {
-            type_arguments.push(self.get_mapped_type(parameter, type_parameter_mapper)?);
-        }
-        let new_root_mapper = self.create_type_mapper(&outer_parameters, Some(&type_arguments[..]));
-        let new_check_type = if root_is_distributive {
-            Some(self.get_mapped_type(root_check_type, new_root_mapper)?)
-        } else {
-            None
-        };
-        if new_check_type.is_none()
-            || new_check_type == Some(root_check_type)
-            || !self
-                .tables
-                .flags_of(new_check_type.expect("checked above"))
-                .intersects(TypeFlags::UNION | TypeFlags::NEVER)
-        {
-            Ok(Some((data.root, new_root_mapper)))
-        } else {
-            Ok(None)
-        }
+        self.with_instantiation_type_list(|state, type_arguments| {
+            type_arguments.reserve(parameter_count);
+            for i in 0..parameter_count {
+                let parameter = state
+                    .tables
+                    .conditional_root(data.root)
+                    .outer_type_parameters
+                    .as_deref()
+                    .expect("parameters counted above")[i];
+                type_arguments.push(state.get_mapped_type(parameter, type_parameter_mapper)?);
+            }
+            let new_root_mapper = state.create_type_mapper_from_stored_sources(
+                |tables| {
+                    tables
+                        .conditional_root(data.root)
+                        .outer_type_parameters
+                        .as_deref()
+                        .expect("parameters counted above")
+                },
+                type_arguments,
+            );
+            let new_check_type = if root_is_distributive {
+                Some(state.get_mapped_type(root_check_type, new_root_mapper)?)
+            } else {
+                None
+            };
+            if new_check_type.is_none()
+                || new_check_type == Some(root_check_type)
+                || !state
+                    .tables
+                    .flags_of(new_check_type.expect("checked above"))
+                    .intersects(TypeFlags::UNION | TypeFlags::NEVER)
+            {
+                Ok(Some((data.root, new_root_mapper)))
+            } else {
+                Ok(None)
+            }
+        })
     }
 
     /// tsc-port: isDistributionDependent @6.0.3
@@ -473,78 +487,93 @@ impl<'a> CheckerState<'a> {
         let data = *self.tables.conditional_data(data);
         let root = self.tables.conditional_root(data.root);
         let (root_check_type, root_is_distributive) = (root.check_type, root.is_distributive);
-        let Some(outer_parameters) = root
-            .outer_type_parameters
-            .as_deref()
-            .map(tsc_types::tables::TypeListCopy::new)
-        else {
+        let Some(parameter_count) = root.outer_type_parameters.as_deref().map(<[_]>::len) else {
             return Ok(ty);
         };
-        let mut type_arguments = Vec::with_capacity(outer_parameters.len());
-        for &parameter in &outer_parameters {
-            type_arguments.push(self.get_mapped_type(parameter, mapper)?);
-        }
-        // tsc's "C" prefix, getTypeListId and getAliasId as one value.
-        let key = self.tables.instantiation_key(
-            &type_arguments,
-            alias_symbol,
-            alias_type_arguments,
-            false,
-        );
-        if let Some(cached) = self
-            .links
-            .conditional_instantiation(data.root, for_constraint, key)
-        {
-            return Ok(cached);
-        }
-
-        let new_mapper = self.create_type_mapper(&outer_parameters, Some(&type_arguments[..]));
-        let distribution_type = if root_is_distributive {
-            let mapped = self.get_mapped_type(root_check_type, new_mapper)?;
-            Some(self.get_reduced_type(mapped)?)
-        } else {
-            None
-        };
-        let result = if let Some(distribution_type) = distribution_type.filter(|&distribution| {
-            distribution != root_check_type
-                && self
+        self.with_instantiation_type_list(|state, type_arguments| {
+            type_arguments.reserve(parameter_count);
+            for i in 0..parameter_count {
+                let parameter = state
                     .tables
-                    .flags_of(distribution)
-                    .intersects(TypeFlags::UNION | TypeFlags::NEVER)
-        }) {
-            self.map_type_with_alias(
-                distribution_type,
-                &mut |state, member| {
-                    let member_mapper =
-                        state.prepend_type_mapping(root_check_type, member, Some(new_mapper));
-                    state.get_conditional_type(
-                        data.root,
-                        Some(member_mapper),
-                        for_constraint,
-                        None,
-                        None,
-                    )
+                    .conditional_root(data.root)
+                    .outer_type_parameters
+                    .as_deref()
+                    .expect("parameters counted above")[i];
+                type_arguments.push(state.get_mapped_type(parameter, mapper)?);
+            }
+            // tsc's "C" prefix, getTypeListId and getAliasId as one value.
+            let key = state.tables.instantiation_key(
+                type_arguments,
+                alias_symbol,
+                alias_type_arguments,
+                false,
+            );
+            if let Some(cached) =
+                state
+                    .links
+                    .conditional_instantiation(data.root, for_constraint, key)
+            {
+                return Ok(cached);
+            }
+
+            let new_mapper = state.create_type_mapper_from_stored_sources(
+                |tables| {
+                    tables
+                        .conditional_root(data.root)
+                        .outer_type_parameters
+                        .as_deref()
+                        .expect("parameters counted above")
                 },
-                alias_symbol,
-                alias_type_arguments,
-            )?
-        } else {
-            self.get_conditional_type(
+                type_arguments,
+            );
+            let distribution_type = if root_is_distributive {
+                let mapped = state.get_mapped_type(root_check_type, new_mapper)?;
+                Some(state.get_reduced_type(mapped)?)
+            } else {
+                None
+            };
+            let result = if let Some(distribution_type) =
+                distribution_type.filter(|&distribution| {
+                    distribution != root_check_type
+                        && state
+                            .tables
+                            .flags_of(distribution)
+                            .intersects(TypeFlags::UNION | TypeFlags::NEVER)
+                }) {
+                state.map_type_with_alias(
+                    distribution_type,
+                    &mut |state, member| {
+                        let member_mapper =
+                            state.prepend_type_mapping(root_check_type, member, Some(new_mapper));
+                        state.get_conditional_type(
+                            data.root,
+                            Some(member_mapper),
+                            for_constraint,
+                            None,
+                            None,
+                        )
+                    },
+                    alias_symbol,
+                    alias_type_arguments,
+                )?
+            } else {
+                state.get_conditional_type(
+                    data.root,
+                    Some(new_mapper),
+                    for_constraint,
+                    alias_symbol,
+                    alias_type_arguments,
+                )?
+            };
+            state.links.set_conditional_instantiation(
+                state.speculation_depth,
                 data.root,
-                Some(new_mapper),
                 for_constraint,
-                alias_symbol,
-                alias_type_arguments,
-            )?
-        };
-        self.links.set_conditional_instantiation(
-            self.speculation_depth,
-            data.root,
-            for_constraint,
-            key,
-            result,
-        );
-        Ok(result)
+                key,
+                result,
+            );
+            Ok(result)
+        })
     }
 
     /// tsc-port: getDefaultConstraintOfConditionalType @6.0.3

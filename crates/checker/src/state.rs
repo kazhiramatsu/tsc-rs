@@ -607,6 +607,8 @@ pub struct CheckerState<'a> {
     /// Scratch child list shared by the per-node check traversals: one
     /// buffer per checker instead of one allocation per node with children.
     pub(crate) child_scratch: Vec<tsc_syntax::NodeId>,
+    pub(crate) instantiation_type_lists: Vec<Vec<tsc_types::TypeId>>,
+    pub(crate) instantiation_text_lists: Vec<Vec<tsc_types::TemplateText>>,
     pub(crate) property_scratch: Vec<crate::structural::PropertyScratch>,
     pub(crate) property_name_sets: Vec<rustc_hash::FxHashSet<tsc_types::EscapedName>>,
     pub(crate) unaffected_members: crate::unaffected_members::UnaffectedMembers,
@@ -1453,6 +1455,20 @@ impl<'a> CheckerState<'a> {
             }
         }
         crate::memory::checker_owners(self, &mut usage, include_shared);
+        usage.vec(
+            "instantiation scratch lists",
+            &self.instantiation_type_lists,
+        );
+        for list in &self.instantiation_type_lists {
+            usage.vec("instantiation scratch capacity", list);
+        }
+        usage.vec(
+            "instantiation scratch lists",
+            &self.instantiation_text_lists,
+        );
+        for list in &self.instantiation_text_lists {
+            usage.vec("instantiation scratch capacity", list);
+        }
         let mut rows: Vec<(&str, usize, usize)> = Vec::new();
         let types = self.tables.memory_usage();
         rows.push(("types (Type)", types.types, types.type_bytes));
@@ -1915,6 +1931,8 @@ impl<'a> CheckerState<'a> {
             index_symbols: rustc_hash::FxHashMap::default(),
             emit_display_sources: std::collections::BTreeMap::new(),
             child_scratch: Vec::new(),
+            instantiation_type_lists: Vec::new(),
+            instantiation_text_lists: Vec::new(),
             property_scratch: Vec::new(),
             property_name_sets: Vec::new(),
             unaffected_members: Default::default(),

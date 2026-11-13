@@ -731,3 +731,83 @@ fn union_instantiation_keeps_its_source_members_while_nested_lists_grow() {
         },
     );
 }
+
+#[test]
+fn instantiation_scratch_keeps_nested_aliases_templates_and_conditionals_separate() {
+    with_program_state(
+        &[(
+            "a.ts",
+            "type Pair<A, B> = [A, B];\n\
+             type Select<A> = A extends string ? `x${A}` : A;\n\
+             function f<T extends string, U>() {\n\
+               var source: Pair<T | U, [T, Select<T>, { value: T }]>;\n\
+               var first: Pair<\"a\" | 1, [\"a\", \"xa\", { value: \"a\" }]>;\n\
+               var second: Pair<\"b\" | 2, [\"b\", \"xb\", { value: \"b\" }]>;\n\
+             }\n",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let source_node = annotation_of_var(state, "source");
+            let source = state.get_type_from_type_node(source_node).unwrap();
+            let t = declared_type_parameter(state, "T");
+            let u = declared_type_parameter(state, "U");
+            for (name, text, value) in [("first", "a", 1.0), ("second", "b", 2.0)] {
+                let literal = state.tables.get_string_literal_type(text);
+                let number = state.tables.get_number_literal_type(value);
+                let mapper = state.create_type_mapper(&[t, u], Some(&[literal, number]));
+                let actual = state.with_instantiation_type_list(|state, enclosing| {
+                    enclosing.push(source);
+                    let actual = state.instantiate_type(source, Some(mapper)).unwrap();
+                    assert_eq!(enclosing, &[source]);
+                    actual
+                });
+                let expected_node = annotation_of_var(state, name);
+                let expected = state.get_type_from_type_node(expected_node).unwrap();
+                assert_eq!(
+                    state.type_to_string(actual).unwrap(),
+                    state.type_to_string(expected).unwrap()
+                );
+                let again = state.instantiate_type(source, Some(mapper)).unwrap();
+                assert_eq!(again, actual, "cached results survive reuse of the buffers");
+                assert!(state.instantiation_type_lists.iter().all(Vec::is_empty));
+                assert!(state.instantiation_text_lists.iter().all(Vec::is_empty));
+            }
+        },
+    );
+}
+
+#[test]
+fn instantiation_scratch_returns_buffers_after_an_early_error() {
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        let string = state.tables.intrinsics.string;
+        let result: Result<(), &str> = state.with_instantiation_type_list(|state, outer| {
+            outer.push(string);
+            let inner: Result<(), &str> = state.with_instantiation_type_list(|_, inner| {
+                inner.resize(128, string);
+                Err("stop")
+            });
+            assert_eq!(outer, &[string]);
+            inner?;
+            Ok(())
+        });
+        assert_eq!(result, Err("stop"));
+        assert!(state.instantiation_type_lists.iter().all(Vec::is_empty));
+        let capacity: usize = state
+            .instantiation_type_lists
+            .iter()
+            .map(Vec::capacity)
+            .sum();
+        state.with_instantiation_type_list(|state, outer| {
+            outer.push(string);
+            state.with_instantiation_type_list(|_, inner| inner.resize(128, string));
+        });
+        assert_eq!(
+            state
+                .instantiation_type_lists
+                .iter()
+                .map(Vec::capacity)
+                .sum::<usize>(),
+            capacity
+        );
+    });
+}
