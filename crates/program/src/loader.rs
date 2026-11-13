@@ -23,8 +23,9 @@ use crate::inclusion_reason::{InclusionReasonRecord, InclusionSource, SourceIncl
 use crate::json::{json_object_get, parse_json_object};
 use crate::library::{replacement_package_name, LibraryCatalog};
 use crate::module_requests::{
-    is_declaration_file_name, plan_source_requests_retaining_syntax, PlannedLibReferenceDirective,
-    PlannedPathReference, PlannedTypeReferenceDirective, SourceRequestPlan,
+    is_declaration_file_name, plan_source_requests_retaining_syntax, LoaderModuleRequests,
+    PlannedLibReferenceDirective, PlannedPathReference, PlannedTypeReferenceDirective,
+    SourceRequestPlan,
 };
 use crate::module_resolution::PackageJsonProbe;
 use crate::module_resolution::{
@@ -1606,7 +1607,10 @@ struct StagedSource {
     /// The module requests in order, with the spans of their occurrences
     /// that load a source (none for a synthetic request) and the resolution
     /// the read-ahead computed for them.
-    module_requests: Vec<StagedModuleRequest>,
+    module_requests: LoaderModuleRequests,
+    /// Every unique request of a source is staged before any child runs.
+    /// Repeated spellings reuse this contiguous batch by request index.
+    module_resolution_start: Option<usize>,
     pre_resolved_modules: Vec<Option<HostModuleResolution>>,
     /// The request of each occurrence that loads its target, in tsgo's
     /// `moduleNames` order.
@@ -1617,14 +1621,6 @@ struct StagedSource {
     module_request_order: Vec<ResolutionKey>,
     /// A content mapper's supplemental outputs of this file.
     supplemental: Vec<ProgramPath>,
-}
-
-struct StagedModuleRequest {
-    key: Option<ResolutionKey>,
-    loads_source: bool,
-    spans: Vec<(u32, u32)>,
-    occurrence_count: u32,
-    resolution_index: Option<usize>,
 }
 
 /// A resolved target and the next occurrence whose span the walk consumes.
@@ -5527,7 +5523,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             None => prepared,
         };
         let mut supplemental = Vec::new();
-        let (mut prepared, prefetched_plan, mut prefetched_resolutions) = match decoded {
+        let (mut prepared, prefetched_plan, prefetched_resolutions) = match decoded {
             DecodedSource::Text(text) => (
                 with_document_kind(PreparedSourceFile::new(path.clone(), text)),
                 None,
@@ -5722,38 +5718,13 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             lib_reference_directives,
             module_request_order,
             module_request_occurrences,
-            module_request_occurrence_counts,
         } = plan
             .as_mut()
             .map_or_else(Default::default, SourceRequestPlan::take_admission_parts);
-        // A resolution the read-ahead computed for a request (by its index
-        // when this is its plan, else by key) is the same pure host
-        // observation the resolver would make at the request's turn.
-        let module_requests = plan.map_or_else(Vec::new, |mut plan| {
-            let request_count = plan.module_requests().len();
-            plan.take_module_requests_iter()
-                .zip(module_request_occurrence_counts)
-                .enumerate()
-                .map(|(index, (request, occurrence_count))| {
-                    if prefetched_resolutions
-                        .get(index)
-                        .is_none_or(Option::is_none)
-                    {
-                        if let Some(host) = self.pre_resolved.remove(&request.key) {
-                            prefetched_resolutions.resize_with(request_count, || None);
-                            prefetched_resolutions[index] = Some(host);
-                        }
-                    }
-                    StagedModuleRequest {
-                        key: Some(request.key),
-                        loads_source: request.loads_source,
-                        spans: request.spans,
-                        occurrence_count,
-                        resolution_index: None,
-                    }
-                })
-                .collect::<Vec<_>>()
-        });
+        let module_requests = plan.as_mut().map_or_else(
+            Default::default,
+            SourceRequestPlan::take_loader_module_requests,
+        );
         self.enforce_limit(
             ProgramLoadOperation::PlanSourceRequests,
             ProgramLoadLimit::RequestEdges,
@@ -5778,6 +5749,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             type_reference_directives,
             lib_reference_directives,
             module_requests,
+            module_resolution_start: None,
             pre_resolved_modules: prefetched_resolutions,
             module_request_occurrences,
             module_request_order,
@@ -6575,21 +6547,16 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         pre_resolved: &mut Vec<Option<HostModuleResolution>>,
     ) -> Result<(), ProgramLoadError> {
         let staged = &self.sources[source];
-        let requests: BTreeMap<_, _> = staged
-            .module_requests
-            .iter()
-            .enumerate()
-            .map(|(index, request)| (self.module_request_key(request).clone(), index))
+        let requests: BTreeMap<_, _> = (0..staged.module_requests.len())
+            .map(|index| (self.module_request_key(source, index).clone(), index))
             .collect();
-        // A synthetic import remains an occurrence when the file also
-        // imports that specifier literally. S1 already counted both.
-        let keys: Vec<_> = staged
-            .module_requests
-            .iter()
-            .flat_map(|request| {
+        // Synthetic imports remain occurrences even with the same literal import.
+        let keys: Vec<_> = (0..staged.module_requests.len())
+            .flat_map(|index| {
                 std::iter::repeat_n(
-                    self.module_request_key(request).clone(),
-                    (request.occurrence_count as usize).saturating_sub(request.spans.len()),
+                    self.module_request_key(source, index).clone(),
+                    (staged.module_requests.occurrence_counts[index] as usize)
+                        .saturating_sub(staged.module_requests.spans[index].len()),
                 )
             })
             .chain(staged.module_request_order.iter().cloned())
@@ -6763,85 +6730,85 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         // A source reached under several spellings is planned once per
         // spelling: its requests stay with it, and only the read-ahead's
         // resolution is taken (a later planning finds the key resolved).
-        for request_index in 0..request_count {
-            let (owned_key, loads_source, resolution_index) = {
-                let request = &mut self.sources[source].module_requests[request_index];
-                (
-                    request.key.take(),
-                    request.loads_source,
-                    request.resolution_index,
-                )
-            };
-            let index = if let Some(index) = resolution_index {
-                self.module_resolutions[index].loads_source |= loads_source;
-                index
-            } else {
-                let key = owned_key.expect("the first resolution consumes its request key");
-                // Read-ahead and the traced occurrence pass feed this same
-                // indexed slot. The unique row still consumes its key once.
-                let host = match pre_resolved.get_mut(request_index).and_then(Option::take) {
-                    Some(host) => {
-                        self.pre_resolved_hits += 1;
-                        host
-                    }
-                    None => {
-                        let directory_key = (
-                            self.resolver
-                                .lexical_paths()
-                                .directory(containing_file.as_js()),
-                            key.specifier().to_owned(),
-                            key.mode(),
-                        );
-                        match self
-                            .directory_resolutions
-                            .get(&directory_key)
-                            .filter(|_| containing_project.is_none())
-                        {
-                            Some(host) => {
-                                self.directory_resolution_hits += 1;
-                                host.clone()
-                            }
-                            None => {
-                                let host = self
-                                    .resolve_module_for_file(
-                                        &containing_canonical,
-                                        &containing_file,
-                                        &key,
-                                    )
-                                    .map_err(|error| {
-                                        ProgramLoadError::resolution_js(
-                                            ProgramLoadOperation::ResolveModule,
-                                            Some(containing_file.clone()),
-                                            Some(key.specifier().to_owned()),
-                                            error,
-                                        )
-                                    })?;
-                                if containing_project.is_none() {
-                                    self.directory_resolutions
-                                        .insert(directory_key, host.clone());
+        let resolution_start = match self.sources[source].module_resolution_start {
+            Some(start) => {
+                for request in 0..request_count {
+                    self.module_resolutions[start + request].loads_source |=
+                        self.sources[source].module_requests.loads_source[request];
+                }
+                start
+            }
+            None => {
+                let start = self.module_resolutions.len();
+                let keys = std::mem::take(&mut self.sources[source].module_requests.keys);
+                debug_assert_eq!(keys.len(), request_count);
+                for (request_index, key) in keys.into_iter().enumerate() {
+                    let loads_source =
+                        self.sources[source].module_requests.loads_source[request_index];
+                    let host = match pre_resolved
+                        .get_mut(request_index)
+                        .and_then(Option::take)
+                        .or_else(|| self.pre_resolved.remove(&key))
+                    {
+                        Some(host) => {
+                            self.pre_resolved_hits += 1;
+                            host
+                        }
+                        None => {
+                            let directory_key = (
+                                self.resolver
+                                    .lexical_paths()
+                                    .directory(containing_file.as_js()),
+                                key.specifier().to_owned(),
+                                key.mode(),
+                            );
+                            match self
+                                .directory_resolutions
+                                .get(&directory_key)
+                                .filter(|_| containing_project.is_none())
+                            {
+                                Some(host) => {
+                                    self.directory_resolution_hits += 1;
+                                    host.clone()
                                 }
-                                host
+                                None => {
+                                    let host = self
+                                        .resolve_module_for_file(
+                                            &containing_canonical,
+                                            &containing_file,
+                                            &key,
+                                        )
+                                        .map_err(|error| {
+                                            ProgramLoadError::resolution_js(
+                                                ProgramLoadOperation::ResolveModule,
+                                                Some(containing_file.clone()),
+                                                Some(key.specifier().to_owned()),
+                                                error,
+                                            )
+                                        })?;
+                                    if containing_project.is_none() {
+                                        self.directory_resolutions
+                                            .insert(directory_key, host.clone());
+                                    }
+                                    host
+                                }
                             }
                         }
-                    }
-                };
-                let index = self.module_resolutions.len();
-                self.module_resolutions.push(StagedModuleResolution {
-                    source,
-                    target: StagedModuleTarget::Lookup,
-                    key,
-                    host,
-                    loads_source,
-                    unloaded_reason: None,
-                });
-                self.sources[source].module_requests[request_index].resolution_index = Some(index);
-                index
-            };
-            debug_assert_eq!(
-                self.sources[source].module_requests[request_index].resolution_index,
-                Some(index)
-            );
-        }
+                    };
+                    self.module_resolutions.push(StagedModuleResolution {
+                        source,
+                        target: StagedModuleTarget::Lookup,
+                        key,
+                        host,
+                        loads_source,
+                        unloaded_reason: None,
+                    });
+                }
+                debug_assert_eq!(self.module_resolutions.len(), start + request_count);
+                self.sources[source].module_resolution_start = Some(start);
+                start
+            }
+        };
 
         // As with type directives, all requests in this source are resolved
         // before the first successful target starts its DFS. The targets
@@ -6849,9 +6816,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let mut targets = std::mem::take(&mut self.import_targets);
         targets.resize_with(request_count, || None);
         for (request_index, slot) in targets.iter_mut().enumerate() {
-            let index = self.sources[source].module_requests[request_index]
-                .resolution_index
-                .expect("every request was resolved above");
+            let index = resolution_start + request_index;
             let loads_source = self.module_resolutions[index].loads_source;
             let target = match self.module_resolutions[index].host.outcome() {
                 ResolutionOutcome::Resolved(target) => Some((
@@ -6966,8 +6931,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     ),
                 ));
             }
-            let request = &self.sources[source].module_requests[request_index];
-            let synthetic = (request.occurrence_count as usize).saturating_sub(request.spans.len());
+            let requests = &self.sources[source].module_requests;
+            let synthetic = (requests.occurrence_counts[request_index] as usize)
+                .saturating_sub(requests.spans[request_index].len());
             let specifier = (synthetic != 0)
                 .then(|| Arc::new(self.module_resolutions[index].key.specifier().to_owned()));
             *slot = Some(ImportTarget {
@@ -6989,7 +6955,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             let Some(target) = targets[request as usize].as_mut() else {
                 continue;
             };
-            let request_data = &self.sources[source].module_requests[request as usize];
+            let requests = &self.sources[source].module_requests;
             let occurrence = target.next;
             target.next += 1;
             let inclusion = if occurrence < target.synthetic {
@@ -7007,7 +6973,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     package_id: None,
                 }
             } else {
-                let Some(&(pos, end)) = request_data.spans.get(occurrence - target.synthetic)
+                let Some(&(pos, end)) =
+                    requests.spans[request as usize].get(occurrence - target.synthetic)
                 else {
                     continue;
                 };
@@ -7020,7 +6987,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             };
             let resolution = target.resolution;
             let (external, elide_on_depth, package_id) =
-                if target.next >= request_data.occurrence_count as usize {
+                if target.next >= requests.occurrence_counts[request as usize] as usize {
                     let target = targets[request as usize]
                         .take()
                         .expect("the final inclusion still owns its target");
@@ -7067,25 +7034,22 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         }
     }
 
-    fn module_request_key<'a>(&'a self, request: &'a StagedModuleRequest) -> &'a ResolutionKey {
-        request.key.as_ref().unwrap_or_else(|| {
-            &self.module_resolutions[request
-                .resolution_index
-                .expect("a consumed key has a resolution")]
-            .key
-        })
+    fn module_request_key(&self, source: usize, request: usize) -> &ResolutionKey {
+        let staged = &self.sources[source];
+        match staged.module_resolution_start {
+            Some(start) => &self.module_resolutions[start + request].key,
+            None => &staged.module_requests.keys[request],
+        }
     }
 
-    /// Requests already belong to their canonical source and are unique by
-    /// (specifier, mode) within it. Only trace replay and read-ahead planning
-    /// need a lookup by key; the walk keeps the index on the request itself.
+    /// A source's unique requests occupy one immutable contiguous batch.
     fn module_resolution_index(&self, key: &ResolutionKey) -> Option<usize> {
         let &source = self.source_by_canonical.get(key.source())?;
-        self.sources[source]
-            .module_requests
+        let start = self.sources[source].module_resolution_start?;
+        self.module_resolutions[start..start + self.sources[source].module_requests.len()]
             .iter()
-            .find(|request| self.module_request_key(request) == key)?
-            .resolution_index
+            .position(|resolution| &resolution.key == key)
+            .map(|request| start + request)
     }
 
     fn enforce_limit(
@@ -7936,7 +7900,10 @@ fn publish_program(
         source_by_canonical.get(redirected.canonical()).copied()
     };
     timer.mark("load: publish package map");
-    let mut loaded_modules = crate::resolution::LoadedModules::default();
+    let mut loaded_modules = crate::resolution::LoadedModules::new(
+        published_ids.iter().flatten().count(),
+        staged.module_resolutions.len(),
+    );
     for resolution in staged.module_resolutions {
         let source =
             published_ids[resolution.source].expect("only collected sources publish resolutions");

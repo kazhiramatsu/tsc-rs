@@ -1340,13 +1340,22 @@ impl TransformArena {
         &self,
         child: TransformNode,
     ) -> Result<TransformFlags, TransformError> {
-        let child_node = self.node(child)?;
-        let child_flags =
-            self.transform_flags(child) & !TransformFlags::subtree_exclusions(child_node.kind);
-        let Some(name) = named_declaration_name(child_node) else {
+        let record = self.node(child)?;
+        self.propagate_record_flags(child.source, record, self.transform_flags(child))
+    }
+
+    /// Propagate a record already read by the forward classifier.
+    pub(crate) fn propagate_record_flags(
+        &self,
+        source: TransformSourceId,
+        record: &Node,
+        flags: TransformFlags,
+    ) -> Result<TransformFlags, TransformError> {
+        let child_flags = flags & !TransformFlags::subtree_exclusions(record.kind);
+        let Some(name) = named_declaration_name(record) else {
             return Ok(child_flags);
         };
-        let Some(name) = self.node_ref(child.source, name) else {
+        let Some(name) = self.node_ref(source, name) else {
             return Ok(child_flags);
         };
         if !is_property_name(self.node(name)?.kind) {

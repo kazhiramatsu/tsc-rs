@@ -16495,7 +16495,8 @@ pub(crate) fn update_children_lazily<V: LazyChildVisitor>(
                 )?;
                 let stored = arena.transform_flags(original);
                 if stored.contains(private) {
-                    if verify_linear_transform_flags() {
+                    #[cfg(test)]
+                    {
                         let probe = flags_after_update_probe(arena, original, record)? | private;
                         assert!(
                             probe == stored,
@@ -16644,84 +16645,14 @@ fn initialize_transform_flags(
         let syntax = arena.source(source)?.syntax();
         (syntax.arena.node_end(), syntax.arena.array_end())
     };
-    // After the first classification a pass classifies only the nodes and
-    // arrays appended since: a transform never touches an older node (the
-    // tree is immutable; a change creates new nodes up to the root), so the
-    // older flags stay exact. The development check keeps the whole-tree
-    // classification and compares the incremental result against it.
-    let nothing_new = classified_nodes == node_end && classified_arrays == array_end;
-    if classified_nodes == 0 {
-        compute_transform_flags(arena, source, root)?;
-    } else if verify_linear_transform_flags() {
-        let snapshot = if !nothing_new
-            && compute_transform_flags_incremental(arena, source, classified_nodes)?
-        {
-            Some(snapshot_transform_flags(arena, source)?)
-        } else {
-            None
-        };
-        compute_transform_flags(arena, source, root)?;
-        if let Some((incremental_nodes, _)) = snapshot {
-            let (full_nodes, _) = snapshot_transform_flags(arena, source)?;
-            let reachable = reachable_nodes(arena, source, root)?;
-            let differing = incremental_nodes
-                .iter()
-                .zip(&full_nodes)
-                .enumerate()
-                .filter(|(index, (incremental, full))| reachable[*index] && incremental != full)
-                .take(8)
-                .collect::<Vec<_>>();
-            assert!(
-                differing.is_empty(),
-                "incremental transform flags differ from the whole-tree classification in source {source:?}: {differing:?}"
-            );
-        }
-    } else if !nothing_new && !compute_transform_flags_incremental(arena, source, classified_nodes)?
+    if classified_nodes == 0
+        || (classified_nodes != node_end || classified_arrays != array_end)
+            && !compute_transform_flags_incremental(arena, source, classified_nodes)?
     {
         compute_transform_flags(arena, source, root)?;
     }
     arena.set_classified_transform_flags(source, node_end, array_end)?;
     Ok(())
-}
-
-/// The nodes reachable from `root` through ordinary child edges and child
-/// arrays, by arena index (the development check's comparison filter).
-fn reachable_nodes(
-    arena: &TransformArena,
-    source: TransformSourceId,
-    root: NodeId,
-) -> Result<Vec<bool>, TransformError> {
-    let syntax = arena.source(source)?.syntax();
-    let node_base = syntax.arena.node_base();
-    let node_count = syntax.arena.nodes().len();
-    let mut reachable = vec![false; node_count];
-    let mut stack = vec![root];
-    while let Some(id) = stack.pop() {
-        let Some(index) = id
-            .index()
-            .checked_sub(node_base)
-            .map(|index| index as usize)
-            .filter(|index| *index < node_count)
-        else {
-            return Err(TransformError::UnknownNode(TransformNode::new(source, id)));
-        };
-        if reachable[index] {
-            continue;
-        }
-        reachable[index] = true;
-        let record = &syntax.arena.nodes()[index];
-        for_each_child(&syntax.arena, record, |child| {
-            stack.push(child);
-            false
-        });
-        for_each_child_array(record, |array| {
-            if syntax.arena.contains_array(array) {
-                stack.extend(syntax.arena.node_array(array).nodes.iter().copied());
-            }
-            false
-        });
-    }
-    Ok(reachable)
 }
 
 /// Classify the nodes appended since the last classification (ids from
@@ -16822,50 +16753,30 @@ enum FlagWalkState {
     Complete,
 }
 
-/// `TSC_RS_VERIFY_TRANSFORM_FLAGS`: classify every source both ways and
-/// compare (a development check of the linear pass against the walk).
-fn verify_linear_transform_flags() -> bool {
-    static VERIFY: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *VERIFY.get_or_init(|| std::env::var_os("TSC_RS_VERIFY_TRANSFORM_FLAGS").is_some())
-}
-
-/// Classify the parsed source reachable from `root`: the linear pass when
-/// the records are in child-before-parent order (the parser's order), the
-/// general postorder walk otherwise.
 fn compute_transform_flags(
     arena: &mut TransformArena,
     source: TransformSourceId,
     root: NodeId,
 ) -> Result<(), TransformError> {
-    if !verify_linear_transform_flags() {
-        if compute_transform_flags_linear(arena, source, root)? {
-            return Ok(());
-        }
-        return compute_transform_flags_walk(arena, source, root);
-    }
-    let linear = compute_transform_flags_linear(arena, source, root)?;
-    let snapshot = snapshot_transform_flags(arena, source)?;
-    compute_transform_flags_walk(arena, source, root)?;
-    if linear {
-        let walked = snapshot_transform_flags(arena, source)?;
-        assert!(
-            snapshot == walked,
-            "linear transform flags differ from the walk in source {source:?}: {:?}",
-            snapshot
-                .0
-                .iter()
-                .zip(&walked.0)
-                .enumerate()
-                .filter(|(_, (linear, walked))| linear != walked)
-                .take(8)
-                .collect::<Vec<_>>()
-        );
+    compute_transform_flags_forward(arena, source, root)
+}
+
+/// Classify the parsed source reachable from `root`: the linear pass when
+/// the records are in child-before-parent order (the parser's order), the
+/// general postorder walk otherwise.
+#[cfg(test)]
+fn compute_transform_flags_reference(
+    arena: &mut TransformArena,
+    source: TransformSourceId,
+    root: NodeId,
+) -> Result<(), TransformError> {
+    if !compute_transform_flags_linear(arena, source, root)? {
+        compute_transform_flags_walk(arena, source, root)?;
     }
     Ok(())
 }
 
-/// Every node's and every array's transform flags of `source`, in arena
-/// order (the development check's comparison key).
+#[cfg(test)]
 fn snapshot_transform_flags(
     arena: &TransformArena,
     source: TransformSourceId,
@@ -16895,6 +16806,7 @@ fn snapshot_transform_flags(
 /// as the walk does, with the same per-node rules and the same array
 /// aggregates. `Ok(false)` reports records that are not in child-before-
 /// parent order (nothing was written); the caller takes the walk instead.
+#[cfg(test)]
 fn compute_transform_flags_linear(
     arena: &mut TransformArena,
     source: TransformSourceId,
@@ -18128,3 +18040,152 @@ mod template_flags_tests;
 #[cfg(test)]
 #[path = "../tests/unit/builtins/flag_walk.rs"]
 mod flag_walk_tests;
+
+/// Which real child edges receive the result of a node. Ordinary parser
+/// trees use the record's parent; shared/moved API children add sparse edges.
+/// The reachability byte also certifies that the nominal parent really has
+/// a public edge to this node. Merely having a live parent is insufficient
+/// (attached JSDoc is deliberately outside this classification).
+struct FlagPropagationPlan {
+    live: Vec<u8>,
+    additional_parents: HashMap<NodeId, Vec<NodeId>>,
+}
+
+const FLAG_LIVE: u8 = 1;
+const FLAG_PRIMARY_PARENT: u8 = 2;
+
+fn flag_propagation_plan(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    root: NodeId,
+) -> Result<Option<FlagPropagationPlan>, TransformError> {
+    let syntax = arena.source(source)?.syntax();
+    let base = syntax.arena.node_base();
+    let count = syntax.arena.len();
+    let index_of = |id: NodeId| {
+        id.index()
+            .checked_sub(base)
+            .map(|n| n as usize)
+            .filter(|n| *n < count)
+            .ok_or(TransformError::UnknownNode(TransformNode::new(source, id)))
+    };
+    let mut plan = FlagPropagationPlan {
+        live: vec![0; count],
+        additional_parents: HashMap::default(),
+    };
+    plan.live[index_of(root)?] = FLAG_LIVE;
+    let mut children = Vec::new();
+    let mut ordered = true;
+    for index in (0..=index_of(root)?).rev() {
+        if plan.live[index] & FLAG_LIVE == 0 {
+            continue;
+        }
+        let id = NodeId::new(base + index as u32);
+        children.clear();
+        let record = syntax.arena.node(id);
+        for_each_child(&syntax.arena, record, |child| {
+            children.push(child);
+            false
+        });
+        for_each_child_array(record, |array| {
+            if syntax.arena.contains_array(array) {
+                children.extend(syntax.arena.node_array(array).nodes.iter().copied());
+            }
+            false
+        });
+        for &child in &children {
+            let child_index = index_of(child)?;
+            if child_index >= index {
+                ordered = false;
+                break;
+            }
+            plan.live[child_index] |= FLAG_LIVE;
+            if syntax.arena.node(child).parent == Some(id) {
+                plan.live[child_index] |= FLAG_PRIMARY_PARENT;
+            } else {
+                plan.additional_parents.entry(child).or_default().push(id);
+            }
+        }
+        if !ordered {
+            break;
+        }
+    }
+    if ordered {
+        Ok(Some(plan))
+    } else {
+        Ok(None)
+    }
+}
+
+/// One children-before-parents evaluation of the reachable records. Each
+/// child pushes its contribution to its parents; an ordinary parent never
+/// enumerates its children to recover flags it has already received.
+fn compute_transform_flags_forward(
+    arena: &mut TransformArena,
+    source: TransformSourceId,
+    root: NodeId,
+) -> Result<(), TransformError> {
+    let Some(plan) = flag_propagation_plan(arena, source, root)? else {
+        // Keep the existing general walk for API/recovery graphs whose
+        // children are not ordered before their parents. No flag was written.
+        return compute_transform_flags_walk(arena, source, root);
+    };
+    let (base, count) = {
+        let syntax = arena.source(source)?.syntax();
+        (syntax.arena.node_base(), syntax.arena.len())
+    };
+    let mut accumulated = vec![TransformFlags::NONE; count];
+    let mut arrays = Vec::new();
+    for index in 0..count {
+        let id = NodeId::new(base + index as u32);
+        if plan.live[index] & FLAG_LIVE == 0 {
+            continue;
+        }
+        let node = TransformNode::new(source, id);
+        let record = *arena.node(node)?;
+        arrays.clear();
+        for_each_child_array(&record, |array| {
+            arrays.push(array);
+            false
+        });
+        for &array in &arrays {
+            let array_ref = arena
+                .node_array_ref(source, array)
+                .expect("generated child array belongs to its source");
+            let mut flags = TransformFlags::NONE;
+            for &element in arena.node_array(array_ref)?.nodes {
+                let child = TransformNode::new(source, element);
+                let kind = arena.node(child)?.kind;
+                flags |= arena.transform_flags(child) & !TransformFlags::subtree_exclusions(kind);
+            }
+            arena.set_array_transform_flags(array_ref, flags);
+        }
+        let child_flags = match FactoryTransformChildren::of(&record) {
+            FactoryTransformChildren::All => accumulated[index],
+            FactoryTransformChildren::None => TransformFlags::NONE,
+            _ => factory_child_transform_flags(arena, source, &record)?,
+        };
+        let flags = local_transform_flags(&record)
+            | local_contextual_target_flags(arena, source, &record)?
+            | child_flags;
+        let flags = complete_class_transform_flags(arena, source, &record, flags)?
+            | static_this_substitute_flags(arena, node);
+        arena.set_transform_flags(node, flags);
+        let propagated = arena.propagate_record_flags(source, &record, flags)?;
+        if plan.live[index] & FLAG_PRIMARY_PARENT != 0 {
+            if let Some(parent) = record.parent {
+                accumulated[(parent.index() - base) as usize] |= propagated;
+            }
+        }
+        if let Some(parents) = plan.additional_parents.get(&id) {
+            for parent in parents {
+                accumulated[(parent.index() - base) as usize] |= propagated;
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "../tests/unit/builtins/forward_flags.rs"]
+mod forward_flags_tests;

@@ -119,6 +119,7 @@ fn legacy_build(
     let package_ids = packages.into_iter().map(|(_, package)| package).collect();
     ResolutionTable {
         module_lookup: module_lookup_index(&modules, &source_ranges),
+        module_order: Vec::new(),
         modules,
         source_ranges,
         package_ids,
@@ -242,15 +243,41 @@ fn grouped_freeze_matches_the_old_table_for_shuffled_rows() {
             .insert(*source, key.clone(), ModuleResolution::not_found())
             .is_err());
         let expected = legacy_build(staged.clone(), BTreeMap::new(), &sources);
-        let mut loaded = LoadedModules::default();
-        for (source, key, resolution) in &entries {
-            loaded.push(*source, key.clone(), resolution.clone(), false, &sources);
+        let mut loaded = LoadedModules::new(sources.len(), entries.len());
+        // The loader publishes one contiguous batch per source. Shuffle the
+        // group order as well as the requests, preserving that contract.
+        let mut groups: Vec<_> = entries.iter().map(|(source, _, _)| *source).collect();
+        groups.dedup();
+        let mut seen = std::collections::BTreeSet::new();
+        for source in groups.into_iter().filter(|source| seen.insert(*source)) {
+            for (_, key, resolution) in entries.iter().filter(|(owner, _, _)| *owner == source) {
+                loaded.push(source, key.clone(), resolution.clone(), false, &sources);
+            }
         }
+        let loaded = loaded.finish(&sources, BTreeMap::new());
         assert_eq!(
-            loaded.finish(&sources, BTreeMap::new()),
-            expected,
-            "round {round}: direct loader compaction and package encounter order"
+            loaded, expected,
+            "round {round}: table equality compares ordered facts"
         );
+        assert_eq!(
+            loaded.view(&sources, &source_by_canonical),
+            expected.view(&sources, &source_by_canonical),
+            "round {round}: loader iteration, packages and rare facts"
+        );
+        for (source, key, _) in &entries {
+            assert_eq!(
+                loaded.view(&sources, &source_by_canonical).module(
+                    *source,
+                    key.specifier(),
+                    key.mode()
+                ),
+                expected.view(&sources, &source_by_canonical).module(
+                    *source,
+                    key.specifier(),
+                    key.mode()
+                )
+            );
+        }
         let actual = ResolutionTable::build(staged, BTreeMap::new(), &sources);
         assert_eq!(
             actual, expected,
