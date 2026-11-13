@@ -674,8 +674,10 @@ pub use crate::goslices::{sort_func_like_go, sort_types_like_tsgo};
 
 /// Merge the ascending runs collected by `add_types_to_union`. Pair runs
 /// in balanced passes, so many singleton inputs take O(n log r) work rather
-/// than repeatedly moving a growing prefix. Keep occurrences until the
-/// caller deduplicates the final list, after all flags have been collected.
+/// than repeatedly moving a growing prefix. Search the longer run when a
+/// pair has very different lengths, and consume equal heads together. Keep
+/// occurrences until the caller deduplicates the final list, after all flags
+/// have been collected.
 pub(crate) fn merge_union_runs(
     types: &mut Vec<TypeId>,
     starts: &mut Vec<usize>,
@@ -693,18 +695,50 @@ pub(crate) fn merge_union_runs(
             let middle = starts.get(i + 1).copied().unwrap_or(types.len());
             let end = starts.get(i + 2).copied().unwrap_or(types.len());
             starts[run] = start;
-            let (mut left, mut right) = (start, middle);
-            while left < middle && right < end {
-                if less(types[right], types[left]) {
-                    scratch.push(types[right]);
-                    right += 1;
+            let left_len = middle - start;
+            let right_len = end - middle;
+            let short_len = left_len.min(right_len);
+            let long_len = left_len.max(right_len);
+            if short_len > 0
+                && short_len * (usize::BITS - long_len.leading_zeros()) as usize * 2 < long_len
+            {
+                let (short, mut long) = if left_len < right_len {
+                    (&types[start..middle], &types[middle..end])
                 } else {
-                    scratch.push(types[left]);
-                    left += 1;
+                    (&types[middle..end], &types[start..middle])
+                };
+                for &ty in short {
+                    let boundary = long.partition_point(|&member| member != ty && less(member, ty));
+                    scratch.extend_from_slice(&long[..boundary]);
+                    scratch.push(ty);
+                    long = &long[boundary..];
+                    if long.first() == Some(&ty) {
+                        // Keep both occurrences until the final deduplication,
+                        // just as the linear merge does for equal heads.
+                        scratch.push(ty);
+                        long = &long[1..];
+                    }
                 }
+                scratch.extend_from_slice(long);
+            } else {
+                let (mut left, mut right) = (start, middle);
+                while left < middle && right < end {
+                    if types[left] == types[right] {
+                        scratch.push(types[left]);
+                        scratch.push(types[right]);
+                        left += 1;
+                        right += 1;
+                    } else if less(types[right], types[left]) {
+                        scratch.push(types[right]);
+                        right += 1;
+                    } else {
+                        scratch.push(types[left]);
+                        left += 1;
+                    }
+                }
+                scratch.extend_from_slice(&types[left..middle]);
+                scratch.extend_from_slice(&types[right..end]);
             }
-            scratch.extend_from_slice(&types[left..middle]);
-            scratch.extend_from_slice(&types[right..end]);
         }
         starts.truncate(next_len);
         std::mem::swap(types, &mut scratch);
