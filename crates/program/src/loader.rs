@@ -1117,6 +1117,17 @@ fn resolve_runtime_dependency_symlinks(
         ) {
             continue;
         }
+        // Admission already recorded this source's nearest package scope.
+        // Keep the resolver visits while tracing: their cache messages are
+        // observable even when the scope's dependencies were handled earlier.
+        if compiler_options.trace_resolution != Some(true)
+            && source
+                .prepared
+                .package_scope()
+                .is_some_and(|scope| seen_scopes.contains(scope))
+        {
+            continue;
+        }
         let Some(package) = resolver
             .package_scope_for_file(file.display())
             .map_err(|error| {
