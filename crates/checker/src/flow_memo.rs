@@ -50,10 +50,13 @@ struct FlowCounters {
     in_instantiation: bool,
 }
 
-struct FlowFrame {
+#[must_use]
+pub(crate) struct FlowFrame {
     start: u32,
     saved: Regs,
     counters: FlowCounters,
+    #[cfg(any(test, debug_assertions, feature = "flow-memo-shadow"))]
+    depth: usize,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -63,11 +66,65 @@ pub(crate) struct FrameTaint {
     pub(crate) flags: u8,
 }
 
+/// A reference query's immutable identity, including its owning flow file.
 #[derive(Clone)]
 pub(crate) struct MemoKey {
+    #[cfg(any(test, target_pointer_width = "32"))]
     hash: u128,
+    #[cfg(target_pointer_width = "64")]
+    node_base: [u64; 2],
+    #[cfg(target_pointer_width = "32")]
+    file: usize,
     #[cfg(any(test, feature = "flow-memo-shadow"))]
     full: Arc<[u8]>,
+}
+
+impl MemoKey {
+    fn new(
+        file: usize,
+        hash: u128,
+        #[cfg(any(test, feature = "flow-memo-shadow"))] full: Arc<[u8]>,
+    ) -> Self {
+        #[cfg(target_pointer_width = "64")]
+        let node_base = {
+            let zero = hash_key(&(file, FlowId::new(0), hash));
+            [
+                (zero as u64).rotate_right(26),
+                ((zero >> 64) as u64).rotate_right(26),
+            ]
+        };
+        Self {
+            #[cfg(any(test, target_pointer_width = "32"))]
+            hash,
+            #[cfg(target_pointer_width = "64")]
+            node_base,
+            #[cfg(target_pointer_width = "32")]
+            file,
+            #[cfg(any(test, feature = "flow-memo-shadow"))]
+            full,
+        }
+    }
+
+    #[inline]
+    fn at_node(&self, flow: FlowId) -> u128 {
+        #[cfg(target_pointer_width = "64")]
+        {
+            // The locked Fx integer hash adds a word and multiplies by K.
+            // In (file, flow, key.low, key.high), flow has three multiplies
+            // left. Preparing the zero-flow sums once preserves every tag
+            // and table collision while removing the invariant arithmetic.
+            const K: u64 = 0xf135_7aea_2e62_a9c5;
+            const FLOW_FACTOR: u64 = K.wrapping_mul(K).wrapping_mul(K);
+            let delta = u64::from(flow.index()).wrapping_mul(FLOW_FACTOR);
+            let low = self.node_base[0].wrapping_add(delta).rotate_left(26);
+            let high = self.node_base[1].wrapping_add(delta).rotate_left(26);
+            u128::from(low) | (u128::from(high) << 64)
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            hash_key(&(self.file, flow, self.hash))
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -133,7 +190,8 @@ struct MemoStats {
 pub(crate) struct FlowMemo {
     serial: u32,
     regs: Regs,
-    frames: Vec<FlowFrame>,
+    #[cfg(any(test, debug_assertions, feature = "flow-memo-shadow"))]
+    frame_depth: usize,
     /// Saved/restored with flow_type_cache; an entry replacement gets a
     /// fresh epoch too. UNTAINTED identifies the initial, empty cache.
     pub(crate) type_cache_epoch: u32,
@@ -156,7 +214,8 @@ impl FlowMemo {
         Self {
             serial: 1,
             regs: FRESH_REGS,
-            frames: Vec::new(),
+            #[cfg(any(test, debug_assertions, feature = "flow-memo-shadow"))]
+            frame_depth: 0,
             type_cache_epoch: UNTAINTED,
             slots: Vec::new(),
             #[cfg(feature = "flow-memo-shadow")]
@@ -192,28 +251,36 @@ impl FlowMemo {
     }
 
     #[inline]
-    fn begin(&mut self, counters: FlowCounters) {
+    fn begin(&mut self, counters: FlowCounters) -> FlowFrame {
         let start = self.next_serial();
-        self.frames.push(FlowFrame {
+        let frame = FlowFrame {
             start,
             saved: self.regs,
             counters,
-        });
+            #[cfg(any(test, debug_assertions, feature = "flow-memo-shadow"))]
+            depth: self.frame_depth,
+        };
+        #[cfg(any(test, debug_assertions, feature = "flow-memo-shadow"))]
+        {
+            self.frame_depth += 1;
+        }
         self.regs = FRESH_REGS;
         if self.serial == UNTAINTED - 1 {
             self.taint(0);
         }
+        frame
     }
 
     /// Transparent frames (C-1) propagate children without adding a flow
     /// level. Dependencies born inside a frame do not taint its answer,
     /// but their serials still propagate to older enclosing frames.
     #[inline]
-    pub(crate) fn end_transparent(&mut self) -> (FrameTaint, u16, u8) {
-        let frame = self
-            .frames
-            .pop()
-            .expect("flow frame without matching begin");
+    pub(crate) fn end_transparent(&mut self, frame: FlowFrame) -> (FrameTaint, u16, u8) {
+        #[cfg(any(test, debug_assertions, feature = "flow-memo-shadow"))]
+        {
+            assert_eq!(self.frame_depth, frame.depth + 1, "flow frame order");
+            self.frame_depth = frame.depth;
+        }
         let r = self.regs;
         let taint = FrameTaint {
             transient: if r.transient < frame.start {
@@ -238,14 +305,9 @@ impl FlowMemo {
     }
 
     #[inline]
-    fn end(&mut self, counters: FlowCounters) -> (FrameTaint, u16) {
-        let before = self
-            .frames
-            .last()
-            .expect("flow frame without matching begin")
-            .counters;
-        self.add_flags(counter_flags(before, counters));
-        let (taint, height, _) = self.end_transparent();
+    fn end(&mut self, frame: FlowFrame, counters: FlowCounters) -> (FrameTaint, u16) {
+        self.add_flags(counter_flags(frame.counters, counters));
+        let (taint, height, _) = self.end_transparent(frame);
         self.raise_height(height.saturating_add(1));
         (taint, height)
     }
@@ -281,7 +343,14 @@ impl FlowMemo {
     }
 
     pub(crate) fn frame_depth(&self) -> usize {
-        self.frames.len()
+        #[cfg(any(test, debug_assertions, feature = "flow-memo-shadow"))]
+        {
+            self.frame_depth
+        }
+        #[cfg(not(any(test, debug_assertions, feature = "flow-memo-shadow")))]
+        {
+            0
+        }
     }
 
     /// Answer slots and walk scratch owned by the normal checker. The
@@ -290,15 +359,13 @@ impl FlowMemo {
         (
             self.slots.iter().filter(|slot| slot.ty.is_some()).count(),
             self.slots.capacity() * std::mem::size_of::<Slot>()
-                + self.frames.capacity() * std::mem::size_of::<FlowFrame>()
                 + self.checkpoints.capacity() * std::mem::size_of::<FlowId>()
                 + self.key_buffer.capacity(),
         )
     }
 
     #[cfg(feature = "flow-memo-shadow")]
-    fn frame_taint(&self, counters: FlowCounters) -> FrameTaint {
-        let frame = self.frames.last().expect("active flow frame");
+    fn frame_taint(&self, frame: &FlowFrame, counters: FlowCounters) -> FrameTaint {
         FrameTaint {
             transient: if self.regs.transient < frame.start {
                 self.regs.transient
@@ -314,20 +381,20 @@ impl FlowMemo {
         }
     }
 
-    fn node_key(file: usize, flow: FlowId, key: &MemoKey) -> u128 {
-        hash_key(&(file, flow, key.hash))
+    fn node_key(flow: FlowId, key: &MemoKey) -> u128 {
+        key.at_node(flow)
     }
 
     fn slot_index(key: u128) -> usize {
         ((key as u64) ^ ((key >> 64) as u64).rotate_left(29)) as usize & (TABLE_SLOTS - 1)
     }
 
-    fn lookup(&mut self, file: usize, flow: FlowId, key: &MemoKey) -> Option<MemoHit> {
+    fn lookup(&mut self, flow: FlowId, key: &MemoKey) -> Option<MemoHit> {
         #[cfg(any(test, feature = "flow-memo-shadow"))]
         {
             self.stats.lookups += 1;
         }
-        let key = Self::node_key(file, flow, key);
+        let key = Self::node_key(flow, key);
         let slot = self.slots.get(Self::slot_index(key))?;
         if slot.key != key {
             return None;
@@ -341,6 +408,8 @@ impl FlowMemo {
     }
 
     fn store(&mut self, query: &FlowQuery, flow: FlowId, key: &MemoKey, hit: MemoHit) {
+        #[cfg(not(feature = "flow-memo-shadow"))]
+        let _ = query;
         if self.slots.is_empty() {
             self.slots.resize(TABLE_SLOTS, Slot::default());
             #[cfg(feature = "flow-memo-shadow")]
@@ -348,7 +417,7 @@ impl FlowMemo {
                 self.shadow_slots.resize(TABLE_SLOTS, None);
             }
         }
-        let node_key = Self::node_key(query.file_index(), flow, key);
+        let node_key = Self::node_key(flow, key);
         let index = Self::slot_index(node_key);
         #[cfg(any(test, feature = "flow-memo-shadow"))]
         {
@@ -547,7 +616,7 @@ impl CheckerState<'_> {
             });
         #[cfg(not(any(test, feature = "flow-memo-shadow")))]
         if let Some(hash) = packed {
-            return Some(MemoKey { hash });
+            return Some(MemoKey::new(query.file_index(), hash));
         }
         // An identifier root is one tag plus a u32, followed by the three
         // fixed u32 key fields. Property fragments reserve their bytes too.
@@ -569,11 +638,12 @@ impl CheckerState<'_> {
                 );
                 // Like tsrs, inline/reduce modes gate frames rather than being
                 // key fields. Synthetic modes have no structural reference key.
-                MemoKey {
-                    hash: packed.unwrap_or_else(|| hash_key(&bytes) | (1 << 95)),
+                MemoKey::new(
+                    query.file_index(),
+                    packed.unwrap_or_else(|| hash_key(&bytes) | (1 << 95)),
                     #[cfg(any(test, feature = "flow-memo-shadow"))]
-                    full: bytes.as_slice().into(),
-                }
+                    bytes.as_slice().into(),
+                )
             });
         self.flow_memo.key_buffer = bytes;
         result
@@ -644,6 +714,7 @@ impl CheckerState<'_> {
 
     /// Reuse a complete answer whose dependencies remain valid. In shadow
     /// builds each candidate is kept until its real frame finishes.
+    #[cfg_attr(feature = "flow-memo-shadow", allow(clippy::too_many_arguments))]
     pub(crate) fn flow_memo_at_node(
         &mut self,
         query: &FlowQuery,
@@ -652,6 +723,7 @@ impl CheckerState<'_> {
         flow: FlowId,
         flags: FlowFlags,
         shared: Option<FlowId>,
+        #[cfg(feature = "flow-memo-shadow")] frame: &FlowFrame,
     ) -> Option<(FlowType, bool)> {
         #[cfg(not(feature = "flow-memo-shadow"))]
         let _ = shared;
@@ -665,7 +737,7 @@ impl CheckerState<'_> {
             }
             self.flow_memo.checkpoints.push(flow);
         }
-        let hit = self.flow_memo.lookup(query.file_index(), flow, &memo.key)?;
+        let hit = self.flow_memo.lookup(flow, &memo.key)?;
         if !self.flow_memo_consult_ok(query, hit) {
             return None;
         }
@@ -675,8 +747,7 @@ impl CheckerState<'_> {
         }
         #[cfg(feature = "flow-memo-shadow")]
         {
-            let index =
-                FlowMemo::slot_index(FlowMemo::node_key(query.file_index(), flow, &memo.key));
+            let index = FlowMemo::slot_index(FlowMemo::node_key(flow, &memo.key));
             let origin = self.flow_memo.shadow_slots[index]
                 .as_ref()
                 .expect("shadow slot")
@@ -685,7 +756,9 @@ impl CheckerState<'_> {
                 flow,
                 hit,
                 origin,
-                before: self.flow_memo.frame_taint(self.flow_frame_counters()),
+                before: self
+                    .flow_memo
+                    .frame_taint(frame, self.flow_frame_counters()),
                 height_before: self.flow_memo.regs.height,
                 created_before: (
                     self.tables.len(),
@@ -862,20 +935,20 @@ impl CheckerState<'_> {
     }
 
     #[inline]
-    pub(crate) fn flow_frame_begin(&mut self) {
-        self.flow_memo.begin(self.flow_frame_counters());
+    pub(crate) fn flow_frame_begin(&mut self) -> FlowFrame {
+        self.flow_memo.begin(self.flow_frame_counters())
     }
 
     #[inline]
-    pub(crate) fn flow_frame_end(&mut self) -> (FrameTaint, u16) {
-        self.flow_memo.end(self.flow_frame_counters())
+    pub(crate) fn flow_frame_end(&mut self, frame: FlowFrame) -> (FrameTaint, u16) {
+        self.flow_memo.end(frame, self.flow_frame_counters())
     }
 
     /// A shared-flow answer stands for its original sub-walk's height.
     #[inline]
-    pub(crate) fn flow_frame_end_with(&mut self, height: u16) -> FrameTaint {
+    pub(crate) fn flow_frame_end_with(&mut self, frame: FlowFrame, height: u16) -> FrameTaint {
         self.flow_memo.regs.height = height;
-        self.flow_frame_end().0
+        self.flow_frame_end(frame).0
     }
 
     #[inline]

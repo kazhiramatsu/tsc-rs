@@ -329,11 +329,11 @@ impl CheckerState<'_> {
         // A circular variance query can temporarily publish an empty list
         // while an older measurement will later replace it (variance.rs).
         let in_variance = !self.variance_stack.is_empty();
-        self.flow_frame_begin();
+        let frame = self.flow_frame_begin();
         let serial = self.flow_memo.source_now();
         let (result, steps, cleared) =
             self.infer_types_walk(infos, source, target, priority, contravariant);
-        let (taint, height, flags) = self.flow_memo.end_transparent();
+        let (taint, height, flags) = self.flow_memo.end_transparent(frame);
         let after = self.infer_memo_effects();
         let rejected = [
             steps < MIN_STEPS,
@@ -398,10 +398,10 @@ impl CheckerState<'_> {
     ) {
         let before = self.infer_memo_effects();
         let expressions = self.expression_checks;
-        self.flow_frame_begin();
+        let frame = self.flow_frame_begin();
         let (result, _, cleared) =
             self.infer_types_walk(infos, source, target, priority, contravariant);
-        let (taint, height, flags) = self.flow_memo.end_transparent();
+        let (taint, height, flags) = self.flow_memo.end_transparent(frame);
         let after = self.infer_memo_effects();
         let outcome = self.infer_memo_outcomes(infos);
         assert!(result.is_ok() && before == after

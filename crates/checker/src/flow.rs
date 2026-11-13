@@ -695,7 +695,7 @@ impl<'a> CheckerState<'a> {
             self.report_flow_control_error(query.reference);
             return Ok(FlowType::Type(self.tables.intrinsics.error));
         }
-        self.flow_frame_begin();
+        let frame = self.flow_frame_begin();
         let memo = self.flow_frame_memo(query);
         query.flow_depth += 1;
         let mut shared: Option<FlowId> = None;
@@ -720,9 +720,16 @@ impl<'a> CheckerState<'a> {
                 shared = Some(flow);
             }
             if let Some(memo) = memo.as_ref() {
-                if let Some((ty, ends_iteration)) =
-                    self.flow_memo_at_node(query, memo, entry_flow, flow, flags, shared)
-                {
+                if let Some((ty, ends_iteration)) = self.flow_memo_at_node(
+                    query,
+                    memo,
+                    entry_flow,
+                    flow,
+                    flags,
+                    shared,
+                    #[cfg(feature = "flow-memo-shadow")]
+                    &frame,
+                ) {
                     query.memo_used = true;
                     // Go records the last shared node of the entire
                     // iteration, which a checkpoint hit cannot know.
@@ -848,8 +855,8 @@ impl<'a> CheckerState<'a> {
         })();
         query.flow_depth -= 1;
         let (taint, height) = match shared_height {
-            Some(height) => (self.flow_frame_end_with(height), height),
-            None => self.flow_frame_end(),
+            Some(height) => (self.flow_frame_end_with(frame, height), height),
+            None => self.flow_frame_end(frame),
         };
         if let Some(memo) = memo {
             self.flow_memo_finish(
