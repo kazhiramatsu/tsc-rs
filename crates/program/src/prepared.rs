@@ -3074,6 +3074,7 @@ impl PreparedProgramBuilder {
         mut self,
         loaded: LoadedModules,
     ) -> Result<PreparedProgram, PreparationError> {
+        let mut timer = tsc_types::trace::Timer::new();
         self.validate_build_mode()?;
         if self.program_options.module_resolution_override().is_some() {
             // Keep the full external-input validation and its error order.
@@ -3094,11 +3095,15 @@ impl PreparedProgramBuilder {
         self.validate_missing_root_diagnostics()?;
         // Mapper diagnostics are external data, not a resolver invariant.
         self.validate_diagnostic_sources()?;
+        timer.mark("load: prepared validation");
         let resolutions = loaded.finish(
             &self.source_files,
             std::mem::take(&mut self.resolutions.type_references),
         );
-        Ok(self.freeze_with_resolutions(resolutions))
+        timer.mark("load: prepared resolution table");
+        let prepared = self.freeze_with_resolutions(resolutions);
+        timer.mark("load: prepared freeze and builder cleanup");
+        Ok(prepared)
     }
 
     fn validate_build_mode(&self) -> Result<(), PreparationError> {

@@ -116,6 +116,31 @@ pub mod names;
 pub mod shared_text;
 pub mod tails;
 pub mod texts;
+
+/// Cumulative retired instructions for opt-in phase tracing. A missing or
+/// unavailable platform counter is reported as `None`, never as zero work.
+pub fn process_instructions() -> Option<u64> {
+    #[cfg(target_os = "macos")]
+    {
+        let mut info = std::mem::MaybeUninit::<libc::rusage_info_v4>::zeroed();
+        // SAFETY: the SDK V4 call writes a full, correctly aligned V4 buffer.
+        let result = unsafe {
+            libc::proc_pid_rusage(
+                libc::getpid(),
+                libc::RUSAGE_INFO_V4,
+                info.as_mut_ptr().cast(),
+            )
+        };
+        if result != 0 {
+            return None;
+        }
+        // SAFETY: the successful call initialized the zeroed V4 buffer.
+        let instructions = unsafe { info.assume_init() }.ri_instructions;
+        (instructions != 0).then_some(instructions)
+    }
+    #[cfg(not(target_os = "macos"))]
+    None
+}
 pub use shared_text::SharedText;
 
 /// Where the reservation starts: clear of every placement seen on macOS and

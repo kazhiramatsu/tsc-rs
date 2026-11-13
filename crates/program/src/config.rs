@@ -1842,6 +1842,9 @@ fn load_config_program_inner(
             limits,
         ),
     };
+    let mut timer = tsc_types::trace::Timer::new();
+    drop(roots);
+    timer.mark("load: config input cleanup");
     loaded.map_err(ConfigProgramLoadError::Program)
 }
 
