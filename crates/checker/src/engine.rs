@@ -4361,7 +4361,20 @@ impl<'a> CheckerState<'a> {
     /// from the resolved source. The regular twin is memoized beside the
     /// type like tsgo's cachedTypes[RegularObjectLiteral] (object records
     /// carry no regular-type word).
+    #[inline]
     pub fn get_regular_type_of_object_literal(&mut self, ty: TypeId) -> CheckResult<TypeId> {
+        if !self
+            .tables
+            .object_flags_of(ty)
+            .contains(ObjectFlags::OBJECT_LITERAL | ObjectFlags::FRESH_LITERAL)
+        {
+            return Ok(ty);
+        }
+        self.get_regular_type_of_object_literal_worker(ty)
+    }
+
+    #[inline(never)]
+    pub fn get_regular_type_of_object_literal_worker(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if !(self.is_object_literal_type(ty)
             && self
                 .tables

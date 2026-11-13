@@ -136,3 +136,76 @@ fn relation_error_state_selectors_follow_tsgo_priority_and_depth() {
         "all-falsy selection still restores the saved identity token"
     );
 }
+
+#[test]
+fn object_regularization_entry_preserves_nested_members_and_cached_twins() {
+    use crate::state::test_support::with_program_state;
+    use tsc_types::{CompilerOptions, TypeId};
+    fn observe(worker: bool) -> (Vec<TypeId>, usize, usize, usize, u64, Vec<u32>) {
+        with_program_state(
+            &[(
+                "a.ts",
+                "const object = { nested: { value: 1 }, plain: 'x' };",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let objects: Vec<_> = state
+                    .binder
+                    .source(0)
+                    .arena
+                    .node_ids()
+                    .filter(|&id| {
+                        state.kind_of(id) == tsc_syntax::SyntaxKind::ObjectLiteralExpression
+                    })
+                    .collect();
+                let mut inputs = vec![
+                    state.tables.intrinsics.string,
+                    state.tables.intrinsics.unknown,
+                    state.empty_object_type,
+                ];
+                for node in objects {
+                    let ty = state
+                        .check_expression(node, tsc_types::CheckMode::NORMAL)
+                        .unwrap();
+                    assert!(state.tables.object_flags_of(ty).contains(
+                        tsc_types::ObjectFlags::OBJECT_LITERAL
+                            | tsc_types::ObjectFlags::FRESH_LITERAL
+                    ));
+                    inputs.push(ty);
+                }
+                assert_eq!(inputs.len(), 5);
+                let mut outputs = Vec::new();
+                for _ in 0..2 {
+                    for &ty in &inputs {
+                        outputs.push(
+                            if worker {
+                                state.get_regular_type_of_object_literal_worker(ty)
+                            } else {
+                                state.get_regular_type_of_object_literal(ty)
+                            }
+                            .unwrap(),
+                        );
+                    }
+                }
+                assert_eq!(outputs[0], inputs[0]);
+                assert_ne!(outputs[3], inputs[3]);
+                assert_eq!(&outputs[..5], &outputs[5..]);
+                for &ty in &outputs[3..5] {
+                    assert!(!state
+                        .tables
+                        .object_flags_of(ty)
+                        .intersects(tsc_types::ObjectFlags::FRESH_LITERAL));
+                }
+                (
+                    outputs,
+                    state.tables.len(),
+                    state.binder.transient_symbol_count(),
+                    state.signatures.len(),
+                    state.total_instantiation_count,
+                    state.diagnostics.iter().map(|d| d.code()).collect(),
+                )
+            },
+        )
+    }
+    assert_eq!(observe(false), observe(true));
+}
