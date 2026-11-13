@@ -1002,6 +1002,9 @@ pub struct CheckerState<'a> {
     /// the source files whose export assignments and export specifiers
     /// have marked their targets visible for declaration emit.
     pub(crate) declaration_emit_aliases_marked: rustc_hash::FxHashSet<NodeId>,
+    /// Alias views are allocated only when declaration visibility is prepared.
+    pub(crate) declaration_emit_alias_tables:
+        Option<Box<crate::declaration_emit::DeclarationEmitAliasTables>>,
     /// The ambient module symbols of the script files, kept out of the
     /// globals merge until the global-scope augmentations are in (tsgo
     /// initializeChecker's `ambientModuleSymbols`).
@@ -2050,6 +2053,7 @@ impl<'a> CheckerState<'a> {
             deferred_node_sets: Vec::new(),
             deferred_diagnostics: Vec::new(),
             declaration_emit_aliases_marked: rustc_hash::FxHashSet::default(),
+            declaration_emit_alias_tables: None,
             deferred_ambient_module_symbols: Vec::new(),
             potential_unused_renamed_binding_elements_in_types: Vec::new(),
             potentially_unused_identifiers: rustc_hash::FxHashMap::default(),

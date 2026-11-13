@@ -8104,8 +8104,16 @@ impl<'a> CheckerState<'a> {
         let tables = self.symbol_tables_in_scope(enclosing);
         let mut visited = Vec::new();
         for (table_key, table, is_local_name_lookup) in tables {
+            let shared = match (&table_key, &table) {
+                (
+                    ScopeTableKey::Globals | ScopeTableKey::Exports(_),
+                    crate::program::ScopeTable::Shared(shared),
+                ) => Some(shared),
+                _ => None,
+            };
             if let Some(chain) = self.accessible_chain_from_table(
                 &table,
+                shared,
                 table_key,
                 symbol,
                 meaning,
@@ -8228,6 +8236,7 @@ impl<'a> CheckerState<'a> {
     fn accessible_chain_from_table(
         &mut self,
         table: &tsc_binder::SymbolTable,
+        shared: Option<&std::sync::Arc<tsc_binder::SymbolTable>>,
         table_key: ScopeTableKey,
         symbol: SymbolId,
         meaning: tsc_types::SymbolFlags,
@@ -8243,6 +8252,7 @@ impl<'a> CheckerState<'a> {
         visited.push(table_key);
         let result = self.try_symbol_table(
             table,
+            shared,
             table_key,
             symbol,
             meaning,
@@ -8270,6 +8280,7 @@ impl<'a> CheckerState<'a> {
     fn try_symbol_table(
         &mut self,
         table: &tsc_binder::SymbolTable,
+        shared: Option<&std::sync::Arc<tsc_binder::SymbolTable>>,
         table_key: ScopeTableKey,
         symbol: SymbolId,
         meaning: tsc_types::SymbolFlags,
@@ -8310,7 +8321,8 @@ impl<'a> CheckerState<'a> {
                 candidates.push(vec![symbol]);
             }
         }
-        for (name, &entry) in table.iter() {
+        let aliases = self.declaration_emit_alias_table(shared);
+        for (name, &entry) in aliases.as_deref().unwrap_or(table).iter() {
             let alias_leg = self
                 .binder
                 .symbol(entry)
@@ -8424,6 +8436,7 @@ impl<'a> CheckerState<'a> {
         let candidate_table = self.get_exports_of_symbol(resolved)?;
         let inner = self.accessible_chain_from_table(
             &candidate_table,
+            Some(&candidate_table),
             ScopeTableKey::ResolvedExports(resolved),
             symbol,
             meaning,

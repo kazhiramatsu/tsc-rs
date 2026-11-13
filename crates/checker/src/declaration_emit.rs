@@ -5,7 +5,9 @@
 //! decisions, while this module owns declaration-emit memoization, alias
 //! painting, and result-shaped accessibility.
 
-use rustc_hash::FxHashSet as HashSet;
+use std::sync::Arc;
+
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use tsc_binder::{node_util, SymbolId, SymbolTable};
 use tsc_emitter::{
@@ -18,6 +20,17 @@ use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{CheckFlags, ModifierFlags, NodeFlags, SymbolFlags};
 
 use crate::state::{CheckAbort, CheckResult, CheckerState};
+
+#[derive(Default)]
+pub(crate) struct DeclarationEmitAliasTables {
+    tables: HashMap<usize, DeclarationEmitAliasTable>,
+}
+
+struct DeclarationEmitAliasTable {
+    // Retaining the immutable snapshot prevents its address from being reused.
+    _source: Arc<SymbolTable>,
+    aliases: Arc<SymbolTable>,
+}
 
 /// SymbolFormatFlags word consumed by checker `symbolToString`.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -69,6 +82,46 @@ pub(crate) trait DeclarationEmitAccessibilityPrimitives {
 }
 
 impl CheckerState<'_> {
+    /// tsgo getSymbolTableAliases (symbolaccessibility.go:567-595) retains
+    /// alias candidates rather than rescanning non-alias symbols. Our key
+    /// identifies the immutable table snapshot, including replacement export
+    /// tables, and the view preserves its stored keys and iteration order.
+    pub(crate) fn declaration_emit_alias_table(
+        &mut self,
+        source: Option<&Arc<SymbolTable>>,
+    ) -> Option<Arc<SymbolTable>> {
+        let cache = self.declaration_emit_alias_tables.as_mut()?;
+        let source = source?;
+        if source.is_empty() {
+            return None;
+        }
+        let key = Arc::as_ptr(source) as usize;
+        if let Some(cached) = cache.tables.get(&key) {
+            return Some(Arc::clone(&cached.aliases));
+        }
+        let binder = &self.binder;
+        let aliases = Arc::new(
+            source
+                .iter()
+                .filter_map(|(name, &symbol)| {
+                    binder
+                        .symbol(symbol)
+                        .flags
+                        .intersects(SymbolFlags::ALIAS)
+                        .then_some((*name, symbol))
+                })
+                .collect(),
+        );
+        cache.tables.insert(
+            key,
+            DeclarationEmitAliasTable {
+                _source: Arc::clone(source),
+                aliases: Arc::clone(&aliases),
+            },
+        );
+        Some(aliases)
+    }
+
     /// tsc-port: isDefinitelyReferenceToGlobalSymbolObject @6.0.3
     /// tsc-hash: 0a9f99b8eb62eb0a85b6019c76e13f9934dd0be091a0ebebf82f54a888ea237e
     /// tsc-span: _tsc.js:47469-47483
@@ -1838,6 +1891,7 @@ impl CheckerState<'_> {
         &mut self,
         file: NodeId,
     ) -> CheckResult<()> {
+        self.declaration_emit_alias_tables.get_or_insert_default();
         if !self.declaration_emit_aliases_marked.insert(file) {
             return Ok(());
         }
