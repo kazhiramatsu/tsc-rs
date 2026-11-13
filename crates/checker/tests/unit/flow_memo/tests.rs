@@ -36,35 +36,67 @@ fn counters() -> FlowCounters {
 }
 
 #[test]
-fn frames_balance_and_reuse_the_stack() {
+fn prepared_query_keys_preserve_node_tags_and_slot_indices() {
+    for file in [0, 1, u32::MAX as usize, usize::MAX] {
+        for hash in [0, 1, u64::MAX as u128, 1 << 95, 1 << 127, u128::MAX] {
+            let key = MemoKey::new(file, hash, Arc::from([]));
+            let mut index = 0u32;
+            for _ in 0..4096 {
+                let flow = FlowId::new(index);
+                let expected = hash_key(&(file, flow, hash));
+                let actual = FlowMemo::node_key(flow, &key);
+                assert_eq!(actual, expected, "file={file} flow={flow:?} hash={hash}");
+                assert_eq!(FlowMemo::slot_index(actual), FlowMemo::slot_index(expected));
+                index = index.wrapping_mul(1664525).wrapping_add(1013904223);
+                if index == u32::MAX {
+                    index -= 1;
+                }
+            }
+            for index in [1, 63, 64, 4095, 4096, 1 << 31, u32::MAX - 1] {
+                let flow = FlowId::new(index);
+                assert_eq!(key.at_node(flow), hash_key(&(file, flow, hash)));
+            }
+        }
+    }
+}
+
+#[test]
+#[should_panic(expected = "flow frame order")]
+fn call_local_frames_reject_out_of_order_completion() {
     let mut memo = FlowMemo::new();
-    memo.begin(counters());
-    memo.begin(counters());
+    let parent = memo.begin(counters());
+    let _child = memo.begin(counters());
+    memo.end(parent, counters());
+}
+
+#[test]
+fn call_local_frames_balance_and_restore_their_parent() {
+    let mut memo = FlowMemo::new();
+    let frame = memo.begin(counters());
+    let inner_frame = memo.begin(counters());
     assert_eq!(memo.frame_depth(), 2);
-    assert_eq!(memo.end(counters()).1, 0);
-    assert_eq!(memo.end(counters()).1, 1);
+    assert_eq!(memo.end(inner_frame, counters()).1, 0);
+    assert_eq!(memo.end(frame, counters()).1, 1);
     assert_eq!(memo.frame_depth(), 0);
-    let capacity = memo.frames.capacity();
-    memo.begin(counters());
-    assert_eq!(memo.end(counters()).1, 0);
-    assert_eq!(memo.frames.capacity(), capacity);
+    let frame = memo.begin(counters());
+    assert_eq!(memo.end(frame, counters()).1, 0);
 }
 
 #[test]
 fn only_sources_older_than_a_frame_taint_its_answer() {
     let mut memo = FlowMemo::new();
-    memo.begin(counters());
+    let frame = memo.begin(counters());
     let loop_source = memo.next_serial();
-    memo.begin(counters());
+    let inner_frame = memo.begin(counters());
     memo.taint(loop_source);
-    let (inner, _) = memo.end(counters());
+    let (inner, _) = memo.end(inner_frame, counters());
     assert_eq!(inner.transient, loop_source);
-    let (outer, _) = memo.end(counters());
+    let (outer, _) = memo.end(frame, counters());
     assert_eq!(outer.transient, UNTAINTED);
 
-    memo.begin(counters());
+    let frame = memo.begin(counters());
     memo.taint(memo.source_now());
-    assert_eq!(memo.end(counters()).0.transient, UNTAINTED);
+    assert_eq!(memo.end(frame, counters()).0.transient, UNTAINTED);
 }
 
 #[test]
@@ -72,15 +104,15 @@ fn oldest_taints_and_flags_propagate_to_enclosing_frames() {
     let mut memo = FlowMemo::new();
     let oldest = memo.next_serial();
     let newer = memo.next_serial();
-    memo.begin(counters());
+    let frame = memo.begin(counters());
     memo.taint(newer);
-    memo.begin(counters());
+    let inner_frame = memo.begin(counters());
     memo.taint(oldest);
     memo.taint(newer);
     memo.taint_reference(newer);
     memo.add_flags(FLAG_TYPE_CACHE);
-    let (inner, _) = memo.end(counters());
-    let (outer, _) = memo.end(counters());
+    let (inner, _) = memo.end(inner_frame, counters());
+    let (outer, _) = memo.end(frame, counters());
     assert_eq!(inner, outer);
     assert_eq!(outer.transient, oldest);
     assert_eq!(outer.reference, newer);
@@ -90,16 +122,16 @@ fn oldest_taints_and_flags_propagate_to_enclosing_frames() {
 #[test]
 fn a_nested_walk_has_its_own_reference_floor_and_height() {
     let mut memo = FlowMemo::new();
-    memo.begin(counters());
+    let frame = memo.begin(counters());
     memo.raise_height(4);
     let floor = memo.next_serial();
     let saved = memo.save_height();
-    memo.begin(counters());
+    let inner_frame = memo.begin(counters());
     memo.taint_reference(floor);
     memo.raise_height(20);
-    assert_eq!(memo.end(counters()).0.reference, floor);
+    assert_eq!(memo.end(inner_frame, counters()).0.reference, floor);
     memo.restore_height(saved);
-    let (outer, height) = memo.end(counters());
+    let (outer, height) = memo.end(frame, counters());
     assert_eq!(outer.reference, UNTAINTED);
     assert_eq!(height, 4);
 }
@@ -107,50 +139,50 @@ fn a_nested_walk_has_its_own_reference_floor_and_height() {
 #[test]
 fn transparent_frames_and_raise_height_do_not_add_a_flow_level() {
     let mut memo = FlowMemo::new();
-    memo.begin(counters());
-    memo.begin(counters());
+    let frame = memo.begin(counters());
+    let inner_frame = memo.begin(counters());
     memo.raise_height(8);
     memo.raise_height(3);
     memo.add_flags(FLAG_TYPE_CACHE);
-    let (_, height, flags) = memo.end_transparent();
+    let (_, height, flags) = memo.end_transparent(inner_frame);
     assert_eq!((height, flags), (8, FLAG_TYPE_CACHE));
-    assert_eq!(memo.end(counters()).1, 8);
+    assert_eq!(memo.end(frame, counters()).1, 8);
 
-    memo.begin(counters());
+    let frame = memo.begin(counters());
     memo.raise_height(u16::MAX);
-    memo.end(counters());
+    memo.end(frame, counters());
     assert_eq!(memo.regs.height, u16::MAX);
 
-    memo.begin(FlowCounters::default());
-    assert_eq!(memo.end_transparent().2, 0);
+    let frame = memo.begin(FlowCounters::default());
+    assert_eq!(memo.end_transparent(frame).2, 0);
 }
 
 #[test]
 fn checker_frames_notice_each_kind_of_new_identity() {
     with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
-        state.flow_frame_begin();
+        let frame = state.flow_frame_begin();
         state.tables.get_number_literal_type(12345.0);
-        assert_ne!(state.flow_frame_end().0.flags & FLAG_EFFECTS, 0);
-        state.flow_frame_begin();
+        assert_ne!(state.flow_frame_end(frame).0.flags & FLAG_EFFECTS, 0);
+        let frame = state.flow_frame_begin();
         state.binder.create_symbol(
             tsc_types::SymbolFlags::PROPERTY,
             tsc_types::EscapedName::from_identifier_escaped_text("flowMemoTest"),
         );
-        assert_ne!(state.flow_frame_end().0.flags & FLAG_EFFECTS, 0);
-        state.flow_frame_begin();
+        assert_ne!(state.flow_frame_end(frame).0.flags & FLAG_EFFECTS, 0);
+        let frame = state.flow_frame_begin();
         state.clone_signature(state.unknown_signature);
-        assert_ne!(state.flow_frame_end().0.flags & FLAG_EFFECTS, 0);
-        state.flow_frame_begin();
+        assert_ne!(state.flow_frame_end(frame).0.flags & FLAG_EFFECTS, 0);
+        let frame = state.flow_frame_begin();
         // An interned type has no new identity on its second request.
         state.tables.get_number_literal_type(12345.0);
-        assert_eq!(state.flow_frame_end().0.flags & FLAG_EFFECTS, 0);
+        assert_eq!(state.flow_frame_end(frame).0.flags & FLAG_EFFECTS, 0);
     });
 }
 
 #[test]
 fn a_shared_answer_from_a_finished_loop_taints_every_enclosing_frame() {
     with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
-        state.flow_frame_begin();
+        let frame = state.flow_frame_begin();
         let source = state.flow_memo.next_serial();
         state.flow_loop_stack.push(crate::flow::FlowLoopEntry {
             file: 0,
@@ -159,14 +191,14 @@ fn a_shared_answer_from_a_finished_loop_taints_every_enclosing_frame() {
             types: vec![state.tables.intrinsics.string],
             serial: source,
         });
-        state.flow_frame_begin();
+        let inner_frame = state.flow_frame_begin();
         state.flow_memo_consume(source, UNTAINTED);
-        assert_eq!(state.flow_frame_end().0.transient, source);
+        assert_eq!(state.flow_frame_end(inner_frame).0.transient, source);
         state.flow_loop_stack.pop();
-        state.flow_frame_begin();
+        let inner_frame = state.flow_frame_begin();
         state.flow_memo_consume(source, UNTAINTED);
-        assert_eq!(state.flow_frame_end().0.transient, 0);
-        assert_eq!(state.flow_frame_end().0.transient, 0);
+        assert_eq!(state.flow_frame_end(inner_frame).0.transient, 0);
+        assert_eq!(state.flow_frame_end(frame).0.transient, 0);
     });
 }
 
@@ -183,55 +215,61 @@ fn frame_flags_compare_instantiations_creations_and_count_resets() {
         },
     ] {
         let mut memo = FlowMemo::new();
-        memo.begin(counters());
-        assert_eq!(memo.end(changed).0.flags, FLAG_EFFECTS);
+        let frame = memo.begin(counters());
+        assert_eq!(memo.end(frame, changed).0.flags, FLAG_EFFECTS);
     }
     let mut memo = FlowMemo::new();
-    memo.begin(FlowCounters {
+    let frame = memo.begin(FlowCounters {
         in_instantiation: true,
         ..counters()
     });
-    assert_eq!(memo.end(counters()).0.flags, FLAG_EFFECTS);
-    memo.begin(counters());
-    assert_eq!(memo.end(FlowCounters::default()).0.flags, FLAG_COUNT_RESET);
-    memo.begin(FlowCounters::default());
-    assert_eq!(memo.end(FlowCounters::default()).0.flags, FLAG_COUNT_RESET);
+    assert_eq!(memo.end(frame, counters()).0.flags, FLAG_EFFECTS);
+    let frame = memo.begin(counters());
+    assert_eq!(
+        memo.end(frame, FlowCounters::default()).0.flags,
+        FLAG_COUNT_RESET
+    );
+    let frame = memo.begin(FlowCounters::default());
+    assert_eq!(
+        memo.end(frame, FlowCounters::default()).0.flags,
+        FLAG_COUNT_RESET
+    );
 }
 
 #[test]
 fn serial_exhaustion_never_wraps_or_leaves_a_pure_frame() {
     let mut memo = FlowMemo::new();
-    memo.begin(counters());
+    let frame = memo.begin(counters());
     memo.serial = UNTAINTED - 2;
     assert_eq!(memo.next_serial(), UNTAINTED - 2);
-    memo.begin(counters());
+    let inner_frame = memo.begin(counters());
     assert_eq!(memo.next_serial(), UNTAINTED - 1);
     assert_eq!(memo.source_now(), UNTAINTED - 2);
-    assert_eq!(memo.end(counters()).0.transient, 0);
-    assert_eq!(memo.end(counters()).0.transient, 0);
-    memo.begin(counters());
-    assert_eq!(memo.end(counters()).0.transient, 0);
+    assert_eq!(memo.end(inner_frame, counters()).0.transient, 0);
+    assert_eq!(memo.end(frame, counters()).0.transient, 0);
+    let frame = memo.begin(counters());
+    assert_eq!(memo.end(frame, counters()).0.transient, 0);
 }
 
 #[test]
 fn resolution_cycles_and_shared_answers_keep_their_source_lifetime() {
     with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
-        state.flow_frame_begin();
+        let frame = state.flow_frame_begin();
         let target = ResolutionTarget::Type(state.tables.intrinsics.string);
         let property = TypeSystemPropertyName::IMMEDIATE_BASE_CONSTRAINT;
         assert!(state.push_type_resolution(target, property));
         let source = state.resolution_serials[0];
-        state.flow_frame_begin();
+        let inner_frame = state.flow_frame_begin();
         assert!(!state.push_type_resolution(target, property));
-        assert_eq!(state.flow_frame_end().0.transient, source);
-        state.flow_frame_begin();
+        assert_eq!(state.flow_frame_end(inner_frame).0.transient, source);
+        let inner_frame = state.flow_frame_begin();
         state.flow_memo_consume(source, UNTAINTED);
-        assert_eq!(state.flow_frame_end().0.transient, source);
+        assert_eq!(state.flow_frame_end(inner_frame).0.transient, source);
         assert!(!state.pop_type_resolution());
-        state.flow_frame_begin();
+        let inner_frame = state.flow_frame_begin();
         state.flow_memo_consume(source, UNTAINTED);
-        assert_eq!(state.flow_frame_end().0.transient, 0);
-        assert_eq!(state.flow_frame_end().0.transient, 0);
+        assert_eq!(state.flow_frame_end(inner_frame).0.transient, 0);
+        assert_eq!(state.flow_frame_end(frame).0.transient, 0);
         assert_eq!(state.flow_memo.frame_depth(), 0);
     });
 }
@@ -323,19 +361,19 @@ fn expression_cache_absence_misses_and_hits_all_record_a_dependency() {
             let node = *identifiers(state, "x").last().unwrap();
             assert!(state.get_quick_type_of_expression(node).unwrap().is_none());
             state.flow_type_cache = None;
-            state.flow_frame_begin();
+            let frame = state.flow_frame_begin();
             let ty = state.get_type_of_expression(node).unwrap();
-            assert_ne!(state.flow_frame_end().0.flags & FLAG_TYPE_CACHE, 0);
+            assert_ne!(state.flow_frame_end(frame).0.flags & FLAG_TYPE_CACHE, 0);
 
             state.flow_type_cache = Some(FxHashMap::default());
-            state.flow_frame_begin();
+            let frame = state.flow_frame_begin();
             assert_eq!(state.get_type_of_expression(node).unwrap(), ty);
-            assert_ne!(state.flow_frame_end().0.flags & FLAG_TYPE_CACHE, 0);
+            assert_ne!(state.flow_frame_end(frame).0.flags & FLAG_TYPE_CACHE, 0);
 
             state.flow_type_cache = Some(FxHashMap::from_iter([(node, ty)]));
-            state.flow_frame_begin();
+            let frame = state.flow_frame_begin();
             assert_eq!(state.get_type_of_expression(node).unwrap(), ty);
-            assert_ne!(state.flow_frame_end().0.flags & FLAG_TYPE_CACHE, 0);
+            assert_ne!(state.flow_frame_end(frame).0.flags & FLAG_TYPE_CACHE, 0);
         },
     );
 }
@@ -373,8 +411,8 @@ fn only_cache_independent_answers_survive_a_scoped_cache_reset() {
                 false,
             );
         }
-        let independent = state.flow_memo.lookup(0, FlowId::new(10), &key).unwrap();
-        let dependent = state.flow_memo.lookup(0, FlowId::new(20), &key).unwrap();
+        let independent = state.flow_memo.lookup(FlowId::new(10), &key).unwrap();
+        let dependent = state.flow_memo.lookup(FlowId::new(20), &key).unwrap();
         assert!(state.flow_memo_consult_ok(&q, independent));
         assert!(state.flow_memo_consult_ok(&q, dependent));
         let saved = state.take_flow_type_cache();
@@ -601,11 +639,11 @@ fn existing_shared_effects_block_replacement_without_creating_new_identities() {
         );
         assert_eq!(state.flow_frame_counters().created, created);
         assert!(!state.flow_memo_consult_ok(&q, hit));
-        state.flow_frame_begin();
+        let frame = state.flow_frame_begin();
         let cached = state.shared_flow[0];
         state.flow_memo_consume(cached.transient, cached.reference);
         state.flow_memo.add_flags(cached.flags);
-        let (taint, _) = state.flow_frame_end();
+        let (taint, _) = state.flow_frame_end(frame);
         assert_ne!(taint.flags & FLAG_EFFECTS, 0);
     });
 }
@@ -705,36 +743,50 @@ fn consultation_guards_live_context_and_depth() {
 
 #[test]
 fn table_is_bounded_and_flow_ids_are_file_local() {
-    with_program_state(&[("a.ts", "this;")], &CompilerOptions::default(), |state| {
-        let reference = state
-            .binder
-            .source(0)
-            .arena
-            .node_ids()
-            .find(|&n| state.kind_of(n) == SyntaxKind::ThisKeyword)
-            .unwrap();
-        let q = query(state, reference);
-        let key = state.flow_memo_key(&q).unwrap();
-        let hit = MemoHit {
-            ty: state.tables.intrinsics.string,
-            height: 4,
-            epoch: 0,
-            flags: 0,
-        };
-        assert!(state.flow_memo.lookup(0, FlowId::new(7), &key).is_none());
-        state.flow_memo.store(&q, FlowId::new(7), &key, hit);
-        assert_eq!(
-            state.flow_memo.lookup(0, FlowId::new(7), &key).unwrap().ty,
-            hit.ty
-        );
-        assert!(state.flow_memo.lookup(1, FlowId::new(7), &key).is_none());
-        for index in 0..TABLE_SLOTS as u32 * 4 {
-            state.flow_memo.store(&q, FlowId::new(index), &key, hit);
-        }
-        assert_eq!(state.flow_memo.slots.len(), TABLE_SLOTS);
-        assert!(state.flow_memo.stats.occupied <= TABLE_SLOTS);
-        assert_eq!(std::mem::size_of::<Slot>() * TABLE_SLOTS, 128 * 1024);
-    });
+    with_program_state(
+        &[("a.ts", "this;"), ("b.ts", "this;")],
+        &CompilerOptions::default(),
+        |state| {
+            let reference = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .find(|&n| state.kind_of(n) == SyntaxKind::ThisKeyword)
+                .unwrap();
+            let q = query(state, reference);
+            let key = state.flow_memo_key(&q).unwrap();
+            let other_reference = state
+                .binder
+                .source(1)
+                .arena
+                .node_ids()
+                .find(|&node| state.kind_of(node) == SyntaxKind::ThisKeyword)
+                .unwrap();
+            let other_query = query(state, other_reference);
+            let other_key = state.flow_memo_key(&other_query).unwrap();
+            assert_eq!(key.hash, other_key.hash);
+            let hit = MemoHit {
+                ty: state.tables.intrinsics.string,
+                height: 4,
+                epoch: 0,
+                flags: 0,
+            };
+            assert!(state.flow_memo.lookup(FlowId::new(7), &key).is_none());
+            state.flow_memo.store(&q, FlowId::new(7), &key, hit);
+            assert_eq!(
+                state.flow_memo.lookup(FlowId::new(7), &key).unwrap().ty,
+                hit.ty
+            );
+            assert!(state.flow_memo.lookup(FlowId::new(7), &other_key).is_none());
+            for index in 0..TABLE_SLOTS as u32 * 4 {
+                state.flow_memo.store(&q, FlowId::new(index), &key, hit);
+            }
+            assert_eq!(state.flow_memo.slots.len(), TABLE_SLOTS);
+            assert!(state.flow_memo.stats.occupied <= TABLE_SLOTS);
+            assert_eq!(std::mem::size_of::<Slot>() * TABLE_SLOTS, 128 * 1024);
+        },
+    );
 }
 
 #[test]
@@ -796,11 +848,11 @@ fn checkpoints_are_node_based_and_nested_frames_do_not_steal_them() {
             [FlowId::new(1), FlowId::new(2)]
         );
         for flow in [3, 4, 5] {
-            assert!(state.flow_memo.lookup(0, FlowId::new(flow), &key).is_some());
+            assert!(state.flow_memo.lookup(FlowId::new(flow), &key).is_some());
         }
         // A frame that never consulted the expression cache survives a
         // scoped reset. Replacement still propagates the conservative flag.
-        let cold = state.flow_memo.lookup(0, FlowId::new(4), &key).unwrap();
+        let cold = state.flow_memo.lookup(FlowId::new(4), &key).unwrap();
         assert_eq!(cold.epoch, 0);
         assert_ne!(cold.flags & FLAG_TYPE_CACHE, 0);
         state.flow_memo_finish(
@@ -816,13 +868,9 @@ fn checkpoints_are_node_based_and_nested_frames_do_not_steal_them() {
             false,
         );
         assert_eq!(state.flow_memo.checkpoints, [FlowId::new(1)]);
-        assert!(state.flow_memo.lookup(0, FlowId::new(2), &key).is_some());
+        assert!(state.flow_memo.lookup(FlowId::new(2), &key).is_some());
         assert_eq!(
-            state
-                .flow_memo
-                .lookup(0, FlowId::new(3), &key)
-                .unwrap()
-                .height,
+            state.flow_memo.lookup(FlowId::new(3), &key).unwrap().height,
             2
         );
         let memo = FrameMemo {
@@ -848,7 +896,7 @@ fn checkpoints_are_node_based_and_nested_frames_do_not_steal_them() {
             false,
         );
         assert_eq!(state.flow_memo.checkpoints.len(), 1);
-        assert!(state.flow_memo.lookup(0, FlowId::new(8), &key).is_none());
+        assert!(state.flow_memo.lookup(FlowId::new(8), &key).is_none());
         state.flow_memo.checkpoints.clear();
     });
 }
@@ -913,7 +961,7 @@ fn shared_cache_returns_settle_shadow_hits_without_filling_the_memo() {
         assert_eq!(state.flow_memo.stats.disagreements, 0);
         assert!(state.flow_memo.checkpoints.is_empty());
         assert!(state.flow_memo.shadow_hits.is_empty());
-        assert!(state.flow_memo.lookup(0, FlowId::new(2), &key).is_none());
+        assert!(state.flow_memo.lookup(FlowId::new(2), &key).is_none());
     });
 }
 

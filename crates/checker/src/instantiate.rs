@@ -1574,7 +1574,8 @@ impl<'a> CheckerState<'a> {
                 match self.get_constraint_of_type_parameter(type_variable)? {
                     Some(constraint) => {
                         let mut all_array_or_tuple = true;
-                        for member in self.union_members_or_self(constraint) {
+                        let mut member_cursor = self.union_members_or_self(constraint);
+                        while let Some(member) = member_cursor.next(&self.tables) {
                             if !self.is_array_type(member)? && !self.tables.is_tuple_type(member) {
                                 all_array_or_tuple = false;
                                 break;
@@ -3157,13 +3158,17 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: dde837ead02ad3156d3060c7b3fe69207380e9bd55d1739c4c8d45437d62e74c
     /// tsc-span: _tsc.js:59929-59936
     fn create_erased_signature(&mut self, signature: SignatureId) -> CheckResult<SignatureId> {
-        let type_parameters = self
-            .signature_of(signature)
-            .type_parameters
-            .clone()
-            .expect("getErasedSignature gates on typeParameters");
-        let eraser = self.create_type_eraser(&type_parameters);
-        self.instantiate_signature(signature, eraser, /*erase_type_parameters*/ true)
+        self.with_instantiation_type_list(|state, parameters| {
+            parameters.extend_from_slice(
+                state
+                    .signature_of(signature)
+                    .type_parameters
+                    .as_deref()
+                    .expect("getErasedSignature gates on typeParameters"),
+            );
+            let eraser = state.create_type_eraser(parameters);
+            state.instantiate_signature(signature, eraser, /*erase_type_parameters*/ true)
+        })
     }
 
     /// tsc-port: getMinTypeArgumentCount @6.0.3
@@ -3206,17 +3211,36 @@ impl<'a> CheckerState<'a> {
         _min_type_argument_count: usize,
         is_javascript_implicit_any: bool,
     ) -> CheckResult<Option<Vec<TypeId>>> {
-        let num_type_parameters = type_parameters.map_or(0, <[TypeId]>::len);
-        if num_type_parameters == 0 {
+        if type_parameters.is_none_or(|parameters| parameters.is_empty()) {
             return Ok(Some(Vec::new()));
         }
-        let num_type_arguments = type_arguments.map_or(0, <[TypeId]>::len);
+        let mut result = type_arguments.map(<[TypeId]>::to_vec).unwrap_or_default();
+        self.fill_missing_type_arguments_in_place(
+            &mut result,
+            type_parameters,
+            is_javascript_implicit_any,
+        )?;
+        Ok(Some(result))
+    }
+
+    pub(crate) fn fill_missing_type_arguments_in_place(
+        &mut self,
+        type_arguments: &mut Vec<TypeId>,
+        type_parameters: Option<&[TypeId]>,
+        is_javascript_implicit_any: bool,
+    ) -> CheckResult<()> {
+        let num_type_parameters = type_parameters.map_or(0, <[TypeId]>::len);
+        if num_type_parameters == 0 {
+            type_arguments.clear();
+            return Ok(());
+        }
+        let num_type_arguments = type_arguments.len();
         // tsgo checker.go:22424 fills any short list (tsc also required the
         // minimum count, leaving a too-short list as written); tsgo keeps the
         // count parameter unread.
         if is_javascript_implicit_any || num_type_arguments < num_type_parameters {
             let type_parameters = type_parameters.expect("non-zero length implies a list");
-            let mut result: Vec<TypeId> = type_arguments.map(<[_]>::to_vec).unwrap_or_default();
+            let result = type_arguments;
             result.resize(num_type_parameters, self.tables.intrinsics.error);
             let base_default_type = self.get_default_type_argument_type(is_javascript_implicit_any);
             for i in num_type_arguments..num_type_parameters {
@@ -3240,16 +3264,17 @@ impl<'a> CheckerState<'a> {
                 }
                 result[i] = match default_type {
                     Some(default) => {
-                        let mapper = self.create_type_mapper(type_parameters, Some(&result));
+                        let mapper =
+                            self.create_type_mapper(type_parameters, Some(result.as_slice()));
                         self.instantiate_type(default, Some(mapper))?
                     }
                     None => base_default_type,
                 };
             }
             result.truncate(num_type_parameters);
-            return Ok(Some(result));
+            return Ok(());
         }
-        Ok(type_arguments.map(<[TypeId]>::to_vec))
+        Ok(())
     }
 
     /// tsc-port: getDefaultTypeArgumentType @6.0.3

@@ -253,6 +253,47 @@ impl TransformArena {
         self.id
     }
 
+    /// Storage retained by a compiler-owned print job, excluding opaque caches.
+    // The iteration only sums retained storage; its order affects no output.
+    #[allow(clippy::iter_over_hash_type)]
+    pub(crate) fn print_input_usage(&self, u: &mut tsc_diagnostics::MemoryUsage) -> Option<()> {
+        u.vec("emit sources", &self.sources);
+        if self.session.node_builder_cache.cache.is_some()
+            || self
+                .session
+                .metadata
+                .values()
+                .any(|metadata| metadata.snippet_element.is_some())
+        {
+            return None;
+        }
+        for source in &self.sources {
+            let bytes = source.source.arena.retained_storage_bytes();
+            u.add("detached syntax", 1, bytes, bytes);
+            source.source.add_owned_memory_usage(u);
+            source.session.print_input_usage(u);
+        }
+        u.hash_map("emit metadata estimated", &self.session.metadata);
+        for v in self.session.metadata.values() {
+            v.print_input_usage(u);
+        }
+        u.hash_map(
+            "literal overrides estimated",
+            &self.session.literal_properties,
+        );
+        for v in self.session.literal_properties.values() {
+            if let Some(v) = v.raw_template_text() {
+                u.add(
+                    "raw template text",
+                    1,
+                    v.code_units().len() * 2,
+                    v.code_units().len() * 2,
+                );
+            }
+        }
+        Some(())
+    }
+
     /// Keep the node builder's cache with this arena from now on: the
     /// arena's emit is one emit resolver's (a declaration emit), and tsgo's
     /// emit resolver keeps one node builder for all its requests.

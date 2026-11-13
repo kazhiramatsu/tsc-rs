@@ -476,20 +476,23 @@ impl<'a> CheckerState<'a> {
             let modifiers_type = state.get_apparent_type(modifiers_raw)?;
             let template_modifiers = state.get_mapped_type_modifiers(ty);
             let include = TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE;
-            let keys = if state.is_mapped_type_with_keyof_constraint_declaration(ty) {
-                state.mapped_property_and_index_key_types(
-                    modifiers_type,
-                    include,
-                    /*strings_only*/ false,
-                )?
-            } else {
-                let lower = state.get_lower_bound_of_key_type(constraint_type)?;
-                state.union_members_or_self(lower)
-            };
+            let mut keys: crate::constraints::TypeMemberCursor =
+                if state.is_mapped_type_with_keyof_constraint_declaration(ty) {
+                    state
+                        .mapped_property_and_index_key_types(
+                            modifiers_type,
+                            include,
+                            /*strings_only*/ false,
+                        )?
+                        .into()
+                } else {
+                    let lower = state.get_lower_bound_of_key_type(constraint_type)?;
+                    state.union_members_or_self(lower)
+                };
 
             let mut members = SymbolTable::default();
             let mut index_infos = Vec::new();
-            for key_type in keys {
+            while let Some(key_type) = keys.next(&state.tables) {
                 let prop_name_type = match name_type {
                     Some(name_type) => {
                         let mapper =
@@ -498,7 +501,8 @@ impl<'a> CheckerState<'a> {
                     }
                     None => key_type,
                 };
-                for member_name_type in state.union_members_or_self(prop_name_type) {
+                let mut member_cursor = state.union_members_or_self(prop_name_type);
+                while let Some(member_name_type) = member_cursor.next(&state.tables) {
                     state.add_mapped_member_for_key_type(
                         ty,
                         type_parameter,
@@ -824,7 +828,8 @@ impl<'a> CheckerState<'a> {
             return Ok(ty);
         };
         let mut array_or_tuple_domain = true;
-        for member in self.union_members_or_self(base_constraint) {
+        let mut member_cursor = self.union_members_or_self(base_constraint);
+        while let Some(member) = member_cursor.next(&self.tables) {
             if !self.is_array_or_tuple_or_intersection(member)? {
                 array_or_tuple_domain = false;
                 break;
@@ -889,22 +894,24 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(self.get_index_type_for_generic_type(ty, index_flags));
         }
-        let keys = if self.is_generic_index_type_state(constraint_type)? {
-            self.union_members_or_self(constraint_type)
-        } else if self.is_mapped_type_with_keyof_constraint_declaration(ty) {
-            let modifiers_raw = self.get_modifiers_type_from_mapped_type(ty)?;
-            let modifiers_type = self.get_apparent_type(modifiers_raw)?;
-            self.mapped_property_and_index_key_types(
-                modifiers_type,
-                TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
-                index_flags.intersects(IndexFlags::STRINGS_ONLY),
-            )?
-        } else {
-            let lower = self.get_lower_bound_of_key_type(constraint_type)?;
-            self.union_members_or_self(lower)
-        };
+        let mut keys: crate::constraints::TypeMemberCursor =
+            if self.is_generic_index_type_state(constraint_type)? {
+                self.union_members_or_self(constraint_type)
+            } else if self.is_mapped_type_with_keyof_constraint_declaration(ty) {
+                let modifiers_raw = self.get_modifiers_type_from_mapped_type(ty)?;
+                let modifiers_type = self.get_apparent_type(modifiers_raw)?;
+                self.mapped_property_and_index_key_types(
+                    modifiers_type,
+                    TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
+                    index_flags.intersects(IndexFlags::STRINGS_ONLY),
+                )?
+                .into()
+            } else {
+                let lower = self.get_lower_bound_of_key_type(constraint_type)?;
+                self.union_members_or_self(lower)
+            };
         let mut key_types = Vec::with_capacity(keys.len());
-        for key_type in keys {
+        while let Some(key_type) = keys.next(&self.tables) {
             let prop_name_type = match name_type {
                 Some(name_type) => {
                     let mapper = self.append_type_mapping(mapped.mapper, type_parameter, key_type);
@@ -931,12 +938,9 @@ impl<'a> CheckerState<'a> {
                 .tables
                 .flags_of(constraint_type)
                 .intersects(TypeFlags::UNION)
+            && self.tables.members_of(result) == self.tables.members_of(constraint_type)
         {
-            let result_members = self.union_members_or_self(result);
-            let constraint_members = self.union_members_or_self(constraint_type);
-            if result_members == constraint_members {
-                return Ok(constraint_type);
-            }
+            return Ok(constraint_type);
         }
         Ok(result)
     }

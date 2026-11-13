@@ -540,12 +540,108 @@ pub struct TransformationContext {
 }
 
 impl TransformationContext {
+    fn print_input_charge(&self) -> Option<usize> {
+        use tsc_diagnostics::MemoryUsage;
+        fn text(u: &mut MemoryUsage, v: &str) {
+            u.add("context text", 1, v.len(), v.len());
+        }
+        fn helper(u: &mut MemoryUsage, h: &EmitHelper) {
+            text(u, &h.name);
+            if let Some(v) = &h.text {
+                text(u, v);
+            }
+            u.add(
+                "helper dependencies",
+                h.dependencies.len(),
+                std::mem::size_of_val(&*h.dependencies),
+                std::mem::size_of_val(&*h.dependencies),
+            );
+            for d in h.dependencies.iter() {
+                helper(u, d);
+            }
+        }
+        let mut u = MemoryUsage::default();
+        self.arena.print_input_usage(&mut u)?;
+        u.vec("syntax features", &self.enabled_syntax_features);
+        u.vec(
+            "lexical vars",
+            &self.lexical_environment.variable_declarations,
+        );
+        u.vec(
+            "lexical funcs",
+            &self.lexical_environment.function_declarations,
+        );
+        u.vec(
+            "lexical stmts",
+            &self.lexical_environment.initialization_statements,
+        );
+        u.vec("lexical stack", &self.lexical_environment_stack);
+        for (v, _) in &self.lexical_environment_stack {
+            u.vec("lexical vars", &v.variable_declarations);
+            u.vec("lexical funcs", &v.function_declarations);
+            u.vec("lexical stmts", &v.initialization_statements);
+        }
+        u.vec("block vars", &self.block_scoped_variables);
+        u.vec("block stack", &self.block_scope_stack);
+        for v in &self.block_scope_stack {
+            u.vec("block vars", v);
+        }
+        u.vec("emit helpers", &self.emit_helpers);
+        for h in &self.emit_helpers {
+            helper(&mut u, h);
+        }
+        u.btree("source helpers estimated", &self.source_emit_helpers);
+        for hs in self.source_emit_helpers.values() {
+            u.vec("emit helpers", hs);
+            for h in hs {
+                helper(&mut u, h);
+            }
+        }
+        u.diagnostics(&self.diagnostics);
+        u.btree("generated names estimated", &self.generated_binding_names);
+        for v in self.generated_binding_names.values() {
+            text(&mut u, v);
+        }
+        u.btree(
+            "numbered bases estimated",
+            &self.generated_binding_numbered_bases,
+        );
+        for v in self.generated_binding_numbered_bases.values() {
+            text(&mut u, v);
+        }
+        u.btree(
+            "class names estimated",
+            &self.generated_class_reference_names,
+        );
+        let n = self.print_finalized_generated_bindings.len();
+        u.add(
+            "finalized binding set estimated",
+            n,
+            n * std::mem::size_of::<GeneratedBindingId>(),
+            n.div_ceil(8)
+                * (11 * std::mem::size_of::<GeneratedBindingId>()
+                    + 14 * std::mem::size_of::<usize>()),
+        );
+        // Container layouts are estimates; charging twice their requested
+        // capacities leaves room for tree occupancy and allocator alignment.
+        u.total()
+            .requested
+            .checked_mul(2)
+            .and_then(|bytes| bytes.checked_add(std::mem::size_of::<TransformationContext>()))
+    }
+
     fn new(arena: TransformArena) -> Self {
+        let mut context = Self::empty(arena);
+        context.enabled_syntax_features = vec![0; SyntaxKind::Count as usize];
+        context
+    }
+
+    fn empty(arena: TransformArena) -> Self {
         Self {
             arena,
             state: TransformationState::Uninitialized,
             substitution_depth: 0,
-            enabled_syntax_features: vec![0; SyntaxKind::Count as usize],
+            enabled_syntax_features: Vec::new(),
             lexical_environment: LexicalEnvironment::default(),
             lexical_environment_flags: LexicalEnvironmentFlags::NONE,
             lexical_environment_stack: Vec::new(),
@@ -964,6 +1060,14 @@ impl TransformationContext {
 pub trait Transformer {
     fn name(&self) -> &'static str;
 
+    /// Whether this completed transformer has no remaining print effects.
+    /// This includes substitutions, notifications and disposal effects on the
+    /// context. A true answer permits disposal before the prepared print;
+    /// unknown implementations keep their hooks and owner-side lifetime.
+    fn has_inert_print_hooks(&self) -> bool {
+        false
+    }
+
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
         Ok(())
     }
@@ -1047,7 +1151,63 @@ impl EmitPipelineHooks {
     }
 }
 
+/// A completed context with all transformer-owned print hooks retired.
+/// Every source table and generated-name fact remains with the tree.
+pub(crate) struct OwnedPrintTransformation {
+    context: TransformationContext,
+    roots: Box<[TransformRoot]>,
+}
+
+impl OwnedPrintTransformation {
+    pub(crate) fn into_result(self) -> TransformationResult<'static> {
+        TransformationResult {
+            context: self.context,
+            roots: self.roots,
+            transformers: Vec::new(),
+            substitution_transformers: Vec::new(),
+        }
+    }
+}
+
+const _: () = {
+    const fn assert_send<T: Send>() {}
+    assert_send::<OwnedPrintTransformation>();
+};
+
 impl TransformationResult<'_> {
+    pub(crate) fn print_input_charge(&self) -> Option<usize> {
+        self.context
+            .print_input_charge()?
+            .checked_add(std::mem::size_of_val(&*self.roots))
+    }
+
+    pub(crate) fn has_inert_print_hooks(&self) -> bool {
+        self.context.state == TransformationState::Completed
+            && self
+                .transformers
+                .iter()
+                .all(|transformer| transformer.has_inert_print_hooks())
+    }
+
+    /// Preserve the context while retiring only hooks whose completed state
+    /// promises no print effect. A rejected result remains usable in place.
+    pub(crate) fn take_owned_print(&mut self) -> Option<OwnedPrintTransformation> {
+        if !self.has_inert_print_hooks() {
+            return None;
+        }
+        for transformer in self.transformers.iter_mut().rev() {
+            transformer.dispose();
+        }
+        self.transformers.clear();
+        self.substitution_transformers.clear();
+        let mut empty = TransformationContext::empty(TransformArena::new());
+        empty.state = TransformationState::Disposed;
+        Some(OwnedPrintTransformation {
+            context: std::mem::replace(&mut self.context, empty),
+            roots: std::mem::take(&mut self.roots),
+        })
+    }
+
     pub const fn state(&self) -> TransformationState {
         self.context.state()
     }

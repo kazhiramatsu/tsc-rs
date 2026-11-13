@@ -298,3 +298,64 @@ fn checker_association_keeps_syntactic_multiplicity_and_resolution_keys_separate
     assert_eq!(imports[b.index()].2, [AuthoritativeSourceToken(a.raw()); 2]);
     assert!(imports[a.index()].2.is_empty());
 }
+
+#[test]
+fn declaration_order_consumption_replays_after_pending_prints_complete() {
+    use std::num::NonZeroUsize;
+    use tsc_program::PreparedSourceFile;
+    let run = |workers, checkers| {
+        let directory = ProgramPath::from_trusted_parts("/work", "/work").unwrap();
+        let mut builder = PreparedProgram::emitting_builder(
+            PathContext::new(directory, true),
+            CompilerOptions {
+                target: Some(9),
+                module: Some(99),
+                declaration: Some(true),
+                source_map: Some(true),
+                declaration_map: Some(true),
+                no_check: Some(true),
+                stable_type_ordering: Some(false),
+                list_emitted_files: Some(true),
+                out_dir: Some("/work/out".into()),
+                ..CompilerOptions::default()
+            },
+        );
+        let globals = "interface IArguments { length: number; callee: Function; } interface Array<T> { length: number; [index: number]: T; } interface Object {} interface Function {} interface CallableFunction extends Function {} interface NewableFunction extends Function {} interface String {} interface Number {} interface Boolean {} interface RegExp {}";
+        let lib = builder
+            .add_source_file(PreparedSourceFile::new(
+                ProgramPath::from_trusted_parts("/work/lib.d.ts", "/work/lib.d.ts").unwrap(),
+                globals,
+            ))
+            .unwrap();
+        builder.add_library_file(lib).unwrap();
+        for index in 0..4 {
+            let path = format!("/work/unit{index}.ts");
+            let text = format!("interface Alpha{index} {{ alpha: number; }}\ninterface Beta{index} {{ beta: string; }}\ndeclare const choose: boolean;\nexport const value = choose ? ({{}} as Alpha{index}) : ({{}} as Beta{index});\n");
+            let source = builder
+                .add_source_file(PreparedSourceFile::new(
+                    ProgramPath::from_trusted_parts(path.as_str(), path.as_str()).unwrap(),
+                    text,
+                ))
+                .unwrap();
+            builder.add_root_file(source).unwrap();
+        }
+        let mut sink = MemoryOutputSink::new();
+        let result = ProgramSession::new(builder.build().unwrap())
+            .with_worker_budget(WorkerBudget::new(NonZeroUsize::new(workers).unwrap()))
+            .with_checker_budget(
+                CheckerBudget::new(NonZeroUsize::new(checkers).unwrap()).with_order_replay(true),
+            )
+            .emit_for_cli(&mut sink)
+            .unwrap();
+        (result, sink)
+    };
+    let (serial, expected) = run(1, 1);
+    assert_eq!(serial.work_counters.checker_serial_replay(), 0);
+    for (workers, checkers) in [(4, 4), (10, 4)] {
+        let (actual, sink) = run(workers, checkers);
+        assert_eq!(sink, expected);
+        assert_eq!(actual.emit, serial.emit);
+        assert_eq!(actual.work_counters.checker_serial_replay(), 1);
+        assert_ne!(actual.work_counters.checker_replay_reasons(), 0);
+    }
+}

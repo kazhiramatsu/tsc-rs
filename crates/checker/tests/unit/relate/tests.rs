@@ -516,3 +516,66 @@ fn packed_pair_round_trips_at_bounds_and_falls_back_without_losing_result_bits()
     assert_eq!(cache.get(&generic), Some(RelationComparisonResult::FAILED));
     assert_eq!(cache.get(&key), Some(unusual));
 }
+
+#[test]
+fn generic_reference_keys_survive_scratch_reuse_with_distinct_intersection_states() {
+    with_state(|state| {
+        let target = state.tables.get_tuple_target_type(
+            None,
+            TupleTargetFlags::new(&[ElementFlags::REQUIRED, ElementFlags::OPTIONAL]).unwrap(),
+            false,
+            None,
+        );
+        let first = state
+            .get_relation_key(
+                target,
+                target,
+                IntersectionState::NONE,
+                RelationKind::Assignable,
+                false,
+            )
+            .unwrap();
+        let second = state
+            .get_relation_key(
+                target,
+                target,
+                IntersectionState::TARGET,
+                RelationKind::Assignable,
+                false,
+            )
+            .unwrap();
+        assert_ne!(first, second);
+        let expected = format!("{}=0=1,{}=0=1", target.index(), target.index());
+        assert_eq!(first.to_string(), expected);
+        assert_eq!(second.to_string(), format!("{expected}:2"));
+        state
+            .relations
+            .cache_mut(RelationKind::Assignable)
+            .insert(first.clone(), RelationComparisonResult::SUCCEEDED);
+        state
+            .relations
+            .cache_mut(RelationKind::Assignable)
+            .insert(second.clone(), RelationComparisonResult::FAILED);
+        let again = state
+            .get_relation_key(
+                target,
+                target,
+                IntersectionState::NONE,
+                RelationKind::Assignable,
+                false,
+            )
+            .unwrap();
+        assert_eq!(
+            state.relations.cache(RelationKind::Assignable).get(&again),
+            Some(RelationComparisonResult::SUCCEEDED)
+        );
+        assert_eq!(
+            state.relations.cache(RelationKind::Assignable).get(&second),
+            Some(RelationComparisonResult::FAILED)
+        );
+        let (RelationKey::Generic(first), RelationKey::Generic(again)) = (first, again) else {
+            panic!("generic tuple keys");
+        };
+        assert!(std::sync::Arc::ptr_eq(&first, &again));
+    });
+}

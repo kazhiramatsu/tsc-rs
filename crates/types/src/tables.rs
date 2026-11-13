@@ -311,6 +311,9 @@ pub struct TypeTables {
     /// A list buffer reused by the builders that extend an interned list
     /// (no allocation per call).
     scratch_list: Vec<TypeId>,
+    // Checkout moves a pointer rather than the large scratch record.
+    #[allow(clippy::vec_box)]
+    union_scratch: Vec<Box<UnionScratch>>,
     /// The interned empty list.
     empty_list: TypeListId,
     /// What the type records refer to by id: string literal texts
@@ -377,6 +380,22 @@ const UNION_MERGE_MIN_MEMBERS: usize = 32;
 const UNION_MERGE_MIN_INPUTS: usize = 8;
 const UNION_MEMBERS_CONTENT_ORDERED: ObjectFlags = ObjectFlags::from_bits(1 << 28);
 const UNION_MEMBERS_ID_ORDERED: ObjectFlags = ObjectFlags::from_bits(1 << 31);
+
+#[derive(Default)]
+struct UnionScratch {
+    types: Vec<TypeId>,
+    named: Vec<TypeId>,
+    reduced: Vec<TypeId>,
+    named_members: rustc_hash::FxHashSet<TypeId>,
+    starts: Vec<usize>,
+    merge: Vec<TypeId>,
+}
+
+enum NamedUnionOrigin {
+    None,
+    Existing(TypeId),
+    Created(TypeId),
+}
 
 /// A position in an interned list that does not borrow the tables, so a
 /// loop that mutates the checker reads the list's items one at a time
@@ -621,7 +640,24 @@ impl TypeTables {
         };
         // What the records refer to by id (alias argument lists and member
         // lists are interned, counted with the lists).
-        usage.type_heap_bytes = self.literal_texts.heap_bytes()
+        usage.type_heap_bytes = self.scratch_list.capacity() * std::mem::size_of::<TypeId>()
+            + self.union_scratch.capacity() * std::mem::size_of::<Box<UnionScratch>>()
+            + self
+                .union_scratch
+                .iter()
+                .map(|scratch| {
+                    std::mem::size_of::<UnionScratch>()
+                        + (scratch.types.capacity()
+                            + scratch.named.capacity()
+                            + scratch.reduced.capacity()
+                            + scratch.merge.capacity())
+                            * std::mem::size_of::<TypeId>()
+                        + scratch.starts.capacity() * std::mem::size_of::<usize>()
+                        + scratch.named_members.capacity() * (std::mem::size_of::<TypeId>() + 1) * 8
+                            / 7
+                })
+                .sum::<usize>()
+            + self.literal_texts.heap_bytes()
             + self
                 .bigints
                 .iter()
@@ -759,6 +795,7 @@ impl TypeTables {
             string_literal_types: hashbrown::HashTable::new(),
             list_items: Vec::new(),
             scratch_list: Vec::new(),
+            union_scratch: Vec::new(),
             list_ids: hashbrown::HashTable::new(),
             empty_list: TypeListId::new(0),
             literal_texts: LiteralTexts::default(),
@@ -2000,10 +2037,30 @@ impl TypeTables {
         reduction: UnionReduction,
         origin: Option<TypeId>,
     ) -> TypeId {
-        let mut type_set: Vec<TypeId> = Vec::new();
+        let mut scratch = self.union_scratch.pop().unwrap_or_default();
+        let result = self.get_union_type_worker_with_buffer(
+            order,
+            types,
+            reduction,
+            origin,
+            &mut scratch.types,
+        );
+        scratch.types.clear();
+        self.union_scratch.push(scratch);
+        result
+    }
+
+    fn get_union_type_worker_with_buffer(
+        &mut self,
+        order: TypeOrder<'_>,
+        types: &[TypeId],
+        reduction: UnionReduction,
+        origin: Option<TypeId>,
+        type_set: &mut Vec<TypeId>,
+    ) -> TypeId {
         #[cfg(feature = "perf-counters")]
         crate::perf::union_collection(crate::perf::UnionCollectionSite::Tables, types.len());
-        let includes = self.add_types_to_union(order, &mut type_set, 0, types);
+        let includes = self.add_types_to_union(order, type_set, 0, types);
         if reduction != UnionReduction::None {
             if includes & TypeFlags::ANY_OR_UNKNOWN.bits() != 0 {
                 return if includes & TypeFlags::ANY.bits() != 0 {
@@ -2038,10 +2095,7 @@ impl TypeTables {
                 // reduceVoidUndefined = !!(unionReduction & Subtype):
                 // false until 4.8 activates real Subtype reduction.
                 self.remove_redundant_literal_types(
-                    order,
-                    &mut type_set,
-                    includes,
-                    /*reduce_void_undefined*/ false,
+                    order, type_set, includes, /*reduce_void_undefined*/ false,
                 );
             }
             if includes & TypeFlags::STRING_LITERAL.bits() != 0
@@ -2090,70 +2144,29 @@ impl TypeTables {
     pub fn finish_union_type_set(
         &mut self,
         order: TypeOrder<'_>,
-        type_set: Vec<TypeId>,
+        type_set: impl AsRef<[TypeId]>,
         includes: i32,
         types: &[TypeId],
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
         origin: Option<TypeId>,
     ) -> TypeId {
+        let type_set = type_set.as_ref();
         let mut origin = origin;
         if origin.is_none() && includes & TypeFlags::UNION.bits() != 0 {
-            let mut named_unions: Vec<TypeId> = Vec::new();
-            self.add_named_unions(&mut named_unions, types);
-            // Final flattened lists carry their construction order. Raw
-            // origins and lists made in the other mode still need the scan,
-            // which preserves their existing membership-search behavior.
-            let members_are_sorted = named_unions.iter().all(|&union| {
-                let marker = if order.is_some() {
-                    UNION_MEMBERS_CONTENT_ORDERED
-                } else {
-                    UNION_MEMBERS_ID_ORDERED
-                };
-                self.object_flags_of(union).intersects(marker)
-                    || self.members_of(union).windows(2).all(|pair| match order {
-                        Some(ctx) => {
-                            crate::type_order::compare_types(self, ctx, pair[0], pair[1])
-                                != Ordering::Greater
-                        }
-                        None => pair[0] <= pair[1],
-                    })
-            });
-            let named_members: Option<rustc_hash::FxHashSet<TypeId>> =
-                members_are_sorted.then(|| {
-                    named_unions
-                        .iter()
-                        .flat_map(|&union| self.members_of(union).iter().copied())
-                        .collect()
-                });
-            let mut reduced_types: Vec<TypeId> = Vec::new();
-            for &t in &type_set {
-                let in_named = match &named_members {
-                    Some(members) => members.contains(&t),
-                    None => named_unions.iter().any(|&union| {
-                        crate::type_order::contains_type(self, order, self.members_of(union), t)
-                    }),
-                };
-                if !in_named {
-                    reduced_types.push(t);
-                }
-            }
-            if alias_symbol.is_none() && named_unions.len() == 1 && reduced_types.is_empty() {
-                return named_unions[0];
-            }
-            let named_types_count: usize = named_unions
-                .iter()
-                .map(|&union| self.members_of(union).len())
-                .sum();
-            if named_types_count + reduced_types.len() == type_set.len() {
-                for &union in &named_unions {
-                    crate::type_order::insert_type(self, order, &mut reduced_types, union);
-                }
-                origin = Some(
-                    self.create_origin_union_or_intersection_type(TypeFlags::UNION, reduced_types),
-                );
+            let mut scratch = self.union_scratch.pop().unwrap_or_default();
+            let named = self.named_union_origin(order, type_set, types, alias_symbol, &mut scratch);
+            scratch.named.clear();
+            scratch.reduced.clear();
+            scratch.named_members.clear();
+            self.union_scratch.push(scratch);
+            match named {
+                NamedUnionOrigin::Existing(ty) => return ty,
+                NamedUnionOrigin::Created(ty) => origin = Some(ty),
+                NamedUnionOrigin::None => {}
             }
         }
+
         let object_flags = ObjectFlags::from_bits(
             (if includes & TypeFlags::NOT_PRIMITIVE_UNION.bits() != 0 {
                 0
@@ -2178,6 +2191,74 @@ impl TypeTables {
         )
     }
 
+    fn named_union_origin(
+        &mut self,
+        order: TypeOrder<'_>,
+        type_set: &[TypeId],
+        types: &[TypeId],
+        alias_symbol: Option<SymbolId>,
+        scratch: &mut UnionScratch,
+    ) -> NamedUnionOrigin {
+        let named_unions = &mut scratch.named;
+        self.add_named_unions(named_unions, types);
+        // Final flattened lists carry their construction order. Raw
+        // origins and lists made in the other mode still need the scan,
+        // which preserves their existing membership-search behavior.
+        let members_are_sorted = named_unions.iter().all(|&union| {
+            let marker = if order.is_some() {
+                UNION_MEMBERS_CONTENT_ORDERED
+            } else {
+                UNION_MEMBERS_ID_ORDERED
+            };
+            self.object_flags_of(union).intersects(marker)
+                || self.members_of(union).windows(2).all(|pair| match order {
+                    Some(ctx) => {
+                        crate::type_order::compare_types(self, ctx, pair[0], pair[1])
+                            != Ordering::Greater
+                    }
+                    None => pair[0] <= pair[1],
+                })
+        });
+        let named_members = &mut scratch.named_members;
+        if members_are_sorted {
+            named_members.extend(
+                named_unions
+                    .iter()
+                    .flat_map(|&union| self.members_of(union).iter().copied()),
+            );
+        }
+        let reduced_types = &mut scratch.reduced;
+        for &t in type_set {
+            let in_named = if members_are_sorted {
+                named_members.contains(&t)
+            } else {
+                named_unions.iter().any(|&union| {
+                    crate::type_order::contains_type(self, order, self.members_of(union), t)
+                })
+            };
+            if !in_named {
+                reduced_types.push(t);
+            }
+        }
+        if alias_symbol.is_none() && named_unions.len() == 1 && reduced_types.is_empty() {
+            return NamedUnionOrigin::Existing(named_unions[0]);
+        }
+        let named_types_count: usize = named_unions
+            .iter()
+            .map(|&union| self.members_of(union).len())
+            .sum();
+        if named_types_count + reduced_types.len() == type_set.len() {
+            for &union in named_unions.iter() {
+                crate::type_order::insert_type(self, order, reduced_types, union);
+            }
+            return NamedUnionOrigin::Created(
+                self.create_origin_union_or_intersection_type(TypeFlags::UNION, &*reduced_types),
+            );
+        }
+
+        NamedUnionOrigin::None
+    }
+
     /// tsc-port: addTypeToUnion @6.0.3
     /// tsc-hash: 2e2421304f1c9d829df070f06f76534b25526f5f8fa4995ca8c903b4fd8e2bad
     /// tsc-span: _tsc.js:61338-61357
@@ -2185,7 +2266,7 @@ impl TypeTables {
     /// A single insertion uses content order when requested; explicit ID
     /// ordering keeps the append fast path (61350).
     pub fn add_type_to_union(
-        &mut self,
+        &self,
         order: TypeOrder<'_>,
         type_set: &mut Vec<TypeId>,
         mut includes: i32,
@@ -2285,7 +2366,7 @@ impl TypeTables {
     /// Flatten in source order, suppressing adjacent identical source types.
     /// Content-ordered collection appends; ID-ordered collection inserts.
     fn add_types_to_union_in_place(
-        &mut self,
+        &self,
         order: TypeOrder<'_>,
         type_set: &mut Vec<TypeId>,
         mut includes: i32,
@@ -2299,7 +2380,7 @@ impl TypeTables {
             if Some(ty) != last_type {
                 includes = if self.flags_of(ty).intersects(TypeFlags::UNION) {
                     let named = self.is_named_union_type(ty);
-                    let members = self.members_of(ty).to_vec();
+                    let members = self.members_of(ty);
                     #[cfg(feature = "perf-counters")]
                     crate::perf::union_collection(
                         crate::perf::UnionCollectionSite::Recursive,
@@ -2309,7 +2390,7 @@ impl TypeTables {
                         order,
                         type_set,
                         includes | (if named { TypeFlags::UNION.bits() } else { 0 }),
-                        &members,
+                        members,
                     )
                 } else if order.is_some() {
                     if self.include_type_in_union(&mut includes, ty) {
@@ -2347,7 +2428,7 @@ impl TypeTables {
     }
 
     fn try_merge_stored_union_inputs(
-        &self,
+        &mut self,
         order: TypeOrder<'_>,
         type_set: &mut Vec<TypeId>,
         mut includes: i32,
@@ -2457,7 +2538,7 @@ impl TypeTables {
     }
 
     fn try_merge_stored_union_runs(
-        &self,
+        &mut self,
         order: TypeOrder<'_>,
         type_set: &mut Vec<TypeId>,
         mut includes: i32,
@@ -2483,7 +2564,8 @@ impl TypeTables {
             return None;
         }
         type_set.reserve(capacity);
-        let mut starts = Vec::new();
+        let mut scratch = self.union_scratch.pop().unwrap_or_default();
+        let starts = &mut scratch.starts;
         let mut last = None;
         for input in types.chunks(1) {
             let ty = input[0];
@@ -2524,11 +2606,19 @@ impl TypeTables {
         }
         #[cfg(feature = "perf-counters")]
         let sort_length = type_set.len();
-        crate::type_order::merge_union_runs(type_set, &mut starts, |a, b| {
-            #[cfg(feature = "perf-counters")]
-            crate::perf::union_sort_comparison(sort_length);
-            self.union_input_less(order, a, b)
-        });
+        crate::type_order::merge_union_runs_with_buffer(
+            type_set,
+            starts,
+            &mut scratch.merge,
+            |a, b| {
+                #[cfg(feature = "perf-counters")]
+                crate::perf::union_sort_comparison(sort_length);
+                self.union_input_less(order, a, b)
+            },
+        );
+        scratch.starts.clear();
+        scratch.merge.clear();
+        self.union_scratch.push(scratch);
         type_set.dedup();
         Some(includes)
     }
@@ -2632,9 +2722,10 @@ impl TypeTables {
     pub fn create_origin_union_or_intersection_type(
         &mut self,
         flags: TypeFlags,
-        types: Vec<TypeId>,
+        types: impl AsRef<[TypeId]>,
     ) -> TypeId {
-        let types = self.intern_type_list(&types);
+        let types = types.as_ref();
+        let types = self.intern_type_list(types);
         let data = if flags.intersects(TypeFlags::UNION) {
             TypeData::Union {
                 types,
@@ -2666,12 +2757,13 @@ impl TypeTables {
     /// T2 display work).
     pub fn get_union_type_from_sorted_list(
         &mut self,
-        types: Vec<TypeId>,
+        types: impl AsRef<[TypeId]>,
         precomputed_object_flags: ObjectFlags,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
         origin: Option<TypeId>,
     ) -> TypeId {
+        let types = types.as_ref();
         if types.is_empty() {
             return self.intrinsics.never;
         }
@@ -2681,7 +2773,7 @@ impl TypeTables {
         // 61615-61620: a union or intersection origin stands for its
         // members in the key; an origin index type (createOriginIndexType)
         // is keyed with the members.
-        let members = self.intern_type_list(&types);
+        let members = self.intern_type_list(types);
         let (list, origin_key) = match origin {
             None => (members, UnionOriginKey::None),
             Some(origin) => match self.type_of(origin).data {
@@ -2715,7 +2807,7 @@ impl TypeTables {
         let mut object_flags =
             precomputed_object_flags.bits() & !ObjectFlags::NON_NULLABLE_UNION.bits();
         let mut kinds = 0;
-        for &member in &types {
+        for &member in types {
             let member_flags = self.flags_of(member);
             kinds |= member_flags.bits();
             if !member_flags.intersects(TypeFlags::NULLABLE) {
@@ -2806,13 +2898,14 @@ impl TypeTables {
     /// `A & B` and `B & A` are distinct types, unlike unions).
     pub fn create_intersection_type(
         &mut self,
-        types: Vec<TypeId>,
+        types: impl AsRef<[TypeId]>,
         object_flags: ObjectFlags,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
     ) -> TypeId {
-        let propagating = self.get_propagating_flags_of_types(&types, TypeFlags::NULLABLE);
-        let types = self.intern_type_list(&types);
+        let types = types.as_ref();
+        let propagating = self.get_propagating_flags_of_types(types, TypeFlags::NULLABLE);
+        let types = self.intern_type_list(types);
         let id = self.create_type(TypeFlags::INTERSECTION, TypeData::Intersection { types });
         let alias_type_arguments = self.intern_alias_arguments(alias_type_arguments);
         self.type_mut(id).object_flags =

@@ -45,6 +45,10 @@ struct JsxTransformer<'resolver> {
 }
 
 impl Transformer for JsxTransformer<'_> {
+    fn has_inert_print_hooks(&self) -> bool {
+        true
+    }
+
     fn name(&self) -> &'static str {
         "transformJsx"
     }

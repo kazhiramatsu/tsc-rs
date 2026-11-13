@@ -9900,6 +9900,17 @@ impl<'text> Parser<'text> {
             .copied()
             .find(|statement| self.is_an_external_module_indicator_node(*statement))
             .or_else(|| {
+                // tsgo getImportMetaIfNecessary (ast/parseoptions.go:101):
+                // a fresh parse records every possible import.meta. Reused
+                // subtrees do not accumulate source_flags here, so an
+                // incremental parse keeps the existing search.
+                if self.syntax_cursor.is_none()
+                    && !self
+                        .source_flags
+                        .contains(NodeFlags::POSSIBLY_CONTAINS_IMPORT_META)
+                {
+                    return None;
+                }
                 statements
                     .iter()
                     .copied()

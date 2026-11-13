@@ -13,6 +13,38 @@ use crate::instantiate::{DeferredMapperTargets, TypeMapper};
 use crate::links::LinkSlot;
 use crate::state::{CheckResult, CheckerState, ResolutionTarget};
 
+/// An immutable published input, or an already-owned query result. Unlike a
+/// borrowed slice, this cursor can cross recursive checker calls safely.
+pub(crate) enum TypeMemberCursor {
+    Stored(tsc_types::ListCursor),
+    Single(Option<TypeId>),
+    Owned(std::vec::IntoIter<TypeId>),
+}
+
+impl TypeMemberCursor {
+    pub(crate) fn len(&self) -> usize {
+        match self {
+            Self::Stored(cursor) => cursor.len(),
+            Self::Single(value) => usize::from(value.is_some()),
+            Self::Owned(values) => values.len(),
+        }
+    }
+
+    pub(crate) fn next(&mut self, tables: &tsc_types::TypeTables) -> Option<TypeId> {
+        match self {
+            Self::Stored(cursor) => cursor.next(tables),
+            Self::Single(value) => value.take(),
+            Self::Owned(values) => values.next(),
+        }
+    }
+}
+
+impl From<Vec<TypeId>> for TypeMemberCursor {
+    fn from(values: Vec<TypeId>) -> Self {
+        Self::Owned(values.into_iter())
+    }
+}
+
 impl<'a> CheckerState<'a> {
     /// tsc-port: getDeclaredTypeOfTypeParameter @6.0.3
     /// tsc-hash: 30b8ff7a52ce3cf5c9dac31023284fba4d3d2efe6c3ff7562a62d784dd0b2f8f
@@ -928,14 +960,10 @@ impl<'a> CheckerState<'a> {
     /// traversal set).
     /// tsrs-native: owned-list projection for tsc's direct
     /// `type.types` access and singleton fallback.
-    pub(crate) fn union_members_or_self(&self, ty: TypeId) -> Vec<TypeId> {
-        if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
-            match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
-                _ => unreachable!("union flag implies union data"),
-            }
-        } else {
-            vec![ty]
+    pub(crate) fn union_members_or_self(&self, ty: TypeId) -> TypeMemberCursor {
+        match self.tables.type_of(ty).data {
+            TypeData::Union { types, .. } => TypeMemberCursor::Stored(self.tables.cursor(types)),
+            _ => TypeMemberCursor::Single(Some(ty)),
         }
     }
 

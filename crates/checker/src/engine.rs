@@ -629,7 +629,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let bases = self.get_base_types(target)?;
+        let bases = self.get_base_type_list(target)?;
         if bases.len() != 1 {
             return Ok(None);
         }

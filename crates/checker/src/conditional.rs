@@ -253,7 +253,8 @@ impl<'a> CheckerState<'a> {
                             let permissive_extends =
                                 self.get_permissive_instantiation(inferred_extends_type)?;
                             let mut some_assignable = false;
-                            for member in self.union_members_or_self(permissive_extends) {
+                            let mut member_cursor = self.union_members_or_self(permissive_extends);
+                            while let Some(member) = member_cursor.next(&self.tables) {
                                 let permissive_check =
                                     self.get_permissive_instantiation(check_type)?;
                                 if self.is_type_assignable_to(member, permissive_check)? {

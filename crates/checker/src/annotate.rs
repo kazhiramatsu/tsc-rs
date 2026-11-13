@@ -220,9 +220,9 @@ impl<'a> CheckerState<'a> {
                             if let Some(constraint) =
                                 self.get_constraint_of_type_parameter(type_parameter)?
                             {
-                                let members = self.union_members_or_self(constraint);
+                                let mut members = self.union_members_or_self(constraint);
                                 let mut every_array_or_tuple = true;
-                                for member in members {
+                                while let Some(member) = members.next(&self.tables) {
                                     if !self.tables.is_tuple_type(member)
                                         && !self.is_array_type(member)?
                                     {
@@ -4528,7 +4528,7 @@ impl<'a> CheckerState<'a> {
             let mut constructs = self.instantiate_signature_list(&constructs, mapper)?;
             let indices = self.members_of(source).index_infos().to_vec();
             let mut indices = self.instantiate_index_info_list(&indices, mapper)?;
-            let base_types = self.get_base_types(target)?;
+            let base_types = self.get_base_type_list(target)?;
             let mut bases = Vec::with_capacity(base_types.len());
             for base in base_types {
                 let base = match arguments.last().copied() {
@@ -4958,7 +4958,7 @@ impl<'a> CheckerState<'a> {
             let declared_index_infos = self.members_of(source).index_infos().to_vec();
             index_infos = self.instantiate_index_info_list(&declared_index_infos, type_mapper)?;
         }
-        let base_types = self.get_base_types(source_type)?;
+        let base_types = self.get_base_type_list(source_type)?;
         if !base_types.is_empty() {
             if members_are_live_table {
                 // Copy the declared properties (+ the index symbol) before
@@ -5749,7 +5749,10 @@ impl<'a> CheckerState<'a> {
     /// built — ported exactly; the outer frame's pop then reports 2310
     /// per class/interface declaration. Class bases (resolveBaseTypesOfClass
     /// — base constructor types) are 5.3e.
-    pub fn get_base_types(&mut self, ty: TypeId) -> CheckResult<Vec<TypeId>> {
+    pub fn get_base_type_list(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult<crate::state::SharedList<TypeId>> {
         // tsgo checker.go:19505: only a class, an interface or a tuple
         // target has base types.
         if !self
@@ -5757,7 +5760,7 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(ty)
             .intersects(ObjectFlags::CLASS_OR_INTERFACE | ObjectFlags::TUPLE)
         {
-            return Ok(Vec::new());
+            return Ok(crate::state::SharedList::new());
         }
         if !self.links.type_cold().base_types_resolved.get(ty) {
             if self.push_type_resolution(
@@ -5827,6 +5830,12 @@ impl<'a> CheckerState<'a> {
             .unwrap_or_default())
     }
 
+    /// The owned compatibility projection; checker walks retain the shared
+    /// snapshot instead, so recursive base resolution cannot invalidate it.
+    pub fn get_base_types(&mut self, ty: TypeId) -> CheckResult<Vec<TypeId>> {
+        Ok(self.get_base_type_list(ty)?.to_vec())
+    }
+
     /// tsc-port: getTupleBaseType @6.0.3
     /// tsc-hash: b528c842896a958ebf1d8e80b191f9ab6e92a2903a555b6c21b4de6133d03dcf
     /// tsc-span: _tsc.js:57248-57251
@@ -5869,7 +5878,8 @@ impl<'a> CheckerState<'a> {
             .type_cold()
             .resolved_base_types
             .get(ty)
-            .clone()
+            .as_ref()
+            .map(|types| types.to_vec())
             .unwrap_or_default();
         self.links
             .set_type_resolved_base_types(self.speculation_depth, ty, resolved.clone());
@@ -5969,7 +5979,7 @@ impl<'a> CheckerState<'a> {
             if !visited.insert(target) {
                 return Ok(false);
             }
-            for base in self.get_base_types(target)? {
+            for base in self.get_base_type_list(target)? {
                 if self.has_base_type_worker(base, check_base, visited)? {
                     return Ok(true);
                 }
@@ -8720,7 +8730,7 @@ impl<'a> CheckerState<'a> {
         let Some(class_type) = self.get_declaring_class(property)? else {
             return Ok(None);
         };
-        let base_types = self.get_base_types(class_type)?;
+        let base_types = self.get_base_type_list(class_type)?;
         let Some(&base_class_type) = base_types.first() else {
             return Ok(None);
         };

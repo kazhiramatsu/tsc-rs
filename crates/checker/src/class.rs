@@ -170,7 +170,7 @@ impl<'a> CheckerState<'a> {
                 Some(node) => Some(node),
                 None => match interface_declaration {
                     Some(interface_declaration) => {
-                        let bases = self.get_base_types(ty)?;
+                        let bases = self.get_base_type_list(ty)?;
                         let mut base_covers = false;
                         for base in bases {
                             let base_prop = self.get_property_of_object_type(
@@ -275,7 +275,7 @@ impl<'a> CheckerState<'a> {
                 Some(node) => Some(node),
                 None => match interface_declaration {
                     Some(interface_declaration) => {
-                        let bases = self.get_base_types(ty)?;
+                        let bases = self.get_base_type_list(ty)?;
                         let mut base_covers = false;
                         for base in bases {
                             let base_check =
@@ -369,7 +369,8 @@ impl<'a> CheckerState<'a> {
                 continue;
             };
             let key_type = self.get_type_from_type_node(parameter_type_node)?;
-            for constituent in self.union_members_or_self(key_type) {
+            let mut member_cursor = self.union_members_or_self(key_type);
+            while let Some(constituent) = member_cursor.next(&self.tables) {
                 map.entry(constituent)
                     .or_insert_with(|| (constituent, Vec::new()))
                     .1
@@ -933,7 +934,7 @@ impl<'a> CheckerState<'a> {
             for argument in self.nodes_of(base_type_arguments) {
                 self.check_source_element(Some(argument));
             }
-            let base_types = self.get_base_types(ty)?;
+            let base_types = self.get_base_type_list(ty)?;
             if !base_types.is_empty() {
                 let base_type = base_types[0];
                 self.check_jsdoc_augments_tag_matches_extends(node, base_type)?;
@@ -1630,9 +1631,9 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<()> {
         let base_type_node = self.get_effective_base_type_node(node);
         let base_types = if base_type_node.is_some() {
-            self.get_base_types(ty)?
+            self.get_base_type_list(ty)?
         } else {
-            Vec::new()
+            crate::state::SharedList::new()
         };
         let base_with_this = match base_types.first() {
             Some(&first_base) => {
@@ -1754,7 +1755,7 @@ impl<'a> CheckerState<'a> {
         let type_with_this = self.get_type_with_this_argument(ty, None, false)?;
         let static_type = self.get_type_of_symbol(class_symbol)?;
         let base_with_this = if self.get_effective_base_type_node(node).is_some() {
-            match self.get_base_types(ty)?.first() {
+            match self.get_base_type_list(ty)?.first() {
                 Some(&first_base) => {
                     let this_type = self.this_type_of_class_or_interface(ty);
                     Some(self.get_type_with_this_argument(first_base, this_type, false)?)
@@ -2156,7 +2157,7 @@ impl<'a> CheckerState<'a> {
                 if base_declaration_flags.intersects(ModifierFlags::ABSTRACT)
                     && !derived_is_abstract
                 {
-                    for other_base_type in self.get_base_types(ty)? {
+                    for other_base_type in self.get_base_type_list(ty)? {
                         if other_base_type == base_type {
                             continue;
                         }
@@ -2463,7 +2464,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         type_node: NodeId,
     ) -> CheckResult<bool> {
-        let base_types = self.get_base_types(ty)?;
+        let base_types = self.get_base_type_list(ty)?;
         if base_types.len() < 2 {
             return Ok(true);
         }

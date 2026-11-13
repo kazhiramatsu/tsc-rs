@@ -249,6 +249,10 @@ struct Es2018Transformer {
 }
 
 impl Transformer for Es2018Transformer {
+    fn has_inert_print_hooks(&self) -> bool {
+        true
+    }
+
     fn name(&self) -> &'static str {
         "transformES2018"
     }

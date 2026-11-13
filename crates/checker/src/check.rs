@@ -3003,7 +3003,7 @@ impl<'a> CheckerState<'a> {
                 let type_with_this = self.get_type_with_this_argument(ty, None, false)?;
                 if self.check_inherited_properties_are_identical(ty, name)? {
                     let this_type = self.this_type_of_class_or_interface(ty);
-                    for base_type in self.get_base_types(ty)? {
+                    for base_type in self.get_base_type_list(ty)? {
                         let base_with_this =
                             self.get_type_with_this_argument(base_type, this_type, false)?;
                         self.check_type_assignable_to(

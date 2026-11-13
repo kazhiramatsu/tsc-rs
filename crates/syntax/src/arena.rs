@@ -570,6 +570,17 @@ pub const fn symbol_weight(kind: SyntaxKind) -> u32 {
 
 impl NodeArena {
     /// Add this arena's allocations to `usage`.
+    /// Requested storage retained by an arena handed to an emit worker.
+    /// Includes mapped tail storage, independently of its resident pages.
+    pub fn retained_storage_bytes(&self) -> usize {
+        self.nodes.capacity() * std::mem::size_of::<Node>()
+            + self.arrays.capacity() * std::mem::size_of::<NodeArrayRecord>()
+            + self.array_items.capacity() * std::mem::size_of::<NodeId>()
+            + self.texts.capacity() * std::mem::size_of::<TextWord>()
+            + self.tails.heap_metadata_bytes()
+            + self.tails.chunk_words() * std::mem::size_of::<u32>()
+    }
+
     pub fn add_memory_usage(&self, usage: &mut SyntaxMemory) {
         usage.heap_record_bytes += self.nodes.heap_capacity_bytes()
             + self.arrays.heap_capacity_bytes()

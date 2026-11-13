@@ -101,6 +101,10 @@ struct EsNextTransformer {
 }
 
 impl Transformer for EsNextTransformer {
+    fn has_inert_print_hooks(&self) -> bool {
+        true
+    }
+
     fn is_identity_substitution(&self) -> bool {
         true
     }

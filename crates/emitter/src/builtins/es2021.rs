@@ -139,6 +139,10 @@ struct TargetTransformer {
 }
 
 impl Transformer for TargetTransformer {
+    fn has_inert_print_hooks(&self) -> bool {
+        true
+    }
+
     fn name(&self) -> &'static str {
         self.pass.name()
     }

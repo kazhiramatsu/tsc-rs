@@ -614,6 +614,36 @@ pub struct EmitMetadata {
 }
 
 impl EmitMetadata {
+    pub(crate) fn print_input_usage(&self, u: &mut tsc_diagnostics::MemoryUsage) {
+        u.vec("synthetic comments", &self.leading_comments);
+        u.vec("synthetic comments", &self.trailing_comments);
+        for c in self.leading_comments.iter().chain(&self.trailing_comments) {
+            u.add("comment text", 1, c.text.len(), c.text.len());
+        }
+        u.btree("token map ranges estimated", &self.token_source_map_ranges);
+        if let Some(EmitConstantValue::String(v)) = &self.constant_value {
+            u.add(
+                "constant text",
+                1,
+                v.code_units().len() * 2,
+                v.code_units().len() * 2,
+            );
+        }
+        if let Some(v) = &self.unchecked_identifier_text {
+            u.js_string("unchecked text", v);
+        }
+        u.vec("helper text list", &self.helpers);
+        for v in self
+            .helpers
+            .iter()
+            .chain(self.generated_binding_base.iter())
+            .chain(self.generated_binding_preferred_base.iter())
+            .chain(self.generated_binding_role_suffix.iter())
+        {
+            u.add("owned metadata text", 1, v.len(), v.len());
+        }
+    }
+
     pub const fn original(&self) -> Option<TransformNode> {
         self.original
     }

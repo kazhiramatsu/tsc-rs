@@ -394,7 +394,7 @@ fn expand_class_declaration(
             .map_err(|abort| checker_abort_error(checker, context, abort))?;
         let class_target = checker.get_target_type(class_type);
         let base_types = checker
-            .get_base_types(class_target)
+            .get_base_type_list(class_target)
             .map_err(|abort| checker_abort_error(checker, context, abort))?;
         let static_type = checker
             .get_type_of_symbol(symbol)
@@ -690,7 +690,7 @@ fn expand_interface_declaration(
         )?);
     }
     let base_types = checker
-        .get_base_types(interface_type)
+        .get_base_type_list(interface_type)
         .map_err(|abort| checker_abort_error(checker, context, abort))?;
     let base_type = if base_types.is_empty() {
         None

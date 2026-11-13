@@ -39,14 +39,94 @@ pub(crate) struct PropertyScratch {
     index_types: Vec<TypeId>,
     declarations: Vec<NodeId>,
     prop_types: Vec<TypeId>,
+    name_counts: PropertyNameCounts,
 }
 
 impl PropertyScratch {
+    pub(crate) fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
+        usage.vec("property scratch capacity", &self.prop_set);
+        usage.vec("property scratch capacity", &self.index_types);
+        usage.vec("property scratch capacity", &self.declarations);
+        usage.vec("property scratch capacity", &self.prop_types);
+        usage.vec("property scratch capacity", &self.name_counts.entries);
+        usage.vec("property scratch capacity", &self.name_counts.slots);
+    }
+
     fn clear(&mut self) {
         self.prop_set.clear();
         self.index_types.clear();
         self.declarations.clear();
         self.prop_types.clear();
+        self.name_counts.clear();
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+struct PropertyNameSlot {
+    generation: u32,
+    entry: u32,
+}
+
+/// Keep the first-occurrence order separately from the lookup table. A new
+/// generation empties a reused table without clearing its high-water capacity.
+#[derive(Default)]
+struct PropertyNameCounts {
+    entries: Vec<(EscapedName, u32)>,
+    slots: Vec<PropertyNameSlot>,
+    generation: u32,
+}
+
+impl PropertyNameCounts {
+    fn clear(&mut self) {
+        self.entries.clear();
+        self.generation = self.generation.wrapping_add(1);
+        if self.generation == 0 {
+            self.slots.fill(PropertyNameSlot::default());
+            self.generation = 1;
+        }
+    }
+
+    fn slot(&self, name: EscapedName) -> usize {
+        use std::hash::{Hash, Hasher};
+        let mut hash = rustc_hash::FxHasher::default();
+        name.hash(&mut hash);
+        let mut at = hash.finish() as usize & (self.slots.len() - 1);
+        loop {
+            let slot = self.slots[at];
+            if slot.generation != self.generation
+                || slot.entry == 0
+                || self.entries[(slot.entry - 1) as usize].0 == name
+            {
+                return at;
+            }
+            at = (at + 1) & (self.slots.len() - 1);
+        }
+    }
+
+    fn add(&mut self, name: EscapedName) {
+        if self.slots.is_empty() || self.entries.len() * 2 >= self.slots.len() {
+            let len = (self.slots.len() * 2).max(16);
+            self.slots.resize(len, PropertyNameSlot::default());
+            self.slots.fill(PropertyNameSlot::default());
+            for index in 0..self.entries.len() {
+                let at = self.slot(self.entries[index].0);
+                self.slots[at] = PropertyNameSlot {
+                    generation: self.generation,
+                    entry: u32::try_from(index + 1).expect("property name count"),
+                };
+            }
+        }
+        let at = self.slot(name);
+        let slot = self.slots[at];
+        if slot.generation == self.generation && slot.entry != 0 {
+            self.entries[(slot.entry - 1) as usize].1 += 1;
+        } else {
+            self.entries.push((name, 1));
+            self.slots[at] = PropertyNameSlot {
+                generation: self.generation,
+                entry: u32::try_from(self.entries.len()).expect("property name count"),
+            };
+        }
     }
 }
 
@@ -62,6 +142,17 @@ mod check_mode {
 }
 
 impl<'r, 'a> RelationChecker<'r, 'a> {
+    fn with_relation_type_list<R>(
+        &mut self,
+        f: impl FnOnce(&mut Self, &mut Vec<TypeId>) -> R,
+    ) -> R {
+        let mut list = self.st.instantiation_type_lists.pop().unwrap_or_default();
+        let result = f(self, &mut list);
+        list.clear();
+        self.st.instantiation_type_lists.push(list);
+        result
+    }
+
     /// `type.target.readonly` for tuple references (the fast-path
     /// guards at 66095-66097).
     fn tuple_target_readonly(&self, ty: TypeId) -> bool {
@@ -470,14 +561,18 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             }
             if source_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
-                let (source_texts, source_types) = self.template_parts(source);
-                let (target_texts, target_types) = self.template_parts(target);
-                if source_texts == target_texts {
+                let (source_template, source_types) = self.template_parts(source);
+                let (target_template, target_types) = self.template_parts(target);
+                if self.st.tables.template_literal(source_template).texts
+                    == self.st.tables.template_literal(target_template).texts
+                {
                     let mut result = Ternary::TRUE;
-                    for (i, &s) in source_types.iter().enumerate() {
+                    let mut members = self.st.tables.cursor(source_types);
+                    let mut i = 0;
+                    while let Some(s) = members.next(&self.st.tables) {
                         let related = self.is_related_to(
                             s,
-                            target_types[i],
+                            self.st.tables.list(target_types)[i],
                             RecursionFlags::BOTH,
                             /*report_errors*/ false,
                             IntersectionState::NONE,
@@ -486,6 +581,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             return Ok(Ternary::FALSE);
                         }
                         result = ternary_and(result, related);
+                        i += 1;
                     }
                     return Ok(result);
                 }
@@ -551,16 +647,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             TypeFlags::OBJECT.bits() | TypeFlags::CONDITIONAL.bits(),
         )) {
             let source_alias = self.st.tables.alias_symbol(source);
-            let source_alias_arguments = self
-                .st
-                .tables
-                .alias_type_arguments(source)
-                .map(<[TypeId]>::to_vec);
+            let source_alias_arguments = self.st.tables.alias_type_argument_list(source);
             let target_alias = self.st.tables.alias_symbol(target);
             if let (Some(alias_symbol), Some(source_arguments)) =
                 (source_alias, source_alias_arguments)
             {
-                if !source_arguments.is_empty()
+                if !self.st.tables.list(source_arguments).is_empty()
                     && Some(alias_symbol) == target_alias
                     && !(self.st.is_marker_type(source) || self.st.is_marker_type(target))
                 {
@@ -572,46 +664,57 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             let target_arguments = self
                                 .st
                                 .tables
-                                .alias_type_arguments(target)
-                                .map(<[TypeId]>::to_vec)
+                                .alias_type_argument_list(target)
                                 .expect("same-alias pairs both carry alias arguments");
-                            let params = self
-                                .st
-                                .links
-                                .symbol_cold()
-                                .type_parameters
-                                .get(alias_symbol)
-                                .clone();
-                            let min_arguments =
-                                self.st.get_min_type_argument_count(params.as_deref());
-                            let source_types = self
-                                .st
-                                .fill_missing_type_arguments(
-                                    Some(&source_arguments),
-                                    params.as_deref(),
-                                    min_arguments,
-                                    /*is_javascript_implicit_any*/ false,
-                                )?
-                                .unwrap_or_default();
-                            let target_types = self
-                                .st
-                                .fill_missing_type_arguments(
-                                    Some(&target_arguments),
-                                    params.as_deref(),
-                                    min_arguments,
-                                    /*is_javascript_implicit_any*/ false,
-                                )?
-                                .unwrap_or_default();
-                            if let Some(variance_result) = self.relate_variances(
-                                &source_types,
-                                &target_types,
-                                &variances,
-                                report_errors,
-                                intersection_state,
-                                saved_error_info,
-                                &mut original_error_info,
-                                &mut variance_check_failed,
-                            )? {
+                            let variance_result =
+                                self.with_relation_type_list(|this, params| {
+                                    let has_params = if let Some(stored) = this
+                                        .st
+                                        .links
+                                        .symbol_cold()
+                                        .type_parameters
+                                        .get(alias_symbol)
+                                    {
+                                        params.extend_from_slice(stored);
+                                        true
+                                    } else {
+                                        false
+                                    };
+                                    let params = has_params.then_some(params.as_slice());
+                                    let _min_arguments =
+                                        this.st.get_min_type_argument_count(params);
+                                    this.with_relation_type_list(|this, source_types| {
+                                        source_types.extend_from_slice(
+                                            this.st.tables.list(source_arguments),
+                                        );
+                                        this.st.fill_missing_type_arguments_in_place(
+                                            source_types,
+                                            params,
+                                            false,
+                                        )?;
+                                        this.with_relation_type_list(|this, target_types| {
+                                            target_types.extend_from_slice(
+                                                this.st.tables.list(target_arguments),
+                                            );
+                                            this.st.fill_missing_type_arguments_in_place(
+                                                target_types,
+                                                params,
+                                                false,
+                                            )?;
+                                            this.relate_variances(
+                                                source_types,
+                                                target_types,
+                                                &variances,
+                                                report_errors,
+                                                intersection_state,
+                                                saved_error_info,
+                                                &mut original_error_info,
+                                                &mut variance_check_failed,
+                                            )
+                                        })
+                                    })
+                                })?;
+                            if let Some(variance_result) = variance_result {
                                 return Ok(variance_result);
                             }
                         }
@@ -1458,19 +1561,27 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     }
                     crate::variance::VariancesResult::Known(variances) => {
                         let source_arguments = self.st.get_type_argument_list(source)?;
-                        let source_arguments = self.st.tables.list_copy(source_arguments);
                         let target_arguments = self.st.get_type_argument_list(target)?;
-                        let target_arguments = self.st.tables.list_copy(target_arguments);
-                        if let Some(variance_result) = self.relate_variances(
-                            &source_arguments,
-                            &target_arguments,
-                            &variances,
-                            report_errors,
-                            intersection_state,
-                            saved_error_info,
-                            &mut original_error_info,
-                            &mut variance_check_failed,
-                        )? {
+                        let variance_result =
+                            self.with_relation_type_list(|this, source_types| {
+                                source_types
+                                    .extend_from_slice(this.st.tables.list(source_arguments));
+                                this.with_relation_type_list(|this, target_types| {
+                                    target_types
+                                        .extend_from_slice(this.st.tables.list(target_arguments));
+                                    this.relate_variances(
+                                        source_types,
+                                        target_types,
+                                        &variances,
+                                        report_errors,
+                                        intersection_state,
+                                        saved_error_info,
+                                        &mut original_error_info,
+                                        &mut variance_check_failed,
+                                    )
+                                })
+                            })?;
+                        if let Some(variance_result) = variance_result {
                             return Ok(variance_result);
                         }
                     }
@@ -1664,15 +1775,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         Ok(Ternary::FALSE)
     }
 
-    fn template_parts(&self, ty: TypeId) -> (Vec<TemplateText>, Vec<TypeId>) {
-        match &self.st.tables.type_of(ty).data {
-            TypeData::TemplateLiteral(data) => {
-                let data = self.st.tables.template_literal(*data);
-                (
-                    data.texts.to_vec(),
-                    self.st.tables.list(data.types).to_vec(),
-                )
-            }
+    fn template_parts(&self, ty: TypeId) -> (tsc_types::TemplateLiteralId, tsc_types::TypeListId) {
+        match self.st.tables.type_of(ty).data {
+            TypeData::TemplateLiteral(data) => (data, self.st.tables.template_literal(data).types),
             _ => unreachable!("template flag implies template data"),
         }
     }
@@ -2330,18 +2435,23 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-port: excludeProperties @6.0.3
     /// tsc-hash: 0b506adbd35ab7f6f207cb5a37868efc66b905adb9971f319f1299a3f74ef4f3
     /// tsc-span: _tsc.js:66627-66640
-    fn exclude_properties(
+    fn is_excluded_property(
         &self,
-        properties: Vec<SymbolId>,
-        excluded_properties: Option<&rustc_hash::FxHashSet<EscapedName>>,
-    ) -> Vec<SymbolId> {
-        let Some(excluded) = excluded_properties else {
-            return properties;
-        };
+        property: SymbolId,
+        excluded: Option<&rustc_hash::FxHashSet<EscapedName>>,
+    ) -> bool {
+        excluded.is_some_and(|names| names.contains(&self.st.binder.symbol(property).escaped_name))
+    }
+
+    fn count_included_properties(
+        &self,
+        properties: &[SymbolId],
+        excluded: Option<&rustc_hash::FxHashSet<EscapedName>>,
+    ) -> usize {
         properties
-            .into_iter()
-            .filter(|&p| !excluded.contains(&self.st.binder.symbol(p).escaped_name))
-            .collect()
+            .iter()
+            .filter(|&&property| !self.is_excluded_property(property, excluded))
+            .count()
     }
 
     /// tsc-port: propertiesRelatedTo @6.0.3
@@ -2665,7 +2775,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         if self.st.is_object_literal_type(target) {
             let source_props = self.st.get_properties_of_type(source)?;
-            for source_prop in self.exclude_properties(source_props.to_vec(), excluded_properties) {
+            for &source_prop in source_props.iter() {
+                if self.is_excluded_property(source_prop, excluded_properties) {
+                    continue;
+                }
                 let name = self.st.binder.symbol(source_prop).escaped_name;
                 if self.st.get_property_of_object_type(target, name)?.is_none() {
                     if report_errors {
@@ -2684,7 +2797,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let source_members = self.st.resolved_property_source(source);
         let numeric_names_only =
             self.st.tables.is_tuple_type(source) && self.st.tables.is_tuple_type(target);
-        for target_prop in self.exclude_properties(properties.to_vec(), excluded_properties) {
+        for &target_prop in properties.iter() {
+            if self.is_excluded_property(target_prop, excluded_properties) {
+                continue;
+            }
             let name = self.st.binder.symbol(target_prop).escaped_name;
             let target_symbol_flags = self.st.symbol_flags(target_prop);
             if !target_symbol_flags.intersects(SymbolFlags::PROTOTYPE)
@@ -2994,14 +3110,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             return Ok(Ternary::FALSE);
         }
         let source_props = self.st.get_properties_of_object_type_owned(source)?;
-        let source_properties = self.exclude_properties(source_props.to_vec(), excluded_properties);
+        let source_count = self.count_included_properties(&source_props, excluded_properties);
         let target_props = self.st.get_properties_of_object_type_owned(target)?;
-        let target_properties = self.exclude_properties(target_props.to_vec(), excluded_properties);
-        if source_properties.len() != target_properties.len() {
+        let target_count = self.count_included_properties(&target_props, excluded_properties);
+        if source_count != target_count {
             return Ok(Ternary::FALSE);
         }
         let mut result = Ternary::TRUE;
-        for source_prop in source_properties {
+        for &source_prop in source_props.iter() {
+            if self.is_excluded_property(source_prop, excluded_properties) {
+                continue;
+            }
             let name = self.st.binder.symbol(source_prop).escaped_name;
             let Some(target_prop) = self.st.get_property_of_object_type(target, name)? else {
                 return Ok(Ternary::FALSE);
@@ -3497,123 +3616,132 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         // 67581-67595: pairwise type-parameter identity — constraints
         // and defaults compare through the source→target mapper.
-        let source_type_parameters = self
-            .st
-            .signature_of(source)
-            .type_parameters
-            .clone()
-            .unwrap_or_default();
-        let target_type_parameters = self
-            .st
-            .signature_of(target)
-            .type_parameters
-            .clone()
-            .unwrap_or_default();
-        if source_type_parameters.len() != target_type_parameters.len() {
-            return Ok(Ternary::FALSE);
-        }
-        if !target_type_parameters.is_empty() {
-            let mapper = self
-                .st
-                .create_type_mapper(&source_type_parameters, Some(&target_type_parameters));
-            for (i, &t) in target_type_parameters.iter().enumerate() {
-                let s = source_type_parameters[i];
-                if s == t {
-                    continue;
+        self.with_relation_type_list(|this, source_type_parameters| {
+            source_type_parameters.extend_from_slice(
+                this.st
+                    .signature_of(source)
+                    .type_parameters
+                    .as_deref()
+                    .unwrap_or_default(),
+            );
+            this.with_relation_type_list(|this, target_type_parameters| {
+                target_type_parameters.extend_from_slice(
+                    this.st
+                        .signature_of(target)
+                        .type_parameters
+                        .as_deref()
+                        .unwrap_or_default(),
+                );
+                if source_type_parameters.len() != target_type_parameters.len() {
+                    return Ok(Ternary::FALSE);
                 }
-                let unknown = self.st.tables.intrinsics.unknown;
-                let source_constraint = self.st.get_constraint_from_type_parameter(s)?;
-                let source_constraint = match source_constraint {
-                    Some(constraint) => self.st.instantiate_type(constraint, Some(mapper))?,
-                    None => unknown,
+                if !target_type_parameters.is_empty() {
+                    let mapper = this
+                        .st
+                        .create_type_mapper(source_type_parameters, Some(target_type_parameters));
+                    for (i, &t) in target_type_parameters.iter().enumerate() {
+                        let s = source_type_parameters[i];
+                        if s == t {
+                            continue;
+                        }
+                        let unknown = this.st.tables.intrinsics.unknown;
+                        let source_constraint = this.st.get_constraint_from_type_parameter(s)?;
+                        let source_constraint = match source_constraint {
+                            Some(constraint) => {
+                                this.st.instantiate_type(constraint, Some(mapper))?
+                            }
+                            None => unknown,
+                        };
+                        let target_constraint = this
+                            .st
+                            .get_constraint_from_type_parameter(t)?
+                            .unwrap_or(unknown);
+                        let related = compare_types(this, source_constraint, target_constraint)?;
+                        if !is_true(related) {
+                            return Ok(Ternary::FALSE);
+                        }
+                        let source_default = this.st.get_default_from_type_parameter(s)?;
+                        let source_default = match source_default {
+                            Some(default) => this.st.instantiate_type(default, Some(mapper))?,
+                            None => unknown,
+                        };
+                        let target_default = this
+                            .st
+                            .get_default_from_type_parameter(t)?
+                            .unwrap_or(unknown);
+                        let related = compare_types(this, source_default, target_default)?;
+                        if !is_true(related) {
+                            return Ok(Ternary::FALSE);
+                        }
+                    }
+                    // 67593-67598: the remaining comparison runs on the source
+                    // instantiated into the target's parameter space.
+                    source = this.st.instantiate_signature(
+                        source, mapper, /*erase_type_parameters*/ true,
+                    )?;
+                }
+                let mut result = Ternary::TRUE;
+                let source_this = if ignore_this_types {
+                    None
+                } else {
+                    this.st.get_this_type_of_signature(source)?
                 };
-                let target_constraint = self
-                    .st
-                    .get_constraint_from_type_parameter(t)?
-                    .unwrap_or(unknown);
-                let related = compare_types(self, source_constraint, target_constraint)?;
-                if !is_true(related) {
-                    return Ok(Ternary::FALSE);
+                if let Some(source_this) = source_this {
+                    if let Some(target_this) = this.st.get_this_type_of_signature(target)? {
+                        let related = compare_types(this, source_this, target_this)?;
+                        if !is_true(related) {
+                            return Ok(Ternary::FALSE);
+                        }
+                        result = ternary_and(result, related);
+                    }
                 }
-                let source_default = self.st.get_default_from_type_parameter(s)?;
-                let source_default = match source_default {
-                    Some(default) => self.st.instantiate_type(default, Some(mapper))?,
-                    None => unknown,
+                let target_len = this.st.get_parameter_count(target)?;
+                for i in 0..target_len {
+                    let s = this.st.get_type_at_position(source, i)?;
+                    let t = this.st.get_type_at_position(target, i)?;
+                    let related = compare_types(this, t, s)?;
+                    if !is_true(related) {
+                        return Ok(Ternary::FALSE);
+                    }
+                    result = ternary_and(result, related);
+                }
+                if ignore_return_types {
+                    return Ok(result);
+                }
+                // 67624-67628: the predicate consult REPLACES the return-type
+                // comparison when either side carries one, and only inside
+                // !ignoreReturnTypes — the ignoreReturnTypes cells (union
+                // signature matching via findMatchingSignature) consult no
+                // predicate machinery at all (m4-review B7 restored the
+                // decision table; the old gate over-contained them).
+                // KNOWN-GAP (7.5d review): this tail deliberately keeps the
+                // RAW consult — the body-inferred-candidate guard the
+                // related arm and callback cell ride
+                // (relation_type_predicate_of_signature) would Err here on
+                // every union/intersection signature-list assembly over
+                // unannotated boolean members, killing their calls' REAL
+                // rows (tsc resolves same-refinement members fine). Residual:
+                // a ONE-sided body-inference in tsc (pred vs None → False)
+                // can over-match here (both None → plain return compare) —
+                // list-shape divergence only, no proven fabrication; rewrite
+                // with getTypePredicateFromBody (the M6 escape's owner).
+                let source_type_predicate = this.st.get_type_predicate_of_signature(source)?;
+                let target_type_predicate = this.st.get_type_predicate_of_signature(target)?;
+                let related = if source_type_predicate.is_some() || target_type_predicate.is_some()
+                {
+                    this.compare_type_predicates_identical(
+                        source_type_predicate.as_ref(),
+                        target_type_predicate.as_ref(),
+                        compare_types,
+                    )?
+                } else {
+                    let source_return = this.st.get_return_type_of_signature(source)?;
+                    let target_return = this.st.get_return_type_of_signature(target)?;
+                    compare_types(this, source_return, target_return)?
                 };
-                let target_default = self
-                    .st
-                    .get_default_from_type_parameter(t)?
-                    .unwrap_or(unknown);
-                let related = compare_types(self, source_default, target_default)?;
-                if !is_true(related) {
-                    return Ok(Ternary::FALSE);
-                }
-            }
-            // 67593-67598: the remaining comparison runs on the source
-            // instantiated into the target's parameter space.
-            source = self
-                .st
-                .instantiate_signature(source, mapper, /*erase_type_parameters*/ true)?;
-        }
-        let mut result = Ternary::TRUE;
-        let source_this = if ignore_this_types {
-            None
-        } else {
-            self.st.get_this_type_of_signature(source)?
-        };
-        if let Some(source_this) = source_this {
-            if let Some(target_this) = self.st.get_this_type_of_signature(target)? {
-                let related = compare_types(self, source_this, target_this)?;
-                if !is_true(related) {
-                    return Ok(Ternary::FALSE);
-                }
-                result = ternary_and(result, related);
-            }
-        }
-        let target_len = self.st.get_parameter_count(target)?;
-        for i in 0..target_len {
-            let s = self.st.get_type_at_position(source, i)?;
-            let t = self.st.get_type_at_position(target, i)?;
-            let related = compare_types(self, t, s)?;
-            if !is_true(related) {
-                return Ok(Ternary::FALSE);
-            }
-            result = ternary_and(result, related);
-        }
-        if ignore_return_types {
-            return Ok(result);
-        }
-        // 67624-67628: the predicate consult REPLACES the return-type
-        // comparison when either side carries one, and only inside
-        // !ignoreReturnTypes — the ignoreReturnTypes cells (union
-        // signature matching via findMatchingSignature) consult no
-        // predicate machinery at all (m4-review B7 restored the
-        // decision table; the old gate over-contained them).
-        // KNOWN-GAP (7.5d review): this tail deliberately keeps the
-        // RAW consult — the body-inferred-candidate guard the
-        // related arm and callback cell ride
-        // (relation_type_predicate_of_signature) would Err here on
-        // every union/intersection signature-list assembly over
-        // unannotated boolean members, killing their calls' REAL
-        // rows (tsc resolves same-refinement members fine). Residual:
-        // a ONE-sided body-inference in tsc (pred vs None → False)
-        // can over-match here (both None → plain return compare) —
-        // list-shape divergence only, no proven fabrication; rewrite
-        // with getTypePredicateFromBody (the M6 escape's owner).
-        let source_type_predicate = self.st.get_type_predicate_of_signature(source)?;
-        let target_type_predicate = self.st.get_type_predicate_of_signature(target)?;
-        let related = if source_type_predicate.is_some() || target_type_predicate.is_some() {
-            self.compare_type_predicates_identical(
-                source_type_predicate.as_ref(),
-                target_type_predicate.as_ref(),
-                compare_types,
-            )?
-        } else {
-            let source_return = self.st.get_return_type_of_signature(source)?;
-            let target_return = self.st.get_return_type_of_signature(target)?;
-            compare_types(self, source_return, target_return)?
-        };
-        Ok(ternary_and(result, related))
+                Ok(ternary_and(result, related))
+            })
+        })
     }
 
     /// tsc-port: compareTypePredicatesIdentical @6.0.3
@@ -5396,35 +5524,32 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         types: &[TypeId],
     ) -> CheckResult<bool> {
-        let mut names: Vec<(EscapedName, u32)> = Vec::new();
-        let mut indices: rustc_hash::FxHashMap<EscapedName, usize> =
-            rustc_hash::FxHashMap::default();
-        for &constituent in types {
-            for prop in self.get_properties_of_type_full(constituent)? {
-                let name = self.binder.symbol(prop).escaped_name;
-                match indices.entry(name) {
-                    std::collections::hash_map::Entry::Occupied(entry) => {
-                        names[*entry.get()].1 += 1;
-                    }
-                    std::collections::hash_map::Entry::Vacant(entry) => {
-                        entry.insert(names.len());
-                        names.push((name, 1));
+        let mut scratch = self.property_scratch.pop().unwrap_or_default();
+        scratch.name_counts.clear();
+        let result = (|| {
+            for &constituent in types {
+                for prop in self.get_properties_of_type_full(constituent)? {
+                    scratch
+                        .name_counts
+                        .add(self.binder.symbol(prop).escaped_name);
+                }
+            }
+            for &(name, count) in &scratch.name_counts.entries {
+                if count > 1 {
+                    if let Some(prop) = self.get_property_of_union_or_intersection_type(
+                        ty, name, /*skip_object_function_property_augment*/ true,
+                    )? {
+                        if self.is_never_reduced_property(prop)? {
+                            return Ok(true);
+                        }
                     }
                 }
             }
-        }
-        for (name, count) in names {
-            if count > 1 {
-                if let Some(prop) = self.get_property_of_union_or_intersection_type(
-                    ty, name, /*skip_object_function_property_augment*/ true,
-                )? {
-                    if self.is_never_reduced_property(prop)? {
-                        return Ok(true);
-                    }
-                }
-            }
-        }
-        Ok(false)
+            Ok(false)
+        })();
+        scratch.clear();
+        self.property_scratch.push(scratch);
+        result
     }
 
     /// tsc-port: getReducedUnionType @6.0.3
@@ -5616,14 +5741,15 @@ impl<'a> CheckerState<'a> {
             index_types,
             declarations,
             prop_types,
+            ..
         } = scratch;
         let is_union = self
             .tables
             .flags_of(containing_type)
             .intersects(TypeFlags::UNION);
-        let members = match &self.tables.type_of(containing_type).data {
+        let mut members = match &self.tables.type_of(containing_type).data {
             TypeData::Union { types, .. } | TypeData::Intersection { types } => {
-                self.tables.list(*types).to_vec()
+                self.tables.cursor(*types)
             }
             _ => unreachable!("union/intersection flag implies member data"),
         };
@@ -5648,7 +5774,7 @@ impl<'a> CheckerState<'a> {
         };
         let mut syntactic_flag = CheckFlags::SYNTHETIC_METHOD;
         let mut merged_instantiations = false;
-        for current in members {
+        while let Some(current) = members.next(&self.tables) {
             let ty = self.get_apparent_type(current)?;
             if self.tables.is_error_type(ty)
                 || self.tables.flags_of(ty).intersects(TypeFlags::NEVER)

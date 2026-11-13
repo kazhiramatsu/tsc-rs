@@ -64,6 +64,10 @@ struct LegacyDecoratorTransformer<'resolver> {
 }
 
 impl Transformer for LegacyDecoratorTransformer<'_> {
+    fn has_inert_print_hooks(&self) -> bool {
+        true
+    }
+
     fn is_identity_substitution(&self) -> bool {
         true
     }

@@ -87,6 +87,10 @@ enum StandardDecoratorFallbackChild {
 }
 
 impl Transformer for StandardDecoratorTransformer {
+    fn has_inert_print_hooks(&self) -> bool {
+        true
+    }
+
     fn name(&self) -> &'static str {
         "transformESDecorators"
     }

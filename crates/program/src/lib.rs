@@ -247,7 +247,8 @@ pub use symlinks::{discover_symlink_facts, SymlinkFacts};
 pub use text::{decode_host_text, HostTextDecodeError, HostTextEncoding};
 pub use tsc_types::{CompilerOptionNumber, CompilerOptions, ModuleSuffix};
 pub use workers::{
-    run_thread_start_hook, set_thread_start_hook, WorkerBudget, MAX_WORKERS, WORKER_STACK_BYTES,
+    run_thread_start_hook, run_worker_idle_hook, set_thread_start_hook, set_worker_idle_hook,
+    WorkerBudget, MAX_WORKERS, WORKER_STACK_BYTES,
 };
 
 pub use module_requests::plan_source_requests_in_stripe;

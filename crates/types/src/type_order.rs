@@ -678,15 +678,16 @@ pub use crate::goslices::{sort_func_like_go, sort_types_like_tsgo};
 /// pair has very different lengths, and consume equal heads together. Keep
 /// occurrences until the caller deduplicates the final list, after all flags
 /// have been collected.
-pub(crate) fn merge_union_runs(
+pub(crate) fn merge_union_runs_with_buffer(
     types: &mut Vec<TypeId>,
     starts: &mut Vec<usize>,
+    scratch: &mut Vec<TypeId>,
     mut less: impl FnMut(TypeId, TypeId) -> bool,
 ) {
     if starts.len() < 2 {
         return;
     }
-    let mut scratch = Vec::with_capacity(types.len());
+    scratch.reserve(types.len());
     while starts.len() > 1 {
         scratch.clear();
         let next_len = starts.len().div_ceil(2);
@@ -741,8 +742,17 @@ pub(crate) fn merge_union_runs(
             }
         }
         starts.truncate(next_len);
-        std::mem::swap(types, &mut scratch);
+        std::mem::swap(types, scratch);
     }
+}
+
+#[cfg(test)]
+fn merge_union_runs(
+    types: &mut Vec<TypeId>,
+    starts: &mut Vec<usize>,
+    less: impl FnMut(TypeId, TypeId) -> bool,
+) {
+    merge_union_runs_with_buffer(types, starts, &mut Vec::new(), less);
 }
 
 /// Where `ty` sits in `types`, which is sorted by `order`. Explicit ID

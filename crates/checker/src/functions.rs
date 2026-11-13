@@ -4752,7 +4752,8 @@ impl<'a> CheckerState<'a> {
             ));
         }
         let mut every_valid_index_key = true;
-        for member in self.union_members_or_self(ty) {
+        let mut member_cursor = self.union_members_or_self(ty);
+        while let Some(member) = member_cursor.next(&self.tables) {
             if !self.is_valid_index_key_type(member)? {
                 every_valid_index_key = false;
                 break;
