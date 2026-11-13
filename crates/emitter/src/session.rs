@@ -4,7 +4,7 @@
 //! range-relative representation and lazy growth; metadata remains sparse.
 //! Preparing a source transfers its source facts together with its syntax.
 
-use std::cell::OnceCell;
+use std::cell::{Cell, OnceCell};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -18,7 +18,10 @@ use crate::{EmitMetadata, LiteralNodeProperties, TransformNode};
 #[derive(Clone, Debug, Default)]
 pub(crate) struct SourceEmitState {
     pub transform_flags: Vec<i32>,
-    pub array_transform_flags: Vec<i32>,
+    pub array_transform_flags: Vec<Cell<i32>>,
+    pub deferred_array_flags: Vec<Cell<u64>>,
+    pub deferred_array_count: Cell<usize>,
+    pub deferred_array_owner: u32,
     /// Synthesized updates with whole-subtree aggregate flags. Creation-site
     /// hints alone do not establish completeness.
     pub complete_synthesized: FxHashSet<NodeId>,
@@ -40,6 +43,7 @@ impl SourceEmitState {
     pub(crate) fn print_input_usage(&self, u: &mut tsc_diagnostics::MemoryUsage) {
         u.vec("flags", &self.transform_flags);
         u.vec("flags", &self.array_transform_flags);
+        u.vec("deferred array flags", &self.deferred_array_flags);
         u.hash_set("synthesized completeness", &self.complete_synthesized);
         self.identifier_census.print_input_usage(u);
         if let Some(names) = self.parsed_identifier_names.get() {

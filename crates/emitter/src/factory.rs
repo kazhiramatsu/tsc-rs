@@ -823,6 +823,44 @@ impl TransformArena {
     /// A write to an unknown handle is dropped, as before.
     #[inline]
     pub fn set_transform_flags(&mut self, node: TransformNode, flags: TransformFlags) {
+        // Ordered classification has not yet reached any child of an
+        // earlier owner. A later edit to an earlier node must preserve the
+        // old array aggregates before changing that node's flags.
+        let preserve = self
+            .sources
+            .get(node.source.raw() as usize)
+            .is_some_and(|source| {
+                source.session.deferred_array_count.get() != 0
+                    && node.node.index() < source.session.deferred_array_owner
+                    && source.source.arena.contains_node(node.node)
+                    && self.transform_flags(node) != flags
+            });
+        if preserve {
+            self.materialize_deferred_array_flags(node.source);
+        }
+        self.write_transform_flags(node, flags);
+    }
+
+    /// The forward classifier has proved that all prior array elements have
+    /// lower node IDs. Its ascending writes cannot change their aggregates.
+    #[inline]
+    pub(crate) fn set_ordered_transform_flags(
+        &mut self,
+        node: TransformNode,
+        flags: TransformFlags,
+    ) {
+        debug_assert!(self
+            .sources
+            .get(node.source.raw() as usize)
+            .is_none_or(|source| {
+                source.session.deferred_array_count.get() == 0
+                    || node.node.index() >= source.session.deferred_array_owner
+            }));
+        self.write_transform_flags(node, flags);
+    }
+
+    #[inline]
+    fn write_transform_flags(&mut self, node: TransformNode, flags: TransformFlags) {
         if let Some(source) = self.sources.get_mut(node.source.raw() as usize) {
             if source.source.arena.contains_node(node.node) {
                 let slot = (node.node.index() - source.source.arena.node_base()) as usize;
@@ -837,19 +875,111 @@ impl TransformArena {
 
     #[inline]
     pub fn array_transform_flags(&self, array: TransformNodeArray) -> TransformFlags {
-        match self.sources.get(array.source.raw() as usize) {
-            Some(source) if source.source.arena.contains_array(array.array) => {
-                let slot = (array.array.index() - source.source.arena.array_base()) as usize;
-                TransformFlags::from_bits(
-                    source
-                        .session
-                        .array_transform_flags
-                        .get(slot)
-                        .copied()
-                        .unwrap_or(0),
-                )
+        let Some(source) = self.sources.get(array.source.raw() as usize) else {
+            return TransformFlags::NONE;
+        };
+        if !source.source.arena.contains_array(array.array) {
+            return TransformFlags::NONE;
+        }
+        let slot = (array.array.index() - source.source.arena.array_base()) as usize;
+        let pending = source
+            .session
+            .deferred_array_flags
+            .get(slot / 64)
+            .is_some_and(|word| word.get() & (1 << (slot % 64)) != 0);
+        if pending {
+            let mut flags = TransformFlags::NONE;
+            for &element in source.source.arena.node_array(array.array).nodes {
+                let node = TransformNode::new(array.source, element);
+                flags |= self.transform_flags(node)
+                    & !TransformFlags::subtree_exclusions(source.source.arena.node(element).kind);
             }
-            _ => TransformFlags::NONE,
+            source.session.array_transform_flags[slot].set(flags.bits());
+            Self::clear_deferred_array_flag(&source.session, slot);
+        }
+        TransformFlags::from_bits(
+            source
+                .session
+                .array_transform_flags
+                .get(slot)
+                .map_or(0, std::cell::Cell::get),
+        )
+    }
+
+    fn clear_deferred_array_flag(session: &SourceEmitState, slot: usize) {
+        if let Some(word) = session.deferred_array_flags.get(slot / 64) {
+            let mask = 1 << (slot % 64);
+            if word.get() & mask != 0 {
+                word.set(word.get() & !mask);
+                session
+                    .deferred_array_count
+                    .set(session.deferred_array_count.get() - 1);
+            }
+        }
+    }
+
+    /// The ordered traversal certified that every element precedes this owner. No future
+    /// initial-classification write can change one of these elements.
+    pub(crate) fn defer_array_transform_flags(&mut self, array: TransformNodeArray, owner: NodeId) {
+        let empty = self.source(array.source).is_ok_and(|source| {
+            source.source.arena.contains_array(array.array)
+                && source.source.arena.node_array(array.array).nodes.is_empty()
+        });
+        if empty {
+            self.set_array_transform_flags(array, TransformFlags::NONE);
+            return;
+        }
+        let Some(source) = self.sources.get_mut(array.source.raw() as usize) else {
+            return;
+        };
+        if !source.source.arena.contains_array(array.array) {
+            return;
+        }
+        let slot = (array.array.index() - source.source.arena.array_base()) as usize;
+        let session = &mut source.session;
+        if session.array_transform_flags.len() <= slot {
+            let count =
+                (source.source.arena.array_end() - source.source.arena.array_base()) as usize;
+            session
+                .array_transform_flags
+                .resize_with(count, || std::cell::Cell::new(0));
+        }
+        if session.deferred_array_flags.len() <= slot / 64 {
+            session
+                .deferred_array_flags
+                .resize_with(slot / 64 + 1, || std::cell::Cell::new(0));
+        }
+        if session.deferred_array_count.get() == 0 {
+            session.deferred_array_owner = owner.index();
+        } else {
+            session.deferred_array_owner = session.deferred_array_owner.max(owner.index());
+        }
+        let word = &session.deferred_array_flags[slot / 64];
+        let mask = 1 << (slot % 64);
+        if word.get() & mask == 0 {
+            word.set(word.get() | mask);
+            session
+                .deferred_array_count
+                .set(session.deferred_array_count.get() + 1);
+        }
+    }
+
+    pub(crate) fn materialize_deferred_array_flags(&self, source: TransformSourceId) {
+        let Some(source_data) = self.sources.get(source.raw() as usize) else {
+            return;
+        };
+        if source_data.session.deferred_array_count.get() == 0 {
+            return;
+        }
+        let base = source_data.source.arena.array_base();
+        for (index, word) in source_data.session.deferred_array_flags.iter().enumerate() {
+            let mut bits = word.get();
+            while bits != 0 {
+                let slot = index * 64 + bits.trailing_zeros() as usize;
+                let array = TransformNodeArray::new(source, NodeArrayId::new(base + slot as u32));
+                let _ = self.array_transform_flags(array);
+                bits &= bits - 1;
+            }
         }
     }
 
@@ -858,11 +988,17 @@ impl TransformArena {
         if let Some(source) = self.sources.get_mut(array.source.raw() as usize) {
             if source.source.arena.contains_array(array.array) {
                 let slot = (array.array.index() - source.source.arena.array_base()) as usize;
+                Self::clear_deferred_array_flag(&source.session, slot);
                 let table = &mut source.session.array_transform_flags;
                 if table.len() <= slot {
-                    table.resize(source.source.arena.node_arrays().len(), 0);
+                    if flags == TransformFlags::NONE {
+                        return;
+                    }
+                    table.resize_with(source.source.arena.node_arrays().len(), || {
+                        std::cell::Cell::new(0)
+                    });
                 }
-                table[slot] = flags.bits();
+                table[slot].set(flags.bits());
             }
         }
     }
@@ -1176,6 +1312,9 @@ impl TransformArena {
         for source in &mut self.sources {
             source.session.transform_flags.clear();
             source.session.array_transform_flags.clear();
+            source.session.deferred_array_flags.clear();
+            source.session.deferred_array_count.set(0);
+            source.session.deferred_array_owner = 0;
         }
     }
 
