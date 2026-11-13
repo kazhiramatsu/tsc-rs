@@ -881,6 +881,56 @@ fn dynamic_import_and_import_meta_reach_root_source_flags() {
     assert!(!root_flags("const d = import.defer;\n").intersects(either));
 }
 
+#[test]
+fn module_indicators_preserve_import_meta_order_and_top_level_precedence() {
+    for mode in [
+        JSDocParsingMode::ParseAll,
+        JSDocParsingMode::ParseForTypeErrors,
+    ] {
+        for (text, expected) in [
+            ("function f() { return new.target; }", None),
+            ("const p = import('m'); const s = 'import.meta';", None),
+            (
+                "const d = import.defer; const s = import.source('m');",
+                None,
+            ),
+            (
+                "function f() { return import.meta; } const later = import.meta;",
+                Some(SyntaxKind::MetaProperty),
+            ),
+            (
+                "function f() { return import.meta; } export const value = 1;",
+                Some(SyntaxKind::VariableStatement),
+            ),
+        ] {
+            let source = parse_source_file(
+                "a.ts".into(),
+                text.to_owned(),
+                ParseOptions {
+                    js_doc_parsing_mode: mode,
+                    ..ParseOptions::default()
+                },
+                None,
+            );
+            assert!(source.parse_diagnostics.is_empty(), "{text}");
+            let indicator = source.external_module_indicator;
+            assert_eq!(
+                indicator.map(|id| source.arena.node(id).kind),
+                expected,
+                "{text}"
+            );
+            if expected == Some(SyntaxKind::MetaProperty) {
+                let node = source.arena.node(indicator.unwrap());
+                assert_eq!(
+                    source.text()[node.pos as usize..node.end as usize].trim(),
+                    "import.meta"
+                );
+                assert!((node.end as usize) < text.find("const later").unwrap());
+            }
+        }
+    }
+}
+
 /// tsc speculationHelper (29538) restores the token, the
 /// diagnostics length, and (assert-unchanged) contextFlags —
 /// never sourceFlags — and parseImportType (31292) sets

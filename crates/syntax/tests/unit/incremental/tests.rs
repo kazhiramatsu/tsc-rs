@@ -194,6 +194,54 @@ fn compare_incremental(
     )
 }
 
+#[test]
+fn a_reused_import_meta_subtree_remains_the_module_indicator() {
+    let before = "function meta() { return import.meta; }\nconst value = 1;\n";
+    let start = before.find("= 1").unwrap() + 2;
+    let mut after = before.to_owned();
+    after.replace_range(start..start + 1, "2");
+    let options = ParseOptions::default();
+    let old = create_language_service_source_file(
+        "meta.ts",
+        TextSnapshot::new(before, DocumentVersion::new("old")),
+        options.clone(),
+    );
+    let incremental = update_language_service_source_file(
+        old,
+        TextSnapshot::new(after, DocumentVersion::new("new")),
+        ByteTextChangeRange {
+            span: ByteTextSpan::new(start as u32, 1),
+            new_length: 1,
+        },
+        options,
+        IncrementalParseOptions {
+            record_reuse_lineage: true,
+        },
+    )
+    .expect("valid exact incremental edit");
+    assert!(incremental.stats.reused_nodes > 0);
+    let source = &incremental.source;
+    // The update restores permanent flags after the parser has determined
+    // the indicator; finding it must still work during parsing.
+    assert!(NodeFlags::from_bits(source.arena.node(source.root).flags)
+        .contains(NodeFlags::POSSIBLY_CONTAINS_IMPORT_META));
+    let indicator = source
+        .external_module_indicator
+        .expect("reused import.meta");
+    assert!(incremental
+        .stats
+        .lineage
+        .iter()
+        .any(|entry| entry.new_node == indicator));
+    let node = source.arena.node(indicator);
+    assert_eq!(node.kind, SyntaxKind::MetaProperty);
+    assert_eq!(
+        source.text()[node.pos as usize..node.end as usize].trim(),
+        "import.meta"
+    );
+    assert!(source.parse_diagnostics.is_empty());
+}
+
 fn compare_incremental_with_options(
     file_name: &str,
     before: &str,
