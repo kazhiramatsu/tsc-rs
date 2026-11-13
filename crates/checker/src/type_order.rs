@@ -476,7 +476,24 @@ impl<'a> CheckerState<'a> {
     // ---- table twins that take this checker's order ----
 
     /// `tables.get_regular_type_of_literal_type` with this checker's order.
+    #[inline]
     pub(crate) fn regular_type_of_literal_type(&mut self, ty: TypeId) -> TypeId {
+        let flags = self.tables.flags_of(ty);
+        if flags.intersects(tsc_types::TypeFlags::FRESHABLE) {
+            return self
+                .tables
+                .type_of(ty)
+                .regular_type()
+                .expect("freshable regular link");
+        }
+        if !flags.intersects(tsc_types::TypeFlags::UNION) {
+            return ty;
+        }
+        self.regular_type_of_literal_type_worker(ty)
+    }
+
+    #[inline(never)]
+    pub(crate) fn regular_type_of_literal_type_worker(&mut self, ty: TypeId) -> TypeId {
         let ctx = order_ctx!(self);
         self.tables
             .get_regular_type_of_literal_type(ctx.order(), ty)

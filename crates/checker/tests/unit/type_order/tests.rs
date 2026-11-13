@@ -215,3 +215,45 @@ fn stable_type_ordering_sorts_the_typeof_union() {
         );
     }
 }
+
+#[test]
+fn literal_regularization_entry_preserves_fresh_twins_and_union_identity() {
+    fn observe(worker: bool) -> (Vec<tsc_types::TypeId>, usize, u64) {
+        crate::state::test_support::with_program_state(
+            &[("a.ts", "let x: string;")],
+            &CompilerOptions::default(),
+            |state| {
+                let literal = state.tables.get_string_literal_type("x");
+                let fresh = state.tables.get_fresh_type_of_literal_type(literal);
+                let other = state.tables.get_number_literal_type(1.0);
+                let mixed = state.get_union_type(&[fresh, other]).unwrap();
+                let regular = state.get_union_type(&[literal, other]).unwrap();
+                let inputs = [
+                    state.tables.intrinsics.string,
+                    state.tables.intrinsics.unknown,
+                    state.empty_object_type,
+                    literal,
+                    fresh,
+                    mixed,
+                    regular,
+                ];
+                let mut outputs = Vec::new();
+                for _ in 0..2 {
+                    for &ty in &inputs {
+                        outputs.push(if worker {
+                            state.regular_type_of_literal_type_worker(ty)
+                        } else {
+                            state.regular_type_of_literal_type(ty)
+                        });
+                    }
+                }
+                assert_eq!(outputs[3], literal);
+                assert_eq!(outputs[4], literal);
+                assert_eq!(outputs[5], regular);
+                assert_eq!(outputs[6], regular);
+                (outputs, state.tables.len(), state.total_instantiation_count)
+            },
+        )
+    }
+    assert_eq!(observe(false), observe(true));
+}
