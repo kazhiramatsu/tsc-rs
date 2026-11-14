@@ -849,3 +849,62 @@ fn package_object_transport_preserves_reader_recovery_and_property_order() {
         }
     }
 }
+
+#[test]
+fn full_path_equality_preserves_ascii_and_javascript_unit_equivalence() {
+    let cases: &[(&[u16], &[u16], bool)] = &[
+        (&[], &[], true),
+        (&[0x41, 0x2f, 0x5a], &[0x61, 0x2f, 0x7a], true),
+        (&[0x61, 0, 0x42], &[0x41, 0, 0x62], true),
+        (&[0x40], &[0x60], false),
+        (&[0x5b], &[0x7b], false),
+        (&[0x5c], &[0x7c], false),
+        (&[0x5d], &[0x7d], false),
+        (&[0x5e], &[0x7e], false),
+        (&[0x391], &[0x3b1], false),
+        (&[0x130], &[0x69], false),
+        (&[0x212a], &[0x6b], false),
+        (&[0xdf], &[0x53, 0x53], false),
+        (&[0xe9], &[0x20ac], false),
+        (&[0xd800], &[0xfffd], false),
+        (&[0xd800, 0x41], &[0xd800, 0x61], true),
+        (&[0xdc00, 0x5a], &[0xdc00, 0x7a], true),
+        (&[0xd83d, 0xde00, 0x41], &[0xd83d, 0xde00, 0x61], true),
+        (&[0xd83d, 0xde00], &[0xd83d], false),
+        (&[0xd83d, 0xde00], &[0xde00, 0xd83d], false),
+        (&[0xd801, 0xdc00], &[0xd801, 0xdc28], false),
+        (&[0xd800, 0, 0xdc00, 0x41], &[0xd800, 0, 0xdc00, 0x61], true),
+    ];
+    for &(left, right, expected) in cases {
+        let left = JsString::from_code_units(left);
+        let right = JsString::from_code_units(right);
+        assert_eq!(
+            paths_equal(&left, &right, true),
+            expected,
+            "{left:?}, {right:?}"
+        );
+        assert_eq!(
+            paths_equal(&right, &left, true),
+            expected,
+            "{left:?}, {right:?}"
+        );
+        assert_eq!(paths_equal(&left, &right, false), left == right);
+        assert!(paths_equal(&left, &left, true));
+        assert!(paths_equal(&right, &right, false));
+    }
+}
+
+#[test]
+fn path_prefix_and_suffix_keep_half_surrogate_matches() {
+    let pair = JsString::from_code_units(&[0xd83d, 0xde00]);
+    let high = JsString::from_code_units(&[0xd83d]);
+    let low = JsString::from_code_units(&[0xde00]);
+    for ignore_case in [false, true] {
+        assert!(starts_with(&pair, &high, ignore_case));
+        assert!(ends_with(&pair, &low, ignore_case));
+        assert!(!paths_equal(&pair, &high, ignore_case));
+        assert!(!paths_equal(&pair, &low, ignore_case));
+        assert!(!starts_with(&pair, &low, ignore_case));
+        assert!(!ends_with(&pair, &high, ignore_case));
+    }
+}

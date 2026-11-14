@@ -4070,9 +4070,7 @@ fn paths_equal<'p>(
     let left = left.into();
     let right = right.into();
     if ignore_case {
-        left.code_units()
-            .map(fold_ascii_unit)
-            .eq(right.code_units().map(fold_ascii_unit))
+        left.as_bytes().eq_ignore_ascii_case(right.as_bytes())
     } else {
         left == right
     }
