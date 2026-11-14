@@ -309,6 +309,165 @@ fn erased_and_argument_instantiated_signatures_map_lazily() {
     );
 }
 
+fn literal_mapping_symbol(state: &mut CheckerState, name: &'static str) -> tsc_binder::SymbolId {
+    state.binder.create_symbol(
+        SymbolFlags::TYPE_ALIAS,
+        tsc_types::EscapedName::internal(name),
+    )
+}
+
+#[test]
+fn literal_mappings_keep_their_domain_when_names_or_generic_entries_change() {
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        let symbol = literal_mapping_symbol(state, "Uppercase");
+        let input = state.tables.get_string_literal_type("mIxED");
+        let generic = state
+            .tables
+            .get_string_mapping_type_for_generic_type(symbol, input);
+        let upper = state.get_string_mapping_type(symbol, input).unwrap();
+        assert_eq!(upper, state.tables.get_string_literal_type("MIXED"));
+        assert!(state
+            .tables
+            .flags_of(upper)
+            .intersects(TypeFlags::STRING_LITERAL));
+        assert!(state
+            .tables
+            .flags_of(generic)
+            .intersects(TypeFlags::STRING_MAPPING));
+        assert_ne!(upper, generic);
+
+        state.binder.symbol_mut(symbol).escaped_name =
+            tsc_types::EscapedName::internal("Lowercase");
+        let lower = state.get_string_mapping_type(symbol, input).unwrap();
+        assert_eq!(lower, state.tables.get_string_literal_type("mixed"));
+        state.binder.symbol_mut(symbol).escaped_name =
+            tsc_types::EscapedName::internal("Uppercase");
+        assert_eq!(state.get_string_mapping_type(symbol, input).unwrap(), upper);
+        assert_eq!(
+            state
+                .tables
+                .get_string_mapping_type_for_generic_type(symbol, input),
+            generic
+        );
+
+        let other = state.tables.get_string_literal_type("other");
+        let literal_first = state.get_string_mapping_type(symbol, other).unwrap();
+        let generic_second = state
+            .tables
+            .get_string_mapping_type_for_generic_type(symbol, other);
+        assert_ne!(literal_first, generic_second);
+        assert!(state
+            .tables
+            .flags_of(generic_second)
+            .intersects(TypeFlags::STRING_MAPPING));
+        let count = state.tables.len();
+        for _ in 0..8 {
+            assert_eq!(state.get_string_mapping_type(symbol, input).unwrap(), upper);
+            assert_eq!(
+                state.get_string_mapping_type(symbol, other).unwrap(),
+                literal_first
+            );
+            assert_eq!(state.tables.len(), count);
+        }
+    });
+}
+
+#[test]
+fn literal_mappings_keep_enum_and_fresh_inputs_plain() {
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        let capitalize = literal_mapping_symbol(state, "Capitalize");
+        let regular = state.tables.get_string_literal_type("ßoo");
+        let fresh = state.tables.get_fresh_type_of_literal_type(regular);
+        let enumeration = state.binder.create_symbol(
+            SymbolFlags::REGULAR_ENUM,
+            tsc_types::EscapedName::internal("E"),
+        );
+        let member = state.binder.create_symbol(
+            SymbolFlags::ENUM_MEMBER,
+            tsc_types::EscapedName::internal("V"),
+        );
+        let enum_type = state.tables.get_enum_literal_type(
+            tsc_types::LiteralValue::String("ßoo".into()),
+            enumeration,
+            member,
+        );
+        let fresh_enum = state.tables.get_fresh_type_of_literal_type(enum_type);
+        let mapped = state.get_string_mapping_type(capitalize, regular).unwrap();
+        assert_eq!(mapped, state.tables.get_string_literal_type("SSoo"));
+        assert!(!state
+            .tables
+            .flags_of(mapped)
+            .intersects(TypeFlags::ENUM_LITERAL));
+        let count = state.tables.len();
+        for input in [regular, fresh, enum_type, fresh_enum] {
+            for _ in 0..3 {
+                assert_eq!(
+                    state.get_string_mapping_type(capitalize, input).unwrap(),
+                    mapped
+                );
+                assert_eq!(state.tables.len(), count);
+            }
+        }
+        assert!(state
+            .tables
+            .flags_of(enum_type)
+            .intersects(TypeFlags::ENUM_LITERAL));
+        assert_eq!(state.tables.type_of(fresh_enum).symbol, Some(member));
+    });
+}
+
+#[test]
+fn literal_mapping_values_survive_rejected_trials_and_utf16_inputs() {
+    let units = |text: &str| text.encode_utf16().collect::<Vec<_>>();
+    let cases = [
+        ("Lowercase", units("ΟΣ"), units("ος")),
+        (
+            "Uppercase",
+            vec![0xD800, 0x00DF],
+            vec![0xD800, b'S' as u16, b'S' as u16],
+        ),
+        (
+            "Lowercase",
+            vec![0xD800, b'A' as u16],
+            vec![0xD800, b'a' as u16],
+        ),
+        ("Capitalize", units("ßeta"), units("SSeta")),
+        (
+            "Capitalize",
+            vec![0xD801, 0xDC28, b'x' as u16],
+            vec![0xD801, 0xDC28, b'x' as u16],
+        ),
+        (
+            "Uncapitalize",
+            vec![0xDC00, b'X' as u16],
+            vec![0xDC00, b'X' as u16],
+        ),
+        ("Uppercase", Vec::new(), Vec::new()),
+    ];
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        for (name, input, expected) in &cases {
+            let symbol = literal_mapping_symbol(state, name);
+            let input = state.tables.get_string_literal_type_from_utf16(input);
+            let mapped = state
+                .speculate(|state| {
+                    let mapped = state.get_string_mapping_type(symbol, input)?;
+                    Ok(crate::speculate::SpeculationOutcome::Reject(mapped))
+                })
+                .unwrap();
+            let expected = state.tables.get_string_literal_type_from_utf16(expected);
+            assert_eq!(mapped, expected);
+            let count = state.tables.len();
+            for _ in 0..4 {
+                assert_eq!(
+                    state.get_string_mapping_type(symbol, input).unwrap(),
+                    expected
+                );
+                assert_eq!(state.tables.len(), count);
+            }
+        }
+    });
+}
+
 #[test]
 fn string_mapping_applies_to_literals_unions_and_generics() {
     with_program_state(

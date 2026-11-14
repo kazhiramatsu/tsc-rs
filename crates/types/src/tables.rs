@@ -1,8 +1,9 @@
 //! TypeTables: the type arena, tsc's exact interning surface, and the
 //! option-independent type constructors (greenfield §4.2).
 //!
-//! Interning maps mirror the checker-scope declarations at _tsc.js
-//! 46988-47009 — and ONLY those. There is deliberately no map keyed on
+//! Identity interning maps mirror the checker-scope declarations at
+//! _tsc.js 46988-47009. Completed literal transformations also memoize
+//! their existing result. There is deliberately no map keyed on
 //! anonymous object structure: two written `{}` type literals are
 //! distinct types (allocation id is identity).
 //!
@@ -25,6 +26,7 @@ use crate::ty::{
     TupleTargetData, TupleTargetId, Type, TypeAlias, TypeData, TypeId,
 };
 use crate::type_order::TypeOrder;
+use crate::EscapedName;
 use tsc_store::StoreVec;
 
 /// The named intrinsic/derived types created at checker construction,
@@ -361,6 +363,8 @@ pub struct TypeTables {
     /// stringMappingTypes (46998), keyed `${symbolId},${typeId}`
     /// (getStringMappingTypeForGenericType 62154).
     string_mapping_types: HashMap<(SymbolId, TypeId), TypeId>,
+    /// Completed plain-literal results, independent of symbolic mappings.
+    literal_string_mappings: HashMap<(EscapedName, TypeId), TypeId>,
     /// indexedAccessTypes (46996).
     indexed_access_types: HashMap<IndexedAccessKey, TypeId>,
     /// substitutionTypes (47007), keyed `${baseId}>${constraintId}`
@@ -763,6 +767,7 @@ impl TypeTables {
             + map_bytes(&self.bigint_literal_types)
             + map_bytes(&self.enum_literal_types)
             + map_bytes(&self.string_mapping_types)
+            + map_bytes(&self.literal_string_mappings)
             + map_bytes(&self.substitution_types)
             + self.instantiations.memory_usage()
             + self.conditional_roots.capacity() * std::mem::size_of::<ConditionalRootData>();
@@ -859,6 +864,7 @@ impl TypeTables {
             tuple_types: HashMap::default(),
             template_literal_types: hashbrown::HashTable::new(),
             string_mapping_types: HashMap::default(),
+            literal_string_mappings: HashMap::default(),
             indexed_access_types: HashMap::default(),
             substitution_types: HashMap::default(),
             conditional_roots: Vec::new(),
@@ -4253,6 +4259,19 @@ impl TypeTables {
         self.set_alias(id, alias_symbol, alias_type_arguments);
         self.indexed_access_types.insert(key, id);
         id
+    }
+
+    /// A completed literal transformation for this intrinsic name and input.
+    #[inline]
+    pub fn cached_literal_string_mapping(&self, name: EscapedName, ty: TypeId) -> Option<TypeId> {
+        self.literal_string_mappings.get(&(name, ty)).copied()
+    }
+
+    /// Save an already interned plain literal without creating another type.
+    pub fn cache_literal_string_mapping(&mut self, name: EscapedName, ty: TypeId, result: TypeId) {
+        debug_assert!(self.flags_of(ty).intersects(TypeFlags::STRING_LITERAL));
+        debug_assert!(self.flags_of(result).intersects(TypeFlags::STRING_LITERAL));
+        self.literal_string_mappings.insert((name, ty), result);
     }
 
     /// tsc-port: getStringMappingTypeForGenericType @6.0.3
