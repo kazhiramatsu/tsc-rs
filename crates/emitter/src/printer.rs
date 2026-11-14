@@ -75,6 +75,45 @@ impl ModifierListItemKind {
     }
 }
 
+/// A current record borrowed for one immutable grammar query. Child emission
+/// and mutable substitutions end this borrow; an inner walk validates each
+/// newly reached handle before replacing the view.
+#[derive(Clone, Copy)]
+struct ResolvedNode<'a> {
+    node: TransformNode,
+    record: &'a tsc_syntax::Node,
+}
+
+impl<'a> ResolvedNode<'a> {
+    #[inline(always)]
+    fn resolve(
+        arena: &'a crate::TransformArena,
+        node: TransformNode,
+    ) -> Result<Self, PrinterError> {
+        Ok(Self {
+            node,
+            record: arena.node(node)?,
+        })
+    }
+
+    const fn from_print_node(printed: &'a PrintNode) -> Self {
+        Self {
+            node: printed.node(),
+            record: printed.record(),
+        }
+    }
+
+    const fn source(self) -> TransformSourceId {
+        self.node.source()
+    }
+    const fn node(self) -> NodeId {
+        self.node.node()
+    }
+    const fn handle(self) -> TransformNode {
+        self.node
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct ModifierListItem {
     node: NodeId,
@@ -1187,6 +1226,8 @@ pub struct Printer {
     /// token/list helpers that do not receive an EmitContext. Normal completion
     /// restores it; a failure never reaches `emitCommentsAfterNode`.
     comments_disabled_after_failure: bool,
+    /// The completed transform's promise, fixed for this print entry.
+    inert_print_hooks: bool,
     /// tsc's name-generation tables as a failed print left them
     /// (`generatedNames`, root `reservedNames` / `tempFlags`,
     /// `nodeIdToGeneratedName`): `reset()` runs only after a completed
@@ -1433,6 +1474,7 @@ pub fn create_printer(options: PrinterOptions) -> Printer {
         root_comment_scope: CommentEmissionScope::empty(),
         failure_comment_scope: None,
         comments_disabled_after_failure: false,
+        inert_print_hooks: false,
         carried_generated_names: None,
         carried_source_detached: std::cell::Cell::new(None),
         generated_names_this_print: GeneratedNamesThisPrint::default(),
@@ -1532,7 +1574,8 @@ impl Printer {
 
     /// A print entry begins: the failure record of the previous print has
     /// already been promoted, so the new print observes its own failure only.
-    fn start_print(&mut self) {
+    fn start_print(&mut self, transformation: &TransformationResult<'_>) {
+        self.inert_print_hooks = transformation.has_inert_print_hooks();
         self.failure_comment_scope = None;
         self.generated_names_this_print = GeneratedNamesThisPrint::default();
         // The scope a failed print left current stays current: a standalone
@@ -1557,12 +1600,13 @@ impl Printer {
     /// `write_transformed_source_file`). A `ReuseTempVariableScope` node
     /// keeps the enclosing `tempFlags` / `reservedNames`
     /// (_tsc.js:120480-120491). Returns whether a scope was pushed.
+    #[inline(always)]
     fn push_name_generation_scope(
         &mut self,
         arena: &crate::TransformArena,
         node: TransformNode,
-    ) -> Result<bool, PrinterError> {
-        let kind = arena.node(node)?.kind;
+        kind: SyntaxKind,
+    ) -> bool {
         let scoped = matches!(
             kind,
             SyntaxKind::FunctionDeclaration
@@ -1579,19 +1623,27 @@ impl Printer {
                 | SyntaxKind::TypeLiteral
                 | SyntaxKind::InterfaceDeclaration
         );
-        if !scoped
-            || arena.metadata(node).is_some_and(|metadata| {
-                metadata
-                    .flags()
-                    .contains(crate::EmitFlags::REUSE_TEMP_VARIABLE_SCOPE)
-            })
-        {
-            return Ok(false);
+        scoped && self.push_name_generation_scope_for_node(arena, node)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn push_name_generation_scope_for_node(
+        &mut self,
+        arena: &crate::TransformArena,
+        node: TransformNode,
+    ) -> bool {
+        if arena.metadata(node).is_some_and(|metadata| {
+            metadata
+                .flags()
+                .contains(crate::EmitFlags::REUSE_TEMP_VARIABLE_SCOPE)
+        }) {
+            return false;
         }
         self.generated_names_this_print
             .scopes
             .push(NameGenerationScope::default());
-        Ok(true)
+        true
     }
 
     /// `popNameGenerationScope`: only after a completed emission (a throw
@@ -1963,7 +2015,7 @@ impl Printer {
             self.carried_generated_names.as_ref(),
         )?;
         self.prepare_emission_plan(transformation, node)?;
-        self.start_print();
+        self.start_print(transformation);
         // printNode prints into the printer-owned writer. The single-line
         // writer models a caller-owned writer whose owner clears it (the
         // checker's usingSingleLineStringWriter has the `finally` that
@@ -2142,7 +2194,7 @@ impl Printer {
             ));
         }
 
-        self.start_print();
+        self.start_print(transformation);
         let mut writer = self.begin_print();
         let _ = language_variant;
         let outcome = (|| -> Result<(), PrinterError> {
@@ -2222,7 +2274,7 @@ impl Printer {
                 .unwrap_or_default(),
             _ => return Err(PrinterError::RootIsNotSourceFile(root)),
         };
-        self.start_print();
+        self.start_print(transformation);
         let mut writer = self.begin_print();
         let outcome = (|| -> Result<(), PrinterError> {
             if let Some(statement_id) = statements.first().copied() {
@@ -2291,7 +2343,7 @@ impl Printer {
         statements: Vec<tsc_syntax::NodeId>,
         recording: Option<crate::source_map::SourceMapRecordingInputs>,
     ) -> Result<PrintedText, PrinterError> {
-        self.start_print();
+        self.start_print(transformation);
         // writeFile with a caller-owned writer (the compiler's per-unit
         // writer, cleared after every unit) versus printFile into the
         // printer-owned writer.
@@ -3350,7 +3402,7 @@ impl Printer {
         }
 
         let record = *record;
-        let pushed = self.push_name_generation_scope(transformation.arena(), node)?;
+        let pushed = self.push_name_generation_scope(transformation.arena(), node, record.kind);
         let worker_result = if !self.options.declaration_syntax
             && is_dormant_declaration_syntax_kind(record.kind)
             && !transformation
@@ -10993,7 +11045,10 @@ impl Printer {
             writer.increase_indent();
         }
         if data.question_dot_token.is_none()
-            && self.may_need_dot_dot_for_property_access(transformation, expression)?
+            && self.may_need_dot_dot_for_property_access(
+                transformation,
+                ResolvedNode::resolve(transformation.arena(), expression)?,
+            )?
             && !writer.has_trailing_comment()
             && !writer.has_trailing_whitespace()
         {
@@ -18012,22 +18067,18 @@ impl Printer {
     fn context_parentheses(
         &self,
         transformation: &TransformationResult<'_>,
-        expression: TransformNode,
+        expression: ResolvedNode<'_>,
         context: ExpressionGrammarContext,
     ) -> Result<Option<GrammarParentheses>, PrinterError> {
         let emitted = self.skip_partially_emitted_expressions(transformation, expression)?;
         let parentheses = match context {
             ExpressionGrammarContext::PrefixUnaryOperand => {
-                (!crate::factory::is_unary_expression_kind(
-                    transformation.arena().node(emitted)?.kind,
-                ))
-                .then_some(GrammarParentheses::SourceRanged)
+                (!crate::factory::is_unary_expression_kind(emitted.record.kind))
+                    .then_some(GrammarParentheses::SourceRanged)
             }
             ExpressionGrammarContext::PostfixUnaryOperand => {
-                (!crate::factory::is_left_hand_side_expression_kind(
-                    transformation.arena().node(emitted)?.kind,
-                ))
-                .then_some(GrammarParentheses::SourceRanged)
+                (!crate::factory::is_left_hand_side_expression_kind(emitted.record.kind))
+                    .then_some(GrammarParentheses::SourceRanged)
             }
             ExpressionGrammarContext::NewCallee => {
                 // tsgo's emitNewExpression parenthesizes a callee that is
@@ -18037,7 +18088,7 @@ impl Printer {
                 // ast/precedence.go:274-284). tsc looked for a call at the
                 // callee's left edge, so `new (f() as T).C()` printed
                 // `new (f().C)()`; tsgo prints `new f().C()`.
-                let callee_record = transformation.arena().node(emitted)?;
+                let callee_record = emitted.record;
                 if callee_record.kind == SyntaxKind::CallExpression
                     || matches!(
                         callee_record.data(),
@@ -18046,23 +18097,19 @@ impl Printer {
                 {
                     Some(GrammarParentheses::Synthetic)
                 } else {
-                    self.left_side_of_access_requires_parentheses(transformation, emitted, false)?
+                    self.left_side_of_access_requires_parentheses(emitted, false)
                         .then_some(GrammarParentheses::SourceRanged)
                 }
             }
             ExpressionGrammarContext::ExpressionStatementCallee { optional_chain } => (self
                 .expression_statement_requires_parentheses(transformation, expression)?
-                || self.left_side_of_access_requires_parentheses(
-                    transformation,
-                    emitted,
-                    optional_chain,
-                )?)
+                || self.left_side_of_access_requires_parentheses(emitted, optional_chain))
             .then_some(GrammarParentheses::SourceRanged),
             ExpressionGrammarContext::LeftSideOfAccess { optional_chain } => self
-                .left_side_of_access_requires_parentheses(transformation, emitted, optional_chain)?
+                .left_side_of_access_requires_parentheses(emitted, optional_chain)
                 .then_some(GrammarParentheses::SourceRanged),
             ExpressionGrammarContext::LeftSideOfAccessAfterSubstitution => self
-                .left_side_of_access_requires_parentheses(transformation, emitted, false)?
+                .left_side_of_access_requires_parentheses(emitted, false)
                 .then_some(GrammarParentheses::SourceRanged),
             ExpressionGrammarContext::ComputedPropertyName => self
                 .is_comma_sequence(transformation, emitted)?
@@ -18086,7 +18133,7 @@ impl Printer {
             ExpressionGrammarContext::ExponentiationLeftOperand => {
                 crate::factory::exponentiation_left_operand_needs_parentheses(
                     transformation.arena(),
-                    emitted,
+                    emitted.handle(),
                 )?
                 .then_some(GrammarParentheses::SourceRanged)
             }
@@ -18099,10 +18146,10 @@ impl Printer {
     fn is_comma_sequence(
         &self,
         transformation: &TransformationResult<'_>,
-        expression: TransformNode,
+        expression: ResolvedNode<'_>,
     ) -> Result<bool, PrinterError> {
         let expression = self.skip_partially_emitted_expressions(transformation, expression)?;
-        let record = transformation.arena().node(expression)?;
+        let record = expression.record;
         match record.data() {
             NodeData::CommaListExpression(_) => Ok(true),
             NodeData::BinaryExpression(data) => Ok(data
@@ -18121,20 +18168,19 @@ impl Printer {
 
     fn left_side_of_access_requires_parentheses(
         &self,
-        transformation: &TransformationResult<'_>,
-        expression: TransformNode,
+        expression: ResolvedNode<'_>,
         optional_chain: bool,
-    ) -> Result<bool, PrinterError> {
-        let record = transformation.arena().node(expression)?;
+    ) -> bool {
+        let record = expression.record;
         if !crate::factory::is_left_hand_side_expression_kind(record.kind)
             || matches!(record.data(), NodeData::NewExpression(data) if data.arguments.is_none())
         {
-            return Ok(true);
+            return true;
         }
         if !optional_chain && self.is_optional_chain(record) {
-            return Ok(true);
+            return true;
         }
-        Ok(false)
+        false
     }
 
     fn is_optional_chain(&self, record: &tsc_syntax::Node) -> bool {
@@ -18158,17 +18204,20 @@ impl Printer {
     fn expression_statement_requires_parentheses(
         &self,
         transformation: &TransformationResult<'_>,
-        expression: TransformNode,
+        expression: ResolvedNode<'_>,
     ) -> Result<bool, PrinterError> {
         let emitted = self.skip_partially_emitted_expressions(transformation, expression)?;
-        if let Some(data) = transformation.arena().node(emitted)?.as_call_expression() {
+        if let Some(data) = emitted.record.as_call_expression() {
             if let Some(callee) = data
                 .expression
                 .and_then(|callee| transformation.arena().node_ref(emitted.source(), callee))
             {
-                let callee = self.skip_partially_emitted_expressions(transformation, callee)?;
+                let callee = self.skip_partially_emitted_expressions(
+                    transformation,
+                    ResolvedNode::resolve(transformation.arena(), callee)?,
+                )?;
                 if matches!(
-                    transformation.arena().node(callee)?.kind,
+                    callee.record.kind,
                     SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
                 ) {
                     return Ok(false);
@@ -18177,7 +18226,7 @@ impl Printer {
         }
         let leftmost = self.leftmost_expression(transformation, emitted, false)?;
         Ok(matches!(
-            transformation.arena().node(leftmost)?.kind,
+            leftmost.record.kind,
             SyntaxKind::ObjectLiteralExpression | SyntaxKind::FunctionExpression
         ))
     }
@@ -18192,7 +18241,7 @@ impl Printer {
     fn export_default_requires_parentheses(
         &self,
         transformation: &TransformationResult<'_>,
-        expression: TransformNode,
+        expression: ResolvedNode<'_>,
     ) -> Result<bool, PrinterError> {
         let emitted = self.skip_partially_emitted_expressions(transformation, expression)?;
         if self.is_comma_sequence(transformation, emitted)? {
@@ -18200,7 +18249,7 @@ impl Printer {
         }
         let leftmost = self.leftmost_expression(transformation, emitted, false)?;
         Ok(matches!(
-            transformation.arena().node(leftmost)?.kind,
+            leftmost.record.kind,
             SyntaxKind::ClassExpression | SyntaxKind::FunctionExpression
         ))
     }
@@ -18218,20 +18267,20 @@ impl Printer {
     fn assignment_right_side_requires_parentheses(
         &self,
         transformation: &TransformationResult<'_>,
-        expression: TransformNode,
+        expression: ResolvedNode<'_>,
     ) -> Result<bool, PrinterError> {
         let emitted = self.skip_partially_emitted_expressions(transformation, expression)?;
         Ok(self.is_comma_sequence(transformation, emitted)?
-            || transformation.arena().node(emitted)?.kind == SyntaxKind::SpreadElement)
+            || emitted.record.kind == SyntaxKind::SpreadElement)
     }
 
     fn may_need_dot_dot_for_property_access(
         &self,
         transformation: &TransformationResult<'_>,
-        expression: TransformNode,
+        expression: ResolvedNode<'_>,
     ) -> Result<bool, PrinterError> {
         let expression = self.skip_partially_emitted_expressions(transformation, expression)?;
-        let record = transformation.arena().node(expression)?;
+        let record = expression.record;
         if let Some(data) = record.as_numeric_literal() {
             if TokenFlags::from_bits(i32::from(record.numeric_literal_flags()))
                 .intersects(TokenFlags::WITH_SPECIFIER)
@@ -18242,11 +18291,14 @@ impl Printer {
             // prints it so (a node without a parent included).
             let changed = transformation
                 .arena()
-                .metadata(expression)
+                .metadata(expression.handle())
                 .and_then(crate::EmitMetadata::original)
                 .is_some()
                 || NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED)
-                || self.emission_plan.structured_nodes.contains(&expression)
+                || self
+                    .emission_plan
+                    .structured_nodes
+                    .contains(&expression.handle())
                 || record.parent.is_none();
             let text = if changed {
                 transformation
@@ -18278,7 +18330,7 @@ impl Printer {
         ) {
             let constant_value = transformation
                 .arena()
-                .metadata(expression)
+                .metadata(expression.handle())
                 .and_then(crate::EmitMetadata::constant_value);
             return Ok(matches!(
                 constant_value,
@@ -18291,15 +18343,13 @@ impl Printer {
         Ok(false)
     }
 
-    fn skip_partially_emitted_expressions(
+    fn skip_partially_emitted_expressions<'a>(
         &self,
-        transformation: &TransformationResult<'_>,
-        mut expression: TransformNode,
-    ) -> Result<TransformNode, PrinterError> {
+        transformation: &'a TransformationResult<'_>,
+        mut expression: ResolvedNode<'a>,
+    ) -> Result<ResolvedNode<'a>, PrinterError> {
         loop {
-            let NodeData::PartiallyEmittedExpression(data) =
-                transformation.arena().node(expression)?.data()
-            else {
+            let NodeData::PartiallyEmittedExpression(data) = expression.record.data() else {
                 return Ok(expression);
             };
             let Some(inner) = data
@@ -18308,18 +18358,18 @@ impl Printer {
             else {
                 return Ok(expression);
             };
-            expression = inner;
+            expression = ResolvedNode::resolve(transformation.arena(), inner)?;
         }
     }
 
-    fn leftmost_expression(
+    fn leftmost_expression<'a>(
         &self,
-        transformation: &TransformationResult<'_>,
-        mut expression: TransformNode,
+        transformation: &'a TransformationResult<'_>,
+        mut expression: ResolvedNode<'a>,
         stop_at_call_expressions: bool,
-    ) -> Result<TransformNode, PrinterError> {
+    ) -> Result<ResolvedNode<'a>, PrinterError> {
         loop {
-            let record = transformation.arena().node(expression)?;
+            let record = expression.record;
             let next = match record.data() {
                 NodeData::PostfixUnaryExpression(data) => data.operand,
                 NodeData::BinaryExpression(data) => data.left,
@@ -18338,10 +18388,11 @@ impl Printer {
             let Some(next) = next else {
                 return Ok(expression);
             };
-            expression = transformation
+            let next = transformation
                 .arena()
                 .node_ref(expression.source(), next)
                 .ok_or(PrinterError::UnknownStatement(next.index()))?;
+            expression = ResolvedNode::resolve(transformation.arena(), next)?;
         }
     }
 
@@ -18365,6 +18416,10 @@ impl Printer {
             .node_ref(source, body)
             .ok_or(PrinterError::UnknownStatement(body.index()))?;
         let body_record = transformation.arena().node(body)?;
+        let body = ResolvedNode {
+            node: body,
+            record: body_record,
+        };
         if body_record.kind == SyntaxKind::Block {
             return Ok(false);
         }
@@ -18373,7 +18428,7 @@ impl Printer {
         }
 
         let leftmost = self.leftmost_expression(transformation, body, false)?;
-        Ok(transformation.arena().node(leftmost)?.kind == SyntaxKind::ObjectLiteralExpression)
+        Ok(leftmost.record.kind == SyntaxKind::ObjectLiteralExpression)
     }
 
     #[inline(never)]
@@ -20494,7 +20549,17 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<ExpressionSourceCommentsOutcome, PrinterError> {
         let node = input.node();
-        let printed = transformation.substitute_node_for_print(hint, input)?;
+        let inert_print_hooks = self.inert_print_hooks;
+        let printed = if inert_print_hooks {
+            match input {
+                PrintNodeInput::Handle(node) => {
+                    PrintNode::from_record(node, *transformation.arena().node(node)?)
+                }
+                PrintNodeInput::Validated(printed) => printed,
+            }
+        } else {
+            transformation.substitute_node_for_print(hint, input)?
+        };
         let substituted = printed.node();
         let was_substituted = substituted != node;
         let grammar = expression_context.grammar();
@@ -20503,8 +20568,11 @@ impl Printer {
         // substituted node's synthetic comments therefore belong
         // inside the generated parentheses (not after them).
         let grammar_parentheses = if grammar == ExpressionGrammarContext::ExpressionStatement {
-            self.expression_statement_requires_parentheses(transformation, substituted)?
-                .then_some(GrammarParentheses::SourceRanged)
+            self.expression_statement_requires_parentheses(
+                transformation,
+                ResolvedNode::from_print_node(&printed),
+            )?
+            .then_some(GrammarParentheses::SourceRanged)
         } else if matches!(
             grammar,
             ExpressionGrammarContext::LeftSideOfAccess { .. }
@@ -20527,15 +20595,21 @@ impl Printer {
                 ExpressionGrammarContext::LeftSideOfAccessAfterSubstitution
             )
         {
-            self.context_parentheses(transformation, substituted, grammar)?
+            self.context_parentheses(
+                transformation,
+                ResolvedNode::from_print_node(&printed),
+                grammar,
+            )?
         } else {
             None
         };
 
-        if substituted == node {
-            transformation.before_emit_print_node(hint, &printed)?;
-        } else {
-            transformation.before_emit_node(hint, node)?;
+        if !inert_print_hooks {
+            if substituted == node {
+                transformation.before_emit_print_node(hint, &printed)?;
+            } else {
+                transformation.before_emit_node(hint, node)?;
+            }
         }
         let emitted = (|| {
             let trailing = if let Some(parentheses) = grammar_parentheses {
@@ -20694,7 +20768,9 @@ impl Printer {
         // before-half left it, exactly like an upstream onEmitNode wrapper's
         // closure state.
         let outcome = emitted?;
-        transformation.after_emit_node(hint, node)?;
+        if !inert_print_hooks {
+            transformation.after_emit_node(hint, node)?;
+        }
         Ok(outcome)
     }
 
@@ -20736,9 +20812,13 @@ impl Printer {
                 // parenthesized expression that maps
                 // (`emitConciseBody`, printer.go:2669-2685).
                 let paren_map_range = if grammar == ExpressionGrammarContext::ArrowConciseBody
-                    && transformation
-                        .arena()
-                        .node(self.leftmost_expression(transformation, substituted, false)?)?
+                    && self
+                        .leftmost_expression(
+                            transformation,
+                            ResolvedNode::resolve(transformation.arena(), substituted)?,
+                            false,
+                        )?
+                        .record
                         .kind
                         == SyntaxKind::ObjectLiteralExpression
                 {
@@ -26172,3 +26252,7 @@ mod comment_classification_tests;
 #[cfg(test)]
 #[path = "../tests/unit/emission_plan.rs"]
 mod emission_plan_tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/node_events.rs"]
+mod node_event_tests;
