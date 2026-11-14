@@ -164,6 +164,59 @@ impl<T: SlotId + std::fmt::Debug> std::fmt::Debug for IdSlot<T> {
     }
 }
 
+/// An absent or present identity, including identities published before the
+/// referenced object finishes construction. These fields never store the
+/// separate in-progress state used by signatures and sparse memos.
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub struct ValueSlot<T>(Option<T>);
+
+impl<T> Default for ValueSlot<T> {
+    fn default() -> Self {
+        Self(None)
+    }
+}
+
+impl<T: Copy> ValueSlot<T> {
+    #[inline]
+    pub fn resolved(self) -> Option<T> {
+        self.0
+    }
+
+    #[inline]
+    pub fn get(self) -> LinkSlot<T> {
+        self.0.map_or(LinkSlot::Vacant, LinkSlot::Resolved)
+    }
+
+    #[inline]
+    pub fn is_resolving(self) -> bool {
+        false
+    }
+}
+
+impl<T: SlotId> From<LinkSlot<T>> for ValueSlot<T> {
+    #[inline]
+    fn from(slot: LinkSlot<T>) -> Self {
+        Self(match slot {
+            LinkSlot::Vacant => None,
+            LinkSlot::Resolved(id) => {
+                let index = id.slot_index();
+                assert!(
+                    index < u32::MAX - 1,
+                    "identity index {index} does not fit a link slot"
+                );
+                Some(id)
+            }
+            LinkSlot::Resolving => panic!("value-only identity slot cannot store Resolving"),
+        })
+    }
+}
+
+impl<T: Copy + std::fmt::Debug> std::fmt::Debug for ValueSlot<T> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.get().fmt(formatter)
+    }
+}
+
 /// A sparse memo whose table presence carries the vacant state. A stored
 /// `None` is Resolving and `Some(value)` is Resolved. This keeps the same
 /// single-probe reads without a separate enum tag beside a niche-bearing
@@ -483,12 +536,12 @@ pub fn debug_resolving_open() -> i64 {
 pub struct NodeLinks {
     /// tsc links.resolvedType (per-arm caching in the
     /// getTypeFromTypeNode workers).
-    pub resolved_type: IdSlot<TypeId>,
+    pub resolved_type: ValueSlot<TypeId>,
     /// tsc links.resolvedSignature (getSignatureFromDeclaration 59570).
     pub resolved_signature: IdSlot<SignatureId>,
     /// tsc links.resolvedSymbol (getResolvedSymbol 69389) — the
     /// unknownSymbol failure sentinel is cached like tsc's.
-    pub resolved_symbol: IdSlot<SymbolId>,
+    pub resolved_symbol: ValueSlot<SymbolId>,
     /// tsc NodeLinks.flags (getNodeCheckFlags) — the driver's
     /// TypeChecked bit lands with M4 5.4; later stages OR in their own
     /// bits (a flags word accumulates, unlike the write-once slots).
@@ -638,7 +691,7 @@ impl NodeLinksCold {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SymbolLinks {
     /// tsc links.type (getTypeOfVariableOrParameterOrProperty 56633).
-    pub type_of_symbol: IdSlot<TypeId>,
+    pub type_of_symbol: ValueSlot<TypeId>,
     /// tsc TransientSymbol links.checkFlags (synthetic union/
     /// intersection properties, createUnionOrIntersectionProperty).
     pub check_flags: tsc_types::CheckFlags,
@@ -662,8 +715,8 @@ const _: () = assert!(std::mem::size_of::<SymbolLinks>() == 20);
 #[derive(Clone, Copy, Debug, Default)]
 struct PersistentSymbolLinks {
     /// tsc links.declaredType (getDeclaredTypeOfClassOrInterface 57381).
-    declared_type: IdSlot<TypeId>,
-    type_of_symbol: IdSlot<TypeId>,
+    declared_type: ValueSlot<TypeId>,
+    type_of_symbol: ValueSlot<TypeId>,
     /// tsc symbol.isReferenced — a SymbolFlags meaning mask, not a
     /// boolean. resolveName ORs the requested meaning into this field;
     /// the JSX/private-property direct markers write SymbolFlags::All.
@@ -954,15 +1007,15 @@ impl SymbolLinksCold {
 /// reference; the other TypeLinks fields live in [`TypeLinksCold`].
 #[derive(Clone, Debug, Default)]
 pub struct TypeLinks {
-    pub resolved_members: IdSlot<MembersId>,
+    pub resolved_members: ValueSlot<MembersId>,
     /// tsc TypeParameter.constraint (getConstraintFromTypeParameter
     /// 60103) — Resolved(noConstraintType sentinel) = computed, none.
-    pub type_parameter_constraint: IdSlot<TypeId>,
+    pub type_parameter_constraint: ValueSlot<TypeId>,
     /// tsgo ConstrainedType.resolvedBaseConstraint (getResolvedBaseConstraint,
     /// checker.go:27912-27953), the one cache of the top-level and the
     /// nested base-constraint resolutions; the resolution property is
     /// IMMEDIATE_BASE_CONSTRAINT.
-    pub resolved_base_constraint: IdSlot<TypeId>,
+    pub resolved_base_constraint: ValueSlot<TypeId>,
     /// tsc type.target for ObjectFlags::INSTANTIATED anonymous types
     /// (instantiateAnonymousType 63658).
     pub instantiated_target: Option<TypeId>,
@@ -994,7 +1047,7 @@ pub struct TypeLinksCold {
     /// Resolved(circularConstraintType) = the cycle sentinel. The
     /// resolvingDefaultType in-flight sentinel is the checker's
     /// in-progress set, so Err unwinds stay re-queryable.
-    pub type_parameter_default: SparseLinks<TypeId, IdSlot<TypeId>>,
+    pub type_parameter_default: SparseLinks<TypeId, ValueSlot<TypeId>>,
     /// tsc MappedType.typeParameter (getTypeParameterFromMappedType
     /// 58601): declaration-derived and computed once.
     pub mapped_type_parameter: SparseMemo<TypeId, TypeId>,
@@ -1303,7 +1356,7 @@ impl LinksTables {
             self.transient_symbols.len(),
             self.transient_symbols.len() * std::mem::size_of::<SymbolLinks>()
                 + self.transient_declared_types.capacity()
-                    * (std::mem::size_of::<(u32, IdSlot<TypeId>)>() + 1)
+                    * (std::mem::size_of::<(u32, ValueSlot<TypeId>)>() + 1)
                     * 8
                     / 7
                 + self.transient_is_referenced.capacity()
@@ -1633,7 +1686,7 @@ pub struct LinksTables {
     transient_symbols: Vec<SymbolLinks>,
     /// The declared types and reference meanings of the few transient
     /// symbols that have one, by their dense position.
-    transient_declared_types: FxHashMap<u32, IdSlot<TypeId>>,
+    transient_declared_types: FxHashMap<u32, ValueSlot<TypeId>>,
     transient_is_referenced: FxHashMap<u32, tsc_types::SymbolFlags>,
     /// A checker's type ids are dense from zero: a read is a bounds check
     /// and a load (see [`DenseLinks`]).
@@ -1838,7 +1891,7 @@ impl LinksTables {
 
     /// `links.declaredType` of any symbol, for writing.
     #[inline]
-    fn symbol_declared_type_mut(&mut self, id: SymbolId) -> &mut IdSlot<TypeId> {
+    fn symbol_declared_type_mut(&mut self, id: SymbolId) -> &mut ValueSlot<TypeId> {
         if let Some(index) = transient_index(id) {
             // The record exists for every written transient symbol, as before
             // these fields left it (the trace counts records).
@@ -1856,7 +1909,7 @@ impl LinksTables {
 
     /// `links.type` of any symbol, for writing.
     #[inline]
-    fn symbol_type_mut(&mut self, id: SymbolId) -> &mut IdSlot<TypeId> {
+    fn symbol_type_mut(&mut self, id: SymbolId) -> &mut ValueSlot<TypeId> {
         if transient_index(id).is_some() {
             &mut self.transient_symbol_mut(id).type_of_symbol
         } else {
@@ -2006,6 +2059,13 @@ impl LinksTables {
         *slot = value.into();
     }
 
+    /// The existing publication protocol for a value-only identity field.
+    fn write_value_slot<T: SlotId + std::fmt::Debug>(slot: &mut ValueSlot<T>, next: LinkSlot<T>) {
+        let mut value = slot.get();
+        Self::write_slot(&mut value, next);
+        *slot = value.into();
+    }
+
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn set_node_resolved_type(
@@ -2014,7 +2074,7 @@ impl LinksTables {
         id: NodeId,
         value: LinkSlot<TypeId>,
     ) {
-        Self::write_id_slot(&mut self.node.slot(id).resolved_type, value);
+        Self::write_value_slot(&mut self.node.slot(id).resolved_type, value);
     }
 
     /// getTypeFromTypeReference's tail assignments (60587-60588) are
@@ -2597,7 +2657,7 @@ impl LinksTables {
         id: SymbolId,
         value: LinkSlot<TypeId>,
     ) {
-        Self::write_id_slot(self.symbol_declared_type_mut(id), value);
+        Self::write_value_slot(self.symbol_declared_type_mut(id), value);
     }
 
     /// tsrs-native: declared type-parameter singleton initialization.
@@ -2609,7 +2669,7 @@ impl LinksTables {
     /// when a candidate transaction closes. This path is restricted to
     /// the diagnostic-free declared-type-parameter constructor.
     pub fn set_fresh_symbol_declared_type(&mut self, id: SymbolId, value: LinkSlot<TypeId>) {
-        Self::write_id_slot(self.symbol_declared_type_mut(id), value);
+        Self::write_value_slot(self.symbol_declared_type_mut(id), value);
     }
 
     /// tsrs-native: publish a class or interface declared-type identity
@@ -2630,7 +2690,7 @@ impl LinksTables {
         id: SymbolId,
         value: LinkSlot<TypeId>,
     ) {
-        Self::write_id_slot(self.symbol_declared_type_mut(id), value);
+        Self::write_value_slot(self.symbol_declared_type_mut(id), value);
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -2641,7 +2701,7 @@ impl LinksTables {
         id: SymbolId,
         value: LinkSlot<TypeId>,
     ) {
-        Self::write_id_slot(self.symbol_type_mut(id), value);
+        Self::write_value_slot(self.symbol_type_mut(id), value);
     }
 
     /// Retain a completed declaration-owned value type across completed
@@ -2655,7 +2715,7 @@ impl LinksTables {
         id: SymbolId,
         value: LinkSlot<TypeId>,
     ) {
-        Self::write_id_slot(self.symbol_type_mut(id), value);
+        Self::write_value_slot(self.symbol_type_mut(id), value);
     }
 
     /// tsrs-native: candidate-local contextual symbol initialization.
@@ -2681,7 +2741,7 @@ impl LinksTables {
     /// symbol. The symbol and this slot form one semantic object, so
     /// construction is safe inside a candidate trial.
     pub fn set_fresh_symbol_type(&mut self, id: SymbolId, value: LinkSlot<TypeId>) {
-        Self::write_id_slot(self.symbol_type_mut(id), value);
+        Self::write_value_slot(self.symbol_type_mut(id), value);
     }
 
     /// tsrs-native: links-table setter (tsc plain property write).
@@ -2713,7 +2773,7 @@ impl LinksTables {
         let _ = speculation_depth;
         let links = self.transient_symbol_mut(id);
         links.check_flags = check_flags;
-        Self::write_id_slot(
+        Self::write_value_slot(
             &mut links.type_of_symbol,
             LinkSlot::Resolved(type_of_symbol),
         );
@@ -3228,7 +3288,7 @@ impl LinksTables {
         // A declared or targeted type parameter's constraint is a cold,
         // reproducible cache. Candidate checking must not publish it beyond
         // the speculation boundary.
-        Self::write_id_slot(
+        Self::write_value_slot(
             &mut self.ty.slot(id).type_parameter_constraint,
             LinkSlot::Resolved(value),
         );
@@ -3240,7 +3300,7 @@ impl LinksTables {
     /// current transaction. Unlike the lazy cache setter above, this is part
     /// of the fresh type's semantic state and may be written speculatively.
     pub fn set_fresh_type_parameter_constraint(&mut self, id: TypeId, value: TypeId) {
-        Self::write_id_slot(
+        Self::write_value_slot(
             &mut self.ty.slot(id).type_parameter_constraint,
             LinkSlot::Resolved(value),
         );
@@ -3399,7 +3459,7 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn set_type_resolved_base_constraint(&mut self, id: TypeId, value: TypeId) {
-        Self::write_id_slot(
+        Self::write_value_slot(
             &mut self.ty.slot(id).resolved_base_constraint,
             LinkSlot::Resolved(value),
         );
@@ -4047,7 +4107,7 @@ impl LinksTables {
     pub fn set_type_parameter_default(&mut self, id: TypeId, value: TypeId) {
         // Defaults are lazily derived from declarations (or a targeted
         // parameter) and can be recomputed after candidate speculation.
-        Self::write_id_slot(
+        Self::write_value_slot(
             self.type_cold.type_parameter_default.slot(id),
             LinkSlot::Resolved(value),
         );
@@ -4192,7 +4252,7 @@ impl LinksTables {
         // Resolved -> Resolved for that one tsc-shaped double write.
         match (slot.get(), &value) {
             (LinkSlot::Resolved(_), LinkSlot::Resolved(_)) => *slot = value.into(),
-            _ => Self::write_id_slot(slot, value),
+            _ => Self::write_value_slot(slot, value),
         }
     }
 
@@ -4202,7 +4262,7 @@ impl LinksTables {
     /// semantic type. This is object construction, not publication of
     /// a cold cache on a pre-existing type.
     pub fn set_fresh_type_members(&mut self, id: TypeId, value: LinkSlot<crate::state::MembersId>) {
-        Self::write_id_slot(&mut self.ty.slot(id).resolved_members, value);
+        Self::write_value_slot(&mut self.ty.slot(id).resolved_members, value);
     }
 }
 

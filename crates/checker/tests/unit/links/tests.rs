@@ -1,5 +1,49 @@
 use super::*;
 
+#[test]
+fn value_slots_keep_replacements_clearing_and_identity_bounds() {
+    fn check<T: SlotId + std::fmt::Debug + Eq>() {
+        assert_eq!(std::mem::size_of::<ValueSlot<T>>(), 4);
+        let mut slot = ValueSlot::<T>::default();
+        let mut original = LinkSlot::Vacant;
+        for next in [
+            LinkSlot::Vacant,
+            LinkSlot::Resolved(T::from_slot_index(0)),
+            LinkSlot::Resolved(T::from_slot_index(1)),
+            LinkSlot::Resolved(T::from_slot_index(u32::MAX - 2)),
+            LinkSlot::Vacant,
+            LinkSlot::Vacant,
+            LinkSlot::Resolved(T::from_slot_index(0)),
+        ] {
+            LinksTables::write_slot(&mut original, next.clone());
+            LinksTables::write_value_slot(&mut slot, next);
+            assert_eq!(slot.get(), original);
+            assert_eq!(slot.resolved(), original.resolved());
+            assert!(!slot.is_resolving());
+            assert_eq!(format!("{slot:?}"), format!("{original:?}"));
+        }
+    }
+    let initial = debug_resolving_open();
+    check::<TypeId>();
+    check::<SymbolId>();
+    check::<MembersId>();
+    assert_eq!(debug_resolving_open(), initial);
+    assert_eq!(std::mem::size_of::<NodeLinks>(), 16);
+    assert_eq!(std::mem::size_of::<TypeLinks>(), 24);
+}
+
+#[test]
+#[should_panic(expected = "value-only identity slot cannot store Resolving")]
+fn value_slots_reject_a_separate_in_progress_state() {
+    let _ = ValueSlot::<TypeId>::from(LinkSlot::Resolving);
+}
+
+#[test]
+#[should_panic(expected = "does not fit a link slot")]
+fn value_slots_keep_the_existing_identity_limit() {
+    let _ = ValueSlot::from(LinkSlot::Resolved(TypeId::new(u32::MAX - 1)));
+}
+
 #[derive(Clone, Copy)]
 struct Key(usize);
 
