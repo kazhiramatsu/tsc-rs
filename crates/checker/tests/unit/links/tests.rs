@@ -10,6 +10,31 @@ impl DenseKey for Key {
 }
 
 #[test]
+fn located_records_observe_replacements_and_clearing_after_directory_growth() {
+    let far_region = (DENSE_PAGES << PAGE_SHIFT) >> REGION_SHIFT;
+    for first_region in [3, far_region] {
+        let mut table = PagedTable::<Key, Option<u32>>::default();
+        let first = Key((first_region << REGION_SHIFT) + 71);
+        *table.slot(first) = Some(9);
+        let position = table.get_with_position(first).unwrap().0;
+        for region in [0, 3, 9, far_region + 1] {
+            for offset in 0..600 {
+                let key = Key((region << REGION_SHIFT) + offset);
+                if key.0 != first.0 {
+                    *table.slot(key) = Some(key.0 as u32);
+                }
+            }
+        }
+        assert_eq!(table.get_at_position(position), &Some(9));
+        *table.slot(first) = None;
+        assert_eq!(table.get_at_position(position), &None);
+        *table.slot(first) = Some(42);
+        assert_eq!(table.get_at_position(position), &Some(42));
+        assert_eq!(table.get(first), Some(&Some(42)));
+    }
+}
+
+#[test]
 fn paged_table_fills_a_region_and_keeps_records_stable() {
     let region_ids = 1 << REGION_SHIFT;
     let mut table = PagedTable::<Key, usize>::with_id_bound(region_ids);

@@ -36,6 +36,160 @@ fn counters() -> FlowCounters {
 }
 
 #[test]
+fn prepared_identifier_matching_preserves_results_effects_and_target_normalization() {
+    let cases = [
+        (
+            "a.ts",
+            concat!(
+                "export let value: number; let { item: bound } = { item: 1 }; ",
+                "function shadow(value: string) { return value; } value; bound; ",
+                "(value); value!; value = 1; (0, value); const obj = { value: 1 }; ",
+                "obj.value; obj['value'];"
+            ),
+            &["value", "bound"][..],
+        ),
+        (
+            "a.js",
+            concat!(
+                "let value = 1; value; (value); /** @type {number} */ (value); ",
+                "value = 2; (0, value);"
+            ),
+            &["value"][..],
+        ),
+    ];
+    for (file, text, names) in cases {
+        for &name in names {
+            for clear_source in [false, true] {
+                let observe = |prepared: bool| {
+                    with_program_state(&[(file, text)], &CompilerOptions::default(), |state| {
+                        let source = identifiers(state, name)
+                            .into_iter()
+                            .find(|&node| {
+                                state.parent_of(node).is_some_and(|parent| {
+                                    state.kind_of(parent) == SyntaxKind::ExpressionStatement
+                                })
+                            })
+                            .unwrap();
+                        assert!(state.get_resolved_symbol(source).unwrap().is_some());
+                        let mut q = query(state, source);
+                        q.memo_key = state.flow_memo_key(&mut q);
+                        assert!(q.identifier_location.is_some());
+                        if !prepared {
+                            q.identifier_location = None;
+                        }
+                        if clear_source {
+                            state.links.revert_node_resolved_symbol_late_bind(source);
+                        }
+                        let targets: Vec<_> = state.binder.source(0).arena.node_ids().collect();
+                        let matches: Vec<_> = targets
+                            .into_iter()
+                            .map(|target| {
+                                (
+                                    state.kind_of(target),
+                                    state.pos_of(target),
+                                    state.is_matching_query_reference(&q, target).unwrap(),
+                                )
+                            })
+                            .collect();
+                        let declaration_kind = if name == "bound" {
+                            SyntaxKind::BindingElement
+                        } else {
+                            SyntaxKind::VariableDeclaration
+                        };
+                        assert!(matches
+                            .iter()
+                            .any(|&(kind, _, matched)| kind == declaration_kind && matched));
+                        (
+                            matches,
+                            state.diagnostics.to_vec(),
+                            state.tables.len(),
+                            state.binder.transient_symbol_count(),
+                            state.signatures.len(),
+                            state.instantiation_count,
+                            state.total_instantiation_count,
+                            state.diagnostics.attempts,
+                        )
+                    })
+                };
+                assert_eq!(
+                    observe(false),
+                    observe(true),
+                    "{file} {name} cleared={clear_source}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn prepared_identifier_matching_reads_replaced_symbols_and_unknowns_live() {
+    with_program_state(
+        &[(
+            "a.ts",
+            "let value = 1; let other = 2; value; other; missing;",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let source = *identifiers(state, "value").last().unwrap();
+            let other = *identifiers(state, "other").last().unwrap();
+            assert!(state.get_resolved_symbol(source).unwrap().is_some());
+            let replacement = state.get_resolved_symbol(other).unwrap().unwrap();
+            let mut q = query(state, source);
+            q.memo_key = state.flow_memo_key(&mut q);
+            assert!(q.identifier_location.is_some());
+            assert!(!state.is_matching_query_reference(&q, other).unwrap());
+            state
+                .links
+                .set_node_resolved_symbol(state.speculation_depth, source, replacement);
+            assert!(state.is_matching_reference(source, other).unwrap());
+            assert!(state.is_matching_query_reference(&q, other).unwrap());
+
+            let missing = *identifiers(state, "missing").last().unwrap();
+            let unknown = state.unknown_symbol;
+            state
+                .links
+                .set_node_resolved_symbol(state.speculation_depth, source, unknown);
+            assert!(state.is_matching_reference(source, missing).unwrap());
+            assert!(state.is_matching_query_reference(&q, missing).unwrap());
+            q.memo_key = state.flow_memo_key(&mut q);
+            assert!(q.memo_key.is_none());
+            assert!(q.identifier_location.is_none());
+            assert!(state.is_matching_query_reference(&q, missing).unwrap());
+        },
+    );
+}
+
+#[test]
+fn preparing_synthetic_and_property_queries_clears_identifier_shape() {
+    with_program_state(
+        &[("a.ts", "const obj = { value: 1 }; obj; obj.value;")],
+        &CompilerOptions::default(),
+        |state| {
+            let source = *identifiers(state, "obj").last().unwrap();
+            assert!(state.get_resolved_symbol(source).unwrap().is_some());
+            let mut q = query(state, source);
+            q.memo_key = state.flow_memo_key(&mut q);
+            assert!(q.identifier_location.is_some());
+            q.synthetic_props = Some(Vec::new());
+            assert!(state.flow_memo_key(&mut q).is_none());
+            assert!(q.identifier_location.is_none());
+            q.synthetic_props = None;
+            q.memo_key = state.flow_memo_key(&mut q);
+            assert!(q.identifier_location.is_some());
+            q.reference = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .find(|&node| state.kind_of(node) == SyntaxKind::PropertyAccessExpression)
+                .unwrap();
+            q.memo_key = state.flow_memo_key(&mut q);
+            assert!(q.identifier_location.is_none());
+        },
+    );
+}
+
+#[test]
 fn prepared_query_keys_preserve_node_tags_and_slot_indices() {
     for file in [0, 1, u32::MAX as usize, usize::MAX] {
         for hash in [0, 1, u64::MAX as u128, 1 << 95, 1 << 127, u128::MAX] {
@@ -390,7 +544,7 @@ fn only_cache_independent_answers_survive_a_scoped_cache_reset() {
             .unwrap();
         let mut q = query(state, reference);
         q.flow_depth = 1;
-        let key = state.flow_memo_key(&q).unwrap();
+        let key = state.flow_memo_key(&mut q).unwrap();
         for (flow, flags) in [(FlowId::new(10), 0), (FlowId::new(20), FLAG_TYPE_CACHE)] {
             let memo = FrameMemo {
                 key: key.clone(),
@@ -435,12 +589,12 @@ fn packed_keys_reserve_a_distinct_domain_without_restricting_initial_type_ids() 
             .unwrap();
         let mut q = query(state, reference);
         q.initial_type = TypeId::new(1 << 31);
-        let packed = state.flow_memo_key(&q).unwrap();
+        let packed = state.flow_memo_key(&mut q).unwrap();
         assert_eq!(packed.hash >> 96, 0, "zero root denotes this");
         assert_eq!(packed.hash & (1 << 95), 0);
         assert_eq!((packed.hash >> 32) as u32, q.initial_type.index());
         q.declared_type = TypeId::new(1 << 31);
-        let hashed = state.flow_memo_key(&q).unwrap();
+        let hashed = state.flow_memo_key(&mut q).unwrap();
         assert_ne!(hashed.hash & (1 << 95), 0);
         assert_ne!(packed.hash, hashed.hash);
     });
@@ -455,7 +609,7 @@ fn structural_keys_use_cached_symbols_types_and_container_without_resolving() {
             let refs = identifiers(state, "x");
             let mut q = query(state, refs[1]);
             let created = state.flow_frame_counters().created;
-            assert!(state.flow_memo_key(&q).is_none());
+            assert!(state.flow_memo_key(&mut q).is_none());
             assert_eq!(state.flow_frame_counters().created, created);
             assert!(state
                 .links
@@ -466,26 +620,26 @@ fn structural_keys_use_cached_symbols_types_and_container_without_resolving() {
             for &node in &refs {
                 state.get_resolved_symbol(node).unwrap();
             }
-            let key = state.flow_memo_key(&q).unwrap();
+            let key = state.flow_memo_key(&mut q).unwrap();
             q.reference = refs[2];
-            assert_eq!(key.full, state.flow_memo_key(&q).unwrap().full);
-            assert_eq!(key.hash, state.flow_memo_key(&q).unwrap().hash);
+            assert_eq!(key.full, state.flow_memo_key(&mut q).unwrap().full);
+            assert_eq!(key.hash, state.flow_memo_key(&mut q).unwrap().hash);
             q.reference = *refs.last().unwrap();
-            assert_ne!(key.full, state.flow_memo_key(&q).unwrap().full);
+            assert_ne!(key.full, state.flow_memo_key(&mut q).unwrap().full);
             q.reference = refs[1];
             q.declared_type = state.tables.intrinsics.number;
-            assert_ne!(key.hash, state.flow_memo_key(&q).unwrap().hash);
+            assert_ne!(key.hash, state.flow_memo_key(&mut q).unwrap().hash);
             q.declared_type = state.tables.intrinsics.string;
             q.initial_type = state.tables.intrinsics.number;
-            assert_ne!(key.hash, state.flow_memo_key(&q).unwrap().hash);
+            assert_ne!(key.hash, state.flow_memo_key(&mut q).unwrap().hash);
             q.initial_type = state.tables.intrinsics.string;
             q.flow_container = Some(state.binder.source(0).root);
-            assert_ne!(key.hash, state.flow_memo_key(&q).unwrap().hash);
+            assert_ne!(key.hash, state.flow_memo_key(&mut q).unwrap().hash);
             q.synthetic_props = Some(Vec::new());
-            assert!(state.flow_memo_key(&q).is_none());
+            assert!(state.flow_memo_key(&mut q).is_none());
             q.synthetic_props = None;
             q.synthetic_this_root = true;
-            assert!(state.flow_memo_key(&q).is_none());
+            assert!(state.flow_memo_key(&mut q).is_none());
         },
     );
 }
@@ -501,15 +655,15 @@ fn structural_key_buffer_is_reused_after_success_and_rejection() {
                 state.get_resolved_symbol(node).unwrap();
             }
             let mut q = query(state, refs[1]);
-            let key = state.flow_memo_key(&q).unwrap();
+            let key = state.flow_memo_key(&mut q).unwrap();
             let allocation = state.flow_memo.key_buffer.as_ptr();
             let capacity = state.flow_memo.key_buffer.capacity();
             q.reference = state.binder.source(0).root;
-            assert!(state.flow_memo_key(&q).is_none());
+            assert!(state.flow_memo_key(&mut q).is_none());
             assert_eq!(state.flow_memo.key_buffer.as_ptr(), allocation);
             assert_eq!(state.flow_memo.key_buffer.capacity(), capacity);
             q.reference = refs[2];
-            let repeated = state.flow_memo_key(&q).unwrap();
+            let repeated = state.flow_memo_key(&mut q).unwrap();
             assert_eq!(repeated.full, key.full);
             assert_eq!(repeated.hash, key.hash);
             assert_eq!(state.flow_memo.key_buffer.as_ptr(), allocation);
@@ -535,10 +689,10 @@ fn property_this_and_optional_chain_key_shapes() {
                 if state.escaped_text_of(data.name) == Some("q"))
             })
             .collect();
-        let q = query(state, properties[0]);
-        let key = state.flow_memo_key(&q).unwrap();
-        let q2 = query(state, properties[1]);
-        assert_eq!(key.full, state.flow_memo_key(&q2).unwrap().full);
+        let mut q = query(state, properties[0]);
+        let key = state.flow_memo_key(&mut q).unwrap();
+        let mut q2 = query(state, properties[1]);
+        assert_eq!(key.full, state.flow_memo_key(&mut q2).unwrap().full);
         assert!(key.full.windows(6).any(|bytes| bytes == b"P\x01\0\0\0p"));
         for node in nodes.iter().copied().filter(|&node| {
             state.kind_of(node) == SyntaxKind::ElementAccessExpression
@@ -546,20 +700,20 @@ fn property_this_and_optional_chain_key_shapes() {
                 || matches!(state.data_of(node), NodeData::PropertyAccessExpression(data)
                     if data.expression.is_some_and(|e| state.kind_of(e) == SyntaxKind::ParenthesizedExpression))
         }).collect::<Vec<_>>() {
-            let q = query(state, node);
-            assert!(state.flow_memo_key(&q).is_none());
+            let mut q = query(state, node);
+            assert!(state.flow_memo_key(&mut q).is_none());
         }
         let this: Vec<_> = nodes
             .into_iter()
             .filter(|&node| state.kind_of(node) == SyntaxKind::ThisKeyword)
             .collect();
-        let q = query(state, this[0]);
-        let q2 = query(state, this[1]);
+        let mut q = query(state, this[0]);
+        let mut q2 = query(state, this[1]);
         assert_eq!(
-            state.flow_memo_key(&q).unwrap().full,
-            state.flow_memo_key(&q2).unwrap().full
+            state.flow_memo_key(&mut q).unwrap().full,
+            state.flow_memo_key(&mut q2).unwrap().full
         );
-        assert_ne!(key.hash, state.flow_memo_key(&q).unwrap().hash);
+        assert_ne!(key.hash, state.flow_memo_key(&mut q).unwrap().hash);
     });
 }
 
@@ -754,8 +908,8 @@ fn table_is_bounded_and_flow_ids_are_file_local() {
                 .node_ids()
                 .find(|&n| state.kind_of(n) == SyntaxKind::ThisKeyword)
                 .unwrap();
-            let q = query(state, reference);
-            let key = state.flow_memo_key(&q).unwrap();
+            let mut q = query(state, reference);
+            let key = state.flow_memo_key(&mut q).unwrap();
             let other_reference = state
                 .binder
                 .source(1)
@@ -763,8 +917,8 @@ fn table_is_bounded_and_flow_ids_are_file_local() {
                 .node_ids()
                 .find(|&node| state.kind_of(node) == SyntaxKind::ThisKeyword)
                 .unwrap();
-            let other_query = query(state, other_reference);
-            let other_key = state.flow_memo_key(&other_query).unwrap();
+            let mut other_query = query(state, other_reference);
+            let other_key = state.flow_memo_key(&mut other_query).unwrap();
             assert_eq!(key.hash, other_key.hash);
             let hit = MemoHit {
                 ty: state.tables.intrinsics.string,
@@ -813,8 +967,8 @@ fn checkpoints_are_node_based_and_nested_frames_do_not_steal_them() {
             .node_ids()
             .find(|&n| state.kind_of(n) == SyntaxKind::ThisKeyword)
             .unwrap();
-        let q = query(state, reference);
-        let key = state.flow_memo_key(&q).unwrap();
+        let mut q = query(state, reference);
+        let key = state.flow_memo_key(&mut q).unwrap();
         state.flow_memo.checkpoints.push(FlowId::new(1));
         let memo = FrameMemo {
             key: key.clone(),
@@ -911,8 +1065,8 @@ fn shared_cache_returns_settle_shadow_hits_without_filling_the_memo() {
             .node_ids()
             .find(|&n| state.kind_of(n) == SyntaxKind::ThisKeyword)
             .unwrap();
-        let q = query(state, reference);
-        let key = state.flow_memo_key(&q).unwrap();
+        let mut q = query(state, reference);
+        let key = state.flow_memo_key(&mut q).unwrap();
         let hit = MemoHit {
             ty: state.tables.intrinsics.string,
             height: 4,
@@ -1005,7 +1159,7 @@ fn shared_effects_and_inline_reduce_contexts_block_stores() {
             .find(|&n| state.kind_of(n) == SyntaxKind::ThisKeyword)
             .unwrap();
         let mut q = query(state, reference);
-        q.memo_key = state.flow_memo_key(&q);
+        q.memo_key = state.flow_memo_key(&mut q);
         assert!(state.flow_frame_memo(&q).is_some());
         state.inline_level = 1;
         assert!(state.flow_frame_memo(&q).is_none());
@@ -1058,8 +1212,8 @@ fn shadow_comparison_detects_types_keys_registers_and_shared_effects() {
             .node_ids()
             .find(|&n| state.kind_of(n) == SyntaxKind::ThisKeyword)
             .unwrap();
-        let q = query(state, reference);
-        let key = state.flow_memo_key(&q).unwrap();
+        let mut q = query(state, reference);
+        let key = state.flow_memo_key(&mut q).unwrap();
         let ty = state.tables.intrinsics.string;
         let make_hit = || ShadowHit {
             flow: FlowId::new(1),
@@ -1209,7 +1363,7 @@ fn memo_depth_abort_unwinds_without_publishing_partial_answers() {
             // A wider declared type forces the loop to inspect its back
             // edge instead of stopping at the first (initial-type) answer.
             q.declared_type = state.tables.intrinsics.unknown;
-            q.memo_key = state.flow_memo_key(&q);
+            q.memo_key = state.flow_memo_key(&mut q);
             q.memo_used = true;
             q.flow_depth = depth;
             let answer = state.get_type_at_flow_node(&mut q, flow).unwrap();

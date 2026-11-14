@@ -583,7 +583,8 @@ impl CheckerState<'_> {
 
     /// Only reads cached links and syntax. In particular, never resolves a
     /// symbol or assigns a node/symbol identity while constructing a key.
-    pub(crate) fn flow_memo_key(&mut self, query: &FlowQuery) -> Option<MemoKey> {
+    pub(crate) fn flow_memo_key(&mut self, query: &mut FlowQuery) -> Option<MemoKey> {
+        query.identifier_location = None;
         if query.synthetic_props.is_some() || query.synthetic_this_root {
             return None;
         }
@@ -593,14 +594,12 @@ impl CheckerState<'_> {
         // the declared type index is below 2^31.
         let root = match self.kind_of(query.reference) {
             SyntaxKind::Identifier => {
-                let symbol = self
-                    .links
-                    .node(query.reference)
-                    .resolved_symbol
-                    .resolved()?;
+                let (location, links) = self.links.node_with_location(query.reference)?;
+                let symbol = links.resolved_symbol.resolved()?;
                 if symbol == self.unknown_symbol || self.is_this_in_type_query(query.reference) {
                     return None;
                 }
+                query.identifier_location = Some(location);
                 Some(symbol.position())
             }
             SyntaxKind::ThisKeyword => Some(0),

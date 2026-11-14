@@ -18,6 +18,7 @@
 
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashMap as HashMap;
+use std::num::NonZeroU32;
 use std::sync::Arc;
 
 use tsc_binder::SymbolId;
@@ -1430,6 +1431,12 @@ impl<T: Default> DenseLinks<T> {
     }
 }
 
+/// A node's record location in the checker that issued it. Records are never
+/// removed or moved; growing either directory does not change this value.
+/// The record's fields remain live and may be replaced or cleared.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct NodeLinksLocation(NonZeroU32);
+
 /// Side table keyed by a dense compiler-assigned id.
 ///
 /// tsrs-native: tsc hangs a links object directly off each node/symbol/type;
@@ -1549,6 +1556,23 @@ impl<K: DenseKey, T: Default> PagedTable<K, T> {
         )
     }
 
+    #[inline]
+    fn get_with_position(&self, key: K) -> Option<(usize, &T)> {
+        let id = key.dense_index();
+        let entry = self.page(id >> PAGE_SHIFT)?[id & (PAGE_IDS - 1)];
+        let slot = usize::from(entry.checked_sub(1)?);
+        let chunk = ((id >> REGION_SHIFT) << REGION_CHUNK_SHIFT) | (slot >> CHUNK_SHIFT);
+        let position = (chunk << CHUNK_SHIFT) | (slot & (CHUNK_RECORDS - 1));
+        Some((position, self.get_at_position(position)))
+    }
+
+    #[inline]
+    fn get_at_position(&self, position: usize) -> &T {
+        &self.chunks[position >> CHUNK_SHIFT]
+            .as_ref()
+            .expect("an indexed record has a chunk")[position & (CHUNK_RECORDS - 1)]
+    }
+
     /// The record for `key`, created as `T::default()` on first use (the
     /// `entry(key).or_default()` protocol of the previous map).
     #[inline]
@@ -1654,6 +1678,33 @@ pub struct LinksTables {
 type ConditionalInstantiationKey = (ConditionalRootId, bool, tsc_types::InstantiationKey);
 
 impl LinksTables {
+    /// Obtain a routing location while inspecting an existing node record.
+    /// Like `node`, this never creates a record or assigns an identity.
+    #[inline]
+    pub(crate) fn node_with_location(&self, id: NodeId) -> Option<(NodeLinksLocation, &NodeLinks)> {
+        let (position, record) = self.node.get_with_position(id)?;
+        // NodeId indices stop at u32::MAX - 1, so the final region has
+        // one fewer key. Its last record position + 1 still fits a u32.
+        let index = u32::try_from(position)
+            .ok()
+            .and_then(|position| position.checked_add(1))
+            .and_then(NonZeroU32::new)
+            .expect("a node record location fits a nonzero u32");
+        Some((NodeLinksLocation(index), record))
+    }
+
+    /// A location is checker-local, and its owner node is immutable for the
+    /// query's lifetime. Read the current fields after any intervening calls.
+    #[inline]
+    pub(crate) fn located_node(&self, id: NodeId, location: NodeLinksLocation) -> &NodeLinks {
+        let record = self.node.get_at_position((location.0.get() - 1) as usize);
+        debug_assert!(self
+            .node
+            .get(id)
+            .is_some_and(|expected| std::ptr::eq(expected, record)));
+        record
+    }
+
     /// tsrs-native: select an owned field result without cloning a whole
     /// links record. The borrow ends before the caller can mutate the checker
     /// again; public snapshot getters retain their owned-copy semantics.
