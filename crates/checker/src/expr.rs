@@ -3665,13 +3665,12 @@ impl<'a> CheckerState<'a> {
             {
                 return Ok(false);
             }
-            let types = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } | TypeData::Intersection { types } => {
-                    self.tables.list(*types).to_vec()
-                }
+            let types = match self.tables.type_of(ty).data {
+                TypeData::Union { types, .. } | TypeData::Intersection { types } => types,
                 _ => return Ok(false),
             };
-            for member in types {
+            let mut types = self.tables.cursor(types);
+            while let Some(member) = types.next(&self.tables) {
                 if self.may_be_const_type_variable(member)
                     && self.is_const_type_variable(Some(member), depth)?
                 {
@@ -3710,18 +3709,17 @@ impl<'a> CheckerState<'a> {
         }
         if self.tables.is_tuple_type(ty) {
             let target = self.tables.reference_target(ty);
-            let element_flags: Vec<tsc_types::ElementFlags> =
-                match &self.tables.type_of(target).data {
-                    TypeData::TupleTarget(data) => {
-                        let data = self.tables.tuple_target(*data);
-                        data.element_flags.to_vec()
-                    }
-                    _ => return Ok(false),
-                };
+            let target_data = match self.tables.type_of(target).data {
+                TypeData::TupleTarget(data) => data,
+                _ => return Ok(false),
+            };
             let arguments = self.get_type_argument_list(ty)?;
             for i in 0..self.tables.list(arguments).len() {
                 let element = self.tables.list(arguments)[i];
-                if element_flags
+                if self
+                    .tables
+                    .tuple_target(target_data)
+                    .element_flags
                     .get(i)
                     .is_some_and(|flags| flags.intersects(tsc_types::ElementFlags::VARIADIC))
                     && self.is_const_type_variable(Some(element), depth)?
