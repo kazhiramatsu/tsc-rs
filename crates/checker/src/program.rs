@@ -55,11 +55,13 @@ impl ParsedDocument {
 ///
 /// The source is owned by value until `freeze` allocates its shared handle.
 /// The builder exposes no Arc or Weak before binding completes.
+/// Its exclusive allocation keeps the tree body out of adoption job and
+/// result slots as the builder moves between stages.
 #[derive(Debug)]
 pub struct DocumentBuilder {
     bind_reservations: Option<tsc_binder::BindReservations>,
     bind_data: Option<Box<BindData>>,
-    source: SourceFile,
+    source: Box<SourceFile>,
 }
 
 impl DocumentBuilder {
@@ -67,7 +69,7 @@ impl DocumentBuilder {
         Self {
             bind_reservations: None,
             bind_data: None,
-            source,
+            source: Box::new(source),
         }
     }
 
@@ -76,7 +78,7 @@ impl DocumentBuilder {
         Self {
             bind_reservations,
             bind_data,
-            source,
+            source: Box::new(source),
         }
     }
 
@@ -122,7 +124,7 @@ impl DocumentBuilder {
     /// Parse identity is assigned here, in the established publication order.
     pub fn freeze(self, data: BindData) -> BoundDocument {
         let parsed = ParsedDocument {
-            source: Arc::new(self.source),
+            source: Arc::from(self.source),
             id: next_document_id(),
         };
         BoundDocument::new(Arc::new(parsed), data)

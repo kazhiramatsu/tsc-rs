@@ -3434,6 +3434,14 @@ fn parse_program_inputs(
         )
     });
     let rewrite_started = std::time::Instant::now();
+    let workers = if pending_sources.iter().any(|source| {
+        source.weight() != 0
+            || (options.no_resolve != Some(true) && !source.source().referenced_files.is_empty())
+    }) {
+        workers
+    } else {
+        WorkerBudget::serial()
+    };
     let completed = workers.map_ordered(pending_sources, PendingProgramSource::weight, |pending| {
         let source = pending.into_program_source();
         let diagnostics =
@@ -6821,6 +6829,12 @@ fn parse_lib_sources(
         let ready_direct = work.adopted - rewrite as u64;
         eprintln!("[syntax-placement] level library adoption: ready_direct={ready_direct} rewrite={rewrite} fresh_private_exact={}", work.parsed);
     }
+    // Ready sources only transfer ownership; no worker has a tree to rewrite.
+    let workers = if pending.iter().any(|source| source.weight() != 0) {
+        workers
+    } else {
+        WorkerBudget::serial()
+    };
     let sources = workers.map_ordered(
         pending,
         PendingProgramSource::weight,
