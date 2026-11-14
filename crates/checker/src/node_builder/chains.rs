@@ -4,10 +4,11 @@ use rustc_hash::FxHashSet as HashSet;
 use tsc_binder::{node_util, SymbolId};
 use tsc_emitter::{
     EmitFunctionProperty, EmitImportIncludeReason, EmitInternalNodeBuilderFlags,
-    EmitModuleSpecifierHost, EmitResolutionMode, EmitResolverError, EmitResolverMethod,
-    EmitResolverNode, EmitSymbolAccessibilityResult, EmitSymbolMeaning, EmitTrackerAccess,
-    EmitTrackerNode, EmitTrackerNodeDescription, EmitTrackerSymbol, EmitTrackerSymbolDescription,
-    SourceFileId, SourceRange, TransformArena, TransformNode, TransformSourceId,
+    EmitModuleSpecifierHost, EmitPackageJsonInput, EmitResolutionMode, EmitResolverError,
+    EmitResolverMethod, EmitResolverNode, EmitSymbolAccessibilityResult, EmitSymbolMeaning,
+    EmitTrackerAccess, EmitTrackerNode, EmitTrackerNodeDescription, EmitTrackerSymbol,
+    EmitTrackerSymbolDescription, SourceFileId, SourceRange, TransformArena, TransformNode,
+    TransformSourceId,
 };
 use tsc_syntax::nodes::{
     ComputedPropertyNameData, ElementAccessExpressionData, ImportAttributeData,
@@ -587,38 +588,95 @@ impl EmitModuleSpecifierHost for BasicModuleSpecifierHost {
 /// deliberately needs this checker-owned fallback for `fileExists` and
 /// `readFile`.
 struct ModuleSpecifierHostWithFallback<'a> {
-    primary: &'a dyn EmitModuleSpecifierHost,
+    primary: Option<&'a dyn EmitModuleSpecifierHost>,
+    package_provider: Option<&'a dyn crate::AuthoritativeModuleProvider>,
     fallback: &'a BasicModuleSpecifierHost,
+}
+
+impl ModuleSpecifierHostWithFallback<'_> {
+    fn primary(&self) -> &dyn EmitModuleSpecifierHost {
+        self.primary.unwrap_or(self.fallback)
+    }
 }
 
 impl EmitModuleSpecifierHost for ModuleSpecifierHostWithFallback<'_> {
     fn get_current_directory(&self) -> JsString {
-        self.primary.get_current_directory()
+        self.primary().get_current_directory()
     }
 
     fn use_case_sensitive_file_names(&self) -> bool {
-        self.primary.use_case_sensitive_file_names()
+        self.primary().use_case_sensitive_file_names()
     }
 
     fn file_exists(&self, file_name: JsStr<'_>) -> bool {
-        self.primary.file_exists(file_name)
+        let Some(primary) = self.primary else {
+            return self.fallback.file_exists(file_name);
+        };
+        primary.file_exists(file_name)
             || self
                 .fallback
-                .entry(file_name, self.primary.use_case_sensitive_file_names())
+                .entry(file_name, primary.use_case_sensitive_file_names())
                 .is_some()
     }
 
     fn read_file(&self, file_name: JsStr<'_>) -> Option<String> {
-        self.primary.read_file(file_name).or_else(|| {
+        let Some(primary) = self.primary else {
+            return self.fallback.read_file(file_name);
+        };
+        primary.read_file(file_name).or_else(|| {
             self.fallback
-                .entry(file_name, self.primary.use_case_sensitive_file_names())?
+                .entry(file_name, primary.use_case_sensitive_file_names())?
                 .as_ref()
                 .map(|snapshot| snapshot.text().to_owned())
         })
     }
 
+    fn read_package_json_input(&self, file_name: JsStr<'_>) -> Option<EmitPackageJsonInput> {
+        let input = self
+            .primary
+            .and_then(|primary| primary.read_package_json_input(file_name));
+        if matches!(input, Some(EmitPackageJsonInput::Parsed(_)))
+            || (input.is_some() && self.package_provider.is_none())
+        {
+            return input;
+        }
+        let snapshot = self
+            .fallback
+            .entry(file_name, self.use_case_sensitive_file_names())
+            .and_then(Option::as_ref);
+        match input {
+            Some(EmitPackageJsonInput::Text(text)) => {
+                // A caller's text wins. The prepared object is interchangeable
+                // only when both the text and the provider's snapshot match.
+                let parsed = snapshot
+                    .filter(|snapshot| snapshot.text() == text)
+                    .and_then(|snapshot| {
+                        self.package_provider?
+                            .package_json_value(file_name, snapshot)
+                    });
+                Some(match parsed {
+                    Some(value) => EmitPackageJsonInput::Parsed(value),
+                    None => EmitPackageJsonInput::Text(text),
+                })
+            }
+            None => {
+                let snapshot = snapshot?;
+                Some(
+                    match self
+                        .package_provider
+                        .and_then(|provider| provider.package_json_value(file_name, snapshot))
+                    {
+                        Some(value) => EmitPackageJsonInput::Parsed(value),
+                        None => EmitPackageJsonInput::Text(snapshot.text().to_owned()),
+                    },
+                )
+            }
+            Some(EmitPackageJsonInput::Parsed(_)) => unreachable!(),
+        }
+    }
+
     fn get_common_source_directory(&self) -> JsString {
-        self.primary.get_common_source_directory()
+        self.primary().get_common_source_directory()
     }
 
     fn get_default_resolution_mode_for_file(&self, file: EmitResolverNode) -> EmitResolutionMode {
@@ -630,47 +688,47 @@ impl EmitModuleSpecifierHost for ModuleSpecifierHostWithFallback<'_> {
         file: EmitResolverNode,
         index: u32,
     ) -> EmitResolutionMode {
-        self.primary.get_mode_for_resolution_at_index(file, index)
+        self.primary().get_mode_for_resolution_at_index(file, index)
     }
 
     fn symlinked_directories(&self) -> Vec<(JsString, JsString)> {
-        self.primary.symlinked_directories()
+        self.primary().symlinked_directories()
     }
 
     fn symlinked_files(&self) -> Vec<(JsString, JsString)> {
-        self.primary.symlinked_files()
+        self.primary().symlinked_files()
     }
 
     fn get_nearest_ancestor_directory_with_package_json(
         &self,
         file_name: JsStr<'_>,
     ) -> Option<JsString> {
-        self.primary
+        self.primary()
             .get_nearest_ancestor_directory_with_package_json(file_name)
     }
 
     fn get_global_typings_cache_location(&self) -> Option<JsString> {
-        self.primary.get_global_typings_cache_location()
+        self.primary().get_global_typings_cache_location()
     }
 
     fn redirect_targets(&self, file_path: JsStr<'_>) -> Vec<JsString> {
-        self.primary.redirect_targets(file_path)
+        self.primary().redirect_targets(file_path)
     }
 
     fn project_reference_output_of_source(&self, file_name: JsStr<'_>) -> Option<JsString> {
-        self.primary.project_reference_output_of_source(file_name)
+        self.primary().project_reference_output_of_source(file_name)
     }
 
     fn project_reference_source_of_output(&self, file_name: JsStr<'_>) -> Option<JsString> {
-        self.primary.project_reference_source_of_output(file_name)
+        self.primary().project_reference_source_of_output(file_name)
     }
 
     fn import_include_reasons(&self, imported_path: JsStr<'_>) -> Vec<EmitImportIncludeReason> {
-        self.primary.import_include_reasons(imported_path)
+        self.primary().import_include_reasons(imported_path)
     }
 
     fn module_resolution_cache_available(&self) -> bool {
-        self.primary.module_resolution_cache_available()
+        self.primary().module_resolution_cache_available()
     }
 }
 
@@ -1501,8 +1559,17 @@ fn specifier_result_for_module_symbol(
     }
     let fallback = checker.module_specifier_host();
     let fallback: &BasicModuleSpecifierHost = &fallback;
-    if let Some(primary) = context.tracker.caller_module_resolver_host() {
-        let host = ModuleSpecifierHostWithFallback { primary, fallback };
+    let primary = context.tracker.caller_module_resolver_host();
+    let package_provider = checker
+        .declaration_emit_inputs
+        .as_ref()
+        .and(checker.authoritative_module_provider);
+    if primary.is_some() || package_provider.is_some() {
+        let host = ModuleSpecifierHostWithFallback {
+            primary,
+            fallback,
+            package_provider,
+        };
         return get_specifier_for_module_symbol(
             checker,
             symbol,

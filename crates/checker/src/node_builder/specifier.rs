@@ -2842,7 +2842,7 @@ pub(crate) fn try_directory_with_package_json<'path>(
                 get_package_name_from_types_package_name(node_modules_directory_name);
             let conditions = get_conditions(&options.compiler_options, import_mode);
             if let Some(exports) = package_json_content
-                .as_ref()
+                .as_deref()
                 .and_then(|content| package_json_property(content, "exports"))
                 .filter(|exports| json_value_is_truthy(exports))
             {
@@ -2867,7 +2867,7 @@ pub(crate) fn try_directory_with_package_json<'path>(
         }
 
         if let Some(version_paths) = package_json_content
-            .as_ref()
+            .as_deref()
             .and_then(selected_types_versions_paths)
         {
             let submodule_name =
@@ -2892,7 +2892,7 @@ pub(crate) fn try_directory_with_package_json<'path>(
             .iter()
             .find_map(|key| {
                 package_json_content
-                    .as_ref()
+                    .as_deref()
                     .and_then(|content| package_json_property(content, *key))
                     .filter(|value| json_value_is_truthy(value))
             })
@@ -2902,7 +2902,7 @@ pub(crate) fn try_directory_with_package_json<'path>(
         let main_is_blocked_by_types_versions = main_file_relative.is_some_and(|main_file| {
             maybe_blocked_by_types_versions
                 && package_json_content
-                    .as_ref()
+                    .as_deref()
                     .and_then(selected_types_versions_paths)
                     .is_some_and(|paths| {
                         paths
@@ -2929,7 +2929,7 @@ pub(crate) fn try_directory_with_package_json<'path>(
                 };
             }
             let package_is_module = package_json_content
-                .as_ref()
+                .as_deref()
                 .and_then(|content| package_json_property(content, "type"))
                 .and_then(Value::as_js)
                 == Some(JsStr::from("module"));
@@ -4723,14 +4723,38 @@ fn replace_first_star(value: JsStr<'_>, replacement: JsStr<'_>) -> JsString {
     tsc_program::replace_first_star_value(value, replacement)
 }
 
-fn read_package_json(host: &dyn EmitModuleSpecifierHost, path: JsStr<'_>) -> Option<Value> {
-    let snapshot = tsc_diagnostics::TextSnapshot::new(
-        host.read_file(path)?,
-        tsc_diagnostics::DocumentVersion::default(),
-    );
-    Some(Value::Object(
-        tsc_program::read_package_json_object_from_snapshot(path, &snapshot),
-    ))
+enum PackageJsonValue {
+    Owned(Value),
+    Prepared(Arc<Value>),
+}
+
+impl std::ops::Deref for PackageJsonValue {
+    type Target = Value;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Owned(value) => value,
+            Self::Prepared(value) => value,
+        }
+    }
+}
+
+fn read_package_json(
+    host: &dyn EmitModuleSpecifierHost,
+    path: JsStr<'_>,
+) -> Option<PackageJsonValue> {
+    match host.read_package_json_input(path)? {
+        tsc_emitter::EmitPackageJsonInput::Parsed(value) => Some(PackageJsonValue::Prepared(value)),
+        tsc_emitter::EmitPackageJsonInput::Text(text) => {
+            let snapshot = tsc_diagnostics::TextSnapshot::new(
+                text,
+                tsc_diagnostics::DocumentVersion::default(),
+            );
+            Some(PackageJsonValue::Owned(Value::Object(
+                tsc_program::read_package_json_object_from_snapshot(path, &snapshot),
+            )))
+        }
+    }
 }
 
 fn module_declaration_name_text(state: &CheckerState<'_>, declaration: NodeId) -> Option<JsString> {

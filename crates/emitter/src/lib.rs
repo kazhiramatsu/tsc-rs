@@ -96,10 +96,11 @@ pub use printer::{
 pub use resolver::{
     EmitAccessorDeclarations, EmitExportContainerMode, EmitFunctionProperty,
     EmitImportIncludeReason, EmitInternalNodeBuilderFlags, EmitModuleSpecifierHost,
-    EmitNodeBuilderFlags, EmitResolutionMode, EmitResolver, EmitResolverError, EmitResolverMethod,
-    EmitResolverNode, EmitResolverSymbol, EmitSymbolAccessibility, EmitSymbolAccessibilityResult,
-    EmitSymbolExpansionOut, EmitSymbolMeaning, EmitSymbolTracker, EmitTrackerAccess,
-    EmitTrackerNode, EmitTrackerNodeDescription, EmitTrackerSymbol, EmitTrackerSymbolDescription,
+    EmitNodeBuilderFlags, EmitPackageJsonInput, EmitResolutionMode, EmitResolver,
+    EmitResolverError, EmitResolverMethod, EmitResolverNode, EmitResolverSymbol,
+    EmitSymbolAccessibility, EmitSymbolAccessibilityResult, EmitSymbolExpansionOut,
+    EmitSymbolMeaning, EmitSymbolTracker, EmitTrackerAccess, EmitTrackerNode,
+    EmitTrackerNodeDescription, EmitTrackerSymbol, EmitTrackerSymbolDescription,
     EmitTypeReferenceSerializationKind, UnavailableEmitResolver,
 };
 pub use route::EmitRouteKind;

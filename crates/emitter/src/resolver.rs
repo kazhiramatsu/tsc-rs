@@ -236,6 +236,13 @@ pub trait EmitTrackerAccess {
     fn describe_node(&mut self, node: EmitTrackerNode) -> EmitTrackerNodeDescription;
 }
 
+/// A package-reader input from the module host. A parsed value represents the
+/// same package-reader result as parsing the text returned by `read_file`.
+pub enum EmitPackageJsonInput {
+    Text(String),
+    Parsed(std::sync::Arc<tsc_program::JsonValue>),
+}
+
 /// Narrow module-specifier host protocol consumed by the NodeBuilder's
 /// specifier synthesis. The seven concrete members mirror the
 /// always-consulted upstream host reads; the capability members model the
@@ -249,6 +256,12 @@ pub trait EmitModuleSpecifierHost {
     fn use_case_sensitive_file_names(&self) -> bool;
     fn file_exists(&self, file_name: tsc_types::JsStr<'_>) -> bool;
     fn read_file(&self, file_name: tsc_types::JsStr<'_>) -> Option<String>;
+    fn read_package_json_input(
+        &self,
+        file_name: tsc_types::JsStr<'_>,
+    ) -> Option<EmitPackageJsonInput> {
+        self.read_file(file_name).map(EmitPackageJsonInput::Text)
+    }
     fn get_common_source_directory(&self) -> tsc_types::JsString;
     /// Default resolution mode for a file (upstream `getDefaultResolutionModeForFile`).
     fn get_default_resolution_mode_for_file(&self, file: EmitResolverNode) -> EmitResolutionMode;

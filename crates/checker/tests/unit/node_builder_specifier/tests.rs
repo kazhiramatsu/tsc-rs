@@ -738,3 +738,114 @@ fn normalized_slash_spans_preserve_wtf8() {
         assert_eq!(super::normalized_slashes(&input).to_utf16(), expected);
     }
 }
+
+struct PackageInputHost {
+    text: String,
+    prepared: Option<Arc<Value>>,
+    reads: Cell<usize>,
+}
+
+impl EmitModuleSpecifierHost for PackageInputHost {
+    fn get_current_directory(&self) -> JsString {
+        "/project".into()
+    }
+    fn use_case_sensitive_file_names(&self) -> bool {
+        true
+    }
+    fn file_exists(&self, _name: JsStr<'_>) -> bool {
+        true
+    }
+    fn read_file(&self, _name: JsStr<'_>) -> Option<String> {
+        self.reads.set(self.reads.get() + 1);
+        Some(self.text.clone())
+    }
+    fn read_package_json_input(
+        &self,
+        name: JsStr<'_>,
+    ) -> Option<tsc_emitter::EmitPackageJsonInput> {
+        Some(match &self.prepared {
+            Some(value) => tsc_emitter::EmitPackageJsonInput::Parsed(Arc::clone(value)),
+            None => tsc_emitter::EmitPackageJsonInput::Text(self.read_file(name)?),
+        })
+    }
+    fn get_common_source_directory(&self) -> JsString {
+        "/project".into()
+    }
+    fn get_default_resolution_mode_for_file(&self, _file: EmitResolverNode) -> EmitResolutionMode {
+        EmitResolutionMode::None
+    }
+    fn get_mode_for_resolution_at_index(
+        &self,
+        _file: EmitResolverNode,
+        _index: u32,
+    ) -> EmitResolutionMode {
+        EmitResolutionMode::None
+    }
+}
+
+#[test]
+fn package_object_transport_preserves_reader_recovery_and_property_order() {
+    let name = JsString::from("/project/package.json");
+    for text in [
+        r#"{"exports":{"2":"two","1":"one","types":"types","default":"js"},"nul":"a\u0000b","surrogate":"\ud800"}"#,
+        r#"{/* comment */ "exports":{"types":"types","default":"js",},"duplicate":1,"duplicate":2,}"#,
+        r#"{/* comment */ "__proto__":{"inherited":"value"},"own":"own","\u0000key":"\udfff"}"#,
+        r#"{"__proto__":{"own":"value"},"duplicate":1,"duplicate":2}"#,
+        r#"[1,2,3]"#,
+        r#"{"broken": "#,
+    ] {
+        let snapshot = tsc_diagnostics::TextSnapshot::new(
+            text.to_owned(),
+            tsc_diagnostics::DocumentVersion::default(),
+        );
+        let prepared = Arc::new(Value::Object(
+            tsc_program::read_package_json_object_from_snapshot(name.as_js(), &snapshot),
+        ));
+        let fallback = PackageInputHost {
+            text: text.to_owned(),
+            prepared: None,
+            reads: Cell::new(0),
+        };
+        let source = PackageInputHost {
+            text: "this text must never be read".to_owned(),
+            prepared: Some(Arc::clone(&prepared)),
+            reads: Cell::new(0),
+        };
+        let owned = read_package_json(&fallback, name.as_js()).expect("fallback package");
+        let shared = read_package_json(&source, name.as_js()).expect("prepared package");
+        assert_eq!(&*owned, &*shared, "{text}");
+        let PackageJsonValue::Prepared(value) = &shared else {
+            panic!("a structured input must retain its owner");
+        };
+        assert!(Arc::ptr_eq(value, &prepared));
+        assert_eq!(fallback.reads.get(), 1);
+        assert_eq!(source.reads.get(), 0);
+        for property in [
+            "exports",
+            "duplicate",
+            "__proto__",
+            "inherited",
+            "own",
+            "nul",
+            "surrogate",
+            "\0key",
+        ] {
+            assert_eq!(
+                package_json_property(&owned, property),
+                package_json_property(&shared, property),
+                "{property} in {text}"
+            );
+        }
+        let keys = |value: &Value| {
+            package_json_own_entries(value.as_object().expect("package object"))
+                .into_iter()
+                .map(|(key, _)| key.to_owned())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(keys(&owned), keys(&shared));
+        if let Some(exports) = package_json_property(&owned, "exports") {
+            let shared_exports = package_json_property(&shared, "exports").expect("exports");
+            assert_eq!(keys(exports), keys(shared_exports));
+        }
+    }
+}
