@@ -2,7 +2,7 @@
 use super::*;
 use crate::PreparsedSyntax;
 use std::collections::{BTreeMap, VecDeque};
-type RootRead = Option<Result<Option<Vec<u8>>, HostError>>;
+type RootRead = Option<Result<Option<SourceRead>, HostError>>;
 use tsc_syntax::placement::{self as direct, SyntaxStripe};
 
 #[derive(Default)]
@@ -34,7 +34,7 @@ impl Drop for Stripes {
 struct Entry {
     path: ProgramPath,
     byte_len: usize,
-    text: String,
+    text: DecodedText,
     order: usize,
 }
 enum Job {
@@ -309,7 +309,7 @@ impl RootStream<'_> {
                         self.reserved_bytes += byte_len;
                         pass.retained_sources.fetch_add(1, Ordering::Relaxed);
                         pass.retained_bytes.fetch_add(byte_len, Ordering::Relaxed);
-                        match decode_host_text(bytes) {
+                        match decode_source_text(bytes) {
                             Ok(text) => {
                                 entries.push(Entry {
                                     path: path.clone(),
@@ -470,7 +470,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             }
             // On a bounded/failed library prefix, libraries all use the
             // ordinary path. Root admission then has the original budget.
-            let bytes = reader.read_source_js(path.display());
+            let bytes = reader.read_source_contents_js(path.display());
             let Ok(Some(bytes)) = bytes else {
                 library_entries.clear();
                 break;
@@ -483,7 +483,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 library_entries.clear();
                 break;
             }
-            let Ok(text) = decode_host_text(bytes) else {
+            let Ok(text) = decode_source_text(bytes) else {
                 library_entries.clear();
                 break;
             };
@@ -634,7 +634,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         };
         let read = |index| {
             window.read(index, || {
-                Some(reader.read_source_js(roots[index].1.display()))
+                Some(reader.read_source_contents_js(roots[index].1.display()))
             })
         };
         let parse_started = std::time::Instant::now();
@@ -770,9 +770,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                                     scope.as_ref(),
                                     options,
                                 );
-                                let prepared =
-                                    PreparedSourceFile::new(entry.path.clone(), entry.text)
-                                        .with_implied_node_formats(implied, implied_for_emit);
+                                let prepared = PreparedSourceFile::from_snapshot(
+                                    entry.path.clone(),
+                                    entry.text.into_snapshot(),
+                                )
+                                .with_implied_node_formats(implied, implied_for_emit);
                                 let planned =
                                     crate::module_requests::plan_source_requests_in_stripe(
                                         &prepared,

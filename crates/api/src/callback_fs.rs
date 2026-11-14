@@ -239,6 +239,22 @@ impl<F: FileSystem> FileSystem for CallbackFs<F> {
         self.base.read(path)
     }
 
+    fn read_contents(&self, path: &str) -> io::Result<tsc_host::SourceRead> {
+        self.panic_if_error("readFile");
+        if self.is_enabled("readFile") {
+            let response = self.call("readFile", &Self::quote(path));
+            return match response.kind.as_str() {
+                "value" => Ok(tsc_host::SourceRead::Bytes(
+                    value_of::<String>(response).into_bytes(),
+                )),
+                "missing" => Err(io::Error::from(io::ErrorKind::NotFound)),
+                "useOS" => self.base.read_contents(path),
+                _ => invalid_response("readFile", &response),
+            };
+        }
+        self.base.read_contents(path)
+    }
+
     /// tsgo `Stat`: the client's `{ mode, size, mtime }`, `missing`, a fake
     /// stat or the base's.
     fn metadata(&self, path: &str) -> io::Result<Metadata> {
@@ -506,6 +522,36 @@ fn parse_rfc3339(text: &str) -> Option<SystemTime> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn disabled_read_callbacks_retain_the_bundled_source_view() {
+        let base = tsc_compiler::system::BundledFs::new(tsc_host::vfs::MemFs::new(
+            true,
+            Arc::new(tsc_host::vfs::SystemClock),
+        ));
+        let fs = CallbackFs::new(base, &[], Some(false)).unwrap();
+        let path = "bundled:///libs/lib.dom.d.ts";
+        let tsc_host::SourceRead::Text(first) = fs.read_contents(path).unwrap() else {
+            panic!("callback wrapper copied the bundled source");
+        };
+        let tsc_host::SourceRead::Text(second) = fs.read_contents(path).unwrap() else {
+            panic!("callback wrapper copied the bundled source");
+        };
+        assert!(first.ptr_eq(&second));
+        assert!(!first.in_text_heap());
+        assert_eq!(fs.read(path).unwrap(), first.as_bytes());
+    }
+
+    #[test]
+    #[should_panic(expected = "readFile")]
+    fn shared_source_reads_observe_callback_errors() {
+        let base = tsc_compiler::system::BundledFs::new(tsc_host::vfs::MemFs::new(
+            true,
+            Arc::new(tsc_host::vfs::SystemClock),
+        ));
+        let fs = CallbackFs::new(base, &["readFile:error".to_owned()], None).unwrap();
+        let _ = fs.read_contents("bundled:///libs/lib.dom.d.ts");
+    }
 
     #[test]
     fn rfc3339_times_parse_like_go() {

@@ -11,7 +11,9 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use tsc_diagnostics::{gen, Diagnostic, JsStr, JsString, MessageChain, RelatedInfo};
-use tsc_host::{to_file_name_lower_case_js, CompilerHost, HostError, ParallelSourceReader};
+use tsc_host::{
+    to_file_name_lower_case_js, CompilerHost, HostError, ParallelSourceReader, SourceRead,
+};
 use tsc_types::CompilerOptions;
 
 use crate::content_mapper::source::{
@@ -2194,7 +2196,7 @@ impl ParallelReadAhead<'_> {
         } else {
             None
         };
-        let read = match self.reader.read_source_js(path.display()) {
+        let read = match self.reader.read_source_contents_js(path.display()) {
             Err(error) => {
                 // The visit reports this error; nothing after it is needed.
                 self.stopped.store(true, Ordering::Relaxed);
@@ -2250,12 +2252,13 @@ impl ParallelReadAhead<'_> {
         &self,
         resolver: &mut Option<ModuleResolver<'_>>,
         path: &ProgramPath,
-        bytes: Vec<u8>,
+        bytes: SourceRead,
         mapper: &Arc<Mapper>,
         project: &dyn crate::content_mapper::Project,
     ) -> PrefetchedRead {
         let byte_len = bytes.len();
-        let mapped = decode_host_text(bytes).map(|content| {
+        let mapped = decode_source_text(bytes).map(|text| {
+            let content = text.into_string();
             let outcome = transform_content_mapped(
                 self.references.host,
                 project,
@@ -2565,7 +2568,7 @@ impl<K: Hash + Eq, V> Sharded<K, V> {
 /// The text of a source about to be planned: a fresh host read, or the
 /// retained read-ahead of the same bytes.
 enum SourceInput {
-    Fresh(Vec<u8>),
+    Fresh(SourceRead),
     Prefetched {
         byte_len: usize,
         decoded: Result<Box<PrefetchedParse>, HostTextDecodeError>,
@@ -2581,7 +2584,7 @@ enum SourceInput {
 }
 
 enum DecodedSource {
-    Text(String),
+    Text(DecodedText),
     Parsed(Box<PrefetchedParse>),
     /// A content mapper's output (tsgo parseContentMappedFile).
     Mapped(Box<VirtualSource>),
@@ -2590,6 +2593,52 @@ enum DecodedSource {
     /// A content-mapped file the read-ahead transformed, before the walk
     /// applies its mapper's failure budget.
     PrefetchedMapped(Box<PrefetchedMapped>),
+}
+
+/// Retain a host's shared text while preserving the existing owned-string
+/// path for ordinary decoding and content-mapper requests.
+enum DecodedText {
+    Owned(String),
+    Shared(tsc_diagnostics::SharedText),
+}
+
+impl DecodedText {
+    fn into_snapshot(self) -> Arc<tsc_diagnostics::TextSnapshot> {
+        let version = tsc_diagnostics::DocumentVersion::default();
+        match self {
+            Self::Owned(text) => tsc_diagnostics::TextSnapshot::new(text, version),
+            Self::Shared(text) => tsc_diagnostics::TextSnapshot::from_text(text, version),
+        }
+    }
+    fn into_string(self) -> String {
+        match self {
+            Self::Owned(text) => text,
+            Self::Shared(text) => text.as_str().to_owned(),
+        }
+    }
+}
+
+impl std::ops::Deref for DecodedText {
+    type Target = str;
+    fn deref(&self) -> &str {
+        match self {
+            Self::Owned(text) => text,
+            Self::Shared(text) => text,
+        }
+    }
+}
+
+impl From<String> for DecodedText {
+    fn from(text: String) -> Self {
+        Self::Owned(text)
+    }
+}
+
+fn decode_source_text(contents: SourceRead) -> Result<DecodedText, HostTextDecodeError> {
+    match contents {
+        SourceRead::Bytes(bytes) => decode_host_text(bytes).map(DecodedText::Owned),
+        SourceRead::Text(text) => Ok(DecodedText::Shared(text)),
+    }
 }
 
 /// A content-mapped file as the walk admits it: its mapper's output to
@@ -2671,7 +2720,7 @@ pub fn transform_content_mapped(
 /// sequential parse panic would; read-ahead does not catch or defer it.
 fn parse_root_ahead(
     path: &ProgramPath,
-    bytes: Vec<u8>,
+    bytes: SourceRead,
     options: &CompilerOptions,
     package_scope: Option<&PackageMetadata>,
     parse_cache: Option<&dyn crate::ParseCache>,
@@ -2685,14 +2734,14 @@ fn parse_root_ahead(
             path.display().to_string_lossy().into_owned(),
         )
     });
-    let decoded = decode_host_text(bytes).map(|text| {
+    let decoded = decode_source_text(bytes).map(|text| {
         if let Some((started, name)) = &traced {
             tsc_types::trace::mark(&format!("load: decode {name} ({byte_len} bytes)"), *started);
         }
         let prepare_started = std::time::Instant::now();
         let implied = implied_node_format(path.display(), package_scope, options);
         let implied_for_emit = implied_node_format_for_emit(path.display(), package_scope, options);
-        let prepared = PreparedSourceFile::new(path.clone(), text)
+        let prepared = PreparedSourceFile::from_snapshot(path.clone(), text.into_snapshot())
             .with_implied_node_formats(implied, implied_for_emit);
         if let Some((_, name)) = &traced {
             tsc_types::trace::mark(&format!("load: snapshot {name}"), prepare_started);
@@ -3324,7 +3373,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         stopped = true;
                         return None;
                     }
-                    match self.host.read_file_js(path.display()) {
+                    match self.host.read_file_contents_js(path.display()) {
                         Err(error) => {
                             // Reported at this root's visit, where the walk
                             // fails at the latest. A later root can still be
@@ -3426,7 +3475,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 pending.next()
             },
             |(path, scope)| {
-                let read = match reader.read_source_js(path.display()) {
+                let read = match reader.read_source_contents_js(path.display()) {
                     Err(error) => Some(PrefetchedRead::Failed(error)),
                     Ok(None) => Some(PrefetchedRead::Missing),
                     Ok(Some(bytes)) => {
@@ -5572,7 +5621,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             }
             None => self
                 .host
-                .read_file_js(path.display())
+                .read_file_contents_js(path.display())
                 .map(|bytes| bytes.map(SourceInput::Fresh)),
         };
         let input = read.map_err(|error| {
@@ -5628,7 +5677,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         // before any of its text is decoded or retained here.
         self.evict_read_ahead_for_admission(byte_len);
         let decoded = match input {
-            SourceInput::Fresh(bytes) => decode_host_text(bytes).map(DecodedSource::Text),
+            SourceInput::Fresh(bytes) => decode_source_text(bytes).map(DecodedSource::Text),
             SourceInput::Prefetched { decoded, .. } => decoded.map(DecodedSource::Parsed),
             SourceInput::Provided(provided) => Ok(DecodedSource::Mapped(provided)),
             SourceInput::PrefetchedMapped { mapped, .. } => {
@@ -5664,7 +5713,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             // The read-ahead transforms only the files of a mapper's
             // extension.
             None => match decoded {
-                DecodedSource::PrefetchedMapped(mapped) => DecodedSource::Text(mapped.content),
+                DecodedSource::PrefetchedMapped(mapped) => {
+                    DecodedSource::Text(mapped.content.into())
+                }
                 decoded => decoded,
             },
         };
@@ -5701,7 +5752,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let mut supplemental = Vec::new();
         let (mut prepared, prefetched_plan) = match decoded {
             DecodedSource::Text(text) => (
-                with_document_kind(PreparedSourceFile::new(path.clone(), text)),
+                with_document_kind(PreparedSourceFile::from_snapshot(
+                    path.clone(),
+                    text.into_snapshot(),
+                )),
                 None,
             ),
             DecodedSource::Mapped(mapped) => {
@@ -9596,3 +9650,7 @@ fn prepared_read_ahead_elides_target(
             || path_contains_node_modules(target.resolved_file().canonical().as_js()))
         && options.node_modules_depth_exceeds_limit(1)
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/loader/shared_source_tests.rs"]
+mod shared_source_tests;

@@ -7,6 +7,31 @@ use super::*;
 use std::sync::Arc;
 use tsc_host::vfs::{MemFs, Seed, SystemClock};
 
+#[test]
+fn snapshots_and_reload_keep_a_shared_source_view() {
+    static TEXT: tsc_diagnostics::StaticText<{ "// 😀\ninterface X {}\n".len() }> =
+        tsc_diagnostics::StaticText::new("// 😀\ninterface X {}\n");
+    let text = TEXT.shared();
+    let file = CachedFile {
+        file_name: "/lib.d.ts".to_owned(),
+        content: tsc_host::SourceRead::Text(text.clone()).into(),
+        needs_reload: true,
+        realpath_path: None,
+        line_map: OnceLock::new(),
+    };
+    assert!(Arc::ptr_eq(&file.line_map(), &file.line_map()));
+    let file = file.reloaded(file.content.clone());
+    assert!(!file.needs_reload);
+    let mut snapshot = empty(&memory(&[]));
+    snapshot.files = Arc::new(BTreeMap::from([("/lib.d.ts".to_owned(), Arc::new(file))]));
+    let view = SnapshotView { fs: snapshot };
+    let tsc_host::SourceRead::Text(read) = view.read_contents("/lib.d.ts").unwrap() else {
+        panic!("snapshot copied shared source text");
+    };
+    assert!(text.ptr_eq(&read));
+    assert_eq!(view.read("/lib.d.ts").unwrap(), text.as_bytes());
+}
+
 fn memory(entries: &[(&str, Seed)]) -> Arc<MemFs> {
     Arc::new(
         MemFs::from_entries(

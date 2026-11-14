@@ -1002,7 +1002,8 @@ impl TextSnapshot {
         Self::from_text(crate::SharedText::from(text), document_version)
     }
 
-    fn from_text(text: crate::SharedText, document_version: DocumentVersion) -> Arc<Self> {
+    /// A snapshot retains an already validated, shared host text directly.
+    pub fn from_text(text: crate::SharedText, document_version: DocumentVersion) -> Arc<Self> {
         let positions = Arc::new(PositionIndex::new_lazy(text.clone()));
         Arc::new(Self {
             document_version,

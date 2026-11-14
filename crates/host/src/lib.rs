@@ -19,7 +19,33 @@ mod ordering;
 pub mod vfs;
 
 use std::path::{Path, PathBuf};
-use tsc_diagnostics::{JsStr, JsString};
+use tsc_diagnostics::{JsStr, JsString, SharedText};
+
+/// A source read can retain text that the host already knows is decoded
+/// UTF-8, including embedded declarations. Bytes take the ordinary BOM and
+/// decoding path; Text has that normalization already applied by the host.
+pub enum SourceRead {
+    Bytes(Vec<u8>),
+    Text(SharedText),
+}
+
+impl SourceRead {
+    pub fn as_bytes(&self) -> &[u8] {
+        match self {
+            Self::Bytes(bytes) => bytes,
+            Self::Text(text) => text.as_bytes(),
+        }
+    }
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Bytes(bytes) => bytes.len(),
+            Self::Text(text) => text.len(),
+        }
+    }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
 
 pub use error::{HostError, HostErrorKind, HostOperation};
 pub use filesystem::FsCompilerHost;
@@ -121,6 +147,11 @@ pub trait CompilerHost {
     fn current_directory_js(&self) -> Result<JsString, HostError>;
 
     fn read_file_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError>;
+
+    fn read_file_contents_js(&self, path: JsStr<'_>) -> Result<Option<SourceRead>, HostError> {
+        self.read_file_js(path)
+            .map(|bytes| bytes.map(SourceRead::Bytes))
+    }
 
     /// The byte length of the file at `path` when the host can tell without
     /// reading it, or `None`. The loader reads the largest roots first so the
@@ -256,4 +287,9 @@ pub trait CompilerHost {
 /// source read-ahead; see [`CompilerHost::parallel_source_reader`].
 pub trait ParallelSourceReader {
     fn read_source_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError>;
+
+    fn read_source_contents_js(&self, path: JsStr<'_>) -> Result<Option<SourceRead>, HostError> {
+        self.read_source_js(path)
+            .map(|bytes| bytes.map(SourceRead::Bytes))
+    }
 }

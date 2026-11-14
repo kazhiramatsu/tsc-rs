@@ -149,7 +149,7 @@ impl Overlay {
         Arc::clone(self.file.get_or_init(|| {
             Arc::new(CachedFile {
                 file_name: self.file_name.clone(),
-                content: Arc::from(self.content.as_bytes()),
+                content: Arc::<[u8]>::from(self.content.as_bytes()).into(),
                 needs_reload: false,
                 realpath_path: None,
                 line_map: OnceLock::new(),
@@ -502,6 +502,17 @@ impl FileSystem for OverlayLayer {
             return Err(io::Error::new(io::ErrorKind::IsADirectory, "a directory"));
         }
         self.host.read(path)
+    }
+    fn read_contents(&self, path: &str) -> io::Result<tsc_host::SourceRead> {
+        if let Some(overlay) = self.overlay(path) {
+            return Ok(tsc_host::SourceRead::Bytes(
+                overlay.content.as_bytes().to_vec(),
+            ));
+        }
+        if self.is_overlay_directory(path) {
+            return Err(io::Error::new(io::ErrorKind::IsADirectory, "a directory"));
+        }
+        self.host.read_contents(path)
     }
 
     fn metadata(&self, path: &str) -> io::Result<Metadata> {
