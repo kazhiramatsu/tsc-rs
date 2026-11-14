@@ -103,6 +103,8 @@ tsc 6.0.3 compatibility is complete in release
   untested in editors.
 - `-b` builds projects one at a time.
 - `--diagnostics` prints fewer statistics than `tsgo`.
+- `--showConfig` prints every property of a `compilerOptions.plugins` entry;
+  `tsgo` prints only its `name`.
 - Memory grows with the number of checkers.
 - `tsc-rs --api --pipe` does not support Windows named pipes.
 - `--pprofDir` (and the language server's profile commands) writes CPU
