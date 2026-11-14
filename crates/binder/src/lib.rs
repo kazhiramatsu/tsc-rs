@@ -7,6 +7,7 @@ pub mod declare;
 pub mod flow;
 pub mod hosted;
 pub mod node_util;
+mod reservations;
 pub mod symbols;
 
 use tsc_syntax::SourceFile;
@@ -20,6 +21,7 @@ pub use declare::{
 };
 pub use declare::{BindData, Binder, BinderMemory, BinderWorker, TableRef};
 pub use hosted::jsdoc_hosted;
+pub use reservations::BindReservations;
 pub use symbols::{
     escape_leading_underscores, published_symbol, unescape_leading_underscores, Declarations,
     InternalSymbolName, NameKey, Symbol, SymbolArena, SymbolArenaExhausted, SymbolExtras, SymbolId,

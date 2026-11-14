@@ -1,5 +1,7 @@
 //! Thin level-0 caller of the scheduler-independent dense room API.
 use super::*;
+use crate::PreparsedSyntax;
+use std::collections::{BTreeMap, VecDeque};
 type RootRead = Option<Result<Option<Vec<u8>>, HostError>>;
 use tsc_syntax::placement::{self as direct, SyntaxStripe};
 
@@ -43,6 +45,136 @@ enum Job {
     Ordinary(ProgramPath),
 }
 
+/// A completed parse keeps its payload while earlier stripes are still
+/// running. Parking never occupies a worker or duplicates a source snapshot.
+struct CompletedStripe {
+    ordinal: usize,
+    label: &'static str,
+    sources: Vec<ReadAheadSource>,
+    syntax: SyntaxStripe,
+}
+
+struct BindAdmission {
+    domain: tsc_types::IdentityDomain,
+    expected: VecDeque<usize>,
+    parked: BTreeMap<usize, CompletedStripe>,
+    exhausted: bool,
+    stripes: usize,
+    sources: usize,
+    deferred: usize,
+    elapsed: std::time::Duration,
+}
+
+impl BindAdmission {
+    fn new(domain: tsc_types::IdentityDomain, libraries: usize) -> Self {
+        Self {
+            domain,
+            expected: (0..libraries).collect(),
+            parked: BTreeMap::new(),
+            exhausted: false,
+            stripes: 0,
+            sources: 0,
+            deferred: 0,
+            elapsed: std::time::Duration::ZERO,
+        }
+    }
+
+    fn syntax(source: &ReadAheadSource) -> Option<&PreparsedSyntax> {
+        match &source.read {
+            PrefetchedRead::Parsed {
+                decoded: Ok(parsed),
+                ..
+            } => Some(parsed.prepared.preparsed_syntax()),
+            _ => None,
+        }
+    }
+
+    fn reserve(&mut self, stripe: &CompletedStripe) {
+        let sources: Vec<_> = stripe
+            .sources
+            .iter()
+            .filter_map(Self::syntax)
+            .filter_map(|syntax| {
+                syntax
+                    .bind_counts(&self.domain)
+                    .map(|counts| (syntax, counts))
+            })
+            .collect();
+        if sources.is_empty() {
+            return;
+        }
+        let totals = sources.iter().try_fold([0u32; 2], |sum, (_, counts)| {
+            Some([
+                sum[0].checked_add(counts[0])?,
+                sum[1].checked_add(counts[1])?,
+            ])
+        });
+        let room = totals
+            .filter(|_| !self.exhausted)
+            .and_then(|[symbols, serials]| {
+                self.domain
+                    .lease_rooms(&[vec![
+                        (tsc_types::IdentitySpace::Symbol, symbols),
+                        (tsc_types::IdentitySpace::PrivateNameSerial, serials),
+                    ]])
+                    .ok()?
+                    .pop()
+            });
+        let Some(mut room) = room else {
+            // Loading alone need not use a binder. An exhausted symbol
+            // space must retain the ordinary driver's failure boundary.
+            self.exhausted = true;
+            self.deferred += sources.len();
+            return;
+        };
+        for (syntax, counts) in sources {
+            syntax.reserve_bind(
+                tsc_binder::BindReservations::finish_entry(&mut room, counts)
+                    .expect("exact bind slice fits its stripe"),
+            );
+            self.sources += 1;
+        }
+        room.seal().expect("exact bind room seals");
+        self.stripes += 1;
+    }
+
+    fn complete(&mut self, stripe: CompletedStripe) -> Vec<CompletedStripe> {
+        let started = tsc_types::trace::enabled().then(std::time::Instant::now);
+        assert!(self.parked.insert(stripe.ordinal, stripe).is_none());
+        let mut completed = Vec::new();
+        while let Some(&ordinal) = self.expected.front() {
+            let Some(stripe) = self.parked.remove(&ordinal) else {
+                break;
+            };
+            self.expected.pop_front();
+            self.reserve(&stripe);
+            completed.push(stripe);
+        }
+        if let Some(started) = started {
+            self.elapsed += started.elapsed();
+        }
+        completed
+    }
+
+    fn finish(&self) {
+        assert!(self.expected.is_empty() && self.parked.is_empty());
+        if tsc_types::trace::enabled() {
+            eprintln!(
+                "[bind-placement] exact stripes={} sources={} domain_ranges={} deferred_sources={}",
+                self.stripes,
+                self.sources,
+                self.stripes * 2,
+                self.deferred
+            );
+            let now = std::time::Instant::now();
+            tsc_types::trace::mark(
+                "load: direct bind stripe admission (summed)",
+                now.checked_sub(self.elapsed).unwrap_or(now),
+            );
+        }
+    }
+}
+
 /// Three readers plus the admitting worker make at most four active root
 /// reads. The crew may get only four reads ahead of ordered admission. This
 /// bounds retained raw buffers even when decoding one root is slow. A parser
@@ -80,8 +212,9 @@ impl Drop for StopReaders<'_> {
 /// at a time. Parsing, planning and resolution never hold it. In particular,
 /// a worker cannot reserve a later stripe and make an earlier owner wait for
 /// that later stripe's reads.
-struct RootStream {
+struct RootStream<'a> {
     identity_domain: tsc_types::IdentityDomain,
+    bind_admission: Option<&'a Mutex<BindAdmission>>,
     next: usize,
     width: usize,
     ordinal: usize,
@@ -98,7 +231,7 @@ struct RootStream {
     started: std::time::Instant,
 }
 
-impl RootStream {
+impl RootStream<'_> {
     fn take(
         &mut self,
         roots: &[(usize, ProgramPath)],
@@ -178,6 +311,15 @@ impl RootStream {
         let job = (!entries.is_empty())
             .then(|| stripe_job(ordinal, "roots", entries, &self.identity_domain));
         if job.is_some() {
+            // Empty/missing batches have no pending bind entry. Register
+            // before the parsing job can complete, under ordered admission.
+            if let Some(admission) = self.bind_admission {
+                admission
+                    .lock()
+                    .expect("ordered bind admission")
+                    .expected
+                    .push_back(ordinal);
+            }
             self.leased += 1;
             if self.leased == 1 {
                 tsc_types::trace::mark("load: first root stripe read/decode/lease", self.started);
@@ -446,8 +588,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             })
         };
         let parse_started = std::time::Instant::now();
+        let bind_admission = (options.list_files_only != Some(true))
+            .then(|| Mutex::new(BindAdmission::new(identity_domain.clone(), library_stripes)));
         let stream = Mutex::new(RootStream {
             identity_domain: identity_domain.clone(),
+            bind_admission: bind_admission.as_ref(),
             next: 0,
             width: root_width,
             ordinal: library_stripes,
@@ -596,7 +741,30 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         }
                     }
                     spawned.extend(next.into_iter().map(|(path, _)| Job::Ordinary(path)));
-                    Some((results, stripe_result))
+                    if let Some((ordinal, label, syntax)) = stripe_result {
+                        let Some(admission) = bind_admission.as_ref() else {
+                            return Some((results, vec![(ordinal, label, syntax)]));
+                        };
+                        let completed = admission.lock().expect("ordered bind admission").complete(
+                            CompletedStripe {
+                                ordinal,
+                                label,
+                                sources: results,
+                                syntax,
+                            },
+                        );
+                        let mut completed = completed.into_iter();
+                        let first = completed.next()?;
+                        let mut sources = first.sources;
+                        let mut stripes = vec![(first.ordinal, first.label, first.syntax)];
+                        for stripe in completed {
+                            sources.extend(stripe.sources);
+                            stripes.push((stripe.ordinal, stripe.label, stripe.syntax));
+                        }
+                        Some((sources, stripes))
+                    } else {
+                        Some((results, Vec::new()))
+                    }
                 },
                 |resolver| {
                     resolver
@@ -605,6 +773,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 },
             )
         });
+        if let Some(admission) = bind_admission.as_ref() {
+            admission.lock().expect("ordered bind admission").finish();
+        }
         drop(reads);
         let stream = stream.into_inner().expect("ordered root stream");
         if tsc_types::trace::enabled() {
@@ -616,11 +787,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let mut sources = Vec::new();
         for (probes, results) in finished {
             self.read_ahead_package_json_probes.extend(probes);
-            for (group, stripe) in results {
+            for (group, stripes) in results {
                 sources.extend(group);
-                if let Some(stripe) = stripe {
-                    self.direct_stripes.0.push(stripe);
-                }
+                self.direct_stripes.0.extend(stripes);
             }
         }
         // map_spawning's finish order is a scheduling detail. Stripe owners

@@ -101,12 +101,17 @@ impl PathContext {
 #[derive(Debug)]
 pub struct PreparsedSourceFile {
     options: ParseOptions,
+    bind_reservations: Option<tsc_binder::BindReservations>,
     source: SourceFile,
 }
 
 impl PreparsedSourceFile {
     pub(crate) fn new(options: ParseOptions, source: SourceFile) -> Self {
-        Self { options, source }
+        Self {
+            options,
+            bind_reservations: None,
+            source,
+        }
     }
 
     /// The exact parse options the planner used (identity bases zero).
@@ -122,6 +127,12 @@ impl PreparsedSourceFile {
     /// Consume the slot contents into the parsed tree.
     pub fn into_source(self) -> SourceFile {
         self.source
+    }
+
+    /// Adopt the tree and its take-once reservation together. A plain parse
+    /// consumer can still use `into_source`, releasing the unused reservation.
+    pub fn into_parts(self) -> (Option<tsc_binder::BindReservations>, SourceFile) {
+        (self.bind_reservations, self.source)
     }
 }
 
@@ -151,6 +162,30 @@ pub struct PreparsedSyntax {
 }
 
 impl PreparsedSyntax {
+    pub(crate) fn bind_counts(&self, domain: &IdentityDomain) -> Option<[u32; 2]> {
+        let slot = self.slot.lock().expect("retained parse");
+        let parsed = slot.as_ref()?;
+        (parsed.source.arena.is_published() && parsed.source.identity_owned_by(domain))
+            .then(|| tsc_binder::BindReservations::counts(&parsed.source))
+    }
+
+    pub(crate) fn reserve_bind(&self, reservation: tsc_binder::BindReservations) {
+        let mut slot = self.slot.lock().expect("retained parse");
+        let parsed = slot.as_mut().expect("stripe parse has not been adopted");
+        assert!(parsed.bind_reservations.is_none());
+        assert!(parsed
+            .source
+            .identity_owned_by(&reservation.symbols.domain()));
+        assert_eq!(
+            tsc_binder::BindReservations::counts(&parsed.source),
+            [
+                reservation.symbols.range().len(),
+                reservation.serials.range().len()
+            ]
+        );
+        parsed.bind_reservations = Some(reservation);
+    }
+
     /// The finite Program's owner, retained even after its parse is adopted.
     pub fn identity_domain(&self) -> Option<&IdentityDomain> {
         self.identity_domain.as_ref()

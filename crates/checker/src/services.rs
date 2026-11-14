@@ -233,7 +233,7 @@ impl CheckerState<'_> {
         for (_, _, symbol) in &self.pattern_ambient_modules {
             ambient.push(self.get_merged_symbol(*symbol));
         }
-        ambient.sort_unstable();
+        self.binder.sort_symbols_by_creation_order(&mut ambient);
         ambient.dedup();
         ambient
     }

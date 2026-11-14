@@ -218,7 +218,7 @@ pub fn unused_identifier_suggestions() -> bool {
 }
 use tsc_types::perf::{self, PerfCounter};
 use tsc_types::tracing::{Args as TraceArgs, Phase as TracePhase, Tracing};
-use tsc_types::{IdentityDomain, IdentityLease, JsStr, JsString};
+use tsc_types::{IdentityDomain, JsStr, JsString};
 
 use crate::emit::CheckerSession;
 
@@ -400,7 +400,7 @@ impl InputFile {
     fn take_preparsed_source(
         &self,
         options: &tsc_syntax::ParseOptions,
-    ) -> Option<tsc_syntax::SourceFile> {
+    ) -> Option<program::DocumentBuilder> {
         let preparsed = self.preparsed_syntax.take()?;
         let expected = tsc_syntax::ParseOptions {
             node_id_base: 0,
@@ -413,7 +413,7 @@ impl InputFile {
         {
             return None;
         }
-        Some(preparsed.into_source())
+        Some(program::DocumentBuilder::from_preparsed(preparsed))
     }
 
     /// tsrs-native: expose the shared L0 snapshot owner without its private
@@ -2908,9 +2908,14 @@ impl ProgramSource {
         }
     }
 
-    fn source_mut(&mut self) -> Option<&mut tsc_syntax::SourceFile> {
+    fn bind_input(
+        &mut self,
+    ) -> Option<(
+        &mut tsc_syntax::SourceFile,
+        Option<tsc_binder::BindReservations>,
+    )> {
         match self {
-            Self::New(builder) => Some(builder.source_mut()),
+            Self::New(builder) => Some(builder.bind_input()),
             Self::Shared(_) => None,
         }
     }
@@ -2934,8 +2939,8 @@ pub(crate) enum SharedDocument {
 /// A program source between its identity lease (taken in program order on
 /// the calling thread) and its rewrite into the leased ranges (on a worker).
 enum PendingProgramSource {
-    Ready(tsc_syntax::SourceFile),
-    Leased(tsc_syntax::SourceFile, tsc_syntax::SyntaxLeases),
+    Ready(program::DocumentBuilder),
+    Leased(program::DocumentBuilder, tsc_syntax::SyntaxLeases),
     /// The source of a document a Program already holds.
     Shared(Arc<BoundDocument>),
 }
@@ -2944,29 +2949,31 @@ impl PendingProgramSource {
     fn weight(&self) -> usize {
         match self {
             Self::Ready(_) | Self::Shared(_) => 0,
-            Self::Leased(source, _) => source.arena.nodes().len(),
+            Self::Leased(source, _) => source.source().arena.nodes().len(),
         }
     }
 
     fn source(&self) -> &tsc_syntax::SourceFile {
         match self {
-            Self::Ready(source) | Self::Leased(source, _) => source,
+            Self::Ready(source) | Self::Leased(source, _) => source.source(),
             Self::Shared(document) => document.source(),
         }
     }
 
     fn source_mut(&mut self) -> &mut tsc_syntax::SourceFile {
         match self {
-            Self::Ready(source) | Self::Leased(source, _) => source,
+            Self::Ready(source) | Self::Leased(source, _) => source.source_mut(),
             Self::Shared(_) => unreachable!("a shared source is not edited"),
         }
     }
 
-    fn relocate(self) -> tsc_syntax::SourceFile {
+    fn relocate(self) -> program::DocumentBuilder {
         match self {
             Self::Ready(source) => source,
             Self::Leased(mut source, leases) => {
+                source.discard_bind_reservations();
                 source
+                    .source_mut()
                     .relocate_with_leases(leases)
                     .expect("source identity relocation failed");
                 source
@@ -2980,7 +2987,7 @@ impl PendingProgramSource {
     fn into_program_source(self) -> ProgramSource {
         match self {
             Self::Shared(source) => ProgramSource::Shared(source),
-            pending => ProgramSource::New(program::DocumentBuilder::new(pending.relocate())),
+            pending => ProgramSource::New(pending.relocate()),
         }
     }
 }
@@ -3240,7 +3247,9 @@ fn parse_program_inputs(
                     force: force_external_module,
                 };
             work_counters.record_parse(file.text().len());
-            pending_sources.push(PendingProgramSource::Ready(source_file));
+            pending_sources.push(PendingProgramSource::Ready(program::DocumentBuilder::new(
+                source_file,
+            )));
             continue;
         }
         // tsgo ParseSourceFile's script kind: a content mapper output's
@@ -3285,6 +3294,7 @@ fn parse_program_inputs(
             Some(source_file) => {
                 work_counters.record_adoption();
                 let leases = source_file
+                    .source()
                     .lease_identities(identity_domain)
                     .expect("source identity allocation failed");
                 pending_leased_source(source_file, leases)
@@ -3295,7 +3305,7 @@ fn parse_program_inputs(
                     authoritative_run.and_then(|run| run.tracing.as_ref()),
                     &file.name,
                 );
-                PendingProgramSource::Ready(
+                PendingProgramSource::Ready(program::DocumentBuilder::new(
                     tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
                         file.name.clone(),
                         Arc::clone(file.snapshot()),
@@ -3304,7 +3314,7 @@ fn parse_program_inputs(
                         identity_domain,
                     )
                     .expect("source identity allocation failed"),
-                )
+                ))
             }
         };
         // transpileWorker (typescript.js:146099-146104) assigns the API
@@ -6739,7 +6749,7 @@ fn parse_lib_sources(
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
-) -> (Vec<tsc_syntax::SourceFile>, LibParseWork) {
+) -> (Vec<program::DocumentBuilder>, LibParseWork) {
     let adopt_started = std::time::Instant::now();
     let mut work = LibParseWork::default();
     let mut pending: Vec<PendingProgramSource> = Vec::new();
@@ -6749,6 +6759,7 @@ fn parse_lib_sources(
             Some(source) => {
                 work.adopted += 1;
                 let leases = source
+                    .source()
                     .lease_identities(identity_domain)
                     .expect("library source identity allocation failed");
                 pending_leased_source(source, leases)
@@ -6756,7 +6767,7 @@ fn parse_lib_sources(
             None => {
                 work.parsed += 1;
                 let _span = trace_parse(tracing, &lib.name);
-                PendingProgramSource::Ready(
+                PendingProgramSource::Ready(program::DocumentBuilder::new(
                     tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
                         lib.name.clone(),
                         Arc::clone(lib.snapshot()),
@@ -6765,7 +6776,7 @@ fn parse_lib_sources(
                         identity_domain,
                     )
                     .expect("library source identity allocation failed"),
-                )
+                ))
             }
         });
     }
@@ -6789,12 +6800,15 @@ fn parse_lib_sources(
 /// Bind the library prefix on the budget's workers at identities reserved
 /// in order from `identity_domain` (see [`bind_reserved_in_program_order`]).
 fn bind_lib_sources(
-    sources: &mut [tsc_syntax::SourceFile],
+    sources: &mut [program::DocumentBuilder],
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
 ) -> Vec<BindData> {
-    let sources = sources.iter_mut().collect::<Vec<_>>();
+    let sources = sources
+        .iter_mut()
+        .map(program::DocumentBuilder::bind_input)
+        .collect::<Vec<_>>();
     bind_reserved_in_program_order(sources, identity_domain, workers, tracing)
 }
 
@@ -6812,16 +6826,18 @@ fn trace_parse(
     })
 }
 
-/// Reserve every source's symbol and private-name-serial ranges in order on
-/// the calling thread (the order-dependent step), then bind each source on
-/// the budget's workers directly at its reserved bases, so no bind identity
-/// is rewritten afterwards. A source's ranges depend only on the sources
-/// before it, so the identities are the same for every budget. A source
+/// Take directly placed sources' input-ordered reservations, reserving the
+/// remainder in Program order, then bind on the budget's workers at those
+/// bases. A fitting bind rewrites no identity, and every range is independent
+/// of worker completion order. A source
 /// that outgrows a reservation (rare: the declarations the parser's symbol
 /// bound does not count, see `NodeArena::symbol_bound`) relocates into an
 /// exact lease at the domain's tail, still in Program order.
 fn bind_reserved_in_program_order(
-    sources: Vec<&mut tsc_syntax::SourceFile>,
+    mut sources: Vec<(
+        &mut tsc_syntax::SourceFile,
+        Option<tsc_binder::BindReservations>,
+    )>,
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
@@ -6830,8 +6846,12 @@ fn bind_reserved_in_program_order(
     let _ledger = tsc_types::phase_ledger::scope(tsc_types::phase_ledger::Phase::Bind);
     let phase_started = std::time::Instant::now();
     let reservations = sources
-        .iter()
-        .map(|source| reserve_bind_identities(source, identity_domain))
+        .iter_mut()
+        .map(|(source, reservation)| {
+            reservation
+                .take()
+                .unwrap_or_else(|| reserve_bind_identities(source, identity_domain))
+        })
         .collect::<Vec<_>>();
     write_direct_manifest(&sources, &reservations);
     tsc_types::trace::mark("checker: bind reservations (serial)", phase_started);
@@ -6844,9 +6864,11 @@ fn bind_reserved_in_program_order(
     }
     let completions = workers.map_ordered(
         sources.into_iter().enumerate().collect(),
-        |(_, source)| source.text().len(),
-        |(index, source)| {
-            let (symbol_lease, serial_lease) = &reservations[index];
+        |(_, (source, _))| source.text().len(),
+        |(index, (source, _))| {
+            let reservation = &reservations[index];
+            let symbol_lease = &reservation.symbols;
+            let serial_lease = &reservation.serials;
             // tsgo `BindSourceFiles`: one span per file, on the file's row.
             let bind_span = tracing.map(|tracing| {
                 tracing.begin(
@@ -6903,7 +6925,7 @@ fn bind_reserved_in_program_order(
 }
 
 /// One symbol range and one private-name-serial range for `source`, leased
-/// from the domain's bump tail in the caller's (Program) order. The parser
+/// from the domain in the caller's (Program) order. The parser
 /// counts the most symbols the source can declare (`symbol_bound`), so the
 /// symbols of consecutive sources share the store's pages instead of each
 /// starting a page of its own; every serial is minted for a node of the
@@ -6912,30 +6934,9 @@ fn bind_reserved_in_program_order(
 fn reserve_bind_identities(
     source: &tsc_syntax::SourceFile,
     identity_domain: &IdentityDomain,
-) -> (IdentityLease, IdentityLease) {
-    let symbols = source.arena.symbol_bound().max(1);
-    let serials = u32::try_from(source.arena.nodes().len())
-        .expect("source node count exceeds u32")
-        .max(1);
-    let mut symbol = None;
-    let mut serial = None;
-    let leases = identity_domain
-        .lease_batch(&[
-            (tsc_types::IdentitySpace::Symbol, symbols),
-            (tsc_types::IdentitySpace::PrivateNameSerial, serials),
-        ])
-        .expect("bind identity reservation failed");
-    for lease in leases {
-        match lease.space() {
-            tsc_types::IdentitySpace::Symbol => symbol = Some(lease),
-            tsc_types::IdentitySpace::PrivateNameSerial => serial = Some(lease),
-            space => panic!("unexpected bind reservation space {space}"),
-        }
-    }
-    (
-        symbol.expect("symbol reservation"),
-        serial.expect("private-name serial reservation"),
-    )
+) -> tsc_binder::BindReservations {
+    tsc_binder::BindReservations::lease(source, identity_domain)
+        .expect("bind identity reservation failed")
 }
 
 /// Bind every Program source on the budget's scoped worker threads (the
@@ -6951,29 +6952,29 @@ fn bind_sources_in_program_order(
 ) -> Vec<BindData> {
     let sources = sources
         .iter_mut()
-        .filter_map(ProgramSource::source_mut)
+        .filter_map(ProgramSource::bind_input)
         .collect::<Vec<_>>();
     bind_reserved_in_program_order(sources, identity_domain, workers, tracing)
 }
 
 fn publish_bound_documents(
-    sources: Vec<tsc_syntax::SourceFile>,
+    sources: Vec<program::DocumentBuilder>,
     data: Vec<BindData>,
 ) -> Vec<Arc<BoundDocument>> {
     assert_eq!(sources.len(), data.len());
     sources
         .into_iter()
         .zip(data)
-        .map(|(source, data)| Arc::new(program::DocumentBuilder::new(source).freeze(data)))
+        .map(|(source, data)| Arc::new(source.freeze(data)))
         .collect()
 }
 
 fn pending_leased_source(
-    source: tsc_syntax::SourceFile,
+    source: program::DocumentBuilder,
     leases: tsc_syntax::SyntaxLeases,
 ) -> PendingProgramSource {
-    if source.arena.is_published()
-        && source.arena.identity_leases().is_some_and(|held| {
+    if source.source().arena.is_published()
+        && source.source().arena.identity_leases().is_some_and(|held| {
             held.nodes == leases.nodes
                 && held.arrays == leases.arrays
                 && held.array_items == leases.array_items
@@ -7007,8 +7008,11 @@ fn trace_direct_adoption<'a>(
 }
 
 fn write_direct_manifest(
-    sources: &[&mut tsc_syntax::SourceFile],
-    reservations: &[(IdentityLease, IdentityLease)],
+    sources: &[(
+        &mut tsc_syntax::SourceFile,
+        Option<tsc_binder::BindReservations>,
+    )],
+    reservations: &[tsc_binder::BindReservations],
 ) {
     use std::io::Write;
     use std::sync::{Mutex, OnceLock};
@@ -7021,7 +7025,9 @@ fn write_direct_manifest(
         return;
     };
     let mut output = output.lock().expect("manifest lock");
-    for (source, (symbols, serials)) in sources.iter().zip(reservations) {
+    for ((source, _), reservation) in sources.iter().zip(reservations) {
+        let symbols = &reservation.symbols;
+        let serials = &reservation.serials;
         let held = source
             .arena
             .identity_leases()

@@ -12,7 +12,8 @@ use std::{
 use tsc_diagnostics::JsStr;
 use tsc_host::{CompilerHost, HostError, MemoryCompilerHost, ParallelSourceReader};
 use tsc_program::{
-    load_program, CompilerOptions, LibraryCatalog, ProgramLoadLimits, ProgramOptions, WorkerBudget,
+    load_no_lib_program, load_program, CompilerOptions, LibraryCatalog, ProgramLoadLimits,
+    ProgramOptions, WorkerBudget,
 };
 
 struct State {
@@ -133,6 +134,7 @@ fn scrambled_reads_keep_root_ranges_and_parse_before_the_last_read() {
         .map(|i| PathBuf::from(format!("/p/r{i}.ts")))
         .collect();
     let mut expected = None;
+    let mut expected_bind_ranges = None;
     for (run, workers) in [1, 4, 16, 4].into_iter().enumerate() {
         let mut inner = MemoryCompilerHost::builder("/p");
         for (i, path) in roots.iter().enumerate() {
@@ -218,6 +220,40 @@ fn scrambled_reads_keep_root_ranges_and_parse_before_the_last_read() {
         } else {
             expected = Some(relative);
         }
+        let mut bases = None;
+        let mut bind_ranges = Vec::new();
+        for placement in layout.iter() {
+            let prepared = program
+                .source_files()
+                .iter()
+                .find(|source| source.path().display() == placement.name.as_js())
+                .unwrap();
+            let (reservation, tree) = prepared.preparsed_syntax().take().unwrap().into_parts();
+            let reservation = reservation.expect("each directly placed tree has a bind slice");
+            let ranges = [reservation.symbols.range(), reservation.serials.range()];
+            assert_eq!(ranges[0].len(), tree.arena.symbol_bound().max(1));
+            assert_eq!(ranges[1].len() as usize, tree.arena.nodes().len());
+            assert!(reservation.symbols.is_room_slice());
+            // Loading assigns identities but does not run a binder or claim
+            // the tree's published per-node bind tables.
+            let claim = tree.arena.identity_leases().unwrap().nodes.claim().unwrap();
+            drop(claim);
+            let bases = *bases.get_or_insert(ranges.map(|range| range.start()));
+            bind_ranges.push((
+                placement.name.clone(),
+                std::array::from_fn::<_, 2, _>(|i| (ranges[i].start() - bases[i], ranges[i].len())),
+            ));
+        }
+        for pair in bind_ranges.windows(2) {
+            for (&(start, count), &(next, _)) in pair[0].1.iter().zip(&pair[1].1) {
+                assert_eq!(start + count, next);
+            }
+        }
+        if let Some(expected) = &expected_bind_ranges {
+            assert_eq!(&bind_ranges, expected);
+        } else {
+            expected_bind_ranges = Some(bind_ranges);
+        }
         let late = program
             .source_files()
             .iter()
@@ -231,6 +267,105 @@ fn scrambled_reads_keep_root_ranges_and_parse_before_the_last_read() {
         );
     }
     check_interrupted_streams();
+    check_empty_batches_and_unused_symbol_limits();
+}
+
+fn check_empty_batches_and_unused_symbol_limits() {
+    let roots: Vec<_> = (0..17)
+        .map(|i| PathBuf::from(format!("/p/r{i}.ts")))
+        .collect();
+    for workers in [1, 4, 16] {
+        let mut host = MemoryCompilerHost::builder("/p");
+        for root in &roots[8..] {
+            host = host.file(root, b"export const value = 1;".to_vec());
+        }
+        let host = host.build().unwrap();
+        let program = load_no_lib_program(
+            &host,
+            &roots,
+            CompilerOptions {
+                no_emit: Some(true),
+                ..Default::default()
+            },
+            ProgramOptions::default()
+                .with_no_lib(true)
+                .with_types(Vec::new())
+                .with_identity_domain(tsc_types::IdentityDomain::new()),
+            ProgramLoadLimits::new(100, 1000, 100, 1 << 20, 4 << 20)
+                .with_workers(WorkerBudget::new(NonZeroUsize::new(workers).unwrap())),
+        )
+        .unwrap();
+        assert_eq!(program.source_files().len(), 9);
+        for source in program.source_files() {
+            assert!(source
+                .preparsed_syntax()
+                .take()
+                .unwrap()
+                .into_parts()
+                .0
+                .is_some());
+        }
+        let listed = load_no_lib_program(
+            &host,
+            &roots,
+            CompilerOptions {
+                list_files_only: Some(true),
+                no_emit: Some(true),
+                ..Default::default()
+            },
+            ProgramOptions::default()
+                .with_no_lib(true)
+                .with_types(Vec::new())
+                .with_identity_domain(tsc_types::IdentityDomain::new()),
+            ProgramLoadLimits::new(100, 1000, 100, 1 << 20, 4 << 20)
+                .with_workers(WorkerBudget::new(NonZeroUsize::new(workers).unwrap())),
+        )
+        .unwrap();
+        for source in listed.source_files() {
+            let (reservation, tree) = source.preparsed_syntax().take().unwrap().into_parts();
+            assert!(tree.arena.is_published());
+            assert!(reservation.is_none());
+        }
+    }
+
+    let domain = tsc_types::IdentityDomain::with_limits(tsc_types::IdentityLimits {
+        persistent_symbol_end: 1,
+        ..Default::default()
+    })
+    .unwrap();
+    let host = MemoryCompilerHost::builder("/p")
+        .file("/p/a.ts", b"export class A {}".to_vec())
+        .build()
+        .unwrap();
+    let program = load_no_lib_program(
+        &host,
+        &[PathBuf::from("/p/a.ts")],
+        CompilerOptions {
+            no_emit: Some(true),
+            ..Default::default()
+        },
+        ProgramOptions::default()
+            .with_no_lib(true)
+            .with_types(Vec::new())
+            .with_identity_domain(domain.clone()),
+        ProgramLoadLimits::new(100, 1000, 100, 1 << 20, 4 << 20),
+    )
+    .expect("a parse-only load does not require symbol space");
+    let (reservation, tree) = program.source_files()[0]
+        .preparsed_syntax()
+        .take()
+        .unwrap()
+        .into_parts();
+    assert!(tree.arena.is_published());
+    assert!(reservation.is_none());
+    assert_eq!(
+        domain
+            .stats()
+            .unwrap()
+            .space(tsc_types::IdentitySpace::Symbol)
+            .active_values,
+        0
+    );
 }
 
 fn check_interrupted_streams() {

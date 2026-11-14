@@ -136,7 +136,7 @@ impl<'s, 'a> OrderCtx<'s, 'a> {
     }
 
     /// `compareSymbols` on two precomputed keys: the declaration position,
-    /// then the name (UTF-16 code units) and the arena index on ties, as
+    /// then the name (UTF-16 code units) and creation order on ties, as
     /// [`TypeOrderContext::compare_symbols`] decides them.
     fn compare_keys(&self, a: &SymbolKey, b: &SymbolKey) -> Ordering {
         if a.symbol == b.symbol {
@@ -147,7 +147,10 @@ impl<'s, 'a> OrderCtx<'s, 'a> {
             .then(a.file.cmp(&b.file))
             .then(a.pos.cmp(&b.pos))
             .then_with(|| self.compare_symbol_names(a.symbol, b.symbol))
-            .then_with(|| a.symbol.index().cmp(&b.symbol.index()))
+            .then_with(|| {
+                self.binder
+                    .compare_symbol_creation_order(a.symbol, b.symbol)
+            })
     }
 
     /// Sort `symbols` by `compareSymbols`. The declaration position of each
@@ -215,10 +218,11 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
                 return c;
             }
         }
-        // tsc falls back to getSymbolId, assigned on first use; the arena
-        // index is the creation order instead (transient symbols after the
-        // program's). Two same-named declaration-less symbols are rare.
-        s1.index().cmp(&s2.index())
+        // tsgo falls back to getSymbolId, assigned on first use. Our existing
+        // creation order stays the fallback when physical source rooms are
+        // issued before Program order is known; transients follow persistent
+        // symbols. Two same-named declaration-less symbols are rare.
+        self.binder.compare_symbol_creation_order(s1, s2)
     }
 
     fn compare_symbol_names(&self, s1: SymbolId, s2: SymbolId) -> Ordering {

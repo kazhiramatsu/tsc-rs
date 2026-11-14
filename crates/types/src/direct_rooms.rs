@@ -192,6 +192,7 @@ mod tests {
             .unwrap();
         let first = rooms.finish_entry(&[3, 2, 1]).unwrap();
         let second = rooms.finish_entry(&[4, 0, 3]).unwrap();
+        assert!(first.iter().all(IdentityLease::is_room_slice));
         assert_eq!(first[0].range().end(), second[0].range().start());
         assert!(!first[0].range().overlaps(second[0].range()));
         let claim = first[0].claim().unwrap();
@@ -235,6 +236,7 @@ mod tests {
             room.seal().unwrap();
         }
         let recycled = domain.lease(IdentitySpace::Node, 9).unwrap();
+        assert!(!recycled.is_room_slice());
         assert_eq!(recycled.range(), IdentityRange::new(3, 12));
         assert_eq!(second[0].range(), IdentityRange::new(12, 16));
         drop(rooms);
