@@ -26,7 +26,9 @@ use crate::{
     TransformSourceId, TransformationResult, UnsupportedEmitFeature,
 };
 
-use crate::transform::{CarriedBindingKey, CarriedGeneratedNames, CarriedNodeKey};
+use crate::transform::{
+    CarriedBindingKey, CarriedGeneratedNames, CarriedNodeKey, PrintNode, PrintNodeInput,
+};
 use crate::writer::{GeneratedText, PositionKey};
 
 #[derive(Clone, Copy)]
@@ -3142,6 +3144,26 @@ impl Printer {
         node_flags: EmitFlags,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
+        let printed = PrintNode::from_record(node, *transformation.arena().node(node)?);
+        self.emit_transformed_node_record(
+            transformation,
+            &printed,
+            hint,
+            expression_context,
+            node_flags,
+            writer,
+        )
+    }
+
+    fn emit_transformed_node_record(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        printed: &PrintNode,
+        hint: EmitHint,
+        expression_context: EmitContext,
+        node_flags: EmitFlags,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
         // tsc-port: emitCommentsBeforeNode/emitCommentsAfterNode @6.0.3
         // tsc-span: _tsc.js:120987-121006
         //
@@ -3156,7 +3178,8 @@ impl Printer {
         // emitBodyWithDetachedComments, after their detached head and before
         // their tail. Keep inherited suppression and the map/notification
         // pipeline intact.
-        let record = *transformation.arena().node(node)?;
+        let node = printed.node();
+        let record = printed.record();
         let function_body_comments = record.kind == SyntaxKind::Block
             && self.is_function_body_block(transformation, node)?;
         let enters_nested_comment_suppression = !function_body_comments
@@ -3191,7 +3214,7 @@ impl Printer {
             }
         }
         let own_parentheses =
-            self.writes_own_parentheses(transformation, node, expression_context)?;
+            self.writes_own_parentheses_record(transformation, node, record, expression_context)?;
         if own_parentheses {
             writer.write_punctuation("(");
         }
@@ -3212,7 +3235,7 @@ impl Printer {
             | EmitHint::Unspecified => self.emit_transformed_node_worker(
                 transformation,
                 node,
-                &record,
+                record,
                 expression_context,
                 &mut deferred_source_comments,
                 writer,
@@ -20185,6 +20208,28 @@ impl Printer {
             .filter(|anchor| anchor.cursor() == cursor)
     }
 
+    #[inline(always)]
+    fn resolve_print_node(
+        transformation: &TransformationResult<'_>,
+        source: TransformSourceId,
+        id: NodeId,
+    ) -> Result<PrintNode, PrinterError> {
+        let syntax = transformation
+            .arena()
+            .source(source)
+            .map_err(|_| PrinterError::UnknownStatement(id.index()))?
+            .syntax();
+        let record = syntax
+            .arena
+            .nodes()
+            .get(id.index().wrapping_sub(syntax.arena.node_base()) as usize)
+            .ok_or(PrinterError::UnknownStatement(id.index()))?;
+        Ok(PrintNode::from_record(
+            TransformNode::new(source, id),
+            *record,
+        ))
+    }
+
     fn emit_node_id_with_context(
         &mut self,
         transformation: &mut TransformationResult<'_>,
@@ -20193,11 +20238,8 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        let node = transformation
-            .arena()
-            .node_ref(source, id)
-            .ok_or(PrinterError::UnknownStatement(id.index()))?;
-        let hint = if transformation.arena().node(node)?.kind == SyntaxKind::Identifier {
+        let node = Self::resolve_print_node(transformation, source, id)?;
+        let hint = if node.record().kind == SyntaxKind::Identifier {
             EmitHint::Expression
         } else {
             EmitHint::Unspecified
@@ -20214,11 +20256,8 @@ impl Printer {
         deferred: DeferredExpressionSourceComments,
         writer: &mut TextWriter,
     ) -> Result<ExpressionSourceCommentsOutcome, PrinterError> {
-        let node = transformation
-            .arena()
-            .node_ref(source, id)
-            .ok_or(PrinterError::UnknownStatement(id.index()))?;
-        let hint = if transformation.arena().node(node)?.kind == SyntaxKind::Identifier {
+        let node = Self::resolve_print_node(transformation, source, id)?;
+        let hint = if node.record().kind == SyntaxKind::Identifier {
             EmitHint::Expression
         } else {
             EmitHint::Unspecified
@@ -20241,11 +20280,8 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        let node = transformation
-            .arena()
-            .node_ref(source, id)
-            .ok_or(PrinterError::UnknownStatement(id.index()))?;
-        let hint = if transformation.arena().node(node)?.kind == SyntaxKind::Identifier {
+        let node = Self::resolve_print_node(transformation, source, id)?;
+        let hint = if node.record().kind == SyntaxKind::Identifier {
             EmitHint::IdentifierName
         } else {
             EmitHint::Unspecified
@@ -20253,10 +20289,11 @@ impl Printer {
         self.emit_node_with_hint(transformation, node, hint, expression_context, writer)
     }
 
+    #[inline(always)]
     fn emit_node_with_hint(
         &mut self,
         transformation: &mut TransformationResult<'_>,
-        node: TransformNode,
+        node: impl Into<PrintNodeInput>,
         hint: EmitHint,
         expression_context: EmitContext,
         writer: &mut TextWriter,
@@ -20278,10 +20315,11 @@ impl Printer {
     /// handed: tsc's closure containers stand at exactly that value when the
     /// exception leaves `pipelineEmit`, and `reset()` never restores them.
     #[allow(clippy::too_many_arguments)]
+    #[inline(always)]
     fn emit_node_with_hint_and_source_comments(
         &mut self,
         transformation: &mut TransformationResult<'_>,
-        node: TransformNode,
+        node: impl Into<PrintNodeInput>,
         hint: EmitHint,
         expression_context: EmitContext,
         deferred_source_comments: Option<DeferredExpressionSourceComments>,
@@ -20295,7 +20333,7 @@ impl Printer {
         }
         let outcome = self.emit_node_with_hint_and_source_comments_worker(
             transformation,
-            node,
+            node.into(),
             hint,
             expression_context,
             deferred_source_comments,
@@ -20449,13 +20487,15 @@ impl Printer {
     fn emit_node_with_hint_and_source_comments_worker(
         &mut self,
         transformation: &mut TransformationResult<'_>,
-        node: TransformNode,
+        input: PrintNodeInput,
         hint: EmitHint,
         expression_context: EmitContext,
         mut deferred_source_comments: Option<DeferredExpressionSourceComments>,
         writer: &mut TextWriter,
     ) -> Result<ExpressionSourceCommentsOutcome, PrinterError> {
-        let substituted = transformation.substitute_node(hint, node)?;
+        let node = input.node();
+        let printed = transformation.substitute_node_for_print(hint, input)?;
+        let substituted = printed.node();
         let was_substituted = substituted != node;
         let grammar = expression_context.grammar();
         // pipelineEmit 117173-117211 applies the parenthesizer to
@@ -20492,157 +20532,22 @@ impl Printer {
             None
         };
 
-        transformation.before_emit_node(hint, node)?;
+        if substituted == node {
+            transformation.before_emit_print_node(hint, &printed)?;
+        } else {
+            transformation.before_emit_node(hint, node)?;
+        }
         let emitted = (|| {
             let trailing = if let Some(parentheses) = grammar_parentheses {
-                match parentheses {
-                    GrammarParentheses::SourceRanged => {
-                        let owner = self.expression_comment_phase_owner_for_text_range(
-                            transformation,
-                            substituted,
-                        )?;
-                        let active_scope = self.active_expression_comment_scope(
-                            transformation,
-                            deferred_source_comments.as_ref(),
-                            expression_context,
-                            owner,
-                        )?;
-                        let _outer_source_leading_phase = self
-                            .emit_deferred_expression_leading_comments(
-                                transformation,
-                                deferred_source_comments.as_ref(),
-                                owner,
-                                writer,
-                            )?;
-                        // A source-ranged grammar parenthesis is a distinct
-                        // comment owner. tsgo writes the parentheses that
-                        // precedence needs while printing, unmapped
-                        // (`emitExpression`, printer.go:3222-3226); only a
-                        // concise body led by an object literal is a ranged
-                        // parenthesized expression that maps
-                        // (`emitConciseBody`, printer.go:2669-2685).
-                        let paren_map_range = if grammar
-                            == ExpressionGrammarContext::ArrowConciseBody
-                            && transformation
-                                .arena()
-                                .node(self.leftmost_expression(
-                                    transformation,
-                                    substituted,
-                                    false,
-                                )?)?
-                                .kind
-                                == SyntaxKind::ObjectLiteralExpression
-                        {
-                            let paren_record = transformation.arena().node(substituted)?;
-                            let paren_source = transformation
-                                .arena()
-                                .source(substituted.source())?
-                                .syntax();
-                            Some(SourceMapRange::new(
-                                substituted.source(),
-                                SourceRange::from_raw(
-                                    paren_record.pos,
-                                    paren_record.end,
-                                    paren_source.positions(),
-                                )?,
-                            ))
-                        } else {
-                            None
-                        };
-                        if let Some(paren_map_range) = paren_map_range {
-                            self.record_map_range_side(
-                                transformation,
-                                MapBoundary::Before,
-                                paren_map_range,
-                                writer,
-                            )?;
-                        }
-                        writer.write_punctuation("(");
-                        let inner_owner = self
-                            .expression_comment_phase_owner_for_node(transformation, substituted)?;
-                        let inner_comments = DeferredExpressionSourceComments::nested(
-                            active_scope,
-                            DeferredSourceCommentExtent::LeadingAndTrailing,
-                        );
-                        let inner_source_leading_phase = self
-                            .emit_deferred_expression_leading_comments(
-                                transformation,
-                                Some(&inner_comments),
-                                inner_owner,
-                                writer,
-                            )?;
-                        let inner_active_scope = self.active_expression_comment_scope(
-                            transformation,
-                            Some(&inner_comments),
-                            expression_context.for_wrapper(active_scope),
-                            inner_owner,
-                        )?;
-                        self.emit_substituted_node_with_comments(
-                            transformation,
-                            substituted,
-                            hint,
-                            expression_context.for_wrapper(inner_active_scope),
-                            inner_source_leading_phase,
-                            inner_owner.flags,
-                            writer,
-                        )?;
-                        self.emit_deferred_expression_trailing_comments(
-                            transformation,
-                            Some(&inner_comments),
-                            inner_owner,
-                            writer,
-                        )?;
-                        writer.write_punctuation(")");
-                        if let Some(paren_map_range) = paren_map_range {
-                            self.record_map_range_side(
-                                transformation,
-                                MapBoundary::After,
-                                paren_map_range,
-                                writer,
-                            )?;
-                        }
-                        self.emit_deferred_expression_trailing_comments(
-                            transformation,
-                            deferred_source_comments.as_ref(),
-                            owner,
-                            writer,
-                        )?
-                    }
-                    GrammarParentheses::Synthetic => {
-                        let owner = self
-                            .expression_comment_phase_owner_for_node(transformation, substituted)?;
-                        let active_scope = self.active_expression_comment_scope(
-                            transformation,
-                            deferred_source_comments.as_ref(),
-                            expression_context,
-                            owner,
-                        )?;
-                        writer.write_punctuation("(");
-                        let source_leading_phase = self.emit_deferred_expression_leading_comments(
-                            transformation,
-                            deferred_source_comments.as_ref(),
-                            owner,
-                            writer,
-                        )?;
-                        self.emit_substituted_node_with_comments(
-                            transformation,
-                            substituted,
-                            hint,
-                            expression_context.for_wrapper(active_scope),
-                            source_leading_phase,
-                            owner.flags,
-                            writer,
-                        )?;
-                        let trailing = self.emit_deferred_expression_trailing_comments(
-                            transformation,
-                            deferred_source_comments.as_ref(),
-                            owner,
-                            writer,
-                        )?;
-                        writer.write_punctuation(")");
-                        trailing
-                    }
-                }
+                self.emit_grammar_parenthesized_node(
+                    transformation,
+                    printed,
+                    hint,
+                    expression_context,
+                    parentheses,
+                    deferred_source_comments.as_ref(),
+                    writer,
+                )?
             } else if expression_context.carries_no_asi_left_edge() {
                 if let Some(parenthesized) =
                     self.parenthesized_no_asi_expression(transformation, substituted)?
@@ -20650,6 +20555,7 @@ impl Printer {
                     self.emit_parenthesized_no_asi_expression(
                         transformation,
                         parenthesized,
+                        printed,
                         hint,
                         expression_context,
                         deferred_source_comments.as_ref(),
@@ -20668,8 +20574,11 @@ impl Printer {
                         writer,
                     );
                 } else {
-                    let owner =
-                        self.expression_comment_phase_owner_for_node(transformation, substituted)?;
+                    let owner = self.expression_comment_phase_owner_for_record(
+                        transformation,
+                        substituted,
+                        printed.record(),
+                    )?;
                     let active_scope = self.active_expression_comment_scope(
                         transformation,
                         deferred_source_comments.as_ref(),
@@ -20684,7 +20593,7 @@ impl Printer {
                     )?;
                     self.emit_substituted_node_with_comments(
                         transformation,
-                        substituted,
+                        printed,
                         hint,
                         expression_context.with_comments(active_scope),
                         source_leading_phase,
@@ -20707,8 +20616,11 @@ impl Printer {
                     trailing
                 }
             } else {
-                let owner =
-                    self.expression_comment_phase_owner_for_node(transformation, substituted)?;
+                let owner = self.expression_comment_phase_owner_for_record(
+                    transformation,
+                    substituted,
+                    printed.record(),
+                )?;
                 let active_scope = if owner.kind == SyntaxKind::Block
                     && deferred_source_comments.is_none()
                     && self.is_function_body_block(transformation, substituted)?
@@ -20736,7 +20648,7 @@ impl Printer {
                 )?;
                 self.emit_substituted_node_with_comments(
                     transformation,
-                    substituted,
+                    printed,
                     hint,
                     expression_context.with_comments(active_scope),
                     source_leading_phase,
@@ -20786,24 +20698,133 @@ impl Printer {
         Ok(outcome)
     }
 
-    /// Emit the node shape selected by `parenthesizeExpressionForNoAsi`.
-    /// Synthetic parentheses contain the complete wrapper comments phase;
-    /// source-owned parentheses instead place wrapper metadata outside their
-    /// token/comment phase, matching tsc's `setOriginalNode` + `setTextRange`
-    /// virtual container without allocating a transient arena node.
-    fn emit_parenthesized_no_asi_expression(
+    #[inline(never)]
+    #[allow(clippy::too_many_arguments)]
+    fn emit_grammar_parenthesized_node(
         &mut self,
         transformation: &mut TransformationResult<'_>,
-        parenthesized: ParenthesizedNoAsiExpression,
+        printed: PrintNode,
         hint: EmitHint,
         expression_context: EmitContext,
+        parentheses: GrammarParentheses,
         deferred_source_comments: Option<&DeferredExpressionSourceComments>,
         writer: &mut TextWriter,
     ) -> Result<Option<TrailingSourceCommentOwnership>, PrinterError> {
-        let trailing = match parenthesized {
-            ParenthesizedNoAsiExpression::SyntheticWhole { wrapper } => {
-                let owner =
-                    self.expression_comment_phase_owner_for_node(transformation, wrapper)?;
+        let substituted = printed.node();
+        let grammar = expression_context.grammar();
+        let trailing = match parentheses {
+            GrammarParentheses::SourceRanged => {
+                let owner = self
+                    .expression_comment_phase_owner_for_text_range(transformation, substituted)?;
+                let active_scope = self.active_expression_comment_scope(
+                    transformation,
+                    deferred_source_comments,
+                    expression_context,
+                    owner,
+                )?;
+                let _outer_source_leading_phase = self.emit_deferred_expression_leading_comments(
+                    transformation,
+                    deferred_source_comments,
+                    owner,
+                    writer,
+                )?;
+                // A source-ranged grammar parenthesis is a distinct
+                // comment owner. tsgo writes the parentheses that
+                // precedence needs while printing, unmapped
+                // (`emitExpression`, printer.go:3222-3226); only a
+                // concise body led by an object literal is a ranged
+                // parenthesized expression that maps
+                // (`emitConciseBody`, printer.go:2669-2685).
+                let paren_map_range = if grammar == ExpressionGrammarContext::ArrowConciseBody
+                    && transformation
+                        .arena()
+                        .node(self.leftmost_expression(transformation, substituted, false)?)?
+                        .kind
+                        == SyntaxKind::ObjectLiteralExpression
+                {
+                    let paren_record = transformation.arena().node(substituted)?;
+                    let paren_source = transformation
+                        .arena()
+                        .source(substituted.source())?
+                        .syntax();
+                    Some(SourceMapRange::new(
+                        substituted.source(),
+                        SourceRange::from_raw(
+                            paren_record.pos,
+                            paren_record.end,
+                            paren_source.positions(),
+                        )?,
+                    ))
+                } else {
+                    None
+                };
+                if let Some(paren_map_range) = paren_map_range {
+                    self.record_map_range_side(
+                        transformation,
+                        MapBoundary::Before,
+                        paren_map_range,
+                        writer,
+                    )?;
+                }
+                writer.write_punctuation("(");
+                let inner_owner = self.expression_comment_phase_owner_for_record(
+                    transformation,
+                    substituted,
+                    printed.record(),
+                )?;
+                let inner_comments = DeferredExpressionSourceComments::nested(
+                    active_scope,
+                    DeferredSourceCommentExtent::LeadingAndTrailing,
+                );
+                let inner_source_leading_phase = self.emit_deferred_expression_leading_comments(
+                    transformation,
+                    Some(&inner_comments),
+                    inner_owner,
+                    writer,
+                )?;
+                let inner_active_scope = self.active_expression_comment_scope(
+                    transformation,
+                    Some(&inner_comments),
+                    expression_context.for_wrapper(active_scope),
+                    inner_owner,
+                )?;
+                self.emit_substituted_node_with_comments(
+                    transformation,
+                    printed,
+                    hint,
+                    expression_context.for_wrapper(inner_active_scope),
+                    inner_source_leading_phase,
+                    inner_owner.flags,
+                    writer,
+                )?;
+                self.emit_deferred_expression_trailing_comments(
+                    transformation,
+                    Some(&inner_comments),
+                    inner_owner,
+                    writer,
+                )?;
+                writer.write_punctuation(")");
+                if let Some(paren_map_range) = paren_map_range {
+                    self.record_map_range_side(
+                        transformation,
+                        MapBoundary::After,
+                        paren_map_range,
+                        writer,
+                    )?;
+                }
+                self.emit_deferred_expression_trailing_comments(
+                    transformation,
+                    deferred_source_comments,
+                    owner,
+                    writer,
+                )?
+            }
+            GrammarParentheses::Synthetic => {
+                let owner = self.expression_comment_phase_owner_for_record(
+                    transformation,
+                    substituted,
+                    printed.record(),
+                )?;
                 let active_scope = self.active_expression_comment_scope(
                     transformation,
                     deferred_source_comments,
@@ -20819,7 +20840,70 @@ impl Printer {
                 )?;
                 self.emit_substituted_node_with_comments(
                     transformation,
+                    printed,
+                    hint,
+                    expression_context.for_wrapper(active_scope),
+                    source_leading_phase,
+                    owner.flags,
+                    writer,
+                )?;
+                let trailing = self.emit_deferred_expression_trailing_comments(
+                    transformation,
+                    deferred_source_comments,
+                    owner,
+                    writer,
+                )?;
+                writer.write_punctuation(")");
+                trailing
+            }
+        };
+        Ok(trailing)
+    }
+
+    /// Emit the node shape selected by `parenthesizeExpressionForNoAsi`.
+    /// Synthetic parentheses contain the complete wrapper comments phase;
+    /// source-owned parentheses instead place wrapper metadata outside their
+    /// token/comment phase, matching tsc's `setOriginalNode` + `setTextRange`
+    /// virtual container without allocating a transient arena node.
+    #[allow(clippy::too_many_arguments)]
+    fn emit_parenthesized_no_asi_expression(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        parenthesized: ParenthesizedNoAsiExpression,
+        printed: PrintNode,
+        hint: EmitHint,
+        expression_context: EmitContext,
+        deferred_source_comments: Option<&DeferredExpressionSourceComments>,
+        writer: &mut TextWriter,
+    ) -> Result<Option<TrailingSourceCommentOwnership>, PrinterError> {
+        let trailing = match parenthesized {
+            ParenthesizedNoAsiExpression::SyntheticWhole { wrapper } => {
+                let printed = if wrapper == printed.node() {
+                    printed
+                } else {
+                    PrintNode::from_record(wrapper, *transformation.arena().node(wrapper)?)
+                };
+                let owner = self.expression_comment_phase_owner_for_record(
+                    transformation,
                     wrapper,
+                    printed.record(),
+                )?;
+                let active_scope = self.active_expression_comment_scope(
+                    transformation,
+                    deferred_source_comments,
+                    expression_context,
+                    owner,
+                )?;
+                writer.write_punctuation("(");
+                let source_leading_phase = self.emit_deferred_expression_leading_comments(
+                    transformation,
+                    deferred_source_comments,
+                    owner,
+                    writer,
+                )?;
+                self.emit_substituted_node_with_comments(
+                    transformation,
+                    printed,
                     hint,
                     expression_context.for_wrapper(active_scope),
                     source_leading_phase,
@@ -20929,22 +21013,23 @@ impl Printer {
     fn emit_substituted_node_with_comments(
         &mut self,
         transformation: &mut TransformationResult<'_>,
-        substituted: TransformNode,
+        printed: PrintNode,
         hint: EmitHint,
         expression_context: EmitContext,
         source_leading_phase: SourceLeadingCommentPhaseVisit,
         node_flags: EmitFlags,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
+        let substituted = printed.node();
         self.emit_substituted_leading_metadata(
             transformation,
             substituted,
             source_leading_phase,
             writer,
         )?;
-        self.emit_transformed_node(
+        self.emit_transformed_node_record(
             transformation,
-            substituted,
+            &printed,
             hint,
             expression_context,
             node_flags,
@@ -21128,7 +21213,22 @@ impl Printer {
         node: TransformNode,
         context: EmitContext,
     ) -> Result<bool, PrinterError> {
-        let kind = transformation.arena().node(node)?.kind;
+        self.writes_own_parentheses_record(
+            transformation,
+            node,
+            transformation.arena().node(node)?,
+            context,
+        )
+    }
+
+    fn writes_own_parentheses_record(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        record: &tsc_syntax::nodes::Node,
+        context: EmitContext,
+    ) -> Result<bool, PrinterError> {
+        let kind = record.kind;
         Ok(matches!(
             kind,
             SyntaxKind::AsExpression
@@ -22849,14 +22949,26 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         node: TransformNode,
     ) -> Result<ExpressionCommentPhaseOwner, PrinterError> {
+        self.expression_comment_phase_owner_for_record(
+            transformation,
+            node,
+            transformation.arena().node(node)?,
+        )
+    }
+
+    fn expression_comment_phase_owner_for_record(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        record: &tsc_syntax::nodes::Node,
+    ) -> Result<ExpressionCommentPhaseOwner, PrinterError> {
         let arena = transformation.arena();
         let metadata = arena.metadata(node);
         let (range, kind) =
             if let Some(range) = metadata.and_then(crate::EmitMetadata::comment_range) {
-                (range, arena.node(node)?.kind)
+                (range, record.kind)
             } else {
                 let source = arena.source(node.source())?.syntax();
-                let record = arena.node(node)?;
                 let range = CommentRange::new(
                     node.source(),
                     SourceRange::from_raw(record.pos, record.end, source.positions())?,
@@ -26029,6 +26141,10 @@ impl Error for PrinterError {}
 #[cfg(test)]
 #[path = "../tests/unit/comment_scope_predicate/tests.rs"]
 mod comment_scope_predicate_tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/node_views.rs"]
+mod node_view_tests;
 
 #[cfg(test)]
 #[path = "../tests/unit/comment_classification/tests.rs"]

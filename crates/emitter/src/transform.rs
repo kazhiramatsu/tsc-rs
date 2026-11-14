@@ -801,16 +801,20 @@ impl TransformationContext {
     pub fn is_substitution_enabled(&self, node: TransformNode) -> Result<bool, TransformError> {
         self.require_before_disposed("query substitution")?;
         let kind = self.arena.node(node)?.kind;
+        Ok(self.substitution_enabled_for_kind(node, kind))
+    }
+
+    fn substitution_enabled_for_kind(&self, node: TransformNode, kind: SyntaxKind) -> bool {
         // The kind's bit first: a node's metadata can only withhold a
         // substitution, so most printed nodes never look theirs up.
         if self.enabled_syntax_features[kind as usize] & 1 == 0 {
-            return Ok(false);
+            return false;
         }
         let emit_flags = self
             .arena
             .metadata(node)
             .map_or(EmitFlags::NONE, |metadata| metadata.flags());
-        Ok(!emit_flags.intersects(EmitFlags::NO_SUBSTITUTION))
+        !emit_flags.intersects(EmitFlags::NO_SUBSTITUTION)
     }
 
     pub fn is_emit_notification_enabled(
@@ -819,14 +823,18 @@ impl TransformationContext {
     ) -> Result<bool, TransformError> {
         self.require_before_disposed("query emit notification")?;
         let kind = self.arena.node(node)?.kind;
+        Ok(self.notification_enabled_for_kind(node, kind))
+    }
+
+    fn notification_enabled_for_kind(&self, node: TransformNode, kind: SyntaxKind) -> bool {
         if self.enabled_syntax_features[kind as usize] & 2 != 0 {
-            return Ok(true);
+            return true;
         }
         let emit_flags = self
             .arena
             .metadata(node)
             .map_or(EmitFlags::NONE, |metadata| metadata.flags());
-        Ok(emit_flags.intersects(EmitFlags::ADVISE_ON_EMIT_NODE))
+        emit_flags.intersects(EmitFlags::ADVISE_ON_EMIT_NODE)
     }
 
     pub fn start_lexical_environment(&mut self) -> Result<(), TransformError> {
@@ -1118,6 +1126,51 @@ pub trait Transformer {
     fn dispose(&mut self) {}
 }
 
+/// A current record already validated for one immutable printer phase.
+/// A mutable substitution must finish by validating and copying its result.
+/// Mutable child emission ends this record phase.
+#[derive(Clone, Copy)]
+pub(crate) struct PrintNode {
+    node: TransformNode,
+    record: tsc_syntax::nodes::Node,
+}
+impl PrintNode {
+    pub(crate) fn from_record(node: TransformNode, record: tsc_syntax::nodes::Node) -> Self {
+        Self { node, record }
+    }
+    pub(crate) const fn node(&self) -> TransformNode {
+        self.node
+    }
+    pub(crate) const fn record(&self) -> &tsc_syntax::nodes::Node {
+        &self.record
+    }
+}
+
+/// Public handles still validate at their existing lifecycle boundary; an id
+/// adapter can supply the record it has just validated instead.
+pub(crate) enum PrintNodeInput {
+    Handle(TransformNode),
+    Validated(PrintNode),
+}
+impl PrintNodeInput {
+    pub(crate) fn node(&self) -> TransformNode {
+        match self {
+            Self::Handle(node) => *node,
+            Self::Validated(node) => node.node(),
+        }
+    }
+}
+impl From<TransformNode> for PrintNodeInput {
+    fn from(node: TransformNode) -> Self {
+        Self::Handle(node)
+    }
+}
+impl From<PrintNode> for PrintNodeInput {
+    fn from(node: PrintNode) -> Self {
+        Self::Validated(node)
+    }
+}
+
 pub struct TransformationResult<'transformers> {
     context: TransformationContext,
     roots: Box<[TransformRoot]>,
@@ -1268,16 +1321,55 @@ impl TransformationResult<'_> {
     pub fn substitute_node(
         &mut self,
         hint: EmitHint,
-        mut node: TransformNode,
+        node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        if !self.context.is_substitution_enabled(node)? {
-            return Ok(node);
+        self.substitute_node_for_print(hint, PrintNodeInput::Handle(node))
+            .map(|node| node.node())
+    }
+
+    #[inline(always)]
+    pub(crate) fn substitute_node_for_print(
+        &mut self,
+        hint: EmitHint,
+        input: PrintNodeInput,
+    ) -> Result<PrintNode, TransformError> {
+        self.context.require_before_disposed("query substitution")?;
+        let printed = match input {
+            PrintNodeInput::Handle(node) => {
+                PrintNode::from_record(node, *self.context.arena.node(node)?)
+            }
+            PrintNodeInput::Validated(printed) => printed,
+        };
+        if !self
+            .context
+            .substitution_enabled_for_kind(printed.node, printed.record.kind)
+        {
+            return Ok(printed);
         }
-        for &index in &self.substitution_transformers {
-            node = self.transformers[index].substitute_node(&mut self.context, hint, node)?;
-            self.context.arena.node(node)?;
+        if self.substitution_transformers.is_empty() {
+            return Ok(printed);
         }
-        Ok(node)
+        self.substitute_print_node_via_hooks(hint, printed)
+    }
+
+    #[inline(never)]
+    fn substitute_print_node_via_hooks(
+        &mut self,
+        hint: EmitHint,
+        mut printed: PrintNode,
+    ) -> Result<PrintNode, TransformError> {
+        let Some((&last, prefix)) = self.substitution_transformers.split_last() else {
+            return Ok(printed);
+        };
+        for &index in prefix {
+            printed.node =
+                self.transformers[index].substitute_node(&mut self.context, hint, printed.node)?;
+            self.context.arena.node(printed.node)?;
+        }
+        printed.node =
+            self.transformers[last].substitute_node(&mut self.context, hint, printed.node)?;
+        printed.record = *self.context.arena.node(printed.node)?;
+        Ok(printed)
     }
 
     pub fn before_emit_node(
@@ -1285,7 +1377,29 @@ impl TransformationResult<'_> {
         hint: EmitHint,
         node: TransformNode,
     ) -> Result<(), TransformError> {
-        if self.context.is_emit_notification_enabled(node)? {
+        self.context
+            .require_before_disposed("query emit notification")?;
+        let kind = self.context.arena.node(node)?.kind;
+        self.before_emit_node_of_kind(hint, node, kind)
+    }
+
+    pub(crate) fn before_emit_print_node(
+        &mut self,
+        hint: EmitHint,
+        printed: &PrintNode,
+    ) -> Result<(), TransformError> {
+        self.context
+            .require_before_disposed("query emit notification")?;
+        self.before_emit_node_of_kind(hint, printed.node, printed.record.kind)
+    }
+
+    fn before_emit_node_of_kind(
+        &mut self,
+        hint: EmitHint,
+        node: TransformNode,
+        kind: SyntaxKind,
+    ) -> Result<(), TransformError> {
+        if self.context.notification_enabled_for_kind(node, kind) {
             for transformer in &mut self.transformers {
                 transformer.before_emit_node(&self.context, hint, node)?;
             }
