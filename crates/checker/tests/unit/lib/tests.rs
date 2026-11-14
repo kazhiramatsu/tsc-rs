@@ -7496,7 +7496,7 @@ fn order_guard_replays_last_union_member_inference_at_every_width() {
         stable_type_ordering: Some(false),
         ..CompilerOptions::default()
     };
-    let run_with = |checkers: usize, order_replay: bool| {
+    let run_with_ownership = |checkers: usize, order_replay: bool, leak: bool| {
         check_program_with_authoritative_modules_at_cache_mode_with_source(
             &libs,
             &files,
@@ -7512,13 +7512,15 @@ fn order_guard_replays_last_union_member_inference_at_every_width() {
             crate::DiagnosticSchedule::Eager,
             tsc_program::WorkerBudget::serial(),
             CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap())
-                .with_order_replay(order_replay),
+                .with_order_replay(order_replay)
+                .with_leaked_states(leak),
             None,
             crate::IncrementalRequest::NONE,
             false,
         )
         .expect("authoritative result")
     };
+    let run_with = |checkers, order_replay| run_with_ownership(checkers, order_replay, false);
     let run = |checkers: usize| run_with(checkers, true);
     // The default (relaxed) budget keeps the sharded result without arming
     // the guard, and stays deterministic.
@@ -7540,6 +7542,9 @@ fn order_guard_replays_last_union_member_inference_at_every_width() {
     for checkers in [2usize, 3, 4] {
         let sharded = run(checkers);
         assert_eq!(sharded, serial, "checkers={checkers}");
+        let leaked = run_with_ownership(checkers, true, true);
+        assert_eq!(leaked, serial, "one-shot replay, checkers={checkers}");
+        assert_eq!(leaked.work_counters.checker_serial_replay(), 1);
         assert_eq!(
             sharded.work_counters.checker_serial_replay(),
             1,
@@ -8182,6 +8187,93 @@ fn the_serial_command_check_leaks_its_program_only_on_a_leaking_budget() {
         text_count_after_serial_check(true, false) > 1,
         "leaked: the program's document and the checker state keep the text"
     );
+}
+
+#[test]
+fn completed_one_shot_shards_publish_owned_instantiation_diagnostics() {
+    struct Provider;
+    impl AuthoritativeModuleProvider for Provider {
+        fn resolve_module(
+            &self,
+            _: AuthoritativeModuleRequest<'_>,
+        ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
+            unreachable!("the fixture has no imports")
+        }
+    }
+    struct Factory;
+    impl AuthoritativeModuleProviderFactory for Factory {
+        fn provider(&self) -> Box<dyn AuthoritativeModuleProvider + '_> {
+            Box::new(Provider)
+        }
+    }
+    let libs = [focused_default_library("")];
+    let files = (0..8)
+        .map(|index| {
+            InputFile::new(
+                format!("/part{index}.ts"),
+                "export {};\n\
+                 type Wrap<T> = { value: T };\n\
+                 declare function lift<T>(value: T): Wrap<T>;\n\
+                 const result = lift({ ok: 'yes', deep: { n: 1 } });\n\
+                 const bad: Wrap<{ ok: number; deep: { n: string } }> = result;\n\
+                 type Unwrap<T> = T extends Wrap<infer U> ? U : never;\n\
+                 const inferred: Unwrap<typeof result> = { ok: 'yes', deep: { n: 'bad' } };\n",
+            )
+        })
+        .collect::<Vec<_>>();
+    let metadata = |token, file: &InputFile, may_be_emitted| AuthoritativeSourceMetadata {
+        token: AuthoritativeSourceToken(token),
+        file_name: file.name.clone(),
+        may_be_emitted,
+        implied_node_format: None,
+        implied_node_format_for_emit: None,
+        project_reference: None,
+    };
+    let lib_metadata = [metadata(0, &libs[0], false)];
+    let file_metadata = files
+        .iter()
+        .enumerate()
+        .map(|(index, file)| metadata(index as u32 + 1, file, true))
+        .collect::<Vec<_>>();
+    let options = CompilerOptions {
+        no_emit: Some(true),
+        strict: Some(true),
+        ..CompilerOptions::default()
+    };
+    let run = |count, assignment, leak| {
+        check_program_with_authoritative_modules_at_cache_mode_with_source(
+            &libs,
+            &files,
+            &lib_metadata,
+            &file_metadata,
+            &options,
+            "/",
+            AuthoritativeProviderSource::PerChecker(&Factory),
+            false,
+            None,
+            None,
+            crate::LibraryPrefixCompletion::Complete,
+            crate::DiagnosticSchedule::Eager,
+            tsc_program::WorkerBudget::serial(),
+            CheckerBudget::new(std::num::NonZeroUsize::new(count).unwrap())
+                .with_assignment(assignment)
+                .with_leaked_states(leak),
+            None,
+            crate::IncrementalRequest::NONE,
+            false,
+        )
+        .expect("authoritative check")
+    };
+    for count in [1, 2, 4] {
+        for assignment in [CheckerAssignment::Tsgo, CheckerAssignment::Locality] {
+            let expected = run(count, assignment, false);
+            assert!(diagnostic_owners(&expected, 2322).len() >= files.len());
+            for _ in 0..2 {
+                let published = run(count, assignment, true);
+                assert_eq!(published, expected, "checkers={count}, {assignment:?}");
+            }
+        }
+    }
 }
 
 /// The one-checker check with an emit operation (the command's

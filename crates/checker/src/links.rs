@@ -1269,6 +1269,17 @@ impl<K, T> PagedTable<K, T> {
 }
 
 impl LinksTables {
+    /// Return the dense scalar buffers after a one-shot checker has handed
+    /// off its owned result and no later pass will read its links.
+    pub(crate) fn release_dense_record_buffers(&mut self) {
+        const {
+            assert!(!std::mem::needs_drop::<TypeLinks>());
+            assert!(!std::mem::needs_drop::<SymbolLinks>());
+        }
+        drop(std::mem::take(&mut self.ty.records));
+        drop(std::mem::take(&mut self.transient_symbols));
+    }
+
     /// The node, symbol and type link records and their sparse fields, by
     /// entries and bytes (memory accounting).
     pub(crate) fn memory_usage(&self) -> [(&'static str, usize, usize); 7] {

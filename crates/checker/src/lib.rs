@@ -4302,6 +4302,11 @@ fn run_checker_shard<'a>(
         return (output, Some(state));
     }
     if leak_state {
+        // No later pass uses this shard. Its identity leases stay held by
+        // the leaked state, but the finished worker can return these buffers.
+        state.links.release_dense_record_buffers();
+        drop(std::mem::take(&mut state.mappers));
+        drop(std::mem::take(&mut state.mapper_lists));
         std::mem::forget(state);
     }
     (output, None)
