@@ -314,3 +314,96 @@ fn direct_rooms_and_overflow_fallback_keep_append_identities() {
         }
     }
 }
+
+#[test]
+fn cloned_records_keep_capacity_and_data_after_the_source_is_dropped() {
+    for functions in [0, 8, 4096] {
+        let (mut copied, nodes, arrays, items, texts, capacities) = {
+            let mut text = String::new();
+            for index in 0..functions {
+                text.push_str(&format!(
+                    r#"/** @param value */ export function f{index}<T extends {{ value: string }}>(value: T): string {{ return "literal-文字-literal-文字-literal-文字" + value.value; }}"#
+                ));
+                text.push('\n');
+            }
+            let source = crate::parse_source_file("copy.ts", text, Default::default(), None);
+            assert!(
+                source.parse_diagnostics.is_empty(),
+                "{:?}",
+                source.parse_diagnostics
+            );
+            let arena = &source.arena;
+            let nodes = arena
+                .nodes
+                .iter()
+                .map(|node| {
+                    (
+                        node.kind,
+                        node.literal_flags(),
+                        node.flags,
+                        node.pos,
+                        node.end,
+                        node.parent,
+                        node.data(),
+                        node.js_doc(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let arrays = arena.arrays.to_vec();
+            let items = arena.array_items.to_vec();
+            let texts = arena.texts.to_vec();
+            // The former StoreVec clone is the allocation-policy reference.
+            let capacities = (
+                arena.nodes.clone().capacity(),
+                arena.arrays.clone().capacity(),
+                arena.array_items.clone().capacity(),
+                arena.texts.clone().capacity(),
+            );
+            let copied = arena.clone().into_detached();
+            assert_ne!(copied.nodes.as_ptr(), arena.nodes.as_ptr());
+            if functions != 0 {
+                assert!(
+                    copied.tails.chunk_words() > 0,
+                    "spilled payloads were copied"
+                );
+            }
+            (copied, nodes, arrays, items, texts, capacities)
+        };
+        assert_eq!(
+            copied
+                .nodes
+                .iter()
+                .map(|node| {
+                    (
+                        node.kind,
+                        node.literal_flags(),
+                        node.flags,
+                        node.pos,
+                        node.end,
+                        node.parent,
+                        node.data(),
+                        node.js_doc(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            nodes,
+        );
+        assert_eq!(copied.arrays.to_vec(), arrays);
+        assert_eq!(copied.array_items.to_vec(), items);
+        assert_eq!(copied.texts.to_vec(), texts);
+        assert_eq!(
+            (
+                copied.nodes.capacity(),
+                copied.arrays.capacity(),
+                copied.array_items.capacity(),
+                copied.texts.capacity()
+            ),
+            capacities,
+        );
+        let old_end = copied.node_end();
+        let appended = copied.alloc_token(SyntaxKind::NullKeyword, 0, 0, NodeFlags::NONE);
+        assert_eq!(appended.index(), old_end);
+        let literal = copied.push_text(b"independent appended text");
+        assert_eq!(copied.text(literal), b"independent appended text");
+    }
+}
