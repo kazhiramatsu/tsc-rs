@@ -4866,3 +4866,128 @@ fn source_and_cooked_literal_values_keep_exact_utf8_and_wtf8() {
         ]
     );
 }
+
+#[test]
+fn expression_continuation_guards_preserve_worker_state_and_recovery() {
+    // Both complete continuations and tokens that must remain with the caller.
+    // Direct worker calls are the reference for the new entry-only decision.
+    for tail in [
+        "",
+        "; next",
+        ", next",
+        ")",
+        "]",
+        "}",
+        ": next",
+        "? a : b",
+        "= next",
+        "=> next",
+        "+ next",
+        "- next",
+        "* next",
+        "/ next",
+        "in next",
+        "instanceof next",
+        "as T",
+        "satisfies T",
+        "return next",
+        ".name;",
+        "?.name;",
+        "[key];",
+        "?.[key];",
+        "(arg, ...rest);",
+        "?.(arg);",
+        "!;",
+        "! .name;",
+        "\n!next",
+        "<T>;",
+        "<T>(arg);",
+        "<<T>(arg);",
+        "`text`;",
+        "`text${value}`;",
+        "?.`text`;",
+        "?.<T>(arg);",
+        "?.;",
+        ".;",
+        "[;",
+        "(;",
+        "<;",
+        "?.#name;",
+        ".name[key](arg)!.next`text${value}`;",
+    ] {
+        let text = format!("base{tail}");
+        for javascript in [false, true] {
+            for decorator in [false, true] {
+                for allow_optional_chain in [false, true] {
+                    for call in [false, true] {
+                        let make_parser = || {
+                            let mut parser = Parser::new(
+                                if javascript { "a.js" } else { "a.ts" }.into(),
+                                &text,
+                                LanguageVariant::Standard,
+                                javascript,
+                            );
+                            parser.set_context_flag(decorator, NodeFlags::DECORATOR_CONTEXT);
+                            parser.next_token();
+                            let expression = parser.parse_primary_expression();
+                            (parser, expression)
+                        };
+                        let (mut actual, expression) = make_parser();
+                        let (mut reference, reference_expression) = make_parser();
+                        let result = if call {
+                            actual.parse_call_expression_rest(0, expression)
+                        } else {
+                            actual.parse_member_expression_rest(0, expression, allow_optional_chain)
+                        };
+                        let expected = if call {
+                            reference.parse_call_expression_rest_worker(0, reference_expression)
+                        } else {
+                            reference.parse_member_expression_rest_worker(
+                                0,
+                                reference_expression,
+                                allow_optional_chain,
+                            )
+                        };
+                        assert_eq!(result, expected, "{text}");
+                        assert_eq!(actual.scanner.save(), reference.scanner.save(), "{text}");
+                        assert_eq!(
+                            actual.parse_diagnostics, reference.parse_diagnostics,
+                            "{text}"
+                        );
+                        assert_eq!(actual.context_flags, reference.context_flags);
+                        assert_eq!(actual.source_flags, reference.source_flags);
+                        assert_eq!(actual.arena.len(), reference.arena.len());
+                        assert_eq!(actual.arena.node_arrays(), reference.arena.node_arrays());
+                        assert_eq!(
+                            actual.arena.array_item_count(),
+                            reference.arena.array_item_count()
+                        );
+                        assert_eq!(
+                            actual.arena.identifier_count(),
+                            reference.arena.identifier_count()
+                        );
+                        assert_eq!(
+                            actual.arena.factory_node_count(),
+                            reference.arena.factory_node_count()
+                        );
+                        for index in 0..actual.arena.len() as u32 {
+                            let id = NodeId::new(index);
+                            assert_finished_headers_match(&actual, &reference, id);
+                            let mut children = Vec::new();
+                            let mut expected_children = Vec::new();
+                            for_each_child(&actual.arena, actual.arena.node(id), |child| {
+                                children.push(child);
+                                false
+                            });
+                            for_each_child(&reference.arena, reference.arena.node(id), |child| {
+                                expected_children.push(child);
+                                false
+                            });
+                            assert_eq!(children, expected_children, "{text}");
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

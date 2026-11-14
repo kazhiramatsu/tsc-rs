@@ -61,6 +61,22 @@ use tsc_diagnostics::{
 use tsc_diagnostics::{MessageChain, RelatedInfo};
 use tsc_types::NodeFlags;
 
+// The member and call loops share their continuation tokens. Cover the full
+// enum domain so a terminal token needs only a flag lookup before returning.
+const EXPRESSION_CONTINUATIONS: [u8; SyntaxKind::Count as usize + 1] = {
+    let mut flags = [0; SyntaxKind::Count as usize + 1];
+    flags[SyntaxKind::DotToken as usize] = 3;
+    flags[SyntaxKind::QuestionDotToken as usize] = 3;
+    flags[SyntaxKind::OpenBracketToken as usize] = 3;
+    flags[SyntaxKind::NoSubstitutionTemplateLiteral as usize] = 3;
+    flags[SyntaxKind::TemplateHead as usize] = 3;
+    flags[SyntaxKind::ExclamationToken as usize] = 3;
+    flags[SyntaxKind::LessThanToken as usize] = 3;
+    flags[SyntaxKind::LessThanLessThanToken as usize] = 3;
+    flags[SyntaxKind::OpenParenToken as usize] = 2;
+    flags
+};
+
 /// tsc JSDocParsingMode @6.0.3.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -6581,7 +6597,21 @@ impl<'text> Parser<'text> {
         missing
     }
 
+    #[inline(always)]
     fn parse_member_expression_rest(
+        &mut self,
+        pos: usize,
+        expression: NodeId,
+        allow_optional_chain: bool,
+    ) -> NodeId {
+        if EXPRESSION_CONTINUATIONS[self.token() as usize] & 1 == 0 {
+            return expression;
+        }
+        self.parse_member_expression_rest_worker(pos, expression, allow_optional_chain)
+    }
+
+    #[inline(never)]
+    fn parse_member_expression_rest_worker(
         &mut self,
         pos: usize,
         mut expression: NodeId,
@@ -6657,7 +6687,16 @@ impl<'text> Parser<'text> {
         }
     }
 
-    fn parse_call_expression_rest(&mut self, pos: usize, mut expression: NodeId) -> NodeId {
+    #[inline(always)]
+    fn parse_call_expression_rest(&mut self, pos: usize, expression: NodeId) -> NodeId {
+        if EXPRESSION_CONTINUATIONS[self.token() as usize] & 2 == 0 {
+            return expression;
+        }
+        self.parse_call_expression_rest_worker(pos, expression)
+    }
+
+    #[inline(never)]
+    fn parse_call_expression_rest_worker(&mut self, pos: usize, mut expression: NodeId) -> NodeId {
         loop {
             expression = self.parse_member_expression_rest(pos, expression, true);
 
