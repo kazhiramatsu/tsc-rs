@@ -417,6 +417,10 @@ fn statement_pieces(lengths: &[u32], count: usize) -> Vec<Range<usize>> {
 /// 4. a few refinement passes then move single groups, lightest first, to
 ///    the checker where the worth of the modules held, summed over the
 ///    checkers, falls most, never above the load cap of the placement.
+/// 5. an unsplit file that exceeds a mean syntax load keeps its checker;
+///    other whole-file groups on that checker move, heaviest first, to the
+///    lightest remaining checker. Import fanout cannot hide a file that
+///    already exceeds a syntax share. Statement-range owners stay fixed.
 ///
 /// A file can be more than any checker should carry alone: one that weighs
 /// [`SPLIT_MIN_SHARE_PERCENT`] of a mean load (it is then a group of its own)
@@ -585,13 +589,36 @@ pub(crate) fn associate_files_by_locality(
         .iter()
         .map(|&nodes| module_worth(nodes))
         .collect::<Vec<_>>();
-    let placed = place_groups(
+    let mut placed = place_groups(
         &group_weights,
         &group_adjacent,
         &group_modules,
         &worth,
         &exclusive,
         checkers,
+    );
+    // Imports contribute another syntax budget to the placement weights.
+    // A whole file can exceed a syntax share yet fit beside other groups
+    // under that combined cap. Keep those neighbours off its critical path.
+    let syntax_share = source_weights.iter().sum::<usize>() / checkers;
+    let oversized = source_weights
+        .iter()
+        .enumerate()
+        .filter_map(|(file, &weight)| {
+            let group = group_of[file];
+            (group != usize::MAX
+                && group_sizes[group] == 1
+                && exclusive[group] == 0
+                && weight > syntax_share)
+                .then_some(group)
+        })
+        .collect::<Vec<_>>();
+    isolate_oversized_groups(
+        &group_weights,
+        &oversized,
+        &exclusive,
+        checkers,
+        &mut placed,
     );
     for &file in &order {
         associations[file] = placed[group_of[file]];
@@ -617,6 +644,48 @@ pub(crate) fn associate_files_by_locality(
     LocalityAssociation {
         checkers: associations,
         splits,
+    }
+}
+
+/// An unsplit file larger than a syntax share keeps its original checker;
+/// its other whole-file groups move to the lightest unreserved checker.
+/// Statement ranges stay fixed so their distinct-owner constraint survives.
+fn isolate_oversized_groups(
+    weights: &[usize],
+    oversized: &[usize],
+    exclusive: &[u32],
+    checkers: usize,
+    placed: &mut [usize],
+) {
+    if oversized.is_empty() {
+        return;
+    }
+    let mut reserved = vec![false; checkers];
+    let mut stays = vec![false; weights.len()];
+    for &group in oversized {
+        reserved[placed[group]] = true;
+        stays[group] = true;
+    }
+    if reserved.iter().all(|&reserved| reserved) {
+        return;
+    }
+    let mut loads = vec![0usize; checkers];
+    for (&weight, &checker) in weights.iter().zip(placed.iter()) {
+        loads[checker] += weight;
+    }
+    let mut order = (0..weights.len())
+        .filter(|&group| reserved[placed[group]] && !stays[group] && exclusive[group] == 0)
+        .collect::<Vec<_>>();
+    order.sort_unstable_by_key(|&group| (std::cmp::Reverse(weights[group]), group));
+    for group in order {
+        let from = placed[group];
+        let to = (0..checkers)
+            .filter(|&checker| !reserved[checker])
+            .min_by_key(|&checker| loads[checker])
+            .expect("an unreserved checker exists");
+        loads[from] -= weights[group];
+        loads[to] += weights[group];
+        placed[group] = to;
     }
 }
 
@@ -1128,8 +1197,8 @@ mod tests {
         // The two heaviest groups go first, each to an empty checker; the
         // directory groups follow their import edges.
         assert_eq!(program.associate(2), [1, 1, 1, 1, 1, 0, 1, 0, 1, 1]);
-        assert_eq!(program.associate(3), [2, 2, 2, 2, 2, 0, 1, 0, 2, 1]);
-        assert_eq!(program.associate(4), [2, 2, 2, 2, 2, 0, 1, 0, 2, 1]);
+        assert_eq!(program.associate(3), [2, 2, 2, 2, 2, 0, 2, 0, 2, 1]);
+        assert_eq!(program.associate(4), [2, 2, 2, 2, 2, 0, 3, 0, 2, 1]);
         for checkers in 2..=4 {
             let associations = program.associate(checkers);
             // A directory group is never split, and the unchecked file
@@ -1188,7 +1257,58 @@ mod tests {
             assert_eq!(associations[importer], associations[2]);
         }
         assert_ne!(associations[0], associations[2]);
-        assert_eq!(program.associate(3), [2, 2, 2, 2, 0, 1, 2, 0, 0, 0, 0, 1]);
+        assert_eq!(program.associate(3), [2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 1]);
+    }
+
+    #[test]
+    fn a_syntax_dominant_file_keeps_its_checker_without_import_weight() {
+        let program = LocalityProgram::new(
+            &[
+                "/p/heavy.ts",
+                "/p/d0/small.ts",
+                "/p/d1/small.ts",
+                "/p/d2/small.ts",
+                "/p/d3/small.ts",
+                "/p/d4/small.ts",
+                "/p/d5/small.ts",
+                "/p/barrel.ts",
+            ],
+            &[320, 100, 100, 100, 100, 100, 100, 80],
+            &[0, 0, 0, 0, 0, 0, 0, 40],
+            &[],
+            &[(1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0)],
+        );
+        // Syntax weighs 1,000, so the 320-node file exceeds a four-way
+        // share even though its zero imports hide that in the combined
+        // weights. Affinity must not serialize all its importers behind it.
+        assert_eq!(program.associate(4), [1, 2, 3, 2, 3, 2, 3, 0]);
+    }
+
+    #[test]
+    fn oversized_owners_receive_no_other_whole_file_groups() {
+        let weights = [100, 12, 9, 8, 7, 6, 5, 4];
+        let mut placed = [1, 1, 1, 1, 0, 2, 3, 3];
+        isolate_oversized_groups(&weights, &[0], &[0; 8], 4, &mut placed);
+        assert_eq!(placed, [1, 2, 0, 3, 0, 2, 3, 3]);
+        let once = placed;
+        isolate_oversized_groups(&weights, &[0], &[0; 8], 4, &mut placed);
+        assert_eq!(placed, once);
+        isolate_oversized_groups(&weights, &[], &[0; 8], 4, &mut placed);
+        assert_eq!(placed, once);
+    }
+
+    #[test]
+    fn oversized_owner_evacuation_keeps_statement_range_owners() {
+        let weights = [100, 12, 9, 8, 7, 6, 5, 4];
+        let mut placed = [1, 1, 1, 1, 0, 2, 3, 0];
+        let exclusive = [0, 2, 0, 0, 0, 0, 2, 2];
+        let before = placed;
+        isolate_oversized_groups(&weights, &[0], &exclusive, 4, &mut placed);
+        for group in [0, 1, 6, 7] {
+            assert_eq!(placed[group], before[group]);
+        }
+        assert_ne!(placed[2], 1);
+        assert_ne!(placed[3], 1);
     }
 
     #[test]
