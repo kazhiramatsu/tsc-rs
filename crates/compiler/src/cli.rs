@@ -1341,6 +1341,7 @@ fn run_config(
     let finite_plan = (!mode.watch).then(|| {
         plan.clone()
             .with_identity_domain(tsc_types::IdentityDomain::new())
+            .with_source_binding()
     });
     let plan = finite_plan.as_ref().unwrap_or(plan);
     let config_file_name = plan.config_file_name().to_string_lossy().into_owned();
@@ -1464,6 +1465,7 @@ fn begin_create_program(
 /// The `createSourceFile` spans of the loader's parses (on worker threads
 /// before the trace saw them), in the order they started.
 fn trace_loader_parses(tracing: Option<&Arc<Tracing>>, prepared: &tsc_program::PreparedProgram) {
+    prepared.stop_source_binding();
     let Some(tracing) = tracing else {
         return;
     };
@@ -1488,6 +1490,20 @@ fn trace_loader_parses(tracing: Option<&Arc<Tracing>>, prepared: &tsc_program::P
             start,
             end,
         );
+    }
+    for source in prepared.source_files() {
+        if let Some((start, end)) = source.preparsed_syntax().bind_span() {
+            tracing.record_span(
+                TracePhase::Bind,
+                "bindSourceFile",
+                &TraceArgs::new().with(
+                    "path",
+                    source.path().display().to_string_lossy().into_owned(),
+                ),
+                start,
+                end,
+            );
+        }
     }
 }
 
@@ -1636,7 +1652,9 @@ fn run_explicit_files(
     let program_options = if mode.watch {
         program_options
     } else {
-        program_options.with_identity_domain(tsc_types::IdentityDomain::new())
+        program_options
+            .with_identity_domain(tsc_types::IdentityDomain::new())
+            .with_source_binding()
     };
     let load_clock = route.system.now();
     let tracing = (!mode.watch)

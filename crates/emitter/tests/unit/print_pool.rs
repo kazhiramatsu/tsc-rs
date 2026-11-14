@@ -14,20 +14,25 @@ fn an_unused_pool_starts_no_workers_and_serial_work_has_no_pool() {
 }
 
 #[test]
-fn bytes_and_units_remain_charged_until_the_last_retirement_holder_drops() {
+fn input_bytes_retire_before_the_unit_result_is_delivered() {
     with_print_pool(4, 1, 64, |pool| {
         let pool = pool.unwrap();
-        let mut first = pool.acquire();
-        assert!(first.try_charge(40));
-        let retirement = first.clone();
-        drop(first);
-        let mut second = pool.acquire();
-        assert!(!second.try_charge(25));
-        assert!(second.try_charge(24));
+        let first = pool.acquire();
+        let first_charge = first.try_charge(40).unwrap();
+        let second = pool.acquire();
+        assert!(second.try_charge(25).is_none());
+        let second_charge = second.try_charge(24).unwrap();
+        assert_eq!(pool.credits.usage.lock().unwrap().charged_bytes, 64);
+        drop(first_charge);
         let usage = pool.credits.usage.lock().unwrap();
-        assert_eq!((usage.units, usage.charged_bytes), (2, 64));
+        assert_eq!((usage.units, usage.charged_bytes), (2, 24));
         drop(usage);
-        drop(retirement);
+        let replacement = first.try_charge(40).unwrap();
+        drop(first);
+        assert_eq!(pool.credits.usage.lock().unwrap().units, 2);
+        drop(replacement);
+        assert_eq!(pool.credits.usage.lock().unwrap().units, 1);
+        drop(second_charge);
         drop(second);
         let usage = pool.credits.usage.lock().unwrap();
         assert_eq!((usage.units, usage.charged_bytes), (0, 0));
@@ -43,9 +48,10 @@ fn owned_jobs_execute_on_spare_workers_and_deliver_in_owner_order() {
         let mut pending = Vec::new();
         for index in 0..3 {
             let barrier = Arc::clone(&barrier);
-            let mut credit = pool.acquire();
-            assert!(credit.try_charge(16));
+            let credit = pool.acquire();
+            let charge = credit.try_charge(16).unwrap();
             pending.push(pool.submit(credit, move |_| {
+                let _charge = charge;
                 if index < 2 {
                     barrier.wait();
                 }
@@ -215,4 +221,30 @@ fn three_print_workers_cover_a_larger_spare_budget() {
         assert_eq!(actual, [0, 1, 2, 3, 4, 5]);
         assert_eq!(pool.peak().workers, 3);
     });
+}
+
+#[test]
+fn a_small_plan_limits_printer_heaps_before_jobs_start() {
+    let mut pool = EmitPrintPool::for_budget(10, 4, 64).unwrap();
+    pool.set_planned_units(187);
+    let barrier = Arc::new(Barrier::new(3));
+    let jobs = (0..5)
+        .map(|index| {
+            let barrier = Arc::clone(&barrier);
+            pool.submit(pool.acquire(), move |_| {
+                if index < 2 {
+                    barrier.wait();
+                }
+                index
+            })
+        })
+        .collect::<Vec<_>>();
+    barrier.wait();
+    assert_eq!(
+        jobs.into_iter()
+            .map(|job| job.finish().0)
+            .collect::<Vec<_>>(),
+        [0, 1, 2, 3, 4]
+    );
+    assert_eq!(pool.peak().workers, 2);
 }

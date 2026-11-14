@@ -16,6 +16,7 @@ path = "src/lib.rs"
 loader-counters = []
 
 [dependencies]
+tsc-binder.workspace = true
 memchr = "2"
 rustc-hash.workspace = true
 serde = { version = "1.0", features = ["derive"] }

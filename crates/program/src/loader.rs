@@ -937,6 +937,11 @@ fn load_program_worker(
     }
     let mut normalized_roots = prefetch_roots.into_iter().take(normalized_root_count);
     tsc_types::trace::mark("load: read-ahead", phase_started);
+    // Read/parse work has priority over binding. Only the ordered walk below
+    // can overlap this owned crew; publishing the Program never joins it.
+    let bind_started = std::time::Instant::now();
+    let source_binds = graph.bind_while_finishing(normalized_root_count);
+    tsc_types::trace::mark("load: source bind crew start", bind_started);
     let phase_started = std::time::Instant::now();
     let mut root_timer = tsc_types::trace::Timer::new();
     // tsgo processRootFiles: the root tasks are the root files, then the
@@ -1084,7 +1089,10 @@ fn load_program_worker(
         program_options,
     );
     publish_timer.mark("load: publish program including cleanup");
-    prepared
+    prepared.map(|mut prepared| {
+        prepared.set_source_binds(source_binds);
+        prepared
+    })
 }
 
 /// tsgo-port: Program.GetSymlinkCache @aa814927 (program.go:2330-2378),

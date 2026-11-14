@@ -27,6 +27,251 @@ fn bound_document_for_snapshot(
 }
 
 #[test]
+fn symbol_rooms_preserve_prototype_and_ambient_module_creation_order() {
+    use tsc_binder::BindReservations;
+    use tsc_types::{IdentitySpace, TypeOrderContext};
+
+    let domain = IdentityDomain::new();
+    let parse = |name: &str, text: &str| {
+        tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+            name.to_owned(),
+            TextSnapshot::new(text.to_owned(), Default::default()),
+            ParseOptions::default(),
+            None,
+            &domain,
+        )
+        .unwrap()
+    };
+    let mut a = parse("/a.ts", "declare module \"alpha\" {} class A {}");
+    let mut b = parse("/b.ts", "declare module \"beta\" {} class B {}");
+    let ac = BindReservations::counts(&a);
+    let bc = BindReservations::counts(&b);
+    let mut room = domain
+        .lease_rooms(&[vec![
+            (IdentitySpace::Symbol, ac[0] + bc[0]),
+            (IdentitySpace::PrivateNameSerial, ac[1] + bc[1]),
+        ]])
+        .unwrap()
+        .pop()
+        .unwrap();
+    let br = BindReservations::finish_entry(&mut room, bc).unwrap();
+    let ar = BindReservations::finish_entry(&mut room, ac).unwrap();
+    room.seal().unwrap();
+    let bind = |source: &mut SourceFile, reservation: BindReservations| {
+        let mut worker = Binder::bind_reserved(
+            source,
+            reservation.symbols.range(),
+            reservation.serials.range().start(),
+        );
+        assert!(worker
+            .attach_reserved_leases(&domain, reservation.symbols, reservation.serials)
+            .unwrap());
+        worker.into_bind_data()
+    };
+    let bd = bind(&mut b, br);
+    let ad = bind(&mut a, ar);
+    let prototype = |data: &BindData| {
+        let offset = data
+            .symbols
+            .symbols()
+            .iter()
+            .position(|symbol| symbol.escaped_name == "prototype")
+            .unwrap();
+        SymbolId::new(data.symbols.base() + u32::try_from(offset).unwrap())
+    };
+    let ap = prototype(&ad);
+    let bp = prototype(&bd);
+    assert!(ap.index() > bp.index(), "physical placement is reversed");
+    let snapshot = ProgramSnapshot::new(
+        vec![
+            Arc::new(DocumentBuilder::new(a).freeze(ad)),
+            Arc::new(DocumentBuilder::new(b).freeze(bd)),
+        ],
+        0,
+    )
+    .unwrap();
+    let options = CompilerOptions::default();
+    let state = CheckerState::from_snapshot(&snapshot, &options);
+    let order = crate::type_order::OrderCtx::new(
+        &state.binder,
+        &state.links,
+        &state.mappers,
+        &state.mapper_lists,
+        true,
+    );
+    assert_eq!(
+        order.compare_symbols(Some(ap), Some(bp)),
+        std::cmp::Ordering::Less
+    );
+    let mut prototypes = [bp, ap];
+    order.sort_symbols(&mut prototypes);
+    assert_eq!(prototypes, [ap, bp]);
+    let names: Vec<_> = state
+        .get_ambient_modules()
+        .into_iter()
+        .map(|symbol| {
+            state
+                .binder
+                .symbol(symbol)
+                .escaped_name
+                .as_js()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    assert_eq!(names, ["\"alpha\"", "\"beta\""]);
+}
+
+#[test]
+fn cached_documents_keep_numeric_ambient_order_when_membership_changes() {
+    let domain = IdentityDomain::new();
+    let a = bound_document_for_snapshot(
+        "/a.ts",
+        TextSnapshot::new("declare module \"alpha\" {}".to_owned(), Default::default()),
+        &domain,
+    );
+    let b = bound_document_for_snapshot(
+        "/b.ts",
+        TextSnapshot::new("declare module \"beta\" {}".to_owned(), Default::default()),
+        &domain,
+    );
+    let mut documents = [(a, "\"alpha\""), (b, "\"beta\"")];
+    documents.sort_by_key(|(document, name)| {
+        document.data.locals[&document.source().root]
+            .get(*name)
+            .copied()
+            .unwrap()
+    });
+    let expected: Vec<_> = documents.iter().map(|(_, name)| *name).collect();
+    let snapshot = ProgramSnapshot::new(
+        documents
+            .iter()
+            .rev()
+            .map(|(document, _)| Arc::clone(document))
+            .collect(),
+        0,
+    )
+    .unwrap();
+    let options = CompilerOptions::default();
+    let state = CheckerState::from_snapshot(&snapshot, &options);
+    let names: Vec<_> = state
+        .get_ambient_modules()
+        .into_iter()
+        .map(|symbol| {
+            state
+                .binder
+                .symbol(symbol)
+                .escaped_name
+                .as_js()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    assert_eq!(names, expected);
+}
+
+#[test]
+fn overflowing_room_symbols_follow_the_normal_bind_reservations() {
+    use tsc_binder::BindReservations;
+    use tsc_types::IdentitySpace;
+
+    let domain = IdentityDomain::new();
+    let text = format!(
+        "{}function f(x) {{ return x; }}\nclass Overflow {{}}",
+        "/** @overload\n * @param {string} x\n * @returns {string}\n */\n".repeat(32)
+    );
+    let mut overflow = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+        "/overflow.js",
+        TextSnapshot::new(text, Default::default()),
+        ParseOptions {
+            script_kind: tsc_syntax::ScriptKind::Js,
+            ..Default::default()
+        },
+        None,
+        &domain,
+    )
+    .unwrap();
+    let mut normal = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+        "/normal.ts",
+        TextSnapshot::new("class Normal {}".to_owned(), Default::default()),
+        ParseOptions::default(),
+        None,
+        &domain,
+    )
+    .unwrap();
+    let oc = BindReservations::counts(&overflow);
+    let nc = BindReservations::counts(&normal);
+    let mut room = domain
+        .lease_rooms(&[vec![
+            (IdentitySpace::Symbol, oc[0] + nc[0]),
+            (IdentitySpace::PrivateNameSerial, oc[1] + nc[1]),
+        ]])
+        .unwrap()
+        .pop()
+        .unwrap();
+    let or = BindReservations::finish_entry(&mut room, oc).unwrap();
+    let nr = BindReservations::finish_entry(&mut room, nc).unwrap();
+    room.seal().unwrap();
+    let mut normal_worker =
+        Binder::bind_reserved(&mut normal, nr.symbols.range(), nr.serials.range().start());
+    assert!(normal_worker
+        .attach_reserved_leases(&domain, nr.symbols, nr.serials)
+        .unwrap());
+    let normal_data = normal_worker.into_bind_data();
+    let mut worker = Binder::bind_reserved(
+        &mut overflow,
+        or.symbols.range(),
+        or.serials.range().start(),
+    );
+    assert!(
+        worker.symbols.len() > oc[0] as usize,
+        "JS overloads exceed the parser's bound"
+    );
+    assert!(!worker
+        .attach_reserved_leases(&domain, or.symbols.clone(), or.serials.clone())
+        .unwrap());
+    worker.relocate_into_identity_domain(&domain).unwrap();
+    let overflow_data = worker.into_bind_data();
+    let prototype = |data: &BindData| {
+        let offset = data
+            .symbols
+            .symbols()
+            .iter()
+            .position(|symbol| symbol.escaped_name == "prototype")
+            .unwrap();
+        SymbolId::new(data.symbols.base() + u32::try_from(offset).unwrap())
+    };
+    let op = prototype(&overflow_data);
+    let np = prototype(&normal_data);
+    let reference = IdentityDomain::with_limits(Default::default()).unwrap();
+    let reserved = reference.lease(IdentitySpace::Symbol, oc[0]).unwrap();
+    let relocated = reference
+        .lease(
+            IdentitySpace::Symbol,
+            u32::try_from(overflow_data.symbols.len()).unwrap(),
+        )
+        .unwrap();
+    let hole = reserved.range().start();
+    drop(reserved);
+    let reused = reference.lease(IdentitySpace::Symbol, nc[0]).unwrap();
+    assert_eq!(reused.range().start(), hole);
+    assert!(reused.range().start() < relocated.range().start());
+    let documents = vec![
+        Arc::new(DocumentBuilder::new(overflow).freeze(overflow_data)),
+        Arc::new(DocumentBuilder::new(normal).freeze(normal_data)),
+    ];
+    for lib_count in [0, 1] {
+        let snapshot = ProgramSnapshot::new(documents.clone(), lib_count).unwrap();
+        let program = ProgramBinder::from_snapshot(&snapshot);
+        assert_eq!(
+            program.compare_symbol_creation_order(np, op),
+            std::cmp::Ordering::Less,
+            "normal symbols precede an overflowing bind, including library-hole reuse"
+        );
+    }
+}
+
+#[test]
 fn routes_parse_order_arenas_without_changing_program_order() {
     // tsc may request the root before its dependency while exposing
     // the dependency first from Program.getSourceFiles().
@@ -573,4 +818,97 @@ fn locals_are_found_for_exactly_the_scopes_that_have_them() {
             assert!(scopes >= 5, "the source file, functions, blocks and loop");
         },
     );
+}
+
+#[test]
+fn prepared_bind_results_keep_source_order_around_missing_and_overflowing_binds() {
+    use std::num::NonZeroUsize;
+    use tsc_binder::BindReservations;
+    use tsc_types::IdentitySpace;
+    for worker_count in [1, 4] {
+        let domain = IdentityDomain::new();
+        let mut sources = [
+            ("/first.ts", "const first = 1;"),
+            ("/fresh.ts", "function fresh() { return 2; }"),
+            (
+                "/overflow.ts",
+                "export class C { #value = 3; read() { return this.#value; } }",
+            ),
+            ("/last.ts", "const last = 4;"),
+        ]
+        .into_iter()
+        .map(|(name, text)| {
+            DocumentBuilder::new(
+                tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+                    name.to_owned(),
+                    TextSnapshot::new(text.to_owned(), Default::default()),
+                    ParseOptions::default(),
+                    None,
+                    &domain,
+                )
+                .unwrap(),
+            )
+        })
+        .collect::<Vec<_>>();
+        for (index, source) in sources.iter_mut().enumerate() {
+            if index == 1 {
+                continue;
+            }
+            let reservation = if index == 2 {
+                BindReservations {
+                    symbols: domain.lease(IdentitySpace::Symbol, 1).unwrap(),
+                    serials: domain.lease(IdentitySpace::PrivateNameSerial, 1).unwrap(),
+                }
+            } else {
+                BindReservations::lease(source.source(), &domain).unwrap()
+            };
+            let mut binder = Binder::bind_reserved(
+                source.source_mut(),
+                reservation.symbols.range(),
+                reservation.serials.range().start(),
+            );
+            assert_eq!(
+                binder
+                    .attach_reserved_leases(
+                        &domain,
+                        reservation.symbols.clone(),
+                        reservation.serials.clone()
+                    )
+                    .unwrap(),
+                index != 2
+            );
+            source.bind_data = Some(Box::new(binder.into_bind_data()));
+            source.bind_reservations = Some(reservation);
+        }
+        let inputs = sources
+            .iter_mut()
+            .map(DocumentBuilder::bind_input)
+            .collect();
+        let results = crate::bind_reserved_in_program_order(
+            inputs,
+            &domain,
+            crate::WorkerBudget::new(NonZeroUsize::new(worker_count).unwrap()),
+            None,
+        );
+        assert_eq!(results.len(), sources.len());
+        for (source, data) in sources.iter_mut().zip(results) {
+            assert!(data.identity_owned_by(&domain));
+            let expected = data.clone();
+            drop(data);
+            let mut direct = Binder::with_bases(
+                source.source_mut(),
+                expected.private_name_serial_base,
+                expected.symbols.base(),
+            );
+            direct.bind_source_file();
+            let direct = direct.into_bind_data();
+            assert_eq!(expected.symbols, direct.symbols);
+            assert_eq!(expected.node_symbol, direct.node_symbol);
+            assert_eq!(expected.node_local_symbol, direct.node_local_symbol);
+            assert_eq!(expected.locals, direct.locals);
+            assert_eq!(expected.assigned_symbol_ids, direct.assigned_symbol_ids);
+            assert_eq!(expected.classifiable_names, direct.classifiable_names);
+            assert_eq!(expected.bind_diagnostics, direct.bind_diagnostics);
+        }
+    }
 }

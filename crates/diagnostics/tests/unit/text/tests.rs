@@ -464,3 +464,59 @@ fn dense_wide_records_match_a_character_walk_at_every_chunk_alignment() {
         }
     }
 }
+
+#[test]
+fn paired_byte_validation_matches_text_boundaries_and_snapshot_identity() {
+    for text in ["", "ascii\r\n", "a😀é日\nb", "éab", "abcd"] {
+        let dense = PositionIndex::new_static(text);
+        let snapshot = TextSnapshot::new(text, version("1"));
+        let mut store = VersionedTextStore::new(text, version("1"));
+        store
+            .edit_bytes(ByteTextSpan::new(0, 0), "", version("2"))
+            .unwrap();
+        let persistent = store.snapshot();
+        for index in [&dense, snapshot.positions(), persistent.positions()] {
+            for start in (0..=text.len() as u32 + 1).chain([u32::MAX]) {
+                for end in (0..=text.len() as u32 + 1).chain([u32::MAX]) {
+                    let expected = start <= end
+                        && text.is_char_boundary(start as usize)
+                        && text.is_char_boundary(end as usize);
+                    for _ in 0..2 {
+                        assert_eq!(
+                            index.is_valid_byte_range(start, end),
+                            expected,
+                            "{text:?} {start}..{end}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+    let before = TextSnapshot::new("abcd", version("1"));
+    assert!(before.positions().is_valid_byte_range(1, 4));
+    let after = TextSnapshot::new("éab", version("2"));
+    assert!(!after.positions().is_valid_byte_range(1, 4));
+    assert!(before.positions().is_valid_byte_range(1, 4));
+}
+
+#[test]
+fn concurrent_paired_validation_keeps_unicode_and_bounds_checks() {
+    let snapshot = TextSnapshot::new("a😀b\né", version("1"));
+    std::thread::scope(|scope| {
+        for _ in 0..4 {
+            let snapshot = &snapshot;
+            scope.spawn(move || {
+                for _ in 0..1_000 {
+                    for &(start, end) in &[(0, 0), (1, 5), (5, 9), (2, 5), (0, 10), (5, 1)] {
+                        assert_eq!(
+                            snapshot.positions().is_valid_byte_range(start, end),
+                            start <= end
+                                && snapshot.text().is_char_boundary(start as usize)
+                                && snapshot.text().is_char_boundary(end as usize)
+                        );
+                    }
+                }
+            });
+        }
+    });
+}

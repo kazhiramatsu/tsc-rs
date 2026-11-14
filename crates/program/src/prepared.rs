@@ -93,7 +93,8 @@ impl PathContext {
 /// Producer invariant: the only constructor is the request planner
 /// ([`crate::plan_source_requests_retaining_syntax`]), which parses the
 /// prepared source's own snapshot with the recorded [`ParseOptions`]
-/// (identity bases zero) and never mutates the tree afterwards. The fields
+/// (identity bases zero). A finite consumer may also request its file-local
+/// bind, which changes only binder-owned flags and travels with the tree. The fields
 /// are private so no other producer can attach a foreign or edited tree. A
 /// consumer must still compare the recorded options, file name and snapshot
 /// identity with the parse it would perform itself and fall back to parsing
@@ -101,12 +102,22 @@ impl PathContext {
 #[derive(Debug)]
 pub struct PreparsedSourceFile {
     options: ParseOptions,
+    bind_reservations: Option<tsc_binder::BindReservations>,
+    // Drop the bind's tree claim before the tree's node leases.
+    bind_data: Option<Box<tsc_binder::BindData>>,
+    bind_span: Option<(std::time::Instant, std::time::Instant)>,
     source: SourceFile,
 }
 
 impl PreparsedSourceFile {
     pub(crate) fn new(options: ParseOptions, source: SourceFile) -> Self {
-        Self { options, source }
+        Self {
+            options,
+            bind_reservations: None,
+            bind_data: None,
+            bind_span: None,
+            source,
+        }
     }
 
     /// The exact parse options the planner used (identity bases zero).
@@ -122,6 +133,24 @@ impl PreparsedSourceFile {
     /// Consume the slot contents into the parsed tree.
     pub fn into_source(self) -> SourceFile {
         self.source
+    }
+
+    /// Adopt the tree and its take-once reservation together. A plain parse
+    /// consumer can still use `into_source`, releasing the unused reservation.
+    pub fn into_parts(self) -> (Option<tsc_binder::BindReservations>, SourceFile) {
+        (self.bind_reservations, self.source)
+    }
+
+    /// Adopt the parse, completed bind (if requested), and pinned reservations
+    /// together. An overflowing bind is relocated by the ordered consumer.
+    pub fn into_bind_parts(
+        self,
+    ) -> (
+        Option<tsc_binder::BindReservations>,
+        Option<Box<tsc_binder::BindData>>,
+        SourceFile,
+    ) {
+        (self.bind_reservations, self.bind_data, self.source)
     }
 }
 
@@ -151,6 +180,69 @@ pub struct PreparsedSyntax {
 }
 
 impl PreparsedSyntax {
+    pub(crate) fn bind_reserved(&self, domain: &IdentityDomain, tracing: bool) {
+        let mut slot = self.slot.lock().expect("retained parse");
+        let Some(parsed) = slot.as_mut() else { return };
+        let Some(reservation) = &parsed.bind_reservations else {
+            return;
+        };
+        assert!(parsed.bind_data.is_none());
+        let started = tracing.then(std::time::Instant::now);
+        let mut binder = tsc_binder::Binder::bind_reserved(
+            &mut parsed.source,
+            reservation.symbols.range(),
+            reservation.serials.range().start(),
+        );
+        binder
+            .attach_reserved_leases(
+                domain,
+                reservation.symbols.clone(),
+                reservation.serials.clone(),
+            )
+            .expect("task bind identity reservation failed");
+        // Even an overflow keeps its completed tables. No identity is leased
+        // here: the checker relocates overflows in its established order.
+        parsed.bind_data = Some(Box::new(binder.into_bind_data()));
+        parsed.bind_span = started.map(|started| (started, std::time::Instant::now()));
+    }
+
+    pub(crate) fn has_bind_reservation(&self) -> bool {
+        self.slot
+            .lock()
+            .expect("retained parse")
+            .as_ref()
+            .is_some_and(|parsed| parsed.bind_reservations.is_some())
+    }
+
+    /// The task's bind interval, when the command requested tracing.
+    pub fn bind_span(&self) -> Option<(std::time::Instant, std::time::Instant)> {
+        self.slot.lock().ok()?.as_ref()?.bind_span
+    }
+
+    pub(crate) fn bind_counts(&self, domain: &IdentityDomain) -> Option<[u32; 2]> {
+        let slot = self.slot.lock().expect("retained parse");
+        let parsed = slot.as_ref()?;
+        (parsed.source.arena.is_published() && parsed.source.identity_owned_by(domain))
+            .then(|| tsc_binder::BindReservations::counts(&parsed.source))
+    }
+
+    pub(crate) fn reserve_bind(&self, reservation: tsc_binder::BindReservations) {
+        let mut slot = self.slot.lock().expect("retained parse");
+        let parsed = slot.as_mut().expect("stripe parse has not been adopted");
+        assert!(parsed.bind_reservations.is_none());
+        assert!(parsed
+            .source
+            .identity_owned_by(&reservation.symbols.domain()));
+        assert_eq!(
+            tsc_binder::BindReservations::counts(&parsed.source),
+            [
+                reservation.symbols.range().len(),
+                reservation.serials.range().len()
+            ]
+        );
+        parsed.bind_reservations = Some(reservation);
+    }
+
     /// The finite Program's owner, retained even after its parse is adopted.
     pub fn identity_domain(&self) -> Option<&IdentityDomain> {
         self.identity_domain.as_ref()
@@ -1563,7 +1655,11 @@ impl fmt::Debug for ContentMapperProjectHandle {
 
 /// Execution ownership is not Program content, just as its parse cache is not.
 #[derive(Clone, Debug, Default)]
-struct ProgramIdentity(Option<IdentityDomain>);
+struct ProgramIdentity {
+    domain: Option<IdentityDomain>,
+    bind_sources: bool,
+    source_binds: Option<Arc<crate::source_binds::SourceBinds>>,
+}
 
 impl PartialEq for ProgramIdentity {
     fn eq(&self, _other: &Self) -> bool {
@@ -1576,12 +1672,24 @@ impl ProgramOptions {
     /// Give a finite load and its checker the same explicit identity owner.
     /// Cache-backed project and editor callers retain their existing domains.
     pub fn with_identity_domain(mut self, domain: IdentityDomain) -> Self {
-        self.identity = ProgramIdentity(Some(domain));
+        self.identity.domain = Some(domain);
         self
     }
 
     pub fn identity_domain(&self) -> Option<&IdentityDomain> {
-        self.identity.0.as_ref()
+        self.identity.domain.as_ref()
+    }
+
+    /// The finite consumer will use bound sources. Loading/parse-only and
+    /// cache-backed consumers leave this unset; a worker budget of one keeps
+    /// binding in the checker even when the consumer requests it.
+    pub fn with_source_binding(mut self) -> Self {
+        self.identity.bind_sources = true;
+        self
+    }
+
+    pub(crate) fn binds_sources(&self) -> bool {
+        self.identity.bind_sources
     }
 
     pub fn with_module_resolution_override(
@@ -2078,6 +2186,33 @@ impl PreparsedSyntax {
 }
 
 impl PreparedProgram {
+    pub(crate) fn set_source_binds(
+        &mut self,
+        binds: Option<Arc<crate::source_binds::SourceBinds>>,
+    ) {
+        self.program_options.identity.source_binds = binds;
+    }
+
+    /// End speculative binding before source adoption. In-flight slots finish
+    /// their own bind; the consumer uses the ordinary path for the remainder.
+    pub fn stop_source_binding(&self) {
+        if let Some(binds) = &self.program_options.identity.source_binds {
+            binds.stop();
+        }
+    }
+
+    /// Complete active slots after input projection and before the checker
+    /// leases identities. The ordered loader never calls this checkpoint.
+    pub fn finish_source_binding(&self) {
+        if let Some(binds) = &self.program_options.identity.source_binds {
+            let started = tsc_types::trace::enabled().then(std::time::Instant::now);
+            binds.finish();
+            if let Some(started) = started {
+                tsc_types::trace::mark("checker: source bind handoff", started);
+            }
+        }
+    }
+
     /// Retained owners at the checker report's checkpoint. Loader staging
     /// moved into these vectors is counted here; destroyed builder/task
     /// tables are not live owners at this checkpoint.

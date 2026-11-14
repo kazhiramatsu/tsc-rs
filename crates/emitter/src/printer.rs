@@ -3,10 +3,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
+use crate::position::skip_source_trivia as skip_trivia;
 use tsc_diagnostics::PositionIndex;
 use tsc_syntax::{
-    for_each_child, is_js_whitespace, is_line_break, is_whitespace_like, skip_trivia, NodeData,
-    NodeId, SyntaxKind,
+    for_each_child, is_js_whitespace, is_line_break, is_whitespace_like, NodeData, NodeId,
+    SyntaxKind,
 };
 use tsc_types::{NodeFlags, ScriptTarget, TokenFlags};
 
@@ -1272,57 +1273,111 @@ struct EmissionPlan {
     block_helpers: BTreeMap<TransformNode, Vec<EmitHelper>>,
 }
 
-/// The emission-plan walk's memo: dense over the root source's node ids
-/// (every node of a source-file root), hashed for the nodes of any other
-/// source a bundle root reaches.
-struct EmissionPlanMemo {
+/// One immutable source borrow for the complete pre-hook plan snapshot.
+/// Child IDs remain in their parent's source; invalid local IDs fail before
+/// recursion, so every memoized record belongs to this one dense span.
+struct EmissionPlanWalk<'a> {
     source: TransformSourceId,
     base: u32,
-    /// 0 = unvisited, 1 = visited without structured emit, 2 = structured.
-    dense: Vec<u8>,
-    sparse: rustc_hash::FxHashMap<TransformNode, bool>,
+    arena: &'a tsc_syntax::NodeArena,
+    nodes: &'a [tsc_syntax::nodes::Node],
+    target: Option<ScriptTarget>,
+    memo: Vec<u8>,
+    plan: EmissionPlan,
+    children: Vec<NodeId>,
 }
-
-impl EmissionPlanMemo {
-    fn for_root(
-        transformation: &TransformationResult<'_>,
-        root: TransformNode,
-    ) -> Result<Self, PrinterError> {
-        let syntax = transformation.arena().source(root.source())?.syntax();
-        Ok(Self {
-            source: root.source(),
-            base: syntax.arena.node_base(),
-            dense: vec![0; syntax.arena.nodes().len()],
-            sparse: rustc_hash::FxHashMap::default(),
-        })
-    }
-
-    fn dense_index(&self, node: TransformNode) -> Option<usize> {
-        if node.source() != self.source {
-            return None;
+impl EmissionPlanWalk<'_> {
+    // Ordinary tokens need neither a child walk nor a recursive worker frame.
+    #[inline(always)]
+    fn collect(
+        &mut self,
+        node: NodeId,
+        record: &tsc_syntax::nodes::Node,
+        index: usize,
+    ) -> Result<bool, PrinterError> {
+        if self.memo[index] != 0 {
+            return Ok(self.memo[index] == 2);
         }
-        let index = node.node().index().checked_sub(self.base)? as usize;
-        (index < self.dense.len()).then_some(index)
-    }
-
-    fn get(&self, node: TransformNode) -> Option<bool> {
-        match self.dense_index(node) {
-            Some(index) => match self.dense[index] {
-                0 => None,
-                1 => Some(false),
-                _ => Some(true),
-            },
-            None => self.sparse.get(&node).copied(),
+        if record.kind.value() <= SyntaxKind::LastToken.value()
+            && record.kind != SyntaxKind::NumericLiteral
+            && record.kind != SyntaxKind::BigIntLiteral
+        {
+            self.memo[index] = 1;
+            return Ok(false);
         }
+        self.collect_worker(node, record, index)
     }
-
-    fn insert(&mut self, node: TransformNode, requires_structured_emit: bool) {
-        match self.dense_index(node) {
-            Some(index) => self.dense[index] = if requires_structured_emit { 2 } else { 1 },
-            None => {
-                self.sparse.insert(node, requires_structured_emit);
+    #[inline(never)]
+    fn collect_worker(
+        &mut self,
+        node: NodeId,
+        record: &tsc_syntax::nodes::Node,
+        index: usize,
+    ) -> Result<bool, PrinterError> {
+        let function_body = match record.kind {
+            SyntaxKind::FunctionDeclaration
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::Constructor
+            | SyntaxKind::ClassStaticBlockDeclaration => record.body_field(),
+            _ => None,
+        };
+        if let Some(body) = function_body.filter(|body| {
+            self.nodes
+                .get(body.index().wrapping_sub(self.base) as usize)
+                .is_some_and(|body| body.kind == SyntaxKind::Block)
+        }) {
+            self.plan
+                .function_body_blocks
+                .insert(TransformNode::new(self.source, body));
+        }
+        let mut structured = match record.kind {
+            SyntaxKind::NumericLiteral => {
+                let flags = TokenFlags::from_bits(i32::from(record.numeric_literal_flags()));
+                flags.intersects(TokenFlags::IS_INVALID)
+                    || flags.contains(TokenFlags::CONTAINS_SEPARATOR)
+                        && self
+                            .target
+                            .is_none_or(|target| target < ScriptTarget::ES2021)
+            }
+            SyntaxKind::BigIntLiteral => true,
+            _ => false,
+        };
+        let start = self.children.len();
+        for_each_child(self.arena, record, |child| {
+            self.children.push(child);
+            false
+        });
+        let end = self.children.len();
+        let mut result = Ok(());
+        let nodes = self.nodes;
+        for position in start..end {
+            let child = self.children[position];
+            let index = child.index().wrapping_sub(self.base) as usize;
+            let Some(record) = nodes.get(index) else {
+                result = Err(PrinterError::UnknownStatement(child.index()));
+                break;
+            };
+            match self.collect(child, record, index) {
+                Ok(value) => structured |= value,
+                Err(error) => {
+                    result = Err(error);
+                    break;
+                }
             }
         }
+        self.children.truncate(start);
+        result?;
+        if structured {
+            self.plan
+                .structured_nodes
+                .insert(TransformNode::new(self.source, node));
+        }
+        self.memo[index] = if structured { 2 } else { 1 };
+        Ok(structured)
     }
 }
 
@@ -1776,118 +1831,27 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         root: TransformNode,
     ) -> Result<(), PrinterError> {
-        let mut structured_nodes = rustc_hash::FxHashSet::default();
-        let mut function_body_blocks = rustc_hash::FxHashSet::default();
-        let mut memo = EmissionPlanMemo::for_root(transformation, root)?;
-        let mut children = Vec::new();
-        Self::collect_emission_plan(
-            transformation,
-            root,
-            self.options.target,
-            &mut memo,
-            &mut structured_nodes,
-            &mut function_body_blocks,
-            &mut children,
+        let syntax = transformation.arena().source(root.source())?.syntax();
+        let record = transformation.arena().node(root)?;
+        let nodes = syntax.arena.nodes();
+        let base = syntax.arena.node_base();
+        let mut walk = EmissionPlanWalk {
+            source: root.source(),
+            base,
+            arena: &syntax.arena,
+            nodes,
+            target: self.options.target,
+            memo: vec![0; nodes.len()],
+            plan: EmissionPlan::default(),
+            children: Vec::new(),
+        };
+        walk.collect(
+            root.node(),
+            record,
+            root.node().index().wrapping_sub(base) as usize,
         )?;
-        self.emission_plan = EmissionPlan {
-            structured_nodes,
-            function_body_blocks,
-            block_helpers: BTreeMap::new(),
-        };
+        self.emission_plan = walk.plan;
         Ok(())
-    }
-
-    fn collect_emission_plan(
-        transformation: &TransformationResult<'_>,
-        node: TransformNode,
-        target: Option<ScriptTarget>,
-        memo: &mut EmissionPlanMemo,
-        structured_nodes: &mut rustc_hash::FxHashSet<TransformNode>,
-        function_body_blocks: &mut rustc_hash::FxHashSet<TransformNode>,
-        // One child buffer for the whole walk: a node's children occupy the
-        // tail while it recurses through them and are released afterwards.
-        children: &mut Vec<NodeId>,
-    ) -> Result<bool, PrinterError> {
-        if let Some(requires_structured_emit) = memo.get(node) {
-            return Ok(requires_structured_emit);
-        }
-
-        let record = transformation.arena().node(node)?;
-        let function_body = match record.data() {
-            NodeData::FunctionDeclaration(data) => data.body,
-            NodeData::FunctionExpression(data) => data.body,
-            NodeData::ArrowFunction(data) => data.body,
-            NodeData::MethodDeclaration(data) => data.body,
-            NodeData::GetAccessor(data) => data.body,
-            NodeData::SetAccessor(data) => data.body,
-            NodeData::Constructor(data) => data.body,
-            NodeData::ClassStaticBlockDeclaration(data) => data.body,
-            _ => None,
-        };
-        if let Some(body) = function_body
-            .and_then(|body| transformation.arena().node_ref(node.source(), body))
-            .filter(|body| {
-                transformation
-                    .arena()
-                    .node(*body)
-                    .is_ok_and(|body| body.kind == SyntaxKind::Block)
-            })
-        {
-            function_body_blocks.insert(body);
-        }
-        let requires_literal_rewrite = match record.data() {
-            NodeData::NumericLiteral(_) => {
-                let flags = TokenFlags::from_bits(i32::from(record.numeric_literal_flags()));
-                flags.intersects(TokenFlags::IS_INVALID)
-                    || flags.contains(TokenFlags::CONTAINS_SEPARATOR)
-                        && target.is_none_or(|target| target < ScriptTarget::ES2021)
-            }
-            // tsc's canUseOriginalText always rejects BigIntLiteral nodes.
-            NodeData::BigIntLiteral(_) => true,
-            _ => false,
-        };
-        let first_child = children.len();
-        let source = transformation.arena().source(node.source())?.syntax();
-        for_each_child(&source.arena, record, |child| {
-            children.push(child);
-            false
-        });
-        let last_child = children.len();
-
-        let mut requires_structured_emit = requires_literal_rewrite;
-        let mut result = Ok(());
-        for position in first_child..last_child {
-            let child = children[position];
-            let child = match transformation.arena().node_ref(node.source(), child) {
-                Some(child) => child,
-                None => {
-                    result = Err(PrinterError::UnknownStatement(child.index()));
-                    break;
-                }
-            };
-            match Self::collect_emission_plan(
-                transformation,
-                child,
-                target,
-                memo,
-                structured_nodes,
-                function_body_blocks,
-                children,
-            ) {
-                Ok(structured) => requires_structured_emit |= structured,
-                Err(error) => {
-                    result = Err(error);
-                    break;
-                }
-            }
-        }
-        children.truncate(first_child);
-        result?;
-        if requires_structured_emit {
-            structured_nodes.insert(node);
-        }
-        memo.insert(node, requires_structured_emit);
-        Ok(requires_structured_emit)
     }
 
     /// Print one source file, bundle, standalone node or declaration root
@@ -2806,7 +2770,7 @@ impl Printer {
                     Some(carried_resume),
                     writer,
                 )?;
-                self.emit_synthetic_leading_comments_for_node(transformation, emitted, writer)?;
+                self.emit_synthetic_leading_comments_for_node(transformation, emitted, writer);
             } else if let Some(detached_resume) = detached_resume {
                 self.emit_leading_comments_for_node_worker(
                     transformation,
@@ -2845,11 +2809,12 @@ impl Printer {
                 emitted,
                 EmitHint::Unspecified,
                 context.with_comments(scope),
+                owner.flags,
                 writer,
             )?;
             // The statement's trailing phase consults the restored file-level
             // scope, i.e. the carried container of a previous failed print.
-            self.emit_synthetic_trailing_comments_for_node(transformation, emitted, writer)?;
+            self.emit_synthetic_trailing_comments_for_node(transformation, emitted, writer);
             self.emit_trailing_comments_for_node_in_container(
                 transformation,
                 emitted,
@@ -3174,6 +3139,7 @@ impl Printer {
         node: TransformNode,
         hint: EmitHint,
         expression_context: EmitContext,
+        node_flags: EmitFlags,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         // tsc-port: emitCommentsBeforeNode/emitCommentsAfterNode @6.0.3
@@ -3184,10 +3150,6 @@ impl Printer {
         // level and stay live, so only the child-facing context flips. The
         // extent ends when this context goes out of scope - tsc's mutable
         // enable/disable pair, threaded immutably.
-        let node_flags = transformation
-            .arena()
-            .metadata(node)
-            .map_or(EmitFlags::NONE, |metadata| metadata.flags());
         // emitCommentsBeforeNode sets tsc's commentsDisabled only when this
         // node's comments phase runs at all (_tsc.js:120987-120994).
         // Function bodies apply their own NoNestedComments inside
@@ -20621,6 +20583,7 @@ impl Printer {
                             hint,
                             expression_context.for_wrapper(inner_active_scope),
                             inner_source_leading_phase,
+                            inner_owner.flags,
                             writer,
                         )?;
                         self.emit_deferred_expression_trailing_comments(
@@ -20667,6 +20630,7 @@ impl Printer {
                             hint,
                             expression_context.for_wrapper(active_scope),
                             source_leading_phase,
+                            owner.flags,
                             writer,
                         )?;
                         let trailing = self.emit_deferred_expression_trailing_comments(
@@ -20724,6 +20688,7 @@ impl Printer {
                         hint,
                         expression_context.with_comments(active_scope),
                         source_leading_phase,
+                        owner.flags,
                         writer,
                     )?;
                     let trailing = self.emit_deferred_expression_trailing_comments(
@@ -20775,6 +20740,7 @@ impl Printer {
                     hint,
                     expression_context.with_comments(active_scope),
                     source_leading_phase,
+                    owner.flags,
                     writer,
                 )?;
                 let trailing = self.emit_deferred_expression_trailing_comments(
@@ -20857,6 +20823,7 @@ impl Printer {
                     hint,
                     expression_context.for_wrapper(active_scope),
                     source_leading_phase,
+                    owner.flags,
                     writer,
                 )?;
                 let trailing = self.emit_deferred_expression_trailing_comments(
@@ -20942,7 +20909,7 @@ impl Printer {
                     transformation,
                     metadata_owner,
                     writer,
-                )?;
+                );
                 self.emit_deferred_expression_trailing_comments(
                     transformation,
                     deferred_source_comments,
@@ -20958,6 +20925,7 @@ impl Printer {
     /// already completed. Keeping this phase separate makes it impossible
     /// for a grammar parenthesis selected above to strand the substituted
     /// node's synthetic comments outside its container.
+    #[allow(clippy::too_many_arguments)]
     fn emit_substituted_node_with_comments(
         &mut self,
         transformation: &mut TransformationResult<'_>,
@@ -20965,6 +20933,7 @@ impl Printer {
         hint: EmitHint,
         expression_context: EmitContext,
         source_leading_phase: SourceLeadingCommentPhaseVisit,
+        node_flags: EmitFlags,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.emit_substituted_leading_metadata(
@@ -20978,9 +20947,11 @@ impl Printer {
             substituted,
             hint,
             expression_context,
+            node_flags,
             writer,
         )?;
-        self.emit_synthetic_trailing_comments_for_node(transformation, substituted, writer)
+        self.emit_synthetic_trailing_comments_for_node(transformation, substituted, writer);
+        Ok(())
     }
 
     /// A no-ASI parenthesizer updates only the left edge of compound
@@ -21048,7 +21019,7 @@ impl Printer {
             writer.write_punctuation(")");
         }
         self.record_node_map_boundary(transformation, MapBoundary::After, substituted, writer)?;
-        self.emit_synthetic_trailing_comments_for_node(transformation, substituted, writer)?;
+        self.emit_synthetic_trailing_comments_for_node(transformation, substituted, writer);
         match state {
             DeferredExpressionSourceCommentsState::Consumed(outcome) => Ok(outcome),
             DeferredExpressionSourceCommentsState::Pending(_) => {
@@ -21070,11 +21041,17 @@ impl Printer {
         source_leading_phase: SourceLeadingCommentPhaseVisit,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        self.emit_synthetic_leading_comments_for_node(transformation, substituted, writer)?;
-        if let Some(comment_source) = transformation
-            .arena()
-            .metadata(substituted)
-            .and_then(|metadata| metadata.class_field_initializer_comment_source)
+        let metadata = transformation.arena().metadata(substituted);
+        if !self.comments_disabled() {
+            self.write_synthetic_leading_comments(
+                metadata
+                    .map(crate::EmitMetadata::leading_comments)
+                    .unwrap_or_default(),
+                writer,
+            );
+        }
+        if let Some(comment_source) =
+            metadata.and_then(|metadata| metadata.class_field_initializer_comment_source)
         {
             let comment_range = self.comment_range_for_node(transformation, comment_source)?;
             if !source_leading_phase.visited_range(comment_range) {
@@ -21511,7 +21488,8 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.emit_leading_comments_for_node(transformation, node, writer)?;
-        self.emit_synthetic_leading_comments_for_node(transformation, node, writer)
+        self.emit_synthetic_leading_comments_for_node(transformation, node, writer);
+        Ok(())
     }
 
     fn emit_statement_leading_comments_after_sibling(
@@ -21521,7 +21499,8 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.emit_leading_comments_for_node_after_sibling(transformation, node, writer)?;
-        self.emit_synthetic_leading_comments_for_node(transformation, node, writer)
+        self.emit_synthetic_leading_comments_for_node(transformation, node, writer);
+        Ok(())
     }
 
     /// The statement-position trailing phase: synthetic trailing comments
@@ -21538,7 +21517,7 @@ impl Printer {
         node: TransformNode,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        self.emit_synthetic_trailing_comments_for_node(transformation, node, writer)?;
+        self.emit_synthetic_trailing_comments_for_node(transformation, node, writer);
         self.emit_trailing_comments_for_node(transformation, node, writer)
     }
 
@@ -23854,21 +23833,30 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         node: TransformNode,
         writer: &mut TextWriter,
-    ) -> Result<(), PrinterError> {
+    ) {
         if self.comments_disabled() {
-            return Ok(());
+            return;
         }
         let comments = transformation
             .arena()
             .metadata(node)
-            .map(|metadata| metadata.leading_comments().to_vec())
+            .map(crate::EmitMetadata::leading_comments)
             .unwrap_or_default();
+        self.write_synthetic_leading_comments(comments, writer);
+    }
+
+    #[inline]
+    fn write_synthetic_leading_comments(
+        &self,
+        comments: &[SyntheticComment],
+        writer: &mut TextWriter,
+    ) {
         for comment in comments {
             if comment.has_leading_new_line() || comment.kind() == SyntheticCommentKind::SingleLine
             {
                 writer.write_line(false);
             }
-            write_synthetic_comment(&comment, writer);
+            write_synthetic_comment(comment, writer);
             if comment.has_trailing_new_line() || comment.kind() == SyntheticCommentKind::SingleLine
             {
                 writer.write_line(false);
@@ -23876,7 +23864,6 @@ impl Printer {
                 writer.write_space(" ");
             }
         }
-        Ok(())
     }
 
     fn emit_synthetic_trailing_comments_for_node(
@@ -23884,14 +23871,14 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         node: TransformNode,
         writer: &mut TextWriter,
-    ) -> Result<(), PrinterError> {
+    ) {
         if self.comments_disabled() {
-            return Ok(());
+            return;
         }
         let comments = transformation
             .arena()
             .metadata(node)
-            .map(|metadata| metadata.trailing_comments().to_vec())
+            .map(crate::EmitMetadata::trailing_comments)
             .unwrap_or_default();
         for comment in comments {
             if comment.has_leading_new_line() {
@@ -23899,12 +23886,11 @@ impl Printer {
             } else {
                 writer.write_space(" ");
             }
-            write_synthetic_comment(&comment, writer);
+            write_synthetic_comment(comment, writer);
             if comment.has_trailing_new_line() {
                 writer.write_line(false);
             }
         }
-        Ok(())
     }
 
     /// Emit the comments owned by the source-file statement-list end.
@@ -26047,3 +26033,7 @@ mod comment_scope_predicate_tests;
 #[cfg(test)]
 #[path = "../tests/unit/comment_classification/tests.rs"]
 mod comment_classification_tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/emission_plan.rs"]
+mod emission_plan_tests;

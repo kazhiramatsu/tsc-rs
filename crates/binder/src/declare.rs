@@ -1355,6 +1355,62 @@ impl BinderWorker<'_> {
             tree_claim: _,
         } = self;
 
+        BindIdentityFields {
+            symbols,
+            node_symbol,
+            node_local_symbol,
+            locals,
+            classifiable_names,
+            assigned_symbol_ids,
+            private_name_serial_base,
+            next_symbol_id,
+            private_name_serial_lease,
+            pattern_ambient_modules,
+        }
+        .relocate(
+            symbol_relocation,
+            serial_relocation,
+            symbol_lease,
+            serial_lease,
+        )
+    }
+}
+
+/// Both a live worker and an owned completed bind relocate the same fields.
+struct BindIdentityFields<'a> {
+    symbols: &'a mut SymbolArena,
+    node_symbol: &'a mut NodeSymbolMap,
+    node_local_symbol: &'a mut FxHashMap<NodeId, SymbolId>,
+    locals: &'a mut FxHashMap<NodeId, SymbolTable>,
+    classifiable_names: &'a mut EscapedNameSet,
+    assigned_symbol_ids: &'a mut FxHashMap<SymbolId, u32>,
+    private_name_serial_base: &'a mut u32,
+    next_symbol_id: &'a mut u32,
+    private_name_serial_lease: &'a mut Option<IdentityLease>,
+    pattern_ambient_modules: &'a mut Vec<(JsString, JsString, SymbolId)>,
+}
+
+impl BindIdentityFields<'_> {
+    fn relocate(
+        self,
+        symbol_relocation: SymbolIdentityRelocation,
+        serial_relocation: PrivateNameSerialRelocation,
+        symbol_lease: IdentityLease,
+        serial_lease: IdentityLease,
+    ) -> Result<(), IdentityError> {
+        let Self {
+            symbols,
+            node_symbol,
+            node_local_symbol,
+            locals,
+            classifiable_names,
+            assigned_symbol_ids,
+            private_name_serial_base,
+            next_symbol_id,
+            private_name_serial_lease,
+            pattern_ambient_modules,
+        } = self;
+
         if private_name_serial_lease.is_some() {
             return Err(IdentityError::InvalidLease {
                 space: IdentitySpace::PrivateNameSerial,
@@ -1435,6 +1491,97 @@ impl BinderWorker<'_> {
         *next_symbol_id = serial_relocation.new.end();
         *private_name_serial_lease = Some(serial_lease);
         Ok(())
+    }
+}
+
+impl BindData {
+    /// Finish an overflowing task bind at the ordinary driver's ordered
+    /// allocation point, without repeating the source walk or claiming its
+    /// tree a second time. All original reservations must remain pinned.
+    pub fn relocate_into_identity_domain(
+        &mut self,
+        source: &SourceFile,
+        domain: &IdentityDomain,
+    ) -> Result<(), IdentityError> {
+        if !source.identity_owned_by(domain) {
+            return Err(IdentityError::InvalidLease {
+                space: IdentitySpace::Node,
+                detail: "bound source and bind identities would use different domains",
+            });
+        }
+        let symbol_count =
+            u32::try_from(self.symbols.len()).map_err(|_| IdentityError::Exhausted {
+                space: IdentitySpace::Symbol,
+                requested: u32::MAX,
+                limit: TRANSIENT_SYMBOL_BIT,
+            })?;
+        let serial_count = self
+            .next_symbol_id
+            .checked_sub(self.private_name_serial_base)
+            .ok_or(IdentityError::InvalidLease {
+                space: IdentitySpace::PrivateNameSerial,
+                detail: "private-name serial counter precedes its base",
+            })?;
+        let (symbol_lease, serial_lease) = bind_leases(domain.lease_batch(&[
+            (IdentitySpace::Symbol, symbol_count),
+            (IdentitySpace::PrivateNameSerial, serial_count),
+        ])?)?;
+        let symbol_relocation = self.symbols.identity_relocation(&symbol_lease)?;
+        validate_serial_lease(
+            &serial_lease,
+            self.private_name_serial_base,
+            self.next_symbol_id,
+            false,
+        )?;
+        let serial_relocation = PrivateNameSerialRelocation {
+            old: IdentityRange::new(self.private_name_serial_base, self.next_symbol_id),
+            new: serial_lease.range(),
+        };
+        // Exhaustive for the same reason as the worker's relocation boundary.
+        let Self {
+            common_js_module_indicator: _,
+            symbols,
+            node_symbol,
+            node_local_symbol,
+            locals,
+            bind_diagnostics: _,
+            classifiable_names,
+            assigned_symbol_ids,
+            private_name_serial_base,
+            next_symbol_id,
+            private_name_serial_lease,
+            next_container: _,
+            pattern_ambient_modules,
+            flow: _,
+            unreachable_flow: _,
+            node_flow: _,
+            node_end_flow: _,
+            node_return_flow: _,
+            node_flow_when_true: _,
+            node_flow_when_false: _,
+            possibly_exhaustive: _,
+            node_fallthrough_flow: _,
+            emit_flags: _,
+            _tree_claim: _,
+        } = self;
+        BindIdentityFields {
+            symbols,
+            node_symbol,
+            node_local_symbol,
+            locals,
+            classifiable_names,
+            assigned_symbol_ids,
+            private_name_serial_base,
+            next_symbol_id,
+            private_name_serial_lease,
+            pattern_ambient_modules,
+        }
+        .relocate(
+            symbol_relocation,
+            serial_relocation,
+            symbol_lease,
+            serial_lease,
+        )
     }
 }
 

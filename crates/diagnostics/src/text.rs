@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::fmt;
 use std::ops::Range;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 
 const CHANGE_NUMBER_THRESHOLD: usize = 8;
@@ -708,13 +709,26 @@ enum PositionIndexData {
     PersistentLines(PersistentLineTree),
 }
 
-#[derive(Debug)]
 pub struct PositionIndex {
     data: PositionIndexData,
     byte_len: u32,
     /// The positions of a tree that has no text (tsgo's API decodes a node
     /// of no source file): they index nothing.
     detached: bool,
+    /// A successful pair remains valid for this immutable text. Zero is the
+    /// valid empty range; an invalid pair is never published here.
+    last_valid_byte_range: AtomicU64,
+}
+
+impl fmt::Debug for PositionIndex {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PositionIndex")
+            .field("data", &self.data)
+            .field("byte_len", &self.byte_len)
+            .field("detached", &self.detached)
+            .finish()
+    }
 }
 
 impl PositionIndex {
@@ -723,6 +737,7 @@ impl PositionIndex {
             byte_len: u32::try_from(text.len()).expect("source text must fit in u32"),
             data: PositionIndexData::StaticDense(DensePositionIndex::with_lines(text)),
             detached: false,
+            last_valid_byte_range: AtomicU64::new(0),
         }
     }
 
@@ -735,6 +750,7 @@ impl PositionIndex {
                 dense: OnceLock::new(),
             },
             detached: false,
+            last_valid_byte_range: AtomicU64::new(0),
         }
     }
 
@@ -757,6 +773,7 @@ impl PositionIndex {
             byte_len: tree.byte_len(),
             data: PositionIndexData::PersistentLines(tree),
             detached: false,
+            last_valid_byte_range: AtomicU64::new(0),
         }
     }
 
@@ -835,6 +852,47 @@ impl PositionIndex {
                 .is_none_or(|&byte| byte & 0xC0 != 0x80),
             _ => self.byte_to_utf16(position).is_some(),
         }
+    }
+
+    /// Whether an ordered pair contains two scalar boundaries in this text.
+    /// A detached index accepts any ordered pair, as its positions index no
+    /// text. Repeated requests share the last successful validation.
+    pub fn is_valid_byte_range(&self, start: u32, end: u32) -> bool {
+        let pair = (u64::from(start) << 32) | u64::from(end);
+        // Only the complete key is shared. Text and index data are immutable,
+        // so a relaxed load can reuse any published successful validation.
+        if self.last_valid_byte_range.load(Ordering::Relaxed) == pair {
+            return true;
+        }
+        if start > end {
+            return false;
+        }
+        if !self.detached {
+            if end > self.byte_len {
+                return false;
+            }
+            let boundaries = match &self.data {
+                PositionIndexData::LazyDense { text, .. } => {
+                    text.is_char_boundary(start as usize) && text.is_char_boundary(end as usize)
+                }
+                _ => return self.validate_table_byte_range(start, end, pair),
+            };
+            if !boundaries {
+                return false;
+            }
+        }
+        self.last_valid_byte_range.store(pair, Ordering::Relaxed);
+        true
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn validate_table_byte_range(&self, start: u32, end: u32, pair: u64) -> bool {
+        if self.byte_to_utf16(start).is_none() || self.byte_to_utf16(end).is_none() {
+            return false;
+        }
+        self.last_valid_byte_range.store(pair, Ordering::Relaxed);
+        true
     }
 
     pub fn utf16_to_byte(&self, position: u32) -> Option<u32> {

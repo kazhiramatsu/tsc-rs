@@ -580,6 +580,11 @@ pub struct IdentityLease {
 }
 
 impl IdentityLease {
+    /// Whether this lease is a source view retaining an ordered room owner.
+    pub fn is_room_slice(&self) -> bool {
+        self.inner.parent.is_some()
+    }
+
     pub fn space(&self) -> IdentitySpace {
         self.inner.space
     }

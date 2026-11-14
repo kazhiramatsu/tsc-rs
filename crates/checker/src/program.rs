@@ -12,7 +12,7 @@
 
 use rustc_hash::FxHashMap as HashMap;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, PoisonError, Weak};
+use std::sync::{Arc, Mutex, OnceLock, PoisonError, Weak};
 
 use tsc_binder::{BindData, Binder, Symbol, SymbolArena, SymbolId, SymbolTable};
 use tsc_program::content_mapper::source::ContentMappedSource;
@@ -57,12 +57,46 @@ impl ParsedDocument {
 /// The builder exposes no Arc or Weak before binding completes.
 #[derive(Debug)]
 pub struct DocumentBuilder {
+    bind_reservations: Option<tsc_binder::BindReservations>,
+    bind_data: Option<Box<BindData>>,
     source: SourceFile,
 }
 
 impl DocumentBuilder {
     pub fn new(source: SourceFile) -> Self {
-        Self { source }
+        Self {
+            bind_reservations: None,
+            bind_data: None,
+            source,
+        }
+    }
+
+    pub(crate) fn from_preparsed(parsed: tsc_program::PreparsedSourceFile) -> Self {
+        let (bind_reservations, bind_data, source) = parsed.into_bind_parts();
+        Self {
+            bind_reservations,
+            bind_data,
+            source,
+        }
+    }
+
+    pub(crate) fn bind_input(
+        &mut self,
+    ) -> (
+        &mut SourceFile,
+        Option<tsc_binder::BindReservations>,
+        Option<Box<BindData>>,
+    ) {
+        (
+            &mut self.source,
+            self.bind_reservations.take(),
+            self.bind_data.take(),
+        )
+    }
+
+    pub(crate) fn discard_bind_reservations(&mut self) {
+        self.bind_data = None;
+        self.bind_reservations = None;
     }
 
     pub fn source(&self) -> &SourceFile {
@@ -828,6 +862,10 @@ pub struct ProgramBinder<'a> {
     /// instead of a hinted interval search (tsc carries object identity).
     node_files: DenseOwners,
     symbol_files: DenseOwners,
+    /// Room placement changes physical source order. Its cold identity
+    /// tie-breakers retain the creation order of the ordinary bind passes.
+    direct_symbol_rooms: bool,
+    symbol_creation_bases: OnceLock<Box<[u32]>>,
     /// Checker-side symbols (tsc createSymbol 47652 adds Transient).
     transient: SymbolArena,
 }
@@ -1113,6 +1151,20 @@ impl<'a> ProgramBinder<'a> {
         let sources = file_entries.iter().map(ProgramEntry::source).collect();
         let node_files = DenseOwners::build(&node_owners);
         let symbol_files = DenseOwners::build(&symbol_owners);
+        let direct_symbol_rooms = file_entries.iter().any(|entry| {
+            entry
+                .data()
+                .symbol_identity_lease()
+                .is_some_and(tsc_types::IdentityLease::is_room_slice)
+                // If every direct bind overflowed, none retains a symbol
+                // slice. The source's direct placement still identifies
+                // this finite command, unlike ordinary cached documents.
+                || entry
+                    .source()
+                    .arena
+                    .identity_leases()
+                    .is_some_and(|leases| leases.nodes.is_room_slice())
+        });
         Ok(Self {
             file_entries,
             sources,
@@ -1122,6 +1174,8 @@ impl<'a> ProgramBinder<'a> {
             symbol_owner_hint: AtomicUsize::new(0),
             node_files,
             symbol_files,
+            direct_symbol_rooms,
+            symbol_creation_bases: OnceLock::new(),
             transient: SymbolArena::with_base(TRANSIENT_SYMBOL_BIT),
         })
     }
@@ -1290,6 +1344,77 @@ impl<'a> ProgramBinder<'a> {
             return None;
         }
         Self::try_owner_file(&self.symbol_owners, id.index())
+    }
+
+    /// Physical rooms are issued before Program order is complete. Keep
+    /// the old order for declaration-less symbol ties and the ambient-module
+    /// service, without changing legacy cached documents' numeric order.
+    pub(crate) fn compare_symbol_creation_order(
+        &self,
+        a: SymbolId,
+        b: SymbolId,
+    ) -> std::cmp::Ordering {
+        if !self.direct_symbol_rooms
+            || a == b
+            || (a.index() | b.index()) & TRANSIENT_SYMBOL_BIT != 0
+        {
+            return a.index().cmp(&b.index());
+        }
+        let a_file = self.file_index_of_symbol(a).expect("Program symbol owner");
+        let b_file = self.file_index_of_symbol(b).expect("Program symbol owner");
+        if a_file == b_file {
+            return a.index().cmp(&b.index());
+        }
+        let bases = self.symbol_creation_bases.get_or_init(|| {
+            // Replay only the two ordered symbol-allocation passes, on the
+            // cold path. In particular a library overflow's old reservation
+            // becomes a first-fit hole for the program pass. Source order
+            // alone cannot reproduce that numeric tie-break.
+            let domain = IdentityDomain::with_limits(Default::default())
+                .expect("default reference identity limits are valid");
+            let mut bases = vec![0; self.sources.len()];
+            let mut retained = Vec::new();
+            for libraries in [true, false] {
+                let reservations: Vec<_> = self
+                    .sources
+                    .iter()
+                    .enumerate()
+                    .filter(|(file, _)| self.file_facts[*file].is_default_library() == libraries)
+                    .map(|(file, source)| {
+                        let lease = domain
+                            .lease(
+                                tsc_types::IdentitySpace::Symbol,
+                                source.arena.symbol_bound().max(1),
+                            )
+                            .expect("reference symbol reservation fits");
+                        (file, lease)
+                    })
+                    .collect();
+                for (file, reservation) in &reservations {
+                    let count = u32::try_from(self.file_entries[*file].data().symbols.len())
+                        .expect("bound symbol count fits u32");
+                    let lease = if count > reservation.range().len() {
+                        domain
+                            .lease(tsc_types::IdentitySpace::Symbol, count)
+                            .expect("reference symbol overflow fits")
+                    } else {
+                        reservation.clone()
+                    };
+                    bases[*file] = lease.range().start();
+                    retained.push(lease);
+                }
+            }
+            bases.into_boxed_slice()
+        });
+        bases[a_file].cmp(&bases[b_file])
+    }
+
+    pub(crate) fn sort_symbols_by_creation_order(&self, symbols: &mut [SymbolId]) {
+        if self.direct_symbol_rooms {
+            symbols.sort_unstable_by(|&a, &b| self.compare_symbol_creation_order(a, b));
+        } else {
+            symbols.sort_unstable();
+        }
     }
 
     /// tsrs-native: routes a numeric SymbolId to its binder or

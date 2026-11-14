@@ -2780,12 +2780,13 @@ impl ProgramSession {
         } else {
             worker_budget.max_workers()
         };
-        let print_pool = tsc_emitter::EmitPrintPool::for_budget(
+        let mut print_pool = tsc_emitter::EmitPrintPool::for_budget(
             worker_budget.max_workers(),
             print_owners,
             16 * 1024 * 1024,
         );
-        if let Some(pool) = &print_pool {
+        if let Some(pool) = &mut print_pool {
+            pool.set_planned_units(preflight.plan().units().len());
             pool.set_reserved_workers(if eager_emit_enabled {
                 prelude_candidates.len().min(2)
             } else {
@@ -4582,6 +4583,7 @@ fn project_checker_inputs(
     prepared: &PreparedProgram,
     source_api_facts: &BTreeMap<SourceFileId, SourceApiFacts>,
 ) -> Result<ProjectedCheckerInputs, DriverError> {
+    prepared.stop_source_binding();
     let sources = prepared.source_files();
     let library_ids = prepared.library_files();
     let mut libs = Vec::with_capacity(library_ids.len());
@@ -4628,6 +4630,9 @@ fn project_checker_inputs(
 
     let current_directory_path = prepared.current_directory().display();
     let current_directory = current_directory_path.to_owned();
+    // No identity has been leased by this projection. Release any unvisited
+    // worker-owned parse before the checker's first ordered reservation.
+    prepared.finish_source_binding();
     Ok(ProjectedCheckerInputs {
         libs,
         files,
