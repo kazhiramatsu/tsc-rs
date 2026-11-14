@@ -199,16 +199,16 @@ pub(super) fn transform_source_statements(
     // tsgo (transformers/declarations/transform.go:304): the declarations
     // this file's export assignments and export specifiers name become
     // visible before the file is transformed.
-    {
+    let preparation = {
         let resolver_node = transformer.required_resolver_node(context, root_node)?;
         transformer
             .resolver
-            .precalculate_declaration_emit_visibility(resolver_node)?;
-    }
+            .prepare_declaration_emit(resolver_node)?
+    };
     // tsgo collects the file's `module.exports =` assignments, then its
     // expando and `exports.name =` assignments, before it visits the
     // statements (transform.go:350-351).
-    transformer.collect_assignment_declarations(context, root_node)?;
+    transformer.collect_assignment_declarations(context, root_node, preparation)?;
     let mut statements = Vec::new();
     for statement in source_statements(context.arena(), root_node)? {
         // tsgo's parser puts the declarations it reparses from JSDoc

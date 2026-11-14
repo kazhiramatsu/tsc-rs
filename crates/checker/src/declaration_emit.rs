@@ -12,12 +12,12 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use tsc_binder::{node_util, SymbolId, SymbolTable};
 use tsc_emitter::{
-    create_printer, EmitFunctionProperty, EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags,
-    EmitResolverError, EmitResolverNode, EmitResolverSymbol, EmitSymbolAccessibility,
-    EmitSymbolAccessibilityResult, EmitSymbolMeaning, NewLineKind, PrintRequest, PrinterOptions,
-    StandaloneWriter,
+    create_printer, EmitDeclarationPreparation, EmitFunctionProperty, EmitInternalNodeBuilderFlags,
+    EmitNodeBuilderFlags, EmitResolverError, EmitResolverNode, EmitResolverSymbol,
+    EmitSymbolAccessibility, EmitSymbolAccessibilityResult, EmitSymbolMeaning, NewLineKind,
+    PrintRequest, PrinterOptions, StandaloneWriter,
 };
-use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, Published, SyntaxKind};
 use tsc_types::{CheckFlags, ModifierFlags, NodeFlags, SymbolFlags};
 
 use crate::state::{CheckAbort, CheckResult, CheckerState};
@@ -182,6 +182,97 @@ pub(crate) trait DeclarationEmitAccessibilityPrimitives {
         enclosing: Option<NodeId>,
         meaning: SymbolFlags,
     ) -> CheckResult<Vec<SymbolId>>;
+}
+
+struct DeclarationPreparationCandidates {
+    names: Vec<(u32, NodeId)>,
+    assignments: Option<Vec<NodeId>>,
+}
+
+/// Keep public assignment preorder separate from attached JSDoc reachability.
+/// A repeated public edge requires the transform's multiplicity-preserving
+/// fallback. Visibility still visits each reachable record just once.
+fn declaration_preparation_candidates<const ASSIGNMENTS: bool>(
+    source: &tsc_syntax::SourceFile,
+    javascript: bool,
+) -> DeclarationPreparationCandidates {
+    let base = source.arena.node_base();
+    let mut visited = vec![false; source.arena.len()];
+    let mut stack = vec![source.root];
+    let mut docs = Vec::new();
+    let mut assignments = Vec::new();
+    let mut unique_public = true;
+    let mut names = Vec::new();
+    let mut collect_name = |id: NodeId, node: &tsc_syntax::Node| {
+        let name = match node.kind {
+            SyntaxKind::ExportAssignment => node.as_export_assignment().and_then(|data| {
+                data.expression.filter(|&expression| {
+                    source.arena.node(expression).kind == SyntaxKind::Identifier
+                })
+            }),
+            SyntaxKind::ExportSpecifier => node
+                .as_export_specifier()
+                .and_then(|data| data.property_name.or(data.name)),
+            _ => None,
+        };
+        if let Some(name) = name {
+            names.push((id, node.pos, name));
+        }
+    };
+    while let Some(id) = stack.pop() {
+        let seen = &mut visited[(id.index() - base) as usize];
+        if *seen {
+            unique_public = false;
+            continue;
+        }
+        *seen = true;
+        let node = source.arena.node(id);
+        collect_name(id, node);
+        if ASSIGNMENTS
+            && (node.kind == SyntaxKind::BinaryExpression
+                || javascript && node.kind == SyntaxKind::CallExpression)
+        {
+            assignments.push(id);
+        }
+        let start = stack.len();
+        tsc_syntax::for_each_child(&source.arena, node, |child| {
+            stack.push(child);
+            false
+        });
+        if ASSIGNMENTS {
+            stack[start..].reverse();
+        }
+        if let Some(js_doc) = node.js_doc() {
+            docs.extend_from_slice(source.arena.node_array(js_doc).nodes);
+        }
+    }
+    stack = docs;
+    while let Some(id) = stack.pop() {
+        let seen = &mut visited[(id.index() - base) as usize];
+        if *seen {
+            continue;
+        }
+        *seen = true;
+        let node = source.arena.node(id);
+        collect_name(id, node);
+        tsc_syntax::for_each_child(&source.arena, node, |child| {
+            stack.push(child);
+            false
+        });
+        if let Some(js_doc) = node.js_doc() {
+            stack.extend_from_slice(source.arena.node_array(js_doc).nodes);
+        }
+    }
+    // The old arena scan supplied this tie order to the later stable
+    // source-position sort, before top-level CommonJS names were appended.
+    names.sort_unstable_by_key(|&(id, _, _)| id.index());
+    DeclarationPreparationCandidates {
+        names: names
+            .into_iter()
+            .map(|(_, pos, name)| (pos, name))
+            .collect(),
+        assignments: (ASSIGNMENTS && unique_public).then_some(assignments),
+    }
 }
 
 impl CheckerState<'_> {
@@ -2015,49 +2106,42 @@ impl CheckerState<'_> {
             )
     }
 
-    /// tsgo PrecalculateDeclarationEmitVisibility (emitresolver.go:236-274):
-    /// the declarations a file's export assignments (`export = x`,
-    /// `export default x`), export specifiers and, in a CommonJS file,
-    /// top-level `module.exports = x` or `exports.y = x` name are visible.
-    /// It runs once for a file, when its declarations are transformed; a
-    /// file that is not transformed, such as a declaration file, marks
-    /// nothing. tsc 6.0 marked them when it checked the export.
-    ///
-    /// tsgo visits every node of the file. The export assignments and
-    /// export specifiers are found here by a scan of the file's node
-    /// records (those the tree reaches: a parse also left discarded nodes)
-    /// and taken in source order, which is the order of that visit.
+    /// tsgo PrecalculateDeclarationEmitVisibility (emitresolver.go:130-168)
+    /// marks export targets before declaration statements. The original
+    /// source walk can also supply assignment candidates to the transform.
     pub(crate) fn emit_precalculate_declaration_emit_visibility(
         &mut self,
         file: NodeId,
     ) -> CheckResult<()> {
+        self.emit_prepare_declaration_emit::<false>(file)
+            .map(|_| ())
+    }
+
+    pub(crate) fn emit_prepare_declaration_emit<const ASSIGNMENTS: bool>(
+        &mut self,
+        file: NodeId,
+    ) -> CheckResult<Option<EmitDeclarationPreparation>> {
         self.declaration_emit_inputs.get_or_insert_default();
         if !self.declaration_emit_aliases_marked.insert(file) {
-            return Ok(());
+            return Ok(None);
         }
         let source = self.binder.source_of_node(file);
-        let mut names: Vec<(u32, NodeId)> = Vec::new();
-        let reachable = source.arena.reachable_mask(source.root);
-        let base = source.arena.node_base();
-        for id in source.arena.node_ids() {
-            if !reachable[(id.index() - base) as usize] {
-                continue;
-            }
-            let node = Published.node(id);
-            let name = match node.data() {
-                NodeData::ExportAssignment(data) => data
-                    .expression
-                    .filter(|&expression| self.kind_of(expression) == SyntaxKind::Identifier),
-                NodeData::ExportSpecifier(data) => data.property_name.or(data.name),
-                _ => None,
-            };
-            if let Some(name) = name {
-                names.push((node.pos, name));
-            }
-        }
+        let javascript = NodeFlags::from_bits(source.arena.node(source.root).flags)
+            .intersects(NodeFlags::JAVA_SCRIPT_FILE);
+        let collected = declaration_preparation_candidates::<ASSIGNMENTS>(source, javascript);
+        let preparation =
+            collected
+                .assignments
+                .filter(|_| source.root == file)
+                .map(|assignment_candidates| EmitDeclarationPreparation {
+                    source_file: self.declaration_emit_resolver_node(file),
+                    javascript,
+                    assignment_candidates,
+                });
+        let mut names = collected.names;
         if self.binder.is_common_js_module_of_node(file) {
             let Some(data) = self.record_of(file).as_source_file() else {
-                return Ok(());
+                return Ok(preparation);
             };
             for statement in self.nodes_of(data.statements) {
                 let Some(data) = self.record_of(statement).as_expression_statement() else {
@@ -2084,7 +2168,7 @@ impl CheckerState<'_> {
         for (_, name) in names {
             self.collect_linked_aliases(name, /*set_visibility*/ true)?;
         }
-        Ok(())
+        Ok(preparation)
     }
 
     /// tsc-port: collectLinkedAliases @6.0.3

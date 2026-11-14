@@ -53,15 +53,8 @@ fn assignment_declarations(source: &SourceFile) -> Vec<(NodeId, AssignmentDeclar
         if record.kind == SyntaxKind::BinaryExpression
             || javascript && record.kind == SyntaxKind::CallExpression
         {
-            let kind = get_assignment_declaration_kind(source, node);
-            if matches!(
-                kind,
-                AssignmentDeclarationKind::Property
-                    | AssignmentDeclarationKind::ModuleExports
-                    | AssignmentDeclarationKind::ExportsProperty
-                    | AssignmentDeclarationKind::ObjectDefinePropertyExports
-            ) {
-                found.push((node, kind));
+            if let Some(declaration) = assignment_declaration(source, node) {
+                found.push(declaration);
             }
         }
         let start = stack.len();
@@ -72,6 +65,49 @@ fn assignment_declarations(source: &SourceFile) -> Vec<(NodeId, AssignmentDeclar
         stack[start..].reverse();
     }
     found
+}
+
+fn assignment_declaration(
+    source: &SourceFile,
+    node: NodeId,
+) -> Option<(NodeId, AssignmentDeclarationKind)> {
+    let kind = get_assignment_declaration_kind(source, node);
+    matches!(
+        kind,
+        AssignmentDeclarationKind::Property
+            | AssignmentDeclarationKind::ModuleExports
+            | AssignmentDeclarationKind::ExportsProperty
+            | AssignmentDeclarationKind::ObjectDefinePropertyExports
+    )
+    .then_some((node, kind))
+}
+
+fn prepared_assignment_declarations(
+    source: &crate::TransformSource,
+    root: TransformNode,
+    preparation: Option<crate::EmitDeclarationPreparation>,
+) -> Vec<(NodeId, AssignmentDeclarationKind)> {
+    let prepared = preparation.filter(|prepared| {
+        // Do not follow an updated root's original link: structural
+        // changes must run the ordinary current-tree walk.
+        source.contains_parsed_node(root.node())
+            && source.program_source() == Some(prepared.source_file.source())
+            && root.node() == prepared.source_file.node()
+            && source.syntax().root == root.node()
+            && super::javascript::is_javascript_file(source.syntax()) == prepared.javascript
+            && prepared
+                .assignment_candidates
+                .iter()
+                .all(|&node| source.contains_parsed_node(node))
+    });
+    match prepared {
+        Some(prepared) => prepared
+            .assignment_candidates
+            .into_iter()
+            .filter_map(|node| assignment_declaration(source.syntax(), node))
+            .collect(),
+        None => assignment_declarations(source.syntax()),
+    }
 }
 
 /// tsgo ast.IsNonContextualKeyword(scanner.StringToToken(text)).
@@ -91,8 +127,10 @@ impl DeclarationTransformer<'_> {
         &mut self,
         cx: &mut TransformationContext,
         root: TransformNode,
+        preparation: Option<crate::EmitDeclarationPreparation>,
     ) -> Result<(), TransformError> {
-        let declarations = assignment_declarations(cx.arena().source(root.source())?.syntax());
+        let declarations =
+            prepared_assignment_declarations(cx.arena().source(root.source())?, root, preparation);
         let common_js = self.state()?.common_js.is_common_js;
         if common_js {
             for &(node, kind) in &declarations {
@@ -752,4 +790,184 @@ fn named_exports_declaration(
     let specifiers = factory.create_node_array(source, vec![specifier])?;
     let exports = factory.create_named_exports(source, specifiers)?;
     factory.create_export_declaration(source, None, false, Some(exports), None, None)
+}
+
+#[cfg(test)]
+mod preparation_tests {
+    use super::*;
+    use crate::{EmitDeclarationPreparation, EmitResolver, EmitResolverNode, TransformArena};
+    use tsc_program::SourceFileId;
+
+    fn mounted(text: &str) -> (TransformArena, TransformNode, EmitDeclarationPreparation) {
+        mounted_named("/prepare.ts", text)
+    }
+
+    fn mounted_named(
+        file_name: &str,
+        text: &str,
+    ) -> (TransformArena, TransformNode, EmitDeclarationPreparation) {
+        let syntax = tsc_syntax::parse_source_file(
+            file_name,
+            text,
+            tsc_syntax::ParseOptions {
+                script_kind: if file_name.ends_with(".js") {
+                    tsc_syntax::ScriptKind::Js
+                } else {
+                    tsc_syntax::ScriptKind::Ts
+                },
+                ..Default::default()
+            },
+            None,
+        );
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&syntax, Some(SourceFileId::from_raw(0)));
+        let root = TransformNode::new(source, syntax.root);
+        let mut candidates = Vec::new();
+        let mut stack = vec![syntax.root];
+        while let Some(id) = stack.pop() {
+            let node = syntax.arena.node(id);
+            if matches!(
+                node.kind,
+                SyntaxKind::BinaryExpression | SyntaxKind::CallExpression
+            ) {
+                candidates.push(id);
+            }
+            let start = stack.len();
+            tsc_syntax::for_each_child(&syntax.arena, node, |child| {
+                stack.push(child);
+                false
+            });
+            stack[start..].reverse();
+        }
+        let prepared = EmitDeclarationPreparation {
+            source_file: EmitResolverNode::new(SourceFileId::from_raw(0), syntax.root),
+            javascript: super::super::javascript::is_javascript_file(&syntax),
+            assignment_candidates: candidates,
+        };
+        (arena, root, prepared)
+    }
+
+    #[test]
+    fn prepared_assignments_match_fallback_nested_preorder() {
+        let (arena, root, prepared) = mounted("function f() {} f.a = (f.b = 1); f.c = 2;");
+        let source = arena.source(root.source()).unwrap();
+        let expected = assignment_declarations(source.syntax());
+        assert_eq!(expected.len(), 3);
+        assert_eq!(
+            prepared_assignment_declarations(source, root, Some(prepared)),
+            expected
+        );
+    }
+
+    #[test]
+    fn prepared_assignments_classify_current_cooked_literals() {
+        let (mut arena, root, prepared) =
+            mounted_named("/prepare.js", "module[\"other\"] = value;");
+        assert!(prepared.javascript);
+        let literal = arena
+            .source(root.source())
+            .unwrap()
+            .syntax()
+            .arena
+            .node_ids()
+            .find(|&id| {
+                arena
+                    .source(root.source())
+                    .unwrap()
+                    .syntax()
+                    .arena
+                    .node(id)
+                    .kind
+                    == SyntaxKind::StringLiteral
+            })
+            .unwrap();
+        let assignment = prepared.assignment_candidates[0];
+        assert_ne!(
+            get_assignment_declaration_kind(
+                arena.source(root.source()).unwrap().syntax(),
+                assignment
+            ),
+            AssignmentDeclarationKind::ModuleExports
+        );
+        arena
+            .set_literal_value(TransformNode::new(root.source(), literal), "exports")
+            .unwrap();
+        let expected = vec![(assignment, AssignmentDeclarationKind::ModuleExports)];
+        let source = arena.source(root.source()).unwrap();
+        assert_eq!(
+            prepared_assignment_declarations(source, root, Some(prepared)),
+            expected
+        );
+        assert_eq!(assignment_declarations(source.syntax()), expected);
+    }
+
+    #[test]
+    fn prepared_assignments_fall_back_for_changed_roots_profiles_and_leases() {
+        let (mut arena, root, mut prepared) = mounted("function f() {} f.x = 1;");
+        let expected = assignment_declarations(arena.source(root.source()).unwrap().syntax());
+        assert_eq!(expected.len(), 1);
+        prepared.assignment_candidates.clear();
+        prepared.javascript = true;
+        assert_eq!(
+            prepared_assignment_declarations(
+                arena.source(root.source()).unwrap(),
+                root,
+                Some(prepared)
+            ),
+            expected
+        );
+
+        let (_, _, mut prepared) = mounted("function f() {} f.x = 1;");
+        // An unrelated lease is rejected even if a resolver supplies the
+        // current root identity alongside that candidate.
+        prepared.source_file = EmitResolverNode::new(SourceFileId::from_raw(0), root.node());
+        assert_eq!(
+            prepared_assignment_declarations(
+                arena.source(root.source()).unwrap(),
+                root,
+                Some(prepared)
+            ),
+            expected
+        );
+
+        let updated = arena.factory().clone_node(root).unwrap();
+        arena.replace_root(root.source(), updated).unwrap();
+        let prepared = EmitDeclarationPreparation {
+            source_file: EmitResolverNode::new(SourceFileId::from_raw(0), root.node()),
+            javascript: false,
+            assignment_candidates: Vec::new(),
+        };
+        assert_eq!(
+            prepared_assignment_declarations(
+                arena.source(root.source()).unwrap(),
+                updated,
+                Some(prepared)
+            ),
+            expected
+        );
+    }
+
+    #[test]
+    fn ordinary_resolvers_keep_their_visibility_preparation() {
+        struct Resolver(std::cell::Cell<usize>);
+        impl EmitResolver for Resolver {
+            fn precalculate_declaration_emit_visibility(
+                &self,
+                _: EmitResolverNode,
+            ) -> Result<(), crate::EmitResolverError> {
+                self.0.set(self.0.get() + 1);
+                Ok(())
+            }
+        }
+        let (_, root, _) = mounted("let x = 1;");
+        let resolver = Resolver(std::cell::Cell::new(0));
+        assert!(resolver
+            .prepare_declaration_emit(EmitResolverNode::new(
+                SourceFileId::from_raw(0),
+                root.node()
+            ))
+            .unwrap()
+            .is_none());
+        assert_eq!(resolver.0.get(), 1);
+    }
 }

@@ -61,6 +61,16 @@ pub struct EmitFunctionProperty {
     pub value_declaration: Option<EmitResolverNode>,
 }
 
+/// Public-child preorder candidates from the original parsed source. A
+/// transformed root must collect its own candidates; classification always
+/// reads the current emit tree after visibility preparation.
+#[derive(Debug)]
+pub struct EmitDeclarationPreparation {
+    pub source_file: EmitResolverNode,
+    pub javascript: bool,
+    pub assignment_candidates: Vec<NodeId>,
+}
+
 /// NodeBuilderFlags word consumed by the declaration-serialization resolver
 /// members. Upstream numerics verbatim; the vendored inline constants are the
 /// authority for every named bit.
@@ -1010,6 +1020,17 @@ pub trait EmitResolver {
             EmitResolverMethod::PrecalculateDeclarationEmitVisibility,
             node,
         ))
+    }
+
+    /// Prepare visibility and optionally share its original-source walk
+    /// with assignment collection. Existing resolvers keep their own
+    /// preparation and the transform's ordinary assignment walk.
+    fn prepare_declaration_emit(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitDeclarationPreparation>, EmitResolverError> {
+        self.precalculate_declaration_emit_visibility(node)?;
+        Ok(None)
     }
 
     /// The declarations of a source file's `export=` symbol.

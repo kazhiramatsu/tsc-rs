@@ -9,6 +9,95 @@ use tsc_types::CompilerOptions;
 struct NoopTracker;
 impl EmitSymbolTracker for NoopTracker {}
 
+#[test]
+fn declaration_preparation_keeps_public_preorder_and_excludes_doc_assignments() {
+    let mut source = tsc_syntax::parse_source_file(
+        "/prepare.ts",
+        "function f() {} f.a = (f.b = 1); export { f };",
+        Default::default(),
+        None,
+    );
+    let original = declaration_preparation_candidates::<true>(&source, false);
+    let assignments = original.assignments.expect("unique public graph");
+    assert_eq!(assignments.len(), 2);
+    assert!(source.arena.node(assignments[0]).end >= source.arena.node(assignments[1]).end);
+    let doc_assignment = source.arena.alloc_node(
+        NodeData::BinaryExpression(tsc_syntax::nodes::BinaryExpressionData {
+            left: None,
+            operator_token: None,
+            right: None,
+        }),
+        0,
+        0,
+        NodeFlags::NONE,
+    );
+    let docs = source.arena.alloc_synthetic_array(&[doc_assignment]);
+    source.arena.set_js_doc(source.root, docs);
+    let collected = declaration_preparation_candidates::<true>(&source, false);
+    assert_eq!(collected.assignments, Some(assignments));
+    assert_eq!(collected.names, original.names);
+}
+
+#[test]
+fn declaration_preparation_declines_duplicate_public_edges_and_preserves_arena_ties() {
+    let mut source = tsc_syntax::parse_source_file(
+        "/prepare.ts",
+        "const a = 1, b = 2; export { a }; export { b };",
+        Default::default(),
+        None,
+    );
+    let original = declaration_preparation_candidates::<true>(&source, false);
+    assert_eq!(original.names.len(), 2);
+    for id in source.arena.node_ids().collect::<Vec<_>>() {
+        source.arena.node_mut(id).pos = 0;
+    }
+    let NodeData::SourceFile(data) = source.arena.node(source.root).data() else {
+        panic!("source file");
+    };
+    let old = source
+        .arena
+        .node_array(data.statements.expect("statements"))
+        .nodes
+        .to_vec();
+    let mut reversed = old.clone();
+    reversed.reverse();
+    reversed.push(old[0]);
+    let statements = source.arena.alloc_synthetic_array(&reversed);
+    source.arena.set_data(
+        source.root,
+        NodeData::SourceFile(tsc_syntax::nodes::SourceFileData {
+            statements: Some(statements),
+            ..data
+        }),
+    );
+    let collected = declaration_preparation_candidates::<true>(&source, false);
+    assert!(collected.assignments.is_none());
+    let names: Vec<_> = collected.names.into_iter().map(|(_, name)| name).collect();
+    let expected: Vec<_> = original.names.into_iter().map(|(_, name)| name).collect();
+    assert_eq!(
+        names, expected,
+        "arena order survives equal positions and reversed public traversal"
+    );
+}
+
+#[test]
+fn declaration_preparation_returns_candidates_only_on_first_visibility_preparation() {
+    with_member_state("export function f() {} f.x = 1;", |checker, _, _| {
+        let root = checker.binder.source(0).root;
+        let first = checker
+            .emit_prepare_declaration_emit::<true>(root)
+            .expect("prepare")
+            .expect("first source capability");
+        assert_eq!(first.source_file.node(), root);
+        assert!(!first.javascript);
+        assert_eq!(first.assignment_candidates.len(), 1);
+        assert!(checker
+            .emit_prepare_declaration_emit::<true>(root)
+            .expect("repeat")
+            .is_none());
+    });
+}
+
 fn with_member_state(
     source: &str,
     run: impl FnOnce(&mut CheckerState<'_>, &mut TransformArena, tsc_emitter::TransformSourceId),
