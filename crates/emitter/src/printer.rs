@@ -193,6 +193,43 @@ struct ExpressionCommentPhaseOwner {
     kind: SyntaxKind,
 }
 
+/// Flags and absence observations for one node event. A readonly leading phase
+/// can use the fresh owner observation. Only completed inert hooks allow that
+/// absence to survive mutable child emission; unknown owners keep both reads.
+#[derive(Clone, Copy)]
+#[repr(transparent)]
+struct NodePrintFacts(u64);
+
+impl NodePrintFacts {
+    const NO_LEADING_METADATA: u64 = 1 << 32;
+    const NO_TRAILING_METADATA: u64 = 1 << 33;
+
+    const fn unknown(flags: EmitFlags) -> Self {
+        Self(flags.bits() as u64)
+    }
+
+    const fn fresh(flags: EmitFlags, metadata_present: bool, inert: bool) -> Self {
+        let absence = if metadata_present {
+            0
+        } else {
+            Self::NO_LEADING_METADATA | if inert { Self::NO_TRAILING_METADATA } else { 0 }
+        };
+        Self(flags.bits() as u64 | absence)
+    }
+
+    const fn flags(self) -> EmitFlags {
+        EmitFlags::from_bits(self.0 as u32)
+    }
+
+    const fn may_have_leading_metadata(self) -> bool {
+        self.0 & Self::NO_LEADING_METADATA == 0
+    }
+
+    const fn may_have_trailing_metadata(self) -> bool {
+        self.0 & Self::NO_TRAILING_METADATA == 0
+    }
+}
+
 /// Records whether this expression invocation actually ran an ordinary
 /// source-leading-comments phase. Some transformed class-field expressions
 /// retain an explicit source anchor for contextless printer routes. When a
@@ -3262,7 +3299,10 @@ impl Printer {
         // the subtree while the node's own boundaries stay live
         // (upstream emitSourceMapsBeforeNode order: record, then
         // disable; AfterNode: enable, then record).
-        self.record_node_map_boundary(transformation, MapBoundary::Before, node, writer)?;
+        let records_maps = writer.has_source_map_recording();
+        if records_maps {
+            self.record_node_map_boundary(transformation, MapBoundary::Before, node, writer)?;
+        }
         let suppress_nested_maps = node_flags.intersects(EmitFlags::NO_NESTED_SOURCE_MAPS);
         if suppress_nested_maps {
             if let Some(recording) = writer.recording_mut() {
@@ -3312,7 +3352,9 @@ impl Printer {
             }
         }
         worker_result?;
-        self.record_node_map_boundary(transformation, MapBoundary::After, node, writer)?;
+        if records_maps {
+            self.record_node_map_boundary(transformation, MapBoundary::After, node, writer)?;
+        }
         debug_assert!(matches!(
             deferred_source_comments,
             DeferredExpressionSourceCommentsState::Inactive
@@ -20649,11 +20691,12 @@ impl Printer {
                         writer,
                     );
                 } else {
-                    let owner = self.expression_comment_phase_owner_for_record(
-                        transformation,
-                        substituted,
-                        printed.record(),
-                    )?;
+                    let (owner, metadata_present) = self
+                        .expression_comment_phase_owner_metadata_for_record(
+                            transformation,
+                            substituted,
+                            printed.record(),
+                        )?;
                     let active_scope = self.active_expression_comment_scope(
                         transformation,
                         deferred_source_comments.as_ref(),
@@ -20672,7 +20715,7 @@ impl Printer {
                         hint,
                         expression_context.with_comments(active_scope),
                         source_leading_phase,
-                        owner.flags,
+                        NodePrintFacts::fresh(owner.flags, metadata_present, inert_print_hooks),
                         writer,
                     )?;
                     let trailing = self.emit_deferred_expression_trailing_comments(
@@ -20691,11 +20734,12 @@ impl Printer {
                     trailing
                 }
             } else {
-                let owner = self.expression_comment_phase_owner_for_record(
-                    transformation,
-                    substituted,
-                    printed.record(),
-                )?;
+                let (owner, metadata_present) = self
+                    .expression_comment_phase_owner_metadata_for_record(
+                        transformation,
+                        substituted,
+                        printed.record(),
+                    )?;
                 let active_scope = if owner.kind == SyntaxKind::Block
                     && deferred_source_comments.is_none()
                     && self.is_function_body_block(transformation, substituted)?
@@ -20727,7 +20771,7 @@ impl Printer {
                     hint,
                     expression_context.with_comments(active_scope),
                     source_leading_phase,
-                    owner.flags,
+                    NodePrintFacts::fresh(owner.flags, metadata_present, inert_print_hooks),
                     writer,
                 )?;
                 let trailing = self.emit_deferred_expression_trailing_comments(
@@ -20875,7 +20919,7 @@ impl Printer {
                     hint,
                     expression_context.for_wrapper(inner_active_scope),
                     inner_source_leading_phase,
-                    inner_owner.flags,
+                    NodePrintFacts::unknown(inner_owner.flags),
                     writer,
                 )?;
                 self.emit_deferred_expression_trailing_comments(
@@ -20925,7 +20969,7 @@ impl Printer {
                     hint,
                     expression_context.for_wrapper(active_scope),
                     source_leading_phase,
-                    owner.flags,
+                    NodePrintFacts::unknown(owner.flags),
                     writer,
                 )?;
                 let trailing = self.emit_deferred_expression_trailing_comments(
@@ -20988,7 +21032,7 @@ impl Printer {
                     hint,
                     expression_context.for_wrapper(active_scope),
                     source_leading_phase,
-                    owner.flags,
+                    NodePrintFacts::unknown(owner.flags),
                     writer,
                 )?;
                 let trailing = self.emit_deferred_expression_trailing_comments(
@@ -21098,25 +21142,29 @@ impl Printer {
         hint: EmitHint,
         expression_context: EmitContext,
         source_leading_phase: SourceLeadingCommentPhaseVisit,
-        node_flags: EmitFlags,
+        facts: NodePrintFacts,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let substituted = printed.node();
-        self.emit_substituted_leading_metadata(
-            transformation,
-            substituted,
-            source_leading_phase,
-            writer,
-        )?;
+        if facts.may_have_leading_metadata() {
+            self.emit_substituted_leading_metadata(
+                transformation,
+                substituted,
+                source_leading_phase,
+                writer,
+            )?;
+        }
         self.emit_transformed_node_record(
             transformation,
             &printed,
             hint,
             expression_context,
-            node_flags,
+            facts.flags(),
             writer,
         )?;
-        self.emit_synthetic_trailing_comments_for_node(transformation, substituted, writer);
+        if facts.may_have_trailing_metadata() {
+            self.emit_synthetic_trailing_comments_for_node(transformation, substituted, writer);
+        }
         Ok(())
     }
 
@@ -23037,12 +23085,24 @@ impl Printer {
         )
     }
 
+    #[inline(always)]
     fn expression_comment_phase_owner_for_record(
         &self,
         transformation: &TransformationResult<'_>,
         node: TransformNode,
         record: &tsc_syntax::nodes::Node,
     ) -> Result<ExpressionCommentPhaseOwner, PrinterError> {
+        self.expression_comment_phase_owner_metadata_for_record(transformation, node, record)
+            .map(|(owner, _)| owner)
+    }
+
+    #[inline(always)]
+    fn expression_comment_phase_owner_metadata_for_record(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        record: &tsc_syntax::nodes::Node,
+    ) -> Result<(ExpressionCommentPhaseOwner, bool), PrinterError> {
         let arena = transformation.arena();
         let metadata = arena.metadata(node);
         let (range, kind) =
@@ -23056,11 +23116,14 @@ impl Printer {
                 );
                 (range, record.kind)
             };
-        Ok(ExpressionCommentPhaseOwner {
-            range,
-            flags: metadata.map_or(EmitFlags::NONE, crate::EmitMetadata::flags),
-            kind,
-        })
+        Ok((
+            ExpressionCommentPhaseOwner {
+                range,
+                flags: metadata.map_or(EmitFlags::NONE, crate::EmitMetadata::flags),
+                kind,
+            },
+            metadata.is_some(),
+        ))
     }
 
     /// Comment owner of `setTextRange(createParenthesizedExpression(node),
@@ -26257,3 +26320,7 @@ mod emission_plan_tests;
 #[cfg(test)]
 #[path = "../tests/unit/node_events.rs"]
 mod node_event_tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/event_absence.rs"]
+mod event_absence_tests;
