@@ -12,6 +12,9 @@ use tsc_types::{
     IdentityError, IdentityLease, IdentityRange, IdentitySpace, ModifierFlags, NodeFlags,
 };
 
+#[path = "library_image.rs"]
+pub mod library_image;
+
 /// The semantic role of a newly allocated list. Ordinary lists do not
 /// derive modifier metadata. A generic builder can later attach a Children
 /// list to a declaration's typed modifiers field, which establishes its role.

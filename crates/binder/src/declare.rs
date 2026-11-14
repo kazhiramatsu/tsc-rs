@@ -30,6 +30,9 @@ use tsc_types::{
     IdentitySpace, JsString, ModifierFlags, NodeFlags, SymbolFlags, TRANSIENT_SYMBOL_BIT,
 };
 
+#[path = "library_image.rs"]
+pub mod library_image;
+
 /// Which symbol table a declaration lands in. tsc passes the table
 /// object; the arena design passes its owner.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

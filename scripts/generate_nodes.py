@@ -837,6 +837,55 @@ impl Node {
         }
     }
 
+    /// Portable payload words for the library-image builder. Store addresses
+    /// of tails never cross this boundary; the schema still owns slot order.
+    pub(crate) fn image_payload(&self) -> (Vec<u32>, [u32; 4], bool) {
+        let (count, comment) = payload_shape(self.kind);
+        (
+            (0..count).map(|index| self.slot(index)).collect(),
+            if comment { self.comment_words(count) } else { [0; 4] },
+            !matches!(self.data(), NodeData::Token),
+        )
+    }
+
+    pub(crate) fn image_slot_space(kind: SyntaxKind, index: usize) -> u8 {
+        if index == 0 && matches!(kind, SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier) {
+            4 // Interned name; not a syntax identity space.
+        } else {
+            identity_layout(kind).space(index)
+        }
+    }
+
+    /// Rebuild a record's owned tail from validated portable words.
+    pub(crate) fn from_image_payload(
+        kind: SyntaxKind,
+        slots: &[u32],
+        comment: [u32; 4],
+        js_doc: u32,
+        payload: bool,
+        tails: &mut tsc_store::tails::Tails,
+    ) -> Option<Self> {
+        let (count, has_comment) = payload_shape(kind);
+        if slots.len() != count || (!has_comment && comment != [0; 4]) {
+            return None;
+        }
+        let mut node = Self::new(kind, 0, 0, 0);
+        if slots.iter().skip(3).all(|&word| word == 0)
+            && comment == [0; 4] && (count < 3 || js_doc == 0)
+        {
+            for (word, &slot) in node.words.iter_mut().zip(slots) { *word = slot; }
+            if count < 3 { node.words[count] = js_doc; }
+            if count == 0 && payload { node.words[2] = EMPTY_PAYLOAD; }
+        } else {
+            let mut words: Vec<_> = slots.iter().skip(2).copied().collect();
+            words.push(js_doc);
+            if has_comment { words.extend(comment); }
+            node.words = [tails.push(&words), slots.first().copied().unwrap_or(0), slots.get(1).copied().unwrap_or(0)];
+            node.literal_flags |= HAS_TAIL;
+        }
+        Some(node)
+    }
+
     /// tsc's multiLine bit (see `MULTI_LINE_BITS`).
     pub fn multi_line(&self) -> Option<bool> {
         tri_state(self.literal_flags & MULTI_LINE_BITS)

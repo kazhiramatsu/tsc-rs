@@ -71,6 +71,8 @@ mod declaration_diagnostics;
 mod help;
 mod incremental;
 mod init;
+#[allow(dead_code)]
+mod library_image;
 mod live;
 pub mod locale;
 mod options;

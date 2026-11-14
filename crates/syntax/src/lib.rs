@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 
 pub mod arena;
+#[doc(hidden)]
+pub use arena::library_image;
 mod chars;
 pub mod for_each_child;
 pub mod go_unicode;
