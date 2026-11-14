@@ -2654,6 +2654,8 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
     leak_at_end: bool,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
+    // A syntax-only command can return before constructing a checker state.
+    let leak_at_end = leak_at_end || checkers.leaks_states();
     let IncrementalRequest {
         facts: incremental_facts,
         mut planner,
@@ -2949,6 +2951,15 @@ impl ProgramSource {
         match self {
             Self::New(builder) => Some(builder.bind_input()),
             Self::Shared(_) => None,
+        }
+    }
+}
+
+fn forget_program_sources_for_process_exit(sources: Vec<ProgramSource>) {
+    for source in sources {
+        match source {
+            ProgramSource::New(builder) => builder.forget_for_process_exit(),
+            ProgramSource::Shared(document) => std::mem::forget(document),
         }
     }
 }
@@ -4747,6 +4758,9 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
                     workers,
                 );
             }
+            if run.leak_at_end {
+                forget_program_sources_for_process_exit(program_sources);
+            }
             return CheckExecution {
                 result,
                 authoritative_failure: None,
@@ -5699,6 +5713,9 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             }
         }
         if emit_operation.is_none() && !authoritative_run.is_some_and(|run| run.incremental_facts) {
+            if authoritative_run.is_some_and(|run| run.leak_at_end) {
+                forget_program_sources_for_process_exit(program_sources);
+            }
             return CheckExecution {
                 result,
                 authoritative_failure: None,

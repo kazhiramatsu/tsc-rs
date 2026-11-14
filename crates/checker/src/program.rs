@@ -101,6 +101,21 @@ impl DocumentBuilder {
         self.bind_reservations = None;
     }
 
+    pub(crate) fn forget_for_process_exit(self) {
+        let Self {
+            source,
+            bind_data,
+            bind_reservations,
+        } = self;
+        // Moving the values out releases their boxes without dropping the
+        // buffers and leases that the one-shot command keeps until exit.
+        std::mem::forget(*source);
+        if let Some(data) = bind_data {
+            std::mem::forget(*data);
+        }
+        std::mem::forget(bind_reservations);
+    }
+
     pub fn source(&self) -> &SourceFile {
         &self.source
     }
