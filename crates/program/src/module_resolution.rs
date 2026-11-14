@@ -446,6 +446,12 @@ enum PackageCacheEntry {
     Found(Arc<CachedPackage>),
 }
 
+/// Pure-host scope observations awaiting an ordered lookup. Keeping these
+/// separate from the observed package cache prevents speculative manifests
+/// from entering the program's package inventory.
+#[derive(Default)]
+pub(crate) struct ReadAheadPackageScopes(BTreeMap<JsString, Option<Arc<CachedPackage>>>);
+
 /// One package.json the resolver looked for (tsgo's package.json info cache
 /// entry): the path it probed — the real path when the file exists and the
 /// options are incremental, as tsgo records it in the build info — and
@@ -803,6 +809,8 @@ pub struct ModuleResolver<'a> {
     /// directories, and each file's scope was searched up the ancestors
     /// twice (visit and dependency symlinks).
     package_scope_by_directory: BTreeMap<JsString, Option<Arc<CachedPackage>>>,
+    // Only ordered lookups consume these; iteration never selects packages.
+    read_ahead_package_scopes: rustc_hash::FxHashMap<JsString, Option<Arc<CachedPackage>>>,
     active_resolutions: Vec<ActiveResolution>,
     active_package_maps: Vec<JsString>,
     input_requests: Vec<InputResolutionRequest>,
@@ -975,6 +983,7 @@ impl<'a> ModuleResolver<'a> {
             package_json_probes: std::cell::RefCell::new(BTreeMap::new()),
             record_package_json_realpaths,
             package_scope_by_directory: BTreeMap::new(),
+            read_ahead_package_scopes: rustc_hash::FxHashMap::default(),
             active_resolutions: Vec::new(),
             active_package_maps: Vec::new(),
             input_requests: Vec::new(),
@@ -1016,6 +1025,7 @@ impl<'a> ModuleResolver<'a> {
             record_package_json_realpaths: options.incremental == Some(true)
                 || options.composite == Some(true),
             package_scope_by_directory: BTreeMap::new(),
+            read_ahead_package_scopes: rustc_hash::FxHashMap::default(),
             active_resolutions: Vec::new(),
             active_package_maps: Vec::new(),
             input_requests: Vec::new(),
@@ -1508,6 +1518,18 @@ impl<'a> ModuleResolver<'a> {
         std::mem::take(&mut *self.package_json_probes.borrow_mut())
             .into_values()
             .collect()
+    }
+
+    pub(crate) fn take_read_ahead_package_scopes(&mut self) -> ReadAheadPackageScopes {
+        ReadAheadPackageScopes(std::mem::take(&mut self.package_scope_by_directory))
+    }
+
+    pub(crate) fn adopt_read_ahead_package_scopes(&mut self, scopes: ReadAheadPackageScopes) {
+        for (directory, scope) in scopes.0 {
+            self.read_ahead_package_scopes
+                .entry(directory)
+                .or_insert(scope);
+        }
     }
 
     /// tsgo-port: DefaultResolver.ResolvePackageDirectory @aa814927
@@ -5603,6 +5625,39 @@ impl<'a> ModuleResolver<'a> {
         if let Some(key) = &memo_key {
             if let Some(scope) = self.package_scope_by_directory.get(key) {
                 return Ok(scope.clone());
+            }
+            let prefetched = self.read_ahead_package_scopes.remove(key).filter(|scope| {
+                scope.as_ref().is_none_or(|package| {
+                    let directory = containing_directory.as_bytes();
+                    let root = package.root.as_bytes();
+                    // A canonical memo can come from another casing. Only
+                    // adopt the manifest spelling this ordered lookup uses.
+                    directory.starts_with(root)
+                        && (directory.len() == root.len()
+                            || root.ends_with(b"/")
+                            || directory.get(root.len()) == Some(&b'/'))
+                })
+            });
+            if let Some(scope) = prefetched {
+                let observed = match scope {
+                    Some(package) => {
+                        let package_key = package.metadata.package_json().canonical().as_js();
+                        match self
+                            .package_cache
+                            .entry(package_key.to_owned())
+                            .or_insert_with(|| PackageCacheEntry::Found(Arc::clone(&package)))
+                        {
+                            PackageCacheEntry::Found(package) => Some(Some(Arc::clone(package))),
+                            PackageCacheEntry::Missing { .. } => None,
+                        }
+                    }
+                    None => Some(None),
+                };
+                if let Some(scope) = observed {
+                    self.package_scope_by_directory
+                        .insert(key.clone(), scope.clone());
+                    return Ok(scope);
+                }
             }
         }
         let mut found = None;
