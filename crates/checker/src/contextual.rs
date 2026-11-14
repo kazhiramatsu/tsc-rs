@@ -429,7 +429,7 @@ impl<'a> CheckerState<'a> {
                 let result = (|state: &mut Self| -> CheckResult<Option<TypeId>> {
                     if index_of_parameter < args.len() {
                         let checked = state.check_effective_arg(
-                            &args[index_of_parameter],
+                            &args.at(index_of_parameter),
                             tsc_types::CheckMode::NORMAL,
                         )?;
                         Ok(Some(state.get_widened_literal_type(checked)?))
@@ -948,7 +948,7 @@ impl<'a> CheckerState<'a> {
         let args = self.get_effective_call_arguments(call_target)?;
         let arg_index = args
             .iter()
-            .position(|candidate| *candidate == crate::calls::EffectiveArg::Node(arg));
+            .position(|candidate| candidate == crate::calls::EffectiveArg::Node(arg));
         match arg_index {
             None => Ok(None),
             Some(arg_index) => {

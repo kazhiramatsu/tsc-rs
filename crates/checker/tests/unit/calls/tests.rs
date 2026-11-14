@@ -12,12 +12,12 @@ use crate::structural::SignatureKind;
 /// out and build a fresh inference context over its type
 /// parameters (the 76809-76812 chooseOverload preamble, minus the
 /// JS AnyDefault arm — fixtures here are .ts).
-fn generic_call_setup(
-    state: &mut CheckerState,
+fn generic_call_setup<'a>(
+    state: &mut CheckerState<'a>,
 ) -> (
     tsc_syntax::NodeId,
     crate::state::SignatureId,
-    Vec<super::EffectiveArg>,
+    super::EffectiveCallArguments<'a>,
     crate::inference::InferenceContextId,
 ) {
     let (call, decl) = {
@@ -550,13 +550,13 @@ fn non_array_synthetic_spread_reports_at_its_utf16_range_with_await_related() {
             .resolve_file_scope_name("p", SymbolFlags::VARIABLE)
             .expect("p resolves");
         let promise = state.get_type_of_symbol(p).expect("promise type");
-        let args = [super::EffectiveArg::Synthetic {
+        let args = super::EffectiveCallArguments::Expanded(vec![super::EffectiveArg::Synthetic {
             pos,
             end,
             ty: promise,
             is_spread: true,
             tuple_name_source: None,
-        }];
+        }]);
         let any = state.tables.intrinsics.any;
         state
             .get_spread_argument_type(
