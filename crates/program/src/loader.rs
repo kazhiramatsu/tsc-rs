@@ -23,9 +23,8 @@ use crate::inclusion_reason::{InclusionReasonRecord, InclusionSource, SourceIncl
 use crate::json::{json_object_get, parse_json_object};
 use crate::library::{replacement_package_name, LibraryCatalog};
 use crate::module_requests::{
-    is_declaration_file_name, plan_source_requests_retaining_syntax, LoaderModuleRequests,
-    PlannedLibReferenceDirective, PlannedPathReference, PlannedTypeReferenceDirective,
-    SourceRequestPlan,
+    is_declaration_file_name, plan_source_requests_retaining_syntax, PlannedLibReferenceDirective,
+    PlannedPathReference, PlannedTypeReferenceDirective, SourceRequestPlan,
 };
 use crate::module_resolution::PackageJsonProbe;
 use crate::module_resolution::{
@@ -49,6 +48,11 @@ use crate::PreparationError;
 
 #[path = "level_zero_placement.rs"]
 mod level_zero_placement;
+#[path = "load_requests.rs"]
+mod load_requests;
+use load_requests::{
+    ImportPolicy, PreparedModuleRequests, PreparedModuleResolution, PreparedSourceRequests,
+};
 
 /// The deepest source chain admitted by the recursive H0.4 loader worker.
 ///
@@ -1055,7 +1059,7 @@ fn load_program_worker(
     // for a pnpm package that is `node_modules/<pkg>/package.json`, while the
     // realpath'd source's own scope records the `.pnpm/...` spelling.
     for resolution in &staged.module_resolutions {
-        if let ResolutionOutcome::Resolved(module) = resolution.host.outcome() {
+        if let Some(module) = resolution.host.resolved() {
             if let Some(package) = module.package_metadata() {
                 packages_by_path
                     .entry(package.package_json().canonical().clone())
@@ -1615,31 +1619,17 @@ struct StagedSource {
     /// The module requests in order, with the spans of their occurrences
     /// that load a source (none for a synthetic request) and the resolution
     /// the read-ahead computed for them.
-    module_requests: LoaderModuleRequests,
+    module_requests: PreparedModuleRequests,
     /// Every unique request of a source is staged before any child runs.
     /// Repeated spellings reuse this contiguous batch by request index.
     module_resolution_start: Option<usize>,
-    pre_resolved_modules: Vec<Option<HostModuleResolution>>,
-    /// The request of each occurrence that loads its target, in tsgo's
-    /// `moduleNames` order.
-    module_request_occurrences: Vec<u32>,
+    pre_resolved_modules: Vec<Option<PreparedModuleResolution>>,
     /// The resolved occurrences in tsgo's `moduleNames` order (the imports,
     /// then the module augmentations), kept only when tracing; the synthetic
     /// requests are not here.
     module_request_order: Vec<ResolutionKey>,
     /// A content mapper's supplemental outputs of this file.
     supplemental: Vec<ProgramPath>,
-}
-
-/// A resolved target and the next occurrence whose span the walk consumes.
-struct ImportTarget {
-    resolution: usize,
-    external: bool,
-    elide_on_depth: bool,
-    package_id: Option<PackageId>,
-    next: usize,
-    synthetic: usize,
-    specifier: Option<Arc<JsString>>,
 }
 
 impl StagedSource {
@@ -2019,10 +2009,10 @@ struct PrefetchedParse {
     implied: Option<ResolutionMode>,
     implied_for_emit: Option<ResolutionMode>,
     prepared: PreparedSourceFile,
-    plan: Result<SourceRequestPlan, ResolutionError>,
+    plan: Result<PreparedSourceRequests, ResolutionError>,
     /// By module request of the plan: the resolution the parallel
     /// read-ahead computed (empty when none ran).
-    resolutions: Vec<Option<HostModuleResolution>>,
+    resolutions: Vec<Option<PreparedModuleResolution>>,
 }
 
 /// One source of the parallel read-ahead
@@ -2231,7 +2221,7 @@ impl ParallelReadAhead<'_> {
                             implied,
                             implied_for_emit,
                             prepared: prepared.with_preparsed_syntax(syntax),
-                            plan: Ok(plan),
+                            plan: Ok(PreparedSourceRequests::new(plan)),
                             resolutions: Vec::new(),
                         },
                         Err(error) => PrefetchedParse {
@@ -2332,7 +2322,20 @@ impl ParallelReadAhead<'_> {
                         }
                     }
                 }
-                resolutions.push(Some(host));
+                let mut prepared = PreparedModuleResolution::new(host, key);
+                prepared.policy = prepared.policy_for(
+                    self.options,
+                    is_declaration_file_name(containing_file),
+                    loads_source,
+                    |path| {
+                        self.references
+                            .project_for_resolution(path.canonical())
+                            .is_some()
+                    },
+                    |path| self.mapper_for(path).is_some(),
+                );
+                prepared.policy_prepared = true;
+                resolutions.push(Some(prepared));
             }
         }
         let mut type_resolutions = Vec::new();
@@ -2601,7 +2604,7 @@ fn parse_root_ahead(
                 implied,
                 implied_for_emit,
                 prepared: prepared.with_preparsed_syntax(syntax),
-                plan: Ok(plan),
+                plan: Ok(PreparedSourceRequests::new(plan)),
                 resolutions: Vec::new(),
             },
             Err(error) => PrefetchedParse {
@@ -2628,7 +2631,7 @@ struct StagedModuleResolution {
     source: usize,
     target: StagedModuleTarget,
     key: ResolutionKey,
-    host: HostModuleResolution,
+    host: PreparedModuleResolution,
     loads_source: bool,
     unloaded_reason: Option<UnloadedModuleReason>,
 }
@@ -2695,7 +2698,6 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// another spelling keeps that one), old to new.
     respelled: FxHashMap<JsString, JsString>,
     sources: Vec<StagedSource>,
-    import_targets: Vec<Option<ImportTarget>>,
     /// tsgo filesParser: the parse tasks, their shared data by path, the
     /// root tasks in tsgo's order and the single-threaded work queue (a
     /// stack: the last queued task runs first).
@@ -2831,7 +2833,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             case_sensitive_casing_conflicts: Vec::new(),
             respelled: FxHashMap::default(),
             sources: Vec::new(),
-            import_targets: Vec::new(),
             parse: ParseTasks::default(),
             root_tasks: Vec::new(),
             stack: Vec::new(),
@@ -5577,7 +5578,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     if let Ok(plan) = &parsed.plan {
                         for (key, host) in plan.module_requests().iter().zip(parsed.resolutions) {
                             if let Some(host) = host {
-                                self.pre_resolved.insert(key.clone(), host);
+                                self.pre_resolved.insert(key.clone(), host.into_host());
                             }
                         }
                     }
@@ -5611,7 +5612,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 if let Ok(plan) = &parsed.plan {
                     for (key, host) in plan.module_requests().iter().zip(parsed.resolutions) {
                         if let Some(host) = host {
-                            self.pre_resolved.insert(key.clone(), host);
+                            self.pre_resolved.insert(key.clone(), host.into_host());
                         }
                     }
                 }
@@ -5706,7 +5707,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     ) {
                         Ok((plan, syntax)) => {
                             prepared = prepared.with_preparsed_syntax(syntax);
-                            Ok(plan)
+                            Ok(PreparedSourceRequests::new(plan))
                         }
                         Err(error) => Err(error),
                     }
@@ -5727,19 +5728,23 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         );
         prepared = prepared
             .with_is_external_module(plan.as_ref().is_some_and(|plan| plan.is_external_module()))
-            .with_import_count(plan.as_ref().map_or(0, SourceRequestPlan::import_count));
+            .with_import_count(
+                plan.as_ref()
+                    .map_or(0, PreparedSourceRequests::import_count),
+            );
         let crate::module_requests::AdmissionPlanParts {
             path_references,
             type_reference_directives,
             lib_reference_directives,
             module_request_order,
-            module_request_occurrences,
-        } = plan
-            .as_mut()
-            .map_or_else(Default::default, SourceRequestPlan::take_admission_parts);
+            module_request_occurrences: _,
+        } = plan.as_mut().map_or_else(
+            Default::default,
+            PreparedSourceRequests::take_admission_parts,
+        );
         let module_requests = plan.as_mut().map_or_else(
             Default::default,
-            SourceRequestPlan::take_loader_module_requests,
+            PreparedSourceRequests::take_loader_module_requests,
         );
         self.enforce_limit(
             ProgramLoadOperation::PlanSourceRequests,
@@ -5767,7 +5772,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             module_requests,
             module_resolution_start: None,
             pre_resolved_modules: prefetched_resolutions,
-            module_request_occurrences,
             module_request_order,
             supplemental,
         });
@@ -6560,7 +6564,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         source: usize,
         containing_canonical: &CanonicalPath,
         containing_file: &JsString,
-        pre_resolved: &mut Vec<Option<HostModuleResolution>>,
+        pre_resolved: &mut Vec<Option<PreparedModuleResolution>>,
     ) -> Result<(), ProgramLoadError> {
         let staged = &self.sources[source];
         let requests: BTreeMap<_, _> = (0..staged.module_requests.len())
@@ -6571,8 +6575,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             .flat_map(|index| {
                 std::iter::repeat_n(
                     self.module_request_key(source, index).clone(),
-                    (staged.module_requests.occurrence_counts[index] as usize)
-                        .saturating_sub(staged.module_requests.spans[index].len()),
+                    staged.module_requests.synthetic_counts[index] as usize,
                 )
             })
             .chain(staged.module_request_order.iter().cloned())
@@ -6593,7 +6596,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 .entry(task)
                 .or_default()
                 .extend(host.trace().iter().cloned());
-            pre_resolved[requests[&key]] = Some(host);
+            pre_resolved[requests[&key]] = Some(PreparedModuleResolution::new(host, &key));
         }
         Ok(())
     }
@@ -6764,8 +6767,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     let host = match pre_resolved
                         .get_mut(request_index)
                         .and_then(Option::take)
-                        .or_else(|| self.pre_resolved.remove(&key))
-                    {
+                        .or_else(|| {
+                            self.pre_resolved
+                                .remove(&key)
+                                .map(|host| PreparedModuleResolution::new(host, &key))
+                        }) {
                         Some(host) => {
                             self.pre_resolved_hits += 1;
                             host
@@ -6785,7 +6791,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                             {
                                 Some(host) => {
                                     self.directory_resolution_hits += 1;
-                                    host.clone()
+                                    PreparedModuleResolution::new(host.clone(), &key)
                                 }
                                 None => {
                                     let host = self
@@ -6806,7 +6812,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                                         self.directory_resolutions
                                             .insert(directory_key, host.clone());
                                     }
-                                    host
+                                    PreparedModuleResolution::new(host, &key)
                                 }
                             }
                         }
@@ -6829,158 +6835,65 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         // As with type directives, all requests in this source are resolved
         // before the first successful target starts its DFS. The targets
         // to load, by request, become subtasks in occurrence order below.
-        let mut targets = std::mem::take(&mut self.import_targets);
-        targets.resize_with(request_count, || None);
-        for (request_index, slot) in targets.iter_mut().enumerate() {
-            let index = resolution_start + request_index;
-            let loads_source = self.module_resolutions[index].loads_source;
-            let target = match self.module_resolutions[index].host.outcome() {
-                ResolutionOutcome::Resolved(target) => Some((
-                    target.extension().clone(),
-                    target.is_external_library_import(),
-                    target.original_path().is_some(),
-                    target.package_id().cloned(),
-                    target.resolved_using_extra_extensions(),
-                )),
-                ResolutionOutcome::NotFound => None,
-            };
-            let Some((
-                extension,
-                external,
-                has_original_path,
-                package_id,
-                resolved_using_extra_extensions,
-            )) = target
-            else {
-                let key = self.module_resolutions[index].key.clone();
-                self.record_import_extension_file(&containing_file, &key);
-                continue;
-            };
-            // tsgo GetResolutionDiagnostic: a file found by a content
-            // mapper's extension needs no option.
-            if let Some(reason) = (!resolved_using_extra_extensions)
-                .then(|| {
-                    resolution_diagnostic_unloaded_reason(
-                        &extension,
-                        self.compiler_options,
-                        containing_file_is_declaration,
-                        loads_source,
-                    )
-                })
-                .flatten()
-            {
-                // createProgram records the successful resolution, but a
-                // getResolutionDiagnostic result prevents findSourceFile.
-                // Retain that distinction as typed graph-admission state so
-                // the checker can report the resolution diagnostic without
-                // treating the absent source as a failed module lookup.
-                self.module_resolutions[index].unloaded_reason = Some(reason);
-                continue;
-            }
-            // tsgo fileloader.go:911: a resolved file of a referenced project
-            // (one of its sources or outputs) is not loaded as JavaScript.
-            let redirected = self
-                .project_for_resolution(self.module_target_path(index).canonical())
-                .is_some();
-            // tsgo isJsFileFromNodeModules: the subtask of a JavaScript file
-            // found searching node_modules is elided beyond
-            // maxNodeModuleJsDepth when it runs (`elideOnDepth`).
-            let elide_on_depth = extension.is_javascript()
-                && !redirected
-                && external
-                && path_contains_node_modules(self.module_target_path(index).canonical().as_js());
-            if extension.is_javascript() && !redirected {
-                let reason = unloaded_javascript_reason(
-                    &extension,
+        for request in 0..request_count {
+            let index = resolution_start + request;
+            if !self.module_resolutions[index].host.policy_prepared {
+                let resolution = &self.module_resolutions[index];
+                let policy = resolution.host.policy_for(
                     self.compiler_options,
-                    external,
-                    has_original_path,
-                    self.module_target_path(index).canonical(),
-                    loads_source,
+                    containing_file_is_declaration,
+                    resolution.loads_source,
+                    |path| self.project_for_resolution(path.canonical()).is_some(),
+                    |path| self.content_mapper_for(path).is_some(),
                 );
-                self.module_resolutions[index].unloaded_reason = reason;
-                if reason.is_some() {
-                    continue;
+                self.module_resolutions[index].host.policy = policy;
+            }
+            match self.module_resolutions[index].host.policy {
+                ImportPolicy::Missing => {
+                    let key = self.module_resolutions[index].key.clone();
+                    self.record_import_extension_file(&containing_file, &key);
                 }
-            }
-            if self.compiler_options.no_resolve == Some(true) {
-                self.module_resolutions[index].unloaded_reason =
-                    Some(UnloadedModuleReason::NoResolve);
-                continue;
-            }
-            if !loads_source {
-                // A name that does not load a source (a module augmentation's)
-                // is resolved and recorded, but its target joins the program
-                // only when an import of some file loads it
-                // (processImportedModules adds a file for the names of
-                // imports alone; tsgo fileloader.go:915-923). The checker
-                // then finds the resolution without a source file.
-                self.module_resolutions[index].unloaded_reason =
-                    Some(UnloadedModuleReason::ResolutionOnly);
-                continue;
-            }
-            let target = self.module_target_path(index);
-            // Resolver-owned external symlink handling has already replaced
-            // this target with its physical resolvedFileName. Visit that
-            // identity directly; the lexical spelling remains on the host
-            // resolution and is published as originalPath below.
-            if matches!(extension, ModuleExtension::Json) {
-                if !self.compiler_options.resolve_json_module_effective() {
+                ImportPolicy::Skip(reason) => {
+                    self.module_resolutions[index].unloaded_reason = Some(reason)
+                }
+                ImportPolicy::UnsupportedJson => {
                     return Err(ProgramLoadError::unsupported_js(
                         ProgramLoadOperation::ResolveModule,
-                        Some(target.display().to_owned()),
+                        Some(self.module_target_path(index).display().to_owned()),
                         "resolveJsonModule",
                         "a JSON target was resolved while resolveJsonModule is disabled",
-                    ));
+                    ))
                 }
-            } else if !is_loadable_typescript_extension(&extension)
-                && !extension.is_javascript()
-                && self.content_mapper_for(target).is_none()
-            {
-                return Err(ProgramLoadError::unsupported_js(
-                    ProgramLoadOperation::ResolveModule,
-                    Some(target.display().to_owned()),
-                    "resolved-module-extension",
-                    format!(
-                        "loadable target extension {} is outside the admitted source loader",
-                        extension.as_js().to_string_lossy()
-                    ),
-                ));
+                ImportPolicy::UnsupportedExtension => {
+                    return Err(ProgramLoadError::unsupported_js(
+                        ProgramLoadOperation::ResolveModule,
+                        Some(self.module_target_path(index).display().to_owned()),
+                        "resolved-module-extension",
+                        format!(
+                            "loadable target extension {} is outside the admitted source loader",
+                            match self.module_resolutions[index].host.resolved() {
+                                Some(module) => module.extension().as_js().to_string_lossy(),
+                                None => unreachable!(),
+                            }
+                        ),
+                    ))
+                }
+                ImportPolicy::Load { .. } => {}
+                ImportPolicy::Unprepared => unreachable!("all rows have import policy"),
             }
-            let requests = &self.sources[source].module_requests;
-            let synthetic = (requests.occurrence_counts[request_index] as usize)
-                .saturating_sub(requests.spans[request_index].len());
-            let specifier = (synthetic != 0)
-                .then(|| Arc::new(self.module_resolutions[index].key.specifier().to_owned()));
-            *slot = Some(ImportTarget {
-                resolution: index,
+        }
+        for occurrence in 0..self.sources[source].module_requests.occurrences.len() {
+            let edge = self.sources[source].module_requests.occurrences[occurrence];
+            let index = resolution_start + edge.request as usize;
+            let ImportPolicy::Load {
                 external,
                 elide_on_depth,
-                package_id,
-                next: 0,
-                synthetic,
-                specifier,
-            });
-        }
-        // One subtask per occurrence of an import (tsgo
-        // processImportedModules adds the resolved file once per import of
-        // it, in `moduleNames` order), so the target carries one inclusion
-        // reason per occurrence, in the order of the file's imports.
-        for occurrence in 0..self.sources[source].module_request_occurrences.len() {
-            let request = self.sources[source].module_request_occurrences[occurrence];
-            let Some(target) = targets[request as usize].as_mut() else {
+            } = self.module_resolutions[index].host.policy
+            else {
                 continue;
             };
-            let requests = &self.sources[source].module_requests;
-            let occurrence = target.next;
-            target.next += 1;
-            let inclusion = if occurrence < target.synthetic {
-                let specifier = Arc::clone(
-                    target
-                        .specifier
-                        .as_ref()
-                        .expect("a synthetic import has its specifier"),
-                );
+            let inclusion = if edge.synthetic {
+                let specifier = Arc::new(self.module_resolutions[index].key.specifier().to_owned());
                 let import_helpers = specifier.as_js() == JsStr::from("tslib");
                 InclusionReasonRecord::SyntheticImport {
                     parent: source,
@@ -6989,62 +6902,40 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     package_id: None,
                 }
             } else {
-                let Some(&(pos, end)) =
-                    requests.spans[request as usize].get(occurrence - target.synthetic)
-                else {
-                    continue;
-                };
                 InclusionReasonRecord::Import {
                     parent: source,
-                    pos,
-                    end,
+                    pos: edge.pos,
+                    end: edge.end,
                     package_id: None,
                 }
             };
-            let resolution = target.resolution;
-            let (external, elide_on_depth, package_id) =
-                if target.next >= requests.occurrence_counts[request as usize] as usize {
-                    let target = targets[request as usize]
-                        .take()
-                        .expect("the final inclusion still owns its target");
-                    (target.external, target.elide_on_depth, target.package_id)
-                } else {
-                    (
-                        target.external,
-                        target.elide_on_depth,
-                        target.package_id.clone(),
-                    )
-                };
-            let path = match self.module_resolutions[resolution].host.outcome() {
-                ResolutionOutcome::Resolved(module) => module.resolved_file(),
-                ResolutionOutcome::NotFound => unreachable!("an import task has a resolved target"),
+            let Some(module) = self.module_resolutions[index].host.resolved() else {
+                unreachable!("an import task has a resolved target")
             };
             let subtask = self.parse.new_task(
-                Cow::Borrowed(path),
+                Cow::Borrowed(module.resolved_file()),
                 TaskOrigin::Import,
                 DiscoveryReason {
                     inclusion,
                     package_id: None,
                 }
-                .with_package_id(package_id),
+                .with_package_id(module.package_id().cloned()),
                 SourceClass::Ordinary,
                 external,
                 elide_on_depth,
                 tree_depth,
             );
-            self.module_resolutions[resolution].target =
+            self.module_resolutions[index].target =
                 StagedModuleTarget::TaskData(self.parse.tasks[subtask].data);
             self.parse.tasks[task].payload_mut().subtasks.push(subtask);
         }
-        targets.clear();
-        self.import_targets = targets;
         Ok(())
     }
 
     fn module_target_path(&self, resolution: usize) -> &ProgramPath {
-        match self.module_resolutions[resolution].host.outcome() {
-            ResolutionOutcome::Resolved(module) => module.resolved_file(),
-            ResolutionOutcome::NotFound => {
+        match self.module_resolutions[resolution].host.resolved() {
+            Some(module) => module.resolved_file(),
+            None => {
                 unreachable!("target policy follows a successful resolution")
             }
         }
@@ -7470,12 +7361,12 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// reads why from the resolution.
     fn record_unloaded_targets(&mut self) -> Result<(), ProgramLoadError> {
         for index in 0..self.module_resolutions.len() {
-            let (canonical, is_javascript) = match self.module_resolutions[index].host.outcome() {
-                ResolutionOutcome::Resolved(target) => (
+            let (canonical, is_javascript) = match self.module_resolutions[index].host.resolved() {
+                Some(target) => (
                     target.resolved_file().canonical(),
                     target.extension().is_javascript(),
                 ),
-                ResolutionOutcome::NotFound => continue,
+                None => continue,
             };
             let data = match self.module_resolutions[index].target {
                 StagedModuleTarget::TaskData(data) => Some(data),
@@ -7784,6 +7675,7 @@ fn publish_program(
     // the command read in place of a source.
     let project_references = program_options.project_references().cloned();
     let reads_reference_sources = program_options.project_reference_sources();
+    let external_module_resolution = program_options.module_resolution_override().is_some();
     builder.set_program_options(program_options);
 
     if let Some(config_file) = config_file {
@@ -7800,9 +7692,15 @@ fn publish_program(
     timer.mark("load: publish auxiliary files");
     builder.reserve_source_files(staged.library_postorder.len() + staged.ordinary_postorder.len());
     let mut published_ids = vec![None; staged.sources.len()];
+    let mut module_indices: Vec<Option<crate::resolution::PreparedModuleIndices>> =
+        (0..staged.sources.len()).map(|_| None).collect();
     // Hashed, never iterated: every module and type resolution looks its
     // target up here (VS Code: 112k lookups of long path keys).
-    let mut source_by_canonical = FxHashMap::<CanonicalPath, SourceFileId>::default();
+    let mut source_by_canonical =
+        FxHashMap::<CanonicalPath, SourceFileId>::with_capacity_and_hasher(
+            staged.library_postorder.len() + staged.ordinary_postorder.len(),
+            Default::default(),
+        );
     let mut staged_sources: Vec<Option<StagedSource>> =
         staged.sources.into_iter().map(Some).collect();
     let publish_order = staged
@@ -7813,16 +7711,11 @@ fn publish_program(
         let staged_source = staged_sources[source_index]
             .take()
             .expect("postorder publishes each staged source once");
-        let may_be_emitted =
-            staged_source.prepared.may_be_emitted() && staged_source.has_non_external_reason;
-        let may_emit_forced_declaration = staged_source.prepared.may_emit_forced_declaration()
-            && staged_source.has_non_external_reason;
-        let prepared = staged_source
-            .prepared
-            .with_may_be_emitted(may_be_emitted)
-            .with_may_emit_forced_declaration(may_emit_forced_declaration)
-            .with_found_searching_node_modules(!staged_source.has_non_external_reason)
-            .with_inclusion_reason_records(staged_source.inclusion_reasons);
+        let mut prepared = staged_source.prepared;
+        prepared.set_load_inclusion(
+            staged_source.has_non_external_reason,
+            staged_source.inclusion_reasons,
+        );
         let canonical = prepared.path().canonical().clone();
         let package_redirects = prepared.package_redirect_paths().to_vec();
         let source_id = builder.add_source_file(prepared).map_err(|error| {
@@ -7833,6 +7726,7 @@ fn publish_program(
                 ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
             })?;
         }
+        module_indices[source_id.index()] = Some(staged_source.module_requests.indices);
         published_ids[source_index] = Some(source_id);
         source_by_canonical.insert(canonical, source_id);
         for (redirected, output) in &staged.project_reference_redirects {
@@ -7896,9 +7790,7 @@ fn publish_program(
     timer.mark("load: publish packages");
     let package_map =
         package_map_from_facts(staged.module_resolutions.iter().filter_map(|resolution| {
-            let ResolutionOutcome::Resolved(module) = resolution.host.outcome() else {
-                return None;
-            };
+            let module = resolution.host.resolved()?;
             Some((module.package_id()?, module.extension()))
         }));
     let redirected_source = |path: &CanonicalPath| -> Option<SourceFileId> {
@@ -7920,7 +7812,7 @@ fn publish_program(
         published_ids.iter().flatten().count(),
         staged.module_resolutions.len(),
     );
-    for resolution in staged.module_resolutions {
+    for mut resolution in staged.module_resolutions {
         let source =
             published_ids[resolution.source].expect("only collected sources publish resolutions");
         let owned_source = match resolution.target {
@@ -7928,48 +7820,77 @@ fn publish_program(
             StagedModuleTarget::Unloaded | StagedModuleTarget::Lookup => None,
             StagedModuleTarget::TaskData(_) => unreachable!("finish binds every resolved target"),
         }
-        .or_else(|| match resolution.host.outcome() {
-            ResolutionOutcome::Resolved(module) => {
-                redirected_source(module.resolved_file().canonical())
-            }
-            ResolutionOutcome::NotFound => None,
+        .or_else(|| match resolution.host.resolved() {
+            Some(module) => redirected_source(module.resolved_file().canonical()),
+            None => None,
         });
         let exact_path = matches!(resolution.target, StagedModuleTarget::Source(_, true));
-        let bound = bind_module_resolution(
-            resolution.host,
-            owned_source,
-            &package_map,
-            resolution.loads_source,
-            resolution.unloaded_reason,
-            compiler_options.no_resolve == Some(true),
-        )
-        .map_err(|error| {
-            ProgramLoadError::resolution_js(
-                ProgramLoadOperation::BindResolutions,
-                Some(crate::loader_counters::js_owned(
-                    "bind.error",
-                    resolution.key.source().as_js(),
-                )),
-                Some(crate::loader_counters::js_owned(
-                    "bind.error",
-                    resolution.key.specifier(),
-                )),
-                error,
-            )
-        })?;
-        builder
-            .stage_loaded_module_resolution(
-                &mut loaded_modules,
-                source,
-                resolution.key,
-                bound,
-                exact_path,
+        if external_module_resolution || resolution.host.facts.needs_validation() {
+            let bound = bind_module_resolution(
+                resolution.host.into_host(),
+                owned_source,
+                &package_map,
+                resolution.loads_source,
+                resolution.unloaded_reason,
+                compiler_options.no_resolve == Some(true),
             )
             .map_err(|error| {
-                ProgramLoadError::preparation(ProgramLoadOperation::BindResolutions, error)
+                ProgramLoadError::resolution_js(
+                    ProgramLoadOperation::BindResolutions,
+                    Some(crate::loader_counters::js_owned(
+                        "bind.error",
+                        resolution.key.source().as_js(),
+                    )),
+                    Some(crate::loader_counters::js_owned(
+                        "bind.error",
+                        resolution.key.specifier(),
+                    )),
+                    error,
+                )
             })?;
+            builder
+                .stage_loaded_module_resolution(
+                    &mut loaded_modules,
+                    source,
+                    resolution.key,
+                    bound,
+                    exact_path,
+                )
+                .map_err(|error| {
+                    ProgramLoadError::preparation(ProgramLoadOperation::BindResolutions, error)
+                })?;
+        } else {
+            builder
+                .stage_prepared_module_resolution(
+                    &mut loaded_modules,
+                    resolution.host.facts,
+                    &mut resolution.key,
+                    crate::resolution::ModuleBinding {
+                        source,
+                        target: owned_source,
+                        loads_source: resolution.loads_source,
+                        unloaded_reason: resolution.unloaded_reason,
+                        no_resolve: compiler_options.no_resolve == Some(true),
+                        exact_path,
+                    },
+                    &package_map,
+                )
+                .map_err(|error| {
+                    ProgramLoadError::resolution_js(
+                        ProgramLoadOperation::BindResolutions,
+                        Some(resolution.key.source().as_js().to_owned()),
+                        Some(resolution.key.specifier().to_owned()),
+                        error,
+                    )
+                })?;
+        }
     }
 
+    for (source, indices) in module_indices.into_iter().enumerate() {
+        if let Some(indices) = indices {
+            loaded_modules.set_source_indices(SourceFileId::from_raw(source as u32), indices);
+        }
+    }
     timer.mark("load: publish module resolutions");
     for resolution in staged.type_resolutions {
         let bound = bind_type_resolution(resolution.host, &source_by_canonical, &redirected_source)

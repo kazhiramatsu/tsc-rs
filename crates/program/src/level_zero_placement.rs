@@ -771,7 +771,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                                         implied,
                                         implied_for_emit,
                                         prepared: prepared.with_preparsed_syntax(syntax),
-                                        plan: Ok(plan),
+                                        plan: Ok(PreparedSourceRequests::new(plan)),
                                         resolutions: Vec::new(),
                                     },
                                     Err(error) => PrefetchedParse {

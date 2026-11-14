@@ -664,9 +664,15 @@ impl PreparedSourceFile {
         self
     }
 
-    pub(crate) fn with_inclusion_reason_records(mut self, reasons: SourceInclusionReasons) -> Self {
+    pub(crate) fn set_load_inclusion(
+        &mut self,
+        has_non_external_reason: bool,
+        reasons: SourceInclusionReasons,
+    ) {
+        self.may_be_emitted &= has_non_external_reason;
+        self.may_emit_forced_declaration &= has_non_external_reason;
+        self.found_searching_node_modules = !has_non_external_reason;
         self.inclusion_reasons = reasons;
-        self
     }
 
     /// Why the file is in the program (tsgo `fileIncludeReasons`), one
@@ -2702,6 +2708,8 @@ impl PreparedProgramBuilder {
     /// The loader knows its complete publication order before adding files.
     pub(crate) fn reserve_source_files(&mut self, additional: usize) {
         self.source_files.reserve_exact(additional);
+        self.source_by_canonical.reserve(additional);
+        self.text_by_canonical.reserve(additional);
     }
 
     pub fn add_source_file(
@@ -3105,6 +3113,18 @@ impl PreparedProgramBuilder {
         Ok(())
     }
 
+    pub(crate) fn stage_prepared_module_resolution(
+        &mut self,
+        loaded: &mut LoadedModules,
+        prepared: crate::resolution::PreparedModule,
+        key: &mut ResolutionKey,
+        binding: crate::resolution::ModuleBinding,
+        package_map: &BTreeMap<JsString, bool>,
+    ) -> Result<(), ResolutionError> {
+        debug_assert!(self.ensure_healthy().is_ok());
+        loaded.push_prepared(prepared, key, binding, &self.source_files, package_map)
+    }
+
     fn try_add_module_resolution(
         &mut self,
         key: ResolutionKey,
@@ -3224,9 +3244,11 @@ impl PreparedProgramBuilder {
             .iter()
             .enumerate()
             .all(|(i, id)| id.index() == i));
-        debug_assert!(self.source_files.iter().all(|source| source
-            .package_scope()
-            .is_none_or(|scope| self.packages.contains_key(scope))));
+        debug_assert!(self.source_files.iter().all(|source| {
+            source
+                .package_scope()
+                .is_none_or(|scope| self.packages.contains_key(scope))
+        }));
         self.validate_missing_root_diagnostics()?;
         // Mapper diagnostics are external data, not a resolver invariant.
         self.validate_diagnostic_sources()?;

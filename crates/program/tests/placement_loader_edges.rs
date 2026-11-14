@@ -355,3 +355,70 @@ fn prefetched_scopes_keep_manifest_observations_from_automatic_types() {
         );
     }
 }
+
+#[test]
+fn prepared_import_rows_keep_occurrence_reasons_policy_and_lookup_order() {
+    let mut files = MemoryCompilerHost::builder("/p")
+        .file("/p/dep.ts", b"export const x = 1;".to_vec())
+        .file("/p/other.js", b"exports.js = 1;".to_vec())
+        .file("/p/value.json", br#"{"value":1}"#.to_vec())
+        .file(
+            "/p/node_modules/tslib/package.json",
+            br#"{"name":"tslib","version":"1.0.0","types":"index.d.ts"}"#.to_vec(),
+        )
+        .file("/p/node_modules/tslib/index.d.ts", b"export {};".to_vec());
+    let roots: Vec<PathBuf> = (0..80).map(|index| {
+        let path = format!("/p/root{index}.ts");
+        files = files.clone().file(&path, b"import { x } from './dep'; export { x } from './dep'; const lazy = import('./dep'); import './other.js'; import './value.json'; declare module './dep' { interface More {} } export const y = x;".to_vec());
+        PathBuf::from(path)
+    }).collect();
+    let host = files.build().unwrap();
+    let private = NoAhead(host.clone());
+    for (allow_js, no_resolve, trace) in [
+        (false, false, false),
+        (true, false, false),
+        (true, true, false),
+        (false, false, true),
+    ] {
+        let mut opts = options();
+        opts.allow_js = allow_js;
+        opts.no_resolve = Some(no_resolve);
+        opts.trace_resolution = Some(trace);
+        opts.resolve_json_module = Some(true);
+        opts.import_helpers = Some(true);
+        let expected =
+            load_no_lib_program(&private, &roots, opts.clone(), program_options(), limits(1))
+                .unwrap();
+        let inventory = |program: &tsc_program::PreparedProgram| {
+            format!(
+                "{:?}\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}",
+                program
+                    .source_files()
+                    .iter()
+                    .map(|source| (source.path(), source.inclusion_reasons()))
+                    .collect::<Vec<_>>(),
+                program.resolutions().modules().collect::<Vec<_>>(),
+                program.roots(),
+                program.package_json_probes(),
+                program.resolution_trace(),
+                program.diagnostics()
+            )
+        };
+        let expected = inventory(&expected);
+        for workers in [1, 4, 16] {
+            let actual = load_no_lib_program(
+                &host,
+                &roots,
+                opts.clone(),
+                program_options().with_identity_domain(tsc_types::IdentityDomain::new()),
+                limits(workers),
+            )
+            .unwrap();
+            assert_eq!(
+                inventory(&actual),
+                expected,
+                "workers={workers} allow_js={allow_js} no_resolve={no_resolve} trace={trace}"
+            );
+        }
+    }
+}

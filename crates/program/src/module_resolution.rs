@@ -303,6 +303,70 @@ impl HostModuleResolution {
     }
 }
 
+/// Consumed at the resolver/load boundary; never retained beside prepared rows.
+pub(crate) struct LoadModuleParts {
+    pub module: Option<LoadResolvedModuleParts>,
+    pub diagnostics: DiagnosticList,
+}
+
+pub(crate) struct LoadResolvedModuleParts {
+    pub resolved_file: ProgramPath,
+    pub extension: ModuleExtension,
+    pub original_path: Option<ProgramPath>,
+    pub alternate_result: Option<ProgramPath>,
+    pub package_id: Option<PackageId>,
+    pub package_metadata: Option<Arc<PackageMetadata>>,
+    pub external: bool,
+    pub ts_extension: bool,
+    pub extra_extension: bool,
+    pub custom: bool,
+}
+
+impl HostModuleResolution {
+    pub(crate) fn into_load_parts(self) -> LoadModuleParts {
+        LoadModuleParts {
+            diagnostics: self.diagnostics,
+            module: match self.outcome {
+                ResolutionOutcome::NotFound => None,
+                ResolutionOutcome::Resolved(module) => Some(LoadResolvedModuleParts {
+                    resolved_file: module.resolved_file,
+                    extension: module.extension,
+                    original_path: module.original_path,
+                    alternate_result: module.alternate_result,
+                    package_id: module.package_id,
+                    package_metadata: module.package_metadata,
+                    external: module.is_external_library_import,
+                    ts_extension: module.resolved_using_ts_extension,
+                    extra_extension: module.resolved_using_extra_extensions,
+                    custom: module.is_custom_resolution,
+                }),
+            },
+        }
+    }
+    pub(crate) fn from_load_parts(parts: LoadModuleParts) -> Self {
+        Self {
+            diagnostics: parts.diagnostics,
+            trace: Vec::new(),
+            outcome: match parts.module {
+                None => ResolutionOutcome::NotFound,
+                Some(module) => ResolutionOutcome::Resolved(HostResolvedModule {
+                    resolved_file: module.resolved_file,
+                    extension: module.extension,
+                    original_path: module.original_path,
+                    alternate_result: module.alternate_result,
+                    package_id: module.package_id,
+                    package_metadata: module.package_metadata,
+                    is_external_library_import: module.external,
+                    resolved_using_ts_extension: module.ts_extension,
+                    resolved_using_extra_extensions: module.extra_extension,
+                    is_custom_resolution: module.custom,
+                    realpath_may_be_missing_after_suffix_predicate: false,
+                }),
+            },
+        }
+    }
+}
+
 /// Filesystem-derived facts for one resolved type-reference directive before
 /// the program loader binds the target to a [`SourceFileId`](crate::SourceFileId).
 ///
