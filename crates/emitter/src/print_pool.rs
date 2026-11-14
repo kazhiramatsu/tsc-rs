@@ -51,26 +51,35 @@ pub(crate) struct PrintCredit(Arc<CreditState>);
 
 struct CreditState {
     credits: Arc<Credits>,
-    charged_bytes: std::sync::atomic::AtomicUsize,
+}
+
+pub(crate) struct PrintCharge {
+    credit: PrintCredit,
+    bytes: usize,
+}
+
+impl Drop for PrintCharge {
+    fn drop(&mut self) {
+        let mut usage = self.credit.0.credits.usage.lock().expect("emit credits");
+        usage.charged_bytes -= self.bytes;
+    }
 }
 
 impl PrintCredit {
-    /// A failed byte reservation leaves the unit on its owner for inline
-    /// completion. No producer waits with an uncharged queued payload.
-    pub(crate) fn try_charge(&mut self, bytes: usize) -> bool {
+    /// Inputs release their byte charge after cleanup. Their unit credit
+    /// still covers result delivery and any waiting output text.
+    pub(crate) fn try_charge(&self, bytes: usize) -> Option<PrintCharge> {
         let mut usage = self.0.credits.usage.lock().expect("emit credits");
-        let Some(total) = usage.charged_bytes.checked_add(bytes) else {
-            return false;
-        };
+        let total = usage.charged_bytes.checked_add(bytes)?;
         if total > self.0.credits.bytes {
-            return false;
+            return None;
         }
         usage.charged_bytes = total;
-        self.0
-            .charged_bytes
-            .fetch_add(bytes, std::sync::atomic::Ordering::Relaxed);
         usage.peak.charged_bytes = usage.peak.charged_bytes.max(total);
-        true
+        Some(PrintCharge {
+            credit: self.clone(),
+            bytes,
+        })
     }
 }
 
@@ -78,9 +87,6 @@ impl Drop for CreditState {
     fn drop(&mut self) {
         let mut usage = self.credits.usage.lock().expect("emit credits");
         usage.units -= 1;
-        usage.charged_bytes -= self
-            .charged_bytes
-            .load(std::sync::atomic::Ordering::Relaxed);
         self.credits.available.notify_all();
         drop(usage);
         // Results were allocated by a print worker and can be freed here
@@ -135,10 +141,17 @@ pub struct EmitPrintPool {
     reserved: std::sync::atomic::AtomicUsize,
     active: Arc<std::sync::atomic::AtomicUsize>,
     owners: usize,
+    print_limit: usize,
     start_failure: Arc<Mutex<Option<Panic>>>,
 }
 
 impl EmitPrintPool {
+    /// Small plans keep two printer heaps; larger plans can use three.
+    /// Call before submissions, when the program's emit plan is fixed.
+    pub fn set_planned_units(&mut self, units: usize) {
+        self.print_limit = units.div_ceil(128).clamp(2, 3);
+    }
+
     /// Existing source preparation reserves its share until it completes.
     pub fn set_reserved_workers(&self, count: usize) {
         self.reserved
@@ -152,7 +165,7 @@ impl EmitPrintPool {
             .spare
             .saturating_sub(self.reserved.load(Ordering::Acquire))
             .min(self.owners * 2)
-            .min(3)
+            .min(self.print_limit)
             .min(self.active.load(Ordering::Acquire));
         while workers.handles.len() < limit && !workers.refused {
             let queue = Arc::clone(&self.queue);
@@ -223,7 +236,6 @@ impl EmitPrintPool {
         usage.peak.units = usage.peak.units.max(usage.units);
         PrintCredit(Arc::new(CreditState {
             credits: Arc::clone(&self.credits),
-            charged_bytes: std::sync::atomic::AtomicUsize::new(0),
         }))
     }
 
@@ -321,6 +333,7 @@ impl EmitPrintPool {
             reserved: std::sync::atomic::AtomicUsize::new(0),
             active: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
             owners,
+            print_limit: 3,
             start_failure: Arc::new(Mutex::new(None)),
         };
         Some(pool)

@@ -5,10 +5,9 @@ use tsc_program::SourceFileId;
 use tsc_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 
 use crate::{
-    create_printer, transform_nodes, DeclarationPrintHandlers, EmitArtifact, EmitContractViolation,
-    EmitFailure, EmitHost, EmitPreflight, EmitResolver, EmitResolverNode, EmitTextMetadata,
-    NewLineKind, PrinterOptions, SourceFileTextMode, TransformArena, TransformError, TransformRoot,
-    TransformationResult,
+    create_printer, transform_nodes, EmitArtifact, EmitContractViolation, EmitFailure, EmitHost,
+    EmitPreflight, EmitResolver, EmitResolverNode, EmitTextMetadata, NewLineKind, PrinterOptions,
+    SourceFileTextMode, TransformArena, TransformError, TransformRoot, TransformationResult,
 };
 
 use super::{get_declaration_transformers, DeclarationCustomTransformers, DeclarationPathResolver};
@@ -57,6 +56,147 @@ pub(crate) struct DeclarationUnitEmit {
     pub(crate) artifact: Option<EmitArtifact>,
     pub(crate) map_artifact: Option<EmitArtifact>,
     pub(crate) map_observation: Option<crate::SourceMapObservation>,
+}
+
+pub(crate) enum DeclarationWork {
+    Complete(Result<DeclarationUnitEmit, EmitFailure>),
+    Pending(crate::print_pool::PendingPrint<Result<DeclarationUnitEmit, EmitFailure>>),
+}
+impl From<DeclarationUnitEmit> for DeclarationWork {
+    fn from(value: DeclarationUnitEmit) -> Self {
+        Self::Complete(Ok(value))
+    }
+}
+impl DeclarationWork {
+    pub(crate) fn is_ready(&mut self) -> bool {
+        match self {
+            Self::Complete(_) => true,
+            Self::Pending(work) => work.is_ready(),
+        }
+    }
+    pub(crate) fn is_pending(&self) -> bool {
+        matches!(self, Self::Pending(_))
+    }
+    pub(crate) fn has_known_failure(&self) -> bool {
+        matches!(self, Self::Complete(Err(_)))
+    }
+    pub(crate) fn finish(self) -> Result<DeclarationUnitEmit, EmitFailure> {
+        match self {
+            Self::Complete(result) => result,
+            Self::Pending(pending) => pending.finish().0,
+        }
+    }
+}
+
+enum DeclarationMapOptions<'a> {
+    Borrowed(&'a tsc_types::CompilerOptions),
+    Owned(Box<tsc_types::CompilerOptions>),
+}
+impl DeclarationMapOptions<'_> {
+    fn as_options(&self) -> &tsc_types::CompilerOptions {
+        match self {
+            Self::Borrowed(options) => options,
+            Self::Owned(options) => options,
+        }
+    }
+    fn into_owned(self) -> DeclarationMapOptions<'static> {
+        let options = self.as_options();
+        DeclarationMapOptions::Owned(Box::new(tsc_types::CompilerOptions {
+            declaration_map: options.declaration_map,
+            source_root: options.source_root.clone(),
+            map_root: options.map_root.clone(),
+            emit_bom: options.emit_bom,
+            ..Default::default()
+        }))
+    }
+}
+struct DeclarationPrintInputs<'a> {
+    path: crate::execute::OutputPath<'a>,
+    map_path: Option<crate::execute::OutputPath<'a>>,
+    source_files: Vec<tsc_types::JsString>,
+    diagnostics: Vec<Diagnostic>,
+    decl_blocked: bool,
+    new_line: NewLineKind,
+    emit_bom: bool,
+    map_lane: Option<crate::MapLaneInputs>,
+    map_options: Option<DeclarationMapOptions<'a>>,
+    recording: Option<crate::SourceMapRecordingInputs>,
+    span: Option<tsc_types::tracing::Span>,
+    worker_trace: Option<std::sync::Arc<tsc_types::tracing::Tracing>>,
+}
+impl DeclarationPrintInputs<'_> {
+    fn into_owned(self) -> DeclarationPrintInputs<'static> {
+        DeclarationPrintInputs {
+            path: self.path.into_owned(),
+            map_path: self.map_path.map(crate::execute::OutputPath::into_owned),
+            source_files: self.source_files,
+            diagnostics: self.diagnostics,
+            decl_blocked: self.decl_blocked,
+            new_line: self.new_line,
+            emit_bom: self.emit_bom,
+            map_lane: self.map_lane,
+            map_options: self.map_options.map(DeclarationMapOptions::into_owned),
+            recording: self.recording,
+            span: self.span,
+            worker_trace: self.worker_trace,
+        }
+    }
+    fn input_charge(&self) -> Option<usize> {
+        if self
+            .recording
+            .as_ref()
+            .is_some_and(|v| v.original_positions.is_some())
+        {
+            return None;
+        }
+        let mut usage = tsc_diagnostics::MemoryUsage::default();
+        usage.add(
+            "declaration paths",
+            1,
+            0,
+            self.path.as_js().as_bytes().len() * 2,
+        );
+        if let Some(path) = &self.map_path {
+            usage.add("declaration paths", 1, 0, path.as_js().as_bytes().len() * 2);
+        }
+        usage.vec("declaration sources", &self.source_files);
+        for path in &self.source_files {
+            usage.js_string("declaration sources", path);
+        }
+        usage.diagnostics(&self.diagnostics);
+        if let Some(lane) = &self.map_lane {
+            usage.js_string("declaration map paths", &lane.common_source_directory);
+            usage.js_string("declaration map paths", &lane.current_directory);
+        }
+        if let Some(options) = &self.map_options {
+            usage.add(
+                "declaration map options",
+                1,
+                0,
+                std::mem::size_of::<tsc_types::CompilerOptions>(),
+            );
+            for path in [
+                &options.as_options().source_root,
+                &options.as_options().map_root,
+            ]
+            .into_iter()
+            .flatten()
+            {
+                usage.js_string("declaration map paths", path);
+            }
+        }
+        if let Some(recording) = &self.recording {
+            for path in [
+                &recording.file,
+                &recording.source_root,
+                &recording.sources_directory_path,
+                &recording.current_directory,
+            ] {
+                usage.js_string("declaration recording paths", path);
+            }
+        }
+        usage.total().requested.checked_mul(2)?.checked_add(4096)
+    }
 }
 
 /// Run the declaration transform solely for diagnostics, without constructing
@@ -117,6 +257,36 @@ pub(crate) fn emit_declaration_unit(
     declaration_map_path: Option<JsStr<'_>>,
     force_dts_emit: bool,
 ) -> Result<DeclarationUnitEmit, EmitFailure> {
+    prepare_declaration_unit(
+        resolver,
+        host,
+        preflight,
+        paths,
+        planned_root,
+        declaration_path,
+        declaration_map_path,
+        force_dts_emit,
+        None,
+        None,
+        None,
+    )?
+    .finish()
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn prepare_declaration_unit(
+    resolver: &dyn EmitResolver,
+    host: &dyn EmitHost,
+    preflight: &EmitPreflight,
+    paths: &dyn DeclarationPathResolver,
+    planned_root: &crate::EmitRoot,
+    declaration_path: JsStr<'_>,
+    declaration_map_path: Option<JsStr<'_>>,
+    force_dts_emit: bool,
+    pool: Option<&crate::print_pool::EmitPrintPool>,
+    credit: Option<crate::print_pool::PrintCredit>,
+    span: Option<tsc_types::tracing::Span>,
+) -> Result<DeclarationWork, EmitFailure> {
     let mut files_for_emit = Vec::new();
     for &source in planned_root.source_files() {
         let file = host.source_file(source).ok_or(EmitFailure::Contract(
@@ -137,7 +307,8 @@ pub(crate) fn emit_declaration_unit(
                 artifact: None,
                 map_artifact: None,
                 map_observation: None,
-            });
+            }
+            .into());
         }
         crate::EmitRoot::SourceFile(source) => crate::EmitRoot::SourceFile(*source),
     };
@@ -189,7 +360,8 @@ pub(crate) fn emit_declaration_unit(
             artifact: None,
             map_artifact: None,
             map_observation: None,
-        });
+        }
+        .into());
     }
     if result.roots().len() != 1 {
         result.dispose();
@@ -247,25 +419,112 @@ pub(crate) fn emit_declaration_unit(
     });
     let mut printer = create_printer(printer_options);
     let TransformRoot::SourceFile(root_source) = transformed_root;
-    let printed = printer.print_declaration_with_recording(
+    let prepared = match printer.prepare_source_file_print(
         &mut result,
         root_source,
-        DeclarationPrintHandlers::new(&global_name_oracle),
+        Some(&global_name_oracle),
+    ) {
+        Ok(prepared) => prepared,
+        Err(error) => {
+            result.dispose();
+            return Err(error.into());
+        }
+    };
+    let mut inputs = DeclarationPrintInputs {
+        path: crate::execute::OutputPath::Borrowed(declaration_path),
+        map_path: declaration_map_path.map(crate::execute::OutputPath::Borrowed),
+        source_files,
+        diagnostics,
+        decl_blocked,
+        new_line,
+        emit_bom: options.emit_bom == Some(true),
+        map_options: map_lane
+            .as_ref()
+            .map(|_| DeclarationMapOptions::Borrowed(options)),
+        map_lane,
         recording,
-    );
+        span,
+        worker_trace: None,
+    };
+    if let (Some(pool), Some(credit)) = (pool, credit) {
+        if result.has_inert_print_hooks() {
+            // The native serialized-type cache contains handles and tracking
+            // facts, not syntax ownership. All builder requests are complete.
+            drop(result.arena_mut()?.take_node_builder_cache());
+            let bytes = result
+                .print_input_charge()
+                .and_then(|tree| tree.checked_add(inputs.input_charge()?));
+            if let Some((bytes, charge)) =
+                bytes.and_then(|bytes| credit.try_charge(bytes).map(|charge| (bytes, charge)))
+            {
+                if let Some(owned) = result.take_owned_print() {
+                    if let Some(span) = inputs.span.as_mut() {
+                        span.set_arg("ownedPrintCharge", bytes as u64);
+                    }
+                    drop(inputs.span.take());
+                    inputs.worker_trace = host.tracing().cloned();
+                    let inputs = inputs.into_owned();
+                    return Ok(DeclarationWork::Pending(pool.submit(credit, move |_| {
+                        let _charge = charge;
+                        print_prepared_declaration(owned.into_result(), printer, prepared, inputs)
+                    })));
+                }
+            }
+        }
+    }
+    Ok(DeclarationWork::Complete(print_prepared_declaration(
+        result, printer, prepared, inputs,
+    )))
+}
+
+fn print_prepared_declaration(
+    mut result: TransformationResult<'_>,
+    mut printer: crate::Printer,
+    prepared: crate::printer::PreparedSourceFilePrint,
+    inputs: DeclarationPrintInputs<'_>,
+) -> Result<DeclarationUnitEmit, EmitFailure> {
+    let DeclarationPrintInputs {
+        path,
+        map_path,
+        source_files,
+        diagnostics,
+        decl_blocked,
+        new_line,
+        emit_bom,
+        map_lane,
+        map_options,
+        recording,
+        span: _span,
+        worker_trace,
+    } = inputs;
+    let _worker_span = worker_trace.as_ref().map(|tracing| {
+        tracing.begin(
+            tsc_types::tracing::Phase::Emit,
+            "printPreparedDeclaration",
+            tsc_types::tracing::Args::new().with(
+                "declarationFilePath",
+                path.as_js().to_string_lossy().into_owned(),
+            ),
+        )
+    });
+    let printed = printer.print_prepared_source_file(&mut result, prepared, recording);
     result.dispose();
+    // Maps keep their own recording inputs; the transformed tree is done.
+    drop(result);
     let printed = printed?;
     let (artifact, map_artifact, map_observation) = if let Some(map_lane) = &map_lane {
-        // TS prints before asserting that the map output path is present.
-        let map_path = declaration_map_path.ok_or(EmitFailure::Contract(
+        let map_path = map_path.as_ref().ok_or(EmitFailure::Contract(
             crate::EmitContractViolation::DeclarationMapPathMissing,
         ))?;
         let mapped = crate::finish_declaration_map(
             map_lane,
-            options,
-            declaration_path,
-            map_path,
-            source_path,
+            map_options
+                .as_ref()
+                .expect("declaration map options")
+                .as_options(),
+            path.as_js(),
+            map_path.as_js(),
+            source_files[0].as_js(),
             printed,
             diagnostics.clone(),
             new_line,
@@ -278,9 +537,9 @@ pub(crate) fn emit_declaration_unit(
     } else {
         (
             EmitArtifact::declaration(
-                declaration_path,
+                path.into_string(),
                 crate::artifact::EmitCallbackText::from_generated(printed.into_generated_text()),
-                options.emit_bom == Some(true),
+                emit_bom,
                 Some(source_files),
                 EmitTextMetadata::new(diagnostics.clone(), None),
             ),
@@ -412,3 +671,7 @@ pub fn transform_declaration_unit_for_harness<'t>(
     };
     Ok((outcome, result))
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/declaration_print.rs"]
+mod print_tests;

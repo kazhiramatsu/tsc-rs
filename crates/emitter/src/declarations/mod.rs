@@ -27,8 +27,10 @@ use crate::{
     Transformer,
 };
 
-pub(crate) use self::orchestration::emit_declaration_unit;
 pub use self::orchestration::get_declaration_diagnostics;
+pub(crate) use self::orchestration::{
+    emit_declaration_unit, prepare_declaration_unit, DeclarationWork,
+};
 pub use self::orchestration::{
     transform_declaration_unit_for_harness, DeclBlockedInputs, DeclarationTransformOutcome,
 };
@@ -169,6 +171,11 @@ impl<'t> DeclarationTransformer<'t> {
 impl Transformer for DeclarationTransformer<'_> {
     fn name(&self) -> &'static str {
         "declarations"
+    }
+
+    // Printing uses the identity hooks, and disposal has no context effects.
+    fn has_inert_print_hooks(&self) -> bool {
+        true
     }
 
     fn transform_root(

@@ -2780,12 +2780,13 @@ impl ProgramSession {
         } else {
             worker_budget.max_workers()
         };
-        let print_pool = tsc_emitter::EmitPrintPool::for_budget(
+        let mut print_pool = tsc_emitter::EmitPrintPool::for_budget(
             worker_budget.max_workers(),
             print_owners,
             16 * 1024 * 1024,
         );
-        if let Some(pool) = &print_pool {
+        if let Some(pool) = &mut print_pool {
+            pool.set_planned_units(preflight.plan().units().len());
             pool.set_reserved_workers(if eager_emit_enabled {
                 prelude_candidates.len().min(2)
             } else {

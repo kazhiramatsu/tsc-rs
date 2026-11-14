@@ -949,7 +949,7 @@ pub fn emit_planned_units_with_kinds(
 struct PendingUnitEmission {
     emission: UnitEmission,
     javascript: Option<JavaScriptWork>,
-    declaration_failure: Option<EmitFailure>,
+    declaration: Option<crate::declarations::DeclarationWork>,
     _credit: Option<crate::print_pool::PrintCredit>,
     trace: Option<(std::time::Instant, f64, String)>,
     _span: Option<tsc_types::tracing::Span>,
@@ -960,6 +960,23 @@ impl PendingUnitEmission {
         self.javascript
             .as_mut()
             .is_none_or(JavaScriptWork::is_ready)
+            && self.declaration.as_mut().is_none_or(|work| work.is_ready())
+    }
+
+    fn has_pending_print(&self) -> bool {
+        self.javascript
+            .as_ref()
+            .is_some_and(|work| !work.is_complete())
+            || self
+                .declaration
+                .as_ref()
+                .is_some_and(|work| work.is_pending())
+    }
+
+    fn has_known_declaration_failure(&self) -> bool {
+        self.declaration
+            .as_ref()
+            .is_some_and(|work| work.has_known_failure())
     }
 
     fn finish(
@@ -993,13 +1010,21 @@ impl PendingUnitEmission {
                 .append(&mut self.emission.map_observations);
             self.emission.map_observations = products.map_observations;
         }
-        // JS reaches an eager sink even if the subsequent declaration failed,
-        // exactly as in the inline path. A JS failure wins within this unit.
-        if let Some(failure) = self.declaration_failure.take() {
-            return Err(UnitEmitError {
-                unit: self.emission.unit,
-                failure,
-            });
+        // A JavaScript failure wins over the same unit's declaration.
+        if let Some(declaration) = self.declaration.take() {
+            let declaration = declaration.finish().map_err(attach)?;
+            self.emission.emit_skipped |= declaration.decl_blocked;
+            self.emission.diagnostics.extend(declaration.diagnostics);
+            if let Some(observation) = declaration.map_observation {
+                self.emission.map_observations.push(observation);
+            }
+            if let Some(map) = declaration.map_artifact {
+                self.emission.declaration_map_path = Some(map.path().to_owned());
+                self.emission.artifacts.push(map);
+            }
+            if let Some(artifact) = declaration.artifact {
+                self.emission.artifacts.push(artifact);
+            }
         }
         if eager_source_roots {
             if let Some(sink) = sink.as_deref_mut() {
@@ -1126,11 +1151,11 @@ impl<'a> PlannedUnitEmitter<'a> {
             ) {
                 Ok(unit) => {
                     if self.print_pool.is_none()
-                        || (pending.is_empty() && unit.javascript.is_none())
+                        || (pending.is_empty() && !unit.has_pending_print())
                     {
                         emissions.push(unit.finish(&mut sink, settings.eager_source_roots)?);
                     } else {
-                        let failed = unit.declaration_failure.is_some();
+                        let failed = unit.has_known_declaration_failure();
                         pending.push_back(unit);
                         if failed {
                             break;
@@ -1222,7 +1247,7 @@ impl<'a> PlannedUnitEmitter<'a> {
         let mut javascript_printed = false;
         let mut javascript_work = None;
         let mut javascript_credit = None;
-        let mut declaration_failure = None;
+        let mut declaration_work = None;
         // A member the request leaves out is neither printed nor listed.
         let javascript_path = unit
             .paths()
@@ -1240,6 +1265,9 @@ impl<'a> PlannedUnitEmitter<'a> {
             .filter(|_| request.declaration)
             .map(JsStr::to_owned);
 
+        let unit_credit = self
+            .print_pool
+            .map(crate::print_pool::EmitPrintPool::acquire);
         if let Some(javascript_path) = javascript_path.as_ref().map(JsString::as_js) {
             if preflight.is_emit_blocked(host, javascript_path) {
                 emission.emit_skipped = true;
@@ -1266,6 +1294,7 @@ impl<'a> PlannedUnitEmitter<'a> {
                     javascript_path,
                     javascript_map_path.as_ref(),
                     self.print_pool,
+                    unit_credit.clone(),
                     _span,
                 )
                 .map_err(attach)?;
@@ -1298,7 +1327,6 @@ impl<'a> PlannedUnitEmitter<'a> {
             }
         }
 
-        let mut printed_declaration_map_path = None;
         if let Some(declaration_path) = declaration_path.as_ref().map(JsString::as_js) {
             let _span = host.tracing().map(|tracing| {
                 tracing.begin(
@@ -1310,7 +1338,7 @@ impl<'a> PlannedUnitEmitter<'a> {
                     ),
                 )
             });
-            let declaration = emit_declaration_unit(
+            let declaration = crate::declarations::prepare_declaration_unit(
                 resolver,
                 host,
                 preflight,
@@ -1319,24 +1347,14 @@ impl<'a> PlannedUnitEmitter<'a> {
                 declaration_path,
                 unit.paths().declaration_map_path(),
                 false,
+                self.print_pool,
+                unit_credit.clone(),
+                _span,
             );
-            match declaration {
-                Ok(declaration) => {
-                    emission.emit_skipped |= declaration.decl_blocked;
-                    emission.diagnostics.extend(declaration.diagnostics);
-                    if let Some(observation) = declaration.map_observation {
-                        emission.map_observations.push(observation);
-                    }
-                    if let Some(map) = declaration.map_artifact {
-                        printed_declaration_map_path = Some(map.path().to_owned());
-                        emission.artifacts.push(map);
-                    }
-                    if let Some(artifact) = declaration.artifact {
-                        emission.artifacts.push(artifact);
-                    }
-                }
-                Err(error) => declaration_failure = Some(error),
-            }
+            declaration_work = Some(match declaration {
+                Ok(work) => work,
+                Err(error) => crate::declarations::DeclarationWork::Complete(Err(error)),
+            });
         }
         // Without a declaration path (`emitDeclarationOnly` without
         // `declaration`), tsgo emitDeclarationFile returns without marking
@@ -1346,14 +1364,14 @@ impl<'a> PlannedUnitEmitter<'a> {
         emission.javascript_path = javascript_path.filter(|_| javascript_printed);
         emission.javascript_map_path = javascript_map_path.filter(|_| javascript_printed);
         emission.declaration_path = declaration_path;
-        emission.declaration_map_path = printed_declaration_map_path;
+        emission.declaration_map_path = None;
         let trace = unit_started
             .map(|(started, at)| (started, at, source.path().to_string_lossy().into_owned()));
         Ok(PendingUnitEmission {
             emission,
             javascript: javascript_work,
-            declaration_failure,
-            _credit: javascript_credit,
+            declaration: declaration_work,
+            _credit: unit_credit.or(javascript_credit),
             trace,
             _span: if self.print_pool.is_none() {
                 _unit_span
@@ -1364,27 +1382,27 @@ impl<'a> PlannedUnitEmitter<'a> {
     }
 }
 
-enum OutputPath<'a> {
+pub(crate) enum OutputPath<'a> {
     Borrowed(JsStr<'a>),
     Owned(JsString),
 }
 
 impl OutputPath<'_> {
-    fn as_js(&self) -> JsStr<'_> {
+    pub(crate) fn as_js(&self) -> JsStr<'_> {
         match self {
             Self::Borrowed(path) => *path,
             Self::Owned(path) => path.as_js(),
         }
     }
 
-    fn into_string(self) -> JsString {
+    pub(crate) fn into_string(self) -> JsString {
         match self {
             Self::Borrowed(path) => path.to_owned(),
             Self::Owned(path) => path,
         }
     }
 
-    fn into_owned(self) -> OutputPath<'static> {
+    pub(crate) fn into_owned(self) -> OutputPath<'static> {
         OutputPath::Owned(self.into_string())
     }
 }
@@ -1538,9 +1556,10 @@ fn emit_javascript_unit(
     javascript_path: JsStr<'_>,
     javascript_map_path: Option<&JsString>,
     pool: Option<&crate::print_pool::EmitPrintPool>,
+    credit: Option<crate::print_pool::PrintCredit>,
     span: Option<tsc_types::tracing::Span>,
 ) -> Result<JavaScriptWork, EmitFailure> {
-    let mut credit = pool.map(crate::print_pool::EmitPrintPool::acquire);
+    let mut credit = credit;
     let _ = preflight;
     let mut arena = TransformArena::new();
     let transform_root = mount_emit_root(&mut arena, host, unit.root(), true)?;
@@ -1638,13 +1657,13 @@ fn emit_javascript_unit(
         _span: span,
         worker_trace: None,
     };
-    if let (Some(pool), Some(mut lease)) = (pool, credit.take()) {
+    if let (Some(pool), Some(lease)) = (pool, credit.take()) {
         let charge = transformation
             .has_inert_print_hooks()
             .then(|| transformation.print_input_charge())
             .flatten()
             .and_then(|tree| tree.checked_add(inputs.input_charge()?));
-        if charge.is_some_and(|bytes| lease.try_charge(bytes)) {
+        if let Some(input_charge) = charge.and_then(|bytes| lease.try_charge(bytes)) {
             if let Some(owned) = transformation.take_owned_print() {
                 if let (Some(span), Some(bytes)) = (inputs._span.as_mut(), charge) {
                     span.set_arg("ownedPrintCharge", bytes as u64);
@@ -1654,6 +1673,7 @@ fn emit_javascript_unit(
                 let inputs = inputs.into_owned();
                 let options = printer.options();
                 return Ok(JavaScriptWork::Pending(pool.submit(lease, move |cached| {
+                    let _input_charge = input_charge;
                     let printer = cached.get_or_insert_with(|| create_printer(options));
                     debug_assert_eq!(printer.options(), options);
                     let outcome = print_prepared_javascript(
