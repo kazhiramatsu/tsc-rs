@@ -2737,6 +2737,9 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::ArrayLiteralExpression => {
                 let array_literal = parent;
                 let ty = self.get_apparent_type_of_contextual_type(array_literal, context_flags)?;
+                if ty.is_none() {
+                    return Ok(None);
+                }
                 let Some(data) = self.record_of(array_literal).as_array_literal_expression() else {
                     unreachable!("kind/data agree");
                 };

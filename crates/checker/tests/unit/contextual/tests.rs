@@ -365,3 +365,52 @@ fn contextual_union_positions_preserve_name_literal_creation_and_result_order() 
     }
     assert_eq!(run(true), run(false));
 }
+
+#[test]
+fn array_elements_accept_later_context_after_an_uncontextualized_query() {
+    for text in [
+        "interface Array<T> { length: number; [index: number]: T }
+type Target = [number, ...string[], boolean];
+declare const middle: string[];
+const values = [1, ...middle, false];
+",
+        "interface Array<T> { length: number; [index: number]: T }
+type Target = [number, unknown, ...string[], boolean];
+declare const middle: string[];
+const values = [1, , ...middle, false];
+",
+    ] {
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            let array = find_node(state, SyntaxKind::ArrayLiteralExpression, None);
+            let tuple = find_node(state, SyntaxKind::TupleType, None);
+            let target = state.get_type_from_type_node(tuple).expect("tuple context");
+            let elements = {
+                let data = state
+                    .record_of(array)
+                    .as_array_literal_expression()
+                    .unwrap();
+                state.nodes_of(data.elements).to_vec()
+            };
+            let probes = [
+                (elements[0], state.tables.intrinsics.number),
+                (*elements.last().unwrap(), state.tables.intrinsics.boolean),
+            ];
+            for flags in [ContextFlags::NONE, ContextFlags::SKIP_BINDING_PATTERNS] {
+                for &(node, _) in &probes {
+                    assert_eq!(state.get_contextual_type(node, flags).unwrap(), None);
+                }
+                state.push_contextual_type(array, Some(target), false);
+                for &(node, expected) in &probes {
+                    assert_eq!(
+                        state.get_contextual_type(node, flags).unwrap(),
+                        Some(expected)
+                    );
+                }
+                state.pop_contextual_type();
+                for &(node, _) in &probes {
+                    assert_eq!(state.get_contextual_type(node, flags).unwrap(), None);
+                }
+            }
+        });
+    }
+}
