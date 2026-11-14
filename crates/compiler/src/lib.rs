@@ -4583,6 +4583,7 @@ fn project_checker_inputs(
     prepared: &PreparedProgram,
     source_api_facts: &BTreeMap<SourceFileId, SourceApiFacts>,
 ) -> Result<ProjectedCheckerInputs, DriverError> {
+    prepared.stop_source_binding();
     let sources = prepared.source_files();
     let library_ids = prepared.library_files();
     let mut libs = Vec::with_capacity(library_ids.len());
@@ -4629,6 +4630,9 @@ fn project_checker_inputs(
 
     let current_directory_path = prepared.current_directory().display();
     let current_directory = current_directory_path.to_owned();
+    // No identity has been leased by this projection. Release any unvisited
+    // worker-owned parse before the checker's first ordered reservation.
+    prepared.finish_source_binding();
     Ok(ProjectedCheckerInputs {
         libs,
         files,

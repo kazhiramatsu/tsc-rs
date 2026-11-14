@@ -124,6 +124,7 @@ mod project_references;
 mod resolution;
 mod resolution_cache;
 mod resolution_error;
+mod source_binds;
 mod source_reads;
 mod symlinks;
 mod text;

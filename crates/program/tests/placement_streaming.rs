@@ -133,7 +133,7 @@ fn library(name: &str) -> Option<&'static str> {
 }
 
 #[test]
-fn library_task_binds_travel_with_the_parse_only_when_the_consumer_uses_them() {
+fn task_binds_travel_with_the_parse_only_when_the_consumer_uses_them() {
     let _command = COMMAND.lock().unwrap();
     for workers in [1, 4, 16] {
         for (demand, list_only) in [(false, false), (true, false), (true, true)] {
@@ -183,13 +183,13 @@ fn library_task_binds_travel_with_the_parse_only_when_the_consumer_uses_them() {
                     continue;
                 };
                 let (reservation, data, mut tree) = parsed.into_bind_parts();
-                let is_config_library = matches!(
+                let is_direct_library = matches!(
                     tree.file_name.as_str(),
                     Some("bundled:///libs/lib.es5.d.ts" | "bundled:///libs/lib.es2015.core.d.ts")
                 );
                 assert_eq!(
                     data.is_some(),
-                    demand && !list_only && workers > 1 && is_config_library,
+                    demand && !list_only && workers > 1 && is_direct_library,
                     "{:?}: workers={workers}, demand={demand}, list_only={list_only}",
                     tree.file_name,
                 );
@@ -220,8 +220,8 @@ fn library_task_binds_travel_with_the_parse_only_when_the_consumer_uses_them() {
                     assert_eq!(expected.node_flow, direct.node_flow);
                     assert_eq!(expected.bind_diagnostics, direct.bind_diagnostics);
                 } else if tree.arena.is_published() {
-                    // Parse-only, serial, listed, root and discovered inputs
-                    // do not acquire a claim on published bind tables.
+                    // Parse-only, serial, listed and discovered inputs do
+                    // not acquire a claim on published bind tables.
                     assert!(tree
                         .arena
                         .identity_leases()
@@ -287,7 +287,8 @@ fn scrambled_reads_keep_root_ranges_and_parse_before_the_last_read() {
             },
             ProgramOptions::default()
                 .with_types(Vec::new())
-                .with_identity_domain(tsc_types::IdentityDomain::new()),
+                .with_identity_domain(tsc_types::IdentityDomain::new())
+                .with_source_binding(),
             &LibraryCatalog::typescript_7_1("bundled:///libs"),
             ProgramLoadLimits::new(100, 1000, 100, 1 << 20, 4 << 20)
                 .with_workers(WorkerBudget::new(NonZeroUsize::new(workers).unwrap())),
@@ -337,15 +338,23 @@ fn scrambled_reads_keep_root_ranges_and_parse_before_the_last_read() {
                 .iter()
                 .find(|source| source.path().display() == placement.name.as_js())
                 .unwrap();
-            let (reservation, tree) = prepared.preparsed_syntax().take().unwrap().into_parts();
+            let (reservation, data, tree) = prepared
+                .preparsed_syntax()
+                .take()
+                .unwrap()
+                .into_bind_parts();
             let reservation = reservation.expect("each directly placed tree has a bind slice");
             let ranges = [reservation.symbols.range(), reservation.serials.range()];
             assert_eq!(ranges[0].len(), tree.arena.symbol_bound().max(1));
             assert_eq!(ranges[1].len() as usize, tree.arena.nodes().len());
             assert!(reservation.symbols.is_room_slice());
-            // Loading assigns identities but does not run a binder or claim
-            // the tree's published per-node bind tables.
-            let claim = tree.arena.identity_leases().unwrap().nodes.claim().unwrap();
+            let is_direct_library = matches!(
+                tree.file_name.as_str(),
+                Some("bundled:///libs/lib.es5.d.ts" | "bundled:///libs/lib.es2015.core.d.ts")
+            );
+            assert_eq!(data.is_some(), workers > 1 && is_direct_library);
+            let claim = tree.arena.identity_leases().unwrap().nodes.claim();
+            assert_eq!(claim.is_none(), data.is_some());
             drop(claim);
             let bases = *bases.get_or_insert(ranges.map(|range| range.start()));
             bind_ranges.push((
@@ -399,7 +408,8 @@ fn check_empty_batches_and_unused_symbol_limits() {
             ProgramOptions::default()
                 .with_no_lib(true)
                 .with_types(Vec::new())
-                .with_identity_domain(tsc_types::IdentityDomain::new()),
+                .with_identity_domain(tsc_types::IdentityDomain::new())
+                .with_source_binding(),
             ProgramLoadLimits::new(100, 1000, 100, 1 << 20, 4 << 20)
                 .with_workers(WorkerBudget::new(NonZeroUsize::new(workers).unwrap())),
         )
@@ -425,7 +435,8 @@ fn check_empty_batches_and_unused_symbol_limits() {
             ProgramOptions::default()
                 .with_no_lib(true)
                 .with_types(Vec::new())
-                .with_identity_domain(tsc_types::IdentityDomain::new()),
+                .with_identity_domain(tsc_types::IdentityDomain::new())
+                .with_source_binding(),
             ProgramLoadLimits::new(100, 1000, 100, 1 << 20, 4 << 20)
                 .with_workers(WorkerBudget::new(NonZeroUsize::new(workers).unwrap())),
         )
@@ -530,7 +541,9 @@ fn check_interrupted_streams() {
                 let load = |finite| {
                     let program_options = ProgramOptions::default().with_types(Vec::new());
                     let program_options = if finite {
-                        program_options.with_identity_domain(tsc_types::IdentityDomain::new())
+                        program_options
+                            .with_identity_domain(tsc_types::IdentityDomain::new())
+                            .with_source_binding()
                     } else {
                         program_options
                     };

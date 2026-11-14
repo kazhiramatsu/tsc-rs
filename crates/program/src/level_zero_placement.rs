@@ -149,8 +149,16 @@ impl BindAdmission {
 
     fn complete(&mut self, stripe: CompletedStripe) -> Vec<CompletedStripe> {
         let started = tsc_types::trace::enabled().then(std::time::Instant::now);
-        assert!(self.parked.insert(stripe.ordinal, stripe).is_none());
         let mut completed = Vec::new();
+        if self.expected.front() == Some(&stripe.ordinal) {
+            // The ordered case needs neither a parked-map allocation nor
+            // a removal. This is every completion with one worker.
+            self.expected.pop_front();
+            self.reserve(&stripe);
+            completed.push(stripe);
+        } else {
+            assert!(self.parked.insert(stripe.ordinal, stripe).is_none());
+        }
         while let Some(&ordinal) = self.expected.front() {
             let Some(stripe) = self.parked.remove(&ordinal) else {
                 break;
@@ -367,6 +375,43 @@ fn stripe_job(
 }
 
 impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
+    pub(super) fn bind_while_finishing(
+        &self,
+        root_count: usize,
+    ) -> Option<Arc<crate::source_binds::SourceBinds>> {
+        if root_count < crate::source_binds::MIN_ROOTS
+            || !self.direct_layout
+            || !self.limits.workers.is_parallel()
+            || !self.program_options.binds_sources()
+            || self.compiler_options.list_files_only == Some(true)
+        {
+            return None;
+        }
+        let domain = self.program_options.identity_domain()?.clone();
+        let jobs = self
+            .prefetch_order
+            .iter()
+            .filter_map(|path| {
+                let source = self.prefetched.get(path)?;
+                let PrefetchedRead::Parsed {
+                    decoded: Ok(parsed),
+                    ..
+                } = &source.read
+                else {
+                    return None;
+                };
+                let syntax = parsed.prepared.preparsed_syntax();
+                syntax.has_bind_reservation().then(|| syntax.clone())
+            })
+            .collect();
+        crate::source_binds::SourceBinds::start(
+            jobs,
+            domain,
+            self.limits.workers,
+            self.compiler_options.generate_trace.is_some(),
+        )
+    }
+
     pub(super) fn read_ahead_direct(&mut self, seeds: &[ProgramPath], root_count: usize) -> bool {
         // The finite caller owns the context; host capabilities determine
         // whether its level zero can be streamed at final addresses.
@@ -599,7 +644,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let parse_started = std::time::Instant::now();
         let bind_admission = (options.list_files_only != Some(true))
             .then(|| Mutex::new(BindAdmission::new(identity_domain.clone(), library_stripes)));
-        let bind_libraries = workers.is_parallel()
+        let bind_libraries = root_count < crate::source_binds::MIN_ROOTS
+            && workers.is_parallel()
             && program_options.binds_sources()
             && options.list_files_only != Some(true);
         let stream = Mutex::new(RootStream {

@@ -1465,6 +1465,7 @@ fn begin_create_program(
 /// The `createSourceFile` spans of the loader's parses (on worker threads
 /// before the trace saw them), in the order they started.
 fn trace_loader_parses(tracing: Option<&Arc<Tracing>>, prepared: &tsc_program::PreparedProgram) {
+    prepared.stop_source_binding();
     let Some(tracing) = tracing else {
         return;
     };

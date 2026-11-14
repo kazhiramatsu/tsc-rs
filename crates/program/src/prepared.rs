@@ -182,7 +182,7 @@ pub struct PreparsedSyntax {
 impl PreparsedSyntax {
     pub(crate) fn bind_reserved(&self, domain: &IdentityDomain, tracing: bool) {
         let mut slot = self.slot.lock().expect("retained parse");
-        let parsed = slot.as_mut().expect("stripe parse has not been adopted");
+        let Some(parsed) = slot.as_mut() else { return };
         let Some(reservation) = &parsed.bind_reservations else {
             return;
         };
@@ -204,6 +204,14 @@ impl PreparsedSyntax {
         // here: the checker relocates overflows in its established order.
         parsed.bind_data = Some(Box::new(binder.into_bind_data()));
         parsed.bind_span = started.map(|started| (started, std::time::Instant::now()));
+    }
+
+    pub(crate) fn has_bind_reservation(&self) -> bool {
+        self.slot
+            .lock()
+            .expect("retained parse")
+            .as_ref()
+            .is_some_and(|parsed| parsed.bind_reservations.is_some())
     }
 
     /// The task's bind interval, when the command requested tracing.
@@ -1650,6 +1658,7 @@ impl fmt::Debug for ContentMapperProjectHandle {
 struct ProgramIdentity {
     domain: Option<IdentityDomain>,
     bind_sources: bool,
+    source_binds: Option<Arc<crate::source_binds::SourceBinds>>,
 }
 
 impl PartialEq for ProgramIdentity {
@@ -2177,6 +2186,33 @@ impl PreparsedSyntax {
 }
 
 impl PreparedProgram {
+    pub(crate) fn set_source_binds(
+        &mut self,
+        binds: Option<Arc<crate::source_binds::SourceBinds>>,
+    ) {
+        self.program_options.identity.source_binds = binds;
+    }
+
+    /// End speculative binding before source adoption. In-flight slots finish
+    /// their own bind; the consumer uses the ordinary path for the remainder.
+    pub fn stop_source_binding(&self) {
+        if let Some(binds) = &self.program_options.identity.source_binds {
+            binds.stop();
+        }
+    }
+
+    /// Complete active slots after input projection and before the checker
+    /// leases identities. The ordered loader never calls this checkpoint.
+    pub fn finish_source_binding(&self) {
+        if let Some(binds) = &self.program_options.identity.source_binds {
+            let started = tsc_types::trace::enabled().then(std::time::Instant::now);
+            binds.finish();
+            if let Some(started) = started {
+                tsc_types::trace::mark("checker: source bind handoff", started);
+            }
+        }
+    }
+
     /// Retained owners at the checker report's checkpoint. Loader staging
     /// moved into these vectors is counted here; destroyed builder/task
     /// tables are not live owners at this checkpoint.
