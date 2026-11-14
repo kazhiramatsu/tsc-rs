@@ -900,7 +900,7 @@ pub struct CheckerState<'a> {
     /// answer's dependencies; each query scans only its own
     /// window (sharedFlowStart..) and truncates back on exit — also on
     /// CheckAbort unwind (the unwind invariant).
-    pub(crate) shared_flow: Vec<crate::flow::SharedFlow>,
+    pub(crate) shared_flow: crate::flow_memo::SharedFlowState,
     /// The ReduceLabel antecedent swap (getTypeAtFlowNode 70473): tsc
     /// mutates `target.antecedent` in place during try/finally walks;
     /// the binder graph is immutable to the checker, so the swapped
@@ -2058,7 +2058,7 @@ impl<'a> CheckerState<'a> {
             flow_memo: crate::flow_memo::FlowMemo::new(),
             no_flow_context_nodes: Default::default(),
             union_front_cache: Default::default(),
-            shared_flow: Vec::new(),
+            shared_flow: Default::default(),
             reduce_label_overrides: rustc_hash::FxHashMap::default(),
             evolving_array_types: rustc_hash::FxHashMap::default(),
             generic_object_flags: rustc_hash::FxHashMap::default(),

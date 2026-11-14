@@ -546,6 +546,67 @@ fn shared_replay_safe(shared: &[SharedFlow]) -> bool {
     })
 }
 
+/// Append-only shared answers and their exact publication-safety summary.
+/// A frame's suffix is safe iff its start follows the latest unsafe entry.
+#[derive(Default)]
+pub(crate) struct SharedFlowState {
+    records: Vec<SharedFlow>,
+    last_unsafe: usize,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct SharedFlowCheckpoint {
+    len: usize,
+    last_unsafe: usize,
+}
+
+impl std::ops::Deref for SharedFlowState {
+    type Target = [SharedFlow];
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.records
+    }
+}
+
+impl SharedFlowState {
+    #[inline]
+    pub(crate) fn checkpoint(&self) -> SharedFlowCheckpoint {
+        SharedFlowCheckpoint {
+            len: self.records.len(),
+            last_unsafe: self.last_unsafe,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn restore(&mut self, checkpoint: SharedFlowCheckpoint) {
+        debug_assert!(checkpoint.len <= self.records.len());
+        self.records.truncate(checkpoint.len);
+        self.last_unsafe = checkpoint.last_unsafe;
+        debug_assert!(self.last_unsafe <= self.records.len());
+    }
+
+    #[inline]
+    pub(crate) fn record(&mut self, shared: SharedFlow, impure_shared: &mut u32) {
+        if !shared_replay_safe(std::slice::from_ref(&shared)) {
+            // Preserve the original counter update before publishing anything.
+            *impure_shared += 1;
+            self.last_unsafe = self.records.len() + 1;
+        }
+        self.records.push(shared);
+    }
+
+    #[inline]
+    fn replay_safe(&self, start: usize) -> bool {
+        // Preserve the original suffix bounds check in release builds.
+        assert!(start <= self.records.len());
+        let safe = self.last_unsafe <= start;
+        #[cfg(any(debug_assertions, feature = "flow-memo-shadow"))]
+        assert_eq!(safe, shared_replay_safe(&self.records[start..]));
+        safe
+    }
+}
+
 #[cfg(any(test, feature = "flow-memo-shadow"))]
 fn shared_hash(shared: &[SharedFlow]) -> u64 {
     let mut hash = FxHasher::default();
@@ -575,10 +636,7 @@ impl CheckerState<'_> {
     /// reference dependencies must reach the enclosing flow frame. A memo
     /// replacement cannot skip that propagation.
     pub(crate) fn record_shared_flow(&mut self, query: &mut FlowQuery, shared: SharedFlow) {
-        if !shared_replay_safe(std::slice::from_ref(&shared)) {
-            query.impure_shared += 1;
-        }
-        self.shared_flow.push(shared);
+        self.shared_flow.record(shared, &mut query.impure_shared);
     }
 
     /// Only reads cached links and syntax. In particular, never resolves a
@@ -813,7 +871,7 @@ impl CheckerState<'_> {
             && result.as_ref().is_ok_and(|&ty| {
                 can_store(taint, ty, height, steps, self.flow_analysis_disabled)
                     && !query.memo_aborted
-                    && shared_replay_safe(&self.shared_flow[memo.shared_start..])
+                    && self.shared_flow.replay_safe(memo.shared_start)
             });
         if store {
             let hit = MemoHit {
@@ -873,7 +931,7 @@ impl CheckerState<'_> {
         let shared_ok =
             shared_hash(&self.shared_flow[query.shared_flow_start..shadow.shared_start])
                 == shadow.shared_hash
-                && shared_replay_safe(&self.shared_flow[shadow.shared_start..])
+                && self.shared_flow.replay_safe(shadow.shared_start)
                 && (!shadow.ends_iteration || shadow.shared_node == shared);
         if same_key && same_type && registers_ok && shared_ok {
             return;

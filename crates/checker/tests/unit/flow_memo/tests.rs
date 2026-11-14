@@ -803,6 +803,73 @@ fn existing_shared_effects_block_replacement_without_creating_new_identities() {
 }
 
 #[test]
+fn shared_safety_summary_tracks_every_suffix_and_repeated_nested_restore() {
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        let pure = SharedFlow {
+            flow: FlowId::new(1),
+            flow_type: FlowType::Type(state.tables.intrinsics.string),
+            transient: UNTAINTED,
+            reference: UNTAINTED,
+            height: 1,
+            flags: FLAG_TYPE_CACHE | FLAG_COUNT_RESET,
+        };
+        let mut records = SharedFlowState::default();
+        let mut impure = 0;
+        records.record(
+            SharedFlow {
+                reference: 3,
+                ..pure
+            },
+            &mut impure,
+        );
+        let outer = records.checkpoint();
+        assert!(!records.replay_safe(0));
+        assert!(records.replay_safe(1));
+        for _ in 0..2 {
+            records.record(pure, &mut impure);
+            let inner = records.checkpoint();
+            for added in [
+                pure,
+                SharedFlow {
+                    transient: 9,
+                    ..pure
+                },
+                pure,
+                SharedFlow {
+                    flow_type: FlowType::Incomplete(pure.flow_type.get_type()),
+                    ..pure
+                },
+                SharedFlow {
+                    flags: FLAG_EFFECTS,
+                    ..pure
+                },
+                pure,
+            ] {
+                records.record(added, &mut impure);
+                for start in 0..=records.len() {
+                    assert_eq!(
+                        records.replay_safe(start),
+                        shared_replay_safe(&records[start..])
+                    );
+                }
+            }
+            records.restore(inner);
+            assert_eq!(records.checkpoint(), inner);
+            assert!(!records.replay_safe(0));
+            assert!(records.replay_safe(1));
+            records.record(pure, &mut impure);
+            assert!(records.replay_safe(1));
+            records.restore(outer);
+            assert_eq!(records.checkpoint(), outer);
+        }
+        assert_eq!(impure, 7);
+        records.restore(Default::default());
+        assert!(records.is_empty());
+        assert!(records.replay_safe(0));
+    });
+}
+
+#[test]
 fn shared_reference_dependencies_and_incomplete_results_block_replacement() {
     with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
         let mut q = query(state, state.binder.source(0).root);
@@ -819,7 +886,7 @@ fn shared_reference_dependencies_and_incomplete_results_block_replacement() {
             (UNTAINTED, FlowType::Incomplete(hit.ty), false),
         ] {
             q.impure_shared = 0;
-            state.shared_flow.clear();
+            state.shared_flow.restore(Default::default());
             state.record_shared_flow(
                 &mut q,
                 SharedFlow {
@@ -1182,10 +1249,13 @@ fn shared_effects_and_inline_reduce_contexts_block_stores() {
             shadow: 0,
             shared_start: 0,
         };
-        state.shared_flow.push(SharedFlow {
-            transient: 1,
-            ..shared
-        });
+        state.shared_flow.record(
+            SharedFlow {
+                transient: 1,
+                ..shared
+            },
+            &mut 0,
+        );
         state.flow_memo_finish(
             &q,
             memo,
@@ -1301,14 +1371,17 @@ fn shadow_comparison_detects_types_keys_registers_and_shared_effects() {
             make_hit(),
             None,
         );
-        state.shared_flow.push(SharedFlow {
-            flow: FlowId::new(2),
-            flow_type: FlowType::Type(ty),
-            transient: 1,
-            reference: UNTAINTED,
-            height: 0,
-            flags: 0,
-        });
+        state.shared_flow.record(
+            SharedFlow {
+                flow: FlowId::new(2),
+                flow_type: FlowType::Type(ty),
+                transient: 1,
+                reference: UNTAINTED,
+                height: 0,
+                flags: 0,
+            },
+            &mut 0,
+        );
         state.flow_memo_shadow_check(
             &q,
             &key,
@@ -1319,7 +1392,7 @@ fn shadow_comparison_detects_types_keys_registers_and_shared_effects() {
             None,
         );
         assert_eq!(state.flow_memo.stats.disagreements, 8);
-        state.shared_flow.clear();
+        state.shared_flow.restore(Default::default());
         state.flow_memo_shadow_check(
             &q,
             &key,
@@ -1359,6 +1432,7 @@ fn memo_depth_abort_unwinds_without_publishing_partial_answers() {
             (condition, FLOW_DEPTH_LIMIT - 1),
             (loop_node, FLOW_DEPTH_LIMIT - 2),
         ] {
+            let shared_checkpoint = state.shared_flow.checkpoint();
             let mut q = query(state, reference);
             // A wider declared type forces the loop to inspect its back
             // edge instead of stopping at the first (initial-type) answer.
@@ -1378,7 +1452,7 @@ fn memo_depth_abort_unwinds_without_publishing_partial_answers() {
             assert_eq!(state.flow_memo.type_cache_epoch, epoch);
             assert_eq!(state.diagnostics.len(), diagnostics);
             assert!(state.shared_flow.iter().all(|s| s.flow_type != answer));
-            state.shared_flow.truncate(q.shared_flow_start);
+            state.shared_flow.restore(shared_checkpoint);
             assert!(state.flow_memo.checkpoints.is_empty());
             assert!(state.flow_memo.shadow_hits.is_empty());
             let serial = state.flow_memo.serial;

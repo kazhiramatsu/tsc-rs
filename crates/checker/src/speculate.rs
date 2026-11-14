@@ -104,7 +104,7 @@ pub struct SpeculationCheckpoint {
     mapped_types_in_progress: usize,
     flow_loop_stack: usize,
     flow_loop_start: u32,
-    shared_flow: usize,
+    shared_flow: crate::flow_memo::SharedFlowCheckpoint,
     /// Snapshot map (inventory: "snapshot map or forbid across
     /// speculation") — entries are strictly scoped to an in-progress
     /// ReduceLabel arm, so this is empty except when a trial opens
@@ -177,7 +177,7 @@ impl CheckerState<'_> {
             mapped_types_in_progress: self.mapped_types_in_progress.len(),
             flow_loop_stack: self.flow_loop_stack.len(),
             flow_loop_start: self.flow_loop_start,
-            shared_flow: self.shared_flow.len(),
+            shared_flow: self.shared_flow.checkpoint(),
             reduce_label_overrides: self.reduce_label_overrides.clone(),
             exhaustive_switch_computing: self.exhaustive_switch_computing.clone(),
             instantiation_depth: self.instantiation_stack.len() as u32,
@@ -258,13 +258,17 @@ impl CheckerState<'_> {
                     self.flow_loop_start as usize,
                     checkpoint.flow_loop_start as usize,
                 ),
-                (self.shared_flow.len(), checkpoint.shared_flow),
                 (
                     self.instantiation_stack.len(),
                     checkpoint.instantiation_depth as usize,
                 ),
                 (self.inline_level as usize, checkpoint.inline_level as usize),
             ];
+            assert_eq!(
+                self.shared_flow.checkpoint(),
+                checkpoint.shared_flow,
+                "speculative region committed with unbalanced shared flow state"
+            );
             for (index, (now, at_begin)) in balanced.iter().enumerate() {
                 assert_eq!(
                     now, at_begin,
@@ -374,7 +378,7 @@ impl CheckerState<'_> {
             .truncate(checkpoint.mapped_types_in_progress);
         self.flow_loop_stack.truncate(checkpoint.flow_loop_stack);
         self.flow_loop_start = checkpoint.flow_loop_start;
-        self.shared_flow.truncate(checkpoint.shared_flow);
+        self.shared_flow.restore(checkpoint.shared_flow);
         self.reduce_label_overrides = std::mem::take(&mut checkpoint.reduce_label_overrides);
         self.exhaustive_switch_computing =
             std::mem::take(&mut checkpoint.exhaustive_switch_computing);

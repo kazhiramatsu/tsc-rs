@@ -393,14 +393,17 @@ fn mutate_everything(state: &mut CheckerState) {
         ty: string,
     });
     state.flow_loop_start += 3;
-    state.shared_flow.push(crate::flow::SharedFlow {
-        flow: FlowId::new(0),
-        flow_type: FlowType::Type(string),
-        transient: crate::flow_memo::UNTAINTED,
-        reference: crate::flow_memo::UNTAINTED,
-        height: 0,
-        flags: 0,
-    });
+    state.shared_flow.record(
+        crate::flow::SharedFlow {
+            flow: FlowId::new(0),
+            flow_type: FlowType::Type(string),
+            transient: crate::flow_memo::UNTAINTED,
+            reference: crate::flow_memo::UNTAINTED,
+            height: 0,
+            flags: 0,
+        },
+        &mut 0,
+    );
     state
         .reduce_label_overrides
         .insert((0, FlowId::new(1)), vec![FlowId::new(2)]);
@@ -458,7 +461,7 @@ struct Observed {
     active_type_mappers_caches: usize,
     mapped_types_in_progress: usize,
     flow_loop_start: u32,
-    shared_flow: usize,
+    shared_flow: crate::flow_memo::SharedFlowCheckpoint,
     reduce_label_overrides: usize,
     exhaustive_switch_computing: usize,
     instantiation_depth: u32,
@@ -508,7 +511,7 @@ fn observe(state: &CheckerState) -> Observed {
         active_type_mappers_caches: state.active_type_mappers_caches.len(),
         mapped_types_in_progress: state.mapped_types_in_progress.len(),
         flow_loop_start: state.flow_loop_start,
-        shared_flow: state.shared_flow.len(),
+        shared_flow: state.shared_flow.checkpoint(),
         reduce_label_overrides: state.reduce_label_overrides.len(),
         exhaustive_switch_computing: state.exhaustive_switch_computing.len(),
         instantiation_depth: state.instantiation_stack.len() as u32,
@@ -1359,5 +1362,37 @@ fn a_transient_symbols_reference_meaning_and_declared_type_are_its_own() {
         // The rest of each record is untouched.
         assert!(state.links.symbol(first).check_flags.is_empty());
         assert!(state.links.symbol(second).target.is_none());
+    });
+}
+
+#[test]
+fn nested_speculation_restores_shared_safety_with_its_window() {
+    with_state(|state| {
+        let shared = crate::flow::SharedFlow {
+            flow: FlowId::new(0),
+            flow_type: FlowType::Type(state.tables.intrinsics.string),
+            transient: crate::flow_memo::UNTAINTED,
+            reference: 1,
+            height: 0,
+            flags: 0,
+        };
+        state.shared_flow.record(shared, &mut 0);
+        let original = state.shared_flow.checkpoint();
+        let outer = state.begin_speculation();
+        state.shared_flow.record(shared, &mut 0);
+        let nested = state.shared_flow.checkpoint();
+        let inner = state.begin_speculation();
+        state.shared_flow.record(shared, &mut 0);
+        state.rollback_speculation(inner);
+        assert_eq!(state.shared_flow.checkpoint(), nested);
+        state.rollback_speculation(outer);
+        assert_eq!(state.shared_flow.checkpoint(), original);
+        let balanced = state.begin_speculation();
+        let window = state.shared_flow.checkpoint();
+        state.shared_flow.record(shared, &mut 0);
+        state.shared_flow.restore(window);
+        state.commit_speculation(balanced);
+        assert_eq!(state.shared_flow.checkpoint(), original);
+        state.shared_flow.restore(Default::default());
     });
 }

@@ -429,6 +429,7 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.error);
         }
         self.flow_invocation_count += 1;
+        let shared_checkpoint = self.shared_flow.checkpoint();
         let shared_flow_start = self.shared_flow.len();
         let file = self.binder.file_index_of_node(reference);
         let mut query = FlowQuery {
@@ -458,7 +459,7 @@ impl<'a> CheckerState<'a> {
         self.flow_memo.restore_height(saved_height);
         debug_assert_eq!(self.flow_memo.frame_depth(), frame_depth);
         debug_assert_eq!(query.reduce_depth, 0);
-        self.shared_flow.truncate(shared_flow_start);
+        self.shared_flow.restore(shared_checkpoint);
         walk.and_then(|flow_type| self.flow_query_postlude(&query, flow_type.get_type()))
     }
 
@@ -515,6 +516,7 @@ impl<'a> CheckerState<'a> {
             return Ok(declared_type);
         };
         self.flow_invocation_count += 1;
+        let shared_checkpoint = self.shared_flow.checkpoint();
         let shared_flow_start = self.shared_flow.len();
         let mut query = FlowQuery {
             reference,
@@ -544,7 +546,7 @@ impl<'a> CheckerState<'a> {
         if query.memo_aborted {
             // A replacement can omit shared entries and make a later branch
             // deeper. Replay the whole walk faithfully before reporting TS2563.
-            self.shared_flow.truncate(shared_flow_start);
+            self.shared_flow.restore(shared_checkpoint);
             query.impure_shared = 0;
             query.memo_used = false;
             query.memo_aborted = false;
@@ -557,7 +559,7 @@ impl<'a> CheckerState<'a> {
         // sharedFlowCount = sharedFlowStart — restored BEFORE the `?`
         // so a CheckAbort unwind leaves no shared-cache residue (the
         // unwind invariant).
-        self.shared_flow.truncate(shared_flow_start);
+        self.shared_flow.restore(shared_checkpoint);
         walk.and_then(|flow_type| self.flow_query_postlude(&query, flow_type.get_type()))
     }
 
