@@ -1,3 +1,5 @@
+mod unused_class_temporary;
+
 use std::collections::{BTreeMap, BTreeSet};
 
 #[test]
@@ -5540,3 +5542,5 @@ fn missing_declaration_transform_flags_do_not_propagate_decorator_effects() {
 }
 
 mod legacy_decorator_subtree;
+
+mod runtime_class_alias;

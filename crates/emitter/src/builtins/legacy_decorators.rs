@@ -4,7 +4,7 @@ use crate::transform::try_visit_transform_children;
 use std::collections::{BTreeMap, BTreeSet};
 
 use tsc_syntax::{NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind};
-use tsc_types::{CompilerOptions, NodeCheckFlags, NodeFlags, ScriptTarget};
+use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
     factory::EmitHelperName, metadata::ClassExpressionDeclarationOrigin, CommentRange, EmitFlags,
@@ -126,6 +126,7 @@ struct LegacyDecoratorVisitor<'context, 'resolver> {
     generated_binding_scope_stack: Vec<(GeneratedBindingScopeId, GeneratedBindingScopeId)>,
     preentered_function_scopes: BTreeSet<NodeId>,
     class_aliases: BTreeMap<NodeId, TargetBinding>,
+    enclosing_class_aliases: Vec<NodeId>,
     computed_names: BTreeMap<NodeId, TargetBinding>,
     metadata_owner_members: BTreeSet<NodeId>,
     in_class: bool,
@@ -470,6 +471,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             generated_binding_scope_stack: Vec::new(),
             preentered_function_scopes: BTreeSet::new(),
             class_aliases: BTreeMap::new(),
+            enclosing_class_aliases: Vec::new(),
             computed_names: BTreeMap::new(),
             metadata_owner_members: BTreeSet::new(),
             in_class: false,
@@ -510,6 +512,23 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 } else {
                     Some(self.update_generic(original)?)
                 }
+            }
+            NodeData::PropertyAccessExpression(mut data) => {
+                // tsgo visitPropertyAccessExpression visits only the receiver;
+                // the member name is not a reference to the class binding.
+                data.expression = data
+                    .expression
+                    .map(|expression| self.visit(expression))
+                    .transpose()?
+                    .flatten();
+                let data = NodeData::PropertyAccessExpression(data);
+                let flags = flags_after_update(self.context.arena(), original, &data)?;
+                Some(
+                    self.context
+                        .factory()?
+                        .update_node(original, data, flags)?
+                        .node(),
+                )
             }
             NodeData::ClassExpression(data) => {
                 let enclosing_class = self.in_class;
@@ -621,7 +640,9 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         id: NodeId,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let enclosing_class = self.in_class;
+        let alias_depth = self.enclosing_class_aliases.len();
         let transformed = self.visit_class_declaration_worker(id);
+        self.enclosing_class_aliases.truncate(alias_depth);
         self.in_class = enclosing_class;
         transformed
     }
@@ -720,21 +741,21 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         let metadata = constructor_metadata
             .map(|plan| self.create_constructor_parameter_metadata(plan))
             .transpose()?;
-        if let Some(heritage) = data.heritage_clauses {
-            data.heritage_clauses = self.visit_nodes(heritage)?;
-        }
         let class_alias = if has_constructor_decoration
-            && self.resolver.has_node_check_flag(
-                self.resolver_node(original_class)?,
-                NodeCheckFlags::CONTAINS_CONSTRUCTOR_REFERENCE.bits() as u32,
-            )? {
+            && self.has_internal_class_reference(original_class, data.members)?
+        {
             let alias = self.allocate_class_alias(&name_text)?;
             self.class_aliases
                 .insert(original_class.node(), alias.clone());
+            self.enclosing_class_aliases.push(original_class.node());
             Some(alias)
         } else {
             None
         };
+
+        if let Some(heritage) = data.heritage_clauses {
+            data.heritage_clauses = self.visit_nodes(heritage)?;
+        }
 
         let TransformedClassMembers {
             mut emitted_members,
@@ -1360,7 +1381,22 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                     PreparedDecoratorRuntimeRole::VisitationOnly
                 }
             };
-            decorators.extend(self.visit_decorator_expressions(modifiers, runtime_role)?);
+            // Constructor parameter decorators belong to the class's outer
+            // decoration expression (tsgo legacydecorators.go:577–590).
+            let owner = self.context.arena().get_original_node(member);
+            let owner = self.context.arena().node(owner)?.parent;
+            let suspended = if self.context.arena().node(member)?.kind == SyntaxKind::Constructor
+                && self.enclosing_class_aliases.last().copied() == owner
+            {
+                self.enclosing_class_aliases.pop()
+            } else {
+                None
+            };
+            let visited = self.visit_decorator_expressions(modifiers, runtime_role);
+            if let Some(suspended) = suspended {
+                self.enclosing_class_aliases.push(suspended);
+            }
+            decorators.extend(visited?);
             if let Some(parameter) = self.visit(parameter.node())? {
                 emitted.push(self.node(parameter));
             }
@@ -3468,6 +3504,37 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         Ok(Some(computed.node()))
     }
 
+    /// tsgo legacydecorators.go:512–533 scans members after type erasure,
+    /// including computed names and member decorators, but not class decorators.
+    fn has_internal_class_reference(
+        &self,
+        class: TransformNode,
+        members: Option<NodeArrayId>,
+    ) -> Result<bool, TransformError> {
+        let class = self.resolver_node(class)?;
+        let mut stack = self.array_nodes(members)?;
+        let syntax = self.context.arena().source(self.source)?.syntax();
+        while let Some(node) = stack.pop() {
+            let record = self.context.arena().node(node)?;
+            if record.kind == SyntaxKind::Identifier {
+                if let Some(reference) = self.context.arena().parse_tree_resolver_node(node)? {
+                    if self.resolver.get_referenced_value_declaration(reference)? == Some(class) {
+                        return Ok(true);
+                    }
+                }
+            }
+            if let NodeData::PropertyAccessExpression(data) = record.data() {
+                stack.extend(data.expression.map(|id| self.node(id)));
+            } else {
+                tsc_syntax::for_each_child(&syntax.arena, record, |child| {
+                    stack.push(self.node(child));
+                    false
+                });
+            }
+        }
+        Ok(false)
+    }
+
     fn class_alias_for_reference(
         &self,
         node: TransformNode,
@@ -3475,17 +3542,6 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         let Some(resolver_node) = self.context.arena().parse_tree_resolver_node(node)? else {
             return Ok(None);
         };
-        let has_flag = match self.resolver.has_node_check_flag(
-            resolver_node,
-            NodeCheckFlags::CONSTRUCTOR_REFERENCE.bits() as u32,
-        ) {
-            Ok(has_flag) => has_flag,
-            Err(EmitResolverError::UnknownNode { .. }) => false,
-            Err(error) => return Err(error.into()),
-        };
-        if !has_flag {
-            return Ok(None);
-        }
         let declaration = match self
             .resolver
             .get_referenced_value_declaration(resolver_node)
@@ -3494,10 +3550,9 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             Err(EmitResolverError::UnknownNode { .. }) => None,
             Err(error) => return Err(error.into()),
         };
-        Ok(
-            declaration
-                .and_then(|declaration| self.class_aliases.get(&declaration.node()).cloned()),
-        )
+        Ok(declaration
+            .filter(|declaration| self.enclosing_class_aliases.contains(&declaration.node()))
+            .and_then(|declaration| self.class_aliases.get(&declaration.node()).cloned()))
     }
 
     fn class_has_static_property_or_block(
@@ -3663,10 +3718,17 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             position += 1;
         }
         statements.splice(position..position, hoisted);
+        let original = self
+            .context
+            .arena()
+            .node_array_ref(self.source, data.statements.expect("source statements"))
+            .expect("source statements belong to this source");
+        // tsgo EndAndMergeLexicalEnvironmentList preserves the list's Loc:
+        // the printer uses it for detached headers and EOF comments.
         data.statements = Some(
             self.context
                 .factory()?
-                .create_node_array(self.source, statements)?
+                .update_node_array(original, statements)?
                 .array(),
         );
         let flags = self.context.arena().transform_flags(root);
