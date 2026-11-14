@@ -39,6 +39,7 @@ struct Entry {
 }
 enum Job {
     Stripe(usize, Vec<Entry>, SyntaxStripe, &'static str),
+    Bind(CompletedStripe),
     /// A worker takes the next ordered prefix, then parses it without the
     /// admission lock. Tokens have no stripe identity of their own.
     Roots,
@@ -52,6 +53,14 @@ struct CompletedStripe {
     label: &'static str,
     sources: Vec<ReadAheadSource>,
     syntax: SyntaxStripe,
+}
+
+impl CompletedStripe {
+    fn bind(&self, domain: &tsc_types::IdentityDomain, tracing: bool) {
+        for syntax in self.sources.iter().filter_map(BindAdmission::syntax) {
+            syntax.bind_reserved(domain, tracing);
+        }
+    }
 }
 
 struct BindAdmission {
@@ -590,6 +599,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let parse_started = std::time::Instant::now();
         let bind_admission = (options.list_files_only != Some(true))
             .then(|| Mutex::new(BindAdmission::new(identity_domain.clone(), library_stripes)));
+        let bind_libraries = workers.is_parallel()
+            && program_options.binds_sources()
+            && options.list_files_only != Some(true);
         let stream = Mutex::new(RootStream {
             identity_domain: identity_domain.clone(),
             bind_admission: bind_admission.as_ref(),
@@ -637,6 +649,13 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         job
                     };
                     match job {
+                        Job::Bind(stripe) => {
+                            stripe.bind(identity_domain, options.generate_trace.is_some());
+                            return Some((
+                                stripe.sources,
+                                vec![(stripe.ordinal, stripe.label, stripe.syntax)],
+                            ));
+                        }
                         Job::Roots => unreachable!("root token replaced by its leased stripe"),
                         Job::Ordinary(path) => {
                             // The serial Program walk already plans and resolves
@@ -755,9 +774,16 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         );
                         let mut completed = completed.into_iter();
                         let first = completed.next()?;
+                        if bind_libraries && first.label == "config libraries" {
+                            first.bind(identity_domain, options.generate_trace.is_some());
+                        }
                         let mut sources = first.sources;
                         let mut stripes = vec![(first.ordinal, first.label, first.syntax)];
                         for stripe in completed {
+                            if bind_libraries && stripe.label == "config libraries" {
+                                spawned.push(Job::Bind(stripe));
+                                continue;
+                            }
                             sources.extend(stripe.sources);
                             stripes.push((stripe.ordinal, stripe.label, stripe.syntax));
                         }

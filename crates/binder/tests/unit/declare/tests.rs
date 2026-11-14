@@ -446,6 +446,48 @@ fn a_reserved_bind_that_outgrows_its_room_relocates_to_a_direct_binds_symbols() 
 }
 
 #[test]
+fn a_completed_task_overflow_relocates_without_reclaiming_its_tree() {
+    let domain = IdentityDomain::new();
+    let mut source = parse_in_domain(
+        "/task.ts",
+        "export class A { #a = 1; read() { return this.#a; } }\nexport function f() {} f.a = 1; f.b = 2;",
+        &domain,
+    );
+    let symbols = domain.lease(IdentitySpace::Symbol, 1).unwrap();
+    let serials = domain.lease(IdentitySpace::PrivateNameSerial, 1).unwrap();
+    let mut binder = Binder::bind_reserved(&mut source, symbols.range(), serials.range().start());
+    assert!(!binder
+        .attach_reserved_leases(&domain, symbols.clone(), serials.clone())
+        .unwrap());
+    let mut data = binder.into_bind_data();
+    assert!(!data.identity_owned_by(&domain));
+    assert!(source
+        .arena
+        .identity_leases()
+        .unwrap()
+        .nodes
+        .claim()
+        .is_none());
+    data.relocate_into_identity_domain(&source, &domain)
+        .unwrap();
+    assert!(data.identity_owned_by(&domain));
+    let symbol_base = data.symbols.base();
+    let serial_base = data.private_name_serial_base;
+    let expected = data.clone();
+    drop(data);
+    let mut direct = Binder::with_bases(&mut source, serial_base, symbol_base);
+    direct.bind_source_file();
+    assert_eq!(expected.symbols, direct.symbols);
+    assert_eq!(expected.node_symbol, direct.node_symbol);
+    assert_eq!(expected.node_local_symbol, direct.node_local_symbol);
+    assert_eq!(expected.locals, direct.locals);
+    assert_eq!(expected.assigned_symbol_ids, direct.assigned_symbol_ids);
+    assert_eq!(expected.classifiable_names, direct.classifiable_names);
+    assert_eq!(expected.next_symbol_id, direct.next_symbol_id);
+    assert_eq!(expected.bind_diagnostics, direct.bind_diagnostics);
+}
+
+#[test]
 #[should_panic(expected = "a published tree is bound once at a time")]
 fn a_published_tree_is_bound_once_at_a_time() {
     let domain = IdentityDomain::new();

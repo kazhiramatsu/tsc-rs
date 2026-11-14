@@ -58,6 +58,7 @@ impl ParsedDocument {
 #[derive(Debug)]
 pub struct DocumentBuilder {
     bind_reservations: Option<tsc_binder::BindReservations>,
+    bind_data: Option<Box<BindData>>,
     source: SourceFile,
 }
 
@@ -65,23 +66,36 @@ impl DocumentBuilder {
     pub fn new(source: SourceFile) -> Self {
         Self {
             bind_reservations: None,
+            bind_data: None,
             source,
         }
     }
 
     pub(crate) fn from_preparsed(parsed: tsc_program::PreparsedSourceFile) -> Self {
-        let (bind_reservations, source) = parsed.into_parts();
+        let (bind_reservations, bind_data, source) = parsed.into_bind_parts();
         Self {
             bind_reservations,
+            bind_data,
             source,
         }
     }
 
-    pub(crate) fn bind_input(&mut self) -> (&mut SourceFile, Option<tsc_binder::BindReservations>) {
-        (&mut self.source, self.bind_reservations.take())
+    pub(crate) fn bind_input(
+        &mut self,
+    ) -> (
+        &mut SourceFile,
+        Option<tsc_binder::BindReservations>,
+        Option<Box<BindData>>,
+    ) {
+        (
+            &mut self.source,
+            self.bind_reservations.take(),
+            self.bind_data.take(),
+        )
     }
 
     pub(crate) fn discard_bind_reservations(&mut self) {
+        self.bind_data = None;
         self.bind_reservations = None;
     }
 

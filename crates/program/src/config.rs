@@ -1249,6 +1249,16 @@ impl ConfigRootPlan {
         self
     }
 
+    /// The finite command consumes the loader's completed source binds.
+    pub fn with_source_binding(mut self) -> Self {
+        self.module_resolution_options.program_options = self
+            .module_resolution_options
+            .program_options
+            .clone()
+            .with_source_binding();
+        self
+    }
+
     /// The plan whose program takes the parses other Programs hold.
     pub fn with_parse_cache(mut self, cache: crate::ParseCacheHandle) -> Self {
         self.module_resolution_options.program_options = self

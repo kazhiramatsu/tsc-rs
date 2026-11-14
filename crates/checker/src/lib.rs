@@ -2900,6 +2900,12 @@ enum ProgramSource {
     Shared(Arc<BoundDocument>),
 }
 
+type BindInput<'a> = (
+    &'a mut tsc_syntax::SourceFile,
+    Option<tsc_binder::BindReservations>,
+    Option<Box<BindData>>,
+);
+
 impl ProgramSource {
     fn source(&self) -> &tsc_syntax::SourceFile {
         match self {
@@ -2908,12 +2914,7 @@ impl ProgramSource {
         }
     }
 
-    fn bind_input(
-        &mut self,
-    ) -> Option<(
-        &mut tsc_syntax::SourceFile,
-        Option<tsc_binder::BindReservations>,
-    )> {
+    fn bind_input(&mut self) -> Option<BindInput<'_>> {
         match self {
             Self::New(builder) => Some(builder.bind_input()),
             Self::Shared(_) => None,
@@ -6834,10 +6835,7 @@ fn trace_parse(
 /// bound does not count, see `NodeArena::symbol_bound`) relocates into an
 /// exact lease at the domain's tail, still in Program order.
 fn bind_reserved_in_program_order(
-    mut sources: Vec<(
-        &mut tsc_syntax::SourceFile,
-        Option<tsc_binder::BindReservations>,
-    )>,
+    mut sources: Vec<BindInput<'_>>,
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
@@ -6847,7 +6845,7 @@ fn bind_reserved_in_program_order(
     let phase_started = std::time::Instant::now();
     let reservations = sources
         .iter_mut()
-        .map(|(source, reservation)| {
+        .map(|(source, reservation, _)| {
             reservation
                 .take()
                 .unwrap_or_else(|| reserve_bind_identities(source, identity_domain))
@@ -6861,11 +6859,19 @@ fn bind_reserved_in_program_order(
     enum BindCompletion<'a> {
         Attached(BindData),
         Overflow(Box<tsc_binder::Binder<'a>>),
+        TaskOverflow(Box<BindData>, &'a tsc_syntax::SourceFile),
     }
     let completions = workers.map_ordered(
         sources.into_iter().enumerate().collect(),
-        |(_, (source, _))| source.text().len(),
-        |(index, (source, _))| {
+        |(_, (source, _, _))| source.text().len(),
+        |(index, (source, _, data))| {
+            if let Some(data) = data {
+                return if data.identity_owned_by(identity_domain) {
+                    BindCompletion::Attached(*data)
+                } else {
+                    BindCompletion::TaskOverflow(data, source)
+                };
+            }
             let reservation = &reservations[index];
             let symbol_lease = &reservation.symbols;
             let serial_lease = &reservation.serials;
@@ -6911,6 +6917,12 @@ fn bind_reserved_in_program_order(
                     .expect("bind identity relocation failed");
                 overflowed += 1;
                 binder.into_bind_data()
+            }
+            BindCompletion::TaskOverflow(mut data, source) => {
+                data.relocate_into_identity_domain(source, identity_domain)
+                    .expect("task bind identity relocation failed");
+                overflowed += 1;
+                *data
             }
         })
         .collect();
@@ -7007,13 +7019,7 @@ fn trace_direct_adoption<'a>(
         statistics.planned_sources, statistics.adopted_sources, statistics.dropped_sources, statistics.dropped_bytes, statistics.dropped_ids, statistics.dropped_only_pages_guide);
 }
 
-fn write_direct_manifest(
-    sources: &[(
-        &mut tsc_syntax::SourceFile,
-        Option<tsc_binder::BindReservations>,
-    )],
-    reservations: &[tsc_binder::BindReservations],
-) {
+fn write_direct_manifest(sources: &[BindInput<'_>], reservations: &[tsc_binder::BindReservations]) {
     use std::io::Write;
     use std::sync::{Mutex, OnceLock};
     static OUTPUT: OnceLock<Option<Mutex<std::fs::File>>> = OnceLock::new();
@@ -7025,7 +7031,7 @@ fn write_direct_manifest(
         return;
     };
     let mut output = output.lock().expect("manifest lock");
-    for ((source, _), reservation) in sources.iter().zip(reservations) {
+    for ((source, _, _), reservation) in sources.iter().zip(reservations) {
         let symbols = &reservation.symbols;
         let serials = &reservation.serials;
         let held = source
