@@ -73,7 +73,7 @@ fn catalog_loaded_library_prefix_flows_through_the_owned_program_session() {
 use crate::utf16_scalar_path::ScalarTestPath as _;
 
 #[test]
-fn list_files_only_skips_library_binds_and_unused_incremental_facts() {
+fn list_files_only_skips_library_binds_unless_incremental_facts_are_requested() {
     for incremental in [false, true] {
         let host = MemoryCompilerHost::builder("/work")
             .file("/work/root.ts", b"const value = 1;".to_vec())
@@ -101,13 +101,17 @@ fn list_files_only_skips_library_binds_and_unused_incremental_facts() {
             .with_list_files_only(true)
             .run_no_emit_command()
             .unwrap();
-        assert_eq!(
-            outcome.work_counters().bound_documents(),
-            0,
-            "incremental={incremental}"
-        );
-        assert!(outcome.global_diagnostics().is_empty());
-        assert!(outcome.semantic_diagnostics().is_empty());
-        assert!(outcome.build_info().is_none());
+        let bound = outcome.work_counters().bound_documents();
+        if incremental {
+            // tsgo's `tsc --incremental --listFilesOnly` leaves an incremental program whose state the
+            // next build reads (baseline tsc/listFilesOnly/combined-with-incremental): the facts are
+            // requested, and they need the binds.
+            assert!(bound > 0, "the incremental facts were not requested");
+        } else {
+            assert_eq!(bound, 0);
+            assert!(outcome.global_diagnostics().is_empty());
+            assert!(outcome.semantic_diagnostics().is_empty());
+            assert!(outcome.build_info().is_none());
+        }
     }
 }
