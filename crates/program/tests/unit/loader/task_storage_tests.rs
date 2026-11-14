@@ -30,3 +30,20 @@ fn a_known_spelling_is_not_loaded_until_its_task_executes() {
         assert_eq!(tasks.tasks[incoming].loaded_task, None);
     }
 }
+
+#[test]
+fn joined_resolution_shards_replace_old_rows_without_losing_other_entries() {
+    let incoming = Sharded::new();
+    for index in 0..1024 {
+        incoming.insert(index, format!("new-{index}"));
+    }
+    let mut target = FxHashMap::default();
+    target.insert(0, "old".to_owned());
+    target.insert(2048, "retained".to_owned());
+    incoming.append_to(&mut target);
+    assert_eq!(target.len(), 1025);
+    assert_eq!(target[&2048], "retained");
+    for index in 0..1024 {
+        assert_eq!(target[&index], format!("new-{index}"));
+    }
+}

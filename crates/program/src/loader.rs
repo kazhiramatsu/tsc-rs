@@ -2532,6 +2532,27 @@ impl<K: Hash + Eq, V> Sharded<K, V> {
         self.shard(&key).insert(key, value);
     }
 
+    fn append_to(mut self, target: &mut FxHashMap<K, V>) {
+        let count = self
+            .shards
+            .iter_mut()
+            .map(|shard| {
+                shard
+                    .get_mut()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .len()
+            })
+            .sum();
+        target.reserve(count);
+        for shard in self.shards {
+            target.extend(
+                shard
+                    .into_inner()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner),
+            );
+        }
+    }
+
     fn into_entries(self) -> impl Iterator<Item = (K, V)> {
         self.shards.into_iter().flat_map(|shard| {
             shard

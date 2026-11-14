@@ -929,10 +929,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         }
         self.directory_resolution_hits += pass.reused.load(Ordering::Relaxed);
         self.target_resolution_hits += pass.target_reused.load(Ordering::Relaxed);
-        self.directory_resolutions
-            .extend(pass.resolutions.into_entries());
-        self.target_resolutions
-            .extend(pass.target_resolutions.into_entries());
+        pass.resolutions.append_to(&mut self.directory_resolutions);
+        pass.target_resolutions
+            .append_to(&mut self.target_resolutions);
         self.direct_layout = true;
         tsc_types::trace::mark(
             &format!("load: level-0 streaming read-ahead ({count} sources)"),
