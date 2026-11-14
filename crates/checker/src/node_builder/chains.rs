@@ -3086,11 +3086,12 @@ pub(crate) fn set_text_range2(
             .clone_node_keeping_quote(range)
             .map_err(factory_error)?;
         // The copy names the copied identifier's symbol.
-        if let Some(&(_, symbol)) = context
-            .identifier_symbols
-            .iter()
-            .find(|&&(identifier, _)| identifier == copied)
-        {
+        if let Some(symbol) = context.identifier_symbols.as_ref().and_then(|symbols| {
+            symbols
+                .iter()
+                .find(|&&(identifier, _)| identifier == copied)
+                .map(|&(_, symbol)| symbol)
+        }) {
             context.name_identifier(range, symbol);
         }
     }

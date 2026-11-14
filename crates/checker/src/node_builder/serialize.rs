@@ -1313,8 +1313,9 @@ pub(crate) fn type_to_type_node_with_identifier_symbols(
         None,
         None,
         |checker, arena, target, context| {
+            context.identifier_symbols = Some(Vec::new());
             let node = type_to_type_node_helper(checker, arena, target, r#type, context)?;
-            Ok(node.map(|node| (node, std::mem::take(&mut context.identifier_symbols))))
+            Ok(node.map(|node| (node, context.identifier_symbols.take().unwrap_or_default())))
         },
         None,
     )
@@ -1343,12 +1344,13 @@ pub(crate) fn type_predicate_to_type_predicate_node_with_identifier_symbols(
         None,
         None,
         |checker, arena, target, context| {
+            context.identifier_symbols = Some(Vec::new());
             let node = type_predicate_to_type_predicate_node_helper(
                 checker, arena, target, predicate, context,
             )?;
             Ok(Some((
                 node,
-                std::mem::take(&mut context.identifier_symbols),
+                context.identifier_symbols.take().unwrap_or_default(),
             )))
         },
         None,
@@ -1381,10 +1383,11 @@ pub(crate) fn signature_to_signature_declaration_with_identifier_symbols(
         None,
         None,
         |checker, arena, target, context| {
+            context.identifier_symbols = Some(Vec::new());
             let node = signature_to_signature_declaration_helper(
                 checker, arena, target, signature, kind, context, None,
             )?;
-            Ok((node, std::mem::take(&mut context.identifier_symbols)))
+            Ok((node, context.identifier_symbols.take().unwrap_or_default()))
         },
         None,
     )

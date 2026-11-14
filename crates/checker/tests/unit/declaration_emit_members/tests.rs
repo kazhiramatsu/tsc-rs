@@ -407,3 +407,38 @@ fn declaration_alias_views_follow_copy_on_write_export_snapshots() {
         },
     );
 }
+
+#[test]
+fn display_type_nodes_keep_the_symbols_of_their_emitted_identifiers() {
+    with_member_state(
+        "export class Named {} export const value = new Named();",
+        |checker, arena, target| {
+            let declaration = first_variable_declaration(checker, 1);
+            let variable = checker
+                .get_symbol_of_declaration(declaration)
+                .expect("variable");
+            let ty = checker.get_type_of_symbol(variable).expect("instance type");
+            let symbol = checker.tables.type_of(ty).symbol.expect("class symbol");
+            let (node, symbols) = crate::node_builder::type_to_type_node_with_identifier_symbols(
+                checker,
+                arena,
+                target,
+                ty,
+                Some(declaration),
+                EmitNodeBuilderFlags::NO_TRUNCATION,
+                None,
+            )
+            .expect("display type")
+            .expect("type reference");
+            let NodeData::TypeReference(reference) = arena.node(node).expect("type node").data()
+            else {
+                panic!("named instance must use a type reference");
+            };
+            let name =
+                tsc_emitter::TransformNode::new(node.source(), reference.type_name.expect("name"));
+            assert!(symbols
+                .iter()
+                .any(|&(identifier, named)| identifier == name && named == symbol));
+        },
+    );
+}
