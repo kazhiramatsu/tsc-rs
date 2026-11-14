@@ -5221,7 +5221,7 @@ impl<'a> CheckerState<'a> {
         if let Some(name) = computed_name {
             if self
                 .links
-                .read_symbol(prop, |links| links.check_flags)
+                .read_symbol_check_flags(prop)
                 .intersects(tsc_types::CheckFlags::LATE)
             {
                 let source = self.binder.source_of_node(name);
@@ -9651,7 +9651,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<()> {
         let property_is_reverse_mapped = self
             .links
-            .read_symbol(property, |links| links.check_flags)
+            .read_symbol_check_flags(property)
             .intersects(tsc_types::CheckFlags::REVERSE_MAPPED);
         let use_reverse_mapped_placeholder = self.should_use_reverse_mapped_placeholder(property);
         let property_type = if use_reverse_mapped_placeholder {
@@ -10352,7 +10352,7 @@ impl<'a> CheckerState<'a> {
             .flatten()
         });
         let ty = self.get_type_of_symbol(parameter)?;
-        let check_flags = self.links.read_symbol(parameter, |links| links.check_flags);
+        let check_flags = self.links.read_symbol_check_flags(parameter);
         let rest = declaration
             .is_some_and(|declaration| self.is_rest_parameter_declaration(declaration))
             || check_flags.intersects(tsc_types::CheckFlags::REST_PARAMETER);

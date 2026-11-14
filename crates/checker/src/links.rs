@@ -1797,6 +1797,17 @@ impl LinksTables {
         read(&self.symbol(id))
     }
 
+    /// Check flags exist only on transient symbols. Selecting them directly
+    /// lets a persistent symbol return its default without reading its type
+    /// cache through the paged symbol table.
+    #[inline(always)]
+    pub(crate) fn read_symbol_check_flags(&self, id: SymbolId) -> tsc_types::CheckFlags {
+        perf::bump(PerfCounter::LinksSymbolReads);
+        transient_index(id)
+            .and_then(|index| self.transient_symbols.get(index))
+            .map_or_else(tsc_types::CheckFlags::default, |links| links.check_flags)
+    }
+
     /// tsrs-native: owned projection of an immutable type-links field.
     #[inline]
     pub(crate) fn read_ty<R>(&self, id: TypeId, read: impl FnOnce(&TypeLinks) -> R) -> R {

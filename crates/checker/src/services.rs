@@ -519,7 +519,7 @@ impl CheckerState<'_> {
 
     /// tsgo `getImmediateRootSymbols`.
     fn get_immediate_root_symbols(&mut self, symbol: SymbolId) -> CheckResult<Vec<SymbolId>> {
-        let check_flags = self.links.read_symbol(symbol, |links| links.check_flags);
+        let check_flags = self.links.read_symbol_check_flags(symbol);
         if check_flags.intersects(CheckFlags::SYNTHETIC) {
             let Some(containing_type) = *self.links.symbol_cold().containing_type.get(symbol)
             else {
@@ -763,7 +763,7 @@ impl CheckerState<'_> {
 
     /// The check flags of a (transient) symbol (tsgo `Symbol.CheckFlags`).
     pub fn symbol_check_flags(&self, symbol: SymbolId) -> CheckFlags {
-        self.links.read_symbol(symbol, |links| links.check_flags)
+        self.links.read_symbol_check_flags(symbol)
     }
 
     /// tsgo `IsLibTypeForHoverVerbosity`: a tuple, or a type (a reference's

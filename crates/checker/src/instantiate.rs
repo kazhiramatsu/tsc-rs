@@ -846,9 +846,7 @@ impl<'a> CheckerState<'a> {
         let value_declaration = source.value_declaration;
         let check_flags = CheckFlags::INSTANTIATED
             | CheckFlags::from_bits(
-                self.links
-                    .read_symbol(symbol, |links| links.check_flags)
-                    .bits()
+                self.links.read_symbol_check_flags(symbol).bits()
                     & (CheckFlags::READONLY
                         | CheckFlags::LATE
                         | CheckFlags::OPTIONAL_PARAMETER

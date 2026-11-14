@@ -2205,7 +2205,7 @@ impl<'a> CheckerState<'a> {
                 let derived_property_flags =
                     SymbolFlags::from_bits(derived_flags.bits() & property_or_accessor.bits());
                 if !base_property_flags.is_empty() && !derived_property_flags.is_empty() {
-                    let base_check_flags = self.links.read_symbol(base, |links| links.check_flags);
+                    let base_check_flags = self.links.read_symbol_check_flags(base);
                     let base_declarations = self.binder.symbol(base).declaration_list();
                     let abstract_or_interface_everywhere =
                         if base_check_flags.intersects(tsc_types::CheckFlags::SYNTHETIC) {

@@ -6247,7 +6247,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a83648d039471a61a67a19bbf1a35c6a4bee49544839d279d7194fcf8a6ad7a4
     /// tsc-span: _tsc.js:17433-17435
     pub fn get_check_flags(&self, symbol: SymbolId) -> CheckFlags {
-        self.links.read_symbol(symbol, |links| links.check_flags)
+        self.links.read_symbol_check_flags(symbol)
     }
 
     /// tsc-port: isReadonlySymbol @6.0.3

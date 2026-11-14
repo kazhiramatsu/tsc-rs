@@ -5569,7 +5569,7 @@ impl<'a> CheckerState<'a> {
                 {
                     Some(early_index) => {
                         let cloned = self.clone_symbol(early_index);
-                        let check_flags = self.links.read_symbol(cloned, |links| links.check_flags);
+                        let check_flags = self.links.read_symbol_check_flags(cloned);
                         self.links.set_symbol_check_flags(
                             self.speculation_depth,
                             cloned,
@@ -8169,7 +8169,7 @@ impl<'a> CheckerState<'a> {
         if symbol == self.require_symbol {
             return Ok(self.tables.intrinsics.any);
         }
-        let check_flags = self.links.read_symbol(symbol, |links| links.check_flags);
+        let check_flags = self.links.read_symbol_check_flags(symbol);
         if check_flags.intersects(CheckFlags::DEFERRED_TYPE) {
             return self.get_type_of_symbol_with_deferred_type(symbol);
         }
