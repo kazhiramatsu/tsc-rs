@@ -1042,6 +1042,91 @@ zod は検査より前が 257 / 63 MB、effect 130 / 38、vue 101 / 18。結果 
 
 **教訓**：(1) 実 project 6 構成が tsgo と一致し unit test が通っても、変換の順序を変える修正は conformance を壊しうる — emitter と変換の行は、PR の検査の前に、該当する conformance の case を候補の binary で回す（lane の指示書にも書く）。(2) 出力をわざと変える PR の門は通常の門と別の読み取りになり、その読み取りを本番で初めて動かしてはいけない — 門ごとに、止まる場合と通る場合を先に 1 回ずつ通す。(3) 差を数えるときは隠れている母集団を言う：「JavaScript が違う file の map」は数に入れていなかったので、597 が 25 に見えていた。(4) 修正の lane には最初の見立て（私の仮説）を「仮説」として渡す — 別名の原因は私の見立てと違い、lane が tsgo の source を読んで構造ごと合わせた。
 
+**結果 39（2026-11-14 23:40〜11-15 07:00、夜の計測 session — 11 の窓での採否、両移植の phase 別の差 — 、所有者の指示「--fast と PGO は後回し；既定設定で一気に抜き去る」、採用した行の着地 #1003〜#1006（PR 4 本、46 行と修正 1 件）、朝の session：8 案件の幾何平均で時間の差 13.3 % → 9.4 %・peak の差 18.3 % → 8.1 %、peak は next と zod で他移植を下回る、VS Code の検査は並んだ；library image の PR は 2 度止まって未着地 — 自分の test、次に release build での rustc 16 GB — 、map の修正は確認で戻した、推論 pool は時間を悪くするので不採用、全 lane の計画への返答、lane の build 枠が律速）。** 記録の元は `handover/arch-arena/RESUME.md` の 2026-11-14 23:42 以降の各節；表は `handover/arch-arena/fable52-1111/session-1115/`（夜）と `session-1115b/`（朝）。
+
+**session（00:12〜02:32）**。所有者の条件 — 修正が main に入ってから、build がすべて終わってから、lane の build が動いていない状態で — が揃った 00:12 に開いた：#1002 の merge（23:40）、私の build 24 本（最後は 00:12:29）、lane の build は 22:21 から停止。窓は 11：README（rd6）、着地済みの解放行の再確認（rel2）、判定の窓 6（pk10、ep7、pk8、fe8、pk9、fe9）、両移植の phase 別（ph2）、lane の依頼 2（bq1、ckp1）。どの窓も全 lane を停止し、base を同じ窓で 2 回測った。途中で窓の組み方を改めた：以前の `fe`・`screen` の窓は命令数の時代のもので、既定設定の wall が 6 案件にしか無い、あるいは 1 thread の命令数しか無い — 所有者の基準（既定設定と 1 thread の wall、1 thread の cycle、peak）が全 8 案件に揃うのは `peak` の窓（`chain-peak2.sh`）だけなので、emit 以外の候補はすべてそこを通した。
+
+**README の窓 rd6（00:12〜00:18）**。main（`a0b48daf6` の tree、`batch15b-sel-dc820a3a4`）、tsgo、tsrs 0.23.0（PGO なし）、既定設定、9 round、診断は 8 案件とも tsgo と同一。wall 秒 · peak MiB（tsgo / tsrs / ours — ours の tsrs 比）：VS Code 4.513 · 6,330 / 1.909 · 2,282 / **2.086 · 2,620** — 1.09 倍 · 1.15 倍；next 1.318 · 1,490 / 0.507 · 577 / 0.558 · 646 — 1.10 · 1.12；zod 0.873 · 1,532 / 0.310 · 581 / 0.330 · 652 — 1.06 · 1.12；effect 0.757 · 1,086 / 0.304 · 432 / 0.317 · 501 — 1.04 · 1.16；playwright 0.561 · 905 / 0.202 · 352 / 0.238 · 425 — 1.18 · 1.21；vue 0.517 · 656 / 0.196 · 231 / 0.259 · 275 — 1.33 · 1.19；ts 0.360 · 367 / 0.144 · 139 / 0.170 · 186 — 1.18 · 1.33；hono 0.164 · 261 / 0.060 · 109 / 0.066 · 131 — 1.11 · 1.20。11-13 の表に対して tsgo −2.1 %・tsrs −1.6 %（窓の静かさ）、ours は VS Code 2.14 → 2.086 秒、peak 2,726 → 2,620 MiB。README と `docs/performance.md` を更新（`b4069bd30`）。rel2：#998・#1000 で着地した解放 3 行は時間を悪くしていない（1 thread の cycle −0.16 / +0.03 / +0.00 %、peak −114 / −17 / −7 MiB）。
+
+**所有者（00:2x）**：「--fastは別途分析が必要なので今は無視です。PGOの入力についても同様。これは別途レーンを複数走らせて分析するレベルのものです。後回し。差はかなり縮まっています。これからは本気を出して一気にtsrsを抜き去る段階です。最高のパフォーマンスのコードを書いてください」— fast の mode と PGO は扱わない（lane fast-2 を既定設定の作業へ移した）；目標は既定設定で時間と peak の両方を抜くこと。
+
+**差の場所（ph2、00:48〜00:54、ms、ours / tsrs）**。
+
+| 案件 | 全体の差 | front end | 検査 |
+|---|---:|---|---|
+| VS Code | +185 | 381 / 247（+134） | 1,716 / 1,695（+21） |
+| next | +77 | 100 / 63（+37） | 469 / 420（+49） |
+| zod | +19 | 78 / 41（+37） | 249 / 268（−19） |
+| effect | +18 | 33 / 26（+7） | 283 / 269（+14） |
+| vue | +61 | 34 / 19（+14） | 230 / 176（+54） |
+| ts | +31 | 28 / 21（+7） | 139 / 119（+20） |
+| playwright | +39 | 53 / 31（+22） | 181 / 161（+20） |
+| hono | +4 | 18 / 14（+4） | 41 / 39（+2） |
+
+VS Code の front end を fe8 の mark で分けると（`--noCheck`、既定の thread、load の列を全部入れた後）：設定 30（tsrs も 30）、並列 parse 196（tsrs の並列 pass 190 — 同じ水準）、その後の逐次処理 — root walk 27 + graph の仕上げ 28 + 公開 15 = 70（tsrs は 9）、検査器の準備 40（tsrs は 10）。**並列 parse は並んでおり、差は parse の後に 1 本の thread でやっている仕事と検査器の準備にある。** peak は lane peak-mem の台帳（未着地の行を全部入れた後、VS Code）で +211 MiB：signature と member の record +135、parser / binder の record と flow +111、mapper +58；link / binder の table −72、syntax −60 は他移植より軽い。
+
+**判定**（1 thread の cycle は 8 案件の幾何平均；既定設定の wall は最良値）。
+
+| 窓 | 候補 | 1 thread の cycle | peak（8 案件の合計、既定設定） | 判定 |
+|---|---|---:|---:|---|
+| pk10 | parser / binder 7 行 + library の text（`m-fe8`） | −1.57 % | −70 MiB | 採用 |
+| pk10 | 検査 10 行（`m-ck10`）；+ 呼び出し引数の借用（`m-ck11`） | −1.59 %；−1.65 %（vue −5.2） | 変化なし | 採用 |
+| pk10 | symbol の検査 flag（`m-lf`）；数値配列の文脈（`m-p1`） | −0.30 %；ts −0.59 % | 変化なし | 採用 |
+| ep7 | emit の 18 行（`m-em18`、emit の 6 構成） | VS Code −5.34、next −5.46、zod −2.13、effect −8.74、ts −4.20、hono −3.72 % | 変化なし | 採用 |
+| pk8 | signature 48 byte（`m-sig`） | −0.37 % | −157 MiB（VS Code −60） | 採用 |
+| pk8 | 終わった検査器の記憶域を detached worker で返す（`m-fd2`） | −0.04 % | −152 MiB（next −80、zod −52） | 採用 |
+| pk8 | 推論 pool の 3 形（`m-ps`、`m-pi`、`m-ih`） | **+0.54、+0.42、+0.57 %** | −190、−170、−184 MiB（VS Code −92） | 不採用 |
+| fe8・pk9 | load の列 6 段（`m-fe3f`） | −0.14 % | −65 MiB（VS Code −54） | 採用 |
+| fe9 | library の text（`m-li2`）；+ image の形式 + library の木（`m-li3`） | −0.2〜−0.6 %；hono −1.97 % | 各案件 −4〜−18 MiB | 採用 |
+
+load の列は front end だけの wall（`--noCheck`、既定の thread）で VS Code −10.1 %、next −5.1、playwright −6.1、vue −3.7、全体の wall で幾何平均 −1.2 %。library の木は hono の front end −15.7 %・全体 −5.2 %（同じ窓の tsrs は base 比 −6 %）。peak の行を全部重ねた `m-pall`（pool を含む）は合計 −462 MiB で、next 550 / 576・zod 572 / 579・effect 431 / 435 MiB と 3 案件で tsrs を下回ったが、1 thread の cycle は +0.30 %。**推論 pool は入れなかった**：peak を VS Code で 82〜92 MiB 下げるが 1 thread の時間を 0.4〜0.6 % 遅くし、何も減らない ts・hono で 0.7〜1.5 % 遅い — 所有者の基準は「命令数が増えても遅くならないこと」。lane peak-mem に「どの案件でも 1 thread の cycle が base を上回らない」を条件として戻した（所有者に報告済み）。
+
+**既定設定の wall は、静かな機械でも二峰性だった**。pk10 の対照（同じ binary の 2 列）は中央値で最大 +7.4 %（next：base の 9 回は 0.563〜0.587 秒、base-again は 0.566〜0.623 秒）— 負荷ではなく scheduling の mode。同じ対照を各 cell の最良値で取ると 0.75 % 以内。1 thread の wall と cycle は互いに 0.1 % で一致し、0.2 % を分解する。以後、判定の表は (1) 1 thread の cycle と wall、(2) 既定設定の wall は最良値とその対照、(3) 中央値は対照と並べて、(4) peak、の順に読む（`tools/verdict-peak.py`、`tools/verdict-par.py`）。
+
+**朝の着地（03:46〜06:11、PR 4 本）**。着地は「前の PR の branch の上で次の検査を走らせ、前が merge されたら push する」積み重ねで進めた（`ceilings/job-train-generic3.sh`〜`generic4.sh`、`tools/arm-next-train.sh`）— hosted の約 30 分を次の検査に使う。
+
+| PR | 中身 | local の検査（最終 bytes） | hosted の run | merge |
+|---|---|---|---|---|
+| #1003 | 18 行：parser / binder 7（fe-cost）、検査 ck-diff 4 + ck-flow 5、stalls 2 | test 3,580 通過、4 checker 対照 15,335 一致 + 既知の 4、suite 0 regressions、24 / 24、fingerprint 161,676 行一致 | 43625607035 | `37f448040`（03:46） |
+| #1004 | 11 行：load の列 6、library の text、検査器の記憶域の detached 解放、48 byte の signature、呼び出し引数の借用、symbol の検査 flag | test 4,257 通過、同上 | 43632197003 | `2ea8b6a6c`（04:58） |
+| #1005 | emit の修正（namespace 参照を合成式に）：VS Code の JavaScript が tsgo と 9,244 / 9,244 file で一致 | test 690 通過、tsgo との照合 6 構成 0 file、base から変わるのは VS Code の 1 file だけ | 43635246702 | `f7881402b`（05:32） |
+| #1006 | emit の 17 行（printer、transform、宣言 emit） | test 3,073 通過、tsgo との照合 6 構成 0 file、24 / 24、fingerprint 一致 | 43638764117 | `96c8e8221`（06:11） |
+
+#1004 の最初の検査は 04:21 に「fingerprint の照合が通らない」で止まったが、照合は起動していなかった：計測用の worktree に、#1003 の照合が残した未追跡の生成 script（`scripts/generate_bind_dispatch.py`）があり、main がそれを追跡するようになって checkout が失敗した。file を取り除き、照合の script が `crates` と `scripts` を掃除するように直し、照合から再開した（3 分の損）。#1005 の merge 後、`docs/compatibility.md` の Limitations を更新した（`657596226`）：VS Code の JavaScript は tsgo と一致；lane が見つけ私が main の binary で再現した差 2 件を追加（BMP の外の文字を含む file 名の順序が UTF-16 code unit 順 — tsgo は byte 順；1,024 member の総称述語で TS2859 が 1 件多い）。
+
+**library image の PR は 2 度止まり、まだ入っていない**。(1) 05:55、自分の新しい test が落ちた（1,586 通過 / 1 失敗：`invalid Program snapshot identity ownership: EmptyOwner { space: Node, file: 0 }`）。#1003 の `record identities` が `AstArena::node_end()` / `array_end()` を cache した counter を返す形に変え、image の経路は行を直接入れて counter を進めていなかった。計測した binary（`m-li3`）は #1003 より前の base の上にあり、私の準備が証明していたのは「順に当たる」ことだけだった。lane emit-fix が自分の結合検査で先に見つけ、原因の場所まで書いてきた。lane lib-image の修正（arena の method 1 つが base と行数から両方の末尾を確定し、image の 2 経路と relocation が呼ぶ）を私が読んで 3 つ目の commit にした。(2) 06:28、修正後は test が全部通った（1,588 通過）が、**release build が作れなかった**：memory の番人が rustc を 16,000 MiB で 3 回止めた。止められたのは `tsc_binder` の **host 用の copy**（image を生成する build script の依存として 1 つ目の commit が足したもの）で、release の build-override profile = opt-level 0 で compile される。#1003 以降の binder は always-inline の連鎖と生成された dispatch で書かれており、opt-level 3 では畳まれるが 0 では畳まれず、1 つの巨大な機械語関数になる（67 秒で 15.6 GB、`AArch64ExpandPseudo` の中）。test が通るのは dev profile が binder を名指しで opt-level 3 にしているから。lane に build 設定の修正を依頼した。**番人が無ければ、32 GiB の機械で 16 GB 超の rustc が lane の build と並んで走っていた**（11-12 の事故と同じ形）。
+
+**map の修正 3 本（lane emit-fix）は、PR の前の確認で戻した**。候補の binary で VS Code を全出力種（36,973 file）にして tsgo と照合：宣言 map の差 2,350 → 0、JavaScript map の差 598 → 133。133 のうち 129 は**それまで一致していた file に新しく出た差**（tsgo にある segment が無い：既定値つきの constructor parameter property の名前の末尾）。6 行の class まで私が絞った（field の初期化子 + `constructor(public state: number = 1)`、`useDefineForClassFields` false）— 1 本目の行が TypeScript の visitor の名前の clone を外した副作用と読める。lane の fixture と conformance 約 1,700 case は通っていた；PR の検査なら最後の関門まで約 35 分かけて落ちるところを、9 分の確認で止めた。
+
+**16 lane の計画（`PASS-PLAN.md`）を全部読み、返答した**。どの計画も「値付けできた項目の和は差に届いていない」と書き、届かせる構造を名指ししている。突き合わせて分かったこと：(1) front end の node あたりの命令数は他移植と 1.4 % 以内（VS Code：scan + parse 8.341 / 8.230 G、bind 5.387 / 5.315 G）— 差は並列読み込みの後の直列部分（約 73〜81 ms 対 9 ms）、load の終わりから最初の file の検査まで（約 40 ms 対 5〜10 ms）、設定（30 / 30、目標 12）、終了（50.8 / 31.2 ms、footprint 1 GiB あたり 13 ms）にあり、load-order・bind-in-task・fe-serial の 3 本が同じ構造 —「file ごとの記録を worker が 1 度だけ作り、graph・bind の公開・検査器の入力はそれを引き取る；呼び出し側は順序だけ決める」— を別の面から指している（stalls はその構造を copy 437 MB と値付け）。(2) 検査の差（vue +54、next +49、ts +20、playwright +20、effect +14 ms）は、3 本とも union・member・mapper の上の関係の仕事に行き着く。(3) peak の差（VS Code +211 MiB）は member / signature の record 135、binder の record と flow 111、mapper ほか 111、loader の表 24。重なる領域の担当を裁定し、lane ごとに順番を返した。
+
+**lane の build 枠が律速**。所有者の決定（lane の build は同時に 1 本）の下で、05:59 に 12 件が枠を待ち、最長 1 時間 45 分；06:14 には 14 lane の状況の 1 行目がすべて「build 枠待ち」だった。枠の数は変えず、(a) export の条件を縮めた（fmt + `cargo check --tests` + 変えた crate の test；clippy・release build・結合検査は PR の検査と候補の build が最終 bytes で必ず走らせるので、export の前には要らない）、(b) 待ち行列の先行時間を差の場所の順にした（front end の直列部分 90 分、検査 60 分、peak 30 分、台帳 15 分、emit 0）、(c) 読んだ下書きは train に取り込んで検査を私の側で回す。枠を日中 2 本にしてよいかは所有者に尋ねている。lane 自身が不要と書いている待ち 2 件を私が止めようとした操作は自動判定に拒否された（lane の process は止めない）。
+
+**session 2（06:33〜06:57、main `96c8e8221` = #1003〜#1006 の後）**。library image の PR を待たずに、main の binary（`batch18-sel-d84b50144`）で測った。lane の build は 06:33 から止め、06:36 に空になった；各窓は全 lane（95 process）を停止。窓は 4：README（rd7）、両移植の phase 別（ph3）、front end（fe10：#1003 の後の main に対する今の main）、検査の profile（prof-ck5）。表は `handover/arch-arena/fable52-1111/session-1115b/`。
+
+README の窓 rd7（9 round の中央値、既定設定、診断は 8 案件とも tsgo と同一）。wall 秒 · peak MiB（tsgo / tsrs / ours — ours の tsrs 比、括弧内は 00:12 の rd6）：VS Code 4.676 · 6,345 / 1.957 · 2,281 / **2.076 · 2,508** — 1.061 倍（1.093）· 1.10 倍（1.15）；next 1.339 · 1,501 / 0.499 · 577 / 0.553 · 547 — 1.107（1.101）· **0.95**（1.12）；zod 0.894 · 1,577 / 0.320 · 581 / 0.328 · 569 — 1.024（1.063）· **0.98**（1.12）；effect 0.806 · 1,078 / 0.316 · 432 / 0.326 · 463 — 1.031（1.044）· 1.07（1.16）；playwright 0.579 · 908 / 0.209 · 351 / 0.239 · 395 — 1.143（1.175）· 1.12（1.21）；vue 0.541 · 661 / 0.202 · 231 / 0.252 · 263 — 1.243（1.325）· 1.14（1.19）；ts 0.362 · 368 / 0.148 · 139 / 0.166 · 170 — 1.123（1.175）· 1.22（1.33）；hono 0.169 · 262 / 0.062 · 109 / 0.064 · 119 — 1.041（1.110）· 1.09（1.20）。**8 案件の幾何平均で、時間の差は 13.3 % → 9.4 %（最良値どうしでは 13.9 % → 9.7 %）、peak の差は 18.3 % → 8.1 %；peak は next と zod で初めて他移植を下回った。** この窓の機械の状態は 00:12 より遅い（tsgo と tsrs の wall が 1〜6 % 長い）— 比は同じ窓の中の交互の実行なので有効；原因は調べていない（所有者の機械の様子は見ない）。README と `docs/performance.md` の表をこの窓の数字に替えた（`76ffcf572`）。
+
+phase 別 ph3（ms、ours / tsrs（差）、00:48 の ph2 → 06:43）。
+
+| 案件 | front end | 検査 | 全体の差 |
+|---|---|---|---:|
+| VS Code | 381 / 247（+134）→ 340 / 251（+89） | 1,716 / 1,695（+21）→ 1,683 / 1,678（**+5**） | +185 → +100 |
+| next | 100 / 63（+37）→ 91 / 64（+27） | 469 / 420（+49）→ 458 / 417（+41） | +77 → +55 |
+| zod | 78 / 41（+37）→ 69 / 42（+27） | 249 / 268（−19）→ 247 / 270（−23） | +19 → +13 |
+| effect | 33 / 26（+7）→ 28 / 27（+1） | 283 / 269（+14）→ 284 / 274（+10） | +18 → +16 |
+| vue | 34 / 19（+15）→ 31 / 19（+12） | 230 / 176（+54）→ 214 / 174（+40） | +61 → +49 |
+| ts | 28 / 21（+7）→ 25 / 21（+4） | 139 / 119（+20）→ 135 / 119（+16） | +31 → +18 |
+| playwright | 53 / 31（+22）→ 48 / 31（+17） | 181 / 161（+20）→ 181 / 162（+19） | +39 → +31 |
+| hono | 18 / 14（+4）→ 16 / 14（+2） | 41 / 39（+2）→ 42 / 40（+2） | +4 → +2 |
+
+**VS Code の検査は他移植に並んだ（+5 ms）**；VS Code の残りの差 +100 ms は front end（+89）と終了。vue と next は検査（+40、+41）が主で front end（+12、+27）が従。front end だけの窓 fe10（`--noCheck`、既定の thread、15 round；#1003 の後の main → 今の main）：VS Code 0.399 → 0.367 秒（−7.9 %）、next −5.7、playwright −7.2、vue −6.7、ts −3.7、hono −3.2 %；同じ窓の他移植は VS Code で 0.270 秒。全体の compile は VS Code −2.1、vue −2.8、playwright −2.0、next −1.4 %（対照 +0.5〜+1.1 %）、peak は VS Code −125・next −99 MiB — #1004 の着地の実測。main の binary の mark（VS Code、ms）：設定 30.0、read-ahead 201.4、root walk 31.2、graph の仕上げ 28.2、symlink と package 3.7、公開 13.8 → load 283.5；検査なしの check session 39.0（parse / adopt 13.3、bind 5.8、shard の初期化 10.7、merge 0.8）；起動と終了 17.7。他移植自身の行は設定 30、parse 221（並列 197、逐次 9）、検査器の生成と global 10。**並列の読み込みは並んでいる（201 / 197）；読み込みの後の直列部分が 77 ms 対 9 ms、最初の検査までの準備が 39 ms 対 10 ms。**
+
+**lane**。16 本すべてに 11-15 の指示書（`handover/arch-arena/briefs-1115/`）：目標は自分の領域で**他移植の数字より下**；最初の成果物は `PASS-PLAN.md`（差、それを消す項目と大きさ、順番、説明できていない分 — 項目の和が差を上回ること）。主な目標：load は VS Code で 322 → 205 ms 以下・逐次部分 9 ms 以下（load-order）、load の後から検査器の開始まで 10 ms 以下（bind-in-task）、設定 15 ms 以下（fe-serial）、front end の 1 thread の cycle を全 8 案件で他移植より下（fe-cost）、vue と ts の検査（ck-diff）、next・playwright・effect の検査（mem-links — link table は既に他移植より軽いので領域を替えた）、signature と member 147 MiB 以下（mem-records）、binder の record と flow 235 MiB 以下（fast-2）。lane lib-image の「読み取り専用の部屋」（同梱 library の record を実行 file の読み取り専用 page から使う；1 process あたり 7.8 MiB の dirty page を無くす）は段階的に進めると決めた（複製 bind → flow header → text → 全 identity；最後の段は契約のページを私が 6 点直して承認）。lane の build は所有者の決定で同時 1 本；列には既定設定の差を担当する 12 lane に 30 分の先行を入れた（`state/lane-tiers.txt`）。
+
+**tsgo との差の追加**。`--showConfig` が `compilerOptions.plugins` の各項目を全部出す（tsgo は `name` だけ；8 案件 × 4 mode の 32 cell 中 2）— `docs/compatibility.md` に記載、lane fast-2 が直す。
+
+**教訓**：(1) 判定の道具は基準と一緒に替える — 基準を「時間と peak」にした後も窓の一覧は命令数の時代の種類のままで、session の直前まで気づかなかった。(2) 静かな機械でも既定設定の wall の中央値は 2 つの mode の間を動く；対照（同じ binary の 2 列）を必ず同じ推定量で出し、最良値と 1 thread の cycle で読む。(3) 「peak は下がるが少し遅い」行は、所有者の言葉（遅くならないこと）に従って入れない；入れる価値があると思うなら数字を添えて所有者に出す。(4) 差を詰める指示（within 10 %）は抜く指示ではない — 目標は相手の数字より下に置き、lane の最初の成果物を「差を上回る項目の一覧」にする。(5) 「順に当たる」は「通る」ではない — 古い base で測った行を積むときは、その後に入った行が同じ構造の不変条件を変えていないかを読む（導出していた値を cache に変えた accessor、書き手が増えた表）；lane の export には build と test をした commit を書かせる。(6) emit の修正は、PR の検査の前に実案件の全出力種で tsgo と照合する — fixture と conformance が通っていても、9 分の確認が 129 file の新しい差を見つけた。(7) 新しい build 依存は、誰も build したことのない profile で crate を compile させる（release の host 用 = opt-level 0）；memory の番人は test だけでなく build も守っている。(8) build 枠が律速のとき、lane の検査のうち私の側が最終 bytes で必ず走らせる分（clippy、release build、結合検査）は export の条件から外す；読んだ下書きは train に取り込む。(9) 積み重ねた検査は、merge で消える branch を名前で参照しない（commit で持つ）；自分が書いている log を鮮度の基準にしない。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
