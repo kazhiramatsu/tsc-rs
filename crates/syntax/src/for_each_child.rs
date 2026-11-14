@@ -2128,12 +2128,30 @@ where
 /// Visit children in forEachChild order, releasing each lookup borrow before
 /// calling back with the mutable context. Keep the parent payload, child
 /// arrays and node kinds unchanged; no child list is copied or retained.
-pub fn for_each_child_mut<L, F>(lookup: &mut L, id: NodeId, mut cb: F) -> Option<NodeId>
+pub fn for_each_child_mut<L, F>(lookup: &mut L, id: NodeId, cb: F) -> Option<NodeId>
 where
     L: NodeLookup,
     F: FnMut(&mut L, NodeId) -> bool,
 {
-    match lookup.node(id).kind {
+    let kind = lookup.node(id).kind;
+    for_each_child_mut_for_kind(lookup, id, kind, cb)
+}
+
+/// The same mutable-context walk with the node's already selected kind.
+/// The kind and child payload stay unchanged while callbacks mutate their context.
+#[inline(always)]
+pub fn for_each_child_mut_for_kind<L, F>(
+    lookup: &mut L,
+    id: NodeId,
+    kind: SyntaxKind,
+    mut cb: F,
+) -> Option<NodeId>
+where
+    L: NodeLookup,
+    F: FnMut(&mut L, NodeId) -> bool,
+{
+    debug_assert_eq!(lookup.node(id).kind, kind);
+    match kind {
         SyntaxKind::ArrayBindingPattern => {
             let data = lookup.node(id).decode_array_binding_pattern();
             if let Some(result) = visit_optional_nodes_mut(lookup, data.elements, &mut cb) {

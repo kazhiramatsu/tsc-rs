@@ -259,11 +259,22 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: fef772b3e91e50f62414b2e5b26c7432798feb04e6372869308938583e7923b7
     /// tsc-span: _tsc.js:42734-42829
     pub fn bind_container(&mut self, node: NodeId, container_flags: ContainerFlags) {
+        let kind = kind_of(self.source, node);
+        self.bind_container_for_kind(node, container_flags, kind);
+    }
+
+    #[inline(always)]
+    pub(crate) fn bind_container_for_kind(
+        &mut self,
+        node: NodeId,
+        container_flags: ContainerFlags,
+        kind: SyntaxKind,
+    ) {
         let save_container = self.container;
         let save_this_parent_container = self.this_parent_container;
         let saved_block_scope_container = self.block_scope_container;
         let saved_in_return_position = self.in_return_position;
-        if kind_of(self.source, node) == SyntaxKind::ArrowFunction
+        if kind == SyntaxKind::ArrowFunction
             && body_of(self.source, node)
                 .is_some_and(|body| kind_of(self.source, body) != SyntaxKind::Block)
         {
@@ -271,7 +282,7 @@ impl<'a> BinderWorker<'a> {
         }
 
         if container_flags.intersects(ContainerFlags::IS_CONTAINER) {
-            if kind_of(self.source, node) != SyntaxKind::ArrowFunction {
+            if kind != SyntaxKind::ArrowFunction {
                 self.this_parent_container = self.container;
             }
             self.container = Some(node);
@@ -311,7 +322,7 @@ impl<'a> BinderWorker<'a> {
                 && !has_syntactic_modifier(self.source, node, ModifierFlags::ASYNC)
                 && asterisk_token_of(self.source, node).is_none()
                 && get_immediately_invoked_function_expression(self.source, node).is_some())
-                || kind_of(self.source, node) == SyntaxKind::ClassStaticBlockDeclaration;
+                || kind == SyntaxKind::ClassStaticBlockDeclaration;
             if !is_immediately_invoked {
                 let payload = if container_flags.intersects(
                     ContainerFlags::IS_FUNCTION_EXPRESSION
@@ -325,10 +336,10 @@ impl<'a> BinderWorker<'a> {
                     Some(self.flow.create_flow_node(FlowFlags::START, payload, None));
             }
             self.current_return_target = if is_immediately_invoked
-                || kind_of(self.source, node) == SyntaxKind::Constructor
+                || kind == SyntaxKind::Constructor
                 || self.is_in_js_file()
                     && matches!(
-                        kind_of(self.source, node),
+                        kind,
                         SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression
                     ) {
                 Some(self.flow.create_branch_label())
@@ -340,7 +351,7 @@ impl<'a> BinderWorker<'a> {
             self.current_continue_target = None;
             self.has_explicit_return = false;
             self.seen_this_keyword = false;
-            self.bind_children(node);
+            self.bind_children(node, kind);
             let mut flags = self.flags_of(node);
             flags = NodeFlags::from_bits(
                 flags.bits()
@@ -365,7 +376,7 @@ impl<'a> BinderWorker<'a> {
             if self.seen_this_keyword {
                 flags |= NodeFlags::CONTAINS_THIS;
             }
-            if kind_of(self.source, node) == SyntaxKind::SourceFile {
+            if kind == SyntaxKind::SourceFile {
                 flags = NodeFlags::from_bits(flags.bits() | self.emit_flags);
                 self.node_end_flow.insert(node, current_flow);
             }
@@ -376,11 +387,11 @@ impl<'a> BinderWorker<'a> {
                     .flow
                     .finish_flow_label(return_target, self.unreachable_flow);
                 self.current_flow = Some(finished);
-                if kind_of(self.source, node) == SyntaxKind::Constructor
-                    || kind_of(self.source, node) == SyntaxKind::ClassStaticBlockDeclaration
+                if kind == SyntaxKind::Constructor
+                    || kind == SyntaxKind::ClassStaticBlockDeclaration
                     || self.is_in_js_file()
                         && matches!(
-                            kind_of(self.source, node),
+                            kind,
                             SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression
                         )
                 {
@@ -409,7 +420,7 @@ impl<'a> BinderWorker<'a> {
         } else if container_flags.intersects(ContainerFlags::IS_INTERFACE) {
             let save_seen_this_keyword = self.seen_this_keyword;
             self.seen_this_keyword = false;
-            self.bind_children(node);
+            self.bind_children(node, kind);
             let flags = self.flags_of(node);
             self.set_flags_of(
                 node,
@@ -421,7 +432,7 @@ impl<'a> BinderWorker<'a> {
             );
             self.seen_this_keyword = save_seen_this_keyword;
         } else {
-            self.bind_children(node);
+            self.bind_children(node, kind);
         }
 
         // tsgo bindContainer (TypeScript 7.1): an ambient module promotes its

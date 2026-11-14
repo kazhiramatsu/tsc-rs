@@ -32,6 +32,9 @@ use tsc_diagnostics::{gen as diagnostics, DiagnosticArgument, DiagnosticMessage}
 use tsc_syntax::{for_each_child_mut, NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsc_types::{EscapedName, FlowFlags, JsStr, JsString, ModifierFlags, NodeFlags, SymbolFlags};
 
+#[path = "bind_kind_dispatch.rs"]
+mod kind_dispatch;
+
 impl<'a> BinderWorker<'a> {
     /// tsc-port: bindSourceFile2 @6.0.3
     /// tsc-hash: 213891d27022fad429657a32a61e019a181b1fa5a1abd1f54586b72fdc3495a1
@@ -58,11 +61,23 @@ impl<'a> BinderWorker<'a> {
     ///
     /// setParent is unnecessary (arena parents are finalized at parse
     /// time).
+    #[inline(never)]
     pub fn bind(&mut self, node: Option<NodeId>) {
+        #[cfg(test)]
+        if tests::reference_bind_enabled() {
+            self.bind_reference_spine(node);
+            return;
+        }
         let Some(node) = node else { return };
+        let kind = kind_of(self.source, node);
+        self.bind_kind_dispatch(node, kind);
+    }
+
+    #[inline(never)]
+    fn bind_known_kind<const KIND: u16>(&mut self, node: NodeId) {
+        let kind = const { SyntaxKind::from_u16(KIND).expect("a generated syntax kind") };
         // A TS identifier has no child/container or JSDoc work. Keep its
         // binding outside the declaration dispatch and its larger frame.
-        let kind = kind_of(self.source, node);
         if kind == SyntaxKind::Identifier && !self.is_in_js_file() {
             self.bind_identifier(node);
             return;
@@ -84,18 +99,25 @@ impl<'a> BinderWorker<'a> {
         if kind as u16 > SyntaxKind::LastToken as u16 {
             let container_flags = get_container_flags_for_kind(self.source, node, kind);
             if container_flags == ContainerFlags::NONE {
-                self.bind_children(node);
+                self.bind_children(node, kind);
             } else {
-                self.bind_container(node, container_flags);
+                self.bind_container_for_kind(node, container_flags, kind);
             }
         } else {
             self.bind_jsdoc(node);
         }
     }
 
+    #[inline(never)]
+    fn bind_noop_token_in_js(&mut self, node: NodeId) {
+        self.bind_reparsed_jsdoc_namespaces(node);
+        self.bind_jsdoc(node);
+    }
+
     /// tsc-port: bindWorker @6.0.3
     /// tsc-hash: 4b259323fa2534e8d67ea9485669ddbff8e0a5a252719533558d6d8e99181588
     /// tsc-span: _tsc.js:44287-44527
+    #[inline(always)]
     pub(crate) fn bind_worker(&mut self, node: NodeId, kind: SyntaxKind) {
         match kind {
             SyntaxKind::Identifier => self.bind_identifier(node),
@@ -2115,11 +2137,20 @@ impl<'a> BinderWorker<'a> {
         });
     }
 
+    #[inline(always)]
+    fn bind_each_child_for_kind(&mut self, node: NodeId, kind: SyntaxKind) {
+        tsc_syntax::for_each_child_mut_for_kind(self, node, kind, |binder, child| {
+            binder.bind(Some(child));
+            false
+        });
+    }
+
     /// tsc-port: bindChildren @6.0.3
     /// tsc-hash: 69e5dfbb76220dae84ed056c90a443fd58a7edfda6ac555da31683f2567d41c1
     /// tsc-span: _tsc.js:42843-42976
     ///
-    pub(crate) fn bind_children(&mut self, node: NodeId) {
+    #[inline(always)]
+    pub(crate) fn bind_children(&mut self, node: NodeId, kind: SyntaxKind) {
         let save_in_assignment_pattern = self.in_assignment_pattern;
         self.in_assignment_pattern = false;
         // tsgo bindChildren (binder.go:1645-1660) sets Unreachable on an
@@ -2140,18 +2171,17 @@ impl<'a> BinderWorker<'a> {
             // typedef after a `return` does not declare its namespace in the
             // function.
             if matches!(
-                kind_of(self.source, node),
+                kind,
                 SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag
             ) {
                 self.bind_jsdoc_type_alias(node);
             } else {
-                self.bind_each_child(node);
+                self.bind_each_child_for_kind(node, kind);
             }
             self.bind_jsdoc(node);
             self.in_assignment_pattern = save_in_assignment_pattern;
             return;
         }
-        let kind = kind_of(self.source, node);
         if kind as u16 >= SyntaxKind::FirstStatement as u16
             && kind as u16 <= SyntaxKind::LastStatement as u16
             && can_have_flow_node(self.source, node)
@@ -2218,10 +2248,10 @@ impl<'a> BinderWorker<'a> {
             | SyntaxKind::PropertyAssignment
             | SyntaxKind::SpreadElement => {
                 self.in_assignment_pattern = save_in_assignment_pattern;
-                self.bind_each_child(node);
+                self.bind_each_child_for_kind(node, kind);
             }
             _ => {
-                self.bind_each_child(node);
+                self.bind_each_child_for_kind(node, kind);
             }
         }
         self.bind_jsdoc(node);
