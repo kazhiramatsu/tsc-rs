@@ -2,6 +2,7 @@
 //! path components and matched against a path without regular expressions,
 //! with the rules of its usage (files, directories or exclude).
 
+use std::sync::Arc;
 use tsc_diagnostics::JsStr;
 
 use tsc_syntax::go_unicode::equal_fold;
@@ -20,6 +21,25 @@ pub enum Usage {
 #[derive(Clone, Debug)]
 pub struct SpecMatcher {
     patterns: Vec<GlobPattern>,
+}
+
+/// The patterns that can still match below a directory. Completed prefixes
+/// cannot narrow further, so descendants share that selection unchanged.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct RelevantPatterns {
+    indices: Option<Arc<[usize]>>,
+    complete: bool,
+    all: bool,
+}
+
+impl RelevantPatterns {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.indices.is_none() && !self.all
+    }
+
+    pub(crate) fn can_narrow(&self) -> bool {
+        !self.complete && !self.is_empty()
+    }
 }
 
 impl SpecMatcher {
@@ -51,6 +71,73 @@ impl SpecMatcher {
             .iter()
             .position(|pattern| pattern.matches(path))
     }
+
+    pub(crate) fn match_relevant(&self, path: &str, relevant: &RelevantPatterns) -> bool {
+        if relevant.all {
+            return self.match_string(path);
+        }
+        relevant.indices.as_deref().is_some_and(|indices| {
+            indices
+                .iter()
+                .any(|&index| self.patterns[index].matches(path))
+        })
+    }
+
+    pub(crate) fn relevant_to_directory(
+        &self,
+        directory: &str,
+        parent: Option<&RelevantPatterns>,
+    ) -> RelevantPatterns {
+        if let Some(parent) = parent {
+            if parent.complete || parent.is_empty() {
+                return parent.clone();
+            }
+        } else if self.patterns.iter().all(|pattern| {
+            matches!(
+                pattern.directory_relevance(directory),
+                DirectoryRelevance::Unconstrained
+            )
+        }) {
+            return RelevantPatterns {
+                indices: None,
+                complete: true,
+                all: true,
+            };
+        }
+        let mut complete = true;
+        let mut retain = |index: &usize| match self.patterns[*index].directory_relevance(directory)
+        {
+            DirectoryRelevance::Impossible => false,
+            DirectoryRelevance::Constrained => {
+                complete = false;
+                true
+            }
+            DirectoryRelevance::Unconstrained => true,
+        };
+        let indices: Vec<usize> = match parent {
+            Some(parent) => parent
+                .indices
+                .as_deref()
+                .unwrap_or_default()
+                .iter()
+                .copied()
+                .filter(&mut retain)
+                .collect(),
+            None => (0..self.patterns.len()).filter(&mut retain).collect(),
+        };
+        let all = complete && indices.len() == self.patterns.len();
+        RelevantPatterns {
+            indices: (!all && !indices.is_empty()).then(|| Arc::from(indices)),
+            complete,
+            all,
+        }
+    }
+}
+
+enum DirectoryRelevance {
+    Impossible,
+    Constrained,
+    Unconstrained,
 }
 
 /// tsgo `globPattern`.
@@ -129,6 +216,36 @@ impl GlobPattern {
     /// tsgo `matches`.
     fn matches(&self, path: &str) -> bool {
         self.match_path(path, 0, 0)
+    }
+
+    /// Only the prefix before the first recursive wildcard can rule out
+    /// every descendant. The full matcher still decides actual matches.
+    fn directory_relevance(&self, directory: &str) -> DirectoryRelevance {
+        let mut offset = 0;
+        for component in &self.components {
+            if matches!(component, Component::DoubleAsterisk) {
+                return DirectoryRelevance::Unconstrained;
+            }
+            let Some((part, next_offset)) = next_path_part(directory, offset) else {
+                return DirectoryRelevance::Constrained;
+            };
+            let matched = match component {
+                Component::Literal(literal) => self.strings_equal(literal, part),
+                Component::Wildcard {
+                    segments,
+                    skip_package_folders,
+                } => {
+                    !(*skip_package_folders && is_package_folder(part))
+                        && self.match_wildcard(segments, part)
+                }
+                Component::DoubleAsterisk => unreachable!(),
+            };
+            if !matched {
+                return DirectoryRelevance::Impossible;
+            }
+            offset = next_offset;
+        }
+        DirectoryRelevance::Unconstrained
     }
 
     /// tsgo `matchPathParts` of a single path.
@@ -412,3 +529,7 @@ fn get_normalized_path_components(path: &str, current_directory: &str) -> Vec<St
     }
     components
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/vfsmatch/tests.rs"]
+mod tests;
