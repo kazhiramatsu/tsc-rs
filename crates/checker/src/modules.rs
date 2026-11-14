@@ -4337,8 +4337,7 @@ impl<'a> CheckerState<'a> {
             );
         }
         let resolution = self.resolve_program_module(location, module_reference);
-        if let ProgramModuleResolution::Resolved(resolved) = &resolution {
-            let resolved = resolved.clone();
+        if let ProgramModuleResolution::Resolved(resolved) = resolution {
             let source = self.binder.source(resolved.file_index);
             let arbitrary_extension_diagnostic =
                 error_node.is_some() && self.needs_allow_arbitrary_extensions(location, &resolved);
@@ -4355,7 +4354,7 @@ impl<'a> CheckerState<'a> {
             } else {
                 None
             };
-            let resolved_file_name = resolved.resolved_file_name.clone();
+            let resolved_file_name = resolved.resolved_file_name;
             if let Some(resolution_diagnostic) = resolution_diagnostic {
                 let diagnostic_file_name = if arbitrary_extension_diagnostic {
                     Self::normalize_program_path(&resolved_file_name, "")
