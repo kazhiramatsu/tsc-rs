@@ -348,7 +348,7 @@ fn declaration_alias_views_preserve_stored_keys_and_order_after_preparation() {
                 (second_key, second),
             ]));
             assert!(checker.declaration_emit_alias_table(Some(&table)).is_none());
-            assert!(checker.declaration_emit_alias_tables.is_none());
+            assert!(checker.declaration_emit_inputs.is_none());
             checker
                 .emit_precalculate_declaration_emit_visibility(checker.binder.source(0).root)
                 .expect("declaration preparation");

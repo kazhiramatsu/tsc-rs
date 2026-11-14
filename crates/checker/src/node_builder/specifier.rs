@@ -7,6 +7,7 @@
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use indexmap::IndexMap;
 use tsc_binder::{node_util, SymbolId};
@@ -20,6 +21,7 @@ use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget, SymbolFlags, TypeId};
 use tsc_types::{JsStr, JsString};
 
+use crate::declaration_emit::DeclarationEmitModuleNames;
 use crate::state::{CheckResult, CheckerState};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -971,7 +973,8 @@ fn infer_ending_preference(
     let index = state.binder.file_index_of_node(importing_file);
     let importing_node = emit_resolver_node_for_file(state, index, importing_file);
     let mut uses_js = false;
-    for (specifier_index, literal) in module_name_literals(state, index).0.into_iter().enumerate() {
+    let names = module_name_literals(state, index);
+    for (specifier_index, literal) in names.lists().imports.iter().copied().enumerate() {
         let Some(text) = literal_text(state, literal) else {
             continue;
         };
@@ -1002,8 +1005,10 @@ fn infer_ending_preference(
 fn source_uses_extensions_on_imports(state: &CheckerState<'_>, importing_file: NodeId) -> bool {
     let index = state.binder.file_index_of_node(importing_file);
     module_name_literals(state, index)
-        .0
-        .into_iter()
+        .lists()
+        .imports
+        .iter()
+        .copied()
         .filter_map(|literal| literal_text(state, literal))
         .find_map(|text| {
             (path_is_relative(text) && !extension_does_not_support_extensionless_resolution(text))
@@ -1329,7 +1334,8 @@ pub(crate) fn compute_module_specifiers(
         // Program; here the provider or the checker resolves the checker's
         // ordered module-name literals.
         let mut existing_import = None;
-        for literal in module_name_literals(state, importing_index).0 {
+        let names = module_name_literals(state, importing_index);
+        for &literal in &names.lists().imports {
             let usage_mode = literal_usage_mode(state, literal);
             let target = existing_import_target(
                 state,
@@ -4458,10 +4464,45 @@ fn emit_resolver_node_for_file(
     EmitResolverNode::new(SourceFileId::from_raw(source), node)
 }
 
+pub(super) enum ModuleNameLiterals {
+    Collected(DeclarationEmitModuleNames),
+    Retained(Arc<DeclarationEmitModuleNames>),
+}
+
+impl ModuleNameLiterals {
+    pub(super) fn lists(&self) -> &DeclarationEmitModuleNames {
+        match self {
+            Self::Collected(names) => names,
+            Self::Retained(names) => names,
+        }
+    }
+}
+
+/// Retain the same ordered syntax inputs that tsgo reads from SourceFile.
+/// Checking and display calls before declaration preparation keep their
+/// uncached producer; returned views do not borrow the checker state.
 pub(super) fn module_name_literals(
     state: &CheckerState<'_>,
     file_index: usize,
-) -> (Vec<NodeId>, Vec<NodeId>) {
+) -> ModuleNameLiterals {
+    let Some(inputs) = &state.declaration_emit_inputs else {
+        return ModuleNameLiterals::Collected(collect_module_name_literals(state, file_index));
+    };
+    if let Some(names) = inputs.module_names.borrow().get(&file_index) {
+        return ModuleNameLiterals::Retained(Arc::clone(names));
+    }
+    let names = Arc::new(collect_module_name_literals(state, file_index));
+    inputs
+        .module_names
+        .borrow_mut()
+        .insert(file_index, Arc::clone(&names));
+    ModuleNameLiterals::Retained(names)
+}
+
+fn collect_module_name_literals(
+    state: &CheckerState<'_>,
+    file_index: usize,
+) -> DeclarationEmitModuleNames {
     let source = state.binder.source(file_index);
     let mut static_imports = Vec::<NodeId>::new();
     let mut dynamic_imports = Vec::<NodeId>::new();
@@ -4564,7 +4605,10 @@ pub(super) fn module_name_literals(
     dynamic_imports.sort_by(by_position);
     augmentations.sort_by(by_position);
     static_imports.extend(dynamic_imports);
-    (static_imports, augmentations)
+    DeclarationEmitModuleNames {
+        imports: static_imports,
+        augmentations,
+    }
 }
 
 fn static_module_reference_is_collected(
@@ -4635,11 +4679,14 @@ pub(crate) fn get_module_name_string_literal_at(
     file_index: usize,
     index: u32,
 ) -> Option<JsString> {
-    let (imports, augmentations) = module_name_literals(state, file_index);
-    let literal = imports
-        .into_iter()
-        .chain(augmentations)
-        .nth(index as usize)?;
+    let names = module_name_literals(state, file_index);
+    let names = names.lists();
+    let literal = names
+        .imports
+        .iter()
+        .chain(&names.augmentations)
+        .nth(index as usize)
+        .copied()?;
     literal_text(state, literal).map(JsStr::to_owned)
 }
 

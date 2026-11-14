@@ -1074,9 +1074,9 @@ fn alternative_containing_module_chains(
     {
         return Ok(cached.clone());
     }
-    let (imports, _) = module_name_literals(checker, file_index);
+    let names = module_name_literals(checker, file_index);
     let mut results = Vec::new();
-    for import_ref in imports {
+    for &import_ref in &names.lists().imports {
         // resolveExternalModuleName → resolveExternalModule answers an ambient
         // module by name before any mode-keyed host lookup
         // (_tsc.js:49480-49487 precede 49489-49492): `declare module 'x'`

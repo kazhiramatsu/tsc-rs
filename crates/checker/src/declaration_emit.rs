@@ -5,6 +5,7 @@
 //! decisions, while this module owns declaration-emit memoization, alias
 //! painting, and result-shaped accessibility.
 
+use std::cell::RefCell;
 use std::sync::Arc;
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -22,8 +23,14 @@ use tsc_types::{CheckFlags, ModifierFlags, NodeFlags, SymbolFlags};
 use crate::state::{CheckAbort, CheckResult, CheckerState};
 
 #[derive(Default)]
-pub(crate) struct DeclarationEmitAliasTables {
+pub(crate) struct DeclarationEmitInputs {
     tables: HashMap<usize, DeclarationEmitAliasTable>,
+    pub(crate) module_names: RefCell<HashMap<usize, Arc<DeclarationEmitModuleNames>>>,
+}
+
+pub(crate) struct DeclarationEmitModuleNames {
+    pub(crate) imports: Vec<NodeId>,
+    pub(crate) augmentations: Vec<NodeId>,
 }
 
 struct DeclarationEmitAliasTable {
@@ -90,7 +97,7 @@ impl CheckerState<'_> {
         &mut self,
         source: Option<&Arc<SymbolTable>>,
     ) -> Option<Arc<SymbolTable>> {
-        let cache = self.declaration_emit_alias_tables.as_mut()?;
+        let cache = self.declaration_emit_inputs.as_mut()?;
         let source = source?;
         if source.is_empty() {
             return None;
@@ -1891,7 +1898,7 @@ impl CheckerState<'_> {
         &mut self,
         file: NodeId,
     ) -> CheckResult<()> {
-        self.declaration_emit_alias_tables.get_or_insert_default();
+        self.declaration_emit_inputs.get_or_insert_default();
         if !self.declaration_emit_aliases_marked.insert(file) {
             return Ok(());
         }

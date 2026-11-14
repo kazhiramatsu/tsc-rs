@@ -6,6 +6,91 @@ use tsc_emitter::EmitImportIncludeReason;
 use super::*;
 use crate::state::test_support::with_program_state;
 
+#[test]
+fn declaration_module_name_views_keep_the_uncached_order() {
+    let files = [(
+        "/project/main.ts",
+        "type Early = import('early').Type;\n\
+         import value from 'static';\n\
+         export * from 'last-static';\n\
+         const later = await import('late');\n\
+         declare module 'augmentation' { interface Added {} }",
+    )];
+    with_program_state(&files, &CompilerOptions::default(), |state| {
+        let uncached = module_name_literals(state, 0);
+        assert!(matches!(uncached, ModuleNameLiterals::Collected(_)));
+        assert!(state.declaration_emit_inputs.is_none());
+        assert_eq!(
+            uncached
+                .lists()
+                .imports
+                .iter()
+                .chain(&uncached.lists().augmentations)
+                .map(|&node| literal_text(state, node)
+                    .expect("module literal")
+                    .as_str()
+                    .expect("scalar fixture")
+                    .to_owned())
+                .collect::<Vec<_>>(),
+            ["static", "last-static", "early", "late", "augmentation"]
+        );
+
+        state
+            .emit_precalculate_declaration_emit_visibility(state.binder.source(0).root)
+            .expect("declaration preparation");
+        let cold = module_name_literals(state, 0);
+        let warm = module_name_literals(state, 0);
+        assert_eq!(cold.lists().imports, uncached.lists().imports);
+        assert_eq!(cold.lists().augmentations, uncached.lists().augmentations);
+        let (ModuleNameLiterals::Retained(cold), ModuleNameLiterals::Retained(warm)) = (cold, warm)
+        else {
+            panic!("declaration preparation must retain the input lists");
+        };
+        assert!(Arc::ptr_eq(&cold, &warm));
+    });
+}
+
+#[test]
+fn retained_module_name_views_survive_other_files_and_cache_replacement() {
+    let files = [
+        ("/project/first.ts", "import 'first'; export {};"),
+        ("/project/second.ts", "import 'second'; export {};"),
+    ];
+    with_program_state(&files, &CompilerOptions::default(), |state| {
+        state
+            .emit_precalculate_declaration_emit_visibility(state.binder.source(0).root)
+            .expect("declaration preparation");
+        // Insert in reverse file order; the selected lists depend on file identity.
+        let second = module_name_literals(state, 1);
+        let first = module_name_literals(state, 0);
+        let (ModuleNameLiterals::Retained(first), ModuleNameLiterals::Retained(second)) =
+            (first, second)
+        else {
+            panic!("prepared views");
+        };
+        assert!(!Arc::ptr_eq(&first, &second));
+        assert_eq!(literal_text(state, first.imports[0]), Some("first".into()));
+        assert_eq!(
+            literal_text(state, second.imports[0]),
+            Some("second".into())
+        );
+
+        state
+            .declaration_emit_inputs
+            .as_ref()
+            .expect("prepared inputs")
+            .module_names
+            .borrow_mut()
+            .clear();
+        let ModuleNameLiterals::Retained(replacement) = module_name_literals(state, 0) else {
+            panic!("replacement view");
+        };
+        assert!(!Arc::ptr_eq(&first, &replacement));
+        assert_eq!(first.imports, replacement.imports);
+        assert_eq!(first.augmentations, replacement.augmentations);
+    });
+}
+
 struct TestModuleSpecifierHost {
     current_directory: String,
     files: BTreeSet<String>,
