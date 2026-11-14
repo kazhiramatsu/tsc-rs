@@ -627,6 +627,33 @@ fn map_bytes<K, V>(map: &HashMap<K, V>) -> usize {
 }
 
 impl TypeTables {
+    /// Return scalar lookup buffers only after the owning one-shot checker
+    /// has published its final result. Records, list payloads and the type
+    /// identity lease remain held; this table must not be used for more work.
+    pub fn release_scalar_lookup_buffers(&mut self) {
+        fn release<K, V>(map: &mut HashMap<K, V>) {
+            const { assert!(!std::mem::needs_drop::<(K, V)>()) };
+            drop(std::mem::take(map));
+        }
+        fn release_table<T>(table: &mut hashbrown::HashTable<T>) {
+            const { assert!(!std::mem::needs_drop::<T>()) };
+            drop(std::mem::take(table));
+        }
+
+        release(&mut self.union_types);
+        release(&mut self.union_of_union_types);
+        release(&mut self.intersection_types);
+        release(&mut self.indexed_access_types);
+        release(&mut self.number_literal_types);
+        release(&mut self.string_mapping_types);
+        release(&mut self.substitution_types);
+        release(&mut self.instantiations.plain);
+        release(&mut self.instantiations.full);
+        release_table(&mut self.list_ids);
+        release_table(&mut self.string_literal_types);
+        release_table(&mut self.template_literal_types);
+    }
+
     /// This checker's type tables by structure.
     pub fn memory_usage(&self) -> TypesMemory {
         // The records sit in the type store's claimed room: the room's

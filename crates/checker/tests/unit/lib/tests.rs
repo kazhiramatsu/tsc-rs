@@ -8217,7 +8217,18 @@ fn completed_one_shot_shards_publish_owned_instantiation_diagnostics() {
                  const result = lift({ ok: 'yes', deep: { n: 1 } });\n\
                  const bad: Wrap<{ ok: number; deep: { n: string } }> = result;\n\
                  type Unwrap<T> = T extends Wrap<infer U> ? U : never;\n\
-                 const inferred: Unwrap<typeof result> = { ok: 'yes', deep: { n: 'bad' } };\n",
+                 const inferred: Unwrap<typeof result> = { ok: 'yes', deep: { n: 'bad' } };\n\
+                 type Select<T, K extends keyof T> = { [P in K]: T[P] };\n\
+                 type Choice = { kind: 'a'; value: Wrap<number> } | { kind: 'b'; value: Wrap<string> };\n\
+                 declare const choice: Choice;\n\
+                 const picked: Select<Wrap<string>, 'value'> = { value: 123 };\n\
+                 const key: keyof Wrap<number> = 'missing';\n\
+                 type EventName<T extends string> = `changed:${T}`;\n\
+                 const eventName: EventName<'value'> = 'bad';\n\
+                 if (choice.kind === 'a') { const badValue: Wrap<string> = choice.value; }\n\
+                 declare function hasText(value: unknown): value is { text: string };\n\
+                 declare const candidate: unknown;\n\
+                 if (hasText(candidate)) { const badText: number = candidate.text; }\n",
             )
         })
         .collect::<Vec<_>>();
