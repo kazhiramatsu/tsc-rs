@@ -590,7 +590,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 reserved_bytes - self.total_source_bytes - self.reserved_bytes,
             ),
             stopped: AtomicBool::new(false),
+            scope_preparation: ScopePreparation::default(),
+            package_ids: Arc::clone(&self.package_ids),
             queued: Sharded::new(),
+            path_symbol_count: AtomicUsize::new(0),
             resolutions: Sharded::new(),
             target_resolutions: Sharded::new(),
             resolved: AtomicUsize::new(0),
@@ -599,7 +602,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         };
         for path in seeds {
             if pass.admits(path) {
-                pass.queued.insert_new(path.canonical());
+                pass.path_symbol(path.canonical(), true);
             }
         }
         let mut placed = HashSet::default();
@@ -607,7 +610,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         for (ordinal, (entries, room)) in groups.into_iter().zip(rooms).enumerate() {
             for entry in &entries {
                 placed.insert(entry.path.canonical().clone());
-                pass.queued.insert_new(entry.path.canonical());
+                pass.path_symbol(entry.path.canonical(), true);
             }
             jobs.push(Job::Stripe(
                 ordinal,
@@ -772,17 +775,16 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                                         implied_for_emit,
                                         prepared: prepared.with_preparsed_syntax(syntax),
                                         plan: Ok(PreparedSourceRequests::new(plan)),
-                                        resolutions: Vec::new(),
                                     },
                                     Err(error) => PrefetchedParse {
                                         implied,
                                         implied_for_emit,
                                         prepared,
                                         plan: Err(error),
-                                        resolutions: Vec::new(),
                                     },
                                 };
                                 let mut source = ReadAheadSource {
+                                    scope: None,
                                     path: entry.path,
                                     order: entry.order,
                                     read: PrefetchedRead::Parsed {
@@ -884,6 +886,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         });
         for (path, order, read) in stream.other_reads {
             sources.push(ReadAheadSource {
+                scope: None,
                 path,
                 order,
                 read,
@@ -910,6 +913,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 PrefetchedSource {
                     display: source.path.display().to_owned(),
                     read: source.read,
+                    scope: source.scope,
                 },
             );
         }

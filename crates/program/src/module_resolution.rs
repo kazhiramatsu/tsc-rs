@@ -1640,12 +1640,20 @@ impl<'a> ModuleResolver<'a> {
         &mut self,
         file: impl Into<JsStr<'p>>,
     ) -> Result<Option<PackageMetadata>, ResolutionError> {
+        self.package_scope_handle_for_file(file)
+            .map(|scope| scope.map(|metadata| metadata.as_ref().clone()))
+    }
+
+    pub(crate) fn package_scope_handle_for_file<'p>(
+        &mut self,
+        file: impl Into<JsStr<'p>>,
+    ) -> Result<Option<Arc<PackageMetadata>>, ResolutionError> {
         let file = file.into();
         let current_directory = self.current_directory_text();
         let context = self.lexical_paths.file_context(file, current_directory)?;
         Ok(self
             .find_nearest_package_scope(&context.directory)?
-            .map(|package| package.metadata.as_ref().clone()))
+            .map(|package| Arc::clone(&package.metadata)))
     }
 
     /// The loader has already normalized its roots. Other selected spellings
@@ -1653,7 +1661,7 @@ impl<'a> ModuleResolver<'a> {
     pub(crate) fn package_scope_for_normalized_file(
         &mut self,
         file: &ProgramPath,
-    ) -> Result<Option<PackageMetadata>, ResolutionError> {
+    ) -> Result<Option<Arc<PackageMetadata>>, ResolutionError> {
         debug_assert!(normalize_absolute_js_path(
             file.display(),
             Some(self.current_directory_text()),
@@ -1663,7 +1671,7 @@ impl<'a> ModuleResolver<'a> {
         let directory = self.lexical_paths.directory(file.display());
         Ok(self
             .find_nearest_package_scope(directory.as_js())?
-            .map(|package| package.metadata.as_ref().clone()))
+            .map(|package| Arc::clone(&package.metadata)))
     }
 
     /// Resolve a bare package name through a package `exports` map.
@@ -5675,6 +5683,50 @@ impl<'a> ModuleResolver<'a> {
             && mode == ResolutionMode::EsNext
     }
 
+    fn memoized_package_scope(
+        &mut self,
+        containing_directory: JsStr<'_>,
+        key: &JsString,
+    ) -> Option<Option<Arc<CachedPackage>>> {
+        if let Some(scope) = self.package_scope_by_directory.get(key) {
+            return Some(scope.clone());
+        }
+        let prefetched = self.read_ahead_package_scopes.remove(key).filter(|scope| {
+            scope.as_ref().is_none_or(|package| {
+                let directory = containing_directory.as_bytes();
+                let root = package.root.as_bytes();
+                // A canonical memo can come from another casing. Only
+                // adopt the manifest spelling this ordered lookup uses.
+                directory.starts_with(root)
+                    && (directory.len() == root.len()
+                        || root.ends_with(b"/")
+                        || directory.get(root.len()) == Some(&b'/'))
+            })
+        });
+        if let Some(scope) = prefetched {
+            let observed = match scope {
+                Some(package) => {
+                    let package_key = package.metadata.package_json().canonical().as_js();
+                    match self
+                        .package_cache
+                        .entry(package_key.to_owned())
+                        .or_insert_with(|| PackageCacheEntry::Found(Arc::clone(&package)))
+                    {
+                        PackageCacheEntry::Found(package) => Some(Some(Arc::clone(package))),
+                        PackageCacheEntry::Missing { .. } => None,
+                    }
+                }
+                None => Some(None),
+            };
+            if let Some(scope) = observed {
+                self.package_scope_by_directory
+                    .insert(key.clone(), scope.clone());
+                return Some(scope);
+            }
+        }
+        None
+    }
+
     fn find_nearest_package_scope<'p>(
         &mut self,
         containing_directory: impl Into<JsStr<'p>>,
@@ -5687,41 +5739,8 @@ impl<'a> ModuleResolver<'a> {
             )
         });
         if let Some(key) = &memo_key {
-            if let Some(scope) = self.package_scope_by_directory.get(key) {
-                return Ok(scope.clone());
-            }
-            let prefetched = self.read_ahead_package_scopes.remove(key).filter(|scope| {
-                scope.as_ref().is_none_or(|package| {
-                    let directory = containing_directory.as_bytes();
-                    let root = package.root.as_bytes();
-                    // A canonical memo can come from another casing. Only
-                    // adopt the manifest spelling this ordered lookup uses.
-                    directory.starts_with(root)
-                        && (directory.len() == root.len()
-                            || root.ends_with(b"/")
-                            || directory.get(root.len()) == Some(&b'/'))
-                })
-            });
-            if let Some(scope) = prefetched {
-                let observed = match scope {
-                    Some(package) => {
-                        let package_key = package.metadata.package_json().canonical().as_js();
-                        match self
-                            .package_cache
-                            .entry(package_key.to_owned())
-                            .or_insert_with(|| PackageCacheEntry::Found(Arc::clone(&package)))
-                        {
-                            PackageCacheEntry::Found(package) => Some(Some(Arc::clone(package))),
-                            PackageCacheEntry::Missing { .. } => None,
-                        }
-                    }
-                    None => Some(None),
-                };
-                if let Some(scope) = observed {
-                    self.package_scope_by_directory
-                        .insert(key.clone(), scope.clone());
-                    return Ok(scope);
-                }
+            if let Some(scope) = self.memoized_package_scope(containing_directory, key) {
+                return Ok(scope);
             }
         }
         let mut found = None;
@@ -8498,3 +8517,7 @@ fn ancestor_directories<'d>(directory: impl Into<JsStr<'d>>) -> Vec<JsString> {
     }
     ancestors
 }
+
+#[path = "prepared_package_scope.rs"]
+mod prepared_scope;
+pub(crate) use prepared_scope::{PreparedFileScope, ScopePreparation};

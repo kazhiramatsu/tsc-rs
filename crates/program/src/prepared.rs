@@ -3116,13 +3116,19 @@ impl PreparedProgramBuilder {
     pub(crate) fn stage_prepared_module_resolution(
         &mut self,
         loaded: &mut LoadedModules,
-        prepared: crate::resolution::PreparedModule,
-        key: &mut ResolutionKey,
+        prepared: Arc<crate::resolution::PreparedModule>,
+        specifier: &mut JsString,
         binding: crate::resolution::ModuleBinding,
         package_map: &BTreeMap<JsString, bool>,
     ) -> Result<(), ResolutionError> {
         debug_assert!(self.ensure_healthy().is_ok());
-        loaded.push_prepared(prepared, key, binding, &self.source_files, package_map)
+        loaded.push_prepared(
+            prepared,
+            specifier,
+            binding,
+            &self.source_files,
+            package_map,
+        )
     }
 
     fn try_add_module_resolution(

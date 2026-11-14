@@ -422,3 +422,169 @@ fn prepared_import_rows_keep_occurrence_reasons_policy_and_lookup_order() {
         }
     }
 }
+
+#[test]
+fn source_batches_keep_reference_order_and_ordered_scope_probes() {
+    let mut files = MemoryCompilerHost::builder("/p")
+        .case_sensitive(false)
+        .file(
+            "/p/package.json",
+            br#"{"name":"owner","version":"1","type":"commonjs"}"#.to_vec(),
+        )
+        .file("/p/shared.ts", b"export const x = 1;".to_vec())
+        .file(
+            "/p/refs/first.ts",
+            b"import { x } from '../shared'; export { x };".to_vec(),
+        );
+    let roots: Vec<_> = (0..80).map(|index| {
+        let path = format!("/p/SRC/root{index}.ts");
+        files = files.clone().file(&path, b"/// <reference path=\"../refs/first.ts\" />\nimport { x } from '../shared'; export { x };".to_vec());
+        PathBuf::from(path)
+    }).collect();
+    let host = files.build().unwrap();
+    let mut opts = options();
+    opts.module = Some(1);
+    opts.module_resolution = Some(2);
+    opts.incremental = Some(true);
+    let describe = |program: &tsc_program::PreparedProgram| {
+        format!(
+            "{:?}\n{:?}\n{:?}\n{:?}",
+            program
+                .source_files()
+                .iter()
+                .map(|source| (
+                    source.path(),
+                    source.package_scope(),
+                    source.inclusion_reasons()
+                ))
+                .collect::<Vec<_>>(),
+            program.resolutions().modules().collect::<Vec<_>>(),
+            program.packages().collect::<Vec<_>>(),
+            program.package_json_probes()
+        )
+    };
+    let baseline = load_no_lib_program(
+        &NoAhead(host.clone()),
+        &roots,
+        opts.clone(),
+        program_options(),
+        limits(1),
+    )
+    .unwrap();
+    let expected = describe(&baseline);
+    for workers in [1, 4, 16] {
+        let actual = load_no_lib_program(
+            &host,
+            &roots,
+            opts.clone(),
+            program_options().with_identity_domain(tsc_types::IdentityDomain::new()),
+            limits(workers),
+        )
+        .unwrap();
+        assert_eq!(describe(&actual), expected, "workers={workers}");
+        let bounded = ProgramLoadLimits::new(2, 1000, 100, 1 << 20, 4 << 20)
+            .with_workers(WorkerBudget::new(NonZeroUsize::new(workers).unwrap()));
+        let actual = load_no_lib_program(&host, &roots, opts.clone(), program_options(), bounded)
+            .unwrap_err();
+        let expected = load_no_lib_program(
+            &NoAhead(host.clone()),
+            &roots,
+            opts.clone(),
+            program_options(),
+            bounded,
+        )
+        .unwrap_err();
+        assert_eq!(
+            format!("{actual:?}"),
+            format!("{expected:?}"),
+            "limit workers={workers}"
+        );
+    }
+}
+
+#[test]
+fn package_owners_follow_collection_when_workers_prepare_the_same_identity() {
+    let mut files = MemoryCompilerHost::builder("/p");
+    for copy in ["a", "b"] {
+        files = files
+            .file(
+                format!("/p/{copy}/node_modules/pkg/package.json"),
+                br#"{"name":"pkg","version":"1.0.0"}"#.to_vec(),
+            )
+            .file(
+                format!("/p/{copy}/node_modules/pkg/index.d.ts"),
+                b"/// <reference path=\"./sub.d.ts\" />\nexport declare const main: number;"
+                    .to_vec(),
+            )
+            .file(
+                format!("/p/{copy}/node_modules/pkg/sub.d.ts"),
+                b"export declare const sub: number;".to_vec(),
+            );
+    }
+    let mut roots = Vec::new();
+    for index in 0..80 {
+        let (copy, text) = match index {
+            0 => ("a", "import { main } from 'pkg'; export { main };"),
+            1 => ("b", "import { sub } from 'pkg/sub'; export { sub };"),
+            2 => ("a", "import { sub } from 'pkg/sub'; export { sub };"),
+            _ => ("a", "export {};"),
+        };
+        let path = format!("/p/{copy}/src/root{index}.ts");
+        files = files.file(&path, text.as_bytes().to_vec());
+        roots.push(PathBuf::from(path));
+    }
+    let host = files.build().unwrap();
+    let describe = |program: &tsc_program::PreparedProgram| {
+        format!(
+            "{:?}\n{:?}\n{:?}\n{:?}",
+            program
+                .source_files()
+                .iter()
+                .map(|source| (
+                    source.path(),
+                    source.package_redirect_paths(),
+                    source.inclusion_reasons()
+                ))
+                .collect::<Vec<_>>(),
+            program.resolutions().modules().collect::<Vec<_>>(),
+            program.packages().collect::<Vec<_>>(),
+            program.package_json_probes()
+        )
+    };
+    for deduplicate in [true, false] {
+        let mut opts = options();
+        opts.deduplicate_packages = Some(deduplicate);
+        let baseline = load_no_lib_program(
+            &NoAhead(host.clone()),
+            &roots,
+            opts.clone(),
+            program_options(),
+            limits(1),
+        )
+        .unwrap();
+        assert_eq!(
+            baseline.source_files()[0].path().display(),
+            "/p/a/node_modules/pkg/sub.d.ts"
+        );
+        assert_eq!(
+            baseline.source_files()[0].package_redirect_paths().len(),
+            usize::from(deduplicate)
+        );
+        let expected = describe(&baseline);
+        for workers in [1, 4, 16] {
+            let actual = load_no_lib_program(
+                &host,
+                &roots,
+                opts.clone(),
+                program_options().with_identity_domain(tsc_types::IdentityDomain::new()),
+                limits(workers),
+            )
+            .unwrap();
+            assert_eq!(
+                describe(&actual),
+                expected,
+                "workers={workers}, deduplicate={deduplicate}"
+            );
+        }
+    }
+}

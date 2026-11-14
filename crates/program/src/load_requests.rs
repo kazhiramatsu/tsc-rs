@@ -15,16 +15,16 @@ const _: () = assert!(std::mem::size_of::<ImportOccurrence>() <= 32);
 
 #[derive(Default)]
 pub(super) struct PreparedModuleRequests {
-    pub keys: Vec<ResolutionKey>,
-    pub loads_source: Vec<bool>,
-    pub synthetic_counts: Vec<u32>,
+    pub rows: Vec<StagedModuleResolution>,
+    pub staged: bool,
+    pub all_ready: bool,
     pub occurrences: Vec<ImportOccurrence>,
     pub indices: crate::resolution::PreparedModuleIndices,
 }
 
 impl PreparedModuleRequests {
     pub fn len(&self) -> usize {
-        self.loads_source.len()
+        self.rows.len()
     }
 }
 
@@ -34,6 +34,7 @@ pub(super) struct PreparedSourceRequests {
     observed: usize,
     admission: AdmissionPlanParts,
     modules: PreparedModuleRequests,
+    source: Option<CanonicalPath>,
 }
 
 impl PreparedSourceRequests {
@@ -76,6 +77,7 @@ impl PreparedSourceRequests {
             });
         }
         let keys = modules.keys;
+        let source = keys.first().map(|key| key.source().clone());
         let loads_source = modules.loads_source;
         drop(modules.spans);
         drop(modules.occurrence_counts);
@@ -86,10 +88,29 @@ impl PreparedSourceRequests {
             import_count,
             observed,
             admission,
+            source,
             modules: PreparedModuleRequests {
-                keys,
-                loads_source,
-                synthetic_counts,
+                rows: keys
+                    .into_iter()
+                    .zip(loads_source)
+                    .zip(synthetic_counts)
+                    .map(
+                        |((key, loads_source), synthetic_count)| StagedModuleResolution {
+                            host: PreparedModuleResolution::empty(),
+                            key: SourceModuleKey {
+                                mode: key.mode(),
+                                specifier: key.into_parts().1,
+                            },
+                            target: StagedModuleTarget::Lookup,
+                            loads_source,
+                            synthetic_count,
+                            unloaded_reason: None,
+                            ready: false,
+                        },
+                    )
+                    .collect(),
+                staged: false,
+                all_ready: false,
                 occurrences,
                 indices,
             },
@@ -104,14 +125,34 @@ impl PreparedSourceRequests {
     pub fn observed_request_occurrence_count(&self) -> usize {
         self.observed
     }
-    pub fn module_requests(&self) -> &[ResolutionKey] {
-        &self.modules.keys
+    pub fn module_rows_mut(&mut self) -> impl Iterator<Item = &mut StagedModuleResolution> {
+        self.modules.rows.iter_mut()
     }
-    pub fn module_requests_with_loadability(&self) -> impl Iterator<Item = (&ResolutionKey, bool)> {
+    pub fn finish_preparation(&mut self) {
+        self.modules.all_ready = self.modules.rows.iter().all(|row| row.ready);
+    }
+    pub fn into_resolutions(self) -> impl Iterator<Item = (ResolutionKey, Arc<PreparedModule>)> {
+        let source = self.source;
+        self.modules.rows.into_iter().filter_map(move |row| {
+            row.ready.then(|| {
+                (
+                    ResolutionKey::new(
+                        source.as_ref().expect("a request source").clone(),
+                        row.key.specifier,
+                        row.key.mode,
+                    ),
+                    row.host.into_facts(),
+                )
+            })
+        })
+    }
+    pub fn module_requests_with_loadability(
+        &self,
+    ) -> impl Iterator<Item = (&SourceModuleKey, bool)> {
         self.modules
-            .keys
+            .rows
             .iter()
-            .zip(self.modules.loads_source.iter().copied())
+            .map(|row| (&row.key, row.loads_source))
     }
     pub fn path_references(&self) -> &[PlannedPathReference] {
         &self.admission.path_references
@@ -144,26 +185,46 @@ pub(super) enum ImportPolicy {
 }
 
 pub(super) struct PreparedModuleResolution {
-    pub facts: PreparedModule,
+    pub facts: Option<Arc<PreparedModule>>,
     pub policy: ImportPolicy,
     pub policy_prepared: bool,
+    pub symbol: Option<std::num::NonZeroU32>,
 }
 
 const _: () = assert!(std::mem::size_of::<PreparedModuleResolution>() <= 128);
 
 impl PreparedModuleResolution {
-    pub fn new(host: HostModuleResolution, key: &ResolutionKey) -> Self {
+    pub fn empty() -> Self {
         Self {
-            facts: PreparedModule::new(host, key),
+            facts: None,
             policy: ImportPolicy::Unprepared,
             policy_prepared: false,
+            symbol: None,
+        }
+    }
+    pub fn new(
+        host: HostModuleResolution,
+        mode: ResolutionMode,
+        identities: &crate::resolution::PreparedPackageIds,
+    ) -> Self {
+        Self::from_facts(Arc::new(PreparedModule::new(host, mode, identities)))
+    }
+    pub fn from_facts(facts: Arc<PreparedModule>) -> Self {
+        Self {
+            facts: Some(facts),
+            policy: ImportPolicy::Unprepared,
+            policy_prepared: false,
+            symbol: None,
         }
     }
     pub fn resolved(&self) -> Option<PreparedResolvedModule<'_>> {
-        self.facts.resolved()
+        self.facts.as_ref().and_then(|facts| facts.resolved())
+    }
+    pub fn into_facts(self) -> Arc<PreparedModule> {
+        self.facts.expect("resolved request facts")
     }
     pub fn into_host(self) -> HostModuleResolution {
-        self.facts.into_host()
+        Arc::unwrap_or_clone(self.into_facts()).into_host()
     }
     pub fn policy_for(
         &self,
@@ -173,7 +234,7 @@ impl PreparedModuleResolution {
         redirected: impl FnOnce(&ProgramPath) -> bool,
         mapped: impl FnOnce(&ProgramPath) -> bool,
     ) -> ImportPolicy {
-        match self.facts.resolved() {
+        match self.resolved() {
             None => ImportPolicy::Missing,
             Some(target) => {
                 let extension = target.extension();
