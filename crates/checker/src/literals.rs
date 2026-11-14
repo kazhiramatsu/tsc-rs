@@ -1732,18 +1732,20 @@ impl<'a> CheckerState<'a> {
             if !self.check_cross_product_union(types) {
                 return Ok(self.tables.intrinsics.error);
             }
-            let mapped = self.map_type(
-                types[union_index],
-                &mut |state, t| {
-                    let mut replaced = types.to_vec();
-                    replaced[union_index] = t;
-                    state
-                        .get_template_literal_type_from_texts(texts, &replaced)
-                        .map(Some)
-                },
-                /*no_reductions*/ false,
-            )?;
-            return Ok(mapped.expect("template literals over unions never drop members"));
+            return self.with_instantiation_type_list(|state, replaced| {
+                replaced.extend_from_slice(types);
+                let mapped = state.map_type(
+                    types[union_index],
+                    &mut |state, t| {
+                        replaced[union_index] = t;
+                        state
+                            .get_template_literal_type_from_texts(texts, replaced)
+                            .map(Some)
+                    },
+                    /*no_reductions*/ false,
+                )?;
+                Ok(mapped.expect("template literals over unions never drop members"))
+            });
         }
         let result = self
             .tables

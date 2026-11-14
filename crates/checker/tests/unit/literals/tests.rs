@@ -453,3 +453,47 @@ fn a_template_union_drops_the_literals_its_templates_match() {
         assert_eq!(printed("r1", SymbolFlags::VALUE), "`undefined:${string}`");
     });
 }
+
+#[test]
+fn nested_template_distribution_keeps_every_input_position() {
+    let text = r#"
+type Product = `${"a" | "b"}:${1 | 2}:${"x" | "y"}`;
+type Empty = `${never}:${1 | 2}`;
+declare let product: Product;
+declare let expected: "a:1:x" | "a:1:y" | "a:2:x" | "a:2:y"
+    | "b:1:x" | "b:1:y" | "b:2:x" | "b:2:y";
+product = expected;
+expected = product;
+declare let empty: Empty;
+declare let nothing: never;
+nothing = empty;
+empty = nothing;
+"#;
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        state.check_source_file(0);
+        assert_eq!(rows(state), []);
+        let symbol = state
+            .resolve_file_scope_name("Product", SymbolFlags::TYPE)
+            .unwrap();
+        let ty = state.get_declared_type_of_symbol(symbol).unwrap();
+        let tsc_types::TypeData::Union { types, .. } = state.tables.type_of(ty).data else {
+            panic!("the product must have eight literal members");
+        };
+        let members = state
+            .tables
+            .list(types)
+            .iter()
+            .map(|&ty| {
+                let Some(tsc_types::LiteralValue::String(value)) = state.tables.literal_value(ty)
+                else {
+                    panic!("every product member must be a string literal");
+                };
+                value.as_str().expect("ASCII product").to_owned()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            members,
+            ["a:1:x", "a:1:y", "a:2:x", "a:2:y", "b:1:x", "b:1:y", "b:2:x", "b:2:y"]
+        );
+    });
+}

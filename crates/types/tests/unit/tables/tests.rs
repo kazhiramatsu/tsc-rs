@@ -588,6 +588,96 @@ fn template_literal_types_fold_and_intern() {
 }
 
 #[test]
+fn template_scratch_keeps_cached_payloads_after_growth_and_limit_errors() {
+    let mut t = tables();
+    let number = t.intrinsics.number;
+    let string = t.intrinsics.string;
+    let texts = [
+        TemplateText::from_utf16(&[0xD800, b'a' as u16]),
+        TemplateText::from_utf8("0123456789abcdef😀"),
+        TemplateText::from_utf16(&[0xDC00]),
+    ];
+    let types = [number, string];
+    let original = t.get_template_literal_type_from_texts(&texts, &types);
+    // Each reusable segment buffer sees the longest segment before the
+    // capacity check; later cache hits should only rotate those buffers.
+    for _ in 0..6 {
+        assert_eq!(
+            t.get_template_literal_type_from_texts(&texts, &types),
+            original
+        );
+    }
+    let capacities = |tables: &TypeTables| {
+        let scratch = tables.template_scratch.last().unwrap();
+        let mut units = scratch
+            .new_texts
+            .iter()
+            .map(Vec::capacity)
+            .chain(std::iter::once(scratch.text.capacity()))
+            .collect::<Vec<_>>();
+        units.sort_unstable();
+        (
+            scratch.new_types.capacity(),
+            scratch.new_texts.capacity(),
+            units,
+        )
+    };
+    let retained = capacities(&t);
+    for _ in 0..8 {
+        assert_eq!(
+            t.get_template_literal_type_from_texts(&texts, &types),
+            original
+        );
+        assert_eq!(capacities(&t), retained);
+    }
+
+    let empty = [TemplateText::default(), TemplateText::default()];
+    assert_eq!(
+        t.get_template_literal_type_from_texts(&empty, &[number]),
+        t.intrinsics.numeric_string
+    );
+    assert_eq!(
+        t.get_template_literal_type_from_texts(&empty, &[string]),
+        string
+    );
+    let oversized_types = vec![number; MAX_TEMPLATE_LITERAL_TYPE_SPANS + 1];
+    let oversized_texts = vec![TemplateText::default(); oversized_types.len() + 1];
+    assert_eq!(
+        t.try_get_template_literal_type_from_texts(&oversized_texts, &oversized_types),
+        Err(TemplateLiteralTooLarge),
+    );
+    assert_eq!(
+        t.get_template_literal_type_from_texts(&texts, &types),
+        original
+    );
+    let TypeData::TemplateLiteral(payload) = t.type_of(original).data else {
+        panic!("expected a stored template literal");
+    };
+    assert_eq!(&*t.template_literal(payload).texts, &texts);
+    assert_eq!(t.list(t.template_literal(payload).types), types);
+}
+
+#[test]
+fn borrowed_template_keys_keep_the_stored_text_hash() {
+    use std::hash::{Hash, Hasher};
+
+    let t = tables();
+    let types = [t.intrinsics.number, t.intrinsics.string];
+    let texts = [
+        TemplateText::from_utf16(&[0xD800]),
+        TemplateText::default(),
+        TemplateText::from_utf8("é😀"),
+    ];
+    let mut stored = rustc_hash::FxHasher::default();
+    types.as_slice().hash(&mut stored);
+    texts.as_slice().hash(&mut stored);
+    assert_eq!(
+        hash_template_literal_key(&types, texts.len(), texts.iter().map(TemplateText::units)),
+        stored.finish(),
+    );
+}
+
+#[test]
 fn mapped_types_carry_root_and_instantiation_identity() {
     let mut t = tables();
     let symbol = SymbolId::new(7);
