@@ -893,13 +893,14 @@ pub struct CheckerState<'a> {
     /// Bounded flow answers and their dependency registers; independent of
     /// speculation rollback.
     pub(crate) flow_memo: crate::flow_memo::FlowMemo,
+    pub(crate) no_flow_context_nodes: crate::flow::caches::NoFlowContextNodes,
     /// Exact, bounded memo for ordered union input lists.
     pub(crate) union_front_cache: crate::union_front_cache::UnionFrontCache,
     /// tsc sharedFlowNodes/sharedFlowTypes (69395-69396), with each
     /// answer's dependencies; each query scans only its own
     /// window (sharedFlowStart..) and truncates back on exit — also on
     /// CheckAbort unwind (the unwind invariant).
-    pub(crate) shared_flow: Vec<crate::flow::SharedFlow>,
+    pub(crate) shared_flow: crate::flow_memo::SharedFlowState,
     /// The ReduceLabel antecedent swap (getTypeAtFlowNode 70473): tsc
     /// mutates `target.antecedent` in place during try/finally walks;
     /// the binder graph is immutable to the checker, so the swapped
@@ -1521,6 +1522,8 @@ impl<'a> CheckerState<'a> {
         rows.extend(self.links.memory_usage());
         let (flow_entries, flow_bytes) = self.flow_memo.memory_usage();
         rows.push(("flow memo and walk scratch", flow_entries, flow_bytes));
+        let (entries, bytes) = self.no_flow_context_nodes.memory_usage();
+        rows.push(("annotation context bits", entries, bytes));
         let mut tables = std::mem::take(&mut program_binder.tables);
         let persistent_table_bytes: usize = tables.values().sum();
         let (symbols, symbol_bytes, owned) = self.binder.transient_memory_usage(&mut tables);
@@ -2053,8 +2056,9 @@ impl<'a> CheckerState<'a> {
             mapped_types_in_progress: Vec::new(),
             flow_analysis_disabled: false,
             flow_memo: crate::flow_memo::FlowMemo::new(),
+            no_flow_context_nodes: Default::default(),
             union_front_cache: Default::default(),
-            shared_flow: Vec::new(),
+            shared_flow: Default::default(),
             reduce_label_overrides: rustc_hash::FxHashMap::default(),
             evolving_array_types: rustc_hash::FxHashMap::default(),
             generic_object_flags: rustc_hash::FxHashMap::default(),

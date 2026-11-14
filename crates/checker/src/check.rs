@@ -92,7 +92,7 @@ struct UnwindSnapshot {
     // missed until 7.0t widened it: the shared-flow window, the
     // ReduceLabel override map, the exhaustive-switch cycle set, and
     // the inlineLevel budget counter.
-    shared_flow: usize,
+    shared_flow: crate::flow_memo::SharedFlowCheckpoint,
     reduce_label_overrides: usize,
     exhaustive_switch_computing: usize,
     inline_level: u32,
@@ -130,7 +130,7 @@ impl<'a> CheckerState<'a> {
             variance_type_parameter: self.variance_type_parameter,
             flow_loop_start: self.flow_loop_start,
             flow_loop_stack: self.flow_loop_stack.len(),
-            shared_flow: self.shared_flow.len(),
+            shared_flow: self.shared_flow.checkpoint(),
             reduce_label_overrides: self.reduce_label_overrides.len(),
             exhaustive_switch_computing: self.exhaustive_switch_computing.len(),
             inline_level: self.inline_level,
@@ -359,7 +359,7 @@ impl<'a> CheckerState<'a> {
                 variance_type_parameter: None,
                 flow_loop_start: 0,
                 flow_loop_stack: 0,
-                shared_flow: 0,
+                shared_flow: Default::default(),
                 reduce_label_overrides: 0,
                 exhaustive_switch_computing: 0,
                 inline_level: 0,

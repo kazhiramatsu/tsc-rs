@@ -133,9 +133,84 @@ impl FlowNodeCache {
     }
 }
 
+/// Nodes whose immutable ancestor chain has no conditional or mapped
+/// flow context before the statement/JSDoc boundary. This syntax fact
+/// survives speculative rollback; it does not cache an annotation type.
+#[derive(Debug, Default)]
+pub(crate) struct NoFlowContextNodes {
+    pages: Vec<Option<Box<[u64; 512]>>>,
+}
+
+impl NoFlowContextNodes {
+    #[inline]
+    pub(crate) fn contains(&self, node: tsc_syntax::NodeId) -> bool {
+        let index = node.index() as usize;
+        let Some(Some(page)) = self.pages.get(index >> 15) else {
+            return false;
+        };
+        page[(index >> 6) & 511] & (1u64 << (index & 63)) != 0
+    }
+
+    #[inline]
+    pub(crate) fn insert(&mut self, node: tsc_syntax::NodeId) {
+        let index = node.index() as usize;
+        let page_index = index >> 15;
+        if page_index >= self.pages.len() {
+            self.pages.resize_with(page_index + 1, || None);
+        }
+        let page = self.pages[page_index].get_or_insert_with(Self::new_page);
+        page[(index >> 6) & 511] |= 1u64 << (index & 63);
+    }
+
+    // Keep allocation and zero initialization out of ordinary inserts.
+    #[cold]
+    #[inline(never)]
+    fn new_page() -> Box<[u64; 512]> {
+        Box::new([0; 512])
+    }
+
+    /// The one-shot worker has published its result and will not query again.
+    #[cold]
+    pub(crate) fn release_finished_buffers(&mut self) {
+        self.pages = Vec::new();
+    }
+
+    pub(crate) fn memory_usage(&self) -> (usize, usize) {
+        let entries = self
+            .pages
+            .iter()
+            .flatten()
+            .flat_map(|page| page.iter())
+            .map(|word| word.count_ones() as usize)
+            .sum();
+        let bytes = self.pages.capacity() * std::mem::size_of::<Option<Box<[u64; 512]>>>()
+            + self.pages.iter().flatten().count() * 4096;
+        (entries, bytes)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn annotation_bits_keep_sparse_pages_and_word_boundaries_independent() {
+        use tsc_syntax::NodeId;
+        let mut nodes = NoFlowContextNodes::default();
+        for index in [0, 63, 64, 32767, 32768, u32::MAX - 1] {
+            let node = NodeId::new(index);
+            assert!(!nodes.contains(node));
+            nodes.insert(node);
+            nodes.insert(node);
+            assert!(nodes.contains(node));
+        }
+        for index in [1, 62, 65, 32766, 32769, 65536, u32::MAX - 2] {
+            assert!(!nodes.contains(NodeId::new(index)));
+        }
+        assert_eq!(nodes.memory_usage().0, 6);
+        assert_eq!(nodes.pages.iter().flatten().count(), 3);
+        assert!(!NoFlowContextNodes::default().contains(NodeId::new(64)));
+    }
 
     #[test]
     fn boolean_slots_round_trip_both_answers_at_every_bit_bound() {

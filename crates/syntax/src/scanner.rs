@@ -292,6 +292,25 @@ const fn body_stops(special: &[u8]) -> [bool; 256] {
     }
     table
 }
+const JSDOC_TEXT_STOPS: [bool; 256] = body_stops(b"\r\n`{@");
+const JSDOC_BACKTICK_TEXT_STOPS: [bool; 256] = body_stops(b"\r\n`");
+const JSDOC_IDENTIFIER_STOPS: [bool; 256] = {
+    let mut stops = [true; 256];
+    let mut i = 0;
+    while i < 128 {
+        stops[i] = !IDENTIFIER_PART[i] && i != b'-' as usize;
+        i += 1;
+    }
+    stops
+};
+const JSDOC_WHITESPACE_STOPS: [bool; 256] = {
+    let mut stops = [true; 256];
+    stops[b' ' as usize] = false;
+    stops[b'\t' as usize] = false;
+    stops[0x0b] = false;
+    stops[0x0c] = false;
+    stops
+};
 const LINE_BODY_STOPS: [bool; 256] = body_stops(b"\r\n");
 const COMMENT_BODY_STOPS: [bool; 256] = body_stops(b"*\r\n");
 const SINGLE_STRING_STOPS: [bool; 256] = body_stops(b"'\\\r\n");
@@ -828,7 +847,16 @@ impl<'text> Scanner<'text> {
             return self.token;
         }
 
-        while let Some(ch) = self.current_char() {
+        let stops = if in_backticks {
+            &JSDOC_BACKTICK_TEXT_STOPS
+        } else {
+            &JSDOC_TEXT_STOPS
+        };
+        loop {
+            self.skip_ascii_body(stops);
+            let Some(ch) = self.current_char() else {
+                break;
+            };
             if is_line_break(ch) || ch == '`' {
                 break;
             }
@@ -878,9 +906,16 @@ impl<'text> Scanner<'text> {
         };
 
         if is_single_line_whitespace(ch) {
-            self.advance_char();
-            while self.current_char().is_some_and(is_single_line_whitespace) {
-                self.advance_char();
+            self.pos += ch.len_utf8();
+            loop {
+                self.skip_ascii_body(&JSDOC_WHITESPACE_STOPS);
+                let Some(next) = self
+                    .current_char()
+                    .filter(|&ch| is_single_line_whitespace(ch))
+                else {
+                    break;
+                };
+                self.pos += next.len_utf8();
             }
             self.token = SyntaxKind::WhitespaceTrivia;
             return self.token;
@@ -930,13 +965,21 @@ impl<'text> Scanner<'text> {
 
         if chars::is_identifier_start(ch) {
             self.value_clear();
-            self.advance_char();
-            while let Some(next) = self.current_char() {
+            self.pos += ch.len_utf8();
+            loop {
+                let start = self.pos;
+                self.skip_ascii_body(&JSDOC_IDENTIFIER_STOPS);
+                if self.token_value.cooked && self.pos > start {
+                    self.cooked.push_str(&self.text[start..self.pos]);
+                }
+                let Some(next) = self.current_char() else {
+                    break;
+                };
                 if chars::is_identifier_part(next) || next == '-' {
                     if self.token_value.cooked {
                         self.cooked.push(next);
                     }
-                    self.advance_char();
+                    self.pos += next.len_utf8();
                     continue;
                 }
                 if next == '\\' {

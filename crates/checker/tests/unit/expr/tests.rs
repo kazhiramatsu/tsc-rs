@@ -959,3 +959,94 @@ const tupleBad: [string] = probeTuple;
         ]);
     });
 }
+
+#[test]
+fn generic_union_constraints_keep_plain_types_and_recursive_constraints() {
+    // checker.go:32073 only resolves constraints for instantiable types.
+    with_program_state(
+        &[(
+            "a.ts",
+            "type U<TUnion extends 'left' | 'right'> = TUnion;\n\
+             type N<TNullable extends string | null> = TNullable;\n\
+             type P<TNumber extends number> = TNumber;\n\
+             type Marker = { marker: number };\n",
+        )],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            let intrinsics = &state.tables.intrinsics;
+            let plain = [
+                intrinsics.any,
+                intrinsics.unknown,
+                intrinsics.never,
+                intrinsics.string,
+                intrinsics.number,
+                intrinsics.null,
+                intrinsics.undefined,
+                state.empty_object_type,
+            ];
+            let ordinary_union = state
+                .get_union_type(&[plain[3], plain[4]])
+                .expect("ordinary union resolves");
+            let count = state.tables.len();
+            for ty in plain.into_iter().chain([ordinary_union]) {
+                assert!(!state
+                    .is_generic_type_with_union_constraint(ty)
+                    .expect("plain types need no constraint"));
+            }
+            assert_eq!(state.tables.len(), count);
+
+            let parameters = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .filter(|&node| state.kind_of(node) == SyntaxKind::TypeParameter)
+                .collect::<Vec<_>>();
+            assert_eq!(parameters.len(), 3);
+            let parameters = parameters
+                .into_iter()
+                .map(|node| {
+                    let symbol = state
+                        .get_symbol_of_declaration(node)
+                        .expect("type parameter is bound");
+                    state
+                        .get_declared_type_of_symbol(symbol)
+                        .expect("type parameter resolves")
+                })
+                .collect::<Vec<_>>();
+            for (&ty, expected) in parameters.iter().zip([true, true, false]) {
+                assert_eq!(
+                    state
+                        .is_generic_type_with_union_constraint(ty)
+                        .expect("cold constraint resolves"),
+                    expected
+                );
+                let count = state.tables.len();
+                assert_eq!(
+                    state
+                        .is_generic_type_with_union_constraint(ty)
+                        .expect("warm constraint resolves"),
+                    expected
+                );
+                assert_eq!(state.tables.len(), count);
+            }
+            let marker_node = find_node(state, SyntaxKind::TypeLiteral, None);
+            let marker = state
+                .get_type_from_type_node(marker_node)
+                .expect("marker object resolves");
+            let intersection = state
+                .get_intersection_type(&[parameters[0], marker], tsc_types::IntersectionFlags::NONE)
+                .expect("generic intersection resolves");
+            assert!(state
+                .tables
+                .flags_of(intersection)
+                .intersects(tsc_types::TypeFlags::INTERSECTION));
+            assert!(state
+                .is_generic_type_with_union_constraint(intersection)
+                .expect("intersection keeps the generic constituent's constraint"));
+        },
+    );
+}

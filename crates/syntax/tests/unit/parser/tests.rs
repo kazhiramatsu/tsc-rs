@@ -4866,3 +4866,434 @@ fn source_and_cooked_literal_values_keep_exact_utf8_and_wtf8() {
         ]
     );
 }
+
+#[test]
+fn expression_continuation_guards_preserve_worker_state_and_recovery() {
+    // Both complete continuations and tokens that must remain with the caller.
+    // Direct worker calls are the reference for the new entry-only decision.
+    for tail in [
+        "",
+        "; next",
+        ", next",
+        ")",
+        "]",
+        "}",
+        ": next",
+        "? a : b",
+        "= next",
+        "=> next",
+        "+ next",
+        "- next",
+        "* next",
+        "/ next",
+        "in next",
+        "instanceof next",
+        "as T",
+        "satisfies T",
+        "return next",
+        ".name;",
+        "?.name;",
+        "[key];",
+        "?.[key];",
+        "(arg, ...rest);",
+        "?.(arg);",
+        "!;",
+        "! .name;",
+        "\n!next",
+        "<T>;",
+        "<T>(arg);",
+        "<<T>(arg);",
+        "`text`;",
+        "`text${value}`;",
+        "?.`text`;",
+        "?.<T>(arg);",
+        "?.;",
+        ".;",
+        "[;",
+        "(;",
+        "<;",
+        "?.#name;",
+        ".name[key](arg)!.next`text${value}`;",
+    ] {
+        let text = format!("base{tail}");
+        for javascript in [false, true] {
+            for decorator in [false, true] {
+                for allow_optional_chain in [false, true] {
+                    for call in [false, true] {
+                        let make_parser = || {
+                            let mut parser = Parser::new(
+                                if javascript { "a.js" } else { "a.ts" }.into(),
+                                &text,
+                                LanguageVariant::Standard,
+                                javascript,
+                            );
+                            parser.set_context_flag(decorator, NodeFlags::DECORATOR_CONTEXT);
+                            parser.next_token();
+                            let expression = parser.parse_primary_expression();
+                            (parser, expression)
+                        };
+                        let (mut actual, expression) = make_parser();
+                        let (mut reference, reference_expression) = make_parser();
+                        let result = if call {
+                            actual.parse_call_expression_rest(0, expression)
+                        } else {
+                            actual.parse_member_expression_rest(0, expression, allow_optional_chain)
+                        };
+                        let expected = if call {
+                            reference.parse_call_expression_rest_worker(0, reference_expression)
+                        } else {
+                            reference.parse_member_expression_rest_worker(
+                                0,
+                                reference_expression,
+                                allow_optional_chain,
+                            )
+                        };
+                        assert_eq!(result, expected, "{text}");
+                        assert_eq!(actual.scanner.save(), reference.scanner.save(), "{text}");
+                        assert_eq!(
+                            actual.parse_diagnostics, reference.parse_diagnostics,
+                            "{text}"
+                        );
+                        assert_eq!(actual.context_flags, reference.context_flags);
+                        assert_eq!(actual.source_flags, reference.source_flags);
+                        assert_eq!(actual.arena.len(), reference.arena.len());
+                        assert_eq!(actual.arena.node_arrays(), reference.arena.node_arrays());
+                        assert_eq!(
+                            actual.arena.array_item_count(),
+                            reference.arena.array_item_count()
+                        );
+                        assert_eq!(
+                            actual.arena.identifier_count(),
+                            reference.arena.identifier_count()
+                        );
+                        assert_eq!(
+                            actual.arena.factory_node_count(),
+                            reference.arena.factory_node_count()
+                        );
+                        for index in 0..actual.arena.len() as u32 {
+                            let id = NodeId::new(index);
+                            assert_finished_headers_match(&actual, &reference, id);
+                            let mut children = Vec::new();
+                            let mut expected_children = Vec::new();
+                            for_each_child(&actual.arena, actual.arena.node(id), |child| {
+                                children.push(child);
+                                false
+                            });
+                            for_each_child(&reference.arena, reference.arena.node(id), |child| {
+                                expected_children.push(child);
+                                false
+                            });
+                            assert_eq!(children, expected_children, "{text}");
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+thread_local! {
+    static ORIGINAL_EXPRESSION_PATH: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+pub(super) fn original_expression_path_enabled() -> bool {
+    ORIGINAL_EXPRESSION_PATH.with(std::cell::Cell::get)
+}
+
+fn with_original_expression_path<T>(f: impl FnOnce() -> T) -> T {
+    struct Restore(bool);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            ORIGINAL_EXPRESSION_PATH.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(ORIGINAL_EXPRESSION_PATH.with(|flag| flag.replace(true)));
+    f()
+}
+
+impl Parser<'_> {
+    pub(super) fn original_parse_unary_expression_or_higher(&mut self) -> NodeId {
+        if self.is_update_expression() {
+            let pos = self.node_pos();
+            let update_expression = self.parse_update_expression();
+            if self.token() == SyntaxKind::AsteriskAsteriskToken {
+                let precedence = get_binary_operator_precedence(self.token());
+                return self.parse_binary_expression_rest(precedence, update_expression, pos);
+            }
+            return update_expression;
+        }
+
+        let unary_operator = self.token();
+        let start = self.scanner.token_start();
+        let simple_unary_expression = self.parse_simple_unary_expression();
+        if self.token() == SyntaxKind::AsteriskAsteriskToken {
+            let node = self.arena.node(simple_unary_expression);
+            let end = node.end as usize;
+            if node.kind == SyntaxKind::TypeAssertionExpression {
+                self.parse_error_at_position(
+                    start,
+                    end.saturating_sub(start),
+                    &gen::A_type_assertion_expression_is_not_allowed_in_the_left_hand_side_of_an_exponentiation_expression_Consider_enclosing_the_expression_in_parentheses,
+                    &[],
+                );
+            } else {
+                self.parse_error_at_position(
+                    start,
+                    end.saturating_sub(start),
+                    &gen::An_unary_expression_with_the_0_operator_is_not_allowed_in_the_left_hand_side_of_an_exponentiation_expression_Consider_enclosing_the_expression_in_parentheses,
+                    &[&token_to_string(unary_operator)],
+                );
+            }
+        }
+        simple_unary_expression
+    }
+
+    pub(super) fn original_parse_update_expression(&mut self) -> NodeId {
+        if matches!(
+            self.token(),
+            SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+        ) {
+            let pos = self.node_pos();
+            let operator = self.token();
+            self.next_token();
+            let operand = self.parse_left_hand_side_expression_or_higher();
+            return self.finish_node_data(
+                NodeData::PrefixUnaryExpression(PrefixUnaryExpressionData {
+                    operator,
+                    operand: Some(operand),
+                }),
+                pos,
+            );
+        } else if self.language_variant == LanguageVariant::Jsx
+            && self.token() == SyntaxKind::LessThanToken
+            && self
+                .look_ahead(|parser| parser.next_token_is_identifier_or_keyword_or_greater_than())
+        {
+            return self
+                .parse_jsx_element_or_self_closing_element_or_fragment(true, None, None, false);
+        }
+
+        let expression = self.parse_left_hand_side_expression_or_higher();
+        if matches!(
+            self.token(),
+            SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+        ) && !self.scanner.has_preceding_line_break()
+        {
+            let operator = self.token();
+            self.next_token();
+            return self.finish_node_data(
+                NodeData::PostfixUnaryExpression(PostfixUnaryExpressionData {
+                    operator,
+                    operand: Some(expression),
+                }),
+                self.arena.node(expression).pos as usize,
+            );
+        }
+        expression
+    }
+
+    pub(super) fn original_parse_left_hand_side_expression_or_higher(&mut self) -> NodeId {
+        let pos = self.node_pos();
+        let expression = if self.token() == SyntaxKind::ImportKeyword {
+            if self.look_ahead(|parser| parser.next_token_is_open_paren_or_less_than()) {
+                self.source_flags |= NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT;
+                self.parse_token_node()
+            } else if self.look_ahead(|parser| parser.next_token_is_dot()) {
+                self.next_token();
+                self.next_token();
+                let name = self.parse_import_meta_property_name();
+                let meta = self.finish_node_data(
+                    NodeData::MetaProperty(MetaPropertyData {
+                        keyword_token: SyntaxKind::ImportKeyword,
+                        name: Some(name),
+                    }),
+                    pos,
+                );
+                // tsc: `import.defer(...)`/`import.source(...)` (or with
+                // `<`) is a phase dynamic import; every other name is
+                // import.meta territory.
+                if crate::utilities::is_import_phase_meta_property(&self.arena, meta) {
+                    if matches!(
+                        self.token(),
+                        SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken
+                    ) {
+                        self.source_flags |= NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT;
+                    }
+                } else {
+                    self.source_flags |= NodeFlags::POSSIBLY_CONTAINS_IMPORT_META;
+                }
+                meta
+            } else {
+                self.parse_member_expression_or_higher()
+            }
+        } else if self.token() == SyntaxKind::SuperKeyword {
+            self.parse_super_expression()
+        } else {
+            self.parse_member_expression_or_higher()
+        };
+        self.parse_call_expression_rest(pos, expression)
+    }
+}
+
+#[test]
+fn ordinary_expression_path_preserves_original_state_and_recovery() {
+    let expressions = [
+        "value",
+        "value + other * next",
+        "value ** other ** next",
+        "value < other",
+        "value >= other",
+        "value >> other",
+        "value >>>= other",
+        "value >",
+        "value ?? other || next",
+        "value as T satisfies U",
+        "value as T + other",
+        "value ? left : right",
+        "value ? : right",
+        "++value",
+        "--obj.key",
+        "value++",
+        "value--",
+        "value\n++next",
+        "value\u{2028}--next",
+        "-value ** other",
+        "(<T>value) ** other",
+        "<T>value ** other",
+        "+(value ** other)",
+        "typeof value",
+        "delete obj.key",
+        "void value",
+        "await value",
+        "yield * value",
+        "new Thing<T>(value).key",
+        "new (factory())()",
+        "obj?.key!.method<T>(value)",
+        "obj?.[key]",
+        "obj?.(value)",
+        "tag`raw${value}`",
+        "super.key(value)",
+        "super<T>(value)",
+        "super;",
+        "import('module')",
+        "import.meta.url",
+        "import.defer('module')",
+        "import.source<T>('module')",
+        "import",
+        "import.",
+        "<Tag value={expr} />",
+        "<><Tag /></>",
+        "<T,>(value: T) => value",
+        "<Tag>",
+        "value + ;",
+        "value ** -",
+        "obj?.",
+        "obj[",
+        "(value +",
+        "@decorator class {}",
+        "[left, ...right]",
+        "({ key: value, method() { return next; } })",
+        "\u{00e9} + other",
+    ];
+    for text in expressions {
+        for javascript in [false, true] {
+            for variant in [LanguageVariant::Standard, LanguageVariant::Jsx] {
+                for context in [
+                    NodeFlags::NONE,
+                    NodeFlags::YIELD_CONTEXT,
+                    NodeFlags::AWAIT_CONTEXT,
+                    NodeFlags::DECORATOR_CONTEXT,
+                ] {
+                    let make = || {
+                        let mut parser =
+                            Parser::new("expression.ts".into(), text, variant, javascript);
+                        parser.context_flags |= context;
+                        parser.next_token();
+                        parser
+                    };
+                    let mut actual = make();
+                    let mut reference = make();
+                    let result = actual.parse_expression();
+                    let expected = with_original_expression_path(|| reference.parse_expression());
+                    assert_eq!(
+                        result, expected,
+                        "{text:?}/{javascript}/{variant:?}/{context:?}"
+                    );
+                    assert_eq!(actual.scanner.save(), reference.scanner.save(), "{text:?}");
+                    assert_eq!(
+                        actual.scanner.token_value(),
+                        reference.scanner.token_value(),
+                        "{text:?}"
+                    );
+                    assert_eq!(
+                        actual.parse_diagnostics, reference.parse_diagnostics,
+                        "{text:?}"
+                    );
+                    assert_eq!(actual.parse_recovery, reference.parse_recovery, "{text:?}");
+                    assert_eq!(actual.context_flags, reference.context_flags);
+                    assert_eq!(actual.source_flags, reference.source_flags);
+                    assert_eq!(
+                        actual.statement_has_await_identifier,
+                        reference.statement_has_await_identifier
+                    );
+                    assert_eq!(actual.arena, reference.arena, "{text:?}");
+                    for id in actual.arena.node_ids() {
+                        assert_finished_headers_match(&actual, &reference, id);
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn ordinary_expression_path_preserves_complete_source_files_in_both_jsdoc_modes() {
+    let fixtures = [
+        "/** @link Thing */ export const v = obj?.key!.method<T>(arg) + next * more ** power;",
+        "async function f() { const m = await import('m'); return import.meta.url + import.defer('x'); }",
+        "class C extends B { #x = 1; m() { ++this.#x; super.m(); return this.#x++ ** 2; } }",
+        "function* f() { yield * [first, second]; const g = async (x: T) => await x; return g; }",
+        "const f = <T extends U>(value: T): T => value; const jsx = <Tag value={f(arg)}><Child /></Tag>;",
+        "const x = -value ** power; const y = <Type>value ** power; const z = value as T + other;",
+        "/** @typedef {{ value: number }} Thing */ const v = obj?.method?.(arg); v\n++next;",
+        "@dec class C { @other m() { return (factory())?.key satisfies T; } }",
+        "export const x = import.; class C extends B { m() { super; } } const y = value ? :;",
+        "const x = <Tag>; const y = obj?.; const z = new Thing<; function f( { return - **; }",
+    ];
+    for text in fixtures {
+        for script_kind in [
+            ScriptKind::Ts,
+            ScriptKind::Js,
+            ScriptKind::Tsx,
+            ScriptKind::Jsx,
+        ] {
+            for js_doc_parsing_mode in [
+                JSDocParsingMode::ParseAll,
+                JSDocParsingMode::ParseForTypeErrors,
+            ] {
+                let snapshot =
+                    TextSnapshot::new(text.to_owned(), tsc_diagnostics::DocumentVersion::default());
+                let options = ParseOptions {
+                    script_kind,
+                    js_doc_parsing_mode,
+                    node_id_base: 37,
+                    node_array_id_base: 19,
+                    ..ParseOptions::default()
+                };
+                let actual = crate::parse_source_file_from_snapshot(
+                    "path.tsx",
+                    std::sync::Arc::clone(&snapshot),
+                    options.clone(),
+                    None,
+                );
+                let reference = with_original_expression_path(|| {
+                    crate::parse_source_file_from_snapshot("path.tsx", snapshot, options, None)
+                });
+                assert_eq!(
+                    actual, reference,
+                    "{text:?}/{script_kind:?}/{js_doc_parsing_mode:?}"
+                );
+            }
+        }
+    }
+}

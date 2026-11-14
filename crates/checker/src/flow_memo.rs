@@ -135,16 +135,85 @@ pub(crate) struct MemoHit {
     flags: u8,
 }
 
-#[derive(Clone, Copy, Default)]
-struct Slot {
-    key: u128,
-    ty: Option<TypeId>,
-    epoch: u32,
-    height: u16,
-    flags: u8,
+#[cfg(target_pointer_width = "64")]
+const SLOT_STATE_SHIFT: u32 = 38;
+#[cfg(target_pointer_width = "32")]
+const SLOT_STATE_SHIFT: u32 = 17;
+const SLOT_STATE_MASK: u64 = ((1 << 12) - 1) << SLOT_STATE_SHIFT;
+const SLOT_IDENTITY_MASK: u64 = (usize::MAX as u64) & !SLOT_STATE_MASK;
+
+// The omitted identity bits and the stored metadata use this exact budget.
+const _: () = assert!(TABLE_SLOTS == 1 << 12);
+const _: () = assert!(FLOW_DEPTH_LIMIT <= 1 << 11);
+
+#[inline]
+fn node_key_state(key: u128) -> u64 {
+    #[cfg(target_pointer_width = "64")]
+    {
+        (key as u64).rotate_right(26)
+    }
+    #[cfg(target_pointer_width = "32")]
+    {
+        u64::from((key as u32).rotate_right(15))
+    }
 }
 
-const _: () = assert!(std::mem::size_of::<Slot>() == 32);
+/// The locked Fx integer hash's two node-tag states differ by a constant:
+/// every node tuple hashes the same number of words. The first state thus
+/// determines the complete old tag. On 64-bit hosts the existing slot index
+/// is state[38..49] XOR (state + constant)[9..20]. Keeping all other bits and
+/// the unchanged index determines those twelve bits too: the lower sum cannot
+/// depend on the omitted higher bits. On 32-bit hosts the index is directly
+/// state[17..28], with the same argument for the other twenty bits.
+///
+/// That leaves eleven bits for the bounded height and one for COUNT_RESET.
+/// Published answers always carry TYPE_CACHE, including those with epoch zero;
+/// reconstruct that dependency rather than deriving it from the epoch.
+#[derive(Clone, Copy, Default)]
+#[repr(C, align(16))]
+struct Slot {
+    key_and_state: u64,
+    ty: Option<TypeId>,
+    epoch: u32,
+}
+
+const _: () = assert!(std::mem::size_of::<Slot>() == 16);
+
+impl Slot {
+    #[inline]
+    fn new(key: u128, hit: MemoHit) -> Self {
+        debug_assert!(u32::from(hit.height) < FLOW_DEPTH_LIMIT);
+        debug_assert_eq!(hit.flags & !FLAG_COUNT_RESET, FLAG_TYPE_CACHE);
+        Self {
+            key_and_state: (node_key_state(key) & SLOT_IDENTITY_MASK)
+                | (u64::from(hit.height) << SLOT_STATE_SHIFT)
+                | (u64::from(hit.flags & FLAG_COUNT_RESET != 0) << (SLOT_STATE_SHIFT + 11)),
+            ty: Some(hit.ty),
+            epoch: hit.epoch,
+        }
+    }
+
+    /// The caller must select this slot with the unchanged full-key index.
+    #[inline]
+    fn matches_at_index(&self, key: u128) -> bool {
+        (self.key_and_state ^ node_key_state(key)) & SLOT_IDENTITY_MASK == 0
+    }
+
+    #[inline]
+    fn height(&self) -> u16 {
+        ((self.key_and_state >> SLOT_STATE_SHIFT) & 0x7ff) as u16
+    }
+
+    #[inline]
+    fn flags(&self) -> u8 {
+        FLAG_TYPE_CACHE
+            | if self.key_and_state & (1 << (SLOT_STATE_SHIFT + 11)) != 0 {
+                FLAG_COUNT_RESET
+            } else {
+                0
+            }
+    }
+}
 
 #[cfg(any(test, feature = "flow-memo-shadow"))]
 #[derive(Clone)]
@@ -364,6 +433,22 @@ impl FlowMemo {
         )
     }
 
+    /// Return answer-only storage before an unused worker keeps its identities.
+    #[cold]
+    pub(crate) fn release_finished_buffers(&mut self) {
+        self.slots = Vec::new();
+        self.checkpoints = Vec::new();
+        self.key_buffer = Vec::new();
+        #[cfg(feature = "flow-memo-shadow")]
+        {
+            self.shadow_slots = Vec::new();
+        }
+        #[cfg(any(test, feature = "flow-memo-shadow"))]
+        {
+            self.stats.occupied = 0;
+        }
+    }
+
     #[cfg(feature = "flow-memo-shadow")]
     fn frame_taint(&self, frame: &FlowFrame, counters: FlowCounters) -> FrameTaint {
         FrameTaint {
@@ -396,14 +481,14 @@ impl FlowMemo {
         }
         let key = Self::node_key(flow, key);
         let slot = self.slots.get(Self::slot_index(key))?;
-        if slot.key != key {
+        if !slot.matches_at_index(key) {
             return None;
         }
         Some(MemoHit {
             ty: slot.ty?,
-            height: slot.height,
+            height: slot.height(),
             epoch: slot.epoch,
-            flags: slot.flags,
+            flags: slot.flags(),
         })
     }
 
@@ -423,13 +508,7 @@ impl FlowMemo {
         {
             self.stats.occupied += usize::from(self.slots[index].ty.is_none());
         }
-        self.slots[index] = Slot {
-            key: node_key,
-            ty: Some(hit.ty),
-            epoch: hit.epoch,
-            height: hit.height,
-            flags: hit.flags,
-        };
+        self.slots[index] = Slot::new(node_key, hit);
         #[cfg(any(test, feature = "flow-memo-shadow"))]
         {
             self.stats.stores += 1;
@@ -546,6 +625,67 @@ fn shared_replay_safe(shared: &[SharedFlow]) -> bool {
     })
 }
 
+/// Append-only shared answers and their exact publication-safety summary.
+/// A frame's suffix is safe iff its start follows the latest unsafe entry.
+#[derive(Default)]
+pub(crate) struct SharedFlowState {
+    records: Vec<SharedFlow>,
+    last_unsafe: usize,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct SharedFlowCheckpoint {
+    len: usize,
+    last_unsafe: usize,
+}
+
+impl std::ops::Deref for SharedFlowState {
+    type Target = [SharedFlow];
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.records
+    }
+}
+
+impl SharedFlowState {
+    #[inline]
+    pub(crate) fn checkpoint(&self) -> SharedFlowCheckpoint {
+        SharedFlowCheckpoint {
+            len: self.records.len(),
+            last_unsafe: self.last_unsafe,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn restore(&mut self, checkpoint: SharedFlowCheckpoint) {
+        debug_assert!(checkpoint.len <= self.records.len());
+        self.records.truncate(checkpoint.len);
+        self.last_unsafe = checkpoint.last_unsafe;
+        debug_assert!(self.last_unsafe <= self.records.len());
+    }
+
+    #[inline]
+    pub(crate) fn record(&mut self, shared: SharedFlow, impure_shared: &mut u32) {
+        if !shared_replay_safe(std::slice::from_ref(&shared)) {
+            // Preserve the original counter update before publishing anything.
+            *impure_shared += 1;
+            self.last_unsafe = self.records.len() + 1;
+        }
+        self.records.push(shared);
+    }
+
+    #[inline]
+    fn replay_safe(&self, start: usize) -> bool {
+        // Preserve the original suffix bounds check in release builds.
+        assert!(start <= self.records.len());
+        let safe = self.last_unsafe <= start;
+        #[cfg(any(debug_assertions, feature = "flow-memo-shadow"))]
+        assert_eq!(safe, shared_replay_safe(&self.records[start..]));
+        safe
+    }
+}
+
 #[cfg(any(test, feature = "flow-memo-shadow"))]
 fn shared_hash(shared: &[SharedFlow]) -> u64 {
     let mut hash = FxHasher::default();
@@ -575,15 +715,13 @@ impl CheckerState<'_> {
     /// reference dependencies must reach the enclosing flow frame. A memo
     /// replacement cannot skip that propagation.
     pub(crate) fn record_shared_flow(&mut self, query: &mut FlowQuery, shared: SharedFlow) {
-        if !shared_replay_safe(std::slice::from_ref(&shared)) {
-            query.impure_shared += 1;
-        }
-        self.shared_flow.push(shared);
+        self.shared_flow.record(shared, &mut query.impure_shared);
     }
 
     /// Only reads cached links and syntax. In particular, never resolves a
     /// symbol or assigns a node/symbol identity while constructing a key.
-    pub(crate) fn flow_memo_key(&mut self, query: &FlowQuery) -> Option<MemoKey> {
+    pub(crate) fn flow_memo_key(&mut self, query: &mut FlowQuery) -> Option<MemoKey> {
+        query.identifier_location = None;
         if query.synthetic_props.is_some() || query.synthetic_this_root {
             return None;
         }
@@ -593,14 +731,12 @@ impl CheckerState<'_> {
         // the declared type index is below 2^31.
         let root = match self.kind_of(query.reference) {
             SyntaxKind::Identifier => {
-                let symbol = self
-                    .links
-                    .node(query.reference)
-                    .resolved_symbol
-                    .resolved()?;
+                let (location, links) = self.links.node_with_location(query.reference)?;
+                let symbol = links.resolved_symbol.resolved()?;
                 if symbol == self.unknown_symbol || self.is_this_in_type_query(query.reference) {
                     return None;
                 }
+                query.identifier_location = Some(location);
                 Some(symbol.position())
             }
             SyntaxKind::ThisKeyword => Some(0),
@@ -814,7 +950,7 @@ impl CheckerState<'_> {
             && result.as_ref().is_ok_and(|&ty| {
                 can_store(taint, ty, height, steps, self.flow_analysis_disabled)
                     && !query.memo_aborted
-                    && shared_replay_safe(&self.shared_flow[memo.shared_start..])
+                    && self.shared_flow.replay_safe(memo.shared_start)
             });
         if store {
             let hit = MemoHit {
@@ -874,7 +1010,7 @@ impl CheckerState<'_> {
         let shared_ok =
             shared_hash(&self.shared_flow[query.shared_flow_start..shadow.shared_start])
                 == shadow.shared_hash
-                && shared_replay_safe(&self.shared_flow[shadow.shared_start..])
+                && self.shared_flow.replay_safe(shadow.shared_start)
                 && (!shadow.ends_iteration || shadow.shared_node == shared);
         if same_key && same_type && registers_ok && shared_ok {
             return;

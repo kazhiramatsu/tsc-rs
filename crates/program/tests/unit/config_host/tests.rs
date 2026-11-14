@@ -2,6 +2,43 @@ use super::*;
 use serde_json::{json, Value};
 
 #[test]
+fn directory_exclusions_follow_each_include_base() {
+    let host = tsc_host::MemoryCompilerHost::builder("/work")
+        .file("/work/src/keep.ts", Vec::new())
+        .file("/work/src/deep/drop.test.ts", Vec::new())
+        .file("/work/generated/drop.ts", Vec::new())
+        .file("/outside/src/keep.ts", Vec::new())
+        .file("/outside/src/drop.ts", Vec::new())
+        .build()
+        .unwrap();
+    let includes = [
+        JsString::from("src/**/*.ts"),
+        JsString::from("/outside/src/**/*.ts"),
+    ];
+    let excludes = [
+        JsString::from("generated/**/*"),
+        JsString::from("src/**/*.test.ts"),
+        JsString::from("/outside/src/drop.ts"),
+    ];
+    let files = CompilerConfigHost::new(&host)
+        .read_directory(
+            "/work".into(),
+            &[".ts"],
+            Some(&excludes),
+            Some(&includes),
+            None,
+        )
+        .unwrap();
+    assert_eq!(
+        files,
+        [
+            JsString::from("/work/src/keep.ts"),
+            JsString::from("/outside/src/keep.ts"),
+        ]
+    );
+}
+
+#[test]
 fn config_host_keeps_js_directory_keys_patterns_and_read_names() {
     let base = JsString::from_code_units(&[0x2f, 0x77, 0x6f, 0x72, 0x6b, 0x2f, 0xd800]);
     let leaves = [0xd800, 0xd801, 0xfffd].map(|unit| {

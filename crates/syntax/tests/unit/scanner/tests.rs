@@ -1630,3 +1630,236 @@ fn identifier_batches_stop_at_tokens_unicode_escapes_and_range_ends() {
         assert_eq!(scanner.scan(), SyntaxKind::EndOfFileToken);
     }
 }
+
+// Scalar reference from our own31600d085 scanner; only method names changed.
+impl Scanner<'_> {
+    fn scalar_scan_jsdoc_comment_text_token(&mut self, in_backticks: bool) -> SyntaxKind {
+        self.full_start_pos = self.pos;
+        self.token_start = self.pos;
+        self.token_flags = TokenFlags::empty();
+        self.value_clear();
+        if self.pos >= self.end {
+            self.token = SyntaxKind::EndOfFileToken;
+            return self.token;
+        }
+
+        while let Some(ch) = self.current_char() {
+            if is_line_break(ch) || ch == '`' {
+                break;
+            }
+            if !in_backticks {
+                if ch == '{' {
+                    break;
+                }
+                // tsgo: `@` starts a tag only after white space and before an
+                // identifier.
+                if ch == '@' && self.pos > 0 {
+                    let previous = self.text[..self.pos].chars().next_back();
+                    let next = self.text
+                        [self.pos + ch.len_utf8()..self.end.max(self.pos + ch.len_utf8())]
+                        .chars()
+                        .next();
+                    if previous.is_some_and(is_single_line_whitespace)
+                        && next.is_some_and(chars::is_identifier_start)
+                    {
+                        break;
+                    }
+                }
+            }
+            self.advance_char();
+        }
+
+        if self.pos == self.token_start {
+            return self.scalar_scan_jsdoc_token();
+        }
+        self.value_source(self.token_start, self.pos);
+        self.token = SyntaxKind::JSDocCommentTextToken;
+        self.token
+    }
+
+    fn scalar_scan_jsdoc_token(&mut self) -> SyntaxKind {
+        self.full_start_pos = self.pos;
+        self.token_start = self.pos;
+        self.token_flags = TokenFlags::empty();
+        self.value_clear();
+        let Some(ch) = self.current_char() else {
+            self.token = SyntaxKind::EndOfFileToken;
+            return self.token;
+        };
+
+        if is_single_line_whitespace(ch) {
+            self.advance_char();
+            while self.current_char().is_some_and(is_single_line_whitespace) {
+                self.advance_char();
+            }
+            self.token = SyntaxKind::WhitespaceTrivia;
+            return self.token;
+        }
+        if is_line_break(ch) {
+            self.advance_char();
+            if ch == '\r' && self.current_char() == Some('\n') {
+                self.advance_char();
+            }
+            self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
+            self.token = SyntaxKind::NewLineTrivia;
+            return self.token;
+        }
+
+        let punctuation = match ch {
+            '@' => Some(SyntaxKind::AtToken),
+            '*' => Some(SyntaxKind::AsteriskToken),
+            '{' => Some(SyntaxKind::OpenBraceToken),
+            '}' => Some(SyntaxKind::CloseBraceToken),
+            '[' => Some(SyntaxKind::OpenBracketToken),
+            ']' => Some(SyntaxKind::CloseBracketToken),
+            '(' => Some(SyntaxKind::OpenParenToken),
+            ')' => Some(SyntaxKind::CloseParenToken),
+            '<' => Some(SyntaxKind::LessThanToken),
+            '>' => Some(SyntaxKind::GreaterThanToken),
+            '=' => Some(SyntaxKind::EqualsToken),
+            ',' => Some(SyntaxKind::CommaToken),
+            '.' => Some(SyntaxKind::DotToken),
+            '`' => Some(SyntaxKind::BacktickToken),
+            '#' => Some(SyntaxKind::HashToken),
+            _ => None,
+        };
+        if let Some(kind) = punctuation {
+            self.advance_char();
+            self.token = kind;
+            return self.token;
+        }
+
+        if ch == '\\' {
+            if let Some(kind) = self.scan_identifier_escape_start() {
+                return kind;
+            }
+            self.advance_char();
+            self.token = SyntaxKind::Unknown;
+            return self.token;
+        }
+
+        if chars::is_identifier_start(ch) {
+            self.value_clear();
+            self.advance_char();
+            while let Some(next) = self.current_char() {
+                if chars::is_identifier_part(next) || next == '-' {
+                    if self.token_value.cooked {
+                        self.cooked.push(next);
+                    }
+                    self.advance_char();
+                    continue;
+                }
+                if next == '\\' {
+                    let escape_start = self.pos;
+                    if let Some((cooked, escape_flag)) = self.scan_unicode_escape() {
+                        if chars::is_identifier_part(cooked) {
+                            self.token_flags.insert(escape_flag);
+                            self.value_cook_until(escape_start);
+                            self.cooked.push(cooked);
+                            continue;
+                        }
+                    }
+                    self.pos = escape_start;
+                }
+                break;
+            }
+            return self.finish_identifier_token();
+        }
+
+        self.advance_char();
+        self.token = SyntaxKind::Unknown;
+        self.token
+    }
+}
+
+#[test]
+fn jsdoc_ascii_runs_match_scalar_token_and_text_scanning() {
+    let mut inputs = vec![
+        String::new(),
+        "identifier-with-hyphens_012$ rest\t\u{b}\u{c}\r\n".to_owned(),
+        "text {brace} @tag inline@text `fence @tag {text}` next".to_owned(),
+        "text\u{a0}@名 value\u{2028}next\u{2029}last".to_owned(),
+        "é𐐀-ASCII\\u0061-tail\\u{62}next ".to_owned(),
+        "name\\u00zz tail\\u002d text\\u{110000} more\\uD800 end\\".to_owned(),
+        "\\u0061bc \\u{62}cd \\u002d \\uD800".to_owned(),
+        " \u{85}\u{a0}\u{1680}\u{2000}\u{202f}\u{205f}\u{3000}\u{feff} \t".to_owned(),
+        "@*{}[]()<> =,.`# ".to_owned(),
+    ];
+    inputs.push((0..=127u8).map(char::from).collect());
+    for byte in 0..=127u8 {
+        inputs.push(format!("prefix{}suffix", char::from(byte)));
+    }
+    for text in inputs {
+        for typescript in [false, true] {
+            for mode in [
+                JSDocParsingMode::ParseAll,
+                JSDocParsingMode::ParseForTypeErrors,
+            ] {
+                for method in [0, 1, 2] {
+                    let mut actual = Scanner::new(&text, LanguageVariant::Standard);
+                    let mut scalar = Scanner::new(&text, LanguageVariant::Standard);
+                    actual.set_jsdoc_parsing_mode(mode, typescript);
+                    scalar.set_jsdoc_parsing_mode(mode, typescript);
+                    for _ in 0..=text.len() + 1 {
+                        let old_pos = actual.pos();
+                        let kind = if method == 0 {
+                            actual.scan_jsdoc_token()
+                        } else {
+                            actual.scan_jsdoc_comment_text_token(method == 2)
+                        };
+                        let expected = if method == 0 {
+                            scalar.scalar_scan_jsdoc_token()
+                        } else {
+                            scalar.scalar_scan_jsdoc_comment_text_token(method == 2)
+                        };
+                        assert_eq!(kind, expected, "{text:?}, method {method}");
+                        assert_jsdoc_scanners_match(&actual, &scalar, &text);
+                        if kind == SyntaxKind::EndOfFileToken {
+                            break;
+                        }
+                        assert!(actual.pos() > old_pos, "{text:?}");
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn jsdoc_ascii_runs_preserve_ranges_ending_inside_a_scalar() {
+    let text = "ASCII é𐐀-identifier\t\u{a0} more\r\n";
+    for end in 0..=text.len() {
+        for method in [0, 1, 2] {
+            let mut actual = Scanner::new(text, LanguageVariant::Standard);
+            let mut scalar = Scanner::new(text, LanguageVariant::Standard);
+            actual.reset_range(0, end);
+            scalar.reset_range(0, end);
+            for _ in 0..=text.len() + 1 {
+                let old_pos = actual.pos();
+                let kind = if method == 0 {
+                    actual.scan_jsdoc_token()
+                } else {
+                    actual.scan_jsdoc_comment_text_token(method == 2)
+                };
+                let expected = if method == 0 {
+                    scalar.scalar_scan_jsdoc_token()
+                } else {
+                    scalar.scalar_scan_jsdoc_comment_text_token(method == 2)
+                };
+                assert_eq!(kind, expected, "range end {end}, method {method}");
+                assert_jsdoc_scanners_match(&actual, &scalar, text);
+                if kind == SyntaxKind::EndOfFileToken {
+                    break;
+                }
+                assert!(actual.pos() > old_pos);
+            }
+        }
+    }
+}
+
+fn assert_jsdoc_scanners_match(actual: &Scanner<'_>, scalar: &Scanner<'_>, text: &str) {
+    assert_eq!(actual.save(), scalar.save(), "{text:?}");
+    assert_eq!(actual.token_value(), scalar.token_value(), "{text:?}");
+    assert_eq!(actual.token_value_source(), scalar.token_value_source());
+    assert_eq!(actual.errors(), scalar.errors());
+}

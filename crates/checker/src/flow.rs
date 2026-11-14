@@ -44,6 +44,7 @@ use tsc_types::{
 };
 
 use crate::flow_memo::{memo_shared_node, MemoKey, FLOW_DEPTH_LIMIT};
+use crate::links::NodeLinksLocation;
 use crate::state::{CheckResult, CheckerState};
 
 /// tsc FlowType = Type | IncompleteType (checker-key §4.1). The
@@ -127,7 +128,17 @@ pub(crate) struct FlowQuery<'a> {
     /// matchers test ThisKeyword kind like tsc's isMatchingReference
     /// this arm (69462-69463) instead of node matching.
     pub(crate) synthetic_this_root: bool,
+    /// Existing record of a plain Identifier outside a `this` type query.
+    /// The location survives directory growth; its symbol remains a live read.
+    pub(crate) identifier_location: Option<NodeLinksLocation>,
 }
+
+// The source shape and record location use the ordinary query's padding.
+#[cfg(all(
+    target_pointer_width = "64",
+    not(any(test, feature = "flow-memo-shadow"))
+))]
+const _: () = assert!(std::mem::size_of::<FlowQuery>() == 136);
 
 impl<'a> FlowQuery<'a> {
     #[cfg(test)]
@@ -153,6 +164,7 @@ impl<'a> FlowQuery<'a> {
             key: None,
             synthetic_props: None,
             synthetic_this_root: false,
+            identifier_location: None,
         }
     }
 
@@ -417,6 +429,7 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.error);
         }
         self.flow_invocation_count += 1;
+        let shared_checkpoint = self.shared_flow.checkpoint();
         let shared_flow_start = self.shared_flow.len();
         let file = self.binder.file_index_of_node(reference);
         let mut query = FlowQuery {
@@ -438,6 +451,7 @@ impl<'a> CheckerState<'a> {
             key: None,
             synthetic_props: None,
             synthetic_this_root: false,
+            identifier_location: None,
         };
         let frame_depth = self.flow_memo.frame_depth();
         let saved_height = self.flow_memo.save_height();
@@ -445,7 +459,7 @@ impl<'a> CheckerState<'a> {
         self.flow_memo.restore_height(saved_height);
         debug_assert_eq!(self.flow_memo.frame_depth(), frame_depth);
         debug_assert_eq!(query.reduce_depth, 0);
-        self.shared_flow.truncate(shared_flow_start);
+        self.shared_flow.restore(shared_checkpoint);
         walk.and_then(|flow_type| self.flow_query_postlude(&query, flow_type.get_type()))
     }
 
@@ -502,6 +516,7 @@ impl<'a> CheckerState<'a> {
             return Ok(declared_type);
         };
         self.flow_invocation_count += 1;
+        let shared_checkpoint = self.shared_flow.checkpoint();
         let shared_flow_start = self.shared_flow.len();
         let mut query = FlowQuery {
             reference,
@@ -522,15 +537,16 @@ impl<'a> CheckerState<'a> {
             key: None,
             synthetic_props,
             synthetic_this_root,
+            identifier_location: None,
         };
-        query.memo_key = self.flow_memo_key(&query);
+        query.memo_key = self.flow_memo_key(&mut query);
         let frame_depth = self.flow_memo.frame_depth();
         let saved_height = self.flow_memo.save_height();
         let mut walk = self.get_type_at_flow_node(&mut query, flow_node);
         if query.memo_aborted {
             // A replacement can omit shared entries and make a later branch
             // deeper. Replay the whole walk faithfully before reporting TS2563.
-            self.shared_flow.truncate(shared_flow_start);
+            self.shared_flow.restore(shared_checkpoint);
             query.impure_shared = 0;
             query.memo_used = false;
             query.memo_aborted = false;
@@ -543,7 +559,7 @@ impl<'a> CheckerState<'a> {
         // sharedFlowCount = sharedFlowStart — restored BEFORE the `?`
         // so a CheckAbort unwind leaves no shared-cache residue (the
         // unwind invariant).
-        self.shared_flow.truncate(shared_flow_start);
+        self.shared_flow.restore(shared_checkpoint);
         walk.and_then(|flow_type| self.flow_query_postlude(&query, flow_type.get_type()))
     }
 
@@ -3474,9 +3490,22 @@ impl<'a> CheckerState<'a> {
         query: &FlowQuery,
         target: NodeId,
     ) -> CheckResult<bool> {
-        match &query.synthetic_props {
-            None => self.is_matching_reference(query.reference, target),
-            Some(props) => {
+        match (&query.synthetic_props, query.identifier_location) {
+            (None, Some(location)) => match self.kind_of(target) {
+                SyntaxKind::ParenthesizedExpression
+                | SyntaxKind::NonNullExpression
+                | SyntaxKind::BinaryExpression => {
+                    self.is_matching_reference(query.reference, target)
+                }
+                kind => self.is_matching_identifier_reference(
+                    query.reference,
+                    target,
+                    kind,
+                    Some(location),
+                ),
+            },
+            (None, None) => self.is_matching_reference(query.reference, target),
+            (Some(props), _) => {
                 let props = props.clone();
                 self.is_matching_synthetic_chain(
                     query.reference,
@@ -3901,6 +3930,59 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// Read a prepared source's current value, retaining ordinary resolution
+    /// if an intervening late-bind unwind cleared its field.
+    #[inline]
+    fn get_matching_identifier_symbol(
+        &mut self,
+        source: NodeId,
+        location: Option<NodeLinksLocation>,
+    ) -> CheckResult<Option<SymbolId>> {
+        let cached = location.and_then(|location| {
+            self.links
+                .located_node(source, location)
+                .resolved_symbol
+                .resolved()
+        });
+        if let Some(cached) = cached {
+            // This is the cached branch of get_resolved_symbol. A vacant
+            // field falls through to that getter, which counts its own read.
+            tsc_types::perf::bump(tsc_types::perf::PerfCounter::LinksNodeReads);
+            return Ok((cached != self.unknown_symbol).then_some(cached));
+        }
+        self.get_resolved_symbol(source)
+    }
+
+    /// The identifier body after its immutable source shape is known.
+    /// Source and target symbol requests retain their original order.
+    #[inline]
+    fn is_matching_identifier_reference(
+        &mut self,
+        source: NodeId,
+        target: NodeId,
+        target_kind: SyntaxKind,
+        location: Option<NodeLinksLocation>,
+    ) -> CheckResult<bool> {
+        match target_kind {
+            SyntaxKind::Identifier => {
+                let source_symbol = self.get_matching_identifier_symbol(source, location)?;
+                let target_symbol = self.get_resolved_symbol(target)?;
+                Ok(source_symbol == target_symbol)
+            }
+            SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement => {
+                let Some(source_symbol) = self.get_matching_identifier_symbol(source, location)?
+                else {
+                    return Ok(false);
+                };
+                let exported = self.get_export_symbol_of_value_symbol_if_exported(source_symbol);
+                Ok(self
+                    .get_symbol_of_declaration_opt(target)
+                    .is_some_and(|target_symbol| exported == target_symbol))
+            }
+            _ => Ok(false),
+        }
+    }
+
     /// Property/symbol work after the target-first normalization and the
     /// cheap terminal cases. Recursive probes re-enter the same matcher.
     #[inline(never)]
@@ -3931,27 +4013,7 @@ impl<'a> CheckerState<'a> {
                 if self.is_this_in_type_query(source) {
                     return Ok(self.kind_of(target) == SyntaxKind::ThisKeyword);
                 }
-                if self.kind_of(target) == SyntaxKind::Identifier {
-                    let source_symbol = self.get_resolved_symbol(source)?;
-                    let target_symbol = self.get_resolved_symbol(target)?;
-                    if source_symbol == target_symbol {
-                        return Ok(true);
-                    }
-                }
-                if matches!(
-                    self.kind_of(target),
-                    SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
-                ) {
-                    let Some(source_symbol) = self.get_resolved_symbol(source)? else {
-                        return Ok(false);
-                    };
-                    let exported =
-                        self.get_export_symbol_of_value_symbol_if_exported(source_symbol);
-                    return Ok(self
-                        .get_symbol_of_declaration_opt(target)
-                        .is_some_and(|target_symbol| exported == target_symbol));
-                }
-                Ok(false)
+                self.is_matching_identifier_reference(source, target, self.kind_of(target), None)
             }
             SyntaxKind::NonNullExpression
             | SyntaxKind::ParenthesizedExpression

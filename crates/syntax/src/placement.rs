@@ -81,6 +81,8 @@ impl NodeArena {
             texts: StoreVec::claim_room(texts.start() + 1, texts.len()),
             node_base: nodes.start(),
             array_base: arrays.start(),
+            node_next: nodes.start(),
+            array_next: arrays.start(),
             item_base: items.start(),
             text_base: texts.start(),
             ..Self::default()

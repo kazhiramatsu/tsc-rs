@@ -3459,19 +3459,25 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::STRING_LITERAL) {
             let name = self.binder.symbol(symbol).escaped_name;
+            if let Some(mapped) = self.tables.cached_literal_string_mapping(name, ty) {
+                return Ok(mapped);
+            }
             let kind = intrinsic_type_kind(name);
             let Some(tsc_types::LiteralValue::String(value)) = self.tables.literal_value(ty) else {
                 unreachable!("string-literal flag implies string payload");
             };
             // A scalar input already has the encoding used by Rust's JS
             // case conversion. Only lone surrogates need the UTF-16 path.
-            if let Some(value) = value.as_str() {
+            let mapped = if let Some(value) = value.as_str() {
                 let mapped = apply_scalar_string_mapping(kind, value);
-                return Ok(self.tables.get_string_literal_type(mapped.as_str()));
-            }
-            let value = tsc_types::TemplateText::from_js(value);
-            let mapped = apply_string_mapping(kind, &value);
-            return Ok(self.tables.get_string_literal_type_from_text(&mapped));
+                self.tables.get_string_literal_type(mapped.as_str())
+            } else {
+                let value = tsc_types::TemplateText::from_js(value);
+                let mapped = apply_string_mapping(kind, &value);
+                self.tables.get_string_literal_type_from_text(&mapped)
+            };
+            self.tables.cache_literal_string_mapping(name, ty, mapped);
+            return Ok(mapped);
         }
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             let TypeData::TemplateLiteral(template) = self.tables.type_of(ty).data else {

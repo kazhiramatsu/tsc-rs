@@ -2958,6 +2958,7 @@ impl<'a> CheckerState<'a> {
     /// live from 5.5a). Failure caches unknownSymbol (returned as None
     /// here) after the resolveName error path has fired, exactly once
     /// per node.
+    #[inline]
     pub fn get_resolved_symbol(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
         if let Some(cached) = self
             .links
@@ -2965,6 +2966,11 @@ impl<'a> CheckerState<'a> {
         {
             return Ok((cached != self.unknown_symbol).then_some(cached));
         }
+        self.resolve_uncached_symbol(node)
+    }
+
+    #[inline(never)]
+    fn resolve_uncached_symbol(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
         let resolved = if node_util::node_is_missing(&Published, Some(node)) {
             None
         } else {

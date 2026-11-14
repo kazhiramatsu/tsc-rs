@@ -1494,3 +1494,143 @@ fn unclassified_stored_names_keep_contextual_diagnostics() {
     let binder = bind(&mut source);
     assert_eq!(diag_pins(&binder), [(1214, 4, 7)]);
 }
+
+thread_local! {
+    static REFERENCE_BIND_SPINE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+pub(super) fn reference_bind_enabled() -> bool {
+    REFERENCE_BIND_SPINE.with(std::cell::Cell::get)
+}
+
+// Original bind entry/spine from our31600d085 baseline. Only the method name
+// and the child continuation's explicit kind argument differ.
+impl BinderWorker<'_> {
+    pub(super) fn bind_reference_spine(&mut self, node: Option<NodeId>) {
+        let Some(node) = node else { return };
+        // A TS identifier has no child/container or JSDoc work. Keep its
+        // binding outside the declaration dispatch and its larger frame.
+        let kind = kind_of(self.source, node);
+        if kind == SyntaxKind::Identifier && !self.is_in_js_file() {
+            self.bind_identifier(node);
+            return;
+        }
+        // A function declaration of a statement list binds before the other
+        // statements; tsgo's namespaces reparsed from its JSDoc are statements
+        // of their own, bound in their place (bind_each_functions_first).
+        let functions_first = kind == SyntaxKind::FunctionDeclaration
+            && parent_of(self.source, node).is_some_and(|parent| {
+                matches!(
+                    kind_of(self.source, parent),
+                    SyntaxKind::SourceFile | SyntaxKind::Block | SyntaxKind::ModuleBlock
+                )
+            });
+        if !functions_first {
+            self.bind_reparsed_jsdoc_namespaces(node);
+        }
+        self.bind_worker(node, kind);
+        if kind as u16 > SyntaxKind::LastToken as u16 {
+            let container_flags = get_container_flags_for_kind(self.source, node, kind);
+            if container_flags == ContainerFlags::NONE {
+                self.bind_children(node, kind);
+            } else {
+                self.bind_container(node, container_flags);
+            }
+        } else {
+            self.bind_jsdoc(node);
+        }
+    }
+}
+
+#[test]
+fn known_kind_continuations_match_the_original_binding_spine() {
+    fn bind_reference(source: &mut SourceFile) -> crate::BindData {
+        struct Restore(bool);
+        impl Drop for Restore {
+            fn drop(&mut self) {
+                REFERENCE_BIND_SPINE.with(|flag| flag.set(self.0));
+            }
+        }
+        let _restore = Restore(REFERENCE_BIND_SPINE.with(|flag| flag.replace(true)));
+        Binder::bind_local(source).into_bind_data()
+    }
+    let fixtures = [
+        ("types.ts", "export interface Box<T> { value: T; read<U>(x: U): T; } type M<T> = { readonly [K in keyof T]?: T[K] }; type C<T> = T extends Box<infer U> ? U[] : never; export { Box as B };", tsc_syntax::ScriptKind::Ts),
+        ("flow.ts", "function f({x = 0, ...rest}: any, y = 1) { outer: for (let i = 0; i < 3; i++) { if (x) continue outer; try { x ||= y; if (rest) break; } catch (e) { x = e; } finally { y++; } } switch (x) { case 1: return y; default: throw rest; } x++; } const a = () => 1;", tsc_syntax::ScriptKind::Ts),
+        ("class.ts", "class C { #x = 1; static value = 0; get x() { return this.#x; } set x(v) { this.#x = v; } constructor(public y: number) {} method<T>(v: T) { return v; } static { this.value++; } } class D extends C { method(v: any) { return super.method(v); } }", tsc_syntax::ScriptKind::Ts),
+        ("merge.ts", "namespace N { export function f() {} export interface I {} } namespace N { export const x = 1; } function g() {} function g() {} const duplicate = 1; const duplicate = 2; export = N;", tsc_syntax::ScriptKind::Ts),
+        ("legacy.js", "/** @typedef {object} ns.Shape @property {number} x */
+function F() { this.x = 1; } F.prototype.m = function() { return this.x; }; exports.F = F; module.exports.extra = 1; /** @param {ns.Shape} value */ function use(value) { if (value) return value.x; return; }", tsc_syntax::ScriptKind::Js),
+        ("ui.tsx", "namespace JSX { export interface IntrinsicElements { div: any; } } export const view = <div data-x={1}>{items.map(x => <div>{x}</div>)}</div>;", tsc_syntax::ScriptKind::Tsx),
+        ("recover.ts", "function f( { return; } class C { private ; get x( { } const x = ; export { missing as };", tsc_syntax::ScriptKind::Ts),
+    ];
+    for (name, text, script_kind) in fixtures {
+        for js_doc_parsing_mode in [
+            tsc_syntax::JSDocParsingMode::ParseAll,
+            tsc_syntax::JSDocParsingMode::ParseForTypeErrors,
+        ] {
+            let options = ParseOptions {
+                script_kind,
+                js_doc_parsing_mode,
+                ..ParseOptions::default()
+            };
+            let mut actual_source = parse_source_file(name, text, options.clone(), None);
+            let mut expected_source = parse_source_file(name, text, options, None);
+            let actual = Binder::bind_local(&mut actual_source).into_bind_data();
+            let expected = bind_reference(&mut expected_source);
+            macro_rules! same {
+                ($($field:ident),* $(,)?) => { $(assert_eq!(actual.$field, expected.$field, "{}: {}", name, stringify!($field));)* };
+            }
+            same!(
+                common_js_module_indicator,
+                symbols,
+                node_symbol,
+                node_local_symbol,
+                locals,
+                bind_diagnostics,
+                classifiable_names,
+                assigned_symbol_ids,
+                private_name_serial_base,
+                next_symbol_id,
+                next_container,
+                pattern_ambient_modules,
+                unreachable_flow,
+                node_flow,
+                node_end_flow,
+                node_return_flow,
+                node_flow_when_true,
+                node_flow_when_false,
+                possibly_exhaustive,
+                node_fallthrough_flow,
+                emit_flags
+            );
+            // The frozen pool includes reduce-label lists as well as labels.
+            assert_eq!(format!("{:?}", actual.flow), format!("{:?}", expected.flow));
+            assert_eq!(actual.flow.len(), expected.flow.len());
+            for index in 0..actual.flow.len() as u32 {
+                let id = FlowId::new(index);
+                assert_eq!(
+                    actual.flow.flow(id),
+                    expected.flow.flow(id),
+                    "{name}: flow {index}"
+                );
+                assert_eq!(actual.flow.antecedents(id), expected.flow.antecedents(id));
+            }
+            assert_eq!(actual_source.arena.len(), expected_source.arena.len());
+            assert_eq!(
+                actual_source.arena.node_arrays(),
+                expected_source.arena.node_arrays()
+            );
+            for id in actual_source.arena.node_ids() {
+                let a = actual_source.arena.node(id);
+                let e = expected_source.arena.node(id);
+                assert_eq!(
+                    (a.kind, a.pos, a.end, a.flags, a.parent),
+                    (e.kind, e.pos, e.end, e.flags, e.parent),
+                    "{name}: {id:?}"
+                );
+                assert_eq!(a.data(), e.data(), "{name}: payload {id:?}");
+            }
+        }
+    }
+}

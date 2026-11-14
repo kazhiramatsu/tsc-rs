@@ -1,8 +1,9 @@
 //! TypeTables: the type arena, tsc's exact interning surface, and the
 //! option-independent type constructors (greenfield §4.2).
 //!
-//! Interning maps mirror the checker-scope declarations at _tsc.js
-//! 46988-47009 — and ONLY those. There is deliberately no map keyed on
+//! Identity interning maps mirror the checker-scope declarations at
+//! _tsc.js 46988-47009. Completed literal transformations also memoize
+//! their existing result. There is deliberately no map keyed on
 //! anonymous object structure: two written `{}` type literals are
 //! distinct types (allocation id is identity).
 //!
@@ -25,6 +26,7 @@ use crate::ty::{
     TupleTargetData, TupleTargetId, Type, TypeAlias, TypeData, TypeId,
 };
 use crate::type_order::TypeOrder;
+use crate::EscapedName;
 use tsc_store::StoreVec;
 
 /// The named intrinsic/derived types created at checker construction,
@@ -323,6 +325,7 @@ pub struct TypeTables {
     /// Room for the bytes of an ASCII UTF-16 text being looked up (a
     /// template literal's folded text), reused across lookups.
     literal_scratch: Vec<u8>,
+    template_scratch: Vec<TemplateSpans>,
     bigints: Vec<PseudoBigInt>,
     /// Exact number bits, appended only for a new regular literal (including
     /// enum literals). Fresh twins copy the index without adding a value.
@@ -360,6 +363,8 @@ pub struct TypeTables {
     /// stringMappingTypes (46998), keyed `${symbolId},${typeId}`
     /// (getStringMappingTypeForGenericType 62154).
     string_mapping_types: HashMap<(SymbolId, TypeId), TypeId>,
+    /// Completed plain-literal results, independent of symbolic mappings.
+    literal_string_mappings: HashMap<(EscapedName, TypeId), TypeId>,
     /// indexedAccessTypes (46996).
     indexed_access_types: HashMap<IndexedAccessKey, TypeId>,
     /// substitutionTypes (47007), keyed `${baseId}>${constraintId}`
@@ -560,11 +565,18 @@ impl LiteralTexts {
 }
 
 /// The complete former template cache key, without decimal/hex encoding.
-fn hash_template_literal_key(types: &[TypeId], texts: &[TemplateText]) -> u64 {
+fn hash_template_literal_key<'a>(
+    types: &[TypeId],
+    text_count: usize,
+    texts: impl Iterator<Item = &'a [u16]>,
+) -> u64 {
     use std::hash::{Hash, Hasher};
     let mut hasher = rustc_hash::FxHasher::default();
     types.hash(&mut hasher);
-    texts.hash(&mut hasher);
+    text_count.hash(&mut hasher);
+    for units in texts {
+        units.hash(&mut hasher);
+    }
     hasher.finish()
 }
 
@@ -684,6 +696,12 @@ impl TypeTables {
                             / 7
                 })
                 .sum::<usize>()
+            + self.template_scratch.capacity() * std::mem::size_of::<TemplateSpans>()
+            + self
+                .template_scratch
+                .iter()
+                .map(TemplateSpans::heap_bytes)
+                .sum::<usize>()
             + self.literal_texts.heap_bytes()
             + self
                 .bigints
@@ -749,6 +767,7 @@ impl TypeTables {
             + map_bytes(&self.bigint_literal_types)
             + map_bytes(&self.enum_literal_types)
             + map_bytes(&self.string_mapping_types)
+            + map_bytes(&self.literal_string_mappings)
             + map_bytes(&self.substitution_types)
             + self.instantiations.memory_usage()
             + self.conditional_roots.capacity() * std::mem::size_of::<ConditionalRootData>();
@@ -827,6 +846,7 @@ impl TypeTables {
             empty_list: TypeListId::new(0),
             literal_texts: LiteralTexts::default(),
             literal_scratch: Vec::new(),
+            template_scratch: Vec::new(),
             bigints: Vec::new(),
             number_literals: Vec::new(),
             conditional_types: Vec::new(),
@@ -844,6 +864,7 @@ impl TypeTables {
             tuple_types: HashMap::default(),
             template_literal_types: hashbrown::HashTable::new(),
             string_mapping_types: HashMap::default(),
+            literal_string_mappings: HashMap::default(),
             indexed_access_types: HashMap::default(),
             substitution_types: HashMap::default(),
             conditional_roots: Vec::new(),
@@ -3934,9 +3955,9 @@ impl TypeTables {
     fn create_template_literal_type(
         &mut self,
         texts: Vec<TemplateText>,
-        types: Vec<TypeId>,
+        types: &[TypeId],
     ) -> TypeId {
-        let types = self.intern_type_list(&types);
+        let types = self.intern_type_list(types);
         let payload = TemplateLiteralId::new(self.template_literals.len() as u32);
         self.template_literals.push(TemplateLiteralData {
             texts: texts.into_boxed_slice(),
@@ -3987,48 +4008,55 @@ impl TypeTables {
         if types.contains(&self.intrinsics.wildcard) {
             return Ok(self.intrinsics.wildcard);
         }
-        let mut spans = TemplateSpans {
-            new_types: Vec::new(),
-            new_texts: Vec::new(),
-            text: texts[0].units().to_vec(),
-            text_bytes: utf8_length(&texts[0]),
-            moved_bytes: 0,
-        };
-        if !self.add_spans(&mut spans, TemplateSpanSource::Borrowed(texts, types))? {
+        let mut spans = self.template_scratch.pop().unwrap_or_default();
+        spans.reset(&texts[0]);
+        let result = self.build_template_literal_type(texts, types, &mut spans);
+        self.template_scratch.push(spans);
+        result
+    }
+
+    fn build_template_literal_type(
+        &mut self,
+        texts: &[TemplateText],
+        types: &[TypeId],
+        spans: &mut TemplateSpans,
+    ) -> Result<TypeId, TemplateLiteralTooLarge> {
+        if !self.add_spans(spans, TemplateSpanSource::Borrowed(texts, types))? {
             return Ok(self.intrinsics.string);
         }
-        let TemplateSpans {
-            new_types,
-            mut new_texts,
-            text,
-            ..
-        } = spans;
-        if new_types.is_empty() {
-            return Ok(self.get_string_literal_type_from_utf16(&text));
+        if spans.new_types.is_empty() {
+            return Ok(self.get_string_literal_type_from_utf16(&spans.text));
         }
-        new_texts.push(TemplateText::from_utf16_owned(text));
-        if new_texts.iter().all(|t| t.is_empty()) {
-            if new_types
+        if spans.texts().all(|text| text.is_empty()) {
+            if spans
+                .new_types
                 .iter()
                 .all(|&t| self.flags_of(t).intersects(TypeFlags::STRING))
             {
                 return Ok(self.intrinsics.string);
             }
-            if new_types.len() == 1 && self.is_pattern_literal_type(new_types[0]) {
-                return Ok(new_types[0]);
+            if spans.new_types.len() == 1 && self.is_pattern_literal_type(spans.new_types[0]) {
+                return Ok(spans.new_types[0]);
             }
         }
-        // Hash the same ordered type list and length-delimited UTF-16
-        // segments as the former formatted key. Entries refer to the
-        // immutable payload: lookups need neither key strings nor copies.
-        let hash = hash_template_literal_key(&new_types, &new_texts);
+        // Hash the same ordered TypeIds and UTF-16 slices as the stored
+        // payload, without freezing temporary segments before the probe.
+        let hash = hash_template_literal_key(&spans.new_types, spans.text_count + 1, spans.texts());
         if let Some(&(_, id)) = self.template_literal_types.find(hash, |&(payload, _)| {
             let data = &self.template_literals[payload.index() as usize];
-            self.list(data.types) == new_types && *data.texts == new_texts
+            self.list(data.types) == spans.new_types
+                && data.texts.len() == spans.text_count + 1
+                && data.texts.iter().map(TemplateText::units).eq(spans.texts())
         }) {
             return Ok(id);
         }
-        let id = self.create_template_literal_type(new_texts, new_types);
+        // Only a published payload owns immutable text. Keep the working
+        // buffers for subsequent constructors, including cache hits.
+        let mut published_texts = Vec::with_capacity(spans.text_count + 1);
+        for units in spans.texts() {
+            published_texts.push(TemplateText::from_utf16(units));
+        }
+        let id = self.create_template_literal_type(published_texts, &spans.new_types);
         let TypeData::TemplateLiteral(payload) = self.type_of(id).data else {
             unreachable!("created a template literal above");
         };
@@ -4037,7 +4065,11 @@ impl TypeTables {
         self.template_literal_types
             .insert_unique(hash, (payload, id), |&(payload, _)| {
                 let data = &payloads[payload.index() as usize];
-                hash_template_literal_key(list_at(items, data.types), &data.texts)
+                hash_template_literal_key(
+                    list_at(items, data.types),
+                    data.texts.len(),
+                    data.texts.iter().map(TemplateText::units),
+                )
             });
         Ok(id)
     }
@@ -4078,11 +4110,7 @@ impl TypeTables {
                 spans.push_text(source.text(self, i + 1));
             } else if self.is_generic_index_type(t) || self.is_pattern_literal_placeholder_type(t) {
                 spans.new_types.push(t);
-                let next_text = source.text(self, i + 1);
-                let text = std::mem::replace(&mut spans.text, next_text.units().to_vec());
-                spans.new_texts.push(TemplateText::from_utf16_owned(text));
-                spans.moved_bytes += spans.text_bytes;
-                spans.text_bytes = utf8_length(next_text);
+                spans.finish_text(source.text(self, i + 1));
             } else {
                 return Ok(false);
             }
@@ -4231,6 +4259,19 @@ impl TypeTables {
         self.set_alias(id, alias_symbol, alias_type_arguments);
         self.indexed_access_types.insert(key, id);
         id
+    }
+
+    /// A completed literal transformation for this intrinsic name and input.
+    #[inline]
+    pub fn cached_literal_string_mapping(&self, name: EscapedName, ty: TypeId) -> Option<TypeId> {
+        self.literal_string_mappings.get(&(name, ty)).copied()
+    }
+
+    /// Save an already interned plain literal without creating another type.
+    pub fn cache_literal_string_mapping(&mut self, name: EscapedName, ty: TypeId, result: TypeId) {
+        debug_assert!(self.flags_of(ty).intersects(TypeFlags::STRING_LITERAL));
+        debug_assert!(self.flags_of(result).intersects(TypeFlags::STRING_LITERAL));
+        self.literal_string_mappings.insert((name, ty), result);
     }
 
     /// tsc-port: getStringMappingTypeForGenericType @6.0.3
@@ -4460,15 +4501,53 @@ impl TemplateSpanSource<'_> {
 
 /// The spans getTemplateLiteralType collects, with the UTF-8 lengths of
 /// the finished segments and of the one being written.
+#[derive(Default)]
 struct TemplateSpans {
     new_types: Vec<TypeId>,
-    new_texts: Vec<TemplateText>,
+    new_texts: Vec<Vec<u16>>,
     text: Vec<u16>,
+    text_count: usize,
     text_bytes: usize,
     moved_bytes: usize,
 }
 
 impl TemplateSpans {
+    fn reset(&mut self, first: &TemplateText) {
+        self.new_types.clear();
+        self.text_count = 0;
+        self.text.clear();
+        self.text.extend_from_slice(first.units());
+        self.text_bytes = utf8_length(first);
+        self.moved_bytes = 0;
+    }
+
+    fn texts(&self) -> impl Iterator<Item = &[u16]> {
+        self.new_texts[..self.text_count]
+            .iter()
+            .map(Vec::as_slice)
+            .chain(std::iter::once(self.text.as_slice()))
+    }
+
+    fn finish_text(&mut self, next: &TemplateText) {
+        if self.text_count == self.new_texts.len() {
+            self.new_texts.push(std::mem::take(&mut self.text));
+        } else {
+            std::mem::swap(&mut self.text, &mut self.new_texts[self.text_count]);
+        }
+        self.text_count += 1;
+        self.text.clear();
+        self.text.extend_from_slice(next.units());
+        self.moved_bytes += self.text_bytes;
+        self.text_bytes = utf8_length(next);
+    }
+
+    fn heap_bytes(&self) -> usize {
+        self.new_types.capacity() * std::mem::size_of::<TypeId>()
+            + self.new_texts.capacity() * std::mem::size_of::<Vec<u16>>()
+            + (self.text.capacity() + self.new_texts.iter().map(Vec::capacity).sum::<usize>())
+                * std::mem::size_of::<u16>()
+    }
+
     fn push_text(&mut self, segment: &TemplateText) {
         self.text.extend_from_slice(segment.units());
         self.text_bytes += utf8_length(segment);

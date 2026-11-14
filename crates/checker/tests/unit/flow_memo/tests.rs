@@ -36,6 +36,160 @@ fn counters() -> FlowCounters {
 }
 
 #[test]
+fn prepared_identifier_matching_preserves_results_effects_and_target_normalization() {
+    let cases = [
+        (
+            "a.ts",
+            concat!(
+                "export let value: number; let { item: bound } = { item: 1 }; ",
+                "function shadow(value: string) { return value; } value; bound; ",
+                "(value); value!; value = 1; (0, value); const obj = { value: 1 }; ",
+                "obj.value; obj['value'];"
+            ),
+            &["value", "bound"][..],
+        ),
+        (
+            "a.js",
+            concat!(
+                "let value = 1; value; (value); /** @type {number} */ (value); ",
+                "value = 2; (0, value);"
+            ),
+            &["value"][..],
+        ),
+    ];
+    for (file, text, names) in cases {
+        for &name in names {
+            for clear_source in [false, true] {
+                let observe = |prepared: bool| {
+                    with_program_state(&[(file, text)], &CompilerOptions::default(), |state| {
+                        let source = identifiers(state, name)
+                            .into_iter()
+                            .find(|&node| {
+                                state.parent_of(node).is_some_and(|parent| {
+                                    state.kind_of(parent) == SyntaxKind::ExpressionStatement
+                                })
+                            })
+                            .unwrap();
+                        assert!(state.get_resolved_symbol(source).unwrap().is_some());
+                        let mut q = query(state, source);
+                        q.memo_key = state.flow_memo_key(&mut q);
+                        assert!(q.identifier_location.is_some());
+                        if !prepared {
+                            q.identifier_location = None;
+                        }
+                        if clear_source {
+                            state.links.revert_node_resolved_symbol_late_bind(source);
+                        }
+                        let targets: Vec<_> = state.binder.source(0).arena.node_ids().collect();
+                        let matches: Vec<_> = targets
+                            .into_iter()
+                            .map(|target| {
+                                (
+                                    state.kind_of(target),
+                                    state.pos_of(target),
+                                    state.is_matching_query_reference(&q, target).unwrap(),
+                                )
+                            })
+                            .collect();
+                        let declaration_kind = if name == "bound" {
+                            SyntaxKind::BindingElement
+                        } else {
+                            SyntaxKind::VariableDeclaration
+                        };
+                        assert!(matches
+                            .iter()
+                            .any(|&(kind, _, matched)| kind == declaration_kind && matched));
+                        (
+                            matches,
+                            state.diagnostics.to_vec(),
+                            state.tables.len(),
+                            state.binder.transient_symbol_count(),
+                            state.signatures.len(),
+                            state.instantiation_count,
+                            state.total_instantiation_count,
+                            state.diagnostics.attempts,
+                        )
+                    })
+                };
+                assert_eq!(
+                    observe(false),
+                    observe(true),
+                    "{file} {name} cleared={clear_source}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn prepared_identifier_matching_reads_replaced_symbols_and_unknowns_live() {
+    with_program_state(
+        &[(
+            "a.ts",
+            "let value = 1; let other = 2; value; other; missing;",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let source = *identifiers(state, "value").last().unwrap();
+            let other = *identifiers(state, "other").last().unwrap();
+            assert!(state.get_resolved_symbol(source).unwrap().is_some());
+            let replacement = state.get_resolved_symbol(other).unwrap().unwrap();
+            let mut q = query(state, source);
+            q.memo_key = state.flow_memo_key(&mut q);
+            assert!(q.identifier_location.is_some());
+            assert!(!state.is_matching_query_reference(&q, other).unwrap());
+            state
+                .links
+                .set_node_resolved_symbol(state.speculation_depth, source, replacement);
+            assert!(state.is_matching_reference(source, other).unwrap());
+            assert!(state.is_matching_query_reference(&q, other).unwrap());
+
+            let missing = *identifiers(state, "missing").last().unwrap();
+            let unknown = state.unknown_symbol;
+            state
+                .links
+                .set_node_resolved_symbol(state.speculation_depth, source, unknown);
+            assert!(state.is_matching_reference(source, missing).unwrap());
+            assert!(state.is_matching_query_reference(&q, missing).unwrap());
+            q.memo_key = state.flow_memo_key(&mut q);
+            assert!(q.memo_key.is_none());
+            assert!(q.identifier_location.is_none());
+            assert!(state.is_matching_query_reference(&q, missing).unwrap());
+        },
+    );
+}
+
+#[test]
+fn preparing_synthetic_and_property_queries_clears_identifier_shape() {
+    with_program_state(
+        &[("a.ts", "const obj = { value: 1 }; obj; obj.value;")],
+        &CompilerOptions::default(),
+        |state| {
+            let source = *identifiers(state, "obj").last().unwrap();
+            assert!(state.get_resolved_symbol(source).unwrap().is_some());
+            let mut q = query(state, source);
+            q.memo_key = state.flow_memo_key(&mut q);
+            assert!(q.identifier_location.is_some());
+            q.synthetic_props = Some(Vec::new());
+            assert!(state.flow_memo_key(&mut q).is_none());
+            assert!(q.identifier_location.is_none());
+            q.synthetic_props = None;
+            q.memo_key = state.flow_memo_key(&mut q);
+            assert!(q.identifier_location.is_some());
+            q.reference = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .find(|&node| state.kind_of(node) == SyntaxKind::PropertyAccessExpression)
+                .unwrap();
+            q.memo_key = state.flow_memo_key(&mut q);
+            assert!(q.identifier_location.is_none());
+        },
+    );
+}
+
+#[test]
 fn prepared_query_keys_preserve_node_tags_and_slot_indices() {
     for file in [0, 1, u32::MAX as usize, usize::MAX] {
         for hash in [0, 1, u64::MAX as u128, 1 << 95, 1 << 127, u128::MAX] {
@@ -58,6 +212,207 @@ fn prepared_query_keys_preserve_node_tags_and_slot_indices() {
             }
         }
     }
+}
+
+fn node_tag_from_state(state: u64) -> u128 {
+    #[cfg(target_pointer_width = "64")]
+    {
+        let k = 0xf135_7aea_2e62_a9c5u64;
+        let factor = (0..5).fold(1u64, |value, _| value.wrapping_mul(k));
+        let delta = 0xff51_afd7_ed55_8ccdu64
+            .wrapping_sub(0x9e37_79b9_7f4a_7c15)
+            .wrapping_mul(factor);
+        u128::from(state.rotate_left(26))
+            | (u128::from(state.wrapping_add(delta).rotate_left(26)) << 64)
+    }
+    #[cfg(target_pointer_width = "32")]
+    {
+        let k = 0x93d7_65ddu32;
+        let factor = (0..7).fold(1u32, |value, _| value.wrapping_mul(k));
+        let delta = 0xed55_8ccdu32
+            .wrapping_sub(0x7f4a_7c15)
+            .wrapping_mul(factor.wrapping_mul(k))
+            .wrapping_add(
+                0xff51_afd7u32
+                    .wrapping_sub(0x9e37_79b9)
+                    .wrapping_mul(factor),
+            );
+        let state = state as u32;
+        u128::from(state.rotate_left(15))
+            | (u128::from(state.wrapping_add(delta).rotate_left(15)) << 64)
+    }
+}
+
+#[test]
+fn finished_memo_storage_releases_answers_and_scratch_without_resetting_epochs() {
+    with_program_state(&[("a.ts", "this;")], &CompilerOptions::default(), |state| {
+        let reference = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .find(|&node| state.kind_of(node) == SyntaxKind::ThisKeyword)
+            .unwrap();
+        let q = query(state, reference);
+        let key = MemoKey::new(0, 19, Arc::from([]));
+        let flow = FlowId::new(1);
+        let hit = MemoHit {
+            ty: state.tables.intrinsics.string,
+            height: 1,
+            epoch: u32::MAX,
+            flags: FLAG_TYPE_CACHE | FLAG_COUNT_RESET,
+        };
+        state.flow_memo.store(&q, flow, &key, hit);
+        state.flow_memo.checkpoints.push(flow);
+        state.flow_memo.key_buffer.extend_from_slice(b"reference");
+        let epoch = state.flow_memo.type_cache_epoch;
+        let serial = state.flow_memo.serial;
+        assert!(state.flow_memo.lookup(flow, &key).is_some());
+        assert!(state.flow_memo.memory_usage().1 >= 64 * 1024);
+        state.flow_memo.release_finished_buffers();
+        assert_eq!(state.flow_memo.memory_usage(), (0, 0));
+        assert!(state.flow_memo.lookup(flow, &key).is_none());
+        assert_eq!(state.flow_memo.type_cache_epoch, epoch);
+        assert_eq!(state.flow_memo.serial, serial);
+        #[cfg(feature = "flow-memo-shadow")]
+        assert!(state.flow_memo.shadow_slots.is_empty());
+    });
+}
+
+#[test]
+fn compact_slots_reconstruct_the_original_seeded_node_tags() {
+    for file in [0, 1, usize::MAX] {
+        for hash in [0, 1, 1 << 95, 1 << 127, u128::MAX] {
+            for index in [0, 1, 4095, 4096, 1 << 31, u32::MAX - 1] {
+                let key = hash_key(&(file, FlowId::new(index), hash));
+                assert_eq!(node_tag_from_state(node_key_state(key)), key);
+            }
+        }
+    }
+}
+
+#[test]
+fn compact_slot_indices_retain_all_omitted_identity_bits() {
+    let mut state = 0x725f_4d38_3a62_0317u64;
+    for _ in 0..64 {
+        state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        let residual = state & SLOT_IDENTITY_MASK;
+        let mut occupied = [false; TABLE_SLOTS];
+        for omitted in 0..TABLE_SLOTS {
+            let key = node_tag_from_state(residual | ((omitted as u64) << SLOT_STATE_SHIFT));
+            let index = FlowMemo::slot_index(key);
+            assert!(!occupied[index]);
+            occupied[index] = true;
+            let hit = MemoHit {
+                ty: TypeId::new(0),
+                height: (omitted % FLOW_DEPTH_LIMIT as usize) as u16,
+                epoch: u32::MAX,
+                flags: FLAG_TYPE_CACHE
+                    | if omitted & 1 != 0 {
+                        FLAG_COUNT_RESET
+                    } else {
+                        0
+                    },
+            };
+            let slot = Slot::new(key, hit);
+            assert!(slot.matches_at_index(key));
+            assert_eq!(slot.height(), hit.height);
+            assert_eq!(slot.flags(), hit.flags);
+        }
+        assert!(occupied.into_iter().all(|present| present));
+    }
+    assert_eq!(std::mem::size_of::<Slot>(), 16);
+    assert_eq!(std::mem::align_of::<Slot>(), 16);
+}
+
+#[test]
+fn compact_slots_keep_full_types_epochs_and_cold_dependencies() {
+    for state in [0, 1, usize::MAX as u64] {
+        let key = node_tag_from_state(state);
+        for ty in [TypeId::new(0), TypeId::new(1), TypeId::new(u32::MAX - 1)] {
+            for epoch in [0, 1, u32::MAX] {
+                for height in [0, 1, (FLOW_DEPTH_LIMIT - 1) as u16] {
+                    for flags in [FLAG_TYPE_CACHE, FLAG_TYPE_CACHE | FLAG_COUNT_RESET] {
+                        let hit = MemoHit {
+                            ty,
+                            height,
+                            epoch,
+                            flags,
+                        };
+                        let slot = Slot::new(key, hit);
+                        assert!(slot.matches_at_index(key));
+                        assert_eq!(slot.ty, Some(ty));
+                        assert_eq!(slot.epoch, epoch);
+                        assert_eq!(slot.height(), height);
+                        assert_eq!(slot.flags(), flags);
+                    }
+                }
+            }
+        }
+    }
+    // A vacant partial tag can match, but its absent type never supplies an answer.
+    let empty = Slot::default();
+    assert!(empty.matches_at_index(node_tag_from_state(0)));
+    assert!(empty.ty.is_none());
+}
+
+#[test]
+fn compact_table_matches_original_tags_metadata_and_evictions() {
+    fn value(hit: Option<MemoHit>) -> Option<(TypeId, u16, u32, u8)> {
+        hit.map(|h| (h.ty, h.height, h.epoch, h.flags))
+    }
+    with_program_state(&[("a.ts", "this;")], &CompilerOptions::default(), |state| {
+        let reference = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .find(|&node| state.kind_of(node) == SyntaxKind::ThisKeyword)
+            .unwrap();
+        let q = query(state, reference);
+        let keys: Vec<_> = (0..8)
+            .map(|i| {
+                let hash = u128::MAX.wrapping_mul(i as u128 + 1).rotate_left(i * 9);
+                (i as usize, MemoKey::new(i as usize, hash, Arc::from([])))
+            })
+            .collect();
+        let mut original: Vec<Option<(u128, MemoHit, usize, FlowId)>> = vec![None; TABLE_SLOTS];
+        let mut random = 0x5d8e_76ca_4217_0df3u64;
+        let mut evictions = 0;
+        for i in 0..40_000u32 {
+            random = random.wrapping_mul(6364136223846793005).wrapping_add(1);
+            let key_index = (random as usize >> 16) & 7;
+            let (file, key) = &keys[key_index];
+            let flow = FlowId::new((random >> 32) as u32 % (TABLE_SLOTS as u32 * 4));
+            let tag = hash_key(&(*file, flow, key.hash));
+            let index = FlowMemo::slot_index(tag);
+            let expected =
+                original[index].and_then(|(stored, hit, _, _)| (stored == tag).then_some(hit));
+            assert_eq!(value(state.flow_memo.lookup(flow, key)), value(expected));
+            let previous = original[index];
+            let hit = MemoHit {
+                ty: TypeId::new(if i & 1 == 0 { 0 } else { u32::MAX - 1 }),
+                height: (i % FLOW_DEPTH_LIMIT) as u16,
+                epoch: if i & 3 == 0 { 0 } else { u32::MAX - i },
+                flags: FLAG_TYPE_CACHE | if i & 1 == 0 { FLAG_COUNT_RESET } else { 0 },
+            };
+            state.flow_memo.store(&q, flow, key, hit);
+            original[index] = Some((tag, hit, key_index, flow));
+            assert_eq!(value(state.flow_memo.lookup(flow, key)), value(Some(hit)));
+            if let Some((_, _, previous_key, previous_flow)) =
+                previous.filter(|(previous_tag, ..)| *previous_tag != tag)
+            {
+                evictions += 1;
+                assert!(state
+                    .flow_memo
+                    .lookup(previous_flow, &keys[previous_key].1)
+                    .is_none());
+            }
+        }
+        assert!(evictions > 10_000);
+    });
 }
 
 #[test]
@@ -390,7 +745,7 @@ fn only_cache_independent_answers_survive_a_scoped_cache_reset() {
             .unwrap();
         let mut q = query(state, reference);
         q.flow_depth = 1;
-        let key = state.flow_memo_key(&q).unwrap();
+        let key = state.flow_memo_key(&mut q).unwrap();
         for (flow, flags) in [(FlowId::new(10), 0), (FlowId::new(20), FLAG_TYPE_CACHE)] {
             let memo = FrameMemo {
                 key: key.clone(),
@@ -435,12 +790,12 @@ fn packed_keys_reserve_a_distinct_domain_without_restricting_initial_type_ids() 
             .unwrap();
         let mut q = query(state, reference);
         q.initial_type = TypeId::new(1 << 31);
-        let packed = state.flow_memo_key(&q).unwrap();
+        let packed = state.flow_memo_key(&mut q).unwrap();
         assert_eq!(packed.hash >> 96, 0, "zero root denotes this");
         assert_eq!(packed.hash & (1 << 95), 0);
         assert_eq!((packed.hash >> 32) as u32, q.initial_type.index());
         q.declared_type = TypeId::new(1 << 31);
-        let hashed = state.flow_memo_key(&q).unwrap();
+        let hashed = state.flow_memo_key(&mut q).unwrap();
         assert_ne!(hashed.hash & (1 << 95), 0);
         assert_ne!(packed.hash, hashed.hash);
     });
@@ -455,7 +810,7 @@ fn structural_keys_use_cached_symbols_types_and_container_without_resolving() {
             let refs = identifiers(state, "x");
             let mut q = query(state, refs[1]);
             let created = state.flow_frame_counters().created;
-            assert!(state.flow_memo_key(&q).is_none());
+            assert!(state.flow_memo_key(&mut q).is_none());
             assert_eq!(state.flow_frame_counters().created, created);
             assert!(state
                 .links
@@ -466,26 +821,26 @@ fn structural_keys_use_cached_symbols_types_and_container_without_resolving() {
             for &node in &refs {
                 state.get_resolved_symbol(node).unwrap();
             }
-            let key = state.flow_memo_key(&q).unwrap();
+            let key = state.flow_memo_key(&mut q).unwrap();
             q.reference = refs[2];
-            assert_eq!(key.full, state.flow_memo_key(&q).unwrap().full);
-            assert_eq!(key.hash, state.flow_memo_key(&q).unwrap().hash);
+            assert_eq!(key.full, state.flow_memo_key(&mut q).unwrap().full);
+            assert_eq!(key.hash, state.flow_memo_key(&mut q).unwrap().hash);
             q.reference = *refs.last().unwrap();
-            assert_ne!(key.full, state.flow_memo_key(&q).unwrap().full);
+            assert_ne!(key.full, state.flow_memo_key(&mut q).unwrap().full);
             q.reference = refs[1];
             q.declared_type = state.tables.intrinsics.number;
-            assert_ne!(key.hash, state.flow_memo_key(&q).unwrap().hash);
+            assert_ne!(key.hash, state.flow_memo_key(&mut q).unwrap().hash);
             q.declared_type = state.tables.intrinsics.string;
             q.initial_type = state.tables.intrinsics.number;
-            assert_ne!(key.hash, state.flow_memo_key(&q).unwrap().hash);
+            assert_ne!(key.hash, state.flow_memo_key(&mut q).unwrap().hash);
             q.initial_type = state.tables.intrinsics.string;
             q.flow_container = Some(state.binder.source(0).root);
-            assert_ne!(key.hash, state.flow_memo_key(&q).unwrap().hash);
+            assert_ne!(key.hash, state.flow_memo_key(&mut q).unwrap().hash);
             q.synthetic_props = Some(Vec::new());
-            assert!(state.flow_memo_key(&q).is_none());
+            assert!(state.flow_memo_key(&mut q).is_none());
             q.synthetic_props = None;
             q.synthetic_this_root = true;
-            assert!(state.flow_memo_key(&q).is_none());
+            assert!(state.flow_memo_key(&mut q).is_none());
         },
     );
 }
@@ -501,15 +856,15 @@ fn structural_key_buffer_is_reused_after_success_and_rejection() {
                 state.get_resolved_symbol(node).unwrap();
             }
             let mut q = query(state, refs[1]);
-            let key = state.flow_memo_key(&q).unwrap();
+            let key = state.flow_memo_key(&mut q).unwrap();
             let allocation = state.flow_memo.key_buffer.as_ptr();
             let capacity = state.flow_memo.key_buffer.capacity();
             q.reference = state.binder.source(0).root;
-            assert!(state.flow_memo_key(&q).is_none());
+            assert!(state.flow_memo_key(&mut q).is_none());
             assert_eq!(state.flow_memo.key_buffer.as_ptr(), allocation);
             assert_eq!(state.flow_memo.key_buffer.capacity(), capacity);
             q.reference = refs[2];
-            let repeated = state.flow_memo_key(&q).unwrap();
+            let repeated = state.flow_memo_key(&mut q).unwrap();
             assert_eq!(repeated.full, key.full);
             assert_eq!(repeated.hash, key.hash);
             assert_eq!(state.flow_memo.key_buffer.as_ptr(), allocation);
@@ -535,10 +890,10 @@ fn property_this_and_optional_chain_key_shapes() {
                 if state.escaped_text_of(data.name) == Some("q"))
             })
             .collect();
-        let q = query(state, properties[0]);
-        let key = state.flow_memo_key(&q).unwrap();
-        let q2 = query(state, properties[1]);
-        assert_eq!(key.full, state.flow_memo_key(&q2).unwrap().full);
+        let mut q = query(state, properties[0]);
+        let key = state.flow_memo_key(&mut q).unwrap();
+        let mut q2 = query(state, properties[1]);
+        assert_eq!(key.full, state.flow_memo_key(&mut q2).unwrap().full);
         assert!(key.full.windows(6).any(|bytes| bytes == b"P\x01\0\0\0p"));
         for node in nodes.iter().copied().filter(|&node| {
             state.kind_of(node) == SyntaxKind::ElementAccessExpression
@@ -546,20 +901,20 @@ fn property_this_and_optional_chain_key_shapes() {
                 || matches!(state.data_of(node), NodeData::PropertyAccessExpression(data)
                     if data.expression.is_some_and(|e| state.kind_of(e) == SyntaxKind::ParenthesizedExpression))
         }).collect::<Vec<_>>() {
-            let q = query(state, node);
-            assert!(state.flow_memo_key(&q).is_none());
+            let mut q = query(state, node);
+            assert!(state.flow_memo_key(&mut q).is_none());
         }
         let this: Vec<_> = nodes
             .into_iter()
             .filter(|&node| state.kind_of(node) == SyntaxKind::ThisKeyword)
             .collect();
-        let q = query(state, this[0]);
-        let q2 = query(state, this[1]);
+        let mut q = query(state, this[0]);
+        let mut q2 = query(state, this[1]);
         assert_eq!(
-            state.flow_memo_key(&q).unwrap().full,
-            state.flow_memo_key(&q2).unwrap().full
+            state.flow_memo_key(&mut q).unwrap().full,
+            state.flow_memo_key(&mut q2).unwrap().full
         );
-        assert_ne!(key.hash, state.flow_memo_key(&q).unwrap().hash);
+        assert_ne!(key.hash, state.flow_memo_key(&mut q).unwrap().hash);
     });
 }
 
@@ -649,6 +1004,73 @@ fn existing_shared_effects_block_replacement_without_creating_new_identities() {
 }
 
 #[test]
+fn shared_safety_summary_tracks_every_suffix_and_repeated_nested_restore() {
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        let pure = SharedFlow {
+            flow: FlowId::new(1),
+            flow_type: FlowType::Type(state.tables.intrinsics.string),
+            transient: UNTAINTED,
+            reference: UNTAINTED,
+            height: 1,
+            flags: FLAG_TYPE_CACHE | FLAG_COUNT_RESET,
+        };
+        let mut records = SharedFlowState::default();
+        let mut impure = 0;
+        records.record(
+            SharedFlow {
+                reference: 3,
+                ..pure
+            },
+            &mut impure,
+        );
+        let outer = records.checkpoint();
+        assert!(!records.replay_safe(0));
+        assert!(records.replay_safe(1));
+        for _ in 0..2 {
+            records.record(pure, &mut impure);
+            let inner = records.checkpoint();
+            for added in [
+                pure,
+                SharedFlow {
+                    transient: 9,
+                    ..pure
+                },
+                pure,
+                SharedFlow {
+                    flow_type: FlowType::Incomplete(pure.flow_type.get_type()),
+                    ..pure
+                },
+                SharedFlow {
+                    flags: FLAG_EFFECTS,
+                    ..pure
+                },
+                pure,
+            ] {
+                records.record(added, &mut impure);
+                for start in 0..=records.len() {
+                    assert_eq!(
+                        records.replay_safe(start),
+                        shared_replay_safe(&records[start..])
+                    );
+                }
+            }
+            records.restore(inner);
+            assert_eq!(records.checkpoint(), inner);
+            assert!(!records.replay_safe(0));
+            assert!(records.replay_safe(1));
+            records.record(pure, &mut impure);
+            assert!(records.replay_safe(1));
+            records.restore(outer);
+            assert_eq!(records.checkpoint(), outer);
+        }
+        assert_eq!(impure, 7);
+        records.restore(Default::default());
+        assert!(records.is_empty());
+        assert!(records.replay_safe(0));
+    });
+}
+
+#[test]
 fn shared_reference_dependencies_and_incomplete_results_block_replacement() {
     with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
         let mut q = query(state, state.binder.source(0).root);
@@ -665,7 +1087,7 @@ fn shared_reference_dependencies_and_incomplete_results_block_replacement() {
             (UNTAINTED, FlowType::Incomplete(hit.ty), false),
         ] {
             q.impure_shared = 0;
-            state.shared_flow.clear();
+            state.shared_flow.restore(Default::default());
             state.record_shared_flow(
                 &mut q,
                 SharedFlow {
@@ -754,8 +1176,8 @@ fn table_is_bounded_and_flow_ids_are_file_local() {
                 .node_ids()
                 .find(|&n| state.kind_of(n) == SyntaxKind::ThisKeyword)
                 .unwrap();
-            let q = query(state, reference);
-            let key = state.flow_memo_key(&q).unwrap();
+            let mut q = query(state, reference);
+            let key = state.flow_memo_key(&mut q).unwrap();
             let other_reference = state
                 .binder
                 .source(1)
@@ -763,14 +1185,14 @@ fn table_is_bounded_and_flow_ids_are_file_local() {
                 .node_ids()
                 .find(|&node| state.kind_of(node) == SyntaxKind::ThisKeyword)
                 .unwrap();
-            let other_query = query(state, other_reference);
-            let other_key = state.flow_memo_key(&other_query).unwrap();
+            let mut other_query = query(state, other_reference);
+            let other_key = state.flow_memo_key(&mut other_query).unwrap();
             assert_eq!(key.hash, other_key.hash);
             let hit = MemoHit {
                 ty: state.tables.intrinsics.string,
                 height: 4,
                 epoch: 0,
-                flags: 0,
+                flags: FLAG_TYPE_CACHE,
             };
             assert!(state.flow_memo.lookup(FlowId::new(7), &key).is_none());
             state.flow_memo.store(&q, FlowId::new(7), &key, hit);
@@ -784,7 +1206,7 @@ fn table_is_bounded_and_flow_ids_are_file_local() {
             }
             assert_eq!(state.flow_memo.slots.len(), TABLE_SLOTS);
             assert!(state.flow_memo.stats.occupied <= TABLE_SLOTS);
-            assert_eq!(std::mem::size_of::<Slot>() * TABLE_SLOTS, 128 * 1024);
+            assert_eq!(std::mem::size_of::<Slot>() * TABLE_SLOTS, 64 * 1024);
         },
     );
 }
@@ -813,8 +1235,8 @@ fn checkpoints_are_node_based_and_nested_frames_do_not_steal_them() {
             .node_ids()
             .find(|&n| state.kind_of(n) == SyntaxKind::ThisKeyword)
             .unwrap();
-        let q = query(state, reference);
-        let key = state.flow_memo_key(&q).unwrap();
+        let mut q = query(state, reference);
+        let key = state.flow_memo_key(&mut q).unwrap();
         state.flow_memo.checkpoints.push(FlowId::new(1));
         let memo = FrameMemo {
             key: key.clone(),
@@ -911,13 +1333,13 @@ fn shared_cache_returns_settle_shadow_hits_without_filling_the_memo() {
             .node_ids()
             .find(|&n| state.kind_of(n) == SyntaxKind::ThisKeyword)
             .unwrap();
-        let q = query(state, reference);
-        let key = state.flow_memo_key(&q).unwrap();
+        let mut q = query(state, reference);
+        let key = state.flow_memo_key(&mut q).unwrap();
         let hit = MemoHit {
             ty: state.tables.intrinsics.string,
             height: 4,
             epoch: 0,
-            flags: 0,
+            flags: FLAG_TYPE_CACHE,
         };
         state.flow_memo.store(&q, FlowId::new(9), &key, hit);
         let stores = state.flow_memo.stats.stores;
@@ -1005,7 +1427,7 @@ fn shared_effects_and_inline_reduce_contexts_block_stores() {
             .find(|&n| state.kind_of(n) == SyntaxKind::ThisKeyword)
             .unwrap();
         let mut q = query(state, reference);
-        q.memo_key = state.flow_memo_key(&q);
+        q.memo_key = state.flow_memo_key(&mut q);
         assert!(state.flow_frame_memo(&q).is_some());
         state.inline_level = 1;
         assert!(state.flow_frame_memo(&q).is_none());
@@ -1028,10 +1450,13 @@ fn shared_effects_and_inline_reduce_contexts_block_stores() {
             shadow: 0,
             shared_start: 0,
         };
-        state.shared_flow.push(SharedFlow {
-            transient: 1,
-            ..shared
-        });
+        state.shared_flow.record(
+            SharedFlow {
+                transient: 1,
+                ..shared
+            },
+            &mut 0,
+        );
         state.flow_memo_finish(
             &q,
             memo,
@@ -1058,8 +1483,8 @@ fn shadow_comparison_detects_types_keys_registers_and_shared_effects() {
             .node_ids()
             .find(|&n| state.kind_of(n) == SyntaxKind::ThisKeyword)
             .unwrap();
-        let q = query(state, reference);
-        let key = state.flow_memo_key(&q).unwrap();
+        let mut q = query(state, reference);
+        let key = state.flow_memo_key(&mut q).unwrap();
         let ty = state.tables.intrinsics.string;
         let make_hit = || ShadowHit {
             flow: FlowId::new(1),
@@ -1147,14 +1572,17 @@ fn shadow_comparison_detects_types_keys_registers_and_shared_effects() {
             make_hit(),
             None,
         );
-        state.shared_flow.push(SharedFlow {
-            flow: FlowId::new(2),
-            flow_type: FlowType::Type(ty),
-            transient: 1,
-            reference: UNTAINTED,
-            height: 0,
-            flags: 0,
-        });
+        state.shared_flow.record(
+            SharedFlow {
+                flow: FlowId::new(2),
+                flow_type: FlowType::Type(ty),
+                transient: 1,
+                reference: UNTAINTED,
+                height: 0,
+                flags: 0,
+            },
+            &mut 0,
+        );
         state.flow_memo_shadow_check(
             &q,
             &key,
@@ -1165,7 +1593,7 @@ fn shadow_comparison_detects_types_keys_registers_and_shared_effects() {
             None,
         );
         assert_eq!(state.flow_memo.stats.disagreements, 8);
-        state.shared_flow.clear();
+        state.shared_flow.restore(Default::default());
         state.flow_memo_shadow_check(
             &q,
             &key,
@@ -1205,11 +1633,12 @@ fn memo_depth_abort_unwinds_without_publishing_partial_answers() {
             (condition, FLOW_DEPTH_LIMIT - 1),
             (loop_node, FLOW_DEPTH_LIMIT - 2),
         ] {
+            let shared_checkpoint = state.shared_flow.checkpoint();
             let mut q = query(state, reference);
             // A wider declared type forces the loop to inspect its back
             // edge instead of stopping at the first (initial-type) answer.
             q.declared_type = state.tables.intrinsics.unknown;
-            q.memo_key = state.flow_memo_key(&q);
+            q.memo_key = state.flow_memo_key(&mut q);
             q.memo_used = true;
             q.flow_depth = depth;
             let answer = state.get_type_at_flow_node(&mut q, flow).unwrap();
@@ -1224,7 +1653,7 @@ fn memo_depth_abort_unwinds_without_publishing_partial_answers() {
             assert_eq!(state.flow_memo.type_cache_epoch, epoch);
             assert_eq!(state.diagnostics.len(), diagnostics);
             assert!(state.shared_flow.iter().all(|s| s.flow_type != answer));
-            state.shared_flow.truncate(q.shared_flow_start);
+            state.shared_flow.restore(shared_checkpoint);
             assert!(state.flow_memo.checkpoints.is_empty());
             assert!(state.flow_memo.shadow_hits.is_empty());
             let serial = state.flow_memo.serial;

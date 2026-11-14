@@ -17,6 +17,7 @@ use crate::js_path::{
     uppercase,
 };
 use crate::module_resolution::normalize_absolute_js_path;
+use crate::vfsmatch::RelevantPatterns;
 
 const MAX_DIRECTORY_DEPTH: usize = 256;
 
@@ -104,7 +105,7 @@ impl<'a> CompilerConfigHost<'a> {
             if !extensions.iter().any(|extension| text.ends_with(extension)) {
                 continue;
             }
-            if patterns.excluded(text) {
+            if patterns.excluded(text, &states.excludes) {
                 continue;
             }
             let name = InputComponent::new(entry_name(text), case_sensitive);
@@ -461,10 +462,12 @@ struct WalkPatterns {
 impl WalkPatterns {
     /// tsgo `matchesFileParts`/`matchesDirectoryParts`: whether an exclude
     /// matches the entry's whole path.
-    fn excluded(&self, path: JsStr<'_>) -> bool {
-        self.excludes
-            .as_ref()
-            .is_some_and(|excludes| excludes.match_string(&glob_text(path)))
+    fn excluded(&self, path: JsStr<'_>, relevant: &RelevantPatterns) -> bool {
+        !relevant.is_empty()
+            && self
+                .excludes
+                .as_ref()
+                .is_some_and(|excludes| excludes.match_relevant(&glob_text(path), relevant))
     }
 }
 
@@ -494,6 +497,7 @@ fn glob_text(text: JsStr<'_>) -> std::borrow::Cow<'_, str> {
 #[derive(Clone)]
 struct PatternStates {
     includes: Vec<Option<Vec<usize>>>,
+    excludes: RelevantPatterns,
 }
 
 impl PatternStates {
@@ -507,6 +511,12 @@ impl PatternStates {
         };
         Self {
             includes: patterns.includes.iter().map(states).collect(),
+            excludes: patterns
+                .excludes
+                .as_ref()
+                .map_or_else(RelevantPatterns::default, |excludes| {
+                    excludes.relevant_to_directory(&glob_text(base), None)
+                }),
         }
     }
 
@@ -552,10 +562,22 @@ impl PatternStates {
         {
             return None;
         }
-        if patterns.excluded(text) || !(patterns.includes.is_empty() || some_include_could_match) {
+        if patterns.excluded(text, &self.excludes)
+            || !(patterns.includes.is_empty() || some_include_could_match)
+        {
             return None;
         }
-        Some(Self { includes })
+        let excludes = if self.excludes.can_narrow() {
+            patterns
+                .excludes
+                .as_ref()
+                .map_or_else(RelevantPatterns::default, |excludes| {
+                    excludes.relevant_to_directory(&glob_text(text), Some(&self.excludes))
+                })
+        } else {
+            self.excludes.clone()
+        };
+        Some(Self { includes, excludes })
     }
 }
 

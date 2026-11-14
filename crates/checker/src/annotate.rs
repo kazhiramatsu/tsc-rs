@@ -159,6 +159,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:63196-63198
     pub fn get_type_from_type_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
         let ty = self.get_type_from_type_node_worker(node)?;
+        if self.no_flow_context_nodes.contains(node) {
+            return Ok(ty);
+        }
         self.get_conditional_flow_type_of_type(ty, node)
     }
 
@@ -172,6 +175,8 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         let mut constraints = Vec::new();
         let mut covariant = true;
+        let origin = node;
+        let mut has_flow_context = false;
         let mut node = node;
         while !Self::is_statement_kind(self.kind_of(node))
             && self.kind_of(node) != SyntaxKind::JSDoc
@@ -183,6 +188,14 @@ impl<'a> CheckerState<'a> {
             if parent_kind == SyntaxKind::Parameter {
                 covariant = !covariant;
             }
+            if !matches!(
+                parent_kind,
+                SyntaxKind::ConditionalType | SyntaxKind::MappedType
+            ) {
+                node = parent;
+                continue;
+            }
+            has_flow_context = true;
             if (covariant
                 || self
                     .tables
@@ -244,6 +257,11 @@ impl<'a> CheckerState<'a> {
                 }
             }
             node = parent;
+        }
+        if !has_flow_context {
+            // Only syntax is cached. A later type or mapper may change the
+            // constraints under either context, even after an empty result.
+            self.no_flow_context_nodes.insert(origin);
         }
         if constraints.is_empty() {
             Ok(ty)

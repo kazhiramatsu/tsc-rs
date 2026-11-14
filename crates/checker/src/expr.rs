@@ -1512,10 +1512,23 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isGenericTypeWithUnionConstraint @6.0.3
     /// tsc-hash: 6b0ff101b255ea3663abd0a15e6b97fd748e1fb88d58a8b9013e88b5002c2a29
     /// tsc-span: _tsc.js:71626-71628
+    #[inline(always)]
     pub(crate) fn is_generic_type_with_union_constraint(
         &mut self,
         ty: TypeId,
     ) -> CheckResult<bool> {
+        if !self
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::INTERSECTION | TypeFlags::INSTANTIABLE)
+        {
+            return Ok(false);
+        }
+        self.is_generic_type_with_union_constraint_worker(ty)
+    }
+
+    #[inline(never)]
+    fn is_generic_type_with_union_constraint_worker(&mut self, ty: TypeId) -> CheckResult<bool> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::INTERSECTION) {
             let types = match &self.tables.type_of(ty).data {
@@ -3652,13 +3665,12 @@ impl<'a> CheckerState<'a> {
             {
                 return Ok(false);
             }
-            let types = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } | TypeData::Intersection { types } => {
-                    self.tables.list(*types).to_vec()
-                }
+            let types = match self.tables.type_of(ty).data {
+                TypeData::Union { types, .. } | TypeData::Intersection { types } => types,
                 _ => return Ok(false),
             };
-            for member in types {
+            let mut types = self.tables.cursor(types);
+            while let Some(member) = types.next(&self.tables) {
                 if self.may_be_const_type_variable(member)
                     && self.is_const_type_variable(Some(member), depth)?
                 {
@@ -3697,18 +3709,17 @@ impl<'a> CheckerState<'a> {
         }
         if self.tables.is_tuple_type(ty) {
             let target = self.tables.reference_target(ty);
-            let element_flags: Vec<tsc_types::ElementFlags> =
-                match &self.tables.type_of(target).data {
-                    TypeData::TupleTarget(data) => {
-                        let data = self.tables.tuple_target(*data);
-                        data.element_flags.to_vec()
-                    }
-                    _ => return Ok(false),
-                };
+            let target_data = match self.tables.type_of(target).data {
+                TypeData::TupleTarget(data) => data,
+                _ => return Ok(false),
+            };
             let arguments = self.get_type_argument_list(ty)?;
             for i in 0..self.tables.list(arguments).len() {
                 let element = self.tables.list(arguments)[i];
-                if element_flags
+                if self
+                    .tables
+                    .tuple_target(target_data)
+                    .element_flags
                     .get(i)
                     .is_some_and(|flags| flags.intersects(tsc_types::ElementFlags::VARIADIC))
                     && self.is_const_type_variable(Some(element), depth)?

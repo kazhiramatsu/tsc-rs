@@ -1577,8 +1577,18 @@ def render_for_each_child_rs(kinds):
     out.append("/// Visit children in forEachChild order, releasing each lookup borrow before")
     out.append("/// calling back with the mutable context. Keep the parent payload, child")
     out.append("/// arrays and node kinds unchanged; no child list is copied or retained.")
-    out.append("pub fn for_each_child_mut<L, F>(lookup: &mut L, id: NodeId, mut cb: F) -> Option<NodeId>")
-    out += ["where", "L: NodeLookup,", "F: FnMut(&mut L, NodeId) -> bool,", "{", "match lookup.node(id).kind {"]
+    out.append("pub fn for_each_child_mut<L, F>(lookup: &mut L, id: NodeId, cb: F) -> Option<NodeId>")
+    out += ["where", "L: NodeLookup,", "F: FnMut(&mut L, NodeId) -> bool,", "{"]
+    out.append("let kind = lookup.node(id).kind;")
+    out.append("for_each_child_mut_for_kind(lookup, id, kind, cb)")
+    out += ["}", ""]
+    out.append("/// The same mutable-context walk with the node's already selected kind.")
+    out.append("/// The kind and child payload stay unchanged while callbacks mutate their context.")
+    out.append("#[inline(always)]")
+    out.append("pub fn for_each_child_mut_for_kind<L, F>(lookup: &mut L, id: NodeId, kind: SyntaxKind, mut cb: F) -> Option<NodeId>")
+    out += ["where", "L: NodeLookup,", "F: FnMut(&mut L, NodeId) -> bool,", "{"]
+    out.append("debug_assert_eq!(lookup.node(id).kind, kind);")
+    out.append("match kind {")
     for kind in kinds:
         if not kind.children:
             continue

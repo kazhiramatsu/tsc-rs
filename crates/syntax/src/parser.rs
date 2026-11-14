@@ -61,6 +61,31 @@ use tsc_diagnostics::{
 use tsc_diagnostics::{MessageChain, RelatedInfo};
 use tsc_types::NodeFlags;
 
+// Expression loops share their continuation tokens. Cover the full
+// enum domain so a terminal token needs only a flag lookup before returning.
+const EXPRESSION_CONTINUATIONS: [u8; SyntaxKind::Count as usize + 1] = {
+    let mut flags = [0; SyntaxKind::Count as usize + 1];
+    flags[SyntaxKind::DotToken as usize] = 3;
+    flags[SyntaxKind::QuestionDotToken as usize] = 3;
+    flags[SyntaxKind::OpenBracketToken as usize] = 3;
+    flags[SyntaxKind::NoSubstitutionTemplateLiteral as usize] = 3;
+    flags[SyntaxKind::TemplateHead as usize] = 3;
+    flags[SyntaxKind::ExclamationToken as usize] = 3;
+    flags[SyntaxKind::LessThanToken as usize] = 3;
+    flags[SyntaxKind::LessThanLessThanToken as usize] = 3;
+    flags[SyntaxKind::OpenParenToken as usize] = 2;
+    let mut value = 0;
+    while value < flags.len() {
+        if let Some(kind) = SyntaxKind::from_u16(value as u16) {
+            if get_binary_operator_precedence(kind) >= 0 {
+                flags[value] |= 4;
+            }
+        }
+        value += 1;
+    }
+    flags
+};
+
 /// tsc JSDocParsingMode @6.0.3.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -5460,7 +5485,26 @@ impl<'text> Parser<'text> {
         self.parse_binary_expression_rest(precedence, left_operand, pos)
     }
 
+    #[inline(always)]
     fn parse_binary_expression_rest(
+        &mut self,
+        precedence: i32,
+        left_operand: NodeId,
+        pos: usize,
+    ) -> NodeId {
+        #[cfg(test)]
+        if tests::original_expression_path_enabled() {
+            return self.parse_binary_expression_rest_worker(precedence, left_operand, pos);
+        }
+        // GreaterThan remains a continuation: its re-scan can change the token.
+        if EXPRESSION_CONTINUATIONS[self.token() as usize] & 4 == 0 {
+            return left_operand;
+        }
+        self.parse_binary_expression_rest_worker(precedence, left_operand, pos)
+    }
+
+    #[inline(never)]
+    fn parse_binary_expression_rest_worker(
         &mut self,
         precedence: i32,
         mut left_operand: NodeId,
@@ -5557,17 +5601,26 @@ impl<'text> Parser<'text> {
         )
     }
 
+    #[inline(always)]
     fn parse_unary_expression_or_higher(&mut self) -> NodeId {
+        #[cfg(test)]
+        if tests::original_expression_path_enabled() {
+            return self.original_parse_unary_expression_or_higher();
+        }
         if self.is_update_expression() {
             let pos = self.node_pos();
-            let update_expression = self.parse_update_expression();
+            let expression = self.parse_update_expression();
             if self.token() == SyntaxKind::AsteriskAsteriskToken {
                 let precedence = get_binary_operator_precedence(self.token());
-                return self.parse_binary_expression_rest(precedence, update_expression, pos);
+                return self.parse_binary_expression_rest(precedence, expression, pos);
             }
-            return update_expression;
+            return expression;
         }
+        self.parse_non_update_unary_expression()
+    }
 
+    #[inline(never)]
+    fn parse_non_update_unary_expression(&mut self) -> NodeId {
         let unary_operator = self.token();
         let start = self.scanner.token_start();
         let simple_unary_expression = self.parse_simple_unary_expression();
@@ -5708,7 +5761,35 @@ impl<'text> Parser<'text> {
         )
     }
 
+    #[inline(always)]
     fn parse_update_expression(&mut self) -> NodeId {
+        #[cfg(test)]
+        if tests::original_expression_path_enabled() {
+            return self.original_parse_update_expression();
+        }
+        if matches!(
+            self.token(),
+            SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+        ) || self.language_variant == LanguageVariant::Jsx
+            && self.token() == SyntaxKind::LessThanToken
+        {
+            if let Some(expression) = self.parse_update_expression_head() {
+                return expression;
+            }
+        }
+        let expression = self.parse_left_hand_side_expression_or_higher();
+        if matches!(
+            self.token(),
+            SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+        ) && !self.scanner.has_preceding_line_break()
+        {
+            return self.parse_postfix_unary_expression(expression);
+        }
+        expression
+    }
+
+    #[inline(never)]
+    fn parse_update_expression_head(&mut self) -> Option<NodeId> {
         if matches!(
             self.token(),
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
@@ -5717,39 +5798,37 @@ impl<'text> Parser<'text> {
             let operator = self.token();
             self.next_token();
             let operand = self.parse_left_hand_side_expression_or_higher();
-            return self.finish_node_data(
+            return Some(self.finish_node_data(
                 NodeData::PrefixUnaryExpression(PrefixUnaryExpressionData {
                     operator,
                     operand: Some(operand),
                 }),
                 pos,
-            );
+            ));
         } else if self.language_variant == LanguageVariant::Jsx
             && self.token() == SyntaxKind::LessThanToken
             && self
                 .look_ahead(|parser| parser.next_token_is_identifier_or_keyword_or_greater_than())
         {
-            return self
-                .parse_jsx_element_or_self_closing_element_or_fragment(true, None, None, false);
-        }
-
-        let expression = self.parse_left_hand_side_expression_or_higher();
-        if matches!(
-            self.token(),
-            SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
-        ) && !self.scanner.has_preceding_line_break()
-        {
-            let operator = self.token();
-            self.next_token();
-            return self.finish_node_data(
-                NodeData::PostfixUnaryExpression(PostfixUnaryExpressionData {
-                    operator,
-                    operand: Some(expression),
-                }),
-                self.arena.node(expression).pos as usize,
+            return Some(
+                self.parse_jsx_element_or_self_closing_element_or_fragment(true, None, None, false),
             );
         }
-        expression
+
+        None
+    }
+
+    #[inline(never)]
+    fn parse_postfix_unary_expression(&mut self, expression: NodeId) -> NodeId {
+        let operator = self.token();
+        self.next_token();
+        self.finish_node_data(
+            NodeData::PostfixUnaryExpression(PostfixUnaryExpressionData {
+                operator,
+                operand: Some(expression),
+            }),
+            self.arena.node(expression).pos as usize,
+        )
     }
 
     /// tsc parseJsxElementOrSelfClosingElementOrFragment.
@@ -6393,6 +6472,7 @@ impl<'text> Parser<'text> {
     }
 
     /// tsc parseSuperExpression.
+    #[inline(never)]
     fn parse_super_expression(&mut self) -> NodeId {
         let pos = self.node_pos();
         let mut expression = self.parse_token_node();
@@ -6434,46 +6514,56 @@ impl<'text> Parser<'text> {
         )
     }
 
+    #[inline(always)]
     fn parse_left_hand_side_expression_or_higher(&mut self) -> NodeId {
+        #[cfg(test)]
+        if tests::original_expression_path_enabled() {
+            return self.original_parse_left_hand_side_expression_or_higher();
+        }
         let pos = self.node_pos();
         let expression = if self.token() == SyntaxKind::ImportKeyword {
-            if self.look_ahead(|parser| parser.next_token_is_open_paren_or_less_than()) {
-                self.source_flags |= NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT;
-                self.parse_token_node()
-            } else if self.look_ahead(|parser| parser.next_token_is_dot()) {
-                self.next_token();
-                self.next_token();
-                let name = self.parse_import_meta_property_name();
-                let meta = self.finish_node_data(
-                    NodeData::MetaProperty(MetaPropertyData {
-                        keyword_token: SyntaxKind::ImportKeyword,
-                        name: Some(name),
-                    }),
-                    pos,
-                );
-                // tsc: `import.defer(...)`/`import.source(...)` (or with
-                // `<`) is a phase dynamic import; every other name is
-                // import.meta territory.
-                if crate::utilities::is_import_phase_meta_property(&self.arena, meta) {
-                    if matches!(
-                        self.token(),
-                        SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken
-                    ) {
-                        self.source_flags |= NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT;
-                    }
-                } else {
-                    self.source_flags |= NodeFlags::POSSIBLY_CONTAINS_IMPORT_META;
-                }
-                meta
-            } else {
-                self.parse_member_expression_or_higher()
-            }
+            self.parse_import_expression(pos)
         } else if self.token() == SyntaxKind::SuperKeyword {
             self.parse_super_expression()
         } else {
             self.parse_member_expression_or_higher()
         };
         self.parse_call_expression_rest(pos, expression)
+    }
+
+    #[inline(never)]
+    fn parse_import_expression(&mut self, pos: usize) -> NodeId {
+        if self.look_ahead(|parser| parser.next_token_is_open_paren_or_less_than()) {
+            self.source_flags |= NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT;
+            self.parse_token_node()
+        } else if self.look_ahead(|parser| parser.next_token_is_dot()) {
+            self.next_token();
+            self.next_token();
+            let name = self.parse_import_meta_property_name();
+            let meta = self.finish_node_data(
+                NodeData::MetaProperty(MetaPropertyData {
+                    keyword_token: SyntaxKind::ImportKeyword,
+                    name: Some(name),
+                }),
+                pos,
+            );
+            // tsc: `import.defer(...)`/`import.source(...)` (or with
+            // `<`) is a phase dynamic import; every other name is
+            // import.meta territory.
+            if crate::utilities::is_import_phase_meta_property(&self.arena, meta) {
+                if matches!(
+                    self.token(),
+                    SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken
+                ) {
+                    self.source_flags |= NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT;
+                }
+            } else {
+                self.source_flags |= NodeFlags::POSSIBLY_CONTAINS_IMPORT_META;
+            }
+            meta
+        } else {
+            self.parse_member_expression_or_higher()
+        }
     }
 
     fn next_token_is_dot(&mut self) -> bool {
@@ -6581,7 +6671,21 @@ impl<'text> Parser<'text> {
         missing
     }
 
+    #[inline(always)]
     fn parse_member_expression_rest(
+        &mut self,
+        pos: usize,
+        expression: NodeId,
+        allow_optional_chain: bool,
+    ) -> NodeId {
+        if EXPRESSION_CONTINUATIONS[self.token() as usize] & 1 == 0 {
+            return expression;
+        }
+        self.parse_member_expression_rest_worker(pos, expression, allow_optional_chain)
+    }
+
+    #[inline(never)]
+    fn parse_member_expression_rest_worker(
         &mut self,
         pos: usize,
         mut expression: NodeId,
@@ -6657,7 +6761,16 @@ impl<'text> Parser<'text> {
         }
     }
 
-    fn parse_call_expression_rest(&mut self, pos: usize, mut expression: NodeId) -> NodeId {
+    #[inline(always)]
+    fn parse_call_expression_rest(&mut self, pos: usize, expression: NodeId) -> NodeId {
+        if EXPRESSION_CONTINUATIONS[self.token() as usize] & 2 == 0 {
+            return expression;
+        }
+        self.parse_call_expression_rest_worker(pos, expression)
+    }
+
+    #[inline(never)]
+    fn parse_call_expression_rest_worker(&mut self, pos: usize, mut expression: NodeId) -> NodeId {
         loop {
             expression = self.parse_member_expression_rest(pos, expression, true);
 
@@ -11327,7 +11440,7 @@ fn should_consume_binary_operator(
     }
 }
 
-fn get_binary_operator_precedence(kind: SyntaxKind) -> i32 {
+const fn get_binary_operator_precedence(kind: SyntaxKind) -> i32 {
     match kind {
         SyntaxKind::QuestionQuestionToken => 5,
         SyntaxKind::BarBarToken => 5,
