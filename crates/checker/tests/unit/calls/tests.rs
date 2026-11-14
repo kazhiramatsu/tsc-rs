@@ -40,8 +40,7 @@ fn generic_call_setup(
     let args = state.get_effective_call_arguments(call).expect("args");
     let type_parameters = state
         .signature_of(signature)
-        .type_parameters
-        .clone()
+        .cloned_type_parameters()
         .expect("generic fixture");
     let ctx = state.create_inference_context(
         &type_parameters,
@@ -82,8 +81,7 @@ fn infer_type_arguments_two_pass_contextual_return() {
                 .expect("returnMapper set");
             let t = state
                 .signature_of(signature)
-                .type_parameters
-                .clone()
+                .cloned_type_parameters()
                 .unwrap()[0];
             let mapped = state
                 .instantiate_type(t, Some(return_mapper))
@@ -286,13 +284,12 @@ fn binding_pattern_return_mapper_contextualizes_later_empty_array_argument() {
                 .get_signatures_of_type(callee_type, SignatureKind::Call)
                 .expect("reduce signatures")
                 .into_iter()
-                .find(|&signature| state.signature_of(signature).type_parameters.is_some())
+                .find(|&signature| state.signature_of(signature).has_type_parameters())
                 .expect("generic reduce overload");
             let args = state.get_effective_call_arguments(call).expect("arguments");
             let type_parameters = state
                 .signature_of(generic)
-                .type_parameters
-                .clone()
+                .cloned_type_parameters()
                 .expect("generic overload");
             let context = state.create_inference_context(
                 &type_parameters,

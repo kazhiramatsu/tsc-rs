@@ -2841,10 +2841,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Vec<crate::state::SignatureId>> {
         let mut applicable = Vec::new();
         for &signature in signatures {
-            if self.signatures[signature.index() as usize]
-                .type_parameters
-                .is_none()
-            {
+            if self.signatures[signature.index() as usize].has_no_type_parameters() {
                 continue;
             }
             if self.has_correct_type_argument_arity(signature, argument_nodes) {

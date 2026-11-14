@@ -23,7 +23,7 @@ use crate::relate::RelationKind;
 use crate::links::LinkSlot;
 use crate::operators::OuterExpressionKinds;
 use crate::speculate::SpeculationOutcome;
-use crate::state::{CheckResult, CheckerState, Signature, SignatureId};
+use crate::state::{CheckResult, CheckerState, SignatureId};
 use crate::structural::SignatureKind;
 
 /// The Rust stand-in for tsc's fabricated SyntheticExpression parse
@@ -738,7 +738,7 @@ impl<'a> CheckerState<'a> {
         let Some(decorator_signature) = self.get_decorator_call_signature(node)? else {
             return Ok(());
         };
-        let LinkSlot::Resolved(expected_return_type) =
+        let Some(expected_return_type) =
             self.signature_of(decorator_signature).resolved_return_type
         else {
             return Ok(());
@@ -894,7 +894,7 @@ impl<'a> CheckerState<'a> {
         }
         for &signature in signatures {
             let data = self.signature_of(signature);
-            if data.min_argument_count != 0
+            if data.min_argument_count() != 0
                 || data.flags.intersects(SignatureFlags::HAS_REST_PARAMETER)
             {
                 return Ok(false);
@@ -1639,25 +1639,14 @@ impl<'a> CheckerState<'a> {
         return_type: TypeId,
     ) -> SignatureId {
         let min_argument_count = parameters.len() as u32;
-        self.alloc_signature(crate::state::Signature {
-            declaration: None,
-            flags: SignatureFlags::NONE,
-            type_parameters: None,
-            parameters: parameters.into_boxed_slice(),
-            this_parameter,
-            min_argument_count,
-            resolved_return_type: LinkSlot::Resolved(return_type),
-            from_method: false,
-            target: None,
-            mapper: None,
-            erased_signature_cache: None,
-            canonical_signature_cache: None,
-            base_signature_cache: None,
-            composite_kind: None,
-            composite_signatures: None,
-            optional_call_signature_cache: (None, None),
-            isolated_signature_kind: Some(SignatureKind::Call),
-            isolated_signature_type: None,
+        self.alloc_signature({
+            let mut signature_data = crate::state::Signature::new();
+            signature_data.set_parameters(parameters.into_boxed_slice());
+            signature_data.this_parameter = this_parameter;
+            signature_data.set_min_argument_count(min_argument_count);
+            signature_data.resolved_return_type = Some(return_type);
+            signature_data.set_isolated_signature_kind(Some(SignatureKind::Call));
+            signature_data
         })
     }
 
@@ -1866,7 +1855,7 @@ impl<'a> CheckerState<'a> {
             inner || call_chain_flags == SignatureFlags::IS_OUTER_CALL_CHAIN,
             "An optional call signature can either be for an inner call chain or an outer call chain, but not both."
         );
-        let cache = self.signature_of(signature).optional_call_signature_cache;
+        let cache = self.signature_of(signature).optional_call_signature_cache();
         let cached = if inner { cache.0 } else { cache.1 };
         if let Some(cached) = cached {
             return cached;
@@ -1874,7 +1863,9 @@ impl<'a> CheckerState<'a> {
         let result = self.clone_signature(signature);
         let data = self.signature_mut(result);
         data.flags = SignatureFlags::from_bits(data.flags.bits() | call_chain_flags.bits());
-        let cache = &mut self.signature_mut(signature).optional_call_signature_cache;
+        let cache = self
+            .signature_mut(signature)
+            .optional_call_signature_cache_mut();
         if inner {
             cache.0 = Some(result);
         } else {
@@ -2404,7 +2395,7 @@ impl<'a> CheckerState<'a> {
         signature: SignatureId,
         type_arguments: &[NodeId],
     ) -> bool {
-        let type_parameters = self.signature_of(signature).type_parameters.as_deref();
+        let type_parameters = self.signature_of(signature).type_parameters();
         let num_type_parameters = type_parameters.map_or(0, <[TypeId]>::len);
         let min_type_argument_count = self.get_min_type_argument_count(type_parameters);
         type_arguments.is_empty()
@@ -2657,8 +2648,7 @@ impl<'a> CheckerState<'a> {
         }
         let type_parameters = self
             .signature_of(signature)
-            .type_parameters
-            .clone()
+            .cloned_type_parameters()
             .expect("checkTypeArguments callers guarantee a generic signature");
         let mut mapped: Vec<TypeId> = Vec::with_capacity(type_argument_nodes.len());
         for &node in type_argument_nodes {
@@ -3035,8 +3025,7 @@ impl<'a> CheckerState<'a> {
             // a default (helper-every semantics: vacuous true).
             let type_parameters = self
                 .signature_of(signature)
-                .type_parameters
-                .clone()
+                .cloned_type_parameters()
                 .unwrap_or_default();
             let mut skip_binding_patterns = true;
             for &tp in &type_parameters {
@@ -3069,13 +3058,12 @@ impl<'a> CheckerState<'a> {
                         let contextual_signature =
                             self.get_single_call_signature(instantiated_type)?;
                         let generic_contextual_signature = contextual_signature
-                            .filter(|&sig| self.signature_of(sig).type_parameters.is_some());
+                            .filter(|&sig| self.signature_of(sig).has_type_parameters());
                         let inference_source_type = match generic_contextual_signature {
                             Some(contextual_signature) => {
                                 let contextual_type_parameters = self
                                     .signature_of(contextual_signature)
-                                    .type_parameters
-                                    .clone()
+                                    .cloned_type_parameters()
                                     .expect("filtered on Some above");
                                 let instantiation = self
                                     .get_signature_instantiation_without_filling_in_type_arguments(
@@ -4102,7 +4090,7 @@ impl<'a> CheckerState<'a> {
             })
         });
         let is_single_non_generic_candidate =
-            candidates.len() == 1 && self.signature_of(candidates[0]).type_parameters.is_none();
+            candidates.len() == 1 && self.signature_of(candidates[0]).has_no_type_parameters();
         let mut arg_check_mode = CheckMode::NORMAL;
         if !is_decorator && !is_single_non_generic_candidate {
             let any_context_sensitive = args.iter().any(|arg| match arg {
@@ -4430,7 +4418,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(None);
             };
             let candidate = state.get_signature_from_declaration(impl_decl)?;
-            let is_single_non_generic = state.signature_of(candidate).type_parameters.is_none();
+            let is_single_non_generic = state.signature_of(candidate).has_no_type_parameters();
             let mut probe_ctx = ResolveCallCtx {
                 node: ctx.node,
                 args: ctx.args.clone(),
@@ -4635,7 +4623,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<OverloadCandidateTrial> {
         let mut check_candidate;
         let mut inference_context: Option<InferenceContextId> = None;
-        if self.signature_of(candidate).type_parameters.is_some() {
+        if self.signature_of(candidate).has_type_parameters() {
             let type_argument_types;
             if !type_argument_nodes.is_empty() {
                 let Some(checked) = self.check_type_arguments(
@@ -4654,8 +4642,7 @@ impl<'a> CheckerState<'a> {
             } else {
                 let type_parameters = self
                     .signature_of(candidate)
-                    .type_parameters
-                    .clone()
+                    .cloned_type_parameters()
                     .expect("checked Some above");
                 let mut flags = if self.is_in_js_file(node) {
                     InferenceFlags::ANY_DEFAULT
@@ -4810,7 +4797,7 @@ impl<'a> CheckerState<'a> {
         let any_generic = ctx
             .candidates
             .iter()
-            .any(|&c| self.signature_of(c).type_parameters.is_some());
+            .any(|&c| self.signature_of(c).has_type_parameters());
         if has_candidates_out || ctx.candidates.len() == 1 || any_generic {
             self.pick_longest_candidate_signature(node, ctx, check_mode)
         } else {
@@ -4838,7 +4825,7 @@ impl<'a> CheckerState<'a> {
         let args_count = self.apparent_argument_count.unwrap_or(ctx.args.len());
         let best_index = self.get_longest_candidate_index(&ctx.candidates, args_count)?;
         let candidate = ctx.candidates[best_index];
-        let Some(type_parameters) = self.signature_of(candidate).type_parameters.clone() else {
+        let Some(type_parameters) = self.signature_of(candidate).cloned_type_parameters() else {
             return Ok(candidate);
         };
         let instantiated = if !ctx.type_argument_nodes.is_empty() {
@@ -4970,7 +4957,7 @@ impl<'a> CheckerState<'a> {
             .collect();
         let min_argument_count = candidates
             .iter()
-            .map(|&c| self.signature_of(c).min_argument_count)
+            .map(|&c| self.signature_of(c).min_argument_count())
             .min()
             .expect("non-empty candidates");
         let max_non_rest_param = num_non_rest.iter().copied().max().expect("non-empty");
@@ -5048,25 +5035,17 @@ impl<'a> CheckerState<'a> {
         let return_type =
             self.get_intersection_type(&return_types, tsc_types::IntersectionFlags::NONE)?;
         let first = self.signature_of(candidates[0]).without_caches();
-        Ok(self.alloc_signature(Signature {
-            declaration: first.declaration,
-            flags,
-            type_parameters: None,
-            parameters: parameters.into_boxed_slice(),
-            this_parameter,
-            min_argument_count,
-            resolved_return_type: LinkSlot::Resolved(return_type),
-            from_method: first.from_method,
-            target: None,
-            mapper: None,
-            erased_signature_cache: None,
-            canonical_signature_cache: None,
-            base_signature_cache: None,
-            composite_kind: None,
-            composite_signatures: None,
-            optional_call_signature_cache: (None, None),
-            isolated_signature_kind: first.isolated_signature_kind,
-            isolated_signature_type: None,
+        Ok(self.alloc_signature({
+            let mut signature_data = crate::state::Signature::new();
+            signature_data.declaration = first.declaration;
+            signature_data.flags = flags;
+            signature_data.set_parameters(parameters.into_boxed_slice());
+            signature_data.this_parameter = this_parameter;
+            signature_data.set_min_argument_count(min_argument_count);
+            signature_data.resolved_return_type = Some(return_type);
+            signature_data.set_from_method(first.is_from_method());
+            signature_data.set_isolated_signature_kind(first.isolated_signature_kind());
+            signature_data
         }))
     }
 
@@ -5423,7 +5402,7 @@ impl<'a> CheckerState<'a> {
         };
         if signatures.len() == 1 {
             let signature = signatures[0];
-            let type_parameters = self.signature_of(signature).type_parameters.clone();
+            let type_parameters = self.signature_of(signature).cloned_type_parameters();
             let min = self.get_min_type_argument_count(type_parameters.as_deref());
             let max = type_parameters.as_deref().map_or(0, <[TypeId]>::len);
             let range = if min < max {
@@ -5442,7 +5421,7 @@ impl<'a> CheckerState<'a> {
         let mut below_arg_count: Option<usize> = None;
         let mut above_arg_count: Option<usize> = None;
         for &signature in signatures {
-            let type_parameters = self.signature_of(signature).type_parameters.clone();
+            let type_parameters = self.signature_of(signature).cloned_type_parameters();
             let min = self.get_min_type_argument_count(type_parameters.as_deref());
             let max = type_parameters.as_deref().map_or(0, <[TypeId]>::len);
             if min > arg_count {
@@ -5885,7 +5864,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
     ) -> CheckResult<bool> {
-        if self.signature_of(signature).type_parameters.is_none() {
+        if self.signature_of(signature).has_no_type_parameters() {
             return Ok(false);
         }
         let return_type = self.get_return_type_of_signature(signature)?;
@@ -6053,8 +6032,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:77102-77107
     fn some_signature_has_flags(&self, signature: SignatureId, flags: SignatureFlags) -> bool {
         let data = self.signature_of(signature);
-        if data.composite_kind == Some(TypeFlags::UNION) {
-            if let Some(composite) = data.composite_signatures.clone() {
+        if data.composite_kind() == Some(TypeFlags::UNION) {
+            if let Some(composite) = data.cloned_composite_signatures() {
                 return composite
                     .iter()
                     .any(|&member| self.some_signature_has_flags(member, flags));

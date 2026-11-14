@@ -950,7 +950,7 @@ impl<'a> CheckerState<'a> {
                         self.get_constructors_for_type_arguments(static_base_type, base_type_node)?
                     {
                         let constructor_type_parameters =
-                            self.signature_of(constructor).type_parameters.clone();
+                            self.signature_of(constructor).cloned_type_parameters();
                         if !self.check_type_argument_constraints(
                             base_type_node,
                             constructor_type_parameters.as_deref().unwrap_or(&[]),

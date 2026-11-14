@@ -51,13 +51,11 @@ pub(crate) fn checker_owners(
 ) {
     const TABLES: &str = "checker host tables (estimate)";
     const STRINGS: &str = "strings: stable owners";
-    usage.hash_map(
-        "memo: resolved_type_predicates",
-        &state.resolved_type_predicates,
-    );
-    for predicate in state.resolved_type_predicates.values().flatten() {
-        if let Some(name) = &predicate.parameter_name {
-            usage.string(STRINGS, name);
+    for signature in &state.signatures {
+        if let Some(Some(predicate)) = signature.type_predicate() {
+            if let Some(name) = &predicate.parameter_name {
+                usage.string(STRINGS, name);
+            }
         }
     }
     usage.hash_map("memo: effects signatures", &state.effects_signature_cache);

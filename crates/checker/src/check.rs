@@ -9956,7 +9956,7 @@ impl<'a> CheckerState<'a> {
         self.display_add_approximate_length(3);
         let expanded = self.expanded_parameter_faces(signature)?;
         let sig = self.signature_of(signature);
-        let type_parameters = sig.type_parameters.clone();
+        let type_parameters = sig.cloned_type_parameters();
         let declared_parameters = sig.parameters.clone();
         let this_parameter = sig.this_parameter;
         let declaration = sig.declaration;
@@ -12234,8 +12234,7 @@ impl<'a> CheckerState<'a> {
                 .first()
                 .is_some_and(|&signature| {
                     self.signature_of(signature)
-                        .type_parameters
-                        .as_ref()
+                        .type_parameters()
                         .is_some_and(|parameters| !parameters.is_empty())
                 }),
             None => false,

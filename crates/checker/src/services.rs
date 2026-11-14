@@ -1237,8 +1237,7 @@ impl CheckerState<'_> {
         for &signature in signatures {
             let Some(type_parameter) = self
                 .signature_of(signature)
-                .type_parameters
-                .as_ref()
+                .type_parameters()
                 .and_then(|parameters| parameters.get(position).copied())
             else {
                 continue;

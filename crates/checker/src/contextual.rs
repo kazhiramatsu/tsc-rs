@@ -3199,8 +3199,8 @@ impl<'a> CheckerState<'a> {
         left: SignatureId,
         right: SignatureId,
     ) -> CheckResult<SignatureId> {
-        let left_tps = self.signature_of(left).type_parameters.clone();
-        let right_tps = self.signature_of(right).type_parameters.clone();
+        let left_tps = self.signature_of(left).cloned_type_parameters();
+        let right_tps = self.signature_of(right).cloned_type_parameters();
         let type_params = left_tps.clone().or(right_tps.clone());
         let param_mapper = match (left_tps.as_ref(), right_tps.as_ref()) {
             (Some(left_tps), Some(right_tps)) => {
@@ -3231,10 +3231,10 @@ impl<'a> CheckerState<'a> {
             self.combine_intersection_this_param(left_this, right_this, param_mapper)?;
         let min_arg_count = self
             .signature_of(left)
-            .min_argument_count
-            .max(self.signature_of(right).min_argument_count);
-        let left_composite_kind = self.signature_of(left).composite_kind;
-        let left_composite_signatures = self.signature_of(left).composite_signatures.clone();
+            .min_argument_count()
+            .max(self.signature_of(right).min_argument_count());
+        let left_composite_kind = self.signature_of(left).composite_kind();
+        let left_composite_signatures = self.signature_of(left).cloned_composite_signatures();
         let left_mapper = self.signature_of(left).mapper;
         let composite_signatures = {
             let mut list = match (left_composite_kind, &left_composite_signatures) {
@@ -3252,25 +3252,21 @@ impl<'a> CheckerState<'a> {
                 _ => param_mapper,
             }
         });
-        let result = crate::state::Signature {
-            declaration,
-            flags,
-            type_parameters: type_params,
-            parameters: params.into_boxed_slice(),
-            this_parameter: this_param,
-            min_argument_count: min_arg_count,
-            resolved_return_type: crate::links::LinkSlot::Vacant,
-            from_method: self.signature_of(left).from_method,
-            target: None,
-            mapper,
-            erased_signature_cache: None,
-            canonical_signature_cache: None,
-            base_signature_cache: None,
-            composite_kind: Some(TypeFlags::INTERSECTION),
-            composite_signatures: Some(composite_signatures.into_boxed_slice()),
-            optional_call_signature_cache: (None, None),
-            isolated_signature_kind: self.signature_of(left).isolated_signature_kind,
-            isolated_signature_type: None,
+        let result = {
+            let mut signature_data = crate::state::Signature::new();
+            signature_data.declaration = declaration;
+            signature_data.flags = flags;
+            signature_data.set_type_parameters(type_params);
+            signature_data.set_parameters(params.into_boxed_slice());
+            signature_data.this_parameter = this_param;
+            signature_data.set_min_argument_count(min_arg_count);
+            signature_data.set_from_method(self.signature_of(left).is_from_method());
+            signature_data.mapper = mapper;
+            signature_data.set_composite_kind(Some(TypeFlags::INTERSECTION));
+            signature_data.set_composite_signatures(Some(composite_signatures.into_boxed_slice()));
+            signature_data
+                .set_isolated_signature_kind(self.signature_of(left).isolated_signature_kind());
+            signature_data
         };
         Ok(self.alloc_signature(result))
     }
@@ -4002,8 +3998,7 @@ impl<'a> CheckerState<'a> {
         let mut index = 0;
         while let Some(&child) = self
             .signature_of(signature)
-            .composite_signatures
-            .as_ref()
+            .composite_signatures()
             .and_then(|composite| composite.get(index))
         {
             if self.is_resolving_return_type_of_signature(child) {
@@ -4011,10 +4006,7 @@ impl<'a> CheckerState<'a> {
             }
             index += 1;
         }
-        self.signature_of(signature)
-            .resolved_return_type
-            .resolved()
-            .is_none()
+        self.signature_of(signature).resolved_return_type.is_none()
             && self
                 .find_resolution_cycle_start_index(
                     crate::state::ResolutionTarget::Signature(signature),

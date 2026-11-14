@@ -107,6 +107,7 @@ pub fn resident_vec_tail_bytes<T>(values: &Vec<T>) -> Option<usize> {
 
 pub mod claimed;
 pub mod frozen;
+pub mod record_lists;
 pub mod recycle;
 mod rooms;
 

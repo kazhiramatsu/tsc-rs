@@ -4739,25 +4739,11 @@ pub(super) fn add_property_to_element_list(
                 })
             });
             if parent_is_class && is_auto_accessor {
-                let getter_signature = checker.alloc_signature(crate::state::Signature {
-                    declaration: None,
-                    flags: SignatureFlags::NONE,
-                    type_parameters: None,
-                    parameters: Vec::new().into_boxed_slice(),
-                    this_parameter: None,
-                    min_argument_count: 0,
-                    resolved_return_type: crate::links::LinkSlot::Resolved(property_type),
-                    from_method: false,
-                    target: None,
-                    mapper: None,
-                    erased_signature_cache: None,
-                    canonical_signature_cache: None,
-                    base_signature_cache: None,
-                    composite_kind: None,
-                    composite_signatures: None,
-                    optional_call_signature_cache: (None, None),
-                    isolated_signature_kind: None,
-                    isolated_signature_type: None,
+                let getter_signature = checker.alloc_signature({
+                    let mut signature_data = crate::state::Signature::new();
+                    signature_data.set_parameters(Vec::new().into_boxed_slice());
+                    signature_data.resolved_return_type = Some(property_type);
+                    signature_data
                 });
                 let getter = signature_to_signature_declaration_helper(
                     checker,
@@ -4788,27 +4774,11 @@ pub(super) fn add_property_to_element_list(
                     setter_parameter,
                     crate::links::LinkSlot::Resolved(write_type),
                 );
-                let setter_signature = checker.alloc_signature(crate::state::Signature {
-                    declaration: None,
-                    flags: SignatureFlags::NONE,
-                    type_parameters: None,
-                    parameters: vec![setter_parameter].into_boxed_slice(),
-                    this_parameter: None,
-                    min_argument_count: 0,
-                    resolved_return_type: crate::links::LinkSlot::Resolved(
-                        checker.tables.intrinsics.void,
-                    ),
-                    from_method: false,
-                    target: None,
-                    mapper: None,
-                    erased_signature_cache: None,
-                    canonical_signature_cache: None,
-                    base_signature_cache: None,
-                    composite_kind: None,
-                    composite_signatures: None,
-                    optional_call_signature_cache: (None, None),
-                    isolated_signature_kind: None,
-                    isolated_signature_type: None,
+                let setter_signature = checker.alloc_signature({
+                    let mut signature_data = crate::state::Signature::new();
+                    signature_data.set_parameters(vec![setter_parameter].into_boxed_slice());
+                    signature_data.resolved_return_type = Some(checker.tables.intrinsics.void);
+                    signature_data
                 });
                 elements.push(signature_to_signature_declaration_helper(
                     checker,

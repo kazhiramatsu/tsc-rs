@@ -152,7 +152,7 @@ impl<'a> CheckerState<'a> {
         let Some(signature) = call_signature.or(construct_signature) else {
             return Ok(ty);
         };
-        let Some(type_parameters) = self.signature_of(signature).type_parameters.clone() else {
+        let Some(type_parameters) = self.signature_of(signature).cloned_type_parameters() else {
             return Ok(ty);
         };
         let contextual_type =
@@ -175,8 +175,7 @@ impl<'a> CheckerState<'a> {
         };
         if self
             .signature_of(contextual_signature)
-            .type_parameters
-            .is_some()
+            .has_type_parameters()
         {
             return Ok(ty);
         }
@@ -199,10 +198,8 @@ impl<'a> CheckerState<'a> {
             None => None,
         };
         if let Some(return_signature) = return_signature {
-            let return_signature_generic = self
-                .signature_of(return_signature)
-                .type_parameters
-                .is_some();
+            let return_signature_generic =
+                self.signature_of(return_signature).has_type_parameters();
             let all_have_candidates = self
                 .inference_context(context)
                 .inferences
@@ -3874,7 +3871,7 @@ impl<'a> CheckerState<'a> {
         else {
             return Ok(None);
         };
-        if self.signature_of(signature).type_parameters.is_some() {
+        if self.signature_of(signature).has_type_parameters() {
             return Ok(None);
         }
         self.get_return_type_of_signature(signature).map(Some)

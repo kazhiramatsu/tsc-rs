@@ -951,7 +951,7 @@ impl Session {
             | "getReturnTypeOfSignature" => {
                 let signature = query.resolve_signature(object_signature_handle(params)?)?;
                 let data = query.state.signature_of(signature);
-                let type_parameters = data.type_parameters.clone().unwrap_or_default().into_vec();
+                let type_parameters = data.cloned_type_parameters().unwrap_or_default().into_vec();
                 let parameters = data.parameters.clone().into_vec();
                 let this_parameter = data.this_parameter;
                 let target = data.target;
@@ -1556,7 +1556,7 @@ impl Query<'_, '_> {
         let data = self.state.signature_of(signature);
         let flags = data.flags.bits() as u32;
         let declaration = data.declaration;
-        let type_parameters = data.type_parameters.clone().unwrap_or_default().into_vec();
+        let type_parameters = data.cloned_type_parameters().unwrap_or_default().into_vec();
         let parameters = data.parameters.clone().into_vec();
         let this_parameter = data.this_parameter;
         let target = data.target;

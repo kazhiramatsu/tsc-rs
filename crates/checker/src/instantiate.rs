@@ -21,8 +21,7 @@ use tsc_types::{
     TypeSystemPropertyName, UnionReduction,
 };
 
-use crate::links::LinkSlot;
-use crate::state::{CheckResult, CheckerState, ResolutionTarget, Signature, SignatureId};
+use crate::state::{CheckResult, CheckerState, ResolutionTarget, SignatureId};
 use tsc_binder::NameKey;
 use tsc_types::perf::{self, PerfCounter};
 
@@ -725,11 +724,11 @@ impl<'a> CheckerState<'a> {
             source.declaration,
             source.flags,
             source.this_parameter,
-            source.min_argument_count,
-            source.from_method,
+            source.min_argument_count(),
+            source.is_from_method(),
         );
-        let isolated_signature_kind = source.isolated_signature_kind;
-        let type_parameter_count = source.type_parameters.as_ref().map(|list| list.len());
+        let isolated_signature_kind = source.isolated_signature_kind();
+        let type_parameter_count = source.type_parameters().map(|list| list.len());
         let parameter_count = source.parameters.len();
         let mut mapper = mapper;
         let mut fresh_type_parameters: Option<Vec<TypeId>> = None;
@@ -739,15 +738,13 @@ impl<'a> CheckerState<'a> {
                 for index in 0..count {
                     let tp = self
                         .signature_of(signature)
-                        .type_parameters
-                        .as_deref()
+                        .type_parameters()
                         .expect("counted above")[index];
                     fresh.push(self.clone_type_parameter(tp));
                 }
                 let sources = tsc_types::TypeListCopy::new(
                     self.signature_of(signature)
-                        .type_parameters
-                        .as_deref()
+                        .type_parameters()
                         .expect("counted above"),
                 );
                 let fresh_mapper = self.create_type_mapper(&sources, Some(&fresh));
@@ -766,26 +763,19 @@ impl<'a> CheckerState<'a> {
             let parameter = self.signature_of(signature).parameters[index];
             parameters.push(self.instantiate_symbol(parameter, mapper));
         }
-        let result = Signature {
-            declaration,
-            flags: flags & SignatureFlags::PROPAGATING_FLAGS,
-            type_parameters: fresh_type_parameters.map(Vec::into_boxed_slice),
-            parameters: parameters.into_boxed_slice(),
-            this_parameter,
-            min_argument_count,
-            resolved_return_type: LinkSlot::Vacant,
-            from_method,
-            target: Some(signature),
-            mapper: Some(mapper),
-            erased_signature_cache: None,
-            canonical_signature_cache: None,
-            base_signature_cache: None,
-            composite_kind: None,
-            composite_signatures: None,
-            optional_call_signature_cache: (None, None),
-            isolated_signature_kind,
-            isolated_signature_type: None,
-            // An instantiation OF the failure stub stays stub-derived.
+        let result = {
+            let mut signature_data = crate::state::Signature::new();
+            signature_data.declaration = declaration;
+            signature_data.flags = flags & SignatureFlags::PROPAGATING_FLAGS;
+            signature_data.set_type_parameters(fresh_type_parameters.map(Vec::into_boxed_slice));
+            signature_data.set_parameters(parameters.into_boxed_slice());
+            signature_data.this_parameter = this_parameter;
+            signature_data.set_min_argument_count(min_argument_count);
+            signature_data.set_from_method(from_method);
+            signature_data.target = Some(signature);
+            signature_data.mapper = Some(mapper);
+            signature_data.set_isolated_signature_kind(isolated_signature_kind);
+            signature_data
         };
         Ok(self.alloc_signature(result))
     }
@@ -2569,8 +2559,7 @@ impl<'a> CheckerState<'a> {
         if let Some(signature) = self.get_signature_of_type_tag(declaration)? {
             return Ok(self
                 .signature_of(signature)
-                .type_parameters
-                .clone()
+                .cloned_type_parameters()
                 .unwrap_or_default()
                 .into_vec());
         }
@@ -2727,7 +2716,7 @@ impl<'a> CheckerState<'a> {
                             .get_signatures_of_type(ty, crate::structural::SignatureKind::Call)?;
                         if let Some(&first) = signatures.first() {
                             if let Some(type_parameters) =
-                                self.signature_of(first).type_parameters.clone()
+                                self.signature_of(first).cloned_type_parameters()
                             {
                                 let mut result = outer;
                                 result.extend(type_parameters.iter().copied());
@@ -2870,8 +2859,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<SignatureId> {
         let type_parameters = self
             .signature_of(signature)
-            .type_parameters
-            .as_deref()
+            .type_parameters()
             .map(tsc_types::TypeListCopy::new);
         let min_type_argument_count = self.get_min_type_argument_count(type_parameters.as_deref());
         let filled = self.fill_missing_type_arguments(
@@ -2889,8 +2877,10 @@ impl<'a> CheckerState<'a> {
             let return_signature = self.get_single_call_or_construct_signature(return_type)?;
             if let Some(return_signature) = return_signature {
                 let new_return_signature = self.clone_signature(return_signature);
-                self.signature_mut(new_return_signature).type_parameters =
-                    Some(inferred_type_parameters.to_vec().into_boxed_slice());
+                self.signature_mut(new_return_signature)
+                    .set_type_parameters(Some(
+                        inferred_type_parameters.to_vec().into_boxed_slice(),
+                    ));
                 let new_return_type =
                     self.get_or_create_type_from_signature(new_return_signature)?;
                 if let Some(mapper) = self.signature_of(instantiated).mapper {
@@ -3023,8 +3013,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Vec<TypeId>> {
         let type_parameters = self
             .signature_of(signature)
-            .type_parameters
-            .clone()
+            .cloned_type_parameters()
             .unwrap_or_default();
         let mut result = Vec::with_capacity(type_parameters.len());
         for tp in type_parameters {
@@ -3050,14 +3039,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c99518238cd42ff436e62cf150c82253ed618397b6471b3ab1af5a9b2dcb1fb5
     /// tsc-span: _tsc.js:59926-59928
     pub fn get_erased_signature(&mut self, signature: SignatureId) -> CheckResult<SignatureId> {
-        if self.signature_of(signature).type_parameters.is_none() {
+        if self.signature_of(signature).has_no_type_parameters() {
             return Ok(signature);
         }
-        if let Some(cached) = self.signature_of(signature).erased_signature_cache {
+        if let Some(cached) = self.signature_of(signature).erased_signature_cache() {
             return Ok(cached);
         }
         let erased = self.create_erased_signature(signature)?;
-        self.signatures[signature.index() as usize].erased_signature_cache = Some(erased);
+        self.signatures[signature.index() as usize].set_erased_signature_cache(Some(erased));
         Ok(erased)
     }
 
@@ -3068,14 +3057,14 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
     ) -> CheckResult<SignatureId> {
-        if self.signature_of(signature).type_parameters.is_none() {
+        if self.signature_of(signature).has_no_type_parameters() {
             return Ok(signature);
         }
-        if let Some(cached) = self.signature_of(signature).canonical_signature_cache {
+        if let Some(cached) = self.signature_of(signature).canonical_signature_cache() {
             return Ok(cached);
         }
         let canonical = self.create_canonical_signature(signature)?;
-        self.signatures[signature.index() as usize].canonical_signature_cache = Some(canonical);
+        self.signatures[signature.index() as usize].set_canonical_signature_cache(Some(canonical));
         Ok(canonical)
     }
 
@@ -3089,8 +3078,7 @@ impl<'a> CheckerState<'a> {
     fn create_canonical_signature(&mut self, signature: SignatureId) -> CheckResult<SignatureId> {
         let type_parameters = self
             .signature_of(signature)
-            .type_parameters
-            .clone()
+            .cloned_type_parameters()
             .expect("getCanonicalSignature gates on typeParameters (59937)");
         let mut type_arguments = Vec::with_capacity(type_parameters.len());
         for tp in type_parameters {
@@ -3121,10 +3109,10 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
     ) -> CheckResult<SignatureId> {
-        let Some(type_parameters) = self.signature_of(signature).type_parameters.clone() else {
+        let Some(type_parameters) = self.signature_of(signature).cloned_type_parameters() else {
             return Ok(signature);
         };
-        if let Some(cached) = self.signature_of(signature).base_signature_cache {
+        if let Some(cached) = self.signature_of(signature).base_signature_cache() {
             return Ok(cached);
         }
         let type_eraser = self.create_type_eraser(&type_parameters);
@@ -3150,7 +3138,7 @@ impl<'a> CheckerState<'a> {
             final_mapper,
             /*erase_type_parameters*/ true,
         )?;
-        self.signatures[signature.index() as usize].base_signature_cache = Some(base);
+        self.signatures[signature.index() as usize].set_base_signature_cache(Some(base));
         Ok(base)
     }
 
@@ -3162,8 +3150,7 @@ impl<'a> CheckerState<'a> {
             parameters.extend_from_slice(
                 state
                     .signature_of(signature)
-                    .type_parameters
-                    .as_deref()
+                    .type_parameters()
                     .expect("getErasedSignature gates on typeParameters"),
             );
             let eraser = state.create_type_eraser(parameters);

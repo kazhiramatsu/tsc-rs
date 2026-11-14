@@ -1383,9 +1383,8 @@ impl Completions<'_, '_, '_> {
                 .request
                 .state
                 .signature_of(target)
-                .type_parameters
-                .clone(),
-            None => signature.type_parameters.clone(),
+                .cloned_type_parameters(),
+            None => signature.cloned_type_parameters(),
         }
         .unwrap_or_default();
         let signature_help_type_parameters: Vec<SignatureHelpParameter> = type_parameters
@@ -1446,7 +1445,7 @@ impl Completions<'_, '_, '_> {
         // tsgo prints the item's labels with a node builder of its own.
         let mut builder = NodeBuilder::default();
         let signature = self.request.state.signature_of(candidate).clone();
-        let type_parameters = signature.type_parameters.clone().unwrap_or_default();
+        let type_parameters = signature.cloned_type_parameters().unwrap_or_default();
         let signature_help_type_parameters: Vec<SignatureHelpParameter> = type_parameters
             .iter()
             .map(|&type_parameter| {
