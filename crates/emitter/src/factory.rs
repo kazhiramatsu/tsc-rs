@@ -253,6 +253,17 @@ impl TransformArena {
         self.id
     }
 
+    /// Called after declaration name preparation and inert-hook disposal.
+    /// Sparse tables inherit a source-size reservation intended for JS updates.
+    pub(crate) fn retire_declaration_transform_inputs(&mut self) {
+        for source in &mut self.sources {
+            source.session.retire_transform_inputs();
+        }
+        if self.session.metadata.len() <= self.session.metadata.capacity() / 4 {
+            self.session.metadata.shrink_to_fit();
+        }
+    }
+
     /// Storage retained by a compiler-owned print job, excluding opaque caches.
     // The iteration only sums retained storage; its order affects no output.
     #[allow(clippy::iter_over_hash_type)]

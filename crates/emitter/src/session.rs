@@ -40,6 +40,19 @@ pub(crate) struct SourceEmitState {
 }
 
 impl SourceEmitState {
+    /// Name reconciliation and completed inert hooks are the last readers of
+    /// transform-only facts. Printable metadata lives in the emit session.
+    pub(crate) fn retire_transform_inputs(&mut self) {
+        drop(std::mem::take(&mut self.transform_flags));
+        drop(std::mem::take(&mut self.array_transform_flags));
+        drop(std::mem::take(&mut self.deferred_array_flags));
+        drop(std::mem::take(&mut self.complete_synthesized));
+        drop(self.parsed_identifier_names.take());
+        if let Some(census) = Arc::get_mut(&mut self.identifier_census.0) {
+            *census.get_mut().unwrap_or_else(PoisonError::into_inner) = IdentifierCensus::default();
+        }
+    }
+
     // This adds storage sizes, independent of identifier iteration order.
     #[allow(clippy::iter_over_hash_type)]
     pub(crate) fn print_input_usage(&self, u: &mut tsc_diagnostics::MemoryUsage) {

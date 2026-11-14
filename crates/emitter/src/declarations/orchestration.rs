@@ -446,14 +446,20 @@ pub(crate) fn prepare_declaration_unit(
         span,
         worker_trace: None,
     };
+    // Preserve the original charge: retiring buffers must not admit additional
+    // simultaneous inputs. Unknown hooks keep their transform inputs in place.
+    let bytes = if pool.is_some() && result.has_inert_print_hooks() {
+        // Builder handles and tracking facts have no remaining print reader.
+        drop(result.arena_mut()?.take_node_builder_cache());
+        result
+            .print_input_charge()
+            .and_then(|tree| tree.checked_add(inputs.input_charge()?))
+    } else {
+        None
+    };
+    result.retire_declaration_transform_inputs();
     if let (Some(pool), Some(credit)) = (pool, credit) {
         if result.has_inert_print_hooks() {
-            // The native serialized-type cache contains handles and tracking
-            // facts, not syntax ownership. All builder requests are complete.
-            drop(result.arena_mut()?.take_node_builder_cache());
-            let bytes = result
-                .print_input_charge()
-                .and_then(|tree| tree.checked_add(inputs.input_charge()?));
             if let Some((bytes, charge)) =
                 bytes.and_then(|bytes| credit.try_charge(bytes).map(|charge| (bytes, charge)))
             {

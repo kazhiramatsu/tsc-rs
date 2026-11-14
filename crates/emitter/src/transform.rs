@@ -1242,6 +1242,20 @@ impl TransformationResult<'_> {
                 .all(|transformer| transformer.has_inert_print_hooks())
     }
 
+    /// The prepared declaration printer reads syntax and finalized metadata,
+    /// after all collision and transform-flag queries have completed.
+    pub(crate) fn retire_declaration_transform_inputs(&mut self) {
+        if !self.has_inert_print_hooks() {
+            return;
+        }
+        for transformer in self.transformers.iter_mut().rev() {
+            transformer.dispose();
+        }
+        self.transformers.clear();
+        self.substitution_transformers.clear();
+        self.context.arena.retire_declaration_transform_inputs();
+    }
+
     /// Preserve the context while retiring only hooks whose completed state
     /// promises no print effect. A rejected result remains usable in place.
     pub(crate) fn take_owned_print(&mut self) -> Option<OwnedPrintTransformation> {
