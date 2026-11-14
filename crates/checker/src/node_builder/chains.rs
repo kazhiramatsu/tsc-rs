@@ -919,7 +919,8 @@ fn symbol_chain_with_reexport_containers(
             enclosing,
             has_flag(context, USE_ONLY_EXTERNAL_ALIASING),
         )
-        .map_err(|abort| checker_abort_error(checker, context, abort))?;
+        .map_err(|abort| checker_abort_error(checker, context, abort))?
+        .map(crate::declaration_emit::AccessibleSymbolChain::into_vec);
     let needs_walk = match &accessible {
         None => true,
         Some(chain) => {

@@ -26,6 +26,102 @@ use crate::state::{CheckAbort, CheckResult, CheckerState};
 pub(crate) struct DeclarationEmitInputs {
     tables: HashMap<usize, DeclarationEmitAliasTable>,
     pub(crate) module_names: RefCell<HashMap<usize, Arc<DeclarationEmitModuleNames>>>,
+    pub(crate) chains: DeclarationChainCacheState,
+}
+
+/// A cold owner allocates nothing until its first settled chain request.
+#[derive(Default)]
+pub(crate) enum DeclarationChainCacheState {
+    #[default]
+    Cold,
+    Ready(Box<DeclarationChainCache>),
+    Suspended,
+}
+
+impl DeclarationChainCacheState {
+    pub(crate) fn is_enabled(&self) -> bool {
+        !matches!(self, Self::Suspended)
+    }
+
+    pub(crate) fn as_ref(&self) -> Option<&DeclarationChainCache> {
+        match self {
+            Self::Ready(cache) => Some(cache),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn as_mut(&mut self) -> Option<&mut DeclarationChainCache> {
+        match self {
+            Self::Ready(cache) => Some(cache),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn get_or_init(&mut self) -> &mut DeclarationChainCache {
+        if matches!(self, Self::Cold) {
+            *self = Self::Ready(Box::default());
+        }
+        self.as_mut()
+            .expect("a settled chain request is not suspended")
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct DeclarationChainScope {
+    pub(crate) frontier: Option<NodeId>,
+    pub(crate) external_module: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct DeclarationChainKey {
+    pub(crate) symbol: SymbolId,
+    pub(crate) meaning: i32,
+    pub(crate) scope: DeclarationChainScope,
+    pub(crate) external_only: bool,
+}
+
+#[derive(Default)]
+pub(crate) struct DeclarationChainCache {
+    pub(crate) generation: u64,
+    pub(crate) globals_snapshot: Option<Arc<SymbolTable>>,
+    pub(crate) scopes: HashMap<Option<NodeId>, DeclarationChainScope>,
+    pub(crate) answers: HashMap<DeclarationChainKey, Option<Arc<[SymbolId]>>>,
+}
+
+impl DeclarationChainCache {
+    pub(crate) fn clear(&mut self) {
+        self.generation = self.generation.wrapping_add(1);
+        self.scopes.clear();
+        self.answers.clear();
+    }
+}
+
+/// Read-only chain users retain a cache hit without materializing another Vec.
+/// Owned service/builder boundaries keep their existing result protocol.
+#[derive(Debug)]
+pub(crate) enum AccessibleSymbolChain {
+    Owned(Vec<SymbolId>),
+    Retained(Arc<[SymbolId]>),
+}
+
+impl AccessibleSymbolChain {
+    pub(crate) fn into_vec(self) -> Vec<SymbolId> {
+        match self {
+            Self::Owned(chain) => chain,
+            Self::Retained(chain) => chain.to_vec(),
+        }
+    }
+}
+
+impl std::ops::Deref for AccessibleSymbolChain {
+    type Target = [SymbolId];
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Owned(chain) => chain,
+            Self::Retained(chain) => chain,
+        }
+    }
 }
 
 pub(crate) struct DeclarationEmitModuleNames {
@@ -78,7 +174,7 @@ pub(crate) trait DeclarationEmitAccessibilityPrimitives {
         symbol: SymbolId,
         meaning: SymbolFlags,
         enclosing: Option<NodeId>,
-    ) -> CheckResult<Option<Vec<SymbolId>>>;
+    ) -> CheckResult<Option<AccessibleSymbolChain>>;
 
     fn declaration_emit_containers_of_symbol(
         &mut self,
@@ -89,6 +185,43 @@ pub(crate) trait DeclarationEmitAccessibilityPrimitives {
 }
 
 impl CheckerState<'_> {
+    #[inline]
+    pub(crate) fn invalidate_declaration_chain_cache(&mut self) {
+        if let Some(cache) = self
+            .declaration_emit_inputs
+            .as_mut()
+            .and_then(|inputs| inputs.chains.as_mut())
+        {
+            cache.clear();
+        }
+    }
+
+    pub(crate) fn suspend_declaration_chain_cache(&mut self) -> Option<DeclarationChainCacheState> {
+        let slot = &mut self.declaration_emit_inputs.as_mut()?.chains;
+        if !slot.is_enabled() {
+            return None;
+        }
+        let mut previous = std::mem::replace(slot, DeclarationChainCacheState::Suspended);
+        if let Some(cache) = previous.as_mut() {
+            cache.clear();
+        }
+        Some(previous)
+    }
+
+    pub(crate) fn restore_declaration_chain_cache(
+        &mut self,
+        previous: Option<DeclarationChainCacheState>,
+    ) {
+        if let Some(previous) = previous {
+            let inputs = self
+                .declaration_emit_inputs
+                .as_mut()
+                .expect("a suspended declaration cache keeps its input owner");
+            debug_assert!(!inputs.chains.is_enabled());
+            inputs.chains = previous;
+        }
+    }
+
     /// tsgo getSymbolTableAliases (symbolaccessibility.go:567-595) retains
     /// alias candidates rather than rescanning non-alias symbols. Our key
     /// identifies the immutable table snapshot, including replacement export
@@ -1464,7 +1597,7 @@ impl CheckerState<'_> {
                     false
                 };
             let accessible_symbol_chain = if directly_accessible_type_parameter {
-                Some(vec![symbol])
+                Some(AccessibleSymbolChain::Owned(vec![symbol]))
             } else {
                 self.declaration_emit_accessible_symbol_chain(
                     symbol,

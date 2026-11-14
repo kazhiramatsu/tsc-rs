@@ -511,3 +511,427 @@ fn declaration_and_semantic_literals_keep_all_javascript_code_units() {
         });
     }
 }
+
+fn chain_declaration(
+    checker: &CheckerState<'_>,
+    file: usize,
+    kind: SyntaxKind,
+    name: &str,
+) -> NodeId {
+    let source = checker.binder.source(file);
+    source
+        .arena
+        .node_ids()
+        .find(|&node| {
+            source.arena.node(node).kind == kind
+                && node_util::get_name_of_declaration(source, node)
+                    .and_then(|name| checker.identifier_text_of(name))
+                    .is_some_and(|text| text == name)
+        })
+        .expect("named declaration in chain fixture")
+}
+
+fn prepared_chain_cache<'state>(
+    checker: &'state CheckerState<'_>,
+) -> &'state DeclarationChainCache {
+    checker
+        .declaration_emit_inputs
+        .as_ref()
+        .expect("declaration input owner")
+        .chains
+        .as_ref()
+        .expect("initialized chain cache")
+}
+
+#[test]
+fn declaration_chains_share_canonical_scopes_and_keep_shadowing_meanings() {
+    let source = "interface Shared {}\nconst Shared = 0;\n\
+        function outer<T>() { let first: Shared; let second: Shared;\n\
+        function nested<Shared>() { let inside: Shared; } }";
+    with_program_state(
+        &[("/main.ts", source)],
+        &CompilerOptions::default(),
+        |checker| {
+            let root = checker.binder.source(0).root;
+            let symbol = checker
+                .binder
+                .node_symbol(chain_declaration(
+                    checker,
+                    0,
+                    SyntaxKind::InterfaceDeclaration,
+                    "Shared",
+                ))
+                .expect("interface symbol");
+            let first = chain_declaration(checker, 0, SyntaxKind::VariableDeclaration, "first");
+            let second = chain_declaration(checker, 0, SyntaxKind::VariableDeclaration, "second");
+            let inside = chain_declaration(checker, 0, SyntaxKind::VariableDeclaration, "inside");
+            let baseline_type = checker
+                .accessible_symbol_chain_at(symbol, SymbolFlags::TYPE, Some(inside), false)
+                .expect("baseline type")
+                .map(AccessibleSymbolChain::into_vec);
+            let baseline_value = checker
+                .accessible_symbol_chain_at(symbol, SymbolFlags::VALUE, Some(inside), false)
+                .expect("baseline value")
+                .map(AccessibleSymbolChain::into_vec);
+            assert_ne!(
+                baseline_type, baseline_value,
+                "a type parameter shadows only the type meaning"
+            );
+            assert!(checker.declaration_emit_inputs.is_none());
+            checker
+                .emit_precalculate_declaration_emit_visibility(root)
+                .expect("prepare");
+            assert!(matches!(
+                checker
+                    .declaration_emit_inputs
+                    .as_ref()
+                    .expect("owner")
+                    .chains,
+                DeclarationChainCacheState::Cold
+            ));
+            let first_chain = checker
+                .accessible_symbol_chain_at(symbol, SymbolFlags::TYPE, Some(first), false)
+                .expect("first chain")
+                .expect("visible global");
+            assert!(matches!(&first_chain, AccessibleSymbolChain::Owned(_)));
+            let second_chain = checker
+                .accessible_symbol_chain_at(symbol, SymbolFlags::TYPE, Some(second), false)
+                .expect("second chain")
+                .expect("same visible global");
+            assert_eq!(&*first_chain, &*second_chain);
+            let AccessibleSymbolChain::Retained(second_owner) = second_chain else {
+                panic!("equivalent scopes should retain a hit")
+            };
+            let first_again = checker
+                .accessible_symbol_chain_at(symbol, SymbolFlags::TYPE, Some(first), false)
+                .expect("repeat")
+                .expect("visible global");
+            let AccessibleSymbolChain::Retained(first_owner) = first_again else {
+                panic!("repeat should retain a hit")
+            };
+            assert!(Arc::ptr_eq(&first_owner, &second_owner));
+            let cached_type = checker
+                .accessible_symbol_chain_at(symbol, SymbolFlags::TYPE, Some(inside), false)
+                .expect("shadowed type")
+                .map(AccessibleSymbolChain::into_vec);
+            let cached_value = checker
+                .accessible_symbol_chain_at(symbol, SymbolFlags::VALUE, Some(inside), false)
+                .expect("unshadowed value")
+                .map(AccessibleSymbolChain::into_vec);
+            assert_eq!(cached_type, baseline_type);
+            assert_eq!(cached_value, baseline_value);
+            let cache = prepared_chain_cache(checker);
+            assert_eq!(cache.scopes[&Some(first)], cache.scopes[&Some(second)]);
+            assert_ne!(cache.scopes[&Some(first)], cache.scopes[&Some(inside)]);
+            assert!(cache
+                .answers
+                .keys()
+                .any(|key| key.symbol == symbol && key.meaning == SymbolFlags::TYPE.bits()));
+            assert!(cache
+                .answers
+                .keys()
+                .any(|key| key.symbol == symbol && key.meaning == SymbolFlags::VALUE.bits()));
+        },
+    );
+}
+
+#[test]
+fn declaration_chains_retain_negative_answers_between_external_files() {
+    let files = [
+        ("/hidden.ts", "interface Hidden {} export {};"),
+        ("/main.ts", "export {};"),
+    ];
+    with_program_state(&files, &CompilerOptions::default(), |checker| {
+        let symbol = checker
+            .binder
+            .node_symbol(chain_declaration(
+                checker,
+                0,
+                SyntaxKind::InterfaceDeclaration,
+                "Hidden",
+            ))
+            .expect("private interface");
+        let root = checker.binder.source(1).root;
+        assert!(checker
+            .get_accessible_symbol_chain(symbol, Some(root), SymbolFlags::TYPE, false)
+            .expect("baseline miss")
+            .is_none());
+        checker
+            .emit_precalculate_declaration_emit_visibility(root)
+            .expect("prepare");
+        for _ in 0..2 {
+            assert!(checker
+                .accessible_symbol_chain_at(symbol, SymbolFlags::TYPE, Some(root), false)
+                .expect("cached miss")
+                .is_none());
+        }
+        let cache = prepared_chain_cache(checker);
+        assert!(cache
+            .answers
+            .iter()
+            .any(|(key, value)| key.symbol == symbol && value.is_none()));
+        assert!(cache.scopes[&Some(root)].external_module);
+    });
+}
+
+#[test]
+fn declaration_chains_keep_internal_and_external_alias_policies_separate() {
+    let source = "namespace Root { export interface Item {} } import Short = Root;";
+    with_program_state(
+        &[("/main.ts", source)],
+        &CompilerOptions::default(),
+        |checker| {
+            let root = checker.binder.source(0).root;
+            let symbol = checker
+                .binder
+                .node_symbol(chain_declaration(
+                    checker,
+                    0,
+                    SyntaxKind::InterfaceDeclaration,
+                    "Item",
+                ))
+                .expect("namespace member");
+            let ordinary = checker
+                .get_accessible_symbol_chain(symbol, Some(root), SymbolFlags::TYPE, false)
+                .expect("ordinary baseline");
+            let external = checker
+                .get_accessible_symbol_chain(symbol, Some(root), SymbolFlags::TYPE, true)
+                .expect("external baseline");
+            assert!(ordinary.is_some());
+            assert_ne!(ordinary, external);
+            checker
+                .emit_precalculate_declaration_emit_visibility(root)
+                .expect("prepare");
+            for _ in 0..2 {
+                assert_eq!(
+                    checker
+                        .get_accessible_symbol_chain(symbol, Some(root), SymbolFlags::TYPE, false)
+                        .expect("ordinary cached"),
+                    ordinary
+                );
+                assert_eq!(
+                    checker
+                        .get_accessible_symbol_chain(symbol, Some(root), SymbolFlags::TYPE, true)
+                        .expect("external cached"),
+                    external
+                );
+            }
+            let cache = prepared_chain_cache(checker);
+            assert!(cache
+                .answers
+                .keys()
+                .any(|key| key.symbol == symbol && key.external_only));
+            assert!(cache
+                .answers
+                .keys()
+                .any(|key| key.symbol == symbol && !key.external_only));
+        },
+    );
+}
+
+#[test]
+fn declaration_chain_storage_stays_cold_for_excluded_or_unsettled_queries() {
+    with_program_state(
+        &[("/main.ts", "class Box { run() {} }")],
+        &CompilerOptions::default(),
+        |checker| {
+            let root = checker.binder.source(0).root;
+            let class = checker
+                .binder
+                .node_symbol(chain_declaration(
+                    checker,
+                    0,
+                    SyntaxKind::ClassDeclaration,
+                    "Box",
+                ))
+                .expect("class");
+            let method = checker
+                .binder
+                .node_symbol(chain_declaration(
+                    checker,
+                    0,
+                    SyntaxKind::MethodDeclaration,
+                    "run",
+                ))
+                .expect("method");
+            checker
+                .emit_precalculate_declaration_emit_visibility(root)
+                .expect("prepare");
+            assert!(checker
+                .accessible_symbol_chain_at(method, SymbolFlags::VALUE, Some(root), false)
+                .expect("method exclusion")
+                .is_none());
+            checker.speculation_depth += 1;
+            let speculative = checker
+                .accessible_symbol_chain_at(class, SymbolFlags::TYPE, Some(root), false)
+                .expect("speculative")
+                .expect("class");
+            assert!(matches!(speculative, AccessibleSymbolChain::Owned(_)));
+            checker.speculation_depth -= 1;
+            let pending = checker.binder.create_symbol(
+                SymbolFlags::TYPE_ALIAS,
+                tsc_types::EscapedName::escape("Pending".into()),
+            );
+            assert!(checker.push_type_resolution(
+                crate::state::ResolutionTarget::Symbol(pending),
+                tsc_types::TypeSystemPropertyName::TYPE
+            ));
+            let unsettled = checker
+                .accessible_symbol_chain_at(class, SymbolFlags::TYPE, Some(root), false)
+                .expect("active resolution")
+                .expect("class");
+            assert!(matches!(unsettled, AccessibleSymbolChain::Owned(_)));
+            assert!(checker.pop_type_resolution());
+            assert!(matches!(
+                checker
+                    .declaration_emit_inputs
+                    .as_ref()
+                    .expect("owner")
+                    .chains,
+                DeclarationChainCacheState::Cold
+            ));
+            let cold = checker
+                .accessible_symbol_chain_at(class, SymbolFlags::TYPE, Some(root), false)
+                .expect("settled")
+                .expect("class");
+            assert!(matches!(cold, AccessibleSymbolChain::Owned(_)));
+            let warm = checker
+                .accessible_symbol_chain_at(class, SymbolFlags::TYPE, Some(root), false)
+                .expect("repeat")
+                .expect("class");
+            assert!(matches!(warm, AccessibleSymbolChain::Retained(_)));
+        },
+    );
+}
+
+#[test]
+fn declaration_chain_invalidation_and_static_suspension_keep_other_inputs() {
+    let source = "const key = 'field'; class Box { static [key]: number; static field: number; }";
+    with_program_state(
+        &[("/main.ts", source)],
+        &CompilerOptions::default(),
+        |checker| {
+            let root = checker.binder.source(0).root;
+            let symbol = checker
+                .binder
+                .node_symbol(chain_declaration(
+                    checker,
+                    0,
+                    SyntaxKind::ClassDeclaration,
+                    "Box",
+                ))
+                .expect("class");
+            checker
+                .emit_precalculate_declaration_emit_visibility(root)
+                .expect("prepare");
+            let module_names = Arc::new(DeclarationEmitModuleNames {
+                imports: Vec::new(),
+                augmentations: Vec::new(),
+            });
+            checker
+                .declaration_emit_inputs
+                .as_ref()
+                .expect("owner")
+                .module_names
+                .borrow_mut()
+                .insert(0, Arc::clone(&module_names));
+            checker
+                .accessible_symbol_chain_at(symbol, SymbolFlags::TYPE, Some(root), false)
+                .expect("cold chain")
+                .expect("class");
+            let before_clone = prepared_chain_cache(checker).generation;
+            checker.clone_symbol(symbol);
+            assert!(prepared_chain_cache(checker).generation > before_clone);
+            assert!(prepared_chain_cache(checker).answers.is_empty());
+            checker
+                .accessible_symbol_chain_at(symbol, SymbolFlags::TYPE, Some(root), false)
+                .expect("rebuild")
+                .expect("class");
+            let generation = prepared_chain_cache(checker).generation;
+            let outer = checker.suspend_declaration_chain_cache();
+            assert!(outer.is_some());
+            assert!(checker.suspend_declaration_chain_cache().is_none());
+            let during = checker
+                .accessible_symbol_chain_at(symbol, SymbolFlags::TYPE, Some(root), false)
+                .expect("suspended")
+                .expect("class");
+            assert!(matches!(during, AccessibleSymbolChain::Owned(_)));
+            checker.restore_declaration_chain_cache(None);
+            checker.restore_declaration_chain_cache(outer);
+            assert!(prepared_chain_cache(checker).generation > generation);
+            checker
+                .accessible_symbol_chain_at(symbol, SymbolFlags::TYPE, Some(root), false)
+                .expect("new generation")
+                .expect("class");
+            let before_static = prepared_chain_cache(checker).generation;
+            let exports = checker
+                .get_exports_of_symbol(symbol)
+                .expect("late static exports");
+            assert!(!exports.is_empty());
+            assert!(prepared_chain_cache(checker).generation > before_static);
+            assert!(prepared_chain_cache(checker).answers.is_empty());
+            assert!(Arc::ptr_eq(
+                checker
+                    .declaration_emit_inputs
+                    .as_ref()
+                    .expect("owner")
+                    .module_names
+                    .borrow()
+                    .get(&0)
+                    .expect("retained module inputs"),
+                &module_names
+            ));
+            let chain = checker
+                .accessible_symbol_chain_at(symbol, SymbolFlags::TYPE, Some(root), false)
+                .expect("after static binding")
+                .expect("class");
+            assert!(matches!(chain, AccessibleSymbolChain::Owned(_)));
+        },
+    );
+}
+
+#[test]
+fn declaration_chains_follow_replaced_global_snapshots() {
+    with_program_state(
+        &[("/main.ts", "interface Shared {}")],
+        &CompilerOptions::default(),
+        |checker| {
+            let root = checker.binder.source(0).root;
+            let symbol = checker
+                .binder
+                .node_symbol(chain_declaration(
+                    checker,
+                    0,
+                    SyntaxKind::InterfaceDeclaration,
+                    "Shared",
+                ))
+                .expect("interface");
+            let original_globals = Arc::clone(&checker.globals);
+            checker
+                .emit_precalculate_declaration_emit_visibility(root)
+                .expect("prepare");
+            checker
+                .accessible_symbol_chain_at(symbol, SymbolFlags::TYPE, Some(root), false)
+                .expect("original globals")
+                .expect("visible interface");
+            let generation = prepared_chain_cache(checker).generation;
+            checker.globals = Arc::new(SymbolTable::default());
+            assert!(checker
+                .accessible_symbol_chain_at(symbol, SymbolFlags::TYPE, Some(root), false)
+                .expect("replaced globals")
+                .is_none());
+            assert!(prepared_chain_cache(checker).generation > generation);
+            checker.globals = original_globals;
+            let restored = checker
+                .accessible_symbol_chain_at(symbol, SymbolFlags::TYPE, Some(root), false)
+                .expect("restored globals")
+                .expect("visible interface");
+            assert!(matches!(restored, AccessibleSymbolChain::Owned(_)));
+            let repeat = checker
+                .accessible_symbol_chain_at(symbol, SymbolFlags::TYPE, Some(root), false)
+                .expect("repeat")
+                .expect("visible interface");
+            assert!(matches!(repeat, AccessibleSymbolChain::Retained(_)));
+        },
+    );
+}
