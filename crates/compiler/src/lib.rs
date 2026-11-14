@@ -3691,6 +3691,7 @@ impl ProgramSession {
                 .any(|row| program_row_is_outside_sources(&self.prepared, row));
         let syntactic_diagnostics_gate = self.syntactic_diagnostics_gate(has_options);
         let incremental_facts_requested = self.command_build_info
+            && !self.list_files_only
             && (tsc_incremental::options::is_incremental(self.prepared.compiler_options())
                 || self.build_mode
                 || self.watch);

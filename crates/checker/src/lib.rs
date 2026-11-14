@@ -2701,7 +2701,38 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
         bind_span: std::sync::Mutex::new(None),
     };
     let mut observe_phase = |_| {};
-    let execution = if cache_enabled {
+    let execution = if diagnostic_schedule == DiagnosticSchedule::SyntacticDiagnosticsOnly
+        && !incremental_facts
+        && emit_operation.is_none()
+        && sharded_emit.is_none()
+    {
+        // A syntax-only consumer needs the library trees, but no bind tables.
+        let identity_domain = provider
+            .identity_domain()
+            .or_else(|| {
+                libs.iter()
+                    .chain(files)
+                    .find_map(|file| file.preparsed_syntax.identity_domain())
+                    .cloned()
+            })
+            .unwrap_or_default();
+        check_program_with_prebound_libs_at_observed(
+            libs,
+            files,
+            options,
+            current_directory,
+            &[],
+            &identity_domain,
+            CheckWorkCounters::default(),
+            true,
+            &mut observe_phase,
+            Some(&run),
+            emit_operation,
+            planner,
+            ProgramFileFacts::DEFAULT_LIBRARY,
+            workers,
+        )
+    } else if cache_enabled {
         let prepared =
             prepared_owned_bundle.filter(|bundle| bundle.exactly_matches(&effective_libs));
         if let Some(bundle) = prepared {
@@ -6861,8 +6892,37 @@ fn bind_reserved_in_program_order(
         Overflow(Box<tsc_binder::Binder<'a>>),
         TaskOverflow(Box<BindData>, &'a tsc_syntax::SourceFile),
     }
+    // Fitted task results already own their tables. Keep their boxes until
+    // the ordered finish; only missing binds and overflows need worker slots.
+    let (jobs, ready) = if workers.is_parallel()
+        && sources.iter().any(|(_, _, data)| {
+            data.as_ref()
+                .is_some_and(|data| data.identity_owned_by(identity_domain))
+        }) {
+        let mut ready = std::iter::repeat_with(|| None)
+            .take(sources.len())
+            .collect::<Vec<Option<Box<BindData>>>>();
+        let jobs = sources
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, (source, reservation, data))| {
+                if data
+                    .as_ref()
+                    .is_some_and(|data| data.identity_owned_by(identity_domain))
+                {
+                    ready[index] = data;
+                    None
+                } else {
+                    Some((index, (source, reservation, data)))
+                }
+            })
+            .collect();
+        (jobs, Some(ready))
+    } else {
+        (sources.into_iter().enumerate().collect(), None)
+    };
     let completions = workers.map_ordered(
-        sources.into_iter().enumerate().collect(),
+        jobs,
         |(_, (source, _, _))| source.text().len(),
         |(index, (source, _, data))| {
             if let Some(data) = data {
@@ -6907,25 +6967,40 @@ fn bind_reserved_in_program_order(
     let mut overflowed = 0usize;
     // Keep every reservation alive until the last overflow has replayed:
     // releasing any unused range sooner changes first-fit allocation.
-    let data = completions
-        .into_iter()
-        .map(|completion| match completion {
-            BindCompletion::Attached(data) => data,
-            BindCompletion::Overflow(mut binder) => {
-                binder
-                    .relocate_into_identity_domain(identity_domain)
-                    .expect("bind identity relocation failed");
-                overflowed += 1;
-                binder.into_bind_data()
-            }
-            BindCompletion::TaskOverflow(mut data, source) => {
-                data.relocate_into_identity_domain(source, identity_domain)
-                    .expect("task bind identity relocation failed");
-                overflowed += 1;
-                *data
-            }
-        })
-        .collect();
+    let mut finish = |completion| match completion {
+        BindCompletion::Attached(data) => data,
+        BindCompletion::Overflow(mut binder) => {
+            binder
+                .relocate_into_identity_domain(identity_domain)
+                .expect("bind identity relocation failed");
+            overflowed += 1;
+            binder.into_bind_data()
+        }
+        BindCompletion::TaskOverflow(mut data, source) => {
+            data.relocate_into_identity_domain(source, identity_domain)
+                .expect("task bind identity relocation failed");
+            overflowed += 1;
+            *data
+        }
+    };
+    let data = if let Some(ready) = ready {
+        let mut completions = completions.into_iter();
+        let data = ready
+            .into_iter()
+            .map(|data| match data {
+                Some(data) => *data,
+                None => finish(
+                    completions
+                        .next()
+                        .expect("a bind of every remaining source"),
+                ),
+            })
+            .collect();
+        debug_assert!(completions.next().is_none());
+        data
+    } else {
+        completions.into_iter().map(finish).collect()
+    };
     drop(reservations);
     if tsc_types::trace::enabled() {
         tsc_types::trace::mark(

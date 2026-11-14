@@ -819,3 +819,96 @@ fn locals_are_found_for_exactly_the_scopes_that_have_them() {
         },
     );
 }
+
+#[test]
+fn prepared_bind_results_keep_source_order_around_missing_and_overflowing_binds() {
+    use std::num::NonZeroUsize;
+    use tsc_binder::BindReservations;
+    use tsc_types::IdentitySpace;
+    for worker_count in [1, 4] {
+        let domain = IdentityDomain::new();
+        let mut sources = [
+            ("/first.ts", "const first = 1;"),
+            ("/fresh.ts", "function fresh() { return 2; }"),
+            (
+                "/overflow.ts",
+                "export class C { #value = 3; read() { return this.#value; } }",
+            ),
+            ("/last.ts", "const last = 4;"),
+        ]
+        .into_iter()
+        .map(|(name, text)| {
+            DocumentBuilder::new(
+                tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+                    name.to_owned(),
+                    TextSnapshot::new(text.to_owned(), Default::default()),
+                    ParseOptions::default(),
+                    None,
+                    &domain,
+                )
+                .unwrap(),
+            )
+        })
+        .collect::<Vec<_>>();
+        for (index, source) in sources.iter_mut().enumerate() {
+            if index == 1 {
+                continue;
+            }
+            let reservation = if index == 2 {
+                BindReservations {
+                    symbols: domain.lease(IdentitySpace::Symbol, 1).unwrap(),
+                    serials: domain.lease(IdentitySpace::PrivateNameSerial, 1).unwrap(),
+                }
+            } else {
+                BindReservations::lease(source.source(), &domain).unwrap()
+            };
+            let mut binder = Binder::bind_reserved(
+                source.source_mut(),
+                reservation.symbols.range(),
+                reservation.serials.range().start(),
+            );
+            assert_eq!(
+                binder
+                    .attach_reserved_leases(
+                        &domain,
+                        reservation.symbols.clone(),
+                        reservation.serials.clone()
+                    )
+                    .unwrap(),
+                index != 2
+            );
+            source.bind_data = Some(Box::new(binder.into_bind_data()));
+            source.bind_reservations = Some(reservation);
+        }
+        let inputs = sources
+            .iter_mut()
+            .map(DocumentBuilder::bind_input)
+            .collect();
+        let results = crate::bind_reserved_in_program_order(
+            inputs,
+            &domain,
+            crate::WorkerBudget::new(NonZeroUsize::new(worker_count).unwrap()),
+            None,
+        );
+        assert_eq!(results.len(), sources.len());
+        for (source, data) in sources.iter_mut().zip(results) {
+            assert!(data.identity_owned_by(&domain));
+            let expected = data.clone();
+            drop(data);
+            let mut direct = Binder::with_bases(
+                source.source_mut(),
+                expected.private_name_serial_base,
+                expected.symbols.base(),
+            );
+            direct.bind_source_file();
+            let direct = direct.into_bind_data();
+            assert_eq!(expected.symbols, direct.symbols);
+            assert_eq!(expected.node_symbol, direct.node_symbol);
+            assert_eq!(expected.node_local_symbol, direct.node_local_symbol);
+            assert_eq!(expected.locals, direct.locals);
+            assert_eq!(expected.assigned_symbol_ids, direct.assigned_symbol_ids);
+            assert_eq!(expected.classifiable_names, direct.classifiable_names);
+            assert_eq!(expected.bind_diagnostics, direct.bind_diagnostics);
+        }
+    }
+}

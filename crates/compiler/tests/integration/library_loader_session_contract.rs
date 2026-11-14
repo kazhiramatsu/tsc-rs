@@ -71,3 +71,43 @@ fn catalog_loaded_library_prefix_flows_through_the_owned_program_session() {
 }
 
 use crate::utf16_scalar_path::ScalarTestPath as _;
+
+#[test]
+fn list_files_only_skips_library_binds_and_unused_incremental_facts() {
+    for incremental in [false, true] {
+        let host = MemoryCompilerHost::builder("/work")
+            .file("/work/root.ts", b"const value = 1;".to_vec())
+            .file(
+                "/typescript/lib/lib.es5.d.ts",
+                MINIMAL_GLOBALS.as_bytes().to_vec(),
+            )
+            .build()
+            .unwrap();
+        let prepared = load_program(
+            &host,
+            &[PathBuf::from("/work/root.ts")],
+            CompilerOptions {
+                no_emit: Some(true),
+                incremental: Some(incremental),
+                lib: Some(vec!["es5".to_owned()]),
+                ..Default::default()
+            },
+            ProgramOptions::default().with_types(Vec::new()),
+            &LibraryCatalog::typescript_7_1("/typescript/lib"),
+            ProgramLoadLimits::new(8, 32, 8, 16 * 1_024, 64 * 1_024),
+        )
+        .unwrap();
+        let outcome = ProgramSession::new(prepared)
+            .with_list_files_only(true)
+            .run_no_emit_command()
+            .unwrap();
+        assert_eq!(
+            outcome.work_counters().bound_documents(),
+            0,
+            "incremental={incremental}"
+        );
+        assert!(outcome.global_diagnostics().is_empty());
+        assert!(outcome.semantic_diagnostics().is_empty());
+        assert!(outcome.build_info().is_none());
+    }
+}
