@@ -28,14 +28,14 @@ default settings.
 
 | Project | tsgo | tsrs | tsc-rs |
 | --- | ---: | ---: | ---: |
-| VS Code `src` | 4.44 s · 6,371 MiB | 1.87 s · 2,281 MiB | 2.13 s · 2,726 MiB |
-| Next.js `packages/next` | 1.29 s · 1,510 MiB | 0.48 s · 575 MiB | 0.59 s · 706 MiB |
-| zod | 0.85 s · 1,595 MiB | 0.31 s · 582 MiB | 0.35 s · 685 MiB |
-| Effect `packages/effect` | 0.77 s · 1,081 MiB | 0.31 s · 432 MiB | 0.33 s · 535 MiB |
-| Playwright | 0.55 s · 904 MiB | 0.20 s · 352 MiB | 0.25 s · 447 MiB |
-| Vue | 0.52 s · 678 MiB | 0.19 s · 232 MiB | 0.27 s · 300 MiB |
-| TypeScript `src/compiler` | 0.35 s · 370 MiB | 0.14 s · 139 MiB | 0.17 s · 191 MiB |
-| hono | 0.17 s · 262 MiB | 0.06 s · 109 MiB | 0.07 s · 135 MiB |
+| VS Code `src` | 4.61 s · 6,194 MiB | 1.94 s · 2,287 MiB | 2.14 s · 2,726 MiB |
+| Next.js `packages/next` | 1.32 s · 1,514 MiB | 0.49 s · 576 MiB | 0.57 s · 708 MiB |
+| zod | 0.87 s · 1,603 MiB | 0.32 s · 581 MiB | 0.35 s · 683 MiB |
+| Effect `packages/effect` | 0.77 s · 1,086 MiB | 0.30 s · 432 MiB | 0.33 s · 538 MiB |
+| Playwright | 0.56 s · 906 MiB | 0.20 s · 352 MiB | 0.25 s · 446 MiB |
+| Vue | 0.53 s · 661 MiB | 0.20 s · 231 MiB | 0.27 s · 298 MiB |
+| TypeScript `src/compiler` | 0.36 s · 367 MiB | 0.14 s · 139 MiB | 0.17 s · 192 MiB |
+| hono | 0.16 s · 263 MiB | 0.06 s · 109 MiB | 0.07 s · 135 MiB |
 
 tsc-rs printed exactly `tsgo`'s output (diagnostics and exit status) on all
 eight projects.
@@ -45,19 +45,19 @@ tsc-rs ([the fast preset](#the-fast-preset)):
 
 | Project | tsrs `--fast` | tsc-rs `TSRS_FAST=1` |
 | --- | ---: | ---: |
-| VS Code `src` | 1.09 s · 1,825 MiB | 1.51 s · 2,917 MiB |
-| Next.js `packages/next` | 0.27 s · 559 MiB | 0.37 s · 805 MiB |
-| zod | 0.20 s · 503 MiB | 0.29 s · 812 MiB |
-| Effect `packages/effect` | 0.20 s · 388 MiB | 0.27 s · 605 MiB |
-| Playwright | 0.14 s · 345 MiB | 0.20 s · 534 MiB |
-| Vue | 0.12 s · 251 MiB | 0.19 s · 367 MiB |
-| TypeScript `src/compiler` | 0.12 s · 137 MiB | 0.17 s · 191 MiB |
-| hono | 0.04 s · 96 MiB | 0.06 s · 148 MiB |
+| VS Code `src` | 1.15 s · 1,823 MiB | 1.54 s · 2,916 MiB |
+| Next.js `packages/next` | 0.28 s · 561 MiB | 0.36 s · 807 MiB |
+| zod | 0.20 s · 502 MiB | 0.30 s · 814 MiB |
+| Effect `packages/effect` | 0.21 s · 388 MiB | 0.28 s · 605 MiB |
+| Playwright | 0.14 s · 344 MiB | 0.20 s · 533 MiB |
+| Vue | 0.12 s · 254 MiB | 0.20 s · 366 MiB |
+| TypeScript `src/compiler` | 0.12 s · 137 MiB | 0.17 s · 190 MiB |
+| hono | 0.04 s · 96 MiB | 0.06 s · 147 MiB |
 
 Compilers:
 
 - tsc-rs: main at
-  [`841945d3d`](https://github.com/kazhiramatsu/tsc-rs/commit/841945d3d),
+  [`31600d085`](https://github.com/kazhiramatsu/tsc-rs/commit/31600d085),
   `cargo build --release`.
 - `tsgo`: TypeScript 7.1 built from the commit tsc-rs follows (`aa814927`).
 - [tsrs](https://github.com/oxc-project/tsrs) 0.23.0 (TypeScript
