@@ -51,6 +51,10 @@ pub struct NodeArena {
     /// paths (relpin, ast-diff, tests) keep base 0 and are unchanged.
     node_base: u32,
     array_base: u32,
+    /// The next record indices, advanced after a successful append.
+    /// `u32::MAX` is the exhausted identity domain.
+    node_next: u32,
+    array_next: u32,
     item_base: u32,
     text_base: u32,
     leases: Option<SyntaxLeases>,
@@ -84,6 +88,8 @@ impl Clone for NodeArena {
             texts: self.texts.clone(),
             node_base: self.node_base,
             array_base: self.array_base,
+            node_next: self.node_next,
+            array_next: self.array_next,
             item_base: self.item_base,
             text_base: self.text_base,
             leases: self.leases.clone(),
@@ -714,6 +720,8 @@ impl NodeArena {
         Self {
             node_base,
             array_base,
+            node_next: node_base,
+            array_next: array_base,
             ..Self::default()
         }
     }
@@ -817,18 +825,12 @@ impl NodeArena {
 
     /// One past the last allocated NodeId — the next file's node base.
     pub fn node_end(&self) -> u32 {
-        self.node_base
-            .checked_add(u32::try_from(self.nodes.len()).expect("node arena length exceeds u32"))
-            .expect("node arena id space exhausted")
+        self.node_next
     }
 
     /// One past the last allocated NodeArrayId.
     pub fn array_end(&self) -> u32 {
-        self.array_base
-            .checked_add(
-                u32::try_from(self.arrays.len()).expect("node-array arena length exceeds u32"),
-            )
-            .expect("node-array arena id space exhausted")
+        self.array_next
     }
 
     pub fn contains_node(&self, id: NodeId) -> bool {
@@ -947,12 +949,7 @@ impl NodeArena {
         modifier_flags: ModifierFlags,
     ) -> NodeArrayId {
         debug_assert!(ModifierFlags::SYNTACTIC_MODIFIERS.contains(modifier_flags));
-        let offset = u32::try_from(self.arrays.len()).expect("node-array arena length exceeds u32");
-        let id = NodeArrayId::new(
-            self.array_base
-                .checked_add(offset)
-                .expect("node-array identity space exhausted"),
-        );
+        let id = NodeArrayId::new(self.array_next);
         let items = self
             .item_base
             .checked_add(
@@ -970,6 +967,7 @@ impl NodeArena {
             is_missing_list: false,
             modifier_flags: modifier_flags.bits() as u16,
         });
+        self.array_next = id.position();
         id
     }
 
@@ -1219,6 +1217,8 @@ impl NodeArena {
         }
         self.node_base = relocation.new_nodes.start();
         self.array_base = relocation.new_arrays.start();
+        self.node_next = relocation.new_nodes.end();
+        self.array_next = relocation.new_arrays.end();
         self.item_base = relocation.new_items.start();
         self.text_base = relocation.new_texts.start();
         self.arrays.publish(relocation.new_arrays.start() + 1);
@@ -1257,14 +1257,9 @@ impl NodeArena {
     }
 
     /// The id the next allocated node gets.
-    #[inline]
+    #[inline(always)]
     pub(crate) fn next_node_id(&self) -> NodeId {
-        let offset = u32::try_from(self.nodes.len()).expect("node arena length exceeds u32");
-        NodeId::new(
-            self.node_base
-                .checked_add(offset)
-                .expect("node identity space exhausted"),
-        )
+        NodeId::new(self.node_next)
     }
 
     /// tsgo finishNode's parent links for a node about to be allocated at
@@ -1439,12 +1434,7 @@ impl NodeArena {
         end: usize,
         flags: NodeFlags,
     ) -> NodeId {
-        let offset = u32::try_from(self.nodes.len()).expect("node arena length exceeds u32");
-        let id = NodeId::new(
-            self.node_base
-                .checked_add(offset)
-                .expect("node identity space exhausted"),
-        );
+        let id = self.next_node_id();
         self.identifier_count += u32::from(kind == SyntaxKind::Identifier);
         let mut node = Node::new(kind, pos as u32, end as u32, flags.bits());
         node.encode(&data, None, &mut self.tails, false);
@@ -1452,6 +1442,7 @@ impl NodeArena {
             self.ensure_modifier_list_flags(modifiers);
         }
         self.nodes.push(node);
+        self.node_next = id.position();
         id
     }
 
@@ -1464,15 +1455,11 @@ impl NodeArena {
         end: usize,
         flags: NodeFlags,
     ) -> NodeId {
-        let offset = u32::try_from(self.nodes.len()).expect("node arena length exceeds u32");
-        let id = NodeId::new(
-            self.node_base
-                .checked_add(offset)
-                .expect("node identity space exhausted"),
-        );
+        let id = self.next_node_id();
         self.identifier_count += u32::from(kind == SyntaxKind::Identifier);
         self.nodes
             .push(Node::new(kind, pos as u32, end as u32, flags.bits()));
+        self.node_next = id.position();
         id
     }
 

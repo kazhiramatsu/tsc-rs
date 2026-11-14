@@ -193,3 +193,124 @@ fn only_modifier_lists_derive_modifier_metadata() {
         ModifierFlags::EXPORT
     );
 }
+
+#[test]
+fn record_identities_preserve_exhaustion_without_appending() {
+    let mut arena = NodeArena::with_bases(u32::MAX - 1, u32::MAX - 1);
+    let node = arena.alloc_token(SyntaxKind::EndOfFileToken, 0, 0, NodeFlags::NONE);
+    let array = arena.alloc_array(&[node], 0, 0, false, NodeArrayRole::Children);
+    assert_eq!(node.index(), u32::MAX - 1);
+    assert_eq!(array.index(), u32::MAX - 1);
+    assert_eq!(arena.node_end(), u32::MAX);
+    assert_eq!(arena.array_end(), u32::MAX);
+    assert!(arena.contains_node(node));
+    assert!(arena.contains_array(array));
+
+    let nodes = arena.len();
+    let arrays = arena.node_arrays().len();
+    let items = arena.array_item_count();
+    assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        arena.alloc_missing(SyntaxKind::Identifier, 0);
+    }))
+    .is_err());
+    assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        arena.alloc_array(&[node], 0, 0, false, NodeArrayRole::Children);
+    }))
+    .is_err());
+    assert_eq!(arena.len(), nodes);
+    assert_eq!(arena.node_arrays().len(), arrays);
+    assert_eq!(arena.array_item_count(), items);
+    assert_eq!(arena.node_end(), u32::MAX);
+    assert_eq!(arena.array_end(), u32::MAX);
+
+    let empty = NodeArena::with_bases(u32::MAX, u32::MAX);
+    assert!(empty.is_empty());
+    assert_eq!(empty.node_end(), u32::MAX);
+    assert_eq!(empty.array_end(), u32::MAX);
+}
+
+fn append_after_detaching_preserves_record_identities(arena: &NodeArena) {
+    let nodes = arena.nodes().len();
+    let arrays = arena.node_arrays().len();
+    let node_end = arena.node_base() + u32::try_from(nodes).unwrap();
+    let array_end = arena.array_base() + u32::try_from(arrays).unwrap();
+    let mut copy = arena.detached_clone();
+    let parent = copy.next_node_id();
+    assert_eq!(parent.index(), node_end);
+    let first = copy.alloc_missing(SyntaxKind::Identifier, 3);
+    assert_eq!(first, parent);
+    let second = copy.alloc_node(
+        NodeData::Identifier(IdentifierData {
+            escaped_text: tsc_types::EscapedName::from_identifier_escaped_text("next"),
+        }),
+        4,
+        8,
+        NodeFlags::NONE,
+    );
+    let list = copy.alloc_array(&[first, second], 3, 8, false, NodeArrayRole::Children);
+    let empty = copy.empty_array(8);
+    assert_eq!(second.index(), node_end + 1);
+    assert_eq!(list.index(), array_end);
+    assert_eq!(empty.index(), array_end + 1);
+    assert_eq!(copy.node_array(list).nodes, [first, second]);
+    assert!(copy.node_array(empty).nodes.is_empty());
+    assert_eq!(copy.node_end(), node_end + 2);
+    assert_eq!(copy.array_end(), array_end + 2);
+    assert_eq!(arena.len(), nodes);
+    assert_eq!(arena.node_arrays().len(), arrays);
+    assert_eq!(arena.node_end(), node_end);
+    assert_eq!(arena.array_end(), array_end);
+}
+
+#[test]
+fn cloned_and_relocated_arenas_append_after_their_existing_records() {
+    let mut source = crate::parse_source_file(
+        "identities.ts",
+        "export class C { method<T>(value: T) { return [value]; } }",
+        crate::ParseOptions {
+            node_id_base: 37,
+            node_array_id_base: 19,
+            ..crate::ParseOptions::default()
+        },
+        None,
+    );
+    append_after_detaching_preserves_record_identities(&source.arena);
+    let domain = tsc_types::IdentityDomain::new();
+    let _node_gap = domain.lease(IdentitySpace::Node, 11).unwrap();
+    let _array_gap = domain.lease(IdentitySpace::NodeArray, 7).unwrap();
+    source.relocate_into_identity_domain(&domain).unwrap();
+    append_after_detaching_preserves_record_identities(&source.arena);
+    let cloned = source.arena.clone();
+    append_after_detaching_preserves_record_identities(&cloned);
+}
+
+#[test]
+fn direct_rooms_and_overflow_fallback_keep_append_identities() {
+    use crate::placement::{SyntaxStripe, SPACES};
+    for room_size in [1, 1024] {
+        let domain = tsc_types::IdentityDomain::new();
+        let room = domain
+            .lease_rooms(&[SPACES.into_iter().map(|space| (space, room_size)).collect()])
+            .unwrap()
+            .pop()
+            .unwrap();
+        let mut stripe = SyntaxStripe::new(room);
+        let mut sources = Vec::new();
+        for _ in 0..2 {
+            let snapshot = tsc_diagnostics::TextSnapshot::new(
+                "const value = { name: 'text' };".to_owned(),
+                tsc_diagnostics::DocumentVersion::default(),
+            );
+            let source = stripe.parse("room.ts".into(), snapshot, crate::ParseOptions::default());
+            assert_eq!(source.arena.is_published(), room_size == 1024);
+            append_after_detaching_preserves_record_identities(&source.arena);
+            sources.push(source);
+        }
+        let statistics = stripe.seal().unwrap();
+        assert_eq!(statistics.fallbacks, if room_size == 1 { 2 } else { 0 });
+        for source in &mut sources {
+            source.relocate_into_identity_domain(&domain).unwrap();
+            append_after_detaching_preserves_record_identities(&source.arena);
+        }
+    }
+}
