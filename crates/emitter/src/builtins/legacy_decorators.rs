@@ -3663,10 +3663,17 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             position += 1;
         }
         statements.splice(position..position, hoisted);
+        let original = self
+            .context
+            .arena()
+            .node_array_ref(self.source, data.statements.expect("source statements"))
+            .expect("source statements belong to this source");
+        // tsgo EndAndMergeLexicalEnvironmentList preserves the list's Loc:
+        // the printer uses it for detached headers and EOF comments.
         data.statements = Some(
             self.context
                 .factory()?
-                .create_node_array(self.source, statements)?
+                .update_node_array(original, statements)?
                 .array(),
         );
         let flags = self.context.arena().transform_flags(root);
