@@ -4383,6 +4383,7 @@ fn run_checker_shard<'a>(
         state.release_finished_lookup_buffers();
         state.links.release_dense_record_buffers();
         state.no_flow_context_nodes.release_finished_buffers();
+        state.flow_memo.release_finished_buffers();
         drop(std::mem::take(&mut state.mappers));
         drop(std::mem::take(&mut state.mapper_lists));
         std::mem::forget(state);

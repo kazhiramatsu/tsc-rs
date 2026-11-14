@@ -135,16 +135,85 @@ pub(crate) struct MemoHit {
     flags: u8,
 }
 
-#[derive(Clone, Copy, Default)]
-struct Slot {
-    key: u128,
-    ty: Option<TypeId>,
-    epoch: u32,
-    height: u16,
-    flags: u8,
+#[cfg(target_pointer_width = "64")]
+const SLOT_STATE_SHIFT: u32 = 38;
+#[cfg(target_pointer_width = "32")]
+const SLOT_STATE_SHIFT: u32 = 17;
+const SLOT_STATE_MASK: u64 = ((1 << 12) - 1) << SLOT_STATE_SHIFT;
+const SLOT_IDENTITY_MASK: u64 = (usize::MAX as u64) & !SLOT_STATE_MASK;
+
+// The omitted identity bits and the stored metadata use this exact budget.
+const _: () = assert!(TABLE_SLOTS == 1 << 12);
+const _: () = assert!(FLOW_DEPTH_LIMIT <= 1 << 11);
+
+#[inline]
+fn node_key_state(key: u128) -> u64 {
+    #[cfg(target_pointer_width = "64")]
+    {
+        (key as u64).rotate_right(26)
+    }
+    #[cfg(target_pointer_width = "32")]
+    {
+        u64::from((key as u32).rotate_right(15))
+    }
 }
 
-const _: () = assert!(std::mem::size_of::<Slot>() == 32);
+/// The locked Fx integer hash's two node-tag states differ by a constant:
+/// every node tuple hashes the same number of words. The first state thus
+/// determines the complete old tag. On 64-bit hosts the existing slot index
+/// is state[38..49] XOR (state + constant)[9..20]. Keeping all other bits and
+/// the unchanged index determines those twelve bits too: the lower sum cannot
+/// depend on the omitted higher bits. On 32-bit hosts the index is directly
+/// state[17..28], with the same argument for the other twenty bits.
+///
+/// That leaves eleven bits for the bounded height and one for COUNT_RESET.
+/// Published answers always carry TYPE_CACHE, including those with epoch zero;
+/// reconstruct that dependency rather than deriving it from the epoch.
+#[derive(Clone, Copy, Default)]
+#[repr(C, align(16))]
+struct Slot {
+    key_and_state: u64,
+    ty: Option<TypeId>,
+    epoch: u32,
+}
+
+const _: () = assert!(std::mem::size_of::<Slot>() == 16);
+
+impl Slot {
+    #[inline]
+    fn new(key: u128, hit: MemoHit) -> Self {
+        debug_assert!(u32::from(hit.height) < FLOW_DEPTH_LIMIT);
+        debug_assert_eq!(hit.flags & !FLAG_COUNT_RESET, FLAG_TYPE_CACHE);
+        Self {
+            key_and_state: (node_key_state(key) & SLOT_IDENTITY_MASK)
+                | (u64::from(hit.height) << SLOT_STATE_SHIFT)
+                | (u64::from(hit.flags & FLAG_COUNT_RESET != 0) << (SLOT_STATE_SHIFT + 11)),
+            ty: Some(hit.ty),
+            epoch: hit.epoch,
+        }
+    }
+
+    /// The caller must select this slot with the unchanged full-key index.
+    #[inline]
+    fn matches_at_index(&self, key: u128) -> bool {
+        (self.key_and_state ^ node_key_state(key)) & SLOT_IDENTITY_MASK == 0
+    }
+
+    #[inline]
+    fn height(&self) -> u16 {
+        ((self.key_and_state >> SLOT_STATE_SHIFT) & 0x7ff) as u16
+    }
+
+    #[inline]
+    fn flags(&self) -> u8 {
+        FLAG_TYPE_CACHE
+            | if self.key_and_state & (1 << (SLOT_STATE_SHIFT + 11)) != 0 {
+                FLAG_COUNT_RESET
+            } else {
+                0
+            }
+    }
+}
 
 #[cfg(any(test, feature = "flow-memo-shadow"))]
 #[derive(Clone)]
@@ -364,6 +433,22 @@ impl FlowMemo {
         )
     }
 
+    /// Return answer-only storage before an unused worker keeps its identities.
+    #[cold]
+    pub(crate) fn release_finished_buffers(&mut self) {
+        self.slots = Vec::new();
+        self.checkpoints = Vec::new();
+        self.key_buffer = Vec::new();
+        #[cfg(feature = "flow-memo-shadow")]
+        {
+            self.shadow_slots = Vec::new();
+        }
+        #[cfg(any(test, feature = "flow-memo-shadow"))]
+        {
+            self.stats.occupied = 0;
+        }
+    }
+
     #[cfg(feature = "flow-memo-shadow")]
     fn frame_taint(&self, frame: &FlowFrame, counters: FlowCounters) -> FrameTaint {
         FrameTaint {
@@ -396,14 +481,14 @@ impl FlowMemo {
         }
         let key = Self::node_key(flow, key);
         let slot = self.slots.get(Self::slot_index(key))?;
-        if slot.key != key {
+        if !slot.matches_at_index(key) {
             return None;
         }
         Some(MemoHit {
             ty: slot.ty?,
-            height: slot.height,
+            height: slot.height(),
             epoch: slot.epoch,
-            flags: slot.flags,
+            flags: slot.flags(),
         })
     }
 
@@ -423,13 +508,7 @@ impl FlowMemo {
         {
             self.stats.occupied += usize::from(self.slots[index].ty.is_none());
         }
-        self.slots[index] = Slot {
-            key: node_key,
-            ty: Some(hit.ty),
-            epoch: hit.epoch,
-            height: hit.height,
-            flags: hit.flags,
-        };
+        self.slots[index] = Slot::new(node_key, hit);
         #[cfg(any(test, feature = "flow-memo-shadow"))]
         {
             self.stats.stores += 1;

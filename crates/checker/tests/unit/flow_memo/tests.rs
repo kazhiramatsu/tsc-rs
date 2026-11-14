@@ -214,6 +214,207 @@ fn prepared_query_keys_preserve_node_tags_and_slot_indices() {
     }
 }
 
+fn node_tag_from_state(state: u64) -> u128 {
+    #[cfg(target_pointer_width = "64")]
+    {
+        let k = 0xf135_7aea_2e62_a9c5u64;
+        let factor = (0..5).fold(1u64, |value, _| value.wrapping_mul(k));
+        let delta = 0xff51_afd7_ed55_8ccdu64
+            .wrapping_sub(0x9e37_79b9_7f4a_7c15)
+            .wrapping_mul(factor);
+        u128::from(state.rotate_left(26))
+            | (u128::from(state.wrapping_add(delta).rotate_left(26)) << 64)
+    }
+    #[cfg(target_pointer_width = "32")]
+    {
+        let k = 0x93d7_65ddu32;
+        let factor = (0..7).fold(1u32, |value, _| value.wrapping_mul(k));
+        let delta = 0xed55_8ccdu32
+            .wrapping_sub(0x7f4a_7c15)
+            .wrapping_mul(factor.wrapping_mul(k))
+            .wrapping_add(
+                0xff51_afd7u32
+                    .wrapping_sub(0x9e37_79b9)
+                    .wrapping_mul(factor),
+            );
+        let state = state as u32;
+        u128::from(state.rotate_left(15))
+            | (u128::from(state.wrapping_add(delta).rotate_left(15)) << 64)
+    }
+}
+
+#[test]
+fn finished_memo_storage_releases_answers_and_scratch_without_resetting_epochs() {
+    with_program_state(&[("a.ts", "this;")], &CompilerOptions::default(), |state| {
+        let reference = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .find(|&node| state.kind_of(node) == SyntaxKind::ThisKeyword)
+            .unwrap();
+        let q = query(state, reference);
+        let key = MemoKey::new(0, 19, Arc::from([]));
+        let flow = FlowId::new(1);
+        let hit = MemoHit {
+            ty: state.tables.intrinsics.string,
+            height: 1,
+            epoch: u32::MAX,
+            flags: FLAG_TYPE_CACHE | FLAG_COUNT_RESET,
+        };
+        state.flow_memo.store(&q, flow, &key, hit);
+        state.flow_memo.checkpoints.push(flow);
+        state.flow_memo.key_buffer.extend_from_slice(b"reference");
+        let epoch = state.flow_memo.type_cache_epoch;
+        let serial = state.flow_memo.serial;
+        assert!(state.flow_memo.lookup(flow, &key).is_some());
+        assert!(state.flow_memo.memory_usage().1 >= 64 * 1024);
+        state.flow_memo.release_finished_buffers();
+        assert_eq!(state.flow_memo.memory_usage(), (0, 0));
+        assert!(state.flow_memo.lookup(flow, &key).is_none());
+        assert_eq!(state.flow_memo.type_cache_epoch, epoch);
+        assert_eq!(state.flow_memo.serial, serial);
+        #[cfg(feature = "flow-memo-shadow")]
+        assert!(state.flow_memo.shadow_slots.is_empty());
+    });
+}
+
+#[test]
+fn compact_slots_reconstruct_the_original_seeded_node_tags() {
+    for file in [0, 1, usize::MAX] {
+        for hash in [0, 1, 1 << 95, 1 << 127, u128::MAX] {
+            for index in [0, 1, 4095, 4096, 1 << 31, u32::MAX - 1] {
+                let key = hash_key(&(file, FlowId::new(index), hash));
+                assert_eq!(node_tag_from_state(node_key_state(key)), key);
+            }
+        }
+    }
+}
+
+#[test]
+fn compact_slot_indices_retain_all_omitted_identity_bits() {
+    let mut state = 0x725f_4d38_3a62_0317u64;
+    for _ in 0..64 {
+        state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        let residual = state & SLOT_IDENTITY_MASK;
+        let mut occupied = [false; TABLE_SLOTS];
+        for omitted in 0..TABLE_SLOTS {
+            let key = node_tag_from_state(residual | ((omitted as u64) << SLOT_STATE_SHIFT));
+            let index = FlowMemo::slot_index(key);
+            assert!(!occupied[index]);
+            occupied[index] = true;
+            let hit = MemoHit {
+                ty: TypeId::new(0),
+                height: (omitted % FLOW_DEPTH_LIMIT as usize) as u16,
+                epoch: u32::MAX,
+                flags: FLAG_TYPE_CACHE
+                    | if omitted & 1 != 0 {
+                        FLAG_COUNT_RESET
+                    } else {
+                        0
+                    },
+            };
+            let slot = Slot::new(key, hit);
+            assert!(slot.matches_at_index(key));
+            assert_eq!(slot.height(), hit.height);
+            assert_eq!(slot.flags(), hit.flags);
+        }
+        assert!(occupied.into_iter().all(|present| present));
+    }
+    assert_eq!(std::mem::size_of::<Slot>(), 16);
+    assert_eq!(std::mem::align_of::<Slot>(), 16);
+}
+
+#[test]
+fn compact_slots_keep_full_types_epochs_and_cold_dependencies() {
+    for state in [0, 1, usize::MAX as u64] {
+        let key = node_tag_from_state(state);
+        for ty in [TypeId::new(0), TypeId::new(1), TypeId::new(u32::MAX - 1)] {
+            for epoch in [0, 1, u32::MAX] {
+                for height in [0, 1, (FLOW_DEPTH_LIMIT - 1) as u16] {
+                    for flags in [FLAG_TYPE_CACHE, FLAG_TYPE_CACHE | FLAG_COUNT_RESET] {
+                        let hit = MemoHit {
+                            ty,
+                            height,
+                            epoch,
+                            flags,
+                        };
+                        let slot = Slot::new(key, hit);
+                        assert!(slot.matches_at_index(key));
+                        assert_eq!(slot.ty, Some(ty));
+                        assert_eq!(slot.epoch, epoch);
+                        assert_eq!(slot.height(), height);
+                        assert_eq!(slot.flags(), flags);
+                    }
+                }
+            }
+        }
+    }
+    // A vacant partial tag can match, but its absent type never supplies an answer.
+    let empty = Slot::default();
+    assert!(empty.matches_at_index(node_tag_from_state(0)));
+    assert!(empty.ty.is_none());
+}
+
+#[test]
+fn compact_table_matches_original_tags_metadata_and_evictions() {
+    fn value(hit: Option<MemoHit>) -> Option<(TypeId, u16, u32, u8)> {
+        hit.map(|h| (h.ty, h.height, h.epoch, h.flags))
+    }
+    with_program_state(&[("a.ts", "this;")], &CompilerOptions::default(), |state| {
+        let reference = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .find(|&node| state.kind_of(node) == SyntaxKind::ThisKeyword)
+            .unwrap();
+        let q = query(state, reference);
+        let keys: Vec<_> = (0..8)
+            .map(|i| {
+                let hash = u128::MAX.wrapping_mul(i as u128 + 1).rotate_left(i * 9);
+                (i as usize, MemoKey::new(i as usize, hash, Arc::from([])))
+            })
+            .collect();
+        let mut original: Vec<Option<(u128, MemoHit, usize, FlowId)>> = vec![None; TABLE_SLOTS];
+        let mut random = 0x5d8e_76ca_4217_0df3u64;
+        let mut evictions = 0;
+        for i in 0..40_000u32 {
+            random = random.wrapping_mul(6364136223846793005).wrapping_add(1);
+            let key_index = (random as usize >> 16) & 7;
+            let (file, key) = &keys[key_index];
+            let flow = FlowId::new((random >> 32) as u32 % (TABLE_SLOTS as u32 * 4));
+            let tag = hash_key(&(*file, flow, key.hash));
+            let index = FlowMemo::slot_index(tag);
+            let expected =
+                original[index].and_then(|(stored, hit, _, _)| (stored == tag).then_some(hit));
+            assert_eq!(value(state.flow_memo.lookup(flow, key)), value(expected));
+            let previous = original[index];
+            let hit = MemoHit {
+                ty: TypeId::new(if i & 1 == 0 { 0 } else { u32::MAX - 1 }),
+                height: (i % FLOW_DEPTH_LIMIT) as u16,
+                epoch: if i & 3 == 0 { 0 } else { u32::MAX - i },
+                flags: FLAG_TYPE_CACHE | if i & 1 == 0 { FLAG_COUNT_RESET } else { 0 },
+            };
+            state.flow_memo.store(&q, flow, key, hit);
+            original[index] = Some((tag, hit, key_index, flow));
+            assert_eq!(value(state.flow_memo.lookup(flow, key)), value(Some(hit)));
+            if let Some((_, _, previous_key, previous_flow)) =
+                previous.filter(|(previous_tag, ..)| *previous_tag != tag)
+            {
+                evictions += 1;
+                assert!(state
+                    .flow_memo
+                    .lookup(previous_flow, &keys[previous_key].1)
+                    .is_none());
+            }
+        }
+        assert!(evictions > 10_000);
+    });
+}
+
 #[test]
 #[should_panic(expected = "flow frame order")]
 fn call_local_frames_reject_out_of_order_completion() {
@@ -991,7 +1192,7 @@ fn table_is_bounded_and_flow_ids_are_file_local() {
                 ty: state.tables.intrinsics.string,
                 height: 4,
                 epoch: 0,
-                flags: 0,
+                flags: FLAG_TYPE_CACHE,
             };
             assert!(state.flow_memo.lookup(FlowId::new(7), &key).is_none());
             state.flow_memo.store(&q, FlowId::new(7), &key, hit);
@@ -1005,7 +1206,7 @@ fn table_is_bounded_and_flow_ids_are_file_local() {
             }
             assert_eq!(state.flow_memo.slots.len(), TABLE_SLOTS);
             assert!(state.flow_memo.stats.occupied <= TABLE_SLOTS);
-            assert_eq!(std::mem::size_of::<Slot>() * TABLE_SLOTS, 128 * 1024);
+            assert_eq!(std::mem::size_of::<Slot>() * TABLE_SLOTS, 64 * 1024);
         },
     );
 }
@@ -1138,7 +1339,7 @@ fn shared_cache_returns_settle_shadow_hits_without_filling_the_memo() {
             ty: state.tables.intrinsics.string,
             height: 4,
             epoch: 0,
-            flags: 0,
+            flags: FLAG_TYPE_CACHE,
         };
         state.flow_memo.store(&q, FlowId::new(9), &key, hit);
         let stores = state.flow_memo.stats.stores;
