@@ -575,3 +575,210 @@ fn set_text_range2_replaces_provenance_before_copying_the_range() {
         },
     );
 }
+
+struct PackageTextHost {
+    text: Option<String>,
+    reads: std::cell::Cell<usize>,
+    case_sensitive: bool,
+}
+
+impl EmitModuleSpecifierHost for PackageTextHost {
+    fn get_current_directory(&self) -> JsString {
+        "/project".into()
+    }
+    fn use_case_sensitive_file_names(&self) -> bool {
+        self.case_sensitive
+    }
+    fn file_exists(&self, _name: JsStr<'_>) -> bool {
+        self.text.is_some()
+    }
+    fn read_file(&self, _name: JsStr<'_>) -> Option<String> {
+        self.reads.set(self.reads.get() + 1);
+        self.text.clone()
+    }
+    fn get_common_source_directory(&self) -> JsString {
+        "/project".into()
+    }
+    fn get_default_resolution_mode_for_file(&self, _file: EmitResolverNode) -> EmitResolutionMode {
+        EmitResolutionMode::None
+    }
+    fn get_mode_for_resolution_at_index(
+        &self,
+        _file: EmitResolverNode,
+        _index: u32,
+    ) -> EmitResolutionMode {
+        EmitResolutionMode::None
+    }
+}
+
+struct PreparedPackageProvider {
+    snapshot: std::sync::Arc<tsc_diagnostics::TextSnapshot>,
+    value: std::sync::Arc<tsc_program::JsonValue>,
+    lookups: std::sync::atomic::AtomicUsize,
+}
+
+impl crate::AuthoritativeModuleProvider for PreparedPackageProvider {
+    fn resolve_module(
+        &self,
+        _request: crate::AuthoritativeModuleRequest<'_>,
+    ) -> Result<crate::AuthoritativeModuleResolution, crate::AuthoritativeModuleLookupFailure> {
+        panic!("package transport must not resolve a module")
+    }
+    fn package_json_value(
+        &self,
+        name: JsStr<'_>,
+        snapshot: &std::sync::Arc<tsc_diagnostics::TextSnapshot>,
+    ) -> Option<std::sync::Arc<tsc_program::JsonValue>> {
+        self.lookups
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        (name == "/project/pkg/package.json" && std::sync::Arc::ptr_eq(snapshot, &self.snapshot))
+            .then(|| std::sync::Arc::clone(&self.value))
+    }
+}
+
+fn prepared_package_fixture() -> (BasicModuleSpecifierHost, PreparedPackageProvider) {
+    let snapshot = tsc_diagnostics::TextSnapshot::new(
+        r#"{"name":"pkg","exports":{"types":"./types.d.ts","default":"./index.js"}}"#.to_owned(),
+        tsc_diagnostics::DocumentVersion::default(),
+    );
+    let name = JsString::from("/project/pkg/package.json");
+    let value = std::sync::Arc::new(tsc_program::JsonValue::Object(
+        tsc_program::read_package_json_object_from_snapshot(name.as_js(), &snapshot),
+    ));
+    let fallback = BasicModuleSpecifierHost {
+        current_directory: "/project".into(),
+        files: [(name.clone(), Some(std::sync::Arc::clone(&snapshot)))]
+            .into_iter()
+            .collect(),
+        folded_files: [(name.clone(), name)].into_iter().collect(),
+        modes: HashMap::default(),
+        symlinks: tsc_program::SymlinkFacts::default(),
+        project_references: None,
+    };
+    (
+        fallback,
+        PreparedPackageProvider {
+            snapshot,
+            value,
+            lookups: std::sync::atomic::AtomicUsize::new(0),
+        },
+    )
+}
+
+#[test]
+fn prepared_package_inputs_reuse_only_the_confirmed_snapshot() {
+    let (mut fallback, provider) = prepared_package_fixture();
+    let name = JsString::from("/project/pkg/package.json");
+    {
+        let host = ModuleSpecifierHostWithFallback {
+            primary: None,
+            fallback: &fallback,
+            package_provider: Some(&provider),
+        };
+        let Some(EmitPackageJsonInput::Parsed(value)) = host.read_package_json_input(name.as_js())
+        else {
+            panic!("confirmed snapshot should reuse its parsed object");
+        };
+        assert!(std::sync::Arc::ptr_eq(&value, &provider.value));
+    }
+    // Identical text alone does not establish the loader object's provenance.
+    fallback.files.insert(
+        name.clone(),
+        Some(tsc_diagnostics::TextSnapshot::new(
+            provider.snapshot.text().to_owned(),
+            tsc_diagnostics::DocumentVersion::default(),
+        )),
+    );
+    let host = ModuleSpecifierHostWithFallback {
+        primary: None,
+        fallback: &fallback,
+        package_provider: Some(&provider),
+    };
+    let Some(EmitPackageJsonInput::Text(text)) = host.read_package_json_input(name.as_js()) else {
+        panic!("a different snapshot must keep the reader fallback");
+    };
+    assert_eq!(text, provider.snapshot.text());
+}
+
+#[test]
+fn package_caller_text_wins_and_is_read_once() {
+    let (fallback, provider) = prepared_package_fixture();
+    let name = JsString::from("/project/pkg/package.json");
+    for text in [
+        None,
+        Some(provider.snapshot.text()),
+        Some("{ /* changed */ }"),
+    ] {
+        let primary = PackageTextHost {
+            text: text.map(str::to_owned),
+            reads: std::cell::Cell::new(0),
+            case_sensitive: true,
+        };
+        let host = ModuleSpecifierHostWithFallback {
+            primary: Some(&primary),
+            fallback: &fallback,
+            package_provider: Some(&provider),
+        };
+        let input = host.read_package_json_input(name.as_js()).expect("input");
+        assert_eq!(primary.reads.get(), 1);
+        if text.is_none() || text == Some(provider.snapshot.text()) {
+            let EmitPackageJsonInput::Parsed(value) = input else {
+                panic!("matching or absent primary text should reuse the object");
+            };
+            assert!(std::sync::Arc::ptr_eq(&value, &provider.value));
+        } else {
+            let EmitPackageJsonInput::Text(actual) = input else {
+                panic!("changed primary text must go to the existing reader");
+            };
+            assert_eq!(Some(actual.as_str()), text);
+        }
+    }
+    assert_eq!(
+        provider.lookups.load(std::sync::atomic::Ordering::Relaxed),
+        2
+    );
+}
+
+#[test]
+fn package_input_fallback_preserves_case_policy_and_absence() {
+    let (mut fallback, provider) = prepared_package_fixture();
+    let name = JsString::from("/project/pkg/package.json");
+    let spelling = JsString::from("/project/Pkg/package.json");
+    let snapshot = fallback.files.remove(&name).expect("package entry");
+    fallback.files.insert(spelling.clone(), snapshot);
+    fallback.folded_files.insert(name.clone(), spelling);
+    for case_sensitive in [true, false] {
+        let primary = PackageTextHost {
+            text: None,
+            reads: std::cell::Cell::new(0),
+            case_sensitive,
+        };
+        let host = ModuleSpecifierHostWithFallback {
+            primary: Some(&primary),
+            fallback: &fallback,
+            package_provider: Some(&provider),
+        };
+        assert_eq!(
+            host.read_package_json_input(name.as_js()).is_some(),
+            !case_sensitive
+        );
+        assert!(host
+            .read_package_json_input("/project/missing/package.json".into())
+            .is_none());
+        assert_eq!(primary.reads.get(), 2);
+    }
+    let primary = PackageTextHost {
+        text: Some("{}".to_owned()),
+        reads: std::cell::Cell::new(0),
+        case_sensitive: true,
+    };
+    let host = ModuleSpecifierHostWithFallback {
+        primary: Some(&primary),
+        fallback: &fallback,
+        package_provider: None,
+    };
+    assert!(
+        matches!(host.read_package_json_input(name.as_js()), Some(EmitPackageJsonInput::Text(text)) if text == "{}")
+    );
+    assert_eq!(primary.reads.get(), 1);
+}

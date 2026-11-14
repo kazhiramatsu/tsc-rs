@@ -169,6 +169,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 1a41af611deac3728405e13030e086a1fbdd56ccbeb7e8aea75c5489897c283c
     /// tsc-span: _tsc.js:47696-47706
     pub(crate) fn clone_symbol(&mut self, symbol: SymbolId) -> SymbolId {
+        self.invalidate_declaration_chain_cache();
         let original = self.binder.symbol(symbol);
         let flags = original.flags;
         let escaped_name = original.escaped_name;
@@ -284,6 +285,7 @@ impl<'a> CheckerState<'a> {
         source: SymbolId,
         unidirectional: bool,
     ) -> SymbolId {
+        self.invalidate_declaration_chain_cache();
         let source_flags = self.binder.symbol(source).flags;
         let target_flags = self.binder.symbol(target).flags;
         if !target_flags.intersects(get_excluded_symbol_flags(source_flags))
@@ -755,6 +757,7 @@ impl<'a> CheckerState<'a> {
         unidirectional: bool,
         merged_parent: Option<SymbolId>,
     ) {
+        self.invalidate_declaration_chain_cache();
         for (id, &source_symbol) in source {
             let target_symbol = self.globals.get(id).copied();
             let merged = match target_symbol {
@@ -783,6 +786,7 @@ impl<'a> CheckerState<'a> {
         source: &[(EscapedName, SymbolId)],
         unidirectional: bool,
     ) {
+        self.invalidate_declaration_chain_cache();
         for (id, source_symbol) in source {
             let source_symbol = *source_symbol;
             let target_symbol = self.globals.get(id).copied();
@@ -1055,6 +1059,7 @@ impl<'a> CheckerState<'a> {
     /// modules with the same pattern and identical import attributes types
     /// merge into one; globals follow the merged symbols.
     fn merge_pattern_ambient_modules(&mut self) -> CheckResult<()> {
+        self.invalidate_declaration_chain_cache();
         let modules = self.pattern_ambient_modules.clone();
         let mut grouped: Vec<(tsc_types::JsString, tsc_types::JsString, SymbolId)> =
             Vec::with_capacity(modules.len());

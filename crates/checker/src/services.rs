@@ -1298,6 +1298,7 @@ impl CheckerState<'_> {
             enclosing_declaration,
             use_only_external_aliasing,
         )
+        .map(|chain| chain.map(crate::declaration_emit::AccessibleSymbolChain::into_vec))
     }
 
     /// tsgo `Node.Type`: the type annotation, else in JavaScript the type a

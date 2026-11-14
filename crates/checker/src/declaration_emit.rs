@@ -5,25 +5,128 @@
 //! decisions, while this module owns declaration-emit memoization, alias
 //! painting, and result-shaped accessibility.
 
+use std::cell::RefCell;
 use std::sync::Arc;
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use tsc_binder::{node_util, SymbolId, SymbolTable};
 use tsc_emitter::{
-    create_printer, EmitFunctionProperty, EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags,
-    EmitResolverError, EmitResolverNode, EmitResolverSymbol, EmitSymbolAccessibility,
-    EmitSymbolAccessibilityResult, EmitSymbolMeaning, NewLineKind, PrintRequest, PrinterOptions,
-    StandaloneWriter,
+    create_printer, EmitDeclarationPreparation, EmitFunctionProperty, EmitInternalNodeBuilderFlags,
+    EmitNodeBuilderFlags, EmitResolverError, EmitResolverNode, EmitResolverSymbol,
+    EmitSymbolAccessibility, EmitSymbolAccessibilityResult, EmitSymbolMeaning, NewLineKind,
+    PrintRequest, PrinterOptions, StandaloneWriter,
 };
-use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, Published, SyntaxKind};
 use tsc_types::{CheckFlags, ModifierFlags, NodeFlags, SymbolFlags};
 
 use crate::state::{CheckAbort, CheckResult, CheckerState};
 
 #[derive(Default)]
-pub(crate) struct DeclarationEmitAliasTables {
+pub(crate) struct DeclarationEmitInputs {
     tables: HashMap<usize, DeclarationEmitAliasTable>,
+    pub(crate) module_names: RefCell<HashMap<usize, Arc<DeclarationEmitModuleNames>>>,
+    pub(crate) chains: DeclarationChainCacheState,
+}
+
+/// A cold owner allocates nothing until its first settled chain request.
+#[derive(Default)]
+pub(crate) enum DeclarationChainCacheState {
+    #[default]
+    Cold,
+    Ready(Box<DeclarationChainCache>),
+    Suspended,
+}
+
+impl DeclarationChainCacheState {
+    pub(crate) fn is_enabled(&self) -> bool {
+        !matches!(self, Self::Suspended)
+    }
+
+    pub(crate) fn as_ref(&self) -> Option<&DeclarationChainCache> {
+        match self {
+            Self::Ready(cache) => Some(cache),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn as_mut(&mut self) -> Option<&mut DeclarationChainCache> {
+        match self {
+            Self::Ready(cache) => Some(cache),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn get_or_init(&mut self) -> &mut DeclarationChainCache {
+        if matches!(self, Self::Cold) {
+            *self = Self::Ready(Box::default());
+        }
+        self.as_mut()
+            .expect("a settled chain request is not suspended")
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct DeclarationChainScope {
+    pub(crate) frontier: Option<NodeId>,
+    pub(crate) external_module: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct DeclarationChainKey {
+    pub(crate) symbol: SymbolId,
+    pub(crate) meaning: i32,
+    pub(crate) scope: DeclarationChainScope,
+    pub(crate) external_only: bool,
+}
+
+#[derive(Default)]
+pub(crate) struct DeclarationChainCache {
+    pub(crate) generation: u64,
+    pub(crate) globals_snapshot: Option<Arc<SymbolTable>>,
+    pub(crate) scopes: HashMap<Option<NodeId>, DeclarationChainScope>,
+    pub(crate) answers: HashMap<DeclarationChainKey, Option<Arc<[SymbolId]>>>,
+}
+
+impl DeclarationChainCache {
+    pub(crate) fn clear(&mut self) {
+        self.generation = self.generation.wrapping_add(1);
+        self.scopes.clear();
+        self.answers.clear();
+    }
+}
+
+/// Read-only chain users retain a cache hit without materializing another Vec.
+/// Owned service/builder boundaries keep their existing result protocol.
+#[derive(Debug)]
+pub(crate) enum AccessibleSymbolChain {
+    Owned(Vec<SymbolId>),
+    Retained(Arc<[SymbolId]>),
+}
+
+impl AccessibleSymbolChain {
+    pub(crate) fn into_vec(self) -> Vec<SymbolId> {
+        match self {
+            Self::Owned(chain) => chain,
+            Self::Retained(chain) => chain.to_vec(),
+        }
+    }
+}
+
+impl std::ops::Deref for AccessibleSymbolChain {
+    type Target = [SymbolId];
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Owned(chain) => chain,
+            Self::Retained(chain) => chain,
+        }
+    }
+}
+
+pub(crate) struct DeclarationEmitModuleNames {
+    pub(crate) imports: Vec<NodeId>,
+    pub(crate) augmentations: Vec<NodeId>,
 }
 
 struct DeclarationEmitAliasTable {
@@ -71,7 +174,7 @@ pub(crate) trait DeclarationEmitAccessibilityPrimitives {
         symbol: SymbolId,
         meaning: SymbolFlags,
         enclosing: Option<NodeId>,
-    ) -> CheckResult<Option<Vec<SymbolId>>>;
+    ) -> CheckResult<Option<AccessibleSymbolChain>>;
 
     fn declaration_emit_containers_of_symbol(
         &mut self,
@@ -81,7 +184,135 @@ pub(crate) trait DeclarationEmitAccessibilityPrimitives {
     ) -> CheckResult<Vec<SymbolId>>;
 }
 
+struct DeclarationPreparationCandidates {
+    names: Vec<(u32, NodeId)>,
+    assignments: Option<Vec<NodeId>>,
+}
+
+/// Keep public assignment preorder separate from attached JSDoc reachability.
+/// A repeated public edge requires the transform's multiplicity-preserving
+/// fallback. Visibility still visits each reachable record just once.
+fn declaration_preparation_candidates<const ASSIGNMENTS: bool>(
+    source: &tsc_syntax::SourceFile,
+    javascript: bool,
+) -> DeclarationPreparationCandidates {
+    let base = source.arena.node_base();
+    let mut visited = vec![false; source.arena.len()];
+    let mut stack = vec![source.root];
+    let mut docs = Vec::new();
+    let mut assignments = Vec::new();
+    let mut unique_public = true;
+    let mut names = Vec::new();
+    let mut collect_name = |id: NodeId, node: &tsc_syntax::Node| {
+        let name = match node.kind {
+            SyntaxKind::ExportAssignment => node.as_export_assignment().and_then(|data| {
+                data.expression.filter(|&expression| {
+                    source.arena.node(expression).kind == SyntaxKind::Identifier
+                })
+            }),
+            SyntaxKind::ExportSpecifier => node
+                .as_export_specifier()
+                .and_then(|data| data.property_name.or(data.name)),
+            _ => None,
+        };
+        if let Some(name) = name {
+            names.push((id, node.pos, name));
+        }
+    };
+    while let Some(id) = stack.pop() {
+        let seen = &mut visited[(id.index() - base) as usize];
+        if *seen {
+            unique_public = false;
+            continue;
+        }
+        *seen = true;
+        let node = source.arena.node(id);
+        collect_name(id, node);
+        if ASSIGNMENTS
+            && (node.kind == SyntaxKind::BinaryExpression
+                || javascript && node.kind == SyntaxKind::CallExpression)
+        {
+            assignments.push(id);
+        }
+        let start = stack.len();
+        tsc_syntax::for_each_child(&source.arena, node, |child| {
+            stack.push(child);
+            false
+        });
+        if ASSIGNMENTS {
+            stack[start..].reverse();
+        }
+        if let Some(js_doc) = node.js_doc() {
+            docs.extend_from_slice(source.arena.node_array(js_doc).nodes);
+        }
+    }
+    stack = docs;
+    while let Some(id) = stack.pop() {
+        let seen = &mut visited[(id.index() - base) as usize];
+        if *seen {
+            continue;
+        }
+        *seen = true;
+        let node = source.arena.node(id);
+        collect_name(id, node);
+        tsc_syntax::for_each_child(&source.arena, node, |child| {
+            stack.push(child);
+            false
+        });
+        if let Some(js_doc) = node.js_doc() {
+            stack.extend_from_slice(source.arena.node_array(js_doc).nodes);
+        }
+    }
+    // The old arena scan supplied this tie order to the later stable
+    // source-position sort, before top-level CommonJS names were appended.
+    names.sort_unstable_by_key(|&(id, _, _)| id.index());
+    DeclarationPreparationCandidates {
+        names: names
+            .into_iter()
+            .map(|(_, pos, name)| (pos, name))
+            .collect(),
+        assignments: (ASSIGNMENTS && unique_public).then_some(assignments),
+    }
+}
+
 impl CheckerState<'_> {
+    #[inline]
+    pub(crate) fn invalidate_declaration_chain_cache(&mut self) {
+        if let Some(cache) = self
+            .declaration_emit_inputs
+            .as_mut()
+            .and_then(|inputs| inputs.chains.as_mut())
+        {
+            cache.clear();
+        }
+    }
+
+    pub(crate) fn suspend_declaration_chain_cache(&mut self) -> Option<DeclarationChainCacheState> {
+        let slot = &mut self.declaration_emit_inputs.as_mut()?.chains;
+        if !slot.is_enabled() {
+            return None;
+        }
+        let mut previous = std::mem::replace(slot, DeclarationChainCacheState::Suspended);
+        if let Some(cache) = previous.as_mut() {
+            cache.clear();
+        }
+        Some(previous)
+    }
+
+    pub(crate) fn restore_declaration_chain_cache(
+        &mut self,
+        previous: Option<DeclarationChainCacheState>,
+    ) {
+        if let Some(previous) = previous {
+            let inputs = self
+                .declaration_emit_inputs
+                .as_mut()
+                .expect("a suspended declaration cache keeps its input owner");
+            debug_assert!(!inputs.chains.is_enabled());
+            inputs.chains = previous;
+        }
+    }
+
     /// tsgo getSymbolTableAliases (symbolaccessibility.go:567-595) retains
     /// alias candidates rather than rescanning non-alias symbols. Our key
     /// identifies the immutable table snapshot, including replacement export
@@ -90,7 +321,7 @@ impl CheckerState<'_> {
         &mut self,
         source: Option<&Arc<SymbolTable>>,
     ) -> Option<Arc<SymbolTable>> {
-        let cache = self.declaration_emit_alias_tables.as_mut()?;
+        let cache = self.declaration_emit_inputs.as_mut()?;
         let source = source?;
         if source.is_empty() {
             return None;
@@ -1457,7 +1688,7 @@ impl CheckerState<'_> {
                     false
                 };
             let accessible_symbol_chain = if directly_accessible_type_parameter {
-                Some(vec![symbol])
+                Some(AccessibleSymbolChain::Owned(vec![symbol]))
             } else {
                 self.declaration_emit_accessible_symbol_chain(
                     symbol,
@@ -1875,49 +2106,42 @@ impl CheckerState<'_> {
             )
     }
 
-    /// tsgo PrecalculateDeclarationEmitVisibility (emitresolver.go:236-274):
-    /// the declarations a file's export assignments (`export = x`,
-    /// `export default x`), export specifiers and, in a CommonJS file,
-    /// top-level `module.exports = x` or `exports.y = x` name are visible.
-    /// It runs once for a file, when its declarations are transformed; a
-    /// file that is not transformed, such as a declaration file, marks
-    /// nothing. tsc 6.0 marked them when it checked the export.
-    ///
-    /// tsgo visits every node of the file. The export assignments and
-    /// export specifiers are found here by a scan of the file's node
-    /// records (those the tree reaches: a parse also left discarded nodes)
-    /// and taken in source order, which is the order of that visit.
+    /// tsgo PrecalculateDeclarationEmitVisibility (emitresolver.go:130-168)
+    /// marks export targets before declaration statements. The original
+    /// source walk can also supply assignment candidates to the transform.
     pub(crate) fn emit_precalculate_declaration_emit_visibility(
         &mut self,
         file: NodeId,
     ) -> CheckResult<()> {
-        self.declaration_emit_alias_tables.get_or_insert_default();
+        self.emit_prepare_declaration_emit::<false>(file)
+            .map(|_| ())
+    }
+
+    pub(crate) fn emit_prepare_declaration_emit<const ASSIGNMENTS: bool>(
+        &mut self,
+        file: NodeId,
+    ) -> CheckResult<Option<EmitDeclarationPreparation>> {
+        self.declaration_emit_inputs.get_or_insert_default();
         if !self.declaration_emit_aliases_marked.insert(file) {
-            return Ok(());
+            return Ok(None);
         }
         let source = self.binder.source_of_node(file);
-        let mut names: Vec<(u32, NodeId)> = Vec::new();
-        let reachable = source.arena.reachable_mask(source.root);
-        let base = source.arena.node_base();
-        for id in source.arena.node_ids() {
-            if !reachable[(id.index() - base) as usize] {
-                continue;
-            }
-            let node = Published.node(id);
-            let name = match node.data() {
-                NodeData::ExportAssignment(data) => data
-                    .expression
-                    .filter(|&expression| self.kind_of(expression) == SyntaxKind::Identifier),
-                NodeData::ExportSpecifier(data) => data.property_name.or(data.name),
-                _ => None,
-            };
-            if let Some(name) = name {
-                names.push((node.pos, name));
-            }
-        }
+        let javascript = NodeFlags::from_bits(source.arena.node(source.root).flags)
+            .intersects(NodeFlags::JAVA_SCRIPT_FILE);
+        let collected = declaration_preparation_candidates::<ASSIGNMENTS>(source, javascript);
+        let preparation =
+            collected
+                .assignments
+                .filter(|_| source.root == file)
+                .map(|assignment_candidates| EmitDeclarationPreparation {
+                    source_file: self.declaration_emit_resolver_node(file),
+                    javascript,
+                    assignment_candidates,
+                });
+        let mut names = collected.names;
         if self.binder.is_common_js_module_of_node(file) {
             let Some(data) = self.record_of(file).as_source_file() else {
-                return Ok(());
+                return Ok(preparation);
             };
             for statement in self.nodes_of(data.statements) {
                 let Some(data) = self.record_of(statement).as_expression_statement() else {
@@ -1944,7 +2168,7 @@ impl CheckerState<'_> {
         for (_, name) in names {
             self.collect_linked_aliases(name, /*set_visibility*/ true)?;
         }
-        Ok(())
+        Ok(preparation)
     }
 
     /// tsc-port: collectLinkedAliases @6.0.3
@@ -2440,7 +2664,7 @@ impl<'a> CheckerState<'a> {
                 .create_big_int_literal(target, format!("{}n", pseudo.to_base10_string()))
                 .map_err(map_factory),
             LiteralValue::String(text) => factory
-                .create_string_literal_from_code_units(target, &text.to_utf16(), false)
+                .create_string_literal(target, text, false)
                 .map_err(map_factory),
             LiteralValue::Number(number) if number < 0.0 => {
                 let operand = factory

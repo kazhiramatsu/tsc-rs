@@ -7,6 +7,7 @@
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use indexmap::IndexMap;
 use tsc_binder::{node_util, SymbolId};
@@ -20,6 +21,7 @@ use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget, SymbolFlags, TypeId};
 use tsc_types::{JsStr, JsString};
 
+use crate::declaration_emit::DeclarationEmitModuleNames;
 use crate::state::{CheckResult, CheckerState};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -971,7 +973,8 @@ fn infer_ending_preference(
     let index = state.binder.file_index_of_node(importing_file);
     let importing_node = emit_resolver_node_for_file(state, index, importing_file);
     let mut uses_js = false;
-    for (specifier_index, literal) in module_name_literals(state, index).0.into_iter().enumerate() {
+    let names = module_name_literals(state, index);
+    for (specifier_index, literal) in names.lists().imports.iter().copied().enumerate() {
         let Some(text) = literal_text(state, literal) else {
             continue;
         };
@@ -1002,8 +1005,10 @@ fn infer_ending_preference(
 fn source_uses_extensions_on_imports(state: &CheckerState<'_>, importing_file: NodeId) -> bool {
     let index = state.binder.file_index_of_node(importing_file);
     module_name_literals(state, index)
-        .0
-        .into_iter()
+        .lists()
+        .imports
+        .iter()
+        .copied()
         .filter_map(|literal| literal_text(state, literal))
         .find_map(|text| {
             (path_is_relative(text) && !extension_does_not_support_extensionless_resolution(text))
@@ -1329,7 +1334,8 @@ pub(crate) fn compute_module_specifiers(
         // Program; here the provider or the checker resolves the checker's
         // ordered module-name literals.
         let mut existing_import = None;
-        for literal in module_name_literals(state, importing_index).0 {
+        let names = module_name_literals(state, importing_index);
+        for &literal in &names.lists().imports {
             let usage_mode = literal_usage_mode(state, literal);
             let target = existing_import_target(
                 state,
@@ -1869,18 +1875,24 @@ pub(crate) fn for_each_file_name_of_module<'path, T>(
     // tsgo reads only the directory links (`DirectoriesByRealpath`), from
     // which the symlinks inside ignored paths are already left out.
     let mut symlink_candidates = Vec::new();
-    let symlinked_directories = host.symlinked_directories();
+    let mut symlinked_directories = host.symlinked_directories();
     let global_typings_cache_location = host
         .get_global_typings_cache_location()
         .map(|path| normalized_absolute_path(&path, &cwd));
     let full_imported_file_name = normalized_absolute_path(imported_file_name, &cwd);
+    let mut real_directories_normalized = false;
     for real_directory in ancestor_directories(&directory_path(&full_imported_file_name)) {
         if path_starts_with_directory(&importing_file_name, &real_directory, case_sensitive) {
             break;
         }
+        if !real_directories_normalized {
+            for (real, _) in &mut symlinked_directories {
+                *real = normalized_absolute_path(real.as_js(), &cwd);
+            }
+            real_directories_normalized = true;
+        }
         for (real, symlink) in &symlinked_directories {
-            let real = normalized_absolute_path(real, &cwd);
-            if !paths_equal(&real, &real_directory, !case_sensitive) {
+            if !paths_equal(real, &real_directory, !case_sensitive) {
                 continue;
             }
             for target in &targets {
@@ -2836,7 +2848,7 @@ pub(crate) fn try_directory_with_package_json<'path>(
                 get_package_name_from_types_package_name(node_modules_directory_name);
             let conditions = get_conditions(&options.compiler_options, import_mode);
             if let Some(exports) = package_json_content
-                .as_ref()
+                .as_deref()
                 .and_then(|content| package_json_property(content, "exports"))
                 .filter(|exports| json_value_is_truthy(exports))
             {
@@ -2861,7 +2873,7 @@ pub(crate) fn try_directory_with_package_json<'path>(
         }
 
         if let Some(version_paths) = package_json_content
-            .as_ref()
+            .as_deref()
             .and_then(selected_types_versions_paths)
         {
             let submodule_name =
@@ -2886,7 +2898,7 @@ pub(crate) fn try_directory_with_package_json<'path>(
             .iter()
             .find_map(|key| {
                 package_json_content
-                    .as_ref()
+                    .as_deref()
                     .and_then(|content| package_json_property(content, *key))
                     .filter(|value| json_value_is_truthy(value))
             })
@@ -2896,7 +2908,7 @@ pub(crate) fn try_directory_with_package_json<'path>(
         let main_is_blocked_by_types_versions = main_file_relative.is_some_and(|main_file| {
             maybe_blocked_by_types_versions
                 && package_json_content
-                    .as_ref()
+                    .as_deref()
                     .and_then(selected_types_versions_paths)
                     .is_some_and(|paths| {
                         paths
@@ -2923,7 +2935,7 @@ pub(crate) fn try_directory_with_package_json<'path>(
                 };
             }
             let package_is_module = package_json_content
-                .as_ref()
+                .as_deref()
                 .and_then(|content| package_json_property(content, "type"))
                 .and_then(Value::as_js)
                 == Some(JsStr::from("module"));
@@ -4064,9 +4076,7 @@ fn paths_equal<'p>(
     let left = left.into();
     let right = right.into();
     if ignore_case {
-        left.code_units()
-            .map(fold_ascii_unit)
-            .eq(right.code_units().map(fold_ascii_unit))
+        left.as_bytes().eq_ignore_ascii_case(right.as_bytes())
     } else {
         left == right
     }
@@ -4458,10 +4468,45 @@ fn emit_resolver_node_for_file(
     EmitResolverNode::new(SourceFileId::from_raw(source), node)
 }
 
+pub(super) enum ModuleNameLiterals {
+    Collected(DeclarationEmitModuleNames),
+    Retained(Arc<DeclarationEmitModuleNames>),
+}
+
+impl ModuleNameLiterals {
+    pub(super) fn lists(&self) -> &DeclarationEmitModuleNames {
+        match self {
+            Self::Collected(names) => names,
+            Self::Retained(names) => names,
+        }
+    }
+}
+
+/// Retain the same ordered syntax inputs that tsgo reads from SourceFile.
+/// Checking and display calls before declaration preparation keep their
+/// uncached producer; returned views do not borrow the checker state.
 pub(super) fn module_name_literals(
     state: &CheckerState<'_>,
     file_index: usize,
-) -> (Vec<NodeId>, Vec<NodeId>) {
+) -> ModuleNameLiterals {
+    let Some(inputs) = &state.declaration_emit_inputs else {
+        return ModuleNameLiterals::Collected(collect_module_name_literals(state, file_index));
+    };
+    if let Some(names) = inputs.module_names.borrow().get(&file_index) {
+        return ModuleNameLiterals::Retained(Arc::clone(names));
+    }
+    let names = Arc::new(collect_module_name_literals(state, file_index));
+    inputs
+        .module_names
+        .borrow_mut()
+        .insert(file_index, Arc::clone(&names));
+    ModuleNameLiterals::Retained(names)
+}
+
+fn collect_module_name_literals(
+    state: &CheckerState<'_>,
+    file_index: usize,
+) -> DeclarationEmitModuleNames {
     let source = state.binder.source(file_index);
     let mut static_imports = Vec::<NodeId>::new();
     let mut dynamic_imports = Vec::<NodeId>::new();
@@ -4564,7 +4609,10 @@ pub(super) fn module_name_literals(
     dynamic_imports.sort_by(by_position);
     augmentations.sort_by(by_position);
     static_imports.extend(dynamic_imports);
-    (static_imports, augmentations)
+    DeclarationEmitModuleNames {
+        imports: static_imports,
+        augmentations,
+    }
 }
 
 fn static_module_reference_is_collected(
@@ -4635,11 +4683,14 @@ pub(crate) fn get_module_name_string_literal_at(
     file_index: usize,
     index: u32,
 ) -> Option<JsString> {
-    let (imports, augmentations) = module_name_literals(state, file_index);
-    let literal = imports
-        .into_iter()
-        .chain(augmentations)
-        .nth(index as usize)?;
+    let names = module_name_literals(state, file_index);
+    let names = names.lists();
+    let literal = names
+        .imports
+        .iter()
+        .chain(&names.augmentations)
+        .nth(index as usize)
+        .copied()?;
     literal_text(state, literal).map(JsStr::to_owned)
 }
 
@@ -4676,14 +4727,38 @@ fn replace_first_star(value: JsStr<'_>, replacement: JsStr<'_>) -> JsString {
     tsc_program::replace_first_star_value(value, replacement)
 }
 
-fn read_package_json(host: &dyn EmitModuleSpecifierHost, path: JsStr<'_>) -> Option<Value> {
-    let snapshot = tsc_diagnostics::TextSnapshot::new(
-        host.read_file(path)?,
-        tsc_diagnostics::DocumentVersion::default(),
-    );
-    Some(Value::Object(
-        tsc_program::read_package_json_object_from_snapshot(path, &snapshot),
-    ))
+enum PackageJsonValue {
+    Owned(Value),
+    Prepared(Arc<Value>),
+}
+
+impl std::ops::Deref for PackageJsonValue {
+    type Target = Value;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Owned(value) => value,
+            Self::Prepared(value) => value,
+        }
+    }
+}
+
+fn read_package_json(
+    host: &dyn EmitModuleSpecifierHost,
+    path: JsStr<'_>,
+) -> Option<PackageJsonValue> {
+    match host.read_package_json_input(path)? {
+        tsc_emitter::EmitPackageJsonInput::Parsed(value) => Some(PackageJsonValue::Prepared(value)),
+        tsc_emitter::EmitPackageJsonInput::Text(text) => {
+            let snapshot = tsc_diagnostics::TextSnapshot::new(
+                text,
+                tsc_diagnostics::DocumentVersion::default(),
+            );
+            Some(PackageJsonValue::Owned(Value::Object(
+                tsc_program::read_package_json_object_from_snapshot(path, &snapshot),
+            )))
+        }
+    }
 }
 
 fn module_declaration_name_text(state: &CheckerState<'_>, declaration: NodeId) -> Option<JsString> {

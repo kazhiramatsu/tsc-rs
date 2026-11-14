@@ -569,6 +569,17 @@ impl EmitResolver for CheckerSession<'_> {
         )
     }
 
+    fn prepare_declaration_emit(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<tsc_emitter::EmitDeclarationPreparation>, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::PrecalculateDeclarationEmitVisibility,
+            node,
+            |state, file| state.emit_prepare_declaration_emit::<true>(file),
+        )
+    }
+
     fn get_export_equals_declarations(
         &self,
         node: EmitResolverNode,

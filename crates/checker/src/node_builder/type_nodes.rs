@@ -1695,7 +1695,7 @@ fn type_to_type_node_worker(
         let single_quote = has_flag(context, USE_SINGLE_QUOTES_FOR_STRING_LITERAL_TYPE);
         let literal = arena
             .factory()
-            .create_string_literal_from_code_units(target, &value.to_utf16(), single_quote)
+            .create_string_literal(target, value, single_quote)
             .map_err(factory_error)?;
         let metadata = arena.metadata_mut(literal);
         metadata.add_flags(EmitFlags::NO_ASCII_ESCAPING);

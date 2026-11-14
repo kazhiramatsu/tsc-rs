@@ -6,6 +6,91 @@ use tsc_emitter::EmitImportIncludeReason;
 use super::*;
 use crate::state::test_support::with_program_state;
 
+#[test]
+fn declaration_module_name_views_keep_the_uncached_order() {
+    let files = [(
+        "/project/main.ts",
+        "type Early = import('early').Type;\n\
+         import value from 'static';\n\
+         export * from 'last-static';\n\
+         const later = await import('late');\n\
+         declare module 'augmentation' { interface Added {} }",
+    )];
+    with_program_state(&files, &CompilerOptions::default(), |state| {
+        let uncached = module_name_literals(state, 0);
+        assert!(matches!(uncached, ModuleNameLiterals::Collected(_)));
+        assert!(state.declaration_emit_inputs.is_none());
+        assert_eq!(
+            uncached
+                .lists()
+                .imports
+                .iter()
+                .chain(&uncached.lists().augmentations)
+                .map(|&node| literal_text(state, node)
+                    .expect("module literal")
+                    .as_str()
+                    .expect("scalar fixture")
+                    .to_owned())
+                .collect::<Vec<_>>(),
+            ["static", "last-static", "early", "late", "augmentation"]
+        );
+
+        state
+            .emit_precalculate_declaration_emit_visibility(state.binder.source(0).root)
+            .expect("declaration preparation");
+        let cold = module_name_literals(state, 0);
+        let warm = module_name_literals(state, 0);
+        assert_eq!(cold.lists().imports, uncached.lists().imports);
+        assert_eq!(cold.lists().augmentations, uncached.lists().augmentations);
+        let (ModuleNameLiterals::Retained(cold), ModuleNameLiterals::Retained(warm)) = (cold, warm)
+        else {
+            panic!("declaration preparation must retain the input lists");
+        };
+        assert!(Arc::ptr_eq(&cold, &warm));
+    });
+}
+
+#[test]
+fn retained_module_name_views_survive_other_files_and_cache_replacement() {
+    let files = [
+        ("/project/first.ts", "import 'first'; export {};"),
+        ("/project/second.ts", "import 'second'; export {};"),
+    ];
+    with_program_state(&files, &CompilerOptions::default(), |state| {
+        state
+            .emit_precalculate_declaration_emit_visibility(state.binder.source(0).root)
+            .expect("declaration preparation");
+        // Insert in reverse file order; the selected lists depend on file identity.
+        let second = module_name_literals(state, 1);
+        let first = module_name_literals(state, 0);
+        let (ModuleNameLiterals::Retained(first), ModuleNameLiterals::Retained(second)) =
+            (first, second)
+        else {
+            panic!("prepared views");
+        };
+        assert!(!Arc::ptr_eq(&first, &second));
+        assert_eq!(literal_text(state, first.imports[0]), Some("first".into()));
+        assert_eq!(
+            literal_text(state, second.imports[0]),
+            Some("second".into())
+        );
+
+        state
+            .declaration_emit_inputs
+            .as_ref()
+            .expect("prepared inputs")
+            .module_names
+            .borrow_mut()
+            .clear();
+        let ModuleNameLiterals::Retained(replacement) = module_name_literals(state, 0) else {
+            panic!("replacement view");
+        };
+        assert!(!Arc::ptr_eq(&first, &replacement));
+        assert_eq!(first.imports, replacement.imports);
+        assert_eq!(first.augmentations, replacement.augmentations);
+    });
+}
+
 struct TestModuleSpecifierHost {
     current_directory: String,
     files: BTreeSet<String>,
@@ -13,6 +98,11 @@ struct TestModuleSpecifierHost {
     default_mode: EmitResolutionMode,
     index_modes: BTreeMap<u32, EmitResolutionMode>,
     include_reason_calls: Cell<usize>,
+    directories: Vec<(JsString, JsString)>,
+    case_sensitive: bool,
+    global_cache: Option<JsString>,
+    reference_redirect: Option<JsString>,
+    redirects: Vec<JsString>,
 }
 
 impl Default for TestModuleSpecifierHost {
@@ -24,6 +114,11 @@ impl Default for TestModuleSpecifierHost {
             default_mode: EmitResolutionMode::CommonJs,
             index_modes: BTreeMap::new(),
             include_reason_calls: Cell::new(0),
+            directories: Vec::new(),
+            case_sensitive: true,
+            global_cache: None,
+            reference_redirect: None,
+            redirects: Vec::new(),
         }
     }
 }
@@ -34,7 +129,7 @@ impl EmitModuleSpecifierHost for TestModuleSpecifierHost {
     }
 
     fn use_case_sensitive_file_names(&self) -> bool {
-        true
+        self.case_sensitive
     }
 
     fn file_exists(&self, file_name: JsStr<'_>) -> bool {
@@ -72,6 +167,163 @@ impl EmitModuleSpecifierHost for TestModuleSpecifierHost {
             .find(|(name, _)| imported_path == name.as_str())
             .map(|(_, reasons)| reasons.clone())
             .unwrap_or_default()
+    }
+
+    fn symlinked_directories(&self) -> Vec<(JsString, JsString)> {
+        self.directories.clone()
+    }
+
+    fn get_global_typings_cache_location(&self) -> Option<JsString> {
+        self.global_cache.clone()
+    }
+
+    fn project_reference_output_of_source(&self, _source: JsStr<'_>) -> Option<JsString> {
+        self.reference_redirect.clone()
+    }
+
+    fn redirect_targets(&self, _file_path: JsStr<'_>) -> Vec<JsString> {
+        self.redirects.clone()
+    }
+}
+
+#[test]
+fn directory_inputs_preserve_ancestor_and_duplicate_link_order() {
+    let host = TestModuleSpecifierHost {
+        directories: [
+            ("/physical/pkg", "/project/node_modules/pkg-a"),
+            ("\\physical\\pkg\\.", "/project/node_modules/pkg-b"),
+            ("../physical/pkg/lib/..", "/project/node_modules/pkg-c"),
+            ("/physical", "/project/node_modules/root"),
+            ("/PHYSICAL/PKG", "/project/node_modules/pkg-λ"),
+        ]
+        .map(|(real, link)| (real.into(), link.into()))
+        .to_vec(),
+        case_sensitive: false,
+        ..TestModuleSpecifierHost::default()
+    };
+    let mut paths = Vec::new();
+    let _: Option<()> = for_each_file_name_of_module(
+        "/project/src/main.ts",
+        "/physical/pkg/lib/value.ts",
+        &host,
+        true,
+        |path, redirect| {
+            paths.push((path.to_owned(), redirect));
+            None
+        },
+    );
+    assert_eq!(
+        paths,
+        [
+            "/project/node_modules/pkg-a/lib/value.ts",
+            "/project/node_modules/pkg-b/lib/value.ts",
+            "/project/node_modules/pkg-c/lib/value.ts",
+            "/project/node_modules/pkg-λ/lib/value.ts",
+            "/project/node_modules/root/pkg/lib/value.ts",
+            "/physical/pkg/lib/value.ts",
+        ]
+        .map(|path| (JsString::from(path), false))
+    );
+}
+
+#[test]
+fn directory_inputs_keep_self_package_and_global_cache_stops() {
+    let mut host = TestModuleSpecifierHost {
+        directories: [
+            ("/physical/pkg/lib", "/project/node_modules/inner"),
+            ("/physical/pkg", "/project/node_modules/pkg"),
+            ("/physical", "/project/node_modules/root"),
+        ]
+        .map(|(real, link)| (real.into(), link.into()))
+        .to_vec(),
+        ..TestModuleSpecifierHost::default()
+    };
+    let collect = |importer, host: &TestModuleSpecifierHost| {
+        let mut paths = Vec::new();
+        let _: Option<()> = for_each_file_name_of_module(
+            importer,
+            "/physical/pkg/lib/value.ts",
+            host,
+            true,
+            |path, _| {
+                paths.push(path.to_owned());
+                None
+            },
+        );
+        paths
+    };
+    assert_eq!(
+        collect("/physical/pkg/lib/src/main.ts", &host),
+        [JsString::from("/physical/pkg/lib/value.ts")]
+    );
+    host.global_cache = Some("/physical/pkg".into());
+    assert_eq!(
+        collect("/project/src/main.ts", &host),
+        [
+            "/project/node_modules/inner/value.ts",
+            "/project/node_modules/pkg/lib/value.ts",
+            "/physical/pkg/lib/value.ts",
+        ]
+        .map(JsString::from)
+    );
+}
+
+#[test]
+fn directory_inputs_preserve_redirect_order_and_callback_results() {
+    let host = TestModuleSpecifierHost {
+        directories: [
+            ("/physical/pkg", "/project/node_modules/first"),
+            ("/physical/pkg/.", "/project/node_modules/second"),
+        ]
+        .map(|(real, link)| (real.into(), link.into()))
+        .to_vec(),
+        reference_redirect: Some("/physical/pkg/lib/value.d.ts".into()),
+        redirects: vec!["/physical/pkg/lib/other.d.ts".into()],
+        ..TestModuleSpecifierHost::default()
+    };
+    let mut paths = Vec::new();
+    let _: Option<()> = for_each_file_name_of_module(
+        "/project/src/main.ts",
+        "/physical/pkg/lib/value.ts",
+        &host,
+        true,
+        |path, redirect| {
+            paths.push((path.to_owned(), redirect));
+            None
+        },
+    );
+    assert_eq!(
+        paths,
+        [
+            ("/project/node_modules/first/lib/value.d.ts", true),
+            ("/project/node_modules/first/lib/value.ts", false),
+            ("/project/node_modules/first/lib/other.d.ts", false),
+            ("/project/node_modules/second/lib/value.d.ts", true),
+            ("/project/node_modules/second/lib/value.ts", false),
+            ("/project/node_modules/second/lib/other.d.ts", false),
+            ("/physical/pkg/lib/value.d.ts", true),
+            ("/physical/pkg/lib/value.ts", false),
+            ("/physical/pkg/lib/other.d.ts", false),
+        ]
+        .map(|(path, redirect)| (JsString::from(path), redirect))
+    );
+    for (prefer_symlinks, expected) in [
+        (true, "/project/node_modules/first/lib/value.d.ts"),
+        (false, "/physical/pkg/lib/value.d.ts"),
+    ] {
+        let mut calls = 0;
+        let result = for_each_file_name_of_module(
+            "/project/src/main.ts",
+            "/physical/pkg/lib/value.ts",
+            &host,
+            prefer_symlinks,
+            |path, redirect| {
+                calls += 1;
+                Some((path.to_owned(), redirect))
+            },
+        );
+        assert_eq!(result, Some((JsString::from(expected), true)));
+        assert_eq!(calls, 1);
     }
 }
 
@@ -651,5 +903,175 @@ fn normalized_slash_spans_preserve_wtf8() {
             .map(|&unit| if unit == 0x5c { 0x2f } else { unit })
             .collect();
         assert_eq!(super::normalized_slashes(&input).to_utf16(), expected);
+    }
+}
+
+struct PackageInputHost {
+    text: String,
+    prepared: Option<Arc<Value>>,
+    reads: Cell<usize>,
+}
+
+impl EmitModuleSpecifierHost for PackageInputHost {
+    fn get_current_directory(&self) -> JsString {
+        "/project".into()
+    }
+    fn use_case_sensitive_file_names(&self) -> bool {
+        true
+    }
+    fn file_exists(&self, _name: JsStr<'_>) -> bool {
+        true
+    }
+    fn read_file(&self, _name: JsStr<'_>) -> Option<String> {
+        self.reads.set(self.reads.get() + 1);
+        Some(self.text.clone())
+    }
+    fn read_package_json_input(
+        &self,
+        name: JsStr<'_>,
+    ) -> Option<tsc_emitter::EmitPackageJsonInput> {
+        Some(match &self.prepared {
+            Some(value) => tsc_emitter::EmitPackageJsonInput::Parsed(Arc::clone(value)),
+            None => tsc_emitter::EmitPackageJsonInput::Text(self.read_file(name)?),
+        })
+    }
+    fn get_common_source_directory(&self) -> JsString {
+        "/project".into()
+    }
+    fn get_default_resolution_mode_for_file(&self, _file: EmitResolverNode) -> EmitResolutionMode {
+        EmitResolutionMode::None
+    }
+    fn get_mode_for_resolution_at_index(
+        &self,
+        _file: EmitResolverNode,
+        _index: u32,
+    ) -> EmitResolutionMode {
+        EmitResolutionMode::None
+    }
+}
+
+#[test]
+fn package_object_transport_preserves_reader_recovery_and_property_order() {
+    let name = JsString::from("/project/package.json");
+    for text in [
+        r#"{"exports":{"2":"two","1":"one","types":"types","default":"js"},"nul":"a\u0000b","surrogate":"\ud800"}"#,
+        r#"{/* comment */ "exports":{"types":"types","default":"js",},"duplicate":1,"duplicate":2,}"#,
+        r#"{/* comment */ "__proto__":{"inherited":"value"},"own":"own","\u0000key":"\udfff"}"#,
+        r#"{"__proto__":{"own":"value"},"duplicate":1,"duplicate":2}"#,
+        r#"[1,2,3]"#,
+        r#"{"broken": "#,
+    ] {
+        let snapshot = tsc_diagnostics::TextSnapshot::new(
+            text.to_owned(),
+            tsc_diagnostics::DocumentVersion::default(),
+        );
+        let prepared = Arc::new(Value::Object(
+            tsc_program::read_package_json_object_from_snapshot(name.as_js(), &snapshot),
+        ));
+        let fallback = PackageInputHost {
+            text: text.to_owned(),
+            prepared: None,
+            reads: Cell::new(0),
+        };
+        let source = PackageInputHost {
+            text: "this text must never be read".to_owned(),
+            prepared: Some(Arc::clone(&prepared)),
+            reads: Cell::new(0),
+        };
+        let owned = read_package_json(&fallback, name.as_js()).expect("fallback package");
+        let shared = read_package_json(&source, name.as_js()).expect("prepared package");
+        assert_eq!(&*owned, &*shared, "{text}");
+        let PackageJsonValue::Prepared(value) = &shared else {
+            panic!("a structured input must retain its owner");
+        };
+        assert!(Arc::ptr_eq(value, &prepared));
+        assert_eq!(fallback.reads.get(), 1);
+        assert_eq!(source.reads.get(), 0);
+        for property in [
+            "exports",
+            "duplicate",
+            "__proto__",
+            "inherited",
+            "own",
+            "nul",
+            "surrogate",
+            "\0key",
+        ] {
+            assert_eq!(
+                package_json_property(&owned, property),
+                package_json_property(&shared, property),
+                "{property} in {text}"
+            );
+        }
+        let keys = |value: &Value| {
+            package_json_own_entries(value.as_object().expect("package object"))
+                .into_iter()
+                .map(|(key, _)| key.to_owned())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(keys(&owned), keys(&shared));
+        if let Some(exports) = package_json_property(&owned, "exports") {
+            let shared_exports = package_json_property(&shared, "exports").expect("exports");
+            assert_eq!(keys(exports), keys(shared_exports));
+        }
+    }
+}
+
+#[test]
+fn full_path_equality_preserves_ascii_and_javascript_unit_equivalence() {
+    let cases: &[(&[u16], &[u16], bool)] = &[
+        (&[], &[], true),
+        (&[0x41, 0x2f, 0x5a], &[0x61, 0x2f, 0x7a], true),
+        (&[0x61, 0, 0x42], &[0x41, 0, 0x62], true),
+        (&[0x40], &[0x60], false),
+        (&[0x5b], &[0x7b], false),
+        (&[0x5c], &[0x7c], false),
+        (&[0x5d], &[0x7d], false),
+        (&[0x5e], &[0x7e], false),
+        (&[0x391], &[0x3b1], false),
+        (&[0x130], &[0x69], false),
+        (&[0x212a], &[0x6b], false),
+        (&[0xdf], &[0x53, 0x53], false),
+        (&[0xe9], &[0x20ac], false),
+        (&[0xd800], &[0xfffd], false),
+        (&[0xd800, 0x41], &[0xd800, 0x61], true),
+        (&[0xdc00, 0x5a], &[0xdc00, 0x7a], true),
+        (&[0xd83d, 0xde00, 0x41], &[0xd83d, 0xde00, 0x61], true),
+        (&[0xd83d, 0xde00], &[0xd83d], false),
+        (&[0xd83d, 0xde00], &[0xde00, 0xd83d], false),
+        (&[0xd801, 0xdc00], &[0xd801, 0xdc28], false),
+        (&[0xd800, 0, 0xdc00, 0x41], &[0xd800, 0, 0xdc00, 0x61], true),
+    ];
+    for &(left, right, expected) in cases {
+        let left = JsString::from_code_units(left);
+        let right = JsString::from_code_units(right);
+        assert_eq!(
+            paths_equal(&left, &right, true),
+            expected,
+            "{left:?}, {right:?}"
+        );
+        assert_eq!(
+            paths_equal(&right, &left, true),
+            expected,
+            "{left:?}, {right:?}"
+        );
+        assert_eq!(paths_equal(&left, &right, false), left == right);
+        assert!(paths_equal(&left, &left, true));
+        assert!(paths_equal(&right, &right, false));
+    }
+}
+
+#[test]
+fn path_prefix_and_suffix_keep_half_surrogate_matches() {
+    let pair = JsString::from_code_units(&[0xd83d, 0xde00]);
+    let high = JsString::from_code_units(&[0xd83d]);
+    let low = JsString::from_code_units(&[0xde00]);
+    for ignore_case in [false, true] {
+        assert!(starts_with(&pair, &high, ignore_case));
+        assert!(ends_with(&pair, &low, ignore_case));
+        assert!(!paths_equal(&pair, &high, ignore_case));
+        assert!(!paths_equal(&pair, &low, ignore_case));
+        assert!(!starts_with(&pair, &low, ignore_case));
+        assert!(!ends_with(&pair, &high, ignore_case));
     }
 }

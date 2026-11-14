@@ -94,12 +94,13 @@ pub use printer::{
     PrintedText, Printer, PrinterError, PrinterOptions, SourceFileTextMode, StandaloneWriter,
 };
 pub use resolver::{
-    EmitAccessorDeclarations, EmitExportContainerMode, EmitFunctionProperty,
-    EmitImportIncludeReason, EmitInternalNodeBuilderFlags, EmitModuleSpecifierHost,
-    EmitNodeBuilderFlags, EmitResolutionMode, EmitResolver, EmitResolverError, EmitResolverMethod,
-    EmitResolverNode, EmitResolverSymbol, EmitSymbolAccessibility, EmitSymbolAccessibilityResult,
-    EmitSymbolExpansionOut, EmitSymbolMeaning, EmitSymbolTracker, EmitTrackerAccess,
-    EmitTrackerNode, EmitTrackerNodeDescription, EmitTrackerSymbol, EmitTrackerSymbolDescription,
+    EmitAccessorDeclarations, EmitDeclarationPreparation, EmitExportContainerMode,
+    EmitFunctionProperty, EmitImportIncludeReason, EmitInternalNodeBuilderFlags,
+    EmitModuleSpecifierHost, EmitNodeBuilderFlags, EmitPackageJsonInput, EmitResolutionMode,
+    EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode, EmitResolverSymbol,
+    EmitSymbolAccessibility, EmitSymbolAccessibilityResult, EmitSymbolExpansionOut,
+    EmitSymbolMeaning, EmitSymbolTracker, EmitTrackerAccess, EmitTrackerNode,
+    EmitTrackerNodeDescription, EmitTrackerSymbol, EmitTrackerSymbolDescription,
     EmitTypeReferenceSerializationKind, UnavailableEmitResolver,
 };
 pub use route::EmitRouteKind;

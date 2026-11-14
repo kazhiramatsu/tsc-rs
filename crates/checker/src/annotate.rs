@@ -5106,210 +5106,221 @@ impl<'a> CheckerState<'a> {
         if let Some(resolved) = cached {
             return Ok(resolved);
         }
-        // The binder's own table, shared by every later reader and the
-        // links slot (tsc stores the same object); late-bound members below
-        // build a fresh table instead of writing through it.
-        let early: Arc<tsc_binder::SymbolTable> = if !is_static {
-            Arc::clone(self.binder.symbol(symbol).members())
-        } else if self.symbol_flags(symbol).intersects(SymbolFlags::MODULE) {
-            Arc::new(self.get_exports_of_module_worker(symbol)?.0)
+        // Early static exports are observable during late-binding reentry.
+        // Keep only the chain cache suspended until the final table is settled.
+        let suspended = if is_static {
+            self.suspend_declaration_chain_cache()
         } else {
-            Arc::clone(self.binder.symbol(symbol).exports())
+            None
         };
-        if is_static {
-            self.links.set_symbol_resolved_exports_late_bind(
-                self.speculation_depth,
-                symbol,
-                Arc::clone(&early),
-            );
-        } else {
-            self.links.set_symbol_resolved_members_late_bind(
-                self.speculation_depth,
-                symbol,
-                Arc::clone(&early),
-            );
-        }
-        // Members whose lateBindMember pre-write happens in THIS frame
-        // — an Err unwind must revert their node/lateSymbol memos too,
-        // or the retry's memo-hits would silently DROP them from the
-        // rebuilt late table (review round #2).
-        let mut freshly_bound: Vec<NodeId> = Vec::new();
-        let result = (|state: &mut Self,
-                       freshly_bound: &mut Vec<NodeId>|
-         -> CheckResult<Arc<tsc_binder::SymbolTable>> {
-            let mut late = tsc_binder::SymbolTable::default();
-            let declarations = state.binder.symbol(symbol).declaration_list();
-            for declaration in declarations {
-                for member in state.members_of_declaration(declaration) {
-                    if is_static != state.has_static_modifier(member) {
-                        continue;
-                    }
-                    if !state.has_late_bindable_ast_name(member) {
-                        continue;
-                    }
-                    // INTERFACE containers late-bind for real since the
-                    // 5.8e lift (m4-58 §1): the 5.7b containment guarded
-                    // three recorded divergence bands — comment
-                    // directives (exact scanner-backed filter landed
-                    // first in this slice), declare-global augment
-                    // merges (5.8d module band), and [FLOW M5]
-                    // narrowing shapes
-                    // (triaged to targeted report gates by the lift's
-                    // full-conformance re-run).
-                    let name = state
-                        .name_of_named_declaration(member)
-                        .expect("late-bindable AST implies a computed name");
-                    // hasLateBindableName / hasLateBindableIndexSignature
-                    // (57635-57642) dispatch on the CHECKED name type:
-                    // property-usable → member; string/number/symbol
-                    // assignable → index signature; neither → skip
-                    // (checkComputedPropertyName memoizes the type).
-                    let name_type = state.check_computed_property_name(name)?;
-                    if state.property_name_from_type_usable(name_type).is_some() {
-                        if state
-                            .links
-                            .read_node(member, |links| links.resolved_symbol.resolved())
-                            .is_none()
-                        {
-                            freshly_bound.push(member);
-                        }
-                        state.late_bind_member(symbol, &early, &mut late, member)?;
-                    } else {
-                        let string_number_symbol = state.tables.intrinsics.string_number_symbol;
-                        if state.is_type_assignable_to(name_type, string_number_symbol)? {
-                            state.late_bind_index_signature(&early, &mut late, member)?;
-                        }
-                    }
-                }
-            }
-            // tsgo getResolvedMembersOrExportsOfSymbol (TypeScript 7.1): the
-            // symbol's own late-bound assignment declarations (expandos live
-            // on the initializer symbol) all bind on the static side, a
-            // dynamic `this[k] = ...` in a class member included.
-            let assignments = if is_static {
-                state
-                    .binder
-                    .symbol(symbol)
-                    .extras()
-                    .assignment_declaration_members
-                    .values()
-                    .copied()
-                    .collect::<Vec<_>>()
+        let result = (|state: &mut Self| {
+            // The binder's own table, shared by every later reader and the
+            // links slot (tsc stores the same object); late-bound members below
+            // build a fresh table instead of writing through it.
+            let early: Arc<tsc_binder::SymbolTable> = if !is_static {
+                Arc::clone(state.binder.symbol(symbol).members())
+            } else if state.symbol_flags(symbol).intersects(SymbolFlags::MODULE) {
+                Arc::new(state.get_exports_of_module_worker(symbol)?.0)
             } else {
-                Vec::new()
+                Arc::clone(state.binder.symbol(symbol).exports())
             };
-            for member in assignments {
-                if !state.has_late_bindable_name(member)? {
-                    continue;
-                }
-                if state
-                    .links
-                    .read_node(member, |links| links.resolved_symbol.resolved())
-                    .is_none()
-                {
-                    freshly_bound.push(member);
-                }
-                state.late_bind_member(symbol, &early, &mut late, member)?;
-            }
-            // combineSymbolTables (47810-47817): either side empty
-            // passes the other through untouched; otherwise both
-            // tables run through mergeSymbolTable — entries hop
-            // through getMergedSymbol, and a key collision merges via
-            // mergeSymbol (5.8d machinery).
-            let mut resolved: Arc<tsc_binder::SymbolTable> = if early.is_empty() {
-                Arc::new(late)
-            } else if late.is_empty() {
-                early
+            if is_static {
+                state.links.set_symbol_resolved_exports_late_bind(
+                    state.speculation_depth,
+                    symbol,
+                    Arc::clone(&early),
+                );
             } else {
-                let mut combined = tsc_binder::SymbolTable::default();
-                for (name, &member) in early.iter().chain(late.iter()) {
-                    let merged = match combined.get(name).copied() {
-                        Some(existing) => {
-                            state.merge_symbol(existing, member, /*unidirectional*/ false)
+                state.links.set_symbol_resolved_members_late_bind(
+                    state.speculation_depth,
+                    symbol,
+                    Arc::clone(&early),
+                );
+            }
+            // Members whose lateBindMember pre-write happens in THIS frame
+            // — an Err unwind must revert their node/lateSymbol memos too,
+            // or the retry's memo-hits would silently DROP them from the
+            // rebuilt late table (review round #2).
+            let mut freshly_bound: Vec<NodeId> = Vec::new();
+            let result = (|state: &mut Self,
+                           freshly_bound: &mut Vec<NodeId>|
+             -> CheckResult<Arc<tsc_binder::SymbolTable>> {
+                let mut late = tsc_binder::SymbolTable::default();
+                let declarations = state.binder.symbol(symbol).declaration_list();
+                for declaration in declarations {
+                    for member in state.members_of_declaration(declaration) {
+                        if is_static != state.has_static_modifier(member) {
+                            continue;
                         }
-                        None => state.get_merged_symbol(member),
-                    };
-                    combined.insert(*name, merged);
-                }
-                Arc::new(combined)
-            };
-            if state
-                .symbol_flags(symbol)
-                .intersects(SymbolFlags::TRANSIENT)
-                && state
-                    .links
-                    .symbol_cold()
-                    .cjs_export_merged
-                    .get(symbol)
-                    .is_some()
-            {
-                for declaration in state.binder.symbol(symbol).declaration_list() {
-                    let Some(original) = state.binder.node_symbol(declaration) else {
-                        continue;
-                    };
-                    let table = if is_static {
-                        state
-                            .links
-                            .symbol_cold()
-                            .resolved_exports
-                            .resolved(original)
-                    } else {
-                        state
-                            .links
-                            .symbol_cold()
-                            .resolved_members
-                            .resolved(original)
-                    };
-                    if let Some(table) = table {
-                        for (name, &member) in table.iter() {
-                            let member = match resolved.get(name).copied() {
-                                None => member,
-                                Some(existing) if existing == member => continue,
-                                Some(existing) => state.merge_symbol(existing, member, false),
-                            };
-                            // A merged table is a new object; the shared
-                            // early table stays as the other readers saw it.
-                            Arc::make_mut(&mut resolved).insert(*name, member);
+                        if !state.has_late_bindable_ast_name(member) {
+                            continue;
+                        }
+                        // INTERFACE containers late-bind for real since the
+                        // 5.8e lift (m4-58 §1): the 5.7b containment guarded
+                        // three recorded divergence bands — comment
+                        // directives (exact scanner-backed filter landed
+                        // first in this slice), declare-global augment
+                        // merges (5.8d module band), and [FLOW M5]
+                        // narrowing shapes
+                        // (triaged to targeted report gates by the lift's
+                        // full-conformance re-run).
+                        let name = state
+                            .name_of_named_declaration(member)
+                            .expect("late-bindable AST implies a computed name");
+                        // hasLateBindableName / hasLateBindableIndexSignature
+                        // (57635-57642) dispatch on the CHECKED name type:
+                        // property-usable → member; string/number/symbol
+                        // assignable → index signature; neither → skip
+                        // (checkComputedPropertyName memoizes the type).
+                        let name_type = state.check_computed_property_name(name)?;
+                        if state.property_name_from_type_usable(name_type).is_some() {
+                            if state
+                                .links
+                                .read_node(member, |links| links.resolved_symbol.resolved())
+                                .is_none()
+                            {
+                                freshly_bound.push(member);
+                            }
+                            state.late_bind_member(symbol, &early, &mut late, member)?;
+                        } else {
+                            let string_number_symbol = state.tables.intrinsics.string_number_symbol;
+                            if state.is_type_assignable_to(name_type, string_number_symbol)? {
+                                state.late_bind_index_signature(&early, &mut late, member)?;
+                            }
                         }
                     }
                 }
-            }
-            Ok(resolved)
-        })(self, &mut freshly_bound);
-        match result {
-            Ok(resolved) => {
-                // The combined table persists from a candidate trial as
-                // well: tsc resolves a symbol's members once.
-                if is_static {
-                    self.links.set_symbol_resolved_exports_late_bind(
-                        self.speculation_depth,
-                        symbol,
-                        Arc::clone(&resolved),
-                    );
+                // tsgo getResolvedMembersOrExportsOfSymbol (TypeScript 7.1): the
+                // symbol's own late-bound assignment declarations (expandos live
+                // on the initializer symbol) all bind on the static side, a
+                // dynamic `this[k] = ...` in a class member included.
+                let assignments = if is_static {
+                    state
+                        .binder
+                        .symbol(symbol)
+                        .extras()
+                        .assignment_declaration_members
+                        .values()
+                        .copied()
+                        .collect::<Vec<_>>()
                 } else {
-                    self.links.set_symbol_resolved_members_late_bind(
-                        self.speculation_depth,
-                        symbol,
-                        Arc::clone(&resolved),
-                    );
+                    Vec::new()
+                };
+                for member in assignments {
+                    if !state.has_late_bindable_name(member)? {
+                        continue;
+                    }
+                    if state
+                        .links
+                        .read_node(member, |links| links.resolved_symbol.resolved())
+                        .is_none()
+                    {
+                        freshly_bound.push(member);
+                    }
+                    state.late_bind_member(symbol, &early, &mut late, member)?;
+                }
+                // combineSymbolTables (47810-47817): either side empty
+                // passes the other through untouched; otherwise both
+                // tables run through mergeSymbolTable — entries hop
+                // through getMergedSymbol, and a key collision merges via
+                // mergeSymbol (5.8d machinery).
+                let mut resolved: Arc<tsc_binder::SymbolTable> = if early.is_empty() {
+                    Arc::new(late)
+                } else if late.is_empty() {
+                    early
+                } else {
+                    let mut combined = tsc_binder::SymbolTable::default();
+                    for (name, &member) in early.iter().chain(late.iter()) {
+                        let merged = match combined.get(name).copied() {
+                            Some(existing) => {
+                                state.merge_symbol(existing, member, /*unidirectional*/ false)
+                            }
+                            None => state.get_merged_symbol(member),
+                        };
+                        combined.insert(*name, merged);
+                    }
+                    Arc::new(combined)
+                };
+                if state
+                    .symbol_flags(symbol)
+                    .intersects(SymbolFlags::TRANSIENT)
+                    && state
+                        .links
+                        .symbol_cold()
+                        .cjs_export_merged
+                        .get(symbol)
+                        .is_some()
+                {
+                    for declaration in state.binder.symbol(symbol).declaration_list() {
+                        let Some(original) = state.binder.node_symbol(declaration) else {
+                            continue;
+                        };
+                        let table = if is_static {
+                            state
+                                .links
+                                .symbol_cold()
+                                .resolved_exports
+                                .resolved(original)
+                        } else {
+                            state
+                                .links
+                                .symbol_cold()
+                                .resolved_members
+                                .resolved(original)
+                        };
+                        if let Some(table) = table {
+                            for (name, &member) in table.iter() {
+                                let member = match resolved.get(name).copied() {
+                                    None => member,
+                                    Some(existing) if existing == member => continue,
+                                    Some(existing) => state.merge_symbol(existing, member, false),
+                                };
+                                // A merged table is a new object; the shared
+                                // early table stays as the other readers saw it.
+                                Arc::make_mut(&mut resolved).insert(*name, member);
+                            }
+                        }
+                    }
                 }
                 Ok(resolved)
-            }
-            Err(err) => {
-                if is_static {
-                    self.links.revert_symbol_resolved_exports(symbol);
-                } else {
-                    self.links.revert_symbol_resolved_members(symbol);
-                }
-                for member in freshly_bound {
-                    self.links.revert_node_resolved_symbol_late_bind(member);
-                    if let Some(member_symbol) = self.node_symbol(member) {
-                        self.links.clear_symbol_late_symbol(member_symbol);
+            })(state, &mut freshly_bound);
+            match result {
+                Ok(resolved) => {
+                    // The combined table persists from a candidate trial as
+                    // well: tsc resolves a symbol's members once.
+                    if is_static {
+                        state.links.set_symbol_resolved_exports_late_bind(
+                            state.speculation_depth,
+                            symbol,
+                            Arc::clone(&resolved),
+                        );
+                    } else {
+                        state.links.set_symbol_resolved_members_late_bind(
+                            state.speculation_depth,
+                            symbol,
+                            Arc::clone(&resolved),
+                        );
                     }
+                    Ok(resolved)
                 }
-                Err(err)
+                Err(err) => {
+                    if is_static {
+                        state.links.revert_symbol_resolved_exports(symbol);
+                    } else {
+                        state.links.revert_symbol_resolved_members(symbol);
+                    }
+                    for member in freshly_bound {
+                        state.links.revert_node_resolved_symbol_late_bind(member);
+                        if let Some(member_symbol) = state.node_symbol(member) {
+                            state.links.clear_symbol_late_symbol(member_symbol);
+                        }
+                    }
+                    Err(err)
+                }
             }
-        }
+        })(self);
+        self.restore_declaration_chain_cache(suspended);
+        result
     }
 
     fn get_resolved_members_of_symbol(

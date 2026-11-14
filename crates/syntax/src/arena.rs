@@ -72,11 +72,17 @@ pub struct NodeArena {
     factory_node_adjustment: isize,
 }
 
+fn copy_records<T: tsc_store::StoreRecord + Copy>(records: &StoreVec<T>) -> StoreVec<T> {
+    let mut copy = StoreVec::with_capacity(records.len());
+    copy.extend_from_slice(records);
+    copy
+}
+
 impl Clone for NodeArena {
     /// A private copy, whose records name tails of its own.
     fn clone(&self) -> Self {
         let mut tails = Tails::new();
-        let mut nodes = self.nodes.clone();
+        let mut nodes = copy_records(&self.nodes);
         for node in nodes.iter_mut() {
             node.copy_tail(&mut tails);
         }
@@ -84,8 +90,8 @@ impl Clone for NodeArena {
             nodes,
             tails,
             arrays: self.arrays.clone(),
-            array_items: self.array_items.clone(),
-            texts: self.texts.clone(),
+            array_items: copy_records(&self.array_items),
+            texts: copy_records(&self.texts),
             node_base: self.node_base,
             array_base: self.array_base,
             node_next: self.node_next,

@@ -111,6 +111,8 @@ fn prepared_names_and_non_send_hooks_stay_on_the_owner() {
         .prepare_source_file_print(&mut result, source, Some(&oracle))
         .unwrap();
     assert!(!oracle.queries.borrow().is_empty());
+    result.retire_declaration_transform_inputs();
+    assert!(disposed.get());
     let owned = result
         .take_owned_print()
         .expect("explicit inert-hook contract");
@@ -178,9 +180,50 @@ fn identity_substitution_does_not_discard_unknown_notifications() {
         false,
     )
     .unwrap();
+    result.retire_declaration_transform_inputs();
     assert!(result.take_owned_print().is_none());
     create_printer(PrinterOptions::new(NewLineKind::LineFeed))
         .print(&mut result, PrintRequest::SourceFile(source), None)
         .unwrap();
     assert!(notifications.get() > 0);
+}
+
+#[test]
+fn declaration_retirement_returns_transform_buffers_and_keeps_print_metadata() {
+    let (mut result, source, _) = fixture();
+    let mut printer = create_printer(PrinterOptions::new(NewLineKind::LineFeed));
+    let prepared = printer
+        .prepare_source_file_print(&mut result, source, None)
+        .unwrap();
+    let arena = result.arena_mut().unwrap();
+    arena.reserve_metadata(8192);
+    let root = arena.root(source).unwrap();
+    arena
+        .metadata_mut(root)
+        .add_flags(crate::EmitFlags::NO_COMMENTS);
+    let mut before = tsc_diagnostics::MemoryUsage::default();
+    arena.print_input_usage(&mut before).unwrap();
+    result.retire_declaration_transform_inputs();
+    let mut after = tsc_diagnostics::MemoryUsage::default();
+    result.arena().print_input_usage(&mut after).unwrap();
+    assert!(before.row("flags").requested > 0);
+    assert_eq!(after.row("flags").requested, 0);
+    assert_eq!(after.row("deferred array flags").requested, 0);
+    assert_eq!(after.row("synthesized completeness").requested, 0);
+    assert_eq!(after.row("parsed identifier lookup").requested, 0);
+    assert!(
+        after.row("emit metadata estimated").requested
+            < before.row("emit metadata estimated").requested
+    );
+    assert!(result
+        .arena()
+        .metadata(root)
+        .unwrap()
+        .flags()
+        .contains(crate::EmitFlags::NO_COMMENTS));
+    assert!(printer
+        .print_prepared_source_file(&mut result, prepared, None)
+        .unwrap()
+        .text()
+        .contains("generated_1"));
 }

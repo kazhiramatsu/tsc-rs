@@ -7937,7 +7937,9 @@ impl<'a> CheckerState<'a> {
         yield_module_symbol: bool,
         enclosing: Option<NodeId>,
     ) -> CheckResult<Option<Vec<SymbolId>>> {
-        let mut accessible = self.accessible_symbol_chain_at(symbol, meaning, enclosing, false)?;
+        let mut accessible = self
+            .accessible_symbol_chain_at(symbol, meaning, enclosing, false)?
+            .map(crate::declaration_emit::AccessibleSymbolChain::into_vec);
         let needs_walk = match &accessible {
             None => true,
             Some(chain) => {
@@ -8078,15 +8080,15 @@ impl<'a> CheckerState<'a> {
     /// namespace merged with the class prints `Clod.x`. Otherwise the scope
     /// walk (symbol_tables_in_scope below) consults each table in lexical
     /// order and the shared visited list rides across them like tsgo's
-    /// per-symbol visitedSymbolTables. The accessibleChainCache is a
-    /// recomputation-only economy the port skips.
+    /// per-symbol visitedSymbolTables. Complete settled chains use the declaration input owner's cache,
+    /// keyed by the first table-bearing parse scope and alias policy.
     pub(crate) fn accessible_symbol_chain_at(
         &mut self,
         symbol: SymbolId,
         meaning: tsc_types::SymbolFlags,
         enclosing: Option<NodeId>,
         use_only_external_aliasing: bool,
-    ) -> CheckResult<Option<Vec<SymbolId>>> {
+    ) -> CheckResult<Option<crate::declaration_emit::AccessibleSymbolChain>> {
         let declarations = self.binder.symbol(symbol).declarations();
         if !declarations.is_empty()
             && declarations.iter().all(|&declaration| {
@@ -8101,32 +8103,163 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(None);
         }
-        let tables = self.symbol_tables_in_scope(enclosing);
-        let mut visited = Vec::new();
-        for (table_key, table, is_local_name_lookup) in tables {
-            let shared = match (&table_key, &table) {
-                (
-                    ScopeTableKey::Globals | ScopeTableKey::Exports(_),
-                    crate::program::ScopeTable::Shared(shared),
-                ) => Some(shared),
-                _ => None,
-            };
-            if let Some(chain) = self.accessible_chain_from_table(
-                &table,
-                shared,
-                table_key,
+        use crate::declaration_emit::{AccessibleSymbolChain, DeclarationChainKey};
+
+        let cache_enabled = self
+            .declaration_emit_inputs
+            .as_ref()
+            .is_some_and(|inputs| inputs.chains.is_enabled())
+            && self.speculation_depth == 0
+            && self.resolution_targets.is_empty()
+            && enclosing.is_none_or(|node| self.binder.try_file_index_of_node(node).is_some());
+        let cache_key = if cache_enabled {
+            let scope = self.declaration_chain_scope(enclosing);
+            let key = DeclarationChainKey {
                 symbol,
-                meaning,
-                /*ignore_qualification*/ false,
-                is_local_name_lookup,
-                &mut visited,
-                enclosing,
-                use_only_external_aliasing,
-            )? {
-                return Ok(Some(chain));
+                meaning: meaning.bits(),
+                scope,
+                external_only: use_only_external_aliasing,
+            };
+            let cache = self
+                .declaration_emit_inputs
+                .as_ref()
+                .and_then(|inputs| inputs.chains.as_ref())
+                .expect("enabled declaration chain cache");
+            if let Some(answer) = cache.answers.get(&key) {
+                return Ok(answer
+                    .as_ref()
+                    .map(|chain| AccessibleSymbolChain::Retained(std::sync::Arc::clone(chain))));
+            }
+            Some((key, cache.generation))
+        } else {
+            None
+        };
+        let result = (|| {
+            let tables = self.symbol_tables_in_scope(enclosing);
+            let mut visited = Vec::new();
+            for (table_key, table, is_local_name_lookup) in tables {
+                let shared = match (&table_key, &table) {
+                    (
+                        ScopeTableKey::Globals | ScopeTableKey::Exports(_),
+                        crate::program::ScopeTable::Shared(shared),
+                    ) => Some(shared),
+                    _ => None,
+                };
+                if let Some(chain) = self.accessible_chain_from_table(
+                    &table,
+                    shared,
+                    table_key,
+                    symbol,
+                    meaning,
+                    /*ignore_qualification*/ false,
+                    is_local_name_lookup,
+                    &mut visited,
+                    enclosing,
+                    use_only_external_aliasing,
+                )? {
+                    return Ok(Some(chain));
+                }
+            }
+            Ok(None)
+        })();
+        if let (Some((key, generation)), Ok(answer)) = (cache_key, &result) {
+            if let Some(cache) = self
+                .declaration_emit_inputs
+                .as_mut()
+                .and_then(|inputs| inputs.chains.as_mut())
+                .filter(|cache| cache.generation == generation)
+            {
+                cache
+                    .answers
+                    .insert(key, answer.as_deref().map(std::sync::Arc::from));
             }
         }
-        Ok(None)
+        result.map(|answer| answer.map(AccessibleSymbolChain::Owned))
+    }
+
+    fn declaration_chain_scope(
+        &mut self,
+        enclosing: Option<NodeId>,
+    ) -> crate::declaration_emit::DeclarationChainScope {
+        let cache = self
+            .declaration_emit_inputs
+            .as_mut()
+            .expect("scope projection requires a declaration input owner")
+            .chains
+            .get_or_init();
+        if !cache
+            .globals_snapshot
+            .as_ref()
+            .is_some_and(|snapshot| std::sync::Arc::ptr_eq(snapshot, &self.globals))
+        {
+            cache.clear();
+            cache.globals_snapshot = Some(std::sync::Arc::clone(&self.globals));
+        }
+        if let Some(scope) = cache.scopes.get(&enclosing) {
+            return *scope;
+        }
+        let mut location = enclosing;
+        let mut frontier = None;
+        while let Some(node) = location {
+            let kind = self.kind_of(node);
+            let global_source = kind == SyntaxKind::SourceFile
+                && !self.binder.is_external_or_common_js_module_of_node(node);
+            if !global_source && self.binder.locals_of_scope(node).is_some() {
+                frontier = Some(node);
+                break;
+            }
+            match kind {
+                SyntaxKind::SourceFile | SyntaxKind::ModuleDeclaration if !global_source => {
+                    if self.binder.node_symbol(node).is_some() {
+                        frontier = Some(node);
+                        break;
+                    }
+                }
+                SyntaxKind::ClassDeclaration
+                | SyntaxKind::ClassExpression
+                | SyntaxKind::InterfaceDeclaration => {
+                    if let Some(symbol) = self.binder.node_symbol(node) {
+                        let symbol = self.get_merged_symbol(symbol);
+                        if self
+                            .binder
+                            .symbol(symbol)
+                            .members()
+                            .values()
+                            .any(|&member| {
+                                self.binder
+                                    .symbol(member)
+                                    .flags
+                                    .intersects(SymbolFlags::TYPE)
+                            })
+                        {
+                            frontier = Some(node);
+                            break;
+                        }
+                    }
+                    if kind == SyntaxKind::ClassExpression
+                        && self.binder.node_symbol(node).is_some()
+                        && matches!(self.data_of(node), NodeData::ClassExpression(data) if data.name.is_some())
+                    {
+                        frontier = Some(node);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+            location = self.parent_of(node);
+        }
+        let scope = crate::declaration_emit::DeclarationChainScope {
+            frontier,
+            external_module: enclosing
+                .is_some_and(|node| self.binder.is_external_module_of_node(node)),
+        };
+        self.declaration_emit_inputs
+            .as_mut()
+            .and_then(|inputs| inputs.chains.as_mut())
+            .expect("scope projection requires an enabled declaration cache")
+            .scopes
+            .insert(enclosing, scope);
+        scope
     }
 
     /// tsgo-port: Checker.someSymbolTableInScope @7.1
@@ -14690,7 +14823,7 @@ impl crate::declaration_emit::DeclarationEmitAccessibilityPrimitives for Checker
         symbol: SymbolId,
         meaning: SymbolFlags,
         enclosing: Option<NodeId>,
-    ) -> CheckResult<Option<Vec<SymbolId>>> {
+    ) -> CheckResult<Option<crate::declaration_emit::AccessibleSymbolChain>> {
         self.accessible_symbol_chain_at(symbol, meaning, enclosing, false)
     }
 
