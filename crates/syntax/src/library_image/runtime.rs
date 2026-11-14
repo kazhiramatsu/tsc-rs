@@ -364,6 +364,7 @@ impl StaticLibraryImage {
             arena.texts.push(TextWord(texts.word()?));
         }
         texts.end()?;
+        arena.finish_record_installation();
         arena.identifier_count = metadata.identifiers;
         arena.symbol_bound = metadata.symbol_bound;
         arena.parse_node_count = metadata.parse_node_count.map(|n| n as usize);
@@ -491,6 +492,38 @@ mod tests {
             binding: &[],
             edits: &[],
         }
+    }
+
+    #[test]
+    fn image_record_ends_follow_rows_before_an_ordinary_file() {
+        let (image, snapshot, mut options) = fixture();
+        options.node_id_base = 701;
+        options.node_array_id_base = 911;
+        let restored = descriptor(&image, &snapshot)
+            .restore(
+                "bundled:///libs/lib.fixture.d.ts".into(),
+                snapshot,
+                &options,
+            )
+            .unwrap();
+        assert_eq!(restored.arena.node_base(), 701);
+        assert_eq!(restored.arena.array_base(), 911);
+        assert_eq!(restored.arena.node_end(), 701 + image.nodes.len() as u32);
+        assert_eq!(restored.arena.array_end(), 911 + image.arrays.len() as u32);
+        let following = crate::parse_source_file(
+            "ordinary.ts",
+            "export const next = [1];",
+            ParseOptions {
+                node_id_base: restored.arena.node_end(),
+                node_array_id_base: restored.arena.array_end(),
+                ..Default::default()
+            },
+            None,
+        );
+        assert_eq!(following.arena.node_base(), restored.arena.node_end());
+        assert_eq!(following.arena.array_base(), restored.arena.array_end());
+        assert!(following.arena.node_end() > restored.arena.node_end());
+        assert!(following.arena.array_end() > restored.arena.array_end());
     }
 
     #[test]

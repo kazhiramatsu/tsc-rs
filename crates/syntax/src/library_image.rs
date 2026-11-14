@@ -707,6 +707,7 @@ impl SyntaxImage {
         for &word in &self.texts {
             arena.texts.push(TextWord(word));
         }
+        arena.finish_record_installation();
         arena.identifier_count = self.identifier_count;
         arena.symbol_bound = self.symbol_bound;
         arena.parse_node_count = self.parse_node_count.map(|n| n as usize);
@@ -826,7 +827,24 @@ mod tests {
         let bytes = image.encode().unwrap();
         let decoded = SyntaxImage::decode(&bytes, source.text()).unwrap();
         assert_eq!(image, decoded);
-        assert_eq!(source, decoded.restore().unwrap());
+        let restored = decoded.restore().unwrap();
+        assert_eq!(source, restored);
+        assert_eq!(restored.arena.node_end(), decoded.nodes.len() as u32);
+        assert_eq!(restored.arena.array_end(), decoded.arrays.len() as u32);
+        let following = crate::parse_source_file(
+            "ordinary.ts",
+            "export const next = [1];",
+            crate::ParseOptions {
+                node_id_base: restored.arena.node_end(),
+                node_array_id_base: restored.arena.array_end(),
+                ..Default::default()
+            },
+            None,
+        );
+        assert_eq!(following.arena.node_base(), restored.arena.node_end());
+        assert_eq!(following.arena.array_base(), restored.arena.array_end());
+        assert!(following.arena.node_end() > restored.arena.node_end());
+        assert!(following.arena.array_end() > restored.arena.array_end());
         assert_eq!(bytes, decoded.encode().unwrap());
         assert!(!decoded.matches("other.d.ts", source.text(), source.js_doc_parsing_mode));
         assert!(!decoded.matches("lib.test.d.ts", "", source.js_doc_parsing_mode));
