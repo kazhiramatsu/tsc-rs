@@ -95,6 +95,9 @@ struct ProbeObservation {
     original_comment_range: Option<crate::CommentRange>,
     output_comment_range: Option<crate::CommentRange>,
     output_kind: Option<SyntaxKind>,
+    output_kinds: Vec<SyntaxKind>,
+    output_flags: Option<crate::EmitFlags>,
+    diagnostic_suppression: bool,
 }
 
 struct ProbeTransformer<'a> {
@@ -142,6 +145,8 @@ impl Transformer for ProbeTransformer<'_> {
                     .enclosing_declaration
                     .map(TransformNode::node);
                 observation.diagnostic_context = Some(self.declaration.tracker.diagnostic_context);
+                observation.diagnostic_suppression =
+                    self.declaration.tracker.suppress_new_diagnostic_contexts;
                 observation.original_js_doc = cx.arena().node(input)?.js_doc();
                 observation.original_comment_range = comment_range(cx.arena(), input)?;
                 if let Some(output) = output {
@@ -151,6 +156,18 @@ impl Transformer for ProbeTransformer<'_> {
                         .metadata(output)
                         .and_then(crate::EmitMetadata::comment_range);
                     observation.output_kind = Some(cx.arena().node(output)?.kind);
+                    observation.output_flags =
+                        cx.arena().metadata(output).map(crate::EmitMetadata::flags);
+                    let mut pending = vec![output.node()];
+                    let syntax = cx.arena().source(output.source())?.syntax();
+                    while let Some(node) = pending.pop() {
+                        let record = syntax.arena.node(node);
+                        observation.output_kinds.push(record.kind);
+                        for_each_child(&syntax.arena, record, |child| {
+                            pending.push(child);
+                            false
+                        });
+                    }
                 }
             }
             ProbeAction::Ensure(ref nodes) => {
@@ -439,6 +456,65 @@ fn subtree_binding_pattern_split_restores_the_diagnostic_context() {
         observation.diagnostic_context,
         Some(DiagnosticContext::None)
     );
+}
+
+#[test]
+fn subtree_nested_type_visits_preserve_shape_context_and_tuple_layout() {
+    let parsed = parse_source_file(
+        "fixture.ts",
+        concat!(
+            "type F = () => string;\n",
+            "type C = abstract new () => number;\n",
+            "type T = string extends number ? [boolean] : (() => void);\n",
+            "type M = { [K in string]: number };\n",
+            "type L = [string, number];\n",
+        ),
+        Default::default(),
+        None,
+    );
+    let options = CompilerOptions::default();
+    let resolver = FixtureResolver {
+        first_declaration: true,
+        synthesized_declaration: None,
+        synthesized_return: None,
+        fail_declaration: None,
+    };
+    for kind in [
+        SyntaxKind::FunctionType,
+        SyntaxKind::ConstructorType,
+        SyntaxKind::ConditionalType,
+        SyntaxKind::MappedType,
+        SyntaxKind::TupleType,
+    ] {
+        for node in nodes_of_kind(&parsed, kind) {
+            let mut expected_kinds = Vec::new();
+            let mut pending = vec![node];
+            while let Some(node) = pending.pop() {
+                let record = parsed.arena.node(node);
+                expected_kinds.push(record.kind);
+                for_each_child(&parsed.arena, record, |child| {
+                    pending.push(child);
+                    false
+                });
+            }
+            let (result, observation) =
+                run_probe(&parsed, &options, &resolver, ProbeAction::Visit(node));
+            result.expect("nested type probe");
+            let observation = observation.borrow();
+            assert_eq!(observation.output_kinds, expected_kinds, "{kind:?}");
+            assert_eq!(observation.enclosing, Some(parsed.root), "{kind:?}");
+            assert_eq!(
+                observation.diagnostic_context,
+                Some(DiagnosticContext::None)
+            );
+            assert!(!observation.diagnostic_suppression, "{kind:?}");
+            if kind == SyntaxKind::TupleType {
+                assert!(observation
+                    .output_flags
+                    .is_some_and(|flags| flags.contains(crate::EmitFlags::SINGLE_LINE)));
+            }
+        }
+    }
 }
 
 #[test]

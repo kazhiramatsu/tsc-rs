@@ -61,10 +61,12 @@ impl DeclarationTransformer<'_> {
         if self.should_strip_internal(cx, Some(input))? {
             return Ok(VisitResult::None);
         }
-        if is_declaration(cx, input)? && self.is_declaration_and_not_visible(cx, input)? {
+        let input_kind = self.kind(cx, input)?;
+        let declaration = is_declaration_kind(input_kind);
+        if declaration && self.is_declaration_and_not_visible(cx, input)? {
             return Ok(VisitResult::None);
         }
-        if is_declaration(cx, input)? {
+        if declaration {
             if let Some(expression) = dynamic_name_expression(cx, input)? {
                 if self.options.isolated_declarations == Some(true) {
                     if !self
@@ -102,7 +104,7 @@ impl DeclarationTransformer<'_> {
                 }
             }
         }
-        if is_function_like(self.kind(cx, input)?)
+        if is_function_like(input_kind)
             && self
                 .resolver
                 .is_implementation_of_overload(self.required_resolver_node(cx, input)?)?
@@ -116,11 +118,11 @@ impl DeclarationTransformer<'_> {
                 VisitResult::Nodes(overloads)
             });
         }
-        if self.kind(cx, input)? == SyntaxKind::SemicolonClassElement {
+        if input_kind == SyntaxKind::SemicolonClassElement {
             return Ok(VisitResult::None);
         }
 
-        let enclosing = self.is_enclosing_declaration(cx, input)?;
+        let enclosing = is_enclosing_declaration_kind(input_kind);
         let previous_enclosing = if enclosing {
             Some(std::mem::replace(
                 &mut self.state_mut()?.enclosing_declaration,
@@ -129,22 +131,21 @@ impl DeclarationTransformer<'_> {
         } else {
             None
         };
-        let can_produce = can_produce_diagnostics(self.kind(cx, input)?);
+        let can_produce = can_produce_diagnostics(input_kind);
         let old_suppression = self.tracker.suppress_new_diagnostic_contexts;
-        let mut enter_suppression = matches!(
-            self.kind(cx, input)?,
-            SyntaxKind::TypeLiteral | SyntaxKind::MappedType
-        ) && self.parent(cx, input)?.is_none_or(|parent| {
-            cx.arena()
-                .node(parent)
-                .is_ok_and(|node| node.kind != SyntaxKind::TypeAliasDeclaration)
-        });
+        let mut enter_suppression =
+            matches!(input_kind, SyntaxKind::TypeLiteral | SyntaxKind::MappedType)
+                && self.parent(cx, input)?.is_none_or(|parent| {
+                    cx.arena()
+                        .node(parent)
+                        .is_ok_and(|node| node.kind != SyntaxKind::TypeAliasDeclaration)
+                });
 
         // Upstream's first direct return: the private method/signature that is
         // not the symbol's first declaration leaks the enclosing-declaration
         // write and skips every cleanup/adoption operation.
         if matches!(
-            self.kind(cx, input)?,
+            input_kind,
             SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature
         ) && self.has_effective_modifier(cx, input, ModifierFlags::PRIVATE)?
         {
@@ -204,7 +205,7 @@ impl DeclarationTransformer<'_> {
             None
         };
 
-        if self.kind(cx, input)? == SyntaxKind::TypeQuery {
+        if input_kind == SyntaxKind::TypeQuery {
             if let Some(data) = cx.arena().node(input)?.as_type_query() {
                 if let Some(name) = data
                     .expr_name
@@ -239,9 +240,9 @@ impl DeclarationTransformer<'_> {
             can_produce_diagnostic: can_produce,
         };
 
-        if is_processed_component(self.kind(cx, input)?) {
+        if is_processed_component(input_kind) {
             let result = (|| -> Result<VisitResult, TransformError> {
-                match self.kind(cx, input)? {
+                match input_kind {
                     SyntaxKind::ExpressionWithTypeArguments => {
                         let expression = match cx.arena().node(input)?.data() {
                             NodeData::ExpressionWithTypeArguments(data) => data.expression,
@@ -473,12 +474,11 @@ impl DeclarationTransformer<'_> {
                             Ok(VisitResult::None)
                         } else {
                             let r#type = self.ensure_type(cx, input, false)?;
-                            let initializer =
-                                if self.kind(cx, input)? == SyntaxKind::PropertyDeclaration {
-                                    self.ensure_no_initializer(cx, input)?
-                                } else {
-                                    None
-                                };
+                            let initializer = if input_kind == SyntaxKind::PropertyDeclaration {
+                                self.ensure_no_initializer(cx, input)?
+                            } else {
+                                None
+                            };
                             let modifiers = self.ensure_modifiers(cx, input)?;
                             let updated =
                                 update_property(cx, input, modifiers, r#type, initializer)?;
@@ -670,7 +670,7 @@ impl DeclarationTransformer<'_> {
                             default_modifier_mask(),
                         )?;
                         let r#type = self.visit_required_type(cx, input, r#type, "type")?;
-                        let modifiers = if self.kind(cx, input)? == SyntaxKind::ConstructorType {
+                        let modifiers = if input_kind == SyntaxKind::ConstructorType {
                             self.ensure_modifiers(cx, input)?
                         } else {
                             modifiers
@@ -743,7 +743,7 @@ impl DeclarationTransformer<'_> {
             return self.finish_subtree(cx, input, frame, result);
         }
 
-        if self.kind(cx, input)? == SyntaxKind::TupleType {
+        if input_kind == SyntaxKind::TupleType {
             let record = cx.arena().node(input)?;
             let positions = cx.arena().source(input.source())?.syntax().positions();
             if positions
@@ -930,18 +930,7 @@ impl DeclarationTransformer<'_> {
         cx: &TransformationContext,
         node: TransformNode,
     ) -> Result<bool, TransformError> {
-        let kind = self.kind(cx, node)?;
-        Ok(matches!(
-            kind,
-            SyntaxKind::SourceFile
-                | SyntaxKind::TypeAliasDeclaration
-                | SyntaxKind::ModuleDeclaration
-                | SyntaxKind::ClassDeclaration
-                | SyntaxKind::InterfaceDeclaration
-                | SyntaxKind::IndexSignature
-                | SyntaxKind::MappedType
-                | SyntaxKind::VariableDeclaration
-        ) || is_function_like(kind))
+        Ok(is_enclosing_declaration_kind(self.kind(cx, node)?))
     }
 
     /// tsc-port: checkEntityNameVisibility @6.0.3
@@ -1237,9 +1226,10 @@ fn required_single_type(
     }
 }
 
-fn is_declaration(cx: &TransformationContext, node: TransformNode) -> Result<bool, TransformError> {
-    Ok(matches!(
-        cx.arena().node(node)?.kind,
+#[inline(always)]
+fn is_declaration_kind(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
         SyntaxKind::ArrowFunction
             | SyntaxKind::BindingElement
             | SyntaxKind::ClassDeclaration
@@ -1275,7 +1265,22 @@ fn is_declaration(cx: &TransformationContext, node: TransformNode) -> Result<boo
             | SyntaxKind::JSDocCallbackTag
             | SyntaxKind::JSDocPropertyTag
             | SyntaxKind::NamedTupleMember
-    ))
+    )
+}
+
+#[inline(always)]
+fn is_enclosing_declaration_kind(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::SourceFile
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::ClassDeclaration
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::MappedType
+            | SyntaxKind::VariableDeclaration
+    ) || is_function_like(kind)
 }
 
 fn declaration_name(
