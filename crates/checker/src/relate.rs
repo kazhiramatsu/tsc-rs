@@ -361,6 +361,22 @@ impl RelationCaches {
         (entries, bytes)
     }
 
+    /// Return integer-keyed buffers once the owning one-shot shard has
+    /// published its result. String-keyed tables are kept in the state.
+    pub(crate) fn release_scalar_lookup_buffers(&mut self) {
+        const {
+            assert!(!std::mem::needs_drop::<u64>());
+            assert!(!std::mem::needs_drop::<(
+                (u32, u32, i32),
+                RelationComparisonResult,
+            )>());
+        }
+        for cache in &mut self.per_relation {
+            drop(std::mem::take(&mut cache.pairs));
+            drop(std::mem::take(&mut cache.wide_pairs));
+        }
+    }
+
     /// tsrs-native: Rust fixed-array accessor for tsc's separate
     /// relation cache objects.
     pub fn cache(&self, relation: RelationKind) -> &RelationCache {

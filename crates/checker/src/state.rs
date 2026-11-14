@@ -1418,6 +1418,28 @@ pub struct CheckerState<'a> {
 }
 
 impl<'a> CheckerState<'a> {
+    /// Return scalar lookup buffers after the final owned shard result has
+    /// been published. The state keeps its records and identity leases.
+    pub(crate) fn release_finished_lookup_buffers(&mut self) {
+        fn release<K, V>(map: &mut rustc_hash::FxHashMap<K, V>) {
+            const { assert!(!std::mem::needs_drop::<(K, V)>()) };
+            drop(std::mem::take(map));
+        }
+
+        release(&mut self.effects_signature_cache);
+        release(&mut self.generic_object_flags);
+        release(&mut self.cached_types);
+        release(&mut self.signature_instantiations);
+        release(&mut self.regular_object_literal_types);
+        release(&mut self.properties_types);
+        release(&mut self.index_symbols);
+        release(&mut self.reverse_mapped_cache);
+        release(&mut self.reverse_homomorphic_mapped_cache);
+        release(&mut self.merged_symbols);
+        self.relations.release_scalar_lookup_buffers();
+        self.tables.release_scalar_lookup_buffers();
+    }
+
     /// With `TSRS_MEMORY_REPORT` set, print what this checker allocates, by
     /// structure, to stderr under `label`. The arenas reserved from the
     /// program's size count the records they hold: their untouched room is
