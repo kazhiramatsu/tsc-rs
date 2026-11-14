@@ -374,7 +374,7 @@ struct TypeScriptTransformer<'resolver> {
 
 impl Transformer for TypeScriptTransformer<'_> {
     fn has_inert_print_hooks(&self) -> bool {
-        self.namespace_container_names.is_empty() && self.enum_container_names.is_empty()
+        true
     }
 
     fn name(&self) -> &'static str {
@@ -391,6 +391,10 @@ impl Transformer for TypeScriptTransformer<'_> {
             context.enable_substitution(kind)?;
         }
         Ok(())
+    }
+
+    fn is_identity_substitution(&self) -> bool {
+        true
     }
 
     fn transform_root(
@@ -461,10 +465,37 @@ impl Transformer for TypeScriptTransformer<'_> {
                 .into_iter()
                 .map(|(declaration, name)| (TransformNode::new(source, declaration), name)),
         );
+        if !self.namespace_container_names.is_empty() || !self.enum_container_names.is_empty() {
+            // tsgo runtimesyntax.go:928–947 creates namespace/enum accesses
+            // before printing. Their synthetic ranges determine line breaks
+            // in enclosing expressions, so materialize these substitutions
+            // in the transformed tree rather than at the print hook.
+            let nodes = node_memo(visitor.context.arena(), source);
+            let mut references = NamespaceReferenceVisitor {
+                context: visitor.context,
+                transformer: self,
+                source,
+                nodes,
+            };
+            let transformed = references.visit(transformed)?;
+            references
+                .context
+                .arena_mut()?
+                .replace_root(source, transformed)?;
+        }
         Ok(TransformRoot::SourceFile(source))
     }
 
-    fn substitute_node(
+    fn dispose(&mut self) {
+        self.namespace_container_names.clear();
+        self.enum_container_names.clear();
+        self.active_namespace_emit_depth = 0;
+        self.active_enum_emit_depth = 0;
+    }
+}
+
+impl TypeScriptTransformer<'_> {
+    fn substitute_reference(
         &mut self,
         context: &mut TransformationContext,
         hint: EmitHint,
@@ -486,7 +517,7 @@ impl Transformer for TypeScriptTransformer<'_> {
         }
     }
 
-    fn before_emit_node(
+    fn enter_container(
         &mut self,
         context: &TransformationContext,
         _hint: EmitHint,
@@ -502,7 +533,7 @@ impl Transformer for TypeScriptTransformer<'_> {
         Ok(())
     }
 
-    fn after_emit_node(
+    fn exit_container(
         &mut self,
         context: &TransformationContext,
         _hint: EmitHint,
@@ -524,15 +555,6 @@ impl Transformer for TypeScriptTransformer<'_> {
         Ok(())
     }
 
-    fn dispose(&mut self) {
-        self.namespace_container_names.clear();
-        self.enum_container_names.clear();
-        self.active_namespace_emit_depth = 0;
-        self.active_enum_emit_depth = 0;
-    }
-}
-
-impl TypeScriptTransformer<'_> {
     /// tsc-port: trySubstituteNamespaceExportedName @6.0.3
     /// tsc-hash: a3e2a75d1877f53a89aa08f61a487e83adabeba271208dfd8a7c99f1e96ab102
     /// tsc-span: _tsc.js:95798-95816
@@ -548,25 +570,16 @@ impl TypeScriptTransformer<'_> {
         {
             return Ok(None);
         }
-        let container = if let Some(container) = context
-            .arena()
-            .metadata(node)
-            .and_then(|metadata| metadata.referenced_export_container())
-        {
-            container
-        } else {
-            let Some(resolver_node) = context.arena().parse_tree_resolver_node(node)? else {
-                return Ok(None);
-            };
-            let Some(container) = self.resolver.get_referenced_export_container(
-                resolver_node,
-                EmitExportContainerMode::Reference,
-            )?
-            else {
-                return Ok(None);
-            };
-            TransformNode::new(node.source(), container.node())
+        let Some(resolver_node) = context.arena().parse_tree_resolver_node(node)? else {
+            return Ok(None);
         };
+        let Some(container) = self
+            .resolver
+            .get_referenced_export_container(resolver_node, EmitExportContainerMode::Reference)?
+        else {
+            return Ok(None);
+        };
+        let container = TransformNode::new(node.source(), container.node());
         let Some(container_name) = (self.active_namespace_emit_depth != 0)
             .then(|| self.namespace_container_names.get(&container))
             .flatten()
@@ -584,7 +597,7 @@ impl TypeScriptTransformer<'_> {
         };
         let source = node.source();
         let (container, name, access) = {
-            let mut factory = context.substitution_factory()?;
+            let mut factory = context.factory()?;
             let container = factory.create_node(
                 source,
                 NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
@@ -599,10 +612,8 @@ impl TypeScriptTransformer<'_> {
                 NodeData::Identifier(identifier),
                 TransformFlags::NONE,
             )?;
-            // `trySubstituteNamespaceExportedName` keeps the original
-            // identifier as the property-name child. The clone is needed by
-            // this immutable arena, but it must carry the same text range
-            // before the outer access receives its own range.
+            // The property-name clone retains the identifier's location;
+            // the outer access is synthetic, as in tsgo visitExpressionIdentifier.
             factory.set_text_range(name, node)?;
             let access = factory.create_node(
                 source,
@@ -615,10 +626,17 @@ impl TypeScriptTransformer<'_> {
                 ),
                 TransformFlags::NONE,
             )?;
-            factory.set_text_range(access, node)?;
             (container, name, access)
         };
-        context.arena_mut()?.set_original_node(access, Some(node))?;
+        let range = {
+            let record = context.arena().node(node)?;
+            let positions = context.arena().source(source)?.syntax().positions();
+            SourceRange::from_raw(record.pos, record.end, positions)
+                .map_err(|error| TransformError::InvalidSourceRange { node, error })?
+        };
+        let metadata = context.arena_mut()?.metadata_mut(access);
+        metadata.set_comment_range(CommentRange::new(source, range));
+        metadata.set_source_map_range(SourceMapRange::new(source, range));
         for generated in [container, name] {
             context
                 .arena_mut()?
@@ -660,7 +678,7 @@ impl TypeScriptTransformer<'_> {
                         default_value,
                     ))
                 })?;
-            let mut factory = context.substitution_factory()?;
+            let mut factory = context.factory()?;
             let operator = factory.create_token(
                 original.source(),
                 SyntaxKind::EqualsToken,
@@ -679,7 +697,7 @@ impl TypeScriptTransformer<'_> {
             exported_name
         };
         let property = {
-            let mut factory = context.substitution_factory()?;
+            let mut factory = context.factory()?;
             let property = factory.create_node(
                 original.source(),
                 NodeData::PropertyAssignment(tsc_syntax::nodes::PropertyAssignmentData {
@@ -698,6 +716,103 @@ impl TypeScriptTransformer<'_> {
             .arena_mut()?
             .set_original_node(property, Some(original))?;
         Ok(property)
+    }
+}
+
+/// Materializes transformTypeScript's namespace/enum reference substitutions
+/// while their enclosing containers are active, including JavaScript subtrees
+/// that the type-erasure visitor correctly left unchanged.
+struct NamespaceReferenceVisitor<'context, 'transformer, 'resolver> {
+    context: &'context mut TransformationContext,
+    transformer: &'transformer mut TypeScriptTransformer<'resolver>,
+    source: TransformSourceId,
+    nodes: NodeMemo<NodeId>,
+}
+
+impl NamespaceReferenceVisitor<'_, '_, '_> {
+    fn visit(&mut self, node: TransformNode) -> Result<TransformNode, TransformError> {
+        if let Some(mapped) = self.nodes.get(&node.node()) {
+            return Ok(TransformNode::new(self.source, *mapped));
+        }
+        self.transformer
+            .enter_container(self.context, EmitHint::Unspecified, node)?;
+        let result = (|| {
+            let record = self.context.arena().node(node)?;
+            let skip_substitution = self
+                .context
+                .arena()
+                .metadata(node)
+                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::NO_SUBSTITUTION));
+            let non_reference = is_non_reference_identifier_node(self.context.arena(), node)?
+                || record.parent.and_then(|parent| self.context.arena().node_ref(self.source, parent))
+                    .and_then(|parent| self.context.arena().node(parent).ok())
+                    .is_some_and(|parent| matches!(parent.data(),
+                        NodeData::ShorthandPropertyAssignment(data) if data.name == Some(node.node())));
+            if record.kind == SyntaxKind::Identifier && !non_reference && !skip_substitution {
+                return self.transformer.substitute_reference(
+                    self.context,
+                    EmitHint::Expression,
+                    node,
+                );
+            }
+            let updated = update_children_lazily(self, node)?;
+            if skip_substitution {
+                Ok(updated)
+            } else {
+                self.transformer
+                    .substitute_reference(self.context, EmitHint::Unspecified, updated)
+            }
+        })();
+        self.transformer
+            .exit_container(self.context, EmitHint::Unspecified, node)?;
+        let updated = result?;
+        self.nodes.insert(node.node(), updated.node());
+        Ok(updated)
+    }
+}
+
+impl NodeDataChildVisitor for NamespaceReferenceVisitor<'_, '_, '_> {
+    type Error = TransformError;
+
+    fn node_kind(&self, id: NodeId) -> SyntaxKind {
+        self.context
+            .arena()
+            .node(TransformNode::new(self.source, id))
+            .expect("reference child")
+            .kind
+    }
+
+    fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, Self::Error> {
+        self.visit(TransformNode::new(self.source, id))
+            .map(|node| Some(node.node()))
+    }
+
+    fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
+        let source = self.source;
+        let updated = update_node_array_lazily(
+            self,
+            TransformNodeArray::new(source, id),
+            |visitor, node| {
+                Ok(ArrayElementVisit::One(
+                    visitor.visit(TransformNode::new(source, node))?,
+                ))
+            },
+        )?;
+        Ok(Some(updated.array()))
+    }
+
+    fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {
+        TransformError::RequiredChildRemoved { parent, field }
+    }
+}
+
+impl LazyChildVisitor for NamespaceReferenceVisitor<'_, '_, '_> {
+    fn transformation_context(&self) -> &TransformationContext {
+        self.context
+    }
+
+    fn transformation_context_mut(&mut self) -> &mut TransformationContext {
+        self.context
     }
 }
 
@@ -12631,6 +12746,12 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     ) -> Result<TransformNode, TransformError> {
         self.namespace_container_names
             .insert(declaration, container_name.into());
+        let container = self.node(declaration);
+        self.context
+            .arena_mut()?
+            .session
+            .namespace_container_names
+            .insert(container, container_name.into());
         self.namespace_stack.push(NamespaceContext {
             declaration,
             container_name: container_name.to_owned(),

@@ -543,11 +543,6 @@ pub struct EmitMetadataDetails {
     /// The declaration identity, rather than the printable local spelling,
     /// drives later module substitution.
     pub(crate) referenced_import_declaration: Option<TransformNode>,
-    /// Namespace or enum declaration selected for a synthesized lexical
-    /// reference. Upstream gives classic-JSX factory roots a parse-tree
-    /// parent and resolves them during TypeScript substitution; this typed
-    /// identity carries the same ownership without a mutable parent chain.
-    pub(crate) referenced_export_container: Option<TransformNode>,
     /// Whether the reference is TypeScript's generated-import identifier
     /// (`setIdentifierGeneratedImportReference`). CommonJS explicitly permits
     /// substitution for this generated-name class, while SystemJS leaves it
@@ -640,7 +635,6 @@ static EMPTY_METADATA_DETAILS: EmitMetadataDetails = EmitMetadataDetails {
     class_constructor_reference: None,
     class_field_initializer_comment_source: None,
     referenced_import_declaration: None,
-    referenced_export_container: None,
     generated_import_reference: false,
     generated_binding_id: None,
     generated_binding_temp_ordinal: None,
@@ -732,10 +726,6 @@ impl std::fmt::Debug for EmitMetadata {
         state.field(
             "referenced_import_declaration",
             &self.referenced_import_declaration,
-        );
-        state.field(
-            "referenced_export_container",
-            &self.referenced_export_container,
         );
         state.field(
             "generated_import_reference",
@@ -888,10 +878,6 @@ impl EmitMetadata {
         self.details().referenced_import_declaration
     }
 
-    pub(crate) const fn referenced_export_container(&self) -> Option<TransformNode> {
-        self.details().referenced_export_container
-    }
-
     pub const fn is_generated_import_reference(&self) -> bool {
         self.details().generated_import_reference
     }
@@ -984,10 +970,6 @@ impl EmitMetadata {
     pub fn set_referenced_import_declaration(&mut self, value: TransformNode) {
         self.referenced_import_declaration = Some(value);
         self.generated_import_reference = false;
-    }
-
-    pub(crate) fn set_referenced_export_container(&mut self, value: TransformNode) {
-        self.referenced_export_container = Some(value);
     }
 
     pub fn set_generated_import_reference(&mut self, value: TransformNode) {
@@ -1213,9 +1195,6 @@ impl EmitMetadata {
         if source.referenced_import_declaration.is_some() {
             self.referenced_import_declaration = source.referenced_import_declaration;
             self.generated_import_reference = source.generated_import_reference;
-        }
-        if source.referenced_export_container.is_some() {
-            self.referenced_export_container = source.referenced_export_container;
         }
     }
 }

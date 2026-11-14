@@ -277,6 +277,13 @@ impl TransformArena {
             "exceptional metadata estimated",
             &self.session.exceptional_metadata,
         );
+        u.hash_map(
+            "namespace container names",
+            &self.session.namespace_container_names,
+        );
+        for name in self.session.namespace_container_names.values() {
+            u.add("namespace container name", 1, name.len(), name.len());
+        }
         u.hash_map("emit metadata estimated", &self.session.metadata);
         for v in self.session.metadata.values() {
             v.print_input_usage(u);
@@ -1364,6 +1371,7 @@ impl TransformArena {
 
     pub fn clear_session_metadata(&mut self) {
         self.session.metadata.clear();
+        self.session.namespace_container_names.clear();
         self.session.exceptional_metadata.clear();
         for source in &mut self.sources {
             source.session.metadata_presence.clear();

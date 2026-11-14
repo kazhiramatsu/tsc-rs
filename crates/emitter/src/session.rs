@@ -227,6 +227,8 @@ impl std::fmt::Debug for NodeBuilderCache {
 #[derive(Debug, Default)]
 pub(crate) struct EmitSession {
     pub metadata: FxHashMap<TransformNode, EmitMetadata>,
+    /// Namespace receiver names reused by references created by later transforms.
+    pub namespace_container_names: FxHashMap<TransformNode, Box<str>>,
     /// Public metadata_mut also accepts not-yet-allocated and unmounted keys.
     pub exceptional_metadata: FxHashSet<TransformNode>,
     pub literal_properties: FxHashMap<TransformNode, LiteralNodeProperties>,
@@ -238,6 +240,7 @@ impl Clone for EmitSession {
     fn clone(&self) -> Self {
         Self {
             metadata: self.metadata.clone(),
+            namespace_container_names: self.namespace_container_names.clone(),
             exceptional_metadata: self.exceptional_metadata.clone(),
             literal_properties: self.literal_properties.clone(),
             next_generated_binding_id: self.next_generated_binding_id,
