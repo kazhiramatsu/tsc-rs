@@ -246,8 +246,10 @@ declaration.
 ## The fast preset
 
 By default tsc-rs checks with four checkers and associates files with them
-as tsgo does, and its output is tsgo's byte for byte. More checkers under
-that association repeat much of each other's work, so more cores buy little.
+as tsgo does, and its diagnostics are tsgo's byte for byte (for emitted
+files see the [known differences](compatibility.md#limitations)). More
+checkers under that association repeat much of each other's work, so more
+cores buy little.
 Setting `TSRS_FAST=1` in the environment (it is not a command-line option)
 selects a preset for machines with more cores:
 

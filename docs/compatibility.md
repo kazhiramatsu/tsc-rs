@@ -71,21 +71,34 @@ tsc 6.0.3 compatibility is complete in release
 
 ## Limitations
 
-- **Emitted JavaScript, known differences from `tsgo`** (found November 14,
-  2026, by comparing emitted trees file by file): 575 of the 9,244 files
-  emitted for VS Code's `src` differ. Where a variable is hoisted to the top
-  of a file (the alias of a class with legacy decorators,
-  `experimentalDecorators`, that refers to itself), the file's leading
-  comment block (a copyright header followed by a blank line) is written
-  after the emit helpers instead of before them, or is missing when the
-  file's first import is elided, and comments after the last statement are
-  missing. Five of those files also differ in the form of the emitted code,
-  not in its meaning: an alias for a class that refers to itself only in a
-  type, a temporary variable that is never used, and the line breaks of one
-  conditional expression. The files emitted for hono, zod, Effect, the
-  TypeScript compiler, Next.js, playwright and vue (16,164 files:
-  JavaScript, declarations and maps) are identical to `tsgo`'s. Fixes are in
-  progress.
+- **Emitted files, known differences from `tsgo`** (emitted trees compared
+  file by file on November 14, 2026):
+  - JavaScript: one of the 9,244 files emitted for VS Code's `src` keeps
+    the line break before the `:` of two conditional expressions that `tsgo`
+    prints on one line each (the form of the code, not its meaning).
+  - Source maps of classes with legacy decorators (`experimentalDecorators`)
+    have more segments than `tsgo`'s for the same generated file. With
+    `declaration`, `declarationMap` and `sourceMap` turned on for VS Code
+    (its own configuration emits JavaScript only), the 9,243 declaration
+    files are identical; 2,350 declaration maps have one more segment at the
+    name of each constructor parameter that has a decorator, and 597
+    JavaScript maps have extra segments for a class that refers to itself
+    through the alias those decorators create.
+  - Declaration files: the module specifier written for an inferred type's
+    `import("…")` differs in two cases. An `exports` pattern whose prefix
+    and suffix overlap in the target's file name is selected where `tsgo`
+    skips it, and a package reached through a symlink whose path differs
+    from the real one only in the case of a non-ASCII letter is written as a
+    relative path instead of by its package name.
+  - For an input with syntax errors, a comment can be written twice (a block
+    comment at the end of an unterminated `try` block, for example).
+
+  The files emitted for hono, zod, Effect, the TypeScript compiler, Next.js,
+  playwright and vue (16,164 files: JavaScript, declarations and maps) are
+  identical to `tsgo`'s. The differences found on the same day in 574 more
+  of VS Code's JavaScript files — comments around a hoisted class alias, an
+  alias and a temporary variable that were not needed — were fixed in pull
+  request [#1002](https://github.com/kazhiramatsu/tsc-rs/pull/1002).
 - The [language server](usage.md#language-server-experimental) is incomplete and
   untested in editors.
 - `-b` builds projects one at a time.

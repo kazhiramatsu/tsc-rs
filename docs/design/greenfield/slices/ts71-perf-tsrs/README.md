@@ -1015,6 +1015,33 @@ zod は検査より前が 257 / 63 MB、effect 130 / 38、vue 101 / 18。結果 
 
 **教訓**：(1) 「base と同じ」は「tsgo と同じ」ではない。候補と base の比較だけを重ねると、base が元から持つ差は永久に見えない — 参照の binary に対する比較を、出力の種類ごと（診断、JS、宣言、map）に、少なくとも README の窓と emitter の PR で走らせる。(2) lane の `DIFFS-found.md` は保管庫ではなく作業の一覧である：区切りごとに読み、出力を変えうる項目は参照の binary に対する再現にする（1 件 5 分）。(3) 「〜だけが違う」と書く前に、その「だけ」を機械的に除いて比べ直す — 575 のうち 5 は code が違った。(4) 別の最適化設定の build で数えた値は探す場所であって、目標や積にする前に出荷 binary で確かめる（copy の集計、constructor の台帳、emit の段の台帳で同じ誤りを 3 度しかけた）。(5) 私が置いた門が lane を止めていないかを、lane の最後のページで確かめる；門の文言は「いつの時点の条件か」まで書く。(6) apply できることと build できることは別である。(7) CPU が軽い処理でも memory は重いことがある：参照の compiler を大きい案件に走らせるのは重い job である。
 
+**結果 38（2026-11-14 20:40〜23:41、VS Code の JavaScript 出力の修正 3 件の #1002 の着地 — tsgo と違う file は 575 → 1 — 、4 件目は conformance の 1 件を壊したので保留、PR の検査が 2 回止まった理由、修正後の binary で数えた残りの差（map 2,350 + 597、宣言の指定子 2 件、回復時の comment）、所有者の指示「build が全部終わってから計測」と lane の build の停止、lane の build は以後 1 本ずつ、保留の間の台帳）。** 記録の元は `handover/arch-arena/RESUME.md` の 2026-11-14 20:40 以降の各節。
+
+**merge**：[#1002](https://github.com/kazhiramatsu/tsc-rs/pull/1002)（`fix/emitted-javascript-as-tsgo`、3 commit；run 43604275925 → **`a0b48daf6`**、11-14 23:40）。この修正のために 20:09 に立てた 16 本目の lane（emit-fix）の patch を、原因ごとに 1 commit にした。(1) legacy decorator が class の別名を file の先頭へ出すとき、文の配列を作り直さず、元の範囲を保ったまま更新する（tsgo `internal/printer/emitcontext.go:189-201`、`printer.go:4681-4700`）— 冒頭の detached comment と末尾の comment が元の位置に出る（570 file）。(2) class に別名が要るかどうかは、型を消した後の runtime の member を走査して決める（tsgo `legacydecorators.go:74-94, 421-436, 512-533`；tsgo に checker の flag は無い — 私の最初の見立ては誤りで、lane が直した）— 型の中だけで自分を参照する class に別名を作らない（2 file）。境界の 23 形を tsgo の出力で固定した。(3) class を指す一時変数は、変換後に残っている参照から決める（tsgo `classfields.go:1690-1734, 1791-1795`）— 使われない `var _a;` を出さない（2 file）。期待値はすべて pin した tsgo の出力で、test に固定した。ローカル：clippy・fmt・`git diff --check`・生成物 rc 0、emitter・checker・compiler の test 2,678（失敗 0）、release build（`batch15b-sel-dc820a3a4`）、8 案件の出力同一、counter 同一、4 checker 対照 15,335 + 既知の 4、suite 全件（退行 0）、3 予算の出力 24 of 24、構文 fingerprint 161,676 行一致、preset の出力 16 of 16。出力をわざと変える PR なので、emit した file の門は「base と同じ」ではなく **tsgo との照合**にした：宣言を出す 5 構成 11,588 file で違い 0、VS Code 9,244 file で 1（下の保留の 1 file）、診断は同じ；base に対しては、hono・TypeScript が全 mode で同一、VS Code は noEmit の mode で同一、emit した file は 574 だけ違う（＝直した file）。
+
+**実 project での段階ごとの確認**（lane の export を待たず、patch が出るたびに main の上に build して tsgo と照合した；VS Code で tsgo と違う file 数）：comment の修正だけ（`m-fxp1`、20:53）575 → 5、+ 別名（`m-fx2`、21:32）→ 3、4 件全部（`m-fx4`、21:56）→ 0。ほかの 5 構成は常に 0、診断は常に同じ。
+
+**4 件目の保留**。4 件目（namespace・enum の member への置き換えを、印字の時点から TypeScript の変換の中へ移す；tsgo `runtimesyntax.go:928-947`）は、6 構成すべてを tsgo と一致させ、emitter の unit test も通った。しかし PR の検査（4 commit、22:00〜22:37）は conformance の 4 checker 対照で止まった：`conformance/jsx/tsxReactEmit6` が emit の一致を失った — `namespace M` の中の JSX で、後段の JSX 変換が作る factory の参照に `M.` が付かない（`React.createElement`；baseline は `M.React.createElement`）。置き換えを早い段に移したので、それより後に作られる参照を誰も置き換えなくなった。push の前に止まり、外には出ていない。PR は 3 commit で出し直し、4 件目は lane に戻した（この case と、後段の変換が namespace の member を参照する形を test に固定して作り直す）。残る 1 file（`vs/platform/agentHost/common/remoteAgentHostService.js`）は、条件式 2 か所で `:` の前の改行が残る — code の意味は同じ。
+
+**2 回目に止まったのは私の検査 script**。3 commit の検査は全部通ったあと、「emit oracle が VS Code の emit した file 以外で base と違う」で止まった（23:12）。差ではない：`emit-oracle/…/compare.py` は最初に違う manifest で assert して traceback を出すだけで、私の読み取りは JSON を前提にしていた（4 commit の回はここまで来なかったので、この読み取りは一度も動いたことがなかった）。通った検査はやり直さず、oracle の manifest を案件ごとに読む版で続きから再開した（`ceilings/job-train-batch15b-resume.sh`）— PR が開いたのは 23:19。
+
+**修正後の binary で数えた、tsgo との残りの差**。VS Code を `--declaration --declarationMap --sourceMap` 付きで出し（project 自身の設定は JavaScript だけ）、`batch15b-sel-dc820a3a4` と tsgo を file ごとに比べた（1 tree 36,973 file；`tools/emit-all-vs-tsgo.py`、lock と memory guard の下の job、tsgo の peak 10.6 GiB）：
+
+| 種類 | file 数 | tsgo と違う | 違いの形 |
+|---|---:|---:|---|
+| `.js` | 9,243 | 1 | 上の保留の 1 file |
+| `.d.ts` | 9,243 | 0 | |
+| `.d.ts.map` | 9,243 | 2,350 | decorator の付いた constructor parameter の名前の終わりに segment が 1 つ多い（指す `.d.ts` は同一） |
+| `.js.map` | 9,243 | 598 | うち 597 は指す `.js` が同一：別名に書き換えた参照（`X_1.member`）などに segment が多い（こちらだけにある segment 2,451、tsgo だけにあるものは 0） |
+
+結果 37 の「`.js.map` は 575 のほかに 25」は、JavaScript が既に一致していた file だけを数えていた：別名を持つ class の母集団全体（597）に map の差がある。ほかに、1 file の再現を修正後の binary で私が走らせ直して確認したもの：構文 error のある入力 `try { (() => { /* tail */` で末尾の comment を 2 回出す（tsgo は 1 回）；宣言の `import("…")` の指定子 2 件（lane decl-emit が tsgo の binary で確認）— `exports` の pattern の前後が対象の名前の中で重なる場合にその pattern を選ぶ（こちら `pkg/bad`、tsgo `pkg/good`）、非 ASCII の大文字小文字だけが違う symlink の経路で package 名ではなく物理 path を書く。`docs/compatibility.md` の Limitations を、残っているもの（上の全部）に書き直し、`docs/performance.md` の「出力は tsgo と byte 単位で同じ」を「診断は」に改めて既知の差へ link した（この記録と同じ commit）。map の 2 件・4 件目の作り直し・回復時の comment は 2 本目の PR（lane emit-fix）。
+
+**所有者の指示と build の停止**。20:5x、所有者：「とりあえずビルドが全部終わるまで完結させてください」— 計測の窓は、修正が main に入り、私の build の一覧が全部終わり、lane の build が動いていない状態になってから開く、と読んで伝えた。22:15 に `tools/close-lane-builds.sh` を始めた：lane の build の列の先頭に並び、空いた枠を取り続ける（走っている build は止めず、終わるのを待つ）；22:21 に全枠を保持。所有者：「久々に静かになりました」。計測の後は lane の build を同時に 1 本までにするかを尋ね、「そうしてください。」— `state/lane-build-slots` を 1 に固定し、memory の空きに応じて本数を増やす仕組みは止めた（私の build と合わせて最大 2 本）。列が閉じている間に 8 lane が build 待ちで session を終えた；計測の後に再開する。計測の session は、README の窓（main・tsgo・tsrs）と行の窓を続けて開き、一致 oracle は窓が採用した行だけに後から走らせる。
+
+**保留の間の台帳（時間を使わない測定、`ceilings/ledger-peak.sh`、9 round、何も止めない）**。main に対する 1 thread の命令数（最小の run）：`m-fe8`（parser の 7 行 + 同梱 library の text）VS Code −2.72 %（−2.40 G）、next −2.06 %、zod −2.45 %、effect −2.22 %、vue −1.92 %、ts −2.78 %、playwright −3.52 %、hono −3.62 %（lane が数えた行ごとの和の 2.2〜2.7 倍）、1 thread の peak −3〜−14 MiB；`m-ck10`（検査の 10 行）VS Code −1.78 %、next −2.18 %、zod −0.50 %、effect −1.69 %、vue −7.34 %（−747 M）、ts −2.97 %、playwright −0.94 %、hono −0.96 %、peak は同じ。台帳であり判定ではない：採否は session の窓の時間と peak で決める。lane stalls は、変更していない出荷 binary の観測で load の列を数えた（VS Code、検査より前の out-of-line の copy）：main（#1001 の後）は順序付き load の 4 scope で 555.6 MB・全体 1,400.4 MB、source ごとの load graph（`m-fe3b`）で 86.7 MB（目標 100 以下）・全体 826.3 MB。
+
+**教訓**：(1) 実 project 6 構成が tsgo と一致し unit test が通っても、変換の順序を変える修正は conformance を壊しうる — emitter と変換の行は、PR の検査の前に、該当する conformance の case を候補の binary で回す（lane の指示書にも書く）。(2) 出力をわざと変える PR の門は通常の門と別の読み取りになり、その読み取りを本番で初めて動かしてはいけない — 門ごとに、止まる場合と通る場合を先に 1 回ずつ通す。(3) 差を数えるときは隠れている母集団を言う：「JavaScript が違う file の map」は数に入れていなかったので、597 が 25 に見えていた。(4) 修正の lane には最初の見立て（私の仮説）を「仮説」として渡す — 別名の原因は私の見立てと違い、lane が tsgo の source を読んで構造ごと合わせた。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
