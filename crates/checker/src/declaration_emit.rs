@@ -2440,7 +2440,7 @@ impl<'a> CheckerState<'a> {
                 .create_big_int_literal(target, format!("{}n", pseudo.to_base10_string()))
                 .map_err(map_factory),
             LiteralValue::String(text) => factory
-                .create_string_literal_from_code_units(target, &text.to_utf16(), false)
+                .create_string_literal(target, text, false)
                 .map_err(map_factory),
             LiteralValue::Number(number) if number < 0.0 => {
                 let operand = factory

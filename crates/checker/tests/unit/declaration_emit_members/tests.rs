@@ -442,3 +442,72 @@ fn display_type_nodes_keep_the_symbols_of_their_emitted_identifiers() {
         },
     );
 }
+
+#[test]
+fn declaration_and_semantic_literals_keep_all_javascript_code_units() {
+    for units in [
+        vec![0xd800],
+        vec![0xdc00],
+        vec![0xd83d, 0xde00],
+        vec![0xfffd],
+        vec![0, 0xfffd, 0xd800, 0xd83d, 0xde00, 0xdc00, 0x78],
+    ] {
+        let escaped = units
+            .iter()
+            .map(|unit| format!("\\u{unit:04x}"))
+            .collect::<String>();
+        let source = format!("export const value = \"{escaped}\";");
+        with_member_state(&source, |checker, arena, target| {
+            let declaration = first_variable_declaration(checker, 0);
+            let symbol = checker
+                .get_symbol_of_declaration(declaration)
+                .expect("variable");
+            let ty = checker.get_type_of_symbol(symbol).expect("literal type");
+            let constant = checker
+                .emit_create_literal_const_value(arena, target, declaration, &mut NoopTracker)
+                .expect("declaration literal")
+                .expect("constant");
+            assert_eq!(
+                arena
+                    .literal_value(constant)
+                    .expect("constant value")
+                    .expect("string")
+                    .to_utf16(),
+                units
+            );
+            let node = crate::node_builder::with_context(
+                checker,
+                arena,
+                target,
+                Some(declaration),
+                Some(EmitNodeBuilderFlags::NO_TRUNCATION),
+                None,
+                None,
+                None,
+                None,
+                |checker, arena, target, context| {
+                    crate::node_builder::type_to_type_node_helper(
+                        checker, arena, target, ty, context,
+                    )
+                },
+                None,
+            )
+            .expect("semantic type")
+            .flatten()
+            .expect("literal type node");
+            let NodeData::LiteralType(literal) = arena.node(node).expect("type node").data() else {
+                panic!("string type must use a literal type node");
+            };
+            let literal =
+                tsc_emitter::TransformNode::new(node.source(), literal.literal.expect("literal"));
+            assert_eq!(
+                arena
+                    .literal_value(literal)
+                    .expect("type value")
+                    .expect("string")
+                    .to_utf16(),
+                units
+            );
+        });
+    }
+}
