@@ -16,8 +16,7 @@ fn function_type_annotations_construct_generic_signatures() {
                 .expect("generic signature");
             let type_parameters = state
                 .signature_of(signature)
-                .type_parameters
-                .clone()
+                .cloned_type_parameters()
                 .expect("typeParameters");
             assert_eq!(type_parameters.len(), 1);
             let constraint = state

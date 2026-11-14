@@ -3620,16 +3620,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             source_type_parameters.extend_from_slice(
                 this.st
                     .signature_of(source)
-                    .type_parameters
-                    .as_deref()
+                    .type_parameters()
                     .unwrap_or_default(),
             );
             this.with_relation_type_list(|this, target_type_parameters| {
                 target_type_parameters.extend_from_slice(
                     this.st
                         .signature_of(target)
-                        .type_parameters
-                        .as_deref()
+                        .type_parameters()
                         .unwrap_or_default(),
                 );
                 if source_type_parameters.len() != target_type_parameters.len() {
@@ -3873,9 +3871,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         // (interned same-signature at entry, cloneSignature's shared
         // array, fresh-array lifts naming the same parameter TypeIds —
         // the 5.2e argument, amended 7.5d).
-        if self.st.signature_of(source).type_parameters.is_some()
-            && self.st.signature_of(source).type_parameters
-                != self.st.signature_of(target).type_parameters
+        if self.st.signature_of(source).has_type_parameters()
+            && self.st.signature_of(source).type_parameters()
+                != self.st.signature_of(target).type_parameters()
         {
             target = self.st.get_canonical_signature(target)?;
             let frame = self.loan_frame(intersection_state);
@@ -6249,7 +6247,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a83648d039471a61a67a19bbf1a35c6a4bee49544839d279d7194fcf8a6ad7a4
     /// tsc-span: _tsc.js:17433-17435
     pub fn get_check_flags(&self, symbol: SymbolId) -> CheckFlags {
-        self.links.read_symbol(symbol, |links| links.check_flags)
+        self.links.read_symbol_check_flags(symbol)
     }
 
     /// tsc-port: isReadonlySymbol @6.0.3
@@ -6912,28 +6910,23 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn clone_signature(&mut self, signature: SignatureId) -> SignatureId {
         // One copy of the source's lists (the clone owns them), not two.
         let source = self.signature_of(signature);
-        let result = crate::state::Signature {
-            declaration: source.declaration,
-            flags: tsc_types::SignatureFlags::from_bits(
+        let result = {
+            let mut signature_data = crate::state::Signature::new();
+            signature_data.declaration = source.declaration;
+            signature_data.flags = tsc_types::SignatureFlags::from_bits(
                 source.flags.bits() & tsc_types::SignatureFlags::PROPAGATING_FLAGS.bits(),
-            ),
-            type_parameters: source.type_parameters.clone(),
-            parameters: source.parameters.clone(),
-            this_parameter: source.this_parameter,
-            min_argument_count: source.min_argument_count,
-            resolved_return_type: crate::links::LinkSlot::Vacant,
-            from_method: source.from_method,
-            target: source.target,
-            mapper: source.mapper,
-            erased_signature_cache: None,
-            canonical_signature_cache: None,
-            base_signature_cache: None,
-            composite_kind: source.composite_kind,
-            composite_signatures: source.composite_signatures.clone(),
-            optional_call_signature_cache: (None, None),
-            isolated_signature_kind: source.isolated_signature_kind,
-            isolated_signature_type: None,
-            // Clones of the failure stub stay stub-derived.
+            );
+            signature_data.set_type_parameters(source.cloned_type_parameters());
+            signature_data.set_parameters(source.parameters.clone());
+            signature_data.this_parameter = source.this_parameter;
+            signature_data.set_min_argument_count(source.min_argument_count());
+            signature_data.set_from_method(source.is_from_method());
+            signature_data.target = source.target;
+            signature_data.mapper = source.mapper;
+            signature_data.set_composite_kind(source.composite_kind());
+            signature_data.set_composite_signatures(source.cloned_composite_signatures());
+            signature_data.set_isolated_signature_kind(source.isolated_signature_kind());
+            signature_data
         };
         self.alloc_signature(result)
     }
@@ -6948,8 +6941,8 @@ impl<'a> CheckerState<'a> {
     ) -> SignatureId {
         let result = self.clone_signature(signature);
         let data = self.signature_mut(result);
-        data.composite_signatures = Some(union_signatures.into_boxed_slice());
-        data.composite_kind = Some(TypeFlags::UNION);
+        data.set_composite_signatures(Some(union_signatures.into_boxed_slice()));
+        data.set_composite_kind(Some(TypeFlags::UNION));
         data.target = None;
         data.mapper = None;
         result
@@ -7078,7 +7071,7 @@ impl<'a> CheckerState<'a> {
         signature: SignatureId,
         list_index: usize,
     ) -> CheckResult<Option<Vec<SignatureId>>> {
-        if self.signature_of(signature).type_parameters.is_some() {
+        if self.signature_of(signature).has_type_parameters() {
             // 58008-58023: generic signatures match in the FIRST list
             // only, and only via exact matches everywhere.
             if list_index > 0 {
@@ -7182,12 +7175,10 @@ impl<'a> CheckerState<'a> {
                     continue;
                 }
                 let signature = list[0];
-                let incompatible_generics = self.signature_of(signature).type_parameters.is_some()
+                let incompatible_generics = self.signature_of(signature).has_type_parameters()
                     && results.as_ref().is_some_and(|results| {
                         results.iter().any(|&s| {
-                            self.signatures[s.index() as usize]
-                                .type_parameters
-                                .is_some()
+                            self.signatures[s.index() as usize].has_type_parameters()
                                 && !self.compare_type_parameters_identical_ok(signature, s)
                         })
                     });
@@ -7234,13 +7225,11 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<bool> {
         let source_params = self
             .signature_of(source)
-            .type_parameters
-            .clone()
+            .cloned_type_parameters()
             .unwrap_or_default();
         let target_params = self
             .signature_of(target)
-            .type_parameters
-            .clone()
+            .cloned_type_parameters()
             .unwrap_or_default();
         if source_params.len() != target_params.len() {
             return Ok(false);
@@ -7587,10 +7576,9 @@ impl<'a> CheckerState<'a> {
         let left_data = self.signature_of(left).without_caches();
         let right_data = self.signature_of(right).without_caches();
         let type_params = left_data
-            .type_parameters
-            .clone()
-            .or_else(|| right_data.type_parameters.clone());
-        let param_mapper = match (&left_data.type_parameters, &right_data.type_parameters) {
+            .cloned_type_parameters()
+            .or_else(|| right_data.cloned_type_parameters());
+        let param_mapper = match (&left_data.type_parameters(), &right_data.type_parameters()) {
             (Some(left_params), Some(right_params)) => {
                 Some(self.create_type_mapper(right_params, Some(left_params)))
             }
@@ -7618,11 +7606,11 @@ impl<'a> CheckerState<'a> {
             param_mapper,
         )?;
         let min_arg_count = left_data
-            .min_argument_count
-            .max(right_data.min_argument_count);
+            .min_argument_count()
+            .max(right_data.min_argument_count());
         let mut composite_signatures = match (
-            left_data.composite_kind,
-            left_data.composite_signatures.clone(),
+            left_data.composite_kind(),
+            left_data.cloned_composite_signatures(),
         ) {
             (Some(kind), Some(signatures)) if !kind.intersects(TypeFlags::INTERSECTION) => {
                 signatures.into_vec()
@@ -7632,9 +7620,9 @@ impl<'a> CheckerState<'a> {
         composite_signatures.push(right);
         let mapper = if let Some(param_mapper) = param_mapper {
             match (
-                left_data.composite_kind,
+                left_data.composite_kind(),
                 left_data.mapper,
-                &left_data.composite_signatures,
+                &left_data.composite_signatures(),
             ) {
                 (Some(kind), Some(left_mapper), Some(_))
                     if !kind.intersects(TypeFlags::INTERSECTION) =>
@@ -7645,9 +7633,9 @@ impl<'a> CheckerState<'a> {
             }
         } else {
             match (
-                left_data.composite_kind,
+                left_data.composite_kind(),
                 left_data.mapper,
-                &left_data.composite_signatures,
+                &left_data.composite_signatures(),
             ) {
                 (Some(kind), Some(left_mapper), Some(_))
                     if !kind.intersects(TypeFlags::INTERSECTION) =>
@@ -7657,25 +7645,20 @@ impl<'a> CheckerState<'a> {
                 _ => None,
             }
         };
-        let result = crate::state::Signature {
-            declaration: left_data.declaration,
-            flags,
-            type_parameters: type_params,
-            parameters: params.into_boxed_slice(),
-            this_parameter: this_param,
-            min_argument_count: min_arg_count,
-            resolved_return_type: crate::links::LinkSlot::Vacant,
-            from_method: left_data.from_method,
-            target: None,
-            mapper,
-            erased_signature_cache: None,
-            canonical_signature_cache: None,
-            base_signature_cache: None,
-            composite_kind: Some(TypeFlags::UNION),
-            composite_signatures: Some(composite_signatures.into_boxed_slice()),
-            optional_call_signature_cache: (None, None),
-            isolated_signature_kind: left_data.isolated_signature_kind,
-            isolated_signature_type: None,
+        let result = {
+            let mut signature_data = crate::state::Signature::new();
+            signature_data.declaration = left_data.declaration;
+            signature_data.flags = flags;
+            signature_data.set_type_parameters(type_params);
+            signature_data.set_parameters(params.into_boxed_slice());
+            signature_data.this_parameter = this_param;
+            signature_data.set_min_argument_count(min_arg_count);
+            signature_data.set_from_method(left_data.is_from_method());
+            signature_data.mapper = mapper;
+            signature_data.set_composite_kind(Some(TypeFlags::UNION));
+            signature_data.set_composite_signatures(Some(composite_signatures.into_boxed_slice()));
+            signature_data.set_isolated_signature_kind(left_data.isolated_signature_kind());
+            signature_data
         };
         Ok(self.alloc_signature(result))
     }
@@ -7848,8 +7831,7 @@ impl<'a> CheckerState<'a> {
                         let return_type = self.get_return_type_of_signature(s)?;
                         let mixed =
                             self.include_mixin_type(return_type, &types, &mixin_flags, i)?;
-                        self.signature_mut(clone).resolved_return_type =
-                            crate::links::LinkSlot::Resolved(mixed);
+                        self.signature_mut(clone).resolved_return_type = Some(mixed);
                         mapped.push(clone);
                     }
                     signatures = mapped.into();
@@ -7922,7 +7904,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let s = self.signature_of(signatures[0]).without_caches();
-        if s.type_parameters.is_none()
+        if s.has_no_type_parameters()
             && s.parameters.len() == 1
             && s.flags
                 .intersects(tsc_types::SignatureFlags::HAS_REST_PARAMETER)
@@ -8216,7 +8198,7 @@ impl<'a> CheckerState<'a> {
         // signature comparison), and in tsgo's order: the this-parameter's
         // type is resolved only for a signature without type parameters.
         let data = self.signature_of(signature);
-        if data.type_parameters.is_some() {
+        if data.has_type_parameters() {
             return Ok(false);
         }
         let (this_parameter, flags) = (data.this_parameter, data.flags);
@@ -8427,7 +8409,7 @@ impl<'a> CheckerState<'a> {
             {
                 return Ok(0);
             }
-            None => signature_data.min_argument_count as usize,
+            None => signature_data.min_argument_count() as usize,
         };
         let mut i = min_argument_count;
         while i > 0 {
@@ -8469,7 +8451,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.signature_of(signature).parameters.len() - 1 + required_count);
             }
         }
-        Ok(self.signature_of(signature).min_argument_count as usize)
+        Ok(self.signature_of(signature).min_argument_count() as usize)
     }
 
     /// tsc-port: hasEffectiveRestParameter @6.0.3

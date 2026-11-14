@@ -461,6 +461,13 @@ struct EntryRecord {
 }
 
 impl crate::ParallelSourceReader for FsCompilerHost {
+    fn read_source_contents_js(
+        &self,
+        path: JsStr<'_>,
+    ) -> Result<Option<crate::SourceRead>, HostError> {
+        self.read_file_contents_js(path)
+    }
+
     fn read_source_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
         CompilerHost::read_file_js(self, path)
     }
@@ -479,6 +486,38 @@ impl CompilerHost for FsCompilerHost {
         let native = crate::js_path::filesystem_path(path, HostOperation::ReadFile)?;
         self.read_file(&native)
             .map_err(|error| retain_query_path(error, path, &native))
+    }
+
+    fn read_file_contents_js(
+        &self,
+        path: JsStr<'_>,
+    ) -> Result<Option<crate::SourceRead>, HostError> {
+        let native = crate::js_path::filesystem_path(path, HostOperation::ReadFile)?;
+        let read = || {
+            validate_input_path(&native, HostOperation::ReadFile)?;
+            if !matches!(
+                self.observations
+                    .presence(&native, HostOperation::ReadFile)?,
+                Presence::File { .. }
+            ) {
+                return Ok(None);
+            }
+            match tsc_diagnostics::read_text_file(&native) {
+                Ok(tsc_diagnostics::TextRead::Text(text)) => {
+                    Ok(Some(crate::SourceRead::Text(text)))
+                }
+                Ok(tsc_diagnostics::TextRead::Bytes(bytes)) => {
+                    Ok(Some(crate::SourceRead::Bytes(bytes)))
+                }
+                Err(error) if is_absence(&error) => Ok(None),
+                Err(error) => Err(map_io_error(
+                    error,
+                    HostOperation::ReadFile,
+                    Some(native.to_path_buf()),
+                )),
+            }
+        };
+        read().map_err(|error| retain_query_path(error, path, &native))
     }
 
     fn file_size_hint_js(&self, path: JsStr<'_>) -> Result<Option<u64>, HostError> {

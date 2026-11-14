@@ -93,10 +93,58 @@ impl Paths {
 }
 
 /// A file read through a snapshot (tsgo `cachedFile`).
+#[derive(Clone, Debug)]
+pub(crate) enum FileContent {
+    Owned(Arc<[u8]>),
+    Shared(tsc_diagnostics::SharedText),
+}
+
+impl FileContent {
+    fn source_read(&self) -> tsc_host::SourceRead {
+        match self {
+            Self::Owned(bytes) => tsc_host::SourceRead::Bytes(bytes.to_vec()),
+            Self::Shared(text) => tsc_host::SourceRead::Text(text.clone()),
+        }
+    }
+}
+impl std::ops::Deref for FileContent {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        match self {
+            Self::Owned(bytes) => bytes,
+            Self::Shared(text) => text.as_bytes(),
+        }
+    }
+}
+impl AsRef<[u8]> for FileContent {
+    fn as_ref(&self) -> &[u8] {
+        self
+    }
+}
+impl From<tsc_host::SourceRead> for FileContent {
+    fn from(contents: tsc_host::SourceRead) -> Self {
+        match contents {
+            tsc_host::SourceRead::Bytes(bytes) => Self::Owned(bytes.into()),
+            tsc_host::SourceRead::Text(text) => Self::Shared(text),
+        }
+    }
+}
+impl From<Vec<u8>> for FileContent {
+    fn from(bytes: Vec<u8>) -> Self {
+        Self::Owned(bytes.into())
+    }
+}
+impl From<Arc<[u8]>> for FileContent {
+    fn from(bytes: Arc<[u8]>) -> Self {
+        Self::Owned(bytes)
+    }
+}
+
+/// A file read through a snapshot (tsgo `cachedFile`).
 #[derive(Debug)]
 pub(crate) struct CachedFile {
     pub(crate) file_name: String,
-    pub(crate) content: Arc<[u8]>,
+    pub(crate) content: FileContent,
     /// The file may have changed: read it again before use (tsgo
     /// `needsReload`).
     pub(crate) needs_reload: bool,
@@ -110,7 +158,7 @@ pub(crate) struct CachedFile {
 
 impl CachedFile {
     /// The same file with `content`, read again.
-    fn reloaded(&self, content: Arc<[u8]>) -> Self {
+    fn reloaded(&self, content: FileContent) -> Self {
         Self {
             file_name: self.file_name.clone(),
             content,
@@ -123,6 +171,9 @@ impl CachedFile {
     /// tsgo `LSPLineMap`: the line starts of the file's text.
     pub(crate) fn line_map(&self) -> Arc<LspLineMap> {
         Arc::clone(self.line_map.get_or_init(|| {
+            if let FileContent::Shared(text) = &self.content {
+                return Arc::new(LspLineMap::new(text.as_str()));
+            }
             let text = tsc_program::decode_host_text(self.content.to_vec())
                 .unwrap_or_else(|_| String::from_utf8_lossy(&self.content).into_owned());
             Arc::new(LspLineMap::new(&text))
@@ -182,7 +233,7 @@ impl SnapshotFs {
             .unwrap_or_else(PoisonError::into_inner)
             .entry(path)
             .or_insert_with(|| {
-                self.base.read(file_name).ok().map(|content| {
+                self.base.read_contents(file_name).ok().map(|content| {
                     Arc::new(CachedFile {
                         file_name: file_name.to_owned(),
                         content: content.into(),
@@ -430,7 +481,7 @@ impl SnapshotFsBuilder {
                 Some(entry) => entry.file_name.clone(),
                 None => file_name.to_owned(),
             };
-            match self.base.read(&read_name) {
+            match self.base.read_contents(&read_name) {
                 Ok(content) => {
                     let entry = Arc::new(match &cached {
                         Some(entry) => entry.reloaded(content.into()),
@@ -557,7 +608,7 @@ impl SnapshotFsBuilder {
                     let entry = if marked(path) {
                         Arc::new(CachedFile {
                             needs_reload: true,
-                            ..entry.reloaded(Arc::clone(&entry.content))
+                            ..entry.reloaded(entry.content.clone())
                         })
                     } else {
                         Arc::clone(entry)
@@ -640,10 +691,10 @@ impl SnapshotFsBuilder {
                 let Some(entry) = files.get(&path) else {
                     return true;
                 };
-                match base.read(&entry.file_name) {
-                    Ok(content) if *content == *entry.content => {
+                match base.read_contents(&entry.file_name) {
+                    Ok(content) if content.as_bytes() == &*entry.content => {
                         if entry.needs_reload {
-                            let entry = Arc::new(entry.reloaded(Arc::clone(&entry.content)));
+                            let entry = Arc::new(entry.reloaded(entry.content.clone()));
                             Arc::make_mut(files).insert(path, entry);
                         }
                         false
@@ -720,7 +771,7 @@ impl SnapshotFsBuilder {
     /// tsgo `getCachedFile` with `forceReload`: the file read from the base
     /// and cached, or none (and no entry) when it is gone.
     fn reload(&self, file_name: &str, path: &str) -> Option<Arc<CachedFile>> {
-        self.with_files(|files| match self.base.read(file_name) {
+        self.with_files(|files| match self.base.read_contents(file_name) {
             Ok(content) => {
                 let entry = Arc::new(match files.get(path) {
                     Some(entry) => entry.reloaded(content.into()),
@@ -794,6 +845,12 @@ impl FileSystem for SnapshotView {
     fn read(&self, path: &str) -> io::Result<Vec<u8>> {
         self.fs
             .read(path)
+            .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))
+    }
+    fn read_contents(&self, path: &str) -> io::Result<tsc_host::SourceRead> {
+        self.fs
+            .file(path)
+            .map(|file| file.content.source_read())
             .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))
     }
 
@@ -948,6 +1005,18 @@ impl FileSystem for SourceFs<'_> {
         self.builder
             .get(path)
             .map(|file| file.content.to_vec())
+            .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))
+    }
+    fn read_contents(&self, path: &str) -> io::Result<tsc_host::SourceRead> {
+        self.track(|seen| {
+            seen.files.insert(
+                self.builder.paths.to_path(path),
+                self.builder.paths.absolute(path),
+            );
+        });
+        self.builder
+            .get(path)
+            .map(|file| file.content.source_read())
             .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))
     }
 

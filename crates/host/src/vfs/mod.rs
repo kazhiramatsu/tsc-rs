@@ -37,6 +37,12 @@ pub trait FileSystem: Send + Sync {
     /// The contents of the file at `path`.
     fn read(&self, path: &str) -> io::Result<Vec<u8>>;
 
+    /// The same bytes, retaining shared UTF-8 text when no BOM/decoding
+    /// transformation is needed. The compatibility read still returns a Vec.
+    fn read_contents(&self, path: &str) -> io::Result<crate::SourceRead> {
+        self.read(path).map(crate::SourceRead::Bytes)
+    }
+
     /// What `path` names.
     fn metadata(&self, path: &str) -> io::Result<Metadata>;
 
@@ -138,6 +144,9 @@ macro_rules! delegate_file_system {
             }
             fn read(&self, path: &str) -> io::Result<Vec<u8>> {
                 (**self).read(path)
+            }
+            fn read_contents(&self, path: &str) -> io::Result<crate::SourceRead> {
+                (**self).read_contents(path)
             }
             fn metadata(&self, path: &str) -> io::Result<Metadata> {
                 (**self).metadata(path)

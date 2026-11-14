@@ -97,90 +97,353 @@ pub enum SignatureKind {
 
 tsc_types::id_type!(MembersId);
 
-/// tsc Signature (core-interfaces §4). M4 5.2 adds the instantiation
-/// surface (typeParameters/target/mapper + the instantiations and
-/// erased caches); composite signatures arrive with 5.3 union members.
-#[derive(Clone, Debug)]
+/// Common signature fields and both owned list headers stay together.
+/// Computed memo fields share an optional cold owner.
+#[repr(C)]
 pub struct Signature {
-    /// None for synthesized signatures (getDefaultConstructSignatures'
-    /// base-less arm 57967, tsc unknownSignature).
+    pub parameters: tsc_types::ThinBoxSlice<SymbolId>,
+    type_parameters: tsc_types::OptionalBoxSlice<TypeId>,
+    cold: tsc_types::PackedBox<SignatureMemo>,
     pub declaration: Option<NodeId>,
     pub flags: SignatureFlags,
-    /// tsc signature.typeParameters — generic signature construction
-    /// from declarations lands with the 5.2 follow-up; instantiateSignature
-    /// writes the fresh clones here (63413-63419).
-    pub type_parameters: Option<Box<[TypeId]>>,
-    /// Parameter symbols in declaration order, `this` excluded.
-    pub parameters: Box<[SymbolId]>,
     pub this_parameter: Option<SymbolId>,
-    pub min_argument_count: u32,
-    /// Lazy return type with tsc's resolving sentinel
-    /// (getReturnTypeOfSignature 59810 / pushTypeResolution).
-    pub resolved_return_type: LinkSlot<TypeId>,
-    /// strictFunctionTypes variance keys on the DECLARATION kind
-    /// (method bivariance — core-interfaces §4 from_method).
-    pub from_method: bool,
-    /// tsc signature.target (instantiateSignature 63433).
+    pub resolved_return_type: Option<TypeId>,
     pub target: Option<SignatureId>,
-    /// tsc signature.mapper (63434).
     pub mapper: Option<MapperId>,
-    /// tsc signature.erasedSignatureCache (getErasedSignature 59927).
-    pub erased_signature_cache: Option<SignatureId>,
-    /// tsc signature.canonicalSignatureCache (getCanonicalSignature
-    /// 59937).
-    pub canonical_signature_cache: Option<SignatureId>,
-    /// tsc signature.baseSignatureCache (getBaseSignature 59949).
-    pub base_signature_cache: Option<SignatureId>,
-    /// tsc signature.compositeKind (createUnionSignature 57890 /
-    /// combineSignaturesOfUnionMembers 58205 / intersection mixin
-    /// clones): TypeFlags::UNION or ::INTERSECTION.
-    pub composite_kind: Option<TypeFlags>,
-    /// tsc signature.compositeSignatures (58206).
-    pub composite_signatures: Option<Box<[SignatureId]>>,
-    /// tsc signature.optionalCallSignatureCache (getOptionalCallSignature
-    /// 57899-57903): the (inner, outer) call-chain clone pair.
-    pub optional_call_signature_cache: (Option<SignatureId>, Option<SignatureId>),
-    /// Rust-only flavor for signatures whose display-only declaration
-    /// is elided. None derives the flavor from `declaration` exactly as
-    /// tsc does; synthetic call/construct factories set it explicitly
-    /// so cache contents do not depend on which consumer runs first.
-    pub isolated_signature_kind: Option<SignatureKind>,
-    /// tsc signature.isolatedSignatureType (getOrCreateTypeFromSignature
-    /// 60287): the single-signature anonymous object type memo.
-    pub isolated_signature_type: Option<TypeId>,
 }
 
+#[derive(Debug, Default)]
+struct SignatureMemo {
+    composite_kind: Option<TypeFlags>,
+    composite_signatures: tsc_types::OptionalBoxSlice<SignatureId>,
+    predicate: Option<Box<crate::narrow::TypePredicate>>,
+    optional_call_signature_cache: (Option<SignatureId>, Option<SignatureId>),
+    erased_signature_cache: Option<SignatureId>,
+    canonical_signature_cache: Option<SignatureId>,
+    base_signature_cache: Option<SignatureId>,
+    isolated_signature_type: Option<TypeId>,
+}
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<Signature>() == 120);
-
-impl Signature {
-    /// A copy of the signature without its lazily filled caches (the
-    /// resolved return type and the erased, canonical, base, optional-call
-    /// and isolated-type memos): what a clone, an instantiation or a
-    /// combination reads from its source. The instantiation cache is keyed
-    /// by signature identity in `CheckerState::signature_instantiations`, so
-    /// a copy starts without one.
-    pub(crate) fn without_caches(&self) -> Signature {
-        Signature {
-            declaration: self.declaration,
-            flags: self.flags,
-            type_parameters: self.type_parameters.clone(),
-            parameters: self.parameters.clone(),
-            this_parameter: self.this_parameter,
-            min_argument_count: self.min_argument_count,
-            resolved_return_type: LinkSlot::Vacant,
-            from_method: self.from_method,
-            target: self.target,
-            mapper: self.mapper,
-            erased_signature_cache: None,
-            canonical_signature_cache: None,
-            base_signature_cache: None,
+const _: () = {
+    assert!(std::mem::size_of::<Signature>() == 48);
+    assert!(std::mem::size_of::<SignatureMemo>() == 48);
+};
+impl Clone for SignatureMemo {
+    fn clone(&self) -> Self {
+        Self {
             composite_kind: self.composite_kind,
             composite_signatures: self.composite_signatures.clone(),
-            optional_call_signature_cache: (None, None),
-            isolated_signature_kind: self.isolated_signature_kind,
-            isolated_signature_type: None,
+            predicate: None,
+            optional_call_signature_cache: self.optional_call_signature_cache,
+            erased_signature_cache: self.erased_signature_cache,
+            canonical_signature_cache: self.canonical_signature_cache,
+            base_signature_cache: self.base_signature_cache,
+            isolated_signature_type: self.isolated_signature_type,
         }
+    }
+}
+impl std::fmt::Debug for Signature {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Signature")
+            .field("declaration", &self.declaration)
+            .field("flags", &self.flags)
+            .field("type_parameters", &self.type_parameters())
+            .field("parameters", &self.parameters)
+            .field("this_parameter", &self.this_parameter)
+            .field("min_argument_count", &self.min_argument_count())
+            .field(
+                "resolved_return_type",
+                &self
+                    .resolved_return_type
+                    .map_or(LinkSlot::Vacant, LinkSlot::Resolved),
+            )
+            .field("from_method", &self.is_from_method())
+            .field("target", &self.target)
+            .field("mapper", &self.mapper)
+            .field("erased_signature_cache", &self.erased_signature_cache())
+            .field(
+                "canonical_signature_cache",
+                &self.canonical_signature_cache(),
+            )
+            .field("base_signature_cache", &self.base_signature_cache())
+            .field("composite_kind", &self.composite_kind())
+            .field("composite_signatures", &self.composite_signatures())
+            .field(
+                "optional_call_signature_cache",
+                &self.optional_call_signature_cache(),
+            )
+            .field("isolated_signature_kind", &self.isolated_signature_kind())
+            .field("isolated_signature_type", &self.isolated_signature_type())
+            .finish()
+    }
+}
+impl Default for Signature {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            parameters: Default::default(),
+            type_parameters: Default::default(),
+            cold: Default::default(),
+            declaration: None,
+            flags: SignatureFlags::NONE,
+            this_parameter: None,
+            resolved_return_type: None,
+            target: None,
+            mapper: None,
+        }
+    }
+}
+impl Clone for Signature {
+    fn clone(&self) -> Self {
+        let mut result = Self {
+            parameters: self.parameters.clone(),
+            type_parameters: self.type_parameters.clone(),
+            cold: self.cold.clone(),
+            declaration: self.declaration,
+            flags: self.flags,
+            this_parameter: self.this_parameter,
+            resolved_return_type: self.resolved_return_type,
+            target: self.target,
+            mapper: self.mapper,
+        };
+        // The predicate memo belonged to the original numeric identity.
+        result.clear_predicate();
+        result
+    }
+}
+impl Signature {
+    #[inline]
+    pub fn new() -> Self {
+        Self::default()
+    }
+    #[inline]
+    fn memo(&self) -> Option<&SignatureMemo> {
+        self.cold.get()
+    }
+    fn memo_mut(&mut self) -> &mut SignatureMemo {
+        self.cold.ensure_with(SignatureMemo::default)
+    }
+    fn prune_memo(&mut self) {
+        if self.memo().is_some_and(|m| {
+            m.composite_kind.is_none()
+                && m.composite_signatures.is_none()
+                && m.predicate.is_none()
+                && m.optional_call_signature_cache == (None, None)
+                && m.erased_signature_cache.is_none()
+                && m.canonical_signature_cache.is_none()
+                && m.base_signature_cache.is_none()
+                && m.isolated_signature_type.is_none()
+        }) {
+            self.cold.clear();
+        }
+    }
+    #[inline]
+    pub fn set_parameters(&mut self, parameters: impl Into<tsc_types::ThinBoxSlice<SymbolId>>) {
+        self.parameters = parameters.into();
+    }
+    #[inline]
+    pub fn min_argument_count(&self) -> u32 {
+        self.cold.count()
+    }
+    #[inline]
+    pub fn set_min_argument_count(&mut self, value: u32) {
+        self.cold.set_count(value);
+    }
+    #[inline]
+    pub fn is_from_method(&self) -> bool {
+        self.cold.tag(0)
+    }
+    #[inline]
+    pub fn set_from_method(&mut self, value: bool) {
+        self.cold.set_tag(0, value);
+    }
+    #[inline]
+    pub fn isolated_signature_kind(&self) -> Option<SignatureKind> {
+        match self.cold.kind() {
+            0 => None,
+            1 => Some(SignatureKind::Call),
+            2 => Some(SignatureKind::Construct),
+            _ => unreachable!(),
+        }
+    }
+    #[inline]
+    pub fn set_isolated_signature_kind(&mut self, value: Option<SignatureKind>) {
+        self.cold.set_kind(match value {
+            None => 0,
+            Some(SignatureKind::Call) => 1,
+            Some(SignatureKind::Construct) => 2,
+        });
+    }
+    #[inline]
+    pub fn has_type_parameters(&self) -> bool {
+        self.type_parameters.is_some()
+    }
+    #[inline]
+    pub fn has_no_type_parameters(&self) -> bool {
+        self.type_parameters.is_none()
+    }
+    #[inline]
+    pub fn type_parameters(&self) -> Option<&[TypeId]> {
+        self.type_parameters.as_deref()
+    }
+    pub fn cloned_type_parameters(&self) -> Option<Box<[TypeId]>> {
+        self.type_parameters()
+            .map(|s| s.to_vec().into_boxed_slice())
+    }
+    pub fn take_type_parameters(&mut self) -> Option<Box<[TypeId]>> {
+        self.type_parameters.take()
+    }
+    pub fn set_type_parameters(&mut self, value: Option<Box<[TypeId]>>) {
+        self.type_parameters.set(value);
+    }
+    #[inline]
+    pub fn composite_signatures(&self) -> Option<&[SignatureId]> {
+        if !self.cold.tag(2) {
+            return None;
+        }
+        self.memo().and_then(|m| m.composite_signatures.as_deref())
+    }
+    pub fn cloned_composite_signatures(&self) -> Option<Box<[SignatureId]>> {
+        self.composite_signatures()
+            .map(|s| s.to_vec().into_boxed_slice())
+    }
+    pub fn set_composite_signatures(&mut self, value: Option<Box<[SignatureId]>>) {
+        if value.is_some() || self.memo().is_some() {
+            self.memo_mut().composite_signatures.set(value);
+            self.refresh_composite_presence();
+            self.prune_memo();
+        }
+    }
+    fn refresh_composite_presence(&mut self) {
+        let present = self
+            .memo()
+            .is_some_and(|m| m.composite_kind.is_some() || m.composite_signatures.is_some());
+        self.cold.set_tag(2, present);
+    }
+    #[inline]
+    pub fn composite_kind(&self) -> Option<TypeFlags> {
+        if !self.cold.tag(2) {
+            return None;
+        }
+        self.memo().and_then(|m| m.composite_kind)
+    }
+    pub fn set_composite_kind(&mut self, value: Option<TypeFlags>) {
+        if value.is_some() || self.memo().is_some() {
+            self.memo_mut().composite_kind = value;
+            self.refresh_composite_presence();
+            self.prune_memo();
+        }
+    }
+    #[inline]
+    pub fn erased_signature_cache(&self) -> Option<SignatureId> {
+        self.memo().and_then(|m| m.erased_signature_cache)
+    }
+    pub fn set_erased_signature_cache(&mut self, value: Option<SignatureId>) {
+        if value.is_some() || self.memo().is_some() {
+            self.memo_mut().erased_signature_cache = value;
+            self.prune_memo();
+        }
+    }
+    #[inline]
+    pub fn canonical_signature_cache(&self) -> Option<SignatureId> {
+        self.memo().and_then(|m| m.canonical_signature_cache)
+    }
+    pub fn set_canonical_signature_cache(&mut self, value: Option<SignatureId>) {
+        if value.is_some() || self.memo().is_some() {
+            self.memo_mut().canonical_signature_cache = value;
+            self.prune_memo();
+        }
+    }
+    #[inline]
+    pub fn base_signature_cache(&self) -> Option<SignatureId> {
+        self.memo().and_then(|m| m.base_signature_cache)
+    }
+    pub fn set_base_signature_cache(&mut self, value: Option<SignatureId>) {
+        if value.is_some() || self.memo().is_some() {
+            self.memo_mut().base_signature_cache = value;
+            self.prune_memo();
+        }
+    }
+    #[inline]
+    pub fn isolated_signature_type(&self) -> Option<TypeId> {
+        self.memo().and_then(|m| m.isolated_signature_type)
+    }
+    pub fn set_isolated_signature_type(&mut self, value: Option<TypeId>) {
+        if value.is_some() || self.memo().is_some() {
+            self.memo_mut().isolated_signature_type = value;
+            self.prune_memo();
+        }
+    }
+    #[inline]
+    pub fn optional_call_signature_cache(&self) -> (Option<SignatureId>, Option<SignatureId>) {
+        self.memo()
+            .map_or((None, None), |m| m.optional_call_signature_cache)
+    }
+    pub fn optional_call_signature_cache_mut(
+        &mut self,
+    ) -> &mut (Option<SignatureId>, Option<SignatureId>) {
+        &mut self.memo_mut().optional_call_signature_cache
+    }
+    pub fn set_optional_call_signature_cache(
+        &mut self,
+        value: (Option<SignatureId>, Option<SignatureId>),
+    ) {
+        if value != (None, None) || self.memo().is_some() {
+            self.memo_mut().optional_call_signature_cache = value;
+            self.prune_memo();
+        }
+    }
+    #[inline]
+    pub(crate) fn type_predicate(&self) -> Option<Option<&crate::narrow::TypePredicate>> {
+        if self.cold.tag(1) {
+            Some(None)
+        } else {
+            self.memo().and_then(|m| m.predicate.as_deref().map(Some))
+        }
+    }
+    pub(crate) fn set_type_predicate(&mut self, value: Option<crate::narrow::TypePredicate>) {
+        self.cold.set_tag(1, value.is_none());
+        if value.is_some() || self.memo().is_some() {
+            self.memo_mut().predicate = value.map(Box::new);
+            self.prune_memo();
+        }
+    }
+    fn clear_predicate(&mut self) {
+        self.cold.set_tag(1, false);
+        if let Some(m) = self.cold.get_mut() {
+            m.predicate = None;
+        }
+        self.prune_memo();
+    }
+    pub(crate) fn heap_bytes(&self) -> usize {
+        self.parameters.heap_bytes()
+            + self.type_parameters.heap_bytes()
+            + self.cold.heap_bytes()
+            + self.memo().map_or(0, |m| {
+                m.composite_signatures.heap_bytes()
+                    + m.predicate
+                        .as_ref()
+                        .map_or(0, |_| std::mem::size_of::<crate::narrow::TypePredicate>())
+            })
+    }
+    /// A new identity retains its source shape and starts with empty caches.
+    pub(crate) fn without_caches(&self) -> Self {
+        let mut result = Self {
+            parameters: self.parameters.clone(),
+            declaration: self.declaration,
+            flags: self.flags,
+            this_parameter: self.this_parameter,
+            target: self.target,
+            mapper: self.mapper,
+            ..Self::default()
+        };
+        result.set_min_argument_count(self.min_argument_count());
+        result.set_from_method(self.is_from_method());
+        result.set_isolated_signature_kind(self.isolated_signature_kind());
+        result.set_type_parameters(self.cloned_type_parameters());
+        result.set_composite_signatures(self.cloned_composite_signatures());
+        result.set_composite_kind(self.composite_kind());
+        result
     }
 }
 
@@ -1159,10 +1422,6 @@ pub struct CheckerState<'a> {
     /// tsc links.effectsSignature (getEffectsSignature 70195) —
     /// state-side; None IS the memoized unknownSignature verdict.
     pub(crate) effects_signature_cache: rustc_hash::FxHashMap<NodeId, Option<SignatureId>>,
-    /// tsc signature.resolvedTypePredicate (getTypePredicateOfSignature
-    /// 59765) — state-side; None IS the memoized noTypePredicate.
-    pub(crate) resolved_type_predicates:
-        rustc_hash::FxHashMap<SignatureId, Option<crate::narrow::TypePredicate>>,
     // ---- M4 5.0: the diags sink ----
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
     /// sink; the driver (5.4) drains it per program.
@@ -1419,6 +1678,139 @@ pub struct CheckerState<'a> {
 }
 
 impl<'a> CheckerState<'a> {
+    /// Publish no borrowed view to the detached cleanup worker. The driver has
+    /// already copied the order reasons, marks, diagnostics and work counters.
+    pub(crate) fn defer_finished_storage(&mut self) {
+        let storage = (
+            self.tables.take_finished_storage(),
+            self.binder.take_finished_storage(),
+            self.infer_memo.take_finished_storage(),
+            self.flow_memo.take_finished_storage(),
+            std::mem::take(&mut self.index_symbols),
+            std::mem::take(&mut self.emit_display_sources),
+            std::mem::take(&mut self.child_scratch),
+            std::mem::take(&mut self.instantiation_type_lists),
+            std::mem::take(&mut self.instantiation_text_lists),
+            std::mem::take(&mut self.property_scratch),
+            std::mem::take(&mut self.property_name_sets),
+            std::mem::take(&mut self.unaffected_members),
+            std::mem::take(&mut self.links),
+            std::mem::take(&mut self.signatures),
+            std::mem::take(&mut self.signature_instantiations),
+            std::mem::take(&mut self.members),
+            std::mem::take(&mut self.intersection_recursion_ids),
+            std::mem::take(&mut self.contextual_relevant),
+            std::mem::take(&mut self.deferred_reference_members),
+            std::mem::take(&mut self.named_member_order_buffers),
+            std::mem::take(&mut self.relations),
+            std::mem::take(&mut self.subtype_reduction_cache),
+            std::mem::take(&mut self.inference_visited),
+            std::mem::take(&mut self.inference_walk_buffers),
+            std::mem::take(&mut self.skip_direct_inference_nodes),
+            std::mem::take(&mut self.call_resolution_stack),
+            std::mem::take(&mut self.mappers),
+            std::mem::take(&mut self.mapper_lists),
+            std::mem::take(&mut self.display_visited_types),
+            std::mem::take(&mut self.display_symbol_depth),
+            std::mem::take(&mut self.display_infer_type_parameters),
+            std::mem::take(&mut self.display_reverse_mapped_stack),
+            std::mem::take(&mut self.display_mappers),
+            std::mem::take(&mut self.marker_types),
+            std::mem::take(&mut self.variance_stack),
+            std::mem::take(&mut self.active_type_mappers),
+            std::mem::take(&mut self.active_type_mappers_caches),
+            std::mem::take(&mut self.spare_active_mapper_caches),
+            std::mem::take(&mut self.instantiation_stack),
+            std::mem::take(&mut self.type_parameter_defaults_in_progress),
+            std::mem::take(&mut self.mapped_types_in_progress),
+            std::mem::take(&mut self.shared_flow),
+            std::mem::take(&mut self.reduce_label_overrides),
+            std::mem::take(&mut self.evolving_array_types),
+            std::mem::take(&mut self.generic_object_flags),
+            std::mem::take(&mut self.final_array_types),
+            std::mem::take(&mut self.regular_object_literal_types),
+            std::mem::take(&mut self.properties_types),
+            std::mem::take(&mut self.flow_loop_caches),
+            std::mem::take(&mut self.flow_node_reachable),
+            std::mem::take(&mut self.flow_node_post_super),
+            std::mem::take(&mut self.reported_unreachable_nodes),
+            std::mem::take(&mut self.deferred_nodes),
+            std::mem::take(&mut self.deferred_node_sets),
+            std::mem::take(&mut self.deferred_diagnostics),
+            std::mem::take(&mut self.declaration_emit_aliases_marked),
+            std::mem::take(&mut self.deferred_ambient_module_symbols),
+            std::mem::take(&mut self.potential_unused_renamed_binding_elements_in_types),
+            std::mem::take(&mut self.potentially_unused_identifiers),
+            std::mem::take(&mut self.init_global_type_probes),
+            std::mem::take(&mut self.awaited_type_stack),
+            std::mem::take(&mut self.widening_contexts),
+            std::mem::take(&mut self.undefined_properties),
+            std::mem::take(&mut self.contextual_binding_patterns),
+            std::mem::take(&mut self.contextual_type_nodes),
+            std::mem::take(&mut self.contextual_types),
+            std::mem::take(&mut self.contextual_is_cache),
+            std::mem::take(&mut self.inference_context_nodes),
+            std::mem::take(&mut self.inference_contexts),
+            std::mem::take(&mut self.inference_context_arena),
+            std::mem::take(&mut self.inference_info_arena),
+            std::mem::take(&mut self.reverse_homomorphic_mapped_cache),
+            std::mem::take(&mut self.reverse_mapped_cache),
+            std::mem::take(&mut self.reverse_mapped_source_stack),
+            std::mem::take(&mut self.reverse_mapped_target_stack),
+            std::mem::take(&mut self.cached_types),
+            std::mem::take(&mut self.flow_loop_stack),
+            std::mem::take(&mut self.flow_type_cache),
+            std::mem::take(&mut self.switch_types_cache),
+            std::mem::take(&mut self.exhaustive_switch_cache),
+            std::mem::take(&mut self.exhaustive_switch_computing),
+            std::mem::take(&mut self.effects_signature_cache),
+            std::mem::take(&mut self.partially_checked_ranges),
+            std::mem::take(&mut self.contained_call_resolutions),
+            std::mem::take(&mut self.partial_check_records),
+            std::mem::take(&mut self.unresolved_symbols),
+            std::mem::take(&mut self.error_types),
+            std::mem::take(&mut self.pattern_ambient_modules),
+            std::mem::take(&mut self.pattern_ambient_module_augmentations),
+            std::mem::take(&mut self.pattern_ambient_module_augmentation_targets),
+            std::mem::take(&mut self.module_import_attributes_types),
+            std::mem::take(&mut self.resolving_explicit_type_of_symbol),
+            std::mem::take(&mut self.unresolved_module_augmentations),
+            std::mem::take(&mut self.unresolved_package_root_cache),
+            std::mem::take(&mut self.program_path_index),
+            std::mem::take(&mut self.implied_node_format_memo),
+            std::mem::take(&mut self.authoritative_source_tokens),
+            std::mem::take(&mut self.authoritative_source_index_by_token),
+            std::mem::take(&mut self.authoritative_source_may_be_emitted),
+            std::mem::take(&mut self.authoritative_implied_node_formats),
+            std::mem::take(&mut self.authoritative_implied_node_formats_for_emit),
+            std::mem::take(&mut self.authoritative_project_references),
+            std::mem::take(&mut self.external_helpers_modules),
+            std::mem::take(&mut self.requested_external_emit_helpers),
+            std::mem::take(&mut self.distributed_type_parameters),
+            std::mem::take(&mut self.jsx_implicit_import_containers),
+            std::mem::take(&mut self.jsdoc_tag_cache),
+            std::mem::take(&mut self.global_type_memos),
+            std::mem::take(&mut self.decorator_context_override_type_cache),
+            std::mem::take(&mut self.resolution_targets),
+            std::mem::take(&mut self.resolution_results),
+            std::mem::take(&mut self.resolution_property_names),
+            std::mem::take(&mut self.resolution_serials),
+            std::mem::take(&mut self.merged_symbols),
+            std::mem::take(&mut self.merged_symbol_bits),
+            std::mem::take(&mut self.merged_symbol_sources),
+            std::mem::take(&mut self.array_variances),
+            std::mem::take(&mut self.augment_filter),
+            std::mem::take(&mut self.union_front_cache),
+            std::mem::take(&mut self.diagnostics),
+            std::mem::take(&mut self.visible_global_diagnostics),
+            std::mem::take(&mut self.globals),
+            std::mem::take(&mut self.relation_scratch),
+            std::mem::take(&mut self.conditional_branches),
+            std::mem::take(&mut self.order_guard),
+        );
+        crate::finished_storage::defer(storage);
+    }
+
     /// Return scalar lookup buffers after the final owned shard result has
     /// been published. The state keeps its records and identity leases.
     pub(crate) fn release_finished_lookup_buffers(&mut self) {
@@ -1547,17 +1939,7 @@ impl<'a> CheckerState<'a> {
         let signature_heap: usize = self
             .signatures
             .iter()
-            .map(|signature| {
-                signature
-                    .type_parameters
-                    .as_ref()
-                    .map_or(0, |list| list.len() * 4)
-                    + signature.parameters.len() * 4
-                    + signature
-                        .composite_signatures
-                        .as_ref()
-                        .map_or(0, |list| list.len() * 4)
-            })
+            .map(Signature::heap_bytes)
             .sum::<usize>()
             + map_bytes(&self.signature_instantiations);
         rows.push((
@@ -2118,7 +2500,6 @@ impl<'a> CheckerState<'a> {
             exhaustive_switch_cache: rustc_hash::FxHashMap::default(),
             exhaustive_switch_computing: rustc_hash::FxHashSet::default(),
             effects_signature_cache: rustc_hash::FxHashMap::default(),
-            resolved_type_predicates: rustc_hash::FxHashMap::default(),
             diagnostics: DiagnosticSink::default(),
             visible_global_diagnostics: Vec::new(),
             partially_checked_ranges: rustc_hash::FxHashMap::default(),
@@ -2389,25 +2770,12 @@ impl<'a> CheckerState<'a> {
     /// The 47220-47275 singleton shape: declaration-less, no
     /// parameters, minArg 0, pre-resolved return type.
     fn create_singleton_signature(&mut self, return_type: TypeId) -> SignatureId {
-        self.alloc_signature(Signature {
-            declaration: None,
-            flags: SignatureFlags::NONE,
-            type_parameters: None,
-            parameters: Vec::new().into_boxed_slice(),
-            this_parameter: None,
-            min_argument_count: 0,
-            resolved_return_type: LinkSlot::Resolved(return_type),
-            from_method: false,
-            target: None,
-            mapper: None,
-            erased_signature_cache: None,
-            canonical_signature_cache: None,
-            base_signature_cache: None,
-            composite_kind: None,
-            composite_signatures: None,
-            optional_call_signature_cache: (None, None),
-            isolated_signature_kind: Some(SignatureKind::Construct),
-            isolated_signature_type: None,
+        self.alloc_signature({
+            let mut signature_data = crate::state::Signature::new();
+            signature_data.set_parameters(Vec::new().into_boxed_slice());
+            signature_data.resolved_return_type = Some(return_type);
+            signature_data.set_isolated_signature_kind(Some(SignatureKind::Construct));
+            signature_data
         })
     }
 
@@ -2493,10 +2861,10 @@ impl<'a> CheckerState<'a> {
     /// caller must consume the returned slot value, not its own
     /// computation.
     pub fn seal_signature_return_type(&mut self, id: SignatureId, resolved: TypeId) -> TypeId {
-        if let Some(existing) = self.signature_of(id).resolved_return_type.resolved() {
+        if let Some(existing) = self.signature_of(id).resolved_return_type {
             return existing;
         }
-        self.signatures[id.index() as usize].resolved_return_type = LinkSlot::Resolved(resolved);
+        self.signatures[id.index() as usize].resolved_return_type = Some(resolved);
         resolved
     }
 
@@ -2509,11 +2877,8 @@ impl<'a> CheckerState<'a> {
     /// it does not publish a cache on a pre-existing signature.
     pub fn set_fresh_signature_return_type(&mut self, id: SignatureId, resolved: TypeId) {
         let slot = &mut self.signatures[id.index() as usize].resolved_return_type;
-        assert!(
-            slot.resolved().is_none(),
-            "fresh return type initialized twice"
-        );
-        *slot = LinkSlot::Resolved(resolved);
+        assert!(slot.is_none(), "fresh return type initialized twice");
+        *slot = Some(resolved);
     }
 
     /// Empty member table shared by symbols that never had one.
@@ -2649,7 +3014,6 @@ impl<'a> CheckerState<'a> {
                 };
                 self.signature_of(signature)
                     .resolved_return_type
-                    .resolved()
                     .is_some()
             }
             TypeSystemPropertyName::IMMEDIATE_BASE_CONSTRAINT => {

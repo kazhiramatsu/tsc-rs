@@ -465,3 +465,37 @@ fn filesystem_host_lists_entry_kinds_from_the_directory_entries() {
         host.read_directory_js(root.as_js()).unwrap()
     );
 }
+
+#[test]
+fn filesystem_contents_share_utf8_and_preserve_decoder_inputs() {
+    use tsc_diagnostics::JsString;
+    use tsc_host::SourceRead;
+    let tree = TempTree::new();
+    let host = FsCompilerHost::new(tree.root(), native_case_profile()).unwrap();
+    for (name, bytes, shared) in [
+        ("plain.ts", "export const value = '😀';\n".as_bytes(), true),
+        ("empty.ts", b"".as_slice(), true),
+        ("bom.ts", b"\xef\xbb\xbftext".as_slice(), false),
+        ("utf16.ts", b"\xff\xfeA\0".as_slice(), false),
+        ("invalid.ts", b"bad\xff".as_slice(), false),
+    ] {
+        let native = tree.path(name);
+        fs::write(&native, bytes).unwrap();
+        let path = JsString::from(native.to_str().unwrap());
+        let result = host.read_file_contents_js(path.as_js()).unwrap().unwrap();
+        assert_eq!(result.as_bytes(), bytes);
+        assert_eq!(matches!(result, SourceRead::Text(_)), shared);
+        assert_eq!(host.read_file_js(path.as_js()).unwrap().unwrap(), bytes);
+        let parallel = host.parallel_source_reader().unwrap();
+        let result = parallel
+            .read_source_contents_js(path.as_js())
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.as_bytes(), bytes);
+        assert_eq!(matches!(result, SourceRead::Text(_)), shared);
+    }
+    for native in [tree.path("missing.ts"), tree.root().to_path_buf()] {
+        let path = JsString::from(native.to_str().unwrap());
+        assert!(host.read_file_contents_js(path.as_js()).unwrap().is_none());
+    }
+}

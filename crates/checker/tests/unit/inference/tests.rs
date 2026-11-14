@@ -58,8 +58,7 @@ fn relation_frame_clamp_without_parked_loan_panics() {
                 .expect("f has call signatures")[0];
             let type_parameters = state
                 .signature_of(signature)
-                .type_parameters
-                .clone()
+                .cloned_type_parameters()
                 .expect("f is generic");
             let context = state.create_inference_context(
                 &type_parameters,

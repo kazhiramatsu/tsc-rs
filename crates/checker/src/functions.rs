@@ -67,25 +67,13 @@ impl<'a> CheckerState<'a> {
                             return Ok(cached);
                         }
                         let return_type = self.get_return_type_from_body(node, check_mode)?;
-                        let return_only_signature = crate::state::Signature {
-                            declaration: None,
-                            flags: SignatureFlags::IS_NON_INFERRABLE,
-                            type_parameters: None,
-                            parameters: Vec::new().into_boxed_slice(),
-                            this_parameter: None,
-                            min_argument_count: 0,
-                            resolved_return_type: LinkSlot::Resolved(return_type),
-                            from_method: false,
-                            target: None,
-                            mapper: None,
-                            erased_signature_cache: None,
-                            canonical_signature_cache: None,
-                            base_signature_cache: None,
-                            composite_kind: None,
-                            composite_signatures: None,
-                            optional_call_signature_cache: (None, None),
-                            isolated_signature_kind: Some(SignatureKind::Call),
-                            isolated_signature_type: None,
+                        let return_only_signature = {
+                            let mut signature_data = crate::state::Signature::new();
+                            signature_data.flags = SignatureFlags::IS_NON_INFERRABLE;
+                            signature_data.set_parameters(Vec::new().into_boxed_slice());
+                            signature_data.resolved_return_type = Some(return_type);
+                            signature_data.set_isolated_signature_kind(Some(SignatureKind::Call));
+                            signature_data
                         };
                         let signature = self.alloc_signature(return_only_signature);
                         let symbol = self.node_symbol(node);
@@ -261,11 +249,7 @@ impl<'a> CheckerState<'a> {
         }
         if contextual_signature.is_some()
             && self.get_return_type_from_annotation(node)?.is_none()
-            && self
-                .signature_of(signature)
-                .resolved_return_type
-                .resolved()
-                .is_none()
+            && self.signature_of(signature).resolved_return_type.is_none()
         {
             // tsgo (checker.go:10377-10384): "resolvedReturnType is cached
             // indefinitely, so the return type here has to be computed
@@ -340,11 +324,11 @@ impl<'a> CheckerState<'a> {
         signature: crate::state::SignatureId,
         context: crate::state::SignatureId,
     ) -> CheckResult<()> {
-        if self.signature_of(context).type_parameters.is_some() {
-            if self.signature_of(signature).type_parameters.is_none() {
-                let context_type_parameters = self.signature_of(context).type_parameters.clone();
-                self.signatures[signature.index() as usize].type_parameters =
-                    context_type_parameters;
+        if self.signature_of(context).has_type_parameters() {
+            if self.signature_of(signature).has_no_type_parameters() {
+                let context_type_parameters = self.signature_of(context).cloned_type_parameters();
+                self.signatures[signature.index() as usize]
+                    .set_type_parameters(context_type_parameters);
             } else {
                 return Ok(());
             }

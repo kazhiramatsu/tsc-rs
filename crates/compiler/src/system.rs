@@ -315,6 +315,17 @@ impl<F: FileSystem> FileSystem for BundledFs<F> {
             None => self.base.read(path),
         }
     }
+    fn read_contents(&self, path: &str) -> io::Result<tsc_host::SourceRead> {
+        let text = path
+            .strip_prefix(EMBEDDED_LIBRARY_DIRECTORY)
+            .and_then(|path| path.strip_prefix('/'))
+            .and_then(embedded_library_text);
+        match text {
+            Some(text) => Ok(tsc_host::SourceRead::Text(text)),
+            None if Self::is_bundled(path) => Err(io::Error::from(io::ErrorKind::NotFound)),
+            None => self.base.read_contents(path),
+        }
+    }
 
     fn metadata(&self, path: &str) -> io::Result<Metadata> {
         // tsgo `bundled.fileInfo.ModTime`: zero.
@@ -423,7 +434,14 @@ fn embedded_library(name: &str) -> Option<&'static [u8]> {
     embedded_libraries::EMBEDDED_LIBRARIES
         .binary_search_by_key(&name, |(candidate, _)| *candidate)
         .ok()
-        .map(|index| embedded_libraries::EMBEDDED_LIBRARIES[index].1)
+        .map(|index| embedded_libraries::EMBEDDED_LIBRARIES[index].1.as_bytes())
+}
+
+fn embedded_library_text(name: &str) -> Option<tsc_diagnostics::SharedText> {
+    embedded_libraries::EMBEDDED_LIBRARIES
+        .binary_search_by_key(&name, |(candidate, _)| *candidate)
+        .ok()
+        .map(|index| embedded_libraries::EMBEDDED_LIBRARIES[index].1.clone())
 }
 
 impl CompilerHost for NativeCompilerHost {
@@ -439,6 +457,22 @@ impl CompilerHost for NativeCompilerHost {
             return Ok(self.embedded_bytes(path).map(<[u8]>::to_vec));
         }
         self.filesystem.read_file_js(path)
+    }
+    fn read_file_contents_js(
+        &self,
+        path: JsStr<'_>,
+    ) -> Result<Option<tsc_host::SourceRead>, HostError> {
+        if let Some(path) = path
+            .as_str()
+            .map(Path::new)
+            .filter(|path| self.embedded_file_name(path).is_some())
+        {
+            return Ok(embedded_library_text(
+                self.embedded_file_name(path).expect("embedded path"),
+            )
+            .map(tsc_host::SourceRead::Text));
+        }
+        self.filesystem.read_file_contents_js(path)
     }
     fn file_size_hint_js(&self, path: JsStr<'_>) -> Result<Option<u64>, HostError> {
         if let Some(path) = path
@@ -612,4 +646,14 @@ impl ParallelSourceReader for NativeCompilerHost {
     fn read_source_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
         CompilerHost::read_file_js(self, path)
     }
+    fn read_source_contents_js(
+        &self,
+        path: JsStr<'_>,
+    ) -> Result<Option<tsc_host::SourceRead>, HostError> {
+        CompilerHost::read_file_contents_js(self, path)
+    }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/borrowed_libraries.rs"]
+mod borrowed_library_tests;

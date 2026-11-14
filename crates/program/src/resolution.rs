@@ -36,6 +36,10 @@ pub struct ResolutionKey {
 }
 
 impl ResolutionKey {
+    pub(crate) fn into_parts(self) -> (CanonicalPath, JsString, ResolutionMode) {
+        (self.source, self.specifier, self.mode)
+    }
+
     pub fn new(
         source: CanonicalPath,
         specifier: impl Into<JsString>,
@@ -366,7 +370,7 @@ fn module_suffix_recognized_extension(path: JsStr<'_>) -> Option<&'static str> {
 }
 
 /// Vendored `PackageId`, retained losslessly for diagnostic consumers.
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct PackageId {
     name: JsString,
     submodule_name: JsString,
@@ -870,7 +874,10 @@ impl Error for MissingResolutionError {}
 
 #[path = "resolution_table.rs"]
 mod table;
-pub(crate) use table::{LoadedModules, StagedModules};
+pub(crate) use table::{
+    LoadedModules, ModuleBinding, PreparedModule, PreparedModuleIndices, PreparedResolvedModule,
+    StagedModules,
+};
 pub use table::{
     ModuleResolutionView, ModuleStorageStats, ResolutionKeyView, ResolutionTable,
     ResolutionTableView, ResolvedModuleView,
@@ -890,3 +897,5 @@ impl PackageId {
 #[cfg(test)]
 #[path = "../tests/unit/resolution/extension_case_tests.rs"]
 mod extension_case_tests;
+
+pub(crate) use table::{PreparedPackageIds, PreparedPackageRef};

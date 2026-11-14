@@ -9,6 +9,32 @@ fn tables() -> TypeTables {
 }
 
 #[test]
+fn a_finished_checkers_type_range_is_not_reissued_when_its_records_are_dropped() {
+    let domain = IdentityDomain::new();
+    let mut first = TypeTables::new(true, false, &domain);
+    let lease = first.lease.as_ref().expect("direct type room");
+    let first_range = lease.range();
+    let watch = lease.watch();
+    let storage = first.take_finished_storage();
+    assert!(first.types.is_empty());
+    drop(first);
+    drop(storage);
+
+    let mut later = TypeTables::new(true, false, &domain);
+    let later_range = later.lease.as_ref().expect("later type room").range();
+    assert!(watch.is_held(), "finished range remains reserved");
+    assert!(
+        first_range.end() <= later_range.start() || later_range.end() <= first_range.start(),
+        "finishing a checker cannot affect another checker's identities"
+    );
+    let value = later.get_string_literal_type("still live");
+    assert!(later
+        .type_of(value)
+        .flags
+        .intersects(TypeFlags::STRING_LITERAL));
+}
+
+#[test]
 fn non_nullable_union_summary_uses_final_member_flags() {
     for strict in [false, true] {
         let mut t = TypeTables::new(strict, false, &IdentityDomain::new());

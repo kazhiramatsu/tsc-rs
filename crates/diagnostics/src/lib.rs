@@ -15,11 +15,11 @@ use std::cmp::Ordering;
 
 pub use js_string::{CodeUnits, JsStr, JsString, JsStringByteLength, SharedJsString};
 #[cfg(not(target_family = "wasm"))]
-pub use tsc_store::SharedText;
-#[cfg(target_family = "wasm")]
+pub use tsc_store::{read_text_file, SharedText, StaticText, TextRead};
+#[cfg(any(target_family = "wasm", test))]
 mod shared_text_wasm;
 #[cfg(target_family = "wasm")]
-pub use shared_text_wasm::SharedText;
+pub use shared_text_wasm::{read_text_file, SharedText, StaticText, TextRead};
 
 pub use line_map::{
     compute_line_map, compute_line_starts, get_line_and_character_of_position, LineMap,

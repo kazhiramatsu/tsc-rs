@@ -461,7 +461,7 @@ impl<'a> CheckerState<'a> {
                 NodeData::ComputedPropertyName(_)
             ) && !self
                 .links
-                .read_symbol(symbol, |links| links.check_flags)
+                .read_symbol_check_flags(symbol)
                 .intersects(tsc_types::CheckFlags::LATE);
             if is_early_computed {
                 if let Some(name_type) = self.links.symbol(symbol).name_type {

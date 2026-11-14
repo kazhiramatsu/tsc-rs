@@ -23,7 +23,7 @@ use crate::relate::RelationKind;
 use crate::links::LinkSlot;
 use crate::operators::OuterExpressionKinds;
 use crate::speculate::SpeculationOutcome;
-use crate::state::{CheckResult, CheckerState, Signature, SignatureId};
+use crate::state::{CheckResult, CheckerState, SignatureId};
 use crate::structural::SignatureKind;
 
 /// The Rust stand-in for tsc's fabricated SyntheticExpression parse
@@ -42,6 +42,91 @@ pub(crate) enum EffectiveArg {
         is_spread: bool,
         tuple_name_source: Option<NodeId>,
     },
+}
+
+/// Effective arguments either read the program's ordinary syntax list or
+/// own the existing synthetic/spread expansion.
+#[derive(Clone)]
+pub(crate) enum EffectiveCallArguments<'a> {
+    Nodes(crate::annotate::NodeIds<'a>),
+    Expanded(Vec<EffectiveArg>),
+}
+
+impl std::fmt::Debug for EffectiveCallArguments<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.iter()).finish()
+    }
+}
+
+impl EffectiveCallArguments<'_> {
+    #[inline]
+    pub(crate) fn len(&self) -> usize {
+        match self {
+            Self::Nodes(nodes) => nodes.len(),
+            Self::Expanded(args) => args.len(),
+        }
+    }
+
+    #[inline]
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    #[inline]
+    pub(crate) fn at(&self, index: usize) -> EffectiveArg {
+        match self {
+            Self::Nodes(nodes) => EffectiveArg::Node(nodes[index]),
+            Self::Expanded(args) => args[index],
+        }
+    }
+
+    #[inline]
+    pub(crate) fn iter(&self) -> EffectiveArgumentIter<'_> {
+        match self {
+            Self::Nodes(nodes) => EffectiveArgumentIter::Nodes(nodes.iter().copied()),
+            Self::Expanded(args) => EffectiveArgumentIter::Expanded(args.iter().copied()),
+        }
+    }
+}
+
+pub(crate) enum EffectiveArgumentIter<'a> {
+    Nodes(std::iter::Copied<std::slice::Iter<'a, NodeId>>),
+    Expanded(std::iter::Copied<std::slice::Iter<'a, EffectiveArg>>),
+}
+
+impl Iterator for EffectiveArgumentIter<'_> {
+    type Item = EffectiveArg;
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Nodes(nodes) => nodes.next().map(EffectiveArg::Node),
+            Self::Expanded(args) => args.next(),
+        }
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            Self::Nodes(nodes) => nodes.size_hint(),
+            Self::Expanded(args) => args.size_hint(),
+        }
+    }
+}
+impl DoubleEndedIterator for EffectiveArgumentIter<'_> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Nodes(nodes) => nodes.next_back().map(EffectiveArg::Node),
+            Self::Expanded(args) => args.next_back(),
+        }
+    }
+}
+impl ExactSizeIterator for EffectiveArgumentIter<'_> {}
+impl std::iter::FusedIterator for EffectiveArgumentIter<'_> {}
+impl<'b, 'a> IntoIterator for &'b EffectiveCallArguments<'a> {
+    type Item = EffectiveArg;
+    type IntoIter = EffectiveArgumentIter<'b>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
 }
 
 /// A resolved diagnostic location (file + UTF-16 start/length) carried
@@ -73,9 +158,9 @@ enum ApplicabilityMode {
 /// resolveCall's closure state: the three error-candidate slots plus
 /// the shared argCheckMode (mutated across BOTH chooseOverload passes,
 /// 76590/76612/76841).
-struct ResolveCallCtx {
+struct ResolveCallCtx<'a> {
     node: NodeId,
-    args: Vec<EffectiveArg>,
+    args: EffectiveCallArguments<'a>,
     type_arguments_array: Option<NodeArrayId>,
     type_argument_nodes: Vec<NodeId>,
     arg_check_mode: CheckMode,
@@ -738,7 +823,7 @@ impl<'a> CheckerState<'a> {
         let Some(decorator_signature) = self.get_decorator_call_signature(node)? else {
             return Ok(());
         };
-        let LinkSlot::Resolved(expected_return_type) =
+        let Some(expected_return_type) =
             self.signature_of(decorator_signature).resolved_return_type
         else {
             return Ok(());
@@ -894,7 +979,7 @@ impl<'a> CheckerState<'a> {
         }
         for &signature in signatures {
             let data = self.signature_of(signature);
-            if data.min_argument_count != 0
+            if data.min_argument_count() != 0
                 || data.flags.intersects(SignatureFlags::HAS_REST_PARAMETER)
             {
                 return Ok(false);
@@ -1639,25 +1724,14 @@ impl<'a> CheckerState<'a> {
         return_type: TypeId,
     ) -> SignatureId {
         let min_argument_count = parameters.len() as u32;
-        self.alloc_signature(crate::state::Signature {
-            declaration: None,
-            flags: SignatureFlags::NONE,
-            type_parameters: None,
-            parameters: parameters.into_boxed_slice(),
-            this_parameter,
-            min_argument_count,
-            resolved_return_type: LinkSlot::Resolved(return_type),
-            from_method: false,
-            target: None,
-            mapper: None,
-            erased_signature_cache: None,
-            canonical_signature_cache: None,
-            base_signature_cache: None,
-            composite_kind: None,
-            composite_signatures: None,
-            optional_call_signature_cache: (None, None),
-            isolated_signature_kind: Some(SignatureKind::Call),
-            isolated_signature_type: None,
+        self.alloc_signature({
+            let mut signature_data = crate::state::Signature::new();
+            signature_data.set_parameters(parameters.into_boxed_slice());
+            signature_data.this_parameter = this_parameter;
+            signature_data.set_min_argument_count(min_argument_count);
+            signature_data.resolved_return_type = Some(return_type);
+            signature_data.set_isolated_signature_kind(Some(SignatureKind::Call));
+            signature_data
         })
     }
 
@@ -1866,7 +1940,7 @@ impl<'a> CheckerState<'a> {
             inner || call_chain_flags == SignatureFlags::IS_OUTER_CALL_CHAIN,
             "An optional call signature can either be for an inner call chain or an outer call chain, but not both."
         );
-        let cache = self.signature_of(signature).optional_call_signature_cache;
+        let cache = self.signature_of(signature).optional_call_signature_cache();
         let cached = if inner { cache.0 } else { cache.1 };
         if let Some(cached) = cached {
             return cached;
@@ -1874,7 +1948,9 @@ impl<'a> CheckerState<'a> {
         let result = self.clone_signature(signature);
         let data = self.signature_mut(result);
         data.flags = SignatureFlags::from_bits(data.flags.bits() | call_chain_flags.bits());
-        let cache = &mut self.signature_mut(signature).optional_call_signature_cache;
+        let cache = self
+            .signature_mut(signature)
+            .optional_call_signature_cache_mut();
         if inner {
             cache.0 = Some(result);
         } else {
@@ -1956,8 +2032,8 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn get_spread_argument_index(&self, args: &[EffectiveArg]) -> Option<usize> {
-        args.iter().position(|arg| self.is_spread_argument(arg))
+    fn get_spread_argument_index(&self, args: &EffectiveCallArguments<'_>) -> Option<usize> {
+        args.iter().position(|arg| self.is_spread_argument(&arg))
     }
 
     /// tsc-port: getEffectiveCallArguments @6.0.3
@@ -1976,7 +2052,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_effective_call_arguments(
         &mut self,
         node: NodeId,
-    ) -> CheckResult<Vec<EffectiveArg>> {
+    ) -> CheckResult<EffectiveCallArguments<'a>> {
         let arguments = match_record! { self.record_of(node), {
                     as_call_expression(data) => data.arguments,
                     as_new_expression(data) => data.arguments,
@@ -2009,14 +2085,14 @@ impl<'a> CheckerState<'a> {
                                 }
                             }
                         }
-                        return Ok(args);
+                        return Ok(EffectiveCallArguments::Expanded(args));
                     },
                     as_binary_expression(data) => {
                         let left = data.left.expect(
                             "parser invariant: make_binary_expression always stores its left operand \
                              (parse recovery stores a missing expression node)",
                         );
-                        return Ok(vec![EffectiveArg::Node(left)]);
+                        return Ok(EffectiveCallArguments::Expanded(vec![EffectiveArg::Node(left)]));
                     },
                     as_jsx_opening_element(JsxOpeningElementData { attributes, .. }) => {
                         // 76315-76317: the attributes node is THE argument when
@@ -2040,11 +2116,11 @@ impl<'a> CheckerState<'a> {
                                     },
         _ => false,
         });
-                        return Ok(if has_properties || has_children {
+                        return Ok(EffectiveCallArguments::Expanded(if has_properties || has_children {
                             vec![EffectiveArg::Node(attributes)]
                         } else {
                             Vec::new()
-                        });
+                        }));
                     },
                     as_jsx_self_closing_element(JsxSelfClosingElementData { attributes, .. }) => {
                         // 76315-76317: the attributes node is THE argument when
@@ -2068,11 +2144,11 @@ impl<'a> CheckerState<'a> {
                                     },
         _ => false,
         });
-                        return Ok(if has_properties || has_children {
+                        return Ok(EffectiveCallArguments::Expanded(if has_properties || has_children {
                             vec![EffectiveArg::Node(attributes)]
                         } else {
                             Vec::new()
-                        });
+                        }));
                     },
                     _ if self.kind_of(node) == SyntaxKind::JsxOpeningFragment => {
                         // 76296-76298: one synthetic emptyFreshJsxObjectType
@@ -2081,16 +2157,16 @@ impl<'a> CheckerState<'a> {
                             let raw = Published.node(node);
                             (raw.pos, raw.end)
                         };
-                        return Ok(vec![EffectiveArg::Synthetic {
+                        return Ok(EffectiveCallArguments::Expanded(vec![EffectiveArg::Synthetic {
                             pos,
                             end,
                             ty: self.empty_fresh_jsx_object_type,
                             is_spread: false,
                             tuple_name_source: None,
-                        }]);
+                        }]));
                     },
                     _ if self.kind_of(node) == SyntaxKind::Decorator => {
-                        return self.get_effective_decorator_arguments(node);
+                        return self.get_effective_decorator_arguments(node).map(EffectiveCallArguments::Expanded);
                     },
                     _ => unreachable!("call-like kinds route here"),
                 }};
@@ -2099,7 +2175,7 @@ impl<'a> CheckerState<'a> {
             .iter()
             .position(|&arg| self.kind_of(arg) == SyntaxKind::SpreadElement);
         let Some(spread_index) = spread_index else {
-            return Ok(args.into_iter().map(EffectiveArg::Node).collect());
+            return Ok(EffectiveCallArguments::Nodes(args));
         };
         let mut effective_args: Vec<EffectiveArg> = args[..spread_index]
             .iter()
@@ -2168,7 +2244,7 @@ impl<'a> CheckerState<'a> {
                 _ => effective_args.push(EffectiveArg::Node(arg)),
             }
         }
-        Ok(effective_args)
+        Ok(EffectiveCallArguments::Expanded(effective_args))
     }
 
     /// checkSyntheticExpression (73946): spread synthetics answer the
@@ -2277,7 +2353,7 @@ impl<'a> CheckerState<'a> {
     fn has_correct_arity(
         &mut self,
         node: NodeId,
-        args: &[EffectiveArg],
+        args: &EffectiveCallArguments<'_>,
         signature: SignatureId,
         signature_help_trailing_comma: bool,
     ) -> CheckResult<bool> {
@@ -2404,7 +2480,7 @@ impl<'a> CheckerState<'a> {
         signature: SignatureId,
         type_arguments: &[NodeId],
     ) -> bool {
-        let type_parameters = self.signature_of(signature).type_parameters.as_deref();
+        let type_parameters = self.signature_of(signature).type_parameters();
         let num_type_parameters = type_parameters.map_or(0, <[TypeId]>::len);
         let min_type_argument_count = self.get_min_type_argument_count(type_parameters);
         type_arguments.is_empty()
@@ -2496,7 +2572,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_spread_argument_type(
         &mut self,
         node_in_file: NodeId,
-        args: &[EffectiveArg],
+        args: &EffectiveCallArguments<'_>,
         index: usize,
         arg_count: usize,
         rest_type: TypeId,
@@ -2505,7 +2581,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         let in_const_context = self.is_const_type_variable(Some(rest_type), 0)?;
         if arg_count > 0 && index >= arg_count - 1 {
-            let arg = &args[arg_count - 1];
+            let arg = &args.at(arg_count - 1);
             if self.is_spread_argument(arg) {
                 let (spread_type, error_node) = match *arg {
                     EffectiveArg::Synthetic { ty, .. } => (ty, None),
@@ -2538,7 +2614,7 @@ impl<'a> CheckerState<'a> {
         let mut flags: Vec<ElementFlags> = Vec::new();
         let mut names: Vec<Option<u32>> = Vec::new();
         for i in index..arg_count {
-            let arg = args[i];
+            let arg = args.at(i);
             if self.is_spread_argument(&arg) {
                 let (spread_type, error_node) = match arg {
                     EffectiveArg::Synthetic { ty, .. } => (ty, None),
@@ -2657,8 +2733,7 @@ impl<'a> CheckerState<'a> {
         }
         let type_parameters = self
             .signature_of(signature)
-            .type_parameters
-            .clone()
+            .cloned_type_parameters()
             .expect("checkTypeArguments callers guarantee a generic signature");
         let mut mapped: Vec<TypeId> = Vec::with_capacity(type_argument_nodes.len());
         for &node in type_argument_nodes {
@@ -3019,7 +3094,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         signature: SignatureId,
-        args: &[EffectiveArg],
+        args: &EffectiveCallArguments<'_>,
         check_mode: CheckMode,
         context: InferenceContextId,
     ) -> CheckResult<Vec<TypeId>> {
@@ -3035,8 +3110,7 @@ impl<'a> CheckerState<'a> {
             // a default (helper-every semantics: vacuous true).
             let type_parameters = self
                 .signature_of(signature)
-                .type_parameters
-                .clone()
+                .cloned_type_parameters()
                 .unwrap_or_default();
             let mut skip_binding_patterns = true;
             for &tp in &type_parameters {
@@ -3069,13 +3143,12 @@ impl<'a> CheckerState<'a> {
                         let contextual_signature =
                             self.get_single_call_signature(instantiated_type)?;
                         let generic_contextual_signature = contextual_signature
-                            .filter(|&sig| self.signature_of(sig).type_parameters.is_some());
+                            .filter(|&sig| self.signature_of(sig).has_type_parameters());
                         let inference_source_type = match generic_contextual_signature {
                             Some(contextual_signature) => {
                                 let contextual_type_parameters = self
                                     .signature_of(contextual_signature)
-                                    .type_parameters
-                                    .clone()
+                                    .cloned_type_parameters()
                                     .expect("filtered on Some above");
                                 let instantiation = self
                                     .get_signature_instantiation_without_filling_in_type_arguments(
@@ -3157,8 +3230,8 @@ impl<'a> CheckerState<'a> {
                     // 75969: findIndex(args, isSpreadArgument, argCount)
                     // — a spread at/after the rest position voids the
                     // implied arity.
-                    let has_spread_from_arg_count =
-                        (arg_count..args.len()).any(|index| self.is_spread_argument(&args[index]));
+                    let has_spread_from_arg_count = (arg_count..args.len())
+                        .any(|index| self.is_spread_argument(&args.at(index)));
                     self.inference_info_mut(info_slot).implied_arity = if has_spread_from_arg_count
                     {
                         None
@@ -3184,7 +3257,6 @@ impl<'a> CheckerState<'a> {
             }
         }
         for (index, arg) in args.iter().enumerate().take(arg_count) {
-            let arg = *arg;
             if self.effective_arg_kind(&arg) == Some(SyntaxKind::OmittedExpression) {
                 continue;
             }
@@ -3663,7 +3735,7 @@ impl<'a> CheckerState<'a> {
     fn get_signature_applicability_error(
         &mut self,
         node: NodeId,
-        args: &[EffectiveArg],
+        args: &EffectiveCallArguments<'_>,
         signature: SignatureId,
         relation: RelationKind,
         check_mode: CheckMode,
@@ -3750,7 +3822,6 @@ impl<'a> CheckerState<'a> {
             args.len()
         };
         for (i, arg) in args.iter().enumerate().take(arg_count) {
-            let arg = *arg;
             if self.effective_arg_kind(&arg) == Some(SyntaxKind::OmittedExpression) {
                 continue;
             }
@@ -3884,7 +3955,7 @@ impl<'a> CheckerState<'a> {
             } else {
                 let error_node = match args.len() - arg_count {
                     0 => Some(node),
-                    1 => match args[arg_count] {
+                    1 => match args.at(arg_count) {
                         EffectiveArg::Node(arg_node) => {
                             Some(self.get_effective_check_node(arg_node))
                         }
@@ -3909,7 +3980,7 @@ impl<'a> CheckerState<'a> {
                 let span = if rest_arg_count == 0 {
                     self.diag_span_of_node(node)
                 } else if rest_arg_count == 1 {
-                    match args[arg_count] {
+                    match args.at(arg_count) {
                         EffectiveArg::Node(arg_node) => {
                             self.diag_span_of_node(self.get_effective_check_node(arg_node))
                         }
@@ -3918,8 +3989,8 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                 } else {
-                    let pos = self.effective_arg_pos(&args[arg_count]);
-                    let end = self.effective_arg_end(&args[args.len() - 1]);
+                    let pos = self.effective_arg_pos(&args.at(arg_count));
+                    let end = self.effective_arg_end(&args.at(args.len() - 1));
                     self.diag_span_of_byte_range(node, pos, end)
                 };
                 let mut related: Vec<RelatedInfo> = Vec::new();
@@ -4089,7 +4160,7 @@ impl<'a> CheckerState<'a> {
 
         let args = self.get_effective_call_arguments(node)?;
         let has_computed_object_argument = args.iter().any(|arg| {
-            let EffectiveArg::Node(argument) = *arg else {
+            let EffectiveArg::Node(argument) = arg else {
                 return false;
             };
             let argument = self.get_effective_check_node(argument);
@@ -4102,11 +4173,11 @@ impl<'a> CheckerState<'a> {
             })
         });
         let is_single_non_generic_candidate =
-            candidates.len() == 1 && self.signature_of(candidates[0]).type_parameters.is_none();
+            candidates.len() == 1 && self.signature_of(candidates[0]).has_no_type_parameters();
         let mut arg_check_mode = CheckMode::NORMAL;
         if !is_decorator && !is_single_non_generic_candidate {
             let any_context_sensitive = args.iter().any(|arg| match arg {
-                EffectiveArg::Node(node) => self.is_context_sensitive(*node),
+                EffectiveArg::Node(node) => self.is_context_sensitive(node),
                 EffectiveArg::Synthetic { .. } => false,
             });
             if any_context_sensitive {
@@ -4245,7 +4316,7 @@ impl<'a> CheckerState<'a> {
     fn report_call_resolution_failure(
         &mut self,
         node: NodeId,
-        ctx: &mut ResolveCallCtx,
+        ctx: &mut ResolveCallCtx<'_>,
         signatures: &[SignatureId],
         head_message: Option<&'static DiagnosticMessage>,
     ) -> CheckResult<()> {
@@ -4389,7 +4460,7 @@ impl<'a> CheckerState<'a> {
     /// only the related row (attach-only, FN-safe).
     fn implementation_success_elaboration(
         &mut self,
-        ctx: &mut ResolveCallCtx,
+        ctx: &mut ResolveCallCtx<'_>,
         failed: SignatureId,
     ) -> CheckResult<Option<RelatedInfo>> {
         let save_candidates = ctx.candidates_for_argument_error.take();
@@ -4430,7 +4501,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(None);
             };
             let candidate = state.get_signature_from_declaration(impl_decl)?;
-            let is_single_non_generic = state.signature_of(candidate).type_parameters.is_none();
+            let is_single_non_generic = state.signature_of(candidate).has_no_type_parameters();
             let mut probe_ctx = ResolveCallCtx {
                 node: ctx.node,
                 args: ctx.args.clone(),
@@ -4510,7 +4581,7 @@ impl<'a> CheckerState<'a> {
     /// the deferred pass observes them.
     fn choose_overload(
         &mut self,
-        ctx: &mut ResolveCallCtx,
+        ctx: &mut ResolveCallCtx<'_>,
         relation: RelationKind,
         is_single_non_generic_candidate: bool,
         rollback_rejected_candidates: bool,
@@ -4625,7 +4696,7 @@ impl<'a> CheckerState<'a> {
     fn try_overload_candidate(
         &mut self,
         node: NodeId,
-        args: &[EffectiveArg],
+        args: &EffectiveCallArguments<'_>,
         type_argument_nodes: &[NodeId],
         candidate: SignatureId,
         relation: RelationKind,
@@ -4635,7 +4706,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<OverloadCandidateTrial> {
         let mut check_candidate;
         let mut inference_context: Option<InferenceContextId> = None;
-        if self.signature_of(candidate).type_parameters.is_some() {
+        if self.signature_of(candidate).has_type_parameters() {
             let type_argument_types;
             if !type_argument_nodes.is_empty() {
                 let Some(checked) = self.check_type_arguments(
@@ -4654,8 +4725,7 @@ impl<'a> CheckerState<'a> {
             } else {
                 let type_parameters = self
                     .signature_of(candidate)
-                    .type_parameters
-                    .clone()
+                    .cloned_type_parameters()
                     .expect("checked Some above");
                 let mut flags = if self.is_in_js_file(node) {
                     InferenceFlags::ANY_DEFAULT
@@ -4801,7 +4871,7 @@ impl<'a> CheckerState<'a> {
     fn get_candidate_for_overload_failure(
         &mut self,
         node: NodeId,
-        ctx: &mut ResolveCallCtx,
+        ctx: &mut ResolveCallCtx<'_>,
         has_candidates_out: bool,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
@@ -4810,7 +4880,7 @@ impl<'a> CheckerState<'a> {
         let any_generic = ctx
             .candidates
             .iter()
-            .any(|&c| self.signature_of(c).type_parameters.is_some());
+            .any(|&c| self.signature_of(c).has_type_parameters());
         if has_candidates_out || ctx.candidates.len() == 1 || any_generic {
             self.pick_longest_candidate_signature(node, ctx, check_mode)
         } else {
@@ -4832,13 +4902,13 @@ impl<'a> CheckerState<'a> {
     fn pick_longest_candidate_signature(
         &mut self,
         node: NodeId,
-        ctx: &mut ResolveCallCtx,
+        ctx: &mut ResolveCallCtx<'_>,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
         let args_count = self.apparent_argument_count.unwrap_or(ctx.args.len());
         let best_index = self.get_longest_candidate_index(&ctx.candidates, args_count)?;
         let candidate = ctx.candidates[best_index];
-        let Some(type_parameters) = self.signature_of(candidate).type_parameters.clone() else {
+        let Some(type_parameters) = self.signature_of(candidate).cloned_type_parameters() else {
             return Ok(candidate);
         };
         let instantiated = if !ctx.type_argument_nodes.is_empty() {
@@ -4970,7 +5040,7 @@ impl<'a> CheckerState<'a> {
             .collect();
         let min_argument_count = candidates
             .iter()
-            .map(|&c| self.signature_of(c).min_argument_count)
+            .map(|&c| self.signature_of(c).min_argument_count())
             .min()
             .expect("non-empty candidates");
         let max_non_rest_param = num_non_rest.iter().copied().max().expect("non-empty");
@@ -5048,25 +5118,17 @@ impl<'a> CheckerState<'a> {
         let return_type =
             self.get_intersection_type(&return_types, tsc_types::IntersectionFlags::NONE)?;
         let first = self.signature_of(candidates[0]).without_caches();
-        Ok(self.alloc_signature(Signature {
-            declaration: first.declaration,
-            flags,
-            type_parameters: None,
-            parameters: parameters.into_boxed_slice(),
-            this_parameter,
-            min_argument_count,
-            resolved_return_type: LinkSlot::Resolved(return_type),
-            from_method: first.from_method,
-            target: None,
-            mapper: None,
-            erased_signature_cache: None,
-            canonical_signature_cache: None,
-            base_signature_cache: None,
-            composite_kind: None,
-            composite_signatures: None,
-            optional_call_signature_cache: (None, None),
-            isolated_signature_kind: first.isolated_signature_kind,
-            isolated_signature_type: None,
+        Ok(self.alloc_signature({
+            let mut signature_data = crate::state::Signature::new();
+            signature_data.declaration = first.declaration;
+            signature_data.flags = flags;
+            signature_data.set_parameters(parameters.into_boxed_slice());
+            signature_data.this_parameter = this_parameter;
+            signature_data.set_min_argument_count(min_argument_count);
+            signature_data.resolved_return_type = Some(return_type);
+            signature_data.set_from_method(first.is_from_method());
+            signature_data.set_isolated_signature_kind(first.isolated_signature_kind());
+            signature_data
         }))
     }
 
@@ -5189,7 +5251,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         signatures: &[SignatureId],
-        args: &[EffectiveArg],
+        args: &EffectiveCallArguments<'_>,
         head_message: Option<&'static DiagnosticMessage>,
     ) -> CheckResult<Diagnostic> {
         let wrap_in_head = |chain: MessageChain| match head_message {
@@ -5197,7 +5259,7 @@ impl<'a> CheckerState<'a> {
             None => chain,
         };
         if let Some(spread_index) = self.get_spread_argument_index(args) {
-            let span = self.diag_span_of_effective_arg(node, &args[spread_index]);
+            let span = self.diag_span_of_effective_arg(node, &args.at(spread_index));
             return Ok(self.diagnostic_at_span(
                 &span,
                 MessageChain::new(
@@ -5337,8 +5399,8 @@ impl<'a> CheckerState<'a> {
             return Ok(self.diagnostic_at_span(&span, chain));
         }
         // 76499-76519: over max — the excess-args range (end==pos bump).
-        let pos = self.effective_arg_pos(&args[max]);
-        let mut end = self.effective_arg_end(&args[args.len() - 1]);
+        let pos = self.effective_arg_pos(&args.at(max));
+        let mut end = self.effective_arg_end(&args.at(args.len() - 1));
         if end == pos {
             end += 1;
         }
@@ -5423,7 +5485,7 @@ impl<'a> CheckerState<'a> {
         };
         if signatures.len() == 1 {
             let signature = signatures[0];
-            let type_parameters = self.signature_of(signature).type_parameters.clone();
+            let type_parameters = self.signature_of(signature).cloned_type_parameters();
             let min = self.get_min_type_argument_count(type_parameters.as_deref());
             let max = type_parameters.as_deref().map_or(0, <[TypeId]>::len);
             let range = if min < max {
@@ -5442,7 +5504,7 @@ impl<'a> CheckerState<'a> {
         let mut below_arg_count: Option<usize> = None;
         let mut above_arg_count: Option<usize> = None;
         for &signature in signatures {
-            let type_parameters = self.signature_of(signature).type_parameters.clone();
+            let type_parameters = self.signature_of(signature).cloned_type_parameters();
             let min = self.get_min_type_argument_count(type_parameters.as_deref());
             let max = type_parameters.as_deref().map_or(0, <[TypeId]>::len);
             if min > arg_count {
@@ -5885,7 +5947,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
     ) -> CheckResult<bool> {
-        if self.signature_of(signature).type_parameters.is_none() {
+        if self.signature_of(signature).has_no_type_parameters() {
             return Ok(false);
         }
         let return_type = self.get_return_type_of_signature(signature)?;
@@ -6053,8 +6115,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:77102-77107
     fn some_signature_has_flags(&self, signature: SignatureId, flags: SignatureFlags) -> bool {
         let data = self.signature_of(signature);
-        if data.composite_kind == Some(TypeFlags::UNION) {
-            if let Some(composite) = data.composite_signatures.clone() {
+        if data.composite_kind() == Some(TypeFlags::UNION) {
+            if let Some(composite) = data.cloned_composite_signatures() {
                 return composite
                     .iter()
                     .any(|&member| self.some_signature_has_flags(member, flags));

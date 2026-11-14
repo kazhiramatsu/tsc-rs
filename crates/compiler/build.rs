@@ -32,19 +32,28 @@ fn main() {
         "pinned TypeScript library file count drifted"
     );
 
-    let mut generated =
-        String::from("pub(super) static EMBEDDED_LIBRARIES: &[(&str, &[u8])] = &[\n");
-    for path in libraries {
+    let mut generated = String::from(
+        "pub(super) static EMBEDDED_LIBRARIES: &[(&str, tsc_diagnostics::SharedText)] = &[\n",
+    );
+    let mut text_allocations = String::new();
+    for (index, path) in libraries.into_iter().enumerate() {
         println!("cargo:rerun-if-changed={}", path.display());
         let name = path
             .file_name()
             .and_then(|name| name.to_str())
             .expect("pinned TypeScript library name is Unicode");
-        generated.push_str(&format!(
-            "    ({name:?}, include_bytes!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/{LIBRARY_DIRECTORY}/{name}\"))),\n"
+        let text = fs::read_to_string(&path).expect("bundled declarations are valid UTF-8");
+        assert!(
+            !text.starts_with('\u{feff}'),
+            "embedded declarations have no BOM"
+        );
+        generated.push_str(&format!("    ({name:?}, LIBRARY_TEXT_{index}.shared()),\n"));
+        text_allocations.push_str(&format!(
+            "static LIBRARY_TEXT_{index}: tsc_diagnostics::StaticText<{{ include_str!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/{LIBRARY_DIRECTORY}/{name}\")).len() }}> = tsc_diagnostics::StaticText::new(include_str!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/{LIBRARY_DIRECTORY}/{name}\")));\n",
         ));
     }
     generated.push_str("];\n");
+    generated.push_str(&text_allocations);
 
     let output_directory = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo supplies OUT_DIR"));
     fs::write(output_directory.join("embedded_libraries.rs"), generated)

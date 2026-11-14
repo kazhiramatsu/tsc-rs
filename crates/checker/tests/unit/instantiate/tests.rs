@@ -270,7 +270,7 @@ fn erased_and_argument_instantiated_signatures_map_lazily() {
             // Promote to a generic signature by hand — generic
             // getSignatureFromDeclaration lands with the follow-up.
             let mut generic = state.signature_of(base).clone();
-            generic.type_parameters = Some(Box::new([t]));
+            generic.set_type_parameters(Some(Box::new([t])));
             let generic = state.alloc_signature(generic);
 
             let erased = state.get_erased_signature(generic).expect("erased");
@@ -647,7 +647,7 @@ fn cloned_type_parameters_instantiate_their_target_constraint() {
                 .expect("function-type signature");
             let t = declared_type_parameter(state, "T");
             let mut generic = state.signature_of(base).clone();
-            generic.type_parameters = Some(Box::new([t]));
+            generic.set_type_parameters(Some(Box::new([t])));
             let generic = state.alloc_signature(generic);
             // A non-erasing instantiation clones the parameters.
             let identity = state.create_type_mapper(&[t], Some(&[t]));
@@ -656,8 +656,7 @@ fn cloned_type_parameters_instantiate_their_target_constraint() {
                 .expect("instantiation in slice");
             let fresh = state
                 .signature_of(cloned_signature)
-                .type_parameters
-                .clone()
+                .cloned_type_parameters()
                 .expect("fresh type parameters")[0];
             assert_ne!(fresh, t);
             assert_eq!(

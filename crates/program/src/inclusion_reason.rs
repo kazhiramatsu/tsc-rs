@@ -5,7 +5,7 @@ use std::sync::{Arc, OnceLock};
 
 use tsc_diagnostics::{JsString, TextSnapshot};
 
-use crate::{PackageId, ProgramPath, SourceInclusionReason};
+use crate::{ProgramPath, SourceInclusionReason};
 
 #[derive(Clone, Debug)]
 pub(crate) struct InclusionSource {
@@ -39,13 +39,14 @@ impl From<SourceInclusionReason> for InclusionReasonRecord {
 }
 
 impl InclusionReasonRecord {
-    pub(crate) fn with_package_id(mut self, id: Option<&PackageId>) -> Self {
+    pub(crate) fn with_prepared_package_id(
+        mut self,
+        id: Option<&crate::resolution::PreparedPackageRef>,
+    ) -> Self {
         match &mut self {
-            Self::Owned(reason) => {
-                Arc::make_mut(reason).set_package_id(id);
-            }
+            Self::Owned(reason) => Arc::make_mut(reason).set_package_id(id.map(|id| id.value())),
             Self::Import { package_id, .. } | Self::SyntheticImport { package_id, .. } => {
-                *package_id = id.map(|id| Arc::new(id.display_text()));
+                *package_id = id.map(|id| id.id.display())
             }
         }
         self

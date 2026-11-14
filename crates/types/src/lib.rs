@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+pub use tsc_store::record_lists::{OptionalBoxSlice, PackedBox, ThinBoxSlice};
 pub use tsc_store::resident_vec_tail_bytes;
 
 pub mod escaped_name;

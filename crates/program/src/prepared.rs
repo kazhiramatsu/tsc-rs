@@ -179,9 +179,36 @@ pub struct PreparsedSyntax {
     identity_domain: Option<IdentityDomain>,
 }
 
+/// A binding job needs only its take-once slot, not parse/cache metadata.
+#[derive(Debug)]
+pub(crate) struct PendingSourceBind {
+    slot: Arc<Mutex<Option<Box<PreparsedSourceFile>>>>,
+}
+
+impl PendingSourceBind {
+    pub(crate) fn bind_reserved(self, domain: &IdentityDomain, tracing: bool) {
+        PreparsedSyntax::bind_reserved_slot(&self.slot, domain, tracing);
+    }
+}
+
 impl PreparsedSyntax {
+    /// Called by ordered admission after installing this source's reservation.
+    pub(crate) fn pending_bind(&self) -> PendingSourceBind {
+        PendingSourceBind {
+            slot: Arc::clone(&self.slot),
+        }
+    }
+
     pub(crate) fn bind_reserved(&self, domain: &IdentityDomain, tracing: bool) {
-        let mut slot = self.slot.lock().expect("retained parse");
+        Self::bind_reserved_slot(&self.slot, domain, tracing);
+    }
+
+    fn bind_reserved_slot(
+        slot: &Mutex<Option<Box<PreparsedSourceFile>>>,
+        domain: &IdentityDomain,
+        tracing: bool,
+    ) {
+        let mut slot = slot.lock().expect("retained parse");
         let Some(parsed) = slot.as_mut() else { return };
         let Some(reservation) = &parsed.bind_reservations else {
             return;
@@ -204,14 +231,6 @@ impl PreparsedSyntax {
         // here: the checker relocates overflows in its established order.
         parsed.bind_data = Some(Box::new(binder.into_bind_data()));
         parsed.bind_span = started.map(|started| (started, std::time::Instant::now()));
-    }
-
-    pub(crate) fn has_bind_reservation(&self) -> bool {
-        self.slot
-            .lock()
-            .expect("retained parse")
-            .as_ref()
-            .is_some_and(|parsed| parsed.bind_reservations.is_some())
     }
 
     /// The task's bind interval, when the command requested tracing.
@@ -664,9 +683,15 @@ impl PreparedSourceFile {
         self
     }
 
-    pub(crate) fn with_inclusion_reason_records(mut self, reasons: SourceInclusionReasons) -> Self {
+    pub(crate) fn set_load_inclusion(
+        &mut self,
+        has_non_external_reason: bool,
+        reasons: SourceInclusionReasons,
+    ) {
+        self.may_be_emitted &= has_non_external_reason;
+        self.may_emit_forced_declaration &= has_non_external_reason;
+        self.found_searching_node_modules = !has_non_external_reason;
         self.inclusion_reasons = reasons;
-        self
     }
 
     /// Why the file is in the program (tsgo `fileIncludeReasons`), one
@@ -2702,6 +2727,8 @@ impl PreparedProgramBuilder {
     /// The loader knows its complete publication order before adding files.
     pub(crate) fn reserve_source_files(&mut self, additional: usize) {
         self.source_files.reserve_exact(additional);
+        self.source_by_canonical.reserve(additional);
+        self.text_by_canonical.reserve(additional);
     }
 
     pub fn add_source_file(
@@ -3105,6 +3132,24 @@ impl PreparedProgramBuilder {
         Ok(())
     }
 
+    pub(crate) fn stage_prepared_module_resolution(
+        &mut self,
+        loaded: &mut LoadedModules,
+        prepared: Arc<crate::resolution::PreparedModule>,
+        specifier: &mut JsString,
+        binding: crate::resolution::ModuleBinding,
+        package_map: &BTreeMap<JsString, bool>,
+    ) -> Result<(), ResolutionError> {
+        debug_assert!(self.ensure_healthy().is_ok());
+        loaded.push_prepared(
+            prepared,
+            specifier,
+            binding,
+            &self.source_files,
+            package_map,
+        )
+    }
+
     fn try_add_module_resolution(
         &mut self,
         key: ResolutionKey,
@@ -3224,9 +3269,11 @@ impl PreparedProgramBuilder {
             .iter()
             .enumerate()
             .all(|(i, id)| id.index() == i));
-        debug_assert!(self.source_files.iter().all(|source| source
-            .package_scope()
-            .is_none_or(|scope| self.packages.contains_key(scope))));
+        debug_assert!(self.source_files.iter().all(|source| {
+            source
+                .package_scope()
+                .is_none_or(|scope| self.packages.contains_key(scope))
+        }));
         self.validate_missing_root_diagnostics()?;
         // Mapper diagnostics are external data, not a resolver invariant.
         self.validate_diagnostic_sources()?;

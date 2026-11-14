@@ -150,3 +150,134 @@ fn index_info_readers_share_storage_and_keep_replaced_snapshots() {
     changed[0].is_readonly = true;
     assert!(!snapshot[0].is_readonly);
 }
+
+#[test]
+fn detached_storage_outlives_its_borrowed_program_views() {
+    use std::sync::mpsc;
+    use std::time::Duration;
+    struct Block {
+        started: mpsc::Sender<()>,
+        release: mpsc::Receiver<()>,
+    }
+    impl Drop for Block {
+        fn drop(&mut self) {
+            self.started.send(()).unwrap();
+            self.release.recv().unwrap();
+        }
+    }
+    struct Done(mpsc::Sender<()>);
+    impl Drop for Done {
+        fn drop(&mut self) {
+            self.0.send(()).unwrap();
+        }
+    }
+    let (started, starting) = mpsc::channel();
+    let (release, releasing) = mpsc::channel();
+    crate::finished_storage::defer(Block {
+        started,
+        release: releasing,
+    });
+    starting.recv_timeout(Duration::from_secs(10)).unwrap();
+    with_program_state(
+        &[(
+            "a.ts",
+            "interface Box<T> { value: T }; declare const box: Box<string>;",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            state.tables.get_string_literal_type("owned payload");
+            state.defer_finished_storage();
+            assert_eq!(state.tables.len(), 0);
+        },
+    );
+    // The helper was blocked throughout destruction of the Program borrows.
+    release.send(()).unwrap();
+    let (done, finished) = mpsc::channel();
+    crate::finished_storage::defer(Done(done));
+    finished.recv_timeout(Duration::from_secs(10)).unwrap();
+}
+
+#[test]
+fn compact_signatures_preserve_full_counts_flags_and_optional_lists() {
+    use super::{Signature, SignatureId, SignatureKind};
+    use tsc_types::{SignatureFlags, TypeFlags, TypeId};
+    let last = TypeId::new(u32::MAX - 1);
+    let mut signature = Signature::new();
+    signature.flags = SignatureFlags::from_bits(-1);
+    signature.resolved_return_type = Some(last);
+    signature.set_min_argument_count(u32::MAX);
+    signature.set_from_method(true);
+    signature.set_isolated_signature_kind(Some(SignatureKind::Construct));
+    signature.set_type_parameters(Some(Box::new([])));
+    signature.set_composite_signatures(Some(Box::new([SignatureId::new(9)])));
+    signature.set_composite_kind(Some(TypeFlags::INTERSECTION));
+    assert_eq!(signature.min_argument_count(), u32::MAX);
+    assert_eq!(signature.flags.bits(), -1);
+    assert_eq!(signature.resolved_return_type, Some(last));
+    assert!(signature.is_from_method());
+    assert_eq!(
+        signature.isolated_signature_kind(),
+        Some(SignatureKind::Construct)
+    );
+    assert!(signature.has_type_parameters());
+    assert_eq!(signature.type_parameters(), Some([].as_slice()));
+    assert_eq!(
+        signature.take_type_parameters().as_deref(),
+        Some([].as_slice())
+    );
+    assert!(signature.has_no_type_parameters());
+    assert_eq!(
+        signature.composite_signatures(),
+        Some([SignatureId::new(9)].as_slice())
+    );
+    signature.set_composite_signatures(None);
+    signature.set_composite_kind(None);
+    assert!(signature.composite_signatures().is_none());
+    signature.set_composite_kind(Some(TypeFlags::UNION));
+    assert_eq!(signature.composite_kind(), Some(TypeFlags::UNION));
+    assert!(signature.composite_signatures().is_none());
+    signature.set_composite_signatures(Some(Box::new([])));
+    signature.set_composite_kind(None);
+    assert_eq!(signature.composite_signatures(), Some([].as_slice()));
+    signature.set_composite_signatures(None);
+    assert!(signature.composite_kind().is_none());
+    assert_eq!(signature.min_argument_count(), u32::MAX);
+}
+
+#[test]
+fn signature_predicate_memos_distinguish_unknown_negative_and_untyped_assertions() {
+    use super::{Signature, SignatureId};
+    use crate::narrow::{TypePredicate, TypePredicateKind};
+    use tsc_types::{TypeFlags, TypeId};
+    let mut signature = Signature::new();
+    assert!(signature.type_predicate().is_none());
+    signature.set_type_predicate(None);
+    assert!(matches!(signature.type_predicate(), Some(None)));
+    signature.set_type_predicate(Some(TypePredicate {
+        kind: TypePredicateKind::AssertsIdentifier,
+        parameter_name: Some("value".into()),
+        parameter_index: 0,
+        ty: None,
+    }));
+    assert!(matches!(signature.type_predicate(),Some(Some(predicate)) if predicate.ty.is_none()));
+    signature.set_type_parameters(Some(Box::new([TypeId::new(8)])));
+    signature.set_composite_signatures(Some(Box::new([SignatureId::new(9)])));
+    signature.set_composite_kind(Some(TypeFlags::UNION));
+    signature.set_erased_signature_cache(Some(SignatureId::new(10)));
+    signature.resolved_return_type = Some(TypeId::new(11));
+    let full = signature.clone();
+    assert!(full.type_predicate().is_none());
+    assert_eq!(full.erased_signature_cache(), Some(SignatureId::new(10)));
+    let fresh = signature.without_caches();
+    assert!(fresh.type_predicate().is_none());
+    assert!(fresh.erased_signature_cache().is_none());
+    assert!(fresh.resolved_return_type.is_none());
+    assert_eq!(fresh.type_parameters(), signature.type_parameters());
+    assert_eq!(
+        fresh.composite_signatures(),
+        signature.composite_signatures()
+    );
+    assert_eq!(fresh.composite_kind(), Some(TypeFlags::UNION));
+    signature.set_type_predicate(None);
+    assert!(matches!(signature.type_predicate(), Some(None)));
+}

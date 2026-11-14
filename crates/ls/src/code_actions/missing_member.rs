@@ -577,7 +577,7 @@ impl MissingMemberFixer<'_, '_, '_> {
             return Ok(None);
         };
         let mut max_args_signature = first;
-        let mut min_argument_count = checker.signature_of(first).min_argument_count;
+        let mut min_argument_count = checker.signature_of(first).min_argument_count();
         let mut has_rest_parameter = false;
         let has_rest = |checker: &CheckerState<'_>, signature: SignatureId| {
             checker
@@ -587,7 +587,7 @@ impl MissingMemberFixer<'_, '_, '_> {
         };
         for &signature in signatures {
             min_argument_count =
-                min_argument_count.min(checker.signature_of(signature).min_argument_count);
+                min_argument_count.min(checker.signature_of(signature).min_argument_count());
             if has_rest(checker, signature) {
                 has_rest_parameter = true;
             }

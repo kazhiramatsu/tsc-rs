@@ -279,6 +279,15 @@ pub(crate) struct FlowMemo {
 }
 
 impl FlowMemo {
+    /// Move owned cache payloads without moving their report collector.
+    pub(crate) fn take_finished_storage(&mut self) -> impl Send + 'static {
+        (
+            std::mem::take(&mut self.slots),
+            std::mem::take(&mut self.checkpoints),
+            std::mem::take(&mut self.key_buffer),
+        )
+    }
+
     pub(crate) fn new() -> Self {
         Self {
             serial: 1,

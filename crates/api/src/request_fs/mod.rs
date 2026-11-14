@@ -696,6 +696,22 @@ impl FileSystem for RequestFileSystem {
         }
     }
 
+    fn read_contents(&self, path: &str) -> io::Result<tsc_host::SourceRead> {
+        let lookup = self.lookup_path(path);
+        if !lookup.ok || matches!(lookup.info, Some(Info::Directory)) {
+            return Err(io::Error::from(io::ErrorKind::NotFound));
+        }
+        if lookup.base {
+            return self.base.read_contents(&lookup.path);
+        }
+        match lookup.info {
+            Some(Info::File(file)) => Ok(tsc_host::SourceRead::Bytes(
+                file.content.as_bytes().to_vec(),
+            )),
+            _ => Err(io::Error::from(io::ErrorKind::NotFound)),
+        }
+    }
+
     /// tsgo `Stat`: a request entry's own metadata, or the base's (or an
     /// existence-only answer) for a path it answers.
     fn metadata(&self, path: &str) -> io::Result<Metadata> {

@@ -1,144 +1,200 @@
-//! Owned bind work below the loader's read/parse priority.
-use crate::{PreparsedSyntax, WorkerBudget};
-use std::sync::{Arc, Mutex};
+//! Owned bind batches activated below the loader's read/parse priority.
+use crate::{prepared::PendingSourceBind, WorkerBudget};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
 use std::thread::JoinHandle;
 use tsc_types::IdentityDomain;
 
-// Short commands have too little ordered load work to hide a crew's startup.
 pub(crate) const MIN_ROOTS: usize = 256;
+
+#[derive(Debug, Default)]
+struct Pending {
+    batches: Vec<Vec<PendingSourceBind>>,
+    count: usize,
+}
 
 #[derive(Debug)]
 struct Queue {
-    jobs: Vec<PreparsedSyntax>,
-    stopped: bool,
+    jobs: Vec<PendingSourceBind>,
     started: usize,
 }
 
-/// Workers own the queue, while the Program alone owns their join handles.
-/// Queue entries hold existing slots, never another tree or completed bind.
+/// Admission collects slots on parse workers. Activation only starts their
+/// owner; that thread prepares the queue and participates in binding.
 #[derive(Debug)]
 pub(crate) struct SourceBinds {
-    queue: Arc<Mutex<Queue>>,
-    threads: Mutex<Vec<JoinHandle<()>>>,
+    pending: Mutex<Option<Pending>>,
+    domain: IdentityDomain,
+    workers: WorkerBudget,
+    tracing: bool,
+    stopped: Arc<AtomicBool>,
+    thread: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl SourceBinds {
-    pub(crate) fn start(
-        jobs: Vec<PreparsedSyntax>,
+    pub(crate) fn pending(
         domain: IdentityDomain,
         workers: WorkerBudget,
         tracing: bool,
-    ) -> Option<Arc<Self>> {
-        Self::start_with(jobs, workers, move |syntax| {
-            syntax.bind_reserved(&domain, tracing);
+    ) -> Arc<Self> {
+        debug_assert!(workers.is_parallel());
+        Arc::new(Self {
+            pending: Mutex::new(Some(Pending::default())),
+            domain,
+            workers,
+            tracing,
+            stopped: Arc::new(AtomicBool::new(false)),
+            thread: Mutex::new(None),
         })
     }
 
-    fn start_with(
-        mut jobs: Vec<PreparsedSyntax>,
-        workers: WorkerBudget,
-        work: impl Fn(PreparsedSyntax) + Send + Sync + 'static,
-    ) -> Option<Arc<Self>> {
-        if jobs.is_empty() || !workers.is_parallel() {
-            return None;
+    pub(crate) fn register(&self, jobs: Vec<PendingSourceBind>) {
+        if jobs.is_empty() {
+            return;
         }
-        let count = (workers.max_workers() - 1).min(jobs.len());
-        jobs.reverse();
-        let queue = Arc::new(Mutex::new(Queue {
-            jobs,
-            stopped: false,
-            started: 0,
-        }));
-        let work = Arc::new(work);
-        let mut threads = Vec::with_capacity(count);
-        for _ in 0..count {
-            let queue = Arc::clone(&queue);
-            let work = Arc::clone(&work);
-            if let Ok(thread) = std::thread::Builder::new()
-                .name("tsc-rs-bind".into())
-                .stack_size(crate::workers::WORKER_STACK_BYTES)
-                .spawn(move || {
-                    crate::workers::run_thread_start_hook();
-                    loop {
-                        let job = {
-                            let mut queue = queue.lock().expect("source bind queue");
-                            if queue.stopped {
-                                None
-                            } else {
-                                let job = queue.jobs.pop();
-                                queue.started += usize::from(job.is_some());
-                                job
-                            }
-                        };
-                        let Some(job) = job else { break };
-                        work(job);
-                    }
-                })
-            {
-                threads.push(thread);
-            }
-        }
-        if threads.is_empty() {
-            return None;
-        }
-        Some(Arc::new(Self {
-            queue,
-            threads: Mutex::new(threads),
-        }))
+        let mut pending = self.pending.lock().expect("pending source binds");
+        let pending = pending.as_mut().expect("registration precedes activation");
+        pending.count += jobs.len();
+        pending.batches.push(jobs);
     }
 
-    /// Reclaim active work before the consumer leases another identity.
-    /// In particular, a worker may be the last owner of an unvisited parse.
+    pub(crate) fn activate(&self) -> bool {
+        let domain = self.domain.clone();
+        let tracing = self.tracing;
+        self.activate_with(move |source| source.bind_reserved(&domain, tracing))
+    }
+
+    fn activate_with(&self, work: impl Fn(PendingSourceBind) + Send + Sync + 'static) -> bool {
+        let mut handle = self.thread.lock().expect("source bind owner");
+        if handle.is_some() {
+            return true;
+        }
+        let pending = self.pending.lock().expect("pending source binds").take();
+        let Some(pending) = pending else {
+            return false;
+        };
+        if pending.count == 0 || self.stopped.load(Ordering::Acquire) {
+            return false;
+        }
+        let count = (self.workers.max_workers() - 1).min(pending.count);
+        let stopped = Arc::clone(&self.stopped);
+        let owner = std::thread::Builder::new()
+            .name("tsc-rs-bind".into())
+            .stack_size(crate::workers::WORKER_STACK_BYTES)
+            .spawn(move || {
+                crate::workers::run_thread_start_hook();
+                let eligible = pending.count;
+                let mut jobs = Vec::with_capacity(eligible);
+                let mut sources = pending.batches.into_iter().flatten();
+                for source in sources.by_ref() {
+                    if stopped.load(Ordering::Acquire) {
+                        break;
+                    }
+                    jobs.push(source);
+                }
+                drop(sources);
+                jobs.reverse();
+                let queue = Mutex::new(Queue { jobs, started: 0 });
+                let run = || loop {
+                    let job = {
+                        let mut queue = queue.lock().expect("source bind queue");
+                        if stopped.load(Ordering::Acquire) {
+                            None
+                        } else {
+                            let job = queue.jobs.pop();
+                            queue.started += usize::from(job.is_some());
+                            job
+                        }
+                    };
+                    let Some(job) = job else { break };
+                    work(job);
+                };
+                std::thread::scope(|scope| {
+                    for _ in 1..count {
+                        let _ = std::thread::Builder::new()
+                            .name("tsc-rs-bind".into())
+                            .stack_size(crate::workers::WORKER_STACK_BYTES)
+                            .spawn_scoped(scope, || {
+                                crate::workers::run_thread_start_hook();
+                                run();
+                            });
+                    }
+                    run();
+                });
+                if tsc_types::trace::enabled() {
+                    let queue = queue
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    eprintln!(
+                        "[bind-tasks] started={} unstarted={}",
+                        queue.started,
+                        eligible - queue.started
+                    );
+                }
+                // Queue, unused slots and callback captures all leave before
+                // the owner joins and the consumer leases another identity.
+            });
+        match owner {
+            Ok(owner) => {
+                *handle = Some(owner);
+                true
+            }
+            Err(_) => false,
+        }
+    }
+
+    pub(crate) fn stop(&self) {
+        self.stopped.store(true, Ordering::Release);
+    }
+
     pub(crate) fn finish(&self) {
         self.stop();
-        let mut threads = self
-            .threads
+        // Keep the owner lock through join: a second concurrent consumer may
+        // not pass the checkpoint while the first still reclaims root owners.
+        let mut handle = self
+            .thread
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let mut failure = None;
-        for thread in threads.drain(..) {
-            if let Err(panic) = thread.join() {
-                failure = Some(panic);
-            }
-        }
-        drop(threads);
+        let failure = handle.take().and_then(|thread| thread.join().err());
+        self.pending
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        drop(handle);
         if let Some(panic) = failure {
             std::panic::resume_unwind(panic);
         }
     }
 
-    /// The checker adopts completed slots and binds the unstarted remainder.
-    /// This waits only for the queue lock, never for an in-flight bind.
-    pub(crate) fn stop(&self) {
-        let mut queue = self
-            .queue
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if !queue.stopped && tsc_types::trace::enabled() {
-            eprintln!(
-                "[bind-tasks] started={} unstarted={}",
-                queue.started,
-                queue.jobs.len()
-            );
+    #[cfg(test)]
+    fn start_with(
+        jobs: Vec<crate::PreparsedSyntax>,
+        workers: WorkerBudget,
+        work: impl Fn(PendingSourceBind) + Send + Sync + 'static,
+    ) -> Option<Arc<Self>> {
+        if jobs.is_empty() || !workers.is_parallel() {
+            return None;
         }
-        queue.stopped = true;
-        queue.jobs.clear();
+        let crew = Self::pending(IdentityDomain::new(), workers, false);
+        crew.register(
+            jobs.iter()
+                .map(crate::PreparsedSyntax::pending_bind)
+                .collect(),
+        );
+        crew.activate_with(work).then_some(crew)
     }
 }
 
 impl Drop for SourceBinds {
     fn drop(&mut self) {
         self.stop();
-        let threads = self
-            .threads
+        let handle = self
+            .thread
             .get_mut()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let mut failure = None;
-        for thread in threads.drain(..) {
-            if let Err(panic) = thread.join() {
-                failure = Some(panic);
-            }
-        }
+        let failure = handle.take().and_then(|thread| thread.join().err());
         if !std::thread::panicking() {
             if let Some(panic) = failure {
                 std::panic::resume_unwind(panic);
@@ -150,7 +206,7 @@ impl Drop for SourceBinds {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::PreparsedSourceFile;
+    use crate::{PreparsedSourceFile, PreparsedSyntax};
     use std::{
         num::NonZeroUsize,
         sync::mpsc,
@@ -219,6 +275,7 @@ mod tests {
 #[cfg(test)]
 mod identity_handoff_tests {
     use super::*;
+    use crate::PreparsedSyntax;
     use std::{num::NonZeroUsize, sync::mpsc, time::Duration};
     use tsc_types::IdentitySpace;
 

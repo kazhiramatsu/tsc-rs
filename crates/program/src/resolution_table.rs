@@ -4,6 +4,7 @@ use crate::prepared::PreparedSourceFile;
 use std::collections::BTreeMap;
 use std::num::NonZeroU32;
 use std::ops::Range;
+use std::sync::Arc;
 
 const EXTERNAL: u8 = 1;
 const TS_EXTENSION: u8 = 2;
@@ -193,6 +194,8 @@ impl StagedModules {
     }
 }
 
+// Package comparison and hashing use only the immutable PackageId value.
+#[allow(clippy::mutable_key_type)]
 fn compact_module_row(
     importing_source: SourceFileId,
     specifier: JsString,
@@ -200,7 +203,7 @@ fn compact_module_row(
     resolution: ModuleResolution,
     exact_source_path: bool,
     sources: &[PreparedSourceFile],
-    packages: &mut BTreeMap<PackageId, NonZeroU32>,
+    packages: &mut BTreeMap<Arc<PreparedPackageId>, NonZeroU32>,
 ) -> Row {
     let ModuleResolution {
         outcome,
@@ -242,7 +245,11 @@ fn compact_module_row(
                     u32::try_from(packages.len() + 1).expect("package id fits u32"),
                 )
                 .unwrap();
-                package_id = Some(*packages.entry(package).or_insert(next));
+                package_id = Some(
+                    *packages
+                        .entry(Arc::new(PreparedPackageId::new(package)))
+                        .or_insert(next),
+                );
             }
             match target {
                 ResolvedModuleTarget::Source {
@@ -280,15 +287,311 @@ fn compact_module_row(
     }
 }
 
-/// Loader rows are already unique and bound to final source identities.
-/// Publication writes their final storage and lookup hashes together. Only
-/// compact indices are sorted at freeze; the owned rows never move again.
+/// Source-local permutations; neither depends on final source identities.
+#[derive(Default)]
+pub(crate) struct PreparedModuleIndices {
+    order: Vec<u32>,
+    lookup: Vec<ModuleLookup>,
+}
+
+impl PreparedModuleIndices {
+    pub(crate) fn new(keys: &[ResolutionKey]) -> Self {
+        let mut order: Vec<_> = (0..keys.len())
+            .map(|i| u32::try_from(i).expect("source module count fits u32"))
+            .collect();
+        order.sort_unstable_by(|&a, &b| {
+            let a = &keys[a as usize];
+            let b = &keys[b as usize];
+            (a.specifier(), a.mode()).cmp(&(b.specifier(), b.mode()))
+        });
+        let mut lookup: Vec<_> = keys
+            .iter()
+            .enumerate()
+            .map(|(row, key)| ModuleLookup {
+                hash: module_lookup_hash(key.specifier(), key.mode()),
+                row: u32::try_from(row).expect("source module count fits u32"),
+            })
+            .collect();
+        lookup.sort_unstable_by_key(|entry| (entry.hash, entry.row));
+        Self { order, lookup }
+    }
+}
+
+/// A final-format row with source membership and package interning deferred.
+/// The symbolic path and manifest observation are released at publication.
+#[derive(Clone)]
+pub(crate) struct PreparedModule {
+    row: Row,
+    path: Option<ProgramPath>,
+    package: Option<Arc<PreparedPackage>>,
+}
+
+#[derive(Clone)]
+struct PreparedPackage {
+    id: Option<PreparedPackageRef>,
+    metadata: Option<std::sync::Arc<crate::PackageMetadata>>,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct PreparedResolvedModule<'a>(&'a PreparedModule);
+
+impl<'a> PreparedResolvedModule<'a> {
+    pub(crate) fn resolved_file(self) -> &'a ProgramPath {
+        self.0.path.as_ref().expect("resolved path")
+    }
+    pub(crate) fn extension(self) -> &'a ModuleExtension {
+        self.0.row.extension.view(self.0.row.rare.as_deref())
+    }
+    pub(crate) fn original_path(self) -> Option<&'a ProgramPath> {
+        self.0
+            .row
+            .rare
+            .as_ref()
+            .and_then(|r| r.original_path.as_ref())
+    }
+    pub(crate) fn package_id(self) -> Option<&'a PackageId> {
+        self.0
+            .package
+            .as_ref()
+            .and_then(|p| p.id.as_ref())
+            .map(PreparedPackageRef::value)
+    }
+    pub(crate) fn package_identity(self) -> Option<&'a PreparedPackageRef> {
+        self.0
+            .package
+            .as_ref()
+            .and_then(|package| package.id.as_ref())
+    }
+    pub(crate) fn package_metadata(self) -> Option<&'a crate::PackageMetadata> {
+        self.0.package.as_ref().and_then(|p| p.metadata.as_deref())
+    }
+    pub(crate) fn is_external_library_import(self) -> bool {
+        self.0.row.flags & EXTERNAL != 0
+    }
+    pub(crate) fn resolved_using_extra_extensions(self) -> bool {
+        self.0.row.flags & EXTRA_EXTENSION != 0
+    }
+}
+
+pub(crate) struct ModuleBinding {
+    pub source: SourceFileId,
+    pub target: Option<SourceFileId>,
+    pub loads_source: bool,
+    pub unloaded_reason: Option<UnloadedModuleReason>,
+    pub no_resolve: bool,
+    pub exact_path: bool,
+}
+
+impl PreparedModule {
+    pub(crate) fn new(
+        host: crate::module_resolution::HostModuleResolution,
+        mode: ResolutionMode,
+        identities: &PreparedPackageIds,
+    ) -> Self {
+        let parts = host.into_load_parts();
+        let mut rare = Rare {
+            diagnostics: parts.diagnostics,
+            ..Rare::default()
+        };
+        let mut extension = ExtensionTag::Ts;
+        let mut flags = 0;
+        let mut package = None;
+        let path = parts.module.map(|module| {
+            (extension, rare.arbitrary_extension) = ExtensionTag::from_owned(module.extension);
+            rare.original_path = module.original_path;
+            rare.alternate_result = module.alternate_result;
+            flags = flag(module.external, EXTERNAL)
+                | flag(module.ts_extension, TS_EXTENSION)
+                | flag(module.extra_extension, EXTRA_EXTENSION)
+                | flag(module.custom, CUSTOM);
+            if module.package_id.is_some() || module.package_metadata.is_some() {
+                package = Some(Arc::new(PreparedPackage {
+                    id: module.package_id.map(|id| identities.intern(id)),
+                    metadata: module.package_metadata,
+                }));
+            }
+            module.resolved_file
+        });
+        Self {
+            row: Row {
+                specifier: JsString::default(),
+                mode,
+                target: Target::NotFound,
+                rare: (!rare.is_empty()).then(|| Box::new(rare)),
+                importing_source: SourceFileId::from_raw(0),
+                package_id: None,
+                extension,
+                flags,
+            },
+            path,
+            package,
+        }
+    }
+    pub(crate) fn resolved(&self) -> Option<PreparedResolvedModule<'_>> {
+        self.path.as_ref().map(|_| PreparedResolvedModule(self))
+    }
+    pub(crate) fn needs_validation(&self) -> bool {
+        self.row.flags & CUSTOM != 0
+            || self
+                .row
+                .rare
+                .as_ref()
+                .is_some_and(|r| !r.diagnostics.is_empty())
+    }
+    pub(crate) fn into_host(self) -> crate::module_resolution::HostModuleResolution {
+        let rare = self.row.rare.map(|r| *r).unwrap_or_default();
+        let module = self.path.map(|resolved_file| {
+            let (package_id, package_metadata) = self
+                .package
+                .map(|p| {
+                    (
+                        p.id.as_ref().map(|id| id.value().clone()),
+                        p.metadata.clone(),
+                    )
+                })
+                .unwrap_or_default();
+            crate::module_resolution::LoadResolvedModuleParts {
+                resolved_file,
+                extension: self.row.extension.view(Some(&rare)).clone(),
+                original_path: rare.original_path.clone(),
+                alternate_result: rare.alternate_result.clone(),
+                package_id,
+                package_metadata,
+                external: self.row.flags & EXTERNAL != 0,
+                ts_extension: self.row.flags & TS_EXTENSION != 0,
+                extra_extension: self.row.flags & EXTRA_EXTENSION != 0,
+                custom: self.row.flags & CUSTOM != 0,
+            }
+        });
+        crate::module_resolution::HostModuleResolution::from_load_parts(
+            crate::module_resolution::LoadModuleParts {
+                module,
+                diagnostics: rare.diagnostics,
+            },
+        )
+    }
+    // The lazy display cache does not participate in package ordering.
+    #[allow(clippy::mutable_key_type)]
+    fn bind(
+        mut self,
+        binding: &ModuleBinding,
+        sources: &[PreparedSourceFile],
+        package_map: &BTreeMap<JsString, bool>,
+        packages: &mut BTreeMap<Arc<PreparedPackageId>, NonZeroU32>,
+        package_flags: &mut Vec<u8>,
+        package_indices: &mut Vec<Option<(NonZeroU32, u8)>>,
+    ) -> Result<Row, ResolutionError> {
+        self.row.importing_source = binding.source;
+        if let Some(path) = self.path.take() {
+            let extension = self.row.extension.view(self.row.rare.as_deref());
+            let membership = if binding.no_resolve && binding.target.is_none() {
+                Err(binding
+                    .unloaded_reason
+                    .unwrap_or(UnloadedModuleReason::NoResolve))
+            } else if let (None, Some(reason)) = (binding.target, binding.unloaded_reason) {
+                Err(reason)
+            } else if extension.is_javascript() && binding.target.is_none() {
+                return Err(ResolutionError::unsupported(
+                    "unexplained-unloaded-javascript",
+                    format!(
+                        "resolved JavaScript target {} has no source-membership exclusion",
+                        path.display().to_string_lossy()
+                    ),
+                ));
+            } else if matches!(extension, ModuleExtension::Arbitrary(text) if text.starts_with(".d.") && text.ends_with(".ts"))
+                && binding.target.is_none()
+            {
+                Err(if binding.loads_source {
+                    UnloadedModuleReason::ArbitraryExtensionWithoutOption
+                } else {
+                    UnloadedModuleReason::ResolutionOnly
+                })
+            } else if let Some(source) = binding.target {
+                Ok(source)
+            } else {
+                return Err(ResolutionError::unsupported(
+                    "resolution-only-source-target",
+                    format!(
+                        "resolved non-JavaScript target {} has no independent program membership",
+                        path.display().to_string_lossy()
+                    ),
+                ));
+            };
+            self.row.target = match membership {
+                Ok(source) => {
+                    debug_assert!(!binding.exact_path || &path == sources[source.index()].path());
+                    if !binding.exact_path && &path != sources[source.index()].path() {
+                        self.row
+                            .rare
+                            .get_or_insert_with(|| Box::new(Rare::default()))
+                            .resolved_file = Some(path);
+                    }
+                    Target::Source(source)
+                }
+                Err(reason) => Target::Unloaded {
+                    path: Box::new(path),
+                    reason,
+                },
+            };
+            if let Some(package) = self.package {
+                if let Some(package) = &package.id {
+                    if package.index >= package_indices.len() {
+                        package_indices.resize(package.index + 1, None);
+                    }
+                    let (id, flags) = match package_indices[package.index] {
+                        Some(bound) => bound,
+                        None => {
+                            use std::collections::btree_map::Entry;
+                            let next = NonZeroU32::new(
+                                u32::try_from(packages.len() + 1).expect("package id fits u32"),
+                            )
+                            .unwrap();
+                            let bound = match packages.entry(Arc::clone(&package.id)) {
+                                Entry::Occupied(entry) => {
+                                    let id = *entry.get();
+                                    (id, package_flags[id.get() as usize - 1])
+                                }
+                                Entry::Vacant(entry) => {
+                                    let name = entry.key().name();
+                                    let types_name = crate::js_string_ops::types_package_name(name);
+                                    let flags =
+                                        flag(package_map.contains_key(&types_name), TYPES_PACKAGE)
+                                            | flag(
+                                                package_map
+                                                    .get(name.as_bytes())
+                                                    .copied()
+                                                    .unwrap_or(false),
+                                                BUNDLES_TYPES,
+                                            );
+                                    package_flags.push(flags);
+                                    entry.insert(next);
+                                    (next, flags)
+                                }
+                            };
+                            package_indices[package.index] = Some(bound);
+                            bound
+                        }
+                    };
+                    self.row.package_id = Some(id);
+                    self.row.flags |= flags;
+                }
+            }
+        }
+        Ok(self.row)
+    }
+}
+
+/// Loader batches have unique requests. Publication binds prepared rows and
+/// installs their source-local indices; API rows keep the sorting fallback.
 #[derive(Default)]
 pub(crate) struct LoadedModules {
     modules: Vec<Row>,
     module_lookup: Vec<ModuleLookup>,
     source_ranges: Vec<Range<u32>>,
-    packages: BTreeMap<PackageId, NonZeroU32>,
+    packages: BTreeMap<Arc<PreparedPackageId>, NonZeroU32>,
+    prepared_order: Vec<Option<Vec<u32>>>,
+    package_flags: Vec<u8>,
+    package_indices: Vec<Option<(NonZeroU32, u8)>>,
 }
 
 impl LoadedModules {
@@ -298,7 +601,61 @@ impl LoadedModules {
             module_lookup: Vec::with_capacity(row_count),
             source_ranges: vec![0..0; source_count],
             packages: BTreeMap::new(),
+            prepared_order: (0..source_count).map(|_| None).collect(),
+            package_flags: Vec::new(),
+            package_indices: Vec::new(),
         }
+    }
+
+    pub(crate) fn set_source_indices(
+        &mut self,
+        source: SourceFileId,
+        indices: PreparedModuleIndices,
+    ) {
+        let range = &self.source_ranges[source.index()];
+        debug_assert_eq!(indices.order.len(), (range.end - range.start) as usize);
+        for (slot, mut entry) in self.module_lookup[range.start as usize..range.end as usize]
+            .iter_mut()
+            .zip(indices.lookup)
+        {
+            entry.row += range.start;
+            *slot = entry;
+        }
+        self.prepared_order[source.index()] = Some(indices.order);
+    }
+
+    pub(crate) fn push_prepared(
+        &mut self,
+        prepared: Arc<PreparedModule>,
+        specifier: &mut JsString,
+        binding: ModuleBinding,
+        sources: &[PreparedSourceFile],
+        package_map: &BTreeMap<JsString, bool>,
+    ) -> Result<(), ResolutionError> {
+        let mut row = Arc::unwrap_or_clone(prepared).bind(
+            &binding,
+            sources,
+            package_map,
+            &mut self.packages,
+            &mut self.package_flags,
+            &mut self.package_indices,
+        )?;
+        row.specifier = std::mem::take(specifier);
+        let index = u32::try_from(self.modules.len()).expect("module row index fits u32");
+        let range = &mut self.source_ranges[binding.source.index()];
+        if range.start == range.end {
+            range.start = index;
+        }
+        debug_assert_eq!(range.end.max(range.start), index);
+        range.end = index.checked_add(1).expect("module range fits u32");
+        // The source-local lookup permutation replaces these slots after
+        // publication has fixed the batch's offset in the final row vector.
+        self.module_lookup.push(ModuleLookup {
+            hash: 0,
+            row: index,
+        });
+        self.modules.push(row);
+        Ok(())
     }
 
     pub(crate) fn push(
@@ -322,7 +679,7 @@ impl LoadedModules {
             hash: module_lookup_hash(key.specifier(), key.mode()),
             row: index,
         });
-        self.modules.push(compact_module_row(
+        let row = compact_module_row(
             source,
             key.specifier,
             key.mode,
@@ -330,7 +687,12 @@ impl LoadedModules {
             exact_source_path,
             sources,
             &mut self.packages,
-        ));
+        );
+        self.package_flags.resize(self.packages.len(), 0);
+        if let Some(id) = row.package_id {
+            self.package_flags[id.get() as usize - 1] = row.flags & (TYPES_PACKAGE | BUNDLES_TYPES);
+        }
+        self.modules.push(row);
     }
 
     pub(crate) fn finish(
@@ -353,15 +715,19 @@ impl LoadedModules {
         let mut module_order = Vec::with_capacity(self.modules.len());
         for source in groups {
             let range = &self.source_ranges[source];
-            let start = module_order.len();
-            module_order.extend(range.clone());
-            module_order[start..].sort_unstable_by(|a, b| {
-                let a = &self.modules[*a as usize];
-                let b = &self.modules[*b as usize];
-                (a.specifier.as_js(), a.mode).cmp(&(b.specifier.as_js(), b.mode))
-            });
-            self.module_lookup[range.start as usize..range.end as usize]
-                .sort_unstable_by_key(|entry| (entry.hash, entry.row));
+            if let Some(order) = self.prepared_order[source].take() {
+                module_order.extend(order.into_iter().map(|row| row + range.start));
+            } else {
+                let start = module_order.len();
+                module_order.extend(range.clone());
+                module_order[start..].sort_unstable_by(|a, b| {
+                    let a = &self.modules[*a as usize];
+                    let b = &self.modules[*b as usize];
+                    (a.specifier.as_js(), a.mode).cmp(&(b.specifier.as_js(), b.mode))
+                });
+                self.module_lookup[range.start as usize..range.end as usize]
+                    .sort_unstable_by_key(|entry| (entry.hash, entry.row));
+            }
         }
         // IDs are private indices. Keep publication's interning order; views
         // expose package values, and iteration uses canonical module_order.
@@ -376,7 +742,10 @@ impl LoadedModules {
             module_order,
             module_lookup: self.module_lookup,
             source_ranges: self.source_ranges,
-            package_ids: packages.into_iter().map(|(_, package)| package).collect(),
+            package_ids: packages
+                .into_iter()
+                .map(|(_, package)| PreparedPackageId::into_value(package))
+                .collect(),
             type_references,
         }
     }
@@ -489,6 +858,8 @@ impl ResolutionTable {
         let mut rows: Vec<_> = rows.into_iter().map(Some).collect();
         let mut modules = Vec::with_capacity(rows.len());
         let mut source_ranges = vec![0..0; sources.len()];
+        // The mutable display memo is excluded from Eq, Ord and Hash.
+        #[allow(clippy::mutable_key_type)]
         let mut packages = BTreeMap::new();
         for index in groups
             .into_iter()
@@ -526,7 +897,10 @@ impl ResolutionTable {
             .map(|(package, id)| (id, package))
             .collect::<Vec<_>>();
         packages.sort_unstable_by_key(|(id, _)| *id);
-        let package_ids = packages.into_iter().map(|(_, package)| package).collect();
+        let package_ids = packages
+            .into_iter()
+            .map(|(_, package)| PreparedPackageId::into_value(package))
+            .collect();
         Self {
             module_lookup: module_lookup_index(&modules, &source_ranges),
             module_order: Vec::new(),
@@ -1012,3 +1386,7 @@ impl ResolutionTable {
 #[cfg(test)]
 #[path = "../tests/unit/resolution_table.rs"]
 mod tests;
+
+#[path = "prepared_package_id.rs"]
+mod package_identity;
+pub(crate) use package_identity::{PreparedPackageId, PreparedPackageIds, PreparedPackageRef};

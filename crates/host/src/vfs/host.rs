@@ -106,6 +106,12 @@ impl<F: FileSystem> crate::ParallelSourceReader for VfsCompilerHost<F> {
     fn read_source_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
         CompilerHost::read_file_js(self, path)
     }
+    fn read_source_contents_js(
+        &self,
+        path: JsStr<'_>,
+    ) -> Result<Option<crate::SourceRead>, HostError> {
+        CompilerHost::read_file_contents_js(self, path)
+    }
 }
 
 impl<F: FileSystem> CompilerHost for VfsCompilerHost<F> {
@@ -130,6 +136,18 @@ impl<F: FileSystem> CompilerHost for VfsCompilerHost<F> {
     fn read_file_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
         let path = self.query(path, HostOperation::ReadFile)?;
         match self.fs.read(&path) {
+            Ok(contents) => Ok(Some(contents)),
+            Err(error) => self
+                .error(HostOperation::ReadFile, &path, error)
+                .map(|()| None),
+        }
+    }
+    fn read_file_contents_js(
+        &self,
+        path: JsStr<'_>,
+    ) -> Result<Option<crate::SourceRead>, HostError> {
+        let path = self.query(path, HostOperation::ReadFile)?;
+        match self.fs.read_contents(&path) {
             Ok(contents) => Ok(Some(contents)),
             Err(error) => self
                 .error(HostOperation::ReadFile, &path, error)

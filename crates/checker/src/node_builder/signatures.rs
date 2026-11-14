@@ -407,8 +407,7 @@ pub(crate) fn signature_to_signature_declaration_helper(
                 .and_then(|(target_signature_id, mapper)| {
                     checker
                         .signature_of(target_signature_id)
-                        .type_parameters
-                        .clone()
+                        .cloned_type_parameters()
                         .filter(|parameters| !parameters.is_empty())
                         .map(|parameters| (parameters, mapper))
                 })
@@ -431,7 +430,7 @@ pub(crate) fn signature_to_signature_declaration_helper(
                     context,
                 )?);
             }
-        } else if let Some(parameters) = signature.type_parameters.as_deref() {
+        } else if let Some(parameters) = signature.type_parameters() {
             type_parameters.reserve(parameters.len());
             for parameter in parameters {
                 type_parameters.push(type_parameter_to_declaration(
@@ -924,7 +923,7 @@ pub(super) fn enter_signature_scope(
         context,
         signature.declaration,
         Some(&expanded_parameters),
-        signature.type_parameters.as_deref(),
+        signature.type_parameters(),
         Some(&signature.parameters),
         signature.mapper,
     );
@@ -965,7 +964,7 @@ pub(super) fn enter_signature_scope(
         arena,
         target,
         context,
-        signature.type_parameters.as_deref().unwrap_or_default(),
+        signature.type_parameters().unwrap_or_default(),
     );
     context.naming_reparsed_overload_type_parameters = saved_overload_naming;
     primed?;

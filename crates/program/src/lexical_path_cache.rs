@@ -15,6 +15,10 @@ use crate::ResolutionError;
 pub(crate) struct LexicalPath(Arc<JsString>);
 
 impl LexicalPath {
+    pub(crate) fn from_owned(text: JsString) -> Self {
+        Self(Arc::new(text))
+    }
+
     pub(crate) fn into_owned(self) -> JsString {
         match Arc::try_unwrap(self.0) {
             Ok(text) => text,
@@ -231,6 +235,27 @@ impl<S: BuildHasher + Default> PurePathCache<S> {
             Ok(crate::js_path::directory_name(text))
         })
         .expect("directory_name is infallible")
+    }
+
+    pub(crate) fn cached_file_directory(
+        &self,
+        text: JsStr<'_>,
+        base: JsStr<'_>,
+    ) -> Option<(LexicalPath, bool)> {
+        let contexts = self.contexts.borrow();
+        let file = contexts
+            .bases
+            .get(base.as_bytes())?
+            .operations
+            .get(&(Operation::Absolute, true))?
+            .get(text.as_bytes())?;
+        let directory = contexts
+            .no_base
+            .operations
+            .get(&(Operation::Directory, false))?
+            .get(file.as_js().as_bytes())?
+            .clone();
+        Some((directory, file.as_js() == text))
     }
 
     pub(crate) fn file_context(

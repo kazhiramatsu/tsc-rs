@@ -8306,6 +8306,98 @@ fn the_serial_check_with_an_operation_leaks_what_the_no_emit_check_leaks() {
 }
 
 #[test]
+fn terminal_syntax_returns_preserve_one_shot_owners_and_requested_incremental_facts() {
+    struct Provider;
+    impl AuthoritativeModuleProvider for Provider {
+        fn resolve_module(
+            &self,
+            _: AuthoritativeModuleRequest<'_>,
+        ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
+            unreachable!("the sources import nothing")
+        }
+    }
+    struct Factory;
+    impl AuthoritativeModuleProviderFactory for Factory {
+        fn provider(&self) -> Box<dyn AuthoritativeModuleProvider + '_> {
+            Box::new(Provider)
+        }
+    }
+
+    for (text, gate, syntax_errors) in [
+        (
+            "export const value = 1;\n",
+            SyntacticDiagnosticsGate::SyntacticDiagnosticsOnly,
+            false,
+        ),
+        (
+            "export const value = ;\n",
+            SyntacticDiagnosticsGate::CloseTheCheck,
+            true,
+        ),
+    ] {
+        for budget in [1, 4] {
+            for facts in [false, true] {
+                let mut expected_rows = None;
+                for retain in [false, true] {
+                    let snapshot = TextSnapshot::new(text, DocumentVersion::default());
+                    let files = [InputFile::from_snapshot("/a.ts", Arc::clone(&snapshot))];
+                    let metadata = [AuthoritativeSourceMetadata {
+                        token: AuthoritativeSourceToken(1),
+                        file_name: files[0].name.clone(),
+                        may_be_emitted: true,
+                        implied_node_format: None,
+                        implied_node_format_for_emit: None,
+                        project_reference: None,
+                    }];
+                    let options = CompilerOptions {
+                        no_emit: Some(true),
+                        ..CompilerOptions::default()
+                    };
+                    let budget = std::num::NonZeroUsize::new(budget).unwrap();
+                    let result = check_program_with_authoritative_modules_at_with_checkers_gated(
+                        &[],
+                        &files,
+                        &[],
+                        &metadata,
+                        &options,
+                        "/",
+                        &Factory,
+                        WorkerBudget::new(budget),
+                        CheckerBudget::new(budget).with_leaked_states(retain),
+                        gate,
+                        IncrementalRequest::facts_only(facts),
+                    )
+                    .expect("terminal syntax result");
+                    assert_eq!(!result.syntactic_diagnostics.is_empty(), syntax_errors);
+                    assert!(result.semantic_diagnostics.is_empty());
+                    assert_eq!(result.incremental.is_some(), facts);
+                    if facts {
+                        assert_eq!(result.incremental.as_ref().unwrap().files.len(), 1);
+                        assert!(result.work_counters.bound_documents() > 0);
+                    } else {
+                        assert_eq!(result.work_counters.bound_documents(), 0);
+                        assert_eq!(result.work_counters.checker_shards(), 0);
+                    }
+                    let rows = result
+                        .syntactic_diagnostics
+                        .iter()
+                        .map(|row| (row.code(), row.message_text().to_owned()))
+                        .collect::<Vec<_>>();
+                    if let Some(expected) = &expected_rows {
+                        assert_eq!(&rows, expected);
+                    } else {
+                        expected_rows = Some(rows);
+                    }
+                    drop(result);
+                    drop(files);
+                    assert_eq!(Arc::strong_count(&snapshot) > 1, retain);
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn snapshot_serves_every_source_after_program_staging_is_dropped() {
     let files = [
         InputFile::new("/a.ts", "export const a = 1;"),

@@ -62,6 +62,9 @@ impl<F: FileSystem> FileSystem for CachedFs<F> {
     fn read(&self, path: &str) -> io::Result<Vec<u8>> {
         self.fs.read(path)
     }
+    fn read_contents(&self, path: &str) -> io::Result<crate::SourceRead> {
+        self.fs.read_contents(path)
+    }
 
     /// tsgo `Stat`.
     fn metadata(&self, path: &str) -> io::Result<Metadata> {

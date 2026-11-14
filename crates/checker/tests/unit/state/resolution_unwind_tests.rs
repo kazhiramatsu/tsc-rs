@@ -38,7 +38,7 @@ fn signature_return_type_seal_is_first_write_wins() {
     // first frame's value back.
     with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
         let signature = state.clone_signature(state.unknown_signature);
-        state.signature_mut(signature).resolved_return_type = crate::links::LinkSlot::Vacant;
+        state.signature_mut(signature).resolved_return_type = None;
         let string = state.tables.intrinsics.string;
         let number = state.tables.intrinsics.number;
         assert_eq!(state.seal_signature_return_type(signature, string), string);

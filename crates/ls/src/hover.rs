@@ -1386,8 +1386,7 @@ impl<'a> Request<'_, 'a> {
         let generic = |state: &tsc_checker::state::CheckerState<'_>, signature: SignatureId| {
             state
                 .signature_of(signature)
-                .type_parameters
-                .as_ref()
+                .type_parameters()
                 .is_some_and(|parameters| !parameters.is_empty())
         };
         if signatures.len() > 1 || signatures.len() == 1 && generic(self.state, signatures[0]) {

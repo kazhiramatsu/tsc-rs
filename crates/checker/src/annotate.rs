@@ -17,8 +17,7 @@ use crate::evaluate::EvalValue;
 use crate::links::LinkSlot;
 use crate::member_table::{FreezeMembers, MemberTable};
 use crate::state::{
-    CheckResult, CheckerState, IndexInfo, MembersId, ResolvedMembers, Signature, SignatureId,
-    SymbolIds,
+    CheckResult, CheckerState, IndexInfo, MembersId, ResolvedMembers, SignatureId, SymbolIds,
 };
 use tsc_types::perf::{self, PerfCounter};
 
@@ -5570,7 +5569,7 @@ impl<'a> CheckerState<'a> {
                 {
                     Some(early_index) => {
                         let cloned = self.clone_symbol(early_index);
-                        let check_flags = self.links.read_symbol(cloned, |links| links.check_flags);
+                        let check_flags = self.links.read_symbol_check_flags(cloned);
                         self.links.set_symbol_check_flags(
                             self.speculation_depth,
                             cloned,
@@ -6649,7 +6648,7 @@ impl<'a> CheckerState<'a> {
         let all = self.get_signatures_of_type(ty, crate::structural::SignatureKind::Construct)?;
         let mut signatures = Vec::new();
         for signature in all {
-            let type_parameters = self.signature_of(signature).type_parameters.clone();
+            let type_parameters = self.signature_of(signature).cloned_type_parameters();
             let min = self.get_min_type_argument_count(type_parameters.as_deref());
             let max = type_parameters.as_ref().map_or(0, |list| list.len());
             if type_arg_count >= min && type_arg_count <= max {
@@ -6684,8 +6683,7 @@ impl<'a> CheckerState<'a> {
         for signature in signatures {
             let is_generic = self
                 .signature_of(signature)
-                .type_parameters
-                .as_ref()
+                .type_parameters()
                 .is_some_and(|params| !params.is_empty());
             result.push(if is_generic {
                 self.get_signature_instantiation(
@@ -6745,30 +6743,20 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         if base_signatures.is_empty() {
-            let signature = Signature {
-                declaration: None,
-                // tsgo checker.go:21200.
-                flags: if is_abstract {
+            let signature = {
+                let mut signature_data = crate::state::Signature::new();
+                signature_data.flags = if is_abstract {
                     tsc_types::SignatureFlags::CONSTRUCT | tsc_types::SignatureFlags::ABSTRACT
                 } else {
                     tsc_types::SignatureFlags::CONSTRUCT
-                },
-                type_parameters: local_type_parameters.map(Vec::into_boxed_slice),
-                parameters: Vec::new().into_boxed_slice(),
-                this_parameter: None,
-                min_argument_count: 0,
-                resolved_return_type: LinkSlot::Resolved(class_type),
-                from_method: false,
-                target: None,
-                mapper: None,
-                erased_signature_cache: None,
-                canonical_signature_cache: None,
-                base_signature_cache: None,
-                composite_kind: None,
-                composite_signatures: None,
-                optional_call_signature_cache: (None, None),
-                isolated_signature_kind: Some(crate::state::SignatureKind::Construct),
-                isolated_signature_type: None,
+                };
+                signature_data
+                    .set_type_parameters(local_type_parameters.map(Vec::into_boxed_slice));
+                signature_data.set_parameters(Vec::new().into_boxed_slice());
+                signature_data.resolved_return_type = Some(class_type);
+                signature_data
+                    .set_isolated_signature_kind(Some(crate::state::SignatureKind::Construct));
+                signature_data
             };
             return Ok(vec![self.alloc_signature(signature)]);
         }
@@ -6790,7 +6778,7 @@ impl<'a> CheckerState<'a> {
         let type_arg_count = type_arguments.len();
         let mut result = Vec::new();
         for base_signature in base_signatures {
-            let base_type_parameters = self.signature_of(base_signature).type_parameters.clone();
+            let base_type_parameters = self.signature_of(base_signature).cloned_type_parameters();
             let min = self.get_min_type_argument_count(base_type_parameters.as_deref());
             let max = base_type_parameters.as_ref().map_or(0, |list| list.len());
             if !is_javascript && (type_arg_count < min || type_arg_count > max) {
@@ -6810,8 +6798,8 @@ impl<'a> CheckerState<'a> {
                 self.clone_signature(base_signature)
             };
             let data = self.signature_mut(signature);
-            data.type_parameters = local_type_parameters.clone().map(Vec::into_boxed_slice);
-            data.resolved_return_type = LinkSlot::Resolved(class_type);
+            data.set_type_parameters(local_type_parameters.clone().map(Vec::into_boxed_slice));
+            data.resolved_return_type = Some(class_type);
             data.flags = if is_abstract {
                 tsc_types::SignatureFlags::from_bits(
                     data.flags.bits() | tsc_types::SignatureFlags::ABSTRACT.bits(),
@@ -8181,7 +8169,7 @@ impl<'a> CheckerState<'a> {
         if symbol == self.require_symbol {
             return Ok(self.tables.intrinsics.any);
         }
-        let check_flags = self.links.read_symbol(symbol, |links| links.check_flags);
+        let check_flags = self.links.read_symbol_check_flags(symbol);
         if check_flags.intersects(CheckFlags::DEFERRED_TYPE) {
             return self.get_type_of_symbol_with_deferred_type(symbol);
         }
@@ -9882,28 +9870,20 @@ impl<'a> CheckerState<'a> {
         signature: SignatureId,
         class_type: TypeId,
     ) -> SignatureId {
-        let source = self.signature_of(signature).without_caches();
-        self.alloc_signature(crate::state::Signature {
-            declaration: source.declaration,
-            flags: SignatureFlags::from_bits(
+        let mut source = self.signature_of(signature).without_caches();
+        self.alloc_signature({
+            let mut signature_data = crate::state::Signature::new();
+            signature_data.declaration = source.declaration;
+            signature_data.flags = SignatureFlags::from_bits(
                 source.flags.bits() & SignatureFlags::PROPAGATING_FLAGS.bits(),
-            ),
-            type_parameters: source.type_parameters,
-            parameters: source.parameters,
-            this_parameter: source.this_parameter,
-            min_argument_count: source.min_argument_count,
-            resolved_return_type: LinkSlot::Resolved(class_type),
-            from_method: source.from_method,
-            target: None,
-            mapper: None,
-            erased_signature_cache: None,
-            canonical_signature_cache: None,
-            base_signature_cache: None,
-            composite_kind: None,
-            composite_signatures: None,
-            optional_call_signature_cache: (None, None),
-            isolated_signature_kind: None,
-            isolated_signature_type: None,
+            );
+            signature_data.set_type_parameters(source.take_type_parameters());
+            signature_data.set_parameters(std::mem::take(&mut source.parameters));
+            signature_data.this_parameter = source.this_parameter;
+            signature_data.set_min_argument_count(source.min_argument_count());
+            signature_data.resolved_return_type = Some(class_type);
+            signature_data.set_from_method(source.is_from_method());
+            signature_data
         })
     }
 
@@ -10760,25 +10740,17 @@ impl<'a> CheckerState<'a> {
         if is_abstract {
             flags |= SignatureFlags::ABSTRACT;
         }
-        let signature = Signature {
-            declaration: Some(declaration),
-            flags,
-            type_parameters: type_parameters.map(Vec::into_boxed_slice),
-            parameters: parameters.into_boxed_slice(),
-            this_parameter,
-            min_argument_count,
-            resolved_return_type: LinkSlot::Vacant,
-            from_method: self.kind_of(declaration) == SyntaxKind::MethodSignature,
-            target: None,
-            mapper: None,
-            erased_signature_cache: None,
-            canonical_signature_cache: None,
-            base_signature_cache: None,
-            composite_kind: None,
-            composite_signatures: None,
-            optional_call_signature_cache: (None, None),
-            isolated_signature_kind: None,
-            isolated_signature_type: None,
+        let signature = {
+            let mut signature_data = crate::state::Signature::new();
+            signature_data.declaration = Some(declaration);
+            signature_data.flags = flags;
+            signature_data.set_type_parameters(type_parameters.map(Vec::into_boxed_slice));
+            signature_data.set_parameters(parameters.into_boxed_slice());
+            signature_data.this_parameter = this_parameter;
+            signature_data.set_min_argument_count(min_argument_count);
+            signature_data
+                .set_from_method(self.kind_of(declaration) == SyntaxKind::MethodSignature);
+            signature_data
         };
         let id = self.alloc_signature(signature);
         self.links.set_node_resolved_signature(
@@ -10805,7 +10777,7 @@ impl<'a> CheckerState<'a> {
     /// stack and leaves the slot Vacant (M3-review Resolving-dangling
     /// fix).
     pub fn get_return_type_of_signature(&mut self, id: SignatureId) -> CheckResult<TypeId> {
-        if let Some(resolved) = self.signature_of(id).resolved_return_type.resolved() {
+        if let Some(resolved) = self.signature_of(id).resolved_return_type {
             return Ok(resolved);
         }
         if !self.push_type_resolution(
@@ -10848,7 +10820,7 @@ _ => None,
             _ => None,
         }});
         let target = self.signature_of(id).target;
-        let composite = self.signature_of(id).composite_signatures.clone();
+        let composite = self.signature_of(id).cloned_composite_signatures();
         let computed = match (target, composite) {
             // 59815: signature.target → instantiate the target's
             // return type through signature.mapper.
@@ -10861,7 +10833,7 @@ _ => None,
             // the member returns (Subtype reduction on the union arm),
             // instantiated through signature.mapper.
             (None, Some(composite)) => (|state: &mut Self| {
-                let kind = state.signature_of(id).composite_kind;
+                let kind = state.signature_of(id).composite_kind();
                 let mut returns = Vec::with_capacity(composite.len());
                 for &member in &composite {
                     returns.push(state.get_return_type_of_signature(member)?);

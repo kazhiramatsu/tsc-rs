@@ -1,6 +1,41 @@
 use super::*;
 
 #[test]
+fn symbol_flags_projection_preserves_defaults_and_every_transient_bit() {
+    let mut links = LinksTables::default();
+    let persistent = [0, 257, (1 << 26) - 1, 1 << 26, (1 << 31) - 1];
+    let before = links.memory_usage();
+    for raw in persistent {
+        assert_eq!(links.read_symbol_check_flags(SymbolId::new(raw)).bits(), 0);
+    }
+    let missing_transient = SymbolId::new(u32::MAX - 1);
+    assert_eq!(links.read_symbol_check_flags(missing_transient).bits(), 0);
+    assert_eq!(links.memory_usage(), before);
+
+    // A populated type cache still gives a persistent symbol no flags.
+    let symbol = SymbolId::new(257);
+    links.set_symbol_type(0, symbol, LinkSlot::Resolved(TypeId::new(9)));
+    assert_eq!(links.read_symbol_check_flags(symbol).bits(), 0);
+    assert_eq!(
+        links.symbol(symbol).type_of_symbol.resolved(),
+        Some(TypeId::new(9))
+    );
+
+    let symbols = [0, 17, 255].map(|index| SymbolId::new(tsc_types::TRANSIENT_SYMBOL_BIT | index));
+    for (symbol, bits) in symbols.into_iter().zip([0, i32::MIN, -1]) {
+        links.set_symbol_check_flags(0, symbol, tsc_types::CheckFlags::from_bits(bits));
+    }
+    for (symbol, bits) in symbols.into_iter().zip([0, i32::MIN, -1]) {
+        assert_eq!(links.read_symbol_check_flags(symbol).bits(), bits);
+        assert_eq!(
+            links.read_symbol_check_flags(symbol),
+            links.symbol(symbol).check_flags
+        );
+    }
+    assert_eq!(links.read_symbol_check_flags(missing_transient).bits(), 0);
+}
+
+#[test]
 fn value_slots_keep_replacements_clearing_and_identity_bounds() {
     fn check<T: SlotId + std::fmt::Debug + Eq>() {
         assert_eq!(std::mem::size_of::<ValueSlot<T>>(), 4);

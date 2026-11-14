@@ -1392,25 +1392,13 @@ impl<'a> CheckerState<'a> {
         );
         self.links
             .set_fresh_symbol_type(props, LinkSlot::Resolved(result));
-        Ok(self.alloc_signature(crate::state::Signature {
-            declaration: None,
-            flags: tsc_types::SignatureFlags::NONE,
-            type_parameters: None,
-            parameters: vec![props].into_boxed_slice(),
-            this_parameter: None,
-            min_argument_count: 1,
-            resolved_return_type: LinkSlot::Resolved(return_type),
-            from_method: false,
-            target: None,
-            mapper: None,
-            erased_signature_cache: None,
-            canonical_signature_cache: None,
-            base_signature_cache: None,
-            composite_kind: None,
-            composite_signatures: None,
-            optional_call_signature_cache: (None, None),
-            isolated_signature_kind: Some(SignatureKind::Construct),
-            isolated_signature_type: None,
+        Ok(self.alloc_signature({
+            let mut signature_data = crate::state::Signature::new();
+            signature_data.set_parameters(vec![props].into_boxed_slice());
+            signature_data.set_min_argument_count(1);
+            signature_data.resolved_return_type = Some(return_type);
+            signature_data.set_isolated_signature_kind(Some(SignatureKind::Construct));
+            signature_data
         }))
     }
 
@@ -1427,10 +1415,10 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self.signature_of(signature).isolated_signature_type {
+        if let Some(cached) = self.signature_of(signature).isolated_signature_type() {
             return Ok(cached);
         }
-        let is_constructor = match self.signature_of(signature).isolated_signature_kind {
+        let is_constructor = match self.signature_of(signature).isolated_signature_kind() {
             Some(SignatureKind::Call) => false,
             Some(SignatureKind::Construct) => true,
             None => match self.signature_of(signature).declaration {
@@ -1471,7 +1459,8 @@ impl<'a> CheckerState<'a> {
             .set_fresh_type_members(id, LinkSlot::Resolved(members));
         // The anonymous type and its members are one semantic object;
         // the memo persists like tsc's signature.isolatedSignatureType.
-        self.signature_mut(signature).isolated_signature_type = Some(id);
+        self.signature_mut(signature)
+            .set_isolated_signature_type(Some(id));
         Ok(id)
     }
 
@@ -1680,7 +1669,7 @@ impl<'a> CheckerState<'a> {
         signature: SignatureId,
         forced_lookup_location: &EscapedName,
     ) -> CheckResult<Option<TypeId>> {
-        if let Some(composites) = self.signature_of(signature).composite_signatures.clone() {
+        if let Some(composites) = self.signature_of(signature).cloned_composite_signatures() {
             let mut results: Vec<TypeId> = Vec::with_capacity(composites.len());
             for composite in composites {
                 let instance = self.get_return_type_of_signature(composite)?;

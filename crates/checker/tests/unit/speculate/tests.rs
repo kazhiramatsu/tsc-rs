@@ -954,39 +954,30 @@ fn signature_return_seals_persist_through_rollback() {
             let signature = state
                 .get_signatures_of_type(ty, SignatureKind::Call)
                 .expect("f signatures")[0];
-            assert!(matches!(
-                state.signature_of(signature).resolved_return_type,
-                LinkSlot::Vacant
-            ));
+            assert!(state.signature_of(signature).resolved_return_type.is_none());
 
             let rolled_back = state.begin_speculation();
             state.seal_signature_return_type(signature, state.tables.intrinsics.string);
             state.rollback_speculation(rolled_back);
             assert!(matches!(
                 state.signature_of(signature).resolved_return_type,
-                LinkSlot::Resolved(ty) if ty == state.tables.intrinsics.string
+                Some(ty) if ty == state.tables.intrinsics.string
             ));
 
             let outer = state.begin_speculation();
             let inner = state.begin_speculation();
             state.seal_signature_return_type(signature, state.tables.intrinsics.string);
             state.commit_speculation(inner);
-            assert!(matches!(
-                state.signature_of(signature).resolved_return_type,
-                LinkSlot::Resolved(_)
-            ));
+            assert!(state.signature_of(signature).resolved_return_type.is_some());
             state.rollback_speculation(outer);
-            assert!(matches!(
-                state.signature_of(signature).resolved_return_type,
-                LinkSlot::Resolved(_)
-            ));
+            assert!(state.signature_of(signature).resolved_return_type.is_some());
 
             let committed = state.begin_speculation();
             state.seal_signature_return_type(signature, state.tables.intrinsics.string);
             state.commit_speculation(committed);
             assert!(matches!(
                 state.signature_of(signature).resolved_return_type,
-                LinkSlot::Resolved(ty) if ty == state.tables.intrinsics.string
+                Some(ty) if ty == state.tables.intrinsics.string
             ));
         },
     );
@@ -1217,7 +1208,7 @@ fn erased_signature_cache_persists_under_speculation() {
                 .speculate(|state| {
                     let erased = state.get_erased_signature(signature)?;
                     assert_eq!(
-                        state.signature_of(signature).erased_signature_cache,
+                        state.signature_of(signature).erased_signature_cache(),
                         Some(erased)
                     );
                     Ok(SpeculationOutcome::Rollback(erased))
@@ -1225,7 +1216,7 @@ fn erased_signature_cache_persists_under_speculation() {
                 .expect("trial computes and publishes");
             assert_ne!(erased, signature);
             assert_eq!(
-                state.signature_of(signature).erased_signature_cache,
+                state.signature_of(signature).erased_signature_cache(),
                 Some(erased)
             );
         },
@@ -1248,8 +1239,7 @@ fn canonical_signature_cache_persists_under_speculation() {
                 .expect("f has call signatures")[0];
             let own_parameter = state
                 .signature_of(signature)
-                .type_parameters
-                .clone()
+                .cloned_type_parameters()
                 .expect("f is generic")[0];
             state
                 .get_signature_instantiation(
@@ -1263,7 +1253,7 @@ fn canonical_signature_cache_persists_under_speculation() {
                 .speculate(|state| {
                     let canonical = state.get_canonical_signature(signature)?;
                     assert_eq!(
-                        state.signature_of(signature).canonical_signature_cache,
+                        state.signature_of(signature).canonical_signature_cache(),
                         Some(canonical)
                     );
                     Ok(SpeculationOutcome::Rollback(canonical))
@@ -1271,7 +1261,7 @@ fn canonical_signature_cache_persists_under_speculation() {
                 .expect("trial computes and publishes");
             assert_ne!(canonical, signature);
             assert_eq!(
-                state.signature_of(signature).canonical_signature_cache,
+                state.signature_of(signature).canonical_signature_cache(),
                 Some(canonical)
             );
         },

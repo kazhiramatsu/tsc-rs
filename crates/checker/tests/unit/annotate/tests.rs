@@ -410,9 +410,9 @@ fn method_members_get_anonymous_types_with_call_signatures() {
             let signature = state
                 .signature_of(method_members.call_signatures()[0])
                 .clone();
-            assert!(signature.from_method);
+            assert!(signature.is_from_method());
             assert!(signature.flags.contains(SignatureFlags::HAS_LITERAL_TYPES));
-            assert_eq!(signature.min_argument_count, 1);
+            assert_eq!(signature.min_argument_count(), 1);
 
             let property_type = state
                 .get_type_of_symbol(members.properties[1])
@@ -422,11 +422,9 @@ fn method_members_get_anonymous_types_with_call_signatures() {
                 .expect("function type members resolve");
             let property_members = state.members_of(property_members_id).clone();
             assert_eq!(property_members.call_signatures().len(), 1);
-            assert!(
-                !state
-                    .signature_of(property_members.call_signatures()[0])
-                    .from_method
-            );
+            assert!(!state
+                .signature_of(property_members.call_signatures()[0])
+                .is_from_method());
         },
     );
 }

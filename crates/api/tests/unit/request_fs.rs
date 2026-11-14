@@ -15,6 +15,37 @@ use tsc_project::FileChangeSummary;
 use super::path_tree::{compose, Entry, Fallback, PathNode, RequestDirectory, RequestFile};
 use super::*;
 
+#[test]
+fn layered_request_reads_keep_bundled_text_and_honor_request_overrides() {
+    let path = "bundled:///libs/lib.dom.d.ts";
+    let base = Arc::new(tsc_compiler::system::BundledFs::new(MemFs::new(
+        true,
+        Arc::new(tsc_host::vfs::SystemClock),
+    )));
+    let base: Arc<dyn FileSystem> = base;
+    let tsc_host::SourceRead::Text(original) = base.read_contents(path).unwrap() else {
+        panic!("bundled source was copied");
+    };
+    let params = RequestFileSystemParams {
+        kind: "layer".to_owned(),
+        ..Default::default()
+    };
+    let request = RequestFileSystem::new_worker(&params, Arc::clone(&base), "/").unwrap();
+    let tsc_host::SourceRead::Text(text) = request.read_contents(path).unwrap() else {
+        panic!("request wrapper copied a base source");
+    };
+    assert!(text.ptr_eq(&original));
+    let params = RequestFileSystemParams {
+        files: BTreeMap::from([(path.to_owned(), "interface Custom {}".to_owned())]),
+        ..params
+    };
+    let request = RequestFileSystem::new_worker(&params, base, "/").unwrap();
+    let tsc_host::SourceRead::Bytes(text) = request.read_contents(path).unwrap() else {
+        panic!("request override was bypassed");
+    };
+    assert_eq!(text, b"interface Custom {}");
+}
+
 /// tsgo `vfstest.FromMap`: files, and links (`link:<target>`).
 fn host(files: &[(&str, &str)], case_sensitive: bool) -> Arc<MemFs> {
     Arc::new(

@@ -80,6 +80,14 @@ impl CompilerHost for TrackingHost<'_> {
         self.inner.read_file_js(path)
     }
 
+    fn read_file_contents_js(
+        &self,
+        path: JsStr<'_>,
+    ) -> Result<Option<tsc_host::SourceRead>, HostError> {
+        record_js(&self.seen, path);
+        self.inner.read_file_contents_js(path)
+    }
+
     fn file_size_hint_js(&self, path: JsStr<'_>) -> Result<Option<u64>, HostError> {
         self.inner.file_size_hint_js(path)
     }
@@ -192,6 +200,14 @@ impl ParallelSourceReader for ParallelTracking<'_> {
         record_js(&self.seen, path);
         self.reader.read_source_js(path)
     }
+
+    fn read_source_contents_js(
+        &self,
+        path: JsStr<'_>,
+    ) -> Result<Option<tsc_host::SourceRead>, HostError> {
+        record_js(&self.seen, path);
+        self.reader.read_source_contents_js(path)
+    }
 }
 
 impl CompilerHost for ParallelTracking<'_> {
@@ -202,6 +218,14 @@ impl CompilerHost for ParallelTracking<'_> {
     fn read_file_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
         record_js(&self.seen, path);
         self.host().read_file_js(path)
+    }
+
+    fn read_file_contents_js(
+        &self,
+        path: JsStr<'_>,
+    ) -> Result<Option<tsc_host::SourceRead>, HostError> {
+        record_js(&self.seen, path);
+        self.host().read_file_contents_js(path)
     }
 
     fn file_size_hint_js(&self, path: JsStr<'_>) -> Result<Option<u64>, HostError> {

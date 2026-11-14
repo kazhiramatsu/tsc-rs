@@ -2907,28 +2907,27 @@ impl<'a> CheckerState<'a> {
         };
         let signatures =
             self.get_signatures_of_type(apparent, crate::structural::SignatureKind::Call)?;
-        let candidate = if signatures.len() == 1
-            && self.signature_of(signatures[0]).type_parameters.is_none()
-        {
-            Some(signatures[0])
-        } else {
-            // tsc's `some(signatures, hasTypePredicateOrNeverReturnType)`
-            // (70218) — the per-member consult reaches
-            // getTypePredicateOfSignature's body-inference arm for
-            // real since m6 7.6, so the selection is exact.
-            let mut any_effects = false;
-            for &signature in &signatures {
-                if self.has_type_predicate_or_never_return_type(signature)? {
-                    any_effects = true;
-                    break;
-                }
-            }
-            if any_effects {
-                Some(self.get_resolved_signature(node, None, CheckMode::NORMAL)?)
+        let candidate =
+            if signatures.len() == 1 && self.signature_of(signatures[0]).has_no_type_parameters() {
+                Some(signatures[0])
             } else {
-                None
-            }
-        };
+                // tsc's `some(signatures, hasTypePredicateOrNeverReturnType)`
+                // (70218) — the per-member consult reaches
+                // getTypePredicateOfSignature's body-inference arm for
+                // real since m6 7.6, so the selection is exact.
+                let mut any_effects = false;
+                for &signature in &signatures {
+                    if self.has_type_predicate_or_never_return_type(signature)? {
+                        any_effects = true;
+                        break;
+                    }
+                }
+                if any_effects {
+                    Some(self.get_resolved_signature(node, None, CheckMode::NORMAL)?)
+                } else {
+                    None
+                }
+            };
         let mut result = None;
         if let Some(candidate) = candidate {
             if self.has_type_predicate_or_never_return_type(candidate)? {
@@ -3276,12 +3275,12 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
     ) -> CheckResult<Option<TypePredicate>> {
-        if let Some(cached) = self.resolved_type_predicates.get(&signature) {
-            return Ok(cached.clone());
+        if let Some(cached) = self.signature_of(signature).type_predicate() {
+            return Ok(cached.cloned());
         }
         let result = self.compute_type_predicate_of_signature(signature)?;
-        self.resolved_type_predicates
-            .insert(signature, result.clone());
+        self.signature_mut(signature)
+            .set_type_predicate(result.clone());
         Ok(result)
     }
 
@@ -3320,8 +3319,8 @@ impl<'a> CheckerState<'a> {
                 ..target_predicate
             }));
         }
-        if let Some(composite_signatures) = sig.composite_signatures.clone() {
-            let composite_kind = sig.composite_kind;
+        if let Some(composite_signatures) = sig.cloned_composite_signatures() {
+            let composite_kind = sig.composite_kind();
             return self
                 .get_union_or_intersection_type_predicate(&composite_signatures, composite_kind);
         }
@@ -3349,7 +3348,7 @@ impl<'a> CheckerState<'a> {
         if !node_util::is_function_like_declaration_kind(self.kind_of(declaration)) {
             return Ok(None);
         }
-        let resolved_return = self.signature_of(signature).resolved_return_type.resolved();
+        let resolved_return = self.signature_of(signature).resolved_return_type;
         let boolean_gate = match resolved_return {
             None => true,
             Some(ty) => self.tables.flags_of(ty).intersects(TypeFlags::BOOLEAN),
@@ -3364,7 +3363,7 @@ impl<'a> CheckerState<'a> {
         // body's own calls close the loop); the pre-seeded memo
         // answers "no predicate" instead of recursing. The outer
         // get_type_predicate_of_signature overwrites with the result.
-        self.resolved_type_predicates.insert(signature, None);
+        self.signature_mut(signature).set_type_predicate(None);
         self.get_type_predicate_from_body(declaration)
     }
 

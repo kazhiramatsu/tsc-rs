@@ -2850,7 +2850,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                 .flags
                 .contains(EmitNodeBuilderFlags::GENERATE_NAMES_FOR_SHADOWED_TYPE_PARAMS)
             {
-                for &type_parameter in signature.type_parameters.as_deref().unwrap_or_default() {
+                for &type_parameter in signature.type_parameters().unwrap_or_default() {
                     let name = super::type_parameter_to_name(
                         self.checker,
                         arena,
@@ -2876,8 +2876,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                 }
                 if context.enclosing_declaration.is_some()
                     && signature
-                        .type_parameters
-                        .as_ref()
+                        .type_parameters()
                         .is_some_and(|parameters| !parameters.is_empty())
                 {
                     context.enclosing_declaration_is_synthetic = true;

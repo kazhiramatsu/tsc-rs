@@ -1374,16 +1374,13 @@ impl Completions<'_, '_, '_> {
             let class_signature = data.declaration.is_some_and(|declaration| {
                 state.binder.node_record(declaration).kind == SyntaxKind::Constructor
             }) || data.flags.intersects(tsc_types::SignatureFlags::CONSTRUCT)
-                && data
-                    .resolved_return_type
-                    .resolved()
-                    .is_some_and(|return_type| {
-                        state
-                            .tables
-                            .object_flags_of(return_type)
-                            .intersects(tsc_types::ObjectFlags::CLASS)
-                    });
-            let count = match &data.type_parameters {
+                && data.resolved_return_type.is_some_and(|return_type| {
+                    state
+                        .tables
+                        .object_flags_of(return_type)
+                        .intersects(tsc_types::ObjectFlags::CLASS)
+                });
+            let count = match data.type_parameters() {
                 Some(parameters) => Some(parameters.len()),
                 None if class_signature => Some(0),
                 None => None,

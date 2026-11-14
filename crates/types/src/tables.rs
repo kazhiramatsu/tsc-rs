@@ -292,7 +292,6 @@ pub struct TypeTables {
     types: StoreVec<Type>,
     /// The lease of the list's store positions, held while the list uses
     /// them.
-    #[expect(dead_code, reason = "held for the store positions' lifetime")]
     lease: Option<IdentityLease>,
     pub strict_null_checks: bool,
     pub exact_optional_property_types: bool,
@@ -873,6 +872,43 @@ impl TypeTables {
         tables.empty_list = tables.intern_type_list(&[]);
         tables.create_initial_types();
         tables
+    }
+
+    /// Move owned records and payloads to a detached one-shot cleanup owner.
+    /// Its identity range stays reserved even after that owner is destroyed.
+    pub fn take_finished_storage(&mut self) -> impl Send + 'static {
+        let lease = std::mem::ManuallyDrop::new(self.lease.take());
+        (
+            std::mem::take(&mut self.types),
+            std::mem::take(&mut self.string_literal_types),
+            std::mem::take(&mut self.list_items),
+            std::mem::take(&mut self.list_ids),
+            std::mem::take(&mut self.scratch_list),
+            std::mem::take(&mut self.literal_texts),
+            std::mem::take(&mut self.literal_scratch),
+            std::mem::take(&mut self.bigints),
+            std::mem::take(&mut self.number_literals),
+            std::mem::take(&mut self.conditional_types),
+            std::mem::take(&mut self.intrinsic_names),
+            std::mem::take(&mut self.tuple_targets),
+            std::mem::take(&mut self.tuple_elements),
+            std::mem::take(&mut self.template_literals),
+            std::mem::take(&mut self.aliases),
+            std::mem::take(&mut self.number_literal_types),
+            std::mem::take(&mut self.bigint_literal_types),
+            std::mem::take(&mut self.enum_literal_types),
+            std::mem::take(&mut self.union_types),
+            std::mem::take(&mut self.union_of_union_types),
+            std::mem::take(&mut self.intersection_types),
+            std::mem::take(&mut self.tuple_types),
+            std::mem::take(&mut self.template_literal_types),
+            std::mem::take(&mut self.string_mapping_types),
+            std::mem::take(&mut self.indexed_access_types),
+            std::mem::take(&mut self.substitution_types),
+            std::mem::take(&mut self.conditional_roots),
+            std::mem::take(&mut self.instantiations),
+            lease,
+        )
     }
 
     /// Reserve lookup-only interning tables from the bound program. Their

@@ -84,6 +84,15 @@ pub(crate) struct InferMemo {
 }
 
 impl InferMemo {
+    /// Move owned cache payloads without moving their report collector.
+    pub(crate) fn take_finished_storage(&mut self) -> impl Send + 'static {
+        (
+            std::mem::take(&mut self.slots),
+            std::mem::take(&mut self.long_targets),
+            std::mem::take(&mut self.key_pool),
+        )
+    }
+
     pub(crate) fn new() -> Self {
         Self {
             slots: Vec::new(),

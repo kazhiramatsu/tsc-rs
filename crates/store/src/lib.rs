@@ -107,6 +107,7 @@ pub fn resident_vec_tail_bytes<T>(values: &Vec<T>) -> Option<usize> {
 
 pub mod claimed;
 pub mod frozen;
+pub mod record_lists;
 pub mod recycle;
 mod rooms;
 
@@ -141,7 +142,7 @@ pub fn process_instructions() -> Option<u64> {
     #[cfg(not(target_os = "macos"))]
     None
 }
-pub use shared_text::SharedText;
+pub use shared_text::{read_text_file, SharedText, StaticText, TextRead};
 
 /// Where the reservation starts: clear of every placement seen on macOS and
 /// Linux (binaries, shared caches and heaps sit well below, stacks and PIE

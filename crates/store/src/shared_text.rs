@@ -11,7 +11,7 @@
 //! each other (but share the arena's and free'd pages)"), so the freed parse
 //! outputs leave whole pages that the bind and the check reuse.
 //!
-//! Every text of a [`SharedText`] lives in the text heap: a program's
+//! Owned [`SharedText`] values live in the text heap: a program's
 //! sources, an edited document's new text (a live server's edit and every
 //! rebuild construct their snapshots afresh), package.json and transient
 //! texts alike. One block holds a text: its reference count, then its bytes.
@@ -37,15 +37,51 @@ use std::sync::Arc;
 /// The bytes before a text's first byte in its block: its reference count.
 const HEADER: usize = std::mem::size_of::<AtomicUsize>();
 const ALIGN: usize = std::mem::align_of::<AtomicUsize>();
+// A Rust slice's byte length cannot exceed isize::MAX. Its remaining bit
+// distinguishes static text without tagging or changing the data pointer.
+const STATIC_TAG: usize = 1 << (usize::BITS - 1);
+const LENGTH_MASK: usize = !STATIC_TAG;
+#[cfg(test)]
+const STATIC_COUNT: usize = usize::MAX;
 
-/// A shared, immutable text in the text heap: a 16-byte handle whose data
-/// pointer and length are inline (a read is what reading an `Arc<str>`
-/// costs). Its block holds the reference count before the bytes, so a text
-/// is one allocation. Its holders are per file (snapshots and position
+/// A descriptor of immutable UTF-8 bytes in the binary. Neither the
+/// descriptor nor the bytes contain an interior-mutable ownership header,
+/// so ordinary read-only literals work on every object format.
+pub struct StaticText<const N: usize> {
+    text: &'static str,
+}
+
+impl<const N: usize> StaticText<N> {
+    /// `include_str!` proves UTF-8 without copying its read-only literal.
+    pub const fn new(text: &'static str) -> Self {
+        assert!(
+            text.len() == N,
+            "static text length differs from its storage"
+        );
+        assert!(N <= LENGTH_MASK, "static text exceeds the slice domain");
+        Self { text }
+    }
+
+    pub const fn shared(&'static self) -> SharedText {
+        let ptr = NonNull::new(self.text.as_ptr().cast_mut()).expect("str has a nonnull pointer");
+        SharedText {
+            ptr,
+            len: N | STATIC_TAG,
+        }
+    }
+}
+
+/// A shared, immutable UTF-8 text: a 16-byte handle whose data
+/// pointer and length are inline; a read masks the length's static tag.
+/// An owned block holds the reference count before the bytes, so a
+/// text is one allocation. Static text has its own representation: the
+/// pointer addresses read-only bytes and the length carries a static tag.
+/// Its holders are per file (snapshots and position
 /// indexes), not per node.
 pub struct SharedText {
-    /// The text's first byte, `HEADER` bytes into its block.
+    /// The text's first byte; owned blocks put `HEADER` bytes before it.
     ptr: NonNull<u8>,
+    /// The byte length, with STATIC_TAG set only for a static view.
     len: usize,
 }
 
@@ -53,8 +89,9 @@ const _: () = assert!(std::mem::size_of::<SharedText>() == 16);
 const _: () = assert!(std::mem::size_of::<Option<SharedText>>() == 16);
 
 // SAFETY: the bytes are written once, before the handle exists, and never
-// change; the count is atomic, and the last holder frees the block on any
-// thread (mimalloc's `mi_free` and `std::alloc::dealloc` accept any thread).
+// change; an owned block's count is atomic, and the last
+// owned holder frees the block on any thread (mimalloc's `mi_free` and
+// `std::alloc::dealloc` accept any thread).
 unsafe impl Send for SharedText {}
 // SAFETY: as above; `&SharedText` only reads.
 unsafe impl Sync for SharedText {}
@@ -120,6 +157,17 @@ mod heap {
             Some(heap) => unsafe { libmimalloc_sys::mi_heap_malloc(heap.as_ptr(), size) }.cast(),
             // SAFETY: an allocation in the calling thread's default heap.
             None => unsafe { libmimalloc_sys::mi_malloc(size) }.cast(),
+        }
+    }
+
+    /// # Safety
+    /// `size` is not zero.
+    pub(super) unsafe fn allocate_zeroed(size: usize) -> *mut u8 {
+        match text_heap() {
+            // SAFETY: the heap lives for the process.
+            Some(heap) => unsafe { libmimalloc_sys::mi_heap_zalloc(heap.as_ptr(), size) }.cast(),
+            // SAFETY: an allocation in the calling thread's default heap.
+            None => unsafe { libmimalloc_sys::mi_zalloc(size) }.cast(),
         }
     }
 
@@ -190,6 +238,13 @@ mod heap {
     }
 
     /// # Safety
+    /// `size` is not zero.
+    pub(super) unsafe fn allocate_zeroed(size: usize) -> *mut u8 {
+        // SAFETY: a non-zero layout.
+        unsafe { std::alloc::alloc_zeroed(super::block_layout(size)) }
+    }
+
+    /// # Safety
     /// `block` came from `allocate(size)` and is freed once.
     pub(super) unsafe fn deallocate(block: NonNull<u8>, size: usize) {
         // SAFETY: as the caller guarantees.
@@ -219,6 +274,110 @@ pub fn collect_text_heap() {
 #[doc(hidden)]
 pub fn text_heap_live_bytes() -> usize {
     heap::live_bytes()
+}
+
+/// Native source input that either already has its final UTF-8 storage or
+/// retains the original bytes for the host's BOM/lossy decoder.
+pub enum TextRead {
+    Text(SharedText),
+    Bytes(Vec<u8>),
+}
+
+/// Reads a file into the text heap. Ordinary UTF-8 needs neither a temporary
+/// global-heap buffer nor a copy into its final source-text block.
+pub fn read_text_file(path: &std::path::Path) -> std::io::Result<TextRead> {
+    let mut file = std::fs::File::open(path)?;
+    let hint = usize::try_from(file.metadata()?.len())
+        .map_err(|_| std::io::Error::from(std::io::ErrorKind::FileTooLarge))?;
+    read_text(&mut file, hint)
+}
+
+struct TextInput {
+    block: NonNull<u8>,
+    capacity: usize,
+}
+
+impl TextInput {
+    fn new(capacity: usize) -> std::io::Result<Self> {
+        let size = capacity
+            .max(1)
+            .checked_add(HEADER)
+            .filter(|size| *size <= isize::MAX as usize - (ALIGN - 1))
+            .ok_or(std::io::ErrorKind::FileTooLarge)?;
+        // SAFETY: the checked size is nonzero. Zeroed storage permits safe
+        // Read implementations to inspect any byte of their destination.
+        let Some(block) = NonNull::new(unsafe { heap::allocate_zeroed(size) }) else {
+            std::alloc::handle_alloc_error(block_layout(size));
+        };
+        Ok(Self { block, capacity })
+    }
+
+    fn bytes(&mut self) -> &mut [u8] {
+        // SAFETY: exclusively borrowed, initialized storage after the header.
+        unsafe { std::slice::from_raw_parts_mut(self.block.add(HEADER).as_ptr(), self.capacity) }
+    }
+}
+
+impl Drop for TextInput {
+    fn drop(&mut self) {
+        // SAFETY: the input owns its block and frees it once with its layout.
+        unsafe { heap::deallocate(self.block, block_size(self.capacity)) }
+    }
+}
+
+fn read_text(reader: &mut impl std::io::Read, hint: usize) -> std::io::Result<TextRead> {
+    let mut input = TextInput::new(hint)?;
+    let mut len = 0;
+    loop {
+        if len == input.capacity {
+            let mut probe = [0];
+            match reader.read(&mut probe) {
+                Ok(0) => break,
+                Ok(_) => {
+                    let capacity = input
+                        .capacity
+                        .checked_mul(2)
+                        .map(|capacity| capacity.max(1024))
+                        .ok_or(std::io::ErrorKind::FileTooLarge)?;
+                    let mut grown = TextInput::new(capacity)?;
+                    grown.bytes()[..len].copy_from_slice(&input.bytes()[..len]);
+                    grown.bytes()[len] = probe[0];
+                    input = grown;
+                    len += 1;
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(error) => return Err(error),
+            }
+        } else {
+            match reader.read(&mut input.bytes()[len..]) {
+                Ok(0) => break,
+                Ok(count) => len += count,
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(error) => return Err(error),
+            }
+        }
+    }
+    let exact = len == input.capacity;
+    let bytes = &input.bytes()[..len];
+    if !bytes.starts_with(&[0xef, 0xbb, 0xbf]) {
+        if let Ok(text) = std::str::from_utf8(bytes) {
+            if !exact {
+                return Ok(TextRead::Text(SharedText::new(text)));
+            }
+            // SAFETY: the input exclusively owns this aligned block, all
+            // bytes are valid UTF-8, and the handle takes its exact layout.
+            let text = unsafe {
+                input.block.cast::<AtomicUsize>().write(AtomicUsize::new(1));
+                SharedText {
+                    ptr: input.block.add(HEADER),
+                    len,
+                }
+            };
+            std::mem::forget(input);
+            return Ok(TextRead::Text(text));
+        }
+    }
+    Ok(TextRead::Bytes(bytes.to_vec()))
 }
 
 impl SharedText {
@@ -251,27 +410,36 @@ impl SharedText {
 
     #[inline]
     pub fn as_str(&self) -> &str {
-        // SAFETY: the `len` bytes at `ptr` were copied from a `&str`, never
-        // change, and the block lives while `self` holds a count.
+        // SAFETY: the untagged length and pointer came from a str. Its bytes
+        // never change and are static or live while self holds a count.
         unsafe {
-            std::str::from_utf8_unchecked(std::slice::from_raw_parts(self.ptr.as_ptr(), self.len))
+            std::str::from_utf8_unchecked(std::slice::from_raw_parts(
+                self.ptr.as_ptr(),
+                self.len & LENGTH_MASK,
+            ))
         }
     }
 
     /// Whether both share one block.
     pub fn ptr_eq(&self, other: &Self) -> bool {
-        self.ptr == other.ptr
+        self.ptr == other.ptr && self.len == other.len
     }
 
-    /// Whether this text's block is in the text heap (tests; always true
-    /// where blocks come from `std::alloc`).
+    /// Whether this text's block is owned by the text heap (tests; owned
+    /// blocks also return true where they come from `std::alloc`).
     #[doc(hidden)]
     pub fn in_text_heap(&self) -> bool {
-        heap::contains(self.block().as_ptr())
+        !self.is_static() && heap::contains(self.block().as_ptr())
+    }
+
+    #[inline]
+    fn is_static(&self) -> bool {
+        self.len & STATIC_TAG != 0
     }
 
     fn block(&self) -> NonNull<u8> {
-        // SAFETY: `ptr` is `HEADER` bytes into the block it came from.
+        debug_assert!(!self.is_static());
+        // SAFETY: an owned ptr is HEADER bytes into its allocated block.
         unsafe { self.ptr.sub(HEADER) }
     }
 
@@ -284,7 +452,11 @@ impl SharedText {
     /// The number of holders (tests).
     #[cfg(test)]
     fn holders(&self) -> usize {
-        self.count().load(Ordering::Acquire)
+        if self.is_static() {
+            STATIC_COUNT
+        } else {
+            self.count().load(Ordering::Acquire)
+        }
     }
 }
 
@@ -292,7 +464,7 @@ impl Clone for SharedText {
     /// As `Arc::clone`: a relaxed increment, aborting before the count could
     /// overflow.
     fn clone(&self) -> Self {
-        if self.count().fetch_add(1, Ordering::Relaxed) > isize::MAX as usize {
+        if !self.is_static() && self.count().fetch_add(1, Ordering::Relaxed) > isize::MAX as usize {
             std::process::abort();
         }
         Self {
@@ -306,6 +478,9 @@ impl Drop for SharedText {
     /// As `Arc`'s drop: a release decrement, and an acquire fence before the
     /// last holder frees the block.
     fn drop(&mut self) {
+        if self.is_static() {
+            return;
+        }
         if self.count().fetch_sub(1, Ordering::Release) != 1 {
             return;
         }

@@ -2,7 +2,7 @@
 use super::*;
 use crate::PreparsedSyntax;
 use std::collections::{BTreeMap, VecDeque};
-type RootRead = Option<Result<Option<Vec<u8>>, HostError>>;
+type RootRead = Option<Result<Option<SourceRead>, HostError>>;
 use tsc_syntax::placement::{self as direct, SyntaxStripe};
 
 #[derive(Default)]
@@ -34,7 +34,7 @@ impl Drop for Stripes {
 struct Entry {
     path: ProgramPath,
     byte_len: usize,
-    text: String,
+    text: DecodedText,
     order: usize,
 }
 enum Job {
@@ -72,10 +72,15 @@ struct BindAdmission {
     sources: usize,
     deferred: usize,
     elapsed: std::time::Duration,
+    binds: Option<Arc<crate::source_binds::SourceBinds>>,
 }
 
 impl BindAdmission {
-    fn new(domain: tsc_types::IdentityDomain, libraries: usize) -> Self {
+    fn new(
+        domain: tsc_types::IdentityDomain,
+        libraries: usize,
+        binds: Option<Arc<crate::source_binds::SourceBinds>>,
+    ) -> Self {
         Self {
             domain,
             expected: (0..libraries).collect(),
@@ -85,6 +90,7 @@ impl BindAdmission {
             sources: 0,
             deferred: 0,
             elapsed: std::time::Duration::ZERO,
+            binds,
         }
     }
 
@@ -136,12 +142,20 @@ impl BindAdmission {
             self.deferred += sources.len();
             return;
         };
-        for (syntax, counts) in sources {
+        for &(syntax, counts) in &sources {
             syntax.reserve_bind(
                 tsc_binder::BindReservations::finish_entry(&mut room, counts)
                     .expect("exact bind slice fits its stripe"),
             );
             self.sources += 1;
+        }
+        if let Some(binds) = &self.binds {
+            binds.register(
+                sources
+                    .into_iter()
+                    .map(|(syntax, _)| syntax.pending_bind())
+                    .collect(),
+            );
         }
         room.seal().expect("exact bind room seals");
         self.stripes += 1;
@@ -295,7 +309,7 @@ impl RootStream<'_> {
                         self.reserved_bytes += byte_len;
                         pass.retained_sources.fetch_add(1, Ordering::Relaxed);
                         pass.retained_bytes.fetch_add(byte_len, Ordering::Relaxed);
-                        match decode_host_text(bytes) {
+                        match decode_source_text(bytes) {
                             Ok(text) => {
                                 entries.push(Entry {
                                     path: path.clone(),
@@ -387,29 +401,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         {
             return None;
         }
-        let domain = self.program_options.identity_domain()?.clone();
-        let jobs = self
-            .prefetch_order
-            .iter()
-            .filter_map(|path| {
-                let source = self.prefetched.get(path)?;
-                let PrefetchedRead::Parsed {
-                    decoded: Ok(parsed),
-                    ..
-                } = &source.read
-                else {
-                    return None;
-                };
-                let syntax = parsed.prepared.preparsed_syntax();
-                syntax.has_bind_reservation().then(|| syntax.clone())
-            })
-            .collect();
-        crate::source_binds::SourceBinds::start(
-            jobs,
-            domain,
-            self.limits.workers,
-            self.compiler_options.generate_trace.is_some(),
-        )
+        let binds = self.pending_source_binds.as_ref()?;
+        binds.activate().then(|| Arc::clone(binds))
     }
 
     pub(super) fn read_ahead_direct(&mut self, seeds: &[ProgramPath], root_count: usize) -> bool {
@@ -477,7 +470,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             }
             // On a bounded/failed library prefix, libraries all use the
             // ordinary path. Root admission then has the original budget.
-            let bytes = reader.read_source_js(path.display());
+            let bytes = reader.read_source_contents_js(path.display());
             let Ok(Some(bytes)) = bytes else {
                 library_entries.clear();
                 break;
@@ -490,7 +483,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 library_entries.clear();
                 break;
             }
-            let Ok(text) = decode_host_text(bytes) else {
+            let Ok(text) = decode_source_text(bytes) else {
                 library_entries.clear();
                 break;
             };
@@ -590,7 +583,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 reserved_bytes - self.total_source_bytes - self.reserved_bytes,
             ),
             stopped: AtomicBool::new(false),
+            scope_preparation: ScopePreparation::default(),
+            package_ids: Arc::clone(&self.package_ids),
             queued: Sharded::new(),
+            path_symbol_count: AtomicUsize::new(0),
             resolutions: Sharded::new(),
             target_resolutions: Sharded::new(),
             resolved: AtomicUsize::new(0),
@@ -599,7 +595,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         };
         for path in seeds {
             if pass.admits(path) {
-                pass.queued.insert_new(path.canonical());
+                pass.path_symbol(path.canonical(), true);
             }
         }
         let mut placed = HashSet::default();
@@ -607,7 +603,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         for (ordinal, (entries, room)) in groups.into_iter().zip(rooms).enumerate() {
             for entry in &entries {
                 placed.insert(entry.path.canonical().clone());
-                pass.queued.insert_new(entry.path.canonical());
+                pass.path_symbol(entry.path.canonical(), true);
             }
             jobs.push(Job::Stripe(
                 ordinal,
@@ -638,12 +634,29 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         };
         let read = |index| {
             window.read(index, || {
-                Some(reader.read_source_js(roots[index].1.display()))
+                Some(reader.read_source_contents_js(roots[index].1.display()))
             })
         };
         let parse_started = std::time::Instant::now();
-        let bind_admission = (options.list_files_only != Some(true))
-            .then(|| Mutex::new(BindAdmission::new(identity_domain.clone(), library_stripes)));
+        let binds = (root_count >= crate::source_binds::MIN_ROOTS
+            && workers.is_parallel()
+            && program_options.binds_sources()
+            && options.list_files_only != Some(true))
+        .then(|| {
+            crate::source_binds::SourceBinds::pending(
+                identity_domain.clone(),
+                workers,
+                options.generate_trace.is_some(),
+            )
+        });
+        self.pending_source_binds = binds.clone();
+        let bind_admission = (options.list_files_only != Some(true)).then(|| {
+            Mutex::new(BindAdmission::new(
+                identity_domain.clone(),
+                library_stripes,
+                binds,
+            ))
+        });
         let bind_libraries = root_count < crate::source_binds::MIN_ROOTS
             && workers.is_parallel()
             && program_options.binds_sources()
@@ -757,9 +770,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                                     scope.as_ref(),
                                     options,
                                 );
-                                let prepared =
-                                    PreparedSourceFile::new(entry.path.clone(), entry.text)
-                                        .with_implied_node_formats(implied, implied_for_emit);
+                                let prepared = PreparedSourceFile::from_snapshot(
+                                    entry.path.clone(),
+                                    entry.text.into_snapshot(),
+                                )
+                                .with_implied_node_formats(implied, implied_for_emit);
                                 let planned =
                                     crate::module_requests::plan_source_requests_in_stripe(
                                         &prepared,
@@ -771,18 +786,17 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                                         implied,
                                         implied_for_emit,
                                         prepared: prepared.with_preparsed_syntax(syntax),
-                                        plan: Ok(plan),
-                                        resolutions: Vec::new(),
+                                        plan: Ok(PreparedSourceRequests::new(plan)),
                                     },
                                     Err(error) => PrefetchedParse {
                                         implied,
                                         implied_for_emit,
                                         prepared,
                                         plan: Err(error),
-                                        resolutions: Vec::new(),
                                     },
                                 };
                                 let mut source = ReadAheadSource {
+                                    scope: None,
                                     path: entry.path,
                                     order: entry.order,
                                     read: PrefetchedRead::Parsed {
@@ -884,6 +898,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         });
         for (path, order, read) in stream.other_reads {
             sources.push(ReadAheadSource {
+                scope: None,
                 path,
                 order,
                 read,
@@ -910,15 +925,15 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 PrefetchedSource {
                     display: source.path.display().to_owned(),
                     read: source.read,
+                    scope: source.scope,
                 },
             );
         }
         self.directory_resolution_hits += pass.reused.load(Ordering::Relaxed);
         self.target_resolution_hits += pass.target_reused.load(Ordering::Relaxed);
-        self.directory_resolutions
-            .extend(pass.resolutions.into_entries());
-        self.target_resolutions
-            .extend(pass.target_resolutions.into_entries());
+        pass.resolutions.append_to(&mut self.directory_resolutions);
+        pass.target_resolutions
+            .append_to(&mut self.target_resolutions);
         self.direct_layout = true;
         tsc_types::trace::mark(
             &format!("load: level-0 streaming read-ahead ({count} sources)"),

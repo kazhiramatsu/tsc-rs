@@ -124,6 +124,7 @@ pub mod evaluate;
 pub mod exports;
 pub mod expr;
 pub mod facts;
+mod finished_storage;
 pub mod flow;
 mod flow_memo;
 pub mod functions;
@@ -2654,6 +2655,8 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
     leak_at_end: bool,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
+    // A syntax-only command can return before constructing a checker state.
+    let leak_at_end = leak_at_end || checkers.leaks_states();
     let IncrementalRequest {
         facts: incremental_facts,
         mut planner,
@@ -2949,6 +2952,15 @@ impl ProgramSource {
         match self {
             Self::New(builder) => Some(builder.bind_input()),
             Self::Shared(_) => None,
+        }
+    }
+}
+
+fn forget_program_sources_for_process_exit(sources: Vec<ProgramSource>) {
+    for source in sources {
+        match source {
+            ProgramSource::New(builder) => builder.forget_for_process_exit(),
+            ProgramSource::Shared(document) => std::mem::forget(document),
         }
     }
 }
@@ -4386,6 +4398,11 @@ fn run_checker_shard<'a>(
         state.flow_memo.release_finished_buffers();
         drop(std::mem::take(&mut state.mappers));
         drop(std::mem::take(&mut state.mapper_lists));
+        if checking.load(std::sync::atomic::Ordering::Acquire) != 0 {
+            // Owned cleanup may finish after the command returns. Borrowed
+            // views stay here; no result or identity depends on helper progress.
+            state.defer_finished_storage();
+        }
         std::mem::forget(state);
     }
     (output, None)
@@ -4747,6 +4764,9 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
                     workers,
                 );
             }
+            if run.leak_at_end {
+                forget_program_sources_for_process_exit(program_sources);
+            }
             return CheckExecution {
                 result,
                 authoritative_failure: None,
@@ -4777,24 +4797,12 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     run.end_bind_phase();
     let publication_started = std::time::Instant::now();
     let program_source_count = program_sources.len();
-    let mut bind_data = bind_data.into_iter();
-    // Consume new builders in Program order: freeze assigns document IDs here.
-    for source_file in program_sources {
-        match source_file {
-            ProgramSource::New(builder) => {
-                work_counters.record_bind();
-                document_store
-                    .publish_builder(
-                        builder,
-                        bind_data.next().expect("a bind of every new source"),
-                    )
-                    .expect("completed bind must belong to the ephemeral document domain");
-            }
-            ProgramSource::Shared(document) => document_store
-                .adopt(document)
-                .expect("a shared document must belong to the Program's identity domain"),
-        }
-    }
+    publish_program_sources(
+        program_sources,
+        bind_data,
+        &mut document_store,
+        &mut work_counters,
+    );
     tsc_types::trace::mark("checker: ordered document publication", publication_started);
     tsc_types::trace::mark("checker: bind program sources", phase_started);
     observe_phase(CheckPhase::Check);
@@ -5699,6 +5707,9 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             }
         }
         if emit_operation.is_none() && !authoritative_run.is_some_and(|run| run.incremental_facts) {
+            if authoritative_run.is_some_and(|run| run.leak_at_end) {
+                forget_program_sources_for_process_exit(program_sources);
+            }
             return CheckExecution {
                 result,
                 authoritative_failure: None,
@@ -5746,24 +5757,12 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     }
     let publication_started = std::time::Instant::now();
     let program_source_count = program_sources.len();
-    let mut bind_data = bind_data.into_iter();
-    // Consume new builders in Program order: freeze assigns document IDs here.
-    for source_file in program_sources {
-        match source_file {
-            ProgramSource::New(builder) => {
-                work_counters.record_bind();
-                document_store
-                    .publish_builder(
-                        builder,
-                        bind_data.next().expect("a bind of every new source"),
-                    )
-                    .expect("completed bind must belong to the ephemeral document domain");
-            }
-            ProgramSource::Shared(document) => document_store
-                .adopt(document)
-                .expect("a shared document must belong to the Program's identity domain"),
-        }
-    }
+    publish_program_sources(
+        program_sources,
+        bind_data,
+        &mut document_store,
+        &mut work_counters,
+    );
     tsc_types::trace::mark("checker: ordered document publication", publication_started);
 
     // Checker-state construction (M4 5.0) + the check driver (M4 5.4):
@@ -6911,11 +6910,88 @@ fn trace_parse(
 /// bound does not count, see `NodeArena::symbol_bound`) relocates into an
 /// exact lease at the domain's tail, still in Program order.
 fn bind_reserved_in_program_order(
-    mut sources: Vec<BindInput<'_>>,
+    sources: Vec<BindInput<'_>>,
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
 ) -> Vec<BindData> {
+    prepare_reserved_bind_results(sources, identity_domain, workers, tracing).into_vec()
+}
+
+/// Owned results contain no source borrow after ordered overflow relocation.
+/// Ready boxes can then flow directly into document publication.
+enum ProgramBindResults {
+    Complete(Vec<BindData>),
+    Ready {
+        ready: Vec<Option<Box<BindData>>>,
+        missing: Vec<BindData>,
+    },
+}
+
+impl ProgramBindResults {
+    fn into_vec(self) -> Vec<BindData> {
+        match self {
+            Self::Complete(data) => data,
+            Self::Ready { ready, missing } => ReadyBindings::new(ready, missing).collect(),
+        }
+    }
+}
+
+// Live adapters retain their contiguous bind-result iterator.
+impl IntoIterator for ProgramBindResults {
+    type Item = BindData;
+    type IntoIter = std::vec::IntoIter<BindData>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.into_vec().into_iter()
+    }
+}
+
+struct ReadyBindings {
+    ready: std::vec::IntoIter<Option<Box<BindData>>>,
+    missing: std::vec::IntoIter<BindData>,
+}
+
+impl ReadyBindings {
+    fn new(ready: Vec<Option<Box<BindData>>>, missing: Vec<BindData>) -> Self {
+        Self {
+            ready: ready.into_iter(),
+            missing: missing.into_iter(),
+        }
+    }
+}
+
+impl Iterator for ReadyBindings {
+    type Item = BindData;
+
+    fn next(&mut self) -> Option<BindData> {
+        let Some(data) = self.ready.next() else {
+            debug_assert!(self.missing.as_slice().is_empty());
+            return None;
+        };
+        Some(match data {
+            Some(data) => *data,
+            None => self
+                .missing
+                .next()
+                .expect("a bind of every remaining source"),
+        })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let count = self.ready.len();
+        (count, Some(count))
+    }
+}
+
+impl ExactSizeIterator for ReadyBindings {}
+
+fn prepare_reserved_bind_results(
+    mut sources: Vec<BindInput<'_>>,
+    identity_domain: &IdentityDomain,
+    workers: WorkerBudget,
+    tracing: Option<&Arc<Tracing>>,
+) -> ProgramBindResults {
     #[cfg(feature = "phase-ledger")]
     let _ledger = tsc_types::phase_ledger::scope(tsc_types::phase_ledger::Phase::Bind);
     let phase_started = std::time::Instant::now();
@@ -7012,7 +7088,7 @@ fn bind_reserved_in_program_order(
     let mut overflowed = 0usize;
     // Keep every reservation alive until the last overflow has replayed:
     // releasing any unused range sooner changes first-fit allocation.
-    let mut finish = |completion| match completion {
+    let finish = |completion| match completion {
         BindCompletion::Attached(data) => data,
         BindCompletion::Overflow(mut binder) => {
             binder
@@ -7029,22 +7105,12 @@ fn bind_reserved_in_program_order(
         }
     };
     let data = if let Some(ready) = ready {
-        let mut completions = completions.into_iter();
-        let data = ready
-            .into_iter()
-            .map(|data| match data {
-                Some(data) => *data,
-                None => finish(
-                    completions
-                        .next()
-                        .expect("a bind of every remaining source"),
-                ),
-            })
-            .collect();
-        debug_assert!(completions.next().is_none());
-        data
+        // Complete every overflow while all original ranges and ready boxes
+        // remain pinned. Only the missing results need an inline vector.
+        let missing = completions.into_iter().map(finish).collect();
+        ProgramBindResults::Ready { ready, missing }
     } else {
-        completions.into_iter().map(finish).collect()
+        ProgramBindResults::Complete(completions.into_iter().map(finish).collect())
     };
     drop(reservations);
     if tsc_types::trace::enabled() {
@@ -7081,12 +7147,55 @@ fn bind_sources_in_program_order(
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
-) -> Vec<BindData> {
+) -> ProgramBindResults {
     let sources = sources
         .iter_mut()
         .filter_map(ProgramSource::bind_input)
         .collect::<Vec<_>>();
-    bind_reserved_in_program_order(sources, identity_domain, workers, tracing)
+    prepare_reserved_bind_results(sources, identity_domain, workers, tracing)
+}
+
+/// Dispatch once so the scalar publication loop retains its Vec iterator.
+fn publish_program_sources(
+    sources: Vec<ProgramSource>,
+    data: ProgramBindResults,
+    documents: &mut EphemeralDocumentStore,
+    counters: &mut CheckWorkCounters,
+) {
+    fn publish(
+        sources: Vec<ProgramSource>,
+        mut data: impl Iterator<Item = BindData>,
+        documents: &mut EphemeralDocumentStore,
+        counters: &mut CheckWorkCounters,
+    ) {
+        // Freeze continues to assign document IDs in Program order.
+        for source in sources {
+            match source {
+                ProgramSource::New(builder) => {
+                    counters.record_bind();
+                    documents
+                        .publish_builder(builder, data.next().expect("a bind of every new source"))
+                        .expect("completed bind must belong to the ephemeral document domain");
+                }
+                ProgramSource::Shared(document) => documents
+                    .adopt(document)
+                    .expect("a shared document must belong to the Program's identity domain"),
+            }
+        }
+        debug_assert!(data.next().is_none());
+    }
+
+    match data {
+        ProgramBindResults::Complete(data) => {
+            publish(sources, data.into_iter(), documents, counters)
+        }
+        ProgramBindResults::Ready { ready, missing } => publish(
+            sources,
+            ReadyBindings::new(ready, missing),
+            documents,
+            counters,
+        ),
+    }
 }
 
 fn publish_bound_documents(

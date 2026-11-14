@@ -11,7 +11,9 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use tsc_diagnostics::{gen, Diagnostic, JsStr, JsString, MessageChain, RelatedInfo};
-use tsc_host::{to_file_name_lower_case_js, CompilerHost, HostError, ParallelSourceReader};
+use tsc_host::{
+    to_file_name_lower_case_js, CompilerHost, HostError, ParallelSourceReader, SourceRead,
+};
 use tsc_types::CompilerOptions;
 
 use crate::content_mapper::source::{
@@ -23,15 +25,14 @@ use crate::inclusion_reason::{InclusionReasonRecord, InclusionSource, SourceIncl
 use crate::json::{json_object_get, parse_json_object};
 use crate::library::{replacement_package_name, LibraryCatalog};
 use crate::module_requests::{
-    is_declaration_file_name, plan_source_requests_retaining_syntax, LoaderModuleRequests,
-    PlannedLibReferenceDirective, PlannedPathReference, PlannedTypeReferenceDirective,
-    SourceRequestPlan,
+    is_declaration_file_name, plan_source_requests_retaining_syntax, PlannedLibReferenceDirective,
+    PlannedPathReference, PlannedTypeReferenceDirective, SourceRequestPlan,
 };
-use crate::module_resolution::PackageJsonProbe;
 use crate::module_resolution::{
     make_program_path, HostModuleResolution, HostResolvedTypeReferenceDirective, ModuleResolver,
     ResolutionTrace,
 };
+use crate::module_resolution::{PackageJsonProbe, PreparedFileScope, ScopePreparation};
 use crate::path::{CanonicalPath, ProgramPath};
 use crate::prepared::{
     extensionless_source_probe_extensions, PackageJsonType, PackageMetadata, PathContext,
@@ -40,7 +41,8 @@ use crate::prepared::{
 };
 use crate::project_references::ResolvedProjectReferences;
 use crate::resolution::{
-    ModuleExtension, ModuleResolution, PackageId, ResolutionError, ResolutionKey, ResolutionMode,
+    ModuleExtension, ModuleResolution, PackageId, PreparedModule, PreparedPackageIds,
+    PreparedPackageRef, PreparedResolvedModule, ResolutionError, ResolutionKey, ResolutionMode,
     ResolutionOutcome, TypeReferenceResolution, TypeReferenceResolutionKey, UnloadedModuleReason,
 };
 use crate::text::{decode_host_text, HostTextDecodeError};
@@ -49,6 +51,11 @@ use crate::PreparationError;
 
 #[path = "level_zero_placement.rs"]
 mod level_zero_placement;
+#[path = "load_requests.rs"]
+mod load_requests;
+use load_requests::{
+    ImportPolicy, PreparedModuleRequests, PreparedModuleResolution, PreparedSourceRequests,
+};
 
 /// The deepest source chain admitted by the recursive H0.4 loader worker.
 ///
@@ -986,7 +993,7 @@ fn load_program_worker(
             graph.directory_resolution_hits,
             graph.target_resolution_hits,
             graph.pre_resolved.len(),
-            graph.module_resolutions.len()
+            graph.sources.iter().map(|source| source.module_requests.rows.len()).sum::<usize>()
         ),
         phase_started,
     );
@@ -1054,8 +1061,12 @@ fn load_program_worker(
     // caches are dropped; their results still carry the governing manifest —
     // for a pnpm package that is `node_modules/<pkg>/package.json`, while the
     // realpath'd source's own scope records the `.pnpm/...` spelling.
-    for resolution in &staged.module_resolutions {
-        if let ResolutionOutcome::Resolved(module) = resolution.host.outcome() {
+    for resolution in staged
+        .module_batch_order
+        .iter()
+        .flat_map(|&source| &staged.sources[source].module_requests.rows)
+    {
+        if let Some(module) = resolution.host.resolved() {
             if let Some(package) = module.package_metadata() {
                 packages_by_path
                     .entry(package.package_json().canonical().clone())
@@ -1520,7 +1531,7 @@ impl SourceInclusionReason {
 #[derive(Clone, Debug)]
 struct DiscoveryReason {
     inclusion: InclusionReasonRecord,
-    package_id: Option<Arc<PackageId>>,
+    package_id: Option<PreparedPackageRef>,
 }
 
 impl DiscoveryReason {
@@ -1550,9 +1561,16 @@ impl DiscoveryReason {
         }
     }
 
-    fn with_package_id(mut self, package_id: Option<PackageId>) -> Self {
-        self.inclusion = self.inclusion.with_package_id(package_id.as_ref());
-        self.package_id = package_id.map(Arc::new);
+    fn with_package_id(
+        self,
+        package_id: Option<PackageId>,
+        identities: &PreparedPackageIds,
+    ) -> Self {
+        self.with_package_identity(package_id.map(|id| identities.intern(id)))
+    }
+    fn with_package_identity(mut self, package: Option<PreparedPackageRef>) -> Self {
+        self.inclusion = self.inclusion.with_prepared_package_id(package.as_ref());
+        self.package_id = package;
         self
     }
 }
@@ -1587,6 +1605,7 @@ impl SourceClass {
 }
 
 struct StagedSource {
+    normalized_path: bool,
     prepared: PreparedSourceFile,
     /// Root-file inclusion occurrences are retained separately from the
     /// canonical source identity.  They are observable in the TS1149
@@ -1615,31 +1634,13 @@ struct StagedSource {
     /// The module requests in order, with the spans of their occurrences
     /// that load a source (none for a synthetic request) and the resolution
     /// the read-ahead computed for them.
-    module_requests: LoaderModuleRequests,
-    /// Every unique request of a source is staged before any child runs.
-    /// Repeated spellings reuse this contiguous batch by request index.
-    module_resolution_start: Option<usize>,
-    pre_resolved_modules: Vec<Option<HostModuleResolution>>,
-    /// The request of each occurrence that loads its target, in tsgo's
-    /// `moduleNames` order.
-    module_request_occurrences: Vec<u32>,
+    module_requests: PreparedModuleRequests,
     /// The resolved occurrences in tsgo's `moduleNames` order (the imports,
     /// then the module augmentations), kept only when tracing; the synthetic
     /// requests are not here.
     module_request_order: Vec<ResolutionKey>,
     /// A content mapper's supplemental outputs of this file.
     supplemental: Vec<ProgramPath>,
-}
-
-/// A resolved target and the next occurrence whose span the walk consumes.
-struct ImportTarget {
-    resolution: usize,
-    external: bool,
-    elide_on_depth: bool,
-    package_id: Option<PackageId>,
-    next: usize,
-    synthetic: usize,
-    specifier: Option<Arc<JsString>>,
 }
 
 impl StagedSource {
@@ -1786,8 +1787,9 @@ struct ParseTasks {
     task_data: Vec<TaskData>,
     task_data_by_path: FxHashMap<CanonicalPath, usize>,
     alias_root_origins: FxHashMap<usize, TaskOrigin>,
-    // Allocation identities are only a lookup shortcut. Holding both shared
-    // path strings prevents address reuse; a miss uses canonical equality.
+    // Worker symbols name canonical targets; ordered registration chooses
+    // their TaskData and preserves each spelling owner.
+    symbol_data: Vec<Option<usize>>,
     paths_by_identity: FxHashMap<(usize, usize), CachedTaskPath>,
 }
 
@@ -1816,18 +1818,50 @@ impl ParseTasks {
         elide_on_depth: bool,
         tree_depth: usize,
     ) -> usize {
+        self.new_task_with_symbol(
+            path,
+            origin,
+            reason,
+            class,
+            increase_depth,
+            elide_on_depth,
+            tree_depth,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn new_task_with_symbol(
+        &mut self,
+        path: Cow<'_, ProgramPath>,
+        origin: TaskOrigin,
+        reason: DiscoveryReason,
+        class: SourceClass,
+        increase_depth: bool,
+        elide_on_depth: bool,
+        tree_depth: usize,
+        symbol: Option<std::num::NonZeroU32>,
+    ) -> usize {
         let task = self.tasks.len();
-        let identity = matches!(path, Cow::Borrowed(_)).then(|| {
+        let identity = (symbol.is_none() && matches!(path, Cow::Borrowed(_))).then(|| {
             (
                 path.canonical().as_js().as_bytes().as_ptr() as usize,
                 path.display().as_bytes().as_ptr() as usize,
             )
         });
-        let cached = identity
+        let cached_path = identity
             .and_then(|identity| self.paths_by_identity.get(&identity))
             .map(|cached| (cached.data, cached.registered));
+        let cached = symbol
+            .and_then(|symbol| {
+                self.symbol_data
+                    .get(symbol.get() as usize)
+                    .copied()
+                    .flatten()
+            })
+            .or_else(|| cached_path.map(|(data, _)| data));
         let (data, queued_with_data) = match cached {
-            Some((data, _)) => (data, true),
+            Some(data) => (data, true),
             None => match self.task_data_by_path.get(path.canonical()) {
                 Some(&data) => (data, true),
                 None => {
@@ -1844,20 +1878,22 @@ impl ParseTasks {
                 }
             },
         };
-        let alias = cached.and_then(|(_, registered)| registered).or_else(|| {
-            queued_with_data
-                .then(|| {
-                    self.task_data[data]
-                        .spellings
-                        .iter()
-                        .copied()
-                        .find(|&registered| self.path(registered).display() == path.display())
-                })
-                .flatten()
-        });
+        let alias = cached_path
+            .and_then(|(_, registered)| registered)
+            .or_else(|| {
+                queued_with_data
+                    .then(|| {
+                        self.task_data[data]
+                            .spellings
+                            .iter()
+                            .copied()
+                            .find(|&registered| self.path(registered).display() == path.display())
+                    })
+                    .flatten()
+            });
         if let Some(identity) = identity {
             let registered = if queued_with_data { alias } else { Some(task) };
-            if cached.is_none() {
+            if cached_path.is_none() {
                 self.paths_by_identity.insert(
                     identity,
                     CachedTaskPath {
@@ -1867,13 +1903,20 @@ impl ParseTasks {
                     },
                 );
             } else if registered.is_some()
-                && cached.is_some_and(|(_, registered)| registered.is_none())
+                && cached_path.is_some_and(|(_, registered)| registered.is_none())
             {
                 self.paths_by_identity
                     .get_mut(&identity)
                     .expect("cached above")
                     .registered = registered;
             }
+        }
+        if let Some(symbol) = symbol {
+            let index = symbol.get() as usize;
+            if index >= self.symbol_data.len() {
+                self.symbol_data.resize(index + 1, None);
+            }
+            self.symbol_data[index] = Some(data);
         }
         let is_automatic_types = matches!(origin, TaskOrigin::AutomaticTypes);
         let load = if let Some(owner) = alias {
@@ -1916,7 +1959,7 @@ struct TaskData {
     lowest_depth: usize,
     started_subtasks: bool,
     /// The first non-empty package identity of the path's tasks.
-    package_id: Option<PackageId>,
+    package_id: Option<PreparedPackageRef>,
 }
 
 /// What the collect walk decided (see `StagedGraph::collect_files`).
@@ -1946,6 +1989,7 @@ struct PrefetchedSource {
     /// The display spelling the read-ahead queried.
     display: JsString,
     read: PrefetchedRead,
+    scope: Option<PreparedFileScope>,
 }
 
 /// The fewest read-ahead roots for which the parse workers read the sources
@@ -2019,10 +2063,7 @@ struct PrefetchedParse {
     implied: Option<ResolutionMode>,
     implied_for_emit: Option<ResolutionMode>,
     prepared: PreparedSourceFile,
-    plan: Result<SourceRequestPlan, ResolutionError>,
-    /// By module request of the plan: the resolution the parallel
-    /// read-ahead computed (empty when none ran).
-    resolutions: Vec<Option<HostModuleResolution>>,
+    plan: Result<PreparedSourceRequests, ResolutionError>,
 }
 
 /// One source of the parallel read-ahead
@@ -2031,6 +2072,7 @@ struct PrefetchedParse {
 /// directives, and its place in the eviction order (a root's index; the
 /// dependencies after every root).
 struct ReadAheadSource {
+    scope: Option<PreparedFileScope>,
     path: ProgramPath,
     order: usize,
     read: PrefetchedRead,
@@ -2065,17 +2107,45 @@ struct ParallelReadAhead<'a> {
     retained_sources: AtomicUsize,
     retained_bytes: AtomicUsize,
     stopped: AtomicBool,
-    queued: Sharded<CanonicalPath, ()>,
-    resolutions: Sharded<(LexicalPath, JsString, ResolutionMode), HostModuleResolution>,
+    scope_preparation: ScopePreparation,
+    package_ids: Arc<PreparedPackageIds>,
+    queued: Sharded<CanonicalPath, QueuedPath>,
+    path_symbol_count: AtomicUsize,
+    resolutions: Sharded<(LexicalPath, JsString, ResolutionMode), Arc<PreparedModule>>,
     /// The resolutions by target ([`StagedGraph::target_resolutions`]),
     /// shared by all workers as `resolutions` is.
-    target_resolutions: Sharded<(LexicalPath, ResolutionMode), HostModuleResolution>,
+    target_resolutions: Sharded<(LexicalPath, ResolutionMode), Arc<PreparedModule>>,
     resolved: AtomicUsize,
     reused: AtomicUsize,
     target_reused: AtomicUsize,
 }
 
+struct QueuedPath {
+    symbol: Option<std::num::NonZeroU32>,
+    queued: bool,
+}
+
 impl ParallelReadAhead<'_> {
+    fn path_symbol(
+        &self,
+        path: &CanonicalPath,
+        queue: bool,
+    ) -> (Option<std::num::NonZeroU32>, bool) {
+        let mut shard = self.queued.shard(path);
+        let entry = shard.entry(path.clone()).or_insert_with(|| QueuedPath {
+            symbol: self
+                .path_symbol_count
+                .fetch_add(1, Ordering::Relaxed)
+                .checked_add(1)
+                .and_then(|id| u32::try_from(id).ok())
+                .and_then(std::num::NonZeroU32::new),
+            queued: false,
+        });
+        let newly_queued = queue && !entry.queued;
+        entry.queued |= queue;
+        (entry.symbol, newly_queued)
+    }
+
     /// Whether the read-ahead reads `path` (`prefetch_roots`'s admission).
     fn admits(&self, path: &ProgramPath) -> bool {
         path_has_extension(path.display())
@@ -2100,7 +2170,7 @@ impl ParallelReadAhead<'_> {
     fn queue(&self, path: &ProgramPath, spawned: &mut Vec<(ProgramPath, usize)>) {
         if !self.stopped.load(Ordering::Relaxed)
             && self.admits(path)
-            && self.queued.insert_new(path.canonical())
+            && self.path_symbol(path.canonical(), true).1
         {
             spawned.push((path.clone(), usize::MAX));
         }
@@ -2126,7 +2196,7 @@ impl ParallelReadAhead<'_> {
         } else {
             None
         };
-        let read = match self.reader.read_source_js(path.display()) {
+        let read = match self.reader.read_source_contents_js(path.display()) {
             Err(error) => {
                 // The visit reports this error; nothing after it is needed.
                 self.stopped.store(true, Ordering::Relaxed);
@@ -2163,6 +2233,7 @@ impl ParallelReadAhead<'_> {
             }
         };
         let mut source = ReadAheadSource {
+            scope: None,
             path,
             order,
             read,
@@ -2181,12 +2252,13 @@ impl ParallelReadAhead<'_> {
         &self,
         resolver: &mut Option<ModuleResolver<'_>>,
         path: &ProgramPath,
-        bytes: Vec<u8>,
+        bytes: SourceRead,
         mapper: &Arc<Mapper>,
         project: &dyn crate::content_mapper::Project,
     ) -> PrefetchedRead {
         let byte_len = bytes.len();
-        let mapped = decode_host_text(bytes).map(|content| {
+        let mapped = decode_source_text(bytes).map(|text| {
+            let content = text.into_string();
             let outcome = transform_content_mapped(
                 self.references.host,
                 project,
@@ -2231,15 +2303,13 @@ impl ParallelReadAhead<'_> {
                             implied,
                             implied_for_emit,
                             prepared: prepared.with_preparsed_syntax(syntax),
-                            plan: Ok(plan),
-                            resolutions: Vec::new(),
+                            plan: Ok(PreparedSourceRequests::new(plan)),
                         },
                         Err(error) => PrefetchedParse {
                             implied,
                             implied_for_emit,
                             prepared,
                             plan: Err(error),
-                            resolutions: Vec::new(),
                         },
                     },
                 );
@@ -2264,8 +2334,7 @@ impl ParallelReadAhead<'_> {
         let Some(parse) = source.read.parse_mut() else {
             return;
         };
-        let parse = &*parse;
-        let Ok(plan) = &parse.plan else {
+        let Ok(plan) = &mut parse.plan else {
             return;
         };
         let canonical = source.path.canonical();
@@ -2275,15 +2344,15 @@ impl ParallelReadAhead<'_> {
             return;
         }
         let containing_file = parse.prepared.path().display();
-        let mut resolutions = Vec::new();
         // The output of a referenced project resolves with its project's
         // options on the walk, not with the read-ahead's resolver.
         if self.references.project_for_resolution(canonical).is_none() {
             let directory = resolver.lexical_paths().directory(containing_file);
-            resolutions.reserve(plan.module_requests().len());
-            for (key, loads_source) in plan.module_requests_with_loadability() {
+            for row in plan.module_rows_mut() {
+                let key = &row.key;
+                let loads_source = row.loads_source;
                 let directory_key = (directory.clone(), key.specifier().to_owned(), key.mode());
-                let host = match self.resolutions.get_cloned(&directory_key) {
+                let facts = match self.resolutions.get_cloned(&directory_key) {
                     Some(host) => {
                         self.reused.fetch_add(1, Ordering::Relaxed);
                         host
@@ -2295,7 +2364,7 @@ impl ParallelReadAhead<'_> {
                         let shared = target_key
                             .as_ref()
                             .and_then(|target_key| self.target_resolutions.get_cloned(target_key));
-                        let host = match shared {
+                        let facts = match shared {
                             Some(host) => {
                                 self.target_reused.fetch_add(1, Ordering::Relaxed);
                                 host
@@ -2307,32 +2376,64 @@ impl ParallelReadAhead<'_> {
                                     key.specifier(),
                                     key.mode(),
                                 ) else {
-                                    resolutions.push(None);
                                     continue;
                                 };
                                 self.resolved.fetch_add(1, Ordering::Relaxed);
+                                let outcome_only = host.is_outcome_only();
+                                let facts = Arc::new(PreparedModule::new(
+                                    host,
+                                    key.mode(),
+                                    &self.package_ids,
+                                ));
                                 if let Some(target_key) = target_key {
-                                    if host.is_outcome_only() {
-                                        self.target_resolutions.insert(target_key, host.clone());
+                                    if outcome_only {
+                                        self.target_resolutions
+                                            .insert(target_key, Arc::clone(&facts));
                                     }
                                 }
-                                host
+                                facts
                             }
                         };
-                        self.resolutions.insert(directory_key, host.clone());
-                        host
+                        self.resolutions.insert(directory_key, Arc::clone(&facts));
+                        facts
                     }
                 };
                 if loads_source {
-                    if let ResolutionOutcome::Resolved(target) = host.outcome() {
+                    if let Some(target) = facts.resolved() {
                         if !matches!(target.extension(), ModuleExtension::Json)
-                            && !read_ahead_elides_target(self.options, target)
+                            && !prepared_read_ahead_elides_target(self.options, target)
                         {
                             self.queue(target.resolved_file(), spawned);
                         }
                     }
                 }
-                resolutions.push(Some(host));
+                let mut prepared = PreparedModuleResolution::from_facts(facts);
+                prepared.policy = prepared.policy_for(
+                    self.options,
+                    is_declaration_file_name(containing_file),
+                    loads_source,
+                    |path| {
+                        self.references
+                            .project_for_resolution(path.canonical())
+                            .is_some()
+                    },
+                    |path| self.mapper_for(path).is_some(),
+                );
+                prepared.policy_prepared = true;
+                if matches!(prepared.policy, ImportPolicy::Load { .. }) {
+                    if let Some(package) = prepared
+                        .resolved()
+                        .and_then(|module| module.package_identity())
+                    {
+                        package.id.display();
+                    }
+                    prepared.symbol = prepared.resolved().and_then(|module| {
+                        self.path_symbol(module.resolved_file().canonical(), false)
+                            .0
+                    });
+                }
+                row.host = prepared;
+                row.ready = true;
             }
         }
         let mut type_resolutions = Vec::new();
@@ -2390,10 +2491,9 @@ impl ParallelReadAhead<'_> {
                 }
             }
         }
+        plan.finish_preparation();
+        source.scope = self.scope_preparation.prepare(resolver, &source.path);
         source.type_resolutions = type_resolutions;
-        if let Some(parse) = source.read.parse_mut() {
-            parse.resolutions = resolutions;
-        }
     }
 }
 
@@ -2435,6 +2535,27 @@ impl<K: Hash + Eq, V> Sharded<K, V> {
         self.shard(&key).insert(key, value);
     }
 
+    fn append_to(mut self, target: &mut FxHashMap<K, V>) {
+        let count = self
+            .shards
+            .iter_mut()
+            .map(|shard| {
+                shard
+                    .get_mut()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .len()
+            })
+            .sum();
+        target.reserve(count);
+        for shard in self.shards {
+            target.extend(
+                shard
+                    .into_inner()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner),
+            );
+        }
+    }
+
     fn into_entries(self) -> impl Iterator<Item = (K, V)> {
         self.shards.into_iter().flat_map(|shard| {
             shard
@@ -2444,22 +2565,10 @@ impl<K: Hash + Eq, V> Sharded<K, V> {
     }
 }
 
-impl<K: Hash + Eq + Clone> Sharded<K, ()> {
-    /// Insert `key`; whether it was absent.
-    fn insert_new(&self, key: &K) -> bool {
-        let mut shard = self.shard(key);
-        if shard.contains_key(key) {
-            return false;
-        }
-        shard.insert(key.clone(), ());
-        true
-    }
-}
-
 /// The text of a source about to be planned: a fresh host read, or the
 /// retained read-ahead of the same bytes.
 enum SourceInput {
-    Fresh(Vec<u8>),
+    Fresh(SourceRead),
     Prefetched {
         byte_len: usize,
         decoded: Result<Box<PrefetchedParse>, HostTextDecodeError>,
@@ -2475,7 +2584,7 @@ enum SourceInput {
 }
 
 enum DecodedSource {
-    Text(String),
+    Text(DecodedText),
     Parsed(Box<PrefetchedParse>),
     /// A content mapper's output (tsgo parseContentMappedFile).
     Mapped(Box<VirtualSource>),
@@ -2484,6 +2593,52 @@ enum DecodedSource {
     /// A content-mapped file the read-ahead transformed, before the walk
     /// applies its mapper's failure budget.
     PrefetchedMapped(Box<PrefetchedMapped>),
+}
+
+/// Retain a host's shared text while preserving the existing owned-string
+/// path for ordinary decoding and content-mapper requests.
+enum DecodedText {
+    Owned(String),
+    Shared(tsc_diagnostics::SharedText),
+}
+
+impl DecodedText {
+    fn into_snapshot(self) -> Arc<tsc_diagnostics::TextSnapshot> {
+        let version = tsc_diagnostics::DocumentVersion::default();
+        match self {
+            Self::Owned(text) => tsc_diagnostics::TextSnapshot::new(text, version),
+            Self::Shared(text) => tsc_diagnostics::TextSnapshot::from_text(text, version),
+        }
+    }
+    fn into_string(self) -> String {
+        match self {
+            Self::Owned(text) => text,
+            Self::Shared(text) => text.as_str().to_owned(),
+        }
+    }
+}
+
+impl std::ops::Deref for DecodedText {
+    type Target = str;
+    fn deref(&self) -> &str {
+        match self {
+            Self::Owned(text) => text,
+            Self::Shared(text) => text,
+        }
+    }
+}
+
+impl From<String> for DecodedText {
+    fn from(text: String) -> Self {
+        Self::Owned(text)
+    }
+}
+
+fn decode_source_text(contents: SourceRead) -> Result<DecodedText, HostTextDecodeError> {
+    match contents {
+        SourceRead::Bytes(bytes) => decode_host_text(bytes).map(DecodedText::Owned),
+        SourceRead::Text(text) => Ok(DecodedText::Shared(text)),
+    }
 }
 
 /// A content-mapped file as the walk admits it: its mapper's output to
@@ -2565,7 +2720,7 @@ pub fn transform_content_mapped(
 /// sequential parse panic would; read-ahead does not catch or defer it.
 fn parse_root_ahead(
     path: &ProgramPath,
-    bytes: Vec<u8>,
+    bytes: SourceRead,
     options: &CompilerOptions,
     package_scope: Option<&PackageMetadata>,
     parse_cache: Option<&dyn crate::ParseCache>,
@@ -2579,14 +2734,14 @@ fn parse_root_ahead(
             path.display().to_string_lossy().into_owned(),
         )
     });
-    let decoded = decode_host_text(bytes).map(|text| {
+    let decoded = decode_source_text(bytes).map(|text| {
         if let Some((started, name)) = &traced {
             tsc_types::trace::mark(&format!("load: decode {name} ({byte_len} bytes)"), *started);
         }
         let prepare_started = std::time::Instant::now();
         let implied = implied_node_format(path.display(), package_scope, options);
         let implied_for_emit = implied_node_format_for_emit(path.display(), package_scope, options);
-        let prepared = PreparedSourceFile::new(path.clone(), text)
+        let prepared = PreparedSourceFile::from_snapshot(path.clone(), text.into_snapshot())
             .with_implied_node_formats(implied, implied_for_emit);
         if let Some((_, name)) = &traced {
             tsc_types::trace::mark(&format!("load: snapshot {name}"), prepare_started);
@@ -2601,15 +2756,13 @@ fn parse_root_ahead(
                 implied,
                 implied_for_emit,
                 prepared: prepared.with_preparsed_syntax(syntax),
-                plan: Ok(plan),
-                resolutions: Vec::new(),
+                plan: Ok(PreparedSourceRequests::new(plan)),
             },
             Err(error) => PrefetchedParse {
                 implied,
                 implied_for_emit,
                 prepared,
                 plan: Err(error),
-                resolutions: Vec::new(),
             },
         })
     });
@@ -2624,13 +2777,30 @@ pub enum LibraryRootReason {
     Explicit { file_name: String },
 }
 
+struct SourceModuleKey {
+    specifier: JsString,
+    mode: ResolutionMode,
+}
+impl SourceModuleKey {
+    fn specifier(&self) -> JsStr<'_> {
+        self.specifier.as_js()
+    }
+    fn mode(&self) -> ResolutionMode {
+        self.mode
+    }
+    fn full(&self, source: &CanonicalPath) -> ResolutionKey {
+        ResolutionKey::new(source.clone(), self.specifier.clone(), self.mode)
+    }
+}
+
 struct StagedModuleResolution {
-    source: usize,
     target: StagedModuleTarget,
-    key: ResolutionKey,
-    host: HostModuleResolution,
+    key: SourceModuleKey,
+    host: PreparedModuleResolution,
     loads_source: bool,
     unloaded_reason: Option<UnloadedModuleReason>,
+    synthetic_count: u32,
+    ready: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -2652,7 +2822,7 @@ struct CompleteGraph {
     library_postorder: Vec<usize>,
     ordinary_postorder: Vec<usize>,
     roots: Vec<StagedRoot>,
-    module_resolutions: Vec<StagedModuleResolution>,
+    module_batch_order: Vec<usize>,
     type_resolutions: Vec<StagedTypeResolution>,
     program_diagnostics: Vec<Diagnostic>,
     option_diagnostics: Vec<Diagnostic>,
@@ -2675,6 +2845,7 @@ struct CompleteGraph {
 
 struct StagedGraph<'host, 'options, 'resolver> {
     direct_layout: bool,
+    pending_source_binds: Option<Arc<crate::source_binds::SourceBinds>>,
     direct_stripes: level_zero_placement::Stripes,
     host: &'host dyn CompilerHost,
     /// The host module resolution observes: `host`, or for a program that
@@ -2695,7 +2866,6 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// another spelling keeps that one), old to new.
     respelled: FxHashMap<JsString, JsString>,
     sources: Vec<StagedSource>,
-    import_targets: Vec<Option<ImportTarget>>,
     /// tsgo filesParser: the parse tasks, their shared data by path, the
     /// root tasks in tsgo's order and the single-threaded work queue (a
     /// stack: the last queued task runs first).
@@ -2709,8 +2879,8 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// (`finish`); the diagnostics located by program order read it.
     program_order: Vec<usize>,
     roots: Vec<StagedRoot>,
-    module_resolutions: Vec<StagedModuleResolution>,
     type_resolution_by_key: BTreeMap<TypeReferenceResolutionKey, usize>,
+    module_batch_order: Vec<usize>,
     type_resolutions: Vec<StagedTypeResolution>,
     diagnosed_missing_roots: HashSet<JsString>,
     diagnosed_missing_library_roots: HashSet<JsString>,
@@ -2733,7 +2903,8 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// Hashed, never iterated except for the trace summary: the walk takes
     /// one entry per request (VS Code: 112k) and an ordered map compared the
     /// key's path strings at every step.
-    pre_resolved: rustc_hash::FxHashMap<ResolutionKey, HostModuleResolution>,
+    package_ids: Arc<PreparedPackageIds>,
+    pre_resolved: rustc_hash::FxHashMap<ResolutionKey, Arc<PreparedModule>>,
     pre_resolved_hits: usize,
     /// Type-reference resolutions computed by the read-ahead that the walk
     /// has not reached yet, taken like `pre_resolved`.
@@ -2764,7 +2935,7 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// Hashed, never iterated: an ordered map compared the directory strings
     /// of every lookup (VS Code: 112k lookups of 60-byte paths).
     directory_resolutions:
-        rustc_hash::FxHashMap<(LexicalPath, JsString, ResolutionMode), HostModuleResolution>,
+        rustc_hash::FxHashMap<(LexicalPath, JsString, ResolutionMode), Arc<PreparedModule>>,
     directory_resolution_hits: usize,
     /// One resolution per (target of a path-relative request, mode), for the
     /// requests whose outcome is a function of that target
@@ -2774,7 +2945,7 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// the per-directory cache once; the resolver then probes the same
     /// candidates, directories and package scope again. Hashed, never
     /// iterated.
-    target_resolutions: rustc_hash::FxHashMap<(LexicalPath, ResolutionMode), HostModuleResolution>,
+    target_resolutions: rustc_hash::FxHashMap<(LexicalPath, ResolutionMode), Arc<PreparedModule>>,
     target_resolution_hits: usize,
     /// One resolver per referenced project whose output is in the program
     /// (tsgo GetCompilerOptionsWithRedirect: the module names of such an
@@ -2816,6 +2987,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     fn new(config: StagedGraphConfig<'host, 'options, 'resolver>) -> Self {
         Self {
             direct_layout: false,
+            pending_source_binds: None,
             direct_stripes: level_zero_placement::Stripes::default(),
             host: config.host,
             resolution_host: config.resolution_host,
@@ -2831,14 +3003,13 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             case_sensitive_casing_conflicts: Vec::new(),
             respelled: FxHashMap::default(),
             sources: Vec::new(),
-            import_targets: Vec::new(),
             parse: ParseTasks::default(),
             root_tasks: Vec::new(),
             stack: Vec::new(),
             missing_library_diagnostics: FxHashMap::default(),
             program_order: Vec::new(),
             roots: Vec::new(),
-            module_resolutions: Vec::new(),
+            module_batch_order: Vec::new(),
             type_resolution_by_key: BTreeMap::new(),
             type_resolutions: Vec::new(),
             diagnosed_missing_roots: HashSet::default(),
@@ -2848,6 +3019,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             total_source_bytes: 0,
             prefetched: FxHashMap::default(),
             prefetch_order: Vec::new(),
+            package_ids: Arc::new(PreparedPackageIds::default()),
             pre_resolved: rustc_hash::FxHashMap::default(),
             pre_resolved_hits: 0,
             pre_resolved_types: BTreeMap::new(),
@@ -2978,7 +3150,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             retained_sources: AtomicUsize::new(0),
             retained_bytes: AtomicUsize::new(0),
             stopped: AtomicBool::new(false),
+            scope_preparation: ScopePreparation::default(),
+            package_ids: Arc::clone(&self.package_ids),
             queued: Sharded::new(),
+            path_symbol_count: AtomicUsize::new(0),
             resolutions: Sharded::new(),
             target_resolutions: Sharded::new(),
             resolved: AtomicUsize::new(0),
@@ -2989,7 +3164,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         for path in roots {
             if !self.source_by_canonical.contains_key(path.canonical())
                 && pass.admits(path)
-                && pass.queued.insert_new(path.canonical())
+                && pass.path_symbol(path.canonical(), true).1
             {
                 let order = seeds.len();
                 seeds.push((path.clone(), order));
@@ -3078,6 +3253,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 PrefetchedSource {
                     display: source.path.display().to_owned(),
                     read: source.read,
+                    scope: source.scope,
                 },
             );
         }
@@ -3197,7 +3373,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         stopped = true;
                         return None;
                     }
-                    match self.host.read_file_js(path.display()) {
+                    match self.host.read_file_contents_js(path.display()) {
                         Err(error) => {
                             // Reported at this root's visit, where the walk
                             // fails at the latest. A later root can still be
@@ -3299,7 +3475,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 pending.next()
             },
             |(path, scope)| {
-                let read = match reader.read_source_js(path.display()) {
+                let read = match reader.read_source_contents_js(path.display()) {
                     Err(error) => Some(PrefetchedRead::Failed(error)),
                     Ok(None) => Some(PrefetchedRead::Missing),
                     Ok(Some(bytes)) => {
@@ -3371,6 +3547,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 PrefetchedSource {
                     display: path.display().to_owned(),
                     read,
+                    scope: None,
                 },
             );
         }
@@ -3404,9 +3581,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     continue;
                 }
                 if loads_source {
-                    if let ResolutionOutcome::Resolved(target) = host.outcome() {
+                    if let Some(target) = host.resolved() {
                         if !matches!(target.extension(), ModuleExtension::Json)
-                            && !self.read_ahead_elides_target(target)
+                            && !prepared_read_ahead_elides_target(self.compiler_options, target)
                         {
                             self.queue_read_ahead_target(
                                 &mut targets,
@@ -3487,14 +3664,15 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             // The output of a referenced project resolves with its project's
             // options on the walk, not with the read-ahead's resolver.
             let resolved_ahead = self.project_for_resolution(canonical).is_none();
-            for (key, loads_source) in plan.module_requests_with_loadability() {
+            for (request, loads_source) in plan.module_requests_with_loadability() {
+                let key = request.full(canonical);
                 if !resolved_ahead
-                    || self.module_resolution_index(key).is_some()
-                    || self.pre_resolved.contains_key(key)
+                    || self.module_resolution_index(&key).is_some()
+                    || self.pre_resolved.contains_key(&key)
                 {
                     continue;
                 }
-                requests.push((containing_file.clone(), key.clone(), loads_source));
+                requests.push((containing_file.clone(), key, loads_source));
             }
             if self.compiler_options.no_resolve != Some(true) {
                 path_references.extend(plan.path_references().iter().cloned());
@@ -3526,17 +3704,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             }
         }
         (requests, targets)
-    }
-
-    /// Whether the walk elides a JavaScript target found through a
-    /// node_modules search at every depth (processImportedModules'
-    /// maxNodeModuleJsDepth rule at the shallowest depth, 1): reading it
-    /// ahead would be wasted. A deeper visit elides at least as much.
-    fn read_ahead_elides_target(
-        &self,
-        target: &crate::module_resolution::HostResolvedModule,
-    ) -> bool {
-        read_ahead_elides_target(self.compiler_options, target)
     }
 
     fn queue_read_ahead_target(
@@ -3669,11 +3836,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     fn resolve_requests_ahead_by_directory(
         &mut self,
         requests: Vec<(JsString, ResolutionKey, bool)>,
-    ) -> Vec<(ResolutionKey, bool, Option<HostModuleResolution>)> {
+    ) -> Vec<(ResolutionKey, bool, Option<Arc<PreparedModule>>)> {
         let mut unique: Vec<(JsString, ResolutionKey, bool)> = Vec::new();
         let mut by_directory: BTreeMap<(LexicalPath, JsString, ResolutionMode), usize> =
             BTreeMap::new();
-        let mut planned: Vec<(ResolutionKey, bool, Result<HostModuleResolution, usize>)> =
+        let mut planned: Vec<(ResolutionKey, bool, Result<Arc<PreparedModule>, usize>)> =
             Vec::with_capacity(requests.len());
         for (containing_file, key, loads_source) in requests {
             let directory_key = (
@@ -3727,10 +3894,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     fn resolve_requests_ahead(
         &mut self,
         requests: Vec<(JsString, ResolutionKey, bool)>,
-    ) -> Vec<(ResolutionKey, bool, Option<HostModuleResolution>)> {
+    ) -> Vec<(ResolutionKey, bool, Option<Arc<PreparedModule>>)> {
         // Spawning the workers costs tens of microseconds; a level of a few
         // dozen requests already resolves faster on them than in sequence.
         const MIN_PARALLEL_REQUESTS: usize = 32;
+        let identities = Arc::clone(&self.package_ids);
         let workers = self.limits.workers;
         if let Some(host) = self
             .resolution_host
@@ -3754,6 +3922,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                             resolver
                                 .resolve_with_facts(containing_file, key.specifier(), key.mode())
                                 .ok()
+                        });
+                        let result = result.map(|host| {
+                            Arc::new(PreparedModule::new(host, key.mode(), &identities))
                         });
                         (key.clone(), *loads_source, result)
                     })
@@ -3802,7 +3973,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let resolved = requests
             .into_iter()
             .map(|(containing_file, key, loads_source)| {
-                let result = self.resolve_program_request(&containing_file, &key).ok();
+                let result = self
+                    .resolve_program_request(&containing_file, &key)
+                    .ok()
+                    .map(|host| Arc::new(PreparedModule::new(host, key.mode(), &identities)));
                 (key, loads_source, result)
             })
             .collect();
@@ -4210,7 +4384,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 Cow::Owned(target),
                 TaskOrigin::TypeReference,
                 DiscoveryReason::automatic_type(name.clone(), uses_wildcard)
-                    .with_package_id(package_id),
+                    .with_package_id(package_id, &self.package_ids),
                 SourceClass::Ordinary,
                 external,
                 false,
@@ -4373,13 +4547,20 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         mut self,
         timer: &mut tsc_types::trace::Timer,
     ) -> Result<CompleteGraph, ProgramLoadError> {
+        // Ordered admission is complete. Unvisited reads retain their parse
+        // and bind ownership, but no longer need package-lookup facts.
+        // Releasing pure lookup handles has no observable iteration order.
+        #[allow(clippy::iter_over_hash_type)]
+        for source in self.prefetched.values_mut() {
+            source.scope = None;
+        }
         if tsc_types::trace::enabled() {
             eprintln!(
                 "[load census] staged: sources {}, tasks {}, task data {}, roots {}, module rows {}, type rows {}, source path bytes {}, module source key bytes {}",
                 self.sources.len(), self.parse.tasks.len(), self.parse.task_data.len(),
-                self.roots.len(), self.module_resolutions.len(), self.type_resolutions.len(),
+                self.roots.len(), self.sources.iter().map(|source| source.module_requests.rows.len()).sum::<usize>(), self.type_resolutions.len(),
                 self.sources.iter().map(|source| source.prepared.path().display().as_bytes().len()).sum::<usize>(),
-                self.module_resolutions.iter().map(|resolution| resolution.key.source().as_js().as_bytes().len()).sum::<usize>(),
+                self.sources.iter().map(|source| source.module_requests.rows.len() * source.prepared.path().canonical().as_js().as_bytes().len()).sum::<usize>(),
             );
         }
         timer.mark("load: graph staged census");
@@ -4480,13 +4661,19 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 None => kept[source].then_some((path, source)),
             })
             .collect();
-        for resolution in &mut self.module_resolutions {
-            if let StagedModuleTarget::Source(source, exact_path) = resolution.target {
-                resolution.target = match redirect_targets.get(&source) {
-                    Some(&target) => StagedModuleTarget::Source(target, false),
-                    None if kept[source] => StagedModuleTarget::Source(source, exact_path),
-                    None => StagedModuleTarget::Unloaded,
-                };
+        if !redirect_targets.is_empty() || kept.iter().any(|&kept| !kept) {
+            for resolution in self
+                .sources
+                .iter_mut()
+                .flat_map(|source| &mut source.module_requests.rows)
+            {
+                if let StagedModuleTarget::Source(source, exact_path) = resolution.target {
+                    resolution.target = match redirect_targets.get(&source) {
+                        Some(&target) => StagedModuleTarget::Source(target, false),
+                        None if kept[source] => StagedModuleTarget::Source(source, exact_path),
+                        None => StagedModuleTarget::Unloaded,
+                    };
+                }
             }
         }
         // Only a collected file's resolutions are the program's (tsgo
@@ -4501,15 +4688,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             .map(|(_, source)| source.prepared.path().canonical().clone())
             .collect::<rustc_hash::FxHashSet<_>>();
         if !dropped_paths.is_empty() {
-            self.module_resolutions.retain(|resolution| {
-                let retained = kept[resolution.source];
-                debug_assert_eq!(
-                    retained,
-                    !dropped_paths.contains(resolution.key.source()),
-                    "a staged resolution's source agrees with its canonical key",
-                );
-                retained
-            });
+            for (source, staged) in self.sources.iter_mut().enumerate() {
+                if !kept[source] {
+                    staged.module_requests.rows.clear();
+                }
+            }
             self.type_resolutions
                 .retain(|resolution| match resolution.key.origin() {
                     crate::resolution::TypeReferenceResolutionOrigin::Source(source) => {
@@ -4518,6 +4701,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     crate::resolution::TypeReferenceResolutionOrigin::Automatic(_) => true,
                 });
         }
+        self.module_batch_order.retain(|&source| kept[source]);
         timer.mark("load: graph redirects and retained resolutions");
         let mut processing_details = Vec::new();
         let diagnostic_details = |index: usize| {
@@ -4658,7 +4842,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         if tsc_types::trace::enabled() {
             eprintln!(
                 "[load census] collected: sources {}, redirects {}, module rows {}, type rows {}, inclusion records {}",
-                collected.order.len(), collected.redirects.len(), self.module_resolutions.len(), self.type_resolutions.len(),
+                collected.order.len(), collected.redirects.len(), self.sources.iter().map(|source| source.module_requests.rows.len()).sum::<usize>(), self.type_resolutions.len(),
                 self.sources.iter().map(|source| source.inclusion_reasons.record_count()).sum::<usize>(),
             );
         }
@@ -4668,7 +4852,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             library_postorder,
             ordinary_postorder,
             roots: self.roots,
-            module_resolutions: self.module_resolutions,
+            module_batch_order: self.module_batch_order,
             type_resolutions: self.type_resolutions,
             program_diagnostics: self.program_diagnostics,
             option_diagnostics,
@@ -4901,12 +5085,18 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             let canonical_root =
                 canonical_emit_path(root.as_js(), current_directory, case_sensitive);
             for source in &emitted {
-                let file = canonical_emit_path(
-                    source.prepared.path().display(),
-                    current_directory,
-                    case_sensitive,
+                let normalized = (!source.normalized_path).then(|| {
+                    canonical_emit_path(
+                        source.prepared.path().display(),
+                        current_directory,
+                        case_sensitive,
+                    )
+                });
+                let file = normalized.as_ref().map_or_else(
+                    || source.prepared.path().canonical().as_js(),
+                    JsString::as_js,
                 );
-                if !file.as_js().starts_with_js(canonical_root.as_js()) {
+                if !file.starts_with_js(canonical_root.as_js()) {
                     root_diagnostics.push(root_directory_diagnostic(
                         source,
                         root.as_js(),
@@ -5054,7 +5244,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         if let Some(target_key) = &target_key {
             if let Some(host) = self.target_resolutions.get(target_key) {
                 self.target_resolution_hits += 1;
-                return Ok(host.clone());
+                return Ok(Arc::unwrap_or_clone(Arc::clone(host)).into_host());
             }
         }
         let host =
@@ -5062,7 +5252,14 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 .resolve_with_facts(containing_file, key.specifier(), key.mode())?;
         if let Some(target_key) = target_key {
             if host.is_outcome_only() {
-                self.target_resolutions.insert(target_key, host.clone());
+                self.target_resolutions.insert(
+                    target_key,
+                    Arc::new(PreparedModule::new(
+                        host.clone(),
+                        key.mode(),
+                        &self.package_ids,
+                    )),
+                );
             }
         }
         Ok(host)
@@ -5160,7 +5357,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             }
         }
         if self.parse.task_data[data].package_id.is_none() {
-            if let Some(package_id) = self.parse.tasks[task].reason.package_id.as_deref().cloned() {
+            if let Some(package_id) = self.parse.tasks[task].reason.package_id.as_ref().cloned() {
                 self.parse.task_data[data].package_id = Some(package_id);
             }
         }
@@ -5366,6 +5563,16 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             self.bind_existing_source(existing, task)?;
             return Ok(Some(existing));
         }
+        let prepared_scope = self
+            .prefetched
+            .get(path.canonical())
+            .filter(|entry| entry.display.as_js() == path.display())
+            .and_then(|entry| entry.scope.as_ref())
+            .cloned();
+        let normalized_path = matches!(self.task_origin(task), TaskOrigin::Root { .. })
+            || prepared_scope
+                .as_ref()
+                .is_some_and(|scope| scope.normalized);
         // Package deduplication is decided when the files are collected
         // (`collect_files`), as tsgo's parse tasks load every copy and its
         // subtasks and the collect walk redirects the later copies. A
@@ -5379,10 +5586,12 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         } else {
             // Root tasks retain normalize_root's result. Discovered files
             // can preserve a moduleSuffixes or callback-selected spelling.
-            let scope = if matches!(self.task_origin(task), TaskOrigin::Root { .. }) {
+            let scope = if let Some(scope) = prepared_scope {
+                self.resolver.package_scope_from_prepared(&scope.lookup)
+            } else if matches!(self.task_origin(task), TaskOrigin::Root { .. }) {
                 self.resolver.package_scope_for_normalized_file(&path)
             } else {
-                self.resolver.package_scope_for_file(path.display())
+                self.resolver.package_scope_handle_for_file(path.display())
             };
             scope.map_err(|error| {
                 ProgramLoadError::resolution_js(
@@ -5412,7 +5621,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             }
             None => self
                 .host
-                .read_file_js(path.display())
+                .read_file_contents_js(path.display())
                 .map(|bytes| bytes.map(SourceInput::Fresh)),
         };
         let input = read.map_err(|error| {
@@ -5468,7 +5677,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         // before any of its text is decoded or retained here.
         self.evict_read_ahead_for_admission(byte_len);
         let decoded = match input {
-            SourceInput::Fresh(bytes) => decode_host_text(bytes).map(DecodedSource::Text),
+            SourceInput::Fresh(bytes) => decode_source_text(bytes).map(DecodedSource::Text),
             SourceInput::Prefetched { decoded, .. } => decoded.map(DecodedSource::Parsed),
             SourceInput::Provided(provided) => Ok(DecodedSource::Mapped(provided)),
             SourceInput::PrefetchedMapped { mapped, .. } => {
@@ -5504,7 +5713,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             // The read-ahead transforms only the files of a mapper's
             // extension.
             None => match decoded {
-                DecodedSource::PrefetchedMapped(mapped) => DecodedSource::Text(mapped.content),
+                DecodedSource::PrefetchedMapped(mapped) => {
+                    DecodedSource::Text(mapped.content.into())
+                }
                 decoded => decoded,
             },
         };
@@ -5523,10 +5734,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             _ => file_name,
         };
         let implied =
-            implied_node_format(format_file_name, package_scope.as_ref(), options_for_file);
+            implied_node_format(format_file_name, package_scope.as_deref(), options_for_file);
         let implied_for_emit = implied_node_format_for_emit(
             format_file_name,
-            package_scope.as_ref(),
+            package_scope.as_deref(),
             options_for_file,
         );
         // A read-ahead parse is adopted only when its assumptions are the
@@ -5539,11 +5750,13 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             None => prepared,
         };
         let mut supplemental = Vec::new();
-        let (mut prepared, prefetched_plan, prefetched_resolutions) = match decoded {
+        let (mut prepared, prefetched_plan) = match decoded {
             DecodedSource::Text(text) => (
-                with_document_kind(PreparedSourceFile::new(path.clone(), text)),
+                with_document_kind(PreparedSourceFile::from_snapshot(
+                    path.clone(),
+                    text.into_snapshot(),
+                )),
                 None,
-                Vec::new(),
             ),
             DecodedSource::Mapped(mapped) => {
                 let VirtualSource { text, info, .. } = *mapped;
@@ -5553,7 +5766,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 (
                     PreparedSourceFile::from_snapshot(path.clone(), text).with_content_mapped(info),
                     None,
-                    Vec::new(),
                 )
             }
             DecodedSource::MappedParsed(parsed) => {
@@ -5571,15 +5783,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     && parsed.implied_for_emit == implied_for_emit
                     && parsed.prepared.path().display() == path.display()
                 {
-                    (parsed.prepared, Some(parsed.plan), parsed.resolutions)
+                    (parsed.prepared, Some(parsed.plan))
                 } else {
                     // Planned again here, as an ordinary read-ahead parse is.
-                    if let Ok(plan) = &parsed.plan {
-                        for (key, host) in plan.module_requests().iter().zip(parsed.resolutions) {
-                            if let Some(host) = host {
-                                self.pre_resolved.insert(key.clone(), host);
-                            }
-                        }
+                    if let Ok(plan) = parsed.plan {
+                        self.pre_resolved.extend(plan.into_resolutions());
                     }
                     (
                         PreparedSourceFile::from_snapshot(
@@ -5588,7 +5796,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         )
                         .with_content_mapped(info),
                         None,
-                        Vec::new(),
                     )
                 }
             }
@@ -5602,18 +5809,14 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     && document_kind.is_none_or(|kind| kind == parsed.prepared.script_kind()) =>
             {
                 let parsed = *parsed;
-                (parsed.prepared, Some(parsed.plan), parsed.resolutions)
+                (parsed.prepared, Some(parsed.plan))
             }
             DecodedSource::Parsed(parsed) => {
                 // Planned again here: the read-ahead's resolutions are the
                 // walk's by key, as the level form's are.
                 let parsed = *parsed;
-                if let Ok(plan) = &parsed.plan {
-                    for (key, host) in plan.module_requests().iter().zip(parsed.resolutions) {
-                        if let Some(host) = host {
-                            self.pre_resolved.insert(key.clone(), host);
-                        }
-                    }
+                if let Ok(plan) = parsed.plan {
+                    self.pre_resolved.extend(plan.into_resolutions());
                 }
                 (
                     with_document_kind(PreparedSourceFile::from_snapshot(
@@ -5621,7 +5824,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         Arc::clone(parsed.prepared.snapshot()),
                     )),
                     None,
-                    Vec::new(),
                 )
             }
         };
@@ -5706,7 +5908,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     ) {
                         Ok((plan, syntax)) => {
                             prepared = prepared.with_preparsed_syntax(syntax);
-                            Ok(plan)
+                            Ok(PreparedSourceRequests::new(plan))
                         }
                         Err(error) => Err(error),
                     }
@@ -5727,19 +5929,23 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         );
         prepared = prepared
             .with_is_external_module(plan.as_ref().is_some_and(|plan| plan.is_external_module()))
-            .with_import_count(plan.as_ref().map_or(0, SourceRequestPlan::import_count));
+            .with_import_count(
+                plan.as_ref()
+                    .map_or(0, PreparedSourceRequests::import_count),
+            );
         let crate::module_requests::AdmissionPlanParts {
             path_references,
             type_reference_directives,
             lib_reference_directives,
             module_request_order,
-            module_request_occurrences,
-        } = plan
-            .as_mut()
-            .map_or_else(Default::default, SourceRequestPlan::take_admission_parts);
+            module_request_occurrences: _,
+        } = plan.as_mut().map_or_else(
+            Default::default,
+            PreparedSourceRequests::take_admission_parts,
+        );
         let module_requests = plan.as_mut().map_or_else(
             Default::default,
-            SourceRequestPlan::take_loader_module_requests,
+            PreparedSourceRequests::take_loader_module_requests,
         );
         self.enforce_limit(
             ProgramLoadOperation::PlanSourceRequests,
@@ -5753,6 +5959,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         self.request_edges = request_edges;
         let source = self.sources.len();
         self.sources.push(StagedSource {
+            normalized_path,
             prepared,
             root_inclusions: Vec::new(),
             inclusion_reasons: SourceInclusionReasons::default(),
@@ -5765,9 +5972,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             type_reference_directives,
             lib_reference_directives,
             module_requests,
-            module_resolution_start: None,
-            pre_resolved_modules: prefetched_resolutions,
-            module_request_occurrences,
             module_request_order,
             supplemental,
         });
@@ -6560,24 +6764,21 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         source: usize,
         containing_canonical: &CanonicalPath,
         containing_file: &JsString,
-        pre_resolved: &mut Vec<Option<HostModuleResolution>>,
     ) -> Result<(), ProgramLoadError> {
         let staged = &self.sources[source];
         let requests: BTreeMap<_, _> = (0..staged.module_requests.len())
-            .map(|index| (self.module_request_key(source, index).clone(), index))
+            .map(|index| (self.module_request_key(source, index), index))
             .collect();
         // Synthetic imports remain occurrences even with the same literal import.
         let keys: Vec<_> = (0..staged.module_requests.len())
             .flat_map(|index| {
                 std::iter::repeat_n(
-                    self.module_request_key(source, index).clone(),
-                    (staged.module_requests.occurrence_counts[index] as usize)
-                        .saturating_sub(staged.module_requests.spans[index].len()),
+                    self.module_request_key(source, index),
+                    staged.module_requests.rows[index].synthetic_count as usize,
                 )
             })
             .chain(staged.module_request_order.iter().cloned())
             .collect();
-        pre_resolved.resize_with(staged.module_requests.len(), || None);
         for key in keys {
             let host = self
                 .resolve_module_for_file(containing_canonical, containing_file, &key)
@@ -6593,7 +6794,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 .entry(task)
                 .or_default()
                 .extend(host.trace().iter().cloned());
-            pre_resolved[requests[&key]] = Some(host);
+            if !self.sources[source].module_requests.staged {
+                let row = &mut self.sources[source].module_requests.rows[requests[&key]];
+                row.host = PreparedModuleResolution::new(host, key.mode(), &self.package_ids);
+                row.ready = true;
+            }
         }
         Ok(())
     }
@@ -6704,7 +6909,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             let subtask = self.parse.new_task(
                 Cow::Owned(target),
                 TaskOrigin::TypeReference,
-                DiscoveryReason::dependency(type_inclusion).with_package_id(package_id),
+                DiscoveryReason::dependency(type_inclusion)
+                    .with_package_id(package_id, &self.package_ids),
                 SourceClass::Ordinary,
                 external,
                 false,
@@ -6724,7 +6930,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             .tree_depth
             .saturating_add(1);
         let request_count = self.sources[source].module_requests.len();
-        let mut pre_resolved = std::mem::take(&mut self.sources[source].pre_resolved_modules);
         let containing_file = self.sources[source].prepared.path().display().to_owned();
         let containing_canonical = self.sources[source].prepared.path().canonical().clone();
         let containing_file_is_declaration = is_declaration_file_name(containing_file.as_js());
@@ -6740,31 +6945,30 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 source,
                 &containing_canonical,
                 &containing_file,
-                &mut pre_resolved,
             )?;
         }
         // A source reached under several spellings is planned once per
         // spelling: its requests stay with it, and only the read-ahead's
         // resolution is taken (a later planning finds the key resolved).
-        let resolution_start = match self.sources[source].module_resolution_start {
-            Some(start) => {
-                for request in 0..request_count {
-                    self.module_resolutions[start + request].loads_source |=
-                        self.sources[source].module_requests.loads_source[request];
-                }
-                start
-            }
-            None => {
-                let start = self.module_resolutions.len();
-                let keys = std::mem::take(&mut self.sources[source].module_requests.keys);
-                debug_assert_eq!(keys.len(), request_count);
-                for (request_index, key) in keys.into_iter().enumerate() {
-                    let loads_source =
-                        self.sources[source].module_requests.loads_source[request_index];
-                    let host = match pre_resolved
-                        .get_mut(request_index)
-                        .and_then(Option::take)
-                        .or_else(|| self.pre_resolved.remove(&key))
+        if !self.sources[source].module_requests.staged {
+            if self.sources[source].module_requests.all_ready {
+                self.pre_resolved_hits += request_count;
+            } else {
+                for request_index in 0..request_count {
+                    if self.sources[source].module_requests.rows[request_index].ready {
+                        self.pre_resolved_hits += 1;
+                        continue;
+                    }
+                    let request = &mut self.sources[source].module_requests.rows[request_index].key;
+                    let key = ResolutionKey::new(
+                        containing_canonical.clone(),
+                        std::mem::take(&mut request.specifier),
+                        request.mode,
+                    );
+                    let host = match self
+                        .pre_resolved
+                        .remove(&key)
+                        .map(PreparedModuleResolution::from_facts)
                     {
                         Some(host) => {
                             self.pre_resolved_hits += 1;
@@ -6785,7 +6989,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                             {
                                 Some(host) => {
                                     self.directory_resolution_hits += 1;
-                                    host.clone()
+                                    PreparedModuleResolution::from_facts(Arc::clone(host))
                                 }
                                 None => {
                                     let host = self
@@ -6802,184 +7006,102 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                                                 error,
                                             )
                                         })?;
+                                    let facts = Arc::new(PreparedModule::new(
+                                        host,
+                                        key.mode(),
+                                        &self.package_ids,
+                                    ));
                                     if containing_project.is_none() {
                                         self.directory_resolutions
-                                            .insert(directory_key, host.clone());
+                                            .insert(directory_key, Arc::clone(&facts));
                                     }
-                                    host
+                                    PreparedModuleResolution::from_facts(facts)
                                 }
                             }
                         }
                     };
-                    self.module_resolutions.push(StagedModuleResolution {
-                        source,
-                        target: StagedModuleTarget::Lookup,
-                        key,
-                        host,
-                        loads_source,
-                        unloaded_reason: None,
-                    });
+                    let row = &mut self.sources[source].module_requests.rows[request_index];
+                    row.key.specifier = key.into_parts().1;
+                    row.host = host;
+                    row.ready = true;
                 }
-                debug_assert_eq!(self.module_resolutions.len(), start + request_count);
-                self.sources[source].module_resolution_start = Some(start);
-                start
             }
-        };
+            self.sources[source].module_requests.staged = true;
+            self.module_batch_order.push(source);
+        }
 
         // As with type directives, all requests in this source are resolved
         // before the first successful target starts its DFS. The targets
         // to load, by request, become subtasks in occurrence order below.
-        let mut targets = std::mem::take(&mut self.import_targets);
-        targets.resize_with(request_count, || None);
-        for (request_index, slot) in targets.iter_mut().enumerate() {
-            let index = resolution_start + request_index;
-            let loads_source = self.module_resolutions[index].loads_source;
-            let target = match self.module_resolutions[index].host.outcome() {
-                ResolutionOutcome::Resolved(target) => Some((
-                    target.extension().clone(),
-                    target.is_external_library_import(),
-                    target.original_path().is_some(),
-                    target.package_id().cloned(),
-                    target.resolved_using_extra_extensions(),
-                )),
-                ResolutionOutcome::NotFound => None,
-            };
-            let Some((
-                extension,
-                external,
-                has_original_path,
-                package_id,
-                resolved_using_extra_extensions,
-            )) = target
-            else {
-                let key = self.module_resolutions[index].key.clone();
-                self.record_import_extension_file(&containing_file, &key);
-                continue;
-            };
-            // tsgo GetResolutionDiagnostic: a file found by a content
-            // mapper's extension needs no option.
-            if let Some(reason) = (!resolved_using_extra_extensions)
-                .then(|| {
-                    resolution_diagnostic_unloaded_reason(
-                        &extension,
-                        self.compiler_options,
-                        containing_file_is_declaration,
-                        loads_source,
-                    )
-                })
-                .flatten()
+        for request in 0..request_count {
+            let index = request;
+            if !self.sources[source].module_requests.rows[index]
+                .host
+                .policy_prepared
             {
-                // createProgram records the successful resolution, but a
-                // getResolutionDiagnostic result prevents findSourceFile.
-                // Retain that distinction as typed graph-admission state so
-                // the checker can report the resolution diagnostic without
-                // treating the absent source as a failed module lookup.
-                self.module_resolutions[index].unloaded_reason = Some(reason);
-                continue;
-            }
-            // tsgo fileloader.go:911: a resolved file of a referenced project
-            // (one of its sources or outputs) is not loaded as JavaScript.
-            let redirected = self
-                .project_for_resolution(self.module_target_path(index).canonical())
-                .is_some();
-            // tsgo isJsFileFromNodeModules: the subtask of a JavaScript file
-            // found searching node_modules is elided beyond
-            // maxNodeModuleJsDepth when it runs (`elideOnDepth`).
-            let elide_on_depth = extension.is_javascript()
-                && !redirected
-                && external
-                && path_contains_node_modules(self.module_target_path(index).canonical().as_js());
-            if extension.is_javascript() && !redirected {
-                let reason = unloaded_javascript_reason(
-                    &extension,
+                let resolution = &self.sources[source].module_requests.rows[index];
+                let policy = resolution.host.policy_for(
                     self.compiler_options,
-                    external,
-                    has_original_path,
-                    self.module_target_path(index).canonical(),
-                    loads_source,
+                    containing_file_is_declaration,
+                    resolution.loads_source,
+                    |path| self.project_for_resolution(path.canonical()).is_some(),
+                    |path| self.content_mapper_for(path).is_some(),
                 );
-                self.module_resolutions[index].unloaded_reason = reason;
-                if reason.is_some() {
-                    continue;
+                self.sources[source].module_requests.rows[index].host.policy = policy;
+            }
+            match self.sources[source].module_requests.rows[index].host.policy {
+                ImportPolicy::Missing => {
+                    let key = self.module_request_key(source, index);
+                    self.record_import_extension_file(&containing_file, &key);
                 }
-            }
-            if self.compiler_options.no_resolve == Some(true) {
-                self.module_resolutions[index].unloaded_reason =
-                    Some(UnloadedModuleReason::NoResolve);
-                continue;
-            }
-            if !loads_source {
-                // A name that does not load a source (a module augmentation's)
-                // is resolved and recorded, but its target joins the program
-                // only when an import of some file loads it
-                // (processImportedModules adds a file for the names of
-                // imports alone; tsgo fileloader.go:915-923). The checker
-                // then finds the resolution without a source file.
-                self.module_resolutions[index].unloaded_reason =
-                    Some(UnloadedModuleReason::ResolutionOnly);
-                continue;
-            }
-            let target = self.module_target_path(index);
-            // Resolver-owned external symlink handling has already replaced
-            // this target with its physical resolvedFileName. Visit that
-            // identity directly; the lexical spelling remains on the host
-            // resolution and is published as originalPath below.
-            if matches!(extension, ModuleExtension::Json) {
-                if !self.compiler_options.resolve_json_module_effective() {
+                ImportPolicy::Skip(reason) => {
+                    self.sources[source].module_requests.rows[index].unloaded_reason = Some(reason)
+                }
+                ImportPolicy::UnsupportedJson => {
                     return Err(ProgramLoadError::unsupported_js(
                         ProgramLoadOperation::ResolveModule,
-                        Some(target.display().to_owned()),
+                        Some(self.module_target_path(source, index).display().to_owned()),
                         "resolveJsonModule",
                         "a JSON target was resolved while resolveJsonModule is disabled",
-                    ));
+                    ))
                 }
-            } else if !is_loadable_typescript_extension(&extension)
-                && !extension.is_javascript()
-                && self.content_mapper_for(target).is_none()
-            {
-                return Err(ProgramLoadError::unsupported_js(
-                    ProgramLoadOperation::ResolveModule,
-                    Some(target.display().to_owned()),
-                    "resolved-module-extension",
-                    format!(
-                        "loadable target extension {} is outside the admitted source loader",
-                        extension.as_js().to_string_lossy()
-                    ),
-                ));
+                ImportPolicy::UnsupportedExtension => {
+                    return Err(ProgramLoadError::unsupported_js(
+                        ProgramLoadOperation::ResolveModule,
+                        Some(self.module_target_path(source, index).display().to_owned()),
+                        "resolved-module-extension",
+                        format!(
+                            "loadable target extension {} is outside the admitted source loader",
+                            match self.sources[source].module_requests.rows[index]
+                                .host
+                                .resolved()
+                            {
+                                Some(module) => module.extension().as_js().to_string_lossy(),
+                                None => unreachable!(),
+                            }
+                        ),
+                    ))
+                }
+                ImportPolicy::Load { .. } => {}
+                ImportPolicy::Unprepared => unreachable!("all rows have import policy"),
             }
-            let requests = &self.sources[source].module_requests;
-            let synthetic = (requests.occurrence_counts[request_index] as usize)
-                .saturating_sub(requests.spans[request_index].len());
-            let specifier = (synthetic != 0)
-                .then(|| Arc::new(self.module_resolutions[index].key.specifier().to_owned()));
-            *slot = Some(ImportTarget {
-                resolution: index,
+        }
+        for occurrence in 0..self.sources[source].module_requests.occurrences.len() {
+            let edge = self.sources[source].module_requests.occurrences[occurrence];
+            let index = edge.request as usize;
+            let ImportPolicy::Load {
                 external,
                 elide_on_depth,
-                package_id,
-                next: 0,
-                synthetic,
-                specifier,
-            });
-        }
-        // One subtask per occurrence of an import (tsgo
-        // processImportedModules adds the resolved file once per import of
-        // it, in `moduleNames` order), so the target carries one inclusion
-        // reason per occurrence, in the order of the file's imports.
-        for occurrence in 0..self.sources[source].module_request_occurrences.len() {
-            let request = self.sources[source].module_request_occurrences[occurrence];
-            let Some(target) = targets[request as usize].as_mut() else {
+            } = self.sources[source].module_requests.rows[index].host.policy
+            else {
                 continue;
             };
-            let requests = &self.sources[source].module_requests;
-            let occurrence = target.next;
-            target.next += 1;
-            let inclusion = if occurrence < target.synthetic {
-                let specifier = Arc::clone(
-                    target
-                        .specifier
-                        .as_ref()
-                        .expect("a synthetic import has its specifier"),
+            let inclusion = if edge.synthetic {
+                let specifier = Arc::new(
+                    self.sources[source].module_requests.rows[index]
+                        .key
+                        .specifier()
+                        .to_owned(),
                 );
                 let import_helpers = specifier.as_js() == JsStr::from("tslib");
                 InclusionReasonRecord::SyntheticImport {
@@ -6989,83 +7111,65 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     package_id: None,
                 }
             } else {
-                let Some(&(pos, end)) =
-                    requests.spans[request as usize].get(occurrence - target.synthetic)
-                else {
-                    continue;
-                };
                 InclusionReasonRecord::Import {
                     parent: source,
-                    pos,
-                    end,
+                    pos: edge.pos,
+                    end: edge.end,
                     package_id: None,
                 }
             };
-            let resolution = target.resolution;
-            let (external, elide_on_depth, package_id) =
-                if target.next >= requests.occurrence_counts[request as usize] as usize {
-                    let target = targets[request as usize]
-                        .take()
-                        .expect("the final inclusion still owns its target");
-                    (target.external, target.elide_on_depth, target.package_id)
-                } else {
-                    (
-                        target.external,
-                        target.elide_on_depth,
-                        target.package_id.clone(),
-                    )
-                };
-            let path = match self.module_resolutions[resolution].host.outcome() {
-                ResolutionOutcome::Resolved(module) => module.resolved_file(),
-                ResolutionOutcome::NotFound => unreachable!("an import task has a resolved target"),
+            let Some(module) = self.sources[source].module_requests.rows[index]
+                .host
+                .resolved()
+            else {
+                unreachable!("an import task has a resolved target")
             };
-            let subtask = self.parse.new_task(
-                Cow::Borrowed(path),
+            let subtask = self.parse.new_task_with_symbol(
+                Cow::Borrowed(module.resolved_file()),
                 TaskOrigin::Import,
                 DiscoveryReason {
                     inclusion,
                     package_id: None,
                 }
-                .with_package_id(package_id),
+                .with_package_identity(module.package_identity().cloned()),
                 SourceClass::Ordinary,
                 external,
                 elide_on_depth,
                 tree_depth,
+                self.sources[source].module_requests.rows[index].host.symbol,
             );
-            self.module_resolutions[resolution].target =
+            self.sources[source].module_requests.rows[index].target =
                 StagedModuleTarget::TaskData(self.parse.tasks[subtask].data);
             self.parse.tasks[task].payload_mut().subtasks.push(subtask);
         }
-        targets.clear();
-        self.import_targets = targets;
         Ok(())
     }
 
-    fn module_target_path(&self, resolution: usize) -> &ProgramPath {
-        match self.module_resolutions[resolution].host.outcome() {
-            ResolutionOutcome::Resolved(module) => module.resolved_file(),
-            ResolutionOutcome::NotFound => {
-                unreachable!("target policy follows a successful resolution")
-            }
-        }
+    fn module_target_path(&self, source: usize, request: usize) -> &ProgramPath {
+        self.sources[source].module_requests.rows[request]
+            .host
+            .resolved()
+            .expect("resolved target policy")
+            .resolved_file()
     }
 
-    fn module_request_key(&self, source: usize, request: usize) -> &ResolutionKey {
-        let staged = &self.sources[source];
-        match staged.module_resolution_start {
-            Some(start) => &self.module_resolutions[start + request].key,
-            None => &staged.module_requests.keys[request],
-        }
+    fn module_request_key(&self, source: usize, request: usize) -> ResolutionKey {
+        self.sources[source].module_requests.rows[request]
+            .key
+            .full(self.sources[source].prepared.path().canonical())
     }
 
-    /// A source's unique requests occupy one immutable contiguous batch.
     fn module_resolution_index(&self, key: &ResolutionKey) -> Option<usize> {
         let &source = self.source_by_canonical.get(key.source())?;
-        let start = self.sources[source].module_resolution_start?;
-        self.module_resolutions[start..start + self.sources[source].module_requests.len()]
-            .iter()
-            .position(|resolution| &resolution.key == key)
-            .map(|request| start + request)
+        let batch = &self.sources[source].module_requests;
+        batch
+            .staged
+            .then(|| {
+                batch.rows.iter().position(|row| {
+                    row.key.specifier() == key.specifier() && row.key.mode() == key.mode()
+                })
+            })
+            .flatten()
     }
 
     fn enforce_limit(
@@ -7112,7 +7216,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let deduplicate_packages = self.compiler_options.deduplicate_packages != Some(false);
         let case_sensitive = self.resolver.path_context().use_case_sensitive_file_names();
         let mut seen: Vec<Option<usize>> = vec![None; self.parse.task_data.len()];
-        let mut registered: BTreeMap<PackageId, usize> = BTreeMap::new();
+        let mut registered = vec![None; self.package_ids.len()];
         let mut order: Vec<usize> = Vec::with_capacity(self.sources.len());
         let mut ordinary_count = 0usize;
         let mut library_count = 0usize;
@@ -7209,7 +7313,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 if deduplicate_packages
                     && data.package_id.as_ref().is_some_and(|id| {
                         registered
-                            .get(id)
+                            .get(id.index)
+                            .and_then(Option::as_ref)
                             .is_some_and(|&owner| self.parse.tasks[task].source() != Some(owner))
                     })
                 {
@@ -7249,7 +7354,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         &mut self,
         task: usize,
         seen: &mut [Option<usize>],
-        registered: &mut BTreeMap<PackageId, usize>,
+        registered: &mut [Option<usize>],
         deduplicate_packages: bool,
         case_sensitive: bool,
         redirect_index: usize,
@@ -7295,6 +7400,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             // task's parse); the one that admitted the file becomes an alias.
             let spelling = self.parse.path(task).display();
             if self.sources[source].prepared.path().display() != spelling {
+                self.sources[source].normalized_path = false;
                 self.respelled.insert(
                     self.sources[source].prepared.path().display().to_owned(),
                     spelling.to_owned(),
@@ -7333,7 +7439,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         }
         if deduplicate_packages {
             if let Some(package_id) = self.parse.task_data[data].package_id.clone() {
-                if let Some(&owner) = registered.get(&package_id) {
+                if let Some(owner) = registered[package_id.index] {
                     if let Some(source) = source {
                         if owner != source {
                             redirects.push((source, owner, redirect_index));
@@ -7342,7 +7448,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     return Ok(None);
                 }
                 if let Some(source) = source {
-                    registered.insert(package_id, source);
+                    registered[package_id.index] = Some(source);
                 }
             }
         }
@@ -7469,59 +7575,73 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// output of a referenced project's source is not built; the checker
     /// reads why from the resolution.
     fn record_unloaded_targets(&mut self) -> Result<(), ProgramLoadError> {
-        for index in 0..self.module_resolutions.len() {
-            let (canonical, is_javascript) = match self.module_resolutions[index].host.outcome() {
-                ResolutionOutcome::Resolved(target) => (
-                    target.resolved_file().canonical(),
-                    target.extension().is_javascript(),
-                ),
-                ResolutionOutcome::NotFound => continue,
-            };
-            let data = match self.module_resolutions[index].target {
-                StagedModuleTarget::TaskData(data) => Some(data),
-                StagedModuleTarget::Lookup => self.parse.task_data_by_path.get(canonical).copied(),
-                StagedModuleTarget::Source(..) | StagedModuleTarget::Unloaded => {
-                    unreachable!("targets are bound once after task execution")
+        let loaded_targets: Vec<_> = self
+            .parse
+            .task_data
+            .iter()
+            .map(|data| {
+                data.spellings.iter().find_map(|&task| {
+                    let source = self.task_source(task)?;
+                    let exact = data.spellings.len() == 1
+                        && self.parse.tasks[self.task_target(task)]
+                            .redirect()
+                            .is_none();
+                    Some((source, exact))
+                })
+            })
+            .collect();
+        for source in 0..self.sources.len() {
+            for index in 0..self.sources[source].module_requests.rows.len() {
+                let (canonical, is_javascript) = match self.sources[source].module_requests.rows
+                    [index]
+                    .host
+                    .resolved()
+                {
+                    Some(target) => (
+                        target.resolved_file().canonical(),
+                        target.extension().is_javascript(),
+                    ),
+                    None => continue,
+                };
+                let data = match self.sources[source].module_requests.rows[index].target {
+                    StagedModuleTarget::TaskData(data) => Some(data),
+                    StagedModuleTarget::Lookup => {
+                        self.parse.task_data_by_path.get(canonical).copied()
+                    }
+                    StagedModuleTarget::Source(..) | StagedModuleTarget::Unloaded => {
+                        unreachable!("targets are bound once after task execution")
+                    }
+                };
+                let queued = matches!(
+                    self.sources[source].module_requests.rows[index].target,
+                    StagedModuleTarget::TaskData(_)
+                );
+                let loaded = data
+                    .and_then(|data| loaded_targets[data])
+                    .map(|(source, exact)| (source, queued && exact));
+                let reason = if loaded.is_some()
+                    || self.sources[source].module_requests.rows[index]
+                        .unloaded_reason
+                        .is_some()
+                    || !self.sources[source].module_requests.rows[index].loads_source
+                {
+                    None
+                } else if self.project_reference_redirect(canonical)?.is_some() {
+                    Some(UnloadedModuleReason::ProjectReferenceOutputNotBuilt)
+                } else if is_javascript {
+                    Some(UnloadedModuleReason::NodeModulesDepth)
+                } else {
+                    None
+                };
+                self.sources[source].module_requests.rows[index].target = loaded
+                    .map_or(StagedModuleTarget::Unloaded, |(source, exact)| {
+                        StagedModuleTarget::Source(source, exact)
+                    });
+                if reason.is_none() {
+                    continue;
                 }
-            };
-            let queued = matches!(
-                self.module_resolutions[index].target,
-                StagedModuleTarget::TaskData(_)
-            );
-            let loaded = data.and_then(|data| {
-                self.parse.task_data[data]
-                    .spellings
-                    .iter()
-                    .find_map(|&task| {
-                        let source = self.task_source(task)?;
-                        let exact_path = queued
-                            && self.parse.task_data[data].spellings.len() == 1
-                            && self.parse.tasks[self.task_target(task)]
-                                .redirect()
-                                .is_none();
-                        Some((source, exact_path))
-                    })
-            });
-            let reason = if loaded.is_some()
-                || self.module_resolutions[index].unloaded_reason.is_some()
-                || !self.module_resolutions[index].loads_source
-            {
-                None
-            } else if self.project_reference_redirect(canonical)?.is_some() {
-                Some(UnloadedModuleReason::ProjectReferenceOutputNotBuilt)
-            } else if is_javascript {
-                Some(UnloadedModuleReason::NodeModulesDepth)
-            } else {
-                None
-            };
-            self.module_resolutions[index].target = loaded
-                .map_or(StagedModuleTarget::Unloaded, |(source, exact)| {
-                    StagedModuleTarget::Source(source, exact)
-                });
-            if reason.is_none() {
-                continue;
+                self.sources[source].module_requests.rows[index].unloaded_reason = reason;
             }
-            self.module_resolutions[index].unloaded_reason = reason;
         }
         Ok(())
     }
@@ -7617,21 +7737,6 @@ impl<'a, H: CompilerHost + ?Sized> ReferenceView<'a, H> {
             .then(|| references.source_for_output(real.canonical()))
             .flatten()
     }
-}
-
-/// Whether the walk elides a JavaScript target found through a node_modules
-/// search at every depth (processImportedModules' maxNodeModuleJsDepth rule
-/// at the shallowest depth, 1): reading it ahead would be wasted. A deeper
-/// visit elides at least as much.
-fn read_ahead_elides_target(
-    options: &CompilerOptions,
-    target: &crate::module_resolution::HostResolvedModule,
-) -> bool {
-    target.extension().is_javascript()
-        && target.is_external_library_import()
-        && (target.original_path().is_none()
-            || path_contains_node_modules(target.resolved_file().canonical().as_js()))
-        && options.node_modules_depth_exceeds_limit(1)
 }
 
 /// The path a `/// <reference path>` names, as `process_path_reference`
@@ -7784,6 +7889,7 @@ fn publish_program(
     // the command read in place of a source.
     let project_references = program_options.project_references().cloned();
     let reads_reference_sources = program_options.project_reference_sources();
+    let external_module_resolution = program_options.module_resolution_override().is_some();
     builder.set_program_options(program_options);
 
     if let Some(config_file) = config_file {
@@ -7800,9 +7906,17 @@ fn publish_program(
     timer.mark("load: publish auxiliary files");
     builder.reserve_source_files(staged.library_postorder.len() + staged.ordinary_postorder.len());
     let mut published_ids = vec![None; staged.sources.len()];
+    let mut module_indices: Vec<Option<crate::resolution::PreparedModuleIndices>> =
+        (0..staged.sources.len()).map(|_| None).collect();
     // Hashed, never iterated: every module and type resolution looks its
     // target up here (VS Code: 112k lookups of long path keys).
-    let mut source_by_canonical = FxHashMap::<CanonicalPath, SourceFileId>::default();
+    let mut source_by_canonical =
+        FxHashMap::<CanonicalPath, SourceFileId>::with_capacity_and_hasher(
+            staged.library_postorder.len() + staged.ordinary_postorder.len(),
+            Default::default(),
+        );
+    let mut module_batches: Vec<Option<(CanonicalPath, Vec<StagedModuleResolution>)>> =
+        (0..staged.sources.len()).map(|_| None).collect();
     let mut staged_sources: Vec<Option<StagedSource>> =
         staged.sources.into_iter().map(Some).collect();
     let publish_order = staged
@@ -7813,16 +7927,11 @@ fn publish_program(
         let staged_source = staged_sources[source_index]
             .take()
             .expect("postorder publishes each staged source once");
-        let may_be_emitted =
-            staged_source.prepared.may_be_emitted() && staged_source.has_non_external_reason;
-        let may_emit_forced_declaration = staged_source.prepared.may_emit_forced_declaration()
-            && staged_source.has_non_external_reason;
-        let prepared = staged_source
-            .prepared
-            .with_may_be_emitted(may_be_emitted)
-            .with_may_emit_forced_declaration(may_emit_forced_declaration)
-            .with_found_searching_node_modules(!staged_source.has_non_external_reason)
-            .with_inclusion_reason_records(staged_source.inclusion_reasons);
+        let mut prepared = staged_source.prepared;
+        prepared.set_load_inclusion(
+            staged_source.has_non_external_reason,
+            staged_source.inclusion_reasons,
+        );
         let canonical = prepared.path().canonical().clone();
         let package_redirects = prepared.package_redirect_paths().to_vec();
         let source_id = builder.add_source_file(prepared).map_err(|error| {
@@ -7833,6 +7942,9 @@ fn publish_program(
                 ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
             })?;
         }
+        module_indices[source_id.index()] = Some(staged_source.module_requests.indices);
+        module_batches[source_index] =
+            Some((canonical.clone(), staged_source.module_requests.rows));
         published_ids[source_index] = Some(source_id);
         source_by_canonical.insert(canonical, source_id);
         for (redirected, output) in &staged.project_reference_redirects {
@@ -7894,13 +8006,21 @@ fn publish_program(
     }
 
     timer.mark("load: publish packages");
-    let package_map =
-        package_map_from_facts(staged.module_resolutions.iter().filter_map(|resolution| {
-            let ResolutionOutcome::Resolved(module) = resolution.host.outcome() else {
-                return None;
-            };
-            Some((module.package_id()?, module.extension()))
-        }));
+    let package_map = package_map_from_facts(
+        staged
+            .module_batch_order
+            .iter()
+            .flat_map(|&source| {
+                &module_batches[source]
+                    .as_ref()
+                    .expect("a collected batch")
+                    .1
+            })
+            .filter_map(|resolution| {
+                let module = resolution.host.resolved()?;
+                Some((module.package_id()?, module.extension()))
+            }),
+    );
     let redirected_source = |path: &CanonicalPath| -> Option<SourceFileId> {
         let references = project_references.as_ref()?;
         let redirected = if reads_reference_sources {
@@ -7918,58 +8038,108 @@ fn publish_program(
     timer.mark("load: publish package map");
     let mut loaded_modules = crate::resolution::LoadedModules::new(
         published_ids.iter().flatten().count(),
-        staged.module_resolutions.len(),
+        module_batches
+            .iter()
+            .flatten()
+            .map(|(_, rows)| rows.len())
+            .sum(),
     );
-    for resolution in staged.module_resolutions {
-        let source =
-            published_ids[resolution.source].expect("only collected sources publish resolutions");
-        let owned_source = match resolution.target {
-            StagedModuleTarget::Source(target, _) => published_ids[target],
-            StagedModuleTarget::Unloaded | StagedModuleTarget::Lookup => None,
-            StagedModuleTarget::TaskData(_) => unreachable!("finish binds every resolved target"),
-        }
-        .or_else(|| match resolution.host.outcome() {
-            ResolutionOutcome::Resolved(module) => {
-                redirected_source(module.resolved_file().canonical())
+    for source_index in staged.module_batch_order {
+        let (canonical, batch) = module_batches[source_index]
+            .take()
+            .expect("a collected batch");
+        for mut resolution in batch {
+            let source =
+                published_ids[source_index].expect("only collected sources publish resolutions");
+            let owned_source = match resolution.target {
+                StagedModuleTarget::Source(target, _) => published_ids[target],
+                StagedModuleTarget::Unloaded | StagedModuleTarget::Lookup => None,
+                StagedModuleTarget::TaskData(_) => {
+                    unreachable!("finish binds every resolved target")
+                }
             }
-            ResolutionOutcome::NotFound => None,
-        });
-        let exact_path = matches!(resolution.target, StagedModuleTarget::Source(_, true));
-        let bound = bind_module_resolution(
-            resolution.host,
-            owned_source,
-            &package_map,
-            resolution.loads_source,
-            resolution.unloaded_reason,
-            compiler_options.no_resolve == Some(true),
-        )
-        .map_err(|error| {
-            ProgramLoadError::resolution_js(
-                ProgramLoadOperation::BindResolutions,
-                Some(crate::loader_counters::js_owned(
-                    "bind.error",
-                    resolution.key.source().as_js(),
-                )),
-                Some(crate::loader_counters::js_owned(
-                    "bind.error",
-                    resolution.key.specifier(),
-                )),
-                error,
-            )
-        })?;
-        builder
-            .stage_loaded_module_resolution(
-                &mut loaded_modules,
-                source,
-                resolution.key,
-                bound,
-                exact_path,
-            )
-            .map_err(|error| {
-                ProgramLoadError::preparation(ProgramLoadOperation::BindResolutions, error)
-            })?;
+            .or_else(|| match resolution.host.resolved() {
+                Some(module) => redirected_source(module.resolved_file().canonical()),
+                None => None,
+            });
+            let exact_path = matches!(resolution.target, StagedModuleTarget::Source(_, true));
+            if external_module_resolution
+                || resolution
+                    .host
+                    .facts
+                    .as_ref()
+                    .expect("resolved facts")
+                    .needs_validation()
+            {
+                let bound = bind_module_resolution(
+                    resolution.host.into_host(),
+                    owned_source,
+                    &package_map,
+                    resolution.loads_source,
+                    resolution.unloaded_reason,
+                    compiler_options.no_resolve == Some(true),
+                )
+                .map_err(|error| {
+                    ProgramLoadError::resolution_js(
+                        ProgramLoadOperation::BindResolutions,
+                        Some(crate::loader_counters::js_owned(
+                            "bind.error",
+                            canonical.as_js(),
+                        )),
+                        Some(crate::loader_counters::js_owned(
+                            "bind.error",
+                            resolution.key.specifier(),
+                        )),
+                        error,
+                    )
+                })?;
+                builder
+                    .stage_loaded_module_resolution(
+                        &mut loaded_modules,
+                        source,
+                        ResolutionKey::new(
+                            canonical.clone(),
+                            resolution.key.specifier,
+                            resolution.key.mode,
+                        ),
+                        bound,
+                        exact_path,
+                    )
+                    .map_err(|error| {
+                        ProgramLoadError::preparation(ProgramLoadOperation::BindResolutions, error)
+                    })?;
+            } else {
+                builder
+                    .stage_prepared_module_resolution(
+                        &mut loaded_modules,
+                        resolution.host.into_facts(),
+                        &mut resolution.key.specifier,
+                        crate::resolution::ModuleBinding {
+                            source,
+                            target: owned_source,
+                            loads_source: resolution.loads_source,
+                            unloaded_reason: resolution.unloaded_reason,
+                            no_resolve: compiler_options.no_resolve == Some(true),
+                            exact_path,
+                        },
+                        &package_map,
+                    )
+                    .map_err(|error| {
+                        ProgramLoadError::resolution_js(
+                            ProgramLoadOperation::BindResolutions,
+                            Some(canonical.as_js().to_owned()),
+                            Some(resolution.key.specifier().to_owned()),
+                            error,
+                        )
+                    })?;
+            }
+        }
     }
-
+    for (source, indices) in module_indices.into_iter().enumerate() {
+        if let Some(indices) = indices {
+            loaded_modules.set_source_indices(SourceFileId::from_raw(source as u32), indices);
+        }
+    }
     timer.mark("load: publish module resolutions");
     for resolution in staged.type_resolutions {
         let bound = bind_type_resolution(resolution.host, &source_by_canonical, &redirected_source)
@@ -9469,3 +9639,18 @@ mod typed_error_source_tests;
 #[cfg(test)]
 #[path = "../tests/unit/loader/task_storage_tests.rs"]
 mod task_storage_tests;
+
+fn prepared_read_ahead_elides_target(
+    options: &CompilerOptions,
+    target: PreparedResolvedModule<'_>,
+) -> bool {
+    target.extension().is_javascript()
+        && target.is_external_library_import()
+        && (target.original_path().is_none()
+            || path_contains_node_modules(target.resolved_file().canonical().as_js()))
+        && options.node_modules_depth_exceeds_limit(1)
+}
+
+#[cfg(test)]
+#[path = "../tests/unit/loader/shared_source_tests.rs"]
+mod shared_source_tests;
