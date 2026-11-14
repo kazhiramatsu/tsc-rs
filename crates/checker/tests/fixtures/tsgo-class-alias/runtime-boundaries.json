@@ -1,0 +1,152 @@
+[
+  {
+    "name": "abstract-member",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport abstract class K { abstract m(value: K): K; }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nlet K = class K {\n};\nK = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "as-type",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { m() { return value as K; } }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nlet K = class K {\n    m() { return value; }\n};\nK = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "call-type-argument",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { m() { return f<K>(); } }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nlet K = class K {\n    m() { return f(); }\n};\nK = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "class-decorator-with-body",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec(K)\nexport class K { m() { return K; } }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nvar K_1;\nlet K = K_1 = class K {\n    m() { return K_1; }\n};\nK = K_1 = __decorate([\n    dec(K)\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "class-decorator",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec(K)\nexport class K {}\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nlet K = class K {\n};\nK = __decorate([\n    dec(K)\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "computed-name",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { [f(K)]() {} }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nvar K_1;\nlet K = K_1 = class K {\n    [f(K_1)]() { }\n};\nK = K_1 = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "constructor-default",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { constructor(value = K) {} }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nvar K_1;\nlet K = K_1 = class K {\n    constructor(value = K_1) { }\n};\nK = K_1 = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "constructor-parameter-decorator",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { constructor(@dec(K) value: unknown) {} }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nvar __param = (this && this.__param) || function (paramIndex, decorator) {\n    return function (target, key) { decorator(target, key, paramIndex); }\n};\nvar K_1;\nlet K = K_1 = class K {\n    constructor(value) { }\n};\nK = K_1 = __decorate([\n    dec,\n    __param(0, dec(K))\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "declare-field",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { declare value: K; }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nlet K = class K {\n};\nK = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "heritage-only",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K extends mixin(K) {}\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nlet K = class K extends mixin(K) {\n};\nK = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "heritage-with-body",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K extends mixin(K) { m() { return K; } }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nvar K_1;\nlet K = K_1 = class K extends mixin(K_1) {\n    m() { return K_1; }\n};\nK = K_1 = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "index-signature",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { [key: string]: K; }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nlet K = class K {\n};\nK = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "instance-field",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { self = K; }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nvar K_1;\nlet K = K_1 = class K {\n    constructor() {\n        this.self = K_1;\n    }\n};\nK = K_1 = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "instance-method",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { make() { return new K(); } }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nvar K_1;\nlet K = K_1 = class K {\n    make() { return new K_1(); }\n};\nK = K_1 = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "member-decorator",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { @dec(K) m() {} }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nvar K_1;\nlet K = K_1 = class K {\n    m() { }\n};\n__decorate([\n    dec(K_1)\n], K.prototype, \"m\", null);\nK = K_1 = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "nested-class",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { m() { return class Inner { make() { return new K(); } }; } }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nvar K_1;\nlet K = K_1 = class K {\n    m() { return class Inner {\n        make() { return new K_1(); }\n    }; }\n};\nK = K_1 = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "nested-function",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { m() { function read() { return K; } return read(); } }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nvar K_1;\nlet K = K_1 = class K {\n    m() { function read() { return K_1; } return read(); }\n};\nK = K_1 = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "outer-use-after-alias",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { m() { return K; } }\n@dec export class Other { m() { return K; } }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nvar K_1;\nlet K = K_1 = class K {\n    m() { return K_1; }\n};\nK = K_1 = __decorate([\n    dec\n], K);\nexport { K };\nlet Other = class Other {\n    m() { return K; }\n};\nOther = __decorate([\n    dec\n], Other);\nexport { Other };\n"
+  },
+  {
+    "name": "overload-signature",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { m(value: K): K; m(value: any) { return value; } }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nlet K = class K {\n    m(value) { return value; }\n};\nK = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "parameter-decorator",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { m(@dec(K) value: unknown) {} }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nvar __param = (this && this.__param) || function (paramIndex, decorator) {\n    return function (target, key) { decorator(target, key, paramIndex); }\n};\nvar K_1;\nlet K = K_1 = class K {\n    m(value) { }\n};\n__decorate([\n    __param(0, dec(K_1))\n], K.prototype, \"m\", null);\nK = K_1 = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "parameter-property-type",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { constructor(private readonly value: K) {} }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nlet K = class K {\n    constructor(value) {\n        this.value = value;\n    }\n};\nK = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "predicate-type",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { m(value: unknown): value is K { return true; } }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nlet K = class K {\n    m(value) { return true; }\n};\nK = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "satisfies-type",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { m() { return value satisfies K; } }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nlet K = class K {\n    m() { return value; }\n};\nK = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "static-block",
+    "source": "declare const dec: any;\ndeclare const value: any;\ndeclare function f<T>(value?: any): any;\ndeclare function mixin(value: any): any;\n\n@dec\nexport class K { static { void K; } }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nvar K_1;\nlet K = class K {\n    static { K_1 = this; }\n    static { void K_1; }\n};\nK = K_1 = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "name-position-field-name",
+    "source": "declare const dec: any;\n@dec\nexport class K { K = 1; }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nvar K_1;\nlet K = K_1 = class K {\n    constructor() {\n        this.K_1 = 1;\n    }\n};\nK = K_1 = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "name-position-method-name",
+    "source": "declare const dec: any;\n@dec\nexport class K { K() {} }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nvar K_1;\nlet K = K_1 = class K {\n    K_1() { }\n};\nK = K_1 = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "name-position-object-key",
+    "source": "declare const dec: any;\n@dec\nexport class K { m() { return { K: 1 }; } }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nvar K_1;\nlet K = K_1 = class K {\n    m() { return { K_1: 1 }; }\n};\nK = K_1 = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "name-position-property-access-with-self",
+    "source": "declare const dec: any;\n@dec\nexport class K { m(value: any) { return [K, value.K]; } }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nvar K_1;\nlet K = K_1 = class K {\n    m(value) { return [K_1, value.K]; }\n};\nK = K_1 = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "name-position-property-access",
+    "source": "declare const dec: any;\n@dec\nexport class K { m(value: any) { return value.K; } }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nlet K = class K {\n    m(value) { return value.K; }\n};\nK = __decorate([\n    dec\n], K);\nexport { K };\n"
+  },
+  {
+    "name": "name-position-shorthand",
+    "source": "declare const dec: any;\n@dec\nexport class K { m() { return { K }; } }\n",
+    "expected": "var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {\n    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;\n    if (typeof Reflect === \"object\" && typeof Reflect.decorate === \"function\") r = Reflect.decorate(decorators, target, key, desc);\n    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;\n    return c > 3 && r && Object.defineProperty(target, key, r), r;\n};\nvar K_1;\nlet K = K_1 = class K {\n    m() { return { K_1 }; }\n};\nK = K_1 = __decorate([\n    dec\n], K);\nexport { K };\n"
+  }
+]
