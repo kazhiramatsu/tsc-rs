@@ -1280,6 +1280,17 @@ impl LinksTables {
         drop(std::mem::take(&mut self.transient_symbols));
     }
 
+    /// Return paged link storage only after the owning one-shot checker
+    /// has published its final owned result. Cold fields stay in the state.
+    pub(crate) fn release_paged_record_buffers(&mut self) {
+        const {
+            assert!(!std::mem::needs_drop::<NodeLinks>());
+            assert!(!std::mem::needs_drop::<PersistentSymbolLinks>());
+        }
+        drop(std::mem::take(&mut self.node));
+        drop(std::mem::take(&mut self.persistent_symbols));
+    }
+
     /// The node, symbol and type link records and their sparse fields, by
     /// entries and bytes (memory accounting).
     pub(crate) fn memory_usage(&self) -> [(&'static str, usize, usize); 7] {

@@ -195,3 +195,163 @@ fn failed_read_and_each_resource_stop_match_ordinary_error_precedence() {
         }
     }
 }
+
+#[test]
+fn prefetched_scopes_keep_nested_package_metadata_and_probe_inventory() {
+    let host = MemoryCompilerHost::builder("/p")
+        .file(
+            "/p/package.json",
+            br#"{"name":"root","version":"1.0.0","type":"module"}"#.to_vec(),
+        )
+        .file(
+            "/p/nested/package.json",
+            br#"{"name":"nested","version":"2.0.0","type":"commonjs"}"#.to_vec(),
+        )
+        .file(
+            "/p/a.ts",
+            b"import './nested/b.js'; export const a = 1;".to_vec(),
+        )
+        .file("/p/nested/b.ts", b"export const b = 1;".to_vec())
+        .file("/p/hard.mts", b"export const hard = 1;".to_vec())
+        .build()
+        .unwrap();
+    let roots = ["/p/a.ts", "/p/hard.mts"].map(PathBuf::from);
+    let no_ahead = NoAhead(host.clone());
+    let baseline =
+        load_no_lib_program(&no_ahead, &roots, options(), program_options(), limits(1)).unwrap();
+    let inventory = |program: &tsc_program::PreparedProgram| {
+        program
+            .source_files()
+            .iter()
+            .map(|source| {
+                (
+                    source.path().clone(),
+                    source.package_scope().cloned(),
+                    source.implied_node_format(),
+                    source.implied_node_format_for_emit(),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let packages = baseline.packages().cloned().collect::<Vec<_>>();
+    assert_eq!(packages.len(), 2);
+    for workers in [1, 4, 16] {
+        for direct in [false, true] {
+            let mut program_options = program_options();
+            if direct {
+                program_options =
+                    program_options.with_identity_domain(tsc_types::IdentityDomain::new());
+            }
+            let program =
+                load_no_lib_program(&host, &roots, options(), program_options, limits(workers))
+                    .unwrap();
+            assert_eq!(inventory(&program), inventory(&baseline));
+            assert_eq!(program.packages().cloned().collect::<Vec<_>>(), packages);
+            assert_eq!(
+                program.package_json_probes(),
+                baseline.package_json_probes()
+            );
+        }
+    }
+}
+
+#[test]
+fn prefetched_scopes_preserve_the_ordered_manifest_spelling() {
+    let host = MemoryCompilerHost::builder("/p")
+        .case_sensitive(false)
+        .file(
+            "/p/pkg/package.json",
+            br#"{"name":"root","version":"1.0.0","type":"module"}"#.to_vec(),
+        )
+        .file("/p/pkg/a.ts", b"export const a = 1;".to_vec())
+        .file("/p/pkg/b.ts", b"export const b = 1;".to_vec())
+        .build()
+        .unwrap();
+    let roots = ["/p/pkg/a.ts", "/p/PKG/b.ts"].map(PathBuf::from);
+    let baseline = load_no_lib_program(
+        &NoAhead(host.clone()),
+        &roots,
+        options(),
+        program_options(),
+        limits(1),
+    )
+    .unwrap();
+    let packages = baseline.packages().cloned().collect::<Vec<_>>();
+    assert_eq!(packages.len(), 1);
+    assert_eq!(packages[0].package_json().display(), "/p/PKG/package.json");
+    for workers in [1, 4, 16] {
+        let program = load_no_lib_program(
+            &host,
+            &roots,
+            options(),
+            program_options().with_identity_domain(tsc_types::IdentityDomain::new()),
+            limits(workers),
+        )
+        .unwrap();
+        assert_eq!(program.packages().cloned().collect::<Vec<_>>(), packages);
+    }
+}
+
+#[test]
+fn prefetched_scopes_keep_manifest_observations_from_automatic_types() {
+    let host = MemoryCompilerHost::builder("/p")
+        .case_sensitive(false)
+        .file(
+            "/p/node_modules/@types/shared/package.json",
+            br#"{"name":"shared","version":"1.0.0","type":"module","types":"dist/index.d.ts","dependencies":{"runtime":"1.0.0"}}"#.to_vec(),
+        )
+        .file(
+            "/p/node_modules/@types/shared/dist/index.d.ts",
+            b"export declare const shared: number;".to_vec(),
+        )
+        .file(
+            "/p/node_modules/@types/shared/a.ts",
+            b"export const a = 1;".to_vec(),
+        )
+        .file(
+            "/p/node_modules/@types/shared/node_modules/runtime/package.json",
+            br#"{"name":"runtime","version":"1.0.0"}"#.to_vec(),
+        )
+        .file(
+            "/real/runtime/package.json",
+            br#"{"name":"runtime","version":"1.0.0"}"#.to_vec(),
+        )
+        .realpath(
+            "/p/node_modules/@types/shared/node_modules/runtime",
+            "/real/runtime",
+        )
+        .build()
+        .unwrap();
+    let roots = [PathBuf::from("/p/node_modules/@types/SHARED/a.ts")];
+    let opts = program_options().with_types(vec!["shared".into()]);
+    let baseline = load_no_lib_program(
+        &NoAhead(host.clone()),
+        &roots,
+        options(),
+        opts.clone(),
+        limits(1),
+    )
+    .unwrap();
+    assert_eq!(baseline.dependency_symlinks().len(), 1);
+    assert_eq!(
+        baseline.dependency_symlinks()[0].adjacent,
+        "/p/node_modules/@types/shared/node_modules/runtime"
+    );
+    let packages = baseline.packages().cloned().collect::<Vec<_>>();
+    for workers in [1, 4, 16] {
+        let program = load_no_lib_program(
+            &host,
+            &roots,
+            options(),
+            opts.clone()
+                .with_identity_domain(tsc_types::IdentityDomain::new()),
+            limits(workers),
+        )
+        .unwrap();
+        assert_eq!(program.packages().cloned().collect::<Vec<_>>(), packages);
+        assert_eq!(
+            program.dependency_symlinks(),
+            baseline.dependency_symlinks()
+        );
+    }
+}

@@ -3032,7 +3032,12 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             |resolver, (path, order), spawned| pass.read_source(resolver, path, order, spawned),
             |resolver| {
                 resolver
-                    .map(|mut resolver| resolver.take_package_json_probes())
+                    .map(|mut resolver| {
+                        (
+                            resolver.take_package_json_probes(),
+                            resolver.take_read_ahead_package_scopes(),
+                        )
+                    })
                     .unwrap_or_default()
             },
         );
@@ -3045,10 +3050,13 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             ..
         } = pass;
         let mut sources: Vec<ReadAheadSource> = Vec::new();
-        for (probes, results) in finished {
+        let mut scope_timer = tsc_types::trace::Timer::new();
+        for ((probes, scopes), results) in finished {
             self.read_ahead_package_json_probes.extend(probes);
+            self.resolver.adopt_read_ahead_package_scopes(scopes);
             sources.extend(results);
         }
+        scope_timer.mark("load: adopt read-ahead package scopes");
         // Root order, then the dependencies by path: the eviction order.
         sources.sort_by(|left, right| {
             left.order

@@ -8479,3 +8479,107 @@ fn adoption_path_reference_rows_keep_source_and_reference_order_on_workers() {
         }
     }
 }
+
+#[test]
+fn finished_eager_shards_preserve_owned_results_and_checker_work_counts() {
+    struct Provider;
+    impl AuthoritativeModuleProvider for Provider {
+        fn resolve_module(
+            &self,
+            _: AuthoritativeModuleRequest<'_>,
+        ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
+            unreachable!("no imports")
+        }
+    }
+    struct Factory;
+    impl AuthoritativeModuleProviderFactory for Factory {
+        fn provider(&self) -> Box<dyn AuthoritativeModuleProvider + '_> {
+            Box::new(Provider)
+        }
+    }
+    let libs = [focused_default_library("")];
+    let files = (0..8).map(|index| InputFile::new(
+        format!("/part{index}.ts"),
+        "export {}; type Wrap<T> = { value: T }; declare function wrap<T>(value: T): Wrap<T>; const result = wrap({ text: 'a' }); const bad: Wrap<{ text: number }> = result;",
+    )).collect::<Vec<_>>();
+    let metadata = |token, file: &InputFile| AuthoritativeSourceMetadata {
+        token: AuthoritativeSourceToken(token),
+        file_name: file.name.clone(),
+        may_be_emitted: token != 0,
+        implied_node_format: None,
+        implied_node_format_for_emit: None,
+        project_reference: None,
+    };
+    let lib_metadata = [metadata(0, &libs[0])];
+    let file_metadata = files
+        .iter()
+        .enumerate()
+        .map(|(index, file)| metadata(index as u32 + 1, file))
+        .collect::<Vec<_>>();
+    let options = CompilerOptions {
+        no_emit: Some(true),
+        strict: Some(true),
+        ..CompilerOptions::default()
+    };
+    let run = |count, leak, completion| {
+        let eager = |_: usize,
+                     _: &ProgramSnapshot,
+                     _: &CheckerSession<'_>,
+                     _: &[usize],
+                     _: &std::sync::atomic::AtomicUsize| completion;
+        let mut gate = |_: &ProgramSnapshot,
+                        _: &CheckResult,
+                        _: &[CheckerSession<'_>],
+                        _: &[Vec<usize>]| false;
+        let emit = |_: &ProgramSnapshot,
+                    _: &[CheckerSession<'_>],
+                    _: &[Vec<usize>]|
+         -> Result<Vec<ShardEmission>, tsc_emitter::UnitEmitError> {
+            Ok(Vec::new())
+        };
+        let mut emit = ShardedEmit {
+            gate: &mut gate,
+            emit: &emit,
+            emissions: None,
+            eager: Some(&eager),
+            prelude: None,
+        };
+        check_program_with_authoritative_modules_at_for_emit_with_checkers(
+            &libs,
+            &files,
+            &lib_metadata,
+            &file_metadata,
+            &options,
+            "/",
+            &Factory,
+            WorkerBudget::serial(),
+            CheckerBudget::new(std::num::NonZeroUsize::new(count).unwrap())
+                .with_leaked_states(leak),
+            &mut emit,
+            IncrementalRequest::NONE,
+            SyntacticDiagnosticsGate::CloseTheCheck,
+        )
+        .expect("checked eager completion")
+    };
+    for count in [2, 4] {
+        for leak in [false, true] {
+            let retained = run(count, leak, ShardEagerState::Retained);
+            let finished = run(count, leak, ShardEagerState::Finished);
+            assert_eq!(finished, retained);
+            assert!(finished.diagnostics.iter().any(|row| row.code() == 2322));
+            assert!(finished.work_counters.types() > 0);
+            assert_eq!(
+                finished.work_counters.types(),
+                retained.work_counters.types()
+            );
+            assert_eq!(
+                finished.work_counters.symbols(),
+                retained.work_counters.symbols()
+            );
+            assert_eq!(
+                finished.work_counters.instantiations(),
+                retained.work_counters.instantiations()
+            );
+        }
+    }
+}

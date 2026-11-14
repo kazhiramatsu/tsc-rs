@@ -3704,3 +3704,108 @@ fn content_mapper_diagnostic_survives_both_no_emit_reporting_adapters_with_synta
         [18070, 1109]
     );
 }
+
+#[test]
+fn no_emit_declaration_shares_keep_owned_diagnostics_across_checker_budgets() {
+    for semantic_error in [false, true] {
+        let modules = (0..8)
+            .map(|index| {
+                (
+                    format!("part{index}.ts"),
+                    format!(
+                        "type Wrap<T> = {{ value: T }};\n\
+                         declare function wrap<T>(value: T): Wrap<T>;\n\
+                         export const wrapped = wrap({{ value: 'text' }});\n\
+                         export const instance = new class {{ private brand = 1; }}();\n{}",
+                        if semantic_error {
+                            "const bad: number = 'text';\n"
+                        } else {
+                            ""
+                        },
+                    ),
+                )
+            })
+            .collect::<Vec<_>>();
+        let files = std::iter::once(("lib.d.ts", MINIMAL_GLOBALS))
+            .chain(
+                modules
+                    .iter()
+                    .map(|(name, text)| (name.as_str(), text.as_str())),
+            )
+            .collect::<Vec<_>>();
+        let run = |checkers, leak| {
+            ProgramSession::new(prepared_program(
+                &files,
+                1,
+                PreparationDiagnostics::default(),
+                |options| {
+                    options.strict = Some(true);
+                    options.skip_lib_check = Some(true);
+                    options.no_emit = Some(true);
+                    options.declaration = Some(true);
+                },
+            ))
+            .with_checker_budget(
+                CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap())
+                    .with_leaked_states(leak),
+            )
+            .run_no_emit_command()
+            .unwrap()
+        };
+        let serial = run(1, false);
+        let expected_code = if semantic_error { 2322 } else { 4094 };
+        assert!(serial.diagnostics().any(|row| row.code() == expected_code));
+        for checkers in [1, 2, 4] {
+            for leak in [false, true] {
+                assert_eq!(
+                    run(checkers, leak),
+                    serial,
+                    "checkers={checkers}, leak={leak}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn completed_no_emit_declaration_shards_keep_the_fresh_serial_replay() {
+    let padding = (0..80)
+        .map(|index| format!("declare const pad{index}: number;\n"))
+        .collect::<String>();
+    let first = format!("declare const b: Beta;\ndeclare const a: Alpha;\nconst useB = b;\nconst useA = a;\n{padding}");
+    let files = [
+        ("lib.d.ts", MINIMAL_GLOBALS),
+        ("types.d.ts", "interface Alpha { alpha: number; }\ninterface Beta { beta: string; }\n"),
+        ("first.ts", first.as_str()),
+        ("second.ts", "type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void ? I : never;\ntype LastOf<U> = UnionToIntersection<U extends unknown ? () => U : never> extends () => infer R ? R : never;\ndeclare const last: LastOf<Alpha | Beta>;\nconst check: Beta = last;\n"),
+    ];
+    let run = |checkers| {
+        ProgramSession::new(prepared_program(
+            &files,
+            1,
+            PreparationDiagnostics::default(),
+            |options| {
+                options.strict = Some(true);
+                options.skip_lib_check = Some(true);
+                options.stable_type_ordering = Some(false);
+                options.no_emit = Some(true);
+                options.declaration = Some(true);
+            },
+        ))
+        .with_checker_budget(
+            CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap())
+                .with_order_replay(true),
+        )
+        .run_no_emit_command()
+        .unwrap()
+    };
+    let serial = run(1);
+    assert!(serial
+        .diagnostics()
+        .any(|row| matches!(row.code(), 2741 | 2322)));
+    for checkers in [2, 4] {
+        let sharded = run(checkers);
+        assert_eq!(sharded, serial, "checkers={checkers}");
+        assert_eq!(sharded.work_counters().checker_serial_replay(), 1);
+    }
+}

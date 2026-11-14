@@ -840,7 +840,12 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 },
                 |resolver| {
                     resolver
-                        .map(|mut resolver| resolver.take_package_json_probes())
+                        .map(|mut resolver| {
+                            (
+                                resolver.take_package_json_probes(),
+                                resolver.take_read_ahead_package_scopes(),
+                            )
+                        })
                         .unwrap_or_default()
                 },
             )
@@ -857,13 +862,16 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         }
         tsc_types::trace::mark("load: streaming stripe parse/plan/resolve", parse_started);
         let mut sources = Vec::new();
-        for (probes, results) in finished {
+        let mut scope_timer = tsc_types::trace::Timer::new();
+        for ((probes, scopes), results) in finished {
             self.read_ahead_package_json_probes.extend(probes);
+            self.resolver.adopt_read_ahead_package_scopes(scopes);
             for (group, stripes) in results {
                 sources.extend(group);
                 self.direct_stripes.0.extend(stripes);
             }
         }
+        scope_timer.mark("load: adopt read-ahead package scopes");
         // map_spawning's finish order is a scheduling detail. Stripe owners
         // must be sealed in their lease order, never worker completion order.
         self.direct_stripes
