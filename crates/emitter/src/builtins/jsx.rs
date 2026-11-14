@@ -1631,10 +1631,32 @@ impl<'context> JsxVisitor<'context> {
                         .arena()
                         .node_ref(self.source, container.node())
                         .ok_or_else(|| TransformError::UnknownNode(self.node(container.node())))?;
-                    self.context
-                        .arena_mut()?
-                        .metadata_mut(expression)
-                        .set_referenced_export_container(container);
+                    // Go createReactNamespace qualifies its newly created
+                    // factory root here, after runtime-syntax substitution.
+                    // Enum containers deliberately do not take this path.
+                    if self.context.arena().node(container)?.kind == SyntaxKind::ModuleDeclaration {
+                        if let Some(name) = self
+                            .context
+                            .arena()
+                            .session
+                            .namespace_container_names
+                            .get(&container)
+                            .cloned()
+                        {
+                            let receiver = self.create_identifier(&name)?;
+                            expression = self.context.factory()?.create_node(
+                                self.source,
+                                NodeData::PropertyAccessExpression(
+                                    tsc_syntax::nodes::PropertyAccessExpressionData {
+                                        name: Some(expression.node()),
+                                        expression: Some(receiver.node()),
+                                        question_dot_token: None,
+                                    },
+                                ),
+                                TransformFlags::NONE,
+                            )?;
+                        }
+                    }
                 }
             }
         }

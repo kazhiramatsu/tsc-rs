@@ -305,6 +305,8 @@ fn module_identifier_bases_match_typescript_utf16_replacement() {
     }
 }
 
+mod substituted_conditional;
+
 use tsc_program::SourceFileId;
 use tsc_syntax::{for_each_child, parse_source_file, NodeData, NodeId, ParseOptions, ScriptKind};
 use tsc_types::{CompilerOptions, ModuleKind, NodeCheckFlags, ScriptTarget};
