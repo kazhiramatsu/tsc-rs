@@ -4,14 +4,13 @@ use tsc_syntax::NodeId;
 /// A declaration list's element in the store (region 37).
 pub type DeclarationItem = Tagged<NodeId, DECLARATION_ITEM_REGION>;
 
-/// A symbol's declaration list: a span of [`DeclarationItem`]s that a
-/// [`DeclarationPool`] issued (tsgo's `Declarations` slice header). Eight
-/// bytes and `Copy`: a symbol that carries another's declarations copies the
-/// span. It reads through the store, so it stays valid while the pool that
-/// issued it lives (the symbol arena that owns the symbol).
+/// A symbol's declarations, with a single node held in the header and longer
+/// lists in a [`DeclarationPool`]'s store span. Eight bytes and `Copy`: a
+/// symbol carrying another's declarations copies this value. A longer list
+/// stays valid while the pool that issued it lives.
 #[derive(Clone, Copy, Default)]
 pub struct Declarations {
-    start: u32,
+    node_or_start: Option<NodeId>,
     len: u32,
 }
 
@@ -19,7 +18,30 @@ const _: () = assert!(std::mem::size_of::<Declarations>() == 8);
 
 impl Declarations {
     pub const fn new() -> Self {
-        Self { start: 0, len: 0 }
+        Self {
+            node_or_start: None,
+            len: 0,
+        }
+    }
+
+    #[inline]
+    fn single(node: NodeId) -> Self {
+        Self {
+            node_or_start: Some(node),
+            len: 1,
+        }
+    }
+
+    fn span(start: u32, len: u32) -> Self {
+        Self {
+            node_or_start: Some(NodeId::new(start)),
+            len,
+        }
+    }
+
+    #[inline]
+    fn node_or_start(&self) -> NodeId {
+        self.node_or_start.expect("nonempty declaration list")
     }
 }
 
@@ -27,10 +49,14 @@ impl std::ops::Deref for Declarations {
     type Target = [NodeId];
     #[inline]
     fn deref(&self) -> &[NodeId] {
-        if self.len == 0 {
-            return &[];
+        match self.len {
+            0 => &[],
+            1 => std::slice::from_ref(self.node_or_start.as_ref().expect("single declaration")),
+            _ => slice_tagged::<NodeId, DECLARATION_ITEM_REGION>(
+                self.node_or_start().index(),
+                self.len,
+            ),
         }
-        slice_tagged::<NodeId, DECLARATION_ITEM_REGION>(self.start, self.len)
     }
 }
 
@@ -57,16 +83,101 @@ impl<const N: usize> PartialEq<[NodeId; N]> for Declarations {
 /// The declarations by value, in order.
 impl IntoIterator for Declarations {
     type Item = NodeId;
-    type IntoIter = std::iter::Copied<std::slice::Iter<'static, NodeId>>;
+    type IntoIter = DeclarationIter;
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        let nodes: &'static [NodeId] = if self.len == 0 {
-            &[]
-        } else {
-            slice_tagged::<NodeId, DECLARATION_ITEM_REGION>(self.start, self.len)
+        let (single, nodes): (_, &'static [NodeId]) = match self.len {
+            0 => (None, &[]),
+            1 => (self.node_or_start, &[]),
+            _ => (
+                None,
+                slice_tagged::<NodeId, DECLARATION_ITEM_REGION>(
+                    self.node_or_start().index(),
+                    self.len,
+                ),
+            ),
         };
-        nodes.iter().copied()
+        DeclarationIter {
+            single,
+            multiple: nodes.iter().copied(),
+        }
     }
 }
+
+/// An owned declaration-list iterator. The singleton is kept here because
+/// its list header can be moved or dropped after creating the iterator.
+#[derive(Clone, Debug)]
+pub struct DeclarationIter {
+    single: Option<NodeId>,
+    multiple: std::iter::Copied<std::slice::Iter<'static, NodeId>>,
+}
+
+impl Iterator for DeclarationIter {
+    type Item = NodeId;
+
+    #[inline]
+    fn next(&mut self) -> Option<NodeId> {
+        self.single.take().or_else(|| self.multiple.next())
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
+
+    #[inline]
+    fn count(self) -> usize {
+        self.len()
+    }
+
+    #[inline]
+    fn last(self) -> Option<NodeId> {
+        self.multiple.last().or(self.single)
+    }
+
+    #[inline]
+    fn nth(&mut self, mut n: usize) -> Option<NodeId> {
+        if let Some(node) = self.single.take() {
+            if n == 0 {
+                return Some(node);
+            }
+            n -= 1;
+        }
+        self.multiple.nth(n)
+    }
+}
+
+impl DoubleEndedIterator for DeclarationIter {
+    #[inline]
+    fn next_back(&mut self) -> Option<NodeId> {
+        self.multiple.next_back().or_else(|| self.single.take())
+    }
+
+    #[inline]
+    fn nth_back(&mut self, n: usize) -> Option<NodeId> {
+        let len = self.multiple.len();
+        if n < len {
+            return self.multiple.nth_back(n);
+        }
+        self.multiple = [].iter().copied();
+        let single = self.single.take();
+        if n == len {
+            single
+        } else {
+            None
+        }
+    }
+}
+
+impl ExactSizeIterator for DeclarationIter {
+    #[inline]
+    fn len(&self) -> usize {
+        usize::from(self.single.is_some()) + self.multiple.len()
+    }
+}
+
+impl std::iter::FusedIterator for DeclarationIter {}
 
 impl<'a> IntoIterator for &'a Declarations {
     type Item = &'a NodeId;
@@ -99,25 +210,32 @@ impl DeclarationPool {
     /// A list of `nodes` (empty without claiming anything).
     pub fn alloc(&mut self, nodes: &[NodeId]) -> Declarations {
         let len = u32::try_from(nodes.len()).expect("declaration list length exceeds u32");
-        if len == 0 {
-            return Declarations::new();
+        if len <= 1 {
+            return nodes
+                .first()
+                .copied()
+                .map_or_else(Declarations::new, Declarations::single);
         }
         let start = self.push_nodes(nodes);
         self.end = start + len;
-        Declarations { start, len }
+        Declarations::span(start, len)
     }
 
     /// `list` with `node` appended (addDeclarationToSymbol): in place when the
     /// list is the last one issued and its room has space, else a copy.
     pub fn append(&mut self, list: Declarations, node: NodeId) -> Declarations {
-        if list.len != 0 && list.start + list.len == self.end {
+        if list.len == 0 {
+            return Declarations::single(node);
+        }
+        if list.len == 1 {
+            return self.alloc(&[list.node_or_start(), node]);
+        }
+        let start = list.node_or_start().index();
+        if start + list.len == self.end {
             let position = self.items.push(Tagged(node));
             if position == self.end {
                 self.end += 1;
-                return Declarations {
-                    start: list.start,
-                    len: list.len + 1,
-                };
+                return Declarations::span(start, list.len + 1);
             }
             // The room was full and `position` starts the next one: copy the
             // list there (one slot stays unused).

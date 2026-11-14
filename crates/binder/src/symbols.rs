@@ -24,7 +24,7 @@ mod table;
 pub use table::{EscapedNameSet, NameKey, SymbolTable};
 
 mod declarations;
-pub use declarations::{DeclarationItem, DeclarationPool, Declarations};
+pub use declarations::{DeclarationItem, DeclarationIter, DeclarationPool, Declarations};
 
 /// core-interfaces §2 (tsc Symbol, D6533). tsc creates `members`/
 /// `exports` lazily on first insertion; here an empty table means
