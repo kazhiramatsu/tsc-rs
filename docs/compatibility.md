@@ -72,10 +72,7 @@ tsc 6.0.3 compatibility is complete in release
 ## Limitations
 
 - **Emitted files, known differences from `tsgo`** (emitted trees compared
-  file by file on November 14, 2026):
-  - JavaScript: one of the 9,244 files emitted for VS Code's `src` keeps
-    the line break before the `:` of two conditional expressions that `tsgo`
-    prints on one line each (the form of the code, not its meaning).
+  file by file on November 14 and 15, 2026):
   - Source maps of classes with legacy decorators (`experimentalDecorators`)
     have more segments than `tsgo`'s for the same generated file. With
     `declaration`, `declarationMap` and `sourceMap` turned on for VS Code
@@ -93,12 +90,23 @@ tsc 6.0.3 compatibility is complete in release
   - For an input with syntax errors, a comment can be written twice (a block
     comment at the end of an unterminated `try` block, for example).
 
-  The files emitted for hono, zod, Effect, the TypeScript compiler, Next.js,
-  playwright and vue (16,164 files: JavaScript, declarations and maps) are
-  identical to `tsgo`'s. The differences found on the same day in 574 more
-  of VS Code's JavaScript files — comments around a hoisted class alias, an
-  alias and a temporary variable that were not needed — were fixed in pull
-  request [#1002](https://github.com/kazhiramatsu/tsc-rs/pull/1002).
+  The JavaScript emitted for VS Code's `src` (9,244 files) is identical to
+  `tsgo`'s, and so are the files emitted for hono, zod, Effect, the
+  TypeScript compiler, Next.js, playwright and vue (16,164 files:
+  JavaScript, declarations and maps). The differences found on November 14
+  in 575 of VS Code's JavaScript files — comments around a hoisted class
+  alias, an alias and a temporary variable that were not needed, the line
+  breaks of two conditional expressions — were fixed in pull requests
+  [#1002](https://github.com/kazhiramatsu/tsc-rs/pull/1002) and
+  [#1005](https://github.com/kazhiramatsu/tsc-rs/pull/1005).
+- File names that contain characters outside the Basic Multilingual Plane
+  are ordered by UTF-16 code units where `tsgo` orders them by bytes: a
+  project with files named `U+E000` and `U+10000` lists them in the other
+  order (`--showConfig`, `--listFilesOnly`, and the order of anything that
+  follows the root order).
+- A generic type predicate over a mapped union of 1,024 members reports one
+  more diagnostic (TS2859) than `tsgo` and a longer chain in the TS2677 that
+  both report; at 256 members the output is identical.
 - The [language server](usage.md#language-server-experimental) is incomplete and
   untested in editors.
 - `-b` builds projects one at a time.
