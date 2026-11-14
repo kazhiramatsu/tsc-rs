@@ -19,9 +19,16 @@ checker in advance; it depends on strong oracles, a reference implementation wit
   (`scripts/perf/lowmode.py`): a project's counts are multimodal run to run (modes 0.35–1.7 % apart — VS Code ≈ 0.86 %, zod ≈ 1.7 %,
   next ≈ 1.1–1.5 %, playwright ≈ 1.7 %, vue ≈ 0.6–0.9 %, TypeScript ≈ 0.35 % — independent of the binary; in-mode rounds spread ≤ 0.08 %),
   so the tool reports the median of each binary's lowest cluster with the cluster's size and flags a low cluster under 3 rounds
-  (re-measure with 15). 3-round medians lie for sub-1% deltas. Wall and cpu are reported, not judged. Footprint must not grow.
+  (re-measure with 15). 3-round medians lie for sub-1% deltas. Footprint must not grow.
   `serial.py` also records each run's cycles and `lowmode.py` prints their medians: instructions do not show stalls, cycles do, at a
   run-to-run spread of about 1.5 % (read a cycle difference under 1 % only from 15 or more rounds).
+- **The verdict is time and peak memory** (owner, 2026-11-14: 「命令数が増えても遅くならないことが重要ですよ」): wall at the default
+  settings and at one thread, cycles at one thread (the direct measure of time when wall is noisy) and peak footprint, in a window
+  with the base measured twice. Instructions are the ledger for finding work and the stable number for deltas that wall cannot
+  resolve — not the verdict: an instruction increase that does not make the compiler slower is acceptable (fewer, denser records
+  cost instructions and give them back in memory behaviour), and an instruction decrease that costs time is not a gain. Read the
+  time columns before writing a verdict; if a window cannot resolve them (its own base pair disagrees, or the machine is busy with
+  other work), re-measure that project in a short dedicated window (15 rounds) instead of deciding on instructions.
 - One heavy job at a time (`nice -n 20`, `cargo -j 2`, `CARGO_INCREMENTAL=0`); ≤ 2 Codex lanes building; measurements in quiet windows.
 
 ## 1. Attribution ladder (coarse → fine; stop when a row is actionable)

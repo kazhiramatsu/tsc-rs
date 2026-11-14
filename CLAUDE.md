@@ -50,9 +50,14 @@ short user guide.
   ([SKILL.md](.claude/skills/measured-port-optimization/SKILL.md)) and uses
   the tools in `scripts/perf/`: outputs byte-identical is the law, the
   `--extendedDiagnostics` work counters are recorded (not gated), and a
-  candidate is judged on retired instructions at one thread, 9 rounds, low
-  mode (`scripts/perf/lowmode.py`), with its own release binary on the common
-  base.
+  candidate is judged on time and peak memory (owner's decision 2026-11-14):
+  wall at the default settings and at one thread, cycles at one thread and
+  peak footprint, with its own release binary on the common base and the
+  base measured twice in the same window. Retired instructions at one thread
+  (9 rounds, low mode, `scripts/perf/lowmode.py`) are the ledger for finding
+  work and for deltas that wall cannot resolve, not the verdict: an
+  instruction increase that does not make the compiler slower is acceptable,
+  and an instruction decrease that costs time is not a gain.
 
 ## Merging
 
