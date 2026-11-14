@@ -94,6 +94,9 @@ mod dts_faking_host;
 mod error;
 pub mod go_json;
 mod js_path;
+#[doc(hidden)]
+pub use tsc_syntax::library_image::{register as register_library_images, StaticLibraryImage};
+
 pub use js_path::{
     any_extension, base_file_name, canonical_dynamic_uri_path, change_any_extension,
     change_extension, change_full_extension, combine_paths, declaration_file_extension,

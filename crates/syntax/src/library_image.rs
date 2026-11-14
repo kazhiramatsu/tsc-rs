@@ -1,6 +1,6 @@
 //! Portable, file-relative syntax records for generated library data.
 //!
-//! This is a builder/proof interface. Command loading does not use it yet.
+//! The builder and command loader use the same portable record format.
 //! Rust object layouts, tail addresses, leases and hash buckets are never
 //! written to the image. Restoration makes ordinary owned syntax objects.
 
@@ -9,8 +9,12 @@ use crate::{ExternalModuleIndicatorOptions, FileReference, JSDocParsingMode, Sou
 use std::fmt;
 use tsc_types::{EscapedName, JsStr};
 
-const MAGIC: &[u8; 8] = b"TSCLIBS1";
-const VERSION: u32 = 1;
+const MAGIC: &[u8; 8] = b"TSCLIBS2";
+const VERSION: u32 = 2;
+
+#[path = "library_image/runtime.rs"]
+mod runtime;
+pub use runtime::{lookup, register, LibraryMetadata, StaticLibraryImage};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ImageError(pub &'static str);
@@ -33,19 +37,7 @@ pub fn fingerprint(bytes: &[u8]) -> u64 {
 }
 
 fn schema() -> u64 {
-    static SCHEMA: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
-    *SCHEMA.get_or_init(|| {
-        fingerprint(
-            concat!(
-                include_str!("../nodes.schema.json"),
-                include_str!("../nodes.layout.json"),
-                include_str!("nodes.rs"),
-                include_str!("kind.rs"),
-                include_str!("library_image.rs"),
-            )
-            .as_bytes(),
-        )
-    })
+    include!(concat!(env!("OUT_DIR"), "/library_image_schema.rs"))
 }
 
 /// Shared little-endian framing used by the syntax and binder builders.
@@ -151,6 +143,84 @@ impl<'a> Decoder<'a> {
     }
 }
 
+#[derive(Clone, Copy)]
+struct Section {
+    offset: usize,
+    count: usize,
+}
+
+/// Offsets name the count words, relative to the framed payload. Counts
+/// precede construction so every published reference can be range-checked.
+struct Sections {
+    nodes: Section,
+    arrays: Section,
+    items: Section,
+    texts: Section,
+    payload_len: usize,
+}
+
+impl Sections {
+    const BYTES: usize = 8 * 4;
+
+    fn read(payload: &[u8]) -> Result<Self> {
+        let mut input = Decoder(payload);
+        let mut read = || -> Result<Section> {
+            Ok(Section {
+                offset: input.word()? as usize,
+                count: input.word()? as usize,
+            })
+        };
+        let sections = Self {
+            nodes: read()?,
+            arrays: read()?,
+            items: read()?,
+            texts: read()?,
+            payload_len: payload.len(),
+        };
+        if sections.nodes.offset < Self::BYTES {
+            return Err(ImageError("invalid image metadata section"));
+        }
+        for section in [
+            sections.nodes,
+            sections.arrays,
+            sections.items,
+            sections.texts,
+        ] {
+            let mut field = Decoder(
+                payload
+                    .get(section.offset..)
+                    .ok_or(ImageError("image section outside payload"))?,
+            );
+            if field.word()? as usize != section.count {
+                return Err(ImageError("image section count differs from directory"));
+            }
+        }
+        let end = |section: Section, width: usize| {
+            section
+                .count
+                .checked_mul(width)?
+                .checked_add(4)?
+                .checked_add(section.offset)
+        };
+        if end(sections.nodes, 24).is_none_or(|n| n > sections.arrays.offset)
+            || end(sections.arrays, 20) != Some(sections.items.offset)
+            || end(sections.items, 4) != Some(sections.texts.offset)
+            || end(sections.texts, 4) != Some(payload.len())
+        {
+            return Err(ImageError("invalid image section layout"));
+        }
+        Ok(sections)
+    }
+
+    fn at(&self, input: &Decoder<'_>, section: Section) -> Result<()> {
+        if input.0.len() == self.payload_len - section.offset {
+            Ok(())
+        } else {
+            Err(ImageError("image section boundary differs from directory"))
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ImageNode {
     kind: SyntaxKind,
@@ -216,9 +286,9 @@ fn utf8(bytes: &[u8]) -> Result<String> {
 impl SyntaxImage {
     pub fn capture(source: &SourceFile) -> Result<Self> {
         let file_name = source.file_name.to_string_lossy().into_owned();
-        let mut supported = SourceFile::from_tree(
-            file_name.as_str(),
-            Some(source.text().to_owned()),
+        let mut supported = SourceFile::from_tree_snapshot(
+            file_name.as_str().into(),
+            std::sync::Arc::clone(source.snapshot()),
             source.arena.clone(),
             source.root,
             crate::LanguageVariant::Standard,
@@ -322,6 +392,9 @@ impl SyntaxImage {
 
     pub fn encode(&self) -> Result<Vec<u8>> {
         let mut out = Encoder::default();
+        for _ in 0..8 {
+            out.word(0);
+        }
         out.bytes(self.file_name.as_bytes())?;
         out.count(self.text.len())?;
         out.wide(fingerprint(self.text.as_bytes()));
@@ -343,6 +416,7 @@ impl SyntaxImage {
         for name in &self.names {
             out.bytes(name)?;
         }
+        let node_offset = out.0.len();
         out.count(self.nodes.len())?;
         for n in &self.nodes {
             for word in [
@@ -364,14 +438,36 @@ impl SyntaxImage {
                 }
             }
         }
+        let array_offset = out.0.len();
         out.count(self.arrays.len())?;
         for &[items, len, pos, end, flags, modifiers] in &self.arrays {
             for word in [items, len, pos, end, flags | (modifiers << 2)] {
                 out.word(word);
             }
         }
+        let item_offset = out.0.len();
         out.words(&self.items)?;
+        let text_offset = out.0.len();
         out.words(&self.texts)?;
+        for (index, value) in [
+            node_offset,
+            self.nodes.len(),
+            array_offset,
+            self.arrays.len(),
+            item_offset,
+            self.items.len(),
+            text_offset,
+            self.texts.len(),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            out.0[index * 4..index * 4 + 4].copy_from_slice(
+                &u32::try_from(value)
+                    .map_err(|_| ImageError("image section exceeds u32"))?
+                    .to_le_bytes(),
+            );
+        }
         out.finish(MAGIC, schema())
     }
 
@@ -380,6 +476,8 @@ impl SyntaxImage {
     /// entry; this checksum only detects mismatched derived data.
     pub fn decode(bytes: &[u8], text: &str) -> Result<Self> {
         let mut input = Decoder::open(bytes, MAGIC, schema())?;
+        let sections = Sections::read(input.0)?;
+        input.take(Sections::BYTES)?;
         let file_name = utf8(input.bytes()?)?;
         if input.word()? as usize != text.len() || input.wide()? != fingerprint(text.as_bytes()) {
             return Err(ImageError("library image source changed"));
@@ -413,6 +511,7 @@ impl SyntaxImage {
         for _ in 0..input.count(4)? {
             names.push(input.bytes()?.to_vec());
         }
+        sections.at(&input, sections.nodes)?;
         let mut nodes = Vec::new();
         for _ in 0..input.count(24)? {
             let packed = input.word()?;
@@ -445,6 +544,7 @@ impl SyntaxImage {
                 comment,
             });
         }
+        sections.at(&input, sections.arrays)?;
         let mut arrays = Vec::new();
         for _ in 0..input.count(20)? {
             let mut array = [0; 6];
@@ -456,7 +556,9 @@ impl SyntaxImage {
             array[5] = flags >> 2;
             arrays.push(array);
         }
+        sections.at(&input, sections.items)?;
         let items = input.words()?;
+        sections.at(&input, sections.texts)?;
         let texts = input.words()?;
         input.end()?;
         let image = Self {
@@ -697,6 +799,20 @@ impl SyntaxImage {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn generated_provenance_equals_source_inputs() {
+        let input = concat!(
+            include_str!("../nodes.schema.json"),
+            include_str!("../nodes.layout.json"),
+            include_str!("nodes.rs"),
+            include_str!("kind.rs"),
+            include_str!("library_image.rs"),
+            include_str!("library_image/runtime.rs"),
+            include_str!("../build.rs"),
+        );
+        assert_eq!(schema(), fingerprint(input.as_bytes()));
+    }
 
     #[test]
     fn syntax_image_restores_owned_records_and_rejects_corruption() {

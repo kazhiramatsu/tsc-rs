@@ -16,7 +16,7 @@ use tsc_host::{CompilerHost, FsCompilerHost, HostError, ParallelSourceReader};
 
 use crate::EmitFileSystem;
 
-mod embedded_libraries {
+pub(crate) mod embedded_libraries {
     include!(concat!(env!("OUT_DIR"), "/embedded_libraries.rs"));
 }
 
@@ -431,6 +431,7 @@ impl NativeCompilerHost {
 
 /// The embedded library file named `name` (`lib.es5.d.ts`).
 fn embedded_library(name: &str) -> Option<&'static [u8]> {
+    crate::library_image::register();
     embedded_libraries::EMBEDDED_LIBRARIES
         .binary_search_by_key(&name, |(candidate, _)| *candidate)
         .ok()
@@ -438,6 +439,7 @@ fn embedded_library(name: &str) -> Option<&'static [u8]> {
 }
 
 fn embedded_library_text(name: &str) -> Option<tsc_diagnostics::SharedText> {
+    crate::library_image::register();
     embedded_libraries::EMBEDDED_LIBRARIES
         .binary_search_by_key(&name, |(candidate, _)| *candidate)
         .ok()

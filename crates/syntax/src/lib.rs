@@ -263,8 +263,31 @@ impl SourceFile {
             Some(text) => TextSnapshot::new(text, DocumentVersion::default()),
             None => TextSnapshot::detached(DocumentVersion::default()),
         };
+        Self::from_tree_snapshot(
+            file_name.into(),
+            snapshot,
+            arena,
+            root,
+            language_variant,
+            script_kind,
+            is_declaration_file,
+            external_module_indicator_options,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn from_tree_snapshot(
+        file_name: JsString,
+        snapshot: Arc<TextSnapshot>,
+        arena: NodeArena,
+        root: NodeId,
+        language_variant: LanguageVariant,
+        script_kind: ScriptKind,
+        is_declaration_file: bool,
+        external_module_indicator_options: ExternalModuleIndicatorOptions,
+    ) -> Self {
         Self {
-            file_name: file_name.into(),
+            file_name,
             snapshot,
             language_variant,
             script_kind,
@@ -453,8 +476,8 @@ pub fn parse_published_source_file(
     .expect("source identity allocation failed")
 }
 
-/// Parse a source locally and publish the completed tree in one identity
-/// domain, at exact counts.
+/// Construct a source at exact identities in one domain. Eligible bundled
+/// images construct there directly; other sources parse locally and relocate.
 pub fn parse_source_file_from_snapshot_in_identity_domain(
     file_name: impl Into<JsString>,
     snapshot: Arc<TextSnapshot>,
@@ -464,8 +487,13 @@ pub fn parse_source_file_from_snapshot_in_identity_domain(
 ) -> Result<SourceFile, IdentityError> {
     options.node_id_base = 0;
     options.node_array_id_base = 0;
-    let mut source =
-        parser::parse_source_file_from_snapshot(file_name.into(), snapshot, options, cursor);
+    let file_name = file_name.into();
+    if cursor.is_none() {
+        if let Some(image) = library_image::lookup(file_name.as_js(), &snapshot, &options) {
+            return image.restore_in_identity_domain(file_name, snapshot, &options, domain);
+        }
+    }
+    let mut source = parser::parse_source_file_from_snapshot(file_name, snapshot, options, cursor);
     source.relocate_into_identity_domain(domain)?;
     Ok(source)
 }

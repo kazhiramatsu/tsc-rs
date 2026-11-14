@@ -34,12 +34,12 @@ fn main() {
     );
 
     let mut generated = String::from(
-        "pub(super) static EMBEDDED_LIBRARIES: &[(&str, tsc_diagnostics::SharedText)] = &[\n",
+        "pub(crate) static EMBEDDED_LIBRARIES: &[(&str, tsc_diagnostics::SharedText)] = &[\n",
     );
     let mut text_allocations = String::new();
     let output_directory = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo supplies OUT_DIR"));
     let mut images = String::from(
-        "pub(super) struct EmbeddedLibraryImage { pub name: &'static str, pub syntax: &'static [u8], pub binding: &'static [u8], pub edits: &'static [u8] }\npub(super) static EMBEDDED_LIBRARY_IMAGES: &[EmbeddedLibraryImage] = &[\n",
+        "pub(super) static EMBEDDED_LIBRARY_IMAGES: &[tsc_program::StaticLibraryImage] = &[\n",
     );
     let mut image_bytes = 0;
     for (index, path) in libraries.into_iter().enumerate() {
@@ -57,6 +57,7 @@ fn main() {
             !text.starts_with('\u{feff}'),
             "embedded declarations have no BOM"
         );
+        let source_fingerprint = tsc_syntax::library_image::fingerprint(text.as_bytes());
         let image = tsc_binder::library_image::build_command_library_image(
             &format!("bundled:///libs/{name}"),
             &text,
@@ -72,7 +73,7 @@ fn main() {
                 .expect("write library image section");
         }
         images.push_str(&format!(
-            "EmbeddedLibraryImage {{ name: {name:?}, syntax: include_bytes!(concat!(env!(\"OUT_DIR\"), \"/{name}.syntax.bin\")), binding: include_bytes!(concat!(env!(\"OUT_DIR\"), \"/{name}.binding.bin\")), edits: include_bytes!(concat!(env!(\"OUT_DIR\"), \"/{name}.edits.bin\")) }},\n",
+            "tsc_program::StaticLibraryImage {{ name: {name:?}, source: &crate::system::embedded_libraries::EMBEDDED_LIBRARIES[{index}].1, source_fingerprint: {source_fingerprint}, syntax: include_bytes!(concat!(env!(\"OUT_DIR\"), \"/{name}.syntax.bin\")), binding: include_bytes!(concat!(env!(\"OUT_DIR\"), \"/{name}.binding.bin\")), edits: include_bytes!(concat!(env!(\"OUT_DIR\"), \"/{name}.edits.bin\")) }},\n",
         ));
     }
     generated.push_str("];\n");

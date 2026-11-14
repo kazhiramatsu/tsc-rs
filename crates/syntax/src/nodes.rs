@@ -583,8 +583,16 @@ impl Node {
         )
     }
 
+    #[inline]
+    pub(crate) const fn image_layout(kind: SyntaxKind) -> ImageLayout {
+        ImageLayout {
+            kind,
+            words: image_layout_words(kind),
+        }
+    }
+
     pub(crate) fn image_slot_space(kind: SyntaxKind, index: usize) -> u8 {
-        if index == 0 && matches!(kind, SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier) {
+        if image_name_mask(kind) & (1 << index) != 0 {
             4 // Interned name; not a syntax identity space.
         } else {
             identity_layout(kind).space(index)
@@ -592,6 +600,7 @@ impl Node {
     }
 
     /// Rebuild a record's owned tail from validated portable words.
+    #[inline]
     pub(crate) fn from_image_payload(
         kind: SyntaxKind,
         slots: &[u32],
@@ -600,32 +609,54 @@ impl Node {
         payload: bool,
         tails: &mut tsc_store::tails::Tails,
     ) -> Option<Self> {
-        let (count, has_comment) = payload_shape(kind);
+        Self::from_image_layout(
+            Self::image_layout(kind),
+            slots,
+            comment,
+            js_doc,
+            payload,
+            tails,
+        )
+    }
+
+    #[inline(always)]
+    pub(crate) fn from_image_layout(
+        layout: ImageLayout,
+        slots: &[u32],
+        comment: [u32; 4],
+        js_doc: u32,
+        payload: bool,
+        tails: &mut tsc_store::tails::Tails,
+    ) -> Option<Self> {
+        let count = layout.count();
+        let has_comment = layout.has_comment();
         if slots.len() != count || (!has_comment && comment != [0; 4]) {
             return None;
         }
-        let mut node = Self::new(kind, 0, 0, 0);
+        let mut node = Self::new(layout.kind, 0, 0, 0);
         if slots.iter().skip(3).all(|&word| word == 0)
             && comment == [0; 4]
             && (count < 3 || js_doc == 0)
         {
-            for (word, &slot) in node.words.iter_mut().zip(slots) {
-                *word = slot;
-            }
-            if count < 3 {
-                node.words[count] = js_doc;
-            }
-            if count == 0 && payload {
-                node.words[2] = EMPTY_PAYLOAD;
+            match count {
+                0 => node.words = [js_doc, 0, if payload { EMPTY_PAYLOAD } else { 0 }],
+                1 => node.words = [slots[0], js_doc, 0],
+                2 => node.words = [slots[0], slots[1], js_doc],
+                _ => node.words = [slots[0], slots[1], slots[2]],
             }
         } else {
-            let mut words: Vec<_> = slots.iter().skip(2).copied().collect();
-            words.push(js_doc);
+            let mut words = [0; MAX_TAIL_WORDS];
+            let spilled = count.saturating_sub(2);
+            if spilled != 0 {
+                words[..spilled].copy_from_slice(&slots[2..]);
+            }
+            words[spilled] = js_doc;
+            let length = spilled + 1 + if has_comment { 4 } else { 0 };
             if has_comment {
-                words.extend(comment);
+                words[spilled + 1..length].copy_from_slice(&comment);
             }
             node.words = [
-                tails.push(&words),
+                tails.push(&words[..length]),
                 slots.first().copied().unwrap_or(0),
                 slots.get(1).copied().unwrap_or(0),
             ];
@@ -4640,6 +4671,233 @@ impl NodeData {
 
 /// The longest tail: the slots past the second, the JSDoc attachment and a comment.
 const MAX_TAIL_WORDS: usize = 8;
+
+pub(crate) const MAX_IMAGE_PAYLOAD_WORDS: usize = 9;
+
+#[inline]
+const fn image_name_mask(kind: SyntaxKind) -> u16 {
+    match kind {
+        SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier => 1,
+        _ => 0,
+    }
+}
+
+/// Validated payload shape and reference spaces for one image node.
+#[derive(Clone, Copy)]
+pub(crate) struct ImageLayout {
+    kind: SyntaxKind,
+    words: u64,
+}
+impl ImageLayout {
+    #[inline(always)]
+    pub(crate) const fn count(self) -> usize {
+        (self.words & 15) as usize
+    }
+    #[inline(always)]
+    pub(crate) const fn has_comment(self) -> bool {
+        self.words & 16 != 0
+    }
+    #[inline(always)]
+    pub(crate) const fn space(self, index: usize) -> u8 {
+        ((self.words >> (5 + 3 * index)) & 7) as u8
+    }
+}
+const IMAGE_LAYOUT_WORDS: [u64; SyntaxKind::Count as usize + 1] = {
+    let mut words = [0; SyntaxKind::Count as usize + 1];
+    words[SyntaxKind::ArrayType as usize] = 33;
+    words[SyntaxKind::AwaitExpression as usize] = 33;
+    words[SyntaxKind::BreakStatement as usize] = 33;
+    words[SyntaxKind::ComputedPropertyName as usize] = 33;
+    words[SyntaxKind::ContinueStatement as usize] = 33;
+    words[SyntaxKind::Decorator as usize] = 33;
+    words[SyntaxKind::DeleteExpression as usize] = 33;
+    words[SyntaxKind::ExpressionStatement as usize] = 33;
+    words[SyntaxKind::ExternalModuleReference as usize] = 33;
+    words[SyntaxKind::ImportTypeAssertionContainer as usize] = 33;
+    words[SyntaxKind::InferType as usize] = 33;
+    words[SyntaxKind::JSDocNameReference as usize] = 33;
+    words[SyntaxKind::JSDocNamepathType as usize] = 33;
+    words[SyntaxKind::JSDocOptionalType as usize] = 33;
+    words[SyntaxKind::JSDocTypeExpression as usize] = 33;
+    words[SyntaxKind::JSDocVariadicType as usize] = 33;
+    words[SyntaxKind::JsxClosingElement as usize] = 33;
+    words[SyntaxKind::JsxSpreadAttribute as usize] = 33;
+    words[SyntaxKind::LiteralType as usize] = 33;
+    words[SyntaxKind::NamespaceExport as usize] = 33;
+    words[SyntaxKind::NamespaceImport as usize] = 33;
+    words[SyntaxKind::NonNullExpression as usize] = 33;
+    words[SyntaxKind::OptionalType as usize] = 33;
+    words[SyntaxKind::ParenthesizedExpression as usize] = 33;
+    words[SyntaxKind::ParenthesizedType as usize] = 33;
+    words[SyntaxKind::PartiallyEmittedExpression as usize] = 33;
+    words[SyntaxKind::RestType as usize] = 33;
+    words[SyntaxKind::ReturnStatement as usize] = 33;
+    words[SyntaxKind::SpreadAssignment as usize] = 33;
+    words[SyntaxKind::SpreadElement as usize] = 33;
+    words[SyntaxKind::ThrowStatement as usize] = 33;
+    words[SyntaxKind::TypeOfExpression as usize] = 33;
+    words[SyntaxKind::VoidExpression as usize] = 33;
+    words[SyntaxKind::JSDocNonNullableType as usize] = 34;
+    words[SyntaxKind::JSDocNullableType as usize] = 34;
+    words[SyntaxKind::MetaProperty as usize] = 34;
+    words[SyntaxKind::PostfixUnaryExpression as usize] = 34;
+    words[SyntaxKind::PrefixUnaryExpression as usize] = 34;
+    words[SyntaxKind::TypeOperator as usize] = 34;
+    words[SyntaxKind::JSDocAuthorTag as usize] = 49;
+    words[SyntaxKind::JSDocClassTag as usize] = 49;
+    words[SyntaxKind::JSDocDeprecatedTag as usize] = 49;
+    words[SyntaxKind::JSDocOverrideTag as usize] = 49;
+    words[SyntaxKind::JSDocPrivateTag as usize] = 49;
+    words[SyntaxKind::JSDocProtectedTag as usize] = 49;
+    words[SyntaxKind::JSDocPublicTag as usize] = 49;
+    words[SyntaxKind::JSDocReadonlyTag as usize] = 49;
+    words[SyntaxKind::JSDocTag as usize] = 49;
+    words[SyntaxKind::ArrayBindingPattern as usize] = 65;
+    words[SyntaxKind::ArrayLiteralExpression as usize] = 65;
+    words[SyntaxKind::Block as usize] = 65;
+    words[SyntaxKind::CaseBlock as usize] = 65;
+    words[SyntaxKind::CommaListExpression as usize] = 65;
+    words[SyntaxKind::DefaultClause as usize] = 65;
+    words[SyntaxKind::IntersectionType as usize] = 65;
+    words[SyntaxKind::JsxAttributes as usize] = 65;
+    words[SyntaxKind::MissingDeclaration as usize] = 65;
+    words[SyntaxKind::ModuleBlock as usize] = 65;
+    words[SyntaxKind::NamedExports as usize] = 65;
+    words[SyntaxKind::NamedImports as usize] = 65;
+    words[SyntaxKind::ObjectBindingPattern as usize] = 65;
+    words[SyntaxKind::ObjectLiteralExpression as usize] = 65;
+    words[SyntaxKind::TupleType as usize] = 65;
+    words[SyntaxKind::TypeLiteral as usize] = 65;
+    words[SyntaxKind::UnionType as usize] = 65;
+    words[SyntaxKind::VariableDeclarationList as usize] = 65;
+    words[SyntaxKind::HeritageClause as usize] = 66;
+    words[SyntaxKind::ImportAttributes as usize] = 66;
+    words[SyntaxKind::JSDocTypeLiteral as usize] = 66;
+    words[SyntaxKind::JSDoc as usize] = 81;
+    words[SyntaxKind::BigIntLiteral as usize] = 97;
+    words[SyntaxKind::JSDocText as usize] = 97;
+    words[SyntaxKind::NumericLiteral as usize] = 97;
+    words[SyntaxKind::RegularExpressionLiteral as usize] = 97;
+    words[SyntaxKind::StringLiteral as usize] = 97;
+    words[SyntaxKind::JsxText as usize] = 98;
+    words[SyntaxKind::Identifier as usize] = 129;
+    words[SyntaxKind::PrivateIdentifier as usize] = 129;
+    words[SyntaxKind::AsExpression as usize] = 290;
+    words[SyntaxKind::CatchClause as usize] = 290;
+    words[SyntaxKind::DoStatement as usize] = 290;
+    words[SyntaxKind::EnumMember as usize] = 290;
+    words[SyntaxKind::ImportAttribute as usize] = 290;
+    words[SyntaxKind::IndexedAccessType as usize] = 290;
+    words[SyntaxKind::JSDocMemberName as usize] = 290;
+    words[SyntaxKind::JsxAttribute as usize] = 290;
+    words[SyntaxKind::JsxExpression as usize] = 290;
+    words[SyntaxKind::JsxNamespacedName as usize] = 290;
+    words[SyntaxKind::LabeledStatement as usize] = 290;
+    words[SyntaxKind::QualifiedName as usize] = 290;
+    words[SyntaxKind::SatisfiesExpression as usize] = 290;
+    words[SyntaxKind::SwitchStatement as usize] = 290;
+    words[SyntaxKind::TemplateLiteralTypeSpan as usize] = 290;
+    words[SyntaxKind::TemplateSpan as usize] = 290;
+    words[SyntaxKind::TypeAssertionExpression as usize] = 290;
+    words[SyntaxKind::WhileStatement as usize] = 290;
+    words[SyntaxKind::WithStatement as usize] = 290;
+    words[SyntaxKind::YieldExpression as usize] = 290;
+    words[SyntaxKind::ExportSpecifier as usize] = 291;
+    words[SyntaxKind::ImportClause as usize] = 291;
+    words[SyntaxKind::ImportSpecifier as usize] = 291;
+    words[SyntaxKind::JSDocAugmentsTag as usize] = 306;
+    words[SyntaxKind::JSDocEnumTag as usize] = 306;
+    words[SyntaxKind::JSDocImplementsTag as usize] = 306;
+    words[SyntaxKind::JSDocOverloadTag as usize] = 306;
+    words[SyntaxKind::JSDocReturnTag as usize] = 306;
+    words[SyntaxKind::JSDocSatisfiesTag as usize] = 306;
+    words[SyntaxKind::JSDocSeeTag as usize] = 306;
+    words[SyntaxKind::JSDocThisTag as usize] = 306;
+    words[SyntaxKind::JSDocThrowsTag as usize] = 306;
+    words[SyntaxKind::JSDocTypeTag as usize] = 306;
+    words[SyntaxKind::ExpressionWithTypeArguments as usize] = 322;
+    words[SyntaxKind::SourceFile as usize] = 322;
+    words[SyntaxKind::TypeQuery as usize] = 322;
+    words[SyntaxKind::TypeReference as usize] = 322;
+    words[SyntaxKind::VariableStatement as usize] = 322;
+    words[SyntaxKind::ExportAssignment as usize] = 323;
+    words[SyntaxKind::CaseClause as usize] = 546;
+    words[SyntaxKind::ClassStaticBlockDeclaration as usize] = 546;
+    words[SyntaxKind::NamespaceExportDeclaration as usize] = 546;
+    words[SyntaxKind::TemplateExpression as usize] = 546;
+    words[SyntaxKind::TemplateLiteralType as usize] = 546;
+    words[SyntaxKind::JSDocLink as usize] = 802;
+    words[SyntaxKind::JSDocLinkCode as usize] = 802;
+    words[SyntaxKind::JSDocLinkPlain as usize] = 802;
+    words[SyntaxKind::NoSubstitutionTemplateLiteral as usize] = 866;
+    words[SyntaxKind::TemplateHead as usize] = 866;
+    words[SyntaxKind::TemplateMiddle as usize] = 866;
+    words[SyntaxKind::TemplateTail as usize] = 866;
+    words[SyntaxKind::BinaryExpression as usize] = 2339;
+    words[SyntaxKind::ElementAccessExpression as usize] = 2339;
+    words[SyntaxKind::ForInStatement as usize] = 2339;
+    words[SyntaxKind::IfStatement as usize] = 2339;
+    words[SyntaxKind::PropertyAccessExpression as usize] = 2339;
+    words[SyntaxKind::TryStatement as usize] = 2339;
+    words[SyntaxKind::TypePredicate as usize] = 2339;
+    words[SyntaxKind::JSDocPropertyTag as usize] = 2356;
+    words[SyntaxKind::JsxElement as usize] = 2595;
+    words[SyntaxKind::JsxFragment as usize] = 2595;
+    words[SyntaxKind::JsxOpeningElement as usize] = 2595;
+    words[SyntaxKind::JsxSelfClosingElement as usize] = 2595;
+    words[SyntaxKind::ImportEqualsDeclaration as usize] = 2596;
+    words[SyntaxKind::CallSignature as usize] = 2627;
+    words[SyntaxKind::ConstructSignature as usize] = 2627;
+    words[SyntaxKind::JSDocSignature as usize] = 2627;
+    words[SyntaxKind::JSDocTemplateTag as usize] = 4403;
+    words[SyntaxKind::EnumDeclaration as usize] = 4643;
+    words[SyntaxKind::JSDocParameterTag as usize] = 16692;
+    words[SyntaxKind::BindingElement as usize] = 18724;
+    words[SyntaxKind::ConditionalType as usize] = 18724;
+    words[SyntaxKind::ForOfStatement as usize] = 18724;
+    words[SyntaxKind::ForStatement as usize] = 18724;
+    words[SyntaxKind::NamedTupleMember as usize] = 18724;
+    words[SyntaxKind::VariableDeclaration as usize] = 18724;
+    words[SyntaxKind::JSDocCallbackTag as usize] = 18740;
+    words[SyntaxKind::JSDocImportTag as usize] = 18740;
+    words[SyntaxKind::JSDocTypedefTag as usize] = 18740;
+    words[SyntaxKind::ModuleDeclaration as usize] = 18980;
+    words[SyntaxKind::TaggedTemplateExpression as usize] = 18980;
+    words[SyntaxKind::CallExpression as usize] = 21028;
+    words[SyntaxKind::JSDocFunctionType as usize] = 21028;
+    words[SyntaxKind::NewExpression as usize] = 21028;
+    words[SyntaxKind::ImportDeclaration as usize] = 35108;
+    words[SyntaxKind::TypeAliasDeclaration as usize] = 35364;
+    words[SyntaxKind::FunctionType as usize] = 35396;
+    words[SyntaxKind::ConstructorType as usize] = 37188;
+    words[SyntaxKind::IndexSignature as usize] = 37188;
+    words[SyntaxKind::ConditionalExpression as usize] = 149797;
+    words[SyntaxKind::PropertyAssignment as usize] = 151845;
+    words[SyntaxKind::ExportDeclaration as usize] = 164133;
+    words[SyntaxKind::ImportType as usize] = 164133;
+    words[SyntaxKind::PropertySignature as usize] = 166181;
+    words[SyntaxKind::TypeParameter as usize] = 166181;
+    words[SyntaxKind::ClassDeclaration as usize] = 299557;
+    words[SyntaxKind::ClassExpression as usize] = 299557;
+    words[SyntaxKind::InterfaceDeclaration as usize] = 299557;
+    words[SyntaxKind::Parameter as usize] = 1198630;
+    words[SyntaxKind::PropertyDeclaration as usize] = 1198630;
+    words[SyntaxKind::MappedType as usize] = 1200422;
+    words[SyntaxKind::ShorthandPropertyAssignment as usize] = 1214758;
+    words[SyntaxKind::Constructor as usize] = 1331526;
+    words[SyntaxKind::ArrowFunction as usize] = 2263366;
+    words[SyntaxKind::GetAccessor as usize] = 2263590;
+    words[SyntaxKind::MethodSignature as usize] = 2263590;
+    words[SyntaxKind::SetAccessor as usize] = 2263590;
+    words[SyntaxKind::FunctionExpression as usize] = 9720135;
+    words[SyntaxKind::FunctionDeclaration as usize] = 17992231;
+    words[SyntaxKind::MethodDeclaration as usize] = 1150454313;
+    words
+};
+#[inline(always)]
+const fn image_layout_words(kind: SyntaxKind) -> u64 {
+    IMAGE_LAYOUT_WORDS[kind as usize]
+}
 
 /// A kind's payload slots and whether it has a JSDoc comment (see `Node`).
 #[inline]
