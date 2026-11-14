@@ -7496,7 +7496,7 @@ fn order_guard_replays_last_union_member_inference_at_every_width() {
         stable_type_ordering: Some(false),
         ..CompilerOptions::default()
     };
-    let run_with = |checkers: usize, order_replay: bool| {
+    let run_with_ownership = |checkers: usize, order_replay: bool, leak: bool| {
         check_program_with_authoritative_modules_at_cache_mode_with_source(
             &libs,
             &files,
@@ -7512,13 +7512,15 @@ fn order_guard_replays_last_union_member_inference_at_every_width() {
             crate::DiagnosticSchedule::Eager,
             tsc_program::WorkerBudget::serial(),
             CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap())
-                .with_order_replay(order_replay),
+                .with_order_replay(order_replay)
+                .with_leaked_states(leak),
             None,
             crate::IncrementalRequest::NONE,
             false,
         )
         .expect("authoritative result")
     };
+    let run_with = |checkers, order_replay| run_with_ownership(checkers, order_replay, false);
     let run = |checkers: usize| run_with(checkers, true);
     // The default (relaxed) budget keeps the sharded result without arming
     // the guard, and stays deterministic.
@@ -7540,6 +7542,9 @@ fn order_guard_replays_last_union_member_inference_at_every_width() {
     for checkers in [2usize, 3, 4] {
         let sharded = run(checkers);
         assert_eq!(sharded, serial, "checkers={checkers}");
+        let leaked = run_with_ownership(checkers, true, true);
+        assert_eq!(leaked, serial, "one-shot replay, checkers={checkers}");
+        assert_eq!(leaked.work_counters.checker_serial_replay(), 1);
         assert_eq!(
             sharded.work_counters.checker_serial_replay(),
             1,
