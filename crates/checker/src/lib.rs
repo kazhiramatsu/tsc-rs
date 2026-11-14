@@ -3967,17 +3967,33 @@ pub struct ShardedEmit<'op> {
 /// The syntax-only work a [`ShardedEmit`] request runs beside the shards.
 pub type ShardPreludeClosure<'op> = &'op (dyn Fn(&ProgramSnapshot) + Sync);
 
+/// Whether a completed eager operation leaves more semantic work for this
+/// same checker. Type/symbol records, sparse fields and identity leases
+/// remain held in either case.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ShardEagerState {
+    /// The gate or emit may query this session again.
+    Retained,
+    /// The eager operation has published its complete owned result. The
+    /// gate and emit will not query this checker again; only its counters and
+    /// order guard remain observable. A serial replay uses its own fresh checker.
+    Finished,
+}
+
 /// The per-shard eager work of a [`ShardedEmit`] request: the shard index,
 /// the snapshot, the shard's checked session, its Program file indices and
 /// the number of shards still checking (the closure may stop its eager work
 /// once that reaches zero and leave the rest to the coordinator's pool).
+/// Finished means the owned eager result replaces any later query on the
+/// same checker; a fallback or harness query keeps Retained instead.
 pub type ShardEagerClosure<'op> = &'op (dyn Fn(
     usize,
     &ProgramSnapshot,
     &CheckerSession<'_>,
     &[usize],
     &std::sync::atomic::AtomicUsize,
-) + Sync);
+) -> ShardEagerState
+          + Sync);
 
 type ShardGateClosure<'op> = &'op mut dyn FnMut(
     &ProgramSnapshot,
@@ -4173,6 +4189,7 @@ fn run_checker_shard<'a>(
     replay_on_order: bool,
     eager: Option<ShardEagerClosure<'_>>,
     checking: &std::sync::atomic::AtomicUsize,
+    eager_remaining: &std::sync::atomic::AtomicUsize,
     incremental_facts: bool,
     selected: Option<&[bool]>,
 ) -> (ShardOutput, Option<state::CheckerState<'a>>) {
@@ -4341,10 +4358,19 @@ fn run_checker_shard<'a>(
                 // shard's diagnostics, and the type order it consumes counts
                 // like the check's own.
                 let session = CheckerSession::from_checked_state(state);
-                eager(shard_index, snapshot, &session, &output.files, checking);
-                let state = session.into_state();
+                let reuse = eager(shard_index, snapshot, &session, &output.files, checking);
+                let more_eager =
+                    eager_remaining.fetch_sub(1, std::sync::atomic::Ordering::AcqRel) > 1;
+                let mut state = session.into_state();
                 output.order_reasons = state.order_guard.reasons();
                 output.display_marks = state.order_guard.marks().clone();
+                if reuse == ShardEagerState::Finished && more_eager {
+                    state.release_finished_lookup_buffers();
+                    state.links.release_paged_record_buffers();
+                    state.links.release_dense_record_buffers();
+                    drop(std::mem::take(&mut state.mappers));
+                    drop(std::mem::take(&mut state.mapper_lists));
+                }
                 state
             }
             None => state,
@@ -5047,6 +5073,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         .collect::<Vec<_>>();
     // Shards still checking, read by every shard's eager emit.
     let checking = std::sync::atomic::AtomicUsize::new(shard_count);
+    let eager_remaining = std::sync::atomic::AtomicUsize::new(shard_count);
     let run_shard = |shard_index: usize| {
         let host = hosts[shard_index]
             .lock()
@@ -5068,6 +5095,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             checkers.order_replay(),
             eager_closure,
             &checking,
+            &eager_remaining,
             run.incremental_facts,
             selected.as_deref(),
         )

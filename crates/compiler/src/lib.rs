@@ -3130,7 +3130,7 @@ impl ProgramSession {
                     if checking.load(Ordering::Acquire) == 0 {
                         pool_open.store(true, Ordering::Release);
                     }
-                    return;
+                    return tsc_checker::ShardEagerState::Retained;
                 }
                 let emit_started = std::time::Instant::now();
                 let checked_host = CheckedEmitHost {
@@ -3246,7 +3246,7 @@ impl ProgramSession {
                 }
                 if emitted.is_empty() && failure.is_none() {
                     // Nothing emitted here: the pool takes every unit.
-                    return;
+                    return tsc_checker::ShardEagerState::Retained;
                 }
                 let mut stash = eager_emissions
                     .lock()
@@ -3261,6 +3261,7 @@ impl ProgramSession {
                         None => Ok(emitted),
                     },
                 ));
+                tsc_checker::ShardEagerState::Retained
             };
             let eager: tsc_checker::ShardEagerClosure<'_> = &eager;
             let mut sharded_emit = ShardedEmit {
@@ -3867,6 +3868,11 @@ impl ProgramSession {
             // missing (the getter over one shard is the same job).
             let eager_shares: std::sync::Mutex<Vec<Option<Result<DiagnosticList, DriverError>>>> =
                 std::sync::Mutex::new(Vec::new());
+            let eager_state = if native_harness || walk.is_some() {
+                tsc_checker::ShardEagerState::Retained
+            } else {
+                tsc_checker::ShardEagerState::Finished
+            };
             let eager = |shard: usize,
                          snapshot: &ProgramSnapshot,
                          session: &CheckerSession<'_>,
@@ -3891,6 +3897,7 @@ impl ProgramSession {
                     shares.resize_with(shard + 1, || None);
                 }
                 shares[shard] = Some(share);
+                eager_state
             };
             let mut gate = |snapshot: &ProgramSnapshot,
                             checked: &CheckResult,

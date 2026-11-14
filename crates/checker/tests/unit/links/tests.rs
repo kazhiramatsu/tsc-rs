@@ -134,3 +134,46 @@ fn directory_state(table: &PagedTable<Key, usize>) -> [(usize, usize, usize); 3]
         ),
     ]
 }
+
+#[test]
+fn finished_paged_links_release_their_pages_and_keep_other_link_owners() {
+    let mut links = LinksTables::with_id_bounds((1 << REGION_SHIFT) + 1, PAGE_IDS + 1);
+    let ty = TypeId::new(7);
+    for index in 0..=CHUNK_RECORDS {
+        links.set_node_resolved_type(0, NodeId::new(index as u32), LinkSlot::Resolved(ty));
+    }
+    links.set_node_resolved_type(0, NodeId::new(1 << REGION_SHIFT), LinkSlot::Resolved(ty));
+    links.set_symbol_type(0, SymbolId::new(1), LinkSlot::Resolved(ty));
+    links.set_symbol_type(0, SymbolId::new(PAGE_IDS as u32), LinkSlot::Resolved(ty));
+    links.set_node_context_free_type(NodeId::new(3), LinkSlot::Resolved(ty));
+    links.ty.slot(ty).type_parameter_constraint = LinkSlot::Resolved(ty).into();
+    links.transient_symbols.push(SymbolLinks::default());
+    let cold = links.node_cold.memory_usage();
+    let dense = links.ty.memory_usage();
+    assert_eq!(
+        links
+            .node
+            .chunks
+            .iter()
+            .filter(|chunk| chunk.is_some())
+            .count(),
+        3
+    );
+    assert_eq!(
+        links
+            .persistent_symbols
+            .index
+            .iter()
+            .filter(|page| page.is_some())
+            .count(),
+        2
+    );
+
+    links.release_paged_record_buffers();
+
+    assert_eq!(links.node.memory_usage(), (0, 0));
+    assert_eq!(links.persistent_symbols.memory_usage(), (0, 0));
+    assert_eq!(links.node_cold.memory_usage(), cold);
+    assert_eq!(links.ty.memory_usage(), dense);
+    assert_eq!(links.transient_symbols.len(), 1);
+}
