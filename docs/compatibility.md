@@ -71,6 +71,21 @@ tsc 6.0.3 compatibility is complete in release
 
 ## Limitations
 
+- **Emitted JavaScript, known differences from `tsgo`** (found November 14,
+  2026, by comparing emitted trees file by file): 575 of the 9,244 files
+  emitted for VS Code's `src` differ. Where a variable is hoisted to the top
+  of a file (the alias of a class with legacy decorators,
+  `experimentalDecorators`, that refers to itself), the file's leading
+  comment block (a copyright header followed by a blank line) is written
+  after the emit helpers instead of before them, or is missing when the
+  file's first import is elided, and comments after the last statement are
+  missing. Five of those files also differ in the form of the emitted code,
+  not in its meaning: an alias for a class that refers to itself only in a
+  type, a temporary variable that is never used, and the line breaks of one
+  conditional expression. The files emitted for hono, zod, Effect, the
+  TypeScript compiler, Next.js, playwright and vue (16,164 files:
+  JavaScript, declarations and maps) are identical to `tsgo`'s. Fixes are in
+  progress.
 - The [language server](usage.md#language-server-experimental) is incomplete and
   untested in editors.
 - `-b` builds projects one at a time.
