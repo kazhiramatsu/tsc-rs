@@ -792,3 +792,76 @@ fn container_end_guards_compare_utf16_across_different_byte_layouts() {
         .claim_sides(None, Some(ends[2]));
     assert!(list.retains_end(ends[1]));
 }
+
+#[test]
+fn paired_byte_ranges_preserve_endpoint_error_precedence_and_detached_positions() {
+    use crate::{PositionDomain, SourcePositionError};
+
+    let parsed = parse_source_file("range.ts", "a😀b", Default::default(), None);
+    let positions = parsed.positions();
+    let length = positions.byte_len();
+    let cases = [
+        (
+            2,
+            u32::MAX,
+            SourcePositionError::NotUnicodeScalarBoundary { position: 2 },
+        ),
+        (
+            length + 1,
+            2,
+            SourcePositionError::OutOfBounds {
+                domain: PositionDomain::SourceByte,
+                position: length + 1,
+                length,
+            },
+        ),
+        (
+            length,
+            2,
+            SourcePositionError::NotUnicodeScalarBoundary { position: 2 },
+        ),
+        (
+            length,
+            length + 1,
+            SourcePositionError::OutOfBounds {
+                domain: PositionDomain::SourceByte,
+                position: length + 1,
+                length,
+            },
+        ),
+        (
+            length,
+            1,
+            SourcePositionError::InvertedRange {
+                start: length,
+                end: 1,
+            },
+        ),
+    ];
+    for _ in 0..2 {
+        assert_eq!(
+            SourceByteRange::new(1, 5, positions).unwrap().end().value(),
+            5
+        );
+        for &(start, end, expected) in &cases {
+            assert_eq!(SourceByteRange::new(start, end, positions), Err(expected));
+        }
+    }
+    let detached = tsc_diagnostics::PositionIndex::detached();
+    for _ in 0..2 {
+        assert_eq!(
+            SourceByteRange::new(u32::MAX - 1, u32::MAX, &detached)
+                .unwrap()
+                .end()
+                .value(),
+            u32::MAX
+        );
+        assert_eq!(
+            SourceByteRange::new(u32::MAX, u32::MAX - 1, &detached),
+            Err(SourcePositionError::InvertedRange {
+                start: u32::MAX,
+                end: u32::MAX - 1
+            })
+        );
+    }
+}

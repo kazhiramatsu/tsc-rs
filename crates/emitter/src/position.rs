@@ -48,15 +48,28 @@ impl SourceByteRange {
         end: u32,
         positions: &PositionIndex,
     ) -> Result<Self, SourcePositionError> {
-        let start = SourceBytePosition::new(start, positions)?;
-        let end = SourceBytePosition::new(end, positions)?;
-        if start > end {
-            return Err(SourcePositionError::InvertedRange {
-                start: start.value(),
-                end: end.value(),
-            });
+        if !positions.is_valid_byte_range(start, end) {
+            return Err(Self::invalid_range_error(start, end, positions));
         }
-        Ok(Self { start, end })
+        Ok(Self {
+            start: SourceBytePosition(start),
+            end: SourceBytePosition(end),
+        })
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn invalid_range_error(start: u32, end: u32, positions: &PositionIndex) -> SourcePositionError {
+        // Preserve the public constructor's start, end, then ordering error
+        // precedence even though the successful paired check combines bounds.
+        if let Err(error) = SourceBytePosition::new(start, positions) {
+            return error;
+        }
+        if let Err(error) = SourceBytePosition::new(end, positions) {
+            return error;
+        }
+        debug_assert!(start > end);
+        SourcePositionError::InvertedRange { start, end }
     }
 
     pub const fn start(self) -> SourceBytePosition {
