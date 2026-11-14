@@ -1875,18 +1875,24 @@ pub(crate) fn for_each_file_name_of_module<'path, T>(
     // tsgo reads only the directory links (`DirectoriesByRealpath`), from
     // which the symlinks inside ignored paths are already left out.
     let mut symlink_candidates = Vec::new();
-    let symlinked_directories = host.symlinked_directories();
+    let mut symlinked_directories = host.symlinked_directories();
     let global_typings_cache_location = host
         .get_global_typings_cache_location()
         .map(|path| normalized_absolute_path(&path, &cwd));
     let full_imported_file_name = normalized_absolute_path(imported_file_name, &cwd);
+    let mut real_directories_normalized = false;
     for real_directory in ancestor_directories(&directory_path(&full_imported_file_name)) {
         if path_starts_with_directory(&importing_file_name, &real_directory, case_sensitive) {
             break;
         }
+        if !real_directories_normalized {
+            for (real, _) in &mut symlinked_directories {
+                *real = normalized_absolute_path(real.as_js(), &cwd);
+            }
+            real_directories_normalized = true;
+        }
         for (real, symlink) in &symlinked_directories {
-            let real = normalized_absolute_path(real, &cwd);
-            if !paths_equal(&real, &real_directory, !case_sensitive) {
+            if !paths_equal(real, &real_directory, !case_sensitive) {
                 continue;
             }
             for target in &targets {

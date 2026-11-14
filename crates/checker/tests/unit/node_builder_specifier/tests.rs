@@ -98,6 +98,11 @@ struct TestModuleSpecifierHost {
     default_mode: EmitResolutionMode,
     index_modes: BTreeMap<u32, EmitResolutionMode>,
     include_reason_calls: Cell<usize>,
+    directories: Vec<(JsString, JsString)>,
+    case_sensitive: bool,
+    global_cache: Option<JsString>,
+    reference_redirect: Option<JsString>,
+    redirects: Vec<JsString>,
 }
 
 impl Default for TestModuleSpecifierHost {
@@ -109,6 +114,11 @@ impl Default for TestModuleSpecifierHost {
             default_mode: EmitResolutionMode::CommonJs,
             index_modes: BTreeMap::new(),
             include_reason_calls: Cell::new(0),
+            directories: Vec::new(),
+            case_sensitive: true,
+            global_cache: None,
+            reference_redirect: None,
+            redirects: Vec::new(),
         }
     }
 }
@@ -119,7 +129,7 @@ impl EmitModuleSpecifierHost for TestModuleSpecifierHost {
     }
 
     fn use_case_sensitive_file_names(&self) -> bool {
-        true
+        self.case_sensitive
     }
 
     fn file_exists(&self, file_name: JsStr<'_>) -> bool {
@@ -157,6 +167,163 @@ impl EmitModuleSpecifierHost for TestModuleSpecifierHost {
             .find(|(name, _)| imported_path == name.as_str())
             .map(|(_, reasons)| reasons.clone())
             .unwrap_or_default()
+    }
+
+    fn symlinked_directories(&self) -> Vec<(JsString, JsString)> {
+        self.directories.clone()
+    }
+
+    fn get_global_typings_cache_location(&self) -> Option<JsString> {
+        self.global_cache.clone()
+    }
+
+    fn project_reference_output_of_source(&self, _source: JsStr<'_>) -> Option<JsString> {
+        self.reference_redirect.clone()
+    }
+
+    fn redirect_targets(&self, _file_path: JsStr<'_>) -> Vec<JsString> {
+        self.redirects.clone()
+    }
+}
+
+#[test]
+fn directory_inputs_preserve_ancestor_and_duplicate_link_order() {
+    let host = TestModuleSpecifierHost {
+        directories: [
+            ("/physical/pkg", "/project/node_modules/pkg-a"),
+            ("\\physical\\pkg\\.", "/project/node_modules/pkg-b"),
+            ("../physical/pkg/lib/..", "/project/node_modules/pkg-c"),
+            ("/physical", "/project/node_modules/root"),
+            ("/PHYSICAL/PKG", "/project/node_modules/pkg-λ"),
+        ]
+        .map(|(real, link)| (real.into(), link.into()))
+        .to_vec(),
+        case_sensitive: false,
+        ..TestModuleSpecifierHost::default()
+    };
+    let mut paths = Vec::new();
+    let _: Option<()> = for_each_file_name_of_module(
+        "/project/src/main.ts",
+        "/physical/pkg/lib/value.ts",
+        &host,
+        true,
+        |path, redirect| {
+            paths.push((path.to_owned(), redirect));
+            None
+        },
+    );
+    assert_eq!(
+        paths,
+        [
+            "/project/node_modules/pkg-a/lib/value.ts",
+            "/project/node_modules/pkg-b/lib/value.ts",
+            "/project/node_modules/pkg-c/lib/value.ts",
+            "/project/node_modules/pkg-λ/lib/value.ts",
+            "/project/node_modules/root/pkg/lib/value.ts",
+            "/physical/pkg/lib/value.ts",
+        ]
+        .map(|path| (JsString::from(path), false))
+    );
+}
+
+#[test]
+fn directory_inputs_keep_self_package_and_global_cache_stops() {
+    let mut host = TestModuleSpecifierHost {
+        directories: [
+            ("/physical/pkg/lib", "/project/node_modules/inner"),
+            ("/physical/pkg", "/project/node_modules/pkg"),
+            ("/physical", "/project/node_modules/root"),
+        ]
+        .map(|(real, link)| (real.into(), link.into()))
+        .to_vec(),
+        ..TestModuleSpecifierHost::default()
+    };
+    let collect = |importer, host: &TestModuleSpecifierHost| {
+        let mut paths = Vec::new();
+        let _: Option<()> = for_each_file_name_of_module(
+            importer,
+            "/physical/pkg/lib/value.ts",
+            host,
+            true,
+            |path, _| {
+                paths.push(path.to_owned());
+                None
+            },
+        );
+        paths
+    };
+    assert_eq!(
+        collect("/physical/pkg/lib/src/main.ts", &host),
+        [JsString::from("/physical/pkg/lib/value.ts")]
+    );
+    host.global_cache = Some("/physical/pkg".into());
+    assert_eq!(
+        collect("/project/src/main.ts", &host),
+        [
+            "/project/node_modules/inner/value.ts",
+            "/project/node_modules/pkg/lib/value.ts",
+            "/physical/pkg/lib/value.ts",
+        ]
+        .map(JsString::from)
+    );
+}
+
+#[test]
+fn directory_inputs_preserve_redirect_order_and_callback_results() {
+    let host = TestModuleSpecifierHost {
+        directories: [
+            ("/physical/pkg", "/project/node_modules/first"),
+            ("/physical/pkg/.", "/project/node_modules/second"),
+        ]
+        .map(|(real, link)| (real.into(), link.into()))
+        .to_vec(),
+        reference_redirect: Some("/physical/pkg/lib/value.d.ts".into()),
+        redirects: vec!["/physical/pkg/lib/other.d.ts".into()],
+        ..TestModuleSpecifierHost::default()
+    };
+    let mut paths = Vec::new();
+    let _: Option<()> = for_each_file_name_of_module(
+        "/project/src/main.ts",
+        "/physical/pkg/lib/value.ts",
+        &host,
+        true,
+        |path, redirect| {
+            paths.push((path.to_owned(), redirect));
+            None
+        },
+    );
+    assert_eq!(
+        paths,
+        [
+            ("/project/node_modules/first/lib/value.d.ts", true),
+            ("/project/node_modules/first/lib/value.ts", false),
+            ("/project/node_modules/first/lib/other.d.ts", false),
+            ("/project/node_modules/second/lib/value.d.ts", true),
+            ("/project/node_modules/second/lib/value.ts", false),
+            ("/project/node_modules/second/lib/other.d.ts", false),
+            ("/physical/pkg/lib/value.d.ts", true),
+            ("/physical/pkg/lib/value.ts", false),
+            ("/physical/pkg/lib/other.d.ts", false),
+        ]
+        .map(|(path, redirect)| (JsString::from(path), redirect))
+    );
+    for (prefer_symlinks, expected) in [
+        (true, "/project/node_modules/first/lib/value.d.ts"),
+        (false, "/physical/pkg/lib/value.d.ts"),
+    ] {
+        let mut calls = 0;
+        let result = for_each_file_name_of_module(
+            "/project/src/main.ts",
+            "/physical/pkg/lib/value.ts",
+            &host,
+            prefer_symlinks,
+            |path, redirect| {
+                calls += 1;
+                Some((path.to_owned(), redirect))
+            },
+        );
+        assert_eq!(result, Some((JsString::from(expected), true)));
+        assert_eq!(calls, 1);
     }
 }
 
