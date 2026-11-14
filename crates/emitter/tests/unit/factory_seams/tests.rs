@@ -95,6 +95,144 @@ fn synthetic_arena() -> (TransformArena, TransformSourceId) {
 }
 
 #[test]
+fn metadata_on_future_nodes_survives_allocation_and_later_metadata() {
+    let (mut arena, source) = synthetic_arena();
+    let future_index = arena.source(source).unwrap().syntax().arena.node_end() + 90;
+    let future = TransformNode::new(source, NodeId::new(future_index));
+    arena.metadata_mut(future).set_flags(EmitFlags::NO_COMMENTS);
+    assert_eq!(
+        arena.metadata(future).unwrap().flags(),
+        EmitFlags::NO_COMMENTS
+    );
+
+    let last = loop {
+        let node = arena.factory().create_identifier(source, "later").unwrap();
+        if node.node().index() > future_index + 64 {
+            break node;
+        }
+    };
+    arena.metadata_mut(last).set_flags(EmitFlags::NO_SOURCE_MAP);
+    assert_eq!(
+        arena.metadata(future).unwrap().flags(),
+        EmitFlags::NO_COMMENTS
+    );
+    assert_eq!(
+        arena.metadata(last).unwrap().flags(),
+        EmitFlags::NO_SOURCE_MAP
+    );
+    assert!(arena
+        .metadata(TransformNode::new(source, NodeId::new(future_index + 1)))
+        .is_none());
+}
+
+#[test]
+fn metadata_on_an_unmounted_source_survives_mounting() {
+    for prepared in [false, true] {
+        let (mut arena, _) = synthetic_arena();
+        let syntax = parsed("later.ts", "const later = 1;");
+        let source = TransformSourceId(1);
+        let root = TransformNode::new(source, syntax.root);
+        arena.metadata_mut(root).set_flags(EmitFlags::NO_COMMENTS);
+        assert_eq!(
+            arena.metadata(root).unwrap().flags(),
+            EmitFlags::NO_COMMENTS
+        );
+        let mounted = if prepared {
+            let mut preparation = TransformArena::new();
+            let id = preparation.add_source(&syntax, None);
+            arena.add_prepared_source(preparation.into_prepared_source(id))
+        } else {
+            arena.add_source(&syntax, None)
+        };
+        assert_eq!(mounted, source);
+        assert_eq!(
+            arena.metadata(root).unwrap().flags(),
+            EmitFlags::NO_COMMENTS
+        );
+        assert_eq!(arena.root(source).unwrap(), root);
+    }
+}
+
+#[test]
+fn metadata_on_a_below_base_handle_survives_a_high_source_growing() {
+    let mut syntax = parsed("high.ts", "");
+    syntax.arena = tsc_syntax::NodeArena::with_bases(u32::MAX - 16, 0);
+    syntax.root = syntax.arena.alloc_node(
+        NodeData::SourceFile(SourceFileData {
+            statements: None,
+            end_of_file_token: None,
+        }),
+        0,
+        0,
+        NodeFlags::NONE,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&syntax, None);
+    let root = arena.root(source).unwrap();
+    let below = TransformNode::new(source, NodeId::new(0));
+    arena.metadata_mut(below).set_flags(EmitFlags::NO_COMMENTS);
+    assert!(arena.metadata(root).is_none());
+    let later = arena.factory().create_identifier(source, "later").unwrap();
+    arena
+        .metadata_mut(later)
+        .set_flags(EmitFlags::NO_SOURCE_MAP);
+    assert_eq!(
+        arena.metadata(below).unwrap().flags(),
+        EmitFlags::NO_COMMENTS
+    );
+    assert_eq!(
+        arena.metadata(later).unwrap().flags(),
+        EmitFlags::NO_SOURCE_MAP
+    );
+}
+
+#[test]
+fn metadata_on_extreme_handles_remains_accessible_and_clearable() {
+    let (mut arena, source) = synthetic_arena();
+    let extreme = NodeId::new(u32::MAX - 1);
+    let local = TransformNode::new(source, extreme);
+    let foreign = TransformNode::new(TransformSourceId(u32::MAX), extreme);
+    arena.metadata_mut(local).set_flags(EmitFlags::NO_COMMENTS);
+    arena
+        .metadata_mut(foreign)
+        .set_flags(EmitFlags::NO_SOURCE_MAP);
+    assert_eq!(
+        arena.metadata(local).unwrap().flags(),
+        EmitFlags::NO_COMMENTS
+    );
+    assert_eq!(
+        arena.metadata(foreign).unwrap().flags(),
+        EmitFlags::NO_SOURCE_MAP
+    );
+    arena.clear_session_metadata();
+    assert!(arena.metadata(local).is_none());
+    assert!(arena.metadata(foreign).is_none());
+}
+
+#[test]
+fn metadata_clones_and_clears_keep_independent_entries() {
+    let (mut arena, source) = synthetic_arena();
+    let root = arena.root(source).unwrap();
+    arena.metadata_mut(root).set_flags(EmitFlags::NO_COMMENTS);
+    let mut clone = arena.clone();
+    assert_eq!(arena, clone);
+    clone.metadata_mut(root).set_flags(EmitFlags::NONE);
+    assert_eq!(clone.metadata(root).unwrap().flags(), EmitFlags::NONE);
+    assert_eq!(
+        arena.metadata(root).unwrap().flags(),
+        EmitFlags::NO_COMMENTS
+    );
+    clone.clear_session_metadata();
+    assert!(clone.metadata(root).is_none());
+    assert!(arena.metadata(root).is_some());
+    clone.metadata_mut(root).set_flags(EmitFlags::NO_SOURCE_MAP);
+    assert_eq!(
+        clone.metadata(root).unwrap().flags(),
+        EmitFlags::NO_SOURCE_MAP
+    );
+}
+
+#[test]
 fn synthetic_export_names_preserve_ts_utf16_values_through_clones() {
     let fixture: serde_json::Value = serde_json::from_str(include_str!(
         "../../fixtures/utf16-synthetic-export-names.json"
@@ -1209,4 +1347,109 @@ fn position_free_copy_shares_the_subtrees_without_a_position() {
     };
     assert_eq!(comments(original_members[1]), 1);
     assert_eq!(comments(copied_members[1]), 0);
+}
+#[test]
+fn metadata_cleared_details_compare_and_merge_like_empty_state() {
+    let mut original = EmitMetadata::default();
+    original.add_leading_comment(crate::SyntheticComment::new(
+        crate::SyntheticCommentKind::MultiLine,
+        "kept",
+        false,
+        false,
+    ));
+    let mut cleared = original.clone();
+    cleared.leading_comments.clear();
+    assert_eq!(cleared, EmitMetadata::default());
+    assert_eq!(original.leading_comments()[0].text(), "kept");
+    cleared.merge_from(original.clone());
+    assert_eq!(cleared, original);
+    original.leading_comments.clear();
+    assert_eq!(cleared.leading_comments()[0].text(), "kept");
+}
+
+#[test]
+fn cleared_metadata_merges_with_the_same_inheritance_as_fresh_metadata() {
+    let (arena, source) = synthetic_arena();
+    let root = arena.root(source).unwrap();
+    for binding in [None, Some(GeneratedBindingId::new(17))] {
+        for import in [None, Some(root)] {
+            let mut metadata = EmitMetadata::default();
+            metadata.original = Some(root);
+            metadata.original_is_semantic = true;
+            metadata.set_flags(EmitFlags::NO_COMMENTS);
+            metadata.external_helpers_module_name = Some(root);
+            metadata.external_helpers = true;
+            metadata.class_expression_alias_assigned = true;
+            metadata.generated_binding_derived_from = Some(GeneratedBindingId::new(23));
+            metadata.generated_binding_id = binding;
+            metadata.generated_binding_temp_ordinal = Some(7);
+            metadata.referenced_import_declaration = import;
+            metadata.generated_import_reference = true;
+            metadata.helpers = vec!["first".into(), "first".into(), "second".into()];
+            metadata.assigned_name = Some(root);
+            metadata.set_constant_value(crate::EmitConstantValue::Boolean(true));
+            metadata.add_leading_comment(crate::SyntheticComment::new(
+                crate::SyntheticCommentKind::MultiLine,
+                "source",
+                false,
+                false,
+            ));
+            let mut fresh = EmitMetadata::default();
+            let mut cleared = EmitMetadata::default();
+            cleared.add_leading_comment(crate::SyntheticComment::new(
+                crate::SyntheticCommentKind::MultiLine,
+                "old",
+                false,
+                false,
+            ));
+            cleared.clear_synthetic_comments();
+            assert_eq!(fresh, cleared);
+            fresh.merge_from(metadata.clone());
+            cleared.merge_from(metadata);
+            assert_eq!(fresh, cleared);
+            assert_eq!(fresh.original(), None);
+            assert!(!fresh.original_is_semantic);
+            assert_eq!(fresh.external_helpers_module_name, None);
+            assert!(!fresh.external_helpers);
+            assert!(!fresh.class_expression_alias_assigned);
+            assert_eq!(fresh.generated_binding_derived_from, None);
+            assert_eq!(fresh.generated_binding_temp_ordinal, binding.map(|_| 7));
+            assert_eq!(fresh.generated_import_reference, import.is_some());
+            assert_eq!(fresh.helpers.len(), 2);
+            assert_eq!(fresh.helpers[0].as_ref(), "first");
+            assert_eq!(fresh.helpers[1].as_ref(), "second");
+            assert_eq!(fresh.leading_comments()[0].text(), "source");
+        }
+    }
+}
+
+#[test]
+fn prepared_print_memory_includes_presence_and_optional_metadata_storage() {
+    let source_file = parsed("memory.ts", "export const value = 1;\n");
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&source_file, None);
+    let root = arena.root(source).unwrap();
+    let inventory = |arena: &TransformArena| {
+        let mut usage = tsc_diagnostics::MemoryUsage::default();
+        assert_eq!(arena.print_input_usage(&mut usage), Some(()));
+        usage
+    };
+    let initial = inventory(&arena);
+    assert!(initial.row("metadata presence").initialized > 0);
+    assert_eq!(initial.row("metadata details").requested, 0);
+
+    arena.metadata_mut(root).set_flags(EmitFlags::NO_COMMENTS);
+    assert_eq!(inventory(&arena).row("metadata details").requested, 0);
+    arena.metadata_mut(root).helpers.push("helper body".into());
+    let detailed = inventory(&arena);
+    assert_eq!(detailed.row("metadata details").count, 1);
+    assert!(detailed.row("metadata details").requested > 0);
+    assert!(detailed.row("helper text list").requested > 0);
+    assert!(detailed.row("owned metadata text").requested >= "helper body".len());
+
+    let future = TransformNode::new(source, NodeId::new(u32::MAX - 1));
+    arena.metadata_mut(future).set_flags(EmitFlags::NO_COMMENTS);
+    let exceptional = inventory(&arena);
+    assert!(exceptional.row("exceptional metadata estimated").requested > 0);
+    assert_eq!(exceptional.row("metadata details").count, 1);
 }

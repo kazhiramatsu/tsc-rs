@@ -481,7 +481,7 @@ impl LiteralNodeProperties {
 }
 
 /// Session-owned `emitNode` equivalent. Parsed nodes remain unchanged.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Default)]
 pub struct EmitMetadata {
     pub(crate) original: Option<TransformNode>,
     /// This original edge exists only for Rust resolver projection. Emit
@@ -490,6 +490,17 @@ pub struct EmitMetadata {
     pub(crate) original_is_semantic: bool,
     pub(crate) flags: EmitFlags,
     pub(crate) internal_flags: InternalEmitFlags,
+    /// The node is `cloneNode(parsedIdentifier)` (+ `setTextRange`): tsc's
+    /// `getTextOfNode` prints such a clone from the source text, so an
+    /// escaped spelling (`\u0046oo`) survives the clone even though this
+    /// arena keeps the clone's own positions synthetic.
+    pub(crate) cloned_identifier_spelling: bool,
+    details: Option<Box<EmitMetadataDetails>>,
+}
+
+/// Infrequent emit-node state, allocated only when a node carries it.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct EmitMetadataDetails {
     pub(crate) leading_comments: Vec<SyntheticComment>,
     pub(crate) trailing_comments: Vec<SyntheticComment>,
     pub(crate) comment_range: Option<CommentRange>,
@@ -504,11 +515,6 @@ pub struct EmitMetadata {
     /// its empty scalar payload must never be used as a semantic lookup key.
     /// Keep the JS value through clones/updates until the UTF-16 writer.
     pub(crate) unchecked_identifier_text: Option<tsc_diagnostics::JsString>,
-    /// The node is `cloneNode(parsedIdentifier)` (+ `setTextRange`): tsc's
-    /// `getTextOfNode` prints such a clone from the source text, so an
-    /// escaped spelling (`\u0046oo`) survives the clone even though this
-    /// arena keeps the clone's own positions synthetic.
-    pub(crate) cloned_identifier_spelling: bool,
     pub(crate) helpers: Vec<Box<str>>,
     /// Facts owned by the original SourceFile, not inherited by clone/update
     /// metadata merging (tsc's mergeEmitNode does not copy these fields).
@@ -613,8 +619,185 @@ pub struct EmitMetadata {
     pub(crate) generated_binding_derived_from: Option<GeneratedBindingId>,
 }
 
+static EMPTY_METADATA_DETAILS: EmitMetadataDetails = EmitMetadataDetails {
+    leading_comments: Vec::new(),
+    trailing_comments: Vec::new(),
+    comment_range: None,
+    relocated_statement_list_comments: None,
+    source_map_range: None,
+    token_source_map_ranges: BTreeMap::new(),
+    constant_value: None,
+    unchecked_identifier_text: None,
+    helpers: Vec::new(),
+    external_helpers_module_name: None,
+    external_helpers: false,
+    starts_on_new_line: None,
+    snippet_element: None,
+    class_this: None,
+    assigned_name: None,
+    class_expression_declaration_origin: None,
+    type_node: None,
+    class_constructor_reference: None,
+    class_field_initializer_comment_source: None,
+    referenced_import_declaration: None,
+    referenced_export_container: None,
+    generated_import_reference: false,
+    generated_binding_id: None,
+    generated_binding_temp_ordinal: None,
+    generated_binding_base: None,
+    generated_binding_preferred_base: None,
+    generated_binding_role_suffix: None,
+    generated_binding_file_level_optimistic: false,
+    generated_binding_planned_name_authoritative: false,
+    generated_binding_reserved_in_nested_scopes: false,
+    generated_binding_loop_variable: false,
+    generated_binding_private_temp: false,
+    generated_binding_print_order: false,
+    class_expression_alias_assigned: false,
+    generated_binding_derived_from: None,
+};
+
+impl std::ops::Deref for EmitMetadata {
+    type Target = EmitMetadataDetails;
+
+    fn deref(&self) -> &Self::Target {
+        self.details()
+    }
+}
+
+impl std::ops::DerefMut for EmitMetadata {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.details.get_or_insert_with(Default::default)
+    }
+}
+
+impl PartialEq for EmitMetadata {
+    fn eq(&self, other: &Self) -> bool {
+        self.original == other.original
+            && self.original_is_semantic == other.original_is_semantic
+            && self.flags == other.flags
+            && self.internal_flags == other.internal_flags
+            && self.cloned_identifier_spelling == other.cloned_identifier_spelling
+            && self.details() == other.details()
+    }
+}
+
+impl Eq for EmitMetadata {}
+
+impl std::fmt::Debug for EmitMetadata {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut state = formatter.debug_struct("EmitMetadata");
+        state.field("original", &self.original);
+        state.field("original_is_semantic", &self.original_is_semantic);
+        state.field("flags", &self.flags);
+        state.field("internal_flags", &self.internal_flags);
+        state.field("leading_comments", &self.leading_comments);
+        state.field("trailing_comments", &self.trailing_comments);
+        state.field("comment_range", &self.comment_range);
+        state.field(
+            "relocated_statement_list_comments",
+            &self.relocated_statement_list_comments,
+        );
+        state.field("source_map_range", &self.source_map_range);
+        state.field("token_source_map_ranges", &self.token_source_map_ranges);
+        state.field("constant_value", &self.constant_value);
+        state.field("unchecked_identifier_text", &self.unchecked_identifier_text);
+        state.field(
+            "cloned_identifier_spelling",
+            &self.cloned_identifier_spelling,
+        );
+        state.field("helpers", &self.helpers);
+        state.field(
+            "external_helpers_module_name",
+            &self.external_helpers_module_name,
+        );
+        state.field("external_helpers", &self.external_helpers);
+        state.field("starts_on_new_line", &self.starts_on_new_line);
+        state.field("snippet_element", &self.snippet_element);
+        state.field("class_this", &self.class_this);
+        state.field("assigned_name", &self.assigned_name);
+        state.field(
+            "class_expression_declaration_origin",
+            &self.class_expression_declaration_origin,
+        );
+        state.field("type_node", &self.type_node);
+        state.field(
+            "class_constructor_reference",
+            &self.class_constructor_reference,
+        );
+        state.field(
+            "class_field_initializer_comment_source",
+            &self.class_field_initializer_comment_source,
+        );
+        state.field(
+            "referenced_import_declaration",
+            &self.referenced_import_declaration,
+        );
+        state.field(
+            "referenced_export_container",
+            &self.referenced_export_container,
+        );
+        state.field(
+            "generated_import_reference",
+            &self.generated_import_reference,
+        );
+        state.field("generated_binding_id", &self.generated_binding_id);
+        state.field(
+            "generated_binding_temp_ordinal",
+            &self.generated_binding_temp_ordinal,
+        );
+        state.field("generated_binding_base", &self.generated_binding_base);
+        state.field(
+            "generated_binding_preferred_base",
+            &self.generated_binding_preferred_base,
+        );
+        state.field(
+            "generated_binding_role_suffix",
+            &self.generated_binding_role_suffix,
+        );
+        state.field(
+            "generated_binding_file_level_optimistic",
+            &self.generated_binding_file_level_optimistic,
+        );
+        state.field(
+            "generated_binding_planned_name_authoritative",
+            &self.generated_binding_planned_name_authoritative,
+        );
+        state.field(
+            "generated_binding_reserved_in_nested_scopes",
+            &self.generated_binding_reserved_in_nested_scopes,
+        );
+        state.field(
+            "generated_binding_loop_variable",
+            &self.generated_binding_loop_variable,
+        );
+        state.field(
+            "generated_binding_private_temp",
+            &self.generated_binding_private_temp,
+        );
+        state.field(
+            "generated_binding_print_order",
+            &self.generated_binding_print_order,
+        );
+        state.field(
+            "class_expression_alias_assigned",
+            &self.class_expression_alias_assigned,
+        );
+        state.field(
+            "generated_binding_derived_from",
+            &self.generated_binding_derived_from,
+        );
+        state.finish()
+    }
+}
+
 impl EmitMetadata {
     pub(crate) fn print_input_usage(&self, u: &mut tsc_diagnostics::MemoryUsage) {
+        let Some(details) = &self.details else {
+            return;
+        };
+        let bytes = std::mem::size_of_val(details.as_ref());
+        u.add("metadata details", 1, bytes, bytes);
         u.vec("synthetic comments", &self.leading_comments);
         u.vec("synthetic comments", &self.trailing_comments);
         for c in self.leading_comments.iter().chain(&self.trailing_comments) {
@@ -644,6 +827,13 @@ impl EmitMetadata {
         }
     }
 
+    const fn details(&self) -> &EmitMetadataDetails {
+        match &self.details {
+            Some(details) => details,
+            None => &EMPTY_METADATA_DETAILS,
+        }
+    }
+
     pub const fn original(&self) -> Option<TransformNode> {
         self.original
     }
@@ -665,17 +855,17 @@ impl EmitMetadata {
     }
 
     pub const fn comment_range(&self) -> Option<CommentRange> {
-        self.comment_range
+        self.details().comment_range
     }
 
     pub(crate) const fn relocated_statement_list_comments(
         &self,
     ) -> Option<RelocatedStatementListComments> {
-        self.relocated_statement_list_comments
+        self.details().relocated_statement_list_comments
     }
 
     pub const fn source_map_range(&self) -> Option<SourceMapRange> {
-        self.source_map_range
+        self.details().source_map_range
     }
 
     pub fn token_source_map_ranges(&self) -> &BTreeMap<SyntaxKind, SourceMapRange> {
@@ -683,31 +873,31 @@ impl EmitMetadata {
     }
 
     pub const fn constant_value(&self) -> Option<&EmitConstantValue> {
-        self.constant_value.as_ref()
+        self.details().constant_value.as_ref()
     }
 
     pub const fn starts_on_new_line(&self) -> Option<bool> {
-        self.starts_on_new_line
+        self.details().starts_on_new_line
     }
 
     pub const fn type_node(&self) -> Option<TransformNode> {
-        self.type_node
+        self.details().type_node
     }
 
     pub const fn referenced_import_declaration(&self) -> Option<TransformNode> {
-        self.referenced_import_declaration
+        self.details().referenced_import_declaration
     }
 
     pub(crate) const fn referenced_export_container(&self) -> Option<TransformNode> {
-        self.referenced_export_container
+        self.details().referenced_export_container
     }
 
     pub const fn is_generated_import_reference(&self) -> bool {
-        self.generated_import_reference
+        self.details().generated_import_reference
     }
 
     pub(crate) const fn generated_binding_id(&self) -> Option<GeneratedBindingId> {
-        self.generated_binding_id
+        self.details().generated_binding_id
     }
 
     pub(crate) fn generated_binding_base(&self) -> Option<&str> {
@@ -723,23 +913,23 @@ impl EmitMetadata {
     }
 
     pub(crate) const fn generated_binding_is_file_level_optimistic(&self) -> bool {
-        self.generated_binding_file_level_optimistic
+        self.details().generated_binding_file_level_optimistic
     }
 
     pub(crate) const fn generated_binding_planned_name_is_authoritative(&self) -> bool {
-        self.generated_binding_planned_name_authoritative
+        self.details().generated_binding_planned_name_authoritative
     }
 
     pub(crate) const fn generated_binding_reserved_in_nested_scopes(&self) -> bool {
-        self.generated_binding_reserved_in_nested_scopes
+        self.details().generated_binding_reserved_in_nested_scopes
     }
 
     pub(crate) const fn generated_binding_is_loop_variable(&self) -> bool {
-        self.generated_binding_loop_variable
+        self.details().generated_binding_loop_variable
     }
 
     pub(crate) const fn generated_binding_is_private_temp(&self) -> bool {
-        self.generated_binding_private_temp
+        self.details().generated_binding_private_temp
     }
 
     pub fn set_flags(&mut self, flags: EmitFlags) {
@@ -842,7 +1032,7 @@ impl EmitMetadata {
     }
 
     pub(crate) const fn generated_binding_print_order(&self) -> bool {
-        self.generated_binding_print_order
+        self.details().generated_binding_print_order
     }
 
     pub(crate) fn mark_class_expression_alias_assigned(&mut self) {
@@ -850,11 +1040,24 @@ impl EmitMetadata {
     }
 
     pub(crate) const fn generated_binding_derived_from(&self) -> Option<GeneratedBindingId> {
-        self.generated_binding_derived_from
+        self.details().generated_binding_derived_from
     }
 
     pub(crate) fn set_generated_binding_derived_from(&mut self, value: GeneratedBindingId) {
         self.generated_binding_derived_from = Some(value);
+    }
+
+    pub(crate) fn clear_synthetic_comments(&mut self) {
+        if let Some(details) = &mut self.details {
+            details.leading_comments.clear();
+            details.trailing_comments.clear();
+        }
+    }
+
+    pub(crate) fn clear_comment_range(&mut self) {
+        if let Some(details) = &mut self.details {
+            details.comment_range = None;
+        }
     }
 
     /// tsc-port: mergeEmitNode @6.0.3
@@ -864,6 +1067,9 @@ impl EmitMetadata {
     /// takes an identifier as its original (a concise arrow body converted to
     /// a block) keeps no generated-binding identity.
     pub(crate) fn clear_generated_binding(&mut self) {
+        if self.details.is_none() {
+            return;
+        }
         self.generated_binding_id = None;
         self.generated_binding_temp_ordinal = None;
         self.generated_binding_base = None;
@@ -878,7 +1084,7 @@ impl EmitMetadata {
         self.generated_binding_derived_from = None;
     }
 
-    pub(crate) fn merge_from(&mut self, source: &Self) {
+    pub(crate) fn merge_from(&mut self, mut source: Self) {
         if !source.flags.is_empty() {
             self.flags = source.flags;
         }
@@ -886,6 +1092,34 @@ impl EmitMetadata {
             self.internal_flags = InternalEmitFlags::from_bits(
                 source.internal_flags.bits() & !InternalEmitFlags::IMMUTABLE.bits(),
             );
+        }
+        // Spelling provenance follows clone chains without a rare payload.
+        self.cloned_identifier_spelling |= source.cloned_identifier_spelling;
+        if source.details.is_none() {
+            return;
+        }
+        if self.details.is_none() {
+            let mut details = source.details.take().expect("source details");
+            details.external_helpers_module_name = None;
+            details.external_helpers = false;
+            details.class_expression_alias_assigned = false;
+            details.generated_binding_derived_from = None;
+            if details.generated_binding_id.is_none() {
+                details.generated_binding_temp_ordinal = None;
+            }
+            if details.referenced_import_declaration.is_none() {
+                details.generated_import_reference = false;
+            }
+            let mut index = 0;
+            while index < details.helpers.len() {
+                if details.helpers[..index].contains(&details.helpers[index]) {
+                    details.helpers.remove(index);
+                } else {
+                    index += 1;
+                }
+            }
+            self.details = Some(details);
+            return;
         }
         if !source.leading_comments.is_empty() {
             let mut comments = source.leading_comments.clone();
@@ -915,12 +1149,6 @@ impl EmitMetadata {
         if source.unchecked_identifier_text.is_some() {
             self.unchecked_identifier_text = source.unchecked_identifier_text.clone();
         }
-        // A getName-derived clone chain keeps the parsed spelling: this port's
-        // transforms hand later passes their own (position-synthetic) clones
-        // where upstream still holds the parsed name, so the mark travels with
-        // the chain. The upstream bare-clone sites that print `idText`
-        // (`createExportExpression`) clear it explicitly.
-        self.cloned_identifier_spelling |= source.cloned_identifier_spelling;
         for helper in &source.helpers {
             if !self.helpers.contains(helper) {
                 self.helpers.push(helper.clone());
@@ -964,15 +1192,24 @@ impl EmitMetadata {
         if source.generated_binding_role_suffix.is_some() {
             self.generated_binding_role_suffix = source.generated_binding_role_suffix.clone();
         }
-        self.generated_binding_file_level_optimistic |=
-            source.generated_binding_file_level_optimistic;
-        self.generated_binding_planned_name_authoritative |=
-            source.generated_binding_planned_name_authoritative;
-        self.generated_binding_private_temp |= source.generated_binding_private_temp;
-        self.generated_binding_print_order |= source.generated_binding_print_order;
-        self.generated_binding_loop_variable |= source.generated_binding_loop_variable;
-        self.generated_binding_reserved_in_nested_scopes |=
-            source.generated_binding_reserved_in_nested_scopes;
+        if source.generated_binding_file_level_optimistic {
+            self.generated_binding_file_level_optimistic = true;
+        }
+        if source.generated_binding_planned_name_authoritative {
+            self.generated_binding_planned_name_authoritative = true;
+        }
+        if source.generated_binding_private_temp {
+            self.generated_binding_private_temp = true;
+        }
+        if source.generated_binding_print_order {
+            self.generated_binding_print_order = true;
+        }
+        if source.generated_binding_loop_variable {
+            self.generated_binding_loop_variable = true;
+        }
+        if source.generated_binding_reserved_in_nested_scopes {
+            self.generated_binding_reserved_in_nested_scopes = true;
+        }
         if source.referenced_import_declaration.is_some() {
             self.referenced_import_declaration = source.referenced_import_declaration;
             self.generated_import_reference = source.generated_import_reference;

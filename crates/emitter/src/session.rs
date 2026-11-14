@@ -17,6 +17,8 @@ use crate::{EmitMetadata, LiteralNodeProperties, TransformNode};
 /// Source-local session facts, stored inside the emitter-only TransformSource.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct SourceEmitState {
+    /// Absence proof for the sparse metadata table, relative to this source.
+    pub metadata_presence: MetadataPresence,
     pub transform_flags: Vec<i32>,
     pub array_transform_flags: Vec<Cell<i32>>,
     pub deferred_array_flags: Vec<Cell<u64>>,
@@ -41,6 +43,7 @@ impl SourceEmitState {
     // This adds storage sizes, independent of identifier iteration order.
     #[allow(clippy::iter_over_hash_type)]
     pub(crate) fn print_input_usage(&self, u: &mut tsc_diagnostics::MemoryUsage) {
+        u.vec("metadata presence", &self.metadata_presence.nodes);
         u.vec("flags", &self.transform_flags);
         u.vec("flags", &self.array_transform_flags);
         u.vec("deferred array flags", &self.deferred_array_flags);
@@ -54,6 +57,52 @@ impl SourceEmitState {
                 }
             }
         }
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub(crate) struct MetadataPresence {
+    // Match NodeId's one-based representation for the hot subtraction.
+    base_encoded: u32,
+    nodes: Vec<bool>,
+}
+
+impl MetadataPresence {
+    pub(crate) fn new(base: u32, end: u32) -> Self {
+        Self {
+            base_encoded: base.wrapping_add(1),
+            nodes: vec![false; (end - base) as usize],
+        }
+    }
+
+    pub(crate) fn contains(&self, node: NodeId) -> Option<bool> {
+        // Below-base ids wrap beyond the exact allocated span. Keeping that
+        // span unrounded lets the vector bound check prove absence safely.
+        self.nodes
+            .get(node.index().wrapping_add(1).wrapping_sub(self.base_encoded) as usize)
+            .copied()
+    }
+
+    pub(crate) fn insert(&mut self, node: NodeId) -> bool {
+        let Some(present) = self
+            .nodes
+            .get_mut(node.index().wrapping_add(1).wrapping_sub(self.base_encoded) as usize)
+        else {
+            return false;
+        };
+        *present = true;
+        true
+    }
+
+    pub(crate) fn cover_through(&mut self, end: u32) {
+        self.nodes.resize(
+            end.wrapping_add(1).wrapping_sub(self.base_encoded) as usize,
+            false,
+        );
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.nodes.fill(false);
     }
 }
 
@@ -178,6 +227,8 @@ impl std::fmt::Debug for NodeBuilderCache {
 #[derive(Debug, Default)]
 pub(crate) struct EmitSession {
     pub metadata: FxHashMap<TransformNode, EmitMetadata>,
+    /// Public metadata_mut also accepts not-yet-allocated and unmounted keys.
+    pub exceptional_metadata: FxHashSet<TransformNode>,
     pub literal_properties: FxHashMap<TransformNode, LiteralNodeProperties>,
     pub next_generated_binding_id: u64,
     pub node_builder_cache: NodeBuilderCache,
@@ -187,6 +238,7 @@ impl Clone for EmitSession {
     fn clone(&self) -> Self {
         Self {
             metadata: self.metadata.clone(),
+            exceptional_metadata: self.exceptional_metadata.clone(),
             literal_properties: self.literal_properties.clone(),
             next_generated_binding_id: self.next_generated_binding_id,
             node_builder_cache: NodeBuilderCache::default(),

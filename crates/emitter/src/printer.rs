@@ -2806,7 +2806,7 @@ impl Printer {
                     Some(carried_resume),
                     writer,
                 )?;
-                self.emit_synthetic_leading_comments_for_node(transformation, emitted, writer)?;
+                self.emit_synthetic_leading_comments_for_node(transformation, emitted, writer);
             } else if let Some(detached_resume) = detached_resume {
                 self.emit_leading_comments_for_node_worker(
                     transformation,
@@ -2845,11 +2845,12 @@ impl Printer {
                 emitted,
                 EmitHint::Unspecified,
                 context.with_comments(scope),
+                owner.flags,
                 writer,
             )?;
             // The statement's trailing phase consults the restored file-level
             // scope, i.e. the carried container of a previous failed print.
-            self.emit_synthetic_trailing_comments_for_node(transformation, emitted, writer)?;
+            self.emit_synthetic_trailing_comments_for_node(transformation, emitted, writer);
             self.emit_trailing_comments_for_node_in_container(
                 transformation,
                 emitted,
@@ -3174,6 +3175,7 @@ impl Printer {
         node: TransformNode,
         hint: EmitHint,
         expression_context: EmitContext,
+        node_flags: EmitFlags,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         // tsc-port: emitCommentsBeforeNode/emitCommentsAfterNode @6.0.3
@@ -3184,10 +3186,6 @@ impl Printer {
         // level and stay live, so only the child-facing context flips. The
         // extent ends when this context goes out of scope - tsc's mutable
         // enable/disable pair, threaded immutably.
-        let node_flags = transformation
-            .arena()
-            .metadata(node)
-            .map_or(EmitFlags::NONE, |metadata| metadata.flags());
         // emitCommentsBeforeNode sets tsc's commentsDisabled only when this
         // node's comments phase runs at all (_tsc.js:120987-120994).
         // Function bodies apply their own NoNestedComments inside
@@ -20621,6 +20619,7 @@ impl Printer {
                             hint,
                             expression_context.for_wrapper(inner_active_scope),
                             inner_source_leading_phase,
+                            inner_owner.flags,
                             writer,
                         )?;
                         self.emit_deferred_expression_trailing_comments(
@@ -20667,6 +20666,7 @@ impl Printer {
                             hint,
                             expression_context.for_wrapper(active_scope),
                             source_leading_phase,
+                            owner.flags,
                             writer,
                         )?;
                         let trailing = self.emit_deferred_expression_trailing_comments(
@@ -20724,6 +20724,7 @@ impl Printer {
                         hint,
                         expression_context.with_comments(active_scope),
                         source_leading_phase,
+                        owner.flags,
                         writer,
                     )?;
                     let trailing = self.emit_deferred_expression_trailing_comments(
@@ -20775,6 +20776,7 @@ impl Printer {
                     hint,
                     expression_context.with_comments(active_scope),
                     source_leading_phase,
+                    owner.flags,
                     writer,
                 )?;
                 let trailing = self.emit_deferred_expression_trailing_comments(
@@ -20857,6 +20859,7 @@ impl Printer {
                     hint,
                     expression_context.for_wrapper(active_scope),
                     source_leading_phase,
+                    owner.flags,
                     writer,
                 )?;
                 let trailing = self.emit_deferred_expression_trailing_comments(
@@ -20942,7 +20945,7 @@ impl Printer {
                     transformation,
                     metadata_owner,
                     writer,
-                )?;
+                );
                 self.emit_deferred_expression_trailing_comments(
                     transformation,
                     deferred_source_comments,
@@ -20958,6 +20961,7 @@ impl Printer {
     /// already completed. Keeping this phase separate makes it impossible
     /// for a grammar parenthesis selected above to strand the substituted
     /// node's synthetic comments outside its container.
+    #[allow(clippy::too_many_arguments)]
     fn emit_substituted_node_with_comments(
         &mut self,
         transformation: &mut TransformationResult<'_>,
@@ -20965,6 +20969,7 @@ impl Printer {
         hint: EmitHint,
         expression_context: EmitContext,
         source_leading_phase: SourceLeadingCommentPhaseVisit,
+        node_flags: EmitFlags,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.emit_substituted_leading_metadata(
@@ -20978,9 +20983,11 @@ impl Printer {
             substituted,
             hint,
             expression_context,
+            node_flags,
             writer,
         )?;
-        self.emit_synthetic_trailing_comments_for_node(transformation, substituted, writer)
+        self.emit_synthetic_trailing_comments_for_node(transformation, substituted, writer);
+        Ok(())
     }
 
     /// A no-ASI parenthesizer updates only the left edge of compound
@@ -21048,7 +21055,7 @@ impl Printer {
             writer.write_punctuation(")");
         }
         self.record_node_map_boundary(transformation, MapBoundary::After, substituted, writer)?;
-        self.emit_synthetic_trailing_comments_for_node(transformation, substituted, writer)?;
+        self.emit_synthetic_trailing_comments_for_node(transformation, substituted, writer);
         match state {
             DeferredExpressionSourceCommentsState::Consumed(outcome) => Ok(outcome),
             DeferredExpressionSourceCommentsState::Pending(_) => {
@@ -21070,11 +21077,17 @@ impl Printer {
         source_leading_phase: SourceLeadingCommentPhaseVisit,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        self.emit_synthetic_leading_comments_for_node(transformation, substituted, writer)?;
-        if let Some(comment_source) = transformation
-            .arena()
-            .metadata(substituted)
-            .and_then(|metadata| metadata.class_field_initializer_comment_source)
+        let metadata = transformation.arena().metadata(substituted);
+        if !self.comments_disabled() {
+            self.write_synthetic_leading_comments(
+                metadata
+                    .map(crate::EmitMetadata::leading_comments)
+                    .unwrap_or_default(),
+                writer,
+            );
+        }
+        if let Some(comment_source) =
+            metadata.and_then(|metadata| metadata.class_field_initializer_comment_source)
         {
             let comment_range = self.comment_range_for_node(transformation, comment_source)?;
             if !source_leading_phase.visited_range(comment_range) {
@@ -21511,7 +21524,8 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.emit_leading_comments_for_node(transformation, node, writer)?;
-        self.emit_synthetic_leading_comments_for_node(transformation, node, writer)
+        self.emit_synthetic_leading_comments_for_node(transformation, node, writer);
+        Ok(())
     }
 
     fn emit_statement_leading_comments_after_sibling(
@@ -21521,7 +21535,8 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.emit_leading_comments_for_node_after_sibling(transformation, node, writer)?;
-        self.emit_synthetic_leading_comments_for_node(transformation, node, writer)
+        self.emit_synthetic_leading_comments_for_node(transformation, node, writer);
+        Ok(())
     }
 
     /// The statement-position trailing phase: synthetic trailing comments
@@ -21538,7 +21553,7 @@ impl Printer {
         node: TransformNode,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        self.emit_synthetic_trailing_comments_for_node(transformation, node, writer)?;
+        self.emit_synthetic_trailing_comments_for_node(transformation, node, writer);
         self.emit_trailing_comments_for_node(transformation, node, writer)
     }
 
@@ -23854,21 +23869,30 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         node: TransformNode,
         writer: &mut TextWriter,
-    ) -> Result<(), PrinterError> {
+    ) {
         if self.comments_disabled() {
-            return Ok(());
+            return;
         }
         let comments = transformation
             .arena()
             .metadata(node)
-            .map(|metadata| metadata.leading_comments().to_vec())
+            .map(crate::EmitMetadata::leading_comments)
             .unwrap_or_default();
+        self.write_synthetic_leading_comments(comments, writer);
+    }
+
+    #[inline]
+    fn write_synthetic_leading_comments(
+        &self,
+        comments: &[SyntheticComment],
+        writer: &mut TextWriter,
+    ) {
         for comment in comments {
             if comment.has_leading_new_line() || comment.kind() == SyntheticCommentKind::SingleLine
             {
                 writer.write_line(false);
             }
-            write_synthetic_comment(&comment, writer);
+            write_synthetic_comment(comment, writer);
             if comment.has_trailing_new_line() || comment.kind() == SyntheticCommentKind::SingleLine
             {
                 writer.write_line(false);
@@ -23876,7 +23900,6 @@ impl Printer {
                 writer.write_space(" ");
             }
         }
-        Ok(())
     }
 
     fn emit_synthetic_trailing_comments_for_node(
@@ -23884,14 +23907,14 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         node: TransformNode,
         writer: &mut TextWriter,
-    ) -> Result<(), PrinterError> {
+    ) {
         if self.comments_disabled() {
-            return Ok(());
+            return;
         }
         let comments = transformation
             .arena()
             .metadata(node)
-            .map(|metadata| metadata.trailing_comments().to_vec())
+            .map(crate::EmitMetadata::trailing_comments)
             .unwrap_or_default();
         for comment in comments {
             if comment.has_leading_new_line() {
@@ -23899,12 +23922,11 @@ impl Printer {
             } else {
                 writer.write_space(" ");
             }
-            write_synthetic_comment(&comment, writer);
+            write_synthetic_comment(comment, writer);
             if comment.has_trailing_new_line() {
                 writer.write_line(false);
             }
         }
-        Ok(())
     }
 
     /// Emit the comments owned by the source-file statement-list end.

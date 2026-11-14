@@ -273,6 +273,10 @@ impl TransformArena {
             source.source.add_owned_memory_usage(u);
             source.session.print_input_usage(u);
         }
+        u.hash_set(
+            "exceptional metadata estimated",
+            &self.session.exceptional_metadata,
+        );
         u.hash_map("emit metadata estimated", &self.session.metadata);
         for v in self.session.metadata.values() {
             v.print_input_usage(u);
@@ -456,6 +460,7 @@ impl TransformArena {
             has_no_default_lib: None,
             session: SourceEmitState::default(),
         });
+        self.initialize_metadata_presence(id);
         id
     }
 
@@ -561,6 +566,7 @@ impl TransformArena {
             u32::try_from(self.sources.len()).expect("transform source count exceeds u32"),
         );
         self.sources.push(prepared.0);
+        self.initialize_metadata_presence(id);
         id
     }
 
@@ -1185,8 +1191,58 @@ impl TransformArena {
         }
     }
 
+    #[inline]
     pub fn metadata(&self, node: TransformNode) -> Option<&EmitMetadata> {
+        if self.session.metadata.is_empty() {
+            return None;
+        }
+        if self
+            .sources
+            .get(node.source.raw() as usize)
+            .and_then(|source| source.session.metadata_presence.contains(node.node))
+            == Some(false)
+        {
+            return None;
+        }
         self.session.metadata.get(&node)
+    }
+
+    fn initialize_metadata_presence(&mut self, id: TransformSourceId) {
+        let source = &mut self.sources[id.raw() as usize];
+        source.session.metadata_presence = crate::session::MetadataPresence::new(
+            source.source.arena.node_base(),
+            source.source.arena.node_end(),
+        );
+        self.cover_exceptional_metadata(id);
+    }
+
+    fn cover_exceptional_metadata(&mut self, id: TransformSourceId) {
+        if self.session.exceptional_metadata.is_empty() {
+            return;
+        }
+        let presence = &mut self.sources[id.raw() as usize].session.metadata_presence;
+        self.session
+            .exceptional_metadata
+            .retain(|node| node.source != id || !presence.insert(node.node));
+    }
+
+    fn record_metadata_presence(&mut self, node: TransformNode) {
+        if let Some(source) = self.sources.get_mut(node.source.raw() as usize) {
+            if source.session.metadata_presence.insert(node.node) {
+                return;
+            }
+            let syntax = &source.source.arena;
+            if node.node.index() >= syntax.node_base() && node.node.index() < syntax.node_end() {
+                source
+                    .session
+                    .metadata_presence
+                    .cover_through(syntax.node_end());
+                source.session.metadata_presence.insert(node.node);
+                self.cover_exceptional_metadata(node.source);
+                return;
+            }
+        }
+        self.session.exceptional_metadata.insert(node);
     }
 
     /// Inspect the source-numbered base attached to a generated identifier.
@@ -1209,6 +1265,7 @@ impl TransformArena {
     }
 
     pub fn metadata_mut(&mut self, node: TransformNode) -> &mut EmitMetadata {
+        self.record_metadata_presence(node);
         self.session.metadata.entry(node).or_default()
     }
 
@@ -1250,9 +1307,8 @@ impl TransformArena {
                     cloned_patterns.extend(elements);
                 }
                 metadata.flags = EmitFlags::NONE;
-                metadata.leading_comments.clear();
-                metadata.trailing_comments.clear();
-                metadata.comment_range = None;
+                metadata.clear_synthetic_comments();
+                metadata.clear_comment_range();
             }
         }
         let syntax = &mut self.source_mut(root.source)?.source.arena;
@@ -1275,8 +1331,7 @@ impl TransformArena {
     pub(crate) fn remove_all_comments(&mut self, node: TransformNode) -> TransformNode {
         let metadata = self.metadata_mut(node);
         metadata.add_flags(EmitFlags::NO_COMMENTS);
-        metadata.leading_comments.clear();
-        metadata.trailing_comments.clear();
+        metadata.clear_synthetic_comments();
         node
     }
 
@@ -1309,7 +1364,9 @@ impl TransformArena {
 
     pub fn clear_session_metadata(&mut self) {
         self.session.metadata.clear();
+        self.session.exceptional_metadata.clear();
         for source in &mut self.sources {
+            source.session.metadata_presence.clear();
             source.session.transform_flags.clear();
             source.session.array_transform_flags.clear();
             source.session.deferred_array_flags.clear();
@@ -1323,12 +1380,7 @@ impl TransformArena {
     /// tsc-span: _tsc.js:11400-11410
     pub fn get_original_node(&self, mut node: TransformNode) -> TransformNode {
         let mut remaining = self.session.metadata.len().saturating_add(1);
-        while let Some(original) = self
-            .session
-            .metadata
-            .get(&node)
-            .and_then(EmitMetadata::original)
-        {
+        while let Some(original) = self.metadata(node).and_then(EmitMetadata::original) {
             if remaining == 0 || original == node {
                 break;
             }
@@ -1368,7 +1420,7 @@ impl TransformArena {
     /// when class-fields emit notifications look up lexical environments.
     pub(crate) fn get_emit_original_node(&self, mut node: TransformNode) -> TransformNode {
         let mut remaining = self.session.metadata.len().saturating_add(1);
-        while let Some(metadata) = self.session.metadata.get(&node) {
+        while let Some(metadata) = self.metadata(node) {
             if metadata.original_is_semantic {
                 break;
             }
@@ -1410,12 +1462,7 @@ impl TransformArena {
                 return Ok(Some(node));
             }
 
-            let Some(original) = self
-                .session
-                .metadata
-                .get(&node)
-                .and_then(EmitMetadata::original)
-            else {
+            let Some(original) = self.metadata(node).and_then(EmitMetadata::original) else {
                 return Ok(None);
             };
             if remaining == 0 || original == node {
@@ -1443,33 +1490,25 @@ impl TransformArena {
             // been validated against this arena; an absent (cross-arena)
             // handle still fails above.
         }
-        if self
-            .session
-            .metadata
-            .get(&node)
-            .and_then(EmitMetadata::original)
-            == original
+        if self.metadata(node).and_then(EmitMetadata::original) == original
             && !self
-                .session
-                .metadata
-                .get(&node)
+                .metadata(node)
                 .is_some_and(|metadata| metadata.original_is_semantic)
         {
             return Ok(());
         }
-        let source_metadata =
-            original.and_then(|original| self.session.metadata.get(&original).cloned());
+        let source_metadata = original.and_then(|original| self.metadata(original).cloned());
         let node_is_member_name = matches!(
             self.node(node)?.data(),
             NodeData::Identifier(_) | NodeData::PrivateIdentifier(_)
         );
-        let metadata = self.session.metadata.entry(node).or_default();
+        let metadata = self.metadata_mut(node);
         metadata.original = original;
         metadata.original_is_semantic = false;
         let mut carries_generated_binding = false;
         if let Some(source_metadata) = source_metadata {
             let generated_binding_before = metadata.generated_binding_id;
-            metadata.merge_from(&source_metadata);
+            metadata.merge_from(source_metadata);
             metadata.original = original;
             if !node_is_member_name && generated_binding_before.is_none() {
                 metadata.clear_generated_binding();
@@ -1507,7 +1546,7 @@ impl TransformArena {
                 actual: original.source,
             });
         }
-        let metadata = self.session.metadata.entry(node).or_default();
+        let metadata = self.metadata_mut(node);
         metadata.original = Some(original);
         metadata.original_is_semantic = true;
         Ok(())
@@ -8195,8 +8234,7 @@ impl<'a> CrossSourceReuseClone<'a> {
             // The clone hook copies the emit node without its synthetic
             // comments (emitNode.copyFrom, printer/emitcontext.go:562-574).
             if let Some(metadata) = self.arena.session.metadata.get_mut(&cloned) {
-                metadata.leading_comments.clear();
-                metadata.trailing_comments.clear();
+                metadata.clear_synthetic_comments();
             }
         }
         self.arena.copy_literal_properties(original, cloned);
