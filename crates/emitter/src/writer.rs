@@ -4,6 +4,45 @@ use tsc_syntax::is_whitespace_like;
 
 use crate::{GeneratedUtf16Location, GeneratedUtf16Position};
 
+/// A fixed, nonempty ASCII spelling without line breaks. Only checked literals
+/// and the syntax token table construct these; source text stays on the UTF16
+/// measuring writer APIs.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(transparent)]
+pub(crate) struct AsciiText(&'static str);
+
+impl AsciiText {
+    pub(crate) const fn new(text: &'static str) -> Self {
+        let bytes = text.as_bytes();
+        assert!(!bytes.is_empty());
+        let mut index = 0;
+        while index < bytes.len() {
+            assert!(bytes[index].is_ascii() && bytes[index] != b'\r' && bytes[index] != b'\n');
+            index += 1;
+        }
+        Self(text)
+    }
+
+    #[inline]
+    pub(crate) fn token(kind: tsc_syntax::SyntaxKind) -> Option<Self> {
+        tsc_syntax::tokens::token_to_string(kind).map(|text| {
+            debug_assert!(!text.is_empty() && text.is_ascii() && !text.contains(['\r', '\n']));
+            Self(text)
+        })
+    }
+
+    pub(crate) const fn text(self) -> &'static str {
+        self.0
+    }
+}
+
+macro_rules! ascii_text {
+    ($text:literal) => {
+        const { $crate::writer::AsciiText::new($text) }
+    };
+}
+pub(crate) use ascii_text;
+
 const INDENT: &str = "    ";
 
 /// Generated JavaScript text and its UTF8 sink projection. The ordinary path
@@ -362,7 +401,16 @@ impl TextWriter {
         self.display_parts.take()
     }
 
+    #[inline(always)]
     fn record(&mut self, classification: &'static str, text: &str) {
+        if self.display_parts.is_some() && !text.is_empty() {
+            self.record_active(classification, text);
+        }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn record_active(&mut self, classification: &'static str, text: &str) {
         if let Some(parts) = &mut self.display_parts {
             if !text.is_empty() {
                 parts.push(DisplayPart {
@@ -386,7 +434,16 @@ impl TextWriter {
     }
 
     /// tsgo `commitSemicolon`: the waiting semicolon, before a write.
+    #[inline(always)]
     fn commit_semicolon(&mut self) {
+        if self.pending_semicolon {
+            self.commit_semicolon_active();
+        }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn commit_semicolon_active(&mut self) {
         if self.pending_semicolon {
             self.pending_semicolon = false;
             self.has_trailing_comment = false;
@@ -494,12 +551,35 @@ impl TextWriter {
         self.append_and_measure(text);
     }
 
+    #[inline(always)]
     fn write_pending_indent(&mut self) {
         if self.line_start {
-            let indentation = " ".repeat(self.indent_width * self.indent as usize);
-            self.append_and_measure(&indentation);
-            self.line_start = false;
+            self.write_pending_indent_active();
         }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn write_pending_indent_active(&mut self) {
+        const SPACES: &str = "                                                                ";
+        let length = self.indent_width * self.indent as usize;
+        self.output.utf8.reserve(length);
+        let mut remaining = length;
+        while remaining >= SPACES.len() {
+            self.output.utf8.push_str(SPACES);
+            remaining -= SPACES.len();
+        }
+        self.output.utf8.push_str(&SPACES[..remaining]);
+        if let Some(units) = &mut self.output.utf16 {
+            units.extend(std::iter::repeat_n(32, length));
+        }
+        let length =
+            u32::try_from(length).expect("emitted text length exceeds the UTF-16 position domain");
+        self.text_position = self
+            .text_position
+            .checked_add(length)
+            .expect("emitted text position overflowed");
+        self.line_start = false;
     }
 
     fn write_text_utf16(&mut self, units: &[u16]) {
@@ -874,6 +954,48 @@ impl TextWriter {
         self.has_trailing_comment = false;
     }
 
+    #[inline]
+    fn write_ascii(&mut self, text: AsciiText, classification: &'static str) {
+        let text = text.text();
+        self.commit_semicolon();
+        self.record(classification, text);
+        self.has_trailing_comment = false;
+        if !self.single_line {
+            self.write_pending_indent();
+        }
+        self.output.push_str(text);
+        let length = u32::try_from(text.len())
+            .expect("emitted text length exceeds the UTF-16 position domain");
+        self.text_position = self
+            .text_position
+            .checked_add(length)
+            .expect("emitted text position overflowed");
+        if !self.single_line {
+            self.line_start = false;
+        }
+        self.set_last_non_trivia_position(text, false);
+    }
+
+    #[inline]
+    pub(crate) fn write_ascii_keyword(&mut self, text: AsciiText) {
+        self.write_ascii(text, "keyword");
+    }
+
+    #[inline]
+    pub(crate) fn write_ascii_operator(&mut self, text: AsciiText) {
+        self.write_ascii(text, "operator");
+    }
+
+    #[inline]
+    pub(crate) fn write_ascii_punctuation(&mut self, text: AsciiText) {
+        self.write_ascii(text, PUNCTUATION);
+    }
+
+    #[inline]
+    pub(crate) fn write_ascii_space(&mut self, text: AsciiText) {
+        self.write_ascii(text, WHITE_SPACE);
+    }
+
     pub fn write_keyword(&mut self, text: &str) {
         self.write_classified(text, "keyword");
     }
@@ -930,3 +1052,7 @@ const TEXT: &str = "text";
 const PUNCTUATION: &str = "punctuation";
 const WHITE_SPACE: &str = "whitespace";
 const STRING: &str = "string";
+
+#[cfg(test)]
+#[path = "writer_ascii_tests.rs"]
+mod ascii_tests;

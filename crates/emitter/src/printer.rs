@@ -29,7 +29,7 @@ use crate::{
 use crate::transform::{
     CarriedBindingKey, CarriedGeneratedNames, CarriedNodeKey, PrintNode, PrintNodeInput,
 };
-use crate::writer::{GeneratedText, PositionKey};
+use crate::writer::{ascii_text, AsciiText, GeneratedText, PositionKey};
 
 #[derive(Clone, Copy)]
 enum SourceLineStart {
@@ -568,17 +568,17 @@ enum ListBrackets {
 }
 
 impl ListBrackets {
-    const fn opening(self) -> &'static str {
+    const fn opening(self) -> AsciiText {
         match self {
-            Self::Square => "[",
-            Self::Curly => "{",
+            Self::Square => ascii_text!("["),
+            Self::Curly => ascii_text!("{"),
         }
     }
 
-    const fn closing(self) -> &'static str {
+    const fn closing(self) -> AsciiText {
         match self {
-            Self::Square => "]",
-            Self::Curly => "}",
+            Self::Square => ascii_text!("]"),
+            Self::Curly => ascii_text!("}"),
         }
     }
 }
@@ -1492,10 +1492,14 @@ pub fn create_printer(options: PrinterOptions) -> Printer {
 /// delimiter as written.
 fn write_delimiter(writer: &mut TextWriter, delimiter: &str) {
     match delimiter {
-        "," => writer.write_punctuation(","),
-        " |" | " &" => {
-            writer.write_space(" ");
-            writer.write_punctuation(&delimiter[1..]);
+        "," => writer.write_ascii_punctuation(ascii_text!(",")),
+        " |" => {
+            writer.write_ascii_space(ascii_text!(" "));
+            writer.write_ascii_punctuation(ascii_text!("|"));
+        }
+        " &" => {
+            writer.write_ascii_space(ascii_text!(" "));
+            writer.write_ascii_punctuation(ascii_text!("&"));
         }
         delimiter => writer.write(delimiter),
     }
@@ -3268,7 +3272,7 @@ impl Printer {
         let own_parentheses =
             self.writes_own_parentheses_record(transformation, node, record, expression_context)?;
         if own_parentheses {
-            writer.write_punctuation("(");
+            writer.write_ascii_punctuation(ascii_text!("("));
         }
         writer.set_pos(PositionKey::Node(node));
         let saved_preserve_source_newlines = self.before_emit_node_notification(node);
@@ -3296,7 +3300,7 @@ impl Printer {
         self.after_emit_node_notification(saved_preserve_source_newlines);
         writer.set_end(PositionKey::Node(node));
         if own_parentheses && worker_result.is_ok() {
-            writer.write_punctuation(")");
+            writer.write_ascii_punctuation(ascii_text!(")"));
         }
         if worker_result.is_ok() && enters_nested_comment_suppression {
             // Only successful completion reaches emitCommentsAfterNode.
@@ -5223,11 +5227,11 @@ impl Printer {
             .is_declaration_file;
         match () {
             () if kind == SyntaxKind::JsxOpeningFragment => {
-                writer.write_punctuation("<>");
+                writer.write_ascii_punctuation(ascii_text!("<>"));
                 Ok(())
             }
             () if kind == SyntaxKind::JsxClosingFragment => {
-                writer.write_punctuation("</>");
+                writer.write_ascii_punctuation(ascii_text!("</>"));
                 Ok(())
             }
             () if kind == SyntaxKind::NotEmittedTypeElement => {
@@ -5243,7 +5247,7 @@ impl Printer {
                 self.emit_keyword_type(node, kind, writer)
             }
             () => {
-                if let Some(text) = tsc_syntax::tokens::token_to_string(kind) {
+                if let Some(text) = AsciiText::token(kind) {
                     // Token nodes always use their canonical spelling. Raw
                     // escaped spelling belongs to identifiers, not keywords.
                     // tsgo `emitTokenNode`: a keyword or a punctuation.
@@ -5251,14 +5255,14 @@ impl Printer {
                     if (SyntaxKind::FirstKeyword.value()..=SyntaxKind::LastKeyword.value())
                         .contains(&kind)
                     {
-                        writer.write_keyword(text);
+                        writer.write_ascii_keyword(text);
                     } else if (SyntaxKind::FirstPunctuation.value()
                         ..=SyntaxKind::LastPunctuation.value())
                         .contains(&kind)
                     {
-                        writer.write_punctuation(text);
+                        writer.write_ascii_punctuation(text);
                     } else {
-                        writer.write(text);
+                        writer.write(text.text());
                     }
                     Ok(())
                 } else if !changed {
@@ -5386,8 +5390,8 @@ impl Printer {
         match data {
             data if self.options.declaration_syntax || declaration_source => {
                 self.require_declaration_syntax(node, SyntaxKind::ExternalModuleReference)?;
-                writer.write_keyword("require");
-                writer.write_punctuation("(");
+                writer.write_ascii_keyword(ascii_text!("require"));
+                writer.write_ascii_punctuation(ascii_text!("("));
                 self.emit_required_node_with_context(
                     transformation,
                     node.source(),
@@ -5397,7 +5401,7 @@ impl Printer {
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
-                writer.write_punctuation(")");
+                writer.write_ascii_punctuation(ascii_text!(")"));
                 Ok(())
             }
             _ if !changed => {
@@ -5513,13 +5517,13 @@ impl Printer {
                     expression_context,
                     writer,
                 )?;
-                writer.write_space(" ");
-                writer.write_keyword(if kind == SyntaxKind::AsExpression {
-                    "as"
+                writer.write_ascii_space(ascii_text!(" "));
+                writer.write_ascii_keyword(if kind == SyntaxKind::AsExpression {
+                    ascii_text!("as")
                 } else {
-                    "satisfies"
+                    ascii_text!("satisfies")
                 });
-                writer.write_space(" ");
+                writer.write_ascii_space(ascii_text!(" "));
                 self.emit_node_id_with_context(
                     transformation,
                     node.source(),
@@ -5562,7 +5566,7 @@ impl Printer {
                     expression_context,
                     writer,
                 )?;
-                writer.write_operator("!");
+                writer.write_ascii_operator(ascii_text!("!"));
                 Ok(())
             }
             _ if !changed => {
@@ -5592,7 +5596,7 @@ impl Printer {
                     data.expression,
                     data.r#type,
                 )?;
-                writer.write_punctuation("<");
+                writer.write_ascii_punctuation(ascii_text!("<"));
                 self.emit_node_id_with_context(
                     transformation,
                     node.source(),
@@ -5600,7 +5604,7 @@ impl Printer {
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
-                writer.write_punctuation(">");
+                writer.write_ascii_punctuation(ascii_text!(">"));
                 self.emit_operand_with_precedence(
                     transformation,
                     node.source(),
@@ -5632,7 +5636,7 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let decoded_parse_node = Self::is_decoded_parse_node(record);
-        writer.write_punctuation("@");
+        writer.write_ascii_punctuation(ascii_text!("@"));
         // emitDecorator 117872-117875 hands `parenthesizeLeftSideOfAccess`
         // to emitExpression, but pipelineEmit applies a parenthesizer
         // rule only to a substituted node: a parsed decorator prints
@@ -5666,7 +5670,7 @@ impl Printer {
             ExpressionSyntaxContext::left_side_of_access(false)
         };
         if parenthesized {
-            writer.write_punctuation("(");
+            writer.write_ascii_punctuation(ascii_text!("("));
         }
         let result = self.emit_required_node_with_context_and_source_extent(
             transformation,
@@ -5680,7 +5684,7 @@ impl Printer {
             writer,
         );
         if parenthesized && result.is_ok() {
-            writer.write_punctuation(")");
+            writer.write_ascii_punctuation(ascii_text!(")"));
         }
         result
     }
@@ -5742,7 +5746,7 @@ impl Printer {
         // tsgo writes the keyword through emitToken, which maps only
         // braces (printer.go:822-830, 3683-3688): the statement's own
         // range is the only mapping.
-        writer.write_keyword("debugger");
+        writer.write_ascii_keyword(ascii_text!("debugger"));
         writer.write_trailing_semicolon(";");
         Ok(())
     }
@@ -5768,7 +5772,7 @@ impl Printer {
             writer,
         )?;
         if let Some(expression) = expression {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_child_after_token_with_complete_source_comments(
                 transformation,
                 node,
@@ -5806,7 +5810,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_child_after_token_with_complete_source_comments(
             transformation,
             node,
@@ -6028,7 +6032,7 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        writer.write_punctuation("<");
+        writer.write_ascii_punctuation(ascii_text!("<"));
         self.emit_required_jsx_tag_name(
             transformation,
             node.source(),
@@ -6051,7 +6055,7 @@ impl Printer {
         {
             self.emit_trailing_comments_for_node(transformation, tag_name, writer)?;
         }
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_required_node_with_context(
             transformation,
             node.source(),
@@ -6061,7 +6065,7 @@ impl Printer {
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
-        writer.write_punctuation("/>");
+        writer.write_ascii_punctuation(ascii_text!("/>"));
         Ok(())
     }
 
@@ -6110,7 +6114,7 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        writer.write_punctuation("<");
+        writer.write_ascii_punctuation(ascii_text!("<"));
         // tsgo emitJsxOpeningElement: with preserveSourceNewlines, the
         // source's lines before the tag name and after the
         // attributes.
@@ -6162,7 +6166,7 @@ impl Printer {
                     .is_ok_and(|array| !array.nodes.is_empty())
             });
         if has_attributes {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         self.emit_required_node_with_context(
             transformation,
@@ -6182,7 +6186,7 @@ impl Printer {
         if indented {
             writer.decrease_indent();
         }
-        writer.write_punctuation(">");
+        writer.write_ascii_punctuation(ascii_text!(">"));
         Ok(())
     }
 
@@ -6195,7 +6199,7 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        writer.write_punctuation("</");
+        writer.write_ascii_punctuation(ascii_text!("</"));
         self.emit_required_jsx_tag_name(
             transformation,
             node.source(),
@@ -6205,7 +6209,7 @@ impl Printer {
             expression_context,
             writer,
         )?;
-        writer.write_punctuation(">");
+        writer.write_ascii_punctuation(ascii_text!(">"));
         Ok(())
     }
 
@@ -6228,7 +6232,7 @@ impl Printer {
             writer,
         )?;
         if let Some(initializer) = data.initializer {
-            writer.write_punctuation("=");
+            writer.write_ascii_punctuation(ascii_text!("="));
             self.emit_node_id_with_context(
                 transformation,
                 node.source(),
@@ -6249,7 +6253,7 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        writer.write_punctuation("{...");
+        writer.write_ascii_punctuation(ascii_text!("{..."));
         let expression = data
             .expression
             .ok_or(PrinterError::MissingTransformedChild {
@@ -6265,7 +6269,7 @@ impl Printer {
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
-        writer.write_punctuation("}");
+        writer.write_ascii_punctuation(ascii_text!("}"));
         Ok(())
     }
 
@@ -6369,7 +6373,7 @@ impl Printer {
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
-        writer.write_punctuation(":");
+        writer.write_ascii_punctuation(ascii_text!(":"));
         self.emit_required_identifier_name_with_context(
             transformation,
             node.source(),
@@ -6548,7 +6552,7 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         // The modifier node already owns its trailing comments.
         // The keyword visits only getLeadingCommentRanges at that end.
@@ -6567,7 +6571,7 @@ impl Printer {
                 .arena()
                 .node_ref(node.source(), clause_id)
                 .ok_or(PrinterError::UnknownStatement(clause_id.index()))?;
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             // After TypeScript erases import modifiers, the keyword's
             // arithmetic source end no longer abuts the clause. tsc
             // visits the clause's leading comments independently.
@@ -6602,7 +6606,7 @@ impl Printer {
                 clause,
                 writer,
             )?;
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             module_prefix = self.emit_source_leading_token_with_context(
                 transformation,
                 node,
@@ -6613,7 +6617,7 @@ impl Printer {
                 writer,
             )?;
         }
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let module_id = data
             .module_specifier
             .ok_or(PrinterError::MissingTransformedChild {
@@ -6648,7 +6652,7 @@ impl Printer {
             // tsgo emitModuleSpecifier: the specifier's trailing
             // comments precede the attributes.
             self.emit_trailing_comments_for_node(transformation, module, writer)?;
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_leading_comments_for_node(transformation, attributes, writer)?;
             self.emit_node_id_with_context(
                 transformation,
@@ -6694,7 +6698,7 @@ impl Printer {
                 false,
                 writer,
             )?);
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         } else if let Some(phase_modifier) = data.phase_modifier {
             if !matches!(
                 phase_modifier,
@@ -6713,7 +6717,7 @@ impl Printer {
                 false,
                 writer,
             )?);
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         if let Some(name_id) = data.name {
             let name = transformation
@@ -6746,7 +6750,7 @@ impl Printer {
                     false,
                     writer,
                 )?;
-                writer.write_space(" ");
+                writer.write_ascii_space(ascii_text!(" "));
                 if let Some(bindings_id) = data.named_bindings {
                     let bindings = transformation
                         .arena()
@@ -6816,7 +6820,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let as_keyword = self.emit_token_with_comments(
             transformation,
             node,
@@ -6825,7 +6829,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let name = data
             .name
             .and_then(|name| transformation.arena().node_ref(node.source(), name));
@@ -6874,7 +6878,7 @@ impl Printer {
                 false,
                 writer,
             )?;
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         self.emit_renamed_specifier(
             transformation,
@@ -6912,7 +6916,7 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         let export_keyword = self.emit_token_with_comments(
             transformation,
@@ -6922,7 +6926,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let export_item_anchor = if data.is_type_only {
             let anchor = self.emit_token_with_comments(
                 transformation,
@@ -6932,7 +6936,7 @@ impl Printer {
                 false,
                 writer,
             )?;
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             anchor
         } else {
             export_keyword
@@ -6988,7 +6992,7 @@ impl Printer {
             )?)
         };
         if let Some(module_id) = data.module_specifier {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             let from_keyword = self.emit_source_leading_token_with_context(
                 transformation,
                 node,
@@ -6998,7 +7002,7 @@ impl Printer {
                 expression_context,
                 writer,
             )?;
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             let module = transformation
                 .arena()
                 .node_ref(node.source(), module_id)
@@ -7031,7 +7035,7 @@ impl Printer {
             if let Some(module) = semicolon_owner {
                 self.emit_trailing_comments_for_node(transformation, module, writer)?;
             }
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_leading_comments_for_node(transformation, attributes, writer)?;
             self.emit_node_id_with_context(
                 transformation,
@@ -7070,7 +7074,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_formatted_node_list(
             transformation,
             node,
@@ -7103,8 +7107,8 @@ impl Printer {
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
-        writer.write_punctuation(":");
-        writer.write_space(" ");
+        writer.write_ascii_punctuation(ascii_text!(":"));
+        writer.write_ascii_space(ascii_text!(" "));
         if let Some(value) = data
             .value
             .and_then(|value| transformation.arena().node_ref(node.source(), value))
@@ -7147,7 +7151,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let as_keyword = self.emit_token_with_comments(
             transformation,
             node,
@@ -7156,7 +7160,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let name = data
             .name
             .and_then(|name| transformation.arena().node_ref(node.source(), name));
@@ -7205,7 +7209,7 @@ impl Printer {
                 false,
                 writer,
             )?;
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         self.emit_renamed_specifier(
             transformation,
@@ -7238,7 +7242,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let assignment_token = if data.is_export_equals == Some(true) {
             FixedToken::operator(SyntaxKind::EqualsToken)
         } else {
@@ -7252,7 +7256,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         // Parser recovery represents a missing expression with a
         // zero-width identifier, while factory consumers can supply
         // no child at all. Both forms still own a printable export
@@ -7312,7 +7316,7 @@ impl Printer {
             declaration_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         let declaration_list = data.declaration_list.and_then(|declaration_list| {
             transformation
@@ -7370,19 +7374,19 @@ impl Printer {
         );
         let flags = NodeFlags::from_bits(record.flags);
         if flags.contains(NodeFlags::AWAIT_USING) {
-            writer.write_keyword("await");
-            writer.write_space(" ");
-            writer.write_keyword("using");
+            writer.write_ascii_keyword(ascii_text!("await"));
+            writer.write_ascii_space(ascii_text!(" "));
+            writer.write_ascii_keyword(ascii_text!("using"));
         } else if flags.contains(NodeFlags::USING) {
-            writer.write_keyword("using");
+            writer.write_ascii_keyword(ascii_text!("using"));
         } else if flags.contains(NodeFlags::LET) {
-            writer.write_keyword("let");
+            writer.write_ascii_keyword(ascii_text!("let"));
         } else if flags.contains(NodeFlags::CONST) {
-            writer.write_keyword("const");
+            writer.write_ascii_keyword(ascii_text!("const"));
         } else {
-            writer.write_keyword("var");
+            writer.write_ascii_keyword(ascii_text!("var"));
         }
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let declaration_list = data.declarations.and_then(|declarations| {
             transformation
                 .arena()
@@ -7630,7 +7634,7 @@ impl Printer {
             // This space precedes token-leading comments, even when
             // they begin on a new line. The token retains its original
             // cursor independently of the trailing owner's range.
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             let equals = self.emit_source_leading_token_with_context(
                 transformation,
                 node,
@@ -7640,7 +7644,7 @@ impl Printer {
                 initializer_context,
                 writer,
             )?;
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             let initializer_node = transformation
                 .arena()
                 .node_ref(node.source(), initializer)
@@ -7688,8 +7692,8 @@ impl Printer {
                     transformation,
                     node,
                     data.elements,
-                    "[",
-                    "]",
+                    ascii_text!("["),
+                    ascii_text!("]"),
                     multi_line,
                     true,
                     ExpressionSyntaxContext::DISALLOWED_COMMA,
@@ -7752,8 +7756,8 @@ impl Printer {
                     writer,
                 )
             })?;
-            writer.write_punctuation(":");
-            writer.write_space(" ");
+            writer.write_ascii_punctuation(ascii_text!(":"));
+            writer.write_ascii_space(ascii_text!(" "));
         }
         self.emit_optional_ordinary_child(
             transformation,
@@ -7774,7 +7778,7 @@ impl Printer {
                 expression_context,
                 writer,
             )?;
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_optional_ordinary_child(
                 transformation,
                 node,
@@ -7797,7 +7801,7 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        writer.write_punctuation("[");
+        writer.write_ascii_punctuation(ascii_text!("["));
         self.emit_required_node_with_context_and_source_extent(
             transformation,
             node.source(),
@@ -7809,7 +7813,7 @@ impl Printer {
             DeferredSourceCommentExtent::LeadingAndTrailing,
             writer,
         )?;
-        writer.write_punctuation("]");
+        writer.write_ascii_punctuation(ascii_text!("]"));
         Ok(())
     }
 
@@ -7837,7 +7841,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_child_after_token_with_complete_source_comments(
             transformation,
             node,
@@ -7872,7 +7876,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_child_after_token_with_complete_source_comments(
             transformation,
             node,
@@ -7907,7 +7911,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_child_after_token_with_complete_source_comments(
             transformation,
             node,
@@ -7942,7 +7946,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_child_after_token_with_complete_source_comments(
             transformation,
             node,
@@ -8136,7 +8140,7 @@ impl Printer {
             yield_keyword
         };
         if let Some(expression) = expression {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_child_after_token_with_complete_source_comments(
                 transformation,
                 node,
@@ -8172,8 +8176,8 @@ impl Printer {
                     transformation,
                     node,
                     data.properties,
-                    "{",
-                    "}",
+                    ascii_text!("{"),
+                    ascii_text!("}"),
                     multi_line,
                     false,
                     ExpressionSyntaxContext::NORMAL,
@@ -8280,8 +8284,8 @@ impl Printer {
                 writer,
             )
         })?;
-        writer.write_punctuation(":");
-        writer.write_space(" ");
+        writer.write_ascii_punctuation(ascii_text!(":"));
+        writer.write_ascii_space(ascii_text!(" "));
         let initializer = data
             .initializer
             .ok_or(PrinterError::MissingTransformedChild {
@@ -8365,9 +8369,9 @@ impl Printer {
             )
         })?;
         if let Some(initializer) = data.object_assignment_initializer {
-            writer.write_space(" ");
-            writer.write_operator("=");
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
+            writer.write_ascii_operator(ascii_text!("="));
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_required_node_with_context_and_source_extent(
                 transformation,
                 node.source(),
@@ -8393,8 +8397,8 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let keyword = match data.token {
-            SyntaxKind::ExtendsKeyword => "extends",
-            SyntaxKind::ImplementsKeyword => "implements",
+            SyntaxKind::ExtendsKeyword => ascii_text!("extends"),
+            SyntaxKind::ImplementsKeyword => ascii_text!("implements"),
             _ => {
                 return Err(PrinterError::UnsupportedTransformedSyntax {
                     node,
@@ -8406,9 +8410,9 @@ impl Printer {
         // INSIDE the pipelined route (h2-6a-m-2: the clause's
         // Before map precedes the space); the class head no longer
         // writes it.
-        writer.write_space(" ");
-        writer.write_keyword(keyword);
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
+        writer.write_ascii_keyword(keyword);
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_heritage_list(
             transformation,
             node,
@@ -8456,7 +8460,7 @@ impl Printer {
                 crate::factory::TSGO_PRECEDENCE_MEMBER,
             )?;
         if parenthesized {
-            writer.write_punctuation("(");
+            writer.write_ascii_punctuation(ascii_text!("("));
         }
         self.emit_optional_ordinary_child(
             transformation,
@@ -8468,7 +8472,7 @@ impl Printer {
             writer,
         )?;
         if parenthesized {
-            writer.write_punctuation(")");
+            writer.write_ascii_punctuation(ascii_text!(")"));
         }
         self.emit_type_arguments(
             transformation,
@@ -8493,7 +8497,7 @@ impl Printer {
         match data {
             _ if changed => Ok(()),
             _ => {
-                writer.write_punctuation("*");
+                writer.write_ascii_punctuation(ascii_text!("*"));
                 Ok(())
             }
         }
@@ -8504,7 +8508,7 @@ impl Printer {
         &mut self,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        writer.write_punctuation("?");
+        writer.write_ascii_punctuation(ascii_text!("?"));
         Ok(())
     }
 
@@ -8517,7 +8521,7 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        writer.write_punctuation("?");
+        writer.write_ascii_punctuation(ascii_text!("?"));
         self.emit_type_node(
             transformation,
             node.source(),
@@ -8540,7 +8544,7 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        writer.write_punctuation("!");
+        writer.write_ascii_punctuation(ascii_text!("!"));
         self.emit_type_node(
             transformation,
             node.source(),
@@ -8574,7 +8578,7 @@ impl Printer {
             expression_context,
             writer,
         )?;
-        writer.write_punctuation("=");
+        writer.write_ascii_punctuation(ascii_text!("="));
         Ok(())
     }
 
@@ -8587,7 +8591,7 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        writer.write_punctuation("...");
+        writer.write_ascii_punctuation(ascii_text!("..."));
         self.emit_type_node(
             transformation,
             node.source(),
@@ -8640,9 +8644,9 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
-        writer.write_keyword("function");
+        writer.write_ascii_keyword(ascii_text!("function"));
         if let Some(asterisk) = data.asterisk_token {
             self.emit_node_id_with_context(
                 transformation,
@@ -8653,7 +8657,7 @@ impl Printer {
             )?;
         }
         if let Some(name) = data.name {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_optional_ordinary_child(
                 transformation,
                 node,
@@ -8664,7 +8668,7 @@ impl Printer {
                 writer,
             )?;
         } else {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         if self.options.declaration_syntax {
             self.emit_signature_head(
@@ -8686,7 +8690,7 @@ impl Printer {
             )?;
         }
         if let Some(body) = data.body {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_node_id_with_context(
                 transformation,
                 node.source(),
@@ -8717,9 +8721,9 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
-        writer.write_keyword("function");
+        writer.write_ascii_keyword(ascii_text!("function"));
         if let Some(asterisk) = data.asterisk_token {
             self.emit_node_id_with_context(
                 transformation,
@@ -8730,7 +8734,7 @@ impl Printer {
             )?;
         }
         if let Some(name) = data.name {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_optional_ordinary_child(
                 transformation,
                 node,
@@ -8741,7 +8745,7 @@ impl Printer {
                 writer,
             )?;
         } else {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         // tsc-port: emitSignatureAndBody @6.0.3 (the Indented arm)
         // tsc-span: _tsc.js:118969-118982
@@ -8779,7 +8783,7 @@ impl Printer {
             )?;
         }
         if let Some(body) = data.body {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_node_id_with_context(
                 transformation,
                 node.source(),
@@ -8811,7 +8815,7 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         if self.options.declaration_syntax {
             self.emit_type_parameters(
@@ -8833,7 +8837,7 @@ impl Printer {
                 writer,
             )?;
         }
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         // `emitArrowFunctionHead` emits the retained token node
         // itself. That node passes through the ordinary comments
         // pipeline: same-line trivia before `=>` is not a leading
@@ -8851,11 +8855,11 @@ impl Printer {
                 writer,
             )?,
             None => {
-                writer.write_operator("=>");
+                writer.write_ascii_operator(ascii_text!("=>"));
                 TokenEmission::new(TokenCursor::Synthetic, None)
             }
         };
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let body = data.body.ok_or(PrinterError::MissingTransformedChild {
             parent: SyntaxKind::ArrowFunction,
             field: "body",
@@ -8909,7 +8913,7 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         self.emit_optional_ordinary_child(
             transformation,
@@ -8942,8 +8946,8 @@ impl Printer {
                 writer,
             )?;
             if let Some(r#type) = data.r#type {
-                writer.write_punctuation(":");
-                writer.write_space(" ");
+                writer.write_ascii_punctuation(ascii_text!(":"));
+                writer.write_ascii_space(ascii_text!(" "));
                 self.emit_optional_ordinary_child(
                     transformation,
                     node,
@@ -8984,7 +8988,7 @@ impl Printer {
                 expression_context,
                 writer,
             )?;
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_optional_ordinary_child(
                 transformation,
                 node,
@@ -9009,8 +9013,8 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         // emitClassStaticBlockDeclaration ignores parser-attached
         // modifiers; the emitted construct consists of static + body.
-        writer.write_keyword("static");
-        writer.write_space(" ");
+        writer.write_ascii_keyword(ascii_text!("static"));
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_required_node_with_context(
             transformation,
             node.source(),
@@ -9046,7 +9050,7 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         self.emit_member_name_leading_comments(
             transformation,
@@ -9150,7 +9154,7 @@ impl Printer {
                     writer,
                 )?
             };
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             let initializer = transformation
                 .arena()
                 .node_ref(node.source(), initializer)
@@ -9185,9 +9189,9 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
-        writer.write_keyword("constructor");
+        writer.write_ascii_keyword(ascii_text!("constructor"));
         self.emit_signature_head(
             transformation,
             node,
@@ -9198,7 +9202,7 @@ impl Printer {
             writer,
         )?;
         if let Some(body) = data.body {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_node_id_with_context(
                 transformation,
                 node.source(),
@@ -9229,7 +9233,7 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         if let Some(asterisk) = data.asterisk_token {
             self.emit_node_id_with_context(
@@ -9281,7 +9285,7 @@ impl Printer {
             writer,
         )?;
         if let Some(body) = data.body {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_node_id_with_context(
                 transformation,
                 node.source(),
@@ -9312,7 +9316,7 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         // emitAccessorDeclaration 117931-117939: the keyword is an
         // `emitTokenWithComment` at the position past the decorators
@@ -9320,7 +9324,7 @@ impl Printer {
         // token's leading phase.
         let keyword_cursor = self.class_keyword_cursor(transformation, node, data.modifiers)?;
         if expression_context.nested_comments_suppressed() {
-            writer.write_keyword("get");
+            writer.write_ascii_keyword(ascii_text!("get"));
         } else {
             self.emit_token_with_source_leading_comments(
                 transformation,
@@ -9331,7 +9335,7 @@ impl Printer {
                 writer,
             )?;
         }
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_member_name_leading_comments(
             transformation,
             node,
@@ -9360,7 +9364,7 @@ impl Printer {
             writer,
         )?;
         if let Some(body) = data.body {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_node_id_with_context(
                 transformation,
                 node.source(),
@@ -9391,7 +9395,7 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         // emitAccessorDeclaration 117931-117939: the keyword is an
         // `emitTokenWithComment` at the position past the decorators
@@ -9399,7 +9403,7 @@ impl Printer {
         // token's leading phase.
         let keyword_cursor = self.class_keyword_cursor(transformation, node, data.modifiers)?;
         if expression_context.nested_comments_suppressed() {
-            writer.write_keyword("set");
+            writer.write_ascii_keyword(ascii_text!("set"));
         } else {
             self.emit_token_with_source_leading_comments(
                 transformation,
@@ -9410,7 +9414,7 @@ impl Printer {
                 writer,
             )?;
         }
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_member_name_leading_comments(
             transformation,
             node,
@@ -9439,7 +9443,7 @@ impl Printer {
             writer,
         )?;
         if let Some(body) = data.body {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_node_id_with_context(
                 transformation,
                 node.source(),
@@ -9479,7 +9483,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let open = self.emit_token_with_comments(
             transformation,
             node,
@@ -9522,7 +9526,7 @@ impl Printer {
         };
         let second_semicolon = match condition {
             Some(condition) => {
-                writer.write_space(" ");
+                writer.write_ascii_space(ascii_text!(" "));
                 let anchor = self.emit_child_with_trailing_phase_before_token(
                     transformation,
                     node,
@@ -9551,7 +9555,7 @@ impl Printer {
         };
         let close = match incrementor {
             Some(incrementor) => {
-                writer.write_space(" ");
+                writer.write_ascii_space(ascii_text!(" "));
                 let anchor = self.emit_child_with_trailing_phase_before_token(
                     transformation,
                     node,
@@ -9611,7 +9615,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let open = self.emit_token_with_comments(
             transformation,
             node,
@@ -9640,7 +9644,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let expression = expression.ok_or(PrinterError::MissingTransformedChild {
             parent: SyntaxKind::ForInStatement,
             field: "expression",
@@ -9694,7 +9698,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         if let Some(await_modifier) = data.await_modifier {
             self.emit_node_id_with_context(
                 transformation,
@@ -9703,7 +9707,7 @@ impl Printer {
                 expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                 writer,
             )?;
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         let open = self.emit_token_with_comments(
             transformation,
@@ -9733,7 +9737,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let expression = expression.ok_or(PrinterError::MissingTransformedChild {
             parent: SyntaxKind::ForOfStatement,
             field: "expression",
@@ -9787,7 +9791,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let open = self.emit_token_with_comments(
             transformation,
             node,
@@ -9856,7 +9860,7 @@ impl Printer {
                         .is_ok_and(|statement| statement.kind == SyntaxKind::IfStatement)
                 });
             if else_is_if {
-                writer.write_space(" ");
+                writer.write_ascii_space(ascii_text!(" "));
                 self.emit_node_id_with_context(
                     transformation,
                     node.source(),
@@ -9898,7 +9902,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let open = self.emit_token_with_comments(
             transformation,
             node,
@@ -9927,7 +9931,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_required_node_with_context(
             transformation,
             node.source(),
@@ -9961,7 +9965,7 @@ impl Printer {
         )?;
         let token_owned_prefix =
             self.token_owned_child_prefix(transformation, case_keyword, expression)?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         if let Some(expression) = expression {
             self.emit_leading_comments_for_node_worker(
                 transformation,
@@ -10073,7 +10077,7 @@ impl Printer {
             writer,
         )?;
         if let Some(label) = data.label {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_identifier_name_with_context(
                 transformation,
                 node.source(),
@@ -10112,7 +10116,7 @@ impl Printer {
             writer,
         )?;
         if let Some(label) = data.label {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_identifier_name_with_context(
                 transformation,
                 node.source(),
@@ -10166,7 +10170,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_required_node_with_context(
             transformation,
             node.source(),
@@ -10202,7 +10206,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let open = self.emit_token_with_comments(
             transformation,
             node,
@@ -10337,7 +10341,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_child_after_token_with_complete_source_comments(
             transformation,
             node,
@@ -10355,7 +10359,7 @@ impl Printer {
             writer,
         )?;
         if data.arguments.is_some() {
-            writer.write_punctuation("(");
+            writer.write_ascii_punctuation(ascii_text!("("));
             self.emit_call_arguments(
                 transformation,
                 node,
@@ -10365,7 +10369,7 @@ impl Printer {
                 expression_context,
                 writer,
             )?;
-            writer.write_punctuation(")");
+            writer.write_ascii_punctuation(ascii_text!(")"));
         }
         Ok(())
     }
@@ -10450,7 +10454,7 @@ impl Printer {
         // tsgo emitDoStatement: with PreserveSourceNewlines a block
         // body is separated as any other.
         if statement_is_block && !self.options.preserve_source_newlines {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         } else {
             let expression = data
                 .expression
@@ -10492,7 +10496,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let try_block = data
             .try_block
             .ok_or(PrinterError::MissingTransformedChild {
@@ -10572,7 +10576,7 @@ impl Printer {
                 false,
                 writer,
             )?;
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_node_id_with_context(
                 transformation,
                 node.source(),
@@ -10601,7 +10605,7 @@ impl Printer {
             false,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         if let Some(variable) = data.variable_declaration {
             let variable_node = transformation
                 .arena()
@@ -10639,7 +10643,7 @@ impl Printer {
                 false,
                 writer,
             )?;
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         self.emit_required_node_with_context(
             transformation,
@@ -10719,7 +10723,7 @@ impl Printer {
             expression_context,
             writer,
         )?;
-        writer.write_punctuation("(");
+        writer.write_ascii_punctuation(ascii_text!("("));
         self.emit_call_arguments(
             transformation,
             node,
@@ -10729,7 +10733,7 @@ impl Printer {
             expression_context,
             writer,
         )?;
-        writer.write_punctuation(")");
+        writer.write_ascii_punctuation(ascii_text!(")"));
         Ok(())
     }
 
@@ -10779,7 +10783,7 @@ impl Printer {
             expression_context,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         // The template is an ordinary child with its comments (tsc
         // emitExpression, tsgo emitTemplateLiteral's enterNode): a
         // comment on the lines before it follows the space.
@@ -10862,13 +10866,12 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        let operator = tsc_syntax::tokens::token_to_string(data.operator).ok_or(
-            PrinterError::UnsupportedTransformedSyntax {
+        let operator =
+            AsciiText::token(data.operator).ok_or(PrinterError::UnsupportedTransformedSyntax {
                 node,
                 kind: SyntaxKind::PrefixUnaryExpression,
-            },
-        )?;
-        writer.write_operator(operator);
+            })?;
+        writer.write_ascii_operator(operator);
         let nested_operator = data
             .operand
             .and_then(|operand| transformation.arena().node_ref(node.source(), operand))
@@ -10889,7 +10892,7 @@ impl Printer {
             )
         );
         if needs_lexical_separator {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         self.emit_required_node_with_context_and_source_extent(
             transformation,
@@ -10940,13 +10943,12 @@ impl Printer {
                 writer,
             )?;
         }
-        let operator = tsc_syntax::tokens::token_to_string(data.operator).ok_or(
-            PrinterError::UnsupportedTransformedSyntax {
+        let operator =
+            AsciiText::token(data.operator).ok_or(PrinterError::UnsupportedTransformedSyntax {
                 node,
                 kind: SyntaxKind::PostfixUnaryExpression,
-            },
-        )?;
-        writer.write_operator(operator);
+            })?;
+        writer.write_ascii_operator(operator);
         Ok(())
     }
 
@@ -11052,7 +11054,7 @@ impl Printer {
             && !writer.has_trailing_comment()
             && !writer.has_trailing_whitespace()
         {
-            writer.write_punctuation(".");
+            writer.write_ascii_punctuation(ascii_text!("."));
         }
         let token = if let Some(question_dot) = data.question_dot_token {
             self.emit_ordinary_token_after(
@@ -11349,7 +11351,7 @@ impl Printer {
         let right_parenthesized =
             self.binary_operand_needs_parentheses(transformation, right_node, right_precedence)?;
         if left_parenthesized {
-            writer.write_punctuation("(");
+            writer.write_ascii_punctuation(ascii_text!("("));
         }
         let left_comments = self.emit_expression_child_with_source_comments(
             transformation,
@@ -11360,7 +11362,7 @@ impl Printer {
             writer,
         )?;
         if left_parenthesized {
-            writer.write_punctuation(")");
+            writer.write_ascii_punctuation(ascii_text!(")"));
         }
         let operator_anchor = if let Some(left) = left_node {
             let cursor = self.original_node_end_cursor(transformation, left)?;
@@ -11384,7 +11386,7 @@ impl Printer {
             writer.write_line(false);
             writer.increase_indent();
         } else if operator_kind != SyntaxKind::CommaToken {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         let operator_token = if operator_kind == SyntaxKind::InKeyword {
             FixedToken::keyword(operator_kind)
@@ -11410,10 +11412,10 @@ impl Printer {
             writer.write_line(false);
             writer.increase_indent();
         } else {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         if right_parenthesized {
-            writer.write_punctuation("(");
+            writer.write_ascii_punctuation(ascii_text!("("));
         }
         let result = match right_node {
             Some(right) => self.emit_child_after_token_with_complete_source_comments(
@@ -11430,7 +11432,7 @@ impl Printer {
             }),
         };
         if right_parenthesized && result.is_ok() {
-            writer.write_punctuation(")");
+            writer.write_ascii_punctuation(ascii_text!(")"));
         }
         if line_after_operator {
             writer.decrease_indent();
@@ -11479,7 +11481,7 @@ impl Printer {
             }
         };
         if function_body {
-            writer.write_punctuation("{");
+            writer.write_ascii_punctuation(ascii_text!("{"));
         } else {
             let open_default = match block_source_start {
                 Some(start) => self.token_map_range_spanning(
@@ -11496,8 +11498,8 @@ impl Printer {
                 node,
                 SyntaxKind::OpenBraceToken,
                 open_default,
-                "{",
-                |writer, spelling| writer.write_punctuation(spelling),
+                ascii_text!("{"),
+                |writer, spelling| writer.write_ascii_punctuation(spelling),
                 writer,
             )?;
         }
@@ -11539,7 +11541,7 @@ impl Printer {
                     emit_source_trailing_comments_of_position(text, after_token, writer);
                 }
                 if self.range_end_is_on_same_line_as_range_start(transformation, node)? {
-                    writer.write_space(" ");
+                    writer.write_ascii_space(ascii_text!(" "));
                 } else {
                     writer.write_line(false);
                 }
@@ -11558,8 +11560,8 @@ impl Printer {
                     node,
                     SyntaxKind::CloseBraceToken,
                     close_default,
-                    "}",
-                    |writer, spelling| writer.write_punctuation(spelling),
+                    ascii_text!("}"),
+                    |writer, spelling| writer.write_ascii_punctuation(spelling),
                     writer,
                 )?;
                 if comments {
@@ -11743,13 +11745,13 @@ impl Printer {
                         writer.write_line(false);
                     }
                 } else if !emitted_comments {
-                    writer.write_space(" ");
+                    writer.write_ascii_space(ascii_text!(" "));
                 }
             } else if !multi_line {
                 if !function_body {
                     self.emit_comment_after_open_brace(transformation, node, writer)?;
                 }
-                writer.write_space(" ");
+                writer.write_ascii_space(ascii_text!(" "));
                 let mut forced_line_indent = false;
                 let mut in_function_prologue = function_body;
                 for (index, statement) in statements.into_iter().enumerate() {
@@ -11773,7 +11775,7 @@ impl Printer {
                             forced_line_indent = true;
                         }
                     } else if index != 0 {
-                        writer.write_space(" ");
+                        writer.write_ascii_space(ascii_text!(" "));
                     }
                     // tsc's emitNodeListItems (_tsc.js:120068-120140)
                     // visits each child's comment range, including a
@@ -11815,7 +11817,7 @@ impl Printer {
                 if forced_line_indent {
                     writer.decrease_indent();
                 }
-                writer.write_space(" ");
+                writer.write_ascii_space(ascii_text!(" "));
             } else {
                 if !function_body {
                     self.emit_comment_after_open_brace(transformation, node, writer)?;
@@ -12045,8 +12047,8 @@ impl Printer {
             node,
             SyntaxKind::CloseBraceToken,
             close_default,
-            "}",
-            |writer, spelling| writer.write_punctuation(spelling),
+            ascii_text!("}"),
+            |writer, spelling| writer.write_ascii_punctuation(spelling),
             writer,
         )?;
         Ok(())
@@ -12186,8 +12188,8 @@ impl Printer {
             case_block,
             SyntaxKind::OpenBraceToken,
             open_default,
-            "{",
-            |writer, spelling| writer.write_punctuation(spelling),
+            ascii_text!("{"),
+            |writer, spelling| writer.write_ascii_punctuation(spelling),
             writer,
         )?;
         // emitCaseBlock's open brace is an emitTokenWithComment token
@@ -12294,8 +12296,8 @@ impl Printer {
             case_block,
             SyntaxKind::CloseBraceToken,
             close_default,
-            "}",
-            |writer, spelling| writer.write_punctuation(spelling),
+            ascii_text!("}"),
+            |writer, spelling| writer.write_ascii_punctuation(spelling),
             writer,
         )?;
         Ok(())
@@ -12358,7 +12360,7 @@ impl Printer {
         }
         let first = first.ok_or(PrinterError::UnknownStatement(statements[0].index()))?;
         if single_line {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_leading_comments_for_node_worker(
                 transformation,
                 first,
@@ -13303,7 +13305,7 @@ impl Printer {
                 writer.write_line(line > 0);
             }
         } else if write_space_if_not_indenting {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
     }
 
@@ -13336,7 +13338,7 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         let source = parent.source();
         if let Some(brackets) = brackets {
-            writer.write_punctuation(brackets.opening());
+            writer.write_ascii_punctuation(brackets.opening());
         }
         let array = elements.and_then(|id| transformation.arena().node_array_ref(source, id));
         let (ids, trailing_comma, array_end) = if let Some(array) = array {
@@ -13364,7 +13366,7 @@ impl Printer {
                         writer,
                     )?;
                 }
-                writer.write_punctuation(brackets.closing());
+                writer.write_ascii_punctuation(brackets.closing());
             }
             return Ok(());
         }
@@ -13387,7 +13389,7 @@ impl Printer {
         if leading_line {
             writer.write_line(false);
         } else if space_between_braces {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         if indented {
             writer.increase_indent();
@@ -13412,7 +13414,7 @@ impl Printer {
                             expression_context,
                             writer,
                         )?;
-                        writer.write_punctuation(",");
+                        writer.write_ascii_punctuation(ascii_text!(","));
                     }
                     self.separating_line_terminator_count(
                         transformation,
@@ -13445,7 +13447,7 @@ impl Printer {
                             writer.write_line(false);
                         } else {
                             if format.space_between_siblings {
-                                writer.write_space(" ");
+                                writer.write_ascii_space(ascii_text!(" "));
                             }
                             self.emit_list_item_position_comments(
                                 transformation,
@@ -13510,10 +13512,10 @@ impl Printer {
         if closing_line {
             writer.write_line(false);
         } else if space_between_braces {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         if let Some(brackets) = brackets {
-            writer.write_punctuation(brackets.closing());
+            writer.write_ascii_punctuation(brackets.closing());
         }
         Ok(())
     }
@@ -13544,7 +13546,7 @@ impl Printer {
                 .is_some_and(|metadata| metadata.flags().contains(EmitFlags::NO_TRAILING_COMMENTS));
         if trailing_comma {
             if skip_comments {
-                writer.write_punctuation(",");
+                writer.write_ascii_punctuation(ascii_text!(","));
             } else {
                 let cursor = if end == u32::MAX {
                     TokenCursor::Synthetic
@@ -13611,15 +13613,15 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         parent: TransformNode,
         elements: Option<tsc_syntax::NodeArrayId>,
-        open: &str,
-        close: &str,
+        open: AsciiText,
+        close: AsciiText,
         prefer_new_line: bool,
         allow_trailing_comma: bool,
         item_syntax: ExpressionSyntaxContext,
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        writer.write_punctuation(open);
+        writer.write_ascii_punctuation(open);
         let array =
             elements.and_then(|id| transformation.arena().node_array_ref(parent.source(), id));
         let (ids, trailing_comma) = if let Some(array) = array {
@@ -13638,7 +13640,7 @@ impl Printer {
                 expression_context.comments(),
                 writer,
             )?;
-            writer.write_punctuation(close);
+            writer.write_ascii_punctuation(close);
             return Ok(());
         }
 
@@ -13651,8 +13653,8 @@ impl Printer {
                 != self.json_node_start_line(transformation, first)?;
         if leading_line {
             writer.write_line(false);
-        } else if open == "{" {
-            writer.write_space(" ");
+        } else if open.text() == "{" {
+            writer.write_ascii_space(ascii_text!(" "));
         }
         writer.increase_indent();
 
@@ -13686,7 +13688,7 @@ impl Printer {
                 false
             };
             if has_next || trailing_comma && allow_trailing_comma {
-                writer.write_punctuation(",");
+                writer.write_ascii_punctuation(ascii_text!(","));
             }
             if has_next || trailing_comma && allow_trailing_comma {
                 self.emit_delimited_boundary_comments(
@@ -13709,7 +13711,7 @@ impl Printer {
                 if separate_line {
                     writer.write_line(false);
                 } else {
-                    writer.write_space(" ");
+                    writer.write_ascii_space(ascii_text!(" "));
                 }
             }
         }
@@ -13725,10 +13727,10 @@ impl Printer {
         writer.decrease_indent();
         if closing_line {
             writer.write_line(false);
-        } else if open == "{" {
-            writer.write_space(" ");
+        } else if open.text() == "{" {
+            writer.write_ascii_space(ascii_text!(" "));
         }
-        writer.write_punctuation(close);
+        writer.write_ascii_punctuation(close);
         Ok(())
     }
 
@@ -13810,7 +13812,7 @@ impl Printer {
                 writer,
             )?,
         };
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let open = self.emit_token_with_comments(
             transformation,
             node,
@@ -13908,7 +13910,7 @@ impl Printer {
                 && self.preserved_leading_line_terminator_count(transformation, statement_node)?
                     == 0
         {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             // tsgo emitStatement: the statement's leading comments (one after
             // a line break in the source takes its line).
             self.emit_leading_comments_for_node_worker(
@@ -13992,7 +13994,7 @@ impl Printer {
             .metadata(parent)
             .is_some_and(|metadata| metadata.flags().contains(crate::EmitFlags::SINGLE_LINE))
         {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         } else if self.options.preserve_source_newlines {
             let lines =
                 self.lines_between_optional_nodes(transformation, parent, previous, next)?;
@@ -14001,7 +14003,7 @@ impl Printer {
                     writer.write_line(line > 0);
                 }
             } else {
-                writer.write_space(" ");
+                writer.write_ascii_space(ascii_text!(" "));
             }
         } else {
             writer.write_line(false);
@@ -14038,11 +14040,11 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         let keyword_cursor = self.class_keyword_cursor(transformation, class_node, modifiers)?;
         if expression_context.nested_comments_suppressed() {
-            writer.write_keyword("class");
+            writer.write_ascii_keyword(ascii_text!("class"));
         } else {
             self.emit_token_with_source_leading_comments(
                 transformation,
@@ -14054,7 +14056,7 @@ impl Printer {
             )?;
         }
         if let Some(name) = name {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_identifier_name_with_context(
                 transformation,
                 source,
@@ -14114,8 +14116,8 @@ impl Printer {
                 writer,
             )?;
         }
-        writer.write_space(" ");
-        writer.write_punctuation("{");
+        writer.write_ascii_space(ascii_text!(" "));
+        writer.write_ascii_punctuation(ascii_text!("{"));
         let member_array = members.and_then(|id| transformation.arena().node_array_ref(source, id));
         writer.set_list_pos(member_array);
         if let Some(member_array) = member_array {
@@ -14196,7 +14198,7 @@ impl Printer {
             writer.write_line(false);
         }
         writer.set_list_end(member_array);
-        writer.write_punctuation("}");
+        writer.write_ascii_punctuation(ascii_text!("}"));
         if indented {
             writer.decrease_indent();
         }
@@ -14393,12 +14395,12 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, kind)?;
         let text = if kind == SyntaxKind::ThisType {
-            "this"
+            ascii_text!("this")
         } else {
-            tsc_syntax::tokens::token_to_string(kind)
+            AsciiText::token(kind)
                 .ok_or(PrinterError::UnsupportedTransformedSyntax { node, kind })?
         };
-        writer.write_keyword(text);
+        writer.write_ascii_keyword(text);
         Ok(())
     }
 
@@ -14432,7 +14434,7 @@ impl Printer {
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
-        writer.write_punctuation(".");
+        writer.write_ascii_punctuation(ascii_text!("."));
         self.emit_required_identifier_name_with_context(
             transformation,
             node.source(),
@@ -14491,7 +14493,7 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         self.emit_required_identifier_name_with_context(
             transformation,
@@ -14512,9 +14514,9 @@ impl Printer {
             writer,
         )?;
         if let Some(constraint) = data.constraint {
-            writer.write_space(" ");
-            writer.write_keyword("extends");
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
+            writer.write_ascii_keyword(ascii_text!("extends"));
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_type_child_leading_comments(
                 transformation,
                 node.source(),
@@ -14547,9 +14549,9 @@ impl Printer {
             )?;
         }
         if let Some(default) = data.r#default {
-            writer.write_space(" ");
-            writer.write_operator("=");
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
+            writer.write_ascii_operator(ascii_text!("="));
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_type_child_leading_comments(
                 transformation,
                 node.source(),
@@ -14595,7 +14597,7 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         let name = data.name.ok_or(PrinterError::MissingTransformedChild {
             parent: SyntaxKind::PropertySignature,
@@ -14662,7 +14664,7 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         let name = data.name.ok_or(PrinterError::MissingTransformedChild {
             parent: SyntaxKind::MethodSignature,
@@ -14738,8 +14740,8 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, SyntaxKind::ConstructSignature)?;
-        writer.write_keyword("new");
-        writer.write_space(" ");
+        writer.write_ascii_keyword(ascii_text!("new"));
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_signature_head(
             transformation,
             node,
@@ -14774,9 +14776,9 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
-        writer.write_punctuation("[");
+        writer.write_ascii_punctuation(ascii_text!("["));
         self.emit_comma_list(
             transformation,
             node.source(),
@@ -14785,7 +14787,7 @@ impl Printer {
             expression_context,
             writer,
         )?;
-        writer.write_punctuation("]");
+        writer.write_ascii_punctuation(ascii_text!("]"));
         self.emit_type_annotation(
             transformation,
             node,
@@ -14818,7 +14820,7 @@ impl Printer {
                 expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                 writer,
             )?;
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         self.emit_required_node_with_context(
             transformation,
@@ -14830,9 +14832,9 @@ impl Printer {
             writer,
         )?;
         if let Some(r#type) = data.r#type {
-            writer.write_space(" ");
-            writer.write_keyword("is");
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
+            writer.write_ascii_keyword(ascii_text!("is"));
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_node_id_with_context(
                 transformation,
                 node.source(),
@@ -14926,8 +14928,8 @@ impl Printer {
             writer,
         )?;
         self.emit_parameter_list(transformation, node, parameters, expression_context, writer)?;
-        writer.write_space(" ");
-        writer.write_punctuation("=>");
+        writer.write_ascii_space(ascii_text!(" "));
+        writer.write_ascii_punctuation(ascii_text!("=>"));
         Ok(())
     }
 
@@ -14942,7 +14944,7 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_type_child_leading_comments(transformation, node.source(), r#type, writer)?;
         // tsgo emitReturnType (printer.go:1918-1936): in the `extends` clause,
         // a constrained `infer` return is parenthesized.
@@ -14993,7 +14995,7 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, SyntaxKind::JSDocFunctionType)?;
-        writer.write_keyword("function");
+        writer.write_ascii_keyword(ascii_text!("function"));
         self.emit_parameter_list(
             transformation,
             node,
@@ -15001,8 +15003,8 @@ impl Printer {
             expression_context,
             writer,
         )?;
-        writer.write_punctuation(":");
-        writer.write_space(" ");
+        writer.write_ascii_punctuation(ascii_text!(":"));
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_required_node_with_context(
             transformation,
             node.source(),
@@ -15035,10 +15037,10 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
-        writer.write_keyword("new");
-        writer.write_space(" ");
+        writer.write_ascii_keyword(ascii_text!("new"));
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_function_type_head(
             transformation,
             node,
@@ -15069,8 +15071,8 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, SyntaxKind::TypeQuery)?;
-        writer.write_keyword("typeof");
-        writer.write_space(" ");
+        writer.write_ascii_keyword(ascii_text!("typeof"));
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_type_child_leading_comments(
             transformation,
             node.source(),
@@ -15108,7 +15110,7 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, SyntaxKind::TypeLiteral)?;
-        writer.write_punctuation("{");
+        writer.write_ascii_punctuation(ascii_text!("{"));
         let single_line = transformation
             .arena()
             .metadata(node)
@@ -15131,7 +15133,7 @@ impl Printer {
                 writer,
             )?;
         }
-        writer.write_punctuation("}");
+        writer.write_ascii_punctuation(ascii_text!("}"));
         Ok(())
     }
 
@@ -15160,14 +15162,14 @@ impl Printer {
             writer.set_list_end(member_list);
             return Ok(());
         }
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         for (index, id) in ids.iter().copied().enumerate() {
             let member = transformation
                 .arena()
                 .node_ref(parent.source(), id)
                 .ok_or(PrinterError::UnknownStatement(id.index()))?;
             if index > 0 {
-                writer.write_space(" ");
+                writer.write_ascii_space(ascii_text!(" "));
             }
             // tsgo emitListItems: the comments at the member's position (its
             // intervening comments, `emitTrailingCommentsOfPosition` at its
@@ -15192,7 +15194,7 @@ impl Printer {
             self.emit_trailing_comments_for_node(transformation, member, writer)?;
         }
         writer.set_list_end(member_list);
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         Ok(())
     }
 
@@ -15219,8 +15221,8 @@ impl Printer {
             writer,
         )?;
         // tsgo writes the brackets as two punctuations.
-        writer.write_punctuation("[");
-        writer.write_punctuation("]");
+        writer.write_ascii_punctuation(ascii_text!("["));
+        writer.write_ascii_punctuation(ascii_text!("]"));
         Ok(())
     }
 
@@ -15237,7 +15239,7 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, SyntaxKind::RestType)?;
-        writer.write_punctuation("...");
+        writer.write_ascii_punctuation(ascii_text!("..."));
         let r#type = data.r#type.ok_or(PrinterError::MissingTransformedChild {
             parent: SyntaxKind::RestType,
             field: "type",
@@ -15266,7 +15268,7 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, SyntaxKind::TupleType)?;
-        writer.write_punctuation("[");
+        writer.write_ascii_punctuation(ascii_text!("["));
         let single_line = transformation
             .arena()
             .metadata(node)
@@ -15289,7 +15291,7 @@ impl Printer {
                 writer,
             )?;
         }
-        writer.write_punctuation("]");
+        writer.write_ascii_punctuation(ascii_text!("]"));
         Ok(())
     }
 
@@ -15349,7 +15351,7 @@ impl Printer {
             expression_context,
             writer,
         )?;
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         let r#type = data.r#type.ok_or(PrinterError::MissingTransformedChild {
             parent: SyntaxKind::NamedTupleMember,
             field: "type",
@@ -15387,7 +15389,7 @@ impl Printer {
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
-        writer.write_punctuation("?");
+        writer.write_ascii_punctuation(ascii_text!("?"));
         Ok(())
     }
 
@@ -15488,9 +15490,9 @@ impl Printer {
             expression_context,
             writer,
         )?;
-        writer.write_space(" ");
-        writer.write_keyword("extends");
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
+        writer.write_ascii_keyword(ascii_text!("extends"));
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_type_child_leading_comments(
             transformation,
             node.source(),
@@ -15572,8 +15574,8 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, SyntaxKind::InferType)?;
-        writer.write_keyword("infer");
-        writer.write_space(" ");
+        writer.write_ascii_keyword(ascii_text!("infer"));
+        writer.write_ascii_space(ascii_text!(" "));
         self.infer_type_parameter_next = true;
         let result = self.emit_required_node_with_context(
             transformation,
@@ -15601,7 +15603,7 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, SyntaxKind::ParenthesizedType)?;
-        writer.write_punctuation("(");
+        writer.write_ascii_punctuation(ascii_text!("("));
         self.emit_type_child_leading_comments(transformation, node.source(), data.r#type, writer)?;
         self.emit_required_node_with_context(
             transformation,
@@ -15612,7 +15614,7 @@ impl Printer {
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
-        writer.write_punctuation(")");
+        writer.write_ascii_punctuation(ascii_text!(")"));
         Ok(())
     }
 
@@ -15629,14 +15631,13 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, SyntaxKind::TypeOperator)?;
-        let keyword = tsc_syntax::tokens::token_to_string(data.operator).ok_or(
-            PrinterError::UnsupportedTransformedSyntax {
+        let keyword =
+            AsciiText::token(data.operator).ok_or(PrinterError::UnsupportedTransformedSyntax {
                 node,
                 kind: data.operator,
-            },
-        )?;
-        writer.write_keyword(keyword);
-        writer.write_space(" ");
+            })?;
+        writer.write_ascii_keyword(keyword);
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_type_child_leading_comments(transformation, node.source(), data.r#type, writer)?;
         // tsgo emitTypeOperator (printer.go:2125-2131).
         self.emit_type_node(
@@ -15678,7 +15679,7 @@ impl Printer {
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
-        writer.write_punctuation("[");
+        writer.write_ascii_punctuation(ascii_text!("["));
         self.emit_required_node_with_context(
             transformation,
             node.source(),
@@ -15688,7 +15689,7 @@ impl Printer {
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
-        writer.write_punctuation("]");
+        writer.write_ascii_punctuation(ascii_text!("]"));
         Ok(())
     }
 
@@ -15709,9 +15710,9 @@ impl Printer {
             .arena()
             .metadata(node)
             .is_some_and(|metadata| metadata.flags().contains(EmitFlags::SINGLE_LINE));
-        writer.write_punctuation("{");
+        writer.write_ascii_punctuation(ascii_text!("{"));
         if single_line {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         } else {
             writer.write_line(false);
             writer.increase_indent();
@@ -15730,11 +15731,11 @@ impl Printer {
                 writer,
             )?;
             if readonly_kind != SyntaxKind::ReadonlyKeyword {
-                writer.write_keyword("readonly");
+                writer.write_ascii_keyword(ascii_text!("readonly"));
             }
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
-        writer.write_punctuation("[");
+        writer.write_ascii_punctuation(ascii_text!("["));
         self.emit_mapped_type_parameter(
             transformation,
             node,
@@ -15743,9 +15744,9 @@ impl Printer {
             writer,
         )?;
         if let Some(name_type) = data.name_type {
-            writer.write_space(" ");
-            writer.write_keyword("as");
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
+            writer.write_ascii_keyword(ascii_text!("as"));
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_node_id_with_context(
                 transformation,
                 node.source(),
@@ -15761,7 +15762,7 @@ impl Printer {
                 writer,
             )?;
         }
-        writer.write_punctuation("]");
+        writer.write_ascii_punctuation(ascii_text!("]"));
         if let Some(question) = data.question_token {
             let question_node = transformation
                 .arena()
@@ -15776,7 +15777,7 @@ impl Printer {
                 writer,
             )?;
             if question_kind != SyntaxKind::QuestionToken {
-                writer.write_punctuation("?");
+                writer.write_ascii_punctuation(ascii_text!("?"));
             }
         }
         // tsgo emitMappedType writes the colon only with a type: a mapped
@@ -15799,7 +15800,7 @@ impl Printer {
             .is_some_and(|members| !members.nodes.is_empty());
         if has_members {
             if single_line {
-                writer.write_space(" ");
+                writer.write_ascii_space(ascii_text!(" "));
             } else {
                 writer.write_line(false);
             }
@@ -15817,12 +15818,12 @@ impl Printer {
             )?;
         }
         if single_line {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         } else {
             writer.write_line(false);
             writer.decrease_indent();
         }
-        writer.write_punctuation("}");
+        writer.write_ascii_punctuation(ascii_text!("}"));
         Ok(())
     }
 
@@ -15869,9 +15870,9 @@ impl Printer {
             expression_context,
             writer,
         )?;
-        writer.write_space(" ");
-        writer.write_keyword("in");
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
+        writer.write_ascii_keyword(ascii_text!("in"));
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_type_child_leading_comments(
             transformation,
             parent.source(),
@@ -16015,11 +16016,11 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, SyntaxKind::ImportType)?;
         if data.is_type_of {
-            writer.write_keyword("typeof");
-            writer.write_space(" ");
+            writer.write_ascii_keyword(ascii_text!("typeof"));
+            writer.write_ascii_space(ascii_text!(" "));
         }
-        writer.write_keyword("import");
-        writer.write_punctuation("(");
+        writer.write_ascii_keyword(ascii_text!("import"));
+        writer.write_ascii_punctuation(ascii_text!("("));
         self.emit_type_child_leading_comments(
             transformation,
             node.source(),
@@ -16036,8 +16037,8 @@ impl Printer {
             writer,
         )?;
         if let Some(attributes) = data.attributes {
-            writer.write_punctuation(",");
-            writer.write_space(" ");
+            writer.write_ascii_punctuation(ascii_text!(","));
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_optional_ordinary_child(
                 transformation,
                 node,
@@ -16048,9 +16049,9 @@ impl Printer {
                 writer,
             )?;
         }
-        writer.write_punctuation(")");
+        writer.write_ascii_punctuation(ascii_text!(")"));
         if let Some(qualifier) = data.qualifier {
-            writer.write_punctuation(".");
+            writer.write_ascii_punctuation(ascii_text!("."));
             self.emit_node_id_with_context(
                 transformation,
                 node.source(),
@@ -16085,15 +16086,15 @@ impl Printer {
                 kind: transformation.arena().node(attributes_node)?.kind,
             });
         };
-        writer.write_punctuation("{");
-        writer.write_space(" ");
-        writer.write_keyword(if data.token == SyntaxKind::AssertKeyword {
-            "assert"
+        writer.write_ascii_punctuation(ascii_text!("{"));
+        writer.write_ascii_space(ascii_text!(" "));
+        writer.write_ascii_keyword(if data.token == SyntaxKind::AssertKeyword {
+            ascii_text!("assert")
         } else {
-            "with"
+            ascii_text!("with")
         });
-        writer.write_punctuation(":");
-        writer.write_space(" ");
+        writer.write_ascii_punctuation(ascii_text!(":"));
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_formatted_node_list(
             transformation,
             attributes_node,
@@ -16106,8 +16107,8 @@ impl Printer {
             expression_context,
             writer,
         )?;
-        writer.write_space(" ");
-        writer.write_punctuation("}");
+        writer.write_ascii_space(ascii_text!(" "));
+        writer.write_ascii_punctuation(ascii_text!("}"));
         Ok(())
     }
 
@@ -16132,10 +16133,10 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
-        writer.write_keyword("interface");
-        writer.write_space(" ");
+        writer.write_ascii_keyword(ascii_text!("interface"));
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_required_identifier_name_with_context(
             transformation,
             node.source(),
@@ -16163,8 +16164,8 @@ impl Printer {
             expression_context,
             writer,
         )?;
-        writer.write_space(" ");
-        writer.write_punctuation("{");
+        writer.write_ascii_space(ascii_text!(" "));
+        writer.write_ascii_punctuation(ascii_text!("{"));
         self.emit_declaration_members(
             transformation,
             node,
@@ -16173,7 +16174,7 @@ impl Printer {
             expression_context,
             writer,
         )?;
-        writer.write_punctuation("}");
+        writer.write_ascii_punctuation(ascii_text!("}"));
         Ok(())
     }
 
@@ -16198,10 +16199,10 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
-        writer.write_keyword("type");
-        writer.write_space(" ");
+        writer.write_ascii_keyword(ascii_text!("type"));
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_required_identifier_name_with_context(
             transformation,
             node.source(),
@@ -16273,10 +16274,10 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
-        writer.write_keyword("enum");
-        writer.write_space(" ");
+        writer.write_ascii_keyword(ascii_text!("enum"));
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_required_identifier_name_with_context(
             transformation,
             node.source(),
@@ -16286,8 +16287,8 @@ impl Printer {
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
-        writer.write_space(" ");
-        writer.write_punctuation("{");
+        writer.write_ascii_space(ascii_text!(" "));
+        writer.write_ascii_punctuation(ascii_text!("{"));
         self.emit_multiline_comma_list(
             transformation,
             node,
@@ -16295,7 +16296,7 @@ impl Printer {
             expression_context,
             writer,
         )?;
-        writer.write_punctuation("}");
+        writer.write_ascii_punctuation(ascii_text!("}"));
         Ok(())
     }
 
@@ -16357,16 +16358,16 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         let flags = NodeFlags::from_bits(transformation.arena().node(node)?.flags);
         if !flags.contains(NodeFlags::GLOBAL_AUGMENTATION) {
-            writer.write_keyword(if flags.contains(NodeFlags::NAMESPACE) {
-                "namespace"
+            writer.write_ascii_keyword(if flags.contains(NodeFlags::NAMESPACE) {
+                ascii_text!("namespace")
             } else {
-                "module"
+                ascii_text!("module")
             });
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         self.emit_required_identifier_name_with_context(
             transformation,
@@ -16381,9 +16382,9 @@ impl Printer {
         // attributes type; only string-named modules carry one, so no
         // nested name follows.
         if let Some(attributes) = data.attributes {
-            writer.write_space(" ");
-            writer.write_keyword("with");
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
+            writer.write_ascii_keyword(ascii_text!("with"));
+            writer.write_ascii_space(ascii_text!(" "));
             self.emit_node_id_with_context(
                 transformation,
                 node.source(),
@@ -16403,7 +16404,7 @@ impl Printer {
                 .ok_or(PrinterError::UnknownStatement(body_id.index()))?;
             let record = *transformation.arena().node(body)?;
             let Some(nested) = record.as_module_declaration() else {
-                writer.write_space(" ");
+                writer.write_ascii_space(ascii_text!(" "));
                 self.emit_node_id_with_context(
                     transformation,
                     node.source(),
@@ -16413,7 +16414,7 @@ impl Printer {
                 )?;
                 return Ok(());
             };
-            writer.write_punctuation(".");
+            writer.write_ascii_punctuation(ascii_text!("."));
             self.emit_required_identifier_name_with_context(
                 transformation,
                 node.source(),
@@ -16444,7 +16445,7 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, SyntaxKind::ModuleBlock)?;
-        writer.write_punctuation("{");
+        writer.write_ascii_punctuation(ascii_text!("{"));
         // tsgo emitModuleBlock writes both braces with emitToken: the
         // comments on the line of `{` follow it, and those after the last
         // statement precede `}`, indented as the statements
@@ -16493,10 +16494,10 @@ impl Printer {
                 )?;
                 writer.decrease_indent();
             } else {
-                writer.write_space(" ");
+                writer.write_ascii_space(ascii_text!(" "));
             }
         }
-        writer.write_punctuation("}");
+        writer.write_ascii_punctuation(ascii_text!("}"));
         Ok(())
     }
 
@@ -16524,13 +16525,13 @@ impl Printer {
             expression_context,
             writer,
         )? {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
-        writer.write_keyword("import");
-        writer.write_space(" ");
+        writer.write_ascii_keyword(ascii_text!("import"));
+        writer.write_ascii_space(ascii_text!(" "));
         if data.is_type_only {
-            writer.write_keyword("type");
-            writer.write_space(" ");
+            writer.write_ascii_keyword(ascii_text!("type"));
+            writer.write_ascii_space(ascii_text!(" "));
         }
         self.emit_required_identifier_name_with_context(
             transformation,
@@ -16613,8 +16614,8 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         if let Some(r#type) = r#type {
-            writer.write_punctuation(":");
-            writer.write_space(" ");
+            writer.write_ascii_punctuation(ascii_text!(":"));
+            writer.write_ascii_space(ascii_text!(" "));
             let type_node = transformation
                 .arena()
                 .node_ref(parent.source(), r#type)
@@ -16701,7 +16702,7 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         let source = parent.source();
         if self.node_array_has_elements(transformation, source, type_parameters)? {
-            writer.write_punctuation("<");
+            writer.write_ascii_punctuation(ascii_text!("<"));
             self.emit_comma_list(
                 transformation,
                 source,
@@ -16718,10 +16719,10 @@ impl Printer {
                     .transpose()?
                     .is_some_and(|array| array.has_trailing_comma);
             if trailing_comma {
-                writer.write_punctuation(",");
+                writer.write_ascii_punctuation(ascii_text!(","));
                 writer.set_list_end(list);
             }
-            writer.write_punctuation(">");
+            writer.write_ascii_punctuation(ascii_text!(">"));
         } else {
             // tsgo's OptionalIfEmpty list: an empty one is where it would be.
             let list = type_parameters
@@ -16780,11 +16781,11 @@ impl Printer {
                     expression_context,
                     writer,
                 )?;
-                writer.write_punctuation(",");
+                writer.write_ascii_punctuation(ascii_text!(","));
                 if separate_line {
                     writer.increase_indent();
                 } else {
-                    writer.write_space(" ");
+                    writer.write_ascii_space(ascii_text!(" "));
                 }
             }
             // Restore the temporary list indent even when a comment range,
@@ -16920,7 +16921,7 @@ impl Printer {
                     continue;
                 }
                 if !writer.is_at_start_of_line() {
-                    writer.write_space(" ");
+                    writer.write_ascii_space(ascii_text!(" "));
                 }
                 write_source_comment(source.text(), comment.start, comment.end, writer);
                 if comment.has_trailing_new_line {
@@ -17040,7 +17041,7 @@ impl Printer {
                     }
                     writer.write_line(false);
                 } else {
-                    writer.write_space(" ");
+                    writer.write_ascii_space(ascii_text!(" "));
                 }
                 self.emit_separated_declaration_list_item_comments(transformation, child, writer)?;
             }
@@ -17238,7 +17239,7 @@ impl Printer {
                 {
                     writer.write_line(false);
                 } else if !writer.is_at_start_of_line() && !writer.has_trailing_whitespace() {
-                    writer.write_space(" ");
+                    writer.write_ascii_space(ascii_text!(" "));
                 }
                 write_source_comment(source.text(), comment.start, comment.end, writer);
                 wrote = true;
@@ -17338,7 +17339,7 @@ impl Printer {
             && !writer.is_at_start_of_line()
             && !writer.has_trailing_whitespace()
         {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         for (index, id) in ids.iter().copied().enumerate() {
             let child = transformation
@@ -17355,7 +17356,7 @@ impl Printer {
             )?;
             self.emit_list_element_end_comments(transformation, child, writer)?;
             if index + 1 < ids.len() {
-                writer.write_punctuation(",");
+                writer.write_ascii_punctuation(ascii_text!(","));
                 let next = transformation
                     .arena()
                     .node_ref(parent.source(), ids[index + 1])
@@ -17372,7 +17373,7 @@ impl Printer {
                     // space between siblings, then the comments at the next
                     // element's position (its intervening comments).
                     if force_line_after_comments {
-                        writer.write_space(" ");
+                        writer.write_ascii_space(ascii_text!(" "));
                     }
                     if !self.comments_disabled() {
                         intervening = self.emit_intervening_comments_of_node_position(
@@ -17409,7 +17410,7 @@ impl Printer {
                 {
                     // Enum members have no SpaceBetweenSiblings: on one line
                     // they follow the comma directly.
-                    writer.write_space(" ");
+                    writer.write_ascii_space(ascii_text!(" "));
                 }
             } else {
                 writer.set_list_end(list);
@@ -17583,7 +17584,7 @@ impl Printer {
             writer.set_list_end(Some(type_arguments));
             return Ok(());
         }
-        writer.write_punctuation("<");
+        writer.write_ascii_punctuation(ascii_text!("<"));
         writer.set_list_pos(Some(type_arguments));
         // tsgo emitListItems with TypeArguments (SingleLine); emitList adds
         // PreferNewLine and Indented for a MultiLine node.
@@ -17623,7 +17624,7 @@ impl Printer {
                     }
                     writer.write_line(false);
                 } else {
-                    writer.write_space(" ");
+                    writer.write_ascii_space(ascii_text!(" "));
                 }
                 self.emit_separated_declaration_list_item_comments(transformation, child, writer)?;
             }
@@ -17660,7 +17661,7 @@ impl Printer {
             writer.write_line(false);
         }
         writer.set_list_end(Some(type_arguments));
-        writer.write_punctuation(">");
+        writer.write_ascii_punctuation(ascii_text!(">"));
         Ok(())
     }
 
@@ -17766,7 +17767,7 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         let source = parent.source();
         if parentheses.are_present() {
-            writer.write_punctuation("(");
+            writer.write_ascii_punctuation(ascii_text!("("));
         }
         let array = parameters.and_then(|id| transformation.arena().node_array_ref(source, id));
         let (ids, synthesized_array) = if let Some(array) = array {
@@ -17866,7 +17867,7 @@ impl Printer {
                         Some(next),
                         lines,
                     )?;
-                    writer.write_punctuation(",");
+                    writer.write_ascii_punctuation(ascii_text!(","));
                     pending_delimited_comment = self.emit_delimited_boundary_comments(
                         transformation,
                         DelimitedCommentBoundary::BeforeItem(next),
@@ -17883,7 +17884,7 @@ impl Printer {
                         }
                         writer.write_line(false);
                     } else if !writer.is_at_start_of_line() {
-                        writer.write_space(" ");
+                        writer.write_ascii_space(ascii_text!(" "));
                     }
                 }
             }
@@ -17913,7 +17914,7 @@ impl Printer {
         }
         writer.set_list_end(array);
         if parentheses.are_present() {
-            writer.write_punctuation(")");
+            writer.write_ascii_punctuation(ascii_text!(")"));
         }
         Ok(())
     }
@@ -18441,7 +18442,7 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let source = parent.source();
-        writer.write_punctuation("{");
+        writer.write_ascii_punctuation(ascii_text!("{"));
         let array = elements.and_then(|id| transformation.arena().node_array_ref(source, id));
         let (ids, trailing_comma, synthesized) = if let Some(array) = array {
             let record = transformation.arena().node_array(array)?;
@@ -18463,7 +18464,7 @@ impl Printer {
                 expression_context.comments(),
                 writer,
             )?;
-            writer.write_punctuation("}");
+            writer.write_ascii_punctuation(ascii_text!("}"));
             return Ok(());
         }
 
@@ -18477,7 +18478,7 @@ impl Printer {
         {
             writer.write_line(false);
         } else {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         if multi_line {
             writer.increase_indent();
@@ -18538,7 +18539,7 @@ impl Printer {
                 None => 0,
             };
             if next.is_some() || trailing_comma {
-                writer.write_punctuation(",");
+                writer.write_ascii_punctuation(ascii_text!(","));
                 pending_delimited_comment = self.emit_delimited_boundary_comments(
                     transformation,
                     next.map_or(
@@ -18564,7 +18565,7 @@ impl Printer {
                     // advanced the writer: tsgo writes the sibling space
                     // before that comment, so the next specifier starts its
                     // line without one.
-                    writer.write_space(" ");
+                    writer.write_ascii_space(ascii_text!(" "));
                 }
             }
         }
@@ -18593,9 +18594,9 @@ impl Printer {
         {
             writer.write_line(false);
         } else {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
-        writer.write_punctuation("}");
+        writer.write_ascii_punctuation(ascii_text!("}"));
         Ok(())
     }
 
@@ -18628,7 +18629,7 @@ impl Printer {
                 property,
                 writer,
             )?;
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             let as_keyword = self.emit_source_leading_token_with_context(
                 transformation,
                 specifier,
@@ -18638,7 +18639,7 @@ impl Printer {
                 expression_context,
                 writer,
             )?;
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             let name_node = name.and_then(|name| transformation.arena().node_ref(source, name));
             let prefix = self.token_owned_child_prefix(transformation, as_keyword, name_node)?;
             if let Some(name_node) = name_node {
@@ -18728,7 +18729,7 @@ impl Printer {
                 continue;
             }
             if space_owed {
-                writer.write_space(" ");
+                writer.write_ascii_space(ascii_text!(" "));
                 space_owed = false;
             }
             let decorator_run = kind == ModifierListItemKind::Decorator;
@@ -18767,7 +18768,7 @@ impl Printer {
                     writer.write_line(false);
                 } else if previous.is_some() && !decorator_run {
                     // LFModifiers' space between siblings.
-                    writer.write_space(" ");
+                    writer.write_ascii_space(ascii_text!(" "));
                 }
                 if previous.is_none() && multi_line_parent {
                     writer.increase_indent();
@@ -18836,7 +18837,7 @@ impl Printer {
             }
         }
         if space_owed {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         Ok(false)
     }
@@ -19058,7 +19059,7 @@ impl Printer {
                 .node_ref(source, id)
                 .ok_or(PrinterError::UnknownStatement(id.index()))?;
             if index != 0 && !writer.is_at_start_of_line() {
-                writer.write_space(" ");
+                writer.write_ascii_space(ascii_text!(" "));
             }
             self.emit_leading_comments_for_node(transformation, attribute, writer)?;
             self.record_list_element_position(transformation, attribute)?;
@@ -19145,7 +19146,7 @@ impl Printer {
                     }
                     writer.write_line(false);
                 } else if separator.ends_with(' ') {
-                    writer.write_space(" ");
+                    writer.write_ascii_space(ascii_text!(" "));
                 }
             }
             self.record_list_element_position(transformation, child)?;
@@ -19393,7 +19394,7 @@ impl Printer {
                         writer,
                     )?;
                 }
-                writer.write_punctuation(",");
+                writer.write_ascii_punctuation(ascii_text!(","));
                 // emitList (printer/printer.go): an argument that starts on a
                 // new line (EFStartOnNewLine, a JSX child, or a source line
                 // break kept by preserveSourceNewlines) is written on its own
@@ -19443,7 +19444,7 @@ impl Printer {
                     // SingleLine list in tsc, so its ordinary sibling space
                     // is written before that intervening comment and must not
                     // become indentation on the following line.
-                    writer.write_space(" ");
+                    writer.write_ascii_space(ascii_text!(" "));
                 }
                 if synthesized_array {
                     let parent_owner =
@@ -19573,7 +19574,7 @@ impl Printer {
         })?;
         let child_context = expression_context.for_child(ExpressionSyntaxContext::DISALLOWED_COMMA);
         if expression_context.nested_comments_suppressed() {
-            writer.write_punctuation("...");
+            writer.write_ascii_punctuation(ascii_text!("..."));
             return self.emit_node_id_with_context(
                 transformation,
                 node.source(),
@@ -20478,14 +20479,14 @@ impl Printer {
         let parenthesized = Self::type_node_precedence(transformation, node)? < precedence;
         if parenthesized {
             self.in_extends = false;
-            writer.write_punctuation("(");
+            writer.write_ascii_punctuation(ascii_text!("("));
         }
         self.keep_extends_for_next_node = true;
         let result =
             self.emit_node_id_with_context(transformation, source, id, expression_context, writer);
         self.keep_extends_for_next_node = false;
         if parenthesized && result.is_ok() {
-            writer.write_punctuation(")");
+            writer.write_ascii_punctuation(ascii_text!(")"));
         }
         self.in_extends = saved_in_extends;
         result
@@ -20846,7 +20847,7 @@ impl Printer {
                         writer,
                     )?;
                 }
-                writer.write_punctuation("(");
+                writer.write_ascii_punctuation(ascii_text!("("));
                 let inner_owner = self.expression_comment_phase_owner_for_record(
                     transformation,
                     substituted,
@@ -20883,7 +20884,7 @@ impl Printer {
                     inner_owner,
                     writer,
                 )?;
-                writer.write_punctuation(")");
+                writer.write_ascii_punctuation(ascii_text!(")"));
                 if let Some(paren_map_range) = paren_map_range {
                     self.record_map_range_side(
                         transformation,
@@ -20911,7 +20912,7 @@ impl Printer {
                     expression_context,
                     owner,
                 )?;
-                writer.write_punctuation("(");
+                writer.write_ascii_punctuation(ascii_text!("("));
                 let source_leading_phase = self.emit_deferred_expression_leading_comments(
                     transformation,
                     deferred_source_comments,
@@ -20933,7 +20934,7 @@ impl Printer {
                     owner,
                     writer,
                 )?;
-                writer.write_punctuation(")");
+                writer.write_ascii_punctuation(ascii_text!(")"));
                 trailing
             }
         };
@@ -20974,7 +20975,7 @@ impl Printer {
                     expression_context,
                     owner,
                 )?;
-                writer.write_punctuation("(");
+                writer.write_ascii_punctuation(ascii_text!("("));
                 let source_leading_phase = self.emit_deferred_expression_leading_comments(
                     transformation,
                     deferred_source_comments,
@@ -20996,7 +20997,7 @@ impl Printer {
                     owner,
                     writer,
                 )?;
-                writer.write_punctuation(")");
+                writer.write_ascii_punctuation(ascii_text!(")"));
                 trailing
             }
             ParenthesizedNoAsiExpression::Parsed {
@@ -21146,7 +21147,7 @@ impl Printer {
         let own_parentheses =
             self.writes_own_parentheses(transformation, substituted, expression_context)?;
         if own_parentheses {
-            writer.write_punctuation("(");
+            writer.write_ascii_punctuation(ascii_text!("("));
         }
         writer.set_pos(PositionKey::Node(substituted));
         let suppress_nested_maps =
@@ -21181,7 +21182,7 @@ impl Printer {
         worker_result?;
         writer.set_end(PositionKey::Node(substituted));
         if own_parentheses {
-            writer.write_punctuation(")");
+            writer.write_ascii_punctuation(ascii_text!(")"));
         }
         self.record_node_map_boundary(transformation, MapBoundary::After, substituted, writer)?;
         self.emit_synthetic_trailing_comments_for_node(transformation, substituted, writer);
@@ -21351,7 +21352,7 @@ impl Printer {
         let parenthesized =
             crate::factory::operand_needs_parentheses(transformation.arena(), child, precedence)?;
         if parenthesized {
-            writer.write_punctuation("(");
+            writer.write_ascii_punctuation(ascii_text!("("));
         }
         self.emit_node_id_with_context(
             transformation,
@@ -21361,7 +21362,7 @@ impl Printer {
             writer,
         )?;
         if parenthesized {
-            writer.write_punctuation(")");
+            writer.write_ascii_punctuation(ascii_text!(")"));
         }
         Ok(())
     }
@@ -23493,7 +23494,7 @@ impl Printer {
         indent_leading: bool,
         writer: &mut TextWriter,
     ) -> Result<TokenEmission, PrinterError> {
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
         self.emit_token_with_comments_at_boundary(
             transformation,
             owner,
@@ -23525,12 +23526,12 @@ impl Printer {
     ) -> Result<TokenEmission, PrinterError> {
         let anchor = anchor.into();
         let cursor = anchor.cursor();
-        let spelling = tsc_syntax::tokens::token_to_string(token.kind).ok_or(
-            PrinterError::UnsupportedTransformedSyntax {
+        let token_text =
+            AsciiText::token(token.kind).ok_or(PrinterError::UnsupportedTransformedSyntax {
                 node: owner,
                 kind: token.kind,
-            },
-        )?;
+            })?;
+        let spelling = token_text.text();
         let original_owner = transformation.arena().get_original_node(owner);
         let owner_record = transformation.arena().node(owner)?;
         // tsc's `getParseTreeNode(contextNode, isSimilarNode)` returns no
@@ -23579,7 +23580,7 @@ impl Printer {
                     writer,
                 )?;
             }
-            Self::write_fixed_token(writer, token.write_as, spelling);
+            Self::write_fixed_token(writer, token.write_as, token_text);
             if record_braces {
                 self.record_token_map_side(
                     transformation,
@@ -23652,7 +23653,7 @@ impl Printer {
                 writer,
             )?;
         }
-        Self::write_fixed_token(writer, token.write_as, spelling);
+        Self::write_fixed_token(writer, token.write_as, token_text);
         if record_braces {
             self.record_token_map_side(
                 transformation,
@@ -23912,11 +23913,11 @@ impl Printer {
         Ok(TokenAnchor::new(cursor, comment_resume))
     }
 
-    fn write_fixed_token(writer: &mut TextWriter, write_as: TokenWriteKind, spelling: &str) {
+    fn write_fixed_token(writer: &mut TextWriter, write_as: TokenWriteKind, spelling: AsciiText) {
         match write_as {
-            TokenWriteKind::Keyword => writer.write_keyword(spelling),
-            TokenWriteKind::Operator => writer.write_operator(spelling),
-            TokenWriteKind::Punctuation => writer.write_punctuation(spelling),
+            TokenWriteKind::Keyword => writer.write_ascii_keyword(spelling),
+            TokenWriteKind::Operator => writer.write_ascii_operator(spelling),
+            TokenWriteKind::Punctuation => writer.write_ascii_punctuation(spelling),
         }
     }
 
@@ -23925,7 +23926,7 @@ impl Printer {
             && !writer.is_at_start_of_line()
             && !writer.has_trailing_whitespace()
         {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
     }
 
@@ -24053,7 +24054,7 @@ impl Printer {
             {
                 writer.write_line(false);
             } else {
-                writer.write_space(" ");
+                writer.write_ascii_space(ascii_text!(" "));
             }
         }
     }
@@ -24076,7 +24077,7 @@ impl Printer {
             if comment.has_leading_new_line() {
                 writer.write_line(false);
             } else {
-                writer.write_space(" ");
+                writer.write_ascii_space(ascii_text!(" "));
             }
             write_synthetic_comment(comment, writer);
             if comment.has_trailing_new_line() {
@@ -24253,7 +24254,7 @@ impl Printer {
             emit_leading_comments(inner, writer, true, false);
             writer.decrease_indent();
         } else {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             emit_leading_comments(inner, writer, true, false);
         }
         Ok(true)
@@ -24471,7 +24472,7 @@ impl Printer {
                 continue;
             }
             if !writer.is_at_start_of_line() {
-                writer.write_space(" ");
+                writer.write_ascii_space(ascii_text!(" "));
             }
             write_source_comment(source.text(), comment.start, comment.end, writer);
             if comment.has_trailing_new_line {
@@ -24906,8 +24907,8 @@ impl Printer {
         owner: TransformNode,
         token_kind: SyntaxKind,
         default_range: Option<TokenMapDefault>,
-        spelling: &'static str,
-        classify: fn(&mut TextWriter, &str),
+        spelling: AsciiText,
+        classify: fn(&mut TextWriter, AsciiText),
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         if self.options.omit_brace_source_map_positions {
@@ -24964,7 +24965,7 @@ fn emit_empty_node_array_boundary_comments(
             continue;
         }
         if !writer.is_at_start_of_line() {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         write_source_comment(source, comment.start, comment.end, writer);
         if comment.has_trailing_new_line {
@@ -25017,7 +25018,7 @@ fn emit_empty_block_boundary_comments(
             continue;
         }
         if !writer.is_at_start_of_line() {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         write_source_comment(source, comment.start, comment.end, writer);
         if comment.has_trailing_new_line {
@@ -25030,7 +25031,7 @@ fn emit_empty_block_boundary_comments(
         writer.write_line(false);
         writer.increase_indent();
     } else {
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
     }
     emit_source_leading_comments_of_position(source, leading_position, &emitted, false, writer);
     if multi_line {
@@ -25091,7 +25092,7 @@ fn emit_source_leading_comments_of_position(
         if comment.has_trailing_new_line {
             writer.write_line(false);
         } else if comment.kind == SourceCommentKind::Block {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         wrote_comment = true;
     }
@@ -25122,7 +25123,7 @@ fn emit_source_trailing_comments_of_position_with_filter(
             continue;
         }
         if !writer.is_at_start_of_line() {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         write_source_comment(source, comment.start, comment.end, writer);
         if comment.has_trailing_new_line || comment.kind == SourceCommentKind::Line {
@@ -25148,7 +25149,7 @@ fn emit_source_intervening_comments_of_position(
         if comment.has_trailing_new_line {
             writer.write_line(false);
         } else {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
     }
 }
@@ -25346,7 +25347,7 @@ fn emit_same_line_trailing_comments(
             continue;
         }
         if !writer.is_at_start_of_line() {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         write_source_comment(rest.source, comment.start, comment.end, writer);
         // tsgo `emitComments`: a line ends a single-line comment even without
@@ -25376,7 +25377,7 @@ fn emit_same_line_trailing_block_comments(rest: SourceTrivia<'_>, writer: &mut T
         }
         cursor = (cursor + 2).min(bytes.len());
         if !writer.has_trailing_whitespace() {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         write_source_comment(rest.source, rest.start + start, rest.start + cursor, writer);
     }
@@ -25620,7 +25621,7 @@ fn emit_detached_comments(
     let mut separator = false;
     for comment in comments {
         if separator {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
         if !only_print_js_doc_style
             || should_write_js_doc_style_comment(trivia.source, comment.start)
@@ -25633,7 +25634,7 @@ fn emit_detached_comments(
         }
     }
     if separator {
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
     }
 }
 
@@ -25722,7 +25723,7 @@ fn emit_leading_comments(
         if line_comment || gap_has_line_break {
             writer.write_line(false);
         } else if gap_start < cursor || cursor < bytes.len() || trailing_separator {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
         }
     }
 }
@@ -25735,7 +25736,7 @@ fn emit_pinned_leading_comments(trivia: SourceTrivia<'_>, writer: &mut TextWrite
         .filter(|comment| is_pinned_source_comment(trivia.source, *comment))
     {
         if needs_separator {
-            writer.write_space(" ");
+            writer.write_ascii_space(ascii_text!(" "));
             needs_separator = false;
         }
         write_source_comment(trivia.source, comment.start, comment.end, writer);
@@ -25746,7 +25747,7 @@ fn emit_pinned_leading_comments(trivia: SourceTrivia<'_>, writer: &mut TextWrite
         }
     }
     if needs_separator {
-        writer.write_space(" ");
+        writer.write_ascii_space(ascii_text!(" "));
     }
 }
 
