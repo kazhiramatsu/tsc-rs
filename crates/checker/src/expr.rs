@@ -1512,10 +1512,23 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isGenericTypeWithUnionConstraint @6.0.3
     /// tsc-hash: 6b0ff101b255ea3663abd0a15e6b97fd748e1fb88d58a8b9013e88b5002c2a29
     /// tsc-span: _tsc.js:71626-71628
+    #[inline(always)]
     pub(crate) fn is_generic_type_with_union_constraint(
         &mut self,
         ty: TypeId,
     ) -> CheckResult<bool> {
+        if !self
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::INTERSECTION | TypeFlags::INSTANTIABLE)
+        {
+            return Ok(false);
+        }
+        self.is_generic_type_with_union_constraint_worker(ty)
+    }
+
+    #[inline(never)]
+    fn is_generic_type_with_union_constraint_worker(&mut self, ty: TypeId) -> CheckResult<bool> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::INTERSECTION) {
             let types = match &self.tables.type_of(ty).data {
