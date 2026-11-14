@@ -1385,9 +1385,11 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
                 continue;
             }
             if self.name_is_private(name)? {
-                facts.needs_constructor_reference |= self.retained_resolver_flag(
+                facts.needs_constructor_reference |= member_contains_constructor_reference(
+                    self.context.arena(),
+                    self.resolver,
                     member,
-                    NodeCheckFlags::CONTAINS_CONSTRUCTOR_REFERENCE,
+                    container,
                 )?;
             } else if property && !self.use_define_for_class_fields && initializer.is_some() {
                 facts.will_hoist_initializers = true;
@@ -4407,4 +4409,52 @@ impl LazyChildVisitor for ClassFieldsVisitor<'_, '_, '_> {
     fn transformation_context_mut(&mut self) -> &mut TransformationContext {
         self.context
     }
+}
+
+/// tsgo classfields.go:1690–1734: inspect the current member, after earlier
+/// transforms have erased types and substituted decorator class aliases.
+fn member_contains_constructor_reference(
+    arena: &crate::TransformArena,
+    resolver: &dyn EmitResolver,
+    member: TransformNode,
+    class: TransformNode,
+) -> Result<bool, TransformError> {
+    let Some(class) = arena.parse_tree_resolver_node(class)? else {
+        return Ok(false);
+    };
+    let body = match arena.node(member)?.data() {
+        NodeData::PropertyDeclaration(data) => data.initializer,
+        NodeData::MethodDeclaration(data) => data.body,
+        NodeData::GetAccessor(data) => data.body,
+        NodeData::SetAccessor(data) => data.body,
+        NodeData::ClassStaticBlockDeclaration(data) => data.body,
+        _ => None,
+    };
+    let mut stack = body.into_iter().collect::<Vec<_>>();
+    let syntax = arena.source(member.source())?.syntax();
+    while let Some(id) = stack.pop() {
+        let node = TransformNode::new(member.source(), id);
+        let record = arena.node(node)?;
+        if record.kind == SyntaxKind::Identifier
+            && !arena
+                .metadata(node)
+                .is_some_and(|metadata| metadata.generated_binding_id.is_some())
+        {
+            if let Some(reference) = arena.parse_tree_resolver_node(node)? {
+                if resolver.get_referenced_value_declaration(reference)? == Some(class) {
+                    return Ok(true);
+                }
+            }
+        }
+        // A property name is not a value reference to the class.
+        if let NodeData::PropertyAccessExpression(data) = record.data() {
+            stack.extend(data.expression);
+        } else {
+            tsc_syntax::for_each_child(&syntax.arena, record, |child| {
+                stack.push(child);
+                false
+            });
+        }
+    }
+    Ok(false)
 }

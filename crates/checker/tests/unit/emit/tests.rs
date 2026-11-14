@@ -1766,3 +1766,113 @@ fn global_diagnostics_produces_pending_reports_from_expression_queries() {
     assert_eq!(session.get_global_diagnostics(), globals);
     assert_eq!(&*session.lock_state().diagnostics, &rows);
 }
+
+#[test]
+fn decorated_class_type_only_references_match_pinned_tsgo() {
+    // Expected JavaScript is the pinned tsgo's output, byte for byte.
+    macro_rules! case {
+        ($name:literal) => {
+            (
+                $name,
+                include_str!(concat!("../../fixtures/tsgo-class-alias/", $name, ".ts")),
+                include_str!(concat!("../../fixtures/tsgo-class-alias/", $name, ".js")),
+            )
+        };
+    }
+    let boundaries: serde_json::Value = serde_json::from_str(include_str!(
+        "../../fixtures/tsgo-class-alias/runtime-boundaries.json"
+    ))
+    .unwrap();
+    let mut cases = vec![
+        case!("k-alias-type-only"),
+        case!("q-type-only-type-argument"),
+        case!("r-value-class-reference"),
+    ];
+    cases.extend(boundaries.as_array().unwrap().iter().map(|case| {
+        (
+            case["name"].as_str().unwrap(),
+            case["source"].as_str().unwrap(),
+            case["expected"].as_str().unwrap(),
+        )
+    }));
+    let mut differences = Vec::new();
+    for (name, text, expected) in cases {
+        let domain = IdentityDomain::new();
+        let mut sources = [
+            (
+                "/project/dep.ts",
+                include_str!("../../fixtures/tsgo-class-alias/dep.ts"),
+            ),
+            ("/project/input.ts", text),
+        ]
+        .into_iter()
+        .map(|(path, text)| {
+            Arc::new(
+                tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+                    path.to_owned(),
+                    TextSnapshot::new(text.to_owned(), DocumentVersion::default()),
+                    ParseOptions::default(),
+                    None,
+                    &domain,
+                )
+                .unwrap(),
+            )
+        })
+        .collect::<Vec<_>>();
+        let documents = sources
+            .iter_mut()
+            .map(|source| {
+                let worker =
+                    BinderWorker::bind_in_identity_domain(Arc::get_mut(source).unwrap(), &domain)
+                        .unwrap()
+                        .into_bind_data();
+                Arc::new(BoundDocument::new(
+                    Arc::new(ParsedDocument::new(Arc::clone(source))),
+                    worker,
+                ))
+            })
+            .collect();
+        let snapshot = ProgramSnapshot::new(documents, 0).unwrap();
+        let options = CompilerOptions {
+            target: Some(ScriptTarget::ES2024.bits()),
+            module: Some(ModuleKind::ES_NEXT.bits()),
+            experimental_decorators: true,
+            use_define_for_class_fields: Some(false),
+            ..CompilerOptions::default()
+        };
+        let mut state = CheckerState::from_snapshot(&snapshot, &options);
+        state.check_source_file(0);
+        state.check_source_file(1);
+        let session = CheckerSession::from_checked_state(state);
+        session.with_emit_resolver(|resolver| {
+            let syntax = &sources[1];
+            let source_id = SourceFileId::from_raw(1);
+            let host = CheckerEmitHost {
+                options: &options,
+                syntax,
+                source_ids: [source_id],
+            };
+            let mut arena = TransformArena::new();
+            let source = arena.add_source(syntax, Some(source_id));
+            let mut transformed = transform_nodes(
+                arena,
+                vec![TransformRoot::SourceFile(source)],
+                get_script_transformers_for_source(&options, resolver, &host, source_id).unwrap(),
+                false,
+            )
+            .unwrap();
+            let output = create_printer(
+                PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2024),
+            )
+            .print(&mut transformed, PrintRequest::SourceFile(source), None)
+            .unwrap();
+            if output.text() != expected {
+                differences.push(format!(
+                    "{name}:\nactual:\n{}\nexpected:\n{expected}",
+                    output.text()
+                ));
+            }
+        });
+    }
+    assert!(differences.is_empty(), "{}", differences.join("\n\n"));
+}
