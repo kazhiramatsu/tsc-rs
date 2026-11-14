@@ -196,3 +196,41 @@ fn reclassification_replaces_only_the_new_walks_array_values() {
         super::snapshot_transform_flags(&reference, source).unwrap()
     );
 }
+
+#[test]
+fn initial_classification_keeps_seeded_identifier_semantics() {
+    let file = parse_source_file(
+        "seeded.ts",
+        "const receiver = this; receiver;",
+        Default::default(),
+        None,
+    );
+    for substitute in [false, true] {
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&file, None);
+        let find = |kind| {
+            file.arena
+                .node_ids()
+                .find(|&id| file.arena.node(id).kind == kind)
+                .map(|id| crate::TransformNode::new(source, id))
+                .unwrap()
+        };
+        let identifier = find(tsc_syntax::SyntaxKind::Identifier);
+        let flags =
+            crate::TransformFlags::CONTAINS_ES_2015 | crate::TransformFlags::CONTAINS_LEXICAL_THIS;
+        arena.set_transform_flags(identifier, flags);
+        if substitute {
+            let original = find(tsc_syntax::SyntaxKind::ThisKeyword);
+            arena.set_original_node(identifier, Some(original)).unwrap();
+        }
+        let arena = compare(arena, source, "seeded identifier");
+        assert_eq!(
+            arena.transform_flags(identifier),
+            if substitute {
+                flags
+            } else {
+                crate::TransformFlags::NONE
+            }
+        );
+    }
+}

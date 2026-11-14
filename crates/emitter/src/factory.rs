@@ -795,6 +795,15 @@ impl TransformArena {
             .map(|_| TransformNodeArray { source, array })
     }
 
+    /// A fresh table has no identifier overrides or original-node substitutes.
+    pub(crate) fn initial_identifier_flags_are_default(
+        &self,
+        source: TransformSourceId,
+    ) -> Result<bool, TransformError> {
+        Ok(self.source(source)?.session.transform_flags.is_empty()
+            && self.session.metadata.is_empty())
+    }
+
     /// Classifier watermarks belong to the emit session, never its syntax.
     pub(crate) fn classified_transform_flags(
         &self,

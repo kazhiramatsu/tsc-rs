@@ -18278,6 +18278,11 @@ fn compute_transform_flags_forward(
         (syntax.arena.node_base(), syntax.arena.len())
     };
     let mut accumulated = vec![TransformFlags::NONE; count];
+    let mut skip_plain_identifiers = if arena.initial_identifier_flags_are_default(source)? {
+        None
+    } else {
+        Some(false)
+    };
     let mut arrays = Vec::new();
     for index in 0..count {
         let id = NodeId::new(base + index as u32);
@@ -18286,6 +18291,21 @@ fn compute_transform_flags_forward(
         }
         let node = TransformNode::new(source, id);
         let record = *arena.node(node)?;
+        if record.kind == SyntaxKind::Identifier {
+            let skip = match skip_plain_identifiers {
+                Some(skip) => skip,
+                None => {
+                    let skip = !arena.source_text_has_extended_unicode_escape(source)?;
+                    skip_plain_identifiers = Some(skip);
+                    skip
+                }
+            };
+            // A fresh plain identifier has no child, contextual, original or
+            // propagated flags. Its unwritten slot already reads NONE.
+            if skip {
+                continue;
+            }
+        }
         arrays.clear();
         for_each_child_array(&record, |array| {
             arrays.push(array);
