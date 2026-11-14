@@ -1,3 +1,5 @@
+mod unused_class_temporary;
+
 use std::collections::{BTreeMap, BTreeSet};
 
 #[test]

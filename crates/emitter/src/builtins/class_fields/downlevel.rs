@@ -20,9 +20,9 @@ use tsc_types::{JsStr, JsString, NodeCheckFlags, NodeFlags, ScriptTarget};
 
 use crate::{
     factory::EmitHelperName, metadata::ClassExpressionDeclarationOrigin, CommentRange, EmitFlags,
-    EmitHelper, EmitResolver, EmitResolverNode, InternalEmitFlags, LexicalEnvironmentFlags,
-    SourceMapRange, SourceRange, TransformArena, TransformError, TransformFlags, TransformNode,
-    TransformNodeArray, TransformSourceId, TransformationContext,
+    EmitHelper, EmitResolver, InternalEmitFlags, LexicalEnvironmentFlags, SourceMapRange,
+    SourceRange, TransformArena, TransformError, TransformFlags, TransformNode, TransformNodeArray,
+    TransformSourceId, TransformationContext,
 };
 
 use super::super::{
@@ -2338,7 +2338,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let _static_binding_scope = self
             .static_binding_frames
             .enter(StaticBindingFrame::ClassBoundary);
-        let mut class_facts = self.scan_class_facts(data.members)?;
+        let mut class_facts = self.scan_class_facts(original, data.members)?;
         // getClassFacts (_tsc.js:96960-96962): `isAutoAccessorPropertyDeclaration(member)
         // && shouldTransformAutoAccessors === True && !node.name && !node.emitNode?.classThis`
         // requests a class constructor reference for an anonymous class.
@@ -2535,7 +2535,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .static_binding_frames
             .enter(StaticBindingFrame::ClassBoundary);
         let class_temp_plan = self.class_temp_plan(data.members)?;
-        let mut class_facts = self.scan_class_facts(data.members)?;
+        let mut class_facts = self.scan_class_facts(original, data.members)?;
         // getClassFacts (_tsc.js:96960-96962): `isAutoAccessorPropertyDeclaration(member)
         // && shouldTransformAutoAccessors === True && !node.name && !node.emitNode?.classThis`
         // requests a class constructor reference for an anonymous class.
@@ -4016,6 +4016,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     /// into several ordinary private declarations.
     fn scan_class_facts(
         &self,
+        class: TransformNode,
         members: Option<NodeArrayId>,
     ) -> Result<ClassFactsPlan, TransformError> {
         let static_facts = self.static_lexical_facts(members)?;
@@ -4066,9 +4067,11 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 contains_instance_private_elements |= name_is_private;
             } else if name_is_private {
                 contains_instance_private_elements = true;
-                has_instance_constructor_reference |= self.resolver.has_node_check_flag(
-                    self.resolver_node(member)?,
-                    NodeCheckFlags::CONTAINS_CONSTRUCTOR_REFERENCE.bits() as u32,
+                has_instance_constructor_reference |= super::member_contains_constructor_reference(
+                    self.context.arena(),
+                    self.resolver,
+                    member,
+                    class,
                 )?;
             } else if let Some(data) = record.as_property_declaration() {
                 contains_public_instance_fields = true;
@@ -10171,10 +10174,6 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .arena_mut()?
             .set_original_node(node, Some(original))?;
         Ok(node)
-    }
-
-    fn resolver_node(&self, node: TransformNode) -> Result<EmitResolverNode, TransformError> {
-        self.context.arena().require_parse_tree_resolver_node(node)
     }
 
     const fn node(&self, id: NodeId) -> TransformNode {
