@@ -2,7 +2,6 @@ use std::error::Error;
 use std::fmt;
 
 use tsc_diagnostics::PositionIndex;
-use tsc_syntax::skip_trivia;
 
 /// A validated offset into source text, measured in UTF-8 bytes.
 ///
@@ -98,7 +97,7 @@ impl SourceByteRange {
             position: self.end.value(),
             length: u32::try_from(source.len()).unwrap_or(u32::MAX),
         })?;
-        let start = skip_trivia(bounded_source, self.start.value() as usize);
+        let start = skip_source_trivia(bounded_source, self.start.value() as usize);
         Self::new(
             u32::try_from(start).expect("validated source range exceeds u32"),
             self.end.value(),
@@ -300,3 +299,29 @@ impl fmt::Display for SourcePositionError {
 }
 
 impl Error for SourcePositionError {}
+
+/// The default trivia policy's common byte path. General scanner state is
+/// needed only for comments, shebangs, conflict markers and Unicode trivia.
+#[inline]
+pub(crate) fn skip_source_trivia(text: &str, start: usize) -> usize {
+    let bytes = text.as_bytes();
+    let mut cursor = start;
+    loop {
+        match bytes.get(cursor).copied() {
+            Some(b' ' | b'\t' | 0x0B | 0x0C | b'\r' | b'\n') => cursor += 1,
+            Some(byte @ b'!'..=b'~')
+                if !matches!(byte, b'/' | b'#' | b'<' | b'|' | b'=' | b'>') =>
+            {
+                return cursor;
+            }
+            None if cursor == bytes.len() => return cursor,
+            // Default options carry no pending JSDoc-star state. The source
+            // and absolute offset still let the scanner recognize markers.
+            _ => return tsc_syntax::skip_trivia(text, cursor),
+        }
+    }
+}
+
+#[cfg(test)]
+#[path = "../tests/unit/source_trivia/tests.rs"]
+mod source_trivia_tests;

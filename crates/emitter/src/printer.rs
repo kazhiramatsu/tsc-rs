@@ -3,10 +3,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
+use crate::position::skip_source_trivia as skip_trivia;
 use tsc_diagnostics::PositionIndex;
 use tsc_syntax::{
-    for_each_child, is_js_whitespace, is_line_break, is_whitespace_like, skip_trivia, NodeData,
-    NodeId, SyntaxKind,
+    for_each_child, is_js_whitespace, is_line_break, is_whitespace_like, NodeData, NodeId,
+    SyntaxKind,
 };
 use tsc_types::{NodeFlags, ScriptTarget, TokenFlags};
 

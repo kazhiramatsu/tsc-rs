@@ -313,7 +313,7 @@ impl TextWriter {
         let Some(positions) = &mut self.positions else {
             return;
         };
-        if force || tsc_syntax::skip_trivia(text, 0) != text.len() {
+        if force || crate::position::skip_source_trivia(text, 0) != text.len() {
             let trimmed = text.trim_end_matches(is_whitespace_like).len();
             positions.last_non_trivia_position = text_pos - (text.len() - trimmed);
         }

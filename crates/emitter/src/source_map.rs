@@ -663,9 +663,11 @@ impl SourceMapRecording {
             // 8355-8442) scans the CURRENT text; beyond its end (`charCodeAt`
             // is NaN) or inside a surrogate pair it returns pos unchanged.
             if let Some(byte) = positions.utf16_to_byte(offset) {
-                let skipped =
-                    u32::try_from(tsc_syntax::skip_trivia(snapshot.text(), byte as usize))
-                        .expect("source position exceeds u32");
+                let skipped = u32::try_from(crate::position::skip_source_trivia(
+                    snapshot.text(),
+                    byte as usize,
+                ))
+                .expect("source position exceeds u32");
                 offset = positions.byte_to_utf16(skipped).unwrap_or(offset);
             }
         }
