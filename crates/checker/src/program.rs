@@ -1038,6 +1038,21 @@ fn validate_identity_domains(entries: &[ProgramEntry<'_>]) -> Result<(), Program
 }
 
 impl<'a> ProgramBinder<'a> {
+    /// Only owned routing/storage moves; document and source borrows stay here.
+    pub(crate) fn take_finished_storage(&mut self) -> impl Send + 'static + use<> {
+        if let Some(lease) = self.transient.identity_lease() {
+            std::mem::forget(lease.clone());
+        }
+        (
+            std::mem::take(&mut self.transient),
+            std::mem::take(&mut self.file_facts),
+            std::mem::take(&mut self.node_owners),
+            std::mem::take(&mut self.symbol_owners),
+            std::mem::take(&mut self.node_files),
+            std::mem::take(&mut self.symbol_files),
+        )
+    }
+
     /// The checker-created symbols (memory accounting); see
     /// [`SymbolArena::memory_usage`].
     pub(crate) fn transient_memory_usage(

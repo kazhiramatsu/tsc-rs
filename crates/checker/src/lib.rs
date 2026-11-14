@@ -124,6 +124,7 @@ pub mod evaluate;
 pub mod exports;
 pub mod expr;
 pub mod facts;
+mod finished_storage;
 pub mod flow;
 mod flow_memo;
 pub mod functions;
@@ -4397,6 +4398,11 @@ fn run_checker_shard<'a>(
         state.flow_memo.release_finished_buffers();
         drop(std::mem::take(&mut state.mappers));
         drop(std::mem::take(&mut state.mapper_lists));
+        if checking.load(std::sync::atomic::Ordering::Acquire) != 0 {
+            // Owned cleanup may finish after the command returns. Borrowed
+            // views stay here; no result or identity depends on helper progress.
+            state.defer_finished_storage();
+        }
         std::mem::forget(state);
     }
     (output, None)

@@ -150,3 +150,49 @@ fn index_info_readers_share_storage_and_keep_replaced_snapshots() {
     changed[0].is_readonly = true;
     assert!(!snapshot[0].is_readonly);
 }
+
+#[test]
+fn detached_storage_outlives_its_borrowed_program_views() {
+    use std::sync::mpsc;
+    use std::time::Duration;
+    struct Block {
+        started: mpsc::Sender<()>,
+        release: mpsc::Receiver<()>,
+    }
+    impl Drop for Block {
+        fn drop(&mut self) {
+            self.started.send(()).unwrap();
+            self.release.recv().unwrap();
+        }
+    }
+    struct Done(mpsc::Sender<()>);
+    impl Drop for Done {
+        fn drop(&mut self) {
+            self.0.send(()).unwrap();
+        }
+    }
+    let (started, starting) = mpsc::channel();
+    let (release, releasing) = mpsc::channel();
+    crate::finished_storage::defer(Block {
+        started,
+        release: releasing,
+    });
+    starting.recv_timeout(Duration::from_secs(10)).unwrap();
+    with_program_state(
+        &[(
+            "a.ts",
+            "interface Box<T> { value: T }; declare const box: Box<string>;",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            state.tables.get_string_literal_type("owned payload");
+            state.defer_finished_storage();
+            assert_eq!(state.tables.len(), 0);
+        },
+    );
+    // The helper was blocked throughout destruction of the Program borrows.
+    release.send(()).unwrap();
+    let (done, finished) = mpsc::channel();
+    crate::finished_storage::defer(Done(done));
+    finished.recv_timeout(Duration::from_secs(10)).unwrap();
+}
