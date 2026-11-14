@@ -2775,6 +2775,7 @@ struct CompleteGraph {
 
 struct StagedGraph<'host, 'options, 'resolver> {
     direct_layout: bool,
+    pending_source_binds: Option<Arc<crate::source_binds::SourceBinds>>,
     direct_stripes: level_zero_placement::Stripes,
     host: &'host dyn CompilerHost,
     /// The host module resolution observes: `host`, or for a program that
@@ -2916,6 +2917,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     fn new(config: StagedGraphConfig<'host, 'options, 'resolver>) -> Self {
         Self {
             direct_layout: false,
+            pending_source_binds: None,
             direct_stripes: level_zero_placement::Stripes::default(),
             host: config.host,
             resolution_host: config.resolution_host,

@@ -179,9 +179,36 @@ pub struct PreparsedSyntax {
     identity_domain: Option<IdentityDomain>,
 }
 
+/// A binding job needs only its take-once slot, not parse/cache metadata.
+#[derive(Debug)]
+pub(crate) struct PendingSourceBind {
+    slot: Arc<Mutex<Option<Box<PreparsedSourceFile>>>>,
+}
+
+impl PendingSourceBind {
+    pub(crate) fn bind_reserved(self, domain: &IdentityDomain, tracing: bool) {
+        PreparsedSyntax::bind_reserved_slot(&self.slot, domain, tracing);
+    }
+}
+
 impl PreparsedSyntax {
+    /// Called by ordered admission after installing this source's reservation.
+    pub(crate) fn pending_bind(&self) -> PendingSourceBind {
+        PendingSourceBind {
+            slot: Arc::clone(&self.slot),
+        }
+    }
+
     pub(crate) fn bind_reserved(&self, domain: &IdentityDomain, tracing: bool) {
-        let mut slot = self.slot.lock().expect("retained parse");
+        Self::bind_reserved_slot(&self.slot, domain, tracing);
+    }
+
+    fn bind_reserved_slot(
+        slot: &Mutex<Option<Box<PreparsedSourceFile>>>,
+        domain: &IdentityDomain,
+        tracing: bool,
+    ) {
+        let mut slot = slot.lock().expect("retained parse");
         let Some(parsed) = slot.as_mut() else { return };
         let Some(reservation) = &parsed.bind_reservations else {
             return;
@@ -204,14 +231,6 @@ impl PreparsedSyntax {
         // here: the checker relocates overflows in its established order.
         parsed.bind_data = Some(Box::new(binder.into_bind_data()));
         parsed.bind_span = started.map(|started| (started, std::time::Instant::now()));
-    }
-
-    pub(crate) fn has_bind_reservation(&self) -> bool {
-        self.slot
-            .lock()
-            .expect("retained parse")
-            .as_ref()
-            .is_some_and(|parsed| parsed.bind_reservations.is_some())
     }
 
     /// The task's bind interval, when the command requested tracing.

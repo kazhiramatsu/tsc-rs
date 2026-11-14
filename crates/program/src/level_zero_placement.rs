@@ -72,10 +72,15 @@ struct BindAdmission {
     sources: usize,
     deferred: usize,
     elapsed: std::time::Duration,
+    binds: Option<Arc<crate::source_binds::SourceBinds>>,
 }
 
 impl BindAdmission {
-    fn new(domain: tsc_types::IdentityDomain, libraries: usize) -> Self {
+    fn new(
+        domain: tsc_types::IdentityDomain,
+        libraries: usize,
+        binds: Option<Arc<crate::source_binds::SourceBinds>>,
+    ) -> Self {
         Self {
             domain,
             expected: (0..libraries).collect(),
@@ -85,6 +90,7 @@ impl BindAdmission {
             sources: 0,
             deferred: 0,
             elapsed: std::time::Duration::ZERO,
+            binds,
         }
     }
 
@@ -136,12 +142,20 @@ impl BindAdmission {
             self.deferred += sources.len();
             return;
         };
-        for (syntax, counts) in sources {
+        for &(syntax, counts) in &sources {
             syntax.reserve_bind(
                 tsc_binder::BindReservations::finish_entry(&mut room, counts)
                     .expect("exact bind slice fits its stripe"),
             );
             self.sources += 1;
+        }
+        if let Some(binds) = &self.binds {
+            binds.register(
+                sources
+                    .into_iter()
+                    .map(|(syntax, _)| syntax.pending_bind())
+                    .collect(),
+            );
         }
         room.seal().expect("exact bind room seals");
         self.stripes += 1;
@@ -387,29 +401,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         {
             return None;
         }
-        let domain = self.program_options.identity_domain()?.clone();
-        let jobs = self
-            .prefetch_order
-            .iter()
-            .filter_map(|path| {
-                let source = self.prefetched.get(path)?;
-                let PrefetchedRead::Parsed {
-                    decoded: Ok(parsed),
-                    ..
-                } = &source.read
-                else {
-                    return None;
-                };
-                let syntax = parsed.prepared.preparsed_syntax();
-                syntax.has_bind_reservation().then(|| syntax.clone())
-            })
-            .collect();
-        crate::source_binds::SourceBinds::start(
-            jobs,
-            domain,
-            self.limits.workers,
-            self.compiler_options.generate_trace.is_some(),
-        )
+        let binds = self.pending_source_binds.as_ref()?;
+        binds.activate().then(|| Arc::clone(binds))
     }
 
     pub(super) fn read_ahead_direct(&mut self, seeds: &[ProgramPath], root_count: usize) -> bool {
@@ -645,8 +638,25 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             })
         };
         let parse_started = std::time::Instant::now();
-        let bind_admission = (options.list_files_only != Some(true))
-            .then(|| Mutex::new(BindAdmission::new(identity_domain.clone(), library_stripes)));
+        let binds = (root_count >= crate::source_binds::MIN_ROOTS
+            && workers.is_parallel()
+            && program_options.binds_sources()
+            && options.list_files_only != Some(true))
+        .then(|| {
+            crate::source_binds::SourceBinds::pending(
+                identity_domain.clone(),
+                workers,
+                options.generate_trace.is_some(),
+            )
+        });
+        self.pending_source_binds = binds.clone();
+        let bind_admission = (options.list_files_only != Some(true)).then(|| {
+            Mutex::new(BindAdmission::new(
+                identity_domain.clone(),
+                library_stripes,
+                binds,
+            ))
+        });
         let bind_libraries = root_count < crate::source_binds::MIN_ROOTS
             && workers.is_parallel()
             && program_options.binds_sources()
