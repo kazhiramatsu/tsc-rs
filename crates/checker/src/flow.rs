@@ -2598,7 +2598,15 @@ impl<'a> CheckerState<'a> {
             return self.is_type_assignable_to(source, target);
         }
         let members: Vec<TypeId> = match &self.tables.type_of(source).data {
-            TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+            TypeData::Union { types, .. } => {
+                let members = self.tables.list(*types);
+                let ctx = crate::type_order::order_ctx!(self);
+                if tsc_types::type_order::contains_type(&self.tables, ctx.order(), members, target)
+                {
+                    return Ok(true);
+                }
+                members.to_vec()
+            }
             _ => unreachable!("union flag implies union data"),
         };
         for member in members {

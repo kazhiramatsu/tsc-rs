@@ -407,3 +407,124 @@ function t14(k: E.A | E.B | E.C) { if (k !== E.A && k !== E.C) { const x: never 
         );
     });
 }
+
+fn assignment_test_type(
+    state: &mut crate::state::CheckerState<'_>,
+    name: &str,
+) -> tsc_types::TypeId {
+    let reference = state
+        .binder
+        .source(0)
+        .arena
+        .node_ids()
+        .find_map(|node| {
+            (state.kind_of(node) == tsc_syntax::SyntaxKind::Identifier
+                && state.escaped_text_of(Some(node)) == Some(name))
+            .then(|| state.parent_of(node))
+            .flatten()
+            .filter(|&parent| state.kind_of(parent) == tsc_syntax::SyntaxKind::TypeReference)
+        })
+        .unwrap();
+    state.get_type_from_type_node(reference).unwrap()
+}
+
+#[test]
+fn assignment_union_membership_avoids_resolving_unrelated_members() {
+    let text = concat!(
+        "type First = { kind: 'first' }; type Second = { kind: 'second' };",
+        "declare let first: First; declare let second: Second;"
+    );
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let first = assignment_test_type(state, "First");
+        let second = assignment_test_type(state, "Second");
+        let union = state
+            .get_union_type_ex(&[first, second], tsc_types::UnionReduction::None)
+            .unwrap();
+        let before = (
+            state.tables.len(),
+            state.signatures.len(),
+            state.binder.transient_symbol_count(),
+            state.total_instantiation_count,
+            state
+                .relations
+                .cache(crate::relate::RelationKind::Assignable)
+                .len(),
+        );
+        assert!(state.type_maybe_assignable_to(union, second).unwrap());
+        assert_eq!(
+            before,
+            (
+                state.tables.len(),
+                state.signatures.len(),
+                state.binder.transient_symbol_count(),
+                state.total_instantiation_count,
+                state
+                    .relations
+                    .cache(crate::relate::RelationKind::Assignable)
+                    .len()
+            )
+        );
+        assert!(!state.is_type_assignable_to(first, second).unwrap());
+        assert!(
+            state
+                .relations
+                .cache(crate::relate::RelationKind::Assignable)
+                .len()
+                > before.4
+        );
+    });
+}
+
+#[test]
+fn assignment_union_membership_misses_keep_structural_and_literal_relations() {
+    let text = concat!(
+        "type First = { kind: 'first' }; type Second = { kind: 'second' };",
+        "type Compatible = { kind: 'first'; extra?: boolean }; type Missing = { kind: 'missing' };",
+        "declare let first: First; declare let second: Second;",
+        "declare let compatible: Compatible; declare let missing: Missing;"
+    );
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let first = assignment_test_type(state, "First");
+        let second = assignment_test_type(state, "Second");
+        let compatible = assignment_test_type(state, "Compatible");
+        let missing = assignment_test_type(state, "Missing");
+        let union = state
+            .get_union_type_ex(&[first, second], tsc_types::UnionReduction::None)
+            .unwrap();
+        assert!(state.type_maybe_assignable_to(union, compatible).unwrap());
+        assert!(!state.type_maybe_assignable_to(union, missing).unwrap());
+        let a = state.tables.get_string_literal_type("a");
+        let b = state.tables.get_string_literal_type("b");
+        let absent = state.tables.get_string_literal_type("absent");
+        let fresh = state.tables.get_fresh_type_of_literal_type(b);
+        let literals = state
+            .get_union_type_ex(&[a, b], tsc_types::UnionReduction::None)
+            .unwrap();
+        assert!(state.type_maybe_assignable_to(literals, fresh).unwrap());
+        assert!(!state.type_maybe_assignable_to(literals, absent).unwrap());
+        assert!(state.type_maybe_assignable_to(b, fresh).unwrap());
+    });
+}
+
+#[test]
+fn assignment_union_membership_uses_the_unions_active_order() {
+    for stable in [false, true] {
+        let options = CompilerOptions {
+            stable_type_ordering: Some(stable),
+            ..CompilerOptions::default()
+        };
+        with_program_state(&[("a.ts", "")], &options, |state| {
+            let z = state.tables.get_string_literal_type("z");
+            let a = state.tables.get_string_literal_type("a");
+            let union = state
+                .get_union_type_ex(&[z, a], tsc_types::UnionReduction::None)
+                .unwrap();
+            let expected = if stable { [a, z] } else { [z, a] };
+            assert_eq!(state.tables.members_of(union), expected);
+            assert!(state.type_maybe_assignable_to(union, a).unwrap());
+            assert!(state.type_maybe_assignable_to(union, z).unwrap());
+            let absent = state.tables.get_string_literal_type("absent");
+            assert!(!state.type_maybe_assignable_to(union, absent).unwrap());
+        });
+    }
+}
