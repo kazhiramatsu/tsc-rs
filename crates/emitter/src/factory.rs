@@ -284,6 +284,10 @@ impl TransformArena {
             source.source.add_owned_memory_usage(u);
             source.session.print_input_usage(u);
         }
+        u.vec(
+            "legacy parameter map names",
+            &self.session.legacy_parameter_map_names,
+        );
         u.hash_set(
             "exceptional metadata estimated",
             &self.session.exceptional_metadata,
@@ -1401,6 +1405,7 @@ impl TransformArena {
             source.session.deferred_array_count.set(0);
             source.session.deferred_array_owner = 0;
         }
+        self.session.legacy_parameter_map_names.clear();
     }
 
     /// tsc-port: getOriginalNode @6.0.3

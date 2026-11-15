@@ -596,7 +596,29 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             }
             NodeData::Parameter(mut data) => {
                 data.modifiers = self.strip_decorators(data.modifiers)?;
-                Some(self.update_changed_children(original, NodeData::Parameter(data))?)
+                let updated = self.update_changed_children(original, NodeData::Parameter(data))?;
+                if updated != id {
+                    let name = self
+                        .context
+                        .arena()
+                        .node(self.node(updated))?
+                        .as_parameter()
+                        .and_then(|parameter| parameter.name);
+                    if let Some(name) = name {
+                        let name = self.node(name);
+                        let shared_name = self.context.arena().is_parsed_node(name)?;
+                        let arena = self.context.arena_mut()?;
+                        // tsgo legacydecorators.go:145 marks the shared name,
+                        // which declaration emit subsequently reuses.
+                        arena
+                            .metadata_mut(name)
+                            .set_flags(EmitFlags::NO_TRAILING_SOURCE_MAP);
+                        if shared_name {
+                            arena.session.legacy_parameter_map_names.push(name);
+                        }
+                    }
+                }
+                Some(updated)
             }
             _ => Some(self.update_generic(original)?),
         };

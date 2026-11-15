@@ -11830,7 +11830,6 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         None
                     } else {
                         let original_modifiers = data.modifiers;
-                        let original_name = data.name;
                         let erased_type = data.r#type.map(|r#type| self.node(r#type));
                         // visitParameter 95029-95047 retains only
                         // decorators from a parameter's modifier-like
@@ -11840,11 +11839,8 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         data.modifiers = self.parameter_runtime_modifiers(data.modifiers)?;
                         data.question_token = None;
                         data.r#type = None;
-                        let mut updated =
-                            self.update_generic(original, NodeData::Parameter(data))?;
+                        let updated = self.update_generic(original, NodeData::Parameter(data))?;
                         if updated != id {
-                            updated =
-                                self.isolate_updated_parameter_name(updated, original_name)?;
                             self.apply_updated_parameter_metadata(
                                 self.node(updated),
                                 original,
@@ -12247,10 +12243,14 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         if self.context.arena().node(self.node(name))?.kind != SyntaxKind::Identifier {
             return Ok(None);
         }
+        // The generated field receives map flags separately from the parameter.
+        let source_name = self.node(name);
+        let name = self.context.factory()?.clone_node(source_name)?;
+        self.context.factory()?.set_text_range(name, source_name)?;
         let property = self.context.factory()?.create_node(
             self.source,
             NodeData::PropertyDeclaration(tsc_syntax::nodes::PropertyDeclarationData {
-                name: Some(name),
+                name: Some(name.node()),
                 modifiers: None,
                 question_token: None,
                 exclamation_token: None,
@@ -14123,40 +14123,6 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     .array(),
             ))
         }
-    }
-
-    /// The transformed binding name is a clone of an unchanged parse name,
-    /// kept distinct from later synthetic projections (most notably the
-    /// parameter-property field) in the immutable transform arena.
-    fn isolate_updated_parameter_name(
-        &mut self,
-        updated: NodeId,
-        original_name: Option<NodeId>,
-    ) -> Result<NodeId, TransformError> {
-        let updated_node = self.node(updated);
-        let Some(mut data) = self.context.arena().node(updated_node)?.as_parameter() else {
-            return Err(TransformError::FactoryKindMismatch {
-                expected: SyntaxKind::Parameter,
-                actual: self.context.arena().node(updated_node)?.kind,
-            });
-        };
-        if data.name != original_name {
-            return Ok(updated);
-        }
-        let Some(name) = data.name else {
-            return Ok(updated);
-        };
-        let name = self.node(name);
-        let cloned_name = self.context.factory()?.clone_node(name)?;
-        self.context.factory()?.set_text_range(cloned_name, name)?;
-        data.name = Some(cloned_name.node());
-        let data = NodeData::Parameter(data);
-        let flags = flags_after_update(self.context.arena(), updated_node, &data)?;
-        Ok(self
-            .context
-            .factory()?
-            .update_node(updated_node, data, flags)?
-            .node())
     }
 
     /// The metadata half of transformTypeScript's `visitParameter` update.

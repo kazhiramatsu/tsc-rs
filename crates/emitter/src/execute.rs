@@ -13,10 +13,10 @@ use crate::declarations::{
 };
 use crate::{
     create_printer, transform_nodes, EmitArtifact, EmitContractViolation, EmitFailure, EmitHost,
-    EmitOutcome, EmitPreflight, EmitResolver, EmitResolverError, EmitRoot, EmitSelection,
-    EmitTextMetadata, EmitWriteDisposition, NewLineKind, OutputSink, PrintRequest, PrinterOptions,
-    SourceFileTextMode, SourceMapObservation, SourceMapRecordingInputs, TransformArena,
-    TransformError, TransformRoot,
+    EmitOutcome, EmitPreflight, EmitResolver, EmitResolverError, EmitResolverNode, EmitRoot,
+    EmitSelection, EmitTextMetadata, EmitWriteDisposition, NewLineKind, OutputSink, PrintRequest,
+    PrinterOptions, SourceFileTextMode, SourceMapObservation, SourceMapRecordingInputs,
+    TransformArena, TransformError, TransformRoot,
 };
 
 const MODULE_NONE: i32 = 0;
@@ -1265,6 +1265,7 @@ impl<'a> PlannedUnitEmitter<'a> {
             .filter(|_| request.declaration)
             .map(JsStr::to_owned);
 
+        let mut legacy_parameter_map_names = Vec::new();
         let unit_credit = self
             .print_pool
             .map(crate::print_pool::EmitPrintPool::acquire);
@@ -1296,6 +1297,7 @@ impl<'a> PlannedUnitEmitter<'a> {
                     self.print_pool,
                     unit_credit.clone(),
                     _span,
+                    &mut legacy_parameter_map_names,
                 )
                 .map_err(attach)?;
                 if work.is_complete() {
@@ -1350,6 +1352,7 @@ impl<'a> PlannedUnitEmitter<'a> {
                 self.print_pool,
                 unit_credit.clone(),
                 _span,
+                &legacy_parameter_map_names,
             );
             declaration_work = Some(match declaration {
                 Ok(work) => work,
@@ -1558,6 +1561,7 @@ fn emit_javascript_unit(
     pool: Option<&crate::print_pool::EmitPrintPool>,
     credit: Option<crate::print_pool::PrintCredit>,
     span: Option<tsc_types::tracing::Span>,
+    legacy_parameter_map_names: &mut Vec<EmitResolverNode>,
 ) -> Result<JavaScriptWork, EmitFailure> {
     let mut credit = credit;
     let _ = preflight;
@@ -1580,6 +1584,13 @@ fn emit_javascript_unit(
     }
     let transformers = get_script_transformers_for_source(options, resolver, host, source_id)?;
     let mut transformation = transform_nodes(arena, vec![transform_root], transformers, false)?;
+    // Go's script and declaration transforms share an EmitContext. Publish
+    // only the legacy parameter-name facts before print work owns the arena.
+    for &name in &transformation.arena().session.legacy_parameter_map_names {
+        if let Some(name) = transformation.arena().parse_tree_resolver_node(name)? {
+            legacy_parameter_map_names.push(name);
+        }
+    }
     if file_trace_enabled() {
         if let Some(TransformRoot::SourceFile(source)) = transformation.roots().first() {
             let source = transformation.arena().source(*source)?;
