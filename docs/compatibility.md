@@ -71,32 +71,26 @@ tsc 6.0.3 compatibility is complete in release
 
 ## Limitations
 
-- **Emitted files, known differences from `tsgo`** (emitted trees compared
-  file by file on November 14 and 15, 2026):
-  - Source maps of classes with legacy decorators (`experimentalDecorators`)
-    have more segments than `tsgo`'s for the same generated file. With
-    `declaration`, `declarationMap` and `sourceMap` turned on for VS Code
-    (its own configuration emits JavaScript only), the 9,243 declaration
-    files are identical; 2,350 declaration maps have one more segment at the
-    name of each constructor parameter that has a decorator, and 597
-    JavaScript maps have extra segments for a class that refers to itself
-    through the alias those decorators create.
-  - Declaration files: the module specifier written for an inferred type's
-    `import("…")` differs in one case: a package reached through a symlink
-    whose path differs from the real one only in the case of a non-ASCII
-    letter is written as a relative path instead of by its package name.
-  - For an input with syntax errors, a comment can be written twice (a block
-    comment at the end of an unterminated `try` block, for example).
+- **Emitted files, one known difference from `tsgo`** (emitted trees compared
+  file by file on November 14 and 15, 2026): in a declaration file, the
+  module specifier written for an inferred type's `import("…")` is a
+  relative path instead of the package name when the package is reached
+  through a symlink whose path differs from the real one only in the case of
+  a non-ASCII letter.
 
-  The JavaScript emitted for VS Code's `src` (9,244 files) is identical to
-  `tsgo`'s, and so are the files emitted for hono, zod, Effect, the
-  TypeScript compiler, Next.js, playwright and vue (16,164 files:
-  JavaScript, declarations and maps). The differences found on November 14
-  in 575 of VS Code's JavaScript files — comments around a hoisted class
-  alias, an alias and a temporary variable that were not needed, the line
-  breaks of two conditional expressions — were fixed in pull requests
-  [#1002](https://github.com/kazhiramatsu/tsc-rs/pull/1002) and
-  [#1005](https://github.com/kazhiramatsu/tsc-rs/pull/1005).
+  The files emitted for VS Code's `src` are identical to `tsgo`'s — its own
+  configuration (9,244 JavaScript files) and with `declaration`,
+  `declarationMap` and `sourceMap` turned on (36,973 files: JavaScript,
+  declarations and both kinds of maps) — and so are the files emitted for
+  hono, zod, Effect, the TypeScript compiler, Next.js, playwright and vue
+  (16,164 files). The differences found on November 14 and 15 — comments
+  around a hoisted class alias, an alias and a temporary variable that were
+  not needed, the line breaks of two conditional expressions, extra
+  source-map segments for classes with legacy decorators, a comment written
+  twice after a syntax error — were fixed in pull requests
+  [#1002](https://github.com/kazhiramatsu/tsc-rs/pull/1002),
+  [#1005](https://github.com/kazhiramatsu/tsc-rs/pull/1005) and
+  [#1010](https://github.com/kazhiramatsu/tsc-rs/pull/1010).
 - A generic type predicate over a mapped union of 1,024 members reports one
   more diagnostic (TS2859) than `tsgo` and a longer chain in the TS2677 that
   both report; at 256 members the output is identical.
