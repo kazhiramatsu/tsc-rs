@@ -4044,6 +4044,9 @@ impl TypeTables {
         if types.contains(&self.intrinsics.wildcard) {
             return Ok(self.intrinsics.wildcard);
         }
+        if let Some(result) = self.fold_string_template_span(texts, types) {
+            return result;
+        }
         let mut spans = self.template_scratch.pop().unwrap_or_default();
         spans.reset(&texts[0]);
         let result = self.build_template_literal_type(texts, types, &mut spans);
@@ -4108,6 +4111,46 @@ impl TypeTables {
                 )
             });
         Ok(id)
+    }
+
+    /// ASCII boundaries cannot join a surrogate pair with the literal's
+    /// canonical WTF-8, so this fold can retain its stored byte encoding.
+    fn fold_string_template_span(
+        &mut self,
+        texts: &[TemplateText],
+        types: &[TypeId],
+    ) -> Option<Result<TypeId, TemplateLiteralTooLarge>> {
+        let ([ty], [prefix, suffix]) = (types, texts) else {
+            return None;
+        };
+        let LiteralData::String(value) = self.literal_data_of(*ty)? else {
+            return None;
+        };
+        if prefix
+            .units()
+            .iter()
+            .chain(suffix.units())
+            .any(|&unit| unit >= 0x80)
+        {
+            return None;
+        }
+        let byte_length = prefix
+            .units()
+            .len()
+            .saturating_add(self.literal_text(value).as_bytes().len())
+            .saturating_add(suffix.units().len());
+        if byte_length > MAX_TEMPLATE_LITERAL_TYPE_LENGTH {
+            return Some(Err(TemplateLiteralTooLarge));
+        }
+        let mut bytes = std::mem::take(&mut self.literal_scratch);
+        bytes.clear();
+        bytes.reserve(byte_length);
+        bytes.extend(prefix.units().iter().map(|&unit| unit as u8));
+        bytes.extend_from_slice(self.literal_text(value).as_bytes());
+        bytes.extend(suffix.units().iter().map(|&unit| unit as u8));
+        let id = self.get_string_literal_type(crate::JsStr::from_canonical_bytes(&bytes));
+        self.literal_scratch = bytes;
+        Some(Ok(id))
     }
 
     /// addSpans inner function of getTemplateLiteralType (62089-62108),
