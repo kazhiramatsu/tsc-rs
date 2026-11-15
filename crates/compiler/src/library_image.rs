@@ -33,6 +33,155 @@ mod tests {
     }
 
     #[test]
+    fn consuming_the_fresh_source_capability_keeps_public_binding_ordinary() {
+        register();
+        let entry = EMBEDDED_LIBRARY_IMAGES
+            .iter()
+            .find(|entry| entry.name == "lib.decorators.legacy.d.ts")
+            .unwrap();
+        let domain = tsc_types::IdentityDomain::new();
+        let snapshot =
+            tsc_diagnostics::TextSnapshot::from_text(entry.source.clone(), Default::default());
+        let options = ParseOptions {
+            js_doc_parsing_mode: JSDocParsingMode::ParseForTypeErrors,
+            ..Default::default()
+        };
+        let mut source = entry
+            .restore_fresh_in_identity_domain(
+                format!("bundled:///libs/{}", entry.name).into(),
+                snapshot,
+                &options,
+                &domain,
+            )
+            .unwrap()
+            .into_source();
+        assert!(source.external_module_indicator.is_none());
+        // Keep the filename, text and parse mode, but change a bind input.
+        source.external_module_indicator = Some(source.root);
+        let data = tsc_binder::Binder::bind_in_identity_domain(&mut source, &domain)
+            .unwrap()
+            .into_bind_data();
+        assert!(data.node_symbol.get(&source.root).is_some());
+    }
+
+    #[test]
+    fn copied_catalog_binds_equal_every_ordinary_symbol_extra_and_flow() {
+        use std::sync::Arc;
+        use tsc_diagnostics::{DocumentVersion, TextSnapshot};
+        register();
+        let domain = tsc_types::IdentityDomain::new();
+        // Nonzero, live prefixes exercise every relocation, including the
+        // catalog's private serial and the two scripthost label payloads.
+        let _nodes = domain.lease(tsc_types::IdentitySpace::Node, 701).unwrap();
+        let _arrays = domain
+            .lease(tsc_types::IdentitySpace::NodeArray, 911)
+            .unwrap();
+        let _symbols = domain
+            .lease(tsc_types::IdentitySpace::Symbol, 1201)
+            .unwrap();
+        let _serials = domain
+            .lease(tsc_types::IdentitySpace::PrivateNameSerial, 4321)
+            .unwrap();
+        for entry in EMBEDDED_LIBRARY_IMAGES {
+            let name = format!("bundled:///libs/{}", entry.name);
+            let snapshot =
+                TextSnapshot::from_text(entry.source.clone(), DocumentVersion::new("bind-proof"));
+            let options = ParseOptions {
+                js_doc_parsing_mode: JSDocParsingMode::ParseForTypeErrors,
+                ..Default::default()
+            };
+            let fresh = entry
+                .restore_fresh_in_identity_domain(
+                    name.as_str().into(),
+                    Arc::clone(&snapshot),
+                    &options,
+                    &domain,
+                )
+                .unwrap();
+            let reservation = tsc_binder::BindReservations::lease(fresh.source(), &domain).unwrap();
+            let (actual, data) =
+                tsc_binder::library_image::restore_reserved(fresh, &reservation, &domain).unwrap();
+            let mut ordinary = tsc_syntax::parse_source_file_from_snapshot(
+                name.as_str(),
+                Arc::clone(&snapshot),
+                ParseOptions {
+                    node_id_base: actual.arena.node_base(),
+                    node_array_id_base: actual.arena.array_base(),
+                    ..options
+                },
+                None,
+            );
+            let mut binder = tsc_binder::Binder::with_bases(
+                &mut ordinary,
+                reservation.serials.range().start(),
+                reservation.symbols.range().start(),
+            );
+            binder.bind_source_file();
+            let expected = binder.into_bind_data();
+            assert_eq!(
+                data.symbols, expected.symbols,
+                "actual symbols {}",
+                entry.name
+            );
+            for index in 0..actual.arena.len() {
+                let id = tsc_syntax::NodeId::new(actual.arena.node_base() + index as u32);
+                assert_eq!(
+                    data.node_symbol.get(&id),
+                    expected.node_symbol.get(&id),
+                    "node-symbol {} {index}",
+                    entry.name
+                );
+                assert_eq!(
+                    data.node_flow.get(&id),
+                    expected.node_flow.get(&id),
+                    "node-flow {} {index}",
+                    entry.name
+                );
+            }
+            assert_eq!(
+                data.flow, expected.flow,
+                "actual frozen flow records {}",
+                entry.name
+            );
+            assert_eq!(
+                data.node_symbol, expected.node_symbol,
+                "every node-symbol slot {}",
+                entry.name
+            );
+            assert_eq!(
+                data.node_flow, expected.node_flow,
+                "every node-flow slot {}",
+                entry.name
+            );
+            let actual_aliases = table_aliases(&data);
+            let expected_aliases = table_aliases(&expected);
+            assert_eq!(actual_aliases.len(), expected_aliases.len());
+            for (index, (actual, expected)) in
+                actual_aliases.iter().zip(&expected_aliases).enumerate()
+            {
+                assert_eq!(
+                    actual, expected,
+                    "table alias {} symbol {index}",
+                    entry.name
+                );
+            }
+            assert_eq!(
+                SyntaxImage::capture(&actual).unwrap(),
+                SyntaxImage::capture(&ordinary).unwrap(),
+                "bound nodes {}",
+                entry.name
+            );
+            assert_eq!(
+                BindingImage::capture(&actual, &data).unwrap(),
+                BindingImage::capture(&ordinary, &expected).unwrap(),
+                "all bind fields {}",
+                entry.name
+            );
+            assert!(data.identity_owned_by(&domain));
+        }
+    }
+
+    #[test]
     fn static_catalog_constructs_every_tree_at_its_final_identity() {
         use std::sync::Arc;
         use tsc_diagnostics::{DocumentVersion, TextSnapshot};

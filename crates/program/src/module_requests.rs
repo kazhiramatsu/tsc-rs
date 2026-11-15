@@ -813,6 +813,7 @@ fn library_image_plan(external: bool, libs: Vec<tsc_syntax::FileReference>) -> S
 #[allow(clippy::large_enum_variant)]
 enum PlanningConstruction {
     Parsed(SourceFile, bool),
+    Library(tsc_syntax::library_image::FreshLibrarySource),
     Deferred(tsc_syntax::library_image::LibraryMetadata),
 }
 impl From<SourceFile> for PlanningConstruction {
@@ -924,13 +925,8 @@ pub fn plan_source_requests_in_stripe(
     stripe: &mut tsc_syntax::placement::SyntaxStripe,
 ) -> Result<(SourceRequestPlan, PreparsedSyntax), ResolutionError> {
     let started = std::time::Instant::now();
-    let (plan, parsed) = plan_module_requests_with_parser(
-        source,
-        options,
-        true,
-        false,
-        None,
-        |parse_options| {
+    let (plan, parsed) =
+        plan_module_requests_with_parser(source, options, true, false, None, |parse_options| {
             if source.content_mapped().is_none() {
                 if let Some(image) = tsc_syntax::library_image::lookup(
                     source.path().display(),
@@ -941,12 +937,12 @@ pub fn plan_source_requests_in_stripe(
                         .counts(source.path().display(), source.snapshot(), &parse_options)
                         .expect("compiler library image counts must match its source");
                     if stripe.can_construct(counts) {
-                        let parsed = stripe.construct(source.text().len(), || {
-                            image.restore(source.path().display().to_owned(),
-                                Arc::clone(source.snapshot()), &parse_options)
-                                .expect("compiler library image records must match the ordinary front end")
-                        });
-                        return PlanningConstruction::Parsed(parsed, true);
+                        return PlanningConstruction::Library(image.restore_fresh_in_stripe(
+                            stripe,
+                            source.path().display().to_owned(),
+                            Arc::clone(source.snapshot()),
+                            &parse_options,
+                        ));
                     }
                     stripe.defer_image();
                     return PlanningConstruction::Deferred(
@@ -963,8 +959,7 @@ pub fn plan_source_requests_in_stripe(
                     parse_options,
                 )
                 .into()
-        },
-    )?;
+        })?;
     let syntax = match parsed {
         PlanningParse::Parsed(parsed) => {
             PreparsedSyntax::new(parsed, (started, std::time::Instant::now()))
@@ -1023,20 +1018,23 @@ fn plan_module_requests_with_parser(
     let parsed: &SourceFile = match &cached {
         Some(cached) => cached.source(),
         None => match parse(parse_options.clone()) {
-            PlanningConstruction::Parsed(parsed, true) => {
+            PlanningConstruction::Library(fresh) => {
                 let plan = library_image_plan(
-                    parsed.external_module_indicator.is_some(),
-                    parsed.lib_reference_directives.clone(),
+                    fresh.source().external_module_indicator.is_some(),
+                    fresh.source().lib_reference_directives.clone(),
                 );
                 #[cfg(feature = "loader-counters")]
                 plan.record_high_water(source.path().display());
                 return Ok((
                     plan,
-                    PlanningParse::Parsed(Box::new(PreparsedSourceFile::new(
+                    PlanningParse::Parsed(Box::new(PreparsedSourceFile::new_library(
                         parse_options,
-                        parsed,
+                        fresh,
                     ))),
                 ));
+            }
+            PlanningConstruction::Parsed(_, true) => {
+                unreachable!("image construction retains its capability")
             }
             PlanningConstruction::Parsed(parsed, false) => fresh.insert(parsed),
             PlanningConstruction::Deferred(metadata) => {

@@ -112,7 +112,7 @@ impl FlowNode {
 /// A label's antecedents while its file is bound: a cell of a linked list in
 /// per-thread scratch (tsgo's FlowList), so that no label owns a list
 /// allocation. `next` is the next cell's index + 1 (0 ends the list).
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct ListCell {
     item: FlowId,
     next: u32,
@@ -128,7 +128,7 @@ thread_local! {
 /// `set_label_antecedents` replaces); [`Self::freeze`], at the end of the
 /// bind, writes the lists once into one exact pool, in node order, and
 /// gives the cells back. A frozen arena does not grow.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct FlowArena {
     nodes: Vec<FlowNode>,
     cells: Vec<ListCell>,
@@ -137,6 +137,76 @@ pub struct FlowArena {
 }
 
 impl FlowArena {
+    pub(crate) fn for_image(count: usize) -> Self {
+        Self {
+            nodes: Vec::with_capacity(count),
+            cells: Vec::new(),
+            pool: Box::default(),
+            frozen: true,
+        }
+    }
+
+    pub(crate) fn push_image(
+        &mut self,
+        flags: FlowFlags,
+        antecedent: Option<FlowId>,
+        data: FlowData<'_>,
+        pool: &mut Vec<FlowId>,
+    ) -> Result<(), tsc_syntax::library_image::ImageError> {
+        use tsc_syntax::library_image::ImageError;
+        let labels = FlowFlags::BRANCH_LABEL | FlowFlags::LOOP_LABEL;
+        let (a, c) = match data {
+            FlowData::Label { antecedents } if flags.intersects(labels) => {
+                let start = pool.len() as u32;
+                pool.extend_from_slice(antecedents);
+                (start, antecedents.len() as u32)
+            }
+            FlowData::ReduceLabel {
+                target,
+                antecedents,
+            } if flags.intersects(FlowFlags::REDUCE_LABEL) => {
+                let start = pool.len() as u32;
+                pool.push(FlowId::new(antecedents.len() as u32));
+                pool.extend_from_slice(antecedents);
+                (target.index(), start)
+            }
+            FlowData::SwitchClause {
+                switch_statement,
+                clause_start,
+                clause_end,
+            } if flags.intersects(FlowFlags::SWITCH_CLAUSE) => {
+                let start = pool.len() as u32;
+                pool.extend([FlowId::new(clause_start), FlowId::new(clause_end)]);
+                (switch_statement.position(), start)
+            }
+            FlowData::None | FlowData::Node(_)
+                if !flags
+                    .intersects(labels | FlowFlags::REDUCE_LABEL | FlowFlags::SWITCH_CLAUSE) =>
+            {
+                (
+                    match data {
+                        FlowData::Node(id) => id.position(),
+                        _ => 0,
+                    },
+                    0,
+                )
+            }
+            _ => return Err(ImageError("flow flags disagree with payload")),
+        };
+        self.nodes.push(FlowNode {
+            flags,
+            a,
+            antecedent,
+            c,
+        });
+        Ok(())
+    }
+
+    pub(crate) fn finish_image(mut self, pool: Vec<FlowId>) -> Self {
+        self.pool = pool.into_boxed_slice();
+        self
+    }
+
     /// An empty arena for a bind, its cells in this thread's scratch.
     pub fn for_bind() -> Self {
         Self::for_bind_with_capacity_hint(0)

@@ -120,6 +120,29 @@ impl DocumentBuilder {
         &self.source
     }
 
+    pub(crate) fn from_library(
+        fresh: tsc_syntax::library_image::FreshLibrarySource,
+        reservation: tsc_binder::BindReservations,
+        domain: &IdentityDomain,
+    ) -> Self {
+        let (source, data) =
+            tsc_binder::library_image::restore_reserved(fresh, &reservation, domain)
+                .expect("compiler binding image matches ordinary binding");
+        let mut builder = Self::new(source);
+        builder.bind_reservations = Some(reservation);
+        builder.bind_data = Some(Box::new(data));
+        builder
+    }
+
+    pub(crate) fn reserve_bind(&mut self, domain: &IdentityDomain) {
+        if self.bind_reservations.is_none() {
+            self.bind_reservations = Some(
+                tsc_binder::BindReservations::lease(self.source(), domain)
+                    .expect("library binding identities fit their domain"),
+            );
+        }
+    }
+
     /// The exclusive source borrow must end before publication.
     ///
     /// ```compile_fail,E0505

@@ -6,6 +6,7 @@ use tsc_diagnostics::{JsStr, SharedText, TextSnapshot};
 
 /// The descriptor is compiled for the target; its sections are portable
 /// little-endian bytes. Text is the same allocation as the source host uses.
+#[derive(Debug)]
 pub struct StaticLibraryImage {
     pub name: &'static str,
     pub source: &'static SharedText,
@@ -13,6 +14,91 @@ pub struct StaticLibraryImage {
     pub syntax: &'static [u8],
     pub binding: &'static [u8],
     pub edits: &'static [u8],
+}
+
+/// A pristine compiler-derived tree. No mutable borrow is exposed before this
+/// capability is consumed; ordinary source conversion discards eligibility.
+#[derive(Debug)]
+pub struct FreshLibrarySource {
+    source: SourceFile,
+    image: &'static StaticLibraryImage,
+}
+impl FreshLibrarySource {
+    pub fn source(&self) -> &SourceFile {
+        &self.source
+    }
+    pub fn into_source(self) -> SourceFile {
+        self.source
+    }
+    pub fn into_parts(self) -> (SourceFile, &'static StaticLibraryImage) {
+        (self.source, self.image)
+    }
+}
+
+impl StaticLibraryImage {
+    fn assert_registered(&'static self) {
+        assert!(
+            CATALOG
+                .get()
+                .is_some_and(|catalog| catalog.iter().any(|entry| std::ptr::eq(entry, self))),
+            "fresh library construction requires the registered compiler catalog"
+        );
+    }
+
+    pub fn restore_fresh_in_stripe(
+        &'static self,
+        stripe: &mut crate::placement::SyntaxStripe,
+        file_name: JsString,
+        snapshot: Arc<TextSnapshot>,
+        options: &ParseOptions,
+    ) -> FreshLibrarySource {
+        self.assert_registered();
+        let source = stripe.construct(snapshot.text().len(), || {
+            self.restore(file_name, snapshot, options)
+                .expect("compiler library image records match their source")
+        });
+        FreshLibrarySource {
+            source,
+            image: self,
+        }
+    }
+
+    pub fn restore_fresh_in_identity_domain(
+        &'static self,
+        file_name: JsString,
+        snapshot: Arc<TextSnapshot>,
+        options: &ParseOptions,
+        domain: &tsc_types::IdentityDomain,
+    ) -> std::result::Result<FreshLibrarySource, tsc_types::IdentityError> {
+        self.assert_registered();
+        self.restore_in_identity_domain(file_name, snapshot, options, domain)
+            .map(|source| FreshLibrarySource {
+                source,
+                image: self,
+            })
+    }
+
+    pub fn apply_binding_edits_to(&self, source: &mut SourceFile) -> Result<()> {
+        let mut input = Decoder::open_static(self.edits, b"TSCLIBE1", schema())?;
+        if input.bytes()? != source.file_name.as_js().as_bytes()
+            || input.word()? != source.js_doc_parsing_mode as u32
+            || input.wide()? != self.source_fingerprint
+        {
+            return Err(ImageError("library binding edits belong to another source"));
+        }
+        let mut previous = 0;
+        for _ in 0..input.count(8)? {
+            let index = input.word()?;
+            let flags = input.word()? as i32;
+            if index <= previous || index as usize > source.arena.len() {
+                return Err(ImageError("binding flag node outside source"));
+            }
+            let id = NodeId::new(source.arena.node_base() + index - 1);
+            previous = index;
+            source.arena.node_mut(id).flags = flags;
+        }
+        input.end()
+    }
 }
 
 static CATALOG: OnceLock<&'static [StaticLibraryImage]> = OnceLock::new();

@@ -104,6 +104,42 @@ impl PathContext {
 /// consumer must still compare the recorded options, file name and snapshot
 /// identity with the parse it would perform itself and fall back to parsing
 /// on any difference.
+
+#[derive(Debug)]
+enum RetainedSource {
+    Ordinary(SourceFile),
+    Library(tsc_syntax::library_image::FreshLibrarySource),
+    Moving,
+}
+impl RetainedSource {
+    fn into_source(self) -> SourceFile {
+        match self {
+            Self::Ordinary(source) => source,
+            Self::Library(fresh) => fresh.into_source(),
+            Self::Moving => unreachable!("source transition"),
+        }
+    }
+    fn ordinary_mut(&mut self) -> &mut SourceFile {
+        if matches!(self, Self::Library(_)) {
+            let old = std::mem::replace(self, Self::Moving);
+            *self = Self::Ordinary(old.into_source());
+        }
+        match self {
+            Self::Ordinary(source) => source,
+            _ => unreachable!("ordinary source"),
+        }
+    }
+}
+impl std::ops::Deref for RetainedSource {
+    type Target = SourceFile;
+    fn deref(&self) -> &SourceFile {
+        match self {
+            Self::Ordinary(source) => source,
+            Self::Library(fresh) => fresh.source(),
+            Self::Moving => unreachable!("source transition"),
+        }
+    }
+}
 #[derive(Debug)]
 pub struct PreparsedSourceFile {
     options: ParseOptions,
@@ -111,7 +147,7 @@ pub struct PreparsedSourceFile {
     // Drop the bind's tree claim before the tree's node leases.
     bind_data: Option<Box<tsc_binder::BindData>>,
     bind_span: Option<(std::time::Instant, std::time::Instant)>,
-    source: SourceFile,
+    source: RetainedSource,
 }
 
 impl PreparsedSourceFile {
@@ -121,7 +157,20 @@ impl PreparsedSourceFile {
             bind_reservations: None,
             bind_data: None,
             bind_span: None,
-            source,
+            source: RetainedSource::Ordinary(source),
+        }
+    }
+
+    pub(crate) fn new_library(
+        options: ParseOptions,
+        source: tsc_syntax::library_image::FreshLibrarySource,
+    ) -> Self {
+        Self {
+            options,
+            bind_reservations: None,
+            bind_data: None,
+            bind_span: None,
+            source: RetainedSource::Library(source),
         }
     }
 
@@ -137,13 +186,34 @@ impl PreparsedSourceFile {
 
     /// Consume the slot contents into the parsed tree.
     pub fn into_source(self) -> SourceFile {
-        self.source
+        self.source.into_source()
+    }
+
+    /// Retain pristine image eligibility until the library driver's ordered
+    /// reservation pass. Ordinary or already completed sources stay intact.
+    pub fn is_fresh_library(&self) -> bool {
+        matches!(self.source, RetainedSource::Library(_))
+    }
+
+    /// Consume a source for which [`Self::is_fresh_library`] is true, keeping
+    /// its existing ordered reservation if the loader already supplied one.
+    pub fn into_fresh_library(
+        self,
+    ) -> (
+        tsc_syntax::library_image::FreshLibrarySource,
+        Option<tsc_binder::BindReservations>,
+    ) {
+        let RetainedSource::Library(fresh) = self.source else {
+            unreachable!()
+        };
+        assert!(self.bind_data.is_none());
+        (fresh, self.bind_reservations)
     }
 
     /// Adopt the tree and its take-once reservation together. A plain parse
     /// consumer can still use `into_source`, releasing the unused reservation.
     pub fn into_parts(self) -> (Option<tsc_binder::BindReservations>, SourceFile) {
-        (self.bind_reservations, self.source)
+        (self.bind_reservations, self.source.into_source())
     }
 
     /// Adopt the parse, completed bind (if requested), and pinned reservations
@@ -155,7 +225,11 @@ impl PreparsedSourceFile {
         Option<Box<tsc_binder::BindData>>,
         SourceFile,
     ) {
-        (self.bind_reservations, self.bind_data, self.source)
+        (
+            self.bind_reservations,
+            self.bind_data,
+            self.source.into_source(),
+        )
     }
 }
 
@@ -198,6 +272,10 @@ impl PendingSourceBind {
 
 impl PreparsedSyntax {
     /// Called by ordered admission after installing this source's reservation.
+    pub(crate) fn pending_ordinary_bind(&self) -> Option<PendingSourceBind> {
+        self.has_bind_reservation().then(|| self.pending_bind())
+    }
+
     pub(crate) fn pending_bind(&self) -> PendingSourceBind {
         PendingSourceBind {
             slot: Arc::clone(&self.slot),
@@ -218,10 +296,26 @@ impl PreparsedSyntax {
         let Some(reservation) = &parsed.bind_reservations else {
             return;
         };
-        assert!(parsed.bind_data.is_none());
+        if parsed.bind_data.is_some() {
+            return;
+        }
         let started = tracing.then(std::time::Instant::now);
+        if matches!(parsed.source, RetainedSource::Library(_)) {
+            let RetainedSource::Library(fresh) =
+                std::mem::replace(&mut parsed.source, RetainedSource::Moving)
+            else {
+                unreachable!()
+            };
+            let (source, data) =
+                tsc_binder::library_image::restore_reserved(fresh, reservation, domain)
+                    .expect("compiler binding image matches ordinary binding");
+            parsed.source = RetainedSource::Ordinary(source);
+            parsed.bind_data = Some(Box::new(data));
+            parsed.bind_span = started.map(|start| (start, std::time::Instant::now()));
+            return;
+        }
         let mut binder = tsc_binder::Binder::bind_reserved(
-            &mut parsed.source,
+            parsed.source.ordinary_mut(),
             reservation.symbols.range(),
             reservation.serials.range().start(),
         );
@@ -236,6 +330,30 @@ impl PreparsedSyntax {
         // here: the checker relocates overflows in its established order.
         parsed.bind_data = Some(Box::new(binder.into_bind_data()));
         parsed.bind_span = started.map(|started| (started, std::time::Instant::now()));
+    }
+
+    pub(crate) fn restore_image_bind(&self, domain: &IdentityDomain, tracing: bool) {
+        let eligible = self
+            .slot
+            .lock()
+            .expect("retained parse")
+            .as_ref()
+            .is_some_and(|parsed| matches!(parsed.source, RetainedSource::Library(_)));
+        if eligible {
+            self.bind_reserved(domain, tracing);
+        }
+    }
+
+    pub(crate) fn has_bind_reservation(&self) -> bool {
+        self.slot
+            .lock()
+            .expect("retained parse")
+            .as_ref()
+            .is_some_and(|parsed| {
+                parsed.bind_reservations.is_some()
+                    && parsed.bind_data.is_none()
+                    && !matches!(parsed.source, RetainedSource::Library(_))
+            })
     }
 
     /// The task's bind interval, when the command requested tracing.

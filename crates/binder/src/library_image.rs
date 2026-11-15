@@ -1,29 +1,20 @@
-//! Canonical completed binding records for the library-image builder.
-//! No command path loads these records. Side maps are ordered by file-local
+//! Canonical completed binding records and direct runtime construction.
+//! Side maps are ordered by file-local
 //! key; language-level tables retain their insertion and declaration order.
 
 use super::*;
 use crate::flow::{FlowData, FlowId};
-use tsc_syntax::library_image::{fingerprint, Decoder, Encoder, ImageError, SyntaxImage};
+use tsc_syntax::library_image::{Decoder, Encoder, ImageError, SyntaxImage};
+
+#[path = "library_image/runtime.rs"]
+mod runtime;
+pub use runtime::restore_reserved;
 
 type Result<T> = std::result::Result<T, ImageError>;
-const MAGIC: &[u8; 8] = b"TSCLIBB1";
+const MAGIC: &[u8; 8] = b"TSCLIBB3";
 
 fn provenance() -> u64 {
-    static VALUE: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
-    *VALUE.get_or_init(|| {
-        fingerprint(
-            concat!(
-                include_str!("library_image.rs"),
-                include_str!("declare.rs"),
-                include_str!("symbols.rs"),
-                include_str!("symbols/table.rs"),
-                include_str!("symbols/declarations.rs"),
-                include_str!("flow.rs"),
-            )
-            .as_bytes(),
-        )
-    })
+    include!(concat!(env!("OUT_DIR"), "/library_image_schema.rs"))
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -39,6 +30,8 @@ struct ImageSymbol {
     export_symbol: u32,
     const_enum: u32,
     replaceable: bool,
+    extras_present: bool,
+    table_aliases: [u32; 3],
     assignments: Vec<[u32; 2]>,
 }
 
@@ -160,6 +153,9 @@ impl BindingImage {
             serials,
         };
         let mut image_symbols = Vec::with_capacity(symbols.len());
+        // Alias classes follow first use, including empty tables; completed
+        // data can be captured on a different thread from its binder.
+        let mut table_aliases = FxHashMap::default();
         for s in symbols.symbols() {
             let crate::symbols::SymbolExtras {
                 members,
@@ -187,6 +183,17 @@ impl BindingImage {
                 export_symbol: export_symbol.map(symbol).transpose()?.unwrap_or(0),
                 const_enum: const_enum_only_module.map_or(0, |value| u32::from(value) + 1),
                 replaceable: *is_replaceable_by_method,
+                extras_present: s.tables().next().is_some(),
+                table_aliases: if s.tables().next().is_some() {
+                    [members, exports, global_exports].map(|table| {
+                        let next = table_aliases.len() as u32 + 1;
+                        *table_aliases
+                            .entry(std::sync::Arc::as_ptr(table))
+                            .or_insert(next)
+                    })
+                } else {
+                    [0; 3]
+                },
                 assignments: assignment_declaration_members
                     .iter()
                     .map(|(&a, &b)| Ok([node(a)?, node(b)?]))
@@ -349,7 +356,12 @@ impl BindingImage {
             }
             out.word(s.export_symbol);
             out.word(s.const_enum);
-            out.word(u32::from(s.replaceable));
+            out.word(u32::from(s.replaceable) | (u32::from(s.extras_present) << 1));
+            if s.extras_present {
+                for alias in s.table_aliases {
+                    out.word(alias);
+                }
+            }
             write_pairs(&mut out, &s.assignments)?;
         }
         out.count(self.locals.len())?;
@@ -405,10 +417,26 @@ impl BindingImage {
             let export_symbol = input.word()?;
             let const_enum = input.word()?;
             let replaceable = input.word()?;
-            if name as usize >= names.len() || const_enum > 2 || replaceable > 1 {
+            if name as usize >= names.len() || const_enum > 2 || replaceable > 3 {
                 return Err(ImageError("invalid bind symbol header"));
             }
+            let table_aliases = if replaceable & 2 != 0 {
+                [input.word()?, input.word()?, input.word()?]
+            } else {
+                [0; 3]
+            };
             let assignments = read_pairs(&mut input)?;
+            if replaceable & 2 == 0
+                && (!members.is_empty()
+                    || !exports.is_empty()
+                    || !global_exports.is_empty()
+                    || export_symbol != 0
+                    || const_enum != 0
+                    || replaceable & 1 != 0
+                    || !assignments.is_empty())
+            {
+                return Err(ImageError("absent symbol extras have nondefault fields"));
+            }
             symbols.push(ImageSymbol {
                 flags,
                 name,
@@ -420,7 +448,9 @@ impl BindingImage {
                 global_exports,
                 export_symbol,
                 const_enum,
-                replaceable: replaceable != 0,
+                replaceable: replaceable & 1 != 0,
+                extras_present: replaceable & 2 != 0,
+                table_aliases,
                 assignments,
             });
         }
@@ -466,6 +496,27 @@ impl BindingImage {
             });
         }
         input.end()?;
+        let mut tables: Vec<&[[u32; 2]]> = Vec::new();
+        for symbol in &symbols {
+            if !symbol.extras_present {
+                continue;
+            }
+            for (alias, entries) in symbol.table_aliases.into_iter().zip([
+                &symbol.members,
+                &symbol.exports,
+                &symbol.global_exports,
+            ]) {
+                if alias == 0 {
+                    return Err(ImageError("present bind table has no alias class"));
+                }
+                let index = alias as usize - 1;
+                if index == tables.len() {
+                    tables.push(entries);
+                } else if tables.get(index).copied() != Some(entries.as_slice()) {
+                    return Err(ImageError("invalid bind table alias"));
+                }
+            }
+        }
         Ok(Self {
             names,
             symbols,
@@ -543,6 +594,56 @@ pub fn build_command_library_image(name: &str, text: &str) -> Result<CommandLibr
 mod tests {
     use super::*;
     use tsc_syntax::{JSDocParsingMode, ParseOptions};
+
+    #[test]
+    fn completed_bind_alias_classes_do_not_depend_on_the_capturing_thread() {
+        let text = "interface CrossThreadAlias { field: string }";
+        let (source, data) = std::thread::spawn(move || {
+            let mut source = tsc_syntax::parse_source_file(
+                "alias-thread.d.ts",
+                text,
+                ParseOptions::default(),
+                None,
+            );
+            let data = BinderWorker::bind_local(&mut source).into_bind_data();
+            (source, data)
+        })
+        .join()
+        .unwrap();
+        let captured = BindingImage::capture(&source, &data).unwrap();
+        let mut ordinary =
+            tsc_syntax::parse_source_file("alias-thread.d.ts", text, ParseOptions::default(), None);
+        let expected = BinderWorker::bind_local(&mut ordinary).into_bind_data();
+        assert_eq!(
+            captured,
+            BindingImage::capture(&ordinary, &expected).unwrap()
+        );
+    }
+
+    #[test]
+    fn generated_binding_provenance_equals_all_source_inputs() {
+        fn collect(directory: &std::path::Path, files: &mut Vec<std::path::PathBuf>) {
+            for entry in std::fs::read_dir(directory).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    collect(&path, files);
+                } else if path.extension().is_some_and(|ext| ext == "rs") {
+                    files.push(path);
+                }
+            }
+        }
+        let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let mut files = vec![directory.join("build.rs")];
+        collect(&directory.join("src"), &mut files);
+        files.sort();
+        let mut hash = 0xcbf29ce484222325u64;
+        for path in files {
+            for byte in std::fs::read(path).unwrap() {
+                hash = (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3);
+            }
+        }
+        assert_eq!(provenance(), hash);
+    }
 
     #[test]
     fn every_bundled_library_image_equals_ordinary_syntax_and_binding() {
@@ -666,5 +767,15 @@ mod tests {
         let mut extra = bytes;
         extra.push(0);
         assert!(BindingImage::decode(&extra).is_err());
+        for bad_alias in [0, u32::MAX] {
+            let mut corrupt = image.clone();
+            let symbol = corrupt
+                .symbols
+                .iter_mut()
+                .find(|symbol| !symbol.members.is_empty())
+                .unwrap();
+            symbol.table_aliases[0] = bad_alias;
+            assert!(BindingImage::decode(&corrupt.encode().unwrap()).is_err());
+        }
     }
 }
