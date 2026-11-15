@@ -1131,6 +1131,39 @@ impl TypeTables {
         })
     }
 
+    /// Compare the values in two literal headers without constructing
+    /// optional decoded values for either side. Numeric equality stays
+    /// IEEE equality, including signed zero and NaN.
+    #[inline]
+    pub fn literal_type_values_equal(&self, source: TypeId, target: TypeId) -> bool {
+        let source = self.type_of(source);
+        let target = self.type_of(target);
+        let (TypeData::Literal { value: left, .. }, TypeData::Literal { value: right, .. }) =
+            (source.data, target.data)
+        else {
+            return false;
+        };
+        let value_flags =
+            TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL | TypeFlags::BIG_INT_LITERAL;
+        let kind = source.flags & value_flags;
+        if kind != target.flags & value_flags {
+            return false;
+        }
+        if kind == TypeFlags::NUMBER_LITERAL {
+            return self.number_literals[left as usize].get()
+                == self.number_literals[right as usize].get();
+        }
+        if kind == TypeFlags::STRING_LITERAL {
+            let left = LiteralTextId::new(left);
+            let right = LiteralTextId::new(right);
+            return left == right || self.literal_text(left) == self.literal_text(right);
+        }
+        debug_assert_eq!(kind, TypeFlags::BIG_INT_LITERAL);
+        let left = BigIntId::new(left);
+        let right = BigIntId::new(right);
+        left == right || self.bigint(left) == self.bigint(right)
+    }
+
     /// Whether two literal records' data name equal values: one text or
     /// bigint id is equal to itself without reading it. Decoding preserves
     /// the old data, so numeric equality still equates signed zeros and

@@ -1413,3 +1413,63 @@ fn template_string_spans_widen_ascii_in_bulk_at_vector_boundaries() {
         }
     }
 }
+
+#[test]
+fn literal_type_value_comparison_preserves_ieee_values_kinds_and_fresh_twins() {
+    let mut t = tables();
+    let zero = t.get_number_literal_type(0.0);
+    let negative_zero = t.get_number_literal_type(-0.0);
+    let one = t.get_number_literal_type(1.0);
+    let infinity = t.get_number_literal_type(f64::INFINITY);
+    let nan = t.get_number_literal_type(f64::NAN);
+    let other_nan = t.get_number_literal_type(f64::from_bits(0x7ff8_0000_0000_0001));
+    let string = t.get_string_literal_type("1");
+    let high = t.get_string_literal_type_from_utf16(&[0xD800]);
+    let replacement = t.get_string_literal_type("\u{fffd}");
+    let bigint = t.get_bigint_literal_type(PseudoBigInt {
+        negative: false,
+        base10_value: "1".into(),
+    });
+    let other_bigint = t.get_bigint_literal_type(PseudoBigInt {
+        negative: true,
+        base10_value: "1".into(),
+    });
+    let numeric_enum = t.get_enum_literal_type(
+        LiteralValue::Number(1.0),
+        SymbolId::new(20),
+        SymbolId::new(21),
+    );
+    let string_enum = t.get_enum_literal_type(
+        LiteralValue::String("1".into()),
+        SymbolId::new(22),
+        SymbolId::new(23),
+    );
+    let fresh = t.get_fresh_type_of_literal_type(one);
+    let fresh_enum = t.get_fresh_type_of_literal_type(numeric_enum);
+    let count = t.len();
+    for (a, b, equal) in [
+        (zero, negative_zero, true),
+        (zero, one, false),
+        (one, fresh, true),
+        (infinity, infinity, true),
+        (nan, nan, false),
+        (nan, other_nan, false),
+        (one, numeric_enum, true),
+        (one, fresh_enum, true),
+        (string, string_enum, true),
+        (high, high, true),
+        (high, replacement, false),
+        (bigint, bigint, true),
+        (bigint, other_bigint, false),
+        (one, string, false),
+        (one, bigint, false),
+        (string, bigint, false),
+        (one, t.intrinsics.number, false),
+        (string, t.intrinsics.string, false),
+        (t.intrinsics.true_regular, t.intrinsics.true_regular, false),
+    ] {
+        assert_eq!(t.literal_type_values_equal(a, b), equal);
+        assert_eq!(t.literal_type_values_equal(b, a), equal);
+        assert_eq!(t.len(), count);
+    }
+}

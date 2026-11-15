@@ -406,13 +406,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn literal_values_equal(&self, source: TypeId, target: TypeId) -> bool {
-        match (
-            self.tables.literal_data_of(source),
-            self.tables.literal_data_of(target),
-        ) {
-            (Some(source), Some(target)) => self.tables.literal_data_equal(source, target),
-            _ => false,
-        }
+        self.tables.literal_type_values_equal(source, target)
     }
 
     /// A string, number or bigint literal type (an enum member included)
