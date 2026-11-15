@@ -17,6 +17,11 @@ impl PreparedPackageId {
     pub(crate) fn value(&self) -> &PackageId {
         &self.value
     }
+    pub(crate) fn name_hash(&self) -> u64 {
+        let mut hash = rustc_hash::FxHasher::default();
+        self.value.name().hash(&mut hash);
+        hash.finish()
+    }
     pub(crate) fn into_value(owner: Arc<Self>) -> PackageId {
         match Arc::try_unwrap(owner) {
             Ok(owner) => owner.value,

@@ -6,6 +6,18 @@ use std::num::NonZeroU32;
 use std::ops::Range;
 use std::sync::Arc;
 
+#[path = "prepared_package_maps.rs"]
+mod package_maps;
+pub(crate) use package_maps::PreparedPackageMaps;
+#[path = "loaded_package_ids.rs"]
+mod loaded_packages;
+use loaded_packages::LoadedPackageIds;
+#[path = "resolution_templates.rs"]
+mod templates;
+pub(crate) use templates::{
+    ModuleTemplates, TemplateDisposition, TemplateHandle, TemplatePreparation,
+};
+
 const EXTERNAL: u8 = 1;
 const TS_EXTENSION: u8 = 2;
 const EXTRA_EXTENSION: u8 = 4;
@@ -203,7 +215,7 @@ fn compact_module_row(
     resolution: ModuleResolution,
     exact_source_path: bool,
     sources: &[PreparedSourceFile],
-    packages: &mut BTreeMap<Arc<PreparedPackageId>, NonZeroU32>,
+    packages: &mut LoadedPackageIds,
 ) -> Row {
     let ModuleResolution {
         outcome,
@@ -241,15 +253,7 @@ fn compact_module_row(
                 | flag(resolved_using_extra_extensions, EXTRA_EXTENSION)
                 | flag(is_custom_resolution, CUSTOM);
             if let Some(package) = package {
-                let next = NonZeroU32::new(
-                    u32::try_from(packages.len() + 1).expect("package id fits u32"),
-                )
-                .unwrap();
-                package_id = Some(
-                    *packages
-                        .entry(Arc::new(PreparedPackageId::new(package)))
-                        .or_insert(next),
-                );
+                package_id = Some(packages.intern_owned(package));
             }
             match target {
                 ResolvedModuleTarget::Source {
@@ -349,13 +353,6 @@ impl<'a> PreparedResolvedModule<'a> {
             .as_ref()
             .and_then(|r| r.original_path.as_ref())
     }
-    pub(crate) fn package_id(self) -> Option<&'a PackageId> {
-        self.0
-            .package
-            .as_ref()
-            .and_then(|p| p.id.as_ref())
-            .map(PreparedPackageRef::value)
-    }
     pub(crate) fn package_identity(self) -> Option<&'a PreparedPackageRef> {
         self.0
             .package
@@ -373,6 +370,7 @@ impl<'a> PreparedResolvedModule<'a> {
     }
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct ModuleBinding {
     pub source: SourceFileId,
     pub target: Option<SourceFileId>,
@@ -476,10 +474,9 @@ impl PreparedModule {
         mut self,
         binding: &ModuleBinding,
         sources: &[PreparedSourceFile],
-        package_map: &BTreeMap<JsString, bool>,
-        packages: &mut BTreeMap<Arc<PreparedPackageId>, NonZeroU32>,
-        package_flags: &mut Vec<u8>,
-        package_indices: &mut Vec<Option<(NonZeroU32, u8)>>,
+        package_map: &PreparedPackageMaps,
+        packages: &mut LoadedPackageIds,
+        package_indices: &mut Vec<Option<NonZeroU32>>,
     ) -> Result<Row, ResolutionError> {
         self.row.importing_source = binding.source;
         if let Some(path) = self.path.take() {
@@ -538,42 +535,10 @@ impl PreparedModule {
                     if package.index >= package_indices.len() {
                         package_indices.resize(package.index + 1, None);
                     }
-                    let (id, flags) = match package_indices[package.index] {
-                        Some(bound) => bound,
-                        None => {
-                            use std::collections::btree_map::Entry;
-                            let next = NonZeroU32::new(
-                                u32::try_from(packages.len() + 1).expect("package id fits u32"),
-                            )
-                            .unwrap();
-                            let bound = match packages.entry(Arc::clone(&package.id)) {
-                                Entry::Occupied(entry) => {
-                                    let id = *entry.get();
-                                    (id, package_flags[id.get() as usize - 1])
-                                }
-                                Entry::Vacant(entry) => {
-                                    let name = entry.key().name();
-                                    let types_name = crate::js_string_ops::types_package_name(name);
-                                    let flags =
-                                        flag(package_map.contains_key(&types_name), TYPES_PACKAGE)
-                                            | flag(
-                                                package_map
-                                                    .get(name.as_bytes())
-                                                    .copied()
-                                                    .unwrap_or(false),
-                                                BUNDLES_TYPES,
-                                            );
-                                    package_flags.push(flags);
-                                    entry.insert(next);
-                                    (next, flags)
-                                }
-                            };
-                            package_indices[package.index] = Some(bound);
-                            bound
-                        }
-                    };
+                    let id = *package_indices[package.index]
+                        .get_or_insert_with(|| packages.intern_prepared(package));
                     self.row.package_id = Some(id);
-                    self.row.flags |= flags;
+                    self.row.flags |= package_map.flags(package);
                 }
             }
         }
@@ -588,10 +553,9 @@ pub(crate) struct LoadedModules {
     modules: Vec<Row>,
     module_lookup: Vec<ModuleLookup>,
     source_ranges: Vec<Range<u32>>,
-    packages: BTreeMap<Arc<PreparedPackageId>, NonZeroU32>,
+    packages: LoadedPackageIds,
     prepared_order: Vec<Option<Vec<u32>>>,
-    package_flags: Vec<u8>,
-    package_indices: Vec<Option<(NonZeroU32, u8)>>,
+    package_indices: Vec<Option<NonZeroU32>>,
 }
 
 impl LoadedModules {
@@ -600,9 +564,8 @@ impl LoadedModules {
             modules: Vec::with_capacity(row_count),
             module_lookup: Vec::with_capacity(row_count),
             source_ranges: vec![0..0; source_count],
-            packages: BTreeMap::new(),
+            packages: LoadedPackageIds::default(),
             prepared_order: (0..source_count).map(|_| None).collect(),
-            package_flags: Vec::new(),
             package_indices: Vec::new(),
         }
     }
@@ -630,19 +593,24 @@ impl LoadedModules {
         specifier: &mut JsString,
         binding: ModuleBinding,
         sources: &[PreparedSourceFile],
-        package_map: &BTreeMap<JsString, bool>,
+        package_map: &PreparedPackageMaps,
     ) -> Result<(), ResolutionError> {
-        let mut row = Arc::unwrap_or_clone(prepared).bind(
+        let row = Arc::unwrap_or_clone(prepared).bind(
             &binding,
             sources,
             package_map,
             &mut self.packages,
-            &mut self.package_flags,
             &mut self.package_indices,
         )?;
+        self.push_final_row(row, specifier, binding.source);
+        Ok(())
+    }
+
+    fn push_final_row(&mut self, mut row: Row, specifier: &mut JsString, source: SourceFileId) {
+        row.importing_source = source;
         row.specifier = std::mem::take(specifier);
         let index = u32::try_from(self.modules.len()).expect("module row index fits u32");
-        let range = &mut self.source_ranges[binding.source.index()];
+        let range = &mut self.source_ranges[source.index()];
         if range.start == range.end {
             range.start = index;
         }
@@ -655,7 +623,6 @@ impl LoadedModules {
             row: index,
         });
         self.modules.push(row);
-        Ok(())
     }
 
     pub(crate) fn push(
@@ -688,10 +655,6 @@ impl LoadedModules {
             sources,
             &mut self.packages,
         );
-        self.package_flags.resize(self.packages.len(), 0);
-        if let Some(id) = row.package_id {
-            self.package_flags[id.get() as usize - 1] = row.flags & (TYPES_PACKAGE | BUNDLES_TYPES);
-        }
         self.modules.push(row);
     }
 
@@ -731,21 +694,12 @@ impl LoadedModules {
         }
         // IDs are private indices. Keep publication's interning order; views
         // expose package values, and iteration uses canonical module_order.
-        let mut packages = self
-            .packages
-            .into_iter()
-            .map(|(package, id)| (id, package))
-            .collect::<Vec<_>>();
-        packages.sort_unstable_by_key(|(id, _)| *id);
         ResolutionTable {
             modules: self.modules,
             module_order,
             module_lookup: self.module_lookup,
             source_ranges: self.source_ranges,
-            package_ids: packages
-                .into_iter()
-                .map(|(_, package)| PreparedPackageId::into_value(package))
-                .collect(),
+            package_ids: self.packages.into_values(),
             type_references,
         }
     }
@@ -858,9 +812,7 @@ impl ResolutionTable {
         let mut rows: Vec<_> = rows.into_iter().map(Some).collect();
         let mut modules = Vec::with_capacity(rows.len());
         let mut source_ranges = vec![0..0; sources.len()];
-        // The mutable display memo is excluded from Eq, Ord and Hash.
-        #[allow(clippy::mutable_key_type)]
-        let mut packages = BTreeMap::new();
+        let mut packages = LoadedPackageIds::default();
         for index in groups
             .into_iter()
             .flat_map(|source| by_source[source].iter().copied())
@@ -892,15 +844,7 @@ impl ResolutionTable {
         }
         // The temporary interning index owns the identities during building;
         // consume it so the immutable side table owns each identity only once.
-        let mut packages = packages
-            .into_iter()
-            .map(|(package, id)| (id, package))
-            .collect::<Vec<_>>();
-        packages.sort_unstable_by_key(|(id, _)| *id);
-        let package_ids = packages
-            .into_iter()
-            .map(|(_, package)| PreparedPackageId::into_value(package))
-            .collect();
+        let package_ids = packages.into_values();
         Self {
             module_lookup: module_lookup_index(&modules, &source_ranges),
             module_order: Vec::new(),

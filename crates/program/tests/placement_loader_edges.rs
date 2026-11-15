@@ -588,3 +588,105 @@ fn package_owners_follow_collection_when_workers_prepare_the_same_identity() {
         }
     }
 }
+
+#[test]
+fn shared_imports_and_augmentations_keep_targets_and_cached_jsonc_dependencies() {
+    let mut files = MemoryCompilerHost::builder("/p")
+        .file(
+            "/p/package.json",
+            br#"{
+            // The scope and runtime dependency pass use this same object.
+            "type": "module",
+            "dependencies": {"dep": "*",},
+            "peerDependencies": {"peer": "*",},
+        }"#
+            .to_vec(),
+        )
+        .file(
+            "/p/node_modules/pkg/package.json",
+            br#"{"name":"pkg","version":"1","types":"index.d.ts"}"#.to_vec(),
+        )
+        .file(
+            "/p/node_modules/pkg/index.d.ts",
+            b"export declare const value: number;".to_vec(),
+        );
+    for name in ["dep", "peer"] {
+        files = files
+            .file(
+                format!("/p/node_modules/{name}/package.json"),
+                format!(r#"{{"name":"{name}"}}"#).into_bytes(),
+            )
+            .file(
+                format!("/real/{name}/package.json"),
+                format!(r#"{{"name":"{name}"}}"#).into_bytes(),
+            )
+            .realpath(format!("/p/node_modules/{name}"), format!("/real/{name}"));
+    }
+    let mut roots = Vec::new();
+    for index in 0..80 {
+        let path = format!("/p/r{index}.ts");
+        let text = if index == 1 {
+            "export {}; declare module 'pkg' { interface Added { field: number } }"
+        } else {
+            "import { value } from 'pkg'; export { value };"
+        };
+        files = files.file(&path, text.as_bytes().to_vec());
+        roots.push(PathBuf::from(path));
+    }
+    let host = files.build().unwrap();
+    let describe = |program: &tsc_program::PreparedProgram| {
+        format!(
+            "{:?}\n{:?}\n{:?}\n{:?}",
+            program
+                .source_files()
+                .iter()
+                .map(|s| (s.path(), s.inclusion_reasons()))
+                .collect::<Vec<_>>(),
+            program.resolutions().modules().collect::<Vec<_>>(),
+            program.packages().collect::<Vec<_>>(),
+            program.dependency_symlinks()
+        )
+    };
+    let baseline = load_no_lib_program(
+        &NoAhead(host.clone()),
+        &roots,
+        options(),
+        program_options(),
+        limits(1),
+    )
+    .unwrap();
+    assert_eq!(baseline.dependency_symlinks().len(), 2);
+    assert_eq!(
+        baseline.dependency_symlinks()[0].real,
+        "/real/dep/package.json"
+    );
+    assert_eq!(
+        baseline.dependency_symlinks()[1].real,
+        "/real/peer/package.json"
+    );
+    let (_, augmentation) = baseline
+        .resolutions()
+        .modules()
+        .find(|(key, _)| key.source().as_js().ends_with("/r1.ts"))
+        .unwrap();
+    let tsc_program::ResolutionOutcome::Resolved(module) = augmentation.outcome() else {
+        panic!("augmentation resolves")
+    };
+    assert!(matches!(
+        module.target(),
+        tsc_program::ResolvedModuleTarget::Source { .. }
+    ));
+    assert!(augmentation.package_bundles_types());
+    let expected = describe(&baseline);
+    for workers in [1, 4, 16] {
+        let actual = load_no_lib_program(
+            &host,
+            &roots,
+            options(),
+            program_options().with_identity_domain(tsc_types::IdentityDomain::new()),
+            limits(workers),
+        )
+        .unwrap();
+        assert_eq!(describe(&actual), expected, "workers={workers}");
+    }
+}

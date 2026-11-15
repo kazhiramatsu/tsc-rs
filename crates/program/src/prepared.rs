@@ -3138,7 +3138,7 @@ impl PreparedProgramBuilder {
         prepared: Arc<crate::resolution::PreparedModule>,
         specifier: &mut JsString,
         binding: crate::resolution::ModuleBinding,
-        package_map: &BTreeMap<JsString, bool>,
+        package_map: &crate::resolution::PreparedPackageMaps,
     ) -> Result<(), ResolutionError> {
         debug_assert!(self.ensure_healthy().is_ok());
         loaded.push_prepared(
@@ -3148,6 +3148,37 @@ impl PreparedProgramBuilder {
             &self.source_files,
             package_map,
         )
+    }
+
+    pub(crate) fn consider_module_template(
+        &self,
+        preparation: &mut crate::resolution::TemplatePreparation,
+        fact: Arc<crate::resolution::PreparedModule>,
+        binding: crate::resolution::ModuleBinding,
+    ) -> crate::resolution::TemplateDisposition {
+        preparation.consider(fact, binding, &self.source_files)
+    }
+
+    pub(crate) fn finish_module_templates(
+        &self,
+        preparation: crate::resolution::TemplatePreparation,
+        loaded: &mut LoadedModules,
+        maps: &crate::resolution::PreparedPackageMaps,
+    ) -> crate::resolution::ModuleTemplates {
+        preparation.finish(loaded, &self.source_files, maps)
+    }
+
+    pub(crate) fn stage_module_template(
+        &self,
+        loaded: &mut LoadedModules,
+        templates: &mut crate::resolution::ModuleTemplates,
+        handle: crate::resolution::TemplateHandle,
+        source: SourceFileId,
+        specifier: &mut JsString,
+        maps: &crate::resolution::PreparedPackageMaps,
+    ) -> Result<(), ResolutionError> {
+        debug_assert!(self.ensure_healthy().is_ok());
+        templates.push(handle, loaded, &self.source_files, source, specifier, maps)
     }
 
     fn try_add_module_resolution(

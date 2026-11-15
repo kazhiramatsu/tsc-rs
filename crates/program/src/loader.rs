@@ -1061,6 +1061,7 @@ fn load_program_worker(
     // caches are dropped; their results still carry the governing manifest —
     // for a pnpm package that is `node_modules/<pkg>/package.json`, while the
     // realpath'd source's own scope records the `.pnpm/...` spelling.
+    let mut seen_module_metadata = rustc_hash::FxHashSet::default();
     for resolution in staged
         .module_batch_order
         .iter()
@@ -1068,12 +1069,17 @@ fn load_program_worker(
     {
         if let Some(module) = resolution.host.resolved() {
             if let Some(package) = module.package_metadata() {
+                // Every governing Arc stays live throughout this borrowed walk.
+                if !seen_module_metadata.insert(package as *const crate::PackageMetadata as usize) {
+                    continue;
+                }
                 packages_by_path
                     .entry(package.package_json().canonical().clone())
                     .or_insert_with(|| package.clone());
             }
         }
     }
+    drop(seen_module_metadata);
     for resolution in &staged.type_resolutions {
         if let ResolutionOutcome::Resolved(directive) = &resolution.host {
             if let Some(package) = directive.package_metadata() {
@@ -1167,7 +1173,7 @@ fn resolve_runtime_dependency_symlinks(
         let directory = crate::js_path::directory_name(package.package_json().display());
         let node_modules =
             crate::js_path::combine_paths(directory.as_js(), JsStr::from_str("node_modules"));
-        for name in runtime_dependency_names(package.package_json(), package.text()) {
+        for name in runtime_dependency_names(&package) {
             let found = resolver
                 .resolve_package_directory(directory.as_js(), name.as_js())
                 .map_err(|error| {
@@ -1203,11 +1209,13 @@ fn resolve_runtime_dependency_symlinks(
 /// tsc-port: getAllRuntimeDependencies @6.0.3
 /// tsc-hash: 62d9e01fb8c9f3f49fcd53deafb8cb72ff3d1b91d8b9f86ad573d1f29900a484
 /// tsc-span: _tsc.js:45707-45716
-fn runtime_dependency_names(package_json: &ProgramPath, text: &str) -> Vec<JsString> {
-    let (_, object) = parse_json_object(package_json.display(), text.to_owned());
+fn runtime_dependency_names(package: &crate::PackageMetadata) -> Vec<JsString> {
+    let crate::JsonValue::Object(object) = package.parsed_json().as_ref() else {
+        return Vec::new();
+    };
     let mut names = Vec::new();
     for field in ["dependencies", "peerDependencies", "optionalDependencies"] {
-        if let Some(crate::JsonValue::Object(dependencies)) = json_object_get(&object, field) {
+        if let Some(crate::JsonValue::Object(dependencies)) = json_object_get(object, field) {
             names.extend(
                 dependencies
                     .keys()
@@ -2809,7 +2817,10 @@ enum StagedModuleTarget {
     TaskData(usize),
     Source(usize, bool),
     Unloaded,
+    Template(crate::resolution::TemplateHandle),
 }
+
+const _: () = assert!(std::mem::size_of::<StagedModuleResolution>() <= 72);
 
 struct StagedTypeResolution {
     key: TypeReferenceResolutionKey,
@@ -7608,7 +7619,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     StagedModuleTarget::Lookup => {
                         self.parse.task_data_by_path.get(canonical).copied()
                     }
-                    StagedModuleTarget::Source(..) | StagedModuleTarget::Unloaded => {
+                    StagedModuleTarget::Source(..)
+                    | StagedModuleTarget::Unloaded
+                    | StagedModuleTarget::Template(_) => {
                         unreachable!("targets are bound once after task execution")
                     }
                 };
@@ -8006,7 +8019,7 @@ fn publish_program(
     }
 
     timer.mark("load: publish packages");
-    let package_map = package_map_from_facts(
+    let package_map = crate::resolution::PreparedPackageMaps::new(
         staged
             .module_batch_order
             .iter()
@@ -8018,7 +8031,10 @@ fn publish_program(
             })
             .filter_map(|resolution| {
                 let module = resolution.host.resolved()?;
-                Some((module.package_id()?, module.extension()))
+                Some((
+                    module.package_identity()?,
+                    matches!(module.extension(), ModuleExtension::Dts),
+                ))
             }),
     );
     let redirected_source = |path: &CanonicalPath| -> Option<SourceFileId> {
@@ -8036,14 +8052,69 @@ fn publish_program(
         source_by_canonical.get(redirected.canonical()).copied()
     };
     timer.mark("load: publish package map");
-    let mut loaded_modules = crate::resolution::LoadedModules::new(
-        published_ids.iter().flatten().count(),
-        module_batches
-            .iter()
-            .flatten()
-            .map(|(_, rows)| rows.len())
-            .sum(),
-    );
+    let row_count = module_batches
+        .iter()
+        .flatten()
+        .map(|(_, rows)| rows.len())
+        .sum();
+    let mut loaded_modules =
+        crate::resolution::LoadedModules::new(published_ids.iter().flatten().count(), row_count);
+    let mut template_preparation = crate::resolution::TemplatePreparation::new(row_count);
+    for &source_index in &staged.module_batch_order {
+        let source = published_ids[source_index].expect("a collected source");
+        let batch = &mut module_batches[source_index]
+            .as_mut()
+            .expect("a collected batch")
+            .1;
+        for resolution in batch {
+            if let Some(package) = resolution
+                .host
+                .resolved()
+                .and_then(|module| module.package_identity())
+            {
+                loaded_modules.preassign_package(package);
+            }
+            let facts = resolution.host.facts.as_ref().expect("resolved facts");
+            if external_module_resolution
+                || facts.needs_validation()
+                || Arc::strong_count(facts) == 1
+            {
+                continue;
+            }
+            let target = match resolution.target {
+                StagedModuleTarget::Source(target, _) => published_ids[target],
+                StagedModuleTarget::Unloaded | StagedModuleTarget::Lookup => None,
+                StagedModuleTarget::TaskData(_) | StagedModuleTarget::Template(_) => {
+                    unreachable!("graph finish fixes membership")
+                }
+            }
+            .or_else(|| {
+                resolution
+                    .host
+                    .resolved()
+                    .and_then(|module| redirected_source(module.resolved_file().canonical()))
+            });
+            let binding = crate::resolution::ModuleBinding {
+                source,
+                target,
+                loads_source: resolution.loads_source,
+                unloaded_reason: resolution.unloaded_reason,
+                no_resolve: compiler_options.no_resolve == Some(true),
+                exact_path: matches!(resolution.target, StagedModuleTarget::Source(_, true)),
+            };
+            let facts = resolution.host.facts.take().expect("shared facts");
+            match builder.consider_module_template(&mut template_preparation, facts, binding) {
+                crate::resolution::TemplateDisposition::Direct(facts) => {
+                    resolution.host.facts = Some(facts)
+                }
+                crate::resolution::TemplateDisposition::Shared(handle) => {
+                    resolution.target = StagedModuleTarget::Template(handle)
+                }
+            }
+        }
+    }
+    let mut module_templates =
+        builder.finish_module_templates(template_preparation, &mut loaded_modules, &package_map);
     for source_index in staged.module_batch_order {
         let (canonical, batch) = module_batches[source_index]
             .take()
@@ -8051,10 +8122,30 @@ fn publish_program(
         for mut resolution in batch {
             let source =
                 published_ids[source_index].expect("only collected sources publish resolutions");
+            if let StagedModuleTarget::Template(handle) = resolution.target {
+                builder
+                    .stage_module_template(
+                        &mut loaded_modules,
+                        &mut module_templates,
+                        handle,
+                        source,
+                        &mut resolution.key.specifier,
+                        &package_map,
+                    )
+                    .map_err(|error| {
+                        ProgramLoadError::resolution_js(
+                            ProgramLoadOperation::BindResolutions,
+                            Some(canonical.as_js().to_owned()),
+                            Some(resolution.key.specifier().to_owned()),
+                            error,
+                        )
+                    })?;
+                continue;
+            }
             let owned_source = match resolution.target {
                 StagedModuleTarget::Source(target, _) => published_ids[target],
                 StagedModuleTarget::Unloaded | StagedModuleTarget::Lookup => None,
-                StagedModuleTarget::TaskData(_) => {
+                StagedModuleTarget::TaskData(_) | StagedModuleTarget::Template(_) => {
                     unreachable!("finish binds every resolved target")
                 }
             }
@@ -8074,7 +8165,7 @@ fn publish_program(
                 let bound = bind_module_resolution(
                     resolution.host.into_host(),
                     owned_source,
-                    &package_map,
+                    &package_map.legacy,
                     resolution.loads_source,
                     resolution.unloaded_reason,
                     compiler_options.no_resolve == Some(true),
@@ -8267,20 +8358,6 @@ fn bind_type_resolution(
     Ok(TypeReferenceResolution::resolved(
         host.into_resolved_type_reference_directive(target, source)?,
     ))
-}
-
-fn package_map_from_facts<'a>(
-    facts: impl IntoIterator<Item = (&'a PackageId, &'a ModuleExtension)>,
-) -> BTreeMap<JsString, bool> {
-    let mut packages = BTreeMap::new();
-    for (package_id, extension) in facts {
-        let bundles_declaration = matches!(extension, ModuleExtension::Dts);
-        packages
-            .entry(package_id.name().to_owned())
-            .and_modify(|existing| *existing |= bundles_declaration)
-            .or_insert(bundles_declaration);
-    }
-    packages
 }
 
 /// A wildcard automatic-type discovery failure, retained with the exact
