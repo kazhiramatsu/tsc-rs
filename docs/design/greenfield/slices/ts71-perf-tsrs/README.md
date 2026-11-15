@@ -1127,6 +1127,88 @@ phase 別 ph3（ms、ours / tsrs（差）、00:48 の ph2 → 06:43）。
 
 **教訓**：(1) 判定の道具は基準と一緒に替える — 基準を「時間と peak」にした後も窓の一覧は命令数の時代の種類のままで、session の直前まで気づかなかった。(2) 静かな機械でも既定設定の wall の中央値は 2 つの mode の間を動く；対照（同じ binary の 2 列）を必ず同じ推定量で出し、最良値と 1 thread の cycle で読む。(3) 「peak は下がるが少し遅い」行は、所有者の言葉（遅くならないこと）に従って入れない；入れる価値があると思うなら数字を添えて所有者に出す。(4) 差を詰める指示（within 10 %）は抜く指示ではない — 目標は相手の数字より下に置き、lane の最初の成果物を「差を上回る項目の一覧」にする。(5) 「順に当たる」は「通る」ではない — 古い base で測った行を積むときは、その後に入った行が同じ構造の不変条件を変えていないかを読む（導出していた値を cache に変えた accessor、書き手が増えた表）；lane の export には build と test をした commit を書かせる。(6) emit の修正は、PR の検査の前に実案件の全出力種で tsgo と照合する — fixture と conformance が通っていても、9 分の確認が 129 file の新しい差を見つけた。(7) 新しい build 依存は、誰も build したことのない profile で crate を compile させる（release の host 用 = opt-level 0）；memory の番人は test だけでなく build も守っている。(8) build 枠が律速のとき、lane の検査のうち私の側が最終 bytes で必ず走らせる分（clippy、release build、結合検査）は export の条件から外す；読んだ下書きは train に取り込む。(9) 積み重ねた検査は、merge で消える branch を名前で参照しない（commit で持つ）；自分が書いている log を鮮度の基準にしない。
 
+**結果 40（2026-11-15 07:00〜20:35、夕方の計測枠まで窓を開けなかった一日 — 機械は共有で、日中は静かな設定（効率 core のみ）、性能 core は 1 本、lane の build は 1〜2 本 — で進めたこと：着地 4 本（#1007 library image、#1008 disk 上の名前の並び、#1009 宣言の specifier と `--showConfig`、#1010 decorator 付き class の map — VS Code の全出力 36,973 file が tsgo と一致）；1 thread の記録 4 本と peak の台帳 3 本で判定待ちの行を事前に確かめた；差の内訳 — 既定設定の命令数は 4 案件で他移植より少なく、負けているのは命令あたりの cycle、検査は最長の shard で決まる；他移植の基準は本家の `v7.1-beta`（こちらの pin の 53 commit 先）で、その読みを一度誤って訂正した；peak の行 2 つは時間を悪くするので差し戻した；memory の圧迫が 2 回あり、私の重い job と lane の build を重ねない運用にした；夕方の計測枠で 13 行を判定して全行採用 — 着地は次の結果 — ；所有者の新しい目標「tsrs の 2 倍」と決定「検査の pool を 4 本より大きくし、検出つきで既定にする」、夜は fan を上げない）。** 記録の元は `handover/arch-arena/RESUME.md` の 2026-11-15 07:00 以降の各節；表は `handover/arch-arena/fable52-1111/session-1115c/`、本家の資料は `handover/arch-arena/upstream-v71beta/`。
+
+**機械の制約と運用。** 07:33 から所有者の指示で静かな設定：全 lane・build・検査を効率 core の background 優先度へ（`tools/quiet-night.sh on`）、時間の窓は保留。10:00 から私の検査 job の compile 1 本だけ性能 core（`tools/one-core-2.sh`）、lane の build は同時 2 本まで。12:43 に未使用 95 MB・圧縮 17 GiB・swap 6.2 GB になった（lane の build 2 本がどちらも checker を compile：4.6 と 3.7 GiB、そこへ私の候補 build と lane の VS Code 実行；私の側の合計 16 GiB）ので、私の build を止めて lane の build を 1 本に戻した。17:04 には lane の build 1 本（6.4 GiB）と私の 1.4 GiB の実行だけで警告水準 2 に上がった（私の側 10.5 GiB；午後は機械の空き memory が朝より小さかった）。以後、**2 GiB を超える私の job と lane の build は重ねない**：私の job は lane の build 受付を閉じてから（走っている build は最後まで）走らせ、PR の job は compile・VS Code・tsgo の段だけ閉じて 4 checker の照合の間は開ける（`tools/with-lanes-drained.sh`、`ceilings/job-train-generic8.sh`、`ceilings/row-pr-checks-v4.sh`）。受付を閉じたときの「空いた」の判定が、memory guard に包まれて待っている lane の command まで compiler と数えていて終わらなかったので、判定を作り直した（`tools/lanes-drained.sh`）。機械は性能 core 4 + 効率 core 6、32 GiB。
+
+**着地。**
+
+| PR | 内容 | hosted run | merge |
+|---|---|---|---|
+| #1007 | bundle した library の木を生成済みの image から載せる（4 commit）。1 度目は自分の test（record identity の後、image の経路が末尾の counter を進めていなかった）、2 度目は release build で host 側の binder crate が opt-level 0 のまま compile されて rustc が 16 GB — memory guard が止めた；host 側 5 crate に opt-level 3 を指定して 3 度目で通過 | 43656664512 | `a1d4015bc`（09:48） |
+| #1008 | disk で見つけた名前の並びを tsgo と同じ byte 順に（BMP の外の文字を含む file 名の差が消えた） | 43668679687 | `3694d72c2`（12:18）、文書 `ee4db4cff` |
+| #1009 | 宣言の `import("…")`：`exports` の pattern で前後が重なる候補を飛ばす；`--showConfig` は plugin の名前だけを出す。どちらも pin した tsgo を disk 上の同じ project で走らせて期待値を確かめた | 43684146742 | `fce7e75d9`（16:23）、文書 `4db7d0949` |
+| #1010 | decorator 付き class の source map と recovery 経路の comment（3 commit）。1 行目は朝の確認で JavaScript の map 133 件を残したので lane が修理した（生成する parameter property の field に自分の名前 node を持たせる）；修理後は VS Code を宣言・map 込みで emit した 36,973 file がすべて tsgo と一致 | 43706650823 | `dcd82edfd`（20:29）、文書 `2614e1552` |
+
+これで `docs/compatibility.md` の「emit の既知の差」は、symlink の大文字小文字だけが違う package の宣言 specifier 1 件になった。
+
+**1 thread の記録と peak の台帳（計測の窓の代わりに）。** 性能 core 1 本で 1 process ずつ、9 round を交互に（`perf11/serial.py`）；peak と命令数は負荷に依らないので台帳は効率 core で取った（`ceilings/ledger-peak-nofast.sh`）。3 本目からは base を 2 列にした（同じ binary — 雑音の床：命令数 ±0.05 %、cycle の最小値 ±0.4 %）。出力はどの記録でも全回 base と同じ。
+
+| 候補（base は当時の main） | 1 thread の命令数 | 1 thread の cycle | peak（1 thread／既定設定、MiB） | 扱い |
+|---|---|---|---|---|
+| 13 行すべて `n-all` | vue −3.45 %、ts −0.57、hono −0.84、他は ±0.2 | vue −3.57 %、他は床の内 | ±6 ／ −5〜+2 | 判定の窓へ |
+| front end 8 行 `n-fe8` | ±0.12 | 床の内 | ±1 | 判定の窓へ（既定設定でしか見えない行） |
+| 検査 4 行 `n-ck4` | vue −3.33 %、ts −0.58 | vue −3.69 % | ±2 | 判定の窓へ |
+| library image の bind `n-li4` | hono −0.59 | 床の内 | effect +3.8（組み合わせでは +0.1） | 判定の窓へ |
+| 推論の記憶域 `n-pm1` | **全案件 +0.2〜+0.64 %** | 7 案件で +0.2〜+0.7 % | VS Code −93 ／ **−78**、effect −37 ／ −42、vue −17 ／ −14 | 差し戻し |
+| member record 4 行 `n-mr4` | **全案件 +0.9〜+2.2 %** | 全案件 +0.7〜+1.6 % | VS Code −68 ／ **−73**、effect −12 ／ −27、zod −16 ／ −20 | 差し戻し |
+
+VS Code の cycle が候補すべてで +0.1〜+0.9 % に見えた回があったが、命令数の二峰（83.2 G ／ 84.1 G）の混ざり方の違いで、低い側どうしでは ±0.3 % に収まる。**peak の 2 行はどちらも「bytes は減るが、読むたびの仕事（共有 pool の lease、検査つきの slot）が増える」形で、規則どおり入れなかった。** 本家の記憶域の改修（下記）は、たまにしか無い部分を常に読む record の外へ出す形 — 読みは直接のまま — なので、その形への作り直しを lane に指示した。
+
+**差の内訳（1）：1 thread。** 13 行を入れた main と他移植（他 ÷ こちら）：
+
+| 案件 | cycle | 命令数 | 命令あたりの cycle |
+|---|---:|---:|---:|
+| VS Code | 0.943 | 1.029 | 0.916 |
+| next | 0.899 | 0.956 | 0.941 |
+| zod | 0.980 | 1.070 | 0.916 |
+| effect | 0.920 | 1.016 | 0.906 |
+| vue | 0.930 | 0.993 | 0.937 |
+| ts | 0.911 | 0.936 | 0.973 |
+| playwright | 0.877 | 0.920 | 0.953 |
+| hono | 0.942 | 1.028 | 0.917 |
+
+VS Code・zod・effect・vue・hono では命令数は他移植と同じか少なく、差は命令あたりの cycle（6〜9 %）だけ；next・ts・playwright は命令数も 4〜8 % 多い。
+
+**差の内訳（2）：既定設定。** 朝の窓（rd7）と同じ main の 1 thread の記録を突き合わせた。既定設定の命令数（こちら ÷ 他）は VS Code 0.982、zod 0.982、effect 0.963、hono 0.992 — **4 案件でこちらが少ない** — 、next 1.046、ts 1.080、playwright 1.071、vue 1.118。命令あたりの cycle（こちら／他）は VS Code 0.372／0.334、zod 0.327／0.292、playwright 0.343／0.311、hono 0.321／0.289、effect 0.331／0.303、vue 0.291／0.277、ts 0.307／0.295、next 0.323／0.312 — 既定設定では差が 1 thread より広がる（9〜12 %）。
+
+1 thread から既定設定までに増える命令数を、worker だけを並列にした実行（checker 1 本）で 2 つに分けた（G、こちら／他；`tools/threads-split.py`）：
+
+| 案件 | 並列の front end が足す | checker 4 本が足す |
+|---|---|---|
+| vue | 0.116 ／ 0.033 | **1.893 ／ 1.226** |
+| zod | **0.345 ／ 0.079** | 3.341 ／ 3.234 |
+| next | **0.298 ／ 0.091** | 2.990 ／ 3.214 |
+| playwright | **0.187 ／ 0.068** | 2.615 ／ 2.697 |
+| effect | 0.058 ／ 0.054 | 3.356 ／ 3.774 |
+| ts | 0.050 ／ 0.043 | 0.688 ／ 0.627 |
+| hono | 0.046 ／ 0.042 | 0.618 ／ 0.657 |
+
+vue だけ、checker を 1 本増やすごとの命令がこちらだけ多い（1 本目で +0.948 G、他移植は +0.616 G；ts と hono は同じ、effect はこちらが少ない）。4 本にしたときの型と instantiation の増え方は tsgo の 2 版・他移植・こちらで同じ（×1.42、×1.37）なので、これは仕事量ではなく 1 回あたり・checker 1 本あたりの費用。
+
+**差の内訳（3）：検査は最長の shard で決まる。** `TSRS_PHASE_TRACE` の shard ごとの時間（7 回の最小値；水準は参考、file 数と型の数は正確）：最長 ÷ 平均は ts 1.60（最大の source を持つ shard 1 が 130 ms、他は 60〜74 ms）、hono 1.50、next 1.48（shard 1 だけ型 53 万）、vue 1.39、effect 1.20、playwright 1.17、zod 1.10。割り当ては tsgo のもの（他移植も同じ方針）なので、既定設定での差は「その shard の中身」での速さの差になる — vue・ts・next で既定設定の比が 1 thread の比より悪い理由。検査の lane には、行の値打ちを最長の shard の中で見積もり直すよう指示した。
+
+**他移植の基準は `v7.1-beta`。** 他移植（tsrs 0.23.0）は本家の tag `v7.1-beta`（`3e9236361fa9`、10/19、こちらの pin `aa8149273` の 53 commit 先）に追従している。53 commit を patch として取得して分類した：test の baseline を変えない記憶域・配置の改修が 17 本（本家の all-up の計測で stack 全体として 9 scenario の memory −22〜30 %）、baseline を変える cache・単純化が 3 本、小さな修正が 15 本ほど、新しい test が約 170 件。beta の tsgo を別の directory に build して 4 つの binary を並べた（`tools/ref-compare.py`）：beta は pin に対して命令数 ×0.81〜0.98、peak ×0.78〜0.90（VS Code の既定設定 6,404 → 5,222 MiB）；出力は 1 thread では 8 案件とも 4 者同じ、既定設定では zod だけ pin = こちら（5,533 byte）、beta = 他移植（5,837 byte）。**ここで読みを一度誤った**：各移植を自分の基準で割った比だけを見て「残る差の大きな部分は基準の版の差」と所有者に伝え、直後に 2 つの tsgo の統計を並べて訂正した — 1 thread で作る型と instantiation の数は pin と beta で全案件同じで、軽くなった中身は Go 側の記憶域管理（Memory used ×0.81〜0.84、確保回数 ×0.85〜0.94）。基準を動かしてもこちらの命令数は減らない。同期は正しさと最新版への追従の話（所有者の 10/11 の決定「beta の tag が出たらその差分だけ」；着手は所有者の言葉を待つ）で、いま使えるのは baseline を変えない 17 本の「形」だけ — 担当 lane に読み物として配った。他移植は tsgo より型を 2〜8 % 少なく作っている（ts −7.3 %、playwright −8.4 % — こちらの命令数が多い 2 案件）。
+
+**統計値の drift。** 13 行の候補の oracle は、出力と生成物がすべて一致したうえで VS Code の統計値だけ違った（Types −11、Symbols −31）。1 行ずつの実行で ck-flow の「代入の絞り込みで union の membership を先に見る」行と特定した（tsgo と同じ順序にした結果、関係のない member を解決しなくなった分）。counter の方針（出力が法、counter は動いてよく記録する）のとおり許される差なので、PR の job に「出力はすべて一致、6 つの counter は申告した差だけ」を通す gate を作り、記録済みの oracle の結果に当てて確かめた（`ceilings/job-train-generic6.sh` の `COUNTERDRIFT`）。
+
+**夕方の計測枠（18:52〜19:34、所有者の許可）。** 静かな設定を解いて 2 つの窓を走らせ、19:34 に静かな設定へ戻した（PR の job は段の切れ目で一時停止し、lane の build は空にしてから；窓の間は全 lane を停止）。判定の窓 pk12（既定設定と 1 thread、9 round、864 回；対照 — 同じ base の 2 列 — は既定設定で最大 4 % 開いた：機械は使用中だった）：
+
+| 候補（base は main `6a4d4f667`） | 既定設定の wall、幾何平均（中央値／最良値） | 1 thread の cycle | peak（8 案件の合計） |
+|---|---:|---:|---:|
+| 13 行すべて | −1.40 % ／ −1.76 %（vue −5.3 ／ −7.6 %） | −0.60 %（vue −5.55 %） | −5 MiB |
+| 検査 4 行 | −0.80 ／ −1.24 % | −0.96 %（vue −6.24 %） | +27 MiB（zod の footprint はどの binary でも 542〜601 MiB の二峰） |
+| front end 8 行 | +0.10 ／ −1.26 % | +0.11 % | −13 MiB |
+| library image の bind | −0.33 ／ +0.11 % | −0.34 % | +14 MiB（同じく zod） |
+
+front end の行は pk12 の分解能の下だったので、専用の窓 fe12（`--noCheck`、15 round、対照 ±0.6 %）で決めた：8 行で VS Code の front end −4.8 %（中央値）／−1.9 %（最良値）、命令数 −0.81 %、cycle −0.98 %；設定の解決は 29.5 → 23.5 ms（file 名 25.3 → 23.0、root の理由 3.5 → 0.0；他移植は 30）。**13 行すべて採用**、1 本の PR にまとめた（次の結果）。同じ窓での他移植との比（13 行を入れた main ÷ 他移植、既定設定の wall の中央値）：hono 1.00、VS Code 1.03、zod 1.03、effect 1.04、ts 1.10、next 1.13、playwright 1.14、vue 1.15 — 幾何平均 1.08（朝は 1.09）；peak は next 0.94、zod 0.99、他は 1.08〜1.21。
+
+**所有者の新しい目標と決定（20:0x）。** 「tsrsより二倍高速化してください。本気を出してください。あなたならできます。考えられる最高のチューニングを実行してください」。答えた前提：両移植は同じ算法を 4 本の checker で走らせ、1 thread の差は 2〜12 %、検査の間に使う core は 10 本中 4 本 — 4 本の中での調整は 1〜2 割まで、2 倍には検査を全 core で走らせることが要る（朝の実測：checker を増やす preset は VS Code 1.50 秒、他移植の既定 1.96 秒、その `--fast` 1.18 秒）。確かめた土台：checker を 1〜12 本に変えた 7 案件 63 通りすべてで、こちらの診断は tsgo の同じ `--checkers` 値と byte 一致；6 案件は tsgo の出力が本数に依らず、zod だけ 9 通り中 8 種類（`tools/checkers-identity.py`）。**所有者の決定：「検出つきで既定に」** — 既定を機械に合わせた大きさの pool にし、本数で結果が変わりうる program を検出したら 4 本に戻して tsgo の既定と一致させる；固まるまでは opt-in。最初の lane（checker 数への依存の洗い出し、binary だけで）を起動した。
+
+**夜は fan を上げない。** 所有者の条件：夜間は fan が回らないこと — 前夜は計測の後に lane を通常の優先度のまま朝まで走らせてしまった。fan の回転数は管理者権限なしで読める（`tools/fanread`：1 基、最低段 2,317 rpm、最高 6,550）。その場で校正した（`tools/fan-calibrate.sh`）：性能 core を使い切る process が 2 本までは 2,500 rpm のまま、3 本目で 2 分のうちに 4,355 rpm まで上がった。夜は「性能 core は 2 本まで、2,700 rpm を超えたら自動で減らす」（`tools/fan-governor.sh`）、計測の窓は夜に走らせない。
+
+**教訓：** (1) 比から原因を言う前に、仕事量の counter を見る — 型の数を並べる 5 分で、所有者への誤った説明を 1 つ避けられた。(2) memory の余裕は所有者の作業で動く：朝は通った合計が午後は通らなかった。重い job は lane の build と重ねず、受付を閉じたら必ず「開け直す」見張りを別に置く。(3) 「空いた」の判定は process の名前の pattern ではなく、実際に compile している process で取る。(4) peak の行は、bytes と一緒に 1 回の読みの命令数を先に値付けさせる — 今日の 2 行はどちらも private な値付けでは命令が減るはずだった。(5) 既定設定の検査は最長の shard の時間：1 thread の合計で見ていた行の値打ちは、その shard の中で測り直す。(6) 夜の静けさは「言われた晩だけ」の設定ではなく常の規則：計測の窓を閉じたら同じ手順の中で静かな設定へ戻す。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
