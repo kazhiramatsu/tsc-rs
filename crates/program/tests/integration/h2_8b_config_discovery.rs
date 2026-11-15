@@ -134,6 +134,14 @@ fn config_discovery_matches_fresh_typescript_observations() {
     let oracle: Value =
         serde_json::from_slice(include_bytes!("../fixtures/h2-8b-config-discovery.json"))
             .expect("frozen config observations");
+    // Keep the historical JS observation intact, replacing only its root
+    // order with complete root lists recorded from the pinned native CLI.
+    let native: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/native-name-order/config-discovery-roots.json"
+    ))
+    .expect("pinned native discovery roots");
+    assert_eq!(native["reference"], "pinned tsgo 7.1 native root order");
+    let native_cases = native["cases"].as_array().expect("native cases");
     assert_eq!(oracle["typescript"], "6.0.3");
     assert_eq!(oracle["repetitions"], 2);
     assert_eq!(oracle["program_executions"], 0);
@@ -141,20 +149,42 @@ fn config_discovery_matches_fresh_typescript_observations() {
     let expected = oracle["cases"].as_array().expect("observed cases");
     assert_eq!(cases.len(), 24);
     assert_eq!(expected.len(), cases.len());
+    assert_eq!(native_cases.len(), cases.len());
     let option_keys = inputs["option_probe_keys"].as_array().expect("option keys");
     let mut failures = Vec::new();
-    for (case, expected) in cases.iter().zip(expected) {
+    for ((case, expected), native) in cases.iter().zip(expected).zip(native_cases) {
+        assert_eq!(case["case_id"], native["case_id"]);
+        let mut expected_observation = expected["typescript_observation"].clone();
+        let mut original_names = expected_observation["file_names"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|name| name.as_str().unwrap())
+            .collect::<Vec<_>>();
+        let mut native_names = native["file_names"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|name| name.as_str().unwrap())
+            .collect::<Vec<_>>();
+        original_names.sort_unstable();
+        native_names.sort_unstable();
+        assert_eq!(
+            original_names, native_names,
+            "native reference changes order only"
+        );
+        expected_observation["file_names"] = native["file_names"].clone();
         assert_eq!(case["case_id"], expected["case_id"]);
         let case_id = case["case_id"].as_str().expect("case id");
         for repetition in 1..=2 {
             let actual = observe(case, option_keys);
-            let exact = json_values_equivalent(&actual, &expected["typescript_observation"]);
+            let exact = json_values_equivalent(&actual, &expected_observation);
             eprintln!(
                 "H2.8b-CFG1b {}",
                 json!({"case_id": case_id, "repetition": repetition, "exact": exact, "actual": actual})
             );
             if !exact {
-                let fields = expected["typescript_observation"]
+                let fields = expected_observation
                     .as_object()
                     .expect("observed config record")
                     .iter()

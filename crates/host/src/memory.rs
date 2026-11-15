@@ -425,7 +425,7 @@ impl MemoryCompilerHostBuilder {
             .into_iter()
             .map(|(directory, entries)| {
                 let mut entries = entries.into_values().collect::<Vec<_>>();
-                entries.sort_by(|left, right| left.0.cmp_utf16(right.0.as_js()));
+                entries.sort_by(|left, right| left.0.cmp(&right.0));
                 (
                     directory,
                     entries.into_iter().map(|(_, path)| path).collect(),

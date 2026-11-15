@@ -1,0 +1,247 @@
+{
+  "reference": "pinned tsgo 7.1",
+  "binary_sha256": "5fd89a44ad3d26569ca8e2a99ad3a03936709bc977a409e17ef6c5393c773b20",
+  "cases": [
+    {
+      "name": "directory",
+      "config": {
+        "compilerOptions": {
+          "noEmit": true,
+          "noLib": true,
+          "types": []
+        },
+        "files": [
+          "globals.d.ts",
+          "z-literal.ts"
+        ],
+        "include": [
+          "*.ts"
+        ]
+      },
+      "files": {
+        "B.ts": "export {};\n",
+        "a.ts": "export {};\n",
+        "c\u0301.ts": "export {};\n",
+        "f\u0301.ts": "export {};\n",
+        "\ue000.ts": "export {};\n",
+        "\ud800\udc00.ts": "export {};\n",
+        "z-literal.ts": "export {};\n",
+        "globals.d.ts": "interface Object {} interface Function {} interface CallableFunction {}\ninterface NewableFunction {} interface IArguments {} interface String {}\ninterface Number {} interface Boolean {} interface RegExp {} interface Array<T> { length: number; }\n"
+      },
+      "case_sensitive": false,
+      "observations": {
+        "showConfig": {
+          "rc": 0,
+          "command": [
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--showConfig"
+          ]
+        },
+        "listFilesOnly": {
+          "rc": 0,
+          "command": [
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--listFilesOnly"
+          ]
+        },
+        "diagnostics": {
+          "rc": 0,
+          "command": [
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false"
+          ]
+        }
+      },
+      "expected_roots": [
+        "./globals.d.ts",
+        "./z-literal.ts",
+        "./B.ts",
+        "./a.ts",
+        "./c\u0301.ts",
+        "./f\u0301.ts",
+        "./\ue000.ts",
+        "./\ud800\udc00.ts"
+      ]
+    },
+    {
+      "name": "buckets",
+      "config": {
+        "compilerOptions": {
+          "noEmit": true,
+          "noLib": true,
+          "types": []
+        },
+        "files": [
+          "globals.d.ts"
+        ],
+        "include": [
+          "b/*.ts",
+          "a/*.ts"
+        ]
+      },
+      "files": {
+        "a/first.ts": "export {};\n",
+        "b/second.ts": "export {};\n",
+        "globals.d.ts": "interface Object {} interface Function {} interface CallableFunction {}\ninterface NewableFunction {} interface IArguments {} interface String {}\ninterface Number {} interface Boolean {} interface RegExp {} interface Array<T> { length: number; }\n"
+      },
+      "case_sensitive": false,
+      "observations": {
+        "showConfig": {
+          "rc": 0,
+          "command": [
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--showConfig"
+          ]
+        },
+        "listFilesOnly": {
+          "rc": 0,
+          "command": [
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--listFilesOnly"
+          ]
+        },
+        "diagnostics": {
+          "rc": 0,
+          "command": [
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false"
+          ]
+        }
+      },
+      "expected_roots": [
+        "./globals.d.ts",
+        "./b/second.ts",
+        "./a/first.ts"
+      ]
+    },
+    {
+      "name": "case-alias",
+      "config": {
+        "compilerOptions": {
+          "noEmit": true,
+          "noLib": true,
+          "types": []
+        },
+        "files": [
+          "globals.d.ts",
+          "CASE.ts",
+          "case.ts"
+        ]
+      },
+      "files": {
+        "case.ts": "export {};\n",
+        "globals.d.ts": "interface Object {} interface Function {} interface CallableFunction {}\ninterface NewableFunction {} interface IArguments {} interface String {}\ninterface Number {} interface Boolean {} interface RegExp {} interface Array<T> { length: number; }\n"
+      },
+      "case_sensitive": false,
+      "observations": {
+        "showConfig": {
+          "rc": 0,
+          "command": [
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--showConfig"
+          ]
+        },
+        "listFilesOnly": {
+          "rc": 0,
+          "command": [
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--listFilesOnly"
+          ]
+        },
+        "diagnostics": {
+          "rc": 0,
+          "command": [
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false"
+          ]
+        }
+      },
+      "expected_roots": [
+        "./globals.d.ts",
+        "./case.ts"
+      ]
+    },
+    {
+      "name": "diagnostic",
+      "config": {
+        "compilerOptions": {
+          "noEmit": true,
+          "noLib": true,
+          "types": []
+        },
+        "files": [
+          "globals.d.ts"
+        ],
+        "include": [
+          "*.ts"
+        ]
+      },
+      "files": {
+        "\ue000.ts": "interface Merged { value: string; }\n",
+        "\ud800\udc00.ts": "interface Merged { value: number; }\n",
+        "globals.d.ts": "interface Object {} interface Function {} interface CallableFunction {}\ninterface NewableFunction {} interface IArguments {} interface String {}\ninterface Number {} interface Boolean {} interface RegExp {} interface Array<T> { length: number; }\n"
+      },
+      "case_sensitive": false,
+      "observations": {
+        "showConfig": {
+          "rc": 0,
+          "command": [
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--showConfig"
+          ]
+        },
+        "listFilesOnly": {
+          "rc": 0,
+          "command": [
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--listFilesOnly"
+          ]
+        },
+        "diagnostics": {
+          "rc": 2,
+          "command": [
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false"
+          ]
+        }
+      },
+      "expected_roots": [
+        "./globals.d.ts",
+        "./\ue000.ts",
+        "./\ud800\udc00.ts"
+      ]
+    }
+  ]
+}

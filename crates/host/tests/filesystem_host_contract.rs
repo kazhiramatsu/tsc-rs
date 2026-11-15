@@ -149,7 +149,7 @@ fn filesystem_and_memory_hosts_observe_the_same_logical_tree() {
 }
 
 #[test]
-fn filesystem_and_memory_directory_order_matches_javascript_utf16_order() {
+fn filesystem_and_memory_directory_order_matches_native_byte_order() {
     let tree = TempTree::new();
     let file_names = ["B.ts", "a.ts", "\u{10000}.ts", "\u{e000}.ts"];
     let directory_names = ["B-dir", "a-dir", "\u{10000}-dir", "\u{e000}-dir"];
@@ -176,10 +176,10 @@ fn filesystem_and_memory_directory_order_matches_javascript_utf16_order() {
         tree.path("B.ts"),
         tree.path("a-dir"),
         tree.path("a.ts"),
-        tree.path("\u{10000}-dir"),
-        tree.path("\u{10000}.ts"),
         tree.path("\u{e000}-dir"),
         tree.path("\u{e000}.ts"),
+        tree.path("\u{10000}-dir"),
+        tree.path("\u{10000}.ts"),
     ];
     assert_eq!(
         filesystem.read_directory(tree.root()).unwrap(),
@@ -193,8 +193,8 @@ fn filesystem_and_memory_directory_order_matches_javascript_utf16_order() {
     let expected_directories = [
         tree.path("B-dir"),
         tree.path("a-dir"),
-        tree.path("\u{10000}-dir"),
         tree.path("\u{e000}-dir"),
+        tree.path("\u{10000}-dir"),
     ];
     assert_eq!(
         filesystem.get_directories(tree.root()).unwrap(),

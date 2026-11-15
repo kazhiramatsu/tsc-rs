@@ -60,7 +60,7 @@ fn memory_host_preserves_js_path_identity_in_reads_listings_and_failures() {
                 );
             }
         }
-        let expected_directories = [0, 1, 5, 2, 4, 3]
+        let expected_directories = [0, 1, 2, 4, 3, 5]
             .into_iter()
             .map(|index| {
                 paths[index]
@@ -138,7 +138,7 @@ fn lists_immediate_files_and_directories_deterministically() {
 }
 
 #[test]
-fn directory_listing_uses_javascript_utf16_display_name_order() {
+fn directory_listing_uses_native_byte_display_name_order() {
     for case_sensitive in [true, false] {
         let host = MemoryCompilerHost::builder("/Work")
             .case_sensitive(case_sensitive)
@@ -160,10 +160,10 @@ fn directory_listing_uses_javascript_utf16_display_name_order() {
                 PathBuf::from("/Work/B.ts"),
                 PathBuf::from("/Work/a-dir"),
                 PathBuf::from("/Work/a.ts"),
-                PathBuf::from("/Work/\u{10000}-dir"),
-                PathBuf::from("/Work/\u{10000}.ts"),
                 PathBuf::from("/Work/\u{e000}-dir"),
                 PathBuf::from("/Work/\u{e000}.ts"),
+                PathBuf::from("/Work/\u{10000}-dir"),
+                PathBuf::from("/Work/\u{10000}.ts"),
             ]
         );
         assert_eq!(
@@ -171,8 +171,8 @@ fn directory_listing_uses_javascript_utf16_display_name_order() {
             [
                 PathBuf::from("/Work/B-dir"),
                 PathBuf::from("/Work/a-dir"),
-                PathBuf::from("/Work/\u{10000}-dir"),
                 PathBuf::from("/Work/\u{e000}-dir"),
+                PathBuf::from("/Work/\u{10000}-dir"),
             ]
         );
     }

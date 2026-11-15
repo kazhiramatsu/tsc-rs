@@ -1,0 +1,20 @@
+{
+    "compilerOptions": {
+        "noEmit": true,
+        "noLib": true,
+        "types": []
+    },
+    "files": [
+        "./globals.d.ts",
+        "./z-literal.ts",
+        "./B.ts",
+        "./a.ts",
+        "./ć.ts",
+        "./f́.ts",
+        "./.ts",
+        "./𐀀.ts"
+    ],
+    "include": [
+        "*.ts"
+    ]
+}

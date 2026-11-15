@@ -204,7 +204,7 @@ are not part of `tsc --noEmit` output.
 Display file names and canonical lookup paths are distinct values. Case
 folding follows the host profile; realpath and lexical normalization may not
 be substituted for one another. Immediate filesystem entries use the display
-basename and JavaScript's lexicographic UTF-16 code-unit order, independently
+basename and the native reference's lexicographic byte order, independently
 of the host's case-sensitivity profile; canonical keys remain identity-only.
 
 Program file order follows vendored `createProgram` discovery, not parse
@@ -434,11 +434,11 @@ Implementation status: H0.4 is complete for the frozen H0 host and platform
 profiles. The production
 `FsCompilerHost` primitive preserves raw bytes, distinguishes absence from
 typed I/O failure, follows filesystem realpaths, and exposes deterministically
-ordered immediate entries in JavaScript UTF-16 display-name order plus a
+ordered immediate entries in native byte display-name order plus a
 directory-only `CompilerHost::get_directories`
 projection under an explicit or detected case profile. The
 `tsc_program::CompilerConfigHost` adapter now owns the shared config-side
-recursive enumeration, include/exclude filtering, UTF-16 ordering, and host
+recursive enumeration, include/exclude filtering, native byte ordering, and host
 text decoding for both `FsCompilerHost` and `MemoryCompilerHost`; the CLI no
 longer carries a second copy of those rules. The
 shared program-layer decoder consumes those bytes with the vendored Node
@@ -546,7 +546,7 @@ but perform no host work. After all requested roots finish, non-wildcard
 performs no automatic discovery. A list containing `"*"` expands effective
 `typeRoots` in declared order, or nearest-to-farthest ancestor
 `node_modules/@types` directories from the config-file directory/current
-directory. Expansion retains that JavaScript UTF-16 display-name order, probes
+directory. Expansion retains that native byte display-name order, probes
 manifests before filtering dot directories, excludes exactly packages whose
 decoded JSON or JSONC has `typings: null`, and performs case-sensitive stable
 first-wins deduplication after flattening.

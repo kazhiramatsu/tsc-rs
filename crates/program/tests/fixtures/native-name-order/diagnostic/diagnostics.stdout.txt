@@ -1,0 +1,1 @@
+𐀀.ts(1,20): error TS2717: Subsequent property declarations must have the same type.  Property 'value' must be of type 'string', but here has type 'number'.

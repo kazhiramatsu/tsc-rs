@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "noEmit": true,
+    "noLib": true,
+    "types": []
+  },
+  "files": [
+    "globals.d.ts",
+    "CASE.ts",
+    "case.ts"
+  ]
+}
