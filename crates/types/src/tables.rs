@@ -4590,8 +4590,13 @@ impl TemplateSpans {
     }
 
     fn push_js(&mut self, segment: crate::JsStr<'_>) {
-        self.text.extend(segment.code_units());
-        self.text_bytes += segment.as_bytes().len();
+        let bytes = segment.as_bytes();
+        if bytes.is_ascii() {
+            self.text.extend(bytes.iter().map(|&byte| u16::from(byte)));
+        } else {
+            self.text.extend(segment.code_units());
+        }
+        self.text_bytes += bytes.len();
     }
 }
 
