@@ -224,6 +224,7 @@ fn declaration_text_and_maps_cross_without_their_owner_resolver() {
                 Some(&pool),
                 Some(pool.acquire()),
                 None,
+                &[],
             )
             .unwrap();
             (

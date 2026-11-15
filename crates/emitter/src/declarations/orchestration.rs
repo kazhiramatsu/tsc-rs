@@ -269,6 +269,7 @@ pub(crate) fn emit_declaration_unit(
         None,
         None,
         None,
+        &[],
     )?
     .finish()
 }
@@ -286,6 +287,7 @@ pub(crate) fn prepare_declaration_unit(
     pool: Option<&crate::print_pool::EmitPrintPool>,
     credit: Option<crate::print_pool::PrintCredit>,
     span: Option<tsc_types::tracing::Span>,
+    legacy_parameter_map_names: &[EmitResolverNode],
 ) -> Result<DeclarationWork, EmitFailure> {
     let mut files_for_emit = Vec::new();
     for &source in planned_root.source_files() {
@@ -336,6 +338,15 @@ pub(crate) fn prepare_declaration_unit(
     // Other program sources are mounted on first use
     // (`TransformArena::mount_parse_tree_transform_node`).
     let transform_root = crate::execute::mount_emit_root(&mut arena, host, &root, false)?;
+    // A declaration-only unit has no script-transform facts. For a full
+    // emit, reuse the name flags Go leaves in its shared EmitContext.
+    for &name in legacy_parameter_map_names {
+        if let Some(name) = arena.parse_tree_transform_node(name)? {
+            arena
+                .metadata_mut(name)
+                .add_flags(crate::EmitFlags::NO_TRAILING_SOURCE_MAP);
+        }
+    }
     let transformers = get_declaration_transformers(
         options,
         resolver,

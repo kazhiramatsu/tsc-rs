@@ -245,6 +245,8 @@ pub(crate) struct EmitSession {
     /// Public metadata_mut also accepts not-yet-allocated and unmounted keys.
     pub exceptional_metadata: FxHashSet<TransformNode>,
     pub literal_properties: FxHashMap<TransformNode, LiteralNodeProperties>,
+    /// Legacy decorator name flags published to a following declaration emit.
+    pub legacy_parameter_map_names: Vec<TransformNode>,
     pub next_generated_binding_id: u64,
     pub node_builder_cache: NodeBuilderCache,
 }
@@ -256,6 +258,7 @@ impl Clone for EmitSession {
             namespace_container_names: self.namespace_container_names.clone(),
             exceptional_metadata: self.exceptional_metadata.clone(),
             literal_properties: self.literal_properties.clone(),
+            legacy_parameter_map_names: self.legacy_parameter_map_names.clone(),
             next_generated_binding_id: self.next_generated_binding_id,
             node_builder_cache: NodeBuilderCache::default(),
         }

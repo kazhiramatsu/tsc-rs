@@ -10488,9 +10488,11 @@ impl Printer {
         // emit keeps a block and `while` on one line, while a
         // non-block body ends before the while clause unless
         // the DoStatement itself requests SingleLine.
-        let while_anchor = self.emit_trailing_comments_for_node_as_token_anchor(
+        let while_anchor = self.separator_anchor_after_child(
             transformation,
+            node,
             statement_node,
+            expression_context.comments(),
             writer,
         )?;
         // tsgo emitDoStatement: with PreserveSourceNewlines a block
@@ -10564,7 +10566,12 @@ impl Printer {
             // after the clause separator, CatchClause's leading phase
             // owns comments on their own lines. This mirrors the two
             // comment-pipeline passes around tsc's `emit(catchClause)`.
-            self.emit_trailing_comments_for_node(transformation, try_block, writer)?;
+            self.emit_trailing_comments_for_node_in_container(
+                transformation,
+                try_block,
+                expression_context.comments(),
+                writer,
+            )?;
             let catch_clause = transformation
                 .arena()
                 .node_ref(node.source(), catch_clause)
@@ -10595,9 +10602,11 @@ impl Printer {
             // own this boundary. Carry the preceding clause's typed
             // end cursor (and any already-emitted trailing comment)
             // into the fixed token, as tsc's emitTokenWithComment does.
-            let finally_anchor = self.emit_trailing_comments_for_node_as_token_anchor(
+            let finally_anchor = self.separator_anchor_after_child(
                 transformation,
+                node,
                 preceding_clause,
+                expression_context.comments(),
                 writer,
             )?;
             let finally_node = transformation
@@ -10610,7 +10619,7 @@ impl Printer {
                 finally_node,
                 writer,
             )?;
-            self.emit_token_with_comments(
+            self.emit_token_with_source_leading_comments(
                 transformation,
                 node,
                 FixedToken::keyword(SyntaxKind::FinallyKeyword),
