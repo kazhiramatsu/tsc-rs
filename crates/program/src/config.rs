@@ -167,6 +167,15 @@ impl fmt::Display for ConfigHostError {
 
 impl Error for ConfigHostError {}
 
+/// A filtered listing and, when supplied, each file's first matching
+/// index in the callback's include-spec array. The parser validates the
+/// optional vector's length and index range before consuming this proof.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConfigDirectoryListing {
+    pub file_names: Vec<JsString>,
+    pub include_spec_indices: Option<Vec<usize>>,
+}
+
 /// The TypeScript `ParseConfigHost` observations needed by config planning.
 ///
 /// `read_directory` has the shape of TypeScript's filtered recursive callback,
@@ -193,6 +202,24 @@ pub trait ConfigParseHost {
         includes: Option<&[JsString]>,
         depth: Option<usize>,
     ) -> Result<Vec<JsString>, ConfigHostError>;
+
+    /// Read the same listing with optional first-include provenance. Hosts
+    /// retaining the original callback keep its exact observations and the
+    /// parser's existing reason matcher.
+    fn read_directory_with_include_matches(
+        &self,
+        directory: JsStr<'_>,
+        extensions: &[&str],
+        excludes: Option<&[JsString]>,
+        includes: Option<&[JsString]>,
+        depth: Option<usize>,
+    ) -> Result<ConfigDirectoryListing, ConfigHostError> {
+        self.read_directory(directory, extensions, excludes, includes, depth)
+            .map(|file_names| ConfigDirectoryListing {
+                file_names,
+                include_spec_indices: None,
+            })
+    }
 
     /// The real path of a file (tsgo `FS().Realpath`): a config found in
     /// `node_modules` resolves to where it really is. `None` keeps the path.
@@ -2166,6 +2193,7 @@ fn parse_config_root_plan_inner(
     };
     let DerivedFileNames {
         file_names,
+        root_include_specs,
         include_specs,
         exclude_specs,
         content_mappers,
@@ -2196,6 +2224,7 @@ fn parse_config_root_plan_inner(
         &config_base,
         &node.source.file_name,
         host.use_case_sensitive_file_names(),
+        root_include_specs,
     )?;
     let project_references = config_project_references(node.references.as_ref(), &config_base);
     let wildcard_directories = derive_wildcard_directories(
@@ -4976,6 +5005,7 @@ fn config_error_from_resolution(error: ResolutionError) -> ConfigParseError {
 /// A config's root file names and the specs they were matched with.
 struct DerivedFileNames {
     file_names: Vec<JsString>,
+    root_include_specs: Option<Vec<Option<Arc<JsString>>>>,
     include_specs: Vec<JsString>,
     exclude_specs: Option<Vec<JsString>>,
     content_mappers: Vec<Arc<Mapper>>,
@@ -5099,16 +5129,57 @@ fn derive_file_names<'j0, 'j1>(
     if discovery_options.resolve_json_module {
         flat_extensions.push(".json");
     }
-    let wildcard_candidates = if include_values.is_empty() {
-        Vec::new()
+    let listing = if include_values.is_empty() {
+        ConfigDirectoryListing {
+            file_names: Vec::new(),
+            include_spec_indices: None,
+        }
+    } else if config.include.is_none() {
+        ConfigDirectoryListing {
+            file_names: host.read_directory(
+                base_path,
+                &flat_extensions,
+                exclude_values.as_deref(),
+                Some(include_values.as_slice()),
+                None,
+            )?,
+            include_spec_indices: None,
+        }
     } else {
-        host.read_directory(
+        host.read_directory_with_include_matches(
             base_path,
             &flat_extensions,
             exclude_values.as_deref(),
             Some(include_values.as_slice()),
             None,
         )?
+    };
+    let proven_indices = listing.include_spec_indices.filter(|indices| {
+        indices.len() == listing.file_names.len()
+            && indices.iter().all(|&index| index < include.len())
+            && listing.file_names.iter().all(|file| {
+                let path = file.as_js();
+                let Some((root, tail)) = crate::js_path::root_parts(path) else {
+                    return false;
+                };
+                root.ends_with("/")
+                    && !tail.is_empty()
+                    && !path.as_bytes().contains(&b'\\')
+                    && tail
+                        .as_bytes()
+                        .split(|&byte| byte == b'/')
+                        .all(|part| !part.is_empty() && part != b"." && part != b"..")
+            })
+    });
+    let has_provenance = proven_indices.is_some();
+    let mut proven_indices = proven_indices.unwrap_or_default().into_iter();
+    let include_owners = if has_provenance && config.include.is_some() {
+        include
+            .iter()
+            .map(|spec| Arc::new(spec.text.clone()))
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
     };
     let json_include_patterns = include_values
         .iter()
@@ -5137,7 +5208,8 @@ fn derive_file_names<'j0, 'j1>(
         .collect::<rustc_hash::FxHashSet<_>>();
     let mut wildcard = OrderedFileMap::default();
     let mut wildcard_json = OrderedFileMap::default();
-    for file in wildcard_candidates {
+    for file in listing.file_names {
+        let matched_include = proven_indices.next();
         if file_extension_is(&file, ".json") {
             if discovery_options.resolve_json_module
                 && json_include_patterns
@@ -5146,17 +5218,18 @@ fn derive_file_names<'j0, 'j1>(
             {
                 let key = file_name_key(file.as_js(), case_sensitive);
                 if !literal_keys.contains(&key) && !wildcard_json.contains(&key) {
-                    wildcard_json.insert(key, file);
+                    wildcard_json.insert(key, file, matched_include);
                 }
             }
             continue;
         }
+        let mut priority_keys = ExtensionPriorityKeys::new(file.as_js(), case_sensitive);
         if has_higher_priority(
             file.as_js(),
             &literal_keys,
             &wildcard,
             &extension_groups,
-            case_sensitive,
+            &mut priority_keys,
         ) {
             continue;
         }
@@ -5164,20 +5237,28 @@ fn derive_file_names<'j0, 'j1>(
             file.as_js(),
             &mut wildcard,
             &extension_groups,
-            case_sensitive,
+            &mut priority_keys,
         );
-        let key = file_name_key(file.as_js(), case_sensitive);
+        let key = priority_keys.into_key();
         if !literal_keys.contains(&key) && !wildcard.contains(&key) {
-            wildcard.insert(key, file);
+            wildcard.insert(key, file, matched_include);
         }
     }
 
-    let file_names = literal
+    let file_count = literal.len() + wildcard.index.len() + wildcard_json.index.len();
+    let mut file_names = Vec::with_capacity(file_count);
+    let mut root_include_specs = has_provenance.then(|| Vec::with_capacity(file_count));
+    for (file, matched_include) in literal
         .into_iter()
-        .map(|(_, file)| file)
+        .map(|(_, file)| (file, None))
         .chain(wildcard.into_files())
         .chain(wildcard_json.into_files())
-        .collect::<Vec<_>>();
+    {
+        if let Some(specs) = &mut root_include_specs {
+            specs.push(matched_include.and_then(|index| include_owners.get(index).cloned()));
+        }
+        file_names.push(file);
+    }
     report_no_input_files(
         config,
         config_file_name,
@@ -5188,6 +5269,7 @@ fn derive_file_names<'j0, 'j1>(
     );
     Ok(DerivedFileNames {
         file_names,
+        root_include_specs,
         include_specs: include_values,
         exclude_specs: exclude_values,
         content_mappers,
@@ -5782,6 +5864,7 @@ fn config_root_reasons<'j0, 'j1>(
     config_base_path: impl Into<JsStr<'j0>>,
     config_file_name: impl Into<JsStr<'j1>>,
     case_sensitive: bool,
+    root_include_specs: Option<Vec<Option<Arc<JsString>>>>,
 ) -> Result<Vec<RootFileReason>, ConfigParseError> {
     use crate::config_matcher::{InputComponent, MatchInput};
     let config_base_path = config_base_path.into();
@@ -5800,6 +5883,34 @@ fn config_root_reasons<'j0, 'j1>(
                 case_sensitive,
             ))
             .or_insert_with(|| Arc::new(spec.text.clone()));
+    }
+
+    if let Some(specs) = root_include_specs {
+        debug_assert_eq!(specs.len(), file_names.len());
+        let config_file = Arc::new(config_file_name.to_owned());
+        let default_include = files.is_none() && include.is_none();
+        return Ok(file_names
+            .iter()
+            .zip(specs)
+            .map(|(file_name, matched)| {
+                if !normalized_files.is_empty() {
+                    let key = file_name_key(file_name.as_js(), case_sensitive);
+                    if let Some(spec) = normalized_files.get(&key) {
+                        return RootFileReason::FilesList { spec: spec.clone() };
+                    }
+                }
+                if default_include {
+                    RootFileReason::DefaultInclude
+                } else if let Some(spec) = matched {
+                    RootFileReason::IncludePattern {
+                        spec,
+                        config_file: config_file.clone(),
+                    }
+                } else {
+                    RootFileReason::Explicit
+                }
+            })
+            .collect());
     }
 
     let mut include_patterns = Vec::with_capacity(include.map_or(0, <[ConfigSpec]>::len));
@@ -7236,7 +7347,7 @@ fn substitute_config_dir_typed_string_array<'j0>(
 /// positions of the others stay put; the final listing skips it.
 #[derive(Default)]
 struct OrderedFileMap {
-    entries: Vec<Option<(JsString, JsString)>>,
+    entries: Vec<Option<(JsString, Option<usize>)>>,
     index: rustc_hash::FxHashMap<JsString, usize>,
 }
 
@@ -7246,9 +7357,9 @@ impl OrderedFileMap {
     }
 
     /// Append a key the caller has checked is absent.
-    fn insert(&mut self, key: JsString, file: JsString) {
-        self.index.insert(key.clone(), self.entries.len());
-        self.entries.push(Some((key, file)));
+    fn insert(&mut self, key: JsString, file: JsString, include: Option<usize>) {
+        self.index.insert(key, self.entries.len());
+        self.entries.push(Some((file, include)));
     }
 
     fn remove(&mut self, key: &JsString) {
@@ -7257,8 +7368,8 @@ impl OrderedFileMap {
         }
     }
 
-    fn into_files(self) -> impl Iterator<Item = JsString> {
-        self.entries.into_iter().flatten().map(|(_, file)| file)
+    fn into_files(self) -> impl Iterator<Item = (JsString, Option<usize>)> {
+        self.entries.into_iter().flatten()
     }
 }
 
@@ -7269,7 +7380,7 @@ fn has_higher_priority(
     literal: &rustc_hash::FxHashSet<JsString>,
     wildcard: &OrderedFileMap,
     groups: &[&[&str]],
-    case_sensitive: bool,
+    keys: &mut ExtensionPriorityKeys<'_>,
 ) -> bool {
     let group = groups
         .iter()
@@ -7285,8 +7396,8 @@ fn has_higher_priority(
         {
             return false;
         }
-        let candidate = file_name_key(change_extension(file, extension).as_js(), case_sensitive);
-        if literal.contains(&candidate) || wildcard.contains(&candidate) {
+        let candidate = keys.for_extension(extension);
+        if literal.contains(candidate) || wildcard.contains(candidate) {
             if *extension == ".d.ts"
                 && (file_extension_is(file, ".js") || file_extension_is(file, ".jsx"))
             {
@@ -7304,7 +7415,7 @@ fn remove_lower_priority(
     file: JsStr<'_>,
     wildcard: &mut OrderedFileMap,
     groups: &[&[&str]],
-    case_sensitive: bool,
+    keys: &mut ExtensionPriorityKeys<'_>,
 ) {
     let group = groups
         .iter()
@@ -7319,24 +7430,103 @@ fn remove_lower_priority(
         if file_extension_is(file, extension) {
             return;
         }
-        let candidate = file_name_key(change_extension(file, extension).as_js(), case_sensitive);
-        wildcard.remove(&candidate);
+        let candidate = keys.for_extension(extension);
+        wildcard.remove(candidate);
     }
 }
 
-fn change_extension(file: JsStr<'_>, extension: &str) -> JsString {
-    let current = [
-        ".d.ts", ".d.cts", ".d.mts", ".tsx", ".cts", ".mts", ".jsx", ".cjs", ".mjs", ".ts", ".js",
-        ".json",
-    ]
-    .into_iter()
-    .find(|candidate| file_extension_is(file, candidate));
-    let mut changed = current
-        .and_then(|current| file.strip_suffix(current))
-        .unwrap_or(file)
-        .to_owned();
-    changed.push_str(extension);
-    changed
+// One root's canonical key also serves its competing extensions. Non-ASCII
+// case mappings can change byte boundaries, so those use the full profile.
+struct ExtensionPriorityKeys<'a> {
+    file: JsStr<'a>,
+    stem: Option<JsStr<'a>>,
+    canonical: Option<JsString>,
+    candidate: Option<JsString>,
+    ascii_candidate: bool,
+    case_sensitive: bool,
+    ascii_path: bool,
+    fold_ascii_extension: bool,
+}
+
+impl<'a> ExtensionPriorityKeys<'a> {
+    fn new(file: JsStr<'a>, case_sensitive: bool) -> Self {
+        Self {
+            file,
+            stem: None,
+            canonical: None,
+            candidate: None,
+            ascii_candidate: false,
+            case_sensitive,
+            ascii_path: file.as_bytes().is_ascii(),
+            fold_ascii_extension: !case_sensitive
+                && !file.starts_with(tsc_host::DYNAMIC_URI_FILE_NAME_PREFIX),
+        }
+    }
+
+    fn for_extension(&mut self, extension: &str) -> &JsString {
+        let file = self.file;
+        let stem = *self.stem.get_or_insert_with(|| {
+            let current = [
+                ".d.ts", ".d.cts", ".d.mts", ".tsx", ".cts", ".mts", ".jsx", ".cjs", ".mjs", ".ts",
+                ".js", ".json",
+            ]
+            .into_iter()
+            .find(|candidate| file_extension_is(file, candidate));
+            current
+                .and_then(|current| file.strip_suffix(current))
+                .unwrap_or(file)
+        });
+        let case_sensitive = self.case_sensitive;
+        if self.ascii_path && extension.is_ascii() {
+            let key = self
+                .canonical
+                .get_or_insert_with(|| file_name_key(file, case_sensitive));
+            // ASCII casing preserves both length and canonical byte boundaries.
+            // The cut comes from the ORIGINAL spelling: `.TS` stays unsupported.
+            let stem = key
+                .as_js()
+                .split_at_byte(stem.as_bytes().len())
+                .expect("ASCII file-name key preserves byte boundaries")
+                .0;
+            let stem_len = stem.as_bytes().len();
+            let changed = self.candidate.get_or_insert_with(|| {
+                JsString::with_capacity(stem_len + extension.len().max(".d.mts".len()))
+            });
+            if self.ascii_candidate {
+                assert!(
+                    changed.truncate_bytes(stem_len),
+                    "ASCII candidate retains its stem"
+                );
+            } else {
+                changed.clear();
+                changed.push_js(stem);
+                self.ascii_candidate = true;
+            }
+            if self.fold_ascii_extension && extension.bytes().any(|byte| byte.is_ascii_uppercase())
+            {
+                for byte in extension.bytes() {
+                    changed.push(char::from(byte.to_ascii_lowercase()));
+                }
+            } else {
+                changed.push_str(extension);
+            }
+            changed
+        } else {
+            let mut changed = JsString::with_capacity(stem.as_bytes().len() + extension.len());
+            changed.push_js(stem);
+            changed.push_str(extension);
+            self.ascii_candidate = false;
+            self.candidate
+                .insert(file_name_key(changed.as_js(), case_sensitive))
+        }
+    }
+
+    fn into_key(self) -> JsString {
+        match self.canonical {
+            Some(key) => key,
+            None => file_name_key(self.file, self.case_sensitive),
+        }
+    }
 }
 
 fn file_extension_is<'p>(file: impl Into<JsStr<'p>>, extension: &str) -> bool {
@@ -7387,4 +7577,127 @@ fn join_path<'p, 'c>(parent: impl Into<JsStr<'p>>, child: impl Into<JsStr<'c>>) 
 
 fn js_directory_name<'p>(path: impl Into<JsStr<'p>>) -> JsString {
     crate::js_path::directory_name(path.into())
+}
+
+#[cfg(test)]
+mod priority_key_tests {
+    use super::*;
+
+    #[test]
+    fn priority_key_reuse_keeps_original_suffix_and_case_rules() {
+        for (file, extension, sensitive, expected) in [
+            ("/root/UPPER.ts", ".d.ts", false, "/root/upper.d.ts"),
+            ("/root/UPPER.TS", ".tsx", false, "/root/upper.ts.tsx"),
+            ("/root/Mixed.d.cts", ".cts", false, "/root/mixed.cts"),
+            (
+                "/root/notMapped.vue",
+                ".vue",
+                false,
+                "/root/notmapped.vue.vue",
+            ),
+            ("/root/UPPER.ts", ".JS", false, "/root/upper.js"),
+            ("/root/UPPER.ts", ".JS", true, "/root/UPPER.JS"),
+            ("^/~ts-uri~/UPPER.ts", ".JS", false, "^/~ts-uri~/UPPER.JS"),
+        ] {
+            let mut keys = ExtensionPriorityKeys::new(file.into(), sensitive);
+            assert_eq!(keys.for_extension(extension).as_js(), expected);
+            assert_eq!(keys.for_extension(extension).as_js(), expected);
+            assert_eq!(keys.into_key(), file_name_key(file.into(), sensitive));
+        }
+        let mut keys =
+            ExtensionPriorityKeys::new("/long-directory-component/UPPER.ts".into(), false);
+        for extension in [
+            ".jsx",
+            ".d.ts",
+            ".js",
+            ".d.cts",
+            ".very-long-custom-extension",
+            ".js",
+        ] {
+            assert_eq!(
+                keys.for_extension(extension).as_js(),
+                JsString::from(format!("/long-directory-component/upper{extension}")).as_js()
+            );
+        }
+        assert_eq!(keys.into_key(), "/long-directory-component/upper.ts");
+    }
+
+    #[test]
+    fn priority_key_reuse_retains_complete_unicode_casing_and_unpaired_units() {
+        let mut keys = ExtensionPriorityKeys::new("/root/ΟΣ.ts".into(), false);
+        assert_eq!(
+            keys.for_extension(".js").as_js(),
+            file_name_key("/root/ΟΣ.js".into(), false).as_js()
+        );
+        assert_eq!(
+            keys.for_extension(".123").as_js(),
+            file_name_key("/root/ΟΣ.123".into(), false).as_js()
+        );
+        let mut keys = ExtensionPriorityKeys::new("/root/UPPER.ts".into(), false);
+        assert_eq!(
+            keys.for_extension(".Ω").as_js(),
+            file_name_key("/root/UPPER.Ω".into(), false).as_js()
+        );
+        assert_eq!(keys.for_extension(".js").as_js(), "/root/upper.js");
+        let mut keys = ExtensionPriorityKeys::new("/root/ẞ.ts".into(), false);
+        assert_eq!(keys.for_extension(".d.ts").as_js(), "/root/ß.d.ts");
+        assert_eq!(keys.into_key(), "/root/ß.ts");
+        let mut keys = ExtensionPriorityKeys::new("^/~ts-uri~/K.ts".into(), false);
+        assert_eq!(keys.for_extension(".JS").as_js(), "^/~ts-uri~/K.JS");
+        let mut file = JsString::from("/root/");
+        file.push_code_unit(0xd800);
+        let mut expected = file.clone();
+        file.push_str(".ts");
+        expected.push_str(".jsx");
+        let mut keys = ExtensionPriorityKeys::new(file.as_js(), false);
+        assert_eq!(keys.for_extension(".jsx").as_js(), expected.as_js());
+    }
+}
+
+#[cfg(test)]
+mod priority_native_root_tests {
+    use super::*;
+
+    #[test]
+    fn priority_key_roots_match_pinned_native_groups_and_buckets() {
+        let oracle: serde_json::Value = serde_json::from_slice(include_bytes!(
+            "../tests/fixtures/priority-key-native-cases.json"
+        ))
+        .expect("pinned native extension and include-bucket roots");
+        for case in oracle["cases"].as_array().unwrap() {
+            let text = case["config"].to_string();
+            let mut builder = tsc_host::MemoryCompilerHost::builder("/fixture")
+                .case_sensitive(case["case_sensitive"].as_bool().unwrap())
+                .file("/fixture/tsconfig.json", text.as_bytes());
+            for name in case["files"].as_array().unwrap() {
+                let name = name.as_str().unwrap();
+                let contents = if name.ends_with(".json") {
+                    "{}\n"
+                } else {
+                    "export {};\n"
+                };
+                builder = builder.file(format!("/fixture/{name}"), contents.as_bytes());
+            }
+            let host = builder.build().unwrap();
+            let plan = parse_config_root_plan(
+                &crate::CompilerConfigHost::new(&host),
+                ConfigRootPlanRequest {
+                    file_name: "/fixture/tsconfig.json".into(),
+                    text,
+                    base_path: "/fixture".into(),
+                },
+            )
+            .unwrap();
+            let expected = case["expected_roots"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|name| {
+                    let name = name.as_str().unwrap();
+                    JsString::from(format!("/fixture/{}", name.strip_prefix("./").unwrap()))
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(plan.file_names(), expected, "{}", case["name"]);
+        }
+    }
 }

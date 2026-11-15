@@ -22,6 +22,11 @@ use crate::resolution::{
     TypeReferenceResolutionOrigin,
 };
 
+#[path = "source_owned_records.rs"]
+mod source_records;
+pub use source_records::SourceOwnedRecords;
+use source_records::{SourcePathFacts, SourcePathStorage};
+
 const TYPESCRIPT_EXTENSIONLESS_SOURCE_PROBE_EXTENSIONS: [&str; 3] = [".ts", ".tsx", ".d.ts"];
 const ALL_EXTENSIONLESS_SOURCE_PROBE_EXTENSIONS: [&str; 5] =
     [".ts", ".tsx", ".d.ts", ".js", ".jsx"];
@@ -99,6 +104,42 @@ impl PathContext {
 /// consumer must still compare the recorded options, file name and snapshot
 /// identity with the parse it would perform itself and fall back to parsing
 /// on any difference.
+
+#[derive(Debug)]
+enum RetainedSource {
+    Ordinary(SourceFile),
+    Library(tsc_syntax::library_image::FreshLibrarySource),
+    Moving,
+}
+impl RetainedSource {
+    fn into_source(self) -> SourceFile {
+        match self {
+            Self::Ordinary(source) => source,
+            Self::Library(fresh) => fresh.into_source(),
+            Self::Moving => unreachable!("source transition"),
+        }
+    }
+    fn ordinary_mut(&mut self) -> &mut SourceFile {
+        if matches!(self, Self::Library(_)) {
+            let old = std::mem::replace(self, Self::Moving);
+            *self = Self::Ordinary(old.into_source());
+        }
+        match self {
+            Self::Ordinary(source) => source,
+            _ => unreachable!("ordinary source"),
+        }
+    }
+}
+impl std::ops::Deref for RetainedSource {
+    type Target = SourceFile;
+    fn deref(&self) -> &SourceFile {
+        match self {
+            Self::Ordinary(source) => source,
+            Self::Library(fresh) => fresh.source(),
+            Self::Moving => unreachable!("source transition"),
+        }
+    }
+}
 #[derive(Debug)]
 pub struct PreparsedSourceFile {
     options: ParseOptions,
@@ -106,7 +147,7 @@ pub struct PreparsedSourceFile {
     // Drop the bind's tree claim before the tree's node leases.
     bind_data: Option<Box<tsc_binder::BindData>>,
     bind_span: Option<(std::time::Instant, std::time::Instant)>,
-    source: SourceFile,
+    source: RetainedSource,
 }
 
 impl PreparsedSourceFile {
@@ -116,7 +157,20 @@ impl PreparsedSourceFile {
             bind_reservations: None,
             bind_data: None,
             bind_span: None,
-            source,
+            source: RetainedSource::Ordinary(source),
+        }
+    }
+
+    pub(crate) fn new_library(
+        options: ParseOptions,
+        source: tsc_syntax::library_image::FreshLibrarySource,
+    ) -> Self {
+        Self {
+            options,
+            bind_reservations: None,
+            bind_data: None,
+            bind_span: None,
+            source: RetainedSource::Library(source),
         }
     }
 
@@ -132,13 +186,34 @@ impl PreparsedSourceFile {
 
     /// Consume the slot contents into the parsed tree.
     pub fn into_source(self) -> SourceFile {
-        self.source
+        self.source.into_source()
+    }
+
+    /// Retain pristine image eligibility until the library driver's ordered
+    /// reservation pass. Ordinary or already completed sources stay intact.
+    pub fn is_fresh_library(&self) -> bool {
+        matches!(self.source, RetainedSource::Library(_))
+    }
+
+    /// Consume a source for which [`Self::is_fresh_library`] is true, keeping
+    /// its existing ordered reservation if the loader already supplied one.
+    pub fn into_fresh_library(
+        self,
+    ) -> (
+        tsc_syntax::library_image::FreshLibrarySource,
+        Option<tsc_binder::BindReservations>,
+    ) {
+        let RetainedSource::Library(fresh) = self.source else {
+            unreachable!()
+        };
+        assert!(self.bind_data.is_none());
+        (fresh, self.bind_reservations)
     }
 
     /// Adopt the tree and its take-once reservation together. A plain parse
     /// consumer can still use `into_source`, releasing the unused reservation.
     pub fn into_parts(self) -> (Option<tsc_binder::BindReservations>, SourceFile) {
-        (self.bind_reservations, self.source)
+        (self.bind_reservations, self.source.into_source())
     }
 
     /// Adopt the parse, completed bind (if requested), and pinned reservations
@@ -150,7 +225,11 @@ impl PreparsedSourceFile {
         Option<Box<tsc_binder::BindData>>,
         SourceFile,
     ) {
-        (self.bind_reservations, self.bind_data, self.source)
+        (
+            self.bind_reservations,
+            self.bind_data,
+            self.source.into_source(),
+        )
     }
 }
 
@@ -193,6 +272,10 @@ impl PendingSourceBind {
 
 impl PreparsedSyntax {
     /// Called by ordered admission after installing this source's reservation.
+    pub(crate) fn pending_ordinary_bind(&self) -> Option<PendingSourceBind> {
+        self.has_bind_reservation().then(|| self.pending_bind())
+    }
+
     pub(crate) fn pending_bind(&self) -> PendingSourceBind {
         PendingSourceBind {
             slot: Arc::clone(&self.slot),
@@ -213,10 +296,26 @@ impl PreparsedSyntax {
         let Some(reservation) = &parsed.bind_reservations else {
             return;
         };
-        assert!(parsed.bind_data.is_none());
+        if parsed.bind_data.is_some() {
+            return;
+        }
         let started = tracing.then(std::time::Instant::now);
+        if matches!(parsed.source, RetainedSource::Library(_)) {
+            let RetainedSource::Library(fresh) =
+                std::mem::replace(&mut parsed.source, RetainedSource::Moving)
+            else {
+                unreachable!()
+            };
+            let (source, data) =
+                tsc_binder::library_image::restore_reserved(fresh, reservation, domain)
+                    .expect("compiler binding image matches ordinary binding");
+            parsed.source = RetainedSource::Ordinary(source);
+            parsed.bind_data = Some(Box::new(data));
+            parsed.bind_span = started.map(|start| (start, std::time::Instant::now()));
+            return;
+        }
         let mut binder = tsc_binder::Binder::bind_reserved(
-            &mut parsed.source,
+            parsed.source.ordinary_mut(),
             reservation.symbols.range(),
             reservation.serials.range().start(),
         );
@@ -231,6 +330,30 @@ impl PreparsedSyntax {
         // here: the checker relocates overflows in its established order.
         parsed.bind_data = Some(Box::new(binder.into_bind_data()));
         parsed.bind_span = started.map(|started| (started, std::time::Instant::now()));
+    }
+
+    pub(crate) fn restore_image_bind(&self, domain: &IdentityDomain, tracing: bool) {
+        let eligible = self
+            .slot
+            .lock()
+            .expect("retained parse")
+            .as_ref()
+            .is_some_and(|parsed| matches!(parsed.source, RetainedSource::Library(_)));
+        if eligible {
+            self.bind_reserved(domain, tracing);
+        }
+    }
+
+    pub(crate) fn has_bind_reservation(&self) -> bool {
+        self.slot
+            .lock()
+            .expect("retained parse")
+            .as_ref()
+            .is_some_and(|parsed| {
+                parsed.bind_reservations.is_some()
+                    && parsed.bind_data.is_none()
+                    && !matches!(parsed.source, RetainedSource::Library(_))
+            })
     }
 
     /// The task's bind interval, when the command requested tracing.
@@ -345,48 +468,15 @@ impl Eq for PreparsedSyntax {}
 /// producer that owns a lexical source plus a separately observed physical
 /// alias. The recursive loader does not blanket-realpath roots or local
 /// sources; resolver-owned external transitions use the first representation.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct PreparedSourceFile {
-    path: ProgramPath,
-    alternate_display_paths: Vec<JsString>,
-    /// Distinct resolved package paths redirected to this source by
-    /// `createProgram`'s exact `PackageId` identity map. These are not case
-    /// aliases or symlink spellings: the resolver must retain the selected
-    /// path while the parser/binder/checker consume this source only once.
-    package_redirect_paths: Vec<ProgramPath>,
-    /// The sources of referenced projects this file is the output of (tsgo
-    /// getParseFileRedirect): a resolution reaching such a source selects
-    /// this file.
-    project_reference_source_paths: Vec<ProgramPath>,
-    real_path: Option<ProgramPath>,
-    snapshot: Arc<TextSnapshot>,
+    records: Arc<SourceOwnedRecords>,
     may_be_emitted: bool,
     may_emit_forced_declaration: bool,
     implied_node_format: Option<ResolutionMode>,
     implied_node_format_for_emit: Option<ResolutionMode>,
     is_external_module: Option<bool>,
-    /// Parser Imports() length, including repeated imports, excluding synthesized requests.
-    import_count: Option<usize>,
-    package_scope: Option<CanonicalPath>,
-    /// tsgo `sourceFilesFoundSearchingNodeModules`: the file came into the
-    /// program only through resolutions that searched `node_modules`.
     found_searching_node_modules: bool,
-    /// Why the file is in the program, one entry per occurrence (tsgo
-    /// `fileIncludeReasons`), in the order the loader recorded them.
-    inclusion_reasons: SourceInclusionReasons,
-    /// The loader's request-planning parse, available for adoption by the
-    /// first session that proves it used identical parse options. Always
-    /// present (empty when nothing was retained) and excluded from content
-    /// equality by [`PreparsedSyntax`]'s content-independent `PartialEq`.
-    preparsed_syntax: PreparsedSyntax,
-    /// The referenced project the file belongs to, when it does.
-    project_reference: Option<ProjectReferenceFile>,
-    /// What a content-mapped file (its virtual text is the snapshot) or a
-    /// supplemental output carries (tsgo `ContentMapperSourceFileInfo`).
-    content_mapped: Option<Arc<crate::content_mapper::source::ContentMappedSource>>,
-    /// tsgo's file handle's script kind when it is not the file name's (an
-    /// open document's language).
-    script_kind: Option<ScriptKind>,
 }
 
 /// The options of a referenced project its files are checked under (tsgo
@@ -458,6 +548,14 @@ pub struct ProjectReferenceFile {
 }
 
 impl PreparedSourceFile {
+    /// Immutable owner shared by views of this exact prepared source.
+    pub fn source_records(&self) -> &Arc<SourceOwnedRecords> {
+        &self.records
+    }
+    fn records_mut(&mut self) -> &mut SourceOwnedRecords {
+        Arc::make_mut(&mut self.records)
+    }
+
     pub fn new(path: ProgramPath, text: impl Into<String>) -> Self {
         Self::from_snapshot(
             path,
@@ -478,45 +576,40 @@ impl PreparedSourceFile {
                     .is_some_and(|base| base.contains(".d."))));
 
         Self {
-            path,
-            alternate_display_paths: Vec::new(),
-            package_redirect_paths: Vec::new(),
-            project_reference_source_paths: Vec::new(),
-            real_path: None,
-            inclusion_reasons: SourceInclusionReasons::default(),
-            snapshot,
-            // A prepared source is normally a direct program input. Loaders
-            // that admit an external-library dependency retain that distinct
-            // source-side fact with `with_may_be_emitted(false)`; resolution
-            // provenance is deliberately not used as a substitute.
             may_be_emitted,
             may_emit_forced_declaration: may_be_emitted,
             implied_node_format: None,
             implied_node_format_for_emit: None,
             is_external_module: None,
-            import_count: None,
-            package_scope: None,
             found_searching_node_modules: false,
-            preparsed_syntax: PreparsedSyntax::empty(),
-            project_reference: None,
-            content_mapped: None,
-            script_kind: None,
+            records: Arc::new(SourceOwnedRecords {
+                path,
+                snapshot,
+                import_count: None,
+                package_scope: None,
+                inclusion_reasons: SourceInclusionReasons::default(),
+                preparsed_syntax: PreparsedSyntax::empty(),
+                project_reference: None,
+                content_mapped: None,
+                script_kind: None,
+                paths: SourcePathStorage::default(),
+            }),
         }
     }
 
     pub fn with_import_count(mut self, count: usize) -> Self {
-        self.import_count = Some(count);
+        self.records_mut().import_count = Some(count);
         self
     }
 
     pub fn import_count(&self) -> Option<usize> {
-        self.import_count
+        self.records.import_count
     }
 
     /// The source with the script kind of its file handle (an open
     /// document's language); an unknown kind leaves the file name's.
     pub fn with_script_kind(mut self, kind: ScriptKind) -> Self {
-        self.script_kind = (kind != ScriptKind::Unknown).then_some(kind);
+        self.records_mut().script_kind = (kind != ScriptKind::Unknown).then_some(kind);
         self
     }
 
@@ -524,7 +617,7 @@ impl PreparedSourceFile {
     /// name's, else its file handle's (`ParseCacheKey`), else its name's
     /// (`EnsureScriptKindFromFileName`).
     pub fn script_kind(&self) -> ScriptKind {
-        match (&self.content_mapped, self.script_kind) {
+        match (&self.records.content_mapped, self.records.script_kind) {
             (Some(_), _) | (None, None) => {
                 ScriptKind::ensure_from_file_name(&self.parse_file_name().to_string_lossy())
             }
@@ -537,40 +630,40 @@ impl PreparedSourceFile {
     /// produces a filled one, and a consumer re-verifies the snapshot, name
     /// and options before adopting.
     pub fn with_preparsed_syntax(mut self, syntax: PreparsedSyntax) -> Self {
-        self.preparsed_syntax = syntax;
+        self.records_mut().preparsed_syntax = syntax;
         self
     }
 
     /// This source read again as `snapshot`, its Program facts unchanged
     /// (tsgo `ReuseProgram`'s new file).
     pub fn with_snapshot(&self, snapshot: Arc<TextSnapshot>) -> Self {
-        Self {
-            snapshot,
-            import_count: None,
-            preparsed_syntax: PreparsedSyntax::empty(),
-            ..self.clone()
-        }
+        let mut source = self.clone();
+        let records = source.records_mut();
+        records.snapshot = snapshot;
+        records.import_count = None;
+        records.preparsed_syntax = PreparsedSyntax::empty();
+        source
     }
 
     /// Retain the finite load/check owner in the immutable document handle.
     pub(crate) fn mark_identity_domain(&mut self, domain: &IdentityDomain) {
-        self.preparsed_syntax.identity_domain = Some(domain.clone());
+        self.records_mut().preparsed_syntax.identity_domain = Some(domain.clone());
     }
 
     /// Attach the finite command's immutable placement provenance.
     pub(crate) fn mark_direct_layout(&mut self, layout: Arc<[tsc_syntax::placement::Placement]>) {
-        self.preparsed_syntax.direct_layout = Some(layout);
+        self.records_mut().preparsed_syntax.direct_layout = Some(layout);
     }
 
     /// The retained planner parse slot, when it has not been adopted yet.
     pub fn preparsed_syntax(&self) -> &PreparsedSyntax {
-        &self.preparsed_syntax
+        &self.records.preparsed_syntax
     }
 
     /// Retain the physical host fact separately from the lexical program
     /// identity. The real path never replaces `path.canonical()` here.
     pub fn with_real_path(mut self, real_path: ProgramPath) -> Self {
-        self.real_path = Some(real_path);
+        self.records_mut().paths.get_mut().real_path = Some(real_path);
         self
     }
 
@@ -639,12 +732,12 @@ impl PreparedSourceFile {
     }
 
     pub fn with_package_scope(mut self, package_json: CanonicalPath) -> Self {
-        self.package_scope = Some(package_json);
+        self.records_mut().package_scope = Some(package_json);
         self
     }
 
     pub fn with_project_reference(mut self, project_reference: ProjectReferenceFile) -> Self {
-        self.project_reference = Some(project_reference);
+        self.records_mut().project_reference = Some(project_reference);
         self
     }
 
@@ -652,7 +745,7 @@ impl PreparedSourceFile {
         mut self,
         info: Arc<crate::content_mapper::source::ContentMappedSource>,
     ) -> Self {
-        self.content_mapped = Some(info);
+        self.records_mut().content_mapped = Some(info);
         self
     }
 
@@ -660,14 +753,14 @@ impl PreparedSourceFile {
     pub fn content_mapped(
         &self,
     ) -> Option<&Arc<crate::content_mapper::source::ContentMappedSource>> {
-        self.content_mapped.as_ref()
+        self.records.content_mapped.as_ref()
     }
 
     /// The name the file's text is parsed as: a mapper output's virtual
     /// name, else its own.
     pub fn parse_file_name(&self) -> JsStr<'_> {
-        self.content_mapped.as_ref().map_or_else(
-            || self.path.display(),
+        self.records.content_mapped.as_ref().map_or_else(
+            || self.records.path.display(),
             |info| info.virtual_file_name.as_js(),
         )
     }
@@ -675,11 +768,11 @@ impl PreparedSourceFile {
     /// The referenced project the file belongs to (tsgo
     /// `getRedirectForResolution`), when it does.
     pub fn project_reference(&self) -> Option<&ProjectReferenceFile> {
-        self.project_reference.as_ref()
+        self.records.project_reference.as_ref()
     }
 
     pub fn with_inclusion_reasons(mut self, reasons: Vec<crate::SourceInclusionReason>) -> Self {
-        self.inclusion_reasons = reasons.into();
+        self.records_mut().inclusion_reasons = reasons.into();
         self
     }
 
@@ -691,58 +784,62 @@ impl PreparedSourceFile {
         self.may_be_emitted &= has_non_external_reason;
         self.may_emit_forced_declaration &= has_non_external_reason;
         self.found_searching_node_modules = !has_non_external_reason;
-        self.inclusion_reasons = reasons;
+        self.records_mut().inclusion_reasons = reasons;
     }
 
     /// Why the file is in the program (tsgo `fileIncludeReasons`), one
     /// entry per occurrence.
     pub fn inclusion_reasons(&self) -> &[crate::SourceInclusionReason] {
-        &self.inclusion_reasons
+        &self.records.inclusion_reasons
     }
 
     pub fn path(&self) -> &ProgramPath {
-        &self.path
+        &self.records.path
     }
 
     /// Alternate spellings that collapsed to this canonical identity, in
     /// discovery order. These are retained for casing diagnostics.
     pub fn alternate_display_paths(&self) -> &[JsString] {
-        &self.alternate_display_paths
+        &self.records.paths.get().alternate_display_paths
     }
 
     /// Resolved package source identities redirected to this source by an
     /// exact vendored [`PackageId`](crate::PackageId) match, in discovery
     /// order.
     pub fn package_redirect_paths(&self) -> &[ProgramPath] {
-        &self.package_redirect_paths
+        &self.records.paths.get().package_redirect_paths
     }
 
     /// The sources of referenced projects loaded as this output declaration
     /// file (see the field).
     pub fn project_reference_source_paths(&self) -> &[ProgramPath] {
-        &self.project_reference_source_paths
+        &self.records.paths.get().project_reference_source_paths
     }
 
     pub(crate) fn remember_project_reference_source(&mut self, path: ProgramPath) {
         if !self
-            .project_reference_source_paths
+            .project_reference_source_paths()
             .iter()
-            .any(|existing| existing.canonical() == path.canonical())
+            .any(|old| old.canonical() == path.canonical())
         {
-            self.project_reference_source_paths.push(path);
+            self.records_mut()
+                .paths
+                .get_mut()
+                .project_reference_source_paths
+                .push(path);
         }
     }
 
     pub fn real_path(&self) -> Option<&ProgramPath> {
-        self.real_path.as_ref()
+        self.records.paths.get().real_path.as_ref()
     }
 
     pub fn text(&self) -> &str {
-        self.snapshot.text()
+        self.records.snapshot.text()
     }
 
     pub fn snapshot(&self) -> &Arc<TextSnapshot> {
-        &self.snapshot
+        &self.records.snapshot
     }
 
     /// tsrs-native: expose the retained source-side emit-eligibility fact.
@@ -759,50 +856,61 @@ impl PreparedSourceFile {
     }
 
     pub fn package_scope(&self) -> Option<&CanonicalPath> {
-        self.package_scope.as_ref()
+        self.records.package_scope.as_ref()
     }
 
     fn compatible_with(&self, other: &Self) -> bool {
-        self.snapshot.text() == other.snapshot.text()
+        self.records.snapshot.text() == other.records.snapshot.text()
             && self.may_be_emitted == other.may_be_emitted
             && self.may_emit_forced_declaration == other.may_emit_forced_declaration
             && self.implied_node_format == other.implied_node_format
             && self.implied_node_format_for_emit == other.implied_node_format_for_emit
-            && self.package_scope == other.package_scope
-            && canonical_of(self.real_path.as_ref()) == canonical_of(other.real_path.as_ref())
+            && self.records.package_scope == other.records.package_scope
+            && canonical_of(self.records.paths.get().real_path.as_ref())
+                == canonical_of(other.records.paths.get().real_path.as_ref())
     }
 
     /// The collect walk keeps the spelling of the first collected task of
     /// the path (tsgo keeps that task's parse): the display spelling changes
     /// and the former one is remembered as an alias.
     pub(crate) fn respell(&mut self, display: JsStr<'_>) -> Result<(), PreparationError> {
-        let former = self.path.display().to_owned();
-        self.path = ProgramPath::from_js_parts(display, self.path.canonical().as_js())?;
-        self.alternate_display_paths
-            .retain(|existing| existing.as_js() != display);
+        let former = self.records.path().display().to_owned();
+        let path = ProgramPath::from_js_parts(display, self.records.path().canonical().as_js())?;
+        self.records_mut().path = path;
+        if let Some(paths) = self.records_mut().paths.existing_mut() {
+            paths
+                .alternate_display_paths
+                .retain(|old| old.as_js() != display);
+        }
         self.remember_display_alias(former.as_js());
         Ok(())
     }
-
     pub(crate) fn remember_display_alias(&mut self, display: JsStr<'_>) {
-        if display != self.path.display()
+        if display != self.records.path().display()
             && !self
-                .alternate_display_paths
+                .alternate_display_paths()
                 .iter()
-                .any(|existing| existing.as_js() == display)
+                .any(|old| old.as_js() == display)
         {
-            self.alternate_display_paths.push(display.to_owned());
+            self.records_mut()
+                .paths
+                .get_mut()
+                .alternate_display_paths
+                .push(display.to_owned());
         }
     }
-
     pub(crate) fn remember_package_redirect(&mut self, path: ProgramPath) {
-        if path.canonical() != self.path.canonical()
+        if path.canonical() != self.records.path().canonical()
             && !self
-                .package_redirect_paths
+                .package_redirect_paths()
                 .iter()
-                .any(|existing| existing.canonical() == path.canonical())
+                .any(|old| old.canonical() == path.canonical())
         {
-            self.package_redirect_paths.push(path);
+            self.records_mut()
+                .paths
+                .get_mut()
+                .package_redirect_paths
+                .push(path);
         }
     }
 }
@@ -2259,30 +2367,44 @@ impl PreparedProgram {
         usage.vec("prepared dependency symlinks", &self.dependency_symlinks);
         self.path_context.current_directory.add_memory_usage(usage);
         for source in &self.source_files {
-            source.path.add_memory_usage(usage);
-            if let Some(path) = &source.real_path {
+            if !usage.arc("prepared source records", &source.records) {
+                continue;
+            }
+            if source.records.paths.is_populated() {
+                usage.add(
+                    "prepared source path facts",
+                    1,
+                    std::mem::size_of::<SourcePathFacts>(),
+                    std::mem::size_of::<SourcePathFacts>(),
+                );
+            }
+            source.records.path.add_memory_usage(usage);
+            if let Some(path) = &source.records.paths.get().real_path {
                 path.add_memory_usage(usage);
             }
-            if let Some(path) = &source.package_scope {
+            if let Some(path) = &source.records.package_scope {
                 path.add_memory_usage(usage);
             }
-            TextSnapshot::add_memory_usage(&source.snapshot, usage);
-            source.preparsed_syntax.add_memory_usage(usage);
-            usage.vec("prepared alternate paths", &source.alternate_display_paths);
-            for path in &source.alternate_display_paths {
+            TextSnapshot::add_memory_usage(&source.records.snapshot, usage);
+            source.records.preparsed_syntax.add_memory_usage(usage);
+            usage.vec(
+                "prepared alternate paths",
+                &source.records.paths.get().alternate_display_paths,
+            );
+            for path in &source.records.paths.get().alternate_display_paths {
                 usage.js_string(STRINGS, path);
             }
             for paths in [
-                &source.package_redirect_paths,
-                &source.project_reference_source_paths,
+                &source.records.paths.get().package_redirect_paths,
+                &source.records.paths.get().project_reference_source_paths,
             ] {
                 usage.vec("prepared redirect paths", paths);
                 for path in paths {
                     path.add_memory_usage(usage);
                 }
             }
-            source.inclusion_reasons.add_memory_usage(usage);
-            if let Some(reference) = &source.project_reference {
+            source.records.inclusion_reasons.add_memory_usage(usage);
+            if let Some(reference) = &source.records.project_reference {
                 if usage.arc("prepared referenced project options", &reference.options) {
                     usage.js_string(STRINGS, &reference.options.common_source_directory);
                     if let Some(path) = &reference.options.out_dir {
@@ -3138,7 +3260,7 @@ impl PreparedProgramBuilder {
         prepared: Arc<crate::resolution::PreparedModule>,
         specifier: &mut JsString,
         binding: crate::resolution::ModuleBinding,
-        package_map: &BTreeMap<JsString, bool>,
+        package_map: &crate::resolution::PreparedPackageMaps,
     ) -> Result<(), ResolutionError> {
         debug_assert!(self.ensure_healthy().is_ok());
         loaded.push_prepared(
@@ -3148,6 +3270,37 @@ impl PreparedProgramBuilder {
             &self.source_files,
             package_map,
         )
+    }
+
+    pub(crate) fn consider_module_template(
+        &self,
+        preparation: &mut crate::resolution::TemplatePreparation,
+        fact: Arc<crate::resolution::PreparedModule>,
+        binding: crate::resolution::ModuleBinding,
+    ) -> crate::resolution::TemplateDisposition {
+        preparation.consider(fact, binding, &self.source_files)
+    }
+
+    pub(crate) fn finish_module_templates(
+        &self,
+        preparation: crate::resolution::TemplatePreparation,
+        loaded: &mut LoadedModules,
+        maps: &crate::resolution::PreparedPackageMaps,
+    ) -> crate::resolution::ModuleTemplates {
+        preparation.finish(loaded, &self.source_files, maps)
+    }
+
+    pub(crate) fn stage_module_template(
+        &self,
+        loaded: &mut LoadedModules,
+        templates: &mut crate::resolution::ModuleTemplates,
+        handle: crate::resolution::TemplateHandle,
+        source: SourceFileId,
+        specifier: &mut JsString,
+        maps: &crate::resolution::PreparedPackageMaps,
+    ) -> Result<(), ResolutionError> {
+        debug_assert!(self.ensure_healthy().is_ok());
+        templates.push(handle, loaded, &self.source_files, source, specifier, maps)
     }
 
     fn try_add_module_resolution(
@@ -4036,6 +4189,50 @@ fn insert_resolution<K: Eq + Ord + TableKey, T: Eq>(
             entry.insert(value);
             Ok(())
         }
+    }
+}
+
+impl fmt::Debug for PreparedSourceFile {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut source = f.debug_struct("PreparedSourceFile");
+        source.field("path", &self.records.path);
+        source.field(
+            "alternate_display_paths",
+            &self.records.paths.get().alternate_display_paths,
+        );
+        source.field(
+            "package_redirect_paths",
+            &self.records.paths.get().package_redirect_paths,
+        );
+        source.field(
+            "project_reference_source_paths",
+            &self.records.paths.get().project_reference_source_paths,
+        );
+        source.field("real_path", &self.records.paths.get().real_path);
+        source.field("snapshot", &self.records.snapshot);
+        source.field("may_be_emitted", &self.may_be_emitted);
+        source.field(
+            "may_emit_forced_declaration",
+            &self.may_emit_forced_declaration,
+        );
+        source.field("implied_node_format", &self.implied_node_format);
+        source.field(
+            "implied_node_format_for_emit",
+            &self.implied_node_format_for_emit,
+        );
+        source.field("is_external_module", &self.is_external_module);
+        source.field("import_count", &self.records.import_count);
+        source.field("package_scope", &self.records.package_scope);
+        source.field(
+            "found_searching_node_modules",
+            &self.found_searching_node_modules,
+        );
+        source.field("inclusion_reasons", &self.records.inclusion_reasons);
+        source.field("preparsed_syntax", &self.records.preparsed_syntax);
+        source.field("project_reference", &self.records.project_reference);
+        source.field("content_mapped", &self.records.content_mapped);
+        source.field("script_kind", &self.records.script_kind);
+        source.finish()
     }
 }
 

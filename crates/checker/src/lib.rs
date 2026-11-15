@@ -402,6 +402,14 @@ impl InputFile {
         &self,
         options: &tsc_syntax::ParseOptions,
     ) -> Option<program::DocumentBuilder> {
+        self.take_preparsed_tree(options)
+            .map(program::DocumentBuilder::from_preparsed)
+    }
+
+    fn take_preparsed_tree(
+        &self,
+        options: &tsc_syntax::ParseOptions,
+    ) -> Option<tsc_program::PreparsedSourceFile> {
         let preparsed = self.preparsed_syntax.take()?;
         let expected = tsc_syntax::ParseOptions {
             node_id_base: 0,
@@ -414,7 +422,7 @@ impl InputFile {
         {
             return None;
         }
-        Some(program::DocumentBuilder::from_preparsed(preparsed))
+        Some(preparsed)
     }
 
     /// tsrs-native: expose the shared L0 snapshot owner without its private
@@ -4840,8 +4848,10 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         .into_snapshot_with_file_facts(file_facts)
         .expect("program snapshot identity allocation failed");
     report_program_memory(&snapshot);
-    let mut metadata = run.lib_metadata.clone();
-    metadata.extend(authoritative_program_metadata.iter().cloned());
+    let mut metadata =
+        Vec::with_capacity(run.lib_metadata.len() + authoritative_program_metadata.len());
+    metadata.extend(run.lib_metadata.iter().cloned());
+    metadata.extend(authoritative_program_metadata);
     if syntactic_closed {
         // Syntax closes getters, but emit still needs an initialized resolver.
         // Reuse the existing serial snapshot executor for this closed request.
@@ -6820,55 +6830,150 @@ fn parse_lib_sources(
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
 ) -> (Vec<program::DocumentBuilder>, LibParseWork) {
+    // Keep an image capability until every library has its ordered symbol
+    // reservation. A replacement library before an image must reserve first.
+    enum LibraryConstruction {
+        Pending(Box<PendingProgramSource>),
+        Ready(Box<program::DocumentBuilder>),
+        Image(
+            Box<(
+                tsc_syntax::library_image::FreshLibrarySource,
+                Option<tsc_binder::BindReservations>,
+            )>,
+        ),
+    }
+    impl LibraryConstruction {
+        fn weight(&self) -> usize {
+            match self {
+                Self::Pending(source) => source.weight(),
+                Self::Image(_) => 0,
+                Self::Ready(_) => unreachable!("libraries are not relocated yet"),
+            }
+        }
+    }
     let adopt_started = std::time::Instant::now();
     let mut work = LibParseWork::default();
-    let mut pending: Vec<PendingProgramSource> = Vec::new();
+    let mut pending = Vec::with_capacity(libs.len());
     for lib in libs {
         let parse_options = lib_parse_options(lib);
-        pending.push(match lib.take_preparsed_source(&parse_options) {
+        pending.push(match lib.take_preparsed_tree(&parse_options) {
             Some(source) => {
                 work.adopted += 1;
                 let leases = source
                     .source()
                     .lease_identities(identity_domain)
                     .expect("library source identity allocation failed");
-                pending_leased_source(source, leases)
+                if source.is_fresh_library() && source.source().identity_owned_by(identity_domain) {
+                    LibraryConstruction::Image(Box::new(source.into_fresh_library()))
+                } else {
+                    LibraryConstruction::Pending(Box::new(pending_leased_source(
+                        program::DocumentBuilder::from_preparsed(source),
+                        leases,
+                    )))
+                }
             }
             None => {
                 work.parsed += 1;
                 let _span = trace_parse(tracing, &lib.name);
-                PendingProgramSource::Ready(program::DocumentBuilder::new(
-                    tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
-                        lib.name.clone(),
-                        Arc::clone(lib.snapshot()),
-                        parse_options,
-                        None,
-                        identity_domain,
-                    )
-                    .expect("library source identity allocation failed"),
-                ))
+                if let Some(image) = tsc_syntax::library_image::lookup(
+                    lib.name.as_js(),
+                    lib.snapshot(),
+                    &parse_options,
+                ) {
+                    let fresh = image
+                        .restore_fresh_in_identity_domain(
+                            lib.name.clone(),
+                            Arc::clone(lib.snapshot()),
+                            &parse_options,
+                            identity_domain,
+                        )
+                        .expect("library source identity allocation failed");
+                    LibraryConstruction::Image(Box::new((fresh, None)))
+                } else {
+                    LibraryConstruction::Pending(Box::new(PendingProgramSource::Ready(
+                        program::DocumentBuilder::new(
+                            tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+                                lib.name.clone(),
+                                Arc::clone(lib.snapshot()),
+                                parse_options,
+                                None,
+                                identity_domain,
+                            )
+                            .expect("library source identity allocation failed"),
+                        ),
+                    )))
+                }
             }
         });
     }
     if tsc_types::trace::enabled() {
         let rewrite = pending
             .iter()
-            .filter(|source| matches!(source, PendingProgramSource::Leased(..)))
+            .filter(|source| {
+                matches!(source, LibraryConstruction::Pending(source)
+                    if matches!(**source, PendingProgramSource::Leased(..)))
+            })
             .count();
         let ready_direct = work.adopted - rewrite as u64;
         eprintln!("[syntax-placement] level library adoption: ready_direct={ready_direct} rewrite={rewrite} fresh_private_exact={}", work.parsed);
     }
-    // Ready sources only transfer ownership; no worker has a tree to rewrite.
     let workers = if pending.iter().any(|source| source.weight() != 0) {
         workers
     } else {
         WorkerBudget::serial()
     };
-    let sources = workers.map_ordered(
-        pending,
-        PendingProgramSource::weight,
-        PendingProgramSource::relocate,
-    );
+    let mut pending =
+        workers.map_ordered(
+            pending,
+            LibraryConstruction::weight,
+            |source| match source {
+                LibraryConstruction::Pending(source) => {
+                    LibraryConstruction::Ready(Box::new((*source).relocate()))
+                }
+                image => image,
+            },
+        );
+    // Reserve the complete mixed prefix before restoring any binding. The
+    // ordinary bind driver later consumes these same reservations.
+    for source in &mut pending {
+        match source {
+            LibraryConstruction::Ready(source) => source.reserve_bind(identity_domain),
+            LibraryConstruction::Image(image) => {
+                if image.1.is_none() {
+                    image.1 = Some(
+                        tsc_binder::BindReservations::lease(image.0.source(), identity_domain)
+                            .expect("library binding identities fit their domain"),
+                    );
+                }
+            }
+            LibraryConstruction::Pending(_) => unreachable!("library relocation completed"),
+        }
+    }
+    let sources = pending
+        .into_iter()
+        .map(|source| match source {
+            LibraryConstruction::Ready(source) => *source,
+            LibraryConstruction::Image(image) => {
+                let (fresh, reservation) = *image;
+                let _span = tracing.map(|tracing| {
+                    tracing.begin(
+                        TracePhase::Bind,
+                        "bindSourceFile",
+                        TraceArgs::new().with(
+                            "path",
+                            fresh.source().file_name.to_string_lossy().into_owned(),
+                        ),
+                    )
+                });
+                program::DocumentBuilder::from_library(
+                    fresh,
+                    reservation.expect("ordered library binding reservation"),
+                    identity_domain,
+                )
+            }
+            LibraryConstruction::Pending(_) => unreachable!("library relocation completed"),
+        })
+        .collect();
     tsc_types::trace::mark("checker: libraries exact/adopt", adopt_started);
     (sources, work)
 }
@@ -6885,6 +6990,15 @@ fn bind_lib_sources(
         .iter_mut()
         .map(program::DocumentBuilder::bind_input)
         .collect::<Vec<_>>();
+    // Completed libraries only transfer data; there is no bind job to dispatch.
+    let workers = if sources.iter().all(|(_, _, data)| {
+        data.as_ref()
+            .is_some_and(|data| data.identity_owned_by(identity_domain))
+    }) {
+        WorkerBudget::serial()
+    } else {
+        workers
+    };
     bind_reserved_in_program_order(sources, identity_domain, workers, tracing)
 }
 

@@ -148,9 +148,9 @@ pub use config::{
     load_project_config_program, longest_extension, parse_config_file_text_to_json,
     parse_config_root_plan, parse_config_root_plan_of_json_object,
     parse_config_root_plan_with_cache, parse_config_root_plan_with_command_line,
-    removed_base_url_paths_suggestion, ConfigDiscoveryOptions, ConfigExtendedCache,
-    ConfigHostError, ConfigHostOperation, ConfigModuleResolutionOptions, ConfigOption,
-    ConfigOptionBag, ConfigOptionValueState, ConfigParseError, ConfigParseErrorKind,
+    removed_base_url_paths_suggestion, ConfigDirectoryListing, ConfigDiscoveryOptions,
+    ConfigExtendedCache, ConfigHostError, ConfigHostOperation, ConfigModuleResolutionOptions,
+    ConfigOption, ConfigOptionBag, ConfigOptionValueState, ConfigParseError, ConfigParseErrorKind,
     ConfigParseHost, ConfigProgramLoadError, ConfigProjectReference, ConfigRootPlan,
     ConfigRootPlanRequest, ConfigSourceText, ConfigTypedJsonValue, ConfigTypedListElement,
     ConfigTypedObjectProperty, ConfigTypedObjectShape, ConfigTypedObjectValue,
@@ -225,7 +225,7 @@ pub use prepared::{
     PreparedProgram, PreparedProgramBuilder, PreparedProgramMode, PreparedRoot, PreparedSourceFile,
     PreparsedSourceFile, PreparsedSyntax, ProgramConfigFile, ProgramConfigSpan, ProgramOptions,
     ProjectReferenceFile, ReferencedProjectOptions, ResolutionTable, ResolutionTableView,
-    SourceFileId,
+    SourceFileId, SourceOwnedRecords,
 };
 pub use project_references::{
     resolve_config_file_name_of_project_reference, resolve_project_references,

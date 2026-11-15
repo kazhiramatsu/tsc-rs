@@ -131,31 +131,42 @@ fn main() {
         }
         _ => {}
     }
-    let output = run_on_worker_stack(|| tsc_compiler::run_cli(&arguments));
-    {
-        use std::io::Write;
-        let mut stdout = std::io::stdout().lock();
-        let _ = stdout.write_all(output.stdout().as_bytes());
-        let _ = stdout.flush();
-        let mut stderr = std::io::stderr().lock();
-        let _ = stderr.write_all(output.stderr().as_bytes());
-        let _ = stderr.flush();
-    }
+    // A one-shot command has finished all output when it exits. Finish on
+    // its stack worker before thread-local allocator cleanup and the join.
     #[cfg(feature = "phase-ledger")]
-    phase_ledger::finish(ledger);
-    if std::env::var_os("LLVM_PROFILE_FILE").is_some() {
-        // PGO flushes through C runtime exit.
-        std::process::exit(output.exit_code());
-    }
-    // Leave without the C runtime's exit chain: the CLI keeps its arenas
-    // until the end on purpose, and mimalloc's exit hook would otherwise walk
-    // and unmap every segment it still holds (milliseconds for a large
-    // Program) before the kernel reclaims the address space anyway. Every
-    // artifact was written and closed by the sink; both streams are flushed
-    // above.
-    // SAFETY: _exit terminates the process immediately; nothing runs after
-    // it, and no other thread holds work the process still needs.
-    unsafe { libc::_exit(output.exit_code()) }
+    let ledger = std::sync::Mutex::new(ledger);
+    run_on_worker_stack::<()>(|| {
+        let output = tsc_compiler::run_cli(&arguments);
+        {
+            use std::io::Write;
+            let mut stdout = std::io::stdout().lock();
+            let _ = stdout.write_all(output.stdout().as_bytes());
+            let _ = stdout.flush();
+            let mut stderr = std::io::stderr().lock();
+            let _ = stderr.write_all(output.stderr().as_bytes());
+            let _ = stderr.flush();
+        }
+        #[cfg(feature = "phase-ledger")]
+        phase_ledger::finish(
+            ledger
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .take(),
+        );
+        if std::env::var_os("LLVM_PROFILE_FILE").is_some() {
+            // PGO flushes through C runtime exit.
+            std::process::exit(output.exit_code());
+        }
+        // Leave without the C runtime's exit chain: the CLI keeps its arenas
+        // until the end on purpose, and mimalloc's exit hook would otherwise walk
+        // and unmap every segment it still holds (milliseconds for a large
+        // Program) before the kernel reclaims the address space anyway. Every
+        // artifact was written and closed by the sink; both streams are flushed
+        // above.
+        // SAFETY: _exit terminates the process immediately; nothing runs after
+        // it, and no other thread holds work the process still needs.
+        unsafe { libc::_exit(output.exit_code()) }
+    });
 }
 
 #[cfg(test)]

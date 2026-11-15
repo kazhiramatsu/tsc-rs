@@ -1285,3 +1285,191 @@ fn type_list_interning_keeps_four_byte_candidates_and_exact_boundary_items() {
     assert_eq!(tables.intern_type_list(&items), id);
     let _: &hashbrown::HashTable<TypeListId> = &tables.list_ids;
 }
+
+#[test]
+fn single_string_template_spans_keep_canonical_text_and_literal_identity() {
+    let mut t = tables();
+    let values = [
+        vec![],
+        vec![b'A' as u16, 0, b'B' as u16],
+        "ΟΣß𐐨".encode_utf16().collect(),
+        vec![0xD800],
+        vec![0xDC00],
+        vec![0xD800, b'x' as u16, 0xDC00],
+        vec![0xD800, 0xDC00],
+    ];
+    for value in values {
+        let input = t.get_string_literal_type_from_utf16(&value);
+        let fresh = t.get_fresh_type_of_literal_type(input);
+        for (prefix, suffix) in [("on", "!"), ("", ""), ("left", "")] {
+            let mut expected = prefix.encode_utf16().collect::<Vec<_>>();
+            expected.extend_from_slice(&value);
+            expected.extend(suffix.encode_utf16());
+            let expected = t.get_string_literal_type_from_utf16(&expected);
+            let texts = [
+                TemplateText::from_utf8(prefix),
+                TemplateText::from_utf8(suffix),
+            ];
+            let count = t.len();
+            for ty in [input, fresh] {
+                for _ in 0..3 {
+                    assert_eq!(
+                        t.try_get_template_literal_type_from_texts(&texts, &[ty]),
+                        Ok(expected)
+                    );
+                    assert_eq!(t.len(), count);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn single_string_template_spans_join_surrogates_across_non_ascii_boundaries() {
+    let mut t = tables();
+    let low = t.get_string_literal_type_from_utf16(&[0xDC00]);
+    let expected = t.get_string_literal_type_from_utf16(&[0xD800, 0xDC00]);
+    let texts = [TemplateText::from_utf16(&[0xD800]), TemplateText::default()];
+    assert_eq!(
+        t.get_template_literal_type_from_texts(&texts, &[low]),
+        expected
+    );
+    let input = t.get_string_literal_type("value");
+    let expected = t.get_string_literal_type("évalue界");
+    let texts = [TemplateText::from_utf8("é"), TemplateText::from_utf8("界")];
+    assert_eq!(
+        t.get_template_literal_type_from_texts(&texts, &[input]),
+        expected
+    );
+}
+
+#[test]
+fn single_string_template_span_obeys_the_text_limit_before_interning() {
+    let mut t = tables();
+    let text = "x".repeat(MAX_TEMPLATE_LITERAL_TYPE_LENGTH);
+    let value = t.get_string_literal_type(text.as_str());
+    let empty = [TemplateText::default(), TemplateText::default()];
+    assert_eq!(
+        t.try_get_template_literal_type_from_texts(&empty, &[value]),
+        Ok(value)
+    );
+    let over = [TemplateText::from_utf8("a"), TemplateText::default()];
+    let count = t.len();
+    assert_eq!(
+        t.try_get_template_literal_type_from_texts(&over, &[value]),
+        Err(TemplateLiteralTooLarge)
+    );
+    assert_eq!(t.len(), count);
+    let small = t.get_string_literal_type("y");
+    assert_eq!(
+        t.get_template_literal_type_from_texts(&over, &[small]),
+        t.get_string_literal_type("ay")
+    );
+}
+
+#[test]
+fn single_string_template_spans_return_plain_literals_for_enum_inputs() {
+    let mut t = tables();
+    let input = t.get_enum_literal_type(
+        LiteralValue::String("value".into()),
+        SymbolId::new(20),
+        SymbolId::new(21),
+    );
+    let fresh = t.get_fresh_type_of_literal_type(input);
+    let expected = t.get_string_literal_type("onvalue!");
+    let texts = [TemplateText::from_utf8("on"), TemplateText::from_utf8("!")];
+    let count = t.len();
+    for ty in [input, fresh] {
+        assert_eq!(
+            t.get_template_literal_type_from_texts(&texts, &[ty]),
+            expected
+        );
+        assert!(t.flags_of(ty).intersects(TypeFlags::ENUM_LITERAL));
+        assert_eq!(t.len(), count);
+    }
+    assert!(!t.flags_of(expected).intersects(TypeFlags::ENUM_LITERAL));
+}
+
+#[test]
+fn template_string_spans_widen_ascii_in_bulk_at_vector_boundaries() {
+    let mut t = tables();
+    for length in [0, 1, 7, 8, 15, 16, 31, 32, 63, 64, 65, 127] {
+        for tail in ["", "\u{00e9}", "\u{1f600}"] {
+            let mut input = "a".repeat(length);
+            input.push('\0');
+            input.push_str(tail);
+            let left = t.get_string_literal_type(input.as_str());
+            let right = t.get_string_literal_type("b");
+            let expected = t.get_string_literal_type(format!("é{input}界b").as_str());
+            let texts = [
+                TemplateText::from_utf8("é"),
+                TemplateText::from_utf8("界"),
+                TemplateText::default(),
+            ];
+            assert_eq!(
+                t.get_template_literal_type_from_texts(&texts, &[left, right]),
+                expected
+            );
+        }
+    }
+}
+
+#[test]
+fn literal_type_value_comparison_preserves_ieee_values_kinds_and_fresh_twins() {
+    let mut t = tables();
+    let zero = t.get_number_literal_type(0.0);
+    let negative_zero = t.get_number_literal_type(-0.0);
+    let one = t.get_number_literal_type(1.0);
+    let infinity = t.get_number_literal_type(f64::INFINITY);
+    let nan = t.get_number_literal_type(f64::NAN);
+    let other_nan = t.get_number_literal_type(f64::from_bits(0x7ff8_0000_0000_0001));
+    let string = t.get_string_literal_type("1");
+    let high = t.get_string_literal_type_from_utf16(&[0xD800]);
+    let replacement = t.get_string_literal_type("\u{fffd}");
+    let bigint = t.get_bigint_literal_type(PseudoBigInt {
+        negative: false,
+        base10_value: "1".into(),
+    });
+    let other_bigint = t.get_bigint_literal_type(PseudoBigInt {
+        negative: true,
+        base10_value: "1".into(),
+    });
+    let numeric_enum = t.get_enum_literal_type(
+        LiteralValue::Number(1.0),
+        SymbolId::new(20),
+        SymbolId::new(21),
+    );
+    let string_enum = t.get_enum_literal_type(
+        LiteralValue::String("1".into()),
+        SymbolId::new(22),
+        SymbolId::new(23),
+    );
+    let fresh = t.get_fresh_type_of_literal_type(one);
+    let fresh_enum = t.get_fresh_type_of_literal_type(numeric_enum);
+    let count = t.len();
+    for (a, b, equal) in [
+        (zero, negative_zero, true),
+        (zero, one, false),
+        (one, fresh, true),
+        (infinity, infinity, true),
+        (nan, nan, false),
+        (nan, other_nan, false),
+        (one, numeric_enum, true),
+        (one, fresh_enum, true),
+        (string, string_enum, true),
+        (high, high, true),
+        (high, replacement, false),
+        (bigint, bigint, true),
+        (bigint, other_bigint, false),
+        (one, string, false),
+        (one, bigint, false),
+        (string, bigint, false),
+        (one, t.intrinsics.number, false),
+        (string, t.intrinsics.string, false),
+        (t.intrinsics.true_regular, t.intrinsics.true_regular, false),
+    ] {
+        assert_eq!(t.literal_type_values_equal(a, b), equal);
+        assert_eq!(t.literal_type_values_equal(b, a), equal);
+        assert_eq!(t.len(), count);
+    }
+}

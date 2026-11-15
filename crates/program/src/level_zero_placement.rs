@@ -56,6 +56,13 @@ struct CompletedStripe {
 }
 
 impl CompletedStripe {
+    fn needs_binding(&self) -> bool {
+        self.sources
+            .iter()
+            .filter_map(BindAdmission::syntax)
+            .any(PreparsedSyntax::has_bind_reservation)
+    }
+
     fn bind(&self, domain: &tsc_types::IdentityDomain, tracing: bool) {
         for syntax in self.sources.iter().filter_map(BindAdmission::syntax) {
             syntax.bind_reserved(domain, tracing);
@@ -153,7 +160,7 @@ impl BindAdmission {
             binds.register(
                 sources
                     .into_iter()
-                    .map(|(syntax, _)| syntax.pending_bind())
+                    .filter_map(|(syntax, _)| syntax.pending_ordinary_bind())
                     .collect(),
             );
         }
@@ -834,13 +841,31 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         );
                         let mut completed = completed.into_iter();
                         let first = completed.next()?;
-                        if bind_libraries && first.label == "config libraries" {
+                        for syntax in first.sources.iter().filter_map(BindAdmission::syntax) {
+                            syntax.restore_image_bind(
+                                identity_domain,
+                                options.generate_trace.is_some(),
+                            );
+                        }
+                        if bind_libraries
+                            && first.label == "config libraries"
+                            && first.needs_binding()
+                        {
                             first.bind(identity_domain, options.generate_trace.is_some());
                         }
                         let mut sources = first.sources;
                         let mut stripes = vec![(first.ordinal, first.label, first.syntax)];
                         for stripe in completed {
-                            if bind_libraries && stripe.label == "config libraries" {
+                            for syntax in stripe.sources.iter().filter_map(BindAdmission::syntax) {
+                                syntax.restore_image_bind(
+                                    identity_domain,
+                                    options.generate_trace.is_some(),
+                                );
+                            }
+                            if bind_libraries
+                                && stripe.label == "config libraries"
+                                && stripe.needs_binding()
+                            {
                                 spawned.push(Job::Bind(stripe));
                                 continue;
                             }

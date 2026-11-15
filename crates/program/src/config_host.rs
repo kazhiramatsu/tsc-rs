@@ -9,7 +9,9 @@ use std::collections::{BTreeSet, VecDeque};
 use tsc_diagnostics::{JsStr, JsString};
 use tsc_host::{CompilerHost, DirectoryListingEntry, DirectoryListingKind, HostError};
 
-use crate::config::{ConfigHostError, ConfigHostOperation, ConfigParseHost};
+use crate::config::{
+    ConfigDirectoryListing, ConfigHostError, ConfigHostOperation, ConfigParseHost,
+};
 use crate::config_matcher::{ConfigFilePattern, InputComponent, MatchInput};
 use crate::decode_host_text;
 use crate::js_path::{
@@ -27,7 +29,63 @@ const LISTING_THREADS: usize = 4;
 
 /// Directory listings read ahead of the walk, by the directory spelling the
 /// walk queries.
-type Listings = rustc_hash::FxHashMap<JsString, Vec<DirectoryListingEntry>>;
+type Listings = rustc_hash::FxHashMap<JsString, DirectoryMatches>;
+
+/// A listing's pure pattern decisions. The ordered walk still decides which
+/// physical directory is visited and publishes files in include-bucket order.
+struct DirectoryMatches {
+    files: Vec<(usize, JsString)>,
+    children: Vec<MatchedDirectory>,
+}
+
+struct MatchedDirectory {
+    path: JsString,
+    symlink: bool,
+    states: PatternStates,
+}
+
+fn match_directory_entries(
+    entries: Vec<DirectoryListingEntry>,
+    extensions: &[&str],
+    patterns: &WalkPatterns,
+    states: &PatternStates,
+    case_sensitive: bool,
+    name: &mut InputComponent,
+) -> DirectoryMatches {
+    let mut matched = DirectoryMatches {
+        files: Vec::new(),
+        children: Vec::new(),
+    };
+    for entry in entries {
+        let text = entry.path.as_js();
+        if entry.kind == DirectoryListingKind::Directory {
+            name.set_text(entry_name(text), case_sensitive);
+            if let Some(states) = states.enter_child_directory(patterns, text, name) {
+                matched.children.push(MatchedDirectory {
+                    path: entry.path,
+                    symlink: entry.symlink,
+                    states,
+                });
+            }
+            continue;
+        }
+        if !extensions.iter().any(|extension| text.ends_with(extension))
+            || patterns.excluded(text, &states.excludes)
+        {
+            continue;
+        }
+        name.set_text(entry_name(text), case_sensitive);
+        let include = if patterns.includes.is_empty() {
+            Some(0)
+        } else {
+            states.include_index(patterns, name)
+        };
+        if let Some(include) = include {
+            matched.files.push((include, entry.path));
+        }
+    }
+    matched
+}
 
 /// Adapts any read-only [`CompilerHost`] to the config parser's
 /// [`ConfigParseHost`] contract.
@@ -68,6 +126,7 @@ impl<'a> CompilerConfigHost<'a> {
         depth: usize,
         files: &mut [Vec<JsString>],
         visited: &mut BTreeSet<JsString>,
+        match_input: &mut InputComponent,
         listings: &mut Listings,
     ) -> Result<(), ConfigHostError> {
         if depth == 0 {
@@ -80,76 +139,66 @@ impl<'a> CompilerConfigHost<'a> {
         if !visited.insert(canonical_directory.clone()) {
             return Ok(());
         }
-        // A listing read ahead is the host's answer to this same query.
-        let entries = match listings.remove(&directory.to_owned()) {
-            Some(entries) => entries,
-            None => self
-                .host
-                .read_directory_listing_js(directory)
-                .map_err(|error| {
-                    self.host_error(ConfigHostOperation::ReadDirectory, directory, error)
-                })?,
-        };
-        // matchFiles.visitDirectory visits current files before child
-        // directories (_tsc.js:18539–18571). CompilerHost already supplies
-        // native byte name order; partitioning preserves that order within each.
         let case_sensitive = self.host.use_case_sensitive_file_names();
-        let mut child_directories = Vec::new();
-        for entry in entries {
-            let text = entry.path.as_js();
-            if entry.kind == DirectoryListingKind::Directory {
-                child_directories.push(entry);
-                continue;
-            }
-            if !extensions.iter().any(|extension| text.ends_with(extension)) {
-                continue;
-            }
-            if patterns.excluded(text, &states.excludes) {
-                continue;
-            }
-            let name = InputComponent::new(entry_name(text), case_sensitive);
-            if patterns.includes.is_empty() {
-                files[0].push(text.to_owned());
-            } else if let Some(include_index) = states.include_index(patterns, &name) {
-                files[include_index].push(text.to_owned());
-            }
-        }
-        for entry in child_directories {
-            let text = entry.path.as_js();
-            let name = InputComponent::new(entry_name(text), case_sensitive);
-            if let Some(child_states) = states.enter_child_directory(patterns, text, &name) {
-                let child_canonical = (!entry.symlink).then(|| {
-                    let mut key = canonical_directory.clone();
-                    key.push_str("/");
-                    key.push_js(file_name_key(entry_name(text), case_sensitive).as_js());
-                    key
-                });
-                self.walk_directory(
-                    text,
-                    child_canonical,
+        let matched = match listings.remove(directory.as_bytes()) {
+            Some(matched) => matched,
+            None => {
+                let entries = self
+                    .host
+                    .read_directory_listing_js(directory)
+                    .map_err(|error| {
+                        self.host_error(ConfigHostOperation::ReadDirectory, directory, error)
+                    })?;
+                match_directory_entries(
+                    entries,
                     extensions,
                     patterns,
-                    &child_states,
-                    depth - 1,
-                    files,
-                    visited,
-                    listings,
-                )?;
+                    states,
+                    case_sensitive,
+                    match_input,
+                )
             }
+        };
+        // The listing's decisions are independent of visitation order. Only
+        // this walk publishes them, after its canonical-directory check.
+        for (include, file) in matched.files {
+            files[include].push(file);
+        }
+        if depth == 1 {
+            return Ok(());
+        }
+        for child in matched.children {
+            let text = child.path.as_js();
+            let child_canonical = (!child.symlink).then(|| {
+                let mut key = canonical_directory.clone();
+                key.push_str("/");
+                key.push_js(file_name_key(entry_name(text), case_sensitive).as_js());
+                key
+            });
+            self.walk_directory(
+                text,
+                child_canonical,
+                extensions,
+                patterns,
+                &child.states,
+                depth - 1,
+                files,
+                visited,
+                match_input,
+                listings,
+            )?;
         }
         Ok(())
     }
 
-    /// List, on `LISTING_THREADS` threads, every directory the walk from
-    /// `bases` will list through a plain (non-link) entry, so the walk's
-    /// reads come from memory: the descent decision is the walk's own
-    /// (`enter_child_directory`), a linked directory is left to the walk
-    /// (its real path decides whether it is visited), and a listing that
-    /// fails is left for the walk to read and report. Over a host that
-    /// cannot be shared across threads nothing is read ahead.
+    /// List and match directories ahead of the ordered walk. Plain child
+    /// directories use the parent's pattern states once; linked directories
+    /// and failed reads stay with the walk, which owns canonical visitation
+    /// and error order. Hosts that cannot be shared are walked directly.
     fn prefetch_listings(
         &self,
         bases: &[(JsString, PatternStates)],
+        extensions: &[&str],
         patterns: &WalkPatterns,
         depth: usize,
     ) -> Listings {
@@ -178,60 +227,64 @@ impl<'a> CompilerConfigHost<'a> {
         let ready = std::sync::Condvar::new();
         let listings = std::sync::Mutex::new(Listings::default());
         let case_sensitive = self.host.use_case_sensitive_file_names();
-        let run = || loop {
-            let (directory, states, depth) = {
+        let run = || {
+            let mut match_input = InputComponent::new("".into(), case_sensitive);
+            loop {
+                let (directory, states, depth) = {
+                    let mut queue = queue
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    loop {
+                        if let Some(item) = queue.pending.pop_front() {
+                            queue.in_flight += 1;
+                            break item;
+                        }
+                        if queue.closed || queue.in_flight == 0 {
+                            queue.closed = true;
+                            ready.notify_all();
+                            return;
+                        }
+                        queue = ready
+                            .wait(queue)
+                            .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    }
+                };
+                let listed =
+                    host.read_directory_listing_js(directory.as_js())
+                        .ok()
+                        .map(|entries| {
+                            match_directory_entries(
+                                entries,
+                                extensions,
+                                patterns,
+                                &states,
+                                case_sensitive,
+                                &mut match_input,
+                            )
+                        });
+                let mut children = Vec::new();
+                if let Some(matched) = listed {
+                    for child in &matched.children {
+                        if depth > 1 && !child.symlink {
+                            children.push((child.path.clone(), child.states.clone(), depth - 1));
+                        }
+                    }
+                    listings
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .insert(directory, matched);
+                }
                 let mut queue = queue
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
-                loop {
-                    if let Some(item) = queue.pending.pop_front() {
-                        queue.in_flight += 1;
-                        break item;
-                    }
-                    if queue.closed || queue.in_flight == 0 {
-                        queue.closed = true;
-                        ready.notify_all();
-                        return;
-                    }
-                    queue = ready
-                        .wait(queue)
-                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                queue.in_flight -= 1;
+                queue.pending.extend(children);
+                if queue.pending.is_empty() && queue.in_flight == 0 {
+                    queue.closed = true;
+                    ready.notify_all();
+                } else {
+                    ready.notify_all();
                 }
-            };
-            let listed = host.read_directory_listing_js(directory.as_js()).ok();
-            let mut children = Vec::new();
-            if let Some(entries) = &listed {
-                if depth > 1 {
-                    for entry in entries {
-                        if entry.kind != DirectoryListingKind::Directory || entry.symlink {
-                            continue;
-                        }
-                        let text = entry.path.as_js();
-                        let name = InputComponent::new(entry_name(text), case_sensitive);
-                        if let Some(child_states) =
-                            states.enter_child_directory(patterns, text, &name)
-                        {
-                            children.push((entry.path.clone(), child_states, depth - 1));
-                        }
-                    }
-                }
-            }
-            if let Some(entries) = listed {
-                listings
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .insert(directory, entries);
-            }
-            let mut queue = queue
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            queue.in_flight -= 1;
-            queue.pending.extend(children);
-            if queue.pending.is_empty() && queue.in_flight == 0 {
-                queue.closed = true;
-                ready.notify_all();
-            } else {
-                ready.notify_all();
             }
         };
         std::thread::scope(|scope| {
@@ -239,13 +292,89 @@ impl<'a> CompilerConfigHost<'a> {
                 // A refused thread is not an error: the others list.
                 let _ = std::thread::Builder::new()
                     .name("tsc-rs-worker".to_owned())
-                    .spawn_scoped(scope, run);
+                    .spawn_scoped(scope, || {
+                        crate::run_thread_start_hook();
+                        run();
+                    });
             }
             run();
         });
         listings
             .into_inner()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn read_directory_impl(
+        &self,
+        directory: JsStr<'_>,
+        extensions: &[&str],
+        excludes: Option<&[JsString]>,
+        includes: Option<&[JsString]>,
+        depth: Option<usize>,
+        include_matches: bool,
+    ) -> Result<ConfigDirectoryListing, ConfigHostError> {
+        let case_sensitive = self.host.use_case_sensitive_file_names();
+        // tsgo `newGlobMatcher`: the excludes are compiled for their own
+        // usage (`UsageExclude`), the includes for files.
+        let excludes = excludes.map(|excludes| {
+            excludes
+                .iter()
+                .map(|exclude| glob_text(exclude.as_js()).into_owned())
+                .collect::<Vec<_>>()
+        });
+        let compiled = compile_patterns(includes, directory, case_sensitive, include_matches)?;
+        let patterns = WalkPatterns {
+            includes: compiled.patterns,
+            excludes: excludes.and_then(|excludes| {
+                crate::vfsmatch::SpecMatcher::new(
+                    &excludes,
+                    &glob_text(directory),
+                    crate::vfsmatch::Usage::Exclude,
+                    case_sensitive,
+                )
+            }),
+        };
+        let mut file_buckets = (0..patterns.includes.len().max(1))
+            .map(|_| Vec::new())
+            .collect::<Vec<Vec<JsString>>>();
+        let mut visited = BTreeSet::new();
+        let depth = depth.unwrap_or(MAX_DIRECTORY_DEPTH);
+        let bases = discovery_base_paths(directory, includes, case_sensitive)?
+            .into_iter()
+            .map(|base| {
+                let states = PatternStates::at_base(&patterns, base.as_js(), case_sensitive);
+                (base, states)
+            })
+            .collect::<Vec<_>>();
+        let mut listings = self.prefetch_listings(&bases, extensions, &patterns, depth);
+        let mut match_input = InputComponent::new("".into(), case_sensitive);
+        for (base, states) in &bases {
+            self.walk_directory(
+                base.as_js(),
+                None,
+                extensions,
+                &patterns,
+                states,
+                depth,
+                &mut file_buckets,
+                &mut visited,
+                &mut match_input,
+                &mut listings,
+            )?;
+        }
+        let count = file_buckets.iter().map(Vec::len).sum();
+        let mut file_names = Vec::with_capacity(count);
+        let mut indices = (!compiled.source_indices.is_empty()).then(|| Vec::with_capacity(count));
+        for (bucket, files) in file_buckets.into_iter().enumerate() {
+            if let Some(indices) = &mut indices {
+                indices.resize(indices.len() + files.len(), compiled.source_indices[bucket]);
+            }
+            file_names.extend(files);
+        }
+        Ok(ConfigDirectoryListing {
+            file_names,
+            include_spec_indices: indices,
+        })
     }
 
     fn canonical_directory(&self, directory: JsStr<'_>) -> Result<JsString, ConfigHostError> {
@@ -305,53 +434,19 @@ impl ConfigParseHost for CompilerConfigHost<'_> {
         includes: Option<&[JsString]>,
         depth: Option<usize>,
     ) -> Result<Vec<JsString>, ConfigHostError> {
-        let case_sensitive = self.host.use_case_sensitive_file_names();
-        // tsgo `newGlobMatcher`: the excludes are compiled for their own
-        // usage (`UsageExclude`), the includes for files.
-        let excludes = excludes.map(|excludes| {
-            excludes
-                .iter()
-                .map(|exclude| glob_text(exclude.as_js()).into_owned())
-                .collect::<Vec<_>>()
-        });
-        let patterns = WalkPatterns {
-            includes: compile_patterns(includes, directory, case_sensitive)?,
-            excludes: excludes.and_then(|excludes| {
-                crate::vfsmatch::SpecMatcher::new(
-                    &excludes,
-                    &glob_text(directory),
-                    crate::vfsmatch::Usage::Exclude,
-                    case_sensitive,
-                )
-            }),
-        };
-        let mut file_buckets = (0..patterns.includes.len().max(1))
-            .map(|_| Vec::new())
-            .collect::<Vec<Vec<JsString>>>();
-        let mut visited = BTreeSet::new();
-        let depth = depth.unwrap_or(MAX_DIRECTORY_DEPTH);
-        let bases = discovery_base_paths(directory, includes, case_sensitive)?
-            .into_iter()
-            .map(|base| {
-                let states = PatternStates::at_base(&patterns, base.as_js(), case_sensitive);
-                (base, states)
-            })
-            .collect::<Vec<_>>();
-        let mut listings = self.prefetch_listings(&bases, &patterns, depth);
-        for (base, states) in &bases {
-            self.walk_directory(
-                base.as_js(),
-                None,
-                extensions,
-                &patterns,
-                states,
-                depth,
-                &mut file_buckets,
-                &mut visited,
-                &mut listings,
-            )?;
-        }
-        Ok(file_buckets.into_iter().flatten().collect())
+        self.read_directory_impl(directory, extensions, excludes, includes, depth, false)
+            .map(|listing| listing.file_names)
+    }
+
+    fn read_directory_with_include_matches(
+        &self,
+        directory: JsStr<'_>,
+        extensions: &[&str],
+        excludes: Option<&[JsString]>,
+        includes: Option<&[JsString]>,
+        depth: Option<usize>,
+    ) -> Result<ConfigDirectoryListing, ConfigHostError> {
+        self.read_directory_impl(directory, extensions, excludes, includes, depth, true)
     }
 }
 
@@ -662,22 +757,35 @@ fn discovery_path_contains(parent: JsStr<'_>, child: JsStr<'_>, case_sensitive: 
         })
 }
 
+struct CompiledIncludes {
+    patterns: Vec<ConfigFilePattern>,
+    source_indices: Vec<usize>,
+}
+
 fn compile_patterns(
     patterns: Option<&[JsString]>,
     directory: JsStr<'_>,
     case_sensitive: bool,
-) -> Result<Vec<ConfigFilePattern>, ConfigHostError> {
+    include_matches: bool,
+) -> Result<CompiledIncludes, ConfigHostError> {
     let mut compiled = Vec::new();
-    for pattern in patterns.unwrap_or(&[]) {
+    let mut source_indices = Vec::new();
+    for (index, pattern) in patterns.unwrap_or(&[]).iter().enumerate() {
         let pattern =
             ConfigFilePattern::new(pattern, directory, case_sensitive).map_err(|detail| {
                 ConfigHostError::new(ConfigHostOperation::ReadDirectory, directory, detail)
             })?;
         if let Some(pattern) = pattern {
             compiled.push(pattern);
+            if include_matches {
+                source_indices.push(index);
+            }
         }
     }
-    Ok(compiled)
+    Ok(CompiledIncludes {
+        patterns: compiled,
+        source_indices,
+    })
 }
 
 fn is_implicit_excluded_directory(path: JsStr<'_>) -> bool {

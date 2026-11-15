@@ -1131,6 +1131,39 @@ impl TypeTables {
         })
     }
 
+    /// Compare the values in two literal headers without constructing
+    /// optional decoded values for either side. Numeric equality stays
+    /// IEEE equality, including signed zero and NaN.
+    #[inline]
+    pub fn literal_type_values_equal(&self, source: TypeId, target: TypeId) -> bool {
+        let source = self.type_of(source);
+        let target = self.type_of(target);
+        let (TypeData::Literal { value: left, .. }, TypeData::Literal { value: right, .. }) =
+            (source.data, target.data)
+        else {
+            return false;
+        };
+        let value_flags =
+            TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL | TypeFlags::BIG_INT_LITERAL;
+        let kind = source.flags & value_flags;
+        if kind != target.flags & value_flags {
+            return false;
+        }
+        if kind == TypeFlags::NUMBER_LITERAL {
+            return self.number_literals[left as usize].get()
+                == self.number_literals[right as usize].get();
+        }
+        if kind == TypeFlags::STRING_LITERAL {
+            let left = LiteralTextId::new(left);
+            let right = LiteralTextId::new(right);
+            return left == right || self.literal_text(left) == self.literal_text(right);
+        }
+        debug_assert_eq!(kind, TypeFlags::BIG_INT_LITERAL);
+        let left = BigIntId::new(left);
+        let right = BigIntId::new(right);
+        left == right || self.bigint(left) == self.bigint(right)
+    }
+
     /// Whether two literal records' data name equal values: one text or
     /// bigint id is equal to itself without reading it. Decoding preserves
     /// the old data, so numeric equality still equates signed zeros and
@@ -4044,6 +4077,9 @@ impl TypeTables {
         if types.contains(&self.intrinsics.wildcard) {
             return Ok(self.intrinsics.wildcard);
         }
+        if let Some(result) = self.fold_string_template_span(texts, types) {
+            return result;
+        }
         let mut spans = self.template_scratch.pop().unwrap_or_default();
         spans.reset(&texts[0]);
         let result = self.build_template_literal_type(texts, types, &mut spans);
@@ -4108,6 +4144,46 @@ impl TypeTables {
                 )
             });
         Ok(id)
+    }
+
+    /// ASCII boundaries cannot join a surrogate pair with the literal's
+    /// canonical WTF-8, so this fold can retain its stored byte encoding.
+    fn fold_string_template_span(
+        &mut self,
+        texts: &[TemplateText],
+        types: &[TypeId],
+    ) -> Option<Result<TypeId, TemplateLiteralTooLarge>> {
+        let ([ty], [prefix, suffix]) = (types, texts) else {
+            return None;
+        };
+        let LiteralData::String(value) = self.literal_data_of(*ty)? else {
+            return None;
+        };
+        if prefix
+            .units()
+            .iter()
+            .chain(suffix.units())
+            .any(|&unit| unit >= 0x80)
+        {
+            return None;
+        }
+        let byte_length = prefix
+            .units()
+            .len()
+            .saturating_add(self.literal_text(value).as_bytes().len())
+            .saturating_add(suffix.units().len());
+        if byte_length > MAX_TEMPLATE_LITERAL_TYPE_LENGTH {
+            return Some(Err(TemplateLiteralTooLarge));
+        }
+        let mut bytes = std::mem::take(&mut self.literal_scratch);
+        bytes.clear();
+        bytes.reserve(byte_length);
+        bytes.extend(prefix.units().iter().map(|&unit| unit as u8));
+        bytes.extend_from_slice(self.literal_text(value).as_bytes());
+        bytes.extend(suffix.units().iter().map(|&unit| unit as u8));
+        let id = self.get_string_literal_type(crate::JsStr::from_canonical_bytes(&bytes));
+        self.literal_scratch = bytes;
+        Some(Ok(id))
     }
 
     /// addSpans inner function of getTemplateLiteralType (62089-62108),
@@ -4590,8 +4666,13 @@ impl TemplateSpans {
     }
 
     fn push_js(&mut self, segment: crate::JsStr<'_>) {
-        self.text.extend(segment.code_units());
-        self.text_bytes += segment.as_bytes().len();
+        let bytes = segment.as_bytes();
+        if bytes.is_ascii() {
+            self.text.extend(bytes.iter().map(|&byte| u16::from(byte)));
+        } else {
+            self.text.extend(segment.code_units());
+        }
+        self.text_bytes += bytes.len();
     }
 }
 

@@ -1,0 +1,545 @@
+{
+  "binary_sha256": "5fd89a44ad3d26569ca8e2a99ad3a03936709bc977a409e17ef6c5393c773b20",
+  "reference": "pinned tsgo, budget-matched full stdout/stderr/status; current three-row observer roots also match1/4/8/10",
+  "timings_measured": false,
+  "cases": [
+    {
+      "name": "group-replacements-and-json",
+      "config": {
+        "compilerOptions": {
+          "allowJs": true,
+          "resolveJsonModule": true,
+          "noEmit": true
+        },
+        "include": [
+          "*.js",
+          "*.jsx",
+          "*.d.ts",
+          "*.tsx",
+          "*.ts",
+          "*.cjs",
+          "*.cts",
+          "*.mjs",
+          "*.mts",
+          "*.json"
+        ]
+      },
+      "files": [
+        "first.js",
+        "first.jsx",
+        "first.d.ts",
+        "first.tsx",
+        "first.ts",
+        "second.js",
+        "second.d.ts",
+        "third.jsx",
+        "third.d.ts",
+        "esm.mjs",
+        "esm.mts",
+        "common.cjs",
+        "common.cts",
+        "only.d.ts",
+        "data.json"
+      ],
+      "expected_roots": [
+        "./only.d.ts",
+        "./second.d.ts",
+        "./third.d.ts",
+        "./first.ts",
+        "./common.cts",
+        "./esm.mts",
+        "./data.json",
+        "./tsconfig.json"
+      ],
+      "case_sensitive": false,
+      "input_sha256": {
+        "common.cjs": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "common.cts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "data.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+        "esm.mjs": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "esm.mts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "first.d.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "first.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "first.jsx": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "first.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "first.tsx": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "only.d.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "second.d.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "second.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "third.d.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "third.jsx": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "tsconfig.json": "7b1fb0e508a4bcd82e528f0a8685339aa497c42e7f2750d8c09f385aa3100d49"
+      },
+      "observations": [
+        {
+          "budget": "default",
+          "mode": "showConfig",
+          "command": [
+            "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--showConfig"
+          ],
+          "budget_environment": {},
+          "rc": 0,
+          "stdout": "{\n    \"compilerOptions\": {\n        \"allowJs\": true,\n        \"noEmit\": true,\n        \"resolveJsonModule\": true\n    },\n    \"files\": [\n        \"./only.d.ts\",\n        \"./second.d.ts\",\n        \"./third.d.ts\",\n        \"./first.ts\",\n        \"./common.cts\",\n        \"./esm.mts\",\n        \"./data.json\",\n        \"./tsconfig.json\"\n    ],\n    \"include\": [\n        \"*.js\",\n        \"*.jsx\",\n        \"*.d.ts\",\n        \"*.tsx\",\n        \"*.ts\",\n        \"*.cjs\",\n        \"*.cts\",\n        \"*.mjs\",\n        \"*.mts\",\n        \"*.json\"\n    ]\n}",
+          "stderr": "",
+          "stdout_sha256": "8077a3fa2bff2545a33bece6e897d7822a1d1f8dffc8e5fc2290e05ee9086476",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "budget": "default",
+          "mode": "listFilesOnly",
+          "command": [
+            "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--listFilesOnly",
+            "--noLib"
+          ],
+          "budget_environment": {},
+          "rc": 0,
+          "stdout": "<fixture>/only.d.ts\n<fixture>/second.d.ts\n<fixture>/third.d.ts\n<fixture>/first.ts\n<fixture>/common.cts\n<fixture>/esm.mts\n<fixture>/data.json\n<fixture>/tsconfig.json\n",
+          "stderr": "",
+          "stdout_sha256": "b52b066b2bc07b7eb7efb9f027c090275268c665ae476ca67589ad9507ca9fa6",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "budget": "one",
+          "mode": "showConfig",
+          "command": [
+            "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--showConfig",
+            "--singleThreaded"
+          ],
+          "budget_environment": {},
+          "rc": 0,
+          "stdout": "{\n    \"compilerOptions\": {\n        \"allowJs\": true,\n        \"noEmit\": true,\n        \"resolveJsonModule\": true\n    },\n    \"files\": [\n        \"./only.d.ts\",\n        \"./second.d.ts\",\n        \"./third.d.ts\",\n        \"./first.ts\",\n        \"./common.cts\",\n        \"./esm.mts\",\n        \"./data.json\",\n        \"./tsconfig.json\"\n    ],\n    \"include\": [\n        \"*.js\",\n        \"*.jsx\",\n        \"*.d.ts\",\n        \"*.tsx\",\n        \"*.ts\",\n        \"*.cjs\",\n        \"*.cts\",\n        \"*.mjs\",\n        \"*.mts\",\n        \"*.json\"\n    ]\n}",
+          "stderr": "",
+          "stdout_sha256": "8077a3fa2bff2545a33bece6e897d7822a1d1f8dffc8e5fc2290e05ee9086476",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "budget": "one",
+          "mode": "listFilesOnly",
+          "command": [
+            "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--listFilesOnly",
+            "--noLib",
+            "--singleThreaded"
+          ],
+          "budget_environment": {},
+          "rc": 0,
+          "stdout": "<fixture>/only.d.ts\n<fixture>/second.d.ts\n<fixture>/third.d.ts\n<fixture>/first.ts\n<fixture>/common.cts\n<fixture>/esm.mts\n<fixture>/data.json\n<fixture>/tsconfig.json\n",
+          "stderr": "",
+          "stdout_sha256": "b52b066b2bc07b7eb7efb9f027c090275268c665ae476ca67589ad9507ca9fa6",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "budget": "four",
+          "mode": "showConfig",
+          "command": [
+            "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--showConfig",
+            "--checkers",
+            "4"
+          ],
+          "budget_environment": {
+            "GOMAXPROCS": "4"
+          },
+          "rc": 0,
+          "stdout": "{\n    \"compilerOptions\": {\n        \"allowJs\": true,\n        \"noEmit\": true,\n        \"resolveJsonModule\": true\n    },\n    \"files\": [\n        \"./only.d.ts\",\n        \"./second.d.ts\",\n        \"./third.d.ts\",\n        \"./first.ts\",\n        \"./common.cts\",\n        \"./esm.mts\",\n        \"./data.json\",\n        \"./tsconfig.json\"\n    ],\n    \"include\": [\n        \"*.js\",\n        \"*.jsx\",\n        \"*.d.ts\",\n        \"*.tsx\",\n        \"*.ts\",\n        \"*.cjs\",\n        \"*.cts\",\n        \"*.mjs\",\n        \"*.mts\",\n        \"*.json\"\n    ]\n}",
+          "stderr": "",
+          "stdout_sha256": "8077a3fa2bff2545a33bece6e897d7822a1d1f8dffc8e5fc2290e05ee9086476",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "budget": "four",
+          "mode": "listFilesOnly",
+          "command": [
+            "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--listFilesOnly",
+            "--noLib",
+            "--checkers",
+            "4"
+          ],
+          "budget_environment": {
+            "GOMAXPROCS": "4"
+          },
+          "rc": 0,
+          "stdout": "<fixture>/only.d.ts\n<fixture>/second.d.ts\n<fixture>/third.d.ts\n<fixture>/first.ts\n<fixture>/common.cts\n<fixture>/esm.mts\n<fixture>/data.json\n<fixture>/tsconfig.json\n",
+          "stderr": "",
+          "stdout_sha256": "b52b066b2bc07b7eb7efb9f027c090275268c665ae476ca67589ad9507ca9fa6",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "name": "literal-ownership-and-tombstones",
+      "config": {
+        "compilerOptions": {
+          "allowJs": true,
+          "noEmit": true
+        },
+        "files": [
+          "literal.js",
+          "entry.d.ts"
+        ],
+        "include": [
+          "*.js",
+          "*.jsx",
+          "*.d.ts",
+          "*.tsx",
+          "*.ts"
+        ]
+      },
+      "files": [
+        "literal.js",
+        "literal.ts",
+        "entry.d.ts",
+        "entry.js",
+        "later.js",
+        "later.ts",
+        "other.tsx",
+        "other.d.ts"
+      ],
+      "expected_roots": [
+        "./literal.js",
+        "./entry.d.ts",
+        "./other.tsx",
+        "./later.ts",
+        "./literal.ts"
+      ],
+      "case_sensitive": false,
+      "input_sha256": {
+        "entry.d.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "entry.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "later.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "later.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "literal.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "literal.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "other.d.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "other.tsx": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "tsconfig.json": "6bef1b4b1d54e5d59970df23cfa7d17578e64c1a3a5097d2cacfac4122ad37c0"
+      },
+      "observations": [
+        {
+          "budget": "default",
+          "mode": "showConfig",
+          "command": [
+            "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--showConfig"
+          ],
+          "budget_environment": {},
+          "rc": 0,
+          "stdout": "{\n    \"compilerOptions\": {\n        \"allowJs\": true,\n        \"noEmit\": true\n    },\n    \"files\": [\n        \"./literal.js\",\n        \"./entry.d.ts\",\n        \"./other.tsx\",\n        \"./later.ts\",\n        \"./literal.ts\"\n    ],\n    \"include\": [\n        \"*.js\",\n        \"*.jsx\",\n        \"*.d.ts\",\n        \"*.tsx\",\n        \"*.ts\"\n    ]\n}",
+          "stderr": "",
+          "stdout_sha256": "c868bd8b123a216d661a1126a002276a6a2b34cfa25aa454fc12bc8997d6ecac",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "budget": "default",
+          "mode": "listFilesOnly",
+          "command": [
+            "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--listFilesOnly",
+            "--noLib"
+          ],
+          "budget_environment": {},
+          "rc": 0,
+          "stdout": "<fixture>/literal.js\n<fixture>/entry.d.ts\n<fixture>/other.tsx\n<fixture>/later.ts\n<fixture>/literal.ts\n",
+          "stderr": "",
+          "stdout_sha256": "e30102854a9280c4fffd1c1034f012f753518b25765156884cb416d891057bc6",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "budget": "one",
+          "mode": "showConfig",
+          "command": [
+            "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--showConfig",
+            "--singleThreaded"
+          ],
+          "budget_environment": {},
+          "rc": 0,
+          "stdout": "{\n    \"compilerOptions\": {\n        \"allowJs\": true,\n        \"noEmit\": true\n    },\n    \"files\": [\n        \"./literal.js\",\n        \"./entry.d.ts\",\n        \"./other.tsx\",\n        \"./later.ts\",\n        \"./literal.ts\"\n    ],\n    \"include\": [\n        \"*.js\",\n        \"*.jsx\",\n        \"*.d.ts\",\n        \"*.tsx\",\n        \"*.ts\"\n    ]\n}",
+          "stderr": "",
+          "stdout_sha256": "c868bd8b123a216d661a1126a002276a6a2b34cfa25aa454fc12bc8997d6ecac",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "budget": "one",
+          "mode": "listFilesOnly",
+          "command": [
+            "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--listFilesOnly",
+            "--noLib",
+            "--singleThreaded"
+          ],
+          "budget_environment": {},
+          "rc": 0,
+          "stdout": "<fixture>/literal.js\n<fixture>/entry.d.ts\n<fixture>/other.tsx\n<fixture>/later.ts\n<fixture>/literal.ts\n",
+          "stderr": "",
+          "stdout_sha256": "e30102854a9280c4fffd1c1034f012f753518b25765156884cb416d891057bc6",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "budget": "four",
+          "mode": "showConfig",
+          "command": [
+            "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--showConfig",
+            "--checkers",
+            "4"
+          ],
+          "budget_environment": {
+            "GOMAXPROCS": "4"
+          },
+          "rc": 0,
+          "stdout": "{\n    \"compilerOptions\": {\n        \"allowJs\": true,\n        \"noEmit\": true\n    },\n    \"files\": [\n        \"./literal.js\",\n        \"./entry.d.ts\",\n        \"./other.tsx\",\n        \"./later.ts\",\n        \"./literal.ts\"\n    ],\n    \"include\": [\n        \"*.js\",\n        \"*.jsx\",\n        \"*.d.ts\",\n        \"*.tsx\",\n        \"*.ts\"\n    ]\n}",
+          "stderr": "",
+          "stdout_sha256": "c868bd8b123a216d661a1126a002276a6a2b34cfa25aa454fc12bc8997d6ecac",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "budget": "four",
+          "mode": "listFilesOnly",
+          "command": [
+            "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--listFilesOnly",
+            "--noLib",
+            "--checkers",
+            "4"
+          ],
+          "budget_environment": {
+            "GOMAXPROCS": "4"
+          },
+          "rc": 0,
+          "stdout": "<fixture>/literal.js\n<fixture>/entry.d.ts\n<fixture>/other.tsx\n<fixture>/later.ts\n<fixture>/literal.ts\n",
+          "stderr": "",
+          "stdout_sha256": "e30102854a9280c4fffd1c1034f012f753518b25765156884cb416d891057bc6",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "name": "unicode-and-include-buckets",
+      "config": {
+        "compilerOptions": {
+          "allowJs": true,
+          "noEmit": true
+        },
+        "include": [
+          "second/*.js",
+          "first/*.tsx",
+          "**/*.d.ts",
+          "**/*.ts",
+          "**/*.js"
+        ]
+      },
+      "files": [
+        "first/choice.tsx",
+        "first/choice.ts",
+        "first/choice.js",
+        "first/\u039f\u03a3.ts",
+        "first/\u039f\u03a3.js",
+        "second/choice.js",
+        "second/choice.d.ts",
+        "second/choice.ts",
+        "third/keep.js",
+        "third/keep.d.ts",
+        "third/e\u0301.ts"
+      ],
+      "expected_roots": [
+        "./third/keep.d.ts",
+        "./first/choice.ts",
+        "./first/\u039f\u03a3.ts",
+        "./second/choice.ts",
+        "./third/e\u0301.ts",
+        "./third/keep.js"
+      ],
+      "case_sensitive": false,
+      "input_sha256": {
+        "first/choice.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "first/choice.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "first/choice.tsx": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "first/\u039f\u03a3.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "first/\u039f\u03a3.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "second/choice.d.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "second/choice.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "second/choice.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "third/e\u0301.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "third/keep.d.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "third/keep.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+        "tsconfig.json": "6ba8490da6344bf839dacd2eac5a13ebf5aeec8c8481f8f5c6812776ffd30029"
+      },
+      "observations": [
+        {
+          "budget": "default",
+          "mode": "showConfig",
+          "command": [
+            "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--showConfig"
+          ],
+          "budget_environment": {},
+          "rc": 0,
+          "stdout": "{\n    \"compilerOptions\": {\n        \"allowJs\": true,\n        \"noEmit\": true\n    },\n    \"files\": [\n        \"./third/keep.d.ts\",\n        \"./first/choice.ts\",\n        \"./first/\u039f\u03a3.ts\",\n        \"./second/choice.ts\",\n        \"./third/e\u0301.ts\",\n        \"./third/keep.js\"\n    ],\n    \"include\": [\n        \"second/*.js\",\n        \"first/*.tsx\",\n        \"**/*.d.ts\",\n        \"**/*.ts\",\n        \"**/*.js\"\n    ]\n}",
+          "stderr": "",
+          "stdout_sha256": "5bf034ef6b2f0cf4029a695264ae4f6a32469bc163e1290ddbbe21b53efce9ee",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "budget": "default",
+          "mode": "listFilesOnly",
+          "command": [
+            "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--listFilesOnly",
+            "--noLib"
+          ],
+          "budget_environment": {},
+          "rc": 0,
+          "stdout": "<fixture>/third/keep.d.ts\n<fixture>/first/choice.ts\n<fixture>/first/\u039f\u03a3.ts\n<fixture>/second/choice.ts\n<fixture>/third/e\u0301.ts\n<fixture>/third/keep.js\n",
+          "stderr": "",
+          "stdout_sha256": "aa854d394731eddc2ce4d99768815c96e6734c6456e024a8cd760741ebaa92be",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "budget": "one",
+          "mode": "showConfig",
+          "command": [
+            "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--showConfig",
+            "--singleThreaded"
+          ],
+          "budget_environment": {},
+          "rc": 0,
+          "stdout": "{\n    \"compilerOptions\": {\n        \"allowJs\": true,\n        \"noEmit\": true\n    },\n    \"files\": [\n        \"./third/keep.d.ts\",\n        \"./first/choice.ts\",\n        \"./first/\u039f\u03a3.ts\",\n        \"./second/choice.ts\",\n        \"./third/e\u0301.ts\",\n        \"./third/keep.js\"\n    ],\n    \"include\": [\n        \"second/*.js\",\n        \"first/*.tsx\",\n        \"**/*.d.ts\",\n        \"**/*.ts\",\n        \"**/*.js\"\n    ]\n}",
+          "stderr": "",
+          "stdout_sha256": "5bf034ef6b2f0cf4029a695264ae4f6a32469bc163e1290ddbbe21b53efce9ee",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "budget": "one",
+          "mode": "listFilesOnly",
+          "command": [
+            "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--listFilesOnly",
+            "--noLib",
+            "--singleThreaded"
+          ],
+          "budget_environment": {},
+          "rc": 0,
+          "stdout": "<fixture>/third/keep.d.ts\n<fixture>/first/choice.ts\n<fixture>/first/\u039f\u03a3.ts\n<fixture>/second/choice.ts\n<fixture>/third/e\u0301.ts\n<fixture>/third/keep.js\n",
+          "stderr": "",
+          "stdout_sha256": "aa854d394731eddc2ce4d99768815c96e6734c6456e024a8cd760741ebaa92be",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "budget": "four",
+          "mode": "showConfig",
+          "command": [
+            "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--showConfig",
+            "--checkers",
+            "4"
+          ],
+          "budget_environment": {
+            "GOMAXPROCS": "4"
+          },
+          "rc": 0,
+          "stdout": "{\n    \"compilerOptions\": {\n        \"allowJs\": true,\n        \"noEmit\": true\n    },\n    \"files\": [\n        \"./third/keep.d.ts\",\n        \"./first/choice.ts\",\n        \"./first/\u039f\u03a3.ts\",\n        \"./second/choice.ts\",\n        \"./third/e\u0301.ts\",\n        \"./third/keep.js\"\n    ],\n    \"include\": [\n        \"second/*.js\",\n        \"first/*.tsx\",\n        \"**/*.d.ts\",\n        \"**/*.ts\",\n        \"**/*.js\"\n    ]\n}",
+          "stderr": "",
+          "stdout_sha256": "5bf034ef6b2f0cf4029a695264ae4f6a32469bc163e1290ddbbe21b53efce9ee",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "budget": "four",
+          "mode": "listFilesOnly",
+          "command": [
+            "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--pretty",
+            "false",
+            "--listFilesOnly",
+            "--noLib",
+            "--checkers",
+            "4"
+          ],
+          "budget_environment": {
+            "GOMAXPROCS": "4"
+          },
+          "rc": 0,
+          "stdout": "<fixture>/third/keep.d.ts\n<fixture>/first/choice.ts\n<fixture>/first/\u039f\u03a3.ts\n<fixture>/second/choice.ts\n<fixture>/third/e\u0301.ts\n<fixture>/third/keep.js\n",
+          "stderr": "",
+          "stdout_sha256": "aa854d394731eddc2ce4d99768815c96e6734c6456e024a8cd760741ebaa92be",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    }
+  ]
+}

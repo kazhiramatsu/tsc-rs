@@ -14,7 +14,7 @@ const VERSION: u32 = 2;
 
 #[path = "library_image/runtime.rs"]
 mod runtime;
-pub use runtime::{lookup, register, LibraryMetadata, StaticLibraryImage};
+pub use runtime::{lookup, register, FreshLibrarySource, LibraryMetadata, StaticLibraryImage};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ImageError(pub &'static str);
@@ -87,6 +87,21 @@ pub struct Decoder<'a>(&'a [u8]);
 
 impl<'a> Decoder<'a> {
     pub fn open(bytes: &'a [u8], magic: &[u8; 8], provenance: u64) -> Result<Self> {
+        let (input, checksum) = Self::header(bytes, magic, provenance)?;
+        if fingerprint(input.0) != checksum {
+            return Err(ImageError("invalid library image length or checksum"));
+        }
+        Ok(input)
+    }
+
+    /// Compiled immutable frames have their contents proved against the
+    /// ordinary frontend. Keep structural checks without hashing them again.
+    pub fn open_static(bytes: &'static [u8], magic: &[u8; 8], provenance: u64) -> Result<Self> {
+        let (input, _) = Self::header(bytes, magic, provenance)?;
+        Ok(input)
+    }
+
+    fn header(bytes: &'a [u8], magic: &[u8; 8], provenance: u64) -> Result<(Self, u64)> {
         let mut input = Self(bytes);
         if input.take(8)? != magic || input.word()? != VERSION {
             return Err(ImageError("unknown library image format"));
@@ -96,10 +111,10 @@ impl<'a> Decoder<'a> {
             return Err(ImageError("stale library image provenance"));
         }
         let checksum = input.wide()?;
-        if input.0.len() != length || fingerprint(input.0) != checksum {
+        if input.0.len() != length {
             return Err(ImageError("invalid library image length or checksum"));
         }
-        Ok(input)
+        Ok((input, checksum))
     }
     fn take(&mut self, count: usize) -> Result<&'a [u8]> {
         let (head, tail) = self
