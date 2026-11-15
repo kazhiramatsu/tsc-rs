@@ -131,7 +131,7 @@ fn class_aliases_follow_runtime_members_like_pinned_tsgo() {
             ],
             false,
         )
-        .unwrap();
+        .unwrap_or_else(|error| panic!("{name}: {error:?}"));
         let output = create_printer(
             PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2024),
         )

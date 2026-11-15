@@ -2222,15 +2222,17 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             })
             .unwrap_or(EmitFlags::NONE);
         let parameter = self.context.arena().node(original)?.kind == SyntaxKind::Parameter;
-        let range = if parameter {
-            self.raw_map_range(original)?
+        let (range, map_flags) = if parameter {
+            (self.raw_map_range(original)?, EmitFlags::NONE)
         } else {
             self.retained_initializer_map_range(property)?
         };
         let accessor = self.has_modifier(original_modifiers, SyntaxKind::AccessorKeyword)?;
         let arena = self.context.arena_mut()?;
         arena.set_original_node(statement, Some(property))?;
-        arena.metadata_mut(statement).add_flags(inherited_flags);
+        arena
+            .metadata_mut(statement)
+            .add_flags(inherited_flags | map_flags);
         arena.metadata_mut(statement).set_comment_range(comments);
         arena.metadata_mut(statement).set_source_map_range(range);
         if parameter {
@@ -2249,7 +2251,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
     fn retained_initializer_map_range(
         &self,
         property: TransformNode,
-    ) -> Result<SourceMapRange, TransformError> {
+    ) -> Result<(SourceMapRange, EmitFlags), TransformError> {
         let record = self.context.arena().node(property)?;
         let Some(data) = record.as_property_declaration() else {
             return Err(TransformError::RequiredChildRemoved {
@@ -2264,6 +2266,13 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         // moveRangePastModifiers has a property/method-specific arm: use
         // name.pos, even when it differs from the last modifier's end.
         let start = self.context.arena().node(self.node(name))?.pos;
+        // A legacy class alias can replace the name with a synthetic one.
+        // Its initializer still maps the declaration's real trailing edge.
+        let (start, map_flags) = if start == u32::MAX && record.end != u32::MAX {
+            (record.end, EmitFlags::NO_LEADING_SOURCE_MAP)
+        } else {
+            (start, EmitFlags::NONE)
+        };
         SourceRange::from_raw(
             start,
             record.end,
@@ -2273,7 +2282,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
                 .syntax()
                 .positions(),
         )
-        .map(|range| SourceMapRange::new(property.source(), range))
+        .map(|range| (SourceMapRange::new(property.source(), range), map_flags))
         .map_err(|error| TransformError::InvalidSourceRange {
             node: property,
             error,

@@ -139,6 +139,14 @@ struct LegacyDecoratorVisitor<'context, 'resolver> {
 struct RangePastModifiers {
     source: TransformSourceId,
     range: SourceRange,
+    map_flags: EmitFlags,
+}
+
+impl RangePastModifiers {
+    fn apply_source_map(self, metadata: &mut crate::EmitMetadata) {
+        metadata.set_source_map_range(SourceMapRange::new(self.source, self.range));
+        metadata.add_flags(self.map_flags);
+    }
 }
 
 /// Metadata decorators are synthesized after the TypeScript modifier pass.
@@ -506,8 +514,9 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             NodeData::Token => Some(original.node()),
             NodeData::Identifier(_) => {
                 if let Some(alias) = self.class_alias_for_reference(original)? {
+                    // tsgo returns the synthetic alias, whose lexical range
+                    // owns neither reference maps nor trailing comments.
                     let replacement = self.create_generated_identifier(&alias)?;
-                    self.set_original_and_range(replacement, original)?;
                     Some(replacement.node())
                 } else {
                     Some(self.update_generic(original)?)
@@ -1621,7 +1630,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         {
             let metadata = self.context.arena_mut()?.metadata_mut(assignment);
             metadata.add_flags(EmitFlags::NO_COMMENTS);
-            metadata.set_source_map_range(SourceMapRange::new(location.source, location.range));
+            location.apply_source_map(metadata);
         }
         let statement = self.create_expression_statement(assignment)?;
         self.set_original_only(statement, class)
@@ -1715,7 +1724,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         {
             let metadata = self.context.arena_mut()?.metadata_mut(call);
             metadata.add_flags(EmitFlags::NO_COMMENTS);
-            metadata.set_source_map_range(SourceMapRange::new(location.source, location.range));
+            location.apply_source_map(metadata);
         }
         let statement = self.create_expression_statement(call)?;
         Ok(statement)
@@ -3355,16 +3364,14 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                     .is_ok_and(|modifier| keep(modifier.kind))
             })
             .collect::<Vec<_>>();
-        if retained.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(
-                self.context
-                    .factory()?
-                    .update_node_array(modifiers, retained)?
-                    .array(),
-            ))
-        }
+        // Go retains an empty modifier list. Turning it into None rebuilds
+        // an otherwise unchanged member and gives it a new map boundary.
+        Ok(Some(
+            self.context
+                .factory()?
+                .update_node_array(modifiers, retained)?
+                .array(),
+        ))
     }
 
     fn has_modifier(
@@ -4555,10 +4562,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 self.move_range_past_modifiers(original, modifiers, injected_metadata)?;
             let metadata = self.context.arena_mut()?.metadata_mut(updated_node);
             metadata.set_comment_range(comment_range);
-            metadata.set_source_map_range(SourceMapRange::new(
-                source_map_range.source,
-                source_map_range.range,
-            ));
+            source_map_range.apply_source_map(metadata);
         }
         Ok(updated)
     }
@@ -4616,6 +4620,13 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 .or_else(|| last_decorator_end.filter(|end| *end != u32::MAX))
                 .unwrap_or(declaration_record.pos)
         });
+        // A rewritten member name can have no source start while its
+        // declaration still has an end. Keep that trailing map alone.
+        let (start, map_flags) = if start == u32::MAX && declaration_record.end != u32::MAX {
+            (declaration_record.end, EmitFlags::NO_LEADING_SOURCE_MAP)
+        } else {
+            (start, EmitFlags::NONE)
+        };
         let source = self.context.arena().source(declaration.source())?.syntax();
         let range = SourceRange::from_raw(start, declaration_record.end, source.positions())
             .map_err(|error| TransformError::InvalidSourceRange {
@@ -4625,6 +4636,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         Ok(RangePastModifiers {
             source: declaration.source(),
             range,
+            map_flags,
         })
     }
 
