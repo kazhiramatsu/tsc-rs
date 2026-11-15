@@ -221,3 +221,26 @@ fn native_config_root_order_matches_pinned_cli_fixtures() {
         assert_eq!(json!(names), case["expected_roots"], "{}", case["name"]);
     }
 }
+#[test]
+fn config_discovery_reports_directory_failures_in_walk_order_not_include_order() {
+    use tsc_host::{HostErrorKind, HostOperation, MemoryCompilerHost};
+
+    let mut builder = MemoryCompilerHost::builder("/repo")
+        .file("/repo/a/input.ts", b"export {};".to_vec())
+        .file("/repo/b/input.ts", b"export {};".to_vec());
+    for directory in ["/repo/a", "/repo/b"] {
+        builder = builder.failure(HostError::new_js(
+            HostErrorKind::PermissionDenied,
+            HostOperation::ReadDirectory,
+            Some(JsStr::from_str(directory)),
+            "unreadable directory",
+        ));
+    }
+    let host = builder.build().unwrap();
+    let includes = [JsString::from("b/**/*.ts"), JsString::from("a/**/*.ts")];
+    let error = CompilerConfigHost::new(&host)
+        .read_directory("/repo".into(), &[".ts"], None, Some(&includes), None)
+        .unwrap_err();
+    assert_eq!(error.operation(), ConfigHostOperation::ReadDirectory);
+    assert_eq!(error.path(), JsStr::from_str("/repo/a"));
+}

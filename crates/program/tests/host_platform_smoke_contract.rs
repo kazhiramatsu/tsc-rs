@@ -125,3 +125,136 @@ fn native_filesystem_and_memory_hosts_build_the_same_small_program() {
         [normalized_display(&child), normalized_display(&main)]
     );
 }
+#[test]
+fn native_config_discovery_preserves_include_buckets_and_native_order() {
+    use tsc_diagnostics::JsString;
+    use tsc_program::{CompilerConfigHost, ConfigParseHost};
+
+    let tree = TempTree::new();
+    let names = [
+        "root.ts",
+        "a/first.ts",
+        "a/deep/leaf.ts",
+        "b/last.ts",
+        "a/skip.ts",
+        "a/readme.md",
+        "node_modules/pkg/explicit.ts",
+        "unicode/\u{e000}.ts",
+        "unicode/\u{10000}.ts",
+    ];
+    let mut memory = MemoryCompilerHost::builder(normalized_display(tree.root()));
+    for name in names {
+        let path = tree.path(name);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, b"export {};\n").unwrap();
+        memory = memory.file(normalized_display(&path), b"export {};\n".to_vec());
+    }
+    let base = JsString::from(normalized_display(tree.root()));
+    let includes = ["b/**/*.ts", "**/*.ts", "node_modules/**/*.ts"].map(JsString::from);
+    let excludes = [JsString::from("**/skip.ts")];
+    let expected = [
+        "b/last.ts",
+        "root.ts",
+        "a/first.ts",
+        "a/deep/leaf.ts",
+        "unicode/\u{e000}.ts",
+        "unicode/\u{10000}.ts",
+        "node_modules/pkg/explicit.ts",
+    ]
+    .map(|name| JsString::from(normalized_display(&tree.path(name))));
+    for case_sensitive in [true, false] {
+        let filesystem = FsCompilerHost::new(tree.root(), case_sensitive).unwrap();
+        let memory = memory
+            .clone()
+            .case_sensitive(case_sensitive)
+            .build()
+            .unwrap();
+        for host in [&filesystem as &dyn CompilerHost, &memory] {
+            let config = CompilerConfigHost::new(host);
+            assert_eq!(
+                config
+                    .read_directory(
+                        base.as_js(),
+                        &[".ts"],
+                        Some(&excludes),
+                        Some(&includes),
+                        None
+                    )
+                    .unwrap(),
+                expected
+            );
+            assert_eq!(
+                config
+                    .read_directory(
+                        base.as_js(),
+                        &[".ts"],
+                        Some(&excludes),
+                        Some(&includes),
+                        Some(1)
+                    )
+                    .unwrap(),
+                [JsString::from(normalized_display(&tree.path("root.ts")))]
+            );
+            assert!(config
+                .read_directory(base.as_js(), &[".ts"], None, Some(&includes), Some(0))
+                .unwrap()
+                .is_empty());
+            // An include adds this base's parent after the base itself.
+            // Prefetch may reach one directory at two remaining depths.
+            let nested = JsString::from(normalized_display(&tree.path("a")));
+            let ancestor_include = [JsString::from("../**/*.ts")];
+            let overlapping = [
+                "a/first.ts",
+                "a/skip.ts",
+                "a/deep/leaf.ts",
+                "root.ts",
+                "b/last.ts",
+                "unicode/\u{e000}.ts",
+                "unicode/\u{10000}.ts",
+            ]
+            .map(|name| JsString::from(normalized_display(&tree.path(name))));
+            assert_eq!(
+                config
+                    .read_directory(
+                        nested.as_js(),
+                        &[".ts"],
+                        None,
+                        Some(&ancestor_include),
+                        Some(2)
+                    )
+                    .unwrap(),
+                overlapping
+            );
+        }
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn native_config_discovery_keeps_the_first_symlink_spelling_and_stops_cycles() {
+    use tsc_diagnostics::JsString;
+    use tsc_program::{CompilerConfigHost, ConfigParseHost};
+
+    let tree = TempTree::new();
+    for name in ["root.ts", "z-real/one.ts", "z-real/deep/two.ts"] {
+        let path = tree.path(name);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, b"export {};\n").unwrap();
+    }
+    std::os::unix::fs::symlink(tree.path("z-real"), tree.path("a-link")).unwrap();
+    std::os::unix::fs::symlink(tree.root(), tree.path("z-real/back")).unwrap();
+    let filesystem = FsCompilerHost::new(tree.root(), true).unwrap();
+    let config = CompilerConfigHost::new(&filesystem);
+    let base = JsString::from(normalized_display(tree.root()));
+    let includes = [JsString::from("**/*.ts")];
+    let expected = ["root.ts", "a-link/one.ts", "a-link/deep/two.ts"]
+        .map(|name| JsString::from(normalized_display(&tree.path(name))));
+    for _ in 0..4 {
+        assert_eq!(
+            config
+                .read_directory(base.as_js(), &[".ts"], None, Some(&includes), None)
+                .unwrap(),
+            expected
+        );
+    }
+}
