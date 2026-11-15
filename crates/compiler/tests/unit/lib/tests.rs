@@ -359,3 +359,75 @@ fn declaration_order_consumption_replays_after_pending_prints_complete() {
         assert_ne!(actual.work_counters.checker_replay_reasons(), 0);
     }
 }
+
+#[test]
+fn declaration_exports_skip_overlapping_package_patterns_like_tsgo() {
+    for (exports, expected) in [
+        (
+            r#"{".":"./index.d.ts","./bad*":"./ab*bc.d.ts","./good":"./abc.d.ts"}"#,
+            "export declare const result: import(\"pkg/good\").Value;\n",
+        ),
+        (
+            r#"{".":"./index.d.ts","./alias*":"./abc.d.ts","./good":"./abc.d.ts"}"#,
+            "export declare const result: import(\"pkg/alias\").Value;\n",
+        ),
+    ] {
+        let package_json = format!(r#"{{"name":"pkg","type":"module","exports":{exports}}}"#);
+        let files = [
+            ("/project/package.json", r#"{"type":"module"}"#),
+            (
+                "/project/main.ts",
+                "import { make } from \"pkg\";\nexport const result = make();\n",
+            ),
+            (
+                "/project/node_modules/pkg/package.json",
+                package_json.as_str(),
+            ),
+            (
+                "/project/node_modules/pkg/index.d.ts",
+                "import { Value } from \"./abc.js\";\nexport declare function make(): Value;\n",
+            ),
+            (
+                "/project/node_modules/pkg/abc.d.ts",
+                "export declare class Value { private brand; }\n",
+            ),
+        ];
+        let mut builder = tsc_host::MemoryCompilerHost::builder("/project").case_sensitive(true);
+        for (path, text) in files {
+            builder = builder.file(path, text.as_bytes());
+        }
+        let host = builder.build().expect("fixture host");
+        let options = CompilerOptions {
+            module: Some(199),
+            target: Some(99),
+            declaration: Some(true),
+            emit_declaration_only: Some(true),
+            types: Some(Vec::new()),
+            out_dir: Some("/project/out".into()),
+            ..CompilerOptions::default()
+        };
+        let prepared = tsc_program::load_emitting_program(
+            &host,
+            &[std::path::PathBuf::from("/project/main.ts")],
+            options,
+            tsc_program::ProgramOptions::default().with_no_lib(true),
+            &tsc_program::LibraryCatalog::typescript_7_1("/lib"),
+            tsc_program::ProgramLoadLimits::new(256, 2048, 64, 16 * 1024 * 1024, 128 * 1024 * 1024),
+        )
+        .expect("fixture program");
+        let mut sink = MemoryOutputSink::new();
+        ProgramSession::new(prepared).emit(&mut sink).expect("emit");
+        let declaration = sink
+            .writes()
+            .iter()
+            .find(|artifact| {
+                artifact.kind() == EmitArtifactKind::Declaration
+                    && artifact.path().to_string_lossy().ends_with("main.d.ts")
+            })
+            .expect("main declaration");
+        assert_eq!(
+            declaration.materialized_bytes().as_ref(),
+            expected.as_bytes()
+        );
+    }
+}
