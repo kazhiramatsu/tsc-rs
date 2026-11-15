@@ -167,6 +167,15 @@ impl fmt::Display for ConfigHostError {
 
 impl Error for ConfigHostError {}
 
+/// A filtered listing and, when supplied, each file's first matching
+/// index in the callback's include-spec array. The parser validates the
+/// optional vector's length and index range before consuming this proof.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConfigDirectoryListing {
+    pub file_names: Vec<JsString>,
+    pub include_spec_indices: Option<Vec<usize>>,
+}
+
 /// The TypeScript `ParseConfigHost` observations needed by config planning.
 ///
 /// `read_directory` has the shape of TypeScript's filtered recursive callback,
@@ -193,6 +202,24 @@ pub trait ConfigParseHost {
         includes: Option<&[JsString]>,
         depth: Option<usize>,
     ) -> Result<Vec<JsString>, ConfigHostError>;
+
+    /// Read the same listing with optional first-include provenance. Hosts
+    /// retaining the original callback keep its exact observations and the
+    /// parser's existing reason matcher.
+    fn read_directory_with_include_matches(
+        &self,
+        directory: JsStr<'_>,
+        extensions: &[&str],
+        excludes: Option<&[JsString]>,
+        includes: Option<&[JsString]>,
+        depth: Option<usize>,
+    ) -> Result<ConfigDirectoryListing, ConfigHostError> {
+        self.read_directory(directory, extensions, excludes, includes, depth)
+            .map(|file_names| ConfigDirectoryListing {
+                file_names,
+                include_spec_indices: None,
+            })
+    }
 
     /// The real path of a file (tsgo `FS().Realpath`): a config found in
     /// `node_modules` resolves to where it really is. `None` keeps the path.
@@ -2166,6 +2193,7 @@ fn parse_config_root_plan_inner(
     };
     let DerivedFileNames {
         file_names,
+        root_include_specs,
         include_specs,
         exclude_specs,
         content_mappers,
@@ -2196,6 +2224,7 @@ fn parse_config_root_plan_inner(
         &config_base,
         &node.source.file_name,
         host.use_case_sensitive_file_names(),
+        root_include_specs,
     )?;
     let project_references = config_project_references(node.references.as_ref(), &config_base);
     let wildcard_directories = derive_wildcard_directories(
@@ -4976,6 +5005,7 @@ fn config_error_from_resolution(error: ResolutionError) -> ConfigParseError {
 /// A config's root file names and the specs they were matched with.
 struct DerivedFileNames {
     file_names: Vec<JsString>,
+    root_include_specs: Option<Vec<Option<Arc<JsString>>>>,
     include_specs: Vec<JsString>,
     exclude_specs: Option<Vec<JsString>>,
     content_mappers: Vec<Arc<Mapper>>,
@@ -5099,16 +5129,57 @@ fn derive_file_names<'j0, 'j1>(
     if discovery_options.resolve_json_module {
         flat_extensions.push(".json");
     }
-    let wildcard_candidates = if include_values.is_empty() {
-        Vec::new()
+    let listing = if include_values.is_empty() {
+        ConfigDirectoryListing {
+            file_names: Vec::new(),
+            include_spec_indices: None,
+        }
+    } else if config.include.is_none() {
+        ConfigDirectoryListing {
+            file_names: host.read_directory(
+                base_path,
+                &flat_extensions,
+                exclude_values.as_deref(),
+                Some(include_values.as_slice()),
+                None,
+            )?,
+            include_spec_indices: None,
+        }
     } else {
-        host.read_directory(
+        host.read_directory_with_include_matches(
             base_path,
             &flat_extensions,
             exclude_values.as_deref(),
             Some(include_values.as_slice()),
             None,
         )?
+    };
+    let proven_indices = listing.include_spec_indices.filter(|indices| {
+        indices.len() == listing.file_names.len()
+            && indices.iter().all(|&index| index < include.len())
+            && listing.file_names.iter().all(|file| {
+                let path = file.as_js();
+                let Some((root, tail)) = crate::js_path::root_parts(path) else {
+                    return false;
+                };
+                root.ends_with("/")
+                    && !tail.is_empty()
+                    && !path.as_bytes().contains(&b'\\')
+                    && tail
+                        .as_bytes()
+                        .split(|&byte| byte == b'/')
+                        .all(|part| !part.is_empty() && part != b"." && part != b"..")
+            })
+    });
+    let has_provenance = proven_indices.is_some();
+    let mut proven_indices = proven_indices.unwrap_or_default().into_iter();
+    let include_owners = if has_provenance && config.include.is_some() {
+        include
+            .iter()
+            .map(|spec| Arc::new(spec.text.clone()))
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
     };
     let json_include_patterns = include_values
         .iter()
@@ -5137,7 +5208,8 @@ fn derive_file_names<'j0, 'j1>(
         .collect::<rustc_hash::FxHashSet<_>>();
     let mut wildcard = OrderedFileMap::default();
     let mut wildcard_json = OrderedFileMap::default();
-    for file in wildcard_candidates {
+    for file in listing.file_names {
+        let matched_include = proven_indices.next();
         if file_extension_is(&file, ".json") {
             if discovery_options.resolve_json_module
                 && json_include_patterns
@@ -5146,7 +5218,7 @@ fn derive_file_names<'j0, 'j1>(
             {
                 let key = file_name_key(file.as_js(), case_sensitive);
                 if !literal_keys.contains(&key) && !wildcard_json.contains(&key) {
-                    wildcard_json.insert(key, file);
+                    wildcard_json.insert(key, file, matched_include);
                 }
             }
             continue;
@@ -5168,16 +5240,24 @@ fn derive_file_names<'j0, 'j1>(
         );
         let key = file_name_key(file.as_js(), case_sensitive);
         if !literal_keys.contains(&key) && !wildcard.contains(&key) {
-            wildcard.insert(key, file);
+            wildcard.insert(key, file, matched_include);
         }
     }
 
-    let file_names = literal
+    let file_count = literal.len() + wildcard.index.len() + wildcard_json.index.len();
+    let mut file_names = Vec::with_capacity(file_count);
+    let mut root_include_specs = has_provenance.then(|| Vec::with_capacity(file_count));
+    for (file, matched_include) in literal
         .into_iter()
-        .map(|(_, file)| file)
+        .map(|(_, file)| (file, None))
         .chain(wildcard.into_files())
         .chain(wildcard_json.into_files())
-        .collect::<Vec<_>>();
+    {
+        if let Some(specs) = &mut root_include_specs {
+            specs.push(matched_include.and_then(|index| include_owners.get(index).cloned()));
+        }
+        file_names.push(file);
+    }
     report_no_input_files(
         config,
         config_file_name,
@@ -5188,6 +5268,7 @@ fn derive_file_names<'j0, 'j1>(
     );
     Ok(DerivedFileNames {
         file_names,
+        root_include_specs,
         include_specs: include_values,
         exclude_specs: exclude_values,
         content_mappers,
@@ -5782,6 +5863,7 @@ fn config_root_reasons<'j0, 'j1>(
     config_base_path: impl Into<JsStr<'j0>>,
     config_file_name: impl Into<JsStr<'j1>>,
     case_sensitive: bool,
+    root_include_specs: Option<Vec<Option<Arc<JsString>>>>,
 ) -> Result<Vec<RootFileReason>, ConfigParseError> {
     use crate::config_matcher::{InputComponent, MatchInput};
     let config_base_path = config_base_path.into();
@@ -5800,6 +5882,34 @@ fn config_root_reasons<'j0, 'j1>(
                 case_sensitive,
             ))
             .or_insert_with(|| Arc::new(spec.text.clone()));
+    }
+
+    if let Some(specs) = root_include_specs {
+        debug_assert_eq!(specs.len(), file_names.len());
+        let config_file = Arc::new(config_file_name.to_owned());
+        let default_include = files.is_none() && include.is_none();
+        return Ok(file_names
+            .iter()
+            .zip(specs)
+            .map(|(file_name, matched)| {
+                if !normalized_files.is_empty() {
+                    let key = file_name_key(file_name.as_js(), case_sensitive);
+                    if let Some(spec) = normalized_files.get(&key) {
+                        return RootFileReason::FilesList { spec: spec.clone() };
+                    }
+                }
+                if default_include {
+                    RootFileReason::DefaultInclude
+                } else if let Some(spec) = matched {
+                    RootFileReason::IncludePattern {
+                        spec,
+                        config_file: config_file.clone(),
+                    }
+                } else {
+                    RootFileReason::Explicit
+                }
+            })
+            .collect());
     }
 
     let mut include_patterns = Vec::with_capacity(include.map_or(0, <[ConfigSpec]>::len));
@@ -7236,7 +7346,7 @@ fn substitute_config_dir_typed_string_array<'j0>(
 /// positions of the others stay put; the final listing skips it.
 #[derive(Default)]
 struct OrderedFileMap {
-    entries: Vec<Option<(JsString, JsString)>>,
+    entries: Vec<Option<(JsString, JsString, Option<usize>)>>,
     index: rustc_hash::FxHashMap<JsString, usize>,
 }
 
@@ -7246,9 +7356,9 @@ impl OrderedFileMap {
     }
 
     /// Append a key the caller has checked is absent.
-    fn insert(&mut self, key: JsString, file: JsString) {
+    fn insert(&mut self, key: JsString, file: JsString, include: Option<usize>) {
         self.index.insert(key.clone(), self.entries.len());
-        self.entries.push(Some((key, file)));
+        self.entries.push(Some((key, file, include)));
     }
 
     fn remove(&mut self, key: &JsString) {
@@ -7257,8 +7367,11 @@ impl OrderedFileMap {
         }
     }
 
-    fn into_files(self) -> impl Iterator<Item = JsString> {
-        self.entries.into_iter().flatten().map(|(_, file)| file)
+    fn into_files(self) -> impl Iterator<Item = (JsString, Option<usize>)> {
+        self.entries
+            .into_iter()
+            .flatten()
+            .map(|(_, file, include)| (file, include))
     }
 }
 

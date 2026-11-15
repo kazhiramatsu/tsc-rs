@@ -9,7 +9,9 @@ use std::collections::{BTreeSet, VecDeque};
 use tsc_diagnostics::{JsStr, JsString};
 use tsc_host::{CompilerHost, DirectoryListingEntry, DirectoryListingKind, HostError};
 
-use crate::config::{ConfigHostError, ConfigHostOperation, ConfigParseHost};
+use crate::config::{
+    ConfigDirectoryListing, ConfigHostError, ConfigHostOperation, ConfigParseHost,
+};
 use crate::config_matcher::{ConfigFilePattern, InputComponent, MatchInput};
 use crate::decode_host_text;
 use crate::js_path::{
@@ -302,6 +304,79 @@ impl<'a> CompilerConfigHost<'a> {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
+    fn read_directory_impl(
+        &self,
+        directory: JsStr<'_>,
+        extensions: &[&str],
+        excludes: Option<&[JsString]>,
+        includes: Option<&[JsString]>,
+        depth: Option<usize>,
+        include_matches: bool,
+    ) -> Result<ConfigDirectoryListing, ConfigHostError> {
+        let case_sensitive = self.host.use_case_sensitive_file_names();
+        // tsgo `newGlobMatcher`: the excludes are compiled for their own
+        // usage (`UsageExclude`), the includes for files.
+        let excludes = excludes.map(|excludes| {
+            excludes
+                .iter()
+                .map(|exclude| glob_text(exclude.as_js()).into_owned())
+                .collect::<Vec<_>>()
+        });
+        let compiled = compile_patterns(includes, directory, case_sensitive, include_matches)?;
+        let patterns = WalkPatterns {
+            includes: compiled.patterns,
+            excludes: excludes.and_then(|excludes| {
+                crate::vfsmatch::SpecMatcher::new(
+                    &excludes,
+                    &glob_text(directory),
+                    crate::vfsmatch::Usage::Exclude,
+                    case_sensitive,
+                )
+            }),
+        };
+        let mut file_buckets = (0..patterns.includes.len().max(1))
+            .map(|_| Vec::new())
+            .collect::<Vec<Vec<JsString>>>();
+        let mut visited = BTreeSet::new();
+        let depth = depth.unwrap_or(MAX_DIRECTORY_DEPTH);
+        let bases = discovery_base_paths(directory, includes, case_sensitive)?
+            .into_iter()
+            .map(|base| {
+                let states = PatternStates::at_base(&patterns, base.as_js(), case_sensitive);
+                (base, states)
+            })
+            .collect::<Vec<_>>();
+        let mut listings = self.prefetch_listings(&bases, extensions, &patterns, depth);
+        let mut match_input = InputComponent::new("".into(), case_sensitive);
+        for (base, states) in &bases {
+            self.walk_directory(
+                base.as_js(),
+                None,
+                extensions,
+                &patterns,
+                states,
+                depth,
+                &mut file_buckets,
+                &mut visited,
+                &mut match_input,
+                &mut listings,
+            )?;
+        }
+        let count = file_buckets.iter().map(Vec::len).sum();
+        let mut file_names = Vec::with_capacity(count);
+        let mut indices = (!compiled.source_indices.is_empty()).then(|| Vec::with_capacity(count));
+        for (bucket, files) in file_buckets.into_iter().enumerate() {
+            if let Some(indices) = &mut indices {
+                indices.resize(indices.len() + files.len(), compiled.source_indices[bucket]);
+            }
+            file_names.extend(files);
+        }
+        Ok(ConfigDirectoryListing {
+            file_names,
+            include_spec_indices: indices,
+        })
+    }
+
     fn canonical_directory(&self, directory: JsStr<'_>) -> Result<JsString, ConfigHostError> {
         let observed = self
             .host
@@ -359,55 +434,19 @@ impl ConfigParseHost for CompilerConfigHost<'_> {
         includes: Option<&[JsString]>,
         depth: Option<usize>,
     ) -> Result<Vec<JsString>, ConfigHostError> {
-        let case_sensitive = self.host.use_case_sensitive_file_names();
-        // tsgo `newGlobMatcher`: the excludes are compiled for their own
-        // usage (`UsageExclude`), the includes for files.
-        let excludes = excludes.map(|excludes| {
-            excludes
-                .iter()
-                .map(|exclude| glob_text(exclude.as_js()).into_owned())
-                .collect::<Vec<_>>()
-        });
-        let patterns = WalkPatterns {
-            includes: compile_patterns(includes, directory, case_sensitive)?,
-            excludes: excludes.and_then(|excludes| {
-                crate::vfsmatch::SpecMatcher::new(
-                    &excludes,
-                    &glob_text(directory),
-                    crate::vfsmatch::Usage::Exclude,
-                    case_sensitive,
-                )
-            }),
-        };
-        let mut file_buckets = (0..patterns.includes.len().max(1))
-            .map(|_| Vec::new())
-            .collect::<Vec<Vec<JsString>>>();
-        let mut visited = BTreeSet::new();
-        let depth = depth.unwrap_or(MAX_DIRECTORY_DEPTH);
-        let bases = discovery_base_paths(directory, includes, case_sensitive)?
-            .into_iter()
-            .map(|base| {
-                let states = PatternStates::at_base(&patterns, base.as_js(), case_sensitive);
-                (base, states)
-            })
-            .collect::<Vec<_>>();
-        let mut listings = self.prefetch_listings(&bases, extensions, &patterns, depth);
-        let mut match_input = InputComponent::new("".into(), case_sensitive);
-        for (base, states) in &bases {
-            self.walk_directory(
-                base.as_js(),
-                None,
-                extensions,
-                &patterns,
-                states,
-                depth,
-                &mut file_buckets,
-                &mut visited,
-                &mut match_input,
-                &mut listings,
-            )?;
-        }
-        Ok(file_buckets.into_iter().flatten().collect())
+        self.read_directory_impl(directory, extensions, excludes, includes, depth, false)
+            .map(|listing| listing.file_names)
+    }
+
+    fn read_directory_with_include_matches(
+        &self,
+        directory: JsStr<'_>,
+        extensions: &[&str],
+        excludes: Option<&[JsString]>,
+        includes: Option<&[JsString]>,
+        depth: Option<usize>,
+    ) -> Result<ConfigDirectoryListing, ConfigHostError> {
+        self.read_directory_impl(directory, extensions, excludes, includes, depth, true)
     }
 }
 
@@ -718,22 +757,35 @@ fn discovery_path_contains(parent: JsStr<'_>, child: JsStr<'_>, case_sensitive: 
         })
 }
 
+struct CompiledIncludes {
+    patterns: Vec<ConfigFilePattern>,
+    source_indices: Vec<usize>,
+}
+
 fn compile_patterns(
     patterns: Option<&[JsString]>,
     directory: JsStr<'_>,
     case_sensitive: bool,
-) -> Result<Vec<ConfigFilePattern>, ConfigHostError> {
+    include_matches: bool,
+) -> Result<CompiledIncludes, ConfigHostError> {
     let mut compiled = Vec::new();
-    for pattern in patterns.unwrap_or(&[]) {
+    let mut source_indices = Vec::new();
+    for (index, pattern) in patterns.unwrap_or(&[]).iter().enumerate() {
         let pattern =
             ConfigFilePattern::new(pattern, directory, case_sensitive).map_err(|detail| {
                 ConfigHostError::new(ConfigHostOperation::ReadDirectory, directory, detail)
             })?;
         if let Some(pattern) = pattern {
             compiled.push(pattern);
+            if include_matches {
+                source_indices.push(index);
+            }
         }
     }
-    Ok(compiled)
+    Ok(CompiledIncludes {
+        patterns: compiled,
+        source_indices,
+    })
 }
 
 fn is_implicit_excluded_directory(path: JsStr<'_>) -> bool {
