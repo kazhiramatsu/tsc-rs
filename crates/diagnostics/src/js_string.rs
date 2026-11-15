@@ -237,6 +237,11 @@ impl JsString {
 }
 
 impl<'a> JsStr<'a> {
+    /// Validate a serialized canonical WTF-8 string before borrowing it.
+    pub fn try_from_canonical_bytes(bytes: &'a [u8]) -> Option<Self> {
+        is_canonical_wtf8(bytes).then_some(Self { bytes })
+    }
+
     pub const fn from_str(text: &'a str) -> Self {
         Self {
             bytes: text.as_bytes(),

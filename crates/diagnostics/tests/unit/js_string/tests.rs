@@ -414,6 +414,10 @@ fn canonical_bytes_are_told_from_other_bytes() {
         let text = JsString::from_code_units(units);
         assert!(super::is_canonical_wtf8(text.as_bytes()), "{units:x?}");
         assert_eq!(JsStr::from_canonical_bytes(text.as_bytes()), text.as_js());
+        assert_eq!(
+            JsStr::try_from_canonical_bytes(text.as_bytes()),
+            Some(text.as_js())
+        );
     }
     // A lead followed by a trail must be one four-byte scalar.
     assert!(!super::is_canonical_wtf8(&[
@@ -422,6 +426,13 @@ fn canonical_bytes_are_told_from_other_bytes() {
     // Not WTF-8 at all.
     assert!(!super::is_canonical_wtf8(&[0xff]));
     assert!(!super::is_canonical_wtf8(&[0xed, 0xa0]));
+    for invalid in [
+        &[0xed, 0xa0, 0x80, 0xed, 0xb0, 0x80][..],
+        &[0xff],
+        &[0xed, 0xa0],
+    ] {
+        assert!(JsStr::try_from_canonical_bytes(invalid).is_none());
+    }
 }
 
 #[test]

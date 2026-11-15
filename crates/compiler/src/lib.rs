@@ -71,6 +71,7 @@ mod declaration_diagnostics;
 mod help;
 mod incremental;
 mod init;
+mod library_image;
 mod live;
 pub mod locale;
 mod options;

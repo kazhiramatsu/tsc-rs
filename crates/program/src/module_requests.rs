@@ -699,6 +699,20 @@ pub fn plan_source_requests_retaining_syntax(
         && matches!(options.emit_module_kind(), 0..=7 | 99 | 100..=200)
         && matches!(options.emit_module_resolution_kind(), 3 | 99 | 100)
     {
+        let parse_options = source_request_parse_options(source, options);
+        if let Some(image) = tsc_syntax::library_image::lookup(
+            source.path().display(),
+            source.snapshot(),
+            &parse_options,
+        ) {
+            let metadata = image
+                .metadata(source.path().display(), source.snapshot(), &parse_options)
+                .expect("compiler library image metadata must match its source");
+            return Ok((
+                library_image_plan(metadata.is_external_module, metadata.references),
+                PreparsedSyntax::default(),
+            ));
+        }
         if let Some((external, libs)) = tsc_syntax::placement::library_metadata(source.text()) {
             let observed_request_occurrence_count = libs.len();
             return Ok((
@@ -733,20 +747,85 @@ pub fn plan_source_requests_retaining_syntax(
     // The loader never asks for a request outside `SourceFile.imports`, so
     // it skips the whole-file walk for misplaced imports and exports.
     let started = std::time::Instant::now();
-    let (plan, parsed) = plan_module_requests_worker(source, options, true, false, cache)?;
+    let (plan, parsed) =
+        plan_module_requests_with_parser(source, options, true, false, cache, |parse_options| {
+            if source.content_mapped().is_none() {
+                if let Some(image) = tsc_syntax::library_image::lookup(
+                    source.path().display(),
+                    source.snapshot(),
+                    &parse_options,
+                ) {
+                    return PlanningConstruction::Deferred(
+                        image
+                            .metadata(source.path().display(), source.snapshot(), &parse_options)
+                            .expect("compiler library image metadata must match its source"),
+                    );
+                }
+            }
+            parse_source_file_from_snapshot(
+                source.path().display().to_owned(),
+                Arc::clone(source.snapshot()),
+                parse_options,
+                None,
+            )
+            .into()
+        })?;
     let syntax = match parsed {
         PlanningParse::Parsed(parsed) => {
             PreparsedSyntax::new(parsed, (started, std::time::Instant::now()))
         }
         PlanningParse::Cached(parse) => PreparsedSyntax::cached(parse),
+        PlanningParse::Deferred => PreparsedSyntax::default(),
     };
     Ok((plan, syntax))
+}
+
+fn library_image_plan(external: bool, libs: Vec<tsc_syntax::FileReference>) -> SourceRequestPlan {
+    let observed_request_occurrence_count = libs.len();
+    SourceRequestPlan {
+        is_external_module: external,
+        import_count: 0,
+        path_references: Vec::new(),
+        module_requests: Vec::new(),
+        unpreprocessed_module_requests: BTreeSet::new(),
+        module_request_loads: Vec::new(),
+        module_request_spans: Vec::new(),
+        module_request_occurrences: Vec::new(),
+        module_request_occurrence_counts: Vec::new(),
+        module_request_order: Vec::new(),
+        type_reference_directives: Vec::new(),
+        lib_reference_directives: libs
+            .into_iter()
+            .map(|r| PlannedLibReferenceDirective {
+                file_name: r.file_name,
+                pos: r.pos,
+                end: r.end,
+                preserve: r.preserve,
+            })
+            .collect(),
+        observed_request_occurrence_count,
+        synthetic_imports: false,
+    }
+}
+
+// A ready tree stays inline as in the ordinary parser callback; metadata-only
+// construction avoids both a temporary tree and an allocation for a wrapper.
+#[allow(clippy::large_enum_variant)]
+enum PlanningConstruction {
+    Parsed(SourceFile, bool),
+    Deferred(tsc_syntax::library_image::LibraryMetadata),
+}
+impl From<SourceFile> for PlanningConstruction {
+    fn from(source: SourceFile) -> Self {
+        Self::Parsed(source, false)
+    }
 }
 
 /// The tree the planner read: its own parse, or a cached one.
 enum PlanningParse {
     Parsed(Box<PreparsedSourceFile>),
     Cached(CachedParse),
+    Deferred,
 }
 
 /// Exact syntax projection used by the module-request planner. Exposed so
@@ -834,6 +913,7 @@ fn plan_module_requests_worker(
                 parse_options,
                 None,
             )
+            .into()
         },
     )
 }
@@ -844,21 +924,55 @@ pub fn plan_source_requests_in_stripe(
     stripe: &mut tsc_syntax::placement::SyntaxStripe,
 ) -> Result<(SourceRequestPlan, PreparsedSyntax), ResolutionError> {
     let started = std::time::Instant::now();
-    let (plan, parsed) =
-        plan_module_requests_with_parser(source, options, true, false, None, |parse_options| {
-            stripe.parse(
-                source.path().display().to_owned(),
-                Arc::clone(source.snapshot()),
-                parse_options,
-            )
-        })?;
-    let PlanningParse::Parsed(parsed) = parsed else {
-        unreachable!("direct parser has no cache")
+    let (plan, parsed) = plan_module_requests_with_parser(
+        source,
+        options,
+        true,
+        false,
+        None,
+        |parse_options| {
+            if source.content_mapped().is_none() {
+                if let Some(image) = tsc_syntax::library_image::lookup(
+                    source.path().display(),
+                    source.snapshot(),
+                    &parse_options,
+                ) {
+                    let counts = image
+                        .counts(source.path().display(), source.snapshot(), &parse_options)
+                        .expect("compiler library image counts must match its source");
+                    if stripe.can_construct(counts) {
+                        let parsed = stripe.construct(source.text().len(), || {
+                            image.restore(source.path().display().to_owned(),
+                                Arc::clone(source.snapshot()), &parse_options)
+                                .expect("compiler library image records must match the ordinary front end")
+                        });
+                        return PlanningConstruction::Parsed(parsed, true);
+                    }
+                    stripe.defer_image();
+                    return PlanningConstruction::Deferred(
+                        image
+                            .metadata(source.path().display(), source.snapshot(), &parse_options)
+                            .expect("compiler library image metadata must match its source"),
+                    );
+                }
+            }
+            stripe
+                .parse(
+                    source.path().display().to_owned(),
+                    Arc::clone(source.snapshot()),
+                    parse_options,
+                )
+                .into()
+        },
+    )?;
+    let syntax = match parsed {
+        PlanningParse::Parsed(parsed) => {
+            PreparsedSyntax::new(parsed, (started, std::time::Instant::now()))
+        }
+        PlanningParse::Deferred => PreparsedSyntax::default(),
+        PlanningParse::Cached(_) => unreachable!("direct parser has no cache"),
     };
-    Ok((
-        plan,
-        PreparsedSyntax::new(parsed, (started, std::time::Instant::now())),
-    ))
+    Ok((plan, syntax))
 }
 
 fn plan_module_requests_with_parser(
@@ -867,7 +981,7 @@ fn plan_module_requests_with_parser(
     expanded: bool,
     nested_requests: bool,
     cache: Option<&dyn ParseCache>,
-    parse: impl FnOnce(ParseOptions) -> SourceFile,
+    parse: impl FnOnce(ParseOptions) -> PlanningConstruction,
 ) -> Result<(SourceRequestPlan, PlanningParse), ResolutionError> {
     let module_kind = options.emit_module_kind();
     if (!expanded && !(100..=199).contains(&module_kind))
@@ -908,7 +1022,30 @@ fn plan_module_requests_with_parser(
     let mut fresh = None;
     let parsed: &SourceFile = match &cached {
         Some(cached) => cached.source(),
-        None => fresh.insert(parse(parse_options.clone())),
+        None => match parse(parse_options.clone()) {
+            PlanningConstruction::Parsed(parsed, true) => {
+                let plan = library_image_plan(
+                    parsed.external_module_indicator.is_some(),
+                    parsed.lib_reference_directives.clone(),
+                );
+                #[cfg(feature = "loader-counters")]
+                plan.record_high_water(source.path().display());
+                return Ok((
+                    plan,
+                    PlanningParse::Parsed(Box::new(PreparsedSourceFile::new(
+                        parse_options,
+                        parsed,
+                    ))),
+                ));
+            }
+            PlanningConstruction::Parsed(parsed, false) => fresh.insert(parsed),
+            PlanningConstruction::Deferred(metadata) => {
+                let plan = library_image_plan(metadata.is_external_module, metadata.references);
+                #[cfg(feature = "loader-counters")]
+                plan.record_high_water(source.path().display());
+                return Ok((plan, PlanningParse::Deferred));
+            }
+        },
     };
     let path_references: Vec<PlannedPathReference> = parsed
         .referenced_files
@@ -2259,6 +2396,40 @@ mod direct_library_tests {
                     .unwrap();
             let source =
                 PreparedSourceFile::new(path, std::fs::read_to_string(entry.path()).unwrap());
+            let image_options = ParseOptions {
+                js_doc_parsing_mode: JSDocParsingMode::ParseForTypeErrors,
+                ..ParseOptions::default()
+            };
+            let ordinary_image_source = parse_source_file_from_snapshot(
+                source.path().display().to_owned(),
+                Arc::clone(source.snapshot()),
+                image_options.clone(),
+                None,
+            );
+            let image_bytes =
+                tsc_syntax::library_image::SyntaxImage::capture(&ordinary_image_source)
+                    .unwrap()
+                    .encode()
+                    .unwrap();
+            let image = tsc_syntax::library_image::StaticLibraryImage {
+                name: Box::leak(
+                    entry
+                        .file_name()
+                        .to_string_lossy()
+                        .into_owned()
+                        .into_boxed_str(),
+                ),
+                source: Box::leak(Box::new(source.snapshot().shared_text())),
+                source_fingerprint: tsc_syntax::library_image::fingerprint(
+                    source.text().as_bytes(),
+                ),
+                syntax: Box::leak(image_bytes.into_boxed_slice()),
+                binding: &[],
+                edits: &[],
+            };
+            let metadata = image
+                .metadata(source.path().display(), source.snapshot(), &image_options)
+                .unwrap();
             for kind in [1, 99, 100, 199, 200] {
                 let options = CompilerOptions {
                     module: Some(kind),
@@ -2270,6 +2441,9 @@ mod direct_library_tests {
                 let (actual, syntax) =
                     plan_source_requests_retaining_syntax(&source, &options, None).unwrap();
                 assert_eq!(actual, expected, "{name}, module {kind}");
+                let baked =
+                    library_image_plan(metadata.is_external_module, metadata.references.clone());
+                assert_eq!(baked, expected, "image {name}, module {kind}");
                 assert!(syntax.take().is_none(), "{name} was not deferred");
             }
             count += 1;

@@ -12,6 +12,9 @@ use tsc_types::{
     IdentityError, IdentityLease, IdentityRange, IdentitySpace, ModifierFlags, NodeFlags,
 };
 
+#[path = "library_image.rs"]
+pub mod library_image;
+
 /// The semantic role of a newly allocated list. Ordinary lists do not
 /// derive modifier metadata. A generic builder can later attach a Children
 /// list to a declaration's typed modifiers field, which establishes its role.
@@ -829,6 +832,19 @@ impl NodeArena {
         self.nodes.is_published()
     }
 
+    /// Complete a bulk record installation after its rows and bases are final.
+    /// Image construction and relocation share the arena's identity boundary.
+    fn finish_record_installation(&mut self) {
+        self.node_next = self
+            .node_base
+            .checked_add(u32::try_from(self.nodes.len()).expect("node store exceeds u32"))
+            .expect("node identity space exhausted");
+        self.array_next = self
+            .array_base
+            .checked_add(u32::try_from(self.arrays.len()).expect("array store exceeds u32"))
+            .expect("array identity space exhausted");
+    }
+
     /// One past the last allocated NodeId — the next file's node base.
     pub fn node_end(&self) -> u32 {
         self.node_next
@@ -1223,8 +1239,7 @@ impl NodeArena {
         }
         self.node_base = relocation.new_nodes.start();
         self.array_base = relocation.new_arrays.start();
-        self.node_next = relocation.new_nodes.end();
-        self.array_next = relocation.new_arrays.end();
+        self.finish_record_installation();
         self.item_base = relocation.new_items.start();
         self.text_base = relocation.new_texts.start();
         self.arrays.publish(relocation.new_arrays.start() + 1);

@@ -837,6 +837,80 @@ impl Node {
         }
     }
 
+    /// Portable payload words for the library-image builder. Store addresses
+    /// of tails never cross this boundary; the schema still owns slot order.
+    pub(crate) fn image_payload(&self) -> (Vec<u32>, [u32; 4], bool) {
+        let (count, comment) = payload_shape(self.kind);
+        (
+            (0..count).map(|index| self.slot(index)).collect(),
+            if comment { self.comment_words(count) } else { [0; 4] },
+            !matches!(self.data(), NodeData::Token),
+        )
+    }
+
+    #[inline]
+    pub(crate) const fn image_layout(kind: SyntaxKind) -> ImageLayout {
+        ImageLayout { kind, words: image_layout_words(kind) }
+    }
+
+    pub(crate) fn image_slot_space(kind: SyntaxKind, index: usize) -> u8 {
+        if image_name_mask(kind) & (1 << index) != 0 {
+            4 // Interned name; not a syntax identity space.
+        } else {
+            identity_layout(kind).space(index)
+        }
+    }
+
+    /// Rebuild a record's owned tail from validated portable words.
+    #[inline]
+    pub(crate) fn from_image_payload(
+        kind: SyntaxKind,
+        slots: &[u32],
+        comment: [u32; 4],
+        js_doc: u32,
+        payload: bool,
+        tails: &mut tsc_store::tails::Tails,
+    ) -> Option<Self> {
+        Self::from_image_layout(Self::image_layout(kind), slots, comment, js_doc, payload, tails)
+    }
+
+    #[inline(always)]
+    pub(crate) fn from_image_layout(
+        layout: ImageLayout,
+        slots: &[u32],
+        comment: [u32; 4],
+        js_doc: u32,
+        payload: bool,
+        tails: &mut tsc_store::tails::Tails,
+    ) -> Option<Self> {
+        let count = layout.count();
+        let has_comment = layout.has_comment();
+        if slots.len() != count || (!has_comment && comment != [0; 4]) {
+            return None;
+        }
+        let mut node = Self::new(layout.kind, 0, 0, 0);
+        if slots.iter().skip(3).all(|&word| word == 0)
+            && comment == [0; 4] && (count < 3 || js_doc == 0)
+        {
+            match count {
+                0 => node.words = [js_doc, 0, if payload { EMPTY_PAYLOAD } else { 0 }],
+                1 => node.words = [slots[0], js_doc, 0],
+                2 => node.words = [slots[0], slots[1], js_doc],
+                _ => node.words = [slots[0], slots[1], slots[2]],
+            }
+        } else {
+            let mut words = [0; MAX_TAIL_WORDS];
+            let spilled = count.saturating_sub(2);
+            if spilled != 0 { words[..spilled].copy_from_slice(&slots[2..]); }
+            words[spilled] = js_doc;
+            let length = spilled + 1 + if has_comment { 4 } else { 0 };
+            if has_comment { words[spilled + 1..length].copy_from_slice(&comment); }
+            node.words = [tails.push(&words[..length]), slots.first().copied().unwrap_or(0), slots.get(1).copied().unwrap_or(0)];
+            node.literal_flags |= HAS_TAIL;
+        }
+        Some(node)
+    }
+
     /// tsc's multiLine bit (see `MULTI_LINE_BITS`).
     pub fn multi_line(&self) -> Option<bool> {
         tri_state(self.literal_flags & MULTI_LINE_BITS)
@@ -1025,6 +1099,45 @@ def render_payload_codec(kinds):
     out.append(f"/// The longest tail: the slots past the second, the JSDoc attachment and a comment.")
     out.append(f"const MAX_TAIL_WORDS: usize = {max_tail};")
     out.append("")
+    out.append(f"pub(crate) const MAX_IMAGE_PAYLOAD_WORDS: usize = {max(len(kind.slots()) for kind in kinds)};")
+    out.append("")
+    out.append("#[inline]")
+    out.append("const fn image_name_mask(kind: SyntaxKind) -> u16 {")
+    out.append("match kind {")
+    name_masks = {}
+    for kind in kinds:
+        mask = sum(1 << index for index, slot in enumerate(kind.slots()) if slot is not SCALARS and slot.string_type == "EscapedName")
+        if mask:
+            name_masks.setdefault(mask, []).append(kind.name)
+    for mask, names in sorted(name_masks.items()):
+        arms = " | ".join(f"SyntaxKind::{name}" for name in names)
+        out.append(f"{arms} => {mask},")
+    out += ["_ => 0,", "}", "}", ""]
+    out.append("/// Validated payload shape and reference spaces for one image node.")
+    out.append("#[derive(Clone, Copy)]")
+    out.append("pub(crate) struct ImageLayout { kind: SyntaxKind, words: u64 }")
+    out.append("impl ImageLayout {")
+    out.append("#[inline(always)] pub(crate) const fn count(self) -> usize { (self.words & 15) as usize }")
+    out.append("#[inline(always)] pub(crate) const fn has_comment(self) -> bool { self.words & 16 != 0 }")
+    out.append("#[inline(always)] pub(crate) const fn space(self, index: usize) -> u8 { ((self.words >> (5 + 3 * index)) & 7) as u8 }")
+    out.append("}")
+    out.append("const IMAGE_LAYOUT_WORDS: [u64; SyntaxKind::Count as usize + 1] = {")
+    out.append("let mut words = [0; SyntaxKind::Count as usize + 1];")
+    image_layouts = {}
+    image_spaces = {"SPACE_NONE": 0, "SPACE_NODE": 1, "SPACE_ARRAY": 2, "SPACE_TEXT": 3}
+    for kind in kinds:
+        slots = kind.slots()
+        assert len(slots) <= 13, f"{kind.name}: image descriptor overflow"
+        bits = len(slots) | (16 if kind.comment_field() else 0)
+        for index, slot in enumerate(slots):
+            space = 4 if slot is not SCALARS and slot.string_type == "EscapedName" else image_spaces[slot_space(slot)]
+            bits |= space << (5 + 3 * index)
+        if bits:
+            image_layouts.setdefault(bits, []).append(kind.name)
+    for bits, names in sorted(image_layouts.items()):
+        for name in names:
+            out.append(f"words[SyntaxKind::{name} as usize] = {bits};")
+    out += ["words", "};", "#[inline(always)]", "const fn image_layout_words(kind: SyntaxKind) -> u64 {", "IMAGE_LAYOUT_WORDS[kind as usize]", "}", ""]
     out.append("/// A kind's payload slots and whether it has a JSDoc comment (see `Node`).")
     out.append("#[inline]")
     out.append("pub(crate) const fn payload_shape(kind: SyntaxKind) -> (usize, bool) {")

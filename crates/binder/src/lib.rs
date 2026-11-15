@@ -4,6 +4,8 @@ pub mod assignment;
 pub mod bind;
 pub mod containers;
 pub mod declare;
+#[doc(hidden)]
+pub use declare::library_image;
 pub mod flow;
 pub mod hosted;
 pub mod node_util;

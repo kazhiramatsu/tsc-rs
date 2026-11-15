@@ -58,7 +58,10 @@ fn syntax_leases(leases: Vec<tsc_types::IdentityLease>) -> SyntaxLeases {
         texts: leases.next().expect("texts"),
     }
 }
-fn lease_counts(domain: &IdentityDomain, counts: [u32; 4]) -> Result<SyntaxLeases, IdentityError> {
+pub(crate) fn lease_counts(
+    domain: &IdentityDomain,
+    counts: [u32; 4],
+) -> Result<SyntaxLeases, IdentityError> {
     domain
         .lease_batch(&SPACES.into_iter().zip(counts).collect::<Vec<_>>())
         .map(syntax_leases)
@@ -266,8 +269,9 @@ fn merge_pages(mut pages: Vec<(u64, u64)>) -> Vec<(u64, u64)> {
 
 /// A scheduler can move this value to any existing worker. Entries within
 /// it must run sequentially in the input order. Overflow is sticky: the
-/// current and every remaining entry return a PRIVATE tree for exact leasing
-/// later in Program order. Parsing never takes another domain lease.
+/// ordinary parses return PRIVATE trees for exact leasing later in Program
+/// order. Image callers can defer construction instead. Parsing never takes
+/// another domain lease.
 pub struct SyntaxStripe {
     rooms: Rooms,
     exhausted: bool,
@@ -315,9 +319,39 @@ impl SyntaxStripe {
     ) -> SourceFile {
         options.node_id_base = 0;
         options.node_array_id_base = 0;
+        let bytes = snapshot.text().len();
+        self.construct(bytes, || {
+            parser::parse_source_file_from_snapshot(file_name, snapshot, options, None)
+        })
+    }
+
+    /// Whether a known image fits without private construction or overflow.
+    pub fn can_construct(&self, counts: [u32; 4]) -> bool {
+        !self.exhausted
+            && self
+                .rooms
+                .remaining()
+                .iter()
+                .zip(counts)
+                .all(|((_, range), count)| count <= range.len())
+    }
+
+    /// A known image that does not fit is constructed at its final exact
+    /// leases later, instead of writing an abandoned private copy now.
+    pub fn defer_image(&mut self) {
+        self.exhausted = true;
+        self.statistics.fallbacks += 1;
+    }
+
+    /// Parser and image factories enter and leave the same placement scope.
+    pub fn construct(
+        &mut self,
+        bytes: usize,
+        construct: impl FnOnce() -> SourceFile,
+    ) -> SourceFile {
         if self.exhausted {
             self.statistics.fallbacks += 1;
-            return parser::parse_source_file_from_snapshot(file_name, snapshot, options, None);
+            return construct();
         }
         let ranges: Vec<_> = self
             .rooms
@@ -331,9 +365,7 @@ impl SyntaxStripe {
             *slot = Some(NodeArena::at_ranges(&ranges));
         });
         let _guard = PendingGuard;
-        let bytes = snapshot.text().len();
-        let mut source =
-            parser::parse_source_file_from_snapshot(file_name, snapshot, options, None);
+        let mut source = construct();
         if source.arena.finish_reserved() {
             source.arena.leases = Some(syntax_leases(
                 self.rooms
@@ -380,6 +412,38 @@ impl SyntaxStripe {
         self.rooms.seal()?;
         Ok(self.statistics)
     }
+}
+
+/// Construct a known-size tree directly at the ordinary exact identity leases.
+/// No temporary private arena or relocation pass is involved.
+pub(crate) fn construct_at_leases(
+    leases: SyntaxLeases,
+    construct: impl FnOnce() -> SourceFile,
+) -> SourceFile {
+    let ranges = [
+        &leases.nodes,
+        &leases.arrays,
+        &leases.array_items,
+        &leases.texts,
+    ]
+    .map(|lease| lease.range());
+    PENDING.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        assert!(slot.is_none(), "nested reserved construction");
+        *slot = Some(NodeArena::at_ranges(&ranges));
+    });
+    let _guard = PendingGuard;
+    let mut source = construct();
+    assert_eq!(
+        source.arena.placement_counts(),
+        ranges.map(|range| range.len())
+    );
+    assert!(
+        source.arena.finish_reserved(),
+        "exact image construction exceeded its leases"
+    );
+    source.arena.leases = Some(leases);
+    source
 }
 
 impl SourceFile {

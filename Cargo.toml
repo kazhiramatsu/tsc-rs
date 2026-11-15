@@ -71,6 +71,20 @@ self_cell = "1"
 lto = "fat"
 codegen-units = 1
 
+# The library-image generator builds these compute crates for the host too.
+# Package overrides also cover build dependencies; their always-inline paths
+# need the same optimization as the target and the dev-profile metadata.
+[profile.release.package.tsc-rs-binder]
+opt-level = 3
+[profile.release.package.tsc-rs-diagnostics]
+opt-level = 3
+[profile.release.package.tsc-rs-store]
+opt-level = 3
+[profile.release.package.tsc-rs-syntax]
+opt-level = 3
+[profile.release.package.tsc-rs-types]
+opt-level = 3
+
 [profile.test]
 debug = 0
 
