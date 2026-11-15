@@ -99,11 +99,6 @@ tsc 6.0.3 compatibility is complete in release
   breaks of two conditional expressions — were fixed in pull requests
   [#1002](https://github.com/kazhiramatsu/tsc-rs/pull/1002) and
   [#1005](https://github.com/kazhiramatsu/tsc-rs/pull/1005).
-- File names that contain characters outside the Basic Multilingual Plane
-  are ordered by UTF-16 code units where `tsgo` orders them by bytes: a
-  project with files named `U+E000` and `U+10000` lists them in the other
-  order (`--showConfig`, `--listFilesOnly`, and the order of anything that
-  follows the root order).
 - A generic type predicate over a mapped union of 1,024 members reports one
   more diagnostic (TS2859) than `tsgo` and a longer chain in the TS2677 that
   both report; at 256 members the output is identical.
