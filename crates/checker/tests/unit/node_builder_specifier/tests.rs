@@ -1075,3 +1075,21 @@ fn path_prefix_and_suffix_keep_half_surrogate_matches() {
         assert!(!ends_with(&pair, &high, ignore_case));
     }
 }
+
+#[test]
+fn package_export_patterns_require_disjoint_prefix_and_suffix() {
+    for ignore_case in [false, true] {
+        assert_eq!(
+            match_path_pattern("abc", "ab".into(), "bc".into(), ignore_case),
+            None
+        );
+        assert_eq!(
+            match_path_pattern("abbc", "ab".into(), "bc".into(), ignore_case),
+            Some(JsString::new())
+        );
+        assert_eq!(
+            match_path_pattern("abXbc", "ab".into(), "bc".into(), ignore_case),
+            Some("X".into())
+        );
+    }
+}

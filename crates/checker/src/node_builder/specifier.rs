@@ -2396,17 +2396,10 @@ pub(crate) fn try_get_module_name_from_exports_or_imports<'path>(
                 }
             }
             ExportsKeyMode::Pattern => {
-                let missing_star_leading;
-                let (leading, trailing) =
-                    if let Some(parts) = path_or_pattern.as_js().split_once("*") {
-                        parts
-                    } else {
-                        // JS slice(0, -1) removes one UTF-16 unit, even within a pair.
-                        missing_star_leading = path_or_pattern
-                            .as_js()
-                            .substring(0, path_or_pattern.len_units().saturating_sub(1));
-                        (missing_star_leading.as_js(), path_or_pattern.as_js())
-                    };
+                let (leading, trailing) = path_or_pattern
+                    .as_js()
+                    .split_once("*")
+                    .unwrap_or((path_or_pattern.as_js(), "".into()));
                 if can_try_ts_extension {
                     if let Some(star_replacement) =
                         match_path_pattern(target_file_path, leading, trailing, ignore_case)
@@ -4711,13 +4704,14 @@ fn match_path_pattern<'p>(
     ignore_case: bool,
 ) -> Option<JsString> {
     let candidate = candidate.into();
-    if starts_with(candidate, leading, ignore_case) && ends_with(candidate, trailing, ignore_case) {
-        let end = candidate.len_units().saturating_sub(trailing.len_units());
-        Some(if leading.len_units() <= end {
-            candidate.substring(leading.len_units(), end)
-        } else {
-            JsString::new()
-        })
+    if candidate.len_units() >= leading.len_units() + trailing.len_units()
+        && starts_with(candidate, leading, ignore_case)
+        && ends_with(candidate, trailing, ignore_case)
+    {
+        Some(candidate.substring(
+            leading.len_units(),
+            candidate.len_units() - trailing.len_units(),
+        ))
     } else {
         None
     }

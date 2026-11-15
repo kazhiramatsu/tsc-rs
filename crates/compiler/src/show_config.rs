@@ -159,14 +159,19 @@ impl ShowConfig<'_> {
                         ConfigTypedListElement::Value(value) => Some(value),
                         ConfigTypedListElement::Undefined => None,
                     })
-                    .map(|value| match (element, value.as_js()) {
-                        (Some(element), Some(text)) if element.is_file_path => {
-                            Value::String(self.relative(&text.to_string_lossy()))
+                    .map(|value| {
+                        if option.name == "plugins" {
+                            return plugin(value);
                         }
-                        (Some(element), Some(text)) if element.enum_map().is_some() => {
-                            Value::String(enum_element_key(element, &text.to_string_lossy()))
+                        match (element, value.as_js()) {
+                            (Some(element), Some(text)) if element.is_file_path => {
+                                Value::String(self.relative(&text.to_string_lossy()))
+                            }
+                            (Some(element), Some(text)) if element.enum_map().is_some() => {
+                                Value::String(enum_element_key(element, &text.to_string_lossy()))
+                            }
+                            _ => json(value),
                         }
-                        _ => json(value),
                     })
                     .collect();
                 Some(Value::Array(values))
@@ -283,6 +288,19 @@ fn write_indented(value: &Value, depth: usize, output: &mut String) {
 
 fn text(value: JsStr<'_>) -> Value {
     Value::String(value.to_string_lossy().into_owned())
+}
+
+/// The plugin model tsgo serializes has only its name, including an empty one.
+fn plugin(value: &JsonValue) -> Value {
+    let name = value
+        .as_object()
+        .and_then(|object| object.get("name"))
+        .and_then(JsonValue::as_js)
+        .map(text)
+        .unwrap_or_else(|| Value::String(String::new()));
+    let mut entry = Map::new();
+    entry.insert("name".to_owned(), name);
+    Value::Object(entry)
 }
 
 /// A config value as JSON.
@@ -609,6 +627,68 @@ mod tests {
             case_sensitive: true,
         }
         .to_json()
+    }
+
+    #[test]
+    fn plugins_keep_only_their_names_in_input_order() {
+        let plugins = serde_json::json!([
+            {
+                "enabled": true,
+                "nested": { "keep": false },
+                "name": "z-plugin",
+                "exemptionConfig": "./exemptions.json"
+            },
+            { "name": "a-plugin", "settings": ["discard"] },
+            { "settings": { "also": "discard" } }
+        ]);
+        let host = tsc_host::MemoryCompilerHost::builder("/p")
+            .file("/p/main.ts", b"export const value = 1;\n".to_vec())
+            .build()
+            .unwrap();
+        let plan = tsc_program::parse_config_root_plan(
+            &tsc_program::CompilerConfigHost::new(&host),
+            tsc_program::ConfigRootPlanRequest {
+                file_name: "/p/tsconfig.json".into(),
+                text: serde_json::json!({
+                    "compilerOptions": { "noEmit": true, "noLib": true, "plugins": plugins },
+                    "files": ["main.ts"]
+                })
+                .to_string(),
+                base_path: "/p".into(),
+            },
+        )
+        .unwrap();
+        // Expected text is the pinned tsgo's output for this fixture.
+        assert_eq!(
+            ShowConfig {
+                options: plan.options(),
+                config_file: "/p/tsconfig.json".to_owned(),
+                file_names: vec!["/p/main.ts".to_owned()],
+                plan: None,
+                case_sensitive: true,
+            }
+            .to_json(),
+            r#"{
+    "compilerOptions": {
+        "noEmit": true,
+        "noLib": true,
+        "plugins": [
+            {
+                "name": "z-plugin"
+            },
+            {
+                "name": "a-plugin"
+            },
+            {
+                "name": ""
+            }
+        ]
+    },
+    "files": [
+        "./main.ts"
+    ]
+}"#
+        );
     }
 
     // tsgo's Show-TSConfig-with-transitively-implied-options baseline.
