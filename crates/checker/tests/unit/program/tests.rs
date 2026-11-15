@@ -912,3 +912,74 @@ fn prepared_bind_results_keep_source_order_around_missing_and_overflowing_binds(
         }
     }
 }
+
+#[test]
+fn snapshot_owner_routes_are_shared_across_concurrent_sessions_and_clones() {
+    let domain = IdentityDomain::new();
+    let a = bound_document_for_snapshot(
+        "/a.ts",
+        TextSnapshot::new("export const a = 1;".to_owned(), Default::default()),
+        &domain,
+    );
+    let b = bound_document_for_snapshot(
+        "/b.ts",
+        TextSnapshot::new("export const b = 2;".to_owned(), Default::default()),
+        &domain,
+    );
+    let a_node = a.source().root;
+    let b_node = b.source().root;
+    let first = ProgramSnapshot::new(vec![Arc::clone(&a), Arc::clone(&b)], 0).unwrap();
+    let cloned = first.clone();
+    assert!(first.owner_routes.get().is_none());
+    std::thread::scope(|scope| {
+        let left = scope.spawn(|| ProgramBinder::from_snapshot(&first));
+        let right = ProgramBinder::from_snapshot(&cloned);
+        let left = left.join().unwrap();
+        assert!(Arc::ptr_eq(&left.node_owners, &right.node_owners));
+        assert!(Arc::ptr_eq(&left.symbol_owners, &right.symbol_owners));
+        assert!(Arc::ptr_eq(&left.node_files.pages, &right.node_files.pages));
+        assert!(Arc::ptr_eq(
+            &left.symbol_files.pages,
+            &right.symbol_files.pages
+        ));
+        assert_eq!(left.file_index_of_node(a_node), 0);
+        assert_eq!(right.file_index_of_node(b_node), 1);
+    });
+    let reordered = ProgramSnapshot::new(vec![b, a], 0).unwrap();
+    let left = ProgramBinder::from_snapshot(&first);
+    let right = ProgramBinder::from_snapshot(&reordered);
+    assert!(!Arc::ptr_eq(&left.node_owners, &right.node_owners));
+    assert_eq!(left.file_index_of_node(a_node), 0);
+    assert_eq!(right.file_index_of_node(a_node), 1);
+    drop(left);
+    drop(first);
+    assert_eq!(
+        ProgramBinder::from_snapshot(&cloned).file_index_of_node(b_node),
+        1
+    );
+}
+
+#[test]
+fn snapshot_owner_route_failures_remain_local_to_the_snapshot() {
+    let first_domain = IdentityDomain::new();
+    let second_domain = IdentityDomain::new();
+    let a = bound_document_for_snapshot(
+        "/a.ts",
+        TextSnapshot::new("export const a = 1;".to_owned(), Default::default()),
+        &first_domain,
+    );
+    let b = bound_document_for_snapshot(
+        "/b.ts",
+        TextSnapshot::new("export const b = 2;".to_owned(), Default::default()),
+        &second_domain,
+    );
+    let invalid = ProgramSnapshot::new(vec![Arc::clone(&a), b], 0).unwrap();
+    for snapshot in [&invalid, &invalid.clone()] {
+        assert!(matches!(
+            ProgramBinder::try_from_snapshot(snapshot),
+            Err(ProgramIdentityError::IdentityDomainMismatch { file: 1 })
+        ));
+    }
+    let valid = ProgramSnapshot::new(vec![a], 0).unwrap();
+    assert!(ProgramBinder::try_from_snapshot(&valid).is_ok());
+}

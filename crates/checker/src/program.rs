@@ -629,6 +629,7 @@ impl ProgramFileFacts {
 pub struct ProgramSnapshot {
     documents: Vec<Arc<BoundDocument>>,
     file_facts: Vec<ProgramFileFacts>,
+    owner_routes: Arc<OnceLock<Result<ProgramOwnerRoutes, ProgramIdentityError>>>,
 }
 
 impl ProgramSnapshot {
@@ -674,6 +675,7 @@ impl ProgramSnapshot {
         Ok(Self {
             documents,
             file_facts,
+            owner_routes: Arc::default(),
         })
     }
 
@@ -869,9 +871,9 @@ pub struct ProgramBinder<'a> {
     /// session-local and never mutate shared parsed/bound documents.
     file_facts: Vec<ProgramFileFacts>,
     /// Node-id intervals in parse allocation order (ascending by start).
-    node_owners: Vec<ArenaOwner>,
+    node_owners: Arc<[ArenaOwner]>,
     /// Persistent symbol intervals in identity allocation order.
-    symbol_owners: Vec<ArenaOwner>,
+    symbol_owners: Arc<[ArenaOwner]>,
     /// A hint into immutable intervals, checked on every lookup. Relaxed
     /// atomics preserve shared-read safety without ordering any other state.
     symbol_owner_hint: AtomicUsize,
@@ -895,18 +897,125 @@ pub struct ProgramBinder<'a> {
 /// in L1 instead of touching a per-id table (tsc carries object identity).
 /// Built only when the covered id range is not much larger than the
 /// intervals; a pathological sparse domain keeps the interval search.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 struct DenseOwners {
     first_page: u32,
-    pages: Box<[u32]>,
-    owners: Vec<ArenaOwner>,
+    pages: Arc<[u32]>,
+    owners: Arc<[ArenaOwner]>,
 }
 
 const NO_OWNER: u32 = u32::MAX;
 const OWNER_PAGE_SHIFT: u32 = 8;
 
+/// Immutable identity ownership for one ordered Program membership. Cached
+/// by the snapshot; checker-local symbols and lookup hints remain private.
+#[derive(Clone, Debug)]
+struct ProgramOwnerRoutes {
+    node_owners: Arc<[ArenaOwner]>,
+    symbol_owners: Arc<[ArenaOwner]>,
+    node_files: DenseOwners,
+    symbol_files: DenseOwners,
+    direct_symbol_rooms: bool,
+}
+
+impl ProgramOwnerRoutes {
+    fn build(file_entries: &[ProgramEntry<'_>]) -> Result<Self, ProgramIdentityError> {
+        validate_identity_domains(file_entries)?;
+
+        let mut node_owners: Arc<[ArenaOwner]> = file_entries
+            .iter()
+            .enumerate()
+            .map(|(file, entry)| ArenaOwner {
+                start: entry.source().arena.node_base(),
+                end: entry.source().arena.node_end(),
+                file,
+            })
+            .collect();
+        Arc::get_mut(&mut node_owners)
+            .expect("new owner intervals are exclusive")
+            .sort_unstable_by_key(|owner| (owner.start, owner.end, owner.file));
+
+        let mut array_owners: Vec<ArenaOwner> = file_entries
+            .iter()
+            .enumerate()
+            .map(|(file, entry)| ArenaOwner {
+                start: entry.source().arena.array_base(),
+                end: entry.source().arena.array_end(),
+                file,
+            })
+            .collect();
+        array_owners.sort_unstable_by_key(|owner| (owner.start, owner.end, owner.file));
+
+        let mut symbol_owners: Arc<[ArenaOwner]> = file_entries
+            .iter()
+            .enumerate()
+            .filter_map(|(file, entry)| {
+                let data = entry.data();
+                let start = data.symbols.base();
+                let end = data.symbols.next_id().index();
+                (start != end).then_some(ArenaOwner { start, end, file })
+            })
+            .collect();
+        Arc::get_mut(&mut symbol_owners)
+            .expect("new owner intervals are exclusive")
+            .sort_unstable_by_key(|owner| (owner.start, owner.end, owner.file));
+
+        validate_owner_intervals(ProgramIdentitySpace::Node, &node_owners, true)?;
+        validate_owner_intervals(ProgramIdentitySpace::NodeArray, &array_owners, true)?;
+        validate_owner_intervals(
+            ProgramIdentitySpace::PersistentSymbol,
+            &symbol_owners,
+            false,
+        )?;
+        for owner in symbol_owners.iter() {
+            if owner.start >= TRANSIENT_SYMBOL_BIT || owner.end > TRANSIENT_SYMBOL_BIT {
+                return Err(
+                    ProgramIdentityError::PersistentSymbolUsesTransientPartition {
+                        file: owner.file,
+                        start: owner.start,
+                        end: owner.end,
+                    },
+                );
+            }
+        }
+
+        let node_files = DenseOwners::build(Arc::clone(&node_owners));
+        let symbol_files = DenseOwners::build(Arc::clone(&symbol_owners));
+        let direct_symbol_rooms = file_entries.iter().any(|entry| {
+            entry
+                .data()
+                .symbol_identity_lease()
+                .is_some_and(tsc_types::IdentityLease::is_room_slice)
+                // If every direct bind overflowed, none retains a symbol
+                // slice. The source's direct placement still identifies
+                // this finite command, unlike ordinary cached documents.
+                || entry
+                    .source()
+                    .arena
+                    .identity_leases()
+                    .is_some_and(|leases| leases.nodes.is_room_slice())
+        });
+        Ok(Self {
+            node_owners,
+            symbol_owners,
+            node_files,
+            symbol_files,
+            direct_symbol_rooms,
+        })
+    }
+
+    fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
+        usage.arc("checker owner indexes", &self.node_owners);
+        usage.arc("checker owner indexes", &self.symbol_owners);
+        for index in [&self.node_files, &self.symbol_files] {
+            usage.arc("checker owner indexes", &index.owners);
+            usage.arc("checker owner indexes", &index.pages);
+        }
+    }
+}
+
 impl DenseOwners {
-    fn build(owners: &[ArenaOwner]) -> Self {
+    fn build(owners: Arc<[ArenaOwner]>) -> Self {
         let (Some(first), Some(last)) = (owners.first(), owners.last()) else {
             return Self::default();
         };
@@ -916,23 +1025,25 @@ impl DenseOwners {
         if page_count > owners.len().saturating_mul(64).saturating_add(1 << 16) {
             return Self::default();
         }
-        let mut pages = vec![NO_OWNER; page_count].into_boxed_slice();
         let mut owner_index = 0usize;
-        for (offset, entry) in pages.iter_mut().enumerate() {
-            let page_start = (u64::from(first_page) + offset as u64) << OWNER_PAGE_SHIFT;
-            while owner_index < owners.len() && u64::from(owners[owner_index].end) <= page_start {
-                owner_index += 1;
-            }
-            *entry = if owner_index < owners.len() {
-                u32::try_from(owner_index).expect("program file count fits u32")
-            } else {
-                NO_OWNER
-            };
-        }
+        let pages = (0..page_count)
+            .map(|offset| {
+                let page_start = (u64::from(first_page) + offset as u64) << OWNER_PAGE_SHIFT;
+                while owner_index < owners.len() && u64::from(owners[owner_index].end) <= page_start
+                {
+                    owner_index += 1;
+                }
+                if owner_index < owners.len() {
+                    u32::try_from(owner_index).expect("program file count fits u32")
+                } else {
+                    NO_OWNER
+                }
+            })
+            .collect();
         Self {
             first_page,
             pages,
-            owners: owners.to_vec(),
+            owners,
         }
     }
 
@@ -1104,7 +1215,15 @@ impl<'a> ProgramBinder<'a> {
             .iter()
             .map(ProgramEntry::Owned)
             .collect::<Vec<_>>();
-        Self::try_new_entries_with_file_facts(entries, snapshot.file_facts.clone())
+        let routes = snapshot
+            .owner_routes
+            .get_or_init(|| ProgramOwnerRoutes::build(&entries))
+            .clone()?;
+        Ok(Self::with_owner_routes(
+            entries,
+            snapshot.file_facts.clone(),
+            routes,
+        ))
     }
 
     fn try_new_entries(entries: Vec<ProgramEntry<'a>>) -> Result<Self, ProgramIdentityError> {
@@ -1125,79 +1244,24 @@ impl<'a> ProgramBinder<'a> {
                 facts: file_facts.len(),
             });
         }
-        validate_identity_domains(&file_entries)?;
+        let routes = ProgramOwnerRoutes::build(&file_entries)?;
+        Ok(Self::with_owner_routes(file_entries, file_facts, routes))
+    }
 
-        let mut node_owners: Vec<ArenaOwner> = file_entries
-            .iter()
-            .enumerate()
-            .map(|(file, entry)| ArenaOwner {
-                start: entry.source().arena.node_base(),
-                end: entry.source().arena.node_end(),
-                file,
-            })
-            .collect();
-        node_owners.sort_unstable_by_key(|owner| (owner.start, owner.end, owner.file));
-
-        let mut array_owners: Vec<ArenaOwner> = file_entries
-            .iter()
-            .enumerate()
-            .map(|(file, entry)| ArenaOwner {
-                start: entry.source().arena.array_base(),
-                end: entry.source().arena.array_end(),
-                file,
-            })
-            .collect();
-        array_owners.sort_unstable_by_key(|owner| (owner.start, owner.end, owner.file));
-
-        let mut symbol_owners: Vec<ArenaOwner> = file_entries
-            .iter()
-            .enumerate()
-            .filter_map(|(file, entry)| {
-                let data = entry.data();
-                let start = data.symbols.base();
-                let end = data.symbols.next_id().index();
-                (start != end).then_some(ArenaOwner { start, end, file })
-            })
-            .collect();
-        symbol_owners.sort_unstable_by_key(|owner| (owner.start, owner.end, owner.file));
-
-        validate_owner_intervals(ProgramIdentitySpace::Node, &node_owners, true)?;
-        validate_owner_intervals(ProgramIdentitySpace::NodeArray, &array_owners, true)?;
-        validate_owner_intervals(
-            ProgramIdentitySpace::PersistentSymbol,
-            &symbol_owners,
-            false,
-        )?;
-        for owner in &symbol_owners {
-            if owner.start >= TRANSIENT_SYMBOL_BIT || owner.end > TRANSIENT_SYMBOL_BIT {
-                return Err(
-                    ProgramIdentityError::PersistentSymbolUsesTransientPartition {
-                        file: owner.file,
-                        start: owner.start,
-                        end: owner.end,
-                    },
-                );
-            }
-        }
-
+    fn with_owner_routes(
+        file_entries: Vec<ProgramEntry<'a>>,
+        file_facts: Vec<ProgramFileFacts>,
+        routes: ProgramOwnerRoutes,
+    ) -> Self {
+        let ProgramOwnerRoutes {
+            node_owners,
+            symbol_owners,
+            node_files,
+            symbol_files,
+            direct_symbol_rooms,
+        } = routes;
         let sources = file_entries.iter().map(ProgramEntry::source).collect();
-        let node_files = DenseOwners::build(&node_owners);
-        let symbol_files = DenseOwners::build(&symbol_owners);
-        let direct_symbol_rooms = file_entries.iter().any(|entry| {
-            entry
-                .data()
-                .symbol_identity_lease()
-                .is_some_and(tsc_types::IdentityLease::is_room_slice)
-                // If every direct bind overflowed, none retains a symbol
-                // slice. The source's direct placement still identifies
-                // this finite command, unlike ordinary cached documents.
-                || entry
-                    .source()
-                    .arena
-                    .identity_leases()
-                    .is_some_and(|leases| leases.nodes.is_room_slice())
-        });
-        Ok(Self {
+        Self {
             file_entries,
             sources,
             file_facts,
@@ -1209,7 +1273,7 @@ impl<'a> ProgramBinder<'a> {
             direct_symbol_rooms,
             symbol_creation_bases: OnceLock::new(),
             transient: SymbolArena::with_base(TRANSIENT_SYMBOL_BIT),
-        })
+        }
     }
 
     /// tsrs-native: Rust ProgramBinder collection accessor.
@@ -1680,6 +1744,11 @@ impl ProgramSnapshot {
     pub(crate) fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
         usage.vec("snapshot document handles", &self.documents);
         usage.vec("snapshot file facts", &self.file_facts);
+        if usage.arc("snapshot owner routes", &self.owner_routes) {
+            if let Some(Ok(routes)) = self.owner_routes.get() {
+                routes.add_memory_usage(usage);
+            }
+        }
     }
 }
 
@@ -1688,14 +1757,11 @@ impl ProgramBinder<'_> {
         usage.vec("checker program projections", &self.file_entries);
         usage.vec("checker program projections", &self.sources);
         usage.vec("checker program projections", &self.file_facts);
-        usage.vec("checker owner indexes", &self.node_owners);
-        usage.vec("checker owner indexes", &self.symbol_owners);
+        usage.arc("checker owner indexes", &self.node_owners);
+        usage.arc("checker owner indexes", &self.symbol_owners);
         for index in [&self.node_files, &self.symbol_files] {
-            usage.vec("checker owner indexes", &index.owners);
-            let bytes = std::mem::size_of_val(index.pages.as_ref());
-            if bytes != 0 && usage.claim(index.pages.as_ptr() as usize) {
-                usage.add("checker owner indexes", index.pages.len(), bytes, bytes);
-            }
+            usage.arc("checker owner indexes", &index.owners);
+            usage.arc("checker owner indexes", &index.pages);
         }
     }
 }
