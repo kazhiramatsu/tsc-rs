@@ -1,0 +1,2 @@
+<fixture>/globals.d.ts
+<fixture>/case.ts

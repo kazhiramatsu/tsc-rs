@@ -1,0 +1,3 @@
+<fixture>/globals.d.ts
+<fixture>/b/second.ts
+<fixture>/a/first.ts

@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "noEmit": true,
+        "noLib": true,
+        "types": []
+    },
+    "files": [
+        "./globals.d.ts",
+        "./b/second.ts",
+        "./a/first.ts"
+    ],
+    "include": [
+        "b/*.ts",
+        "a/*.ts"
+    ]
+}

@@ -9,7 +9,7 @@ use std::path::{Component, Path, PathBuf, Prefix};
 use std::sync::{Arc, RwLock};
 use tsc_diagnostics::{JsStr, JsString};
 
-use crate::ordering::compare_utf16;
+use crate::ordering::compare_file_names;
 use crate::{
     CompilerHost, DirectoryListingEntry, DirectoryListingKind, HostError, HostErrorKind,
     HostOperation,
@@ -447,7 +447,7 @@ impl FsCompilerHost {
                 symlink,
             });
         }
-        entries.sort_by(|left, right| compare_utf16(&left.name, &right.name));
+        entries.sort_by(|left, right| compare_file_names(&left.name, &right.name));
         Ok(entries)
     }
 }

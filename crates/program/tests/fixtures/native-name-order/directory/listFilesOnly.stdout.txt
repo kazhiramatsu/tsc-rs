@@ -1,0 +1,8 @@
+<fixture>/globals.d.ts
+<fixture>/z-literal.ts
+<fixture>/B.ts
+<fixture>/a.ts
+<fixture>/ć.ts
+<fixture>/f́.ts
+<fixture>/.ts
+<fixture>/𐀀.ts

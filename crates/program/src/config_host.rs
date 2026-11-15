@@ -3,7 +3,7 @@
 //! Config parsing observes a deliberately smaller host surface than program
 //! loading. Keeping the adapter in `tsc_program` makes the filesystem and
 //! in-memory hosts use the same recursive enumeration, exclusion, decoding,
-//! and TypeScript UTF-16 ordering rules instead of duplicating them in the CLI.
+//! and native file-name ordering rules instead of duplicating them in the CLI.
 
 use std::collections::{BTreeSet, VecDeque};
 use tsc_diagnostics::{JsStr, JsString};
@@ -14,7 +14,6 @@ use crate::config_matcher::{ConfigFilePattern, InputComponent, MatchInput};
 use crate::decode_host_text;
 use crate::js_path::{
     base_file_name, directory_name, eq_ignore_case, file_name_key, normalize_slashes, root_parts,
-    uppercase,
 };
 use crate::module_resolution::normalize_absolute_js_path;
 use crate::vfsmatch::RelevantPatterns;
@@ -93,7 +92,7 @@ impl<'a> CompilerConfigHost<'a> {
         };
         // matchFiles.visitDirectory visits current files before child
         // directories (_tsc.js:18539–18571). CompilerHost already supplies
-        // UTF-16 name order; partitioning preserves that order within each.
+        // native byte name order; partitioning preserves that order within each.
         let case_sensitive = self.host.use_case_sensitive_file_names();
         let mut child_directories = Vec::new();
         for entry in entries {
@@ -425,14 +424,8 @@ fn discovery_base_paths(
         };
         candidates.push(base);
     }
-    candidates.sort_by_cached_key(|path| {
-        if case_sensitive {
-            path.clone()
-        } else {
-            uppercase(path.as_js())
-        }
-        .to_utf16()
-    });
+    candidates
+        .sort_by(|left, right| discovery_base_order(left.as_js(), right.as_js(), case_sensitive));
     for candidate in candidates {
         let normalized_candidate = normalize(candidate.as_js())?;
         let mut covered = false;
@@ -451,6 +444,51 @@ fn discovery_base_paths(
         }
     }
     Ok(bases)
+}
+
+// Directory entries are byte-sorted by the host. Include base paths use
+// the native path comparer instead: roots ignore case, and the remainder
+// follows the filesystem profile. The final root list is not sorted here.
+fn discovery_base_order(
+    left: JsStr<'_>,
+    right: JsStr<'_>,
+    case_sensitive: bool,
+) -> std::cmp::Ordering {
+    let dynamic = |path: JsStr<'_>| path.starts_with(tsc_host::DYNAMIC_URI_FILE_NAME_PREFIX);
+    if dynamic(left) || dynamic(right) {
+        let key = |path: JsStr<'_>| {
+            let mut key = path.to_owned();
+            if dynamic(path)
+                && !path.ends_with("/")
+                && root_parts(path).is_some_and(|(_, tail)| tail.is_empty())
+            {
+                key.push('/');
+            }
+            key
+        };
+        return key(left).cmp(&key(right));
+    }
+    let (left_root, left_rest) = root_parts(left).unwrap_or(("".into(), left));
+    let (right_root, right_rest) = root_parts(right).unwrap_or(("".into(), right));
+    compare_folded_path_text(left_root, right_root).then_with(|| {
+        if case_sensitive {
+            left_rest.as_bytes().cmp(right_rest.as_bytes())
+        } else {
+            compare_folded_path_text(left_rest, right_rest)
+        }
+    })
+}
+
+fn compare_folded_path_text(left: JsStr<'_>, right: JsStr<'_>) -> std::cmp::Ordering {
+    // Go's simple lowercase maps one scalar to one scalar. Lone surrogate
+    // keys remain distinct in our JS host, which can represent them.
+    let fold = |point: Result<char, std::char::DecodeUtf16Error>| match point {
+        Ok(ch) => ch.to_lowercase().next().expect("a lowercase scalar") as u32,
+        Err(unit) => u32::from(unit.unpaired_surrogate()),
+    };
+    char::decode_utf16(left.code_units())
+        .map(fold)
+        .cmp(char::decode_utf16(right.code_units()).map(fold))
 }
 
 /// The compiled include and exclude patterns of one walk.

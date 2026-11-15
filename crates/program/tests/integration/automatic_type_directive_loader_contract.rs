@@ -278,7 +278,7 @@ fn wildcard_expansion_preserves_root_and_host_order_filters_and_stably_deduplica
 }
 
 #[test]
-fn wildcard_automatic_types_follow_javascript_utf16_directory_order() {
+fn wildcard_automatic_types_follow_native_byte_directory_order() {
     let host = MemoryCompilerHost::builder("/work")
         .case_sensitive(false)
         .file("/work/root.ts", b"export {};\n".to_vec())
@@ -299,7 +299,7 @@ fn wildcard_automatic_types_follow_javascript_utf16_directory_order() {
             b"declare const bmp: true;\n".to_vec(),
         )
         .build()
-        .expect("build UTF-16 ordered automatic-types host");
+        .expect("build native-ordered automatic-types host");
     let options = ProgramOptions::default()
         .with_no_lib(true)
         .with_types(vec!["*".to_owned().into()])
@@ -308,7 +308,7 @@ fn wildcard_automatic_types_follow_javascript_utf16_directory_order() {
         ]);
 
     let program = load_no_lib(&host, &["/work/root.ts"], options, generous_limits())
-        .expect("load automatic types in JavaScript string order");
+        .expect("load automatic types in native byte order");
 
     assert_eq!(
         source_paths(&program),
@@ -316,8 +316,8 @@ fn wildcard_automatic_types_follow_javascript_utf16_directory_order() {
             Path::new("/work/root.ts"),
             Path::new("/types/B/index.d.ts"),
             Path::new("/types/a/index.d.ts"),
-            Path::new("/types/\u{10000}/index.d.ts"),
             Path::new("/types/\u{e000}/index.d.ts"),
+            Path::new("/types/\u{10000}/index.d.ts"),
         ]
     );
 }

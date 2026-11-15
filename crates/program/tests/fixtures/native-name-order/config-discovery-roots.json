@@ -1,0 +1,533 @@
+{
+  "reference": "pinned tsgo 7.1 native root order",
+  "binary_sha256": "5fd89a44ad3d26569ca8e2a99ad3a03936709bc977a409e17ef6c5393c773b20",
+  "inputs_sha256": "05e59f75d70c1881e91589fd2aa0aab2254962fe5cf09c7c92a329ac1413f0d4",
+  "javascript_oracle_sha256": "0a773345cc17148038779045480712bd215e43d451b561e1677b056174e59fad",
+  "cases": [
+    {
+      "case_id": "h2-8b-config-discovery/default-inside",
+      "file_names": [
+        "/project/app/main.ts",
+        "/project/app/src/z.ts",
+        "/project/app/src/a/child.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"./main.ts\",\n        \"./src/z.ts\",\n        \"./src/a/child.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/explicit-inside",
+      "file_names": [
+        "/project/app/src/z.ts",
+        "/project/app/src/a/child.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"./src/z.ts\",\n        \"./src/a/child.ts\"\n    ],\n    \"include\": [\n        \"src/**/*.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/empty-include",
+      "file_names": [],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {}\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/explicit-files",
+      "file_names": [
+        "/project/shared/z.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"../shared/z.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/sibling-recursive",
+      "file_names": [
+        "/project/shared/skip.ts",
+        "/project/shared/z.ts",
+        "/project/shared/\ue000.ts",
+        "/project/shared/\ud800\udc00.ts",
+        "/project/shared/a/child.ts",
+        "/project/shared/deep/end.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"../shared/skip.ts\",\n        \"../shared/z.ts\",\n        \"../shared/\ue000.ts\",\n        \"../shared/\ud800\udc00.ts\",\n        \"../shared/a/child.ts\",\n        \"../shared/deep/end.ts\"\n    ],\n    \"include\": [\n        \"../shared/**/*.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/parent-recursive",
+      "file_names": [
+        "/project/app/main.ts",
+        "/project/app/src/z.ts",
+        "/project/app/src/a/child.ts",
+        "/project/app-extra/edge.ts",
+        "/project/other/other.ts",
+        "/project/shared/skip.ts",
+        "/project/shared/z.ts",
+        "/project/shared/\ue000.ts",
+        "/project/shared/\ud800\udc00.ts",
+        "/project/shared/a/child.ts",
+        "/project/shared/deep/end.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"./main.ts\",\n        \"./src/z.ts\",\n        \"./src/a/child.ts\",\n        \"../app-extra/edge.ts\",\n        \"../other/other.ts\",\n        \"../shared/skip.ts\",\n        \"../shared/z.ts\",\n        \"../shared/\ue000.ts\",\n        \"../shared/\ud800\udc00.ts\",\n        \"../shared/a/child.ts\",\n        \"../shared/deep/end.ts\"\n    ],\n    \"include\": [\n        \"../**/*.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/absolute-recursive",
+      "file_names": [
+        "/project/shared/skip.ts",
+        "/project/shared/z.ts",
+        "/project/shared/\ue000.ts",
+        "/project/shared/\ud800\udc00.ts",
+        "/project/shared/a/child.ts",
+        "/project/shared/deep/end.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"../shared/skip.ts\",\n        \"../shared/z.ts\",\n        \"../shared/\ue000.ts\",\n        \"../shared/\ud800\udc00.ts\",\n        \"../shared/a/child.ts\",\n        \"../shared/deep/end.ts\"\n    ],\n    \"include\": [\n        \"<case>/project/shared/**/*.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/sibling-file",
+      "file_names": [
+        "/project/shared/z.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"../shared/z.ts\"\n    ],\n    \"include\": [\n        \"../shared/z.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/sibling-directory",
+      "file_names": [
+        "/project/shared/skip.ts",
+        "/project/shared/z.ts",
+        "/project/shared/\ue000.ts",
+        "/project/shared/\ud800\udc00.ts",
+        "/project/shared/a/child.ts",
+        "/project/shared/deep/end.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"../shared/skip.ts\",\n        \"../shared/z.ts\",\n        \"../shared/\ue000.ts\",\n        \"../shared/\ud800\udc00.ts\",\n        \"../shared/a/child.ts\",\n        \"../shared/deep/end.ts\"\n    ],\n    \"include\": [\n        \"../shared\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/wildcard-directory",
+      "file_names": [
+        "/project/shared/skip.ts",
+        "/project/shared/z.ts",
+        "/project/shared/\ue000.ts",
+        "/project/shared/\ud800\udc00.ts",
+        "/project/shared/a/child.ts",
+        "/project/shared/deep/end.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"../shared/skip.ts\",\n        \"../shared/z.ts\",\n        \"../shared/\ue000.ts\",\n        \"../shared/\ud800\udc00.ts\",\n        \"../shared/a/child.ts\",\n        \"../shared/deep/end.ts\"\n    ],\n    \"include\": [\n        \"../sh*/**/*.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/question-directory",
+      "file_names": [
+        "/project/shared/skip.ts",
+        "/project/shared/z.ts",
+        "/project/shared/\ue000.ts",
+        "/project/shared/\ud800\udc00.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"../shared/skip.ts\",\n        \"../shared/z.ts\",\n        \"../shared/\ue000.ts\",\n        \"../shared/\ud800\udc00.ts\"\n    ],\n    \"include\": [\n        \"../sh?red/*.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/relative-dot-segments",
+      "file_names": [
+        "/project/shared/skip.ts",
+        "/project/shared/z.ts",
+        "/project/shared/\ue000.ts",
+        "/project/shared/\ud800\udc00.ts",
+        "/project/shared/a/child.ts",
+        "/project/shared/deep/end.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"../shared/skip.ts\",\n        \"../shared/z.ts\",\n        \"../shared/\ue000.ts\",\n        \"../shared/\ud800\udc00.ts\",\n        \"../shared/a/child.ts\",\n        \"../shared/deep/end.ts\"\n    ],\n    \"include\": [\n        \"./../other/../shared/**/*.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/backslash-relative",
+      "file_names": [
+        "/project/shared/skip.ts",
+        "/project/shared/z.ts",
+        "/project/shared/\ue000.ts",
+        "/project/shared/\ud800\udc00.ts",
+        "/project/shared/a/child.ts",
+        "/project/shared/deep/end.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"../shared/skip.ts\",\n        \"../shared/z.ts\",\n        \"../shared/\ue000.ts\",\n        \"../shared/\ud800\udc00.ts\",\n        \"../shared/a/child.ts\",\n        \"../shared/deep/end.ts\"\n    ],\n    \"include\": [\n        \"..\\\\shared\\\\**\\\\*.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/absolute-file",
+      "file_names": [
+        "/project/shared/z.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"../shared/z.ts\"\n    ],\n    \"include\": [\n        \"<case>/project/shared/z.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/duplicate-bases",
+      "file_names": [
+        "/project/shared/skip.ts",
+        "/project/shared/z.ts",
+        "/project/shared/\ue000.ts",
+        "/project/shared/\ud800\udc00.ts",
+        "/project/shared/a/child.ts",
+        "/project/shared/deep/end.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"../shared/skip.ts\",\n        \"../shared/z.ts\",\n        \"../shared/\ue000.ts\",\n        \"../shared/\ud800\udc00.ts\",\n        \"../shared/a/child.ts\",\n        \"../shared/deep/end.ts\"\n    ],\n    \"include\": [\n        \"../shared/**/*.ts\",\n        \"../shared/**/*.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/child-before-parent",
+      "file_names": [
+        "/project/shared/deep/end.ts",
+        "/project/app/main.ts",
+        "/project/app/src/z.ts",
+        "/project/app/src/a/child.ts",
+        "/project/app-extra/edge.ts",
+        "/project/other/other.ts",
+        "/project/shared/skip.ts",
+        "/project/shared/z.ts",
+        "/project/shared/\ue000.ts",
+        "/project/shared/\ud800\udc00.ts",
+        "/project/shared/a/child.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"../shared/deep/end.ts\",\n        \"./main.ts\",\n        \"./src/z.ts\",\n        \"./src/a/child.ts\",\n        \"../app-extra/edge.ts\",\n        \"../other/other.ts\",\n        \"../shared/skip.ts\",\n        \"../shared/z.ts\",\n        \"../shared/\ue000.ts\",\n        \"../shared/\ud800\udc00.ts\",\n        \"../shared/a/child.ts\"\n    ],\n    \"include\": [\n        \"../shared/deep/**/*.ts\",\n        \"../**/*.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/parent-before-child",
+      "file_names": [
+        "/project/app/main.ts",
+        "/project/app/src/z.ts",
+        "/project/app/src/a/child.ts",
+        "/project/app-extra/edge.ts",
+        "/project/other/other.ts",
+        "/project/shared/skip.ts",
+        "/project/shared/z.ts",
+        "/project/shared/\ue000.ts",
+        "/project/shared/\ud800\udc00.ts",
+        "/project/shared/a/child.ts",
+        "/project/shared/deep/end.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"./main.ts\",\n        \"./src/z.ts\",\n        \"./src/a/child.ts\",\n        \"../app-extra/edge.ts\",\n        \"../other/other.ts\",\n        \"../shared/skip.ts\",\n        \"../shared/z.ts\",\n        \"../shared/\ue000.ts\",\n        \"../shared/\ud800\udc00.ts\",\n        \"../shared/a/child.ts\",\n        \"../shared/deep/end.ts\"\n    ],\n    \"include\": [\n        \"../**/*.ts\",\n        \"../shared/deep/**/*.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/component-boundary",
+      "file_names": [
+        "/project/app-extra/edge.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"../app-extra/edge.ts\"\n    ],\n    \"include\": [\n        \"../app-extra/**/*.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/external-exclude",
+      "file_names": [
+        "/project/shared/z.ts",
+        "/project/shared/\ue000.ts",
+        "/project/shared/\ud800\udc00.ts",
+        "/project/shared/a/child.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"../shared/z.ts\",\n        \"../shared/\ue000.ts\",\n        \"../shared/\ud800\udc00.ts\",\n        \"../shared/a/child.ts\"\n    ],\n    \"include\": [\n        \"../shared/**/*.ts\"\n    ],\n    \"exclude\": [\n        \"../shared/skip.ts\",\n        \"../shared/deep/**/*\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/explicit-file-and-wildcard",
+      "file_names": [
+        "/project/shared/z.ts",
+        "/project/shared/skip.ts",
+        "/project/shared/\ue000.ts",
+        "/project/shared/\ud800\udc00.ts",
+        "/project/shared/a/child.ts",
+        "/project/shared/deep/end.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"../shared/z.ts\",\n        \"../shared/skip.ts\",\n        \"../shared/\ue000.ts\",\n        \"../shared/\ud800\udc00.ts\",\n        \"../shared/a/child.ts\",\n        \"../shared/deep/end.ts\"\n    ],\n    \"include\": [\n        \"../shared/**/*.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/inherited-external",
+      "file_names": [
+        "/project/shared/skip.ts",
+        "/project/shared/z.ts",
+        "/project/shared/\ue000.ts",
+        "/project/shared/\ud800\udc00.ts",
+        "/project/shared/a/child.ts",
+        "/project/shared/deep/end.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"../shared/skip.ts\",\n        \"../shared/z.ts\",\n        \"../shared/\ue000.ts\",\n        \"../shared/\ud800\udc00.ts\",\n        \"../shared/a/child.ts\",\n        \"../shared/deep/end.ts\"\n    ],\n    \"include\": [\n        \"../shared/**/*.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/config-dir-template",
+      "file_names": [
+        "/project/shared/skip.ts",
+        "/project/shared/z.ts",
+        "/project/shared/\ue000.ts",
+        "/project/shared/\ud800\udc00.ts",
+        "/project/shared/a/child.ts",
+        "/project/shared/deep/end.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"../shared/skip.ts\",\n        \"../shared/z.ts\",\n        \"../shared/\ue000.ts\",\n        \"../shared/\ud800\udc00.ts\",\n        \"../shared/a/child.ts\",\n        \"../shared/deep/end.ts\"\n    ],\n    \"include\": [\n        \"<case>/project/shared/**/*.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/include-bucket-order",
+      "file_names": [
+        "/project/other/other.ts",
+        "/project/app/src/z.ts",
+        "/project/app/src/a/child.ts",
+        "/project/shared/skip.ts",
+        "/project/shared/z.ts",
+        "/project/shared/\ue000.ts",
+        "/project/shared/\ud800\udc00.ts",
+        "/project/shared/a/child.ts",
+        "/project/shared/deep/end.ts"
+      ],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"files\": [\n        \"../other/other.ts\",\n        \"./src/z.ts\",\n        \"./src/a/child.ts\",\n        \"../shared/skip.ts\",\n        \"../shared/z.ts\",\n        \"../shared/\ue000.ts\",\n        \"../shared/\ud800\udc00.ts\",\n        \"../shared/a/child.ts\",\n        \"../shared/deep/end.ts\"\n    ],\n    \"include\": [\n        \"../other/**/*.ts\",\n        \"src/**/*.ts\",\n        \"../shared/**/*.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    },
+    {
+      "case_id": "h2-8b-config-discovery/missing-external",
+      "file_names": [],
+      "rc": 0,
+      "command": [
+        "/Users/hiramatsu/dev/tsc-rs/target/typescript7/bin/tsc",
+        "-p",
+        "<case>/project/app/tsconfig.json",
+        "--showConfig",
+        "--pretty",
+        "false"
+      ],
+      "stdout": "{\n    \"compilerOptions\": {},\n    \"include\": [\n        \"../missing/**/*.ts\"\n    ]\n}",
+      "stderr": "",
+      "case_sensitive": false
+    }
+  ]
+}

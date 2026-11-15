@@ -211,7 +211,7 @@ pub trait CompilerHost {
     fn directory_exists(&self, path: &Path) -> Result<bool, HostError>;
 
     /// Return the immediate file and directory entries below `path`, ordered
-    /// by display name in JavaScript's lexicographic UTF-16 code-unit order.
+    /// by display name in the native reference's byte order.
     /// The order is independent of the host's case-sensitivity profile. An
     /// absent directory has no entries; a host failure is returned as `Err`.
     fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError>;

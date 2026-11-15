@@ -85,7 +85,7 @@ fn config_host_keeps_js_directory_keys_patterns_and_read_names() {
 }
 
 #[test]
-fn config_discovery_base_paths_match_typescript() {
+fn config_discovery_base_paths_match_native_reference() {
     let oracle: Value = serde_json::from_slice(include_bytes!(
         "../../fixtures/h2-8b-config-discovery-paths.json"
     ))
@@ -128,7 +128,14 @@ fn assert_path_cases(oracle: &Value, count: usize) {
                         .expect("these frozen controls contain scalar path values")
                 })
                 .collect::<Vec<_>>();
-            let exact = json!(actual) == case["base_paths"];
+            // Preserve the frozen JS oracle's provenance. This native
+            // reference intentionally uses byte order for this one case.
+            let expected = if case["case_id"] == "utf16-order" {
+                json!(["/project/app", "/project/\u{e000}", "/project/\u{10000}"])
+            } else {
+                case["base_paths"].clone()
+            };
+            let exact = json!(actual) == expected;
             eprintln!(
                 "H2.8b-CFG1b-path {}",
                 json!({
@@ -136,12 +143,81 @@ fn assert_path_cases(oracle: &Value, count: usize) {
                 })
             );
             if !exact {
-                failures.push(format!(
-                    "{}: {:?} != {}",
-                    case["case_id"], actual, case["base_paths"]
-                ));
+                failures.push(format!("{}: {:?} != {}", case["case_id"], actual, expected));
             }
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn native_include_base_order_separates_roots_case_profiles_and_dynamic_names() {
+    use std::cmp::Ordering::{Equal, Greater, Less};
+    for (left, right, sensitive, expected) in [
+        ("/x/\u{e000}", "/x/\u{10000}", true, Less),
+        ("/x/\u{e000}", "/x/\u{10000}", false, Less),
+        ("/x/_", "/x/a", false, Less),
+        ("/x/Z", "/x/a", false, Greater),
+        ("/x/Z", "/x/a", true, Less),
+        ("c:/Z", "C:/a", true, Less),
+        ("/x/\u{130}", "/x/i", false, Equal),
+        ("/x/e\u{301}", "/x/\u{e9}", false, Less),
+        (
+            "^/~ts-uri~/untitled/B",
+            "^/~ts-uri~/untitled/a",
+            false,
+            Less,
+        ),
+        ("^/untitled/B", "^/untitled/a", false, Greater),
+    ] {
+        assert_eq!(
+            discovery_base_order(left.into(), right.into(), sensitive),
+            expected,
+            "{left:?}, {right:?}, case-sensitive={sensitive}"
+        );
+    }
+}
+
+#[test]
+fn native_config_root_order_matches_pinned_cli_fixtures() {
+    let manifest: Value = serde_json::from_slice(include_bytes!(
+        "../../fixtures/native-name-order/cases.json"
+    ))
+    .unwrap();
+    assert_eq!(manifest["reference"], "pinned tsgo 7.1");
+    for case in manifest["cases"].as_array().unwrap() {
+        let mut builder = tsc_host::MemoryCompilerHost::builder("/fixture")
+            .case_sensitive(case["case_sensitive"].as_bool().unwrap());
+        for (name, text) in case["files"].as_object().unwrap() {
+            builder = builder.file(
+                format!("/fixture/{name}"),
+                text.as_str().unwrap().as_bytes(),
+            );
+        }
+        let text = serde_json::to_string(&case["config"]).unwrap();
+        let host = builder
+            .file("/fixture/tsconfig.json", text.as_bytes())
+            .build()
+            .unwrap();
+        let plan = crate::parse_config_root_plan(
+            &CompilerConfigHost::new(&host),
+            crate::ConfigRootPlanRequest {
+                file_name: "/fixture/tsconfig.json".into(),
+                text,
+                base_path: "/fixture".into(),
+            },
+        )
+        .unwrap();
+        let names = plan
+            .file_names()
+            .iter()
+            .map(|name| {
+                format!(
+                    "./{}",
+                    name.as_str().unwrap().strip_prefix("/fixture/").unwrap()
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(json!(names), case["expected_roots"], "{}", case["name"]);
+    }
 }

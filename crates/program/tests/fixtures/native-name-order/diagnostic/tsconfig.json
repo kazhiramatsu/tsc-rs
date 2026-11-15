@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "noEmit": true,
+    "noLib": true,
+    "types": []
+  },
+  "files": [
+    "globals.d.ts"
+  ],
+  "include": [
+    "*.ts"
+  ]
+}
