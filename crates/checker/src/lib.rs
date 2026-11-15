@@ -4840,8 +4840,10 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         .into_snapshot_with_file_facts(file_facts)
         .expect("program snapshot identity allocation failed");
     report_program_memory(&snapshot);
-    let mut metadata = run.lib_metadata.clone();
-    metadata.extend(authoritative_program_metadata.iter().cloned());
+    let mut metadata =
+        Vec::with_capacity(run.lib_metadata.len() + authoritative_program_metadata.len());
+    metadata.extend(run.lib_metadata.iter().cloned());
+    metadata.extend(authoritative_program_metadata);
     if syntactic_closed {
         // Syntax closes getters, but emit still needs an initialized resolver.
         // Reuse the existing serial snapshot executor for this closed request.
