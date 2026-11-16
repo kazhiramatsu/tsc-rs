@@ -465,3 +465,32 @@ fn diagnostic_format_literal_spans_keep_unicode_and_malformed_placeholders() {
         assert_eq!(format_message(template, &values), expected);
     }
 }
+
+#[test]
+fn indexed_diagnostic_order_keeps_complete_records_and_stable_ties() {
+    for len in [0, 1, 31, 32, 33, 64, 127, 257] {
+        for salt in [0, 1, 9] {
+            let mut actual: Vec<_> = (0..len)
+                .map(|i| {
+                    let key = (i * 37 + salt) % 17;
+                    let mut row = diagnostic(
+                        Some(if key % 2 == 0 { "a.ts" } else { "b.ts" }),
+                        Some((key % 7) as u32),
+                        1000,
+                        "same",
+                    );
+                    row.related_information_present = i % 3 == 0;
+                    row.reports_unnecessary = Some(i % 2 == 0);
+                    row.reports_deprecated = Some(i % 5 == 0);
+                    row.skipped_on_no_emit = i % 7 == 0;
+                    row.message.next_present = i % 11 == 0;
+                    row
+                })
+                .collect();
+            let mut expected = actual.clone();
+            expected.sort_by(compare_diagnostics);
+            sort_diagnostics(&mut actual);
+            assert_eq!(actual, expected, "len={len}, salt={salt}");
+        }
+    }
+}

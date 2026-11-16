@@ -461,12 +461,33 @@ pub fn compare_diagnostics(left: &Diagnostic, right: &Diagnostic) -> Ordering {
         .then_with(|| compare_related_information(&left.related, &right.related))
 }
 
+fn sort_diagnostics(diagnostics: &mut [Diagnostic]) {
+    if diagnostics.len() <= 32 {
+        diagnostics.sort_by(compare_diagnostics);
+        return;
+    }
+    let mut order: Vec<usize> = (0..diagnostics.len()).collect();
+    order.sort_by(|&left, &right| compare_diagnostics(&diagnostics[left], &diagnostics[right]));
+    // Each destination names its original source. Consume the permutation's
+    // cycles while moving the owned records only at their final ordering step.
+    for first in 0..order.len() {
+        let mut current = first;
+        while order[current] != first {
+            let source = order[current];
+            order[current] = current;
+            diagnostics.swap(current, source);
+            current = source;
+        }
+        order[current] = current;
+    }
+}
+
 /// tsgo `DiagnosticsCollection` (ast/diagnostic.go:269-387): `Add` keeps one
 /// of the diagnostics that are equal (`EqualDiagnostics`, related information
 /// included) and `GetDiagnostics` returns them sorted by `CompareDiagnostics`.
 /// Equal diagnostics compare equal, so after the sort they are neighbours.
 pub fn sort_and_dedupe_equal_diagnostics(diagnostics: &mut DiagnosticList) {
-    diagnostics.sort_by(compare_diagnostics);
+    sort_diagnostics(diagnostics);
     diagnostics.dedup_by(|right, left| {
         diagnostics_equal(left, right)
             && left.related.len() == right.related.len()
@@ -479,7 +500,7 @@ pub fn sort_and_dedupe_equal_diagnostics(diagnostics: &mut DiagnosticList) {
 }
 
 pub fn sort_and_dedupe_diagnostics(diagnostics: &mut DiagnosticList) {
-    diagnostics.sort_by(compare_diagnostics);
+    sort_diagnostics(diagnostics);
     // tsgo compactAndMergeRelatedInfos (compiler/program.go:1680-1708): a
     // run of more than one diagnostic that differ at most by related
     // information becomes one diagnostic whose related information (all
