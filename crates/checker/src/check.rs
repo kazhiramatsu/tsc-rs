@@ -5743,12 +5743,11 @@ impl<'a> CheckerState<'a> {
             self.tables.type_of(left).symbol,
             self.tables.type_of(right).symbol,
         );
-        let (left_alias, right_alias) = (
-            self.tables.alias_symbol(left),
-            self.tables.alias_symbol(right),
-        );
+        // A generic alias includes its argument list. Distinct instances
+        // must take the same-name retry, even when their heads are equal.
+        let (left_alias, right_alias) = (self.tables.alias(left), self.tables.alias(right));
         left_symbol.is_some() && left_symbol == right_symbol
-            || left_alias.is_some() && left_alias == right_alias
+            || left_alias.is_some_and(|alias| alias.symbol.is_some()) && left_alias == right_alias
     }
 
     /// tsc-port: mapToTypeNodes @6.0.3
@@ -5826,8 +5825,8 @@ impl<'a> CheckerState<'a> {
         }
         // mapToTypeNodes' same-written-name retry (52451-52469):
         // only a heterogeneous identifier-reference group rerenders
-        // under UseFullyQualifiedType. Same-symbol generic
-        // instantiations are homogeneous even when arguments differ.
+        // under UseFullyQualifiedType. Alias arguments participate in
+        // reference identity, as in the declaration node builder.
         for collisions in seen_names.values() {
             let Some(&(first, _)) = collisions.first() else {
                 continue;
