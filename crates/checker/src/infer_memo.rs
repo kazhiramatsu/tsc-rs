@@ -11,6 +11,9 @@
 //! attempt or impure union reduction, no older transient/reference dependency or
 //! expression-flow-cache access, no active mapper at entry, and no expression
 //! check from a zero instantiation count. LS blocking excludes keys altogether.
+//! No walk is stored or reused while a parameter's provisional contextual type
+//! is published (assignParameterType: `unknown` until the binding pattern's
+//! type replaces it): such a walk reads a value that is replaced afterwards.
 //! Unlike tsrs's lazy-member variant, no symbol creation is exempted. All five
 //! relation-cache sizes must also stay unchanged: they govern the TS2859 budget.
 //!
@@ -40,7 +43,7 @@ const MIN_STEPS: u32 = 16;
 const TABLE_SLOTS: usize = 1 << 12;
 const MAX_LONG_TARGETS: usize = 1 << 16;
 #[cfg(any(test, feature = "infer-memo-shadow"))]
-const REJECTIONS: usize = 17;
+const REJECTIONS: usize = 18;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct InfoOutcome {
@@ -297,12 +300,14 @@ impl CheckerState<'_> {
         let active = !self.active_type_mappers.is_empty();
         // A hit needs the same settled entry state as a stored walk.
         let in_variance = !self.variance_stack.is_empty();
-        if active || in_variance {
+        let provisional = self.provisional_parameter_types != 0;
+        if active || in_variance || provisional {
             self.infer_memo.key_pool.push(key);
             #[cfg(any(test, feature = "infer-memo-shadow"))]
             {
                 self.infer_memo.stats.rejected[1] += u64::from(active);
                 self.infer_memo.stats.rejected[16] += u64::from(in_variance);
+                self.infer_memo.stats.rejected[17] += u64::from(provisional);
             }
             return self
                 .infer_types_walk(infos, source, target, priority, contravariant)
@@ -377,6 +382,7 @@ impl CheckerState<'_> {
             // suppress that publication by omitting an invocation increment.
             before.flow_invocations != after.flow_invocations,
             in_variance,
+            provisional,
         ];
         if rejected.iter().any(|&r| r) {
             #[cfg(any(test, feature = "infer-memo-shadow"))]

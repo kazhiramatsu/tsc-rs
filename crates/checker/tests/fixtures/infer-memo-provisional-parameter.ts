@@ -1,0 +1,7 @@
+// The first parameter's contextual type `unknown` is published while its pattern's default is evaluated.
+declare function take<T>(fn: (a0: T, a1: T, a2: T, a3: T, a4: T, a5: T, a6: T, a7: T, a8: T, a9: T, a10: T, a11: T, a12: T, a13: T, a14: T, a15: T, a16: T, a17: T, a18: T, a19: T, a20: T, a21: T, a22: T, a23: T, a24: T, a25: T, a26: T, a27: T, a28: T, a29: T, a30: T, a31: T) => void): T;
+const f: (a0: unknown, a1: unknown, a2: unknown, a3: unknown, a4: unknown, a5: unknown, a6: unknown, a7: unknown, a8: unknown, a9: unknown, a10: unknown, a11: unknown, a12: unknown, a13: unknown, a14: unknown, a15: unknown, a16: unknown, a17: unknown, a18: unknown, a19: unknown, a20: unknown, a21: unknown, a22: unknown, a23: unknown, a24: unknown, a25: unknown, a26: unknown, a27: unknown, a28: unknown, a29: unknown, a30: unknown, a31: unknown) => void = function self({ x = (take(self), take(self), take(self)) }, a1: unknown, a2: unknown, a3: unknown, a4: unknown, a5: unknown, a6: unknown, a7: unknown, a8: unknown, a9: unknown, a10: unknown, a11: unknown, a12: unknown, a13: unknown, a14: unknown, a15: unknown, a16: unknown, a17: unknown, a18: unknown, a19: unknown, a20: unknown, a21: unknown, a22: unknown, a23: unknown, a24: unknown, a25: unknown, a26: unknown, a27: unknown, a28: unknown, a29: unknown, a30: unknown, a31: unknown): void {
+  const after = take(self);
+  const binding: { x?: unknown } = after;
+  const numeric: number = after;
+};

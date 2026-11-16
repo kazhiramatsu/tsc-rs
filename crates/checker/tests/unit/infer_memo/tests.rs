@@ -316,3 +316,64 @@ fn repeated_extract_walks_match_pinned_tsgo_and_hit_the_memo() {
         },
     );
 }
+
+/// Oracle: pinned tsgo aa814927, `--strict --noEmit --pretty false a.ts`.
+/// The first parameter's contextual type `unknown` is published while its
+/// binding pattern's default calls `take(self)`; assignParameterType then
+/// replaces it with the pattern's type. The walks made in between read
+/// `unknown`, and the call after the replacement must not reuse them.
+#[test]
+fn walks_under_a_provisional_parameter_type_are_not_reused() {
+    let text = include_str!("../../fixtures/infer-memo-provisional-parameter.ts");
+    let lib = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"),
+        "/../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/internal/bundled/libs/lib.es5.d.ts"))
+        .expect("vendored ES5 lib");
+    with_program_state(
+        &[("a.ts", text), ("lib.es5.d.ts", &lib)],
+        &CompilerOptions {
+            strict: Some(true),
+            skip_lib_check: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            let mut diagnostics: Vec<_> = state
+                .diagnostics
+                .iter()
+                .filter(|d| {
+                    // The command prints errors; the ledger also holds the
+                    // unused-declaration suggestions of the 32 parameters.
+                    d.category() == tsc_diagnostics::DiagnosticCategory::Error
+                        && d.file_name
+                            .as_ref()
+                            .is_some_and(|name| name.as_js().as_str() == Some("a.ts"))
+                })
+                .collect();
+            diagnostics.sort_by_key(|d| (d.start, d.code()));
+            let mut actual = String::new();
+            for diagnostic in diagnostics {
+                let start = diagnostic.start.expect("diagnostic location") as usize;
+                let prefix = &text[..start]; // The oracle fixture is ASCII.
+                let line = prefix.bytes().filter(|&b| b == b'\n').count() + 1;
+                let column = start - prefix.rfind('\n').map_or(0, |n| n + 1) + 1;
+                let message = tsc_diagnostics::flattened_message(&diagnostic.message, "\n", None);
+                actual.push_str(&format!(
+                    "a.ts({line},{column}): error TS{}: {}\n",
+                    diagnostic.code(),
+                    message.as_js().as_str().expect("ASCII fixture message")
+                ));
+            }
+            assert_eq!(
+                actual,
+                include_str!("../../fixtures/infer-memo-provisional-parameter.expected.txt")
+            );
+            // The calls in the default took the real walk: no lookup, no store.
+            assert!(
+                state.infer_memo.stats.rejected[17] > 0,
+                "{:?}",
+                state.infer_memo.stats
+            );
+            assert_eq!(state.provisional_parameter_types, 0);
+        },
+    );
+}

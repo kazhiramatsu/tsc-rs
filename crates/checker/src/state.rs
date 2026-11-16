@@ -915,6 +915,12 @@ pub struct CheckerState<'a> {
     pub(crate) infer_memo: crate::infer_memo::InferMemo,
     pub(crate) expression_checks: u64,
     pub(crate) impure_union_reductions: u64,
+    /// Parameters whose contextual type `unknown` is published while their
+    /// binding pattern is still being evaluated: assignParameterType replaces
+    /// it with the pattern's type afterwards. An inference walk made inside
+    /// that window can read the provisional value, so the inference memo
+    /// neither stores nor reuses a walk while this is non-zero.
+    pub(crate) provisional_parameter_types: u32,
     /// The inference walk's slot snapshot and its two stacks, kept between
     /// walks with their room (a walk inside a walk takes empty ones).
     pub(crate) inference_walk_buffers: crate::inference::InferenceWalkBuffers,
@@ -2369,6 +2375,7 @@ impl<'a> CheckerState<'a> {
             infer_memo: crate::infer_memo::InferMemo::new(),
             expression_checks: 0,
             impure_union_reductions: 0,
+            provisional_parameter_types: 0,
             inference_walk_buffers: Default::default(),
             array_variances: SharedList::from(crate::variance::ARRAY_VARIANCES),
             speculation_depth: 0,

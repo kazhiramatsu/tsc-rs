@@ -1,0 +1,4 @@
+a.ts(3,7): error TS2322: Type '({ x }: { x?: unknown; }, a1: unknown, a2: unknown, a3: unknown, a4: unknown, a5: unknown, a6: unknown, a7: unknown, a8: unknown, a9: unknown, a10: unknown, a11: unknown, a12: unknown, a13: unknown, a14: unknown, a15: unknown, a16: unknown, a17: unknown, a18: unknown, a19: unknown, a20: unknown, a21: unknown, a22: u...' is not assignable to type '(a0: unknown, a1: unknown, a2: unknown, a3: unknown, a4: unknown, a5: unknown, a6: unknown, a7: unknown, a8: unknown, a9: unknown, a10: unknown, a11: unknown, a12: unknown, a13: unknown, a14: unknown, a15: unknown, a16: unknown, a17: unknown, a18: unknown, a19: unknown, a20: unknown, a21: unknown, a22: unknown, a23:...'.
+  Types of parameters '__0' and 'a0' are incompatible.
+    Type 'unknown' is not assignable to type '{ x?: unknown; }'.
+a.ts(6,9): error TS2322: Type '{ x?: unknown; }' is not assignable to type 'number'.
