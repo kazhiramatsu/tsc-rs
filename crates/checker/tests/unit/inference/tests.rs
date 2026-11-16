@@ -2625,6 +2625,48 @@ fn inference_record_reuse_keeps_ids_and_candidate_presence_distinct() {
 }
 
 #[test]
+fn direct_owner_mapper_noops_keep_logical_age_after_slot_reuse() {
+    with_program_state(
+        &[("a.ts", GENERIC_SRC)],
+        &CompilerOptions::default(),
+        |state| {
+            let t = declared_type_parameter(state, "T");
+            let string = state.tables.intrinsics.string;
+            let scope = state.inference_scope_start();
+            let older = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+            let older_mapper = state.inference_context(older).mapper;
+            let inner = state.inference_scope_start();
+            let younger = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+            let own_mapper = state.inference_context(younger).mapper;
+            state.retain_context_mapper(younger, Some(older_mapper));
+            state.retain_context_mapper(younger, Some(own_mapper));
+            assert!(!state.inference_context(older).escaped);
+            assert!(!state.inference_context(younger).escaped);
+            let records = state.inference_context_arena.records().len();
+            state.finish_inference_scope(inner);
+
+            let replacement =
+                state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+            assert!(replacement.index() > younger.index());
+            assert_eq!(state.inference_context_arena.records().len(), records);
+            let info = state.inference_context(replacement).inferences[0];
+            state.push_inference_candidate(info, string, false);
+            let mapper = state.inference_context(replacement).mapper;
+            state.retain_context_mapper(older, Some(mapper));
+            state.inference_context_mut(older).return_mapper = Some(mapper);
+            assert!(state.inference_context(replacement).escaped);
+            state.finish_inference_scope(scope);
+            assert_eq!(
+                state
+                    .instantiate_type(t, Some(mapper))
+                    .expect("younger mapper retained"),
+                string
+            );
+        },
+    );
+}
+
+#[test]
 fn a_published_mapper_keeps_its_composite_and_merged_context_graph() {
     with_program_state(
         &[("a.ts", GENERIC_SRC)],

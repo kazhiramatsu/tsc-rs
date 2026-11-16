@@ -66,7 +66,14 @@ impl<T: Copy, const N: usize> InlineList<T, N> {
 
     #[inline]
     pub fn len(&self) -> usize {
-        (self.length.get() & !HEAP) - 1
+        let length = (self.length.get() & !HEAP) - 1;
+        let maximum = (isize::MAX as usize) / std::mem::size_of::<T>().max(1);
+        debug_assert!(length <= maximum);
+        // SAFETY: inline elements fit in sixteen bytes. A heap prefix is bounded
+        // by the capacity of its originating Vec, whose allocation fits isize.
+        // Every mutation reserves before writing and retains this bound.
+        unsafe { std::hint::assert_unchecked(length <= maximum) };
+        length
     }
 
     #[inline]
@@ -81,12 +88,18 @@ impl<T: Copy, const N: usize> InlineList<T, N> {
 
     #[inline]
     pub fn capacity(&self) -> usize {
-        if self.is_heap() {
+        let capacity = if self.is_heap() {
             // SAFETY: the length tag selects the initialized union field.
             unsafe { self.records.heap.capacity }
         } else {
             N
-        }
+        };
+        let maximum = (isize::MAX as usize) / std::mem::size_of::<T>().max(1);
+        debug_assert!(capacity <= maximum);
+        // SAFETY: inline capacity fits in sixteen bytes; heap capacity comes
+        // from a non-zero-sized Vec allocation, which cannot exceed isize.
+        unsafe { std::hint::assert_unchecked(capacity <= maximum) };
+        capacity
     }
 
     /// Only separately allocated backing; the inline payload is in the header.
@@ -138,14 +151,20 @@ impl<T: Copy, const N: usize> InlineList<T, N> {
         self.set_len(length + 1);
     }
 
+    #[inline(always)]
     pub fn reserve(&mut self, additional: usize) {
         let needed = self
             .len()
             .checked_add(additional)
             .expect("inline list length overflow");
-        if needed <= self.capacity() {
-            return;
+        if needed > self.capacity() {
+            self.grow(additional, needed);
         }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn grow(&mut self, additional: usize, needed: usize) {
         let values = if self.is_heap() {
             let mut values = std::mem::take(self).into_vec();
             values.reserve(additional);
@@ -197,6 +216,13 @@ impl<T: Copy, const N: usize> InlineList<T, N> {
         }
     }
 
+    #[inline(never)]
+    fn clone_heap(&self) -> Self {
+        let mut clone = Self::with_capacity(self.len());
+        clone.extend_from_slice(self);
+        clone
+    }
+
     fn from_heap(values: Vec<T>) -> Self {
         let _ = Self::new();
         let mut values = ManuallyDrop::new(values);
@@ -236,14 +262,55 @@ impl<T: Copy, const N: usize> FromIterator<T> for InlineList<T, N> {
         list
     }
 }
+// Publishes all initialized elements even if the iterator unwinds. While the
+// guard lives, its list cannot be observed or reallocated through safe code.
+struct InitializedPrefix<'a, T: Copy, const N: usize> {
+    list: &'a mut InlineList<T, N>,
+    length: usize,
+}
+
+impl<T: Copy, const N: usize> Drop for InitializedPrefix<'_, T, N> {
+    fn drop(&mut self) {
+        self.list.set_len(self.length);
+    }
+}
+
 impl<T: Copy, const N: usize> Extend<T> for InlineList<T, N> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, values: I) {
-        for value in values {
-            self.push(value);
+        let mut values = values.into_iter();
+        let Some(mut value) = values.next() else {
+            return;
+        };
+        loop {
+            let length = self.len();
+            if length == self.capacity() {
+                self.reserve(1);
+            }
+            assert!(length < HEAP - 2, "inline list length overflow");
+            let limit = self.capacity().min(HEAP - 2);
+            let mut prefix = InitializedPrefix { list: self, length };
+            let destination = prefix.list.pointer_mut();
+            loop {
+                // SAFETY: length is below the unchanged capacity. The pointer
+                // is derived through the guard's exclusive borrow; only its
+                // separate length field changes until the pointer is retired.
+                unsafe { destination.add(prefix.length).write(value) };
+                prefix.length += 1;
+                value = match values.next() {
+                    Some(value) => value,
+                    None => return,
+                };
+                if prefix.length == limit {
+                    break;
+                }
+            }
+            // Publish before the next reserve. As with push, the iterator is
+            // polled for the next value before a full buffer is grown.
         }
     }
 }
 impl<T: Copy, const N: usize> Clone for InlineList<T, N> {
+    #[inline(always)]
     fn clone(&self) -> Self {
         if !self.is_heap() {
             Self {
@@ -255,9 +322,7 @@ impl<T: Copy, const N: usize> Clone for InlineList<T, N> {
                 length: self.length,
             }
         } else {
-            let mut clone = Self::with_capacity(self.len());
-            clone.extend_from_slice(self);
-            clone
+            self.clone_heap()
         }
     }
     fn clone_from(&mut self, source: &Self) {
@@ -387,5 +452,72 @@ mod tests {
         let mut list: InlineList<u64, 2> = [5, 6].into_iter().collect();
         list.push(7);
         assert_eq!(list.into_vec(), [5, 6, 7]);
+    }
+    #[test]
+    fn extend_keeps_initialized_elements_when_the_iterator_panics() {
+        use std::panic::{catch_unwind, AssertUnwindSafe};
+
+        fn values_before_panic(count: usize) -> impl Iterator<Item = u64> {
+            let mut next = 0;
+            std::iter::from_fn(move || {
+                assert!(next < count, "iterator failure");
+                let value = 100 + next as u64;
+                next += 1;
+                Some(value)
+            })
+        }
+
+        for initial in [0, 1, 2, 3, 9] {
+            for appended in 0..12 {
+                let mut list: InlineList<u64, 2> = (0..initial).collect();
+                let mut expected: Vec<u64> = (0..initial).collect();
+                assert!(catch_unwind(AssertUnwindSafe(|| {
+                    list.extend(values_before_panic(appended));
+                }))
+                .is_err());
+                assert!(catch_unwind(AssertUnwindSafe(|| {
+                    expected.extend(values_before_panic(appended));
+                }))
+                .is_err());
+                assert_eq!(list.as_slice(), expected.as_slice());
+                list.push(999);
+                expected.push(999);
+                assert_eq!(list.into_vec(), expected);
+            }
+        }
+    }
+
+    #[test]
+    fn extend_uses_actual_elements_when_size_hints_are_inaccurate() {
+        struct Hinted {
+            values: std::ops::Range<u32>,
+            lower: usize,
+            upper: Option<usize>,
+        }
+        impl Iterator for Hinted {
+            type Item = u32;
+            fn next(&mut self) -> Option<Self::Item> {
+                self.values.next()
+            }
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                (self.lower, self.upper)
+            }
+        }
+        for count in 0..18 {
+            for (lower, upper) in [(0, None), (0, Some(0)), (8, Some(8))] {
+                let make = || Hinted {
+                    values: 0..count,
+                    lower,
+                    upper,
+                };
+                let mut list: InlineList<u32, 4> = make().collect();
+                let expected: Vec<_> = (0..count).collect();
+                assert_eq!(list.as_slice(), expected.as_slice());
+                list.clear();
+                list.extend(make());
+                assert_eq!(list.clone().into_vec(), expected);
+                assert_eq!(list.into_iter().collect::<Vec<_>>(), expected);
+            }
+        }
     }
 }

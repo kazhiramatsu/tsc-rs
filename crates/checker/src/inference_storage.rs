@@ -224,6 +224,7 @@ impl<T: InferenceRecord> IndexMut<T::Id> for InferencePool<T> {
 }
 
 /// Reusing an oversized buffer must not enlarge a context that escapes.
+#[inline(always)]
 pub(crate) fn exact_buffer<T: Copy, const N: usize>(
     buffer: InlineList<T, N>,
     count: usize,
@@ -231,7 +232,17 @@ pub(crate) fn exact_buffer<T: Copy, const N: usize>(
     debug_assert!(buffer.is_empty());
     if count <= N {
         InlineList::new()
-    } else if buffer.capacity() == count {
+    } else {
+        exact_heap_buffer(buffer, count)
+    }
+}
+
+#[inline(never)]
+fn exact_heap_buffer<T: Copy, const N: usize>(
+    buffer: InlineList<T, N>,
+    count: usize,
+) -> InlineList<T, N> {
+    if buffer.capacity() == count {
         buffer
     } else {
         drop(buffer);
@@ -252,7 +263,25 @@ impl InferenceLifetimes {
     #[inline]
     fn flags(&self, mapper: MapperId) -> u64 {
         let id = mapper.index() as usize;
-        (self.mapper_flags[id >> 5] >> ((id & 31) * 2)) & 3
+        self.mapper_flags
+            .get(id >> 5)
+            .map_or(0, |word| (*word >> ((id & 31) * 2)) & 3)
+    }
+
+    #[inline]
+    fn record_context_mapper(&mut self, mapper: MapperId) {
+        let id = mapper.index() as usize;
+        let word = id >> 5;
+        if word >= self.mapper_flags.len() {
+            let needed = word + 1;
+            // Match the dense prefix's capacity ceiling, without writing a
+            // word or updating length for each context-free mapper.
+            let capacity = needed.max(4).next_power_of_two();
+            self.mapper_flags
+                .reserve_exact(capacity - self.mapper_flags.len());
+            self.mapper_flags.resize(needed, 0);
+        }
+        self.mapper_flags[word] |= HAS_CONTEXT << ((id & 31) * 2);
     }
 
     fn mark_retained(&mut self, mapper: MapperId) {
@@ -319,16 +348,8 @@ impl CheckerState<'_> {
             }
             _ => false,
         };
-        let index = id.index() as usize;
-        if index & 31 == 0 {
-            self.inference_lifetimes.mapper_flags.push(0);
-        }
         if has_context {
-            *self
-                .inference_lifetimes
-                .mapper_flags
-                .last_mut()
-                .expect("mapper flag word") |= HAS_CONTEXT << ((index & 31) * 2);
+            self.inference_lifetimes.record_context_mapper(id);
         }
     }
 
@@ -357,7 +378,26 @@ impl CheckerState<'_> {
         }
     }
 
+    #[inline]
     fn walk_inference_mappers(&mut self, root: MapperId, older_than: Option<InferenceContextId>) {
+        if older_than.is_some_and(|owner| {
+            matches!(self.mapper(root),
+                TypeMapper::Deferred(
+                    DeferredMapperTargets::InferenceFixing(context)
+                    | DeferredMapperTargets::InferenceNonFixing(context)
+                ) if context.index() <= owner.index())
+        }) {
+            return;
+        }
+        self.walk_inference_mapper_graph(root, older_than);
+    }
+
+    #[inline(never)]
+    fn walk_inference_mapper_graph(
+        &mut self,
+        root: MapperId,
+        older_than: Option<InferenceContextId>,
+    ) {
         let mut todo = std::mem::take(&mut self.inference_lifetimes.todo);
         let mut visited = std::mem::take(&mut self.inference_lifetimes.visited);
         todo.push((root, older_than.is_none()));
@@ -476,6 +516,28 @@ mod tests {
     use super::{InferenceHandle, InferencePool};
     use crate::inference::{create_inference_info, InferenceInfoId};
     use tsc_types::TypeId;
+
+    #[test]
+    fn implicit_zero_mapper_tail_keeps_retained_bits_across_growth() {
+        use super::{InferenceLifetimes, HAS_CONTEXT, RETAINED};
+        use tsc_types::MapperId;
+
+        let mut lifetimes = InferenceLifetimes::default();
+        let far_tail = MapperId::new(u32::MAX - 1);
+        assert_eq!(lifetimes.flags(far_tail), 0);
+        assert_eq!(lifetimes.mapper_flags.capacity(), 0);
+
+        let first = MapperId::new(95);
+        lifetimes.record_context_mapper(first);
+        lifetimes.mark_retained(first);
+        let later = MapperId::new(70_000);
+        lifetimes.record_context_mapper(later);
+        assert_eq!(lifetimes.flags(first), HAS_CONTEXT | RETAINED);
+        assert_eq!(lifetimes.flags(later), HAS_CONTEXT);
+        assert_eq!(lifetimes.flags(MapperId::new(32_000)), 0);
+        assert_eq!(lifetimes.flags(far_tail), 0);
+        assert!(lifetimes.mapper_flags.capacity() <= 4096);
+    }
 
     #[test]
     fn reused_records_keep_distinct_logical_ids() {
