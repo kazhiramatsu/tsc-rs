@@ -42,8 +42,13 @@ pub fn get_assignment_declaration_kind(
     expr: NodeId,
 ) -> AssignmentDeclarationKind {
     let in_js = node_flags(tree, expr).intersects(NodeFlags::JAVA_SCRIPT_FILE);
-    match &tree.node(expr).data() {
-        NodeData::BinaryExpression(data) => {
+    let binding_node = tree.node(expr);
+    match binding_node.kind {
+        SyntaxKind::BinaryExpression => {
+            let data = binding_node
+                .as_binary_expression()
+                .expect("selected payload kind");
+
             let (Some(left), Some(operator)) = (data.left, data.operator_token) else {
                 return AssignmentDeclarationKind::None;
             };
@@ -89,7 +94,11 @@ pub fn get_assignment_declaration_kind(
                 AssignmentDeclarationKind::None
             }
         }
-        NodeData::CallExpression(data) => {
+        SyntaxKind::CallExpression => {
+            let data = binding_node
+                .as_call_expression()
+                .expect("selected payload kind");
+
             if !in_js || !is_bindable_object_define_property_call(tree, expr) {
                 return AssignmentDeclarationKind::None;
             }
@@ -111,16 +120,25 @@ pub fn get_assignment_declaration_kind(
 /// an identifier or a dotted identifier chain; with `allow_js`, also
 /// `this` and string/numeric literal element accesses.
 pub fn is_entity_name_expression_ex(tree: &impl NodeLookup, node: NodeId, allow_js: bool) -> bool {
-    match &tree.node(node).data() {
-        NodeData::Identifier(_) => true,
-        NodeData::PropertyAccessExpression(data) => {
+    let binding_node = tree.node(node);
+    match binding_node.kind {
+        SyntaxKind::Identifier => true,
+        SyntaxKind::PropertyAccessExpression => {
+            let data = binding_node
+                .as_property_access_expression()
+                .expect("selected payload kind");
+
             data.name
                 .is_some_and(|name| kind_of(tree, name) == SyntaxKind::Identifier)
                 && data.expression.is_some_and(|expression| {
                     is_entity_name_expression_ex(tree, expression, allow_js)
                 })
         }
-        NodeData::ElementAccessExpression(data) => {
+        SyntaxKind::ElementAccessExpression => {
+            let data = binding_node
+                .as_element_access_expression()
+                .expect("selected payload kind");
+
             allow_js
                 && data
                     .argument_expression
@@ -250,9 +268,20 @@ pub fn is_bindable_object_define_property_call(tree: &impl NodeLookup, expr: Nod
 
 /// The `.expression` of an access expression.
 pub fn access_expression_of(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
-    match &tree.node(node).data() {
-        NodeData::PropertyAccessExpression(data) => data.expression,
-        NodeData::ElementAccessExpression(data) => data.expression,
+    let binding_node = tree.node(node);
+    match binding_node.kind {
+        SyntaxKind::PropertyAccessExpression => {
+            let data = binding_node
+                .as_property_access_expression()
+                .expect("selected payload kind");
+            data.expression
+        }
+        SyntaxKind::ElementAccessExpression => {
+            let data = binding_node
+                .as_element_access_expression()
+                .expect("selected payload kind");
+            data.expression
+        }
         _ => None,
     }
 }

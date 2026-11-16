@@ -230,12 +230,35 @@ impl<'a> BinderWorker<'a> {
     /// accessors, index signatures and spreads can add fewer; later merged
     /// declarations reserve only their own additional bound.
     fn reserve_container_members(&mut self, node: NodeId) {
-        let (members, exports) = match &self.source.arena.node(node).data() {
-            NodeData::TypeLiteral(data) => (data.members, false),
-            NodeData::InterfaceDeclaration(data) => (data.members, false),
-            NodeData::ObjectLiteralExpression(data) => (data.properties, false),
-            NodeData::EnumDeclaration(data) => (data.members, true),
-            _ => return,
+        let (members, exports) = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::TypeLiteral => {
+                    let data = binding_node
+                        .as_type_literal()
+                        .expect("selected payload kind");
+                    (data.members, false)
+                }
+                SyntaxKind::InterfaceDeclaration => {
+                    let data = binding_node
+                        .as_interface_declaration()
+                        .expect("selected payload kind");
+                    (data.members, false)
+                }
+                SyntaxKind::ObjectLiteralExpression => {
+                    let data = binding_node
+                        .as_object_literal_expression()
+                        .expect("selected payload kind");
+                    (data.properties, false)
+                }
+                SyntaxKind::EnumDeclaration => {
+                    let data = binding_node
+                        .as_enum_declaration()
+                        .expect("selected payload kind");
+                    (data.members, true)
+                }
+                _ => return,
+            }
         };
         let count = members.map_or(0, |members| {
             self.source.arena.node_array(members).nodes.len()
@@ -935,7 +958,7 @@ fn get_module_instance_state_worker(
         NodeData::ExportDeclaration(data) => {
             if data.module_specifier.is_none() {
                 if let Some(clause) = data.export_clause {
-                    if let NodeData::NamedExports(named) = &source.arena.node(clause).data() {
+                    if let Some(named) = source.arena.node(clause).as_named_exports() {
                         let mut state = ModuleInstanceState::NonInstantiated;
                         if let Some(elements) = named.elements {
                             for &specifier in source.arena.node_array(elements).nodes {
