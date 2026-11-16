@@ -1284,6 +1284,48 @@ front end の行は pk12 の分解能の下だったので、専用の窓 fe12�
 
 **次。** (1) 計測枠（所有者に依頼済み）：着地した binary、list の cursor、宣言の latch と準備の共有、常設 pool の 4 候補；front end の両者比較（8 案件、宣言なし）；error のない宣言つき構成での latch の値段；通常優先度での効率 core の速度比；既定設定の front end の thread 別 profile。(2) 次の着地の順序は list の cursor → 宣言の準備の共有 → 宣言の latch → pool（pool と latch は shard の driver で衝突するので pool を上に載せた；4 行とも新しい main の上で当たることを確認済み）。(3) front end：直列区間（root の列挙、library image の復元、graph の仕上げ、bind と検査 session の準備）と module 解決・scanner・copy を担当 lane が行にする。(4) 夜に新しい main の上で候補 binary を作る。
 
+**結果 43（2026-11-16 18:20〜11-17 00:12：自分で書いた読み込みの行、夜の計測枠の判定と着地、4 本並列の天井の実測、別枠の開始）。**
+
+**方針の変更（所有者の指示）。** (1) lane が苦戦している項目や、受け渡しより自分で書くほうが速い項目は integrator が自分で実装する。(2) 目標は他移植（tsrs）の 2 倍で、小さな行の積み上げではなくそこから逆算する。(3) 「全 checker で型の世界を 1 つ共有する」案は **別枠**（専用の branch、複数回の試行を前提、所有者の承認なしに main へは入れない）。(4) 重い項目の分担：問いは census と simulation で先に潰す／共有する事実への入口を集める機械的な作業は 1 回だけ専用の lane に／入口の裏の核は integrator が書き、試行ごとに書き直すのはそこだけ／判定は script。
+
+**自分で書いた行：root の読み手。** VS Code の front end を thread ごとの時系列で見ると、こちらは平均幅 4.05 で、どの thread も区間の 4 分の 1 しか動いていなかった（読み手 3 本が各 23〜24 %、worker 12 本が各 15〜24 %；他移植は幅 6.93）。原因は level 0 の読み込みの受け入れ：読み手は受け入れより 4 file しか先行できず、受け入れる worker は順序の lock を持ったまま読み込みを待ち、text を decode していた。
+
+- 最初の版（各 worker が自分の stripe を読む）は読み込み段の −4〜−10 % にとどまった。調べると **この機械では file の open が thread 数で伸びない**：VS Code の 10,196 file を open・fstat・read・close する C の試験で、1 thread 108 ms、2 本 82、3 本 68、4 本 64、6 本 84、10 本 90 ms；1 thread の process を 4 つ同時に走らせると各 255 ms（system 全体の直列化）；`openat` も速くない（139 対 107 ms）。
+- 採用した版：**読み手は 3 本のまま、止まらずに stripe 単位で読んで decode して預ける**；parse の worker は listing 順に次の stripe が預けられたら部屋を借りて parse する。lock の中に残るのは預け入れと貸し出しだけ。部屋・序数・bind の予約は以前と同じ順序・同じ大きさで貸すので、identity は変わらない（file の並びは worker 1・2・4・既定の 4 通り × 8 案件で一致、出力は 9 通りの budget × 8 案件の 72 cell で一致）。
+
+**夜の計測枠（21:10〜21:30、lane をすべて停止、9 回、base 2 回）。** base 同士の既定設定の wall は中央値で −8.0〜+2.6 %、cell ごとの最良値で +0.45〜+3.44 %（この窓が分解できるのは最良値で 1〜2 %）。
+
+| 候補 | 既定設定の wall（最良値の幾何平均） | 1 thread の cycles | peak | 判定 |
+|---|---:|---:|---:|---|
+| 読み手 3 本 | 対照の内側 | −0.36 % | ±0 | **採用**：front end 単独で VS Code 346 → 333 ms（system 時間 668 → 586 ms）、next 94 → 90 ms |
+| 推論の記憶域 3 行（lane peak-mem） | +0.36 %（対照の内側） | −0.06 % | **VS Code −85 MiB**、effect −43、vue −16、zod −13、next −11 | **採用**（命令数は +0.17〜+0.67 % だが時間は中立 — 判定は時間と peak） |
+| 宣言の判定 latch＋宣言準備の共有＋list cursor | vue の最良値 −6.57 % | −0.52 % | **vue +23 MiB**（261 → 284）；error のない `declaration`＋`noEmit` の Program で 181 → 202 MiB、時間は同じ | **不採用**：peak の原因を除いてから |
+| member pool（lane mem-records） | — | +0.6〜+1.4 % | VS Code −67 MiB | 不採用（遅くなる） |
+
+latch の peak の原因（code を読んだ結果；計測での切り分けはこれから）：main は、shard が自分の宣言の分を計算し終えた直後に lookup の buffer・links の record・mapper を返している。latch は全 shard の判定が揃うまで待つので、早く終わった shard がそれらを最後まで持ち続ける。**書き直した形（integrator、未判定）**：誰も待たない — 検査を終えた shard が「自分の行で宣言の関門が閉じる」ことを旗に立て、旗が立っていれば各 shard は宣言の分を飛ばし、立っていなければ今の main と同じくすぐ計算して buffer を返す。捨てられる計算をどの shard がやってしまうかは完了順で変わるので、宣言の分が変えうる数（統計行の counter、順序の記録）は「どの shard も関門を閉じなかったとき」だけ採用する — 出力と統計行は完了順に依らず、仕事量だけが実行ごとに揺れる（所有者の確認：出力が決定的ならよい）。候補 binary は 9 通りの budget × 8 案件で出力一致、vue の小さい構成を 20 回繰り返して出力は毎回同一、命令数は main より −5.4 %（latch の版 −5.0 %）で実行ごとの幅は main より小さい。時間と peak は次の計測枠で判定する。
+
+**tsrs との位置（同じ窓、既定設定、両者 PGO なし；wall は tsrs がこちらより何 % 短いか、peak は tsrs − こちら）。** hono はこちらが 5.2 % 速い；VS Code −0.3 %（peak −207 MiB）、effect −3.9 %（−32）、next −5.9 %（**+27**：こちらが軽い）、zod −9.0 %（**+12**）、TypeScript −9.3 %（−30）、playwright −15.3 %（−38）、**vue −22.2 %**（−27）。front end 単独（`--noCheck`）の既定設定はこちら / 他移植で VS Code 346 / 261 ms、next 94 / 71、zod 73 / 51、playwright 51 / 38、vue 35 / 25、TypeScript 29 / 26、effect 33 / 32、hono 16 / 18 — **front end が主線で最大の差**。
+
+**着地（PR [#1013](https://github.com/kazhiramatsu/tsc-rs/pull/1013)、merge `f5250e16c`、hosted run 43886670297）。** 読み手 3 本と推論の記憶域 3 行の 4 commit。積み上げた binary で、登録の前に「出力 72/72・file の並び 32/32・1 本と 4 本の counter が main と同じ・着地 job 自身の oracle の段」を通した（結果 42 の教訓）。その事前確認が、古い読み取りを 1 つ見つけた：#1012 以降はどの binary も `Memory used`・`Bind time`・`Emit time` の行を出すのに、oracle の比較は時間の行を 4 つしか知らず、どの候補でも（base 同士でも）落ちる状態だった — 着地 job の中なら 85 分後に止まっていたものが、2 分で見つかった。推論の行が足す `unsafe` の構造（`tsc_store::InlineList`：inline の配列と `Vec` の確保の union、長さの tag で選ぶ）は着地前に全 block を読んだ。
+
+**4 本並列の天井（実測）。** 独立した checker は同じ型を何度も作る。checker 1 本に対する命令数の増加は、4 本で hono +27 %、zod +20、vue +19、TypeScript +12、effect +29、playwright +27、next +14；10 本で +55、+44、+38、+26、+47、+57、+23 %（型の数は 4 本で +30〜+108 %）。vue の wall は checker 1・2・4・6・8・10 本でこちら 485・315・261・206・199・216 ms、他移植 479・288・218・174・171・163 ms — **全 core を使っても両者とも 1.3 倍**。検査を群に分ける今の構造（tsgo と同じ）では 2 倍に届かない。なお zod の診断は checker の本数で変わる（TS5115・TS2344 の有無；pinned の tsgo も `--checkers 1` と `--checkers 4` で同じ変わり方をする）。
+
+**別枠：型の世界の共有（main には入れていない）。** 作る前に測ったもの：
+
+- **打ち切りの event**（観測用 build、checker 1 本 / 4 本）：具体化の上限 zod 13 / 27・vue 21 / 21、解決の循環 zod 11 / 12・effect 7 / 7・next 1 / 1、制約の深さ zod 6 / 14・vue 2 / 2・effect 10 / 10・playwright 6 / 6・next 55 / 59 — 7 案件中 5 件で起きるので「event が起きたら Program 全体をやり直す」形は成り立たない。事実ごとの印（taint）が要る。
+- **順序の census**：1 つの世界の中では file の順序を乱数で入れ替えても診断は変わらなかった（hono・vue・TypeScript・effect・playwright・next で 19 回中 19 回同一）。zod で変わるのは「独立した checker の本数」だけ。
+- **記録からの simulation**（型・宣言型・member の解決・具体化・関係の 5 系統の計算を 1 本の記録から取り、共有した場合の並列実行を机上で再生）：4 thread で vue 4.00 倍、playwright 3.99、effect 3.82、hono 3.49、TypeScript 3.07 倍（後の 2 つは最大の 1 file が上限）；待ちは数百回・合計で数十 thread-ms、待ちの循環は無し。5 系統だけ・同期と memory の費用なし・理想の順序という上限値。
+- **core の実力**：1 thread の compile を N 個同時に走らせた合計の仕事量は、性能 core 4 つで 1 個の 2.9〜3.65 倍、10 個で 4.3〜5.2 倍 — 負荷が満ちた状態の効率 core は性能 core の 0.25〜0.3。全 core での上限は 5 倍前後（最初に置いた 0.45 は高すぎた）。
+- 設計の規則：型の記憶域は追記のみで動かさない／遅延して埋まる欄は一度だけ書ける cell（読むのは atomic の load 1 回、取るのは CAS 1 回）／intern の表は挿入のみで thread ごとの前段 cache を持つ／id は block で借りる／共有 data に参照 count を置かない／推論・解決・flow の作業域は thread ごと。状態は 244 field のうち 60〜70 が共有側。11-16 の夜から、この枠は文脈の小さい専用の session で進めている（引き継ぎ書 1 枚から開始；最初の試行は lane を使わず、共有する状態を「baton」と一緒に受け渡す形）。
+
+**memory の振る舞い（主線）。** 「block を少なく・密にすれば速くなる」を 3 つの実験が否定した：推論の inline 記憶域（cycles は noise の内、peak だけ下がる）、member pool（cycles +0.6〜+1.4 %）、512 byte までの確保を thread ごとの連続領域から切る allocator の実験（命令数 ±0.2 %、cycles +0.4〜+2.5 %）。残る仮説は「1 回の参照がたどる別々の領域の数」で、命令単位の帰属（既存の miss の sample）で確かめてから手を入れる。libsystem を通る copy と fill は vue の既定設定でこちら 586 万回・278 MB、他移植 520 万回・158 MB；最大の出所は、捨てられる宣言の計算が file ごとに node の arena を複製する箇所（21 MB）。
+
+**訂正。** (1) 「4 本同時で +16.8 % 対 +10.3 %」は lane と build の負荷の中で測っていた — 静かな状態で測り直すと vue +9.6 % 対 +6.1 %、effect +9.5 % 対 +10.8 %。(2) 「次は arena 化」という見立ては上の 3 実験で取り下げた。(3) 効率 core の速度比（上記）。
+
+**運用。** fan が 3 回上がった（19:37 に 3,310 rpm、20:05 に 3,278、20:44 に 3,341；どれも私の job の重なり）— 重い job の lock を取ったあとに fan が冷えるのを待つ関門を入れ、checker を含む型検査も lock を通すことにした。lane の build の待ち行列は私の build の間は止めている；session が終わった lane は立て直していない。
+
+**次。** (1) 宣言の分を待たずに飛ばす版を次の計測枠で判定する（vue の wall と peak、error のない宣言つき Program の peak）。(2) front end の直列区間（設定の列挙、root の走査、graph の仕上げ、検査 session の組み立て）— 主線で最大の差。(3) miss の sample を命令単位で両者比較し、1 回の参照がたどる領域の数を確かめる。(4) 別枠は専用の session で継続する。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
