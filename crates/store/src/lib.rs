@@ -142,6 +142,42 @@ pub fn process_instructions() -> Option<u64> {
     #[cfg(not(target_os = "macos"))]
     None
 }
+
+/// Current process memory from the operating system, rather than allocator
+/// capacity or a lifetime peak. macOS reports physical footprint (including
+/// compressed pages); Linux reports resident bytes. Other platforms and
+/// unavailable queries return `None`, rather than a fabricated zero.
+pub fn process_memory_bytes() -> Option<u64> {
+    #[cfg(target_os = "macos")]
+    {
+        let mut info = MaybeUninit::<libc::rusage_info_v4>::zeroed();
+        // SAFETY: the V4 query writes the aligned V4 buffer on success.
+        let result = unsafe {
+            libc::proc_pid_rusage(
+                libc::getpid(),
+                libc::RUSAGE_INFO_V4,
+                info.as_mut_ptr().cast(),
+            )
+        };
+        if result != 0 {
+            return None;
+        }
+        // SAFETY: the successful query initialized the zeroed buffer.
+        Some(unsafe { info.assume_init() }.ri_phys_footprint)
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let status = std::fs::read_to_string("/proc/self/status").ok()?;
+        let rss = status
+            .lines()
+            .find_map(|line| line.strip_prefix("VmRSS:"))?;
+        let mut fields = rss.split_whitespace();
+        let kibibytes = fields.next()?.parse::<u64>().ok()?;
+        (fields.next()? == "kB").then_some(kibibytes.checked_mul(1024)?)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    None
+}
 pub use shared_text::{read_text_file, SharedText, StaticText, TextRead};
 
 /// Where the reservation starts: clear of every placement seen on macOS and

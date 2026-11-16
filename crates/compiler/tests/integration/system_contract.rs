@@ -226,6 +226,107 @@ fn args(args: &[&str]) -> Vec<String> {
 }
 
 #[test]
+fn statistics_report_every_checker_before_its_state_is_released() {
+    let mut by_budget = Vec::new();
+    for checkers in [1, 4] {
+        for no_emit in [true, false] {
+            let mut system = MemorySystem::new(&[
+                ("/work/a.ts", "export interface Box<T> { value: T } export const a: Box<number> = { value: 1 };"),
+                ("/work/b.ts", "export function identity<T>(value: T): T { return value; } export const b = identity('b');"),
+                ("/work/c.ts", "export type Choice = 'c' | 'd'; export const c: Choice = 'c';"),
+                ("/work/d.ts", "export const d: number[] = [1, 2];"),
+            ]);
+            system.env.insert("TSRS_WORKERS".into(), "4".into());
+            system
+                .env
+                .insert("TSRS_CHECKERS".into(), checkers.to_string());
+            let mut arguments = args(&[
+                "a.ts",
+                "b.ts",
+                "c.ts",
+                "d.ts",
+                "--pretty",
+                "false",
+                "--outDir",
+                "out",
+                "--extendedDiagnostics",
+            ]);
+            if no_emit {
+                arguments.push("--noEmit".into());
+            }
+            assert_eq!(
+                status_of(&system, &arguments, None),
+                0,
+                "{}",
+                system.output.lock().unwrap()
+            );
+            let output = system.output.lock().unwrap().clone();
+            let rows: Vec<_> = output
+                .lines()
+                .map(|line| line.split_once(':').expect("statistics row"))
+                .collect();
+            let mut expected_rows = vec![
+                "Files",
+                "Lines",
+                "Identifiers",
+                "Symbols",
+                "Types",
+                "Instantiations",
+                "Parse time",
+                "Bind time",
+                "Check time",
+                "Emit time",
+                "Total time",
+            ];
+            if rows.iter().any(|(name, _)| *name == "Memory used") {
+                expected_rows.insert(6, "Memory used");
+                assert!(rows
+                    .iter()
+                    .any(|(name, value)| *name == "Memory used" && value.trim().ends_with('K')));
+            }
+            assert_eq!(
+                rows.iter().map(|(name, _)| *name).collect::<Vec<_>>(),
+                expected_rows,
+                "checkers={checkers}, no_emit={no_emit}"
+            );
+            let count = |name| {
+                rows.iter()
+                    .find(|(row, _)| *row == name)
+                    .unwrap()
+                    .1
+                    .trim()
+                    .parse::<u64>()
+                    .unwrap()
+            };
+            assert!(count("Identifiers") > 0);
+            assert!(count("Symbols") > 0);
+            assert!(count("Types") > 0);
+            assert!(count("Instantiations") > 0);
+            if no_emit {
+                by_budget.push((count("Identifiers"), count("Types")));
+            }
+            for (name, value) in rows {
+                if name.ends_with("time") {
+                    assert!(value.trim().ends_with('s'));
+                }
+            }
+            system.output.lock().unwrap().clear();
+            arguments.retain(|argument| argument != "--extendedDiagnostics");
+            assert_eq!(status_of(&system, &arguments, None), 0);
+            assert!(system.output.lock().unwrap().is_empty());
+        }
+    }
+    assert_eq!(
+        by_budget[0].0, by_budget[1].0,
+        "program identifiers count once"
+    );
+    assert!(
+        by_budget[1].1 > by_budget[0].1,
+        "types include every checker's initialization and work"
+    );
+}
+
+#[test]
 fn a_project_compiles_into_the_memory_file_system() {
     let system = MemorySystem::new(&[
         (

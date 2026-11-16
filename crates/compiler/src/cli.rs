@@ -1574,7 +1574,12 @@ fn report_statistics(
     statistics.symbols = run.work_counters.symbols() as usize;
     statistics.types = run.work_counters.types() as usize;
     statistics.instantiations = run.work_counters.instantiations() as usize;
-    statistics.check_time = elapsed_since(route.system, check_clock);
+    statistics.memory_used = tsc_types::process_memory_bytes();
+    statistics.bind_time = run.work_counters.bind_time();
+    statistics.emit_time = run.work_counters.emit_time();
+    statistics.check_time = elapsed_since(route.system, check_clock)
+        .saturating_sub(statistics.bind_time)
+        .saturating_sub(statistics.emit_time);
     statistics.total_time = route.system.since_start();
     run.stdout.push_str(&statistics.report(route.testing));
     run.statistics = Some(statistics);
@@ -1796,6 +1801,9 @@ fn execute_prepared(
     if diagnostics.len() == config_count {
         diagnostics.extend(std::mem::take(&mut outcome.declaration_diagnostics));
     }
+    let statistics_emit_started = (wants_statistics(prepared.compiler_options())
+        && !list_files_only)
+        .then(|| route.system.now());
     // tsgo emitBuildInfo: an incremental program's --noEmit command writes
     // its build info; the file joins the emitted-file listing, a failure to
     // write it (TS5033) joins the diagnostics.
@@ -1845,6 +1853,9 @@ fn execute_prepared(
             }
         }
     }
+    let statistics_emit_time = statistics_emit_started
+        .map(|started| elapsed_since(route.system, started))
+        .unwrap_or_default();
     let write_times = if route.write_times {
         emitted_files
             .iter()
@@ -1859,7 +1870,8 @@ fn execute_prepared(
         .unwrap_or_default();
     status_writes.extend(listing_lines(&prepared, current_directory));
     let status_writes = between_list_file_markers(route, status_writes);
-    let work_counters = outcome.work_counters();
+    let mut work_counters = outcome.work_counters();
+    work_counters.emit_time += statistics_emit_time;
     let render_started = std::time::Instant::now();
     let rendered = rendered_diagnostics_with_exit_work_status_and_summary(
         route.format(current_directory),

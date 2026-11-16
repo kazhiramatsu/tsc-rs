@@ -7496,30 +7496,35 @@ fn order_guard_replays_last_union_member_inference_at_every_width() {
         stable_type_ordering: Some(false),
         ..CompilerOptions::default()
     };
-    let run_with_ownership = |checkers: usize, order_replay: bool, leak: bool| {
-        check_program_with_authoritative_modules_at_cache_mode_with_source(
-            &libs,
-            &files,
-            &lib_metadata,
-            &file_metadata,
-            &options,
-            "/",
-            AuthoritativeProviderSource::PerChecker(&Factory),
-            false,
-            None,
-            None,
-            crate::LibraryPrefixCompletion::Complete,
-            crate::DiagnosticSchedule::Eager,
-            tsc_program::WorkerBudget::serial(),
-            CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap())
-                .with_order_replay(order_replay)
-                .with_leaked_states(leak),
-            None,
-            crate::IncrementalRequest::NONE,
-            false,
-        )
-        .expect("authoritative result")
-    };
+    let run_with_statistics =
+        |checkers: usize, order_replay: bool, leak: bool, statistics: bool| {
+            let mut options = options.clone();
+            options.extended_diagnostics = Some(statistics);
+            check_program_with_authoritative_modules_at_cache_mode_with_source(
+                &libs,
+                &files,
+                &lib_metadata,
+                &file_metadata,
+                &options,
+                "/",
+                AuthoritativeProviderSource::PerChecker(&Factory),
+                false,
+                None,
+                None,
+                crate::LibraryPrefixCompletion::Complete,
+                crate::DiagnosticSchedule::Eager,
+                tsc_program::WorkerBudget::serial(),
+                CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap())
+                    .with_order_replay(order_replay)
+                    .with_leaked_states(leak),
+                None,
+                crate::IncrementalRequest::NONE,
+                false,
+            )
+            .expect("authoritative result")
+        };
+    let run_with_ownership =
+        |checkers, order_replay, leak| run_with_statistics(checkers, order_replay, leak, false);
     let run_with = |checkers, order_replay| run_with_ownership(checkers, order_replay, false);
     let run = |checkers: usize| run_with(checkers, true);
     // The default (relaxed) budget keeps the sharded result without arming
@@ -7559,6 +7564,28 @@ fn order_guard_replays_last_union_member_inference_at_every_width() {
         assert_eq!(
             sharded.work_counters.checker_shards(),
             checkers.min(4) as u64
+        );
+    }
+    let serial_statistics = run_with_statistics(1, true, false, true);
+    for checkers in [2, 3, 4] {
+        let replayed = run_with_statistics(checkers, true, true, true);
+        assert_eq!(replayed.work_counters.checker_serial_replay(), 1);
+        assert_eq!(
+            replayed.work_counters.identifiers(),
+            serial_statistics.work_counters.identifiers(),
+            "discarded shards do not duplicate program counts"
+        );
+        assert_eq!(
+            replayed.work_counters.symbols(),
+            serial_statistics.work_counters.symbols()
+        );
+        assert_eq!(
+            replayed.work_counters.types(),
+            serial_statistics.work_counters.types()
+        );
+        assert_eq!(
+            replayed.work_counters.instantiations(),
+            serial_statistics.work_counters.instantiations()
         );
     }
 }
@@ -8613,7 +8640,9 @@ fn finished_eager_shards_preserve_owned_results_and_checker_work_counts() {
         strict: Some(true),
         ..CompilerOptions::default()
     };
-    let run = |count, leak, completion| {
+    let run = |count, leak, completion, statistics| {
+        let mut options = options.clone();
+        options.extended_diagnostics = Some(statistics);
         let eager = |_: usize,
                      _: &ProgramSnapshot,
                      _: &CheckerSession<'_>,
@@ -8655,8 +8684,19 @@ fn finished_eager_shards_preserve_owned_results_and_checker_work_counts() {
     };
     for count in [2, 4] {
         for leak in [false, true] {
-            let retained = run(count, leak, ShardEagerState::Retained);
-            let finished = run(count, leak, ShardEagerState::Finished);
+            let retained = run(count, leak, ShardEagerState::Retained, false);
+            let finished = run(count, leak, ShardEagerState::Finished, false);
+            let reported = run(count, leak, ShardEagerState::Finished, true);
+            let counts = |result: &CheckResult| {
+                let work = result.work_counters;
+                (
+                    work.identifiers(),
+                    work.symbols(),
+                    work.types(),
+                    work.instantiations(),
+                )
+            };
+            assert_eq!(counts(&finished), counts(&reported));
             assert_eq!(finished, retained);
             assert!(finished.diagnostics.iter().any(|row| row.code() == 2322));
             assert!(finished.work_counters.types() > 0);
