@@ -1241,6 +1241,49 @@ front end の行は pk12 の分解能の下だったので、専用の窓 fe12�
 
 **次。** 候補 binary（stalls の診断 3 行、load-order、bind-in-task、fe-cost、全部入り）を夜のうちに作り、1 thread の記録は日中、既定設定の窓は所有者の枠で；型述語の修正（複雑さの上限での診断を tsgo の 1 件に；制限事項が 1 つ消える）と統計の行（4 checker・emit なしで work counter が出ない不具合）をそれぞれ PR に；pool の修正版が来しだい検証 mode での照合。
 
+**結果 42（2026-11-16 10:16〜18:01：朝の計測枠の判定と着地、tsrs との現在位置、vue の差の分解、front end の差の発見）。**
+
+**朝の計測枠（10:16〜10:56、lane をすべて停止）。** 前夜の波の候補を lane ごとの release binary（main の code `22081cabd` の上）で測った：8 案件・9 回・既定設定（base 2 回と他移植）と 1 thread、続いて front end 単独（`--noCheck`、15 回）。1 thread の値は 8 案件の幾何平均；**この窓の零点は「base と同じ命令数の binary」（統計行の修正のみ）の cycles −0.36 %**。
+
+| 候補（lane） | 1 thread：命令数 | 1 thread：cycles | 判定 |
+|---|---:|---:|---|
+| load-order 2 行 | ±0.00 % | −0.37 % | 採用（peak −32 / −15 MiB） |
+| fe-cost 1 行 | −0.27 % | −0.74 % | 採用（cycles で零点を超えるのはこの行だけ） |
+| stalls 3 行（診断の受け渡し） | −0.01 % | −0.19 % | 採用（中立） |
+| ck-flow 1 行 | −0.21 % | −0.27 % | 採用（中立） |
+| bind-in-task 2 行（読み込み task 内の bind） | — | −2.6 %（VS Code の front end） | **不採用**：front end 単独が遅くなる（VS Code 363 ms 対 347・348、TypeScript 36 対 32 ms）；read-ahead が 191.8 → 232.1 ms、root walk と graph の仕上げが 56.9 → 33.2 ms |
+| ck-diff 4 行 | 中立 | −0.22 % | **保留**：vue の既定設定が 9 回とも遅い（248〜263 ms 対 218〜252）；命令数では説明できない（既定 +0.17 %） |
+
+既定設定の wall はどの候補も分解できない（base 同士で VS Code +5.0 %、zod −3.2 %、next +1.4 %）。
+
+**tsrs との位置（同じ窓、既定設定、9 回の中央値；両者 PGO なし）。** VS Code 1.917 / 2.013 秒 対 1.971（同等）、hono 60 対 61 ms（同等）、effect −2.8 %、zod −4.6 %、next 531 / 538 対 487 ms（−8.3 %）、TypeScript 159 対 143（−10.1 %）、playwright 229 / 227 対 199（−12.8 %）、**vue 240 / 239 対 196（−18.3 %）**。peak は VS Code 2,498 対 2,285 MiB。
+
+**着地（PR [#1012](https://github.com/kazhiramatsu/tsc-rs/pull/1012)、merge `a30b94751`、18:00；hosted run 43831730820；head `017ec653d`、binary `perf11/bin/batch35-sel-017ec653d`）。** 修正 2 件と採用 7 行の 9 commit。手元の検査（最終 bytes）：clippy 0、fmt 0、test 3,853 件 0 失敗、release build、8 案件の出力一致、4 checker の対照（15,335 構成一致・既知の 4 構成のみ差）、suite の ratchet 0 後退、emit の oracle 24 / 24（宣言した counter と統計行のほかは全 mode 一致）、syntax の fingerprint 161,676 行の差 0、preset の出力 16 / 16。着地した binary の 1 thread の命令数（9 回・low mode、main 比）：VS Code −0.79 %、next −0.55 %、zod −0.29 %、effect −0.45 %、vue −0.37 %、TypeScript −1.01 %、playwright −0.55 %、hono −0.43 %。内容：
+
+- **型述語の診断**（lane mem-links）：型述語の型が parameter の型に代入できないとき、tsgo は報告つきの関係検査を 1 回だけ走らせ、その診断を TS2677 の子にする。こちらは無言の検査のあと報告つきで再生していたので、関係の複雑さの上限の境界で TS2859 が単独でも出ていた。998 個の tag の再現例で出力が tsgo と byte 一致（main は 1 行多い）；制限事項に書いていた 1,024 個の場合と 2,048 個の場合も一致。制限事項から 1 項目が消えた。
+- **統計の行**（lane fast-2）：checker が 2 本以上で emit なしのとき、`--extendedDiagnostics` に 4 つの work counter が出なかった（shard が状態を手放したあとに数を読んでいた）。あわせて tsgo の行（`Memory used`・`Bind time`・`Emit time`）を出すようにした；残る差は `Memory allocs`（Go の runtime の数）が無いことと、emit なし・宣言なしの実行で `Emit time` が出ないこと（tsgo は常に `0.000s`）。
+- **宣言した counter の drift**：型述語の修正は、すべての型述語を tsgo と同じ入口（報告つきの関係検査；単純な関係を試す前に両辺を正規化する）に通すので、条件型の型述語が `unknown` / `any` の parameter でも枝の型を解決するようになった。1 checker で zod が型 +4・具体化 +6、VS Code が具体化 +4。**tsgo と同じ仕事になった結果**：条件型の型述語を持つ 1 file の再現例 6 件で、tsgo との差が「型述語なしの file と同じ定数（型 268・具体化 6）」になった（main は型が最大 9・具体化が 1〜13 だけ不足していた）。残り 8 commit の binary は main と同じ数。
+
+**着地の job は、全検査の通過後に 2 回止まった（どちらも「batch が意図して変えるもの」を読み取り側が知らなかった）。** 1 回目は counter の関門：(1) 私の道具が比較相手の binary を古い名前（11-12 のもの）に固定していて、#1011 で宣言済みの drift まで「今回の差」に数えていた；(2) 上の drift を誰も測っていなかった。2 回目は emit の oracle の読み取り：統計行の修正は `--extendedDiagnostics` に行を足す（`Memory used`・`Bind time`・`Emit time`）のに、読み取りは行ごとの一致を求めていた。直したもの：比較相手を設定から取る job、再開時に counter の段だけを測り直す入口、足される統計行の宣言（`STATROWS`；ある実行にだけ出る行は任意扱い）、済んだ oracle の結果を引き継ぐ再開（`job-train-generic12.sh`）。止まるたびに lane の build の排出を待つ（1 回 40 分）ので、失うのは読み取りの修正時間だけではない。教訓：**batch を組むとき、commit ごとに「どの読み取りが比べるものを変えるか」を 1 行ずつ書き、宣言にする；積み上げた binary で oracle の段そのもの（10 分）と全部の読み取りを、85 分の job を登録する前に走らせる。** 見つかった残差：`Emit time` の行は、emit なし・宣言なしの実行では出ない（tsgo は常に `0.000s` を出す）— PR に明記し、担当 lane に追加の行を頼んだ。
+
+**vue の差の分解（所有者の指示「命令列と関数呼び出しの数まで比べてボトルネックを洗い出す」）。**
+
+- **1 thread では命令数が同等（+0.7 %）で、差は並列で生じる。** 命令数（日中 3 回の最小）：1 thread 8.783 G、worker 10・checker 1 で 8.889、worker 1・checker 4 で 10.588、既定 10.676 — 上乗せ 1.89 G のうち 1.80 G が checker 4 本の分。他移植は 8.722 → 9.987。
+- **捨てている宣言の計算。** vue は 8 案件で唯一 `noEmit` と `declaration` が両方ある。checker が 2 本以上だと各 shard が自分の分の宣言の診断を先に計算し、vue は意味の診断が 5 件あるので全部捨てられていた。tsgo は全 file の意味の診断が揃ってから宣言の診断を求める。lane ck-diff の行：各 shard が自分の file を終えたら「報告すべき行があるか」を預け、全 shard が預けた時点で **1 回だけ** 判定して全員に同じ答えを返す（最初の案は checker が実行中に flag を読む形で、作業量が timing で変わるため不採用にした — main の counter は 4 checker でも毎回同じ）。候補 binary：**vue の既定設定の命令数 10.715 → 10.318 G（−3.71 %）**、出力は main・tsgo と一致、counter は main と同じで 5 回とも同一；error のない構成（TypeScript に `declaration` + `noEmit`）は既定 −0.35 %、1 thread は変化なし（9 回・low mode で vue +0.02 %；一度「+0.29 %」と読んだのは 3 回の最小の揺れだった）。同じ patch の「宣言の準備を checker 間で 1 回にする」部分で、checker 1 本追加あたりの固定費が 56 M → 11 M 命令（vue の `--noCheck`、4 checker で −6.8 %）。
+- **thread。** 1 回の vue で 44〜46 本（他移植は 17 本）。常設 pool の下書き（lane bind-in-task、13 file）は初回の compile が通り、7 案件 × 9 通りの budget で出力一致・詰まりなし、thread は 14 本になった — **が、system 時間も命令数も変わらなかった**（front end の system 時間 worker 1・2・4・6・10 本で 31→32、38→37、54→54、64→64、70→74 ms）。「並列で増える system 時間は thread の作り直し」という私の読みは外れ：open・stat・read を同時に呼ぶ kernel 側の費用で、他移植も 29 → 52〜57 ms になる。
+- **CPU の counter（vue 全体、1 thread、両者；機械が静かな時間に記録）。** 命令数 +0.7 %、cycles +2.0 %、footprint 233 対 181 MiB。失われた帯域の内訳では差のすべてが memory 待ち（0.292 対 0.240 G）；命令 1,000 あたり data の TLB miss 2.62 対 1.37（+92 %）、store の miss 2.18 対 1.61（+36 %）、分岐予測の失敗は相手より 5 % 少ない。store の miss の 3 分の 1 は copy と確保（`memmove` 16.9 %、`mi_malloc` 10.1 %、`memset` 5.9 %）；TLB の miss に支配的な場所は無い（最大 3.4 %）— data が多くの表に散っている形。1 thread では「命令あたりは同等、残りは memory の振る舞い」。
+- **関数（1 thread、compiler-core の部分 program、両者 24 回の time profile）。** 205 対 166 ms；関係検査で型の list を 8 個分の inline buffer に写していた 3 か所（54 万回の copy と同数の初期化）を既存の cursor に替える行（lane stalls）：vue の 1 thread の命令数 −0.49 %（9 回・low mode）。弱い型の判定の memo は反例が出て取り下げ（透過性が保てない）。
+
+**front end の差（この日の発見）。** `--noCheck`（読む・parse・bind；3 つの compiler とも bind する）を宣言のない設定で比べると、**front end は全案件で他移植より命令数が多い**：1 thread で hono +5.6 %、TypeScript +4.9 %、VS Code +5.4 %、effect +9.0 %、playwright +14.2 %、next +16.7 %、zod +18.3 %、vue +16.8 %。これまでの vue の「front end は同等」は誤りだった（vue の設定は `--noCheck` でも宣言の診断を計算し、それが他移植で 3 倍重い）。関数単位（vue、両者 20 回）では 117.0 対 91.0 ms：parser 本体はこちらが約 10 ms 速く、その周りで失っている — module 解決と host の file system 層・path 文字列（+10〜12 ms）、scanner（+4.8）、copy（+4.2；ほかに parse 済み file の再配置 2.75 と library image の復元 1.9）、`stat` の回数。再現例：文字列と template +22 %、長い識別子 +13 %、密な code +10 %、import 1 文あたり 48k 対 26k 命令、小さな file 1 個あたり 282k 対 254k；comment は原因ではない（JSDoc +6 %、行 comment −16 %）。担当：load-order（解決・host・再配置）、fe-cost（scanner）、lib-image（復元）。**既定設定で差が開く理由は直列区間**：vue の front end を thread ごとの時系列で見ると（各 1 回の記録、形だけを読む）、こちらは 117 ms のうち 70 ms が「1 本だけ動いている」区間で main thread 自身が 43 ms 働き（相手は 81 ms 中 35 ms、main thread は 5 ms — 起動するだけで、include の列挙も pool の thread 上）；直列の中身は、worker が居ないうちの設定読みと root の列挙、main thread 上の library image の復元（16 ms）、graph の仕上げと symlink の解決（link ごとの `canonicalize`）、`--noCheck` でも組み立てる検査 session。thread の作り直しではない。切り分け（各 1 回の日中の記録）：**root の列挙だけ**（`--showConfig`）で VS Code 44〜47 ms — worker 数に依らず、kernel 時間は tsgo の 2 倍（102〜115 対 52 ms）で、標本の 64 % が directory の `open()`（絶対 path で開いている；entry ごとの `stat` は無い）；**読み込みだけ**（`--listFilesOnly`；両者の file 一覧は同じ）は 1 thread で VS Code 1,025 対 1,193 ms とこちらが速く、既定設定では 332 対 271 ms と逆転する（命令数は 14.7 対 18.7 G でこちらが少ない；相手の読み込みは bind を含む）— 負けは仕事量ではなく並列時の形。lane bind-in-task の区間表（27 区間、各区間が直列である理由を「tsgo の順序／専有の表／歴史」に分類）が行の地図になった。memory も front end だけで多い（1 thread の peak：vue 111 対 84 MiB、zod 198 対 153、next 222 対 171；自前の集計に載る構造は 86 MiB で、残りと page fault の超過 50 MiB 分は「途中で一度書いて結果に残らない memory」）。
+
+**全 core 検査（検出つき）。** 担当 lane の配線図：検出器には、打ち切り・循環・計算途中の値・id の順序など 12 系統それぞれの「すべての出口」に印が要り、program 全体の無効化の latch、長い file の途中での打ち切り、cache の証明も要る — **数週間規模**。検出器ができるまで pool を入れても時間は縮まない。設計書の「event の起きた群でも今より遅くならない」は誤りで訂正した：他の core が忙しいと性能 core 側も 12 % 遅くなる（実測）ので、やり直しになる群は今の 1.12 倍（先読みを即座に止めれば 1.06 倍）。
+
+**訂正。** (1) 朝の枠の「効率 core の速度比」は background 優先度の process で測っていた（6.1〜7.2 倍遅い）— 先読みの thread は通常優先度なので代理として誤り；測り直す道具を用意した。(2) 上の thread の読み。(3) vue の front end の読み。
+
+**運用。** lane の build の順番待ちが律速（16〜18 件、最長 3 時間半；午後の 3.5 時間で lane が得た build は 4 本）：私の job が走る間は lane の build を止めているので、私の job を短く少なくし、長い job のあとは 20 分空ける。「切り離した controller が順番を持っている」という lane の報告は 3 回外れた（持ち主の process が session と一緒に落ちていた）— 外から `kill -0` で確かめる。fan：12:11 に 3,263 rpm、13:29 に 3,217 rpm（どちらも私の解析実行や判断が原因；以後は 1 本ずつ・fan を読みながら）；夜は 0 rpm のまま。
+
+**次。** (1) 計測枠（所有者に依頼済み）：着地した binary、list の cursor、宣言の latch と準備の共有、常設 pool の 4 候補；front end の両者比較（8 案件、宣言なし）；error のない宣言つき構成での latch の値段；通常優先度での効率 core の速度比；既定設定の front end の thread 別 profile。(2) 次の着地の順序は list の cursor → 宣言の準備の共有 → 宣言の latch → pool（pool と latch は shard の driver で衝突するので pool を上に載せた；4 行とも新しい main の上で当たることを確認済み）。(3) front end：直列区間（root の列挙、library image の復元、graph の仕上げ、bind と検査 session の準備）と module 解決・scanner・copy を担当 lane が行にする。(4) 夜に新しい main の上で候補 binary を作る。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と

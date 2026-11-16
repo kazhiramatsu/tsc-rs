@@ -91,13 +91,17 @@ tsc 6.0.3 compatibility is complete in release
   [#1002](https://github.com/kazhiramatsu/tsc-rs/pull/1002),
   [#1005](https://github.com/kazhiramatsu/tsc-rs/pull/1005) and
   [#1010](https://github.com/kazhiramatsu/tsc-rs/pull/1010).
-- A generic type predicate over a mapped union of 1,024 members reports one
-  more diagnostic (TS2859) than `tsgo` and a longer chain in the TS2677 that
-  both report; at 256 members the output is identical.
 - The [language server](usage.md#language-server-experimental) is incomplete and
   untested in editors.
 - `-b` builds projects one at a time.
-- `--diagnostics` prints fewer statistics than `tsgo`.
+- `--diagnostics` and `--extendedDiagnostics` print the rows `tsgo` prints, with
+  two exceptions: `Memory allocs` (the Go runtime's allocation count) is not
+  printed, and `Emit time` is absent in a run with `noEmit` and no declarations,
+  where `tsgo` prints `0.000s`. `Memory used` is the process's physical footprint
+  on macOS and its resident size on Linux. The Symbols, Types and
+  Instantiations rows are this compiler's own counts and are close to, not
+  equal to, `tsgo`'s (Vue's sources at one checker: 511,126 / 201,685 / 545,914
+  against 617,212 / 202,749 / 549,756).
 - Memory grows with the number of checkers.
 - `tsc-rs --api --pipe` does not support Windows named pipes.
 - `--pprofDir` (and the language server's profile commands) writes CPU
