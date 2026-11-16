@@ -390,6 +390,14 @@ impl SyntaxStripe {
         }
         source
     }
+    /// Transfer the existing provenance and seal in the same ordered,
+    /// all-joined phase as [`Self::seal`]. The views remain owned even if
+    /// sealing reports an error, so dropped trees keep their reserved IDs.
+    pub fn into_sealed_placements(mut self) -> (Vec<Placement>, Result<Statistics, IdentityError>) {
+        let placements = std::mem::take(&mut self.placements);
+        (placements, self.seal())
+    }
+
     /// Call in stripe order after all stripes have been leased and joined.
     pub fn seal(mut self) -> Result<Statistics, IdentityError> {
         for (index, (_, range)) in self.rooms.unused().into_iter().enumerate() {
@@ -683,9 +691,11 @@ mod adoption_tests {
                 )
             })
             .collect();
-        let layout = stripe.placements().to_vec();
+        let original_allocation = stripe.placements().as_ptr();
+        let (layout, sealed) = stripe.into_sealed_placements();
+        sealed.unwrap();
+        assert_eq!(layout.as_ptr(), original_allocation);
         assert_eq!(layout.len(), 2);
-        stripe.seal().unwrap();
         let all = adoption_statistics(&layout, sources.iter());
         assert_eq!(
             (

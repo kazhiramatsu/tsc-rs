@@ -9,12 +9,24 @@ use tsc_syntax::placement::{self as direct, SyntaxStripe};
 pub(super) struct Stripes(Vec<(usize, &'static str, SyntaxStripe)>);
 
 impl Stripes {
-    pub(super) fn layout(&self) -> Arc<[direct::Placement]> {
-        self.0
+    pub(super) fn finish_layout(&mut self) -> Arc<[direct::Placement]> {
+        let count = self
+            .0
             .iter()
-            .flat_map(|(_, _, stripe)| stripe.placements().iter().cloned())
-            .collect::<Vec<_>>()
-            .into()
+            .map(|(_, _, stripe)| stripe.placements().len())
+            .sum();
+        let mut layout = Vec::with_capacity(count);
+        // All stripes have joined. Keep their original order and every view,
+        // including a source the ordered collection did not keep.
+        for (_, label, stripe) in self.0.drain(..) {
+            let (mut placements, statistics) = stripe.into_sealed_placements();
+            match statistics {
+                Ok(statistics) => direct::trace_statistics(label, &statistics),
+                Err(error) => eprintln!("[syntax-placement] stripe seal failed: {error}"),
+            }
+            layout.append(&mut placements);
+        }
+        layout.into()
     }
     pub(super) fn seal(&mut self) {
         for (_, label, stripe) in self.0.drain(..) {
@@ -782,18 +794,22 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                                     entry.text.into_snapshot(),
                                 )
                                 .with_implied_node_formats(implied, implied_for_emit);
+                                let mut plan = None;
                                 let planned =
-                                    crate::module_requests::plan_source_requests_in_stripe(
+                                    crate::module_requests::plan_source_requests_in_stripe_into(
                                         &prepared,
                                         options,
                                         &mut stripe,
+                                        &mut plan,
                                     );
                                 let parsed = match planned {
-                                    Ok((plan, syntax)) => PrefetchedParse {
+                                    Ok(syntax) => PrefetchedParse {
                                         implied,
                                         implied_for_emit,
                                         prepared: prepared.with_preparsed_syntax(syntax),
-                                        plan: Ok(PreparedSourceRequests::new(plan)),
+                                        plan: Ok(PreparedSourceRequests::new(plan.expect(
+                                            "successful stripe planning publishes a complete plan",
+                                        ))),
                                     },
                                     Err(error) => PrefetchedParse {
                                         implied,

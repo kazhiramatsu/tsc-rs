@@ -61,6 +61,15 @@ impl JsonObject {
             .map(|&index| &self.entries[index].1)
     }
 
+    /// A slot in this exact immutable object, for a retained package view.
+    pub(crate) fn index_of(&self, name: JsStr<'_>) -> Option<usize> {
+        self.indices.get(name.as_bytes()).copied()
+    }
+
+    pub(crate) fn value_by_index(&self, index: usize) -> &JsonValue {
+        &self.entries[index].1
+    }
+
     pub fn get_mut<'n>(&mut self, name: impl Into<JsStr<'n>>) -> Option<&mut JsonValue> {
         let index = *self.indices.get(name.into().as_bytes())?;
         Some(&mut self.entries[index].1)

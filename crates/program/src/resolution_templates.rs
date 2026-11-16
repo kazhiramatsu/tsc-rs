@@ -135,6 +135,7 @@ impl TemplatePreparation {
                             maps,
                             &mut loaded.packages,
                             &mut loaded.package_indices,
+                            &mut loaded.unloaded_paths,
                         );
                         let (row, error) = match result {
                             Ok(row) => (Some(row), None),

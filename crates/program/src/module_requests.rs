@@ -747,8 +747,15 @@ pub fn plan_source_requests_retaining_syntax(
     // The loader never asks for a request outside `SourceFile.imports`, so
     // it skips the whole-file walk for misplaced imports and exports.
     let started = std::time::Instant::now();
-    let (plan, parsed) =
-        plan_module_requests_with_parser(source, options, true, false, cache, |parse_options| {
+    let mut output = None;
+    let parsed = plan_module_requests_with_parser(
+        source,
+        options,
+        true,
+        false,
+        cache,
+        &mut output,
+        |parse_options| {
             if source.content_mapped().is_none() {
                 if let Some(image) = tsc_syntax::library_image::lookup(
                     source.path().display(),
@@ -762,14 +769,15 @@ pub fn plan_source_requests_retaining_syntax(
                     );
                 }
             }
-            parse_source_file_from_snapshot(
+            let parsed = parse_source_file_from_snapshot(
                 source.path().display().to_owned(),
                 Arc::clone(source.snapshot()),
-                parse_options,
+                parse_options.clone(),
                 None,
-            )
-            .into()
-        })?;
+            );
+            PlanningConstruction::parsed(parsed, parse_options)
+        },
+    )?;
     let syntax = match parsed {
         PlanningParse::Parsed(parsed) => {
             PreparsedSyntax::new(parsed, (started, std::time::Instant::now()))
@@ -777,7 +785,10 @@ pub fn plan_source_requests_retaining_syntax(
         PlanningParse::Cached(parse) => PreparsedSyntax::cached(parse),
         PlanningParse::Deferred => PreparsedSyntax::default(),
     };
-    Ok((plan, syntax))
+    Ok((
+        output.expect("successful planning publishes a complete plan"),
+        syntax,
+    ))
 }
 
 fn library_image_plan(external: bool, libs: Vec<tsc_syntax::FileReference>) -> SourceRequestPlan {
@@ -808,17 +819,23 @@ fn library_image_plan(external: bool, libs: Vec<tsc_syntax::FileReference>) -> S
     }
 }
 
-// A ready tree stays inline as in the ordinary parser callback; metadata-only
-// construction avoids both a temporary tree and an allocation for a wrapper.
-#[allow(clippy::large_enum_variant)]
+// A constructed tree keeps its final take-once box while requests are planned.
+// The library box retains its pristine capability; metadata needs no tree.
 enum PlanningConstruction {
-    Parsed(SourceFile, bool),
-    Library(tsc_syntax::library_image::FreshLibrarySource),
+    Parsed(Box<PreparsedSourceFile>),
+    Library(Box<PreparsedSourceFile>),
     Deferred(tsc_syntax::library_image::LibraryMetadata),
 }
-impl From<SourceFile> for PlanningConstruction {
-    fn from(source: SourceFile) -> Self {
-        Self::Parsed(source, false)
+impl PlanningConstruction {
+    fn parsed(source: SourceFile, options: ParseOptions) -> Self {
+        Self::Parsed(Box::new(PreparsedSourceFile::new(options, source)))
+    }
+
+    fn library(
+        source: tsc_syntax::library_image::FreshLibrarySource,
+        options: ParseOptions,
+    ) -> Self {
+        Self::Library(Box::new(PreparsedSourceFile::new_library(options, source)))
     }
 }
 
@@ -901,22 +918,28 @@ fn plan_module_requests_worker(
     nested_requests: bool,
     cache: Option<&dyn ParseCache>,
 ) -> Result<(SourceRequestPlan, PlanningParse), ResolutionError> {
-    plan_module_requests_with_parser(
+    let mut output = None;
+    let parsed = plan_module_requests_with_parser(
         source,
         options,
         expanded,
         nested_requests,
         cache,
+        &mut output,
         |parse_options| {
-            parse_source_file_from_snapshot(
+            let parsed = parse_source_file_from_snapshot(
                 source.path().display().to_owned(),
                 Arc::clone(source.snapshot()),
-                parse_options,
+                parse_options.clone(),
                 None,
-            )
-            .into()
+            );
+            PlanningConstruction::parsed(parsed, parse_options)
         },
-    )
+    )?;
+    Ok((
+        output.expect("successful planning publishes a complete plan"),
+        parsed,
+    ))
 }
 
 pub fn plan_source_requests_in_stripe(
@@ -924,9 +947,31 @@ pub fn plan_source_requests_in_stripe(
     options: &CompilerOptions,
     stripe: &mut tsc_syntax::placement::SyntaxStripe,
 ) -> Result<(SourceRequestPlan, PreparsedSyntax), ResolutionError> {
+    let mut output = None;
+    let syntax = plan_source_requests_in_stripe_into(source, options, stripe, &mut output)?;
+    Ok((
+        output.expect("successful planning publishes a complete plan"),
+        syntax,
+    ))
+}
+
+/// Publish a complete request plan once; an error leaves the slot empty.
+/// Library syntax keeps its pristine capability and existing fallback.
+pub(crate) fn plan_source_requests_in_stripe_into(
+    source: &PreparedSourceFile,
+    options: &CompilerOptions,
+    stripe: &mut tsc_syntax::placement::SyntaxStripe,
+    output: &mut Option<SourceRequestPlan>,
+) -> Result<PreparsedSyntax, ResolutionError> {
     let started = std::time::Instant::now();
-    let (plan, parsed) =
-        plan_module_requests_with_parser(source, options, true, false, None, |parse_options| {
+    let parsed = plan_module_requests_with_parser(
+        source,
+        options,
+        true,
+        false,
+        None,
+        output,
+        |parse_options| {
             if source.content_mapped().is_none() {
                 if let Some(image) = tsc_syntax::library_image::lookup(
                     source.path().display(),
@@ -937,12 +982,13 @@ pub fn plan_source_requests_in_stripe(
                         .counts(source.path().display(), source.snapshot(), &parse_options)
                         .expect("compiler library image counts must match its source");
                     if stripe.can_construct(counts) {
-                        return PlanningConstruction::Library(image.restore_fresh_in_stripe(
+                        let fresh = image.restore_fresh_in_stripe(
                             stripe,
                             source.path().display().to_owned(),
                             Arc::clone(source.snapshot()),
                             &parse_options,
-                        ));
+                        );
+                        return PlanningConstruction::library(fresh, parse_options);
                     }
                     stripe.defer_image();
                     return PlanningConstruction::Deferred(
@@ -952,14 +998,14 @@ pub fn plan_source_requests_in_stripe(
                     );
                 }
             }
-            stripe
-                .parse(
-                    source.path().display().to_owned(),
-                    Arc::clone(source.snapshot()),
-                    parse_options,
-                )
-                .into()
-        })?;
+            let parsed = stripe.parse(
+                source.path().display().to_owned(),
+                Arc::clone(source.snapshot()),
+                parse_options.clone(),
+            );
+            PlanningConstruction::parsed(parsed, parse_options)
+        },
+    )?;
     let syntax = match parsed {
         PlanningParse::Parsed(parsed) => {
             PreparsedSyntax::new(parsed, (started, std::time::Instant::now()))
@@ -967,7 +1013,7 @@ pub fn plan_source_requests_in_stripe(
         PlanningParse::Deferred => PreparsedSyntax::default(),
         PlanningParse::Cached(_) => unreachable!("direct parser has no cache"),
     };
-    Ok((plan, syntax))
+    Ok(syntax)
 }
 
 fn plan_module_requests_with_parser(
@@ -976,8 +1022,10 @@ fn plan_module_requests_with_parser(
     expanded: bool,
     nested_requests: bool,
     cache: Option<&dyn ParseCache>,
+    output: &mut Option<SourceRequestPlan>,
     parse: impl FnOnce(ParseOptions) -> PlanningConstruction,
-) -> Result<(SourceRequestPlan, PlanningParse), ResolutionError> {
+) -> Result<PlanningParse, ResolutionError> {
+    debug_assert!(output.is_none());
     let module_kind = options.emit_module_kind();
     if (!expanded && !(100..=199).contains(&module_kind))
         || (expanded && !matches!(module_kind, 0..=7 | 99 | 100..=200))
@@ -1017,7 +1065,7 @@ fn plan_module_requests_with_parser(
     let mut fresh = None;
     let parsed: &SourceFile = match &cached {
         Some(cached) => cached.source(),
-        None => match parse(parse_options.clone()) {
+        None => match parse(parse_options) {
             PlanningConstruction::Library(fresh) => {
                 let plan = library_image_plan(
                     fresh.source().external_module_indicator.is_some(),
@@ -1025,23 +1073,16 @@ fn plan_module_requests_with_parser(
                 );
                 #[cfg(feature = "loader-counters")]
                 plan.record_high_water(source.path().display());
-                return Ok((
-                    plan,
-                    PlanningParse::Parsed(Box::new(PreparsedSourceFile::new_library(
-                        parse_options,
-                        fresh,
-                    ))),
-                ));
+                *output = Some(plan);
+                return Ok(PlanningParse::Parsed(fresh));
             }
-            PlanningConstruction::Parsed(_, true) => {
-                unreachable!("image construction retains its capability")
-            }
-            PlanningConstruction::Parsed(parsed, false) => fresh.insert(parsed),
+            PlanningConstruction::Parsed(parsed) => fresh.insert(parsed).source(),
             PlanningConstruction::Deferred(metadata) => {
                 let plan = library_image_plan(metadata.is_external_module, metadata.references);
                 #[cfg(feature = "loader-counters")]
                 plan.record_high_water(source.path().display());
-                return Ok((plan, PlanningParse::Deferred));
+                *output = Some(plan);
+                return Ok(PlanningParse::Deferred);
             }
         },
     };
@@ -1396,12 +1437,11 @@ fn plan_module_requests_with_parser(
     #[cfg(feature = "loader-counters")]
     plan.record_high_water(source.path().display());
     let parsed = match fresh {
-        Some(fresh) => {
-            PlanningParse::Parsed(Box::new(PreparsedSourceFile::new(parse_options, fresh)))
-        }
+        Some(fresh) => PlanningParse::Parsed(fresh),
         None => PlanningParse::Cached(cached.expect("the planner read the cache's parse")),
     };
-    Ok((plan, parsed))
+    *output = Some(plan);
+    Ok(parsed)
 }
 
 // tsc-port: getErrorSpanForNode (external module indicators) @6.0.3
@@ -2339,6 +2379,187 @@ fn unsupported_at(
 #[cfg(test)]
 mod direct_library_tests {
     use super::*;
+    #[test]
+    fn planning_keeps_the_supplied_ordinary_box() {
+        let path =
+            crate::ProgramPath::from_js_parts("/input.ts".into(), "/input.ts".into()).unwrap();
+        let source =
+            PreparedSourceFile::new(path, "import { value } from 'pkg'; export { value };");
+        let options = CompilerOptions::default();
+        let expected = plan_module_requests_worker(&source, &options, true, false, None)
+            .unwrap()
+            .0;
+        let address = std::cell::Cell::new(0);
+        let mut output = None;
+        let parsed = plan_module_requests_with_parser(
+            &source,
+            &options,
+            true,
+            false,
+            None,
+            &mut output,
+            |parse_options| {
+                let parsed = parse_source_file_from_snapshot(
+                    source.path().display().to_owned(),
+                    Arc::clone(source.snapshot()),
+                    parse_options.clone(),
+                    None,
+                );
+                let owner = Box::new(PreparsedSourceFile::new(parse_options, parsed));
+                address.set(std::ptr::from_ref(owner.as_ref()) as usize);
+                PlanningConstruction::Parsed(owner)
+            },
+        )
+        .unwrap();
+        let PlanningParse::Parsed(owner) = parsed else {
+            panic!("the ordinary parse retains its owner");
+        };
+        assert_eq!(std::ptr::from_ref(owner.as_ref()) as usize, address.get());
+        assert_eq!(output.unwrap(), expected);
+        assert_eq!(
+            owner.parse_options(),
+            &source_request_parse_options(&source, &options)
+        );
+        assert!(Arc::ptr_eq(owner.source().snapshot(), source.snapshot()));
+        assert!(!owner.is_fresh_library());
+    }
+
+    #[test]
+    fn library_transport_retains_the_pristine_box_and_metadata_fallback() {
+        // Exercise a real typed capability with its supported image projection,
+        // independently of the command's process-wide JSDoc-mode selection.
+        let name = "bundled:///libs/__load_order_owner_fixture.d.ts";
+        let path = crate::ProgramPath::from_js_parts(name.into(), name.into()).unwrap();
+        let source = PreparedSourceFile::new(
+            path,
+            "/// <reference lib=\"es5\" />\ndeclare const value: number;",
+        );
+        let image_options = ParseOptions {
+            js_doc_parsing_mode: JSDocParsingMode::ParseForTypeErrors,
+            ..ParseOptions::default()
+        };
+        let ordinary = parse_source_file_from_snapshot(
+            name,
+            Arc::clone(source.snapshot()),
+            image_options.clone(),
+            None,
+        );
+        let bytes = tsc_syntax::library_image::SyntaxImage::capture(&ordinary)
+            .unwrap()
+            .encode()
+            .unwrap();
+        let catalog = Box::leak(Box::new([tsc_syntax::library_image::StaticLibraryImage {
+            name: "__load_order_owner_fixture.d.ts",
+            source: Box::leak(Box::new(source.snapshot().shared_text())),
+            source_fingerprint: tsc_syntax::library_image::fingerprint(source.text().as_bytes()),
+            syntax: Box::leak(bytes.into_boxed_slice()),
+            binding: &[],
+            edits: &[],
+        }]));
+        tsc_syntax::library_image::register(catalog);
+        let image = &catalog[0];
+        let domain = tsc_types::IdentityDomain::new();
+        let options = CompilerOptions::default();
+        let expected = plan_module_requests_worker(&source, &options, true, false, None)
+            .unwrap()
+            .0;
+        for deferred in [false, true] {
+            let address = std::cell::Cell::new(0);
+            let mut output = None;
+            let parsed = plan_module_requests_with_parser(
+                &source,
+                &options,
+                true,
+                false,
+                None,
+                &mut output,
+                |_| {
+                    if deferred {
+                        return PlanningConstruction::Deferred(
+                            image
+                                .metadata(
+                                    source.path().display(),
+                                    source.snapshot(),
+                                    &image_options,
+                                )
+                                .unwrap(),
+                        );
+                    }
+                    let fresh = image
+                        .restore_fresh_in_identity_domain(
+                            source.path().display().to_owned(),
+                            Arc::clone(source.snapshot()),
+                            &image_options,
+                            &domain,
+                        )
+                        .unwrap();
+                    let construction = PlanningConstruction::library(fresh, image_options.clone());
+                    let PlanningConstruction::Library(owner) = &construction else {
+                        panic!("a library construction retains its typed owner");
+                    };
+                    address.set(std::ptr::from_ref(owner.as_ref()) as usize);
+                    construction
+                },
+            )
+            .unwrap();
+            assert_eq!(output.unwrap(), expected);
+            if deferred {
+                assert!(matches!(parsed, PlanningParse::Deferred));
+                continue;
+            }
+            let PlanningParse::Parsed(mut owner) = parsed else {
+                panic!("the library parse retains its owner");
+            };
+            assert_eq!(std::ptr::from_ref(owner.as_ref()) as usize, address.get());
+            assert!(owner.is_fresh_library());
+            assert_eq!(owner.parse_options(), &image_options);
+            assert!(Arc::ptr_eq(owner.source().snapshot(), source.snapshot()));
+            assert!(owner.take_bind_data().is_none());
+            assert!(owner.take_bind_reservations().is_none());
+            let _ = owner.source_mut();
+            assert!(
+                !owner.is_fresh_library(),
+                "mutable access ends pristine eligibility"
+            );
+            assert_eq!(std::ptr::from_ref(owner.as_ref()) as usize, address.get());
+        }
+    }
+
+    #[test]
+    fn a_planning_error_after_parsing_leaves_the_output_empty() {
+        let path =
+            crate::ProgramPath::from_js_parts("/input.ts".into(), "/input.ts".into()).unwrap();
+        let source = PreparedSourceFile::new(path, "import('pkg');");
+        let options = CompilerOptions {
+            module: Some(199),
+            module_resolution: Some(99),
+            ..CompilerOptions::default()
+        };
+        let parsed = std::cell::Cell::new(false);
+        let mut output = None;
+        let result = plan_module_requests_with_parser(
+            &source,
+            &options,
+            false,
+            false,
+            None,
+            &mut output,
+            |parse_options| {
+                parsed.set(true);
+                let parsed = parse_source_file_from_snapshot(
+                    source.path().display().to_owned(),
+                    Arc::clone(source.snapshot()),
+                    parse_options.clone(),
+                    None,
+                );
+                PlanningConstruction::parsed(parsed, parse_options)
+            },
+        );
+        assert!(parsed.get(), "failure must follow parser construction");
+        assert!(result.is_err(), "static planning rejects a dynamic import");
+        assert!(output.is_none(), "partial request vectors remain private");
+    }
+
     #[test]
     fn document_script_kinds_and_load_bearing_library_text_keep_the_regular_parser() {
         let name = "bundled:///libs/custom.d.ts";

@@ -1542,6 +1542,8 @@ struct DiscoveryReason {
     package_id: Option<PreparedPackageRef>,
 }
 
+const _: () = assert!(std::mem::size_of::<DiscoveryReason>() <= 40);
+
 impl DiscoveryReason {
     fn root(reason: RootFileReason) -> Self {
         Self {
@@ -1752,7 +1754,7 @@ struct ParseTaskLoad {
     redirect: Option<usize>,
 }
 
-const _: () = assert!(std::mem::size_of::<ParseTask>() <= 88);
+const _: () = assert!(std::mem::size_of::<ParseTask>() <= 80);
 
 impl ParseTask {
     fn payload(&self) -> &ParseTaskLoad {
@@ -4586,8 +4588,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 }
             }
             if self.direct_layout {
-                let layout = self.direct_stripes.layout();
-                self.direct_stripes.seal();
+                let layout = self.direct_stripes.finish_layout();
                 for source in &mut self.sources {
                     source.prepared.mark_direct_layout(Arc::clone(&layout));
                 }
@@ -7122,19 +7123,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         .to_owned(),
                 );
                 let import_helpers = specifier.as_js() == JsStr::from("tslib");
-                InclusionReasonRecord::SyntheticImport {
-                    parent: source,
-                    specifier,
-                    import_helpers,
-                    package_id: None,
-                }
+                InclusionReasonRecord::synthetic_import(source, specifier, import_helpers)
             } else {
-                InclusionReasonRecord::Import {
-                    parent: source,
-                    pos: edge.pos,
-                    end: edge.end,
-                    package_id: None,
-                }
+                InclusionReasonRecord::import(source, edge.pos, edge.end)
             };
             let Some(module) = self.sources[source].module_requests.rows[index]
                 .host

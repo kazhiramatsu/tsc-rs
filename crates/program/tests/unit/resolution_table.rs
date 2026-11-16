@@ -19,6 +19,7 @@ fn legacy_build(
             .then_with(|| a.mode.cmp(&b.mode))
     });
     let mut modules = Vec::with_capacity(rows.len());
+    let mut unloaded_paths = Vec::new();
     let mut source_ranges = vec![0..0; sources.len()];
     let mut packages = BTreeMap::new();
     for StagedRow {
@@ -91,10 +92,12 @@ fn legacy_build(
                     ResolvedModuleTarget::Unloaded {
                         resolved_file,
                         reason,
-                    } => Target::Unloaded {
-                        path: Box::new(resolved_file),
-                        reason,
-                    },
+                    } => {
+                        let path =
+                            u32::try_from(unloaded_paths.len()).expect("test path index fits u32");
+                        unloaded_paths.push(resolved_file);
+                        Target::Unloaded { path, reason }
+                    }
                 }
             }
         };
@@ -128,6 +131,7 @@ fn legacy_build(
         module_lookup: module_lookup_index(&modules, &source_ranges),
         module_order: Vec::new(),
         modules,
+        unloaded_paths,
         source_ranges,
         package_ids,
         type_references,
