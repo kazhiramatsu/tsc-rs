@@ -4451,8 +4451,14 @@ impl<'a> CheckerState<'a> {
         error_node: Option<NodeId>,
         head_message: &'static DiagnosticMessage,
     ) -> CheckResult<bool> {
-        let (related, diagnostic) =
-            self.check_type_assignable_to_worker(source, target, error_node, head_message)?;
+        let mut diagnostic = None;
+        let related = self.check_type_assignable_to_worker(
+            source,
+            target,
+            error_node,
+            head_message,
+            &mut diagnostic,
+        )?;
         if let Some(diagnostic) = diagnostic {
             self.push_error_diagnostic(diagnostic);
         }
@@ -4476,29 +4482,35 @@ impl<'a> CheckerState<'a> {
         error_node: NodeId,
         head_message: &'static DiagnosticMessage,
     ) -> CheckResult<(bool, Option<Diagnostic>)> {
-        self.check_type_assignable_to_worker(source, target, Some(error_node), head_message)
+        let mut diagnostic = None;
+        let related = self.check_type_assignable_to_worker(
+            source,
+            target,
+            Some(error_node),
+            head_message,
+            &mut diagnostic,
+        )?;
+        Ok((related, diagnostic))
     }
 
-    /// `(related, diagnostic)` worker shared by the ordinary program
-    /// sink and the applicability output container above.
+    /// The verdict travels separately from the optional diagnostic, so a
+    /// successful check does not move an unused diagnostic-sized payload.
     fn check_type_assignable_to_worker(
         &mut self,
         source: TypeId,
         target: TypeId,
         error_node: Option<NodeId>,
         head_message: &'static DiagnosticMessage,
-    ) -> CheckResult<(bool, Option<Diagnostic>)> {
+        diagnostic_out: &mut Option<Diagnostic>,
+    ) -> CheckResult<bool> {
         let Some(error_node) = error_node else {
             // tsgo relater.go:339-340 enters the checker even without an
             // error node; isTypeRelatedTo is a separate query route.
-            return Ok((
-                self.check_type_related_to(
-                    source,
-                    target,
-                    crate::relate::RelationKind::Assignable,
-                )?,
-                None,
-            ));
+            return self.check_type_related_to(
+                source,
+                target,
+                crate::relate::RelationKind::Assignable,
+            );
         };
         let generic_head = std::ptr::eq(
             head_message,
@@ -4524,10 +4536,11 @@ impl<'a> CheckerState<'a> {
             // tsc logs errorInfo before returning `result !== False`.
             // In particular, a reporting relation can return true for a
             // `Maybe` verdict after publishing a useful diagnostic chain.
-            return Ok((related, Some(diagnostic)));
+            *diagnostic_out = Some(diagnostic);
+            return Ok(related);
         }
         if related {
-            return Ok((true, None));
+            return Ok(true);
         }
 
         // A false relation normally owns an error chain. Retain the
@@ -4585,7 +4598,8 @@ impl<'a> CheckerState<'a> {
                     else {
                         continue;
                     };
-                    return Ok((related, Some(diagnostic)));
+                    *diagnostic_out = Some(diagnostic);
+                    return Ok(related);
                 }
             }
         }
@@ -4595,7 +4609,8 @@ impl<'a> CheckerState<'a> {
             error_node,
             crate::relate::RelationKind::Assignable,
         )? {
-            return Ok((related, Some(diagnostic)));
+            *diagnostic_out = Some(diagnostic);
+            return Ok(related);
         }
         // isRelatedTo's common-property arm (65208-65235)
         // precedes ALL structural elaboration and its early
@@ -4604,7 +4619,8 @@ impl<'a> CheckerState<'a> {
         if let Some(diagnostic) =
             self.report_no_common_properties_head(source, target, error_node)?
         {
-            return Ok((related, Some(diagnostic)));
+            *diagnostic_out = Some(diagnostic);
+            return Ok(related);
         }
         // global Object's 2696 branch lives inside
         // reportErrorResults, after structural elaboration.
@@ -4619,7 +4635,8 @@ impl<'a> CheckerState<'a> {
             if let Some(diagnostic) =
                 self.report_unmatched_property_head(source, target, error_node)?
             {
-                return Ok((related, Some(diagnostic)));
+                *diagnostic_out = Some(diagnostic);
+                return Ok(related);
             }
         }
         let mut source_text = self.type_to_string_with_error_enclosing(source)?;
@@ -4662,7 +4679,8 @@ impl<'a> CheckerState<'a> {
             head_message,
             &[(&source_text).into(), (&target_text).into()],
         );
-        Ok((false, Some(diagnostic)))
+        *diagnostic_out = Some(diagnostic);
+        Ok(false)
     }
 
     /// tsc-port: hasExcessProperties @6.0.3 (the head-site face)
