@@ -1675,10 +1675,12 @@ struct CaseSensitiveCasingConflict {
 struct StagedRoot {
     path: ProgramPath,
     source: Option<usize>,
-    missing_diagnostic: Option<Diagnostic>,
+    missing_diagnostic: Option<Box<Diagnostic>>,
     /// The root's parse task; its source is read after the tasks ran.
     task: Option<usize>,
 }
+
+const _: () = assert!(std::mem::size_of::<StagedRoot>() <= 72);
 
 /// Why a parse task exists (the origin of tsgo `parseTask.includeReason`),
 /// with what the diagnostic of a target that loads nothing needs.
@@ -1724,7 +1726,9 @@ struct ParseTask {
     elide_on_depth: bool,
     data: usize,
     queued_with_data: bool,
-    loaded_task: Option<usize>,
+    // A task index is below its nonzero-sized Vec's isize::MAX byte bound,
+    // so adding one leaves zero available for an arrival not yet executed.
+    loaded_task: Option<std::num::NonZeroUsize>,
     is_automatic_types: bool,
     // A spelling already registered on its TaskData can only be an alias.
     // Its origin, class, children and file state are never consumed.
@@ -1748,7 +1752,7 @@ struct ParseTaskLoad {
     redirect: Option<usize>,
 }
 
-const _: () = assert!(std::mem::size_of::<ParseTask>() <= 96);
+const _: () = assert!(std::mem::size_of::<ParseTask>() <= 88);
 
 impl ParseTask {
     fn payload(&self) -> &ParseTaskLoad {
@@ -4074,7 +4078,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             self.roots.push(StagedRoot {
                 path,
                 source: None,
-                missing_diagnostic: Some(diagnostic),
+                missing_diagnostic: Some(Box::new(diagnostic)),
                 task: None,
             });
             return Ok(());
@@ -4147,7 +4151,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             self.roots.push(StagedRoot {
                 path,
                 source: None,
-                missing_diagnostic: Some(diagnostic),
+                missing_diagnostic: Some(Box::new(diagnostic)),
                 task: None,
             });
             return Ok(());
@@ -4196,7 +4200,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         self.roots.push(StagedRoot {
             path,
             source: None,
-            missing_diagnostic: Some(diagnostic),
+            missing_diagnostic: Some(Box::new(diagnostic)),
             task: None,
         });
         Ok(())
@@ -5349,7 +5353,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             if let Some(owner) = known_alias {
                 // Cache only the stable spelling owner; loading is still
                 // recorded at execution, never when the task is queued.
-                self.parse.tasks[task].loaded_task = Some(owner);
+                self.parse.tasks[task].loaded_task = std::num::NonZeroUsize::new(owner + 1);
             } else {
                 let spelling = self.parse.path(task).display();
                 match self.parse.task_data[data]
@@ -5357,7 +5361,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     .iter()
                     .find(|&&existing| self.parse.path(existing).display() == spelling)
                 {
-                    Some(&existing) => self.parse.tasks[task].loaded_task = Some(existing),
+                    Some(&existing) => {
+                        self.parse.tasks[task].loaded_task =
+                            std::num::NonZeroUsize::new(existing + 1);
+                    }
                     None => {
                         self.parse.task_data[data].spellings.push(task);
                         // A new task for the file name: load its subtasks if any
@@ -5478,7 +5485,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     fn task_target(&self, task: usize) -> usize {
         let mut current = task;
         while let Some(alias) = self.parse.tasks[current].loaded_task {
-            current = alias;
+            current = alias.get() - 1;
         }
         current
     }
@@ -7572,7 +7579,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                             diagnostic
                         }
                     };
-                    self.roots[index].missing_diagnostic = Some(diagnostic);
+                    self.roots[index].missing_diagnostic = Some(Box::new(diagnostic));
                 }
             }
         }
@@ -8000,7 +8007,7 @@ fn publish_program(
                 root.path,
                 published_ids[source].expect("postorder publishes every staged source"),
             ),
-            None => PreparedRoot::missing(
+            None => PreparedRoot::missing_boxed(
                 root.path,
                 root.missing_diagnostic
                     .expect("missing roots retain their diagnostic"),
@@ -8057,8 +8064,19 @@ fn publish_program(
         .flatten()
         .map(|(_, rows)| rows.len())
         .sum();
-    let mut loaded_modules =
-        crate::resolution::LoadedModules::new(published_ids.iter().flatten().count(), row_count);
+    let mut loaded_modules = crate::resolution::LoadedModules::new(
+        published_ids.iter().flatten().count(),
+        row_count,
+        staged.module_batch_order.iter().map(|&source_index| {
+            let source = published_ids[source_index].expect("a collected source");
+            let count = module_batches[source_index]
+                .as_ref()
+                .expect("a collected batch")
+                .1
+                .len();
+            (source, count)
+        }),
+    );
     let mut template_preparation = crate::resolution::TemplatePreparation::new(row_count);
     for &source_index in &staged.module_batch_order {
         let source = published_ids[source_index].expect("a collected source");
