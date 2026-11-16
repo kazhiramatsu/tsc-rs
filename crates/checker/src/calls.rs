@@ -3098,6 +3098,20 @@ impl<'a> CheckerState<'a> {
         check_mode: CheckMode,
         context: InferenceContextId,
     ) -> CheckResult<Vec<TypeId>> {
+        let scope = self.inference_scope_start();
+        let result = self.infer_type_arguments_worker(node, signature, args, check_mode, context);
+        self.finish_inference_scope(scope);
+        result
+    }
+
+    fn infer_type_arguments_worker(
+        &mut self,
+        node: NodeId,
+        signature: SignatureId,
+        args: &EffectiveCallArguments<'_>,
+        check_mode: CheckMode,
+        context: InferenceContextId,
+    ) -> CheckResult<Vec<TypeId>> {
         let node_kind = self.kind_of(node);
         if matches!(
             node_kind,
@@ -3205,6 +3219,7 @@ impl<'a> CheckerState<'a> {
                         None
                     };
                     self.inference_context_mut(context).return_mapper = return_mapper;
+                    self.retain_context_mapper(context, return_mapper);
                 }
             }
         }
@@ -4694,6 +4709,33 @@ impl<'a> CheckerState<'a> {
     /// owns the transaction and applies bookkeeping after it resolves.
     #[allow(clippy::too_many_arguments)] // The candidate, its call and the two modes of the trial.
     fn try_overload_candidate(
+        &mut self,
+        node: NodeId,
+        args: &EffectiveCallArguments<'_>,
+        type_argument_nodes: &[NodeId],
+        candidate: SignatureId,
+        relation: RelationKind,
+        arg_check_mode: CheckMode,
+        no_constraint_checks: bool,
+        signature_help_trailing_comma: bool,
+    ) -> CheckResult<OverloadCandidateTrial> {
+        let scope = self.inference_scope_start();
+        let result = self.try_overload_candidate_worker(
+            node,
+            args,
+            type_argument_nodes,
+            candidate,
+            relation,
+            arg_check_mode,
+            no_constraint_checks,
+            signature_help_trailing_comma,
+        );
+        self.finish_inference_scope(scope);
+        result
+    }
+
+    #[allow(clippy::too_many_arguments)] // The candidate and its trial modes.
+    fn try_overload_candidate_worker(
         &mut self,
         node: NodeId,
         args: &EffectiveCallArguments<'_>,

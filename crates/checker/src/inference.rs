@@ -7,8 +7,9 @@
 //! equality IS tsc's context object identity, exactly like the
 //! `mappers` arena — and InferenceInfoId likewise gives the info
 //! objects tsc identity (thunk captures, mergeInferences slot
-//! replacement, detached arrays). The arena is E-class speculation state
-//! (append-only, never truncated): tsc context mutations deliberately
+//! replacement, detached arrays). Logical ids are append-only; physical
+//! records can be reused after the complete creator returns when no
+//! retained mapper needs them. This is not speculation rollback: mutations deliberately
 //! SURVIVE failed candidate trials — chooseOverload's NORMAL-mode
 //! re-run reuses the SAME context (76842-76844), so candidate
 //! accumulation across trials is by design, not a leak.
@@ -21,7 +22,7 @@
 
 use tsc_syntax::{NodeId, SyntaxKind};
 use tsc_types::{
-    ContextFlags, ElementFlags, ExpandingFlags, InferenceFlags, InferencePriority,
+    ContextFlags, ElementFlags, ExpandingFlags, InferenceFlags, InferencePriority, InlineList,
     IntersectionFlags, LiteralValue, ObjectFlags, SignatureFlags, SymbolFlags, TemplateLiteralData,
     TypeData, TypeFlags, TypeId, UnionReduction, VarianceFlags,
 };
@@ -31,12 +32,12 @@ use crate::links::LinkSlot;
 use crate::state::{CheckResult, CheckerState, IndexInfo, SignatureId, SignatureKind};
 use crate::variance::VariancesResult;
 
-tsc_types::id_type!(
+crate::inference_storage::inference_id!(
     /// Arena id — see the module doc for the identity/rollback contract.
     InferenceContextId
 );
 
-tsc_types::id_type!(
+crate::inference_storage::inference_id!(
     /// Arena id for an InferenceInfo — tsc infos are GC objects whose
     /// IDENTITY is load-bearing (thunk captures, mergeInferences slot
     /// replacement, 7.4's detached higher-order arrays), so the port
@@ -44,6 +45,9 @@ tsc_types::id_type!(
     /// append-only) and passes ids everywhere tsc passes the object.
     InferenceInfoId
 );
+
+pub(crate) type InferenceInfos =
+    InlineList<InferenceInfoId, { 16 / std::mem::size_of::<InferenceInfoId>() }>;
 
 /// tsc InferenceInfo (the createInferenceInfo 68300 literal).
 ///
@@ -56,17 +60,22 @@ tsc_types::id_type!(
 ///
 /// `candidates`/`contra_candidates`: None = tsc undefined. tsc only
 /// ever creates the arrays through appendIfUnique-style pushes, so a
-/// present vec is non-empty — hasInferenceCandidates keys on
+/// present list is non-empty — hasInferenceCandidates keys on
 /// presence, not length.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
+#[repr(C)]
 pub(crate) struct InferenceInfo {
+    /// The logical position currently stored here; zero marks a retired slot.
+    pub(crate) generation: u32,
     pub(crate) type_parameter: TypeId,
-    pub(crate) candidates: Option<Vec<TypeId>>,
-    pub(crate) contra_candidates: Option<Vec<TypeId>>,
-    pub(crate) inferred_type: Option<TypeId>,
-    pub(crate) priority: Option<InferencePriority>,
+    /// A merge can transfer this object without transferring its thunk capture.
+    pub(crate) shared: bool,
     pub(crate) top_level: bool,
     pub(crate) is_fixed: bool,
+    pub(crate) inferred_type: Option<TypeId>,
+    pub(crate) candidates: Option<InlineList<TypeId, 4>>,
+    pub(crate) priority: Option<InferencePriority>,
+    pub(crate) contra_candidates: Option<InlineList<TypeId, 4>>,
     pub(crate) implied_arity: Option<usize>,
 }
 
@@ -128,30 +137,88 @@ pub(crate) enum CompareTypesFn {
 /// `mapper_infos[i]`, the 68710/69266 live-row reads ride
 /// `inferences[i]`, and the two coincide exactly until a merge
 /// replaces the slot id.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
+#[repr(C)]
 pub(crate) struct InferenceContext {
-    pub(crate) inferences: Vec<InferenceInfoId>,
-    /// Creation-time makeDeferredTypeMapper capture (see above):
-    /// `map(context.inferences, i => i.typeParameter)` ...
-    pub(crate) mapper_sources: Vec<TypeId>,
-    /// ... and the thunk-captured info objects, one per slot.
-    pub(crate) mapper_infos: Vec<InferenceInfoId>,
-    pub(crate) signature: Option<SignatureId>,
+    pub(crate) generation: u32,
     pub(crate) flags: InferenceFlags,
-    pub(crate) compare_types: CompareTypesFn,
+    pub(crate) inferences: InferenceInfos,
+    pub(crate) signature: Option<SignatureId>,
     pub(crate) mapper: MapperId,
     pub(crate) non_fixing_mapper: MapperId,
     pub(crate) return_mapper: Option<MapperId>,
+    pub(crate) outer_return_mapper: Option<MapperId>,
+    pub(crate) compare_types: CompareTypesFn,
+    pub(crate) escaped: bool,
+    /// Creation-time makeDeferredTypeMapper capture (see above):
+    /// `map(context.inferences, i => i.typeParameter)` ...
+    pub(crate) mapper_sources: InlineList<TypeId, 4>,
+    /// ... and the thunk-captured info objects, one per slot.
+    pub(crate) mapper_infos: InferenceInfos,
     pub(crate) inferred_type_parameters: Option<Vec<TypeId>>,
     pub(crate) intra_expression_inference_sites: Option<Vec<IntraExpressionInferenceSite>>,
-    pub(crate) outer_return_mapper: Option<MapperId>,
 }
+
+// Logical debug order stays independent of physical field placement.
+impl std::fmt::Debug for InferenceInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InferenceInfo")
+            .field("generation", &self.generation)
+            .field("shared", &self.shared)
+            .field("type_parameter", &self.type_parameter)
+            .field("candidates", &self.candidates)
+            .field("contra_candidates", &self.contra_candidates)
+            .field("inferred_type", &self.inferred_type)
+            .field("priority", &self.priority)
+            .field("top_level", &self.top_level)
+            .field("is_fixed", &self.is_fixed)
+            .field("implied_arity", &self.implied_arity)
+            .finish()
+    }
+}
+impl std::fmt::Debug for InferenceContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InferenceContext")
+            .field("generation", &self.generation)
+            .field("escaped", &self.escaped)
+            .field("inferences", &self.inferences)
+            .field("mapper_sources", &self.mapper_sources)
+            .field("mapper_infos", &self.mapper_infos)
+            .field("signature", &self.signature)
+            .field("flags", &self.flags)
+            .field("compare_types", &self.compare_types)
+            .field("mapper", &self.mapper)
+            .field("non_fixing_mapper", &self.non_fixing_mapper)
+            .field("return_mapper", &self.return_mapper)
+            .field("inferred_type_parameters", &self.inferred_type_parameters)
+            .field(
+                "intra_expression_inference_sites",
+                &self.intra_expression_inference_sites,
+            )
+            .field("outer_return_mapper", &self.outer_return_mapper)
+            .finish()
+    }
+}
+
+// Lifetime bookkeeping occupies padding in the existing 64-bit records.
+#[cfg(target_pointer_width = "64")]
+const _: () = {
+    assert!(std::mem::size_of::<InferenceContext>() == 152);
+    assert!(std::mem::size_of::<InferenceInfo>() == 88);
+    assert!(std::mem::offset_of!(InferenceContext, generation) == 0);
+    assert!(std::mem::offset_of!(InferenceContext, inferences) == 8);
+    assert!(std::mem::offset_of!(InferenceInfo, generation) == 0);
+    assert!(std::mem::offset_of!(InferenceInfo, candidates) == 16);
+    assert!(std::mem::size_of::<TypeMapper>() == 20);
+};
 
 /// tsc-port: createInferenceInfo @6.0.3
 /// tsc-hash: b8543167898e564c402412e78d583022b055ce90be42b406d1e6e65cd86b7ca4
 /// tsc-span: _tsc.js:68300-68311
 pub(crate) fn create_inference_info(type_parameter: TypeId) -> InferenceInfo {
     InferenceInfo {
+        generation: 0,
+        shared: false,
         type_parameter,
         candidates: None,
         contra_candidates: None,
@@ -167,7 +234,7 @@ pub(crate) fn create_inference_info(type_parameter: TypeId) -> InferenceInfo {
 /// tsc-hash: b2727c05ad747f673d134cbf87bedd45c7cdaee933753ff372d043eea42b3309
 /// tsc-span: _tsc.js:68312-68323
 ///
-/// Vec::clone is tsc's `.slice()` (fresh array, same elements);
+/// Candidate-list cloning is tsc's `.slice()` (fresh list, same elements);
 /// None (undefined) passes through — the derived Clone is the exact
 /// field-for-field copy.
 pub(crate) fn clone_inference_info(inference: &InferenceInfo) -> InferenceInfo {
@@ -183,9 +250,12 @@ pub(crate) fn clone_inference_info(inference: &InferenceInfo) -> InferenceInfo {
 /// higher-order path's local `inferences`, 80786), not only on
 /// context-attached ones — a detached tsc array is a `Vec<
 /// InferenceInfoId>` here, sharing the same objects.
-pub(crate) fn clear_cached_inferences(arena: &mut [InferenceInfo], infos: &[InferenceInfoId]) {
+pub(crate) fn clear_cached_inferences(
+    arena: &mut crate::inference_storage::InferencePool<InferenceInfo>,
+    infos: &[InferenceInfoId],
+) {
     for &id in infos {
-        let inference = &mut arena[id.index() as usize];
+        let inference = &mut arena[id];
         if !inference.is_fixed {
             inference.inferred_type = None;
         }
@@ -201,33 +271,37 @@ pub(crate) fn has_inference_candidates(info: &InferenceInfo) -> bool {
 
 impl<'a> CheckerState<'a> {
     /// tsrs-native: arena accessor (contexts are GC objects in tsc).
+    #[inline(always)]
     pub(crate) fn inference_context(&self, id: InferenceContextId) -> &InferenceContext {
-        &self.inference_context_arena[id.index() as usize]
+        &self.inference_context_arena[id]
     }
 
     /// tsrs-native: arena accessor (contexts are GC objects in tsc).
+    #[inline(always)]
     pub(crate) fn inference_context_mut(
         &mut self,
         id: InferenceContextId,
     ) -> &mut InferenceContext {
-        &mut self.inference_context_arena[id.index() as usize]
+        &mut self.inference_context_arena[id]
     }
 
     /// tsrs-native: arena accessor (infos are GC objects in tsc).
+    #[inline(always)]
     pub(crate) fn inference_info(&self, id: InferenceInfoId) -> &InferenceInfo {
-        &self.inference_info_arena[id.index() as usize]
+        &self.inference_info_arena[id]
     }
 
     /// tsrs-native: arena accessor (infos are GC objects in tsc).
+    #[inline(always)]
     pub(crate) fn inference_info_mut(&mut self, id: InferenceInfoId) -> &mut InferenceInfo {
-        &mut self.inference_info_arena[id.index() as usize]
+        &mut self.inference_info_arena[id]
     }
 
     /// tsrs-native: arena allocation — tsc object creation.
-    pub(crate) fn alloc_inference_info(&mut self, info: InferenceInfo) -> InferenceInfoId {
-        let id = InferenceInfoId::new(self.inference_info_arena.len() as u32);
-        self.inference_info_arena.push(info);
-        id
+    #[inline(always)]
+    pub(crate) fn alloc_inference_info(&mut self, mut info: InferenceInfo) -> InferenceInfoId {
+        info.shared = false;
+        self.inference_info_arena.push(info)
     }
 
     /// tsc-port: createInferenceContext @6.0.3
@@ -240,10 +314,12 @@ impl<'a> CheckerState<'a> {
         flags: InferenceFlags,
         compare_types: Option<CompareTypesFn>,
     ) -> InferenceContextId {
-        let inferences = type_parameters
-            .iter()
-            .map(|&tp| self.alloc_inference_info(create_inference_info(tp)))
-            .collect();
+        let mut inferences = self.take_inference_buffer(type_parameters.len());
+        inferences.extend(
+            type_parameters
+                .iter()
+                .map(|&tp| self.alloc_inference_info(create_inference_info(tp))),
+        );
         self.create_inference_context_worker(
             inferences,
             signature,
@@ -267,17 +343,16 @@ impl<'a> CheckerState<'a> {
     ) -> Option<InferenceContextId> {
         context.map(|id| {
             let ctx = self.inference_context(id);
-            let slots = ctx.inferences.clone();
+            let count = ctx.inferences.len();
             let signature = ctx.signature;
             let flags = ctx.flags | extra_flags;
             let compare_types = ctx.compare_types;
-            let inferences = slots
-                .iter()
-                .map(|&slot| {
-                    let cloned = clone_inference_info(self.inference_info(slot));
-                    self.alloc_inference_info(cloned)
-                })
-                .collect();
+            let mut inferences = self.take_inference_buffer(count);
+            inferences.extend((0..count).map(|index| {
+                let slot = self.inference_context(id).inferences[index];
+                let cloned = clone_inference_info(self.inference_info(slot));
+                self.alloc_inference_info(cloned)
+            }));
             self.create_inference_context_worker(inferences, signature, flags, compare_types)
         })
     }
@@ -293,20 +368,48 @@ impl<'a> CheckerState<'a> {
     /// directly (fixing first, matching 68254/68255 creation order).
     fn create_inference_context_worker(
         &mut self,
-        inferences: Vec<InferenceInfoId>,
+        inferences: InferenceInfos,
         signature: Option<SignatureId>,
         flags: InferenceFlags,
         compare_types: CompareTypesFn,
     ) -> InferenceContextId {
-        let id = InferenceContextId::new(self.inference_context_arena.len() as u32);
+        let id = self.inference_context_arena.next_id();
         // 68254-68255: both mappers capture the SAME inferences array
         // at creation — sources = map(inferences, i.typeParameter),
         // thunks close over the per-slot info objects.
-        let mapper_sources = inferences
-            .iter()
-            .map(|&info| self.inference_info(info).type_parameter)
-            .collect();
-        let mapper_infos = inferences.clone();
+        let (mapper_sources, mapper_infos) = self
+            .inference_context_arena
+            .last_free_mut()
+            .map(|context| {
+                (
+                    std::mem::take(&mut context.mapper_sources),
+                    std::mem::take(&mut context.mapper_infos),
+                )
+            })
+            .unwrap_or_default();
+        let mut mapper_sources =
+            crate::inference_storage::exact_buffer(mapper_sources, inferences.len());
+        // Each capture owns newly allocated infos; merge only rewrites the
+        // live list. Validate that contract before claiming the fresh span.
+        let end = self.inference_info_arena.len();
+        let first = end
+            .checked_sub(inferences.len())
+            .expect("fresh inference span");
+        assert!(
+            first >= self.inference_lifetimes.last_claimed_info,
+            "fresh inference span"
+        );
+        mapper_sources.extend(inferences.iter().enumerate().map(|(offset, &info)| {
+            assert!(
+                info.index() as usize == first + offset,
+                "fresh inference span"
+            );
+            self.inference_info(info).type_parameter
+        }));
+        self.inference_lifetimes.last_claimed_info = end;
+        let mut mapper_infos =
+            crate::inference_storage::exact_buffer(mapper_infos, inferences.len());
+        mapper_infos.extend_from_slice(&inferences);
         let mapper = self.alloc_mapper(TypeMapper::Deferred(
             DeferredMapperTargets::InferenceFixing(id),
         ));
@@ -314,6 +417,8 @@ impl<'a> CheckerState<'a> {
             DeferredMapperTargets::InferenceNonFixing(id),
         ));
         self.inference_context_arena.push(InferenceContext {
+            generation: 0,
+            escaped: false,
             inferences,
             mapper_sources,
             mapper_infos,
@@ -327,6 +432,7 @@ impl<'a> CheckerState<'a> {
             intra_expression_inference_sites: None,
             outer_return_mapper: None,
         });
+        self.inference_lifetimes.created_context(id);
         id
     }
 
@@ -338,25 +444,23 @@ impl<'a> CheckerState<'a> {
         context: InferenceContextId,
     ) -> Option<InferenceContextId> {
         let ctx = self.inference_context(context);
-        let slots = ctx.inferences.clone();
         let signature = ctx.signature;
         let flags = ctx.flags;
         let compare_types = ctx.compare_types;
-        let candidate_slots: Vec<InferenceInfoId> = slots
+        let candidate_slots: InferenceInfos = ctx
+            .inferences
             .iter()
             .copied()
             .filter(|&slot| has_inference_candidates(self.inference_info(slot)))
             .collect();
-        let inferences: Vec<InferenceInfoId> = candidate_slots
-            .iter()
-            .map(|&slot| {
-                let cloned = clone_inference_info(self.inference_info(slot));
-                self.alloc_inference_info(cloned)
-            })
-            .collect();
-        if inferences.is_empty() {
+        if candidate_slots.is_empty() {
             return None;
         }
+        let mut inferences = self.take_inference_buffer(candidate_slots.len());
+        inferences.extend(candidate_slots.iter().map(|&slot| {
+            let cloned = clone_inference_info(self.inference_info(slot));
+            self.alloc_inference_info(cloned)
+        }));
         Some(self.create_inference_context_worker(inferences, signature, flags, compare_types))
     }
 
@@ -481,7 +585,7 @@ impl<'a> CheckerState<'a> {
             // LIVE slots, not the capture.
             clear_cached_inferences(
                 &mut self.inference_info_arena,
-                &self.inference_context_arena[context.index() as usize].inferences,
+                &self.inference_context_arena[context].inferences,
             );
             self.inference_info_mut(captured).is_fixed = true;
         }
@@ -542,6 +646,7 @@ impl<'a> CheckerState<'a> {
         let clone_mapper = self.inference_context(clone).mapper;
         let merged = self.merge_type_mappers(return_mapper, clone_mapper);
         self.inference_context_mut(context).outer_return_mapper = Some(merged);
+        self.retain_context_mapper(context, Some(merged));
         merged
     }
 
@@ -1161,10 +1266,10 @@ impl<'a> CheckerState<'a> {
     /// (concatenate(filter(...), [literalsType])).
     fn union_object_and_array_literal_candidates(
         &mut self,
-        candidates: Vec<TypeId>,
-    ) -> CheckResult<Vec<TypeId>> {
+        candidates: InlineList<TypeId, 4>,
+    ) -> CheckResult<InlineList<TypeId, 4>> {
         if candidates.len() > 1 {
-            let object_literals: Vec<TypeId> = candidates
+            let object_literals: InlineList<TypeId, 4> = candidates
                 .iter()
                 .copied()
                 .filter(|&t| self.is_object_or_array_literal_type(t))
@@ -1172,7 +1277,7 @@ impl<'a> CheckerState<'a> {
             if !object_literals.is_empty() {
                 let literals_type =
                     self.get_union_type_ex(&object_literals, UnionReduction::Subtype)?;
-                let mut result: Vec<TypeId> = candidates
+                let mut result: InlineList<TypeId, 4> = candidates
                     .iter()
                     .copied()
                     .filter(|&t| !self.is_object_or_array_literal_type(t))
@@ -1238,9 +1343,9 @@ impl<'a> CheckerState<'a> {
             candidates
                 .iter()
                 .map(|&t| self.regular_type_of_literal_type(t))
-                .collect::<Vec<_>>()
+                .collect::<InlineList<_, 4>>()
         } else if widen_literal_types {
-            let mut widened = Vec::with_capacity(candidates.len());
+            let mut widened = InlineList::with_capacity(candidates.len());
             for &t in &candidates {
                 widened.push(self.get_widened_literal_type(t)?);
             }
@@ -1491,7 +1596,7 @@ impl<'a> CheckerState<'a> {
                                 // (helper `every`, _tsc.js:80).
                                 let inference_type_parameter =
                                     self.inference_info(inference).type_parameter;
-                                let all_inferences: Vec<InferenceInfoId> =
+                                let all_inferences: InferenceInfos =
                                     self.inference_context(context).inferences.clone();
                                 let mut every_sibling_compatible = true;
                                 'siblings: for other in all_inferences {
@@ -1818,6 +1923,7 @@ impl<'a> CheckerState<'a> {
             if !has_inference_candidates(self.inference_info(target_slot))
                 && has_inference_candidates(self.inference_info(source_slot))
             {
+                self.inference_info_mut(source_slot).shared = true;
                 self.inference_context_mut(context).inferences[i] = source_slot;
             }
         }
@@ -2243,11 +2349,7 @@ impl InferTypesWalker<'_, '_> {
                         Some(existing) => self.priority < existing,
                     };
                     if reset {
-                        let info = self.st.inference_info_mut(info_id);
-                        info.candidates = None;
-                        info.contra_candidates = None;
-                        info.top_level = true;
-                        info.priority = Some(self.priority);
+                        self.st.reset_inference_candidates(info_id, self.priority);
                     }
                     // 68721-68731: equal priority accumulates (unique).
                     if Some(self.priority) == self.st.inference_info(info_id).priority {
@@ -2259,11 +2361,7 @@ impl InferTypesWalker<'_, '_> {
                                 .as_deref()
                                 .is_some_and(|contra| contra.contains(&candidate));
                             if !already {
-                                self.st
-                                    .inference_info_mut(info_id)
-                                    .contra_candidates
-                                    .get_or_insert_with(Vec::new)
-                                    .push(candidate);
+                                self.st.push_inference_candidate(info_id, candidate, true);
                                 self.clear_cached();
                             }
                         } else {
@@ -2274,11 +2372,7 @@ impl InferTypesWalker<'_, '_> {
                                 .as_deref()
                                 .is_some_and(|candidates| candidates.contains(&candidate));
                             if !already {
-                                self.st
-                                    .inference_info_mut(info_id)
-                                    .candidates
-                                    .get_or_insert_with(Vec::new)
-                                    .push(candidate);
+                                self.st.push_inference_candidate(info_id, candidate, false);
                                 self.clear_cached();
                             }
                         }

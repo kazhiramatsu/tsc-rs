@@ -105,6 +105,9 @@ pub fn resident_vec_tail_bytes<T>(values: &Vec<T>) -> Option<usize> {
     }
 }
 
+mod inline_list;
+pub use inline_list::InlineList;
+
 pub mod claimed;
 pub mod frozen;
 pub mod record_lists;

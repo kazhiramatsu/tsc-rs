@@ -303,8 +303,10 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs-native: arena allocation for a TypeMapper object; tsc uses
     /// ordinary JavaScript object allocation.
+    #[inline(always)]
     pub(crate) fn alloc_mapper(&mut self, mapper: TypeMapper) -> MapperId {
         let id = MapperId::new(self.mappers.len() as u32);
+        self.record_mapper_lifetime(id, mapper);
         self.mappers.push(mapper);
         id
     }
@@ -749,6 +751,7 @@ impl<'a> CheckerState<'a> {
                 );
                 let fresh_mapper = self.create_type_mapper(&sources, Some(&fresh));
                 mapper = self.combine_type_mappers(Some(fresh_mapper), mapper);
+                self.retain_inference_mapper(Some(mapper));
                 for &tp in &fresh {
                     self.links
                         .set_type_parameter_mapper(self.speculation_depth, tp, mapper);
@@ -863,6 +866,7 @@ impl<'a> CheckerState<'a> {
             transient.parent = parent;
             transient.value_declaration = value_declaration;
         }
+        self.retain_inference_mapper(Some(mapper));
         self.links.set_symbol_instantiation_links(
             self.speculation_depth,
             result,
@@ -1431,6 +1435,7 @@ impl<'a> CheckerState<'a> {
             // leaves Composite ones to the type id.
             let unary = self.make_unary_type_mapper(type_parameter, fresh_type_parameter);
             let fresh_mapper = self.combine_type_mappers(Some(unary), mapper);
+            self.retain_inference_mapper(Some(fresh_mapper));
             self.links.set_type_parameter_mapper(
                 self.speculation_depth,
                 fresh_type_parameter,
@@ -1448,6 +1453,7 @@ impl<'a> CheckerState<'a> {
             result
         } else {
             let result = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+            self.retain_inference_mapper(Some(mapper));
             self.links
                 .set_type_instantiation_links(self.speculation_depth, result, ty, mapper);
             result
@@ -2882,6 +2888,7 @@ impl<'a> CheckerState<'a> {
                 let new_return_type =
                     self.get_or_create_type_from_signature(new_return_signature)?;
                 if let Some(mapper) = self.signature_of(instantiated).mapper {
+                    self.retain_inference_mapper(Some(mapper));
                     self.links.set_type_isolated_signature_mapper(
                         self.speculation_depth,
                         new_return_type,
@@ -2948,6 +2955,24 @@ impl<'a> CheckerState<'a> {
     /// through the NON-fixing mapper; the ReturnType-priority return
     /// inference runs only for context-LESS callers (75917-75921).
     pub(crate) fn instantiate_signature_in_context_of(
+        &mut self,
+        signature: SignatureId,
+        contextual_signature: SignatureId,
+        inference_context: Option<crate::inference::InferenceContextId>,
+        compare_types: Option<crate::inference::CompareTypesFn>,
+    ) -> CheckResult<SignatureId> {
+        let scope = self.inference_scope_start();
+        let result = self.instantiate_signature_in_context_of_worker(
+            signature,
+            contextual_signature,
+            inference_context,
+            compare_types,
+        );
+        self.finish_inference_scope(scope);
+        result
+    }
+
+    fn instantiate_signature_in_context_of_worker(
         &mut self,
         signature: SignatureId,
         contextual_signature: SignatureId,

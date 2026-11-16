@@ -139,6 +139,7 @@ pub use incremental::{
 };
 pub mod indexed;
 pub mod inference;
+mod inference_storage;
 pub mod instantiate;
 pub mod intersect;
 pub mod iterate;

@@ -44,8 +44,8 @@ const REJECTIONS: usize = 17;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct InfoOutcome {
-    candidates: Option<Vec<TypeId>>,
-    contra_candidates: Option<Vec<TypeId>>,
+    candidates: Option<tsc_types::InlineList<TypeId, 4>>,
+    contra_candidates: Option<tsc_types::InlineList<TypeId, 4>>,
     priority: Option<InferencePriority>,
     top_level: bool,
 }
@@ -309,7 +309,7 @@ impl CheckerState<'_> {
             #[cfg(not(feature = "infer-memo-shadow"))]
             {
                 for (&id, outcome) in infos.iter().zip(entry.infos.iter()) {
-                    let info = &mut self.inference_info_arena[id.index() as usize];
+                    let info = &mut self.inference_info_arena[id];
                     info.candidates.clone_from(&outcome.candidates);
                     info.contra_candidates
                         .clone_from(&outcome.contra_candidates);

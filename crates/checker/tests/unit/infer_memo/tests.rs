@@ -133,7 +133,7 @@ fn key_preserves_optional_state_and_rejects_aliasing_and_large_info_lists() {
             key
         };
         let absent = key(state);
-        state.inference_info_mut(id).candidates = Some(Vec::new());
+        state.inference_info_mut(id).candidates = Some(Vec::new().into());
         assert_ne!(key(state), absent);
         state.inference_info_mut(id).candidates = None;
         state.inference_info_mut(id).priority = Some(InferencePriority::NONE);
