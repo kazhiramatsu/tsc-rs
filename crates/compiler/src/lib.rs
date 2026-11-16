@@ -2532,7 +2532,11 @@ impl ProgramSession {
         .map_err(|failure| map_authoritative_failure(&prepared, failure))?;
 
         if let Some(result) = emit_result {
-            return result;
+            return result.map(|mut outcome| {
+                outcome.work_counters.bind_time = checked.work_counters.bind_time();
+                outcome.work_counters.emit_time = checked.work_counters.emit_time();
+                outcome
+            });
         }
 
         // An empty Program has no snapshot from which to construct a checker
@@ -3390,6 +3394,8 @@ impl ProgramSession {
             }
         };
         let outcome = outcome.map(|mut outcome| {
+            outcome.work_counters.bind_time = checked.work_counters.bind_time();
+            outcome.work_counters.emit_time = checked.work_counters.emit_time();
             outcome.build_emit = driver.build_emit_facts();
             if testing {
                 outcome.program_report = driver.program_report();
@@ -4044,6 +4050,8 @@ impl ProgramSession {
             symbols: checker_work.symbols(),
             types: checker_work.types(),
             instantiations: checker_work.instantiations(),
+            bind_time: checker_work.bind_time(),
+            emit_time: checker_work.emit_time(),
         };
 
         let preparation = self.prepared.diagnostics();
@@ -4304,6 +4312,8 @@ pub struct NoEmitWorkCounters {
     symbols: u64,
     types: u64,
     instantiations: u64,
+    bind_time: std::time::Duration,
+    emit_time: std::time::Duration,
 }
 
 impl NoEmitWorkCounters {
@@ -4323,6 +4333,14 @@ impl NoEmitWorkCounters {
 
     pub const fn instantiations(self) -> u64 {
         self.instantiations
+    }
+
+    pub const fn bind_time(self) -> std::time::Duration {
+        self.bind_time
+    }
+
+    pub const fn emit_time(self) -> std::time::Duration {
+        self.emit_time
     }
 
     /// Documents the checker session parsed itself.
@@ -5040,6 +5058,8 @@ fn check_work_counters(checked: &CheckResult) -> NoEmitWorkCounters {
         symbols: checked.work_counters.symbols(),
         types: checked.work_counters.types(),
         instantiations: checked.work_counters.instantiations(),
+        bind_time: checked.work_counters.bind_time(),
+        emit_time: checked.work_counters.emit_time(),
     }
 }
 

@@ -1323,3 +1323,45 @@ fn return_iterator_keeps_source_order_and_excludes_nested_functions() {
         );
     });
 }
+
+#[test]
+fn type_predicate_complexity_boundary_wraps_only_the_captured_diagnostic() {
+    // Pinned Go aa8149273 agrees through997tags. At998it reports only2677
+    // with this condensed2859 child; the predicate span is its written type.
+    let options = CompilerOptions {
+        strict: Some(true),
+        target: Some(tsc_types::ScriptTarget::ES_NEXT.bits()),
+        ..CompilerOptions::default()
+    };
+    for count in [997, 998] {
+        let tags = (0..count)
+            .map(|i| format!("\"k{i}\""))
+            .collect::<Vec<_>>()
+            .join(" | ");
+        let text = format!("interface Array<T> {{ length: number; [n: number]: T; }}\ninterface Object {{}}\ninterface Function {{}}\ninterface CallableFunction {{}}\ninterface NewableFunction {{}}\ninterface String {{}}\ninterface Number {{}}\ninterface Boolean {{}}\ninterface RegExp {{}}\ninterface IArguments {{}}\ntype Tag = {tags};\ntype N = {{ [K in Tag]: {{type: K; value: string}} }}[Tag];\ntype Extract<T, U> = T extends U ? T : never;\ntype Partial<T> = {{ [P in keyof T]?: T[P] }};\ndeclare function is<T extends N[\"type\"]>(type: T, node: N | null | undefined, opts?: undefined): node is Extract<N, {{type: T}}>;\n");
+        let result = check_program(&[InputFile::new("a.ts".to_owned(), text.clone())], &options);
+        let diagnostics = result
+            .diagnostics
+            .iter()
+            .filter(|d| d.file_name.is_some())
+            .collect::<Vec<_>>();
+        if count == 997 {
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        } else {
+            assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+            let diagnostic = diagnostics[0];
+            assert_eq!(diagnostic.code(), 2677);
+            assert_eq!(
+                diagnostic.start,
+                Some(text.rfind("Extract<N,").unwrap() as u32)
+            );
+            assert_eq!(
+                diagnostic.length,
+                Some("Extract<N, {type: T}>".len() as u32)
+            );
+            assert_eq!(diagnostic.message.next.len(), 1);
+            assert_eq!(diagnostic.message.next[0].code, 2859);
+            assert_eq!(tsc_diagnostics::render::flattened_message(&diagnostic.message, "\n", None).as_str(), Some("A type predicate's type must be assignable to its parameter's type.\n  Excessive complexity comparing types 'Extract<...> | Extract<...> | Extract<...> | ... 994 more ... | Extract<...>' and 'N | null | undefined'."));
+        }
+    }
+}

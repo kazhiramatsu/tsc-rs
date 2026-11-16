@@ -89,8 +89,8 @@ impl ModuleResolver<'_> {
     ) -> Result<Vec<ResolvedEntrypoint>, ResolutionError> {
         let package = self.load_package(&join_normalized(package_directory, "package.json"))?;
         if let Some(package) = package.as_deref().filter(|package| package.has_own_exports) {
-            let exports = package.exports.clone().unwrap_or(Value::Null);
-            return self.load_entrypoints_from_export_map(package, package_name, &exports);
+            let exports = package.exports.as_ref().unwrap_or(&Value::Null);
+            return self.load_entrypoints_from_export_map(package, package_name, exports);
         }
 
         let mut result = Vec::new();

@@ -90,6 +90,12 @@ impl ProgramPath {
         self.display.as_js()
     }
 
+    /// The existing immutable handle for this path's selected spelling.
+    /// Cloning it retains the bytes without rebuilding an owned spelling.
+    pub fn shared_display(&self) -> &SharedJsString {
+        &self.display
+    }
+
     pub fn canonical(&self) -> &CanonicalPath {
         &self.canonical
     }

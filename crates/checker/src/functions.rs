@@ -3861,13 +3861,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:81206-81253
     /// (covers getTypePredicateParent 81254-81268)
     ///
-    /// The 2677 assignability face carries tsc's leadingError as a
-    /// containingMessageChain, and checkTypeRelatedTo wraps errorInfo
-    /// under that chain UNCONDITIONALLY (64890-64896) — every relation
-    /// failure path (generic 2322, no-common-properties 2559, missing
-    /// property, readonly 4104) lands the SAME outer code 2677 at
-    /// node.type with no arguments. The relation reporting replay
-    /// supplies the exact nested chain and related declaration rows.
+    /// The relation's diagnostic is captured by one reporting check, then
+    /// wrapped under2677 (Go checker.go:3130-3131). Capturing before wrapping
+    /// also keeps a complexity overflow inside the predicate diagnostic.
     pub(crate) fn check_type_predicate(&mut self, node: NodeId) -> CheckResult<()> {
         // getTypePredicateParent (81254-81268): the seven signature
         // kinds whose return-type slot may carry a predicate.
@@ -3931,31 +3927,28 @@ impl<'a> CheckerState<'a> {
                     &diagnostics::A_type_predicate_cannot_reference_a_rest_parameter,
                     &[],
                 );
-            } else if let Some(predicate_type) = type_predicate.ty {
+            } else if let (Some(predicate_type), Some(type_node)) = (type_predicate.ty, type_node) {
                 let parameter_type = self.get_type_of_symbol(parameter)?;
-                if !self.is_type_assignable_to(predicate_type, parameter_type)? {
-                    let containing = MessageChain::new(
-                        &diagnostics::A_type_predicate_s_type_must_be_assignable_to_its_parameter_s_type,
-                        &[],
-                    );
-                    if let Ok(Some(output)) = self.relation_error_output_with_context(
-                        predicate_type,
-                        parameter_type,
-                        crate::relate::RelationKind::Assignable,
-                        None,
-                        Some(containing),
-                    ) {
-                        let mut diagnostic = self.create_error(
-                            type_node,
+                let (related, diagnostic) = self.capture_type_assignable_to_diagnostic(
+                    predicate_type,
+                    parameter_type,
+                    type_node,
+                    &diagnostics::Type_0_is_not_assignable_to_type_1,
+                )?;
+                if !related {
+                    if let Some(mut diagnostic) = diagnostic {
+                        let mut message = MessageChain::new(
                             &diagnostics::A_type_predicate_s_type_must_be_assignable_to_its_parameter_s_type,
                             &[],
                         );
-                        diagnostic.message = output.message;
-                        diagnostic.related = output.related;
+                        diagnostic.message.related = diagnostic.related.clone();
+                        message.next_present = true;
+                        message.next.push(diagnostic.message);
+                        diagnostic.message = message;
                         self.push_error_diagnostic(diagnostic);
                     } else {
                         self.error_at(
-                            type_node,
+                            Some(type_node),
                             &diagnostics::A_type_predicate_s_type_must_be_assignable_to_its_parameter_s_type,
                             &[],
                         );

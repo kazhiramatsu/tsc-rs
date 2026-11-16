@@ -135,6 +135,7 @@ impl TemplatePreparation {
                             maps,
                             &mut loaded.packages,
                             &mut loaded.package_indices,
+                            &mut loaded.unloaded_paths,
                         );
                         let (row, error) = match result {
                             Ok(row) => (Some(row), None),
@@ -248,7 +249,6 @@ mod tests {
                 specifier: JsString::default(),
                 target: Target::NotFound,
                 rare: None,
-                importing_source: SourceFileId::from_raw(0),
                 package_id: None,
                 mode: ResolutionMode::Unspecified,
                 extension,
@@ -289,7 +289,14 @@ mod tests {
         let first = shared(preparation.consider(Arc::clone(&fact), binding(1, Some(0)), &sources));
         let second = shared(preparation.consider(fact, binding(2, Some(0)), &sources));
         let maps = PreparedPackageMaps::new(std::iter::empty());
-        let mut loaded = LoadedModules::new(3, 2);
+        let mut loaded = LoadedModules::new(
+            3,
+            2,
+            [
+                (SourceFileId::from_raw(1), 1),
+                (SourceFileId::from_raw(2), 1),
+            ],
+        );
         let mut templates = preparation.finish(&mut loaded, &sources, &maps);
         assert_eq!(templates.slots.len(), 1);
         assert!(matches!(templates.slots[0].fact, FinalFact::Ready(_)));
@@ -307,14 +314,8 @@ mod tests {
                 .unwrap();
             assert!(specifier.is_empty());
         }
-        assert_eq!(
-            loaded.modules[0].importing_source,
-            SourceFileId::from_raw(1)
-        );
-        assert_eq!(
-            loaded.modules[1].importing_source,
-            SourceFileId::from_raw(2)
-        );
+        assert_eq!(loaded.source_ranges[1], 0..1);
+        assert_eq!(loaded.source_ranges[2], 1..2);
         assert_eq!(loaded.modules[0].specifier, "first");
         assert_eq!(loaded.modules[1].specifier, "second");
         assert_eq!(
@@ -322,6 +323,17 @@ mod tests {
             Target::Source(SourceFileId::from_raw(0))
         );
         assert_eq!(templates.slots[0].remaining, 0);
+        let table = loaded.finish(&sources, BTreeMap::new());
+        assert_eq!(
+            table
+                .ordered_rows()
+                .map(|(source, row)| (
+                    source.raw(),
+                    row.specifier.as_js().to_string_lossy().into_owned()
+                ))
+                .collect::<Vec<_>>(),
+            vec![(1, "first".to_owned()), (2, "second".to_owned())]
+        );
     }
 
     #[test]
@@ -340,7 +352,7 @@ mod tests {
         assert!(Arc::ptr_eq(&retained, &fact));
         assert_eq!(preparation.inputs[0].remaining, 1);
         let maps = PreparedPackageMaps::new(std::iter::empty());
-        let mut loaded = LoadedModules::new(1, 1);
+        let mut loaded = LoadedModules::new(1, 1, [(SourceFileId::from_raw(0), 1)]);
         let templates = preparation.finish(&mut loaded, &sources, &maps);
         assert!(matches!(templates.slots[0].fact, FinalFact::Retained(_)));
         assert!(loaded.modules.is_empty());
@@ -356,7 +368,7 @@ mod tests {
         shared(preparation.consider(Arc::clone(&later), binding(0, None), &[]));
         drop(later);
         let maps = PreparedPackageMaps::new(std::iter::empty());
-        let mut loaded = LoadedModules::new(1, 0);
+        let mut loaded = LoadedModules::new(1, 0, []);
         let mut templates = preparation.finish(&mut loaded, &[], &maps);
         assert!(matches!(templates.slots[0].fact, FinalFact::Ready(_)));
         assert!(matches!(templates.slots[1].fact, FinalFact::Retained(_)));

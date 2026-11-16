@@ -458,7 +458,7 @@ impl HostResolvedTypeReferenceDirective {
 #[derive(Clone, Debug)]
 struct CachedPackage {
     root: JsString,
-    exports: Option<Value>,
+    exports: CachedExports,
     has_own_exports: bool,
     imports: Option<Value>,
     types_versions: Option<Value>,
@@ -477,6 +477,55 @@ struct CachedPackage {
     /// package id is computed.
     peer_dependencies_trace: PeerDependenciesTrace,
 }
+
+// The package's original object is immutable. Own exports use its exact
+// entry slot; inherited exports retain the package reader's prototype lookup.
+// Missing exports do not keep another reference to the object.
+#[derive(Clone)]
+struct CachedExports {
+    object: Option<Arc<Value>>,
+    // 0 absent, 1 inherited, otherwise the full-width entry index plus two.
+    slot: usize,
+}
+
+impl CachedExports {
+    fn new(root: &Arc<Value>) -> Self {
+        let object = root
+            .as_object()
+            .expect("package metadata retains an object");
+        let slot = if let Some(index) = object.index_of(JsStr::from("exports")) {
+            // A Vec entry index is below isize::MAX; adding two fits usize.
+            index
+                .checked_add(2)
+                .expect("package entry index fits usize")
+        } else if json_object_get(object, "exports").is_some() {
+            1
+        } else {
+            0
+        };
+        Self {
+            object: (slot != 0).then(|| Arc::clone(root)),
+            slot,
+        }
+    }
+
+    fn as_ref(&self) -> Option<&Value> {
+        let object = self.object.as_deref()?.as_object().expect("package object");
+        if self.slot == 1 {
+            json_object_get(object, "exports")
+        } else {
+            Some(object.value_by_index(self.slot - 2))
+        }
+    }
+}
+
+impl std::fmt::Debug for CachedExports {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(&self.as_ref(), f)
+    }
+}
+
+const _: () = assert!(std::mem::size_of::<CachedExports>() <= 16);
 
 #[derive(Clone, Debug, Default)]
 enum PeerDependenciesTrace {
@@ -5841,23 +5890,25 @@ impl<'a> ModuleResolver<'a> {
             probes: peer_probes,
             trace: peer_dependencies_trace,
         } = self.package_json_peer_dependencies(&object, package_directory.as_js())?;
+        let metadata = Arc::new(metadata.with_parsed_json_object(object));
+        let object = metadata.parsed_json().as_object().expect("package object");
         let package = Arc::new(CachedPackage {
             root: package_directory,
-            exports: json_object_get(&object, "exports").cloned(),
-            has_own_exports: json_object_own_get(&object, "exports").is_some(),
-            imports: json_object_get(&object, "imports").cloned(),
+            exports: CachedExports::new(metadata.parsed_json()),
+            has_own_exports: json_object_own_get(object, "exports").is_some(),
+            imports: json_object_get(object, "imports").cloned(),
             // readPackageJsonField(..., "object") reports a malformed field
             // only through tracing and exposes it to resolution as absent.
-            types_versions: json_object_own_get(&object, "typesVersions")
+            types_versions: json_object_own_get(object, "typesVersions")
                 // JavaScript's object-type test admits arrays; their numeric
                 // own keys participate in version selection.
                 .filter(|value| value.is_object() || value.is_array())
                 .cloned(),
-            typings: non_empty_string_field(&object, "typings"),
-            types: non_empty_string_field(&object, "types"),
-            main: non_empty_string_field(&object, "main"),
-            tsconfig: non_empty_string_field(&object, "tsconfig"),
-            metadata: Arc::new(metadata.with_parsed_json_object(object)),
+            typings: non_empty_string_field(object, "typings"),
+            types: non_empty_string_field(object, "types"),
+            main: non_empty_string_field(object, "main"),
+            tsconfig: non_empty_string_field(object, "tsconfig"),
+            metadata,
             peer_dependencies,
             peer_probes,
             peer_dependencies_trace,
@@ -8521,3 +8572,75 @@ fn ancestor_directories<'d>(directory: impl Into<JsStr<'d>>) -> Vec<JsString> {
 #[path = "prepared_package_scope.rs"]
 mod prepared_scope;
 pub(crate) use prepared_scope::{PreparedFileScope, ScopePreparation};
+
+#[cfg(test)]
+mod cached_exports_tests {
+    use super::*;
+
+    #[test]
+    fn cached_exports_views_match_the_owned_field_reader() {
+        let path = JsStr::from("/package.json");
+        for text in [
+            r#"{}"#,
+            r#"{"name":"pkg","exports":null}"#,
+            r#"{"exports":{".":{"types":"./index.d.ts","default":"./index.js"}},"tail":1}"#,
+            r#"{"head":1,"exports":["./index.js",null],"tail":2}"#,
+            r#"{"exports":false}"#,
+            r#"{"exports":1e309}"#,
+            r#"{"exports":"\ud800"}"#,
+            r#"{"\u0000exports":"other","exports":"./correct.js"}"#,
+            r#"{"exports":"first","exports":"last"}"#,
+            r#"{"__proto__":{"exports":"not-inherited"}}"#,
+            r#"{/* JSONC prototype */"__proto__":{"exports":{".":"./inherited.js"}}}"#,
+            r#"{/* JSONC own field */"__proto__":{"exports":"inherited"},"exports":null}"#,
+            "invalid JSON",
+        ] {
+            let (_, object) = parse_json_object(path, text.to_owned());
+            let expected = json_object_get(&object, "exports").cloned();
+            let own = json_object_own_get(&object, "exports").is_some();
+            let root = Arc::new(Value::Object(object));
+            let view = CachedExports::new(&root);
+            assert_eq!(view.as_ref(), expected.as_ref(), "{text}");
+            assert_eq!(view.slot >= 2, own, "{text}");
+            assert_eq!(format!("{view:?}"), format!("{expected:?}"), "{text}");
+        }
+    }
+
+    #[test]
+    fn cached_exports_keep_the_original_object_and_stable_value() {
+        for text in [
+            r#"{"head":1,"exports":{".":"./index.js"},"tail":2}"#,
+            r#"{/* inherited */"__proto__":{"exports":{".":"./index.js"}}}"#,
+        ] {
+            let (_, object) = parse_json_object(JsStr::from("/package.json"), text.to_owned());
+            let expected = json_object_get(&object, "exports").cloned().unwrap();
+            let root = Arc::new(Value::Object(object));
+            let address =
+                std::ptr::from_ref(json_object_get(root.as_object().unwrap(), "exports").unwrap());
+            let view = CachedExports::new(&root);
+            assert!(Arc::ptr_eq(view.object.as_ref().unwrap(), &root));
+            assert_eq!(std::ptr::from_ref(view.as_ref().unwrap()), address);
+            let clone = view.clone();
+            drop(root);
+            assert_eq!(clone.as_ref(), Some(&expected));
+            assert_eq!(std::ptr::from_ref(clone.as_ref().unwrap()), address);
+            assert_eq!(std::ptr::from_ref(view.as_ref().unwrap()), address);
+        }
+    }
+
+    #[test]
+    fn missing_exports_do_not_retain_an_extra_object_reference() {
+        let (_, object) = parse_json_object(
+            JsStr::from("/package.json"),
+            r#"{"name":"pkg","main":"./index.js"}"#.to_owned(),
+        );
+        let root = Arc::new(Value::Object(object));
+        let view = CachedExports::new(&root);
+        let clone = view.clone();
+        assert!(view.as_ref().is_none() && clone.as_ref().is_none());
+        assert!(view.object.is_none());
+        assert_eq!(view.slot, 0);
+        assert_eq!(Arc::strong_count(&root), 1);
+        assert_eq!(format!("{view:?}"), "None");
+    }
+}

@@ -24,7 +24,7 @@ pub fn kind_of(tree: &impl NodeLookup, id: NodeId) -> SyntaxKind {
 /// tsc-hash: 8f800e8468ab175a7b37510bd6af5a2527bfb269a775e24c299a6b547cb60982
 /// tsc-span: _tsc.js:15299-15303
 pub fn is_jsdoc_construct_signature(tree: &impl NodeLookup, node: NodeId) -> bool {
-    let NodeData::JSDocFunctionType(data) = &tree.node(node).data() else {
+    let Some(data) = tree.node(node).as_js_doc_function_type() else {
         return false;
     };
     let Some(parameter) = data
@@ -33,7 +33,7 @@ pub fn is_jsdoc_construct_signature(tree: &impl NodeLookup, node: NodeId) -> boo
     else {
         return false;
     };
-    let NodeData::Parameter(data) = &tree.node(parameter).data() else {
+    let Some(data) = tree.node(parameter).as_parameter() else {
         return false;
     };
     data.name.is_some_and(|name| {
@@ -493,7 +493,7 @@ pub fn get_jsdoc_parameter_tags(tree: &impl NodeLookup, parameter: NodeId) -> Ve
 /// A JavaScript `/** @type {T} */ (expr)`: tsgo's reparser makes the
 /// parenthesized expression's operand `expr as T` (reparser.go:382-391).
 pub fn is_jsdoc_type_assertion(source: &SourceFile, node: NodeId) -> bool {
-    let NodeData::ParenthesizedExpression(data) = &source.arena.node(node).data() else {
+    let Some(data) = source.arena.node(node).as_parenthesized_expression() else {
         return false;
     };
     data.expression.is_some_and(|expression| {
@@ -1114,23 +1114,38 @@ pub fn node_is_missing(tree: &impl NodeLookup, id: Option<NodeId>) -> bool {
 
 /// tsc moduleExportNameIsDefault (_tsc.js 13032).
 pub fn module_export_name_is_default(tree: &impl NodeLookup, name: NodeId) -> bool {
-    match tree.node(name).data() {
-        NodeData::StringLiteral(data) => tree.text(data.text) == b"default",
-        NodeData::Identifier(data) => data.escaped_text == "default",
+    let binding_node = tree.node(name);
+    match binding_node.kind {
+        SyntaxKind::StringLiteral => {
+            let data = binding_node
+                .as_string_literal()
+                .expect("selected payload kind");
+            tree.text(data.text) == b"default"
+        }
+        SyntaxKind::Identifier => {
+            let data = binding_node.as_identifier().expect("selected payload kind");
+            data.escaped_text == "default"
+        }
         _ => false,
     }
 }
 
 /// tsc isAmbientModule (_tsc.js 13713).
 pub fn is_ambient_module(tree: &impl NodeLookup, id: NodeId) -> bool {
-    match &tree.node(id).data() {
-        NodeData::ModuleDeclaration(data) => match data.name {
-            Some(name) => {
-                kind_of(tree, name) == SyntaxKind::StringLiteral
-                    || is_global_scope_augmentation(tree, id)
+    let binding_node = tree.node(id);
+    match binding_node.kind {
+        SyntaxKind::ModuleDeclaration => {
+            let data = binding_node
+                .as_module_declaration()
+                .expect("selected payload kind");
+            match data.name {
+                Some(name) => {
+                    kind_of(tree, name) == SyntaxKind::StringLiteral
+                        || is_global_scope_augmentation(tree, id)
+                }
+                None => is_global_scope_augmentation(tree, id),
             }
-            None => is_global_scope_augmentation(tree, id),
-        },
+        }
         _ => false,
     }
 }
@@ -1164,8 +1179,13 @@ pub fn is_string_or_numeric_literal_like(tree: &impl NodeLookup, id: NodeId) -> 
 
 /// tsc isSignedNumericLiteral (_tsc.js 15847).
 pub fn is_signed_numeric_literal(tree: &impl NodeLookup, id: NodeId) -> bool {
-    match &tree.node(id).data() {
-        NodeData::PrefixUnaryExpression(data) => {
+    let binding_node = tree.node(id);
+    match binding_node.kind {
+        SyntaxKind::PrefixUnaryExpression => {
+            let data = binding_node
+                .as_prefix_unary_expression()
+                .expect("selected payload kind");
+
             matches!(
                 data.operator,
                 SyntaxKind::PlusToken | SyntaxKind::MinusToken
@@ -1191,12 +1211,24 @@ pub fn has_dynamic_name(tree: &impl NodeLookup, declaration: NodeId) -> bool {
 /// tsc-hash: 7014a94f7e8ee40358469f32712ba44f9dadcab04d99dc7e54a8965ea989c1cb
 /// tsc-span: _tsc.js:15854-15861
 pub fn is_dynamic_name(tree: &impl NodeLookup, name: NodeId) -> bool {
-    let expr = match &tree.node(name).data() {
-        NodeData::ComputedPropertyName(data) => data.expression,
-        NodeData::ElementAccessExpression(data) => data
-            .argument_expression
-            .map(|argument| skip_parentheses(tree, argument)),
-        _ => return false,
+    let expr = {
+        let binding_node = tree.node(name);
+        match binding_node.kind {
+            SyntaxKind::ComputedPropertyName => {
+                let data = binding_node
+                    .as_computed_property_name()
+                    .expect("selected payload kind");
+                data.expression
+            }
+            SyntaxKind::ElementAccessExpression => {
+                let data = binding_node
+                    .as_element_access_expression()
+                    .expect("selected payload kind");
+                data.argument_expression
+                    .map(|argument| skip_parentheses(tree, argument))
+            }
+            _ => return false,
+        }
     };
     let Some(expr) = expr else { return false };
     !is_string_or_numeric_literal_like(tree, expr) && !is_signed_numeric_literal(tree, expr)
@@ -1215,22 +1247,60 @@ pub fn is_property_name_literal(tree: &impl NodeLookup, id: NodeId) -> bool {
 
 /// The `text` payload of literal-like name nodes.
 pub fn literal_text_of(tree: &impl NodeLookup, id: NodeId) -> Option<JsStr<'_>> {
-    match tree.node(id).data() {
-        NodeData::StringLiteral(data) => Some(tree.text_js(data.text)),
-        NodeData::NumericLiteral(data) => Some(tree.text_js(data.text)),
-        NodeData::BigIntLiteral(data) => Some(tree.text_js(data.text)),
-        NodeData::NoSubstitutionTemplateLiteral(data) => Some(tree.text_js(data.text)),
-        NodeData::Identifier(data) => Some(JsStr::from_str(data.text())),
-        NodeData::PrivateIdentifier(data) => Some(JsStr::from_str(data.text())),
+    let binding_node = tree.node(id);
+    match binding_node.kind {
+        SyntaxKind::StringLiteral => {
+            let data = binding_node
+                .as_string_literal()
+                .expect("selected payload kind");
+            Some(tree.text_js(data.text))
+        }
+        SyntaxKind::NumericLiteral => {
+            let data = binding_node
+                .as_numeric_literal()
+                .expect("selected payload kind");
+            Some(tree.text_js(data.text))
+        }
+        SyntaxKind::BigIntLiteral => {
+            let data = binding_node
+                .as_big_int_literal()
+                .expect("selected payload kind");
+            Some(tree.text_js(data.text))
+        }
+        SyntaxKind::NoSubstitutionTemplateLiteral => {
+            let data = binding_node
+                .as_no_substitution_template_literal()
+                .expect("selected payload kind");
+            Some(tree.text_js(data.text))
+        }
+        SyntaxKind::Identifier => {
+            let data = binding_node.as_identifier().expect("selected payload kind");
+            Some(JsStr::from_str(data.text()))
+        }
+        SyntaxKind::PrivateIdentifier => {
+            let data = binding_node
+                .as_private_identifier()
+                .expect("selected payload kind");
+            Some(JsStr::from_str(data.text()))
+        }
         _ => None,
     }
 }
 
 /// tsc idText: unescapeLeadingUnderscores(node.escapedText).
 pub fn id_text(tree: &impl NodeLookup, id: NodeId) -> Option<&str> {
-    match &tree.node(id).data() {
-        NodeData::Identifier(data) => Some(data.text()),
-        NodeData::PrivateIdentifier(data) => Some(data.text()),
+    let binding_node = tree.node(id);
+    match binding_node.kind {
+        SyntaxKind::Identifier => {
+            let data = binding_node.as_identifier().expect("selected payload kind");
+            Some(data.text())
+        }
+        SyntaxKind::PrivateIdentifier => {
+            let data = binding_node
+                .as_private_identifier()
+                .expect("selected payload kind");
+            Some(data.text())
+        }
         _ => None,
     }
 }
@@ -1252,10 +1322,19 @@ pub fn get_escaped_text_of_identifier_or_literal(
     tree: &impl NodeLookup,
     id: NodeId,
 ) -> Option<EscapedName> {
-    match &tree.node(id).data() {
-        NodeData::Identifier(data) => Some(data.escaped_text),
-        NodeData::PrivateIdentifier(data) => Some(data.escaped_text),
-        NodeData::JsxNamespacedName(_) => get_escaped_text_of_jsx_namespaced_name(tree, id),
+    let binding_node = tree.node(id);
+    match binding_node.kind {
+        SyntaxKind::Identifier => {
+            let data = binding_node.as_identifier().expect("selected payload kind");
+            Some(data.escaped_text)
+        }
+        SyntaxKind::PrivateIdentifier => {
+            let data = binding_node
+                .as_private_identifier()
+                .expect("selected payload kind");
+            Some(data.escaped_text)
+        }
+        SyntaxKind::JsxNamespacedName => get_escaped_text_of_jsx_namespaced_name(tree, id),
         _ => literal_text_of(tree, id).map(escape_leading_underscores),
     }
 }
@@ -1295,11 +1374,29 @@ pub fn get_text_of_jsx_namespaced_name(tree: &impl NodeLookup, id: NodeId) -> Op
 
 /// The heritage clauses of a class or interface declaration.
 fn heritage_clauses_of(tree: &impl NodeLookup, node: NodeId) -> &[NodeId] {
-    let clauses = match &tree.node(node).data() {
-        NodeData::ClassDeclaration(data) => data.heritage_clauses,
-        NodeData::ClassExpression(data) => data.heritage_clauses,
-        NodeData::InterfaceDeclaration(data) => data.heritage_clauses,
-        _ => None,
+    let clauses = {
+        let binding_node = tree.node(node);
+        match binding_node.kind {
+            SyntaxKind::ClassDeclaration => {
+                let data = binding_node
+                    .as_class_declaration()
+                    .expect("selected payload kind");
+                data.heritage_clauses
+            }
+            SyntaxKind::ClassExpression => {
+                let data = binding_node
+                    .as_class_expression()
+                    .expect("selected payload kind");
+                data.heritage_clauses
+            }
+            SyntaxKind::InterfaceDeclaration => {
+                let data = binding_node
+                    .as_interface_declaration()
+                    .expect("selected payload kind");
+                data.heritage_clauses
+            }
+            _ => None,
+        }
     };
     clauses
         .map(|clauses| tree.node_array(clauses).nodes)
@@ -1655,11 +1752,18 @@ pub fn get_error_span_for_node(source: &SourceFile, id: NodeId) -> (usize, usize
             if parent_of(source, id)
                 .is_some_and(|parent| kind_of(source, parent) == SyntaxKind::JSDocTypeLiteral) =>
         {
-            let name =
-                name_field_of(source, id).map(|name| match &source.arena.node(name).data() {
-                    NodeData::QualifiedName(data) => data.right.unwrap_or(name),
+            let name = name_field_of(source, id).map(|name| {
+                let binding_node = source.arena.node(name);
+                match binding_node.kind {
+                    SyntaxKind::QualifiedName => {
+                        let data = binding_node
+                            .as_qualified_name()
+                            .expect("selected payload kind");
+                        data.right.unwrap_or(name)
+                    }
                     _ => name,
-                });
+                }
+            });
             error_node = name.or(error_node);
         }
         NodeData::Constructor(_) => {
@@ -1980,9 +2084,9 @@ pub fn node_has_name(tree: &impl NodeLookup, statement: NodeId, name: NodeId) ->
             return true;
         }
     }
-    if let NodeData::VariableStatement(data) = &tree.node(statement).data() {
+    if let Some(data) = tree.node(statement).as_variable_statement() {
         if let Some(list) = data.declaration_list {
-            if let NodeData::VariableDeclarationList(list) = &tree.node(list).data() {
+            if let Some(list) = tree.node(list).as_variable_declaration_list() {
                 if let Some(declarations) = list.declarations {
                     return tree
                         .node_array(declarations)
@@ -2209,8 +2313,13 @@ pub fn is_entity_name_expression(tree: &impl NodeLookup, node: NodeId) -> bool {
 
 /// tsc isPropertyAccessEntityNameExpression (17150).
 pub fn is_property_access_entity_name_expression(tree: &impl NodeLookup, node: NodeId) -> bool {
-    match &tree.node(node).data() {
-        NodeData::PropertyAccessExpression(data) => {
+    let binding_node = tree.node(node);
+    match binding_node.kind {
+        SyntaxKind::PropertyAccessExpression => {
+            let data = binding_node
+                .as_property_access_expression()
+                .expect("selected payload kind");
+
             data.name
                 .is_some_and(|name| kind_of(tree, name) == SyntaxKind::Identifier)
                 && data
@@ -2240,24 +2349,42 @@ pub fn is_part_of_type_query(tree: &impl NodeLookup, mut node: NodeId) -> bool {
 /// expression flowNode stamping.
 #[inline(always)]
 pub fn is_narrowable_reference(source: &SourceFile, expr: NodeId) -> bool {
-    match &source.arena.node(expr).data() {
-        NodeData::PropertyAccessExpression(data) => data
-            .expression
-            .is_some_and(|expression| is_narrowable_reference(source, expression)),
+    let binding_node = source.arena.node(expr);
+    match binding_node.kind {
+        SyntaxKind::PropertyAccessExpression => {
+            let data = binding_node
+                .as_property_access_expression()
+                .expect("selected payload kind");
+            data.expression
+                .is_some_and(|expression| is_narrowable_reference(source, expression))
+        }
         // tsgo reparses `/** @type {T} */ (x)` into `x as T`, which no arm
         // of its isNarrowableReference admits: a JavaScript cast's
         // parentheses are no reference (webpack's `(upper).variableScope`
         // in a constructor was "used before being assigned").
-        NodeData::ParenthesizedExpression(data) => data.expression.is_some_and(|expression| {
-            crate::hosted::jsdoc_hosted(source)
-                .cast_of(expression)
-                .is_none()
-                && is_narrowable_reference(source, expression)
-        }),
-        NodeData::NonNullExpression(data) => data
-            .expression
-            .is_some_and(|expression| is_narrowable_reference(source, expression)),
-        NodeData::ElementAccessExpression(data) => {
+        SyntaxKind::ParenthesizedExpression => {
+            let data = binding_node
+                .as_parenthesized_expression()
+                .expect("selected payload kind");
+            data.expression.is_some_and(|expression| {
+                crate::hosted::jsdoc_hosted(source)
+                    .cast_of(expression)
+                    .is_none()
+                    && is_narrowable_reference(source, expression)
+            })
+        }
+        SyntaxKind::NonNullExpression => {
+            let data = binding_node
+                .as_non_null_expression()
+                .expect("selected payload kind");
+            data.expression
+                .is_some_and(|expression| is_narrowable_reference(source, expression))
+        }
+        SyntaxKind::ElementAccessExpression => {
+            let data = binding_node
+                .as_element_access_expression()
+                .expect("selected payload kind");
+
             data.argument_expression.is_some_and(|argument| {
                 is_string_or_numeric_literal_like(source, argument)
                     || is_entity_name_expression(source, argument)
@@ -2265,7 +2392,11 @@ pub fn is_narrowable_reference(source: &SourceFile, expr: NodeId) -> bool {
                 .expression
                 .is_some_and(|expression| is_narrowable_reference(source, expression))
         }
-        NodeData::BinaryExpression(data) => {
+        SyntaxKind::BinaryExpression => {
+            let data = binding_node
+                .as_binary_expression()
+                .expect("selected payload kind");
+
             let operator = data
                 .operator_token
                 .map(|token| kind_of(source, token))
@@ -2509,10 +2640,26 @@ fn is_jsx_tag_name(tree: &impl NodeLookup, node: NodeId) -> bool {
     let Some(parent) = parent_of(tree, node) else {
         return false;
     };
-    match &tree.node(parent).data() {
-        NodeData::JsxOpeningElement(data) => data.tag_name == Some(node),
-        NodeData::JsxSelfClosingElement(data) => data.tag_name == Some(node),
-        NodeData::JsxClosingElement(data) => data.tag_name == Some(node),
+    let binding_node = tree.node(parent);
+    match binding_node.kind {
+        SyntaxKind::JsxOpeningElement => {
+            let data = binding_node
+                .as_jsx_opening_element()
+                .expect("selected payload kind");
+            data.tag_name == Some(node)
+        }
+        SyntaxKind::JsxSelfClosingElement => {
+            let data = binding_node
+                .as_jsx_self_closing_element()
+                .expect("selected payload kind");
+            data.tag_name == Some(node)
+        }
+        SyntaxKind::JsxClosingElement => {
+            let data = binding_node
+                .as_jsx_closing_element()
+                .expect("selected payload kind");
+            data.tag_name == Some(node)
+        }
         _ => false,
     }
 }
@@ -2572,7 +2719,7 @@ fn is_expression_with_type_arguments_in_class_extends_clause(
     ) {
         return false;
     }
-    let NodeData::HeritageClause(data) = &tree.node(clause).data() else {
+    let Some(data) = tree.node(clause).as_heritage_clause() else {
         return false;
     };
     data.token != SyntaxKind::ImplementsKeyword
@@ -2583,48 +2730,163 @@ pub fn is_in_expression_context(tree: &impl NodeLookup, node: NodeId) -> bool {
     let Some(parent) = parent_of(tree, node) else {
         return false;
     };
-    match &tree.node(parent).data() {
-        NodeData::VariableDeclaration(data) => data.initializer == Some(node),
-        NodeData::Parameter(data) => data.initializer == Some(node),
-        NodeData::PropertyDeclaration(data) => data.initializer == Some(node),
-        NodeData::PropertySignature(data) => data.initializer == Some(node),
-        NodeData::EnumMember(data) => data.initializer == Some(node),
-        NodeData::PropertyAssignment(data) => data.initializer == Some(node),
-        NodeData::BindingElement(data) => data.initializer == Some(node),
-        NodeData::ExpressionStatement(data) => data.expression == Some(node),
-        NodeData::IfStatement(data) => data.expression == Some(node),
-        NodeData::DoStatement(data) => data.expression == Some(node),
-        NodeData::WhileStatement(data) => data.expression == Some(node),
-        NodeData::ReturnStatement(data) => data.expression == Some(node),
-        NodeData::WithStatement(data) => data.expression == Some(node),
-        NodeData::SwitchStatement(data) => data.expression == Some(node),
-        NodeData::CaseClause(data) => data.expression == Some(node),
-        NodeData::ThrowStatement(data) => data.expression == Some(node),
-        NodeData::ForStatement(data) => {
+    let binding_node = tree.node(parent);
+    match binding_node.kind {
+        SyntaxKind::VariableDeclaration => {
+            let data = binding_node
+                .as_variable_declaration()
+                .expect("selected payload kind");
+            data.initializer == Some(node)
+        }
+        SyntaxKind::Parameter => {
+            let data = binding_node.as_parameter().expect("selected payload kind");
+            data.initializer == Some(node)
+        }
+        SyntaxKind::PropertyDeclaration => {
+            let data = binding_node
+                .as_property_declaration()
+                .expect("selected payload kind");
+            data.initializer == Some(node)
+        }
+        SyntaxKind::PropertySignature => {
+            let data = binding_node
+                .as_property_signature()
+                .expect("selected payload kind");
+            data.initializer == Some(node)
+        }
+        SyntaxKind::EnumMember => {
+            let data = binding_node
+                .as_enum_member()
+                .expect("selected payload kind");
+            data.initializer == Some(node)
+        }
+        SyntaxKind::PropertyAssignment => {
+            let data = binding_node
+                .as_property_assignment()
+                .expect("selected payload kind");
+            data.initializer == Some(node)
+        }
+        SyntaxKind::BindingElement => {
+            let data = binding_node
+                .as_binding_element()
+                .expect("selected payload kind");
+            data.initializer == Some(node)
+        }
+        SyntaxKind::ExpressionStatement => {
+            let data = binding_node
+                .as_expression_statement()
+                .expect("selected payload kind");
+            data.expression == Some(node)
+        }
+        SyntaxKind::IfStatement => {
+            let data = binding_node
+                .as_if_statement()
+                .expect("selected payload kind");
+            data.expression == Some(node)
+        }
+        SyntaxKind::DoStatement => {
+            let data = binding_node
+                .as_do_statement()
+                .expect("selected payload kind");
+            data.expression == Some(node)
+        }
+        SyntaxKind::WhileStatement => {
+            let data = binding_node
+                .as_while_statement()
+                .expect("selected payload kind");
+            data.expression == Some(node)
+        }
+        SyntaxKind::ReturnStatement => {
+            let data = binding_node
+                .as_return_statement()
+                .expect("selected payload kind");
+            data.expression == Some(node)
+        }
+        SyntaxKind::WithStatement => {
+            let data = binding_node
+                .as_with_statement()
+                .expect("selected payload kind");
+            data.expression == Some(node)
+        }
+        SyntaxKind::SwitchStatement => {
+            let data = binding_node
+                .as_switch_statement()
+                .expect("selected payload kind");
+            data.expression == Some(node)
+        }
+        SyntaxKind::CaseClause => {
+            let data = binding_node
+                .as_case_clause()
+                .expect("selected payload kind");
+            data.expression == Some(node)
+        }
+        SyntaxKind::ThrowStatement => {
+            let data = binding_node
+                .as_throw_statement()
+                .expect("selected payload kind");
+            data.expression == Some(node)
+        }
+        SyntaxKind::ForStatement => {
+            let data = binding_node
+                .as_for_statement()
+                .expect("selected payload kind");
+
             data.initializer == Some(node)
                 && kind_of(tree, node) != SyntaxKind::VariableDeclarationList
                 || data.condition == Some(node)
                 || data.incrementor == Some(node)
         }
-        NodeData::ForInStatement(data) => {
+        SyntaxKind::ForInStatement => {
+            let data = binding_node
+                .as_for_in_statement()
+                .expect("selected payload kind");
+
             data.initializer == Some(node)
                 && kind_of(tree, node) != SyntaxKind::VariableDeclarationList
                 || data.expression == Some(node)
         }
-        NodeData::ForOfStatement(data) => {
+        SyntaxKind::ForOfStatement => {
+            let data = binding_node
+                .as_for_of_statement()
+                .expect("selected payload kind");
+
             data.initializer == Some(node)
                 && kind_of(tree, node) != SyntaxKind::VariableDeclarationList
                 || data.expression == Some(node)
         }
-        NodeData::TypeAssertionExpression(data) => data.expression == Some(node),
-        NodeData::AsExpression(data) => data.expression == Some(node),
-        NodeData::TemplateSpan(data) => data.expression == Some(node),
-        NodeData::ComputedPropertyName(data) => data.expression == Some(node),
-        NodeData::Decorator(_)
-        | NodeData::JsxExpression(_)
-        | NodeData::JsxSpreadAttribute(_)
-        | NodeData::SpreadAssignment(_) => true,
-        NodeData::ExpressionWithTypeArguments(data) => {
+        SyntaxKind::TypeAssertionExpression => {
+            let data = binding_node
+                .as_type_assertion_expression()
+                .expect("selected payload kind");
+            data.expression == Some(node)
+        }
+        SyntaxKind::AsExpression => {
+            let data = binding_node
+                .as_as_expression()
+                .expect("selected payload kind");
+            data.expression == Some(node)
+        }
+        SyntaxKind::TemplateSpan => {
+            let data = binding_node
+                .as_template_span()
+                .expect("selected payload kind");
+            data.expression == Some(node)
+        }
+        SyntaxKind::ComputedPropertyName => {
+            let data = binding_node
+                .as_computed_property_name()
+                .expect("selected payload kind");
+            data.expression == Some(node)
+        }
+        SyntaxKind::Decorator
+        | SyntaxKind::JsxExpression
+        | SyntaxKind::JsxSpreadAttribute
+        | SyntaxKind::SpreadAssignment => true,
+        SyntaxKind::ExpressionWithTypeArguments => {
+            let data = binding_node
+                .as_expression_with_type_arguments()
+                .expect("selected payload kind");
+
             // !isPartOfTypeNode(parent) — for this kind that is
             // isPartOfTypeExpressionWithTypeArguments (14272-14274): a
             // heritage-clause member is a TYPE unless it is the extends
@@ -2638,14 +2900,33 @@ pub fn is_in_expression_context(tree: &impl NodeLookup, node: NodeId) -> bool {
             data.expression == Some(node)
                 && !is_part_of_type_expression_with_type_arguments(tree, parent)
         }
-        NodeData::ShorthandPropertyAssignment(data) => {
+        SyntaxKind::ShorthandPropertyAssignment => {
+            let data = binding_node
+                .as_shorthand_property_assignment()
+                .expect("selected payload kind");
+
             data.object_assignment_initializer == Some(node)
         }
-        NodeData::SatisfiesExpression(data) => data.expression == Some(node),
-        // tsgo (#64482): the name of a function or class expression is a
-        // declaration name, not an expression.
-        NodeData::FunctionExpression(data) => data.name != Some(node),
-        NodeData::ClassExpression(data) => data.name != Some(node),
+        SyntaxKind::SatisfiesExpression => {
+            let data = binding_node
+                .as_satisfies_expression()
+                .expect("selected payload kind");
+            data.expression == Some(node)
+            // tsgo (#64482): the name of a function or class expression is a
+            // declaration name, not an expression.
+        }
+        SyntaxKind::FunctionExpression => {
+            let data = binding_node
+                .as_function_expression()
+                .expect("selected payload kind");
+            data.name != Some(node)
+        }
+        SyntaxKind::ClassExpression => {
+            let data = binding_node
+                .as_class_expression()
+                .expect("selected payload kind");
+            data.name != Some(node)
+        }
         _ => is_expression_node(tree, parent),
     }
 }
@@ -2661,31 +2942,48 @@ pub fn is_narrowing_expression(source: &SourceFile, expr: NodeId) -> bool {
     if kind_of(source, expr) == SyntaxKind::ThisKeyword {
         return true;
     }
-    match &source.arena.node(expr).data() {
-        NodeData::Identifier(_) => true,
-        NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
+    let binding_node = source.arena.node(expr);
+    match binding_node.kind {
+        SyntaxKind::Identifier => true,
+        SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
             contains_narrowable_reference(source, expr)
         }
-        NodeData::CallExpression(_) => has_narrowable_argument(source, expr),
-        NodeData::ParenthesizedExpression(data) => {
+        SyntaxKind::CallExpression => has_narrowable_argument(source, expr),
+        SyntaxKind::ParenthesizedExpression => {
+            let data = binding_node
+                .as_parenthesized_expression()
+                .expect("selected payload kind");
+
             !is_jsdoc_type_assertion(source, expr)
                 && data
                     .expression
                     .is_some_and(|expression| is_narrowing_expression(source, expression))
         }
-        NodeData::NonNullExpression(data) => data
-            .expression
-            .is_some_and(|expression| is_narrowing_expression(source, expression)),
-        NodeData::BinaryExpression(_) => is_narrowing_binary_expression(source, expr),
-        NodeData::PrefixUnaryExpression(data) => {
+        SyntaxKind::NonNullExpression => {
+            let data = binding_node
+                .as_non_null_expression()
+                .expect("selected payload kind");
+            data.expression
+                .is_some_and(|expression| is_narrowing_expression(source, expression))
+        }
+        SyntaxKind::BinaryExpression => is_narrowing_binary_expression(source, expr),
+        SyntaxKind::PrefixUnaryExpression => {
+            let data = binding_node
+                .as_prefix_unary_expression()
+                .expect("selected payload kind");
+
             data.operator == SyntaxKind::ExclamationToken
                 && data
                     .operand
                     .is_some_and(|operand| is_narrowing_expression(source, operand))
         }
-        NodeData::TypeOfExpression(data) => data
-            .expression
-            .is_some_and(|expression| is_narrowing_expression(source, expression)),
+        SyntaxKind::TypeOfExpression => {
+            let data = binding_node
+                .as_type_of_expression()
+                .expect("selected payload kind");
+            data.expression
+                .is_some_and(|expression| is_narrowing_expression(source, expression))
+        }
         _ => kind_of(source, expr) == SyntaxKind::ThisKeyword,
     }
 }
@@ -2705,7 +3003,7 @@ pub fn contains_narrowable_reference(source: &SourceFile, expr: NodeId) -> bool 
 
 /// tsc hasNarrowableArgument (43024).
 fn has_narrowable_argument(source: &SourceFile, expr: NodeId) -> bool {
-    let NodeData::CallExpression(data) = &source.arena.node(expr).data() else {
+    let Some(data) = source.arena.node(expr).as_call_expression() else {
         return false;
     };
     if let Some(arguments) = data.arguments {
@@ -2743,7 +3041,7 @@ fn is_narrowing_typeof_operands(source: &SourceFile, expr1: NodeId, expr2: NodeI
 
 /// tsc isNarrowingBinaryExpression (43040).
 fn is_narrowing_binary_expression(source: &SourceFile, expr: NodeId) -> bool {
-    let NodeData::BinaryExpression(data) = &source.arena.node(expr).data() else {
+    let Some(data) = source.arena.node(expr).as_binary_expression() else {
         return false;
     };
     let operator = data
@@ -2779,11 +3077,20 @@ fn is_narrowing_binary_expression(source: &SourceFile, expr: NodeId) -> bool {
 
 /// tsc isNarrowableOperand (43066).
 pub fn is_narrowable_operand(source: &SourceFile, expr: NodeId) -> bool {
-    match &source.arena.node(expr).data() {
-        NodeData::ParenthesizedExpression(data) => data
-            .expression
-            .is_some_and(|expression| is_narrowable_operand(source, expression)),
-        NodeData::BinaryExpression(data) => {
+    let binding_node = source.arena.node(expr);
+    match binding_node.kind {
+        SyntaxKind::ParenthesizedExpression => {
+            let data = binding_node
+                .as_parenthesized_expression()
+                .expect("selected payload kind");
+            data.expression
+                .is_some_and(|expression| is_narrowable_operand(source, expression))
+        }
+        SyntaxKind::BinaryExpression => {
+            let data = binding_node
+                .as_binary_expression()
+                .expect("selected payload kind");
+
             let operator = data
                 .operator_token
                 .map(|token| kind_of(source, token))
@@ -2829,7 +3136,7 @@ pub fn expression_of(tree: &impl NodeLookup, node: NodeId) -> Option<NodeId> {
 }
 
 pub fn skip_parentheses_pub(tree: &impl NodeLookup, mut id: NodeId) -> NodeId {
-    while let NodeData::ParenthesizedExpression(data) = &tree.node(id).data() {
+    while let Some(data) = tree.node(id).as_parenthesized_expression() {
         match data.expression {
             Some(expression) => id = expression,
             None => break,
@@ -2847,7 +3154,7 @@ pub fn skip_parentheses_excluding_jsdoc_type_assertions(
     mut id: NodeId,
     exclude_jsdoc_type_assertions: bool,
 ) -> NodeId {
-    while let NodeData::ParenthesizedExpression(data) = &source.arena.node(id).data() {
+    while let Some(data) = source.arena.node(id).as_parenthesized_expression() {
         if exclude_jsdoc_type_assertions && is_jsdoc_type_assertion(source, id) {
             break;
         }
@@ -2879,10 +3186,26 @@ pub fn is_optional_chain_root(tree: &impl NodeLookup, node: NodeId) -> bool {
     if !is_optional_chain(tree, node) || kind_of(tree, node) == SyntaxKind::NonNullExpression {
         return false;
     }
-    match &tree.node(node).data() {
-        NodeData::PropertyAccessExpression(data) => data.question_dot_token.is_some(),
-        NodeData::ElementAccessExpression(data) => data.question_dot_token.is_some(),
-        NodeData::CallExpression(data) => data.question_dot_token.is_some(),
+    let binding_node = tree.node(node);
+    match binding_node.kind {
+        SyntaxKind::PropertyAccessExpression => {
+            let data = binding_node
+                .as_property_access_expression()
+                .expect("selected payload kind");
+            data.question_dot_token.is_some()
+        }
+        SyntaxKind::ElementAccessExpression => {
+            let data = binding_node
+                .as_element_access_expression()
+                .expect("selected payload kind");
+            data.question_dot_token.is_some()
+        }
+        SyntaxKind::CallExpression => {
+            let data = binding_node
+                .as_call_expression()
+                .expect("selected payload kind");
+            data.question_dot_token.is_some()
+        }
         _ => false,
     }
 }
@@ -2980,7 +3303,7 @@ pub fn is_destructuring_assignment(tree: &impl NodeLookup, node: NodeId) -> bool
     if !is_assignment_expression_simple(tree, node) {
         return false;
     }
-    let NodeData::BinaryExpression(data) = &tree.node(node).data() else {
+    let Some(data) = tree.node(node).as_binary_expression() else {
         return false;
     };
     data.left.is_some_and(|left| {
@@ -3001,41 +3324,68 @@ pub fn is_assignment_target(tree: &impl NodeLookup, node: NodeId) -> bool {
         None => return false,
     };
     loop {
-        match &tree.node(parent).data() {
-            NodeData::BinaryExpression(data) => {
+        let binding_node = tree.node(parent);
+        match binding_node.kind {
+            SyntaxKind::BinaryExpression => {
+                let data = binding_node
+                    .as_binary_expression()
+                    .expect("selected payload kind");
+
                 let operator = data
                     .operator_token
                     .map(|token| kind_of(tree, token))
                     .unwrap_or(SyntaxKind::Unknown);
                 return is_assignment_operator(operator) && data.left == Some(node);
             }
-            NodeData::PrefixUnaryExpression(data) => {
+            SyntaxKind::PrefixUnaryExpression => {
+                let data = binding_node
+                    .as_prefix_unary_expression()
+                    .expect("selected payload kind");
+
                 return matches!(
                     data.operator,
                     SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
                 );
             }
-            NodeData::PostfixUnaryExpression(data) => {
+            SyntaxKind::PostfixUnaryExpression => {
+                let data = binding_node
+                    .as_postfix_unary_expression()
+                    .expect("selected payload kind");
+
                 return matches!(
                     data.operator,
                     SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
                 );
             }
-            NodeData::ForInStatement(data) => return data.initializer == Some(node),
-            NodeData::ForOfStatement(data) => return data.initializer == Some(node),
-            NodeData::ParenthesizedExpression(_)
-            | NodeData::ArrayLiteralExpression(_)
-            | NodeData::SpreadElement(_)
-            | NodeData::NonNullExpression(_) => {
+            SyntaxKind::ForInStatement => {
+                let data = binding_node
+                    .as_for_in_statement()
+                    .expect("selected payload kind");
+                return data.initializer == Some(node);
+            }
+            SyntaxKind::ForOfStatement => {
+                let data = binding_node
+                    .as_for_of_statement()
+                    .expect("selected payload kind");
+                return data.initializer == Some(node);
+            }
+            SyntaxKind::ParenthesizedExpression
+            | SyntaxKind::ArrayLiteralExpression
+            | SyntaxKind::SpreadElement
+            | SyntaxKind::NonNullExpression => {
                 node = parent;
             }
-            NodeData::SpreadAssignment(_) => {
+            SyntaxKind::SpreadAssignment => {
                 node = match parent_of(tree, parent) {
                     Some(grand) => grand,
                     None => return false,
                 };
             }
-            NodeData::ShorthandPropertyAssignment(data) => {
+            SyntaxKind::ShorthandPropertyAssignment => {
+                let data = binding_node
+                    .as_shorthand_property_assignment()
+                    .expect("selected payload kind");
+
                 if data.name != Some(node) {
                     return false;
                 }
@@ -3044,7 +3394,11 @@ pub fn is_assignment_target(tree: &impl NodeLookup, node: NodeId) -> bool {
                     None => return false,
                 };
             }
-            NodeData::PropertyAssignment(data) => {
+            SyntaxKind::PropertyAssignment => {
+                let data = binding_node
+                    .as_property_assignment()
+                    .expect("selected payload kind");
+
                 if data.name == Some(node) {
                     return false;
                 }
@@ -3064,13 +3418,22 @@ pub fn is_assignment_target(tree: &impl NodeLookup, node: NodeId) -> bool {
 
 /// tsc isDottedName (17147).
 pub fn is_dotted_name(tree: &impl NodeLookup, node: NodeId) -> bool {
-    match &tree.node(node).data() {
-        NodeData::PropertyAccessExpression(data) => data
-            .expression
-            .is_some_and(|expression| is_dotted_name(tree, expression)),
-        NodeData::ParenthesizedExpression(data) => data
-            .expression
-            .is_some_and(|expression| is_dotted_name(tree, expression)),
+    let binding_node = tree.node(node);
+    match binding_node.kind {
+        SyntaxKind::PropertyAccessExpression => {
+            let data = binding_node
+                .as_property_access_expression()
+                .expect("selected payload kind");
+            data.expression
+                .is_some_and(|expression| is_dotted_name(tree, expression))
+        }
+        SyntaxKind::ParenthesizedExpression => {
+            let data = binding_node
+                .as_parenthesized_expression()
+                .expect("selected payload kind");
+            data.expression
+                .is_some_and(|expression| is_dotted_name(tree, expression))
+        }
         _ => matches!(
             kind_of(tree, node),
             SyntaxKind::Identifier
@@ -3125,14 +3488,14 @@ pub fn is_potentially_executable_node(tree: &impl NodeLookup, node: NodeId) -> b
     if kind as u16 >= SyntaxKind::FirstStatement as u16
         && kind as u16 <= SyntaxKind::LastStatement as u16
     {
-        if let NodeData::VariableStatement(data) = &tree.node(node).data() {
+        if let Some(data) = tree.node(node).as_variable_statement() {
             let Some(list) = data.declaration_list else {
                 return true;
             };
             if get_combined_node_flags(tree, list).intersects(NodeFlags::BLOCK_SCOPED) {
                 return true;
             }
-            let NodeData::VariableDeclarationList(list_data) = &tree.node(list).data() else {
+            let Some(list_data) = tree.node(list).as_variable_declaration_list() else {
                 return true;
             };
             let Some(declarations) = list_data.declarations else {

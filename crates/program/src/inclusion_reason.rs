@@ -13,24 +13,73 @@ pub(crate) struct InclusionSource {
     pub snapshot: Arc<TextSnapshot>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
+#[repr(u8)]
 pub(crate) enum InclusionReasonRecord {
     Owned(Arc<SourceInclusionReason>),
     Import {
-        parent: usize,
+        parent: u32,
         pos: u32,
         end: u32,
         package_id: Option<Arc<JsString>>,
     },
-    SyntheticImport {
-        parent: usize,
-        specifier: Arc<JsString>,
-        import_helpers: bool,
-        package_id: Option<Arc<JsString>>,
-    },
+    SyntheticImport(Box<SyntheticImportRecord>),
+    WideImport(Box<WideImportRecord>),
 }
 
-const _: () = assert!(std::mem::size_of::<InclusionReasonRecord>() <= 40);
+#[derive(Clone)]
+pub(crate) struct SyntheticImportRecord {
+    parent: usize,
+    specifier: Arc<JsString>,
+    import_helpers: bool,
+    package_id: Option<Arc<JsString>>,
+}
+
+#[derive(Clone)]
+pub(crate) struct WideImportRecord {
+    parent: usize,
+    pos: u32,
+    end: u32,
+    package_id: Option<Arc<JsString>>,
+}
+
+const _: () = assert!(std::mem::size_of::<InclusionReasonRecord>() <= 24);
+const _: () = assert!(std::mem::size_of::<SyntheticImportRecord>() <= 32);
+const _: () = assert!(std::mem::size_of::<WideImportRecord>() <= 24);
+
+impl std::fmt::Debug for InclusionReasonRecord {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Owned(reason) => f.debug_tuple("Owned").field(reason).finish(),
+            Self::Import {
+                parent,
+                pos,
+                end,
+                package_id,
+            } => f
+                .debug_struct("Import")
+                .field("parent", &(*parent as usize))
+                .field("pos", pos)
+                .field("end", end)
+                .field("package_id", package_id)
+                .finish(),
+            Self::WideImport(record) => f
+                .debug_struct("Import")
+                .field("parent", &record.parent)
+                .field("pos", &record.pos)
+                .field("end", &record.end)
+                .field("package_id", &record.package_id)
+                .finish(),
+            Self::SyntheticImport(record) => f
+                .debug_struct("SyntheticImport")
+                .field("parent", &record.parent)
+                .field("specifier", &record.specifier)
+                .field("import_helpers", &record.import_helpers)
+                .field("package_id", &record.package_id)
+                .finish(),
+        }
+    }
+}
 
 impl From<SourceInclusionReason> for InclusionReasonRecord {
     fn from(reason: SourceInclusionReason) -> Self {
@@ -39,15 +88,45 @@ impl From<SourceInclusionReason> for InclusionReasonRecord {
 }
 
 impl InclusionReasonRecord {
+    pub(crate) fn import(parent: usize, pos: u32, end: u32) -> Self {
+        match u32::try_from(parent) {
+            Ok(parent) => Self::Import {
+                parent,
+                pos,
+                end,
+                package_id: None,
+            },
+            Err(_) => Self::WideImport(Box::new(WideImportRecord {
+                parent,
+                pos,
+                end,
+                package_id: None,
+            })),
+        }
+    }
+
+    pub(crate) fn synthetic_import(
+        parent: usize,
+        specifier: Arc<JsString>,
+        import_helpers: bool,
+    ) -> Self {
+        Self::SyntheticImport(Box::new(SyntheticImportRecord {
+            parent,
+            specifier,
+            import_helpers,
+            package_id: None,
+        }))
+    }
+
     pub(crate) fn with_prepared_package_id(
         mut self,
         id: Option<&crate::resolution::PreparedPackageRef>,
     ) -> Self {
         match &mut self {
             Self::Owned(reason) => Arc::make_mut(reason).set_package_id(id.map(|id| id.value())),
-            Self::Import { package_id, .. } | Self::SyntheticImport { package_id, .. } => {
-                *package_id = id.map(|id| id.id.display())
-            }
+            Self::Import { package_id, .. } => *package_id = id.map(|id| id.id.display()),
+            Self::SyntheticImport(record) => record.package_id = id.map(|id| id.id.display()),
+            Self::WideImport(record) => record.package_id = id.map(|id| id.id.display()),
         }
         self
     }
@@ -55,7 +134,7 @@ impl InclusionReasonRecord {
     pub(crate) fn parent_mut(&mut self) -> Option<&mut JsString> {
         match self {
             Self::Owned(reason) => Arc::make_mut(reason).parent_mut(),
-            Self::Import { .. } | Self::SyntheticImport { .. } => None,
+            Self::Import { .. } | Self::SyntheticImport(_) | Self::WideImport(_) => None,
         }
     }
 
@@ -67,58 +146,80 @@ impl InclusionReasonRecord {
                 pos,
                 end,
                 package_id,
-            } => {
-                let parent = &sources[*parent];
-                let positions = parent.snapshot.positions();
-                let start_byte = positions
-                    .utf16_to_byte(*pos)
-                    .expect("module request starts at a source token boundary");
-                let end_byte = positions
-                    .utf16_to_byte(*end)
-                    .expect("module request ends at a source token boundary");
-                SourceInclusionReason::Import {
-                    parent: parent.path.display().to_owned(),
-                    reference_text: parent.snapshot.text()[start_byte as usize..end_byte as usize]
-                        .to_owned(),
-                    pos: *pos,
-                    end: *end,
-                    package_id: package_id.as_deref().cloned(),
-                }
-            }
-            Self::SyntheticImport {
-                parent,
-                specifier,
-                import_helpers,
-                package_id,
-            } => SourceInclusionReason::SyntheticImport {
-                parent: sources[*parent].path.display().to_owned(),
-                specifier: (**specifier).clone(),
-                import_helpers: *import_helpers,
-                package_id: package_id.as_deref().cloned(),
+            } => materialize_import(*parent as usize, *pos, *end, package_id, sources),
+            Self::WideImport(record) => materialize_import(
+                record.parent,
+                record.pos,
+                record.end,
+                &record.package_id,
+                sources,
+            ),
+            Self::SyntheticImport(record) => SourceInclusionReason::SyntheticImport {
+                parent: sources[record.parent].path.display().to_owned(),
+                specifier: (*record.specifier).clone(),
+                import_helpers: record.import_helpers,
+                package_id: record.package_id.as_deref().cloned(),
             },
         }
     }
 
     fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
-        match self {
+        let package_id = match self {
             Self::Owned(reason) => {
                 if usage.arc("include reason", reason) {
                     reason.add_memory_usage(usage);
                 }
+                return;
             }
-            Self::Import { package_id, .. } | Self::SyntheticImport { package_id, .. } => {
-                if let Some(id) = package_id {
-                    if usage.arc("include package id", id) {
-                        usage.js_string("strings: stable owners", id);
-                    }
+            Self::Import { package_id, .. } => package_id,
+            Self::WideImport(record) => {
+                add_cold_record_memory(record.as_ref(), usage);
+                &record.package_id
+            }
+            Self::SyntheticImport(record) => {
+                add_cold_record_memory(record.as_ref(), usage);
+                if usage.arc("include specifier", &record.specifier) {
+                    usage.js_string("strings: stable owners", &record.specifier);
                 }
-                if let Self::SyntheticImport { specifier, .. } = self {
-                    if usage.arc("include specifier", specifier) {
-                        usage.js_string("strings: stable owners", specifier);
-                    }
-                }
+                &record.package_id
+            }
+        };
+        if let Some(id) = package_id {
+            if usage.arc("include package id", id) {
+                usage.js_string("strings: stable owners", id);
             }
         }
+    }
+}
+
+fn materialize_import(
+    parent: usize,
+    pos: u32,
+    end: u32,
+    package_id: &Option<Arc<JsString>>,
+    sources: &[InclusionSource],
+) -> SourceInclusionReason {
+    let parent = &sources[parent];
+    let positions = parent.snapshot.positions();
+    let start_byte = positions
+        .utf16_to_byte(pos)
+        .expect("module request starts at a source token boundary");
+    let end_byte = positions
+        .utf16_to_byte(end)
+        .expect("module request ends at a source token boundary");
+    SourceInclusionReason::Import {
+        parent: parent.path.display().to_owned(),
+        reference_text: parent.snapshot.text()[start_byte as usize..end_byte as usize].to_owned(),
+        pos,
+        end,
+        package_id: package_id.as_deref().cloned(),
+    }
+}
+
+fn add_cold_record_memory<T>(record: &T, usage: &mut tsc_diagnostics::MemoryUsage) {
+    if usage.claim(std::ptr::from_ref(record) as usize) {
+        let bytes = std::mem::size_of_val(record);
+        usage.add("loader inclusion cold records", 1, bytes, bytes);
     }
 }
 
@@ -218,6 +319,32 @@ mod tests {
     use tsc_diagnostics::DocumentVersion;
 
     #[test]
+    fn large_parent_indices_keep_their_full_width() {
+        let boundary = InclusionReasonRecord::import(u32::MAX as usize, 3, 6);
+        assert_eq!(
+            format!("{boundary:?}"),
+            format!(
+                "Import {{ parent: {}, pos: 3, end: 6, package_id: None }}",
+                u32::MAX,
+            )
+        );
+        if usize::BITS > u32::BITS {
+            let wide = InclusionReasonRecord::import(usize::MAX, 3, 6).clone();
+            let InclusionReasonRecord::WideImport(record) = &wide else {
+                panic!("a large parent is retained without narrowing")
+            };
+            assert_eq!(record.parent, usize::MAX);
+            assert_eq!(
+                format!("{wide:?}"),
+                format!(
+                    "Import {{ parent: {}, pos: 3, end: 6, package_id: None }}",
+                    usize::MAX,
+                )
+            );
+        }
+    }
+
+    #[test]
     fn import_reasons_use_final_parent_spelling_and_utf16_token_spans() {
         let sources = Arc::new(vec![InclusionSource {
             path: ProgramPath::from_js_parts(
@@ -228,18 +355,12 @@ mod tests {
             snapshot: TextSnapshot::new("😀\n\"é\"", DocumentVersion::new("1")),
         }]);
         let mut reasons = SourceInclusionReasons::default();
-        reasons.push(InclusionReasonRecord::Import {
-            parent: 0,
-            pos: 3,
-            end: 6,
-            package_id: None,
-        });
-        reasons.push(InclusionReasonRecord::SyntheticImport {
-            parent: 0,
-            specifier: Arc::new("tslib".into()),
-            import_helpers: true,
-            package_id: None,
-        });
+        reasons.push(InclusionReasonRecord::import(0, 3, 6));
+        reasons.push(InclusionReasonRecord::synthetic_import(
+            0,
+            Arc::new("tslib".into()),
+            true,
+        ));
         reasons.bind_sources(&sources);
         assert_eq!(
             &*reasons,

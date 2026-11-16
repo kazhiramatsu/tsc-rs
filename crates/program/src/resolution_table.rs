@@ -94,14 +94,13 @@ impl ExtensionTag {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Target {
     NotFound,
     Source(SourceFileId),
-    // Unloaded paths cannot borrow a source. Keep their infrequent owned
-    // paths outside the inline row, and account for these boxes separately.
+    // A path outside the source inventory is owned by the table once.
     Unloaded {
-        path: Box<ProgramPath>,
+        path: u32,
         reason: UnloadedModuleReason,
     },
 }
@@ -130,7 +129,6 @@ struct Row {
     specifier: JsString,
     target: Target,
     rare: Option<Box<Rare>>,
-    importing_source: SourceFileId,
     package_id: Option<NonZeroU32>,
     mode: ResolutionMode,
     extension: ExtensionTag,
@@ -138,10 +136,11 @@ struct Row {
 }
 
 const _: () = assert!(
-    std::mem::size_of::<Row>() <= 88,
-    "module row crossed the 88-byte cost class"
+    std::mem::size_of::<Row>() <= 48,
+    "module row crossed the 48-byte cost class"
 );
 const _: () = assert!(std::mem::size_of::<ExtensionTag>() == 1);
+const _: () = assert!(std::mem::size_of::<Target>() <= 8);
 
 /// Staging owns each specifier once. The per-source sorted indices detect
 /// conflicts at add time without constructing a tree of fat key/value rows.
@@ -206,16 +205,23 @@ impl StagedModules {
     }
 }
 
+fn push_unloaded_path(paths: &mut Vec<ProgramPath>, path: ProgramPath) -> u32 {
+    // A stored path belongs to at least one row, whose index already fits u32.
+    let index = u32::try_from(paths.len()).expect("unloaded path index fits module rows");
+    paths.push(path);
+    index
+}
+
 // Package comparison and hashing use only the immutable PackageId value.
 #[allow(clippy::mutable_key_type)]
 fn compact_module_row(
-    importing_source: SourceFileId,
     specifier: JsString,
     mode: ResolutionMode,
     resolution: ModuleResolution,
     exact_source_path: bool,
     sources: &[PreparedSourceFile],
     packages: &mut LoadedPackageIds,
+    unloaded_paths: &mut Vec<ProgramPath>,
 ) -> Row {
     let ModuleResolution {
         outcome,
@@ -273,7 +279,7 @@ fn compact_module_row(
                     resolved_file,
                     reason,
                 } => Target::Unloaded {
-                    path: Box::new(resolved_file),
+                    path: push_unloaded_path(unloaded_paths, resolved_file),
                     reason,
                 },
             }
@@ -282,7 +288,6 @@ fn compact_module_row(
     Row {
         specifier,
         mode,
-        importing_source,
         target,
         extension,
         flags,
@@ -416,7 +421,6 @@ impl PreparedModule {
                 mode,
                 target: Target::NotFound,
                 rare: (!rare.is_empty()).then(|| Box::new(rare)),
-                importing_source: SourceFileId::from_raw(0),
                 package_id: None,
                 extension,
                 flags,
@@ -477,8 +481,8 @@ impl PreparedModule {
         package_map: &PreparedPackageMaps,
         packages: &mut LoadedPackageIds,
         package_indices: &mut Vec<Option<NonZeroU32>>,
+        unloaded_paths: &mut Vec<ProgramPath>,
     ) -> Result<Row, ResolutionError> {
-        self.row.importing_source = binding.source;
         if let Some(path) = self.path.take() {
             let extension = self.row.extension.view(self.row.rare.as_deref());
             let membership = if binding.no_resolve && binding.target.is_none() {
@@ -526,7 +530,7 @@ impl PreparedModule {
                     Target::Source(source)
                 }
                 Err(reason) => Target::Unloaded {
-                    path: Box::new(path),
+                    path: push_unloaded_path(unloaded_paths, path),
                     reason,
                 },
             };
@@ -551,6 +555,7 @@ impl PreparedModule {
 #[derive(Default)]
 pub(crate) struct LoadedModules {
     modules: Vec<Row>,
+    unloaded_paths: Vec<ProgramPath>,
     module_lookup: Vec<ModuleLookup>,
     source_ranges: Vec<Range<u32>>,
     packages: LoadedPackageIds,
@@ -559,15 +564,39 @@ pub(crate) struct LoadedModules {
 }
 
 impl LoadedModules {
-    pub(crate) fn new(source_count: usize, row_count: usize) -> Self {
-        Self {
+    pub(crate) fn new(
+        source_count: usize,
+        row_count: usize,
+        batches: impl IntoIterator<Item = (SourceFileId, usize)>,
+    ) -> Self {
+        let mut loaded = Self {
             modules: Vec::with_capacity(row_count),
+            unloaded_paths: Vec::new(),
             module_lookup: Vec::with_capacity(row_count),
             source_ranges: vec![0..0; source_count],
             packages: LoadedPackageIds::default(),
             prepared_order: (0..source_count).map(|_| None).collect(),
             package_indices: Vec::new(),
+        };
+        let mut end = 0u32;
+        for (source, count) in batches {
+            if count == 0 {
+                continue;
+            }
+            let range = &mut loaded.source_ranges[source.index()];
+            if range.start == range.end {
+                range.start = end;
+            }
+            // The loader keeps each retained source's complete batch in
+            // publication order. Its counts fix the destination ranges.
+            debug_assert_eq!(range.end.max(range.start), end);
+            end = end
+                .checked_add(u32::try_from(count).expect("module batch fits u32"))
+                .expect("module range fits u32");
+            range.end = end;
         }
+        debug_assert_eq!(end as usize, row_count);
+        loaded
     }
 
     pub(crate) fn set_source_indices(
@@ -601,21 +630,16 @@ impl LoadedModules {
             package_map,
             &mut self.packages,
             &mut self.package_indices,
+            &mut self.unloaded_paths,
         )?;
         self.push_final_row(row, specifier, binding.source);
         Ok(())
     }
 
     fn push_final_row(&mut self, mut row: Row, specifier: &mut JsString, source: SourceFileId) {
-        row.importing_source = source;
         row.specifier = std::mem::take(specifier);
         let index = u32::try_from(self.modules.len()).expect("module row index fits u32");
-        let range = &mut self.source_ranges[source.index()];
-        if range.start == range.end {
-            range.start = index;
-        }
-        debug_assert_eq!(range.end.max(range.start), index);
-        range.end = index.checked_add(1).expect("module range fits u32");
+        debug_assert!(self.source_ranges[source.index()].contains(&index));
         // The source-local lookup permutation replaces these slots after
         // publication has fixed the batch's offset in the final row vector.
         self.module_lookup.push(ModuleLookup {
@@ -634,26 +658,19 @@ impl LoadedModules {
         sources: &[PreparedSourceFile],
     ) {
         let index = u32::try_from(self.modules.len()).expect("module row index fits u32");
-        let range = &mut self.source_ranges[source.index()];
-        if range.start == range.end {
-            range.start = index;
-        }
-        // The loader resolves a source's entire batch before queuing children;
-        // graph retention removes whole source batches and preserves this order.
-        debug_assert_eq!(range.end.max(range.start), index);
-        range.end = index.checked_add(1).expect("module range fits u32");
+        debug_assert!(self.source_ranges[source.index()].contains(&index));
         self.module_lookup.push(ModuleLookup {
             hash: module_lookup_hash(key.specifier(), key.mode()),
             row: index,
         });
         let row = compact_module_row(
-            source,
             key.specifier,
             key.mode,
             resolution,
             exact_source_path,
             sources,
             &mut self.packages,
+            &mut self.unloaded_paths,
         );
         self.modules.push(row);
     }
@@ -663,20 +680,22 @@ impl LoadedModules {
         sources: &[PreparedSourceFile],
         type_references: BTreeMap<TypeReferenceResolutionKey, TypeReferenceResolution>,
     ) -> ResolutionTable {
-        let mut groups: Vec<_> = self
+        let mut group_sources: Vec<_> = self
             .source_ranges
             .iter()
             .enumerate()
-            .filter_map(|(source, range)| (range.start != range.end).then_some(source))
+            .filter_map(|(source, range)| {
+                (!range.is_empty()).then_some(SourceFileId::from_raw(source as u32))
+            })
             .collect();
-        groups.sort_unstable_by(|a, b| {
-            sources[*a]
+        group_sources.sort_unstable_by(|a, b| {
+            sources[a.index()]
                 .path()
                 .canonical()
-                .cmp(sources[*b].path().canonical())
+                .cmp(sources[b.index()].path().canonical())
         });
         let mut module_order = Vec::with_capacity(self.modules.len());
-        for source in groups {
+        for source in group_sources.iter().map(|source| source.index()) {
             let range = &self.source_ranges[source];
             if let Some(order) = self.prepared_order[source].take() {
                 module_order.extend(order.into_iter().map(|row| row + range.start));
@@ -696,6 +715,8 @@ impl LoadedModules {
         // expose package values, and iteration uses canonical module_order.
         ResolutionTable {
             modules: self.modules,
+            unloaded_paths: self.unloaded_paths,
+            group_sources,
             module_order,
             module_lookup: self.module_lookup,
             source_ranges: self.source_ranges,
@@ -748,6 +769,8 @@ fn module_lookup_index(modules: &[Row], ranges: &[Range<u32>]) -> Vec<ModuleLook
 #[derive(Clone, Debug, Default)]
 pub struct ResolutionTable {
     modules: Vec<Row>,
+    unloaded_paths: Vec<ProgramPath>,
+    group_sources: Vec<SourceFileId>,
     // Empty for the public builder, whose rows are already in canonical order.
     module_order: Vec<u32>,
     module_lookup: Vec<ModuleLookup>,
@@ -760,30 +783,56 @@ impl PartialEq for ResolutionTable {
     fn eq(&self, other: &Self) -> bool {
         self.modules.len() == other.modules.len()
             && self.type_references == other.type_references
-            && self.ordered_rows().zip(other.ordered_rows()).all(|(a, b)| {
-                a.specifier == b.specifier
-                    && a.mode == b.mode
-                    && a.importing_source == b.importing_source
-                    && a.target == b.target
-                    && a.rare == b.rare
-                    && a.extension == b.extension
-                    && a.flags == b.flags
-                    && a.package_id
-                        .map(|id| &self.package_ids[id.get() as usize - 1])
-                        == b.package_id
-                            .map(|id| &other.package_ids[id.get() as usize - 1])
-            })
+            && self.ordered_rows().zip(other.ordered_rows()).all(
+                |((a_source, a), (b_source, b))| {
+                    a_source == b_source
+                        && a.specifier == b.specifier
+                        && a.mode == b.mode
+                        && self.targets_equal(&a.target, other, &b.target)
+                        && a.rare == b.rare
+                        && a.extension == b.extension
+                        && a.flags == b.flags
+                        && a.package_id
+                            .map(|id| &self.package_ids[id.get() as usize - 1])
+                            == b.package_id
+                                .map(|id| &other.package_ids[id.get() as usize - 1])
+                },
+            )
     }
 }
 
 impl Eq for ResolutionTable {}
 
 impl ResolutionTable {
+    fn targets_equal(&self, left: &Target, other: &Self, right: &Target) -> bool {
+        match (left, right) {
+            (
+                Target::Unloaded {
+                    path: left,
+                    reason: lr,
+                },
+                Target::Unloaded {
+                    path: right,
+                    reason: rr,
+                },
+            ) => {
+                lr == rr
+                    && self.unloaded_paths[*left as usize] == other.unloaded_paths[*right as usize]
+            }
+            _ => left == right,
+        }
+    }
+
     fn ordered_rows(&self) -> ModuleRows<'_> {
         ModuleRows {
             rows: &self.modules,
             order: &self.module_order,
             indices: 0..self.modules.len(),
+            group_sources: &self.group_sources,
+            source_ranges: &self.source_ranges,
+            next_group: 0,
+            group_end: 0,
+            source: SourceFileId::from_raw(0),
         }
     }
 
@@ -796,26 +845,29 @@ impl ResolutionTable {
         // Staging already sorts each source's indices by (specifier, mode).
         // Source canonical paths are unique in a prepared program; ordering
         // the nonempty groups therefore reproduces the old global row sort.
-        let mut groups: Vec<_> = by_source
+        let mut group_sources: Vec<_> = by_source
             .iter()
             .enumerate()
-            .filter_map(|(source, indices)| (!indices.is_empty()).then_some(source))
+            .filter_map(|(source, indices)| {
+                (!indices.is_empty()).then_some(SourceFileId::from_raw(source as u32))
+            })
             .collect();
-        groups.sort_unstable_by(|a, b| {
-            sources[*a]
+        group_sources.sort_unstable_by(|a, b| {
+            sources[a.index()]
                 .path()
                 .canonical()
-                .cmp(sources[*b].path().canonical())
+                .cmp(sources[b.index()].path().canonical())
         });
         // Take each staged row once, without cloning its owned facts. The
         // optional slots retain staging's allocation while rows are frozen.
         let mut rows: Vec<_> = rows.into_iter().map(Some).collect();
         let mut modules = Vec::with_capacity(rows.len());
+        let mut unloaded_paths = Vec::new();
         let mut source_ranges = vec![0..0; sources.len()];
         let mut packages = LoadedPackageIds::default();
-        for index in groups
-            .into_iter()
-            .flat_map(|source| by_source[source].iter().copied())
+        for index in group_sources
+            .iter()
+            .flat_map(|source| by_source[source.index()].iter().copied())
         {
             let StagedRow {
                 source: importing_source,
@@ -833,13 +885,13 @@ impl ResolutionTable {
             }
             range.end = start.checked_add(1).expect("module range fits u32");
             modules.push(compact_module_row(
-                importing_source,
                 specifier,
                 mode,
                 resolution,
                 exact_source_path,
                 sources,
                 &mut packages,
+                &mut unloaded_paths,
             ));
         }
         // The temporary interning index owns the identities during building;
@@ -848,7 +900,9 @@ impl ResolutionTable {
         Self {
             module_lookup: module_lookup_index(&modules, &source_ranges),
             module_order: Vec::new(),
+            group_sources,
             modules,
+            unloaded_paths,
             source_ranges,
             package_ids,
             type_references,
@@ -962,13 +1016,11 @@ impl<'a> ResolutionTableView<'a> {
     pub fn modules(
         self,
     ) -> impl ExactSizeIterator<Item = (ResolutionKeyView<'a>, ModuleResolutionView<'a>)> {
-        self.table.ordered_rows().map(move |row| {
+        self.table.ordered_rows().map(move |(source, row)| {
             (
                 ResolutionKeyView {
-                    source: self.sources[row.importing_source.index()]
-                        .path()
-                        .canonical(),
-                    source_id: row.importing_source,
+                    source: self.sources[source.index()].path().canonical(),
+                    source_id: source,
                     specifier: row.specifier.as_js(),
                     mode: row.mode,
                 },
@@ -996,22 +1048,19 @@ impl<'a> ResolutionTableView<'a> {
             .iter()
             .filter(|row| row.rare.is_some())
             .count();
-        let unloaded_paths = self
-            .table
-            .modules
-            .iter()
-            .filter(|row| matches!(row.target, Target::Unloaded { .. }))
-            .count();
+        let unloaded_paths = self.table.unloaded_paths.len();
         ModuleStorageStats {
             row_size: std::mem::size_of::<Row>(),
             row_bytes: self.table.modules.capacity() * std::mem::size_of::<Row>(),
-            range_bytes: self.table.source_ranges.capacity() * std::mem::size_of::<Range<u32>>(),
+            range_bytes: self.table.source_ranges.capacity() * std::mem::size_of::<Range<u32>>()
+                + self.table.group_sources.capacity() * std::mem::size_of::<SourceFileId>(),
             index_bytes: self.table.module_lookup.capacity() * std::mem::size_of::<ModuleLookup>()
                 + self.table.module_order.capacity() * std::mem::size_of::<u32>(),
             rare_boxes,
             rare_bytes: rare_boxes * std::mem::size_of::<Rare>(),
             unloaded_paths,
-            unloaded_path_bytes: unloaded_paths * std::mem::size_of::<ProgramPath>(),
+            unloaded_path_bytes: self.table.unloaded_paths.capacity()
+                * std::mem::size_of::<ProgramPath>(),
             package_ids: self.table.package_ids.len(),
             package_id_bytes: self.table.package_ids.capacity() * std::mem::size_of::<PackageId>(),
             package_string_bytes: self
@@ -1084,6 +1133,8 @@ pub struct ModuleResolutionView<'a> {
     table: &'a ResolutionTable,
     sources: &'a [PreparedSourceFile],
 }
+const _: () = assert!(std::mem::size_of::<ModuleResolutionView<'_>>() <= 32);
+
 impl fmt::Debug for ModuleResolutionView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ModuleResolutionView")
@@ -1118,7 +1169,7 @@ impl<'a> ModuleResolutionView<'a> {
                     .unwrap_or_else(|| self.sources[source.index()].path()),
             },
             Target::Unloaded { path, reason } => ResolvedModuleTarget::Unloaded {
-                resolved_file: path.as_ref(),
+                resolved_file: &self.table.unloaded_paths[*path as usize],
                 reason: *reason,
             },
         };
@@ -1175,20 +1226,32 @@ struct ModuleRows<'a> {
     rows: &'a [Row],
     order: &'a [u32],
     indices: Range<usize>,
+    group_sources: &'a [SourceFileId],
+    source_ranges: &'a [Range<u32>],
+    next_group: usize,
+    group_end: usize,
+    source: SourceFileId,
 }
 
 impl<'a> Iterator for ModuleRows<'a> {
-    type Item = &'a Row;
+    type Item = (SourceFileId, &'a Row);
 
     fn next(&mut self) -> Option<Self::Item> {
         let index = self.indices.next()?;
-        Some(
+        if index == self.group_end {
+            self.source = self.group_sources[self.next_group];
+            self.next_group += 1;
+            let range = &self.source_ranges[self.source.index()];
+            self.group_end += (range.end - range.start) as usize;
+        }
+        Some((
+            self.source,
             &self.rows[if self.order.is_empty() {
                 index
             } else {
                 self.order[index] as usize
             }],
-        )
+        ))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -1268,21 +1331,17 @@ impl ResolutionTable {
         usage.vec("resolution lookup and ranges", &self.module_lookup);
         usage.vec("resolution lookup and ranges", &self.module_order);
         usage.vec("resolution lookup and ranges", &self.source_ranges);
+        usage.vec("resolution lookup and ranges", &self.group_sources);
         usage.vec("resolution package ids", &self.package_ids);
         for package in &self.package_ids {
             package.add_memory_usage(usage);
         }
+        usage.vec("resolution unloaded paths", &self.unloaded_paths);
+        for path in &self.unloaded_paths {
+            path.add_memory_usage(usage);
+        }
         for row in &self.modules {
             usage.js_string("strings: stable owners", &row.specifier);
-            if let Target::Unloaded { path, .. } = &row.target {
-                usage.add(
-                    "resolution boxed paths",
-                    1,
-                    std::mem::size_of::<ProgramPath>(),
-                    std::mem::size_of::<ProgramPath>(),
-                );
-                path.add_memory_usage(usage);
-            }
             if let Some(rare) = &row.rare {
                 usage.add(
                     "resolution rare rows",

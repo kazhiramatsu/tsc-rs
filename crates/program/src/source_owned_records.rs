@@ -116,6 +116,41 @@ mod tests {
         ));
     }
     #[test]
+    fn boxed_handoff_keeps_the_allocation_and_consumes_one_shared_slot() {
+        let input = source();
+        let (_, syntax) =
+            crate::plan_source_requests_retaining_syntax(&input, &CompilerOptions::default(), None)
+                .unwrap();
+        let clone = syntax.clone();
+        let original = {
+            let slot = syntax.slot.lock().unwrap();
+            slot.as_ref().unwrap().as_ref() as *const PreparsedSourceFile
+        };
+        let mut parsed = syntax.take_boxed().unwrap();
+        assert_eq!(parsed.as_ref() as *const PreparsedSourceFile, original);
+        let source_address = parsed.source() as *const SourceFile;
+        assert_eq!(
+            parsed.source_mut() as *mut SourceFile as *const SourceFile,
+            source_address
+        );
+        assert!(clone.take_boxed().is_none());
+        assert!(syntax.take().is_none());
+        assert!(parsed.take_bind_reservations().is_none());
+        let data = tsc_binder::bind_source_file(parsed.source_mut()).into_bind_data();
+        parsed.bind_data = Some(Box::new(data));
+        let data_address = parsed.bind_data.as_deref().unwrap() as *const tsc_binder::BindData;
+        let data = parsed.take_bind_data().unwrap();
+        assert_eq!(data.as_ref() as *const tsc_binder::BindData, data_address);
+        assert!(parsed.take_bind_data().is_none());
+        drop(data);
+        let (_, legacy) =
+            crate::plan_source_requests_retaining_syntax(&input, &CompilerOptions::default(), None)
+                .unwrap();
+        assert!(legacy.take().is_some());
+        assert!(legacy.take_boxed().is_none());
+    }
+
+    #[test]
     fn inline_flags_share_records_but_path_mutation_does_not_change_the_clone() {
         let original = source();
         let flags = original.clone().with_may_be_emitted(false);

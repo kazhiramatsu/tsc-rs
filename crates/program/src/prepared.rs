@@ -184,6 +184,24 @@ impl PreparsedSourceFile {
         &self.source
     }
 
+    /// Mutate an owned parse during adoption, after it has left the slot.
+    /// The completed bind and reserved identities must stay coherent with it.
+    /// A pristine library leaves its image capability before mutation.
+    /// There is no public API to return an edited value to the planner slot.
+    pub fn source_mut(&mut self) -> &mut SourceFile {
+        self.source.ordinary_mut()
+    }
+
+    /// Move the existing reservation into the adopting owner, once.
+    pub fn take_bind_reservations(&mut self) -> Option<tsc_binder::BindReservations> {
+        self.bind_reservations.take()
+    }
+
+    /// Move a completed bind without moving the parsed source record.
+    pub fn take_bind_data(&mut self) -> Option<Box<tsc_binder::BindData>> {
+        self.bind_data.take()
+    }
+
     /// Consume the slot contents into the parsed tree.
     pub fn into_source(self) -> SourceFile {
         self.source.into_source()
@@ -436,7 +454,13 @@ impl PreparsedSyntax {
     /// Take the retained tree. `None` once it has been adopted (or if the
     /// slot lock was poisoned), in which case the caller parses.
     pub fn take(&self) -> Option<PreparsedSourceFile> {
-        self.slot.lock().ok()?.take().map(|parsed| *parsed)
+        self.take_boxed().map(|parsed| *parsed)
+    }
+
+    /// Take the existing allocation for in-place adoption. All clones share
+    /// this one take; an empty or poisoned slot retains the old fallback.
+    pub fn take_boxed(&self) -> Option<Box<PreparsedSourceFile>> {
+        self.slot.lock().ok()?.take()
     }
 }
 
@@ -945,8 +969,10 @@ fn diagnostic_file_names_equal<'l, 'r>(
 pub struct PreparedRoot {
     path: ProgramPath,
     source: Option<SourceFileId>,
-    missing_diagnostic: Option<Diagnostic>,
+    missing_diagnostic: Option<Box<Diagnostic>>,
 }
+
+const _: () = assert!(std::mem::size_of::<PreparedRoot>() <= 48);
 
 /// Decoded text for a config or other non-program file that may own a
 /// located preparation diagnostic.
@@ -1011,6 +1037,10 @@ impl PreparedRoot {
     }
 
     pub fn missing(path: ProgramPath, diagnostic: Diagnostic) -> Self {
+        Self::missing_boxed(path, Box::new(diagnostic))
+    }
+
+    pub(crate) fn missing_boxed(path: ProgramPath, diagnostic: Box<Diagnostic>) -> Self {
         Self {
             path,
             source: None,
@@ -1027,7 +1057,7 @@ impl PreparedRoot {
     }
 
     pub fn missing_diagnostic(&self) -> Option<&Diagnostic> {
-        self.missing_diagnostic.as_ref()
+        self.missing_diagnostic.as_deref()
     }
 }
 
@@ -2416,7 +2446,11 @@ impl PreparedProgram {
         for root in &self.roots {
             root.path.add_memory_usage(usage);
             if let Some(diagnostic) = &root.missing_diagnostic {
-                usage.diagnostic(diagnostic);
+                if usage.claim(std::ptr::from_ref(diagnostic.as_ref()) as usize) {
+                    let bytes = std::mem::size_of_val(diagnostic.as_ref());
+                    usage.add("prepared root missing diagnostics", 1, bytes, bytes);
+                    usage.diagnostic(diagnostic);
+                }
             }
         }
         for (key, file) in &self.auxiliary_files {

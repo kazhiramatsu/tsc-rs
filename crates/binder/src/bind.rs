@@ -417,13 +417,42 @@ impl<'a> BinderWorker<'a> {
     }
 
     fn question_token_of(&self, node: NodeId) -> Option<NodeId> {
-        match &self.source.arena.node(node).data() {
-            NodeData::MethodDeclaration(data) => data.question_token,
-            NodeData::MethodSignature(data) => data.question_token,
-            NodeData::PropertyDeclaration(data) => data.question_token,
-            NodeData::PropertySignature(data) => data.question_token,
-            NodeData::ShorthandPropertyAssignment(data) => data.question_token,
-            NodeData::Parameter(data) => data.question_token,
+        let binding_node = self.source.arena.node(node);
+        match binding_node.kind {
+            SyntaxKind::MethodDeclaration => {
+                let data = binding_node
+                    .as_method_declaration()
+                    .expect("selected payload kind");
+                data.question_token
+            }
+            SyntaxKind::MethodSignature => {
+                let data = binding_node
+                    .as_method_signature()
+                    .expect("selected payload kind");
+                data.question_token
+            }
+            SyntaxKind::PropertyDeclaration => {
+                let data = binding_node
+                    .as_property_declaration()
+                    .expect("selected payload kind");
+                data.question_token
+            }
+            SyntaxKind::PropertySignature => {
+                let data = binding_node
+                    .as_property_signature()
+                    .expect("selected payload kind");
+                data.question_token
+            }
+            SyntaxKind::ShorthandPropertyAssignment => {
+                let data = binding_node
+                    .as_shorthand_property_assignment()
+                    .expect("selected payload kind");
+                data.question_token
+            }
+            SyntaxKind::Parameter => {
+                let data = binding_node.as_parameter().expect("selected payload kind");
+                data.question_token
+            }
             _ => None,
         }
     }
@@ -584,9 +613,17 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: d6d358b0a0eb6ef482febcef992fb422846a31fb14ac856ff0239d0594b01f48
     /// tsc-span: _tsc.js:44574-44583
     fn bind_export_declaration(&mut self, node: NodeId) {
-        let export_clause = match &self.source.arena.node(node).data() {
-            NodeData::ExportDeclaration(data) => data.export_clause,
-            _ => None,
+        let export_clause = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::ExportDeclaration => {
+                    let data = binding_node
+                        .as_export_declaration()
+                        .expect("selected payload kind");
+                    data.export_clause
+                }
+                _ => None,
+            }
         };
         match self.container_symbol() {
             None => {
@@ -974,22 +1011,95 @@ impl<'a> BinderWorker<'a> {
     }
 
     fn parameter_index(&self, function: NodeId, parameter: NodeId) -> Option<usize> {
-        let parameters = match &self.source.arena.node(function).data() {
-            NodeData::FunctionDeclaration(data) => data.parameters,
-            NodeData::FunctionExpression(data) => data.parameters,
-            NodeData::ArrowFunction(data) => data.parameters,
-            NodeData::MethodDeclaration(data) => data.parameters,
-            NodeData::MethodSignature(data) => data.parameters,
-            NodeData::Constructor(data) => data.parameters,
-            NodeData::GetAccessor(data) => data.parameters,
-            NodeData::SetAccessor(data) => data.parameters,
-            NodeData::CallSignature(data) => data.parameters,
-            NodeData::ConstructSignature(data) => data.parameters,
-            NodeData::IndexSignature(data) => data.parameters,
-            NodeData::FunctionType(data) => data.parameters,
-            NodeData::JSDocFunctionType(data) => data.parameters,
-            NodeData::ConstructorType(data) => data.parameters,
-            _ => None,
+        let parameters = {
+            let binding_node = self.source.arena.node(function);
+            match binding_node.kind {
+                SyntaxKind::FunctionDeclaration => {
+                    let data = binding_node
+                        .as_function_declaration()
+                        .expect("selected payload kind");
+                    data.parameters
+                }
+                SyntaxKind::FunctionExpression => {
+                    let data = binding_node
+                        .as_function_expression()
+                        .expect("selected payload kind");
+                    data.parameters
+                }
+                SyntaxKind::ArrowFunction => {
+                    let data = binding_node
+                        .as_arrow_function()
+                        .expect("selected payload kind");
+                    data.parameters
+                }
+                SyntaxKind::MethodDeclaration => {
+                    let data = binding_node
+                        .as_method_declaration()
+                        .expect("selected payload kind");
+                    data.parameters
+                }
+                SyntaxKind::MethodSignature => {
+                    let data = binding_node
+                        .as_method_signature()
+                        .expect("selected payload kind");
+                    data.parameters
+                }
+                SyntaxKind::Constructor => {
+                    let data = binding_node
+                        .as_constructor()
+                        .expect("selected payload kind");
+                    data.parameters
+                }
+                SyntaxKind::GetAccessor => {
+                    let data = binding_node
+                        .as_get_accessor()
+                        .expect("selected payload kind");
+                    data.parameters
+                }
+                SyntaxKind::SetAccessor => {
+                    let data = binding_node
+                        .as_set_accessor()
+                        .expect("selected payload kind");
+                    data.parameters
+                }
+                SyntaxKind::CallSignature => {
+                    let data = binding_node
+                        .as_call_signature()
+                        .expect("selected payload kind");
+                    data.parameters
+                }
+                SyntaxKind::ConstructSignature => {
+                    let data = binding_node
+                        .as_construct_signature()
+                        .expect("selected payload kind");
+                    data.parameters
+                }
+                SyntaxKind::IndexSignature => {
+                    let data = binding_node
+                        .as_index_signature()
+                        .expect("selected payload kind");
+                    data.parameters
+                }
+                SyntaxKind::FunctionType => {
+                    let data = binding_node
+                        .as_function_type()
+                        .expect("selected payload kind");
+                    data.parameters
+                }
+                SyntaxKind::JSDocFunctionType => {
+                    let data = binding_node
+                        .as_js_doc_function_type()
+                        .expect("selected payload kind");
+                    data.parameters
+                }
+                SyntaxKind::ConstructorType => {
+                    let data = binding_node
+                        .as_constructor_type()
+                        .expect("selected payload kind");
+                    data.parameters
+                }
+                _ => None,
+            }
         }?;
         self.source
             .arena
@@ -1266,7 +1376,7 @@ impl<'a> BinderWorker<'a> {
         let mut current = Some(node);
         while let Some(n) = current {
             if let Some(parent) = parent_of(self.source, n) {
-                if let NodeData::ConditionalType(data) = &self.source.arena.node(parent).data() {
+                if let Some(data) = self.source.arena.node(parent).as_conditional_type() {
                     if data.extends_type == Some(n) {
                         return Some(parent);
                     }
@@ -1317,19 +1427,31 @@ impl<'a> BinderWorker<'a> {
     /// non-expando declaration has that name. The declaration is the
     /// assignment (or call) itself.
     fn bind_deferred_expando_assignment(&mut self, node: NodeId) {
-        let parent = match &self.source.arena.node(node).data() {
-            NodeData::BinaryExpression(data) => data
-                .left
-                .and_then(|left| access_expression_of(self.source, left)),
-            NodeData::CallExpression(data) => data.arguments.and_then(|arguments| {
-                self.source
-                    .arena
-                    .node_array(arguments)
-                    .nodes
-                    .first()
-                    .copied()
-            }),
-            _ => None,
+        let parent = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::BinaryExpression => {
+                    let data = binding_node
+                        .as_binary_expression()
+                        .expect("selected payload kind");
+                    data.left
+                        .and_then(|left| access_expression_of(self.source, left))
+                }
+                SyntaxKind::CallExpression => {
+                    let data = binding_node
+                        .as_call_expression()
+                        .expect("selected payload kind");
+                    data.arguments.and_then(|arguments| {
+                        self.source
+                            .arena
+                            .node_array(arguments)
+                            .nodes
+                            .first()
+                            .copied()
+                    })
+                }
+                _ => None,
+            }
         };
         let Some(parent) = parent else { return };
         let symbol = self
@@ -1378,7 +1500,7 @@ impl<'a> BinderWorker<'a> {
     /// `this.p` target finds nothing (the pass runs with no `this`
     /// container); `E.p` is the `p` export of E's initializer symbol.
     fn lookup_entity(&self, node: NodeId, container: NodeId) -> Option<SymbolId> {
-        if let NodeData::Identifier(data) = &self.source.arena.node(node).data() {
+        if let Some(data) = self.source.arena.node(node).as_identifier() {
             return self.lookup_name(data.escaped_text, container);
         }
         let expression = access_expression_of(self.source, node)?;
@@ -1908,14 +2030,22 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 351653abd86c1f9c51244ccc3f4d53ba8185b945c34fad7b984cb5247e49c343
     /// tsc-span: _tsc.js:44139-44143
     fn check_strict_mode_binary_expression(&mut self, node: NodeId) {
-        let (left, operator) = match &self.source.arena.node(node).data() {
-            NodeData::BinaryExpression(data) => (
-                data.left,
-                data.operator_token
-                    .map(|token| kind_of(self.source, token))
-                    .unwrap_or(SyntaxKind::Unknown),
-            ),
-            _ => return,
+        let (left, operator) = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::BinaryExpression => {
+                    let data = binding_node
+                        .as_binary_expression()
+                        .expect("selected payload kind");
+                    (
+                        data.left,
+                        data.operator_token
+                            .map(|token| kind_of(self.source, token))
+                            .unwrap_or(SyntaxKind::Unknown),
+                    )
+                }
+                _ => return,
+            }
         };
         if let Some(left) = left {
             if crate::node_util::is_left_hand_side_expression(self.source, left)
@@ -1930,9 +2060,17 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: aeaf9cdd1a2cdbae129c915bed2f44aa252461e410130d0d9d6ff014c719be46
     /// tsc-span: _tsc.js:44144-44148
     fn check_strict_mode_catch_clause(&mut self, node: NodeId) {
-        let variable_declaration = match &self.source.arena.node(node).data() {
-            NodeData::CatchClause(data) => data.variable_declaration,
-            _ => None,
+        let variable_declaration = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::CatchClause => {
+                    let data = binding_node
+                        .as_catch_clause()
+                        .expect("selected payload kind");
+                    data.variable_declaration
+                }
+                _ => None,
+            }
         };
         if let Some(variable_declaration) = variable_declaration {
             let name = name_field_of(self.source, variable_declaration);
@@ -1966,7 +2104,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-span: _tsc.js:44158-44166
     fn check_strict_mode_eval_or_arguments(&mut self, context_node: NodeId, name: Option<NodeId>) {
         let Some(name) = name else { return };
-        let NodeData::Identifier(data) = &self.source.arena.node(name).data() else {
+        let Some(data) = self.source.arena.node(name).as_identifier() else {
             return;
         };
         // tsc isEvalOrArgumentsIdentifier (44155).
@@ -2009,9 +2147,17 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: e0ab6b73ec19c15fa6454693398d05ddf4e44c0e2bdefd38b0a7155d44bd9f5d
     /// tsc-span: _tsc.js:44198-44202
     fn check_strict_mode_postfix_unary_expression(&mut self, node: NodeId) {
-        let operand = match &self.source.arena.node(node).data() {
-            NodeData::PostfixUnaryExpression(data) => data.operand,
-            _ => None,
+        let operand = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::PostfixUnaryExpression => {
+                    let data = binding_node
+                        .as_postfix_unary_expression()
+                        .expect("selected payload kind");
+                    data.operand
+                }
+                _ => None,
+            }
         };
         self.check_strict_mode_eval_or_arguments(node, operand);
     }
@@ -2020,7 +2166,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 056a7fd1afe468b27ee376391672bf14333f4a94593979b8d5acda5500b8b087
     /// tsc-span: _tsc.js:44203-44209
     fn check_strict_mode_prefix_unary_expression(&mut self, node: NodeId) {
-        if let NodeData::PrefixUnaryExpression(data) = &self.source.arena.node(node).data() {
+        if let Some(data) = self.source.arena.node(node).as_prefix_unary_expression() {
             if matches!(
                 data.operator,
                 SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
@@ -2231,9 +2377,17 @@ impl<'a> BinderWorker<'a> {
             }
             SyntaxKind::JSDocImportTag => self.bind_jsdoc_import_tag(node),
             SyntaxKind::SourceFile => {
-                let (statements, end_of_file_token) = match &self.source.arena.node(node).data() {
-                    NodeData::SourceFile(data) => (data.statements, data.end_of_file_token),
-                    _ => (None, None),
+                let (statements, end_of_file_token) = {
+                    let binding_node = self.source.arena.node(node);
+                    match binding_node.kind {
+                        SyntaxKind::SourceFile => {
+                            let data = binding_node
+                                .as_source_file()
+                                .expect("selected payload kind");
+                            (data.statements, data.end_of_file_token)
+                        }
+                        _ => (None, None),
+                    }
                 };
                 self.bind_each_functions_first(statements);
                 self.bind(end_of_file_token);
@@ -2623,9 +2777,17 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 9502783d5fee9d39b7c22c38d0c2168ce81a14afdefe39bbc301bacde7070863
     /// tsc-span: _tsc.js:43218-43229
     fn bind_while_statement(&mut self, node: NodeId) {
-        let (expression, statement) = match &self.source.arena.node(node).data() {
-            NodeData::WhileStatement(data) => (data.expression, data.statement),
-            _ => (None, None),
+        let (expression, statement) = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::WhileStatement => {
+                    let data = binding_node
+                        .as_while_statement()
+                        .expect("selected payload kind");
+                    (data.expression, data.statement)
+                }
+                _ => (None, None),
+            }
         };
         let loop_label = self.flow.create_loop_label();
         let pre_while_label = self.set_continue_target(node, loop_label);
@@ -2681,16 +2843,23 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 33154d21bb57ca621342024056e1f05dc01206e8e3ab4d0986a83536c292fd12
     /// tsc-span: _tsc.js:43242-43258
     fn bind_for_statement(&mut self, node: NodeId) {
-        let (initializer, condition, incrementor, statement) =
-            match &self.source.arena.node(node).data() {
-                NodeData::ForStatement(data) => (
-                    data.initializer,
-                    data.condition,
-                    data.incrementor,
-                    data.statement,
-                ),
+        let (initializer, condition, incrementor, statement) = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::ForStatement => {
+                    let data = binding_node
+                        .as_for_statement()
+                        .expect("selected payload kind");
+                    (
+                        data.initializer,
+                        data.condition,
+                        data.incrementor,
+                        data.statement,
+                    )
+                }
                 _ => (None, None, None, None),
-            };
+            }
+        };
         self.bind(initializer);
         // tsgo (binder.go:1888-1899): an initializer that ends the flow (a
         // throwing IIFE) leaves the loop unreachable. Building the loop would
@@ -2734,19 +2903,30 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: cc766c2bf078174e8f5786cc99b1e4a742df64fa97bb78ee482a76a969b7a683
     /// tsc-span: _tsc.js:43259-43276
     fn bind_for_in_or_for_of_statement(&mut self, node: NodeId) {
-        let (expression, initializer, statement, await_modifier) =
-            match &self.source.arena.node(node).data() {
-                NodeData::ForInStatement(data) => {
+        let (expression, initializer, statement, await_modifier) = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::ForInStatement => {
+                    let data = binding_node
+                        .as_for_in_statement()
+                        .expect("selected payload kind");
+
                     (data.expression, data.initializer, data.statement, None)
                 }
-                NodeData::ForOfStatement(data) => (
-                    data.expression,
-                    data.initializer,
-                    data.statement,
-                    data.await_modifier,
-                ),
+                SyntaxKind::ForOfStatement => {
+                    let data = binding_node
+                        .as_for_of_statement()
+                        .expect("selected payload kind");
+                    (
+                        data.expression,
+                        data.initializer,
+                        data.statement,
+                        data.await_modifier,
+                    )
+                }
                 _ => (None, None, None, None),
-            };
+            }
+        };
         self.bind(expression);
         // tsgo (binder.go:1918-1928): like the for-loop initializer.
         if self.current_flow_id() == self.unreachable_flow {
@@ -2784,13 +2964,19 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 2c30dad48c8cea8fc38dcf71dc1540246ea176334ec080e5b11f00bb2506dcf7
     /// tsc-span: _tsc.js:43277-43289
     fn bind_if_statement(&mut self, node: NodeId) {
-        let (expression, then_statement, else_statement) =
-            match &self.source.arena.node(node).data() {
-                NodeData::IfStatement(data) => {
+        let (expression, then_statement, else_statement) = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::IfStatement => {
+                    let data = binding_node
+                        .as_if_statement()
+                        .expect("selected payload kind");
+
                     (data.expression, data.then_statement, data.else_statement)
                 }
                 _ => (None, None, None),
-            };
+            }
+        };
         let then_label = self.flow.create_branch_label();
         let else_label = self.flow.create_branch_label();
         let post_if_label = self.flow.create_branch_label();
@@ -2819,10 +3005,23 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 0d74669036bab103742a58d7497ed102c16393074edc7a911ca0a5e86369327d
     /// tsc-span: _tsc.js:43290-43303
     fn bind_return_or_throw(&mut self, node: NodeId) {
-        let expression = match &self.source.arena.node(node).data() {
-            NodeData::ReturnStatement(data) => data.expression,
-            NodeData::ThrowStatement(data) => data.expression,
-            _ => None,
+        let expression = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::ReturnStatement => {
+                    let data = binding_node
+                        .as_return_statement()
+                        .expect("selected payload kind");
+                    data.expression
+                }
+                SyntaxKind::ThrowStatement => {
+                    let data = binding_node
+                        .as_throw_statement()
+                        .expect("selected payload kind");
+                    data.expression
+                }
+                _ => None,
+            }
         };
         let saved_in_return_position = self.in_return_position;
         self.in_return_position = true;
@@ -2843,17 +3042,36 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: e28e187b38fa438f170acb5ab7ffcd119b5c320398e7f55783d452e1e075363c
     /// tsc-span: _tsc.js:43320-43331
     fn bind_break_or_continue_statement(&mut self, node: NodeId) {
-        let label = match &self.source.arena.node(node).data() {
-            NodeData::BreakStatement(data) => data.label,
-            NodeData::ContinueStatement(data) => data.label,
-            _ => None,
+        let label = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::BreakStatement => {
+                    let data = binding_node
+                        .as_break_statement()
+                        .expect("selected payload kind");
+                    data.label
+                }
+                SyntaxKind::ContinueStatement => {
+                    let data = binding_node
+                        .as_continue_statement()
+                        .expect("selected payload kind");
+                    data.label
+                }
+                _ => None,
+            }
         };
         self.bind(label);
         match label {
             Some(label) => {
-                let escaped = match &self.source.arena.node(label).data() {
-                    NodeData::Identifier(data) => data.escaped_text,
-                    _ => return,
+                let escaped = {
+                    let binding_node = self.source.arena.node(label);
+                    match binding_node.kind {
+                        SyntaxKind::Identifier => {
+                            let data = binding_node.as_identifier().expect("selected payload kind");
+                            data.escaped_text
+                        }
+                        _ => return,
+                    }
                 };
                 // tsc findActiveLabel (43304): innermost first.
                 if let Some(index) = self
@@ -2903,9 +3121,17 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 27e30684473d6f50b0b0522497a94c9e39bb2ff8f908d3fb43110f7dda8bfd67
     /// tsc-span: _tsc.js:43332-43374
     fn bind_try_statement(&mut self, node: NodeId) {
-        let (try_block, catch_clause, finally_block) = match &self.source.arena.node(node).data() {
-            NodeData::TryStatement(data) => (data.try_block, data.catch_clause, data.finally_block),
-            _ => (None, None, None),
+        let (try_block, catch_clause, finally_block) = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::TryStatement => {
+                    let data = binding_node
+                        .as_try_statement()
+                        .expect("selected payload kind");
+                    (data.try_block, data.catch_clause, data.finally_block)
+                }
+                _ => (None, None, None),
+            }
         };
         let save_return_target = self.current_return_target;
         let save_exception_target = self.current_exception_target;
@@ -2995,9 +3221,17 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 92b2f46ea4a5ce9af156abe3d6a00b47a3059978d1217d24aedf349581f24c9f
     /// tsc-span: _tsc.js:43375-43392
     fn bind_switch_statement(&mut self, node: NodeId) {
-        let (expression, case_block) = match &self.source.arena.node(node).data() {
-            NodeData::SwitchStatement(data) => (data.expression, data.case_block),
-            _ => (None, None),
+        let (expression, case_block) = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::SwitchStatement => {
+                    let data = binding_node
+                        .as_switch_statement()
+                        .expect("selected payload kind");
+                    (data.expression, data.case_block)
+                }
+                _ => (None, None),
+            }
         };
         let post_switch_label = self.flow.create_branch_label();
         self.bind(expression);
@@ -3008,10 +3242,12 @@ impl<'a> BinderWorker<'a> {
         self.bind(case_block);
         let current = self.current_flow_id();
         self.flow.add_antecedent(post_switch_label, current);
-        let has_default =
-            case_block.is_some_and(
-                |case_block| match &self.source.arena.node(case_block).data() {
-                    NodeData::CaseBlock(data) => data.clauses.is_some_and(|clauses| {
+        let has_default = case_block.is_some_and(|case_block| {
+            let binding_node = self.source.arena.node(case_block);
+            match binding_node.kind {
+                SyntaxKind::CaseBlock => {
+                    let data = binding_node.as_case_block().expect("selected payload kind");
+                    data.clauses.is_some_and(|clauses| {
                         self.source
                             .arena
                             .node_array(clauses)
@@ -3020,10 +3256,11 @@ impl<'a> BinderWorker<'a> {
                             .any(|&clause| {
                                 kind_of(self.source, clause) == SyntaxKind::DefaultClause
                             })
-                    }),
-                    _ => false,
-                },
-            );
+                    })
+                }
+                _ => false,
+            }
+        });
         self.possibly_exhaustive.insert(
             node,
             !has_default && self.flow.label_is_empty(post_switch_label),
@@ -3045,16 +3282,30 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: bd1cf1fbddf3aeec7e66acf5515b3ca553645c4e477d4e96664c6d0194e7efeb
     /// tsc-span: _tsc.js:43393-43417
     fn bind_case_block(&mut self, node: NodeId) {
-        let clauses = match &self.source.arena.node(node).data() {
-            NodeData::CaseBlock(data) => data.clauses,
-            _ => None,
+        let clauses = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::CaseBlock => {
+                    let data = binding_node.as_case_block().expect("selected payload kind");
+                    data.clauses
+                }
+                _ => None,
+            }
         };
         let Some(clauses) = clauses else { return };
         let clauses = self.source.arena.node_array(clauses).nodes.to_vec();
         let switch_statement = parent_of(self.source, node).expect("case block parent");
-        let switch_expression = match &self.source.arena.node(switch_statement).data() {
-            NodeData::SwitchStatement(data) => data.expression,
-            _ => None,
+        let switch_expression = {
+            let binding_node = self.source.arena.node(switch_statement);
+            match binding_node.kind {
+                SyntaxKind::SwitchStatement => {
+                    let data = binding_node
+                        .as_switch_statement()
+                        .expect("selected payload kind");
+                    data.expression
+                }
+                _ => None,
+            }
         };
         let is_narrowing_switch = switch_expression.is_some_and(|expression| {
             kind_of(self.source, expression) == SyntaxKind::TrueKeyword
@@ -3110,9 +3361,17 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: babfa2aba74aff33e0f550fb1b59d6a3a52472b8412209bc37561c01b7507076
     /// tsc-span: _tsc.js:43418-43424
     fn bind_case_clause(&mut self, node: NodeId) {
-        let (expression, statements) = match &self.source.arena.node(node).data() {
-            NodeData::CaseClause(data) => (data.expression, data.statements),
-            _ => (None, None),
+        let (expression, statements) = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::CaseClause => {
+                    let data = binding_node
+                        .as_case_clause()
+                        .expect("selected payload kind");
+                    (data.expression, data.statements)
+                }
+                _ => (None, None),
+            }
         };
         let save_current_flow = self.current_flow;
         self.current_flow = self.pre_switch_case_flow;
@@ -3125,9 +3384,17 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: ecc460eac354017bf8eb09bd872917b739db3a55c1047174100aa7212b22818e
     /// tsc-span: _tsc.js:43425-43428
     fn bind_expression_statement(&mut self, node: NodeId) {
-        let expression = match &self.source.arena.node(node).data() {
-            NodeData::ExpressionStatement(data) => data.expression,
-            _ => None,
+        let expression = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::ExpressionStatement => {
+                    let data = binding_node
+                        .as_expression_statement()
+                        .expect("selected payload kind");
+                    data.expression
+                }
+                _ => None,
+            }
         };
         self.bind(expression);
         if let Some(expression) = expression {
@@ -3139,7 +3406,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: e63aedaf525ec80be365b3176f72d498a0186fa44337f126ef781ac3ea3fec05
     /// tsc-span: _tsc.js:43429-43436
     fn maybe_bind_expression_flow_if_call(&mut self, node: NodeId) {
-        if let NodeData::CallExpression(data) = &self.source.arena.node(node).data() {
+        if let Some(data) = self.source.arena.node(node).as_call_expression() {
             if let Some(expression) = data.expression {
                 if kind_of(self.source, expression) != SyntaxKind::SuperKeyword
                     && crate::node_util::is_dotted_name(self.source, expression)
@@ -3272,9 +3539,17 @@ impl<'a> BinderWorker<'a> {
         true_target: FlowId,
         false_target: FlowId,
     ) {
-        let (left, operator_token, right) = match &self.source.arena.node(node).data() {
-            NodeData::BinaryExpression(data) => (data.left, data.operator_token, data.right),
-            _ => (None, None, None),
+        let (left, operator_token, right) = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::BinaryExpression => {
+                    let data = binding_node
+                        .as_binary_expression()
+                        .expect("selected payload kind");
+                    (data.left, data.operator_token, data.right)
+                }
+                _ => (None, None, None),
+            }
         };
         let operator = operator_token
             .map(|token| kind_of(self.source, token))
@@ -3319,9 +3594,17 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 10090c29ecfd2fc2ceab949352b6390644f5f511de68bdcffca952227ea231df
     /// tsc-span: _tsc.js:43503-43517
     fn bind_prefix_unary_expression_flow(&mut self, node: NodeId) {
-        let (operator, operand) = match &self.source.arena.node(node).data() {
-            NodeData::PrefixUnaryExpression(data) => (data.operator, data.operand),
-            _ => (SyntaxKind::Unknown, None),
+        let (operator, operand) = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::PrefixUnaryExpression => {
+                    let data = binding_node
+                        .as_prefix_unary_expression()
+                        .expect("selected payload kind");
+                    (data.operator, data.operand)
+                }
+                _ => (SyntaxKind::Unknown, None),
+            }
         };
         if operator == SyntaxKind::ExclamationToken {
             let save_true_target = self.current_true_target;
@@ -3349,9 +3632,17 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 15652bcbf955f7a2cf0a4f04eb33326f8f1cb5501e70edb9be966ab11578f25a
     /// tsc-span: _tsc.js:43518-43523
     fn bind_postfix_unary_expression_flow(&mut self, node: NodeId) {
-        let (operator, operand) = match &self.source.arena.node(node).data() {
-            NodeData::PostfixUnaryExpression(data) => (data.operator, data.operand),
-            _ => (SyntaxKind::Unknown, None),
+        let (operator, operand) = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::PostfixUnaryExpression => {
+                    let data = binding_node
+                        .as_postfix_unary_expression()
+                        .expect("selected payload kind");
+                    (data.operator, data.operand)
+                }
+                _ => (SyntaxKind::Unknown, None),
+            }
         };
         self.bind_each_child(node);
         if matches!(
@@ -3417,9 +3708,17 @@ impl<'a> BinderWorker<'a> {
         }];
         while let Some(top) = stack.len().checked_sub(1) {
             let node = stack[top].node;
-            let (left, operator_token, right) = match &self.source.arena.node(node).data() {
-                NodeData::BinaryExpression(data) => (data.left, data.operator_token, data.right),
-                _ => (None, None, None),
+            let (left, operator_token, right) = {
+                let binding_node = self.source.arena.node(node);
+                match binding_node.kind {
+                    SyntaxKind::BinaryExpression => {
+                        let data = binding_node
+                            .as_binary_expression()
+                            .expect("selected payload kind");
+                        (data.left, data.operator_token, data.right)
+                    }
+                    _ => (None, None, None),
+                }
             };
             let operator = operator_token
                 .map(|token| kind_of(self.source, token))
@@ -3563,17 +3862,24 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 57da403f84a7baf092a640a2e491aa37119d7ddb6ac7a97bef43d64cd7d249bc
     /// tsc-span: _tsc.js:43646-43670
     fn bind_conditional_expression_flow(&mut self, node: NodeId) {
-        let (condition, question_token, when_true, colon_token, when_false) =
-            match &self.source.arena.node(node).data() {
-                NodeData::ConditionalExpression(data) => (
-                    data.condition,
-                    data.question_token,
-                    data.when_true,
-                    data.colon_token,
-                    data.when_false,
-                ),
+        let (condition, question_token, when_true, colon_token, when_false) = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::ConditionalExpression => {
+                    let data = binding_node
+                        .as_conditional_expression()
+                        .expect("selected payload kind");
+                    (
+                        data.condition,
+                        data.question_token,
+                        data.when_true,
+                        data.colon_token,
+                        data.when_false,
+                    )
+                }
                 _ => (None, None, None, None, None),
-            };
+            }
+        };
         let true_label = self.flow.create_branch_label();
         let false_label = self.flow.create_branch_label();
         let post_expression_label = self.flow.create_branch_label();
@@ -3627,10 +3933,23 @@ impl<'a> BinderWorker<'a> {
         };
         if let Some(name) = name {
             if is_binding_pattern(self.source, name) {
-                let elements = match &self.source.arena.node(name).data() {
-                    NodeData::ObjectBindingPattern(data) => data.elements,
-                    NodeData::ArrayBindingPattern(data) => data.elements,
-                    _ => None,
+                let elements = {
+                    let binding_node = self.source.arena.node(name);
+                    match binding_node.kind {
+                        SyntaxKind::ObjectBindingPattern => {
+                            let data = binding_node
+                                .as_object_binding_pattern()
+                                .expect("selected payload kind");
+                            data.elements
+                        }
+                        SyntaxKind::ArrayBindingPattern => {
+                            let data = binding_node
+                                .as_array_binding_pattern()
+                                .expect("selected payload kind");
+                            data.elements
+                        }
+                        _ => None,
+                    }
                 };
                 if let Some(elements) = elements {
                     for &child in &self.source.arena.node_array(elements).nodes.to_vec() {
@@ -3670,16 +3989,23 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: a350373b131651a09ae1ed6ce8b980cf704ae1398f868ec861cdaf089af6b0c9
     /// tsc-span: _tsc.js:43687-43692
     fn bind_binding_element_flow(&mut self, node: NodeId) {
-        let (dot_dot_dot_token, property_name, name, initializer) =
-            match &self.source.arena.node(node).data() {
-                NodeData::BindingElement(data) => (
-                    data.dot_dot_dot_token,
-                    data.property_name,
-                    data.name,
-                    data.initializer,
-                ),
+        let (dot_dot_dot_token, property_name, name, initializer) = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::BindingElement => {
+                    let data = binding_node
+                        .as_binding_element()
+                        .expect("selected payload kind");
+                    (
+                        data.dot_dot_dot_token,
+                        data.property_name,
+                        data.name,
+                        data.initializer,
+                    )
+                }
                 _ => (None, None, None, None),
-            };
+            }
+        };
         self.bind(dot_dot_dot_token);
         self.bind(property_name);
         self.bind_initializer_flow(initializer);
@@ -3690,18 +4016,23 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 79804688366a59b30a203f52894bd834b1fbb753478a5d56736e2cd2144ffe0a
     /// tsc-span: _tsc.js:43693-43700
     fn bind_parameter_flow(&mut self, node: NodeId) {
-        let (modifiers, dot_dot_dot_token, question_token, parameter_type, initializer, name) =
-            match &self.source.arena.node(node).data() {
-                NodeData::Parameter(data) => (
-                    data.modifiers,
-                    data.dot_dot_dot_token,
-                    data.question_token,
-                    data.r#type,
-                    data.initializer,
-                    data.name,
-                ),
+        let (modifiers, dot_dot_dot_token, question_token, parameter_type, initializer, name) = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::Parameter => {
+                    let data = binding_node.as_parameter().expect("selected payload kind");
+                    (
+                        data.modifiers,
+                        data.dot_dot_dot_token,
+                        data.question_token,
+                        data.r#type,
+                        data.initializer,
+                        data.name,
+                    )
+                }
                 _ => (None, None, None, None, None, None),
-            };
+            }
+        };
         self.bind_each(modifiers);
         self.bind(dot_dot_dot_token);
         self.bind(question_token);
@@ -3767,19 +4098,32 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: f06ce5b13af97ecb0dcf462fb0eba0b14547d67e28ad2f965b1a6bf290d08976
     /// tsc-span: _tsc.js:43751-43767
     fn bind_optional_chain_rest(&mut self, node: NodeId) {
-        match &self.source.arena.node(node).data() {
-            NodeData::PropertyAccessExpression(data) => {
+        let binding_node = self.source.arena.node(node);
+        match binding_node.kind {
+            SyntaxKind::PropertyAccessExpression => {
+                let data = binding_node
+                    .as_property_access_expression()
+                    .expect("selected payload kind");
+
                 let (question_dot_token, name) = (data.question_dot_token, data.name);
                 self.bind(question_dot_token);
                 self.bind(name);
             }
-            NodeData::ElementAccessExpression(data) => {
+            SyntaxKind::ElementAccessExpression => {
+                let data = binding_node
+                    .as_element_access_expression()
+                    .expect("selected payload kind");
+
                 let (question_dot_token, argument) =
                     (data.question_dot_token, data.argument_expression);
                 self.bind(question_dot_token);
                 self.bind(argument);
             }
-            NodeData::CallExpression(data) => {
+            SyntaxKind::CallExpression => {
+                let data = binding_node
+                    .as_call_expression()
+                    .expect("selected payload kind");
+
                 let (question_dot_token, type_arguments, arguments) =
                     (data.question_dot_token, data.type_arguments, data.arguments);
                 self.bind(question_dot_token);
@@ -3881,11 +4225,18 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 6c23347d48d9e4dfd8f7d6459b2db901236604f0202d523359292aebd4e9f24b
     /// tsc-span: _tsc.js:43806-43828
     fn bind_call_expression_flow(&mut self, node: NodeId) {
-        let (expression, type_arguments, arguments) = match &self.source.arena.node(node).data() {
-            NodeData::CallExpression(data) => {
-                (data.expression, data.type_arguments, data.arguments)
+        let (expression, type_arguments, arguments) = {
+            let binding_node = self.source.arena.node(node);
+            match binding_node.kind {
+                SyntaxKind::CallExpression => {
+                    let data = binding_node
+                        .as_call_expression()
+                        .expect("selected payload kind");
+
+                    (data.expression, data.type_arguments, data.arguments)
+                }
+                _ => (None, None, None),
             }
-            _ => (None, None, None),
         };
         if crate::node_util::is_optional_chain(self.source, node) {
             self.bind_optional_chain_flow(node);
@@ -3934,12 +4285,38 @@ fn is_statement_condition(source: &tsc_syntax::SourceFile, node: NodeId) -> bool
     let Some(parent) = parent_of(source, node) else {
         return false;
     };
-    match &source.arena.node(parent).data() {
-        NodeData::IfStatement(data) => data.expression == Some(node),
-        NodeData::WhileStatement(data) => data.expression == Some(node),
-        NodeData::DoStatement(data) => data.expression == Some(node),
-        NodeData::ForStatement(data) => data.condition == Some(node),
-        NodeData::ConditionalExpression(data) => data.condition == Some(node),
+    let binding_node = source.arena.node(parent);
+    match binding_node.kind {
+        SyntaxKind::IfStatement => {
+            let data = binding_node
+                .as_if_statement()
+                .expect("selected payload kind");
+            data.expression == Some(node)
+        }
+        SyntaxKind::WhileStatement => {
+            let data = binding_node
+                .as_while_statement()
+                .expect("selected payload kind");
+            data.expression == Some(node)
+        }
+        SyntaxKind::DoStatement => {
+            let data = binding_node
+                .as_do_statement()
+                .expect("selected payload kind");
+            data.expression == Some(node)
+        }
+        SyntaxKind::ForStatement => {
+            let data = binding_node
+                .as_for_statement()
+                .expect("selected payload kind");
+            data.condition == Some(node)
+        }
+        SyntaxKind::ConditionalExpression => {
+            let data = binding_node
+                .as_conditional_expression()
+                .expect("selected payload kind");
+            data.condition == Some(node)
+        }
         _ => false,
     }
 }
@@ -3992,15 +4369,24 @@ fn is_top_level_logical_expression(source: &tsc_syntax::SourceFile, mut node: No
 /// tsc: a case/default clause with no statements (bindCaseBlock's
 /// fallthrough grouping).
 fn clause_statements_empty(source: &tsc_syntax::SourceFile, clause: NodeId) -> bool {
-    match &source.arena.node(clause).data() {
-        NodeData::CaseClause(data) => data
-            .statements
-            .map(|statements| source.arena.node_array(statements).nodes.is_empty())
-            .unwrap_or(true),
-        NodeData::DefaultClause(data) => data
-            .statements
-            .map(|statements| source.arena.node_array(statements).nodes.is_empty())
-            .unwrap_or(true),
+    let binding_node = source.arena.node(clause);
+    match binding_node.kind {
+        SyntaxKind::CaseClause => {
+            let data = binding_node
+                .as_case_clause()
+                .expect("selected payload kind");
+            data.statements
+                .map(|statements| source.arena.node_array(statements).nodes.is_empty())
+                .unwrap_or(true)
+        }
+        SyntaxKind::DefaultClause => {
+            let data = binding_node
+                .as_default_clause()
+                .expect("selected payload kind");
+            data.statements
+                .map(|statements| source.arena.node_array(statements).nodes.is_empty())
+                .unwrap_or(true)
+        }
         _ => true,
     }
 }

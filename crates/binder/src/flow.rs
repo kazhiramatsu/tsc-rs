@@ -305,6 +305,12 @@ impl FlowArena {
         })
     }
 
+    /// The existing records, borrowed for an immutable graph walk.
+    #[inline]
+    pub fn nodes(&self) -> &[FlowNode] {
+        &self.nodes
+    }
+
     #[inline(always)]
     pub fn flow(&self, id: FlowId) -> &FlowNode {
         &self.nodes[id.index() as usize]
@@ -334,7 +340,12 @@ impl FlowArena {
     /// [`Self::label_items`].
     #[inline(always)]
     pub fn antecedents(&self, id: FlowId) -> &[FlowId] {
-        let node = self.flow(id);
+        self.antecedents_from(self.flow(id))
+    }
+
+    /// Read the antecedents of a record borrowed from this arena.
+    #[inline(always)]
+    pub fn antecedents_from<'a>(&'a self, node: &'a FlowNode) -> &'a [FlowId] {
         if node.is_label() {
             debug_assert!(
                 self.frozen,
@@ -367,7 +378,11 @@ impl FlowArena {
     /// tsc FlowNode.node, with a label's or a reduce label's list (of a
     /// frozen arena).
     pub fn payload(&self, id: FlowId) -> FlowData<'_> {
-        let node = self.flow(id);
+        self.payload_from(self.flow(id))
+    }
+
+    /// Decode the payload of a record borrowed from this arena.
+    pub fn payload_from(&self, node: &FlowNode) -> FlowData<'_> {
         if node.is_label() {
             debug_assert!(
                 self.frozen,

@@ -19,6 +19,7 @@ fn legacy_build(
             .then_with(|| a.mode.cmp(&b.mode))
     });
     let mut modules = Vec::with_capacity(rows.len());
+    let mut unloaded_paths = Vec::new();
     let mut source_ranges = vec![0..0; sources.len()];
     let mut packages = BTreeMap::new();
     for StagedRow {
@@ -91,17 +92,18 @@ fn legacy_build(
                     ResolvedModuleTarget::Unloaded {
                         resolved_file,
                         reason,
-                    } => Target::Unloaded {
-                        path: Box::new(resolved_file),
-                        reason,
-                    },
+                    } => {
+                        let path =
+                            u32::try_from(unloaded_paths.len()).expect("test path index fits u32");
+                        unloaded_paths.push(resolved_file);
+                        Target::Unloaded { path, reason }
+                    }
                 }
             }
         };
         modules.push(Row {
             specifier,
             mode,
-            importing_source,
             target,
             extension,
             flags,
@@ -117,10 +119,19 @@ fn legacy_build(
         .collect::<Vec<_>>();
     packages.sort_unstable_by_key(|(id, _)| *id);
     let package_ids = packages.into_iter().map(|(_, package)| package).collect();
+    let mut group_sources: Vec<_> = source_ranges
+        .iter()
+        .enumerate()
+        .filter(|(_, range)| range.start != range.end)
+        .map(|(source, _)| SourceFileId::from_raw(source as u32))
+        .collect();
+    group_sources.sort_unstable_by_key(|source| source_ranges[source.index()].start);
     ResolutionTable {
+        group_sources,
         module_lookup: module_lookup_index(&modules, &source_ranges),
         module_order: Vec::new(),
         modules,
+        unloaded_paths,
         source_ranges,
         package_ids,
         type_references,
@@ -243,18 +254,45 @@ fn grouped_freeze_matches_the_old_table_for_shuffled_rows() {
             .insert(*source, key.clone(), ModuleResolution::not_found())
             .is_err());
         let expected = legacy_build(staged.clone(), BTreeMap::new(), &sources);
-        let mut loaded = LoadedModules::new(sources.len(), entries.len());
         // The loader publishes one contiguous batch per source. Shuffle the
         // group order as well as the requests, preserving that contract.
         let mut groups: Vec<_> = entries.iter().map(|(source, _, _)| *source).collect();
         groups.dedup();
         let mut seen = std::collections::BTreeSet::new();
-        for source in groups.into_iter().filter(|source| seen.insert(*source)) {
+        let groups: Vec<_> = groups
+            .into_iter()
+            .filter(|source| seen.insert(*source))
+            .collect();
+        let mut loaded = LoadedModules::new(
+            sources.len(),
+            entries.len(),
+            groups.iter().flat_map(|&source| {
+                let count = entries
+                    .iter()
+                    .filter(|(owner, _, _)| *owner == source)
+                    .count();
+                // Empty batches consume no range; adjacent batches for one
+                // source retain the same group as their combined count.
+                [
+                    (source, 0),
+                    (source, count / 2),
+                    (source, count - count / 2),
+                ]
+            }),
+        );
+        for source in groups {
             for (_, key, resolution) in entries.iter().filter(|(owner, _, _)| *owner == source) {
                 loaded.push(source, key.clone(), resolution.clone(), false, &sources);
             }
         }
         let loaded = loaded.finish(&sources, BTreeMap::new());
+        let mut ordered = loaded.ordered_rows();
+        for remaining in (1..=entries.len()).rev() {
+            assert_eq!(ordered.len(), remaining);
+            assert!(ordered.next().is_some());
+        }
+        assert_eq!(ordered.len(), 0);
+        assert!(ordered.next().is_none());
         assert_eq!(
             loaded, expected,
             "round {round}: table equality compares ordered facts"
@@ -310,6 +348,15 @@ fn grouped_freeze_matches_the_old_table_for_shuffled_rows() {
         empty,
         legacy_build(StagedModules::default(), BTreeMap::new(), &sources)
     );
+    let empty_loaded = LoadedModules::new(
+        sources.len(),
+        0,
+        (0..sources.len()).map(|source| (SourceFileId::from_raw(source as u32), 0)),
+    )
+    .finish(&sources, BTreeMap::new());
+    assert_eq!(empty_loaded, empty);
+    assert_eq!(empty_loaded.ordered_rows().len(), 0);
+    assert!(empty_loaded.ordered_rows().next().is_none());
 }
 
 #[test]

@@ -875,6 +875,8 @@ pub struct CheckWorkCounters {
     symbols: u64,
     types: u64,
     instantiations: u64,
+    bind_time: std::time::Duration,
+    emit_time: std::time::Duration,
 }
 
 /// Parse work performed while materializing an owned library prefix.
@@ -968,17 +970,21 @@ impl CheckWorkCounters {
         self.instantiations
     }
 
-    /// The program's counts, once per run.
-    fn record_program_counts(&mut self, binder: &program::ProgramBinder<'_>) {
-        self.identifiers += binder.identifier_count() as u64;
-        self.symbols += binder.binder_symbol_count() as u64;
+    /// The bind/adoption phase after loading; load-time binding overlaps parsing.
+    pub const fn bind_time(self) -> std::time::Duration {
+        self.bind_time
     }
 
-    /// Add one checker's counts after it has checked everything it will.
-    fn record_checker_counts(&mut self, state: &state::CheckerState<'_>) {
-        self.symbols += state.binder.transient_symbol_count() as u64;
-        self.types += state.tables.len() as u64;
-        self.instantiations += state.total_instantiation_count;
+    /// The synchronous emit gate and tail; eager emission overlaps checking.
+    pub const fn emit_time(self) -> std::time::Duration {
+        self.emit_time
+    }
+
+    fn record_counts(&mut self, counts: CheckerCounts) {
+        self.identifiers += counts.identifiers;
+        self.symbols += counts.symbols;
+        self.types += counts.types;
+        self.instantiations += counts.instantiations;
     }
 
     fn record_serial_replay(&mut self, reasons: u32) {
@@ -1028,6 +1034,8 @@ impl CheckWorkCounters {
             symbols: 0,
             types: 0,
             instantiations: 0,
+            bind_time: std::time::Duration::ZERO,
+            emit_time: std::time::Duration::ZERO,
         }
     }
 }
@@ -3893,10 +3901,44 @@ impl LedgerSnapshot {
     }
 }
 
+/// tsgo compiler/program.go:1722–1758: program facts once, checker counts summed.
+#[derive(Clone, Copy)]
+struct CheckerCounts {
+    identifiers: u64,
+    symbols: u64,
+    types: u64,
+    instantiations: u64,
+}
+
+impl CheckerCounts {
+    fn of(state: &state::CheckerState<'_>, include_program: bool) -> Self {
+        Self {
+            identifiers: if include_program {
+                state.binder.identifier_count() as u64
+            } else {
+                0
+            },
+            symbols: state.binder.transient_symbol_count() as u64
+                + if include_program {
+                    state.binder.binder_symbol_count() as u64
+                } else {
+                    0
+                },
+            types: state.tables.len() as u64,
+            instantiations: state.total_instantiation_count,
+        }
+    }
+}
+
+fn statistics_requested(options: &CompilerOptions) -> bool {
+    options.diagnostics == Some(true) || options.extended_diagnostics == Some(true)
+}
+
 /// Everything one checker shard hands back to the coordinating thread.
 /// Owned values only: diagnostics, attribution vectors and audit records.
 /// No `TypeId`, `SymbolId`, signature or mapper identity leaves the shard.
 struct ShardOutput {
+    counts: CheckerCounts,
     /// Owner-local per-file snapshots after the requested check pass.
     fixture: LedgerSnapshot,
     /// The ledger after every pass.
@@ -4355,35 +4397,17 @@ fn run_checker_shard<'a>(
     }
     state.report_memory(&format!("shard {shard_index}"), snapshot, shard_index == 0);
     state.line_profile.flush();
-    let mut output = ShardOutput {
-        fixture,
-        complete,
-        init_globals,
-        partial_check_records: std::mem::take(&mut state.partial_check_records),
-        failure,
-        order_reasons: state.order_guard.reasons(),
-        init_boundary: u32::try_from(init_boundary).expect("type count fits u32"),
-        display_marks: state.order_guard.marks().clone(),
-        thread: std::thread::current().id(),
-        files,
-        #[cfg(debug_assertions)]
-        checked_files,
-        incremental,
-    };
+    let partial_check_records = std::mem::take(&mut state.partial_check_records);
     if keep_state {
-        let state = match eager {
+        state = match eager {
             Some(eager) => {
-                // Over the session of the checked state, whose ledgers were
-                // taken above: what the eager work resolves cannot reach the
-                // shard's diagnostics, and the type order it consumes counts
-                // like the check's own.
+                // The eager work can create types after the diagnostic ledger
+                // is complete. Capture the work counts after it finishes.
                 let session = CheckerSession::from_checked_state(state);
-                let reuse = eager(shard_index, snapshot, &session, &output.files, checking);
+                let reuse = eager(shard_index, snapshot, &session, &files, checking);
                 let more_eager =
                     eager_remaining.fetch_sub(1, std::sync::atomic::Ordering::AcqRel) > 1;
                 let mut state = session.into_state();
-                output.order_reasons = state.order_guard.reasons();
-                output.display_marks = state.order_guard.marks().clone();
                 if reuse == ShardEagerState::Finished && more_eager {
                     state.release_finished_lookup_buffers();
                     state.links.release_paged_record_buffers();
@@ -4395,6 +4419,24 @@ fn run_checker_shard<'a>(
             }
             None => state,
         };
+    }
+    let output = ShardOutput {
+        counts: CheckerCounts::of(&state, shard_index == 0),
+        fixture,
+        complete,
+        init_globals,
+        partial_check_records,
+        failure,
+        order_reasons: state.order_guard.reasons(),
+        init_boundary: u32::try_from(init_boundary).expect("type count fits u32"),
+        display_marks: state.order_guard.marks().clone(),
+        thread: std::thread::current().id(),
+        files,
+        #[cfg(debug_assertions)]
+        checked_files,
+        incremental,
+    };
+    if keep_state {
         return (output, Some(state));
     }
     if leak_state {
@@ -4795,6 +4837,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         lib_documents.iter().cloned(),
     );
     observe_phase(CheckPhase::Bind);
+    let statistics_bind_started = statistics_requested(options).then(std::time::Instant::now);
     let phase_started = std::time::Instant::now();
     let bind_data = bind_sources_in_program_order(
         &mut program_sources,
@@ -4813,6 +4856,9 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     );
     tsc_types::trace::mark("checker: ordered document publication", publication_started);
     tsc_types::trace::mark("checker: bind program sources", phase_started);
+    if let Some(started) = statistics_bind_started {
+        work_counters.bind_time += started.elapsed();
+    }
     observe_phase(CheckPhase::Check);
 
     if lib_documents.is_empty() && program_source_count == 0 {
@@ -5225,13 +5271,11 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         }
         // W2e: the merge itself decides whether a display-class mark reached
         // a published row; only then is the sharded result discarded.
-        if let Some(state) = states.first() {
-            work_counters.record_program_counts(&state.binder);
+        let mut completed_counters = work_counters;
+        for output in &outputs {
+            completed_counters.record_counts(output.counts);
         }
-        for state in &states {
-            work_counters.record_checker_counts(state);
-        }
-        let execution = match merge_shard_outputs(
+        let mut execution = match merge_shard_outputs(
             &snapshot,
             lib_count,
             options,
@@ -5239,7 +5283,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             file_diagnostics.clone(),
             outputs,
             collect_global_diagnostics,
-            work_counters,
+            completed_counters,
             replay_on_order,
             run.incremental_facts,
             selected.as_deref(),
@@ -5289,12 +5333,16 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             })
             .collect::<Vec<_>>();
         let phase_started = std::time::Instant::now();
+        let statistics_emit_started = statistics_requested(options).then(std::time::Instant::now);
         let admitted = (sharded_emit.gate)(&snapshot, &execution.result, &sessions, &assignment);
         tsc_types::trace::mark("checker: emit gate", phase_started);
         let phase_started = std::time::Instant::now();
         let emitted = admitted.then(|| (sharded_emit.emit)(&snapshot, &sessions, &assignment));
         if admitted {
             tsc_types::trace::mark("checker: shards emitted", phase_started);
+        }
+        if let Some(started) = statistics_emit_started {
+            execution.result.work_counters.emit_time += started.elapsed();
         }
         let mut emit_reasons = 0u32;
         let mut states = Vec::with_capacity(sessions.len());
@@ -5561,8 +5609,7 @@ fn check_snapshot_serially(
     }
     drop(checker_rows_by_file);
     tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
-    work_counters.record_program_counts(&state.binder);
-    work_counters.record_checker_counts(&state);
+    work_counters.record_counts(CheckerCounts::of(&state, true));
     let partial_checks = state.partial_check_records.clone();
     let authoritative_failure = state.take_authoritative_module_failure();
     state.line_profile.flush();
@@ -5602,11 +5649,15 @@ fn finish_snapshot_execution(
     snapshot: &ProgramSnapshot,
     state: state::CheckerState<'_>,
     program_diagnostics: &[Diagnostic],
-    result: CheckResult,
+    mut result: CheckResult,
     authoritative_failure: Option<AuthoritativeModuleFailure>,
     sharded_emit: Option<&mut ShardedEmit<'_>>,
     leak_state: bool,
 ) -> CheckExecution {
+    let statistics_emit_started = (statistics_requested(state.options)
+        && sharded_emit.is_some()
+        && authoritative_failure.is_none())
+    .then(std::time::Instant::now);
     let state = match sharded_emit {
         Some(sharded_emit) if authoritative_failure.is_none() => {
             let every_file = (0..state.binder.file_count()).collect::<Vec<_>>();
@@ -5631,6 +5682,9 @@ fn finish_snapshot_execution(
         }
         _ => state,
     };
+    if let Some(started) = statistics_emit_started {
+        result.work_counters.emit_time += started.elapsed();
+    }
     if leak_state {
         std::mem::forget(state);
     }
@@ -5755,6 +5809,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     // Fixture bind pass: each completed binder owns exact persistent-symbol
     // and private-name-serial leases in the source's identity domain.
     observe_phase(CheckPhase::Bind);
+    let statistics_bind_started = statistics_requested(options).then(std::time::Instant::now);
 
     let bind_data = bind_sources_in_program_order(
         &mut program_sources,
@@ -5782,6 +5837,9 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     // first-class Program members, but the oracle driver never calls
     // getSemanticDiagnostics(libSourceFile), so this adapter must not publish
     // their file diagnostics implicitly.
+    if let Some(started) = statistics_bind_started {
+        work_counters.bind_time += started.elapsed();
+    }
     observe_phase(CheckPhase::Check);
 
     if lib_documents.is_empty() && program_source_count == 0 && collect_global_diagnostics {
@@ -6102,8 +6160,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
             program_semantic_diagnostics = Some(diagnostics);
         }
-        work_counters.record_program_counts(&state.binder);
-        work_counters.record_checker_counts(&state);
+        work_counters.record_counts(CheckerCounts::of(&state, true));
         partial_checks = state.partial_check_records.clone();
         authoritative_failure = state.take_authoritative_module_failure();
         if authoritative_run.is_some_and(|run| run.incremental_facts) {
@@ -6133,7 +6190,12 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                     program_diagnostics.clone(),
                     checked.program_semantic_diagnostics.clone(),
                 );
+                let statistics_emit_started =
+                    statistics_requested(options).then(std::time::Instant::now);
                 operation(&snapshot, &session, &checked);
+                if let Some(started) = statistics_emit_started {
+                    work_counters.emit_time += started.elapsed();
+                }
                 // As the eager path: the snapshot (every document) is left
                 // to the process exit with the state.
                 if leak_at_end {

@@ -2,10 +2,11 @@
 //! execute/tsc/statistics.go): a compilation's counts and times, or a
 //! build's aggregate, as tsgo's two-column table.
 //!
-//! The rows are those the port measures: the files and lines of the
-//! program and the phase times (the check time covers the check and the
-//! emit, which the port runs as one session). tsgo's identifier, symbol,
-//! type, instantiation and memory rows are not reported.
+//! Counts follow tsgo's per-program and per-checker sums. Bind time is the
+//! residual bind/adoption phase after loading; eager bind work overlaps
+//! parsing. Emit time is the synchronous emit gate/tail, while eager emit
+//! work overlaps checking. Memory used is the operating system's current
+//! process footprint; allocation counts are not available.
 
 use std::time::Duration;
 
@@ -32,9 +33,12 @@ pub(crate) struct Statistics {
     pub(crate) symbols: usize,
     pub(crate) types: usize,
     pub(crate) instantiations: usize,
+    pub(crate) memory_used: Option<u64>,
     pub(crate) config_time: Duration,
     pub(crate) parse_time: Duration,
+    pub(crate) bind_time: Duration,
     pub(crate) check_time: Duration,
+    pub(crate) emit_time: Duration,
     pub(crate) total_time: Duration,
 }
 
@@ -63,9 +67,14 @@ impl Statistics {
         self.symbols += other.symbols;
         self.types += other.types;
         self.instantiations += other.instantiations;
+        if let Some(bytes) = other.memory_used {
+            *self.memory_used.get_or_insert(0) += bytes;
+        }
         self.config_time += other.config_time;
         self.parse_time += other.parse_time;
+        self.bind_time += other.bind_time;
         self.check_time += other.check_time;
+        self.emit_time += other.emit_time;
     }
 
     /// tsgo `Statistics.Report`: the table, between the test harness's
@@ -89,24 +98,34 @@ impl Statistics {
         };
         table.add(&format!("{prefix}Files"), self.files.to_string());
         table.add(&format!("{prefix}Lines"), self.lines.to_string());
-        if self.types != 0 {
+        table.add(
+            &format!("{prefix}Identifiers"),
+            self.identifiers.to_string(),
+        );
+        table.add(&format!("{prefix}Symbols"), self.symbols.to_string());
+        table.add(&format!("{prefix}Types"), self.types.to_string());
+        table.add(
+            &format!("{prefix}Instantiations"),
+            self.instantiations.to_string(),
+        );
+        if let Some(bytes) = self.memory_used {
             table.add(
-                &format!("{prefix}Identifiers"),
-                self.identifiers.to_string(),
-            );
-            table.add(&format!("{prefix}Symbols"), self.symbols.to_string());
-            table.add(&format!("{prefix}Types"), self.types.to_string());
-            table.add(
-                &format!("{prefix}Instantiations"),
-                self.instantiations.to_string(),
+                &format!("{prefix}Memory used"),
+                format!("{}K", bytes / 1024),
             );
         }
         if !self.config_time.is_zero() {
             table.add_duration(&format!("{prefix}Config time"), self.config_time);
         }
         table.add_duration(&format!("{prefix}Parse time"), self.parse_time);
+        if !self.bind_time.is_zero() {
+            table.add_duration(&format!("{prefix}Bind time"), self.bind_time);
+        }
         if !self.check_time.is_zero() {
             table.add_duration(&format!("{prefix}Check time"), self.check_time);
+        }
+        if !self.emit_time.is_zero() {
+            table.add_duration(&format!("{prefix}Emit time"), self.emit_time);
         }
         table.add_duration(&format!("{prefix}Total time"), self.total_time);
         output.push_str(&table.print());
@@ -188,7 +207,7 @@ mod tests {
         };
         assert_eq!(
             statistics.report(None),
-            "Files:          12\nLines:        3456\nParse time: 0.025s\nTotal time: 1.250s\n"
+            "Files:              12\nLines:            3456\nIdentifiers:         0\nSymbols:             0\nTypes:               0\nInstantiations:      0\nParse time:     0.025s\nTotal time:     1.250s\n"
         );
         let mut build = Statistics::default();
         build.aggregate(&statistics);
@@ -199,15 +218,7 @@ mod tests {
         });
         assert_eq!(
             build.report(None),
-            concat!(
-                "Projects in scope:            2\n",
-                "Projects built:               1\n",
-                "Timestamps only updates:      0\n",
-                "Aggregate Files:             12\n",
-                "Aggregate Lines:           3456\n",
-                "Aggregate Parse time:    0.025s\n",
-                "Aggregate Total time:    0.000s\n",
-            )
+            "Projects in scope:             2\nProjects built:                1\nTimestamps only updates:       0\nAggregate Files:              12\nAggregate Lines:            3456\nAggregate Identifiers:         0\nAggregate Symbols:             0\nAggregate Types:               0\nAggregate Instantiations:      0\nAggregate Parse time:     0.025s\nAggregate Total time:     0.000s\n"
         );
     }
 
@@ -215,5 +226,55 @@ mod tests {
     fn lines_count_every_terminator() {
         assert_eq!(line_count(""), 1);
         assert_eq!(line_count("a\nb\r\nc\rd\u{2028}e"), 5);
+    }
+
+    #[test]
+    fn measured_phase_rows_follow_tsgo_order_and_aggregate() {
+        let statistics = Statistics {
+            memory_used: Some(2048),
+            config_time: Duration::from_millis(1),
+            parse_time: Duration::from_millis(2),
+            bind_time: Duration::from_millis(3),
+            check_time: Duration::from_millis(4),
+            emit_time: Duration::from_millis(5),
+            total_time: Duration::from_millis(15),
+            ..Statistics::default()
+        };
+        let report = statistics.report(None);
+        let names: Vec<_> = report
+            .lines()
+            .map(|line| line.split_once(':').unwrap().0)
+            .collect();
+        assert_eq!(
+            names,
+            [
+                "Files",
+                "Lines",
+                "Identifiers",
+                "Symbols",
+                "Types",
+                "Instantiations",
+                "Memory used",
+                "Config time",
+                "Parse time",
+                "Bind time",
+                "Check time",
+                "Emit time",
+                "Total time"
+            ]
+        );
+        let mut aggregate = Statistics::default();
+        aggregate.aggregate(&statistics);
+        aggregate.aggregate(&statistics);
+        assert_eq!(aggregate.bind_time, Duration::from_millis(6));
+        assert_eq!(aggregate.emit_time, Duration::from_millis(10));
+        assert_eq!(aggregate.memory_used, Some(4096));
+        assert!(report
+            .lines()
+            .any(|line| line.starts_with("Memory used:") && line.ends_with("2K")));
+        let empty = Statistics::default().report(None);
+        assert!(!empty.contains("Bind time:"));
+        assert!(!empty.contains("Emit time:"));
+        assert!(empty.contains("Types:"));
     }
 }
