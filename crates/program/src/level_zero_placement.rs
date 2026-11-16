@@ -2,7 +2,6 @@
 use super::*;
 use crate::PreparsedSyntax;
 use std::collections::{BTreeMap, VecDeque};
-type RootRead = Option<Result<Option<SourceRead>, HostError>>;
 use tsc_syntax::placement::{self as direct, SyntaxStripe};
 
 #[derive(Default)]
@@ -52,8 +51,9 @@ struct Entry {
 enum Job {
     Stripe(usize, Vec<Entry>, SyntaxStripe, &'static str),
     Bind(CompletedStripe),
-    /// A worker takes the next ordered prefix, then parses it without the
-    /// admission lock. Tokens have no stripe identity of their own.
+    /// A worker takes the next stripe in listing order once the reader crew
+    /// has deposited it, leases its room and parses it without the stream
+    /// lock. Tokens have no stripe identity of their own.
     Roots,
     Ordinary(ProgramPath),
 }
@@ -225,48 +225,58 @@ impl BindAdmission {
     }
 }
 
-/// Three readers plus the admitting worker make at most four active root
-/// reads. The crew may get only four reads ahead of ordered admission. This
-/// bounds retained raw buffers even when decoding one root is slow. A parser
-/// can take an unclaimed SourceReads slot itself, including at one worker.
-struct ReadWindow {
-    state: Mutex<(usize, bool)>,
-    changed: std::sync::Condvar,
+/// What one root's read left for ordered admission.
+enum RootOutcome {
+    Failed(HostError),
+    Missing,
+    /// `text` is absent only above the per-file byte limit: admission
+    /// refuses such a root before it would decode it.
+    Read {
+        byte_len: usize,
+        text: Option<Result<DecodedText, HostTextDecodeError>>,
+    },
 }
-impl ReadWindow {
-    fn read(&self, index: usize, read: impl FnOnce() -> RootRead) -> RootRead {
-        let mut state = self.state.lock().expect("direct read window");
-        while index >= state.0.saturating_add(4) && !state.1 {
-            state = self.changed.wait(state).expect("direct read window");
+
+impl RootOutcome {
+    fn read(
+        reader: &(dyn tsc_host::ParallelSourceReader + Sync),
+        path: &ProgramPath,
+        limits: ProgramLoadLimits,
+    ) -> Self {
+        match reader.read_source_contents_js(path.display()) {
+            Err(error) => Self::Failed(error),
+            Ok(None) => Self::Missing,
+            Ok(Some(contents)) => {
+                let byte_len = contents.len();
+                Self::Read {
+                    byte_len,
+                    text: (byte_len <= limits.max_source_file_bytes)
+                        .then(|| decode_source_text(contents)),
+                }
+            }
         }
-        if state.1 {
-            return None;
-        }
-        drop(state);
-        read()
-    }
-    fn advance(&self, next: usize, stopped: bool) {
-        *self.state.lock().expect("direct read window") = (next, stopped);
-        self.changed.notify_all();
     }
 }
 
-struct StopReaders<'a>(&'a ReadWindow);
-impl Drop for StopReaders<'_> {
-    fn drop(&mut self) {
-        self.0.advance(usize::MAX, true);
-    }
-}
+/// Opening files does not scale with threads: more than a few threads in
+/// `open` at once make every open slower. A crew of at most this many readers
+/// reads and decodes the listing stripe by stripe, without pause and ahead of
+/// the parsers, and no parse worker opens a root.
+const ROOT_READERS: usize = 3;
 
-/// Only ordered admission and leasing hold this lock, one candidate stripe
-/// at a time. Parsing, planning and resolution never hold it. In particular,
-/// a worker cannot reserve a later stripe and make an earlier owner wait for
-/// that later stripe's reads.
+/// Only the deposit of a read stripe and ordered leasing hold this lock.
+/// Reading, decoding, parsing, planning and resolution never hold it. A
+/// stripe read ahead of the leasing frontier is parked here; rooms are
+/// leased in listing order whatever order the reads finish in.
 struct RootStream<'a> {
     identity_domain: tsc_types::IdentityDomain,
     bind_admission: Option<&'a Mutex<BindAdmission>>,
     next: usize,
     width: usize,
+    frontier: usize,
+    parked: BTreeMap<usize, Vec<RootOutcome>>,
+    /// A reader unwound: the stripe it claimed will never be deposited.
+    reader_failed: bool,
     ordinal: usize,
     admitted: usize,
     leased: usize,
@@ -282,42 +292,49 @@ struct RootStream<'a> {
 }
 
 impl RootStream<'_> {
-    fn take(
+    /// A reader's deposit. After a stop the ordinary walk reads the
+    /// remaining roots, so a late deposit is dropped.
+    fn park(&mut self, stripe: usize, outcomes: Vec<RootOutcome>) {
+        if !self.complete {
+            assert!(self.parked.insert(stripe, outcomes).is_none());
+        }
+    }
+
+    fn lease_next(
         &mut self,
+        outcomes: Vec<RootOutcome>,
         roots: &[(usize, ProgramPath)],
-        reads: &crate::source_reads::SourceReads<RootRead>,
-        read: &impl Fn(usize) -> RootRead,
-        window: &ReadWindow,
         limits: ProgramLoadLimits,
         pass: &ParallelReadAhead<'_>,
     ) -> Option<Job> {
-        if self.complete {
-            return None;
-        }
-        let end = (self.next + self.width).min(roots.len());
+        debug_assert_eq!(self.next, self.frontier * self.width);
+        debug_assert_eq!(
+            outcomes.len(),
+            self.width.min(roots.len() - self.next),
+            "a stripe is deposited whole while leasing is open"
+        );
+        self.frontier += 1;
         let mut entries = Vec::new();
-        while self.next < end && !self.stopped {
-            let index = self.next;
-            let (order, path) = &roots[index];
+        for outcome in outcomes {
+            if self.stopped {
+                break;
+            }
+            let (order, path) = &roots[self.next];
             if self.reserved_sources >= limits.max_source_files {
                 self.stopped = true;
                 break;
             }
-            let Some(bytes) = reads.take(index, || read(index)) else {
-                self.stopped = true;
-                break;
-            };
-            match bytes {
-                Err(error) => {
+            match outcome {
+                RootOutcome::Failed(error) => {
                     self.other_reads
                         .push((path.clone(), *order, PrefetchedRead::Failed(error)));
                     self.stopped = true;
                 }
-                Ok(None) => self
-                    .other_reads
-                    .push((path.clone(), *order, PrefetchedRead::Missing)),
-                Ok(Some(bytes)) => {
-                    let byte_len = bytes.len();
+                RootOutcome::Missing => {
+                    self.other_reads
+                        .push((path.clone(), *order, PrefetchedRead::Missing))
+                }
+                RootOutcome::Read { byte_len, text } => {
                     if byte_len > limits.max_source_file_bytes
                         || self.reserved_bytes.saturating_add(byte_len)
                             > limits.max_total_source_bytes
@@ -328,7 +345,7 @@ impl RootStream<'_> {
                         self.reserved_bytes += byte_len;
                         pass.retained_sources.fetch_add(1, Ordering::Relaxed);
                         pass.retained_bytes.fetch_add(byte_len, Ordering::Relaxed);
-                        match decode_source_text(bytes) {
+                        match text.expect("a root within the per-file limit is decoded") {
                             Ok(text) => {
                                 entries.push(Entry {
                                     path: path.clone(),
@@ -354,7 +371,6 @@ impl RootStream<'_> {
                 }
             }
             self.next += 1;
-            window.advance(self.next, self.stopped);
         }
         let ordinal = self.ordinal;
         self.ordinal += 1;
@@ -377,11 +393,32 @@ impl RootStream<'_> {
         }
         if self.stopped || self.next == roots.len() {
             self.complete = true;
+            self.parked.clear();
             pass.stopped.store(self.stopped, Ordering::Relaxed);
-            window.advance(roots.len(), true);
             tsc_types::trace::mark("load: streaming root read/decode/leases", self.started);
         }
         job
+    }
+}
+
+/// Releases the workers that wait for a deposit when its reader unwinds.
+struct ReaderClaim<'a, 'stream>(&'a Mutex<RootStream<'stream>>, &'a std::sync::Condvar);
+impl Drop for ReaderClaim<'_, '_> {
+    fn drop(&mut self) {
+        if std::thread::panicking() {
+            if let Ok(mut stream) = self.0.lock() {
+                stream.reader_failed = true;
+            }
+            self.1.notify_all();
+        }
+    }
+}
+
+/// Ends the crew's reading when the parse workers are done or unwind.
+struct EndReading<'a>(&'a AtomicBool);
+impl Drop for EndReading<'_> {
+    fn drop(&mut self) {
+        self.0.store(true, Ordering::Relaxed);
     }
 }
 
@@ -645,16 +682,23 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 jobs.push(Job::Ordinary(path.clone()));
             }
         }
-        let reads = crate::source_reads::SourceReads::new(roots.len());
-        let read_order: Vec<_> = (0..roots.len()).collect();
-        let window = ReadWindow {
-            state: Mutex::new((0, false)),
-            changed: std::sync::Condvar::new(),
-        };
-        let read = |index| {
-            window.read(index, || {
-                Some(reader.read_source_contents_js(roots[index].1.display()))
-            })
+        // The next unread stripe of the listing, and whether leasing has
+        // ended (a read that starts afterwards would only be discarded).
+        let claimed = AtomicUsize::new(0);
+        let leasing_ended = AtomicBool::new(roots.is_empty());
+        let deposited = std::sync::Condvar::new();
+        let stripe_count = roots.len().div_ceil(root_width);
+        let read_stripe = |stripe: usize| {
+            let start = stripe.saturating_mul(root_width).min(roots.len());
+            let end = start.saturating_add(root_width).min(roots.len());
+            let mut outcomes = Vec::with_capacity(end - start);
+            for (_, path) in &roots[start..end] {
+                if leasing_ended.load(Ordering::Relaxed) {
+                    break;
+                }
+                outcomes.push(RootOutcome::read(reader, path, limits));
+            }
+            outcomes
         };
         let parse_started = std::time::Instant::now();
         let binds = (root_count >= crate::source_binds::MIN_ROOTS
@@ -685,6 +729,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             bind_admission: bind_admission.as_ref(),
             next: 0,
             width: root_width,
+            frontier: 0,
+            parked: BTreeMap::new(),
+            reader_failed: false,
             ordinal: library_stripes,
             admitted: 0,
             leased: 0,
@@ -696,17 +743,37 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             deferred: Vec::new(),
             started: parse_started,
         });
+        let read_and_deposit = || {
+            let claim = ReaderClaim(&stream, &deposited);
+            let stripe = claimed.fetch_add(1, Ordering::Relaxed);
+            if stripe >= stripe_count || leasing_ended.load(Ordering::Relaxed) {
+                return false;
+            }
+            let outcomes = read_stripe(stripe);
+            stream
+                .lock()
+                .expect("ordered root stream")
+                .park(stripe, outcomes);
+            deposited.notify_all();
+            drop(claim);
+            true
+        };
         let finished = std::thread::scope(|scope| {
-            let _stop_on_unwind = StopReaders(&window);
+            let _end_reading = EndReading(&leasing_ended);
+            let mut crew = 0;
             if workers.is_parallel() {
-                for _ in 0..3.min(workers.max_workers()).min(roots.len()) {
-                    let _ = std::thread::Builder::new()
-                        .name("tsc-rs-reader".into())
-                        .stack_size(crate::workers::WORKER_STACK_BYTES)
-                        .spawn_scoped(scope, || {
-                            crate::workers::run_thread_start_hook();
-                            reads.prepare(&read_order, &read);
-                        });
+                for _ in 0..ROOT_READERS.min(workers.max_workers()).min(stripe_count) {
+                    // A refused thread is not an error: the others read.
+                    crew += usize::from(
+                        std::thread::Builder::new()
+                            .name("tsc-rs-reader".into())
+                            .stack_size(crate::workers::WORKER_STACK_BYTES)
+                            .spawn_scoped(scope, || {
+                                crate::workers::run_thread_start_hook();
+                                while read_and_deposit() {}
+                            })
+                            .is_ok(),
+                    );
                 }
             }
             workers.map_spawning(
@@ -717,11 +784,36 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     let mut results = Vec::new();
                     let mut stripe_result = None;
                     let job = if matches!(job, Job::Roots) {
-                        let mut stream = stream.lock().expect("ordered root stream");
-                        let job = stream.take(&roots, &reads, &read, &window, limits, &pass);
+                        let stream_lock = &stream;
+                        let mut stream = stream_lock.lock().expect("ordered root stream");
+                        let mut reads = crew == 0;
+                        let job = loop {
+                            if stream.complete {
+                                break None;
+                            }
+                            let frontier = stream.frontier;
+                            if let Some(outcomes) = stream.parked.remove(&frontier) {
+                                break stream.lease_next(outcomes, &roots, limits, &pass);
+                            }
+                            assert!(!stream.reader_failed, "root reader panicked");
+                            if reads {
+                                // Without a crew (one worker, or no reader
+                                // thread could start) the workers read: each
+                                // deposits the stripe it claimed, and the
+                                // frontier's reader is always among them.
+                                drop(stream);
+                                reads = read_and_deposit();
+                                stream = stream_lock.lock().expect("ordered root stream");
+                                continue;
+                            }
+                            stream = deposited.wait(stream).expect("ordered root stream");
+                        };
                         if stream.complete {
+                            leasing_ended.store(true, Ordering::Relaxed);
+                            deposited.notify_all();
                             spawned.extend(stream.deferred.drain(..).map(Job::Ordinary));
                         }
+                        drop(stream);
                         job?
                     } else {
                         job
@@ -908,7 +1000,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         if let Some(admission) = bind_admission.as_ref() {
             admission.lock().expect("ordered bind admission").finish();
         }
-        drop(reads);
         let stream = stream.into_inner().expect("ordered root stream");
         if tsc_types::trace::enabled() {
             eprintln!("[syntax-placement] level 0: config_lease_batches={} root_lease_batches={} leases={} root_prefix={} root_candidates={} stopped={}",

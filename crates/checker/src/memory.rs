@@ -100,10 +100,17 @@ pub(crate) fn checker_owners(
         scratch.add_memory_usage(usage);
     }
     state.links.add_omitted_memory_usage(usage);
-    for context in &state.inference_context_arena {
-        usage.vec("inference context deep lists", &context.inferences);
-        usage.vec("inference context deep lists", &context.mapper_sources);
-        usage.vec("inference context deep lists", &context.mapper_infos);
+    state.inference_context_arena.add_memory_usage(usage);
+    state.inference_info_arena.add_memory_usage(usage);
+    state.inference_lifetimes.add_memory_usage(usage);
+    for context in state.inference_context_arena.records() {
+        inline_list_usage(usage, "inference context deep lists", &context.inferences);
+        inline_list_usage(
+            usage,
+            "inference context deep lists",
+            &context.mapper_sources,
+        );
+        inline_list_usage(usage, "inference context deep lists", &context.mapper_infos);
         if let Some(values) = &context.inferred_type_parameters {
             usage.vec("inference context deep lists", values);
         }
@@ -111,12 +118,12 @@ pub(crate) fn checker_owners(
             usage.vec("inference context deep lists", values);
         }
     }
-    for info in &state.inference_info_arena {
+    for info in state.inference_info_arena.records() {
         if let Some(values) = &info.candidates {
-            usage.vec("inference candidate lists", values);
+            inline_list_usage(usage, "inference candidate lists", values);
         }
         if let Some(values) = &info.contra_candidates {
-            usage.vec("inference candidate lists", values);
+            inline_list_usage(usage, "inference candidate lists", values);
         }
     }
     state.add_inference_walker_memory_usage(usage);
@@ -206,9 +213,29 @@ pub(crate) fn print_reserved_arenas(state: &CheckerState<'_>, label: &str) -> us
         + print_reserved_vec(label, "resolved_members", &state.members)
         + print_reserved_vec(label, "mappers", &state.mappers)
         + print_reserved_vec(label, "mapper_lists", &state.mapper_lists)
-        + print_reserved_vec(label, "inference_context", &state.inference_context_arena)
-        + print_reserved_vec(label, "inference_info", &state.inference_info_arena)
+        + state
+            .inference_context_arena
+            .print_reserved(label, "inference_context")
+        + state
+            .inference_info_arena
+            .print_reserved(label, "inference_info")
         + state.links.print_reserved_memory(label)
+}
+
+fn inline_list_usage<T: Copy, const N: usize>(
+    usage: &mut MemoryUsage,
+    name: &'static str,
+    values: &tsc_types::InlineList<T, N>,
+) {
+    let bytes = values.heap_capacity_bytes();
+    if bytes != 0 && usage.claim(values.as_ptr() as usize) {
+        usage.add(
+            name,
+            values.len(),
+            std::mem::size_of_val(values.as_slice()),
+            bytes,
+        );
+    }
 }
 
 #[cfg(test)]

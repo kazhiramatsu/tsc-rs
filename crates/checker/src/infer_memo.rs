@@ -44,8 +44,8 @@ const REJECTIONS: usize = 17;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct InfoOutcome {
-    candidates: Option<Vec<TypeId>>,
-    contra_candidates: Option<Vec<TypeId>>,
+    candidates: Option<tsc_types::InlineList<TypeId, 4>>,
+    contra_candidates: Option<tsc_types::InlineList<TypeId, 4>>,
     priority: Option<InferencePriority>,
     top_level: bool,
 }
@@ -294,6 +294,20 @@ impl CheckerState<'_> {
                 .infer_types_walk(infos, source, target, priority, contravariant)
                 .0;
         }
+        let active = !self.active_type_mappers.is_empty();
+        // A hit needs the same settled entry state as a stored walk.
+        let in_variance = !self.variance_stack.is_empty();
+        if active || in_variance {
+            self.infer_memo.key_pool.push(key);
+            #[cfg(any(test, feature = "infer-memo-shadow"))]
+            {
+                self.infer_memo.stats.rejected[1] += u64::from(active);
+                self.infer_memo.stats.rejected[16] += u64::from(in_variance);
+            }
+            return self
+                .infer_types_walk(infos, source, target, priority, contravariant)
+                .0;
+        }
         let hash = key_hash(&key);
         #[cfg(any(test, feature = "infer-memo-shadow"))]
         {
@@ -309,7 +323,7 @@ impl CheckerState<'_> {
             #[cfg(not(feature = "infer-memo-shadow"))]
             {
                 for (&id, outcome) in infos.iter().zip(entry.infos.iter()) {
-                    let info = &mut self.inference_info_arena[id.index() as usize];
+                    let info = &mut self.inference_info_arena[id];
                     info.candidates.clone_from(&outcome.candidates);
                     info.contra_candidates
                         .clone_from(&outcome.contra_candidates);
@@ -334,10 +348,6 @@ impl CheckerState<'_> {
         }
         let before = self.infer_memo_effects();
         let expressions = self.expression_checks;
-        let active = !self.active_type_mappers.is_empty();
-        // A circular variance query can temporarily publish an empty list
-        // while an older measurement will later replace it (variance.rs).
-        let in_variance = !self.variance_stack.is_empty();
         let frame = self.flow_frame_begin();
         let serial = self.flow_memo.source_now();
         let (result, steps, cleared) =

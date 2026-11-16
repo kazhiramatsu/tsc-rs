@@ -2036,6 +2036,7 @@ impl<'a> CheckerState<'a> {
             (alias_symbol, alias_type_arguments.map(<[TypeId]>::to_vec))
         };
         let ty = self.tables.create_deferred_reference_shell(target);
+        self.retain_inference_mapper(mapper);
         self.links
             .set_fresh_type_deferred_reference_links(ty, node, mapper);
         let alias_type_arguments = self

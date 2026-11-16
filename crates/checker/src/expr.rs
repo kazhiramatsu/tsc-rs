@@ -330,6 +330,7 @@ impl<'a> CheckerState<'a> {
         }
         if !new_type_parameters.is_empty() {
             let mapper = self.create_type_mapper(&old_type_parameters, Some(&new_type_parameters));
+            self.retain_inference_mapper(Some(mapper));
             for tp in new_type_parameters {
                 self.links
                     .set_type_parameter_mapper(self.speculation_depth, tp, mapper);

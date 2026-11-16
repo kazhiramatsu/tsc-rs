@@ -1354,19 +1354,23 @@ pub struct CheckerState<'a> {
     /// M6 7.1: the InferenceContext arena — InferenceContextId
     /// equality IS tsc's context object identity (contexts are GC
     /// objects there). E-class speculation state like `mappers`:
-    /// append-only, never truncated, and context MUTATIONS
+    /// logical ids are append-only, never truncated, and context MUTATIONS
     /// deliberately survive failed candidate trials — chooseOverload
     /// reuses the SAME context across its NORMAL-mode re-run
     /// (76842-76844), so trial-time accumulation is tsc semantics,
-    /// not rollback debt.
-    pub(crate) inference_context_arena: Vec<crate::inference::InferenceContext>,
+    /// not rollback debt. Physical slots are reusable only after the complete
+    /// creator returns and no stored mapper retains the context.
+    pub(crate) inference_context_arena:
+        crate::inference_storage::InferencePool<crate::inference::InferenceContext>,
     /// tsc InferenceInfo objects (68300): infos are GC objects with
     /// IDENTITY in tsc — context slots, thunk captures, and 7.4's
     /// detached higher-order arrays all share/replace the same
     /// objects, so the port gives them their own E-class arena
     /// (append-only, same discipline as the context arena) and
     /// contexts hold `InferenceInfoId` slots.
-    pub(crate) inference_info_arena: Vec<crate::inference::InferenceInfo>,
+    pub(crate) inference_info_arena:
+        crate::inference_storage::InferencePool<crate::inference::InferenceInfo>,
+    pub(crate) inference_lifetimes: crate::inference_storage::InferenceLifetimes,
     /// tsc reverseHomomorphicMappedCache / reverseMappedCache
     /// (46991-46992). The value's None is the stored JS `undefined`
     /// verdict and is distinct from an absent key.
@@ -2020,10 +2024,11 @@ impl<'a> CheckerState<'a> {
         ));
         rows.push((
             "inference arenas",
-            self.inference_context_arena.len() + self.inference_info_arena.len(),
-            self.inference_context_arena.len()
+            self.inference_context_arena.records().len()
+                + self.inference_info_arena.records().len(),
+            self.inference_context_arena.records().len()
                 * std::mem::size_of::<crate::inference::InferenceContext>()
-                + self.inference_info_arena.len()
+                + self.inference_info_arena.records().len()
                     * std::mem::size_of::<crate::inference::InferenceInfo>(),
         ));
         let total: usize = rows.iter().map(|row| row.2).sum();
@@ -2482,8 +2487,9 @@ impl<'a> CheckerState<'a> {
             contextual_is_cache: Vec::new(),
             inference_context_nodes: Vec::new(),
             inference_contexts: Vec::new(),
-            inference_context_arena: Vec::new(),
-            inference_info_arena: Vec::new(),
+            inference_context_arena: crate::inference_storage::InferencePool::default(),
+            inference_info_arena: crate::inference_storage::InferencePool::default(),
+            inference_lifetimes: crate::inference_storage::InferenceLifetimes::default(),
             reverse_homomorphic_mapped_cache: rustc_hash::FxHashMap::default(),
             reverse_mapped_cache: rustc_hash::FxHashMap::default(),
             reverse_mapped_source_stack: Vec::new(),
@@ -2837,6 +2843,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: arena allocation for Signature objects; tsc uses
     /// ordinary JavaScript object allocation.
     pub fn alloc_signature(&mut self, signature: Signature) -> SignatureId {
+        self.retain_inference_mapper(signature.mapper);
         let id = SignatureId::new(self.signatures.len() as u32);
         self.signatures.push(signature);
         id

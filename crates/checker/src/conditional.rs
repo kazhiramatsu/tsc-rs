@@ -120,6 +120,26 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:62646-62746
     pub(crate) fn get_conditional_type(
         &mut self,
+        root: ConditionalRootId,
+        mapper: Option<tsc_types::MapperId>,
+        for_constraint: bool,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+    ) -> CheckResult<TypeId> {
+        let scope = self.inference_scope_start();
+        let result = self.get_conditional_type_worker(
+            root,
+            mapper,
+            for_constraint,
+            alias_symbol,
+            alias_type_arguments,
+        );
+        self.finish_inference_scope(scope);
+        result
+    }
+
+    fn get_conditional_type_worker(
+        &mut self,
         mut root: ConditionalRootId,
         mut mapper: Option<tsc_types::MapperId>,
         for_constraint: bool,
@@ -205,6 +225,7 @@ impl<'a> CheckerState<'a> {
                     let non_fixing = self.inference_context(context).non_fixing_mapper;
                     let combined = self.combine_type_mappers(Some(non_fixing), outer_mapper);
                     self.inference_context_mut(context).non_fixing_mapper = combined;
+                    self.retain_context_mapper(context, Some(combined));
                 }
                 if !check_type_deferred {
                     let inferences = self.inference_context(context).inferences.clone();
@@ -363,6 +384,8 @@ impl<'a> CheckerState<'a> {
             };
             let result_check_type = self.instantiate_type(root_check_type, mapper)?;
             let result_extends_type = self.instantiate_type(root_extends_type, mapper)?;
+            self.retain_inference_mapper(mapper);
+            self.retain_inference_mapper(combined_mapper);
             let result = self.tables.create_conditional_type(
                 tsc_types::ConditionalTypeData {
                     root,

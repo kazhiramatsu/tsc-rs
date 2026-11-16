@@ -4,6 +4,105 @@ use crate::state::test_support::with_program_state;
 use tsc_types::CompilerOptions;
 
 #[test]
+fn stored_outcome_is_not_replayed_inside_mapper_or_variance_work() {
+    use crate::variance::VarianceStackEntry;
+    use tsc_types::SymbolFlags;
+
+    let parameters = (0..20).map(|n| format!("A{n}")).collect::<Vec<_>>();
+    let arguments = (0..20).map(|n| format!("x{n}: A{n}")).collect::<Vec<_>>();
+    let source_args = vec!["string"; 20].join(",");
+    let target_args = vec!["T"; 20].join(",");
+    let text = format!(
+        "type Fn<{}> = ({}) => void; type Outer<U> = {{ value: U }}; function f<T>() {{ let source: Fn<{source_args}>; let target: Fn<{target_args}>; }}",
+        parameters.join(","), arguments.join(",")
+    );
+    with_program_state(
+        &[("a.ts", &text)],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            let source_node =
+                crate::relpin::find_probe_annotation(state.binder.source(0), "source").unwrap();
+            let target_node =
+                crate::relpin::find_probe_annotation(state.binder.source(0), "target").unwrap();
+            let parameter = state
+                .resolve_name(
+                    Some(target_node),
+                    "T",
+                    SymbolFlags::TYPE_PARAMETER,
+                    None,
+                    false,
+                    false,
+                )
+                .unwrap()
+                .unwrap();
+            let t = state.get_declared_type_of_type_parameter(parameter);
+            let source = state.get_type_from_type_node(source_node).unwrap();
+            let target = state.get_type_from_type_node(target_node).unwrap();
+            let string = state.tables.intrinsics.string;
+            let infer = |state: &mut CheckerState<'_>| {
+                let info = state.alloc_inference_info(create_inference_info(t));
+                state
+                    .infer_types(&[info], source, target, InferencePriority::NONE, false)
+                    .unwrap();
+                assert_eq!(
+                    state.inference_info(info).contra_candidates.as_deref(),
+                    Some(&[string][..])
+                );
+            };
+            for _ in 0..8 {
+                infer(state);
+            }
+            assert!(state.infer_memo.stats.hits > 0);
+            let before = state.infer_memo.stats;
+
+            let mapper = state.create_type_mapper(&[t], Some(&[string]));
+            // The paired empty cache is the state of a fresh active mapper.
+            state.active_type_mappers.push(mapper);
+            state.active_type_mappers_caches.push(Default::default());
+            infer(state);
+            state.active_type_mappers_caches.pop();
+            state.active_type_mappers.pop();
+            assert_eq!(state.infer_memo.stats.lookups, before.lookups);
+            assert_eq!(state.infer_memo.stats.hits, before.hits);
+            assert_eq!(state.infer_memo.stats.stores, before.stores);
+            assert_eq!(state.infer_memo.stats.rejected[1], before.rejected[1] + 1);
+
+            let outer = state
+                .resolve_file_scope_name("Outer", SymbolFlags::TYPE_ALIAS)
+                .unwrap();
+            state
+                .get_declared_type_of_symbol_for_variance(outer)
+                .unwrap();
+            let outer_parameters = state
+                .links
+                .symbol_cold()
+                .type_parameters
+                .get(outer)
+                .as_deref()
+                .unwrap()
+                .to_vec()
+                .into_boxed_slice();
+            state.variance_stack.push(VarianceStackEntry {
+                symbol: outer,
+                type_parameters: outer_parameters,
+            });
+            infer(state);
+            state.variance_stack.pop();
+            assert_eq!(state.infer_memo.stats.lookups, before.lookups);
+            assert_eq!(state.infer_memo.stats.hits, before.hits);
+            assert_eq!(state.infer_memo.stats.stores, before.stores);
+            assert_eq!(state.infer_memo.stats.rejected[16], before.rejected[16] + 1);
+
+            infer(state);
+            assert_eq!(state.infer_memo.stats.hits, before.hits + 1);
+        },
+    );
+}
+
+#[test]
 fn older_variance_measurement_cannot_publish_a_reusable_outcome() {
     use crate::links::LinkSlot;
     use crate::variance::VarianceStackEntry;
@@ -133,7 +232,7 @@ fn key_preserves_optional_state_and_rejects_aliasing_and_large_info_lists() {
             key
         };
         let absent = key(state);
-        state.inference_info_mut(id).candidates = Some(Vec::new());
+        state.inference_info_mut(id).candidates = Some(Vec::new().into());
         assert_ne!(key(state), absent);
         state.inference_info_mut(id).candidates = None;
         state.inference_info_mut(id).priority = Some(InferencePriority::NONE);

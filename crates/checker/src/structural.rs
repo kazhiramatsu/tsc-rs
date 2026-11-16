@@ -6007,6 +6007,7 @@ impl<'a> CheckerState<'a> {
                     .and_then(|declaration| self.binder.node_symbol(declaration))
                     .and_then(|symbol| self.binder.symbol(symbol).parent);
                 self.binder.symbol_mut(clone).parent = parent;
+                self.retain_inference_mapper(links_mapper);
                 self.links.set_symbol_union_clone_links(
                     self.speculation_depth,
                     clone,

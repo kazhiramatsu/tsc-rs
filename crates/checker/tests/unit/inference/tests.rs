@@ -68,7 +68,7 @@ fn relation_frame_clamp_without_parked_loan_panics() {
             );
             let info = state.inference_context(context).inferences[0];
             let number = state.tables.intrinsics.number;
-            state.inference_info_mut(info).candidates = Some(vec![number]);
+            state.inference_info_mut(info).candidates = Some(vec![number].into());
             // T's constraint clamp (number vs string) must reach
             // the RelationFrame dispatch and hit the invariant.
             let _ = state.get_inferred_type(context, 0);
@@ -116,7 +116,7 @@ fn create_inference_context_initial_shape() {
             // 68254-68255: the mapper pair's creation capture
             // mirrors the slots and their type parameters.
             assert_eq!(context.mapper_infos, context.inferences);
-            assert_eq!(context.mapper_sources, vec![t, u]);
+            assert_eq!(&*context.mapper_sources, &[t, u]);
             assert_eq!(context.flags.bits(), InferenceFlags::NO_DEFAULT.bits());
             assert_eq!(context.compare_types, CompareTypesFn::Assignable);
             assert!(context.signature.is_none());
@@ -168,7 +168,7 @@ fn clone_inference_context_deep_copies_infos_only() {
             let ctx =
                 state.create_inference_context(&[t, u], None, InferenceFlags::NO_DEFAULT, None);
             let var_decl = node_of_kind(state, tsc_syntax::SyntaxKind::VariableDeclaration);
-            slot_mut(state, ctx, 0).candidates = Some(vec![string]);
+            slot_mut(state, ctx, 0).candidates = Some(vec![string].into());
             state.inference_context_mut(ctx).return_mapper =
                 Some(state.make_unary_type_mapper(t, string));
             state.add_intra_expression_inference_site(ctx, var_decl, string);
@@ -197,7 +197,7 @@ fn clone_inference_context_deep_copies_infos_only() {
             assert!(cloned.outer_return_mapper.is_none());
             // Fresh mapper pair over the CLONE.
             let clone_mapper = cloned.mapper;
-            assert_eq!(slot(state, clone, 0).candidates, Some(vec![string]));
+            assert_eq!(slot(state, clone, 0).candidates, Some(vec![string].into()));
             match state.mapper(clone_mapper) {
                 TypeMapper::Deferred(DeferredMapperTargets::InferenceFixing(id)) => {
                     assert_eq!(*id, clone)
@@ -236,13 +236,16 @@ fn clone_inferred_part_filters_to_candidate_rows() {
             let ctx = state.create_inference_context(&[t, u], None, InferenceFlags::NONE, None);
             // No candidates anywhere → undefined (68326).
             assert!(state.clone_inferred_part_of_context(ctx).is_none());
-            slot_mut(state, ctx, 1).contra_candidates = Some(vec![string]);
+            slot_mut(state, ctx, 1).contra_candidates = Some(vec![string].into());
             let part = state
                 .clone_inferred_part_of_context(ctx)
                 .expect("one candidate row");
             assert_eq!(state.inference_context(part).inferences.len(), 1);
             assert_eq!(slot(state, part, 0).type_parameter, u);
-            assert_eq!(slot(state, part, 0).contra_candidates, Some(vec![string]));
+            assert_eq!(
+                slot(state, part, 0).contra_candidates,
+                Some(vec![string].into())
+            );
         },
     );
 }
@@ -342,7 +345,7 @@ fn fixing_dispatch_consults_creation_capture_after_slot_replacement() {
             // 80786: a fresh candidate-bearing info replaces the
             // slot (isFixed starts false).
             let mut fresh = super::create_inference_info(t);
-            fresh.candidates = Some(vec![string]);
+            fresh.candidates = Some(vec![string].into());
             fresh.inferred_type = Some(string);
             let fresh_id = state.alloc_inference_info(fresh);
             state.inference_context_mut(ctx).inferences[0] = fresh_id;
@@ -628,7 +631,7 @@ fn instantiate_contextual_type_signature_branch_consults_non_fixing_mapper() {
             let string = state.tables.intrinsics.string;
             let var_decl = node_of_kind(state, tsc_syntax::SyntaxKind::VariableDeclaration);
             let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
-            slot_mut(state, ctx, 0).candidates = Some(vec![string]);
+            slot_mut(state, ctx, 0).candidates = Some(vec![string].into());
             state.push_inference_context(var_decl, Some(ctx));
             // 73444-73445: Signature flags + a candidate-bearing
             // row instantiate through the NON-fixing mapper —
@@ -702,7 +705,7 @@ fn resolution_keeps_literal_when_parameter_tops_return_type() {
             let fresh_a = fresh_string_literal(state, "a");
             let ctx =
                 state.create_inference_context(&[t], Some(signature), InferenceFlags::NONE, None);
-            slot_mut(state, ctx, 0).candidates = Some(vec![fresh_a]);
+            slot_mut(state, ctx, 0).candidates = Some(vec![fresh_a].into());
             // 69265: topLevel + unfixed + T at top level of the
             // return type → widenLiteralTypes stays false; the
             // fresh literal survives (getWidenedType widens object
@@ -725,7 +728,7 @@ fn resolution_widens_literal_off_return_position() {
             let string = state.tables.intrinsics.string;
             let ctx =
                 state.create_inference_context(&[t], Some(signature), InferenceFlags::NONE, None);
-            slot_mut(state, ctx, 0).candidates = Some(vec![fresh_a]);
+            slot_mut(state, ctx, 0).candidates = Some(vec![fresh_a].into());
             let resolved = state.get_inferred_type(ctx, 0).expect("resolves");
             assert_eq!(resolved, string);
         },
@@ -744,7 +747,7 @@ fn resolution_fixed_row_widens_even_in_return_position() {
             let string = state.tables.intrinsics.string;
             let ctx =
                 state.create_inference_context(&[t], Some(signature), InferenceFlags::NONE, None);
-            slot_mut(state, ctx, 0).candidates = Some(vec![fresh_a]);
+            slot_mut(state, ctx, 0).candidates = Some(vec![fresh_a].into());
             slot_mut(state, ctx, 0).is_fixed = true;
             // 69265: isFixed short-circuits the return-type probe.
             let resolved = state.get_inferred_type(ctx, 0).expect("resolves");
@@ -768,7 +771,7 @@ fn resolution_primitive_constraint_keeps_regular_literal() {
             let fresh_a = state.tables.get_fresh_type_of_literal_type(regular_a);
             let ctx =
                 state.create_inference_context(&[t], Some(signature), InferenceFlags::NONE, None);
-            slot_mut(state, ctx, 0).candidates = Some(vec![fresh_a]);
+            slot_mut(state, ctx, 0).candidates = Some(vec![fresh_a].into());
             // 69266: a primitive constraint maps candidates to
             // their REGULAR form instead of widening — the literal
             // survives at its regular identity even though T also
@@ -824,7 +827,7 @@ fn resolution_default_pulls_earlier_slot_through_non_fixing_mapper() {
                 InferenceFlags::NONE,
                 None,
             );
-            slot_mut(state, ctx, 0).candidates = Some(vec![fresh_a]);
+            slot_mut(state, ctx, 0).candidates = Some(vec![fresh_a].into());
             // 69289: U's default (T) instantiates under
             // backreference+nonFixing — T is BEFORE the resolving
             // index, so it routes through the non-fixing mapper
@@ -937,7 +940,7 @@ fn resolution_clamp_filters_return_type_priority_to_compatible_part() {
                 .expect("union");
             let ctx =
                 state.create_inference_context(&[t], Some(signature), InferenceFlags::NONE, None);
-            slot_mut(state, ctx, 0).candidates = Some(vec![violating]);
+            slot_mut(state, ctx, 0).candidates = Some(vec![violating].into());
             slot_mut(state, ctx, 0).priority = Some(InferencePriority::RETURN_TYPE);
             // 69302: ReturnType-priority (EQUALITY, not mask)
             // violations FILTER the inference to the part
@@ -970,7 +973,7 @@ fn resolution_clamp_non_return_priority_replaces_with_constraint() {
                 .expect("declared constraint");
             let ctx =
                 state.create_inference_context(&[t], Some(signature), InferenceFlags::NONE, None);
-            slot_mut(state, ctx, 0).candidates = Some(vec![violating]);
+            slot_mut(state, ctx, 0).candidates = Some(vec![violating].into());
             // priority None: the filter arm is neverType, no
             // fallback exists → the instantiated constraint wins
             // (69303-69307).
@@ -1005,8 +1008,8 @@ fn resolution_clamp_falls_back_to_contravariant_inference() {
             // CONTRAVARIANT inference — commonSubtype([string,
             // string|number]) = string — which satisfies it
             // (69306).
-            slot_mut(state, ctx, 0).candidates = Some(vec![string_or_number]);
-            slot_mut(state, ctx, 0).contra_candidates = Some(vec![string, string_or_number]);
+            slot_mut(state, ctx, 0).candidates = Some(vec![string_or_number].into());
+            slot_mut(state, ctx, 0).contra_candidates = Some(vec![string, string_or_number].into());
             let resolved = state.get_inferred_type(ctx, 0).expect("resolves");
             assert_eq!(resolved, string);
         },
@@ -1038,9 +1041,9 @@ fn resolution_prefer_covariant_vetoed_by_constrained_sibling_candidates() {
                 InferenceFlags::NONE,
                 None,
             );
-            slot_mut(state, ctx, 0).candidates = Some(vec![string]);
-            slot_mut(state, ctx, 0).contra_candidates = Some(vec![unknown]);
-            slot_mut(state, ctx, 1).candidates = Some(vec![number]);
+            slot_mut(state, ctx, 0).candidates = Some(vec![string].into());
+            slot_mut(state, ctx, 0).contra_candidates = Some(vec![unknown].into());
+            slot_mut(state, ctx, 1).candidates = Some(vec![number].into());
             let vetoed = state.get_inferred_type(ctx, 0).expect("resolves");
             assert_eq!(vetoed, unknown);
             // Control: same shape, no sibling candidates → the
@@ -1051,8 +1054,8 @@ fn resolution_prefer_covariant_vetoed_by_constrained_sibling_candidates() {
                 InferenceFlags::NONE,
                 None,
             );
-            slot_mut(state, ctx2, 0).candidates = Some(vec![string]);
-            slot_mut(state, ctx2, 0).contra_candidates = Some(vec![unknown]);
+            slot_mut(state, ctx2, 0).candidates = Some(vec![string].into());
+            slot_mut(state, ctx2, 0).contra_candidates = Some(vec![unknown].into());
             let preferred = state.get_inferred_type(ctx2, 0).expect("resolves");
             assert_eq!(preferred, string);
         },
@@ -1068,7 +1071,7 @@ fn resolution_without_signature_intersects_contra_candidates() {
             let t = declared_type_parameter(state, "T");
             let string = state.tables.intrinsics.string;
             let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
-            slot_mut(state, ctx, 0).contra_candidates = Some(vec![string]);
+            slot_mut(state, ctx, 0).contra_candidates = Some(vec![string].into());
             // 68507: no context signature → getTypeFromInference's
             // contra arm intersects.
             let resolved = state.get_inferred_type(ctx, 0).expect("resolves");
@@ -1097,7 +1100,7 @@ fn get_inferred_types_resolves_slots_in_order() {
                 InferenceFlags::NONE,
                 None,
             );
-            slot_mut(state, ctx, 0).candidates = Some(vec![fresh_a]);
+            slot_mut(state, ctx, 0).candidates = Some(vec![fresh_a].into());
             let resolved = state.get_inferred_types(ctx).expect("resolves");
             assert_eq!(resolved, vec![string, string]);
         },
@@ -1854,7 +1857,7 @@ fn template_candidates(
             .candidates
             .clone()
             .expect("covariant record");
-        f(state, candidates);
+        f(state, candidates.into_vec());
     });
 }
 
@@ -2581,6 +2584,285 @@ fn inference_walk_records_touched_keys_in_a_retained_large_map() {
             assert!(state.inference_visited.is_empty());
             assert!(state.inference_visited.capacity() >= 1792);
             assert_eq!(state.diagnostics.iter().filter(|diagnostic| diagnostic.code() == 2322).count(), 2);
+        },
+    );
+}
+
+#[test]
+fn inference_record_reuse_keeps_ids_and_candidate_presence_distinct() {
+    with_program_state(
+        &[("a.ts", GENERIC_SRC)],
+        &CompilerOptions::default(),
+        |state| {
+            let t = declared_type_parameter(state, "T");
+            let u = declared_type_parameter(state, "U");
+            let string = state.tables.intrinsics.string;
+            let number = state.tables.intrinsics.number;
+            let scope = state.inference_scope_start();
+            let old = state.create_inference_context(&[t, u], None, InferenceFlags::NONE, None);
+            let old_info = state.inference_context(old).inferences[0];
+            state.push_inference_candidate(old_info, string, false);
+            let records = state.inference_context_arena.records().len();
+            state.finish_inference_scope(scope);
+            let fresh = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+            let context = state.inference_context(fresh);
+            assert_eq!(fresh.index(), old.index() + 1);
+            assert_eq!(state.inference_context_arena.records().len(), records);
+            assert_eq!(context.inferences.heap_capacity_bytes(), 0);
+            assert_eq!(context.mapper_sources.heap_capacity_bytes(), 0);
+            assert_eq!(context.mapper_infos.heap_capacity_bytes(), 0);
+            let fresh_info = context.inferences[0];
+            assert!(fresh_info.index() > old_info.index());
+            assert!(state.inference_info(fresh_info).candidates.is_none());
+            assert!(state.inference_info(fresh_info).contra_candidates.is_none());
+            state.push_inference_candidate(fresh_info, number, false);
+            assert_eq!(
+                state.inference_info(fresh_info).candidates.as_deref(),
+                Some(&[number][..])
+            );
+        },
+    );
+}
+
+#[test]
+fn direct_owner_mapper_noops_keep_logical_age_after_slot_reuse() {
+    with_program_state(
+        &[("a.ts", GENERIC_SRC)],
+        &CompilerOptions::default(),
+        |state| {
+            let t = declared_type_parameter(state, "T");
+            let string = state.tables.intrinsics.string;
+            let scope = state.inference_scope_start();
+            let older = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+            let older_mapper = state.inference_context(older).mapper;
+            let inner = state.inference_scope_start();
+            let younger = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+            let own_mapper = state.inference_context(younger).mapper;
+            state.retain_context_mapper(younger, Some(older_mapper));
+            state.retain_context_mapper(younger, Some(own_mapper));
+            assert!(!state.inference_context(older).escaped);
+            assert!(!state.inference_context(younger).escaped);
+            let records = state.inference_context_arena.records().len();
+            state.finish_inference_scope(inner);
+
+            let replacement =
+                state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+            assert!(replacement.index() > younger.index());
+            assert_eq!(state.inference_context_arena.records().len(), records);
+            let info = state.inference_context(replacement).inferences[0];
+            state.push_inference_candidate(info, string, false);
+            let mapper = state.inference_context(replacement).mapper;
+            state.retain_context_mapper(older, Some(mapper));
+            state.inference_context_mut(older).return_mapper = Some(mapper);
+            assert!(state.inference_context(replacement).escaped);
+            state.finish_inference_scope(scope);
+            assert_eq!(
+                state
+                    .instantiate_type(t, Some(mapper))
+                    .expect("younger mapper retained"),
+                string
+            );
+        },
+    );
+}
+
+#[test]
+fn a_published_mapper_keeps_its_composite_and_merged_context_graph() {
+    with_program_state(
+        &[("a.ts", GENERIC_SRC)],
+        &CompilerOptions::default(),
+        |state| {
+            let t = declared_type_parameter(state, "T");
+            let u = declared_type_parameter(state, "U");
+            let template = call_signature_of(state, "f");
+            let string = state.tables.intrinsics.string;
+            let number = state.tables.intrinsics.number;
+            let scope = state.inference_scope_start();
+            let context = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+            let info = state.inference_context(context).inferences[0];
+            state.inference_info_mut(info).candidates = Some(vec![string].into());
+            let fixing = state.inference_context(context).mapper;
+            let unary = state.make_unary_type_mapper(u, number);
+            let composite = state.combine_type_mappers(Some(fixing), unary);
+            let merged = state.merge_type_mappers(Some(composite), unary);
+            let mut signature = state.signature_of(template).without_caches();
+            signature.mapper = Some(merged);
+            let published = state.alloc_signature(signature);
+            state.finish_inference_scope(scope);
+            let mapper = state.signature_of(published).mapper;
+            assert_eq!(
+                state
+                    .instantiate_type(t, mapper)
+                    .expect("retained deferred mapper"),
+                string
+            );
+            assert!(state.inference_context(context).escaped);
+        },
+    );
+}
+
+#[test]
+fn an_outer_return_mapper_keeps_its_younger_clone_after_the_creator_returns() {
+    with_program_state(
+        &[("a.ts", GENERIC_SRC)],
+        &CompilerOptions::default(),
+        |state| {
+            let t = declared_type_parameter(state, "T");
+            let string = state.tables.intrinsics.string;
+            let outer = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+            let info = state.inference_context(outer).inferences[0];
+            state.inference_info_mut(info).candidates = Some(vec![string].into());
+            let scope = state.inference_scope_start();
+            let mapper = state.create_outer_return_mapper(outer);
+            state.finish_inference_scope(scope);
+            assert_eq!(
+                state
+                    .instantiate_type(t, Some(mapper))
+                    .expect("outer mapper clone"),
+                string
+            );
+        },
+    );
+}
+
+#[test]
+fn merged_infos_outlive_their_creator_without_replacing_the_original_thunk_capture() {
+    with_program_state(
+        &[("a.ts", GENERIC_SRC)],
+        &CompilerOptions::default(),
+        |state| {
+            let t = declared_type_parameter(state, "T");
+            let string = state.tables.intrinsics.string;
+            let number = state.tables.intrinsics.number;
+            let target = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+            let captured = state.inference_context(target).mapper_infos[0];
+            let scope = state.inference_scope_start();
+            let source = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+            let slots = state.inference_context(source).inferences.clone();
+            state.inference_info_mut(slots[0]).candidates = Some(vec![string].into());
+            state.merge_inferences(target, &slots);
+            state.finish_inference_scope(scope);
+            let fresh = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+            let fresh_info = state.inference_context(fresh).inferences[0];
+            state.inference_info_mut(fresh_info).candidates = Some(vec![number].into());
+            assert_eq!(state.inference_context(target).inferences[0], slots[0]);
+            assert_eq!(state.inference_context(target).mapper_infos[0], captured);
+            assert_eq!(
+                state
+                    .fixing_mapper_target(target, 0)
+                    .expect("shared inference"),
+                string
+            );
+            assert!(state.inference_info(captured).is_fixed);
+            assert!(!state.inference_info(slots[0]).is_fixed);
+        },
+    );
+}
+
+#[test]
+fn detached_infos_are_kept_when_an_unrelated_context_is_retired() {
+    with_program_state(
+        &[("a.ts", GENERIC_SRC)],
+        &CompilerOptions::default(),
+        |state| {
+            let t = declared_type_parameter(state, "T");
+            let scope = state.inference_scope_start();
+            let detached = state.alloc_inference_info(super::create_inference_info(t));
+            let string = state.tables.intrinsics.string;
+            state.inference_info_mut(detached).candidates = Some(vec![string].into());
+            state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+            state.finish_inference_scope(scope);
+            state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+            assert_eq!(
+                state.inference_info(detached).candidates.as_deref(),
+                Some(&[string][..])
+            );
+        },
+    );
+}
+
+#[test]
+#[should_panic(expected = "fresh inference span")]
+fn a_context_cannot_claim_an_already_captured_info() {
+    with_program_state(
+        &[("a.ts", GENERIC_SRC)],
+        &CompilerOptions::default(),
+        |state| {
+            let t = declared_type_parameter(state, "T");
+            let info = state.alloc_inference_info(super::create_inference_info(t));
+            state.create_inference_context_worker(
+                vec![info].into(),
+                None,
+                InferenceFlags::NONE,
+                CompareTypesFn::Assignable,
+            );
+            state.create_inference_context_worker(
+                vec![info].into(),
+                None,
+                InferenceFlags::NONE,
+                CompareTypesFn::Assignable,
+            );
+        },
+    );
+}
+
+#[test]
+#[should_panic(expected = "retired inference identity")]
+fn a_retired_context_handle_cannot_read_its_reused_slot() {
+    with_program_state(
+        &[("a.ts", GENERIC_SRC)],
+        &CompilerOptions::default(),
+        |state| {
+            let t = declared_type_parameter(state, "T");
+            let scope = state.inference_scope_start();
+            let old = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+            state.finish_inference_scope(scope);
+            let new = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
+            assert_ne!(old, new);
+            let _ = state.inference_context(old);
+        },
+    );
+}
+
+#[test]
+fn spilled_inference_lists_keep_capture_order_and_clone_independence() {
+    with_program_state(
+        &[("a.ts", "function scope<T, U, V, W, X>() { let anchor: T; }")],
+        &CompilerOptions::default(),
+        |state| {
+            let parameters: Vec<_> = ["T", "U", "V", "W", "X"]
+                .map(|name| declared_type_parameter(state, name))
+                .into();
+            let start = state.inference_scope_start();
+            let context =
+                state.create_inference_context(&parameters, None, InferenceFlags::NONE, None);
+            let original = state.inference_context(context).inferences.clone();
+            assert_eq!(
+                &*state.inference_context(context).mapper_sources,
+                &parameters
+            );
+            assert_eq!(state.inference_context(context).mapper_infos, original);
+            let info = original[0];
+            for &candidate in &parameters {
+                state.push_inference_candidate(info, candidate, false);
+            }
+            let clone = state
+                .clone_inference_context(Some(context), InferenceFlags::NONE)
+                .unwrap();
+            let clone_info = state.inference_context(clone).inferences[0];
+            state.inference_info_mut(info).candidates.as_mut().unwrap()[0] = parameters[4];
+            assert_eq!(
+                state.inference_info(clone_info).candidates.as_deref(),
+                Some(parameters.as_slice())
+            );
+            state.finish_inference_scope(start);
+            let fresh =
+                state.create_inference_context(&parameters[..1], None, InferenceFlags::NONE, None);
+            let fresh = state.inference_context(fresh);
+            assert_eq!(fresh.inferences.heap_capacity_bytes(), 0);
+            assert_eq!(fresh.mapper_infos.heap_capacity_bytes(), 0);
+            assert_eq!(fresh.mapper_sources.heap_capacity_bytes(), 0);
+            assert_eq!(&*fresh.mapper_sources, &parameters[..1]);
         },
     );
 }
