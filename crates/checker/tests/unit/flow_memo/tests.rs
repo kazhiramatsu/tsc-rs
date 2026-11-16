@@ -36,6 +36,42 @@ fn counters() -> FlowCounters {
 }
 
 #[test]
+fn borrowed_label_shapes_follow_override_replacement_and_restore() {
+    with_program_state(
+        &[("a.ts", "let value: string | number = 1; while (value) { if (typeof value === 'string') value = value.length; else value = 'next'; } value;")],
+        &CompilerOptions::default(),
+        |state| {
+            let reference = *identifiers(state, "value").last().unwrap();
+            let q = query(state, reference);
+            let file = q.file_index();
+            let arena = state.binder.flow_arena(file);
+            let label = (0..arena.len())
+                .map(|index| FlowId::new(index as u32))
+                .find(|&flow| arena.flow(flow).flags.intersects(FlowFlags::BRANCH_LABEL | FlowFlags::LOOP_LABEL))
+                .unwrap();
+            let record = arena.flow(label);
+            let before = *record;
+            let original: Vec<_> = state.flow_label_antecedents(file, label).to_vec();
+            assert_eq!(state.flow_label_antecedents_view(&q, label, record), original);
+            let saved = state.reduce_label_overrides.get(&(file, label)).cloned();
+            for replacement in [vec![], vec![FlowId::new(0)], vec![FlowId::new(1), FlowId::new(0)]] {
+                state.reduce_label_overrides.insert((file, label), replacement.clone());
+                let snapshot: Vec<_> = state.flow_label_antecedents(file, label).to_vec();
+                assert_eq!(state.flow_label_antecedents_view(&q, label, record), replacement);
+                assert_eq!(state.flow_label_antecedents_view(&q, label, record), snapshot);
+                assert_eq!(*record, before);
+            }
+            match saved {
+                Some(previous) => { state.reduce_label_overrides.insert((file, label), previous); }
+                None => { state.reduce_label_overrides.remove(&(file, label)); }
+            }
+            assert_eq!(state.flow_label_antecedents_view(&q, label, record), original);
+            assert_eq!(*record, before);
+        },
+    );
+}
+
+#[test]
 fn prepared_identifier_matching_preserves_results_effects_and_target_normalization() {
     let cases = [
         (

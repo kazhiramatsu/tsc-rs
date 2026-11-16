@@ -174,18 +174,8 @@ impl<'a> FlowQuery<'a> {
     }
 
     #[inline]
-    fn flow(&self, flow: FlowId) -> &FlowNode {
+    fn flow(&self, flow: FlowId) -> &'a FlowNode {
         self.arena.flow(flow)
-    }
-
-    #[inline]
-    fn antecedent(&self, flow: FlowId) -> FlowId {
-        plain_flow_antecedent(self.flow(flow))
-    }
-
-    #[inline]
-    fn payload_node(&self, flow: FlowId) -> Option<NodeId> {
-        self.flow(flow).payload_node()
     }
 
     #[inline]
@@ -326,6 +316,20 @@ impl<'a> CheckerState<'a> {
             Vec::as_slice,
         );
         FlowAntecedents::new(antecedents)
+    }
+
+    /// Shape-only reads do not outlive this borrow. Recursive joins keep the
+    /// override snapshots used by flow_label_antecedents_in.
+    #[inline]
+    pub(crate) fn flow_label_antecedents_view<'b>(
+        &'b self,
+        query: &FlowQuery<'b>,
+        flow: FlowId,
+        flow_node: &'b FlowNode,
+    ) -> &'b [FlowId] {
+        self.reduce_label_overrides
+            .get(&(query.file, flow))
+            .map_or_else(|| query.arena.antecedents_from(flow_node), Vec::as_slice)
     }
 
     fn flow_label_antecedents_in<'b>(
@@ -717,9 +721,12 @@ impl<'a> CheckerState<'a> {
         let mut shared: Option<FlowId> = None;
         let mut shared_height = None;
         let mut steps = 0;
+        let flow_arena = query.arena;
+        let flow_nodes = flow_arena.nodes();
         let walk = (|| loop {
             steps += 1;
-            let flags = query.flow(flow).flags;
+            let flow_node = &flow_nodes[flow.index() as usize];
+            let flags = flow_node.flags;
             if flags.intersects(FlowFlags::SHARED) {
                 // The shared-flow cache is scoped to THIS
                 // getFlowTypeOfReference invocation (sharedFlowStart..).
@@ -741,7 +748,7 @@ impl<'a> CheckerState<'a> {
                     memo,
                     entry_flow,
                     flow,
-                    flags,
+                    flow_node,
                     shared,
                     #[cfg(feature = "flow-memo-shadow")]
                     &frame,
@@ -755,27 +762,27 @@ impl<'a> CheckerState<'a> {
             }
             let ty: FlowType;
             if flags.intersects(FlowFlags::ASSIGNMENT) {
-                match self.get_type_at_flow_assignment(query, flow)? {
+                match self.get_type_at_flow_assignment(query, flow, flow_node)? {
                     Some(t) => ty = t,
                     None => {
-                        flow = query.antecedent(flow);
+                        flow = plain_flow_antecedent(flow_node);
                         continue;
                     }
                 }
             } else if flags.intersects(FlowFlags::CALL) {
-                match self.get_type_at_flow_call(query, flow)? {
+                match self.get_type_at_flow_call(query, flow_node)? {
                     Some(t) => ty = t,
                     None => {
-                        flow = query.antecedent(flow);
+                        flow = plain_flow_antecedent(flow_node);
                         continue;
                     }
                 }
             } else if flags.intersects(FlowFlags::TRUE_CONDITION | FlowFlags::FALSE_CONDITION) {
-                ty = self.get_type_at_flow_condition(query, flow)?;
+                ty = self.get_type_at_flow_condition(query, flow_node)?;
             } else if flags.intersects(FlowFlags::SWITCH_CLAUSE) {
-                ty = self.get_type_at_switch_clause(query, flow)?;
+                ty = self.get_type_at_switch_clause(query, flow_node)?;
             } else if flags.intersects(FlowFlags::BRANCH_LABEL | FlowFlags::LOOP_LABEL) {
-                let antecedents = self.flow_label_antecedents_in(query.file, query.arena, flow);
+                let antecedents = self.flow_label_antecedents_view(query, flow, flow_node);
                 if antecedents.len() == 1 {
                     flow = antecedents[0];
                     continue;
@@ -791,10 +798,10 @@ impl<'a> CheckerState<'a> {
                 // loop/reduce-label state.
                 ty = join?;
             } else if flags.intersects(FlowFlags::ARRAY_MUTATION) {
-                match self.get_type_at_flow_array_mutation(query, flow)? {
+                match self.get_type_at_flow_array_mutation(query, flow_node)? {
                     Some(t) => ty = t,
                     None => {
-                        flow = query.antecedent(flow);
+                        flow = plain_flow_antecedent(flow_node);
                         continue;
                     }
                 }
@@ -806,12 +813,12 @@ impl<'a> CheckerState<'a> {
                 let FlowData::ReduceLabel {
                     target,
                     antecedents,
-                } = query.payload(flow)
+                } = query.arena.payload_from(flow_node)
                 else {
                     unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
                 };
                 let swapped = antecedents.to_vec();
-                let antecedent = query.antecedent(flow);
+                let antecedent = plain_flow_antecedent(flow_node);
                 let saved = self
                     .reduce_label_overrides
                     .insert((query.file, target), swapped);
@@ -834,7 +841,7 @@ impl<'a> CheckerState<'a> {
                 // declared outside the current flow container resumes
                 // in the OUTER container's flow (funcexpr/arrow
                 // capture); accesses and non-arrow `this` do not.
-                if let Some(container) = query.payload_node(flow) {
+                if let Some(container) = flow_node.payload_node() {
                     // A synthetic destructuring reference (6.4b) IS an
                     // element access — accesses never resume outward.
                     let reference_kind = if query.synthetic_props.is_some() {
@@ -922,9 +929,10 @@ impl<'a> CheckerState<'a> {
         &mut self,
         query: &mut FlowQuery,
         flow: FlowId,
+        flow_node: &FlowNode,
     ) -> CheckResult<Option<FlowType>> {
-        let node = query
-            .payload_node(flow)
+        let node = flow_node
+            .payload_node()
             .expect("ASSIGNMENT flow nodes carry a node payload (binder flow.rs)");
         if self.is_matching_query_reference(query, node)? {
             if !self.is_reachable_flow_node(query.file, flow)? {
@@ -933,7 +941,7 @@ impl<'a> CheckerState<'a> {
                 )));
             }
             if self.get_assignment_target_kind(node) == crate::expr::AssignmentKind::Compound {
-                let antecedent = query.antecedent(flow);
+                let antecedent = plain_flow_antecedent(flow_node);
                 let flow_type = self.get_type_at_flow_node(query, antecedent)?;
                 if query.memo_aborted {
                     return Ok(Some(flow_type));
@@ -988,7 +996,7 @@ impl<'a> CheckerState<'a> {
                         SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
                     )
                 }) {
-                    let antecedent = query.antecedent(flow);
+                    let antecedent = plain_flow_antecedent(flow_node);
                     return Ok(Some(self.get_type_at_flow_node(query, antecedent)?));
                 }
             }
@@ -1008,7 +1016,7 @@ impl<'a> CheckerState<'a> {
                         if self.is_matching_query_reference(query, expression)?
                             || self.optional_chain_contains_query_reference(expression, query)?
                         {
-                            let antecedent = query.antecedent(flow);
+                            let antecedent = plain_flow_antecedent(flow_node);
                             let walked = self.get_type_at_flow_node(query, antecedent)?;
                             if query.memo_aborted {
                                 return Ok(Some(walked));
@@ -1037,10 +1045,10 @@ impl<'a> CheckerState<'a> {
     fn get_type_at_flow_call(
         &mut self,
         query: &mut FlowQuery,
-        flow: FlowId,
+        flow_node: &FlowNode,
     ) -> CheckResult<Option<FlowType>> {
-        let node = query
-            .payload_node(flow)
+        let node = flow_node
+            .payload_node()
             .expect("CALL flow nodes carry a node payload (binder flow.rs)");
         let Some(signature) = self.get_effects_signature(node)? else {
             return Ok(None);
@@ -1052,7 +1060,7 @@ impl<'a> CheckerState<'a> {
                 crate::narrow::TypePredicateKind::AssertsThis
                     | crate::narrow::TypePredicateKind::AssertsIdentifier
             ) {
-                let antecedent = query.antecedent(flow);
+                let antecedent = plain_flow_antecedent(flow_node);
                 let flow_type = self.get_type_at_flow_node(query, antecedent)?;
                 if query.memo_aborted {
                     return Ok(Some(flow_type));
@@ -1109,9 +1117,9 @@ impl<'a> CheckerState<'a> {
     fn get_type_at_flow_condition(
         &mut self,
         query: &mut FlowQuery,
-        flow: FlowId,
+        flow_node: &FlowNode,
     ) -> CheckResult<FlowType> {
-        let antecedent = query.antecedent(flow);
+        let antecedent = plain_flow_antecedent(flow_node);
         let flow_type = self.get_type_at_flow_node(query, antecedent)?;
         if query.memo_aborted {
             return Ok(flow_type);
@@ -1120,10 +1128,10 @@ impl<'a> CheckerState<'a> {
         if self.tables.flags_of(ty).intersects(TypeFlags::NEVER) {
             return Ok(flow_type);
         }
-        let assume_true = query.flow(flow).flags.intersects(FlowFlags::TRUE_CONDITION);
+        let assume_true = flow_node.flags.intersects(FlowFlags::TRUE_CONDITION);
         let non_evolving_type = self.finalize_evolving_array_type(ty)?;
-        let node = query
-            .payload_node(flow)
+        let node = flow_node
+            .payload_node()
             .expect("Condition flows carry their expression payload (binder createFlowCondition)");
         let narrowed_type = self.narrow_type(query, non_evolving_type, node, assume_true)?;
         if narrowed_type == non_evolving_type {
@@ -1144,13 +1152,13 @@ impl<'a> CheckerState<'a> {
     fn get_type_at_switch_clause(
         &mut self,
         query: &mut FlowQuery,
-        flow: FlowId,
+        flow_node: &FlowNode,
     ) -> CheckResult<FlowType> {
         let FlowData::SwitchClause {
             switch_statement,
             clause_start,
             clause_end,
-        } = query.payload(flow)
+        } = query.arena.payload_from(flow_node)
         else {
             unreachable!("SWITCH_CLAUSE flag implies SwitchClause payload");
         };
@@ -1159,7 +1167,7 @@ impl<'a> CheckerState<'a> {
             NodeData::SwitchStatement(data) => data.expression,
             _ => None,
         };
-        let antecedent = query.antecedent(flow);
+        let antecedent = plain_flow_antecedent(flow_node);
         let flow_type = self.get_type_at_flow_node(query, antecedent)?;
         if query.memo_aborted {
             return Ok(flow_type);
@@ -1789,15 +1797,15 @@ impl<'a> CheckerState<'a> {
     fn get_type_at_flow_array_mutation(
         &mut self,
         query: &mut FlowQuery,
-        flow: FlowId,
+        flow_node: &FlowNode,
     ) -> CheckResult<Option<FlowType>> {
         if query.declared_type != self.tables.intrinsics.auto
             && !self.is_auto_array_type(query.declared_type)
         {
             return Ok(None);
         }
-        let node = query
-            .payload_node(flow)
+        let node = flow_node
+            .payload_node()
             .expect("ARRAY_MUTATION flow nodes carry a node payload (binder flow.rs)");
         // CallExpression: `a.push(...)`/`a.unshift(...)` — the
         // receiver is node.expression.expression; otherwise the
@@ -1824,7 +1832,7 @@ impl<'a> CheckerState<'a> {
         if !self.is_matching_query_reference(query, candidate)? {
             return Ok(None);
         }
-        let antecedent = query.antecedent(flow);
+        let antecedent = plain_flow_antecedent(flow_node);
         let flow_type = self.get_type_at_flow_node(query, antecedent)?;
         if query.memo_aborted {
             return Ok(Some(flow_type));
