@@ -57,17 +57,19 @@ impl CompilerHost for StreamingHost {
                 state.libraries_read >= 2,
                 "config closure precedes root reads"
             );
-            // The first three reads must complete 2, 1, 0, even though
-            // admission and leases must still be in root order.
-            if self.scramble && index < 2 {
+            // A worker reads its own stripe of eight roots in order. The
+            // first read of stripe zero must complete after the first read
+            // of stripe one, even though admission and leases must still
+            // be in root order.
+            if self.scramble && index == 0 {
                 let (next, timeout) = self
                     .changed
                     .wait_timeout_while(state, Duration::from_secs(10), |s| {
-                        !s.completed.contains(&(index + 1))
+                        !s.completed.contains(&8)
                     })
                     .unwrap();
                 state = next;
-                assert!(!timeout.timed_out(), "scrambled readers made no progress");
+                assert!(!timeout.timed_out(), "scrambled stripes made no progress");
             }
             if index == 16 {
                 // This read can finish only after stripe zero parsed and
@@ -296,8 +298,13 @@ fn scrambled_reads_keep_root_ranges_and_parse_before_the_last_read() {
         .unwrap();
         let state = host.state.lock().unwrap();
         if host.scramble {
-            let first: Vec<_> = state.completed.iter().copied().filter(|i| *i < 3).collect();
-            assert_eq!(first, [2, 1, 0]);
+            let first: Vec<_> = state
+                .completed
+                .iter()
+                .copied()
+                .filter(|i| *i == 0 || *i == 8)
+                .collect();
+            assert_eq!(first, [8, 0]);
         }
         assert!(state.early_parsed);
         drop(state);
