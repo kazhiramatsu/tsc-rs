@@ -501,34 +501,36 @@ pub fn sort_and_dedupe_equal_diagnostics(diagnostics: &mut DiagnosticList) {
 
 pub fn sort_and_dedupe_diagnostics(diagnostics: &mut DiagnosticList) {
     sort_diagnostics(diagnostics);
+    let input_len = diagnostics.len();
     // tsgo compactAndMergeRelatedInfos (compiler/program.go:1680-1708): a
     // run of more than one diagnostic that differ at most by related
     // information becomes one diagnostic whose related information (all
     // of the run's, when any) is sorted and deduplicated.
-    let mut kept: DiagnosticList = Vec::with_capacity(diagnostics.len());
     let mut merged = Vec::new();
-    for mut diagnostic in std::mem::take(diagnostics) {
-        if let Some(index) = kept.len().checked_sub(1) {
-            let last = &mut kept[index];
-            if diagnostics_equal(last, &diagnostic) {
-                last.related.append(&mut diagnostic.related);
-                if !last.related.is_empty() {
-                    last.related_information_present = true;
-                    if merged.last() != Some(&index) {
-                        merged.push(index);
-                    }
+    let mut kept_index = 0;
+    diagnostics.dedup_by(|right, left| {
+        if diagnostics_equal(left, right) {
+            left.related.append(&mut right.related);
+            if !left.related.is_empty() {
+                left.related_information_present = true;
+                if merged.last() != Some(&kept_index) {
+                    merged.push(kept_index);
                 }
-                continue;
             }
+            true
+        } else {
+            kept_index += 1;
+            false
         }
-        kept.push(diagnostic);
-    }
+    });
+    // Match the old result buffer's capacity bound after consuming spare input
+    // capacity, before processing the merged related information.
+    diagnostics.shrink_to(input_len);
     for index in merged {
-        let related = &mut kept[index].related;
+        let related = &mut diagnostics[index].related;
         related.sort_by(compare_related_info);
         related.dedup_by(|right, left| compare_related_info(left, right) == Ordering::Equal);
     }
-    *diagnostics = kept;
 }
 
 /// tsgo's CompareDiagnostics (ast/diagnostic.go:482-520) without the

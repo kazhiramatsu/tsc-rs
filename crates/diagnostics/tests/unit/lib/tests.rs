@@ -494,3 +494,41 @@ fn indexed_diagnostic_order_keeps_complete_records_and_stable_ties() {
         }
     }
 }
+
+#[test]
+fn in_place_compaction_merges_only_duplicates_and_retains_first_metadata() {
+    let related = |start| RelatedInfo {
+        file_name: Some("a.ts".into()),
+        start: Some(start),
+        length: Some(1),
+        message: chain(1000, "note"),
+    };
+    let mut actual = Vec::new();
+    let mut expected = Vec::new();
+    for start in (0..40).rev() {
+        let mut first = diagnostic(Some("a.ts"), Some(start), 1000, "same");
+        first.reports_deprecated = Some(false);
+        first.related = vec![related(2), related(1), related(2)];
+        let mut second = first.clone();
+        second.reports_deprecated = Some(true);
+        second.related = vec![related(1)];
+        actual.extend([second, first.clone()]);
+        first.related = vec![related(1), related(2)];
+        first.related_information_present = true;
+        expected.push(first);
+    }
+    expected.reverse();
+    let mut unique = diagnostic(Some("a.ts"), Some(100), 1000, "unique");
+    unique.related = vec![related(2), related(1)];
+    actual.push(unique.clone());
+    expected.push(unique);
+    let empty = diagnostic(Some("a.ts"), Some(1000), 1000, "empty");
+    let mut present_empty = empty.clone();
+    present_empty.related_information_present = true;
+    actual.extend([empty.clone(), present_empty]);
+    expected.push(empty);
+
+    sort_and_dedupe_diagnostics(&mut actual);
+
+    assert_eq!(actual, expected);
+}
