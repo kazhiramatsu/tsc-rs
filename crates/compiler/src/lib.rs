@@ -370,12 +370,67 @@ fn no_emit_report_is_clean(prepared: &PreparedProgram, checked: &CheckResult) ->
         && program_rows_outside_sources(prepared).is_empty()
 }
 
-/// `program.getDeclarationDiagnostics()` for the --noEmit command, over the
-/// checker sessions of the whole-Program check that just completed: each
-/// source is transformed for diagnostics by the shard that checked it, on
-/// the worker budget, and nothing is emitted. The declaration request is
-/// validated here, once the command's gate admits the getter, exactly as
-/// the explicit getter session validates it.
+/// Immutable whole-program inputs to declaration diagnostics. The path
+/// projection reads the shared snapshot, never a checker session or its ids.
+/// A sharded command retains one preparation; its per-file resolver work
+/// remains on the checker that owns that file.
+struct NoEmitDeclarationSetup<'program> {
+    host: PreparedEmitHost<'program>,
+    paths: tsc_emitter::PlanDeclarationPaths,
+}
+
+impl<'program> NoEmitDeclarationSetup<'program> {
+    fn new(
+        prepared: &'program PreparedProgram,
+        emit_route: EmitRouteKind,
+        source_api_facts: &BTreeMap<SourceFileId, SourceApiFacts>,
+        snapshot: &ProgramSnapshot,
+    ) -> Result<Self, DriverError> {
+        let host = PreparedEmitHost::new_for_route(prepared, emit_route, source_api_facts)?;
+        tsc_emitter::validate_declaration_diagnostics_request(&host).map_err(DriverError::Emit)?;
+        let checked_host = CheckedEmitHost {
+            prepared: &host,
+            snapshot,
+            prepared_sources: None,
+        };
+        let paths = tsc_emitter::PlanDeclarationPaths::for_declaration_diagnostics(&checked_host)
+            .map_err(DriverError::Emit)?;
+        Ok(Self { host, paths })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn diagnostics(
+        &self,
+        snapshot: &ProgramSnapshot,
+        sessions: &[CheckerSession<'_>],
+        files_by_shard: &[Vec<usize>],
+        worker_budget: WorkerBudget,
+        shard_label_offset: usize,
+        partial: bool,
+        selected: Option<&[bool]>,
+    ) -> Result<DiagnosticList, DriverError> {
+        let checked_host = CheckedEmitHost {
+            prepared: &self.host,
+            snapshot,
+            prepared_sources: None,
+        };
+        sharded_declaration_diagnostics(
+            &checked_host,
+            &self.host,
+            &self.paths,
+            sessions,
+            files_by_shard,
+            worker_budget,
+            shard_label_offset,
+            partial,
+            selected,
+        )
+        .map_err(DriverError::Emit)
+    }
+}
+
+/// Compute the command's declaration getter over its existing checker
+/// sessions. Single-checker and other callers retain their request gate.
 #[allow(clippy::too_many_arguments)]
 fn no_emit_declaration_diagnostics(
     prepared: &PreparedProgram,
@@ -389,19 +444,8 @@ fn no_emit_declaration_diagnostics(
     partial: bool,
     selected: Option<&[bool]>,
 ) -> Result<DiagnosticList, DriverError> {
-    let emit_host = PreparedEmitHost::new_for_route(prepared, emit_route, source_api_facts)?;
-    tsc_emitter::validate_declaration_diagnostics_request(&emit_host).map_err(DriverError::Emit)?;
-    let checked_host = CheckedEmitHost {
-        prepared: &emit_host,
+    NoEmitDeclarationSetup::new(prepared, emit_route, source_api_facts, snapshot)?.diagnostics(
         snapshot,
-        prepared_sources: None,
-    };
-    let paths = tsc_emitter::PlanDeclarationPaths::for_declaration_diagnostics(&checked_host)
-        .map_err(DriverError::Emit)?;
-    sharded_declaration_diagnostics(
-        &checked_host,
-        &emit_host,
-        &paths,
         sessions,
         files_by_shard,
         worker_budget,
@@ -409,7 +453,6 @@ fn no_emit_declaration_diagnostics(
         partial,
         selected,
     )
-    .map_err(DriverError::Emit)
 }
 
 /// tsc-port: getEmitDeclarations @6.0.3
@@ -3867,6 +3910,10 @@ impl ProgramSession {
                 &mut operation,
             )
         } else if declaration_getter {
+            // Every share uses the same Program and immutable snapshot. Retain
+            // the preparation result at its first existing request, including
+            // an error, so a closed command gate does not request new work.
+            let declaration_setup = std::sync::OnceLock::new();
             // The getter runs through the shard gate, while every shard's
             // checker session is alive; the gate admits nothing to emit.
             // Each shard's share is computed on the shard's own thread as
@@ -3885,18 +3932,28 @@ impl ProgramSession {
                          session: &CheckerSession<'_>,
                          files: &[usize],
                          _checking: &std::sync::atomic::AtomicUsize| {
-                let share = no_emit_declaration_diagnostics(
-                    &self.prepared,
-                    self.emit_route,
-                    &self.source_api_facts,
-                    snapshot,
-                    std::slice::from_ref(session),
-                    std::slice::from_ref(&files.to_vec()),
-                    self.worker_budget,
-                    shard,
-                    true,
-                    driver.declaration_file_filter().as_deref(),
-                );
+                let share = declaration_setup
+                    .get_or_init(|| {
+                        NoEmitDeclarationSetup::new(
+                            &self.prepared,
+                            self.emit_route,
+                            &self.source_api_facts,
+                            snapshot,
+                        )
+                    })
+                    .as_ref()
+                    .map_err(DriverError::clone)
+                    .and_then(|setup| {
+                        setup.diagnostics(
+                            snapshot,
+                            std::slice::from_ref(session),
+                            std::slice::from_ref(&files.to_vec()),
+                            self.worker_budget,
+                            shard,
+                            true,
+                            driver.declaration_file_filter().as_deref(),
+                        )
+                    });
                 let mut shares = eager_shares
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -3937,18 +3994,28 @@ impl ProgramSession {
                             Ok(diagnostics)
                         }
                         Some(Err(error)) => Err(error),
-                        None => no_emit_declaration_diagnostics(
-                            &self.prepared,
-                            self.emit_route,
-                            &self.source_api_facts,
-                            snapshot,
-                            sessions,
-                            files_by_shard,
-                            self.worker_budget,
-                            0,
-                            false,
-                            driver.declaration_file_filter().as_deref(),
-                        ),
+                        None => declaration_setup
+                            .get_or_init(|| {
+                                NoEmitDeclarationSetup::new(
+                                    &self.prepared,
+                                    self.emit_route,
+                                    &self.source_api_facts,
+                                    snapshot,
+                                )
+                            })
+                            .as_ref()
+                            .map_err(DriverError::clone)
+                            .and_then(|setup| {
+                                setup.diagnostics(
+                                    snapshot,
+                                    sessions,
+                                    files_by_shard,
+                                    self.worker_budget,
+                                    0,
+                                    false,
+                                    driver.declaration_file_filter().as_deref(),
+                                )
+                            }),
                     });
                     tsc_types::trace::mark("checker: declaration diagnostics (join)", started);
                 }

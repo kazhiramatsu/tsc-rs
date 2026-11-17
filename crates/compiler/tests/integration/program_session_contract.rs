@@ -3809,3 +3809,60 @@ fn completed_no_emit_declaration_shards_keep_the_fresh_serial_replay() {
         assert_eq!(sharded.work_counters().checker_serial_replay(), 1);
     }
 }
+
+#[test]
+fn shared_declaration_preparation_preserves_no_emit_command_gate() {
+    for no_check in [false, true] {
+        for semantic_error in [false, true] {
+            let last = if semantic_error {
+                "export const last: number = 'wrong';\n"
+            } else {
+                "export const last: number = 4;\n"
+            };
+            let prepared = with_minimal_lib(
+                &[
+                    ("/project/a.ts", "export const a = 1;\n"),
+                    ("/project/nested/b.ts", "export const b = 'b';\n"),
+                    ("/project/c.ts", "export const c = true;\n"),
+                    ("/project/d.ts", last),
+                ],
+                PreparationDiagnostics::default(),
+                |options| {
+                    options.declaration = Some(true);
+                    options.declaration_map = Some(true);
+                    options.declaration_dir = Some("/declarations".into());
+                    options.no_check = Some(no_check);
+                },
+            );
+            let run = |count| {
+                ProgramSession::new(prepared.clone())
+                    .with_checker_budget(CheckerBudget::new(
+                        std::num::NonZeroUsize::new(count).expect("nonzero"),
+                    ))
+                    .run_no_emit_command()
+                    .expect("declaration command")
+            };
+            let serial = run(1);
+            let codes = serial
+                .diagnostics()
+                .map(Diagnostic::code)
+                .collect::<Vec<_>>();
+            assert_eq!(
+                codes,
+                if semantic_error && !no_check {
+                    vec![2322]
+                } else {
+                    vec![]
+                }
+            );
+            for count in [2, 4] {
+                let sharded = run(count);
+                assert_eq!(sharded.work_counters().checker_shards(), count as u64);
+                assert_eq!(
+                    sharded, serial,
+                    "no_check={no_check}, semantic_error={semantic_error}, checkers={count}"
+                );
+            }
+        }
+    }
+}
