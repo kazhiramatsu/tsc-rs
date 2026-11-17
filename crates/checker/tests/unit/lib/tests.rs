@@ -8663,6 +8663,7 @@ fn finished_eager_shards_preserve_owned_results_and_checker_work_counts() {
             emit: &emit,
             emissions: None,
             eager: Some(&eager),
+            eager_verdict: None,
             prelude: None,
         };
         check_program_with_authoritative_modules_at_for_emit_with_checkers(
@@ -8713,5 +8714,133 @@ fn finished_eager_shards_preserve_owned_results_and_checker_work_counts() {
                 retained.work_counters.instantiations()
             );
         }
+    }
+}
+
+#[test]
+fn eager_work_counts_only_when_no_shard_closed_the_gate() {
+    struct Provider;
+    impl AuthoritativeModuleProvider for Provider {
+        fn resolve_module(
+            &self,
+            _: AuthoritativeModuleRequest<'_>,
+        ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
+            unreachable!("no imports")
+        }
+    }
+    struct Factory;
+    impl AuthoritativeModuleProviderFactory for Factory {
+        fn provider(&self) -> Box<dyn AuthoritativeModuleProvider + '_> {
+            Box::new(Provider)
+        }
+    }
+    let libs = [focused_default_library("")];
+    let metadata = |token, file: &InputFile| AuthoritativeSourceMetadata {
+        token: AuthoritativeSourceToken(token),
+        file_name: file.name.clone(),
+        may_be_emitted: token != 0,
+        implied_node_format: None,
+        implied_node_format_for_emit: None,
+        project_reference: None,
+    };
+    let lib_metadata = [metadata(0, &libs[0])];
+    let options = CompilerOptions {
+        no_emit: Some(true),
+        strict: Some(true),
+        ..CompilerOptions::default()
+    };
+    // `closing`: the last file has a semantic error, so the rows of the shard
+    // that checks it close the gate. `counted`: every shard's eager work
+    // creates a type, as a share does that was computed before the closing
+    // verdict arrived.
+    let run = |count: usize, closing: bool, counted: bool| {
+        let files = (0..8)
+            .map(|index| {
+                InputFile::new(
+                    format!("/part{index}.ts"),
+                    if closing && index == 7 {
+                        "export const wrong: number = 'text';\n"
+                    } else {
+                        "export const fine: number = 1;\n"
+                    },
+                )
+            })
+            .collect::<Vec<_>>();
+        let file_metadata = files
+            .iter()
+            .enumerate()
+            .map(|(index, file)| metadata(index as u32 + 1, file))
+            .collect::<Vec<_>>();
+        let deposits = std::sync::Mutex::new(Vec::new());
+        let verdict = |shard: usize, closed: bool| deposits.lock().unwrap().push((shard, closed));
+        let eager = |_: usize,
+                     _: &ProgramSnapshot,
+                     session: &CheckerSession<'_>,
+                     _: &[usize],
+                     _: &std::sync::atomic::AtomicUsize| {
+            if counted {
+                session.with_state_for_harness(|state| {
+                    state.tables.get_number_literal_type(987_654_321.5);
+                });
+            }
+            ShardEagerState::Finished
+        };
+        let mut gate = |_: &ProgramSnapshot,
+                        _: &CheckResult,
+                        _: &[CheckerSession<'_>],
+                        _: &[Vec<usize>]| false;
+        let emit = |_: &ProgramSnapshot,
+                    _: &[CheckerSession<'_>],
+                    _: &[Vec<usize>]|
+         -> Result<Vec<ShardEmission>, tsc_emitter::UnitEmitError> {
+            Ok(Vec::new())
+        };
+        let mut emit = ShardedEmit {
+            gate: &mut gate,
+            emit: &emit,
+            emissions: None,
+            eager: Some(&eager),
+            eager_verdict: Some(&verdict),
+            prelude: None,
+        };
+        let result = check_program_with_authoritative_modules_at_for_emit_with_checkers(
+            &libs,
+            &files,
+            &lib_metadata,
+            &file_metadata,
+            &options,
+            "/",
+            &Factory,
+            WorkerBudget::serial(),
+            CheckerBudget::new(std::num::NonZeroUsize::new(count).unwrap()),
+            &mut emit,
+            IncrementalRequest::NONE,
+            SyntacticDiagnosticsGate::CloseTheCheck,
+        )
+        .expect("checked");
+        let mut deposits = std::mem::take(&mut *deposits.lock().unwrap());
+        deposits.sort_unstable();
+        (result, deposits)
+    };
+    for count in [2, 4] {
+        // No shard closes the gate: every share stands, and so does what it
+        // created.
+        let (plain, deposits) = run(count, false, false);
+        assert!(plain.diagnostics.is_empty());
+        assert_eq!(
+            deposits,
+            (0..count).map(|shard| (shard, false)).collect::<Vec<_>>()
+        );
+        let (counted, _) = run(count, false, true);
+        assert!(counted.work_counters.types() > plain.work_counters.types());
+        // One shard closes it: every share is discarded, and whichever of
+        // them ran leaves the counts and the result as if none had.
+        let (plain, deposits) = run(count, true, false);
+        assert!(plain.diagnostics.iter().any(|row| row.code() == 2322));
+        assert_eq!(deposits.len(), count);
+        assert_eq!(deposits.iter().filter(|(_, closed)| *closed).count(), 1);
+        let (counted, _) = run(count, true, true);
+        assert_eq!(counted.work_counters.types(), plain.work_counters.types());
+        assert_eq!(counted, plain);
     }
 }

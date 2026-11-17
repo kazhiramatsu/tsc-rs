@@ -3809,3 +3809,235 @@ fn completed_no_emit_declaration_shards_keep_the_fresh_serial_replay() {
         assert_eq!(sharded.work_counters().checker_serial_replay(), 1);
     }
 }
+
+#[test]
+fn shared_declaration_preparation_preserves_no_emit_command_gate() {
+    for no_check in [false, true] {
+        for semantic_error in [false, true] {
+            let last = if semantic_error {
+                "export const last: number = 'wrong';\n"
+            } else {
+                "export const last: number = 4;\n"
+            };
+            let prepared = with_minimal_lib(
+                &[
+                    ("/project/a.ts", "export const a = 1;\n"),
+                    ("/project/nested/b.ts", "export const b = 'b';\n"),
+                    ("/project/c.ts", "export const c = true;\n"),
+                    ("/project/d.ts", last),
+                ],
+                PreparationDiagnostics::default(),
+                |options| {
+                    options.declaration = Some(true);
+                    options.declaration_map = Some(true);
+                    options.declaration_dir = Some("/declarations".into());
+                    options.no_check = Some(no_check);
+                },
+            );
+            let run = |count| {
+                ProgramSession::new(prepared.clone())
+                    .with_checker_budget(CheckerBudget::new(
+                        std::num::NonZeroUsize::new(count).expect("nonzero"),
+                    ))
+                    .run_no_emit_command()
+                    .expect("declaration command")
+            };
+            let serial = run(1);
+            let codes = serial
+                .diagnostics()
+                .map(Diagnostic::code)
+                .collect::<Vec<_>>();
+            assert_eq!(
+                codes,
+                if semantic_error && !no_check {
+                    vec![2322]
+                } else {
+                    vec![]
+                }
+            );
+            for count in [2, 4] {
+                let sharded = run(count);
+                assert_eq!(sharded.work_counters().checker_shards(), count as u64);
+                assert_eq!(
+                    sharded, serial,
+                    "no_check={no_check}, semantic_error={semantic_error}, checkers={count}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn discarded_declaration_shares_preserve_no_emit_command_gate() {
+    for no_check in [false, true] {
+        for semantic_error in [false, true] {
+            let last = if semantic_error {
+                "export const last: number = 'wrong';\n"
+            } else {
+                "export const last: number = 4;\n"
+            };
+            let prepared = with_minimal_lib(
+                &[
+                    ("/project/a.ts", "export const a = 1;\n"),
+                    ("/project/nested/b.ts", "export const b = 'b';\n"),
+                    (
+                        "/project/c.ts",
+                        "// @ts-expect-error\nexport const c: number = 'suppressed';\n",
+                    ),
+                    ("/project/d.ts", last),
+                ],
+                PreparationDiagnostics::default(),
+                |options| {
+                    options.declaration = Some(true);
+                    options.declaration_map = Some(true);
+                    options.declaration_dir = Some("/declarations".into());
+                    options.no_check = Some(no_check);
+                },
+            );
+            let run = |count| {
+                ProgramSession::new(prepared.clone())
+                    .with_checker_budget(CheckerBudget::new(
+                        std::num::NonZeroUsize::new(count).expect("nonzero"),
+                    ))
+                    .run_no_emit_command()
+                    .expect("declaration command")
+            };
+            let serial = run(1);
+            let codes = serial
+                .diagnostics()
+                .map(Diagnostic::code)
+                .collect::<Vec<_>>();
+            assert_eq!(
+                codes,
+                if semantic_error && !no_check {
+                    vec![2322]
+                } else {
+                    vec![]
+                }
+            );
+            for count in [2, 4] {
+                let sharded = run(count);
+                assert_eq!(sharded.work_counters().checker_shards(), count as u64);
+                assert_eq!(
+                    sharded, serial,
+                    "no_check={no_check}, semantic_error={semantic_error}, checkers={count}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn one_semantic_error_closes_every_declaration_share_deterministically() {
+    let modules = (0..8)
+        .map(|index| {
+            let mut text = "type Wrap<T> = { value: T };\n\
+            declare function wrap<T>(value: T): Wrap<T>;\n\
+            export const wrapped = wrap({ value: 'text' });\n\
+            export const instance = new class { private brand = 1; }();\n"
+                .to_owned();
+            if index == 7 {
+                text.push_str("const bad: number = 'text';\n");
+            }
+            (format!("/project/part{index}.ts"), text)
+        })
+        .collect::<Vec<_>>();
+    let files = modules
+        .iter()
+        .map(|(name, text)| (name.as_str(), text.as_str()))
+        .collect::<Vec<_>>();
+    for count in [1, 2, 4] {
+        let run = |declaration| {
+            ProgramSession::new(with_minimal_lib(
+                &files,
+                PreparationDiagnostics::default(),
+                |options| {
+                    options.strict = Some(true);
+                    options.skip_lib_check = Some(true);
+                    options.declaration = Some(declaration);
+                },
+            ))
+            .with_checker_budget(CheckerBudget::new(
+                std::num::NonZeroUsize::new(count).unwrap(),
+            ))
+            .run_no_emit_command()
+            .unwrap()
+        };
+        let without = run(false);
+        let counters = |outcome: &NoEmitOutcome| {
+            let work = outcome.work_counters();
+            (
+                work.identifiers(),
+                work.symbols(),
+                work.types(),
+                work.instantiations(),
+            )
+        };
+        for repeat in 0..5 {
+            let with = run(true);
+            assert_eq!(with, without);
+            assert!(with.declaration_diagnostics().is_empty());
+            assert_eq!(with.work_counters().checker_shards(), count as u64);
+            assert_eq!(
+                counters(&with),
+                counters(&without),
+                "checkers={count}, repeat={repeat}"
+            );
+        }
+    }
+}
+
+#[test]
+fn config_parsing_rows_keep_the_declaration_gate_open() {
+    for options_error in [false, true] {
+        let preparation = PreparationDiagnostics::new(
+            vec![diagnostic(90001, "config parsing row")],
+            if options_error {
+                vec![diagnostic(90002, "options row")]
+            } else {
+                vec![]
+            },
+            vec![],
+        );
+        let prepared = with_minimal_lib(
+            &[
+                (
+                    "/project/a.ts",
+                    "export const instance = new class { private brand = 1; }();\n",
+                ),
+                ("/project/b.ts", "export const b = 2;\n"),
+                ("/project/c.ts", "export const c = 3;\n"),
+                ("/project/d.ts", "export const d = 4;\n"),
+            ],
+            preparation,
+            |options| {
+                options.declaration = Some(true);
+                options.skip_lib_check = Some(true);
+            },
+        );
+        let run = |count| {
+            ProgramSession::new(prepared.clone())
+                .with_checker_budget(CheckerBudget::new(
+                    std::num::NonZeroUsize::new(count).unwrap(),
+                ))
+                .run_no_emit_command()
+                .unwrap()
+        };
+        let serial = run(1);
+        assert_eq!(
+            serial
+                .declaration_diagnostics()
+                .iter()
+                .map(Diagnostic::code)
+                .collect::<Vec<_>>(),
+            if options_error { vec![] } else { vec![4094] }
+        );
+        for count in [2, 4] {
+            assert_eq!(
+                run(count),
+                serial,
+                "options_error={options_error}, checkers={count}"
+            );
+        }
+    }
+}

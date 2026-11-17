@@ -255,13 +255,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     || (self.flags(source).intersects(TypeFlags::TYPE_PARAMETER)
                         && self.flags(target).intersects(TypeFlags::UNION)))
             {
-                let source_types = if self.flags(source).intersects(TypeFlags::INTERSECTION) {
-                    tsc_types::TypeListCopy::new(self.union_members(source))
-                } else {
-                    tsc_types::TypeListCopy::new(&[source])
-                };
                 let constraint = self.st.get_effective_constraint_of_intersection(
-                    &source_types,
+                    source,
                     self.flags(target).intersects(TypeFlags::UNION),
                 )?;
                 if let Some(constraint) = constraint
