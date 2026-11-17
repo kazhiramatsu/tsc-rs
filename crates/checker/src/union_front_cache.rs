@@ -527,6 +527,8 @@ mod tests {
                     is_this_type: false,
                     is_distributed: false,
                     constraint: None,
+                    target: None,
+                    mapper: None,
                 },
             );
             // Even a sole newest allocation must be a union to be stored.

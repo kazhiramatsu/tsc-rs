@@ -1473,3 +1473,29 @@ fn literal_type_value_comparison_preserves_ieee_values_kinds_and_fresh_twins() {
         assert_eq!(t.len(), count);
     }
 }
+
+#[test]
+fn a_cloned_type_parameter_keeps_its_target_and_mapper_in_its_record() {
+    let mut t = tables();
+    let parameter = |target| TypeData::TypeParameter {
+        is_this_type: false,
+        is_distributed: false,
+        constraint: None,
+        target,
+        mapper: None,
+    };
+    let declared = t.create_type(TypeFlags::TYPE_PARAMETER, parameter(None));
+    let clone = t.create_type(TypeFlags::TYPE_PARAMETER, parameter(Some(declared)));
+    // A declared parameter and a type of another kind have neither.
+    for ty in [declared, t.intrinsics.any] {
+        assert_eq!(t.type_parameter_target(ty), None);
+        assert_eq!(t.type_parameter_mapper(ty), None);
+    }
+    assert_eq!(t.type_parameter_target(clone), Some(declared));
+    assert_eq!(t.type_parameter_mapper(clone), None);
+    t.set_type_parameter_mapper(clone, MapperId::new(7));
+    assert_eq!(t.type_parameter_mapper(clone), Some(MapperId::new(7)));
+    assert_eq!(t.type_parameter_target(clone), Some(declared));
+    // Both live in the 32-byte record: no table beside the type store.
+    assert_eq!(std::mem::size_of::<Type>(), 32);
+}

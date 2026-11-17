@@ -1655,6 +1655,8 @@ impl<'a> CheckerState<'a> {
                 is_this_type: false,
                 is_distributed: true,
                 constraint: Some(ty),
+                target: None,
+                mapper: None,
             },
         );
         self.tables.type_mut(distributed).symbol = symbol;
@@ -3952,6 +3954,8 @@ impl<'a> CheckerState<'a> {
                     is_this_type: true,
                     is_distributed: false,
                     constraint: Some(id),
+                    target: None,
+                    mapper: None,
                 },
             );
             self.tables.type_mut(this_type).symbol = Some(symbol);

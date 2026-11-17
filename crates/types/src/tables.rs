@@ -1313,6 +1313,41 @@ impl TypeTables {
         &mut self.types[id.index() as usize]
     }
 
+    /// tsc `TypeParameter.target`: the parameter `ty` is a clone of; `None`
+    /// for a declared parameter and for every other type.
+    #[inline]
+    pub fn type_parameter_target(&self, ty: TypeId) -> Option<TypeId> {
+        match self.type_of(ty).data {
+            TypeData::TypeParameter { target, .. } => target,
+            _ => None,
+        }
+    }
+
+    /// tsc `TypeParameter.mapper`: the mapper the clone `ty` was created
+    /// under; `None` for every type without one.
+    #[inline]
+    pub fn type_parameter_mapper(&self, ty: TypeId) -> Option<MapperId> {
+        match self.type_of(ty).data {
+            TypeData::TypeParameter { mapper, .. } => mapper,
+            _ => None,
+        }
+    }
+
+    /// Stamp the mapper of the fresh clone `ty` (instantiateSignature,
+    /// instantiateMappedType): written once.
+    pub fn set_type_parameter_mapper(&mut self, ty: TypeId, value: MapperId) {
+        match &mut self.type_mut(ty).data {
+            TypeData::TypeParameter { mapper, .. } => {
+                assert!(
+                    mapper.is_none(),
+                    "type parameter mapper written twice for {ty:?}"
+                );
+                *mapper = Some(value);
+            }
+            _ => unreachable!("a mapper is stamped on a cloned type parameter"),
+        }
+    }
+
     /// Reserve room for `additional` more types so a checker sized from its
     /// syntax fills the arena without the doubling copies of a growing
     /// vector. Untouched capacity stays virtual memory. The interning maps
@@ -3706,6 +3741,8 @@ impl TypeTables {
                 is_this_type,
                 is_distributed: false,
                 constraint,
+                target: None,
+                mapper: None,
             },
         )
     }

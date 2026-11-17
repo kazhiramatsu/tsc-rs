@@ -533,6 +533,15 @@ pub enum TypeData {
         /// that distributes over it; `constraint` is the original.
         is_distributed: bool,
         constraint: Option<TypeId>,
+        /// tsc `TypeParameter.target` (cloneTypeParameter,
+        /// getRestrictiveTypeParameter): the parameter a clone stands
+        /// for. A field of the record, as in the reference: a clone's
+        /// constraint and default are read through it from the record
+        /// that is already in hand.
+        target: Option<TypeId>,
+        /// tsc `TypeParameter.mapper`: the mapper a fresh clone was
+        /// created under (instantiateSignature, instantiateMappedType).
+        mapper: Option<MapperId>,
     },
     /// getTemplateLiteralType (62057): texts.len() == types.len() + 1.
     TemplateLiteral(TemplateLiteralId),

@@ -313,14 +313,11 @@ impl<'a> CheckerState<'a> {
                         is_this_type: false,
                         is_distributed: false,
                         constraint: None,
+                        target: Some(tp),
+                        mapper: None,
                     },
                 );
                 self.tables.type_mut(new_type_parameter).symbol = Some(symbol);
-                self.links.set_type_parameter_target(
-                    self.speculation_depth,
-                    new_type_parameter,
-                    tp,
-                );
                 old_type_parameters.push(tp);
                 new_type_parameters.push(new_type_parameter);
                 result.push(new_type_parameter);
@@ -332,8 +329,7 @@ impl<'a> CheckerState<'a> {
             let mapper = self.create_type_mapper(&old_type_parameters, Some(&new_type_parameters));
             self.retain_inference_mapper(Some(mapper));
             for tp in new_type_parameters {
-                self.links
-                    .set_type_parameter_mapper(self.speculation_depth, tp, mapper);
+                self.tables.set_type_parameter_mapper(tp, mapper);
             }
         }
         Ok(result)

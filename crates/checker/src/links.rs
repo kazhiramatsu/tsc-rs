@@ -1037,11 +1037,6 @@ const _: () = assert!(std::mem::size_of::<TypeLinks>() == 24);
 /// [`SparseLinks`]).
 #[derive(Debug, Default)]
 pub struct TypeLinksCold {
-    /// tsc TypeParameter.target (cloneTypeParameter 63403 /
-    /// getRestrictiveTypeParameter 63400).
-    pub type_parameter_target: SparseLinks<TypeId, Option<TypeId>>,
-    /// tsc TypeParameter.mapper (instantiateSignature 63418).
-    pub type_parameter_mapper: SparseLinks<TypeId, Option<MapperId>>,
     /// tsc TypeParameter.default (getResolvedTypeParameterDefault
     /// 59043) — Resolved(noConstraintType) = computed, none;
     /// Resolved(circularConstraintType) = the cycle sentinel. The
@@ -1198,8 +1193,6 @@ impl TypeLinksCold {
 
     fn memory_usage(&self) -> (usize, usize) {
         let Self {
-            type_parameter_target,
-            type_parameter_mapper,
             type_parameter_default,
             mapped_type_parameter,
             mapped_constraint_type,
@@ -1242,8 +1235,6 @@ impl TypeLinksCold {
             iteration_types,
         } = self;
         sparse_memory_usage([
-            type_parameter_target.memory_usage(),
-            type_parameter_mapper.memory_usage(),
             type_parameter_default.memory_usage(),
             mapped_type_parameter.memory_usage(),
             mapped_constraint_type.memory_usage(),
@@ -4093,26 +4084,6 @@ impl LinksTables {
         }
     }
 
-    /// cloneTypeParameter/getRestrictiveTypeParameter target stamp.
-    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
-    /// links-field access; no standalone tsc function.
-    pub fn set_type_parameter_target(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        target: TypeId,
-    ) {
-        let _ = speculation_depth;
-        let previous = self
-            .type_cold
-            .type_parameter_target
-            .replace(id, Some(target));
-        assert!(
-            previous.is_none(),
-            "type parameter target written twice for {id:?}"
-        );
-    }
-
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn set_type_parameter_default(&mut self, id: TypeId, value: TypeId) {
@@ -4121,26 +4092,6 @@ impl LinksTables {
         Self::write_value_slot(
             self.type_cold.type_parameter_default.slot(id),
             LinkSlot::Resolved(value),
-        );
-    }
-
-    /// instantiateSignature's fresh-parameter mapper stamp (63418).
-    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
-    /// links-field access; no standalone tsc function.
-    pub fn set_type_parameter_mapper(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        mapper: MapperId,
-    ) {
-        let _ = speculation_depth;
-        let previous = self
-            .type_cold
-            .type_parameter_mapper
-            .replace(id, Some(mapper));
-        assert!(
-            previous.is_none(),
-            "type parameter mapper written twice for {id:?}"
         );
     }
 
