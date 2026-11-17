@@ -1326,6 +1326,46 @@ latch の peak の原因（code を読んだ結果；計測での切り分けは
 
 **次。** (1) 宣言の分を待たずに飛ばす版を次の計測枠で判定する（vue の wall と peak、error のない宣言つき Program の peak）。(2) front end の直列区間（設定の列挙、root の走査、graph の仕上げ、検査 session の組み立て）— 主線で最大の差。(3) miss の sample を命令単位で両者比較し、1 回の参照がたどる領域の数を確かめる。(4) 別枠は専用の session で継続する。
 
+**結果 44（2026-11-17 00:12〜15:15：推論 memo の診断差の修正、朝の計測枠の判定と着地、順序 census の訂正、参照の hop を減らす主線の開始）。**
+
+**正しさ：推論 memo の診断差（PR [#1014](https://github.com/kazhiramatsu/tsc-rs/pull/1014)、merge `082fb0fb4`、hosted run 43999786550）。** lane peak-mem が夜のうちに見つけ、integrator が確認した：main は、組み立てた 7 行の file（parameter 32 個の witness）で pinned の tsgo と違う診断を出していた — tsgo が出さない TS2322 を (5,9) に出し、(6,9) の文言が `{ x?: unknown; }` ではなく `unknown` になる。原因は 11-10 に入れた推論の memo（`9bd6063d3`）：分割代入の parameter には、binding pattern の既定値を評価している間だけ仮の文脈型 `unknown` が公開される（そのあと `assignParameterType` が置き換える）。その間に記録した walk を、型が確定したあとで再利用していた。修正は、その評価の区間を数える counter を置き、0 でない間は memo を引かず・書かず、実際の walk を行う。unit test は witness に対する tsgo の byte を固定し、区間の中で実際の walk が走ることを要求する。8 案件の診断はもともと一致していて、差は witness だけだった。見つけた時点で docs/compatibility.md の Limitations に載せ（`1487b6791`）、merge のあとで外した（`baa50ed58`）。着地 job は 1 回、4 秒で止まった：check の script が作る branch と同じ名前を、手元の review 用 branch が持っていた — 事前確認に「batch の branch 名を持つ local branch が無いこと」を足した。
+
+**朝の計測枠（11:00〜11:26、lane をすべて停止、9 回、base 2 回、720 run；base は #1013 の code `5694c8d35`）。** base 同士の既定設定の wall は中央値で −4.2〜+5.4 %、cell ごとの最良値で +0.27〜+2.68 %。
+
+| 候補 | 既定設定の wall（最良値の幾何平均） | 1 thread の cycles | 1 thread の命令数 | peak（8 案件の合計） | 判定 |
+|---|---:|---:|---:|---:|---|
+| list cursor（lane stalls） | +0.12 %（対照の内側） | −0.02 %（vue −0.36 %） | −0.06 %（vue −0.45 %） | +5 MiB（memory に効かない対照が +12） | **採用**（中立） |
+| 上＋宣言準備の共有（lane ck-diff）＋閉じた関門を飛ばす宣言の分（integrator） | −0.61 % | −0.06 %（vue −0.43 %） | −0.06 % | −10 MiB | **採用** |
+| 推論 memo の修正 | 対照の内側 | — | — | — | 着地済み（上記） |
+
+vue の既定設定：命令数 10.918 → 10.498 G（−3.85 %、各 20 回）；wall の 9 回は 211〜249 ms、base の 2 組は 216〜254 と 222〜255 ms；peak 243 対 248 MiB。error のない `declaration`＋`noEmit` の Program（TypeScript compiler の source、同じ窓で 15 回）：wall −0.30 %（対照は +0.61 %）、peak 177.9 対 177.5・177.4 MiB — 結果 43 で latch の版を不採用にした理由（peak +22〜23 MiB）は、待たない形で消えた。1 つだけ名前を挙げておく中央値：playwright が 3 commit の binary で +3.9 %（232 対 223・224 ms）。最良値は cell の中で最速（216 対 217・218 ms）で、この cell はどの binary でも二峰（217〜226 と 232〜250 ms）、commit 2・3 は playwright の構成では走らない。報告のみで、説明はついていない。
+
+**tsrs との位置（同じ窓、既定設定、両者 PGO なし；記法は結果 43 と同じ：wall は tsrs がこちらより何 % 短いか、peak は tsrs − こちら）。** VS Code はこちらが 0.7 % 速い（peak −112 MiB）、hono もこちらが 0.4 % 速い（−6）；effect −3.2 %（**+12**：こちらが軽い）、zod −5.8 %（**+19**）、next −7.6 %（**+44**）、TypeScript −9.2 %（−27）、playwright −10.2 %（−33）、**vue −17.9 %**（−16）。front end 単独（`--noCheck`）はこちら / 他移植で VS Code 327 / 267 ms、next 90 / 69、zod 74 / 51、playwright 51 / 36、vue 35 / 25、TypeScript 30 / 26、effect 32 / 32、hono 17 / 18。
+
+**着地（PR [#1015](https://github.com/kazhiramatsu/tsc-rs/pull/1015)、merge `c7e31a94e`、hosted run 44026257585）。** 上の表の 3 commit。`noEmit` と `declaration` の両方が付いた Program に semantic error があるとき、捨てることになる宣言の診断を計算しなくなった（tsgo は他に何も報告されなかったときだけ宣言の診断を求める：`internal/compiler/program.go:2082-2084`）。検査を終えた shard が「自分の行で宣言の関門が閉じる」かどうかを単調な旗に立て、あとから順番が来た shard は旗を見て自分の分を飛ばす；誰も待たない。どの shard が旗より先に計算してしまうかは完了順で変わるので、宣言の分が変えうる数（統計行の counter、順序の記録、表示の印）は別に持ち、どの shard も関門を閉じなかったときだけ採用する — 出力は完了順に依らず、捨てられる仕事の量だけが実行ごとに揺れる（vue の命令数の幅は 0.36 %、main は 0.32 %）。登録の前に、積み上げた binary で出力 72/72・1 本と 4 本の counter・vue の既定設定 20 回（出力は 1 通り）・着地 job 自身の oracle の段を通した。着地 job は今回は一度も止まらなかった（local の検査：test 2,382 件、4 checker の対照は既知の 4 構成、suites の ratchet 0 件、oracle 24/24、fingerprint 0 行）。
+
+**訂正：順序の census（結果 43）。** 「1 つの世界の中では file の順序を乱数で入れ替えても診断は変わらなかった」は測れていなかった。`TSRS_CENSUS_ORDER` が入れ替えるのは複数 checker の queue の並びで、checker 1 本では何も変えない — Program の順序を自分自身と比べていた（別枠の席が trace で確認した）。複数 checker の行はそのまま成り立つ。置き換える実測（別枠；baton で 1 つの世界の中の順序を実際に入れ替える）：参照の 4 群を 1 つずつ順に検査すると、6 案件は 6 通りの順序すべてで同一、**zod は 6 通りすべてで違う**（TS5115 が `classic/schemas.ts:2906` から `classic/tests/codec-examples.test.ts:548` へ移り、`mini/tests/assignability.test.ts:149` の TS2344 が消える）。zod では checker 1 本の出力そのものが file の順序の関数である。同じ file を各 compiler に掛けると、TypeScript 5.5.4 と 6.0.3 はこの上限に当たらず 0 件；pinned の tsgo と v7.1-beta は checker の本数で変わり、4 本の出力は pin と beta の間でも 5 行違う；tsrs は beta と byte 一致。tsc-rs は pinned の tsgo に 1 本でも 4 本でも一致している。記録は [tsgo-bugs.md](../ts71-real-projects/tsgo-bugs.md) の 20（`593bcab9f`）；所有者の判断は「当面このまま」。
+
+**別枠（main には入れていない）。** 所有者の依頼で integrator が現状を読んだ（再実行はしていない）。成り立っているもの：状態の分割は、file 単位と文単位の受け渡しで 6 案件・VS Code・conformance（15,335 構成が一致、違うのは既知の 4）を通る；lock なしの cell と挿入のみの表の費用は 1 thread の compile の 0.6〜0.9 %。まだ測れていないもの：文の途中での受け渡し、検出の精度、thread を使った実際の速度。見立ては検査で 1.5〜1.75 倍、中規模の compile 全体で 1.3〜1.45 倍 — これ単独では 2 倍に届かない。所有者の決定：**文の途中での交代（段 1c）だけを進める**。
+
+**主線の新しい柱：1 回の参照がたどる領域を減らす。** 所有者の指示：「型情報へのアクセスが多段なのでキャッシュミスをしている部分ですがそれはそれで修正していったほうがいい」。結果 43 の「命令単位の帰属」を vue の 1 thread で行い、miss の sample を data 構造の族に分けた（DTLB の miss / L1D の load miss に占める割合）：member の検索 14.6 / 14.1 %、呼び出しと式 10.3 / 10.8、確保と copy 9.5 / 9.0、intern 9.0 / 8.2、関係の engine 8.3 / 8.6、具体化 8.2 / 8.8、関係の cache 4.6 / 3.3、その他 19.3 / 22.5。最大の族の member の検索を source で読むと、1 回の検索が順に依存する読み込みは「型の flags → 型の links → members の record → id の list →（member が 9 個以上なら index の box → control group と slot → list の中の位置）→ 名前を比べるための symbol record」；8 個以下の表は順に走査するので、member 1 つごとに symbol record を 1 つ読み、見つからないときは全部読む。tsgo は「型 → map → group → Symbol」。手を入れる前に、数で答えられる問いを 2 つ数えた（下）。
+
+**数えた結果 1：両者の miss（1 thread、compile 全体；こちらは #1014 の code、他移植は symbol 付きの 0.23.0；記録は `fable52-1111/stalls/hops1117`）。**
+
+| 案件 | 命令数 G（こちら / 他移植） | cycles G | DTLB の miss M | L1D の load miss M | L1D の store miss M |
+|---|---:|---:|---:|---:|---:|
+| vue | 8.79 / 8.82 | 2.29 / 2.19（+4.6 %） | 23.4 / 12.0 | 39.1 / 35.2 | 18.7 / 14.0 |
+| zod | 12.38 / 13.25 | 3.50 / 3.44（+1.7 %） | 43.8 / 25.8 | 66.4 / 67.1 | 36.2 / 35.0 |
+| next | 18.08 / 17.34 | 5.00 / 4.54（+10.3 %） | 60.8 / 29.8 | 86.3 / 78.2 | 42.0 / 34.7 |
+
+命令数は並ぶか少ないのに cycles が多く、DTLB の miss が 2 倍近い。top-down の「processing」（back end が詰まって失う帯域）の差は vue +0.109 G・zod +0.143 G・next +0.225 G cycles で、vue と zod では cycles の差の全部以上にあたる。miss の sample（1 sample ≈ 1 万回）を関数名の規則で族に分けると — 読み方の補助であって計測ではない — DTLB の差の 53〜76 % を 3 つの族が占める：member と symbol の表と名前（vue +320・zod +410・next +659 sample）、型 list の intern と型の表（+118・+466・+801）、具体化（+161・+481・+500）。allocator と関係の cache は両者で並んでいる。sample された命令を binary から読むと、こちらの DTLB の miss の 4 分の 1〜3 分の 1（vue 2,337 中 593、next 6,073 中 1,906；他移植は 1,198 中 251、2,972 中 784）は hash 表の探索の読み込み — control byte の群と、別の page にある bucket — で、冷えた探索が他移植の 2.4 倍ある。next で多い表は順に、具体化の cache、型 list の interner、関係の cache、binder の symbol 表。型参照を 1 つ作るとき、こちらは list を intern してから（target, list の id）で cache を引くので 2 回探索する；tsgo と他移植は target ごとの map を 1 回引く。
+
+**数えた結果 2：member の表の census（checker 1 本；`fable52-1111/hops/census-members-1`）。** 検索は vue 376 万回・zod 376 万・next 535 万・VS Code 1,885 万回。8 個以下の表での「不在」が vue 158 万回・zod 73 万・next 142 万・VS Code 380 万回あり、そのたびに全 member の symbol record を読んでいる（292 万・214 万・409 万・1,222 万 record）。member ごとに名前の hash の 8 bit を members の record の中に置けば、その 98.7〜99.2 % は record だけで答えが出る。9 個以上の表は vue 13,210・zod 34,390・next 23,272・VS Code 91,905 個が公開され、その 95 %・99 %・91 %・91 % は他の表と同じ名前の列を持つ（同じ generic の具体化）— index の byte の約 87 %・98 %・86 %・79 %（4.2・11.9・11.6・19.1 MB）は同じものの複製で、表ごとに作り直している。
+
+**運用。** 00:00 に macOS の一時 file の掃除が `/private/tmp` の build 用 work tree を消した（4 日間変更のない file をすべて — `.git` への link も含む）。長く使う work tree と cache は `~/dev` の下に置くことにした。夜の fan：00:54〜10:03 の 550 sample で、停止 542 分・最低段 8 分、2,550 rpm を超えた sample はない。
+
+**次。** (1) member の表：小さい表は record の中の名前 tag、大きい表は名前の列ごとに 1 つの index を具体化どうしで共有し、slot に名前を置く。続いて具体化の cache と型 list の interner — 検索が少数の key に集中しているかを数えてから（集中していれば小さな前段 cache、していなければ 1 回の探索が 1 cache line に収まる表）。(2) README の表を測り直す（計測枠が要る）。(3) vue の並列時の差 — 既定設定の中央値で 234 対 192 ms、うち front end が 10 ms — を、検査中に性能 core を持っている thread から調べる。(4) front end の直列区間。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
