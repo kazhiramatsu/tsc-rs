@@ -91,21 +91,6 @@ tsc 6.0.3 compatibility is complete in release
   [#1002](https://github.com/kazhiramatsu/tsc-rs/pull/1002),
   [#1005](https://github.com/kazhiramatsu/tsc-rs/pull/1005) and
   [#1010](https://github.com/kazhiramatsu/tsc-rs/pull/1010).
-- **Diagnostics, one known difference from `tsgo`** (found on November 17,
-  2026 with a constructed file, not in a real project): inference from a
-  function to a signature with a long parameter list can return `unknown`
-  where `tsgo` returns a more specific type. The witness is a contextually
-  typed function expression with 32 parameters (one with 20 behaves the
-  same) whose first parameter is a destructuring pattern with a default that
-  calls a generic function on the function itself — `take(self)` with
-  `declare function take<T>(fn: (a0: T, …, a31: T) => void): T`. A later
-  `take(self)` in the body infers `unknown`; `tsgo` infers the pattern's type
-  `{ x?: unknown }`. This compiler then reports one more TS2322 and words
-  another differently. The cause is this compiler's own memo of inferences
-  between signature pairs: it reuses candidates recorded before the
-  parameter's type was settled. With the memo's hits turned off the output
-  equals `tsgo`'s. The diagnostics of the eight projects above are identical
-  to `tsgo`'s.
 - The [language server](usage.md#language-server-experimental) is incomplete and
   untested in editors.
 - `-b` builds projects one at a time.
