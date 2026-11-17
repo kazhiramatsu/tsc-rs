@@ -382,12 +382,22 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:58867-58901
     pub(crate) fn get_effective_constraint_of_intersection(
         &mut self,
-        types: &[TypeId],
+        source: TypeId,
         target_is_union: bool,
     ) -> CheckResult<Option<TypeId>> {
+        let types = match self.tables.type_of(source).data {
+            TypeData::Intersection { types } => Some(self.tables.cursor(types)),
+            _ => None,
+        };
+        // Both passes retain the original range while recursive calls grow tables.
+        let source_types = || match types {
+            Some(types) => TypeMemberCursor::Stored(types),
+            None => TypeMemberCursor::Single(Some(source)),
+        };
         let mut constraints = Vec::new();
         let mut has_disjoint_domain_type = false;
-        for &ty in types {
+        let mut types = source_types();
+        while let Some(ty) = types.next(&self.tables) {
             let flags = self.tables.flags_of(ty);
             if flags.intersects(TypeFlags::INSTANTIABLE) {
                 let mut constraint = self.get_constraint_of_type(ty)?;
@@ -414,7 +424,8 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         if has_disjoint_domain_type {
-            for &ty in types {
+            let mut types = source_types();
+            while let Some(ty) = types.next(&self.tables) {
                 if self
                     .tables
                     .flags_of(ty)

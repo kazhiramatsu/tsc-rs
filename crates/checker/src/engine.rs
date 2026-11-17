@@ -716,10 +716,10 @@ impl<'a> CheckerState<'a> {
         let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
             unreachable!("intersection flag implies intersection data");
         };
-        let types = self.tables.list_copy(types);
+        let mut types = self.tables.cursor(types);
         let mut has_instantiable = false;
         let mut has_nullable_or_empty = false;
-        for &t in types.iter() {
+        while let Some(t) = types.next(&self.tables) {
             has_instantiable |= self.tables.flags_of(t).intersects(TypeFlags::INSTANTIABLE);
             has_nullable_or_empty |= self.tables.flags_of(t).intersects(TypeFlags::NULLABLE)
                 || self.is_empty_anonymous_object_type(t)?;
@@ -4014,9 +4014,9 @@ impl<'a> CheckerState<'a> {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data else {
                 unreachable!("intersection flag implies intersection data");
             };
-            let types = self.tables.list_copy(types);
-            for t in types.iter() {
-                if !self.is_weak_type(*t)? {
+            let mut types = self.tables.cursor(types);
+            while let Some(t) = types.next(&self.tables) {
+                if !self.is_weak_type(t)? {
                     return Ok(false);
                 }
             }
