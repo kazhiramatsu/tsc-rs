@@ -548,7 +548,12 @@ impl<'a> CheckerState<'a> {
             if let Some(name) = name {
                 if self.kind_of(name) != SyntaxKind::Identifier {
                     if ty == self.tables.intrinsics.unknown {
-                        ty = self.get_type_from_binding_pattern(name, false, false)?;
+                        // `unknown` stays published while the pattern's
+                        // defaults are evaluated, and is replaced below.
+                        self.provisional_parameter_types += 1;
+                        let pattern = self.get_type_from_binding_pattern(name, false, false);
+                        self.provisional_parameter_types -= 1;
+                        ty = pattern?;
                         self.links.set_symbol_type_contextual(
                             self.speculation_depth,
                             parameter,
