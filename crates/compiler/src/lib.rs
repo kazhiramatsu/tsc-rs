@@ -3317,6 +3317,7 @@ impl ProgramSession {
                 emit: &emit,
                 emissions: None,
                 eager: eager_emit_enabled.then_some(eager),
+                eager_verdict: None,
                 prelude: if eager_emit_enabled { prelude } else { None },
             };
             let checked = check_program_with_authoritative_modules_at_for_emit_with_checkers(
@@ -3910,6 +3911,20 @@ impl ProgramSession {
                 &mut operation,
             )
         } else if declaration_getter {
+            // Config parsing rows are outside the reference's declaration
+            // gate. A completed shard whose rows certify that the gate is
+            // closed says so here. Closed stays closed, so a share skipped on
+            // this flag is one the command would discard.
+            let declaration_gate_closed = std::sync::atomic::AtomicBool::new(
+                has_options
+                    || self.command_options_diagnostics
+                    || !driver.cached_semantic_diagnostics().is_empty(),
+            );
+            let deposit = |_shard: usize, closed: bool| {
+                if closed {
+                    declaration_gate_closed.store(true, std::sync::atomic::Ordering::Release);
+                }
+            };
             // Every share uses the same Program and immutable snapshot. Retain
             // the preparation result at its first existing request, including
             // an error, so a closed command gate does not request new work.
@@ -3917,7 +3932,8 @@ impl ProgramSession {
             // The getter runs through the shard gate, while every shard's
             // checker session is alive; the gate admits nothing to emit.
             // Each shard's share is computed on the shard's own thread as
-            // soon as it has checked; the gate joins those shares when it
+            // soon as it has checked, unless a completed shard has already
+            // closed the gate; the gate joins those shares when it
             // admits, and computes the getter itself if any share is
             // missing (the getter over one shard is the same job).
             let eager_shares: std::sync::Mutex<Vec<Option<Result<DiagnosticList, DriverError>>>> =
@@ -3932,6 +3948,11 @@ impl ProgramSession {
                          session: &CheckerSession<'_>,
                          files: &[usize],
                          _checking: &std::sync::atomic::AtomicUsize| {
+                if !native_harness
+                    && declaration_gate_closed.load(std::sync::atomic::Ordering::Acquire)
+                {
+                    return eager_state;
+                }
                 let share = declaration_setup
                     .get_or_init(|| {
                         NoEmitDeclarationSetup::new(
@@ -3969,7 +3990,9 @@ impl ProgramSession {
                             files_by_shard: &[Vec<usize>]|
              -> bool {
                 if native_harness
-                    || (no_emit_report_is_clean(&self.prepared, checked)
+                    || (!has_options
+                        && !self.command_options_diagnostics
+                        && no_emit_report_is_clean(&self.prepared, checked)
                         && driver.cached_semantic_diagnostics().is_empty())
                 {
                     let started = std::time::Instant::now();
@@ -4030,6 +4053,7 @@ impl ProgramSession {
                 emit: &emit,
                 emissions: None,
                 eager: Some(&eager),
+                eager_verdict: (!native_harness).then_some(&deposit),
                 prelude: None,
             };
             check_program_with_authoritative_modules_at_for_emit_with_checkers(

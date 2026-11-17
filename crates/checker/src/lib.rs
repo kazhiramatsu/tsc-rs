@@ -3940,6 +3940,14 @@ fn statistics_requested(options: &CompilerOptions) -> bool {
 /// No `TypeId`, `SymbolId`, signature or mapper identity leaves the shard.
 struct ShardOutput {
     counts: CheckerCounts,
+    /// Whether this shard's own rows certify that the caller's gate over the
+    /// eager work is closed (false when the caller asked for no verdict).
+    closes_gate: bool,
+    /// The counts and order records after this shard's eager work. The driver
+    /// adopts them only when no shard closed the gate: a closed gate discards
+    /// every share, and which shards computed theirs before the closing
+    /// verdict arrived depends on completion order.
+    after_eager: Option<(CheckerCounts, u32, crate::order_guard::DisplayMarks)>,
     /// Owner-local per-file snapshots after the requested check pass.
     fixture: LedgerSnapshot,
     /// The ledger after every pass.
@@ -4019,13 +4027,24 @@ pub struct ShardedEmit<'op> {
     /// the shards are merged: work the gate may use if it admits, such as
     /// the --noEmit declaration diagnostics of the shard's files, then
     /// overlaps the shards still checking instead of following the slowest.
+    /// A caller using eager_verdict may skip it once a shard closed the gate.
     /// The gate decides whether the work counts; it must be able to redo it.
     pub eager: Option<ShardEagerClosure<'op>>,
+    /// Receives each shard's certified verdict when its semantic ledger is
+    /// complete, before that shard's eager operation. It must not wait: an
+    /// eager operation reads what is deposited so far and skips work that a
+    /// closed gate discards.
+    pub eager_verdict: Option<ShardVerdictClosure<'op>>,
     /// Runs on its own thread over the snapshot while the shards check:
     /// work that depends on the parsed syntax only, such as preparing the
     /// emit copies of the largest sources ahead of their emit.
     pub prelude: Option<ShardPreludeClosure<'op>>,
 }
+
+/// A completed semantic shard's verdict for a caller-owned gate over eager
+/// work: the shard's ordinal and whether its captured rows certify that the
+/// command's declaration diagnostic gate is closed.
+pub type ShardVerdictClosure<'op> = &'op (dyn Fn(usize, bool) + Sync);
 
 /// The syntax-only work a [`ShardedEmit`] request runs beside the shards.
 pub type ShardPreludeClosure<'op> = &'op (dyn Fn(&ProgramSnapshot) + Sync);
@@ -4230,6 +4249,81 @@ fn snapshot_node_count(snapshot: &ProgramSnapshot) -> usize {
         .sum()
 }
 
+/// Certify whole-file rows the joined semantic getter will retain. A
+/// fragment's unused directives, including mapper-defined diagnostics,
+/// can disappear when other fragments are joined. Leave every split file
+/// to the authoritative joined gate.
+fn shard_closes_declaration_gate(
+    state: &state::CheckerState<'_>,
+    captured: &LedgerSnapshot,
+    files: &[usize],
+    queue: &shard::ShardFileQueue,
+    program_diagnostics: &[Diagnostic],
+    selected: Option<&[bool]>,
+) -> bool {
+    files
+        .iter()
+        .copied()
+        .filter(|&file| queue.owned_statements(file).is_none())
+        .any(|file| {
+            if selected.is_some_and(|selected| !selected[file])
+                || state.skip_type_checking_file(program_file_id(file))
+            {
+                return false;
+            }
+            let source = state.binder.source(file);
+            let rows = captured
+                .rows
+                .iter()
+                .filter(|row| row.file_name.as_ref() == Some(&source.file_name))
+                .collect::<Vec<_>>();
+            !semantic_diagnostics_for_file_rows(
+                source,
+                &state.binder.file(file).bind_diagnostics,
+                &rows,
+                captured
+                    .partially_checked_ranges
+                    .get(&file)
+                    .map(Vec::as_slice),
+                &captured.globals_by_file[file],
+                program_diagnostics,
+                state.options,
+            )
+            .is_empty()
+        })
+}
+
+/// Run a checked shard's eager operation and the finished-share cleanup. The
+/// counts and order records the operation may change are kept apart from the
+/// shard's own (`ShardOutput::after_eager`).
+fn run_shard_eager<'a>(
+    shard: usize,
+    snapshot: &ProgramSnapshot,
+    output: &mut ShardOutput,
+    state: state::CheckerState<'a>,
+    eager: ShardEagerClosure<'_>,
+    checking: &std::sync::atomic::AtomicUsize,
+    eager_remaining: &std::sync::atomic::AtomicUsize,
+) -> state::CheckerState<'a> {
+    let session = CheckerSession::from_checked_state(state);
+    let reuse = eager(shard, snapshot, &session, &output.files, checking);
+    let more_eager = eager_remaining.fetch_sub(1, std::sync::atomic::Ordering::AcqRel) > 1;
+    let mut state = session.into_state();
+    output.after_eager = Some((
+        CheckerCounts::of(&state, shard == 0),
+        state.order_guard.reasons(),
+        state.order_guard.marks().clone(),
+    ));
+    if reuse == ShardEagerState::Finished && more_eager {
+        state.release_finished_lookup_buffers();
+        state.links.release_paged_record_buffers();
+        state.links.release_dense_record_buffers();
+        drop(std::mem::take(&mut state.mappers));
+        drop(std::mem::take(&mut state.mapper_lists));
+    }
+    state
+}
+
 /// Run one checker shard on the calling thread: construct its `ProgramBinder`
 /// and `CheckerState` over the shared immutable snapshot with the provider the
 /// coordinator created for it, initialize, check the shard's files, and
@@ -4251,6 +4345,8 @@ fn run_checker_shard<'a>(
     leak_state: bool,
     replay_on_order: bool,
     eager: Option<ShardEagerClosure<'_>>,
+    eager_verdict: Option<ShardVerdictClosure<'_>>,
+    program_diagnostics: &[Diagnostic],
     checking: &std::sync::atomic::AtomicUsize,
     eager_remaining: &std::sync::atomic::AtomicUsize,
     incremental_facts: bool,
@@ -4374,6 +4470,21 @@ fn run_checker_shard<'a>(
         })
         .collect();
     let failure = state.take_authoritative_module_failure();
+    let mut closes_gate = false;
+    if let Some(deposit) = eager_verdict {
+        closes_gate = failure.is_some()
+            || !state.partial_check_records.is_empty()
+            || !init_globals.is_empty()
+            || shard_closes_declaration_gate(
+                &state,
+                &captured,
+                &files,
+                queue,
+                program_diagnostics,
+                selected,
+            );
+        deposit(shard_index, closes_gate);
+    }
     let complete = captured;
     // The module facts of the files this shard checked; the merge adds the
     // cached rows from every shard's ledger.
@@ -4398,35 +4509,14 @@ fn run_checker_shard<'a>(
     }
     state.report_memory(&format!("shard {shard_index}"), snapshot, shard_index == 0);
     state.line_profile.flush();
-    let partial_check_records = std::mem::take(&mut state.partial_check_records);
-    if keep_state {
-        state = match eager {
-            Some(eager) => {
-                // The eager work can create types after the diagnostic ledger
-                // is complete. Capture the work counts after it finishes.
-                let session = CheckerSession::from_checked_state(state);
-                let reuse = eager(shard_index, snapshot, &session, &files, checking);
-                let more_eager =
-                    eager_remaining.fetch_sub(1, std::sync::atomic::Ordering::AcqRel) > 1;
-                let mut state = session.into_state();
-                if reuse == ShardEagerState::Finished && more_eager {
-                    state.release_finished_lookup_buffers();
-                    state.links.release_paged_record_buffers();
-                    state.links.release_dense_record_buffers();
-                    drop(std::mem::take(&mut state.mappers));
-                    drop(std::mem::take(&mut state.mapper_lists));
-                }
-                state
-            }
-            None => state,
-        };
-    }
-    let output = ShardOutput {
+    let mut output = ShardOutput {
         counts: CheckerCounts::of(&state, shard_index == 0),
+        closes_gate,
+        after_eager: None,
         fixture,
         complete,
         init_globals,
-        partial_check_records,
+        partial_check_records: std::mem::take(&mut state.partial_check_records),
         failure,
         order_reasons: state.order_guard.reasons(),
         init_boundary: u32::try_from(init_boundary).expect("type count fits u32"),
@@ -4437,6 +4527,20 @@ fn run_checker_shard<'a>(
         checked_files,
         incremental,
     };
+    if keep_state {
+        state = match eager {
+            Some(eager) => run_shard_eager(
+                shard_index,
+                snapshot,
+                &mut output,
+                state,
+                eager,
+                checking,
+                eager_remaining,
+            ),
+            None => state,
+        };
+    }
     if keep_state {
         return (output, Some(state));
     }
@@ -5130,6 +5234,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let emit_closure: Option<ShardEmitClosure<'_>> = sharded_emit.as_ref().map(|emit| emit.emit);
     let eager_closure: Option<ShardEagerClosure<'_>> =
         sharded_emit.as_ref().and_then(|emit| emit.eager);
+    let eager_verdict = sharded_emit.as_ref().and_then(|emit| emit.eager_verdict);
     let prelude_closure: Option<ShardPreludeClosure<'_>> =
         sharded_emit.as_ref().and_then(|emit| emit.prelude);
     let coordinate = emit_closure.is_some();
@@ -5161,6 +5266,8 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             checkers.leaks_states(),
             checkers.order_replay(),
             eager_closure,
+            eager_verdict,
+            &program_diagnostics,
             &checking,
             &eager_remaining,
             run.incremental_facts,
@@ -5219,6 +5326,19 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             let (output, state) = result.expect("every shard reports exactly once");
             outputs.push(output);
             states.extend(state);
+        }
+        // A closed gate discards every eager share, and which shards computed
+        // theirs before the closing verdict arrived depends on completion
+        // order: what the shares changed in the counts and the order records
+        // stands only when no shard closed the gate.
+        if !outputs.iter().any(|output| output.closes_gate) {
+            for output in &mut outputs {
+                if let Some((counts, order_reasons, display_marks)) = output.after_eager.take() {
+                    output.counts = counts;
+                    output.order_reasons = order_reasons;
+                    output.display_marks = display_marks;
+                }
+            }
         }
         // The files each shard actually checked, in Program order: the emit
         // gate and the per-shard emit query the resolver of the shard that
