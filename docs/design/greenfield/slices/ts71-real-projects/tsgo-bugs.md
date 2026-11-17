@@ -252,3 +252,27 @@ tsgo（TypeScript 7.1、vendored commit aa814927）と比べていて、tsgo の
 - tsc-rs の扱い：tsgo に合わせる（#985：説明は処理診断が最初に materialize されるとき — command・API・language service の semantic
   getter、build info の error 状態の収集 — に付け、loader は cache を先に埋めない；fixture 23 + 18 + 2 + 30 件で固定）。
 - 報告：未投稿（報告候補：cache の key に表記が入っていないため、同じ一覧の中で絶対 path と相対 path が混ざる）。
+
+### 20. 再帰的な型で instantiation の上限に達し、その診断が `--checkers` で変わる（zod）
+
+- 見つけた日・場所：2026-11-16/17、zod（bench corpus `2bf7b06`、`tsconfig.bench-noemit.json`）。`packages/zod/src/v4/classic/schemas.ts:2906`
+  と `packages/zod/src/v4/mini/schemas.ts:1968` — 再帰的な JSON schema の型
+  （`type _ZodJSONSchema = ZodUnion<[…, ZodArray<ZodJSONSchema>, ZodRecord<ZodString, ZodJSONSchema>]>` と、それを継いで
+  `input` / `output` を上書きする interface）。
+- 現象：tsgo は TS5115「Instantiations of the following types appear infinitely circular: 'IsOptionalIn', '$ZodTypeInternals',
+  '$InferZodRecordInput'」を出す。`--checkers 1` では上の 2 箇所に各 1 件、加えて `mini/tests/assignability.test.ts:149` と
+  `mini/tests/object.test.ts:275` に TS2344。`--checkers 4`（既定）では TS5115 が 4 件（上の 2 箇所 +
+  `classic/tests/codec-examples.test.ts:548` + `classic/tests/index.test.ts:814`）で、TS2344 は 0 件。zod が開発に使う
+  TypeScript 5.5.4（zod の `node_modules`）と TypeScript 6.0.3 は、同じ設定で上限の診断も TS2344 も出さない。
+- 根拠：上限（`instantiateTypeWithAlias`、深さ 100 または 1 文 500 万回）に達すると、そのとき検査中の文に診断が付き、途中の結果は
+  error 型のまま cache される。どの文が最初に達するか、どの中間結果が error になるかは、その checker がそれまでに何を検査したかで
+  決まる。1 つの checker の中でも file の順序で変わる（tsc-rs の検証用実行で、test file を `schemas.ts` より先に検査すると TS5115 が
+  その test file の文へ移り、TS2344 が消える。`--checkers 1` にだけ出る TS2344 の 2 件は、冷えた状態で検査すると出ない）。
+  pin より新しい tsgo（v7.1-beta）は、`--checkers 1` の出力は pin と同じで、`--checkers 4` では TS5115 の場所が変わる
+  （`classic/tests/index.test.ts:814` の代わりに `mini/tests/index.test.ts:950`、TS2344 が `mini/tests/object.test.ts:275` に 1 件）—
+  4 checker の出力は「どの checker がその型の族に最初に当たるか」の偶然で決まっている。
+- 再現：`cd <zod> && tsgo -p tsconfig.bench-noemit.json --pretty false --checkers 1`（43 行）と `--checkers 4`（39 行）、
+  `node node_modules/typescript/bin/tsc -p tsconfig.bench-noemit.json --pretty false`（46 行、TS2589 / TS5115 / TS2344 なし）。
+- tsc-rs の扱い：tsgo に合わせている（checker 数 1 と 4 の両方で pin の tsgo と byte 一致）。所有者の判断（2026-11-17）：当面このまま。
+- 報告：未投稿（報告候補：(a) 5.5 / 6.0 が受け入れる型で上限に達する、(b) 診断が `--checkers` に依存する、(c) 上限に達した後の
+  cache が、無関係な文に TS2344 を作る／消す）。
