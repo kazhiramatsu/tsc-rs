@@ -1655,6 +1655,8 @@ impl<'a> CheckerState<'a> {
                 is_this_type: false,
                 is_distributed: true,
                 constraint: Some(ty),
+                target: None,
+                mapper: None,
             },
         );
         self.tables.type_mut(distributed).symbol = symbol;
@@ -3952,6 +3954,8 @@ impl<'a> CheckerState<'a> {
                     is_this_type: true,
                     is_distributed: false,
                     constraint: Some(id),
+                    target: None,
+                    mapper: None,
                 },
             );
             self.tables.type_mut(this_type).symbol = Some(symbol);
@@ -4388,7 +4392,7 @@ impl<'a> CheckerState<'a> {
         })(self);
         match resolved {
             Ok(resolved) => {
-                *self.members_mut(shell) = resolved;
+                self.publish_members(shell, resolved);
                 Ok(shell)
             }
             Err(error) => {
@@ -4735,7 +4739,15 @@ impl<'a> CheckerState<'a> {
         let bases = deferred.bases.clone();
         let result = (|| -> CheckResult<MembersId> {
             let properties = self.members_of(source).properties.clone();
-            let mut members = MemberTable::with_capacity(properties.len());
+            // The references of one class or interface repeat its name
+            // sequence (declared, then inherited): the builder follows the
+            // index of the last one published, as an eagerly resolved
+            // reference does (resolve_object_type_members).
+            let followed = self.member_shapes.get(&source).cloned();
+            let mut members = match &followed {
+                Some(shape) => MemberTable::following(shape, properties.len()),
+                None => MemberTable::with_capacity(properties.len()),
+            };
             for &declared in &properties {
                 let symbol = self.deferred_declared_member(ty, declared);
                 members.insert(&self.binder, symbol);
@@ -4746,6 +4758,7 @@ impl<'a> CheckerState<'a> {
             }
             let (members, properties) =
                 self.freeze_named_members(members, self.tables.type_of(ty).symbol)?;
+            self.remember_member_shape(source, followed.as_ref(), &members);
             let resolved = self.members_mut(header);
             resolved.members = members;
             resolved.properties = properties;
@@ -4939,6 +4952,7 @@ impl<'a> CheckerState<'a> {
         type_arguments: &[TypeId],
     ) -> CheckResult<MembersId> {
         let mut mapper: Option<crate::instantiate::MapperId> = None;
+        let mut followed: Option<crate::member_table::MemberShape> = None;
         let mut members: MemberTable;
         let mut call_signatures: Vec<SignatureId>;
         let mut construct_signatures: Vec<SignatureId>;
@@ -4967,7 +4981,12 @@ impl<'a> CheckerState<'a> {
             let type_mapper = self.create_type_mapper(type_parameters, Some(type_arguments));
             mapper = Some(type_mapper);
             let declared_properties = self.members_of(source).properties.clone();
-            members = self.create_instantiated_symbol_table(&declared_properties, type_mapper)?;
+            followed = self.member_shapes.get(&source).cloned();
+            members = self.create_instantiated_symbol_table(
+                &declared_properties,
+                type_mapper,
+                followed.as_ref(),
+            )?;
             let declared_calls = self.members_of(source).call_signatures().to_vec();
             call_signatures = self.instantiate_signature_list(&declared_calls, type_mapper)?;
             let declared_constructs = self.members_of(source).construct_signatures().to_vec();
@@ -5044,6 +5063,9 @@ impl<'a> CheckerState<'a> {
         }
         let container = self.tables.type_of(ty).symbol;
         let (members, properties) = self.freeze_named_members(members, container)?;
+        if mapper.is_some() {
+            self.remember_member_shape(source, followed.as_ref(), &members);
+        }
         let id = self.alloc_members(ResolvedMembers::from_frozen(
             members,
             properties,
@@ -7252,20 +7274,44 @@ impl<'a> CheckerState<'a> {
     // ---- member instantiation ----
 
     /// tsgo-port: Checker.createInstantiatedSymbolTable @7.1 (checker.go:21142-21151).
+    ///
+    /// `shape` is the name index of the table last published for an
+    /// instantiation of the same source: the instantiated symbols keep their
+    /// names, so the builder follows it instead of hashing every name again.
     fn create_instantiated_symbol_table(
         &mut self,
         symbols: &[SymbolId],
         mapper: crate::instantiate::MapperId,
+        shape: Option<&crate::member_table::MemberShape>,
     ) -> CheckResult<MemberTable> {
         // One table per instantiated object type: sized once instead of
         // rehashed while the members are inserted (VS Code: 1% of the
         // checker's self time was hashbrown growth).
-        let mut result = MemberTable::with_capacity(symbols.len());
+        let mut result = match shape {
+            Some(shape) => MemberTable::following(shape, symbols.len()),
+            None => MemberTable::with_capacity(symbols.len()),
+        };
         for &symbol in symbols {
             let value = self.instantiate_symbol(symbol, mapper);
             result.insert(&self.binder, value);
         }
         Ok(result)
+    }
+
+    /// The index of the table just published for an instantiation of
+    /// `source` is what the next one follows, unless it is the followed one.
+    fn remember_member_shape(
+        &mut self,
+        source: MembersId,
+        followed: Option<&crate::member_table::MemberShape>,
+        members: &crate::member_table::FrozenMembers,
+    ) {
+        if followed.is_some_and(|shape| members.has_shape(shape)) {
+            return;
+        }
+        if let Some(shape) = members.shape() {
+            self.member_shapes.insert(source, shape);
+        }
     }
 
     /// tsc-port: addInheritedMembers @6.0.3
@@ -7499,7 +7545,15 @@ impl<'a> CheckerState<'a> {
                     .read_ty(ty, |links| links.instantiated_mapper)
                     .expect("Instantiated object flag implies links mapper");
                 let target_properties = state.get_properties_of_object_type_owned(target)?;
-                let members = state.create_instantiated_symbol_table(&target_properties, mapper)?;
+                let source = state
+                    .links
+                    .read_ty(target, |links| links.resolved_members.resolved());
+                let followed = source.and_then(|source| state.member_shapes.get(&source).cloned());
+                let members = state.create_instantiated_symbol_table(
+                    &target_properties,
+                    mapper,
+                    followed.as_ref(),
+                )?;
                 let target_calls =
                     state.get_signatures_of_type(target, crate::structural::SignatureKind::Call)?;
                 let call_signatures = state.instantiate_signature_list(&target_calls, mapper)?;
@@ -7511,6 +7565,9 @@ impl<'a> CheckerState<'a> {
                 let index_infos = state.instantiate_index_info_list(&target_index_infos, mapper)?;
                 let container = state.tables.type_of(ty).symbol;
                 let (members, properties) = state.freeze_named_members(members, container)?;
+                if let Some(source) = source {
+                    state.remember_member_shape(source, followed.as_ref(), &members);
+                }
                 return Ok(ResolvedMembers::from_frozen(
                     members,
                     properties,
@@ -7756,7 +7813,7 @@ impl<'a> CheckerState<'a> {
                             .read_ty(ty, |links| links.resolved_members.resolved())
                     })
                     .expect("anonymous member resolution publishes a member stage");
-                *self.members_mut(active_id) = resolved;
+                self.publish_members(active_id, resolved);
                 Ok(active_id)
             }
             Err(err) => {
@@ -7780,7 +7837,7 @@ impl<'a> CheckerState<'a> {
             .links
             .read_ty(ty, |links| links.resolved_members.resolved())
         {
-            *self.members_mut(existing) = stage;
+            self.publish_members(existing, stage);
             return existing;
         }
         let id = self.alloc_members(stage);
@@ -7849,7 +7906,7 @@ impl<'a> CheckerState<'a> {
         container: Option<SymbolId>,
     ) -> CheckResult<(crate::member_table::FrozenMembers, SymbolIds)> {
         let mut result = Ok(());
-        let (members, properties) = members.freeze_with_filter(|symbol| {
+        let (mut members, properties) = members.freeze_with_filter(|symbol| {
             if result.is_err() {
                 return false;
             }
@@ -7862,6 +7919,9 @@ impl<'a> CheckerState<'a> {
             }
         });
         result?;
+        // Before the caller remembers the table's shape: the shape is then
+        // the index of the name sequence, whichever table had it first.
+        self.member_indexes.share(&mut members);
         let properties = self.order_named_member_list(&members, properties, container);
         Ok((members, properties))
     }

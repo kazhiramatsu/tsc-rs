@@ -299,7 +299,7 @@ impl CheckerState<'_> {
             };
         }
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
-            return *self.links.type_cold().type_parameter_target.get(ty);
+            return self.tables.type_parameter_target(ty);
         }
         match data {
             TypeData::Index { ty, .. } | TypeData::StringMapping { ty } => Some(*ty),

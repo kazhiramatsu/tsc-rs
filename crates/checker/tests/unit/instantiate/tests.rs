@@ -659,10 +659,12 @@ fn cloned_type_parameters_instantiate_their_target_constraint() {
                 .cloned_type_parameters()
                 .expect("fresh type parameters")[0];
             assert_ne!(fresh, t);
-            assert_eq!(
-                *state.links.type_cold().type_parameter_target.get(fresh),
-                Some(t)
-            );
+            // The clone carries its target and the instantiation's mapper
+            // in its own record (tsc TypeParameter.target / .mapper).
+            assert_eq!(state.tables.type_parameter_target(fresh), Some(t));
+            assert!(state.tables.type_parameter_mapper(fresh).is_some());
+            assert_eq!(state.tables.type_parameter_target(t), None);
+            assert_eq!(state.tables.type_parameter_mapper(t), None);
             let constraint = state
                 .get_constraint_from_type_parameter(fresh)
                 .expect("constraint in slice");

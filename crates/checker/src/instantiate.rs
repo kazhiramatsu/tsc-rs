@@ -660,6 +660,8 @@ impl<'a> CheckerState<'a> {
                 is_this_type: false,
                 is_distributed: false,
                 constraint: None,
+                target: None,
+                mapper: None,
             },
         );
         self.tables.type_mut(restrictive).symbol = symbol;
@@ -682,11 +684,11 @@ impl<'a> CheckerState<'a> {
                 is_this_type: false,
                 is_distributed: false,
                 constraint: None,
+                target: Some(type_parameter),
+                mapper: None,
             },
         );
         self.tables.type_mut(result).symbol = symbol;
-        self.links
-            .set_type_parameter_target(self.speculation_depth, result, type_parameter);
         result
     }
 
@@ -753,8 +755,7 @@ impl<'a> CheckerState<'a> {
                 mapper = self.combine_type_mappers(Some(fresh_mapper), mapper);
                 self.retain_inference_mapper(Some(mapper));
                 for &tp in &fresh {
-                    self.links
-                        .set_type_parameter_mapper(self.speculation_depth, tp, mapper);
+                    self.tables.set_type_parameter_mapper(tp, mapper);
                 }
                 fresh_type_parameters = Some(fresh);
             }
@@ -1436,11 +1437,8 @@ impl<'a> CheckerState<'a> {
             let unary = self.make_unary_type_mapper(type_parameter, fresh_type_parameter);
             let fresh_mapper = self.combine_type_mappers(Some(unary), mapper);
             self.retain_inference_mapper(Some(fresh_mapper));
-            self.links.set_type_parameter_mapper(
-                self.speculation_depth,
-                fresh_type_parameter,
-                fresh_mapper,
-            );
+            self.tables
+                .set_type_parameter_mapper(fresh_type_parameter, fresh_mapper);
             let mapped = self.mapped_type_data(ty);
             let result = self.tables.create_mapped_type(
                 mapped.declaration,
@@ -3040,7 +3038,7 @@ impl<'a> CheckerState<'a> {
             .unwrap_or_default();
         let mut result = Vec::with_capacity(type_parameters.len());
         for tp in type_parameters {
-            let mapper = *self.links.type_cold().type_parameter_mapper.get(tp);
+            let mapper = self.tables.type_parameter_mapper(tp);
             result.push(self.instantiate_type(tp, mapper)?);
         }
         Ok(result)
@@ -3105,7 +3103,7 @@ impl<'a> CheckerState<'a> {
             .expect("getCanonicalSignature gates on typeParameters (59937)");
         let mut type_arguments = Vec::with_capacity(type_parameters.len());
         for tp in type_parameters {
-            let target = *self.links.type_cold().type_parameter_target.get(tp);
+            let target = self.tables.type_parameter_target(tp);
             let argument = match target {
                 Some(target) if self.get_constraint_of_type_parameter(target)?.is_none() => target,
                 _ => tp,
@@ -3329,11 +3327,11 @@ impl<'a> CheckerState<'a> {
             self.links.set_type_parameter_default(tp, circular);
             return Ok(circular);
         }
-        if let Some(target) = *self.links.type_cold().type_parameter_target.get(tp) {
+        if let Some(target) = self.tables.type_parameter_target(tp) {
             let target_default = self.get_resolved_type_parameter_default(target)?;
             // tsc instantiates the sentinel types too — they carry no
             // type variables, so this is the identity for them.
-            let mapper = *self.links.type_cold().type_parameter_mapper.get(tp);
+            let mapper = self.tables.type_parameter_mapper(tp);
             let default = self.instantiate_type(target_default, mapper)?;
             self.links.set_type_parameter_default(tp, default);
             return Ok(default);

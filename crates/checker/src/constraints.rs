@@ -65,6 +65,8 @@ impl<'a> CheckerState<'a> {
                 is_this_type: false,
                 is_distributed: false,
                 constraint: None,
+                target: None,
+                mapper: None,
             },
         );
         self.tables.type_mut(ty).symbol = Some(symbol);
@@ -138,9 +140,9 @@ impl<'a> CheckerState<'a> {
         {
             return Ok((cached != self.no_constraint_type).then_some(cached));
         }
-        if let Some(target) = *self.links.type_cold().type_parameter_target.get(ty) {
+        if let Some(target) = self.tables.type_parameter_target(ty) {
             let target_constraint = self.get_constraint_of_type_parameter(target)?;
-            let mapper = *self.links.type_cold().type_parameter_mapper.get(ty);
+            let mapper = self.tables.type_parameter_mapper(ty);
             let constraint = match target_constraint {
                 Some(target_constraint) => self.instantiate_type(target_constraint, mapper)?,
                 None => self.no_constraint_type,

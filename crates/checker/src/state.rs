@@ -896,6 +896,15 @@ pub struct CheckerState<'a> {
     pub(crate) intersection_recursion_ids:
         rustc_hash::FxHashMap<TypeId, Arc<[crate::engine::RecursionIdentity]>>,
     pub(crate) augment_filter: Option<(u64, crate::member_table::NameFilter)>,
+    /// The name index of the last table published for an instantiation of
+    /// these source members: the next instantiation's builder follows it and
+    /// shares it when the name sequence repeats. A hint only — a table that
+    /// leaves the sequence builds its own index.
+    pub(crate) member_shapes: rustc_hash::FxHashMap<MembersId, crate::member_table::MemberShape>,
+    /// The one name index of every name sequence a published table of more
+    /// than eight members has: tables that repeat a sequence share it,
+    /// whichever path built them.
+    pub(crate) member_indexes: crate::member_table::NameIndexes,
     /// Viable positions only; property types still depend on the contextual name type.
     pub(crate) contextual_relevant:
         rustc_hash::FxHashMap<(TypeId, tsc_types::EscapedName), ContextualRelevantPositions>,
@@ -2366,6 +2375,8 @@ impl<'a> CheckerState<'a> {
             members_resolving: 0,
             intersection_recursion_ids: Default::default(),
             augment_filter: None,
+            member_shapes: Default::default(),
+            member_indexes: Default::default(),
             contextual_relevant: Default::default(),
             deferred_reference_members: Default::default(),
             named_member_order_buffers: Default::default(),
@@ -2809,7 +2820,10 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs-native: arena allocation for ResolvedMembers; tsc creates
     /// and retains ordinary JavaScript objects.
-    pub fn alloc_members(&mut self, members: ResolvedMembers) -> MembersId {
+    pub fn alloc_members(&mut self, mut members: ResolvedMembers) -> MembersId {
+        // Every published table passes here or freeze_named_members: one
+        // index per name sequence.
+        self.member_indexes.share(&mut members.members);
         let id = MembersId::new(self.members.len() as u32);
         self.members.push(members);
         id
@@ -2845,6 +2859,14 @@ impl<'a> CheckerState<'a> {
     /// ownership; tsc mutates the object directly.
     pub fn members_mut(&mut self, id: MembersId) -> &mut ResolvedMembers {
         &mut self.members[id.index() as usize]
+    }
+
+    /// Write a finished record over the one allocated for it earlier (the
+    /// shell that a resolution in progress published): like
+    /// [`Self::alloc_members`], its table takes the index of its name sequence.
+    pub(crate) fn publish_members(&mut self, id: MembersId, mut members: ResolvedMembers) {
+        self.member_indexes.share(&mut members.members);
+        *self.members_mut(id) = members;
     }
 
     /// tsrs-native: arena allocation for Signature objects; tsc uses

@@ -306,6 +306,8 @@ fn mapped_conditional_and_this_type_arms_emit_semantic_shapes() {
                     is_this_type: true,
                     is_distributed: false,
                     constraint: None,
+                    target: None,
+                    mapper: None,
                 },
             );
             let this_node = type_to_type_node_helper(checker, arena, target, this_type, context)?

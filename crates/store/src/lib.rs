@@ -107,6 +107,8 @@ pub fn resident_vec_tail_bytes<T>(values: &Vec<T>) -> Option<usize> {
 
 mod inline_list;
 pub use inline_list::InlineList;
+mod inline_or_shared;
+pub use inline_or_shared::{InlineOrShared, InlineOrSharedView};
 
 pub mod claimed;
 pub mod frozen;

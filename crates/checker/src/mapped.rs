@@ -530,7 +530,7 @@ impl<'a> CheckerState<'a> {
         })(self);
         match filled {
             Ok(resolved) => {
-                *self.members_mut(members_id) = resolved;
+                self.publish_members(members_id, resolved);
                 Ok(members_id)
             }
             Err(error) => {
