@@ -1225,12 +1225,9 @@ impl<'a> CheckerState<'a> {
         let great_grandparent = self
             .parent_of(parent)
             .and_then(|grandparent| self.parent_of(grandparent));
-        if great_grandparent.is_some_and(|declaration| {
+        !great_grandparent.is_some_and(|declaration| {
             matches!(self.record_of(declaration).as_export_declaration(), Some(data) if data.is_type_only)
-        }) {
-            return false;
-        }
-        true
+        })
     }
 
     /// tsc-port: markIdentifierAliasReferenced @6.0.3
