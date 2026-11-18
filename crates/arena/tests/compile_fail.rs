@@ -3,26 +3,66 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-fn library(deps: &Path) -> PathBuf {
-    std::fs::read_dir(deps)
-        .unwrap()
-        .map(|p| p.unwrap().path())
-        .filter(|p| {
-            p.file_name()
-                .unwrap()
-                .to_string_lossy()
-                .starts_with("libtsc_arena-")
-                && p.extension().is_some_and(|s| s == "rlib")
+/// The newest cargo-built `tsc_arena` library and every directory of Cargo's
+/// build directory that holds compiled libraries. Up to Cargo 1.99 all of them
+/// lie beside the test executable (`<profile>/deps`); from 1.100 every package
+/// has a directory of its own (`<profile>/build/<package>/<hash>/out`). Both
+/// are found from the build directory's root, the one with `CACHEDIR.TAG`.
+fn libraries(executable: &Path) -> (PathBuf, Vec<PathBuf>) {
+    let root = executable
+        .ancestors()
+        .skip(1)
+        .find(|directory| {
+            directory
+                .parent()
+                .is_some_and(|parent| parent.join("CACHEDIR.TAG").is_file())
         })
-        .max_by_key(|p| p.metadata().unwrap().modified().unwrap())
-        .expect("cargo-built tsc_arena rlib")
+        .unwrap_or_else(|| executable.parent().unwrap())
+        .to_path_buf();
+    let mut directories = Vec::new();
+    let mut arena: Option<(std::time::SystemTime, PathBuf)> = None;
+    let mut pending = vec![(root, 0usize)];
+    while let Some((directory, depth)) = pending.pop() {
+        // Other test binaries may remove their scratch directories meanwhile.
+        let Ok(entries) = std::fs::read_dir(&directory) else {
+            continue;
+        };
+        let mut holds_library = false;
+        for path in entries.filter_map(|entry| entry.ok().map(|entry| entry.path())) {
+            if path.is_dir() {
+                if depth < 5 && path.file_name().is_some_and(|name| name != "incremental") {
+                    pending.push((path, depth + 1));
+                }
+                continue;
+            }
+            if path.extension().is_none_or(|extension| extension != "rlib") {
+                continue;
+            }
+            holds_library = true;
+            let is_arena = path
+                .file_name()
+                .is_some_and(|name| name.to_string_lossy().starts_with("libtsc_arena-"));
+            if !is_arena {
+                continue;
+            }
+            let Ok(modified) = path.metadata().and_then(|metadata| metadata.modified()) else {
+                continue;
+            };
+            if arena.as_ref().is_none_or(|(newest, _)| modified > *newest) {
+                arena = Some((modified, path));
+            }
+        }
+        if holds_library {
+            directories.push(directory);
+        }
+    }
+    (arena.expect("cargo-built tsc_arena rlib").1, directories)
 }
 
 #[test]
 fn ui_contracts() {
     let executable = std::env::current_exe().unwrap();
-    let deps = executable.parent().unwrap();
-    let library = library(deps);
+    let (library, directories) = libraries(&executable);
     let destination = std::env::temp_dir().join(format!("tsc-arena-ui-{}", std::process::id()));
     std::fs::create_dir_all(&destination).unwrap();
     let cases = [
@@ -56,8 +96,12 @@ fn ui_contracts() {
             .arg("--emit=metadata")
             .arg("--extern")
             .arg(format!("tsc_arena={}", library.display()))
-            .arg("-L")
-            .arg(format!("dependency={}", deps.display()))
+            .args(directories.iter().flat_map(|directory| {
+                [
+                    "-L".to_owned(),
+                    format!("dependency={}", directory.display()),
+                ]
+            }))
             .arg(
                 Path::new(env!("CARGO_MANIFEST_DIR"))
                     .join("tests/ui")
