@@ -430,7 +430,14 @@ fn a_reserved_bind_that_outgrows_its_room_relocates_to_a_direct_binds_symbols() 
         .unwrap()
         .range()
         .start();
-    assert!(symbol_base >= symbol_lease.range().end());
+    // The bind left its room. The room's lease is still held, so the two
+    // ranges cannot overlap — but which of them comes first is the
+    // allocator's business: it takes the first free gap that fits, and the
+    // identities are the process's, so a lease another test has just dropped
+    // can leave such a gap below the room.
+    let relocated = reserved.symbols.identity_lease().unwrap().range();
+    let room = symbol_lease.range();
+    assert!(relocated.start() >= room.end() || relocated.end() <= room.start());
     let expected = BindData::from_binder(&reserved);
     // A published tree is bound once at a time: the direct bind follows.
     drop(reserved);
