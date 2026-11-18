@@ -19,3 +19,6 @@ memchr = "2"
 # a plain `Arc<str>` (src/shared_text_wasm.rs).
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 tsc-store.workspace = true
+
+[lints]
+workspace = true
