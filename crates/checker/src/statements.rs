@@ -2380,10 +2380,7 @@ impl<'a> CheckerState<'a> {
         // the latched second statement, where tsc returns FALSE and
         // falls through to the guarded grammar checks. Re-test the
         // ambient flag for that case.
-        if self.diagnostics.len() > before {
-            return true;
-        }
-        false
+        self.diagnostics.len() > before
     }
 
     /// tsc-port: checkBreakOrContinueStatement @6.0.3

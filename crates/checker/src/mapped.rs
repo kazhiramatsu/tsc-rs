@@ -245,7 +245,7 @@ impl<'a> CheckerState<'a> {
         else {
             return Ok(false);
         };
-        if !self
+        Ok(!(!self
             .tables
             .object_flags_of(object_type)
             .intersects(ObjectFlags::MAPPED)
@@ -254,11 +254,7 @@ impl<'a> CheckerState<'a> {
             || self
                 .get_mapped_type_modifiers(object_type)
                 .intersects(MappedTypeModifiers::EXCLUDE_OPTIONAL)
-            || self.mapped_type_declaration_has_name_type(object_type)
-        {
-            return Ok(false);
-        }
-        Ok(true)
+            || self.mapped_type_declaration_has_name_type(object_type)))
     }
 
     /// tsc-port: substituteIndexedMappedType @6.0.3
