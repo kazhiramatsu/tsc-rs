@@ -276,3 +276,29 @@ tsgo（TypeScript 7.1、vendored commit aa814927）と比べていて、tsgo の
 - tsc-rs の扱い：tsgo に合わせている（checker 数 1 と 4 の両方で pin の tsgo と byte 一致）。所有者の判断（2026-11-17）：当面このまま。
 - 報告：未投稿（報告候補：(a) 5.5 / 6.0 が受け入れる型で上限に達する、(b) 診断が `--checkers` に依存する、(c) 上限に達した後の
   cache が、無関係な文に TS2344 を作る／消す）。
+
+### 21. decorator の付いた BigInt 名の method で emit が panic する（標準 decorator）
+
+- 見つけた日・場所：2026-11-20、emitter の error message を確かめる 4 行の入力（real project ではない）。
+- 現象：class の method 名に BigInt literal を使った入力（`1n() {}`）を、tsgo は診断なしで受け入れる（`--noEmit` は exit 0、
+  decorator が無ければ `1n() { … }` をそのまま emit する）。その method に標準 decorator（`experimentalDecorators` なし）を
+  付けて `--target es2022` で emit すると、tsgo は panic して exit 2、出力も診断も無い（`--noCheck` の有無に関係なく同じ）：
+  `panic: runtime error: invalid memory address or nil pointer dereference` — `ast.IsPrivateIdentifier` ←
+  `(*BinaryExpression).computeSubtreeFacts`（`tsc/internal/ast/ast.go:1974`）← `ArrowFunction` ← `PropertyAssignment`。
+  decorator の context object に入る `has: obj => <名前> in obj` の左辺が nil のまま合成されている、と stack からは読める
+  （transform の code は読んでいない）。JavaScript 版の TypeScript 5.5.4 は、同じ入力を parse の段階で拒む
+  （TS1146「Declaration expected.」ほか 3 件）。object literal の `{ 2n: 1 }` は tsgo も TS1539 を報告する。
+- 根拠：確かめた binary は pin より新しい tsgo（v7.1-beta、`3e9236361`）。vendored commit aa814927 の binary では未確認。
+- 再現：
+  ```ts
+  declare const dec: any;
+  export class C {
+    @dec 1n() {}
+  }
+  ```
+  `{ "compilerOptions": { "module": "esnext", "target": "es2022", "rootDir": ".", "outDir": "out", "strict": true }, "files": ["a.ts"] }`
+  で `tsgo -p tsconfig.json --pretty false`。
+- tsc-rs の扱い：名前の受け入れは tsgo に合わせている（decorator なしの出力と、object literal の TS1539 は tsgo と byte 一致）。
+  decorator 付きの emit は panic せず、`tsc-rs: compiler failure: unsupported decorators syntax …` を stderr に出して exit 2
+  （出力なし）。合わせる先の出力が tsgo に無いので、この形の transform は未実装のまま。どう扱うかは未決定。
+- 報告：未投稿（報告候補：(a) emit の panic、(b) class member の BigInt 名を診断なしで受け入れること自体が意図どおりか）。
