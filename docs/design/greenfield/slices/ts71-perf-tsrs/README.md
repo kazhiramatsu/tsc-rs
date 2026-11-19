@@ -1463,6 +1463,58 @@ zod（作ったままの規則では −0.5 % のために +41 MiB）は 1 file 
 
 **次。** (1) 計測枠（新しい main の上の binary で）：base、予算つきの形、作ったままの規則、`n-sx1m`、`n-st1m`、pin を上げる前の binary（toolchain 自体の差）、tsrs。(2) 列の記録を opt-in として入れるか、record の置き場所は — 所有者の判断。(3) 置き場つきの形を製品にするか — 所有者の判断（next の peak +2 割が論点）。(4) allocator API の使いどころ（読み込みの一時領域は 2 つ目の席、binder は integrator）。(5) README の表の測り直し。
 
+**結果 47（2026-11-19 02:40〜13:40：symbol の表の行の仕上げ、memory の 2 行の重ねと着地前の確認、計測枠 pk20、2 行の着地（PR #1019）、列の記録の判定と所有者の決定、既定にするための保証の整理、front end の行（別の席）の読みと次の batch、toolchain の差、tsrs との差、README、運用）。**
+
+**symbol の表の行の仕上げ。** 最初の形（`n-st1m`）は低負荷の peak の対で合計 −19.8 MiB だったが、1 thread の命令数が +0.01〜+0.20 % 増えた：表の entry を使うたびに「map の中か vector か」を決めていた。`SymbolMap::find` が見つけた entry そのものを返す形（読み 1 回につき判断 1 回）にし、挿入は小さい vector 自身の規則で伸ばす（2 entry の次は 4、以後は倍；ちょうどの大きさで予約した表が溢れたときは次の 2 の冪）と、`n-st2m` は合計 −29.7 MiB（VS Code −13.9）、命令数 −0.08〜−0.23 % になった。途中で自分の誤りを 1 つ直した：index つきの map は新しい entry の位置を、entry を足す前に index に入れる；足すときに index まで伸ばすと、index が満杯の瞬間（16 bucket に 14 個、vector はちょうど 13 で予約）に、まだない entry を読んで再 hash する。同梱 library の image の test がこれを見つけた（自分の unit test は 4・8・16・32 の大きさしか通らず、踏まなかった）；entry だけを伸ばす経路に分け、unit test は 9〜23 のすべての予約の大きさで 40 個の名前を入れる。
+
+**2 行の重ねと、時間を使わない確認。** 付帯情報の行（結果 46）と表の行を重ねた binary（`n-mem2m`）：低負荷の peak の対で合計 −65.7 MiB（VS Code −35.8、playwright −6.5、next −6.0、vue −5.3、effect −5.0、zod −4.0、hono −2.3、TypeScript −0.8）、出力は 72 通りすべて base と同じ、1 thread の命令数は −0.09〜−0.26 %（VS Code +0.01 %）。着地の job が後から止まらないよう、枠の前に済ませた：2 つの patch を当てた木が build した木と同じこと、workspace 全体の fmt と clippy（Rust 1.100.0）、checker 1 本と 4 本での仕事の counter（型・具体化・診断の行：8 案件 × 2 で 24 行とも base と同じ）、着地の job の oracle の段そのもの（emit の oracle と 24 通りの出力）、構文の fingerprint（161,676 行、違い 0）。
+
+**計測枠 pk20（所有者 09:55「計測OK」；10:00〜10:27、1,512 run、9 round；base は main `a403423df`、Rust 1.100.0）。** この枠の物差し（同じ binary 2 つの差）：既定設定の wall は幾何平均で −0.3 %（round ごとの比の中央値）/ +0.2 %（最良値）、案件ごとには −2.9〜+3.7 %；既定設定の peak は 8 案件の合計で 25 MiB（zod 10.9、VS Code 8.3）違う — この列は案件ごとに約 ±10 MiB までしか読めない；1 thread は cycles +0.01 %、peak 2.6 MiB で揃う。code の経路が同じ binary（列の記録を入れて変数なし）は 1 thread の cycles が 2 つの base に対して −0.08 / +0.07 % と読める。
+
+| | 1 thread の peak（8 案件の合計） | 既定設定の peak（1 つ目 / 2 つ目の base） | 1 thread の cycles（同） | 1 thread の命令数 | 既定設定の wall（最良値） | 枠の前の予測 |
+|---|---:|---:|---:|---:|---:|---:|
+| 付帯情報の行 | **−41.2 MiB** | −33 / −58 | −0.12 / −0.03 % | 0.00 % | 0.0 % | −38.5 MiB |
+| 表の行 | **−23.0 MiB** | −8 / −33 | −0.08 / −0.09 % | −0.11 % | −0.6 % | −29.7 MiB |
+| 2 行 | **−65.4 MiB** | −43 / −68 | −0.16 / −0.23 % | −0.15 % | −1.0 % | −65.7 MiB |
+
+2 行の 1 thread の peak：VS Code −35.1 MiB（−1.6 %）、next −6.7（−1.3）、playwright −6.2（−2.2）、zod −6.1（−1.4）、effect −5.7（−1.7）、vue −2.5（−1.2）、TypeScript −1.6（−1.2）、hono −1.5（−1.9）。判定：peak は予測どおり、時間は買いも払いもしない — 採用。
+
+**着地：PR [#1019](https://github.com/kazhiramatsu/tsc-rs/pull/1019)**（`dae4b07d7` 付帯情報、`193818991` 表；merge `08076531c`、2026-11-19 13:36 JST；hosted run 44454771198：plan 32 s、rust 32 m 45 s、conformance 22 m 22 s、gates pass）。local（10:54〜12:55、Rust 1.100.0 での最初の着地の job）：clippy・fmt・生成物の確認、binder の test 105 件、release build、8 案件の出力、3 案件の counter、checker 4 本の conformance（15,335 構成が一致、既知の 4 つが違う）、suites（後退 0）、oracle の段（24 / 24）、fingerprint（161,676 行、違い 0）、preset の出力（16 / 16）。
+
+**列の記録の判定（同じ枠；2 つ目の base との比、round ごとの中央値 / 最良値）。**
+
+| | 予算つき（記録あり） | 作ったままの規則 | tsrs |
+|---|---:|---:|---:|
+| VS Code | 0.0 / +0.2 % | −2.9 / −2.9 | −2.9 / −1.8 |
+| next | −11.9 / −12.8 | −19.8 / −20.5 | −10.3 / −8.4 |
+| zod | +1.9 / −0.1 | −0.6 / −2.0 | +0.6 / +1.3 |
+| effect | −7.3 / −8.4 | −8.9 / −9.6 | −2.9 / −3.1 |
+| playwright | −6.0 / −5.8 | −5.9 / −6.2 | −10.6 / −9.9 |
+| vue | −8.6 / −12.0 | −13.8 / −13.9 | −11.8 / −12.6 |
+| TypeScript | −13.8 / −14.0 | −13.6 / −13.7 | −9.4 / −9.6 |
+| hono | −17.0 / −17.6 | −12.3 / −13.1 | +3.1 / +2.2 |
+| 幾何平均 | **−8.0 / −9.0** | −9.9 / −10.5 | −5.7 / −5.4 |
+| peak（8 案件の合計） | **+35 MiB** | +146 | −51 |
+| 出力 | 8 案件とも base と同じ | 同じ | |
+
+予算つきの peak は next +33 MiB（+6.4 %）、vue +11、hono +5、その他は ±8 以内；作ったままの規則は next +51（+9.9 %）、zod +37、effect +18、hono +14（+13.2 %）。予算つきは、ならす形の速さの 8 割を peak の 4 分の 1 で得る。低負荷での予測（run 全体の最良値 / 中央値）との比較：hono −17.7 / −12.1 → −17.0、next −14.4 / −12.7 → −11.9、TypeScript −10.0 / −11.9 → −13.8、effect −6.3 / −2.4 → −7.3、vue −14.4 / −14.2 → −8.6（最良値では −12.0）、playwright −17.4 / −11.0 → **−6.0**（半分）；peak は予測 +61〜78 に対して +35。変数なしの binary は何も変えない（上の −0.08 / +0.07 %、1 thread の peak −0.7 MiB、出力 72 / 72）。記録ありの予算つきは next・TypeScript・effect・hono で tsrs より速く、zod は割り当てが変わらないので main のまま（tsrs とほぼ同じ）、playwright・vue・VS Code で届かない。
+
+**所有者（12:45）：「その案で進めてください」** — integrator の案：(1) 予算つきの形を、(2) まず opt-in（record の場所は環境変数 `TSRS_LANE_PROFILE` で指定）として入れ、(3) 既定にするのは「自動で書く record の置き場所」と「割り当てが変わっても出力が変わらない保証」を詰めてから。着地の準備：最終の形を 1 commit にまとめ（途中の形は file を費用だけで配り直して zod の出力を変えたので、履歴に段として残さない；差分は枠で測った binary の patch と byte 単位で同じ）、`docs/usage.md` と `docs/performance.md` に節を足す commit を付けた。書いた時点で、着地後の main と同じ byte での確認（test、変数なしの出力 72 通り、counter、oracle、記録ありの出力と record の安定、lint）が順番待ち。
+
+**既定にするための保証について（調査の前の整理）。** 11-16 の計数（調査用 build；VS Code は未計測）：file を 4 本・8 本の checker に乱数で配った 12 通りで、7 案件のうち 6 つは checker 1 本と同じ診断を出し、違うのは zod だけ（TS5115 が +1〜+4、TS2344 が −1〜−2；配り方で変わる）。zod では独立した checker がそれぞれ具体化の上限に自分の最初の場所で当たり、error 型の結果を自分の cache に持つ。上限・循環・深さの打ち切りといった「硬い出来事」自体は 7 案件中 5 つ（zod・vue・effect・playwright・next）で起きているので、「硬い出来事が 1 つでもあれば参照の割り当てのまま」では hono と TypeScript しかならせない。type id の順番を見る既存の仕組み（checker 1 本との違いを見張る order guard）は別の問いへの答えで、この目的の道具ではない。参照の出力の hash を record に持って後から比べる形は、編集のたびに出力が変わる日常の使い方では割り当ての違いと区別できない。要るのは出来事の種類ごとの表 — どの種類が診断を checker の履歴に依らせるか（具体化の上限は依らせる）— で、今日の main と VS Code で数え直してから所有者に出す。
+
+**front end の行（別の席）。** 同じ枠に、その席の 2 行（名前の store が thread ごとの連続領域に書く；1 回の読み込みの resolver が package.json の読みを共有する）を、その席の base（pin の前の code、Rust 1.99.1）と並べて入れた。その base との比：既定設定で命令数 −0.60 %（8 案件すべて減る；zod −1.27、playwright −1.17、next −0.81）、process 全体の cycles −1.34 %（8 案件すべて減る；同じ binary 2 つの差は平均 −0.20 %、案件ごとに ±1.7 %）、wall は −0.41 / −0.84 % で枠の物差しの中、peak は −22 MiB で同じく物差しの中；1 thread は差なし（cycles +0.10 %、命令数 +0.01 %）。「遅くならず、既定設定の CPU の仕事が減る」ので次の batch にした。着地後の main と同じ byte（main + 上の 2 行 + この 2 行、Rust 1.100.0）で、store と program の test 894 件が通り、binary を作った；出力・counter・oracle・fingerprint の確認は書いた時点で実行中。同じ席から 2 組目（読み込みの定数を減らす 5 行）が届いた；枠で測っていないので、判定には次の計測枠が要る。
+
+**toolchain の差（同じ code、Rust 1.99.1 | 1.100.0）。** 1 thread の命令数は 1.99.1 の方が +0.10〜+0.31 % 多く、cycles は +0.01 / +0.04 %、既定設定の wall と peak は物差しの中。pin を上げて得たのは命令数で、時間ではない。
+
+**tsrs との差（同じ枠、main に対して）。** 既定設定の wall は上の表のとおり幾何平均で tsrs が 5.7 % 速い（zod と hono はこちらが速い）。process 全体の cycles は tsrs が平均 8.6 % 少なく（−4.2〜−13.2 %）、命令数は平均でほぼ同じ（−5.9〜+5.3 %）— 1 命令あたりの差は残っている。peak（tsrs − こちら）：VS Code −102 MiB、playwright −26、TypeScript −26、vue −6（tsrs が軽い）、next +56、zod +39、effect +15（こちらが軽い）、hono 0；今回の 2 行で VS Code は −44（2 つ目の base に対して）縮む。
+
+**README。** 同じ枠の後半で README の表を測った（tsgo・tsrs・こちら、既定設定、9 round；出力は 8 案件とも tsgo と同じ）。run のばらつき（最も遅い ÷ 最も速い）はこちら 1.04〜1.23、tsrs 1.04〜1.25、tsgo 1.07〜1.20 で、11-17 の枠（遅い tail があり使わなかった）と違い健全。`README.md` と `docs/performance.md` を更新した（commit `9240e04e2`）：11-15 の表に対して、こちらの peak は 8 案件すべてで下がった（VS Code 2,508 → 2,388 MiB、next 547 → 515、zod 569 → 532、effect 463 → 413、playwright 395 → 374、vue 263 → 236、TypeScript 170 → 166、hono 119 → 110）；VS Code は 2.05 s（tsrs 2.07 s、tsgo 4.71 s）。
+
+**運用。** (1) 重い job の lock を「来た順」にした。integrator の job の区切りは前の区切りの解放から 1 秒以内に次を取りに行き、待つ側は 20 秒ごとにしか見ていなかったので、3 区切り続けて取って別の席の job を待たせた（「交互に進む」と相手に伝えていたのは確かめていない主張だった）。待つ側が到着時刻の札を置き、最も古い生きた札の持ち主だけが取る；止められた待ち手は飛ばされ、再開すれば元の順位に戻る；計測枠の chain は先頭に入る。排他は今までどおり directory 1 つなので、古い text を読み込んだ shell とも両立する。試験は本物と別の directory で 9 通り（順番、続けて取る job の間への割り込み、強制終了・停止した待ち手、死んだ持ち主、新旧の混在、6 本 × 5 区切り、chain の先頭入り）。(2) 計測枠は 34 分（README の chain を含む）；別の席が自分の job を止めて lock を空けたので待ちはなかった。(3) integrator の手違い：時刻を時計を見ずに書いた（記録の中で 2 回直した）；commit message に「参照の Symbol も同じ field を持つ」と書きかけ、参照の code を読んで直した（参照は late-bound の代入宣言を container の exports の中の専用の symbol に持つ）；新しい道具を既存の道具と同じ名前で書いて上書きした（その日の backup から byte 単位で戻した）。(4) 夜：fan は 0:48 から 9:04 まで 0 rpm；夜の規則（efficiency core のみ）から外れた直接起動が 3 回あった（binder の test 2 回、record の準備 11 秒）— 朝いちばんに所有者へ報告した。
+
+**次。** (1) 別の席の 2 行と列の記録（opt-in）の着地 — 確認が両方通れば 1 つの着地の job にまとめる。(2) 別の席の 2 組目（5 行＋追加分）の計測枠を所有者に頼む。(3) 列の記録を既定にするための 2 点：record の置き場所の案、硬い出来事の種類ごとの表。(4) checker の準備（shard ごとに 1 回ずつ走る初期化：VS Code で CPU 48.6 ms、tsrs は 4.7 ms — 別の席の表）。(5) file ごとの header（`SourceFile` 976 byte + `BoundDocument` 784 byte + 準備の record 280 byte；VS Code で約 23 MiB）は大きさの内訳を取ってから。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
