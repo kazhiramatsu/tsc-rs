@@ -346,6 +346,82 @@ fn cli_fast_preset(system: &dyn System) -> bool {
         .is_some_and(|value| value.trim() == "1")
 }
 
+/// The lane profile of the CLI (tsrs-native, opt-in): `TSRS_LANE_PROFILE`
+/// names the file that records what the check of every file of a program
+/// cost its checker, and a later run of the same program levels its checkers
+/// by that record ([`tsc_checker::LaneProfile`]) — the files are dealt as in
+/// the reference, and files then leave the costliest checker while it stands
+/// out. If the variable names a directory, the file is one per project in
+/// it, named by the project's configuration file (without one, by the
+/// current directory).
+///
+/// The file is read before the check if it exists and written after the
+/// check when the record changed; a program whose files keep their lengths
+/// keeps its record, its dealing and its output. Only a one-shot command
+/// keeps a profile. Without the variable nothing is read or written, and
+/// the dealing is the reference's.
+const LANE_PROFILE_ENV: &str = "TSRS_LANE_PROFILE";
+
+/// The profile of one command: its file and what the file held.
+struct CliLaneProfile {
+    path: String,
+    profile: &'static tsc_checker::LaneProfile,
+}
+
+impl CliLaneProfile {
+    /// The profile `TSRS_LANE_PROFILE` names for this run, if any.
+    fn of(
+        system: &dyn System,
+        current_directory: &Path,
+        prepared: &tsc_program::PreparedProgram,
+        mode: ProjectRunMode,
+    ) -> Option<Self> {
+        // The record lives until the process exits (`ProjectRunMode::leak`):
+        // a watch cycle or a build's project would add one with every run.
+        if !mode.leak || mode.build || mode.watch {
+            return None;
+        }
+        let named = system.env_var(LANE_PROFILE_ENV)?;
+        let named = named.trim();
+        if named.is_empty() {
+            return None;
+        }
+        let mut path = normalized_absolute(current_directory, named);
+        if system.fs().is_dir(&path) {
+            let project = prepared.program_options().config_file_path().map_or_else(
+                || current_directory.to_string_lossy().into_owned(),
+                |config| config.display().to_string_lossy().to_string(),
+            );
+            // FNV-1a: the name of a project's file is the same in every
+            // build of the compiler.
+            let hash = project
+                .bytes()
+                .fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
+                    (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
+                });
+            path = format!("{}/{hash:016x}.profile", path.trim_end_matches('/'));
+        }
+        let text = system
+            .fs()
+            .read(&path)
+            .ok()
+            .and_then(|bytes| String::from_utf8(bytes).ok())
+            .unwrap_or_default();
+        Some(Self {
+            path,
+            profile: Box::leak(Box::new(tsc_checker::LaneProfile::parse(&text))),
+        })
+    }
+
+    /// Writes the record when the check changed it. A failed write leaves the
+    /// record as it was: the next run measures again.
+    fn store(&self, system: &dyn System) {
+        if let Some(text) = self.profile.take_update() {
+            let _ = system.fs().write_creating_dirs(&self.path, text.as_bytes());
+        }
+    }
+}
+
 /// `checkers` under the process's preset.
 fn preset_checker_budget(system: &dyn System, checkers: std::num::NonZeroUsize) -> CheckerBudget {
     let budget = CheckerBudget::new(checkers);
@@ -1751,9 +1827,15 @@ fn execute_prepared(
     // (`ProgramSession::run_no_emit_command`).
     // Only a run after which the process exits leaves its program and
     // checker states behind (`ProjectRunMode::leak`).
+    let lane_profile = CliLaneProfile::of(route.system, current_directory, &prepared, mode);
     let session = ProgramSession::new(Arc::clone(&prepared))
         .with_worker_budget(route.worker_budget())
-        .with_checker_budget(route.checker_budget().with_leaked_states(mode.leak))
+        .with_checker_budget(
+            route
+                .checker_budget()
+                .with_leaked_states(mode.leak)
+                .with_lane_profile(lane_profile.as_ref().map(|kept| kept.profile)),
+        )
         .with_leaked_program(mode.leak)
         .with_command_options_diagnostics(!additional_diagnostics.is_empty())
         .with_build_mode(mode.build)
@@ -1772,6 +1854,9 @@ fn execute_prepared(
         .map_err(|error| CliError::Driver(error.to_string()))?;
     let watch_state = outcome.take_watch_state();
     tsc_types::trace::mark("check session", session_started);
+    if let Some(kept) = &lane_profile {
+        kept.store(route.system);
+    }
     tsc_checker::line_profile::write_report();
     // Config-owned non-fatal option rows are supplied separately from the
     // prepared program. Insert them at the same bucket boundary as
@@ -2013,9 +2098,13 @@ fn execute_emitting_prepared(
     // The real filesystem is stateless: its artifacts are written on the
     // worker budget; an injected (observing) filesystem keeps ordered writes.
     let write_workers = route.worker_budget().max_workers();
+    let lane_profile = CliLaneProfile::of(route.system, current_directory, &prepared, mode);
     let (worker_budget, checker_budget) = (
         route.worker_budget(),
-        route.checker_budget().with_leaked_states(mode.leak),
+        route
+            .checker_budget()
+            .with_leaked_states(mode.leak)
+            .with_lane_profile(lane_profile.as_ref().map(|kept| kept.profile)),
     );
     let testing = route.testing.is_some();
     let tracing = route.tracing.clone();
@@ -2044,6 +2133,9 @@ fn execute_emitting_prepared(
         .emit_for_cli(sink)
         .map_err(|error| CliError::Driver(error.to_string()))?;
     tsc_types::trace::mark("check + emit session", session_started);
+    if let Some(kept) = &lane_profile {
+        kept.store(route.system);
+    }
     tsc_checker::line_profile::write_report();
 
     let build_emit = outcome.build_emit.clone();

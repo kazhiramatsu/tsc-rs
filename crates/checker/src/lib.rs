@@ -131,6 +131,7 @@ pub mod functions;
 pub mod globals;
 pub mod incremental;
 mod infer_memo;
+mod lane_profile;
 mod location;
 mod memory;
 pub use incremental::{
@@ -198,6 +199,7 @@ use tsc_diagnostics::{
 };
 use tsc_program::WorkerBudget;
 
+pub use crate::lane_profile::LaneProfile;
 pub use crate::shard::{CheckerAssignment, CheckerBudget, MAX_CHECKERS};
 
 /// Whether checkSourceFile runs the unused-identifier pass when neither
@@ -3707,6 +3709,11 @@ fn check_program_file_statements(
     rows_start
 }
 
+/// The name a lane profile knows a file by.
+fn lane_profile_name(source: &tsc_syntax::SourceFile) -> String {
+    source.file_name.as_js().to_string_lossy().to_string()
+}
+
 /// The text length of every top-level statement of a declaration file whose
 /// top-level statements are all declarations, and nothing for any other
 /// file: the files the fast preset may check in statement ranges
@@ -3975,6 +3982,9 @@ struct ShardOutput {
     /// library prefix, library files), in Program order: the driver hands
     /// them to the emit gate and the per-shard emit.
     files: Vec<usize>,
+    /// With a lane profile: what the check of each fixture counted on this
+    /// shard's work gauges (file, clock units).
+    costs: Vec<(usize, u64)>,
     /// Files whose checkSourceFileWorker body ran in this shard: ownership
     /// evidence for the debug assertion in the merge (debug builds only).
     #[cfg(debug_assertions)]
@@ -4425,7 +4435,11 @@ fn run_checker_shard<'a>(
             }
         }
     }
+    let mut costs = Vec::new();
     while let Some(file) = queue.next_fixture(shard_index) {
+        let counted = queue
+            .measures_costs()
+            .then(|| lane_profile::counted(&state));
         // Shared-AST invariant: the shard's binder borrows the snapshot's
         // documents (pointer-identical sources); it never copies a tree.
         debug_assert!(std::ptr::eq(
@@ -4442,6 +4456,9 @@ fn run_checker_shard<'a>(
             captured.capture_file(&state, file, &globals_by_file);
         }
         files.push(file);
+        if let Some(counted) = counted {
+            costs.push((file, lane_profile::counted(&state).wrapping_sub(counted)));
+        }
         if state.order_guard.reasons() != 0 && replay_on_order {
             // The replay is certain: release the other shards' remaining
             // files too (a real program consumes shard-local type order in
@@ -4523,6 +4540,7 @@ fn run_checker_shard<'a>(
         display_marks: state.order_guard.marks().clone(),
         thread: std::thread::current().id(),
         files,
+        costs,
         #[cfg(debug_assertions)]
         checked_files,
         incremental,
@@ -5139,6 +5157,34 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         }
     }
     drop(provider);
+    // A lane profile (opt-in): what the files' checks cost in an earlier run.
+    // Not with the locality association, a selection or an order replay.
+    let recorded_costs = checkers
+        .lane_profile()
+        .filter(|_| !locality && selected.is_none() && !checkers.order_replay());
+    let recorded_statics = if recorded_costs.is_some() {
+        snapshot
+            .documents()
+            .iter()
+            .enumerate()
+            .map(|(file, document)| {
+                let source = document.source();
+                if file < lib_count
+                    || should_skip_type_checking_file(
+                        source,
+                        snapshot.file_facts(program_file_id(file)),
+                        options,
+                    )
+                {
+                    0
+                } else {
+                    lane_profile::static_part(source.arena.parse_node_count() as u64)
+                }
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
     let queue = if locality {
         let names = snapshot
             .documents()
@@ -5208,14 +5254,45 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         queue.reserve_on_every_lane(unchecked_nodes / queue.shard_count());
         queue
     } else {
-        let associations = shard::associate_files(
+        // The files are dealt by their sizes, as in the reference. With a
+        // lane profile of an earlier run the dealing is then levelled by what
+        // the files' checks cost, with as few moves as it takes.
+        let mut associations = shard::associate_files(
             &base_weights,
             &imports,
             &declarations,
             &adjacent,
             checker_count,
         );
-        shard::ShardFileQueue::associated(lib_count, &node_counts, &associations, checker_count)
+        if let Some(profile) = recorded_costs.filter(|profile| !profile.is_empty()) {
+            let names = snapshot
+                .documents()
+                .iter()
+                .map(|document| lane_profile_name(document.source()))
+                .collect::<Vec<_>>();
+            let lengths = snapshot
+                .documents()
+                .iter()
+                .map(|document| document.source().text().len())
+                .collect::<Vec<_>>();
+            let costs = profile.weights(&names, &lengths, &recorded_statics);
+            let movable = recorded_statics
+                .iter()
+                .map(|&part| part > 0)
+                .collect::<Vec<_>>();
+            let checkers = checker_count.clamp(1, associations.len().clamp(1, shard::MAX_CHECKERS));
+            shard::level_by_cost(&mut associations, &costs, &movable, &adjacent, checkers);
+        }
+        let mut queue = shard::ShardFileQueue::associated(
+            lib_count,
+            &node_counts,
+            &associations,
+            checker_count,
+        );
+        if recorded_costs.is_some() {
+            queue.measure_costs();
+        }
+        queue
     };
     let shard_count = queue.shard_count();
 
@@ -5347,6 +5424,22 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             .iter()
             .map(|output| output.files.clone())
             .collect::<Vec<_>>();
+        if let Some(profile) = recorded_costs {
+            let measured = outputs
+                .iter()
+                .flat_map(|output| &output.costs)
+                .filter(|&&(file, _)| recorded_statics[file] > 0)
+                .map(|&(file, counted)| {
+                    let source = snapshot.document(file).source();
+                    (
+                        lane_profile_name(source),
+                        source.text().len(),
+                        recorded_statics[file].saturating_add(counted),
+                    )
+                })
+                .collect::<Vec<_>>();
+            profile.record(&measured);
+        }
         check_span.take();
         tsc_types::trace::mark("checker: shards checked", phase_started);
         let phase_started = std::time::Instant::now();
