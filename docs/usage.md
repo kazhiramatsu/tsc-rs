@@ -53,6 +53,12 @@ Every `tsconfig.json` option can also be given on the command line
 Exit status: `0` no errors, `1` errors and nothing written, `2` errors and
 output written, `4` (`-b` only) a cycle of project references.
 
+Two environment variables choose how the files are dealt to the checkers,
+both opt-in: `TSRS_FAST=1` ([the fast preset](performance.md#the-fast-preset))
+and `TSRS_LANE_PROFILE=<file>`, with which a command records what each
+file's check cost and later runs of the same program level their checkers by
+that record ([the lane profile](performance.md#the-lane-profile)).
+
 ## Content mappers
 
 TypeScript 7.1 checks other languages' files, such as `.vue` and `.astro`,
