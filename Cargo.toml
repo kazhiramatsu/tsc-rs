@@ -56,6 +56,8 @@ tsc-types = { package = "tsc-rs-types", path = "crates/types" }
 libc = "0.2"
 rustc-hash = "2.1"
 self_cell = "1"
+# `union`: an inline-capable vector is as large as a `Vec` (no separate tag word).
+smallvec = { version = "1.13", features = ["union"] }
 
 # Test failures retain Rust backtraces and assertion context without embedding
 # full DWARF/PDB data in every large integration binary. This materially

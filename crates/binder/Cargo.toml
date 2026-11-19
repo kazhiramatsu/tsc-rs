@@ -20,6 +20,7 @@ perf-counters = ["tsc-types/perf-counters"]
 hashbrown = { version = "0.16", default-features = false, features = ["inline-more"] }
 indexmap = "2"
 rustc-hash.workspace = true
+smallvec.workspace = true
 tsc-diagnostics.workspace = true
 tsc-store.workspace = true
 tsc-syntax.workspace = true

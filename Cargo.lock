@@ -800,6 +800,7 @@ dependencies = [
  "hashbrown 0.16.1",
  "indexmap",
  "rustc-hash",
+ "smallvec",
  "tsc-rs-diagnostics",
  "tsc-rs-store",
  "tsc-rs-syntax",
