@@ -3,6 +3,7 @@ use std::hash::{Hash, Hasher};
 use hashbrown::hash_table::{Entry, HashTable};
 use indexmap::{set, IndexSet};
 use rustc_hash::{FxBuildHasher, FxHasher};
+use smallvec::SmallVec;
 use tsc_types::{EscapedName, JsStr, JsString, SymbolId};
 
 /// A key of a symbol table: a name, or an already escaped text, which is
@@ -81,11 +82,42 @@ pub struct SymbolTable(Option<Box<SymbolMap>>);
 /// every class or interface instantiation, including the inherited members,
 /// so a large program holds millions of entries; most maps are small, and a
 /// small one is scanned instead of indexed.
-#[derive(Clone, Default)]
+///
+/// The first [`INLINE_ENTRIES`] entries live in the map itself: most binder
+/// tables (a scope's locals, a symbol's members or exports) hold one or two
+/// entries — two of three on the largest bench project, four of five on the
+/// smallest — and such a table is then this one block instead of the map and
+/// a separate vector of four slots.
+#[derive(Default)]
 struct SymbolMap {
-    entries: Vec<(EscapedName, SymbolId)>,
+    entries: EntryVec,
     positions: Option<Box<HashTable<u32>>>,
 }
+
+// A copy's vector holds exactly its entries, as a `Vec`'s copy does (the
+// small vector's own `clone` rounds the size up to a power of two).
+impl Clone for SymbolMap {
+    fn clone(&self) -> Self {
+        let mut entries = EntryVec::new();
+        if self.entries.len() > INLINE_ENTRIES {
+            entries.reserve_exact(self.entries.len());
+        }
+        entries.extend_from_slice(&self.entries);
+        Self {
+            entries,
+            positions: self.positions.clone(),
+        }
+    }
+}
+
+/// The entries a map holds without a vector of its own. Two entries take the
+/// sixteen bytes a vector's pointer and length take, so the map keeps its
+/// size (asserted below).
+const INLINE_ENTRIES: usize = 2;
+type EntryVec = SmallVec<[(EscapedName, SymbolId); INLINE_ENTRIES]>;
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::<SymbolMap>() == 32);
 
 /// The size from which a map indexes its entries; a smaller one is scanned
 /// (a name is a 4-byte id, so a scan is a few compares).
@@ -106,10 +138,22 @@ impl SymbolMap {
         self.entries.is_empty()
     }
 
+    /// Room in the entries for `additional` more, asked for in advance: at
+    /// least four slots, at least twice the present ones, and what was asked
+    /// for — the vector a `Vec` would have reserved.
+    fn reserve_entries(&mut self, additional: usize) {
+        let required = self.entries.len() + additional;
+        let capacity = self.entries.capacity();
+        if required > capacity {
+            let target = required.max(capacity * 2).max(4);
+            self.entries.reserve_exact(target - self.entries.len());
+        }
+    }
+
     fn reserve(&mut self, additional: usize) {
-        self.entries.reserve(additional);
+        self.reserve_entries(additional);
         if let Some(positions) = &mut self.positions {
-            let entries = &self.entries;
+            let entries = self.entries.as_slice();
             positions.reserve(additional, |&position| {
                 hash_name(entries[position as usize].0)
             });
@@ -118,7 +162,7 @@ impl SymbolMap {
 
     /// Index the entries (the map reached [`INDEXED_FROM`] entries).
     fn index(&mut self) {
-        let entries = &self.entries;
+        let entries = self.entries.as_slice();
         let mut positions = HashTable::with_capacity(entries.len());
         for (position, (name, _)) in entries.iter().enumerate() {
             positions.insert_unique(hash_name(*name), position as u32, |&position| {
@@ -128,16 +172,24 @@ impl SymbolMap {
         self.positions = Some(Box::new(positions));
     }
 
-    fn position(&self, name: EscapedName) -> Option<usize> {
-        let entries = &self.entries;
-        match &self.positions {
+    /// The entry of `name` and its position. A read decides once whether the
+    /// entries live in the map or in a vector, here.
+    #[inline]
+    fn find(&self, name: EscapedName) -> Option<(usize, &(EscapedName, SymbolId))> {
+        let entries = self.entries.as_slice();
+        let position = match &self.positions {
             Some(positions) => positions
                 .find(hash_name(name), |&position| {
                     entries[position as usize].0 == name
                 })
                 .map(|&position| position as usize),
             None => entries.iter().position(|(candidate, _)| *candidate == name),
-        }
+        }?;
+        Some((position, &entries[position]))
+    }
+
+    fn position(&self, name: EscapedName) -> Option<usize> {
+        self.find(name).map(|(position, _)| position)
     }
 
     /// Insert or replace; a replaced entry keeps its position, as in a
@@ -151,13 +203,15 @@ impl SymbolMap {
             {
                 return Some(std::mem::replace(&mut self.entries[position].1, value));
             }
+            // A full vector grows to the next power of two: four slots
+            // after the two inline entries, then doubling.
             self.entries.push((name, value));
             if self.entries.len() >= INDEXED_FROM {
                 self.index();
             }
             return None;
         };
-        let entries = &self.entries;
+        let entries = self.entries.as_slice();
         let entry = positions.entry(
             hash_name(name),
             |&position| entries[position as usize].0 == name,
@@ -171,6 +225,9 @@ impl SymbolMap {
             Entry::Vacant(slot) => {
                 let position = u32::try_from(self.entries.len()).expect("symbol table size");
                 slot.insert(position);
+                // Only the entries grow here: the index names the new
+                // position already and is not rehashed before the entry
+                // exists.
                 self.entries.push((name, value));
                 None
             }
@@ -214,8 +271,8 @@ impl PartialEq for SymbolTable {
         this.len() == other.len()
             && this.entries.iter().all(|(name, symbol)| {
                 other
-                    .position(*name)
-                    .is_some_and(|position| other.entries[position].1 == *symbol)
+                    .find(*name)
+                    .is_some_and(|(_, entry)| entry.1 == *symbol)
             })
     }
 }
@@ -233,7 +290,7 @@ pub type Keys<'a> = std::iter::Map<Entries<'a>, fn(&'a (EscapedName, SymbolId)) 
 pub type Values<'a> = std::iter::Map<Entries<'a>, fn(&'a (EscapedName, SymbolId)) -> &'a SymbolId>;
 pub type ValuesMut<'a> =
     std::iter::Map<EntriesMut<'a>, fn(&'a mut (EscapedName, SymbolId)) -> &'a mut SymbolId>;
-pub type IntoIter = std::vec::IntoIter<(EscapedName, SymbolId)>;
+pub type IntoIter = smallvec::IntoIter<[(EscapedName, SymbolId); INLINE_ENTRIES]>;
 
 fn empty_symbol_map() -> &'static SymbolMap {
     static EMPTY: std::sync::OnceLock<SymbolMap> = std::sync::OnceLock::new();
@@ -281,8 +338,13 @@ impl SymbolTable {
     /// Bytes this table owns on the heap, for memory accounting.
     pub fn heap_bytes(&self) -> usize {
         self.0.as_ref().map_or(0, |map| {
+            let vector = if map.entries.spilled() {
+                map.entries.capacity() * std::mem::size_of::<(EscapedName, SymbolId)>()
+            } else {
+                0
+            };
             std::mem::size_of::<SymbolMap>()
-                + map.entries.capacity() * std::mem::size_of::<(EscapedName, SymbolId)>()
+                + vector
                 + map.positions.as_ref().map_or(0, |positions| {
                     std::mem::size_of::<HashTable<u32>>()
                         + positions.capacity() * (std::mem::size_of::<u32>() + 1)
@@ -322,9 +384,8 @@ impl SymbolTable {
     }
 
     pub fn get(&self, key: impl NameKey) -> Option<&SymbolId> {
-        let map = self.0.as_deref()?;
-        let position = map.position(key.name())?;
-        Some(&map.entries[position].1)
+        let (_, entry) = self.0.as_deref()?.find(key.name())?;
+        Some(&entry.1)
     }
 
     pub fn get_mut(&mut self, key: impl NameKey) -> Option<&mut SymbolId> {
@@ -342,9 +403,7 @@ impl SymbolTable {
     }
 
     pub fn get_full(&self, key: impl NameKey) -> Option<(usize, &EscapedName, &SymbolId)> {
-        let map = self.0.as_deref()?;
-        let position = map.position(key.name())?;
-        let (name, symbol) = &map.entries[position];
+        let (position, (name, symbol)) = self.0.as_deref()?.find(key.name())?;
         Some((position, name, symbol))
     }
 
@@ -409,7 +468,7 @@ impl IntoIterator for SymbolTable {
     fn into_iter(self) -> Self::IntoIter {
         match self.0 {
             Some(map) => map.entries.into_iter(),
-            None => Vec::new().into_iter(),
+            None => EntryVec::new().into_iter(),
         }
     }
 }

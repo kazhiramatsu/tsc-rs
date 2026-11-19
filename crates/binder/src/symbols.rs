@@ -74,7 +74,54 @@ pub struct SymbolExtras {
     /// tsc Symbol.assignmentDeclarationMembers: dynamically named JS
     /// assignments are late-bound when the containing symbol's
     /// members/exports are resolved.
-    pub assignment_declaration_members: IndexMap<NodeId, NodeId>,
+    pub assignment_declaration_members: AssignmentDeclarationMembers,
+}
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::<SymbolExtras>() <= 48);
+
+/// tsc Symbol.assignmentDeclarationMembers, in insertion order. Only a symbol
+/// of JavaScript assignment declarations with computed names has any, so the
+/// map is allocated on the first insertion: without one a symbol's extras
+/// carry a pointer instead of an inline map, which was most of the record.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct AssignmentDeclarationMembers(Option<Box<IndexMap<NodeId, NodeId>>>);
+
+impl AssignmentDeclarationMembers {
+    pub fn insert(&mut self, key: NodeId, value: NodeId) -> Option<NodeId> {
+        self.0.get_or_insert_with(Box::default).insert(key, value)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&NodeId, &NodeId)> {
+        self.0.iter().flat_map(|map| map.iter())
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = &NodeId> {
+        self.0.iter().flat_map(|map| map.values())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.as_ref().map_or(0, |map| map.len())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// The bytes the map owns on the heap, by its capacity.
+    pub fn heap_bytes(&self) -> usize {
+        self.0.as_ref().map_or(0, |map| {
+            std::mem::size_of::<IndexMap<NodeId, NodeId>>()
+                + map.capacity() * (2 * std::mem::size_of::<NodeId>() + 16)
+        })
+    }
+}
+
+impl From<IndexMap<NodeId, NodeId>> for AssignmentDeclarationMembers {
+    /// An empty map is no map: the two compare equal only that way.
+    fn from(map: IndexMap<NodeId, NodeId>) -> Self {
+        Self((!map.is_empty()).then(|| Box::new(map)))
+    }
 }
 
 impl Default for SymbolExtras {
@@ -86,7 +133,7 @@ impl Default for SymbolExtras {
             export_symbol: None,
             const_enum_only_module: None,
             is_replaceable_by_method: false,
-            assignment_declaration_members: IndexMap::new(),
+            assignment_declaration_members: AssignmentDeclarationMembers::default(),
         }
     }
 }
@@ -332,8 +379,7 @@ impl SymbolArena {
             }
             if let Some(extras) = &symbol.extras {
                 owned += std::mem::size_of::<SymbolExtras>()
-                    + extras.assignment_declaration_members.capacity()
-                        * (2 * std::mem::size_of::<NodeId>() + 16);
+                    + extras.assignment_declaration_members.heap_bytes();
             }
         }
         (

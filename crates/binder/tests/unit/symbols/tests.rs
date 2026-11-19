@@ -149,6 +149,151 @@ fn a_symbol_table_reads_the_same_below_and_above_its_index_threshold() {
 }
 
 #[test]
+fn a_symbol_table_holds_two_entries_in_its_map_and_grows_a_vector_beyond() {
+    // Most tables hold one or two entries: those live in the map's own block.
+    // A third entry moves them into a vector of four slots that doubles when
+    // it is full; reads, order and equality do not depend on where the
+    // entries live.
+    const MAP: usize = 32;
+    const ENTRY: usize = 8;
+    let mut arena = SymbolArena::default();
+    let names: Vec<EscapedName> = (0..40)
+        .map(|index| escape_leading_underscores(&format!("m{index}")))
+        .collect();
+    let ids: Vec<SymbolId> = names
+        .iter()
+        .map(|name| arena.alloc(SymbolFlags::NONE, *name))
+        .collect();
+    let filled = |count: usize| {
+        let mut table = SymbolTable::default();
+        for index in 0..count {
+            table.insert(names[index], ids[index]);
+        }
+        table
+    };
+    assert_eq!(SymbolTable::default().heap_bytes(), 0);
+    assert_eq!(filled(1).heap_bytes(), MAP);
+    assert_eq!(filled(2).heap_bytes(), MAP);
+    assert_eq!(filled(3).heap_bytes(), MAP + 4 * ENTRY);
+    assert_eq!(filled(4).heap_bytes(), MAP + 4 * ENTRY);
+    assert_eq!(filled(5).heap_bytes(), MAP + 8 * ENTRY);
+    assert_eq!(filled(8).heap_bytes(), MAP + 8 * ENTRY);
+    // Room asked for in advance: none for two entries, the asked size
+    // beyond; a table that outgrows it gets the next power of two.
+    let mut reserved = SymbolTable::default();
+    reserved.reserve(2);
+    assert_eq!(reserved.heap_bytes(), MAP);
+    reserved.reserve(5);
+    assert_eq!(reserved.heap_bytes(), MAP + 5 * ENTRY);
+    for index in 0..5 {
+        reserved.insert(names[index], ids[index]);
+    }
+    assert_eq!(reserved.heap_bytes(), MAP + 5 * ENTRY);
+    reserved.insert(names[5], ids[5]);
+    assert_eq!(reserved.heap_bytes(), MAP + 8 * ENTRY);
+    // An indexed table (nine entries or more) that fills a reserved size
+    // grows its vector while its index already names the new entry: at
+    // every reserved size the index is full at a different count.
+    for room in 9..24 {
+        let mut exact = SymbolTable::default();
+        exact.reserve(room);
+        assert_eq!(exact.heap_bytes(), MAP + room * ENTRY);
+        for index in 0..names.len() {
+            assert_eq!(exact.insert(names[index], ids[index]), None);
+            assert_eq!(exact.len(), index + 1);
+        }
+        for index in 0..names.len() {
+            assert_eq!(
+                exact.get_full(names[index]),
+                Some((index, &names[index], &ids[index]))
+            );
+        }
+    }
+    // The same entries read the same from the map and from a vector.
+    for count in 0..=6 {
+        let table = filled(count);
+        assert_eq!(table.len(), count);
+        assert_eq!(table.is_empty(), count == 0);
+        assert_eq!(
+            table
+                .iter()
+                .map(|(name, id)| (*name, *id))
+                .collect::<Vec<_>>(),
+            names[..count]
+                .iter()
+                .copied()
+                .zip(ids[..count].iter().copied())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(table.keys().copied().collect::<Vec<_>>(), names[..count]);
+        assert_eq!(table.values().copied().collect::<Vec<_>>(), ids[..count]);
+        for index in 0..9 {
+            assert_eq!(
+                table.get(names[index]),
+                (index < count).then_some(&ids[index])
+            );
+            assert_eq!(
+                table.get_index(index),
+                (index < count).then_some((&names[index], &ids[index]))
+            );
+        }
+        assert_eq!(table.clone(), table);
+        assert_eq!(
+            table.clone().into_iter().collect::<Vec<_>>(),
+            names[..count]
+                .iter()
+                .copied()
+                .zip(ids[..count].iter().copied())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(table.iter().collect::<SymbolTableEntries>().len(), count);
+    }
+    // A copy holds what it needs: two entries in its map, three in a vector
+    // of three.
+    assert_eq!(filled(2).clone().heap_bytes(), MAP);
+    assert_eq!(filled(3).clone().heap_bytes(), MAP + 3 * ENTRY);
+    // A table that shrinks back to two entries reads as one that never grew.
+    let mut shrunk = filled(3);
+    assert_eq!(shrunk.shift_remove(names[1]), Some(ids[1]));
+    assert_eq!(
+        shrunk.keys().copied().collect::<Vec<_>>(),
+        [names[0], names[2]]
+    );
+    let mut same = SymbolTable::default();
+    same.insert(names[0], ids[0]);
+    same.insert(names[2], ids[2]);
+    assert_eq!(shrunk, same);
+    assert_eq!(shrunk.insert(names[2], ids[8]), Some(ids[2]));
+    assert_eq!(shrunk.get_full(names[2]), Some((1, &names[2], &ids[8])));
+    // Values can be rewritten in place in both forms.
+    for count in [2, 5] {
+        let mut table = filled(count);
+        for id in table.values_mut() {
+            *id = ids[8];
+        }
+        assert!(table.values().all(|id| *id == ids[8]));
+        *table.get_mut(names[0]).unwrap() = ids[0];
+        assert_eq!(table[names[0]], ids[0]);
+        table.clear();
+        assert_eq!(table.heap_bytes(), 0);
+        assert!(table.is_empty());
+    }
+    // Collected and extended tables take the same forms.
+    let collected: SymbolTable = names[..2]
+        .iter()
+        .copied()
+        .zip(ids.iter().copied())
+        .collect();
+    assert_eq!(collected.heap_bytes(), MAP);
+    assert_eq!(collected, filled(2));
+    let mut extended = filled(1);
+    extended.extend(names[1..7].iter().copied().zip(ids[1..7].iter().copied()));
+    assert_eq!(extended, filled(7));
+}
+
+type SymbolTableEntries<'a> = Vec<(&'a EscapedName, &'a SymbolId)>;
+
+#[test]
 fn declaration_singletons_stay_in_the_header_until_they_grow() {
     let mut pool = DeclarationPool::with_chunk_capacity(3);
     let node = NodeId::new(17);
