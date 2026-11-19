@@ -221,7 +221,7 @@ pub fn restore_reserved(
             extras.export_symbol = export_symbol;
             extras.const_enum_only_module = (const_enum != 0).then_some(const_enum == 2);
             extras.is_replaceable_by_method = latches & 1 != 0;
-            extras.assignment_declaration_members = assignments;
+            extras.assignment_declaration_members = assignments.into();
         } else if !members.is_empty()
             || !exports.is_empty()
             || !global_exports.is_empty()
