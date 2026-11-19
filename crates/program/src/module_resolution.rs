@@ -559,6 +559,72 @@ enum PackageCacheEntry {
     Found(Arc<CachedPackage>),
 }
 
+/// The package.json files the resolvers of one program load have looked
+/// for, by canonical path. Every worker of the read-ahead resolves with a
+/// resolver of its own, and each of them read and parsed the package.json
+/// files its sources reach again (at ten workers, twice the reads and parses
+/// of a load on one thread). A lookup is a pure observation of the host, so
+/// a resolver takes another resolver's result as its own when the result
+/// was built for the spelling it asks with; it still records its own probe
+/// and keeps the entry in its own cache, which alone says what that resolver
+/// observed. A traced resolution reads the file itself: its trace lists the
+/// probes.
+#[derive(Debug)]
+pub(crate) struct SharedPackageLoads {
+    shards: [std::sync::Mutex<rustc_hash::FxHashMap<JsString, PackageCacheEntry>>; Self::SHARDS],
+}
+
+impl Default for SharedPackageLoads {
+    fn default() -> Self {
+        Self {
+            shards: std::array::from_fn(|_| std::sync::Mutex::default()),
+        }
+    }
+}
+
+impl SharedPackageLoads {
+    const SHARDS: usize = 64;
+
+    fn shard(
+        &self,
+        key: &JsString,
+    ) -> std::sync::MutexGuard<'_, rustc_hash::FxHashMap<JsString, PackageCacheEntry>> {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = rustc_hash::FxHasher::default();
+        key.hash(&mut hasher);
+        // The shard's map hashes the key the same way: it takes its bucket
+        // from the lowest bits and its seven-bit tag from the top bits, so
+        // the shard takes bits between them (a shard chosen by top bits
+        // would leave the tags of its entries almost all alike, and every
+        // lookup would compare the paths of the entries it passes).
+        self.shards[(hasher.finish() >> 20) as usize % Self::SHARDS]
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    /// Another resolver's result for `key`, if it holds for a lookup that
+    /// asks with the directory spelling `package_directory`: a canonical
+    /// key can come from another casing, and a package carries the spelling
+    /// it was asked with.
+    fn get(&self, key: &JsString, package_directory: JsStr<'_>) -> Option<PackageCacheEntry> {
+        self.shard(key)
+            .get(key)
+            .filter(|entry| match entry {
+                PackageCacheEntry::Missing { .. } => true,
+                PackageCacheEntry::Found(package) => {
+                    package.root.as_bytes() == package_directory.as_bytes()
+                }
+            })
+            .cloned()
+    }
+
+    /// The first result for a key stays: every resolver that takes it reads
+    /// the same package.
+    fn insert(&self, key: &JsString, entry: PackageCacheEntry) {
+        self.shard(key).entry(key.clone()).or_insert(entry);
+    }
+}
+
 /// Pure-host scope observations awaiting an ordered lookup. Keeping these
 /// separate from the observed package cache prevents speculative manifests
 /// from entering the program's package inventory.
@@ -911,6 +977,9 @@ pub struct ModuleResolver<'a> {
     root_dirs: Option<Vec<JsString>>,
     package_cache: BTreeMap<JsString, PackageCacheEntry>,
     package_cache_enabled: bool,
+    /// The lookups of the load's other resolvers (see
+    /// [`SharedPackageLoads`]); none outside a parallel load.
+    shared_package_loads: Option<Arc<SharedPackageLoads>>,
     /// Every package.json this resolver probed, by canonical path (see
     /// [`PackageJsonProbe`]).
     package_json_probes: std::cell::RefCell<BTreeMap<JsString, PackageJsonProbe>>,
@@ -981,6 +1050,27 @@ impl<'a> ModuleResolver<'a> {
         self.redirect_config = Some(config.to_owned());
         self.trace = trace.then(|| std::cell::RefCell::new(Vec::new()));
         self
+    }
+
+    /// Share package.json lookups with the other resolvers of a load (see
+    /// [`SharedPackageLoads`]).
+    pub(crate) fn with_shared_package_loads(mut self, loads: Arc<SharedPackageLoads>) -> Self {
+        self.shared_package_loads = Some(loads);
+        self
+    }
+
+    /// The table this resolver shares its package.json lookups through.
+    pub(crate) fn shared_package_loads(&self) -> Option<&Arc<SharedPackageLoads>> {
+        self.shared_package_loads.as_ref()
+    }
+
+    /// Whether a lookup may take, and leave, a result in the load's table:
+    /// not while the package cache is off (the lookup wants the host's own
+    /// answer) and not under a trace, which lists the probes.
+    fn shares_package_loads(&self) -> Option<&SharedPackageLoads> {
+        self.shared_package_loads
+            .as_deref()
+            .filter(|_| self.package_cache_enabled && self.trace.is_none())
     }
 
     pub fn new_with_program_options(
@@ -1093,6 +1183,7 @@ impl<'a> ModuleResolver<'a> {
             root_dirs,
             package_cache: BTreeMap::new(),
             package_cache_enabled: true,
+            shared_package_loads: None,
             package_json_probes: std::cell::RefCell::new(BTreeMap::new()),
             record_package_json_realpaths,
             package_scope_by_directory: BTreeMap::new(),
@@ -1134,6 +1225,7 @@ impl<'a> ModuleResolver<'a> {
             root_dirs: None,
             package_cache: BTreeMap::new(),
             package_cache_enabled: true,
+            shared_package_loads: None,
             package_json_probes: std::cell::RefCell::new(BTreeMap::new()),
             record_package_json_realpaths: options.incremental == Some(true)
                 || options.composite == Some(true),
@@ -5841,12 +5933,27 @@ impl<'a> ModuleResolver<'a> {
         }
 
         let package_directory = crate::js_path::directory_name(package_json);
+        let shared = self
+            .shares_package_loads()
+            .and_then(|loads| loads.get(&cache_key, package_directory.as_js()));
+        if let Some(entry) = shared {
+            let found = match &entry {
+                PackageCacheEntry::Missing { .. } => None,
+                PackageCacheEntry::Found(package) => Some(Arc::clone(package)),
+            };
+            self.record_package_json_probe(&cache_key, package_json, found.is_some())?;
+            self.package_cache.insert(cache_key, entry);
+            return Ok(found);
+        }
         let directory_exists = self.host.directory_exists_js(package_directory.as_js())?;
         if !directory_exists || !self.host.file_exists_js(package_json)? {
             if directory_exists {
                 trace!(self, gen::File_0_does_not_exist, package_json);
             }
             self.record_package_json_probe(&cache_key, package_json, false)?;
+            if let Some(loads) = self.shares_package_loads() {
+                loads.insert(&cache_key, PackageCacheEntry::Missing { directory_exists });
+            }
             if self.package_cache_enabled {
                 self.package_cache
                     .insert(cache_key, PackageCacheEntry::Missing { directory_exists });
@@ -5913,6 +6020,9 @@ impl<'a> ModuleResolver<'a> {
             peer_probes,
             peer_dependencies_trace,
         });
+        if let Some(loads) = self.shares_package_loads() {
+            loads.insert(&cache_key, PackageCacheEntry::Found(Arc::clone(&package)));
+        }
         if self.package_cache_enabled {
             self.package_cache
                 .insert(cache_key, PackageCacheEntry::Found(Arc::clone(&package)));
@@ -8642,5 +8752,187 @@ mod cached_exports_tests {
         assert_eq!(view.slot, 0);
         assert_eq!(Arc::strong_count(&root), 1);
         assert_eq!(format!("{view:?}"), "None");
+    }
+}
+
+#[cfg(test)]
+mod shared_package_loads_tests {
+    use super::*;
+    use std::cell::RefCell;
+    use std::path::{Path, PathBuf};
+    use tsc_host::{HostError, MemoryCompilerHost};
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../host/tests/support/scalar_query_bridge.rs"
+    ));
+
+    /// A host that remembers the files read.
+    struct ReadLog {
+        inner: MemoryCompilerHost,
+        reads: RefCell<Vec<PathBuf>>,
+    }
+
+    impl CompilerHost for ReadLog {
+        scalar_host_query_bridge!();
+        fn current_directory(&self) -> Result<PathBuf, HostError> {
+            self.inner.current_directory()
+        }
+        fn use_case_sensitive_file_names(&self) -> bool {
+            self.inner.use_case_sensitive_file_names()
+        }
+        fn read_file(&self, path: &Path) -> Result<Option<Vec<u8>>, HostError> {
+            self.reads.borrow_mut().push(path.to_path_buf());
+            self.inner.read_file(path)
+        }
+        fn file_exists(&self, path: &Path) -> Result<bool, HostError> {
+            self.inner.file_exists(path)
+        }
+        fn directory_exists(&self, path: &Path) -> Result<bool, HostError> {
+            self.inner.directory_exists(path)
+        }
+        fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
+            self.inner.read_directory(path)
+        }
+        fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
+            self.inner.realpath(path)
+        }
+    }
+
+    fn host(case_sensitive: bool) -> ReadLog {
+        ReadLog {
+            inner: MemoryCompilerHost::builder("/work")
+                .case_sensitive(case_sensitive)
+                .file("/work/src/main.ts", b"export {};".to_vec())
+                .file(
+                    "/work/node_modules/pkg/package.json",
+                    br#"{"name":"pkg","version":"1.0.0","types":"index.d.ts"}"#.to_vec(),
+                )
+                .file("/work/node_modules/pkg/index.d.ts", b"export {};".to_vec())
+                .build()
+                .unwrap(),
+            reads: RefCell::new(Vec::new()),
+        }
+    }
+
+    fn options(trace: bool) -> CompilerOptions {
+        CompilerOptions {
+            module: Some(199),
+            module_resolution: Some(99),
+            trace_resolution: trace.then_some(true),
+            ..CompilerOptions::default()
+        }
+    }
+
+    fn manifest_reads(host: &ReadLog) -> usize {
+        host.reads
+            .borrow()
+            .iter()
+            .filter(|path| path.ends_with("package.json"))
+            .count()
+    }
+
+    /// A resolver of a load takes another resolver's package.json lookup:
+    /// it resolves as a resolver alone does, with the probe and the package
+    /// that resolver observes, and the file is read once for both.
+    #[test]
+    fn a_resolver_takes_another_resolvers_lookup_as_its_own() {
+        let host = host(true);
+        let options = options(false);
+        let mut alone = ModuleResolver::new(&host, &options).unwrap();
+        let expected = alone
+            .resolve_with_facts("/work/src/main.ts", "pkg", ResolutionMode::CommonJs)
+            .unwrap();
+        let read_alone = manifest_reads(&host);
+        assert!(read_alone > 0);
+
+        let loads = Arc::new(SharedPackageLoads::default());
+        let mut first = ModuleResolver::new(&host, &options)
+            .unwrap()
+            .with_shared_package_loads(Arc::clone(&loads));
+        let mut second = ModuleResolver::new(&host, &options)
+            .unwrap()
+            .with_shared_package_loads(Arc::clone(&loads));
+        for resolver in [&mut first, &mut second] {
+            let actual = resolver
+                .resolve_with_facts("/work/src/main.ts", "pkg", ResolutionMode::CommonJs)
+                .unwrap();
+            assert_eq!(actual, expected);
+            assert_eq!(resolver.package_json_probes(), alone.package_json_probes());
+            assert_eq!(
+                resolver
+                    .observed_package_metadata()
+                    .map(|package| package.package_json().canonical().clone())
+                    .collect::<Vec<_>>(),
+                alone
+                    .observed_package_metadata()
+                    .map(|package| package.package_json().canonical().clone())
+                    .collect::<Vec<_>>()
+            );
+        }
+        assert_eq!(
+            manifest_reads(&host),
+            2 * read_alone,
+            "the second resolver of the load read no package.json"
+        );
+    }
+
+    /// A lookup that asks with another spelling reads the file itself: a
+    /// package carries the spelling it was asked with.
+    #[test]
+    fn a_lookup_with_another_spelling_reads_the_file_itself() {
+        let host = host(false);
+        let options = options(false);
+        let loads = Arc::new(SharedPackageLoads::default());
+        let mut first = ModuleResolver::new(&host, &options)
+            .unwrap()
+            .with_shared_package_loads(Arc::clone(&loads));
+        let mut second = ModuleResolver::new(&host, &options)
+            .unwrap()
+            .with_shared_package_loads(Arc::clone(&loads));
+        let mut alone = ModuleResolver::new(&host, &options).unwrap();
+        first
+            .resolve_with_facts("/work/src/main.ts", "pkg", ResolutionMode::CommonJs)
+            .unwrap();
+        let before = manifest_reads(&host);
+        let expected = alone
+            .resolve_with_facts("/WORK/src/main.ts", "pkg", ResolutionMode::CommonJs)
+            .unwrap();
+        let read_alone = manifest_reads(&host) - before;
+        let actual = second
+            .resolve_with_facts("/WORK/src/main.ts", "pkg", ResolutionMode::CommonJs)
+            .unwrap();
+        assert_eq!(actual, expected);
+        assert_eq!(manifest_reads(&host) - before, 2 * read_alone);
+    }
+
+    /// A traced resolution lists its probes, so it neither takes nor leaves
+    /// a lookup.
+    #[test]
+    fn a_traced_resolution_reads_the_file_itself() {
+        let host = host(true);
+        let loads = Arc::new(SharedPackageLoads::default());
+        let plain = options(false);
+        let traced = options(true);
+        let mut first = ModuleResolver::new(&host, &plain)
+            .unwrap()
+            .with_shared_package_loads(Arc::clone(&loads));
+        first
+            .resolve_with_facts("/work/src/main.ts", "pkg", ResolutionMode::CommonJs)
+            .unwrap();
+        let before = manifest_reads(&host);
+        let mut alone = ModuleResolver::new(&host, &traced).unwrap();
+        let expected = alone
+            .resolve_with_facts("/work/src/main.ts", "pkg", ResolutionMode::CommonJs)
+            .unwrap();
+        let read_alone = manifest_reads(&host) - before;
+        assert!(read_alone > 0);
+        let mut second = ModuleResolver::new(&host, &traced)
+            .unwrap()
+            .with_shared_package_loads(Arc::clone(&loads));
+        let actual = second
+            .resolve_with_facts("/work/src/main.ts", "pkg", ResolutionMode::CommonJs)
+            .unwrap();
+        assert_eq!(actual, expected, "paths, diagnostics and the exact trace");
+        assert_eq!(manifest_reads(&host) - before, 2 * read_alone);
     }
 }
