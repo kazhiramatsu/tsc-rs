@@ -275,6 +275,68 @@ Its numbers beside the default and tsrs: [Latest numbers](#latest-numbers).
 The preset uses more memory, as every checker keeps its own type tables
 (VS Code: 2,388 MiB by default, 2,503 MiB with the preset).
 
+## The lane profile
+
+The default pool deals the files to its four checkers by their sizes, as
+tsgo does, and a file's size says little about what its check costs: on the
+projects above the longest-working checker works 1.1 to 1.6 times the mean,
+and the run waits for it. Setting `TSRS_LANE_PROFILE` in the environment (it
+is not a command-line option) to a file name makes a command record what the
+check of every file cost its checker — counts of the checker's work, not
+times — and a later run of the same program levels its checkers by that
+record: the files are dealt as before, and files then leave the costliest
+checker while it stands out.
+
+```sh
+TSRS_LANE_PROFILE=.tsc-rs-lanes tsc-rs --noEmit -p .   # the first run records
+TSRS_LANE_PROFILE=.tsc-rs-lanes tsc-rs --noEmit -p .   # later runs are levelled
+```
+
+- The variable names the record's file. If it names an existing directory,
+  the record is one file per project in it, named after the configuration
+  file's path.
+- The record is text and the same on every machine and in every run of a
+  program. An entry is used while its file's text keeps its length and is
+  recorded anew when it changes; a file without an entry weighs its size.
+- Only a one-shot command keeps a record: not `--watch`, not `-b`. The
+  variable has no effect together with `TSRS_FAST=1`.
+- Without the variable nothing is read or written, and the dealing is the
+  default's.
+
+The levelling stays inside a budget for the pool's peak memory: a checker
+that ends returns its tables while the others still check, so a pool whose
+checkers all end together holds more at once, and a file is moved only where
+that does not raise the default dealing's own budget. The budget is counted
+in the record's cost units, not in bytes: measured, the peak rose by 33 MiB
+on Next.js and by less elsewhere.
+
+Type check (`--noEmit`) with a record against the default, November 19,
+2026, on the machine of [Latest numbers](#latest-numbers): wall-clock time
+(median of the per-round ratios of 9 interleaved runs) and the change of
+the median peak memory.
+
+| Project | Wall-clock time | Peak memory |
+| --- | ---: | ---: |
+| VS Code `src` | 0.0 % | +1 MiB |
+| Next.js `packages/next` | −11.9 % | +33 MiB |
+| zod | +1.9 % | −8 MiB |
+| Effect `packages/effect` | −7.3 % | −7 MiB |
+| Playwright | −6.0 % | +2 MiB |
+| Vue | −8.6 % | +11 MiB |
+| TypeScript `src/compiler` | −13.8 % | −1 MiB |
+| hono | −17.0 % | +5 MiB |
+
+VS Code and zod keep the default dealing with their records (levelling them
+would raise the pool's peak), so their rows show the measurement's own
+variation: about 2 % in time and 10 MiB in memory between two runs of the
+same compiler.
+
+A program and its record give the same output in every run. That output is
+the default's except where a diagnostic depends on which checker saw a file
+first; tsgo itself reports such programs differently at different checker
+counts (zod is one: see [Output comparison](#output-comparison)). On these
+eight projects the diagnostics were the default's with and without a record.
+
 ## Content mappers
 
 On the four projects of the [content mapper](usage.md#content-mappers)

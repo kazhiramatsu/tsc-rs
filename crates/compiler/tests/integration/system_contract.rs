@@ -1580,3 +1580,127 @@ fn processing_explanations_follow_command_build_and_watch_consumers() {
         }
     }
 }
+
+/// `TSRS_LANE_PROFILE` (tsrs-native, opt-in): a first run records what the
+/// check of every file cost its checker; the same program again prints the
+/// same rows and keeps its record byte for byte; a file whose length changed
+/// is recorded anew while the others keep their entries; a directory holds
+/// one file per project; without the variable nothing is written.
+#[test]
+fn a_lane_profile_is_recorded_once_and_kept() {
+    const FILES: [(&str, &str); 5] = [
+        (
+            "/work/a.ts",
+            "export interface Box<T> { value: T } export const a: Box<number> = { value: 1 };",
+        ),
+        (
+            "/work/b.ts",
+            "import { a } from './a'; export function identity<T>(value: T): T { return value; } export const b = identity(a);",
+        ),
+        (
+            "/work/c.ts",
+            "export type Choice = 'c' | 'd'; export const c: Choice = 'c';",
+        ),
+        ("/work/d.ts", "export const d: number[] = [1, 2];"),
+        ("/work/e.ts", "export const e: string = 1;"),
+    ];
+    const LONGER_D: &str = "export const d: number[] = [1, 2, 3];";
+    for no_emit in [true, false] {
+        let mut system = MemorySystem::new(&FILES);
+        system.env.insert("TSRS_WORKERS".into(), "4".into());
+        system.env.insert("TSRS_CHECKERS".into(), "4".into());
+        let mut arguments = args(&[
+            "a.ts", "b.ts", "c.ts", "d.ts", "e.ts", "--pretty", "false", "--outDir", "out",
+        ]);
+        if no_emit {
+            arguments.push("--noEmit".into());
+        }
+        let run = |system: &MemorySystem| {
+            system.output.lock().unwrap().clear();
+            let status = status_of(system, &arguments, None);
+            (status, system.output.lock().unwrap().clone())
+        };
+
+        // Without the variable: the reference's dealing, nothing written.
+        let reference = run(&system);
+        assert!(
+            reference.1.contains("e.ts(1,14): error TS2322"),
+            "no_emit={no_emit}: {}",
+            reference.1
+        );
+        assert!(!system.fs.is_file("/work/lane.profile"));
+
+        // A first run with the variable: the same rows, and a record of the
+        // five files in name order — each with its text length and a cost
+        // above a file's static part.
+        system
+            .env
+            .insert("TSRS_LANE_PROFILE".into(), "lane.profile".into());
+        assert_eq!(run(&system), reference, "no_emit={no_emit}");
+        let record =
+            String::from_utf8(system.fs.read("/work/lane.profile").expect("a record")).unwrap();
+        let mut rows = record.lines();
+        assert!(
+            rows.next()
+                .is_some_and(|row| row.starts_with("# tsc-rs lane profile 1:")),
+            "{record}"
+        );
+        let entries: Vec<(u64, usize, &str)> = rows
+            .map(|row| {
+                let mut fields = row.splitn(3, '\t');
+                (
+                    fields.next().unwrap().parse().unwrap(),
+                    fields.next().unwrap().parse().unwrap(),
+                    fields.next().unwrap(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            entries.iter().map(|entry| entry.2).collect::<Vec<_>>(),
+            FILES.map(|(path, _)| path),
+            "{record}"
+        );
+        for (&(cost, length, _), (_, text)) in entries.iter().zip(FILES) {
+            assert_eq!(length, text.len(), "{record}");
+            assert!(cost > 1_000_000, "{record}");
+        }
+
+        // The same program again: the same rows, the record as it was.
+        assert_eq!(run(&system), reference, "no_emit={no_emit}");
+        assert_eq!(
+            system.fs.read("/work/lane.profile").unwrap(),
+            record.as_bytes()
+        );
+
+        // One file changes its length: its entry is recorded anew, the
+        // others keep theirs.
+        system.fs.write("/work/d.ts", LONGER_D.as_bytes()).unwrap();
+        assert_eq!(run(&system), reference, "no_emit={no_emit}");
+        let changed = String::from_utf8(system.fs.read("/work/lane.profile").unwrap()).unwrap();
+        assert_eq!(record.lines().count(), changed.lines().count());
+        for (before, after) in record.lines().zip(changed.lines()) {
+            if before.ends_with("\t/work/d.ts") {
+                assert!(
+                    after.ends_with(&format!("\t{}\t/work/d.ts", LONGER_D.len())),
+                    "{changed}"
+                );
+            } else {
+                assert_eq!(before, after);
+            }
+        }
+
+        // A directory holds one file per project.
+        system.fs.create_dir_all("/work/profiles").unwrap();
+        system
+            .env
+            .insert("TSRS_LANE_PROFILE".into(), "profiles".into());
+        assert_eq!(run(&system), reference, "no_emit={no_emit}");
+        let kept = system.fs.read_dir("/work/profiles").unwrap();
+        assert_eq!(kept.len(), 1);
+        assert!(
+            kept[0].name().len() == 16 + ".profile".len() && kept[0].name().ends_with(".profile"),
+            "{}",
+            kept[0].name()
+        );
+    }
+}

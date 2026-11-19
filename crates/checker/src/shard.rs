@@ -47,6 +47,9 @@ pub struct CheckerBudget {
     assignment: CheckerAssignment,
     /// The count is an upper bound that follows the Program's checked files.
     scaled: bool,
+    /// The recorded costs of the Program's files, when its owner keeps a
+    /// lane profile ([`crate::LaneProfile`]).
+    lane_profile: Option<&'static crate::LaneProfile>,
 }
 
 impl Default for CheckerBudget {
@@ -64,6 +67,7 @@ impl CheckerBudget {
             order_replay: false,
             assignment: CheckerAssignment::Tsgo,
             scaled: false,
+            lane_profile: None,
         }
     }
 
@@ -124,6 +128,18 @@ impl CheckerBudget {
 
     pub const fn assignment(self) -> CheckerAssignment {
         self.assignment
+    }
+
+    /// A lane profile (tsrs-native, opt-in): the pool's checkers are
+    /// levelled by the costs it holds, and the check records in it what it
+    /// measured. The reference association only; not with an order replay.
+    pub const fn with_lane_profile(mut self, profile: Option<&'static crate::LaneProfile>) -> Self {
+        self.lane_profile = profile;
+        self
+    }
+
+    pub(crate) const fn lane_profile(self) -> Option<&'static crate::LaneProfile> {
+        self.lane_profile
     }
 
     /// The requested count; for the fast preset its upper bound.
@@ -310,6 +326,156 @@ pub(crate) fn associate_files(
         checkers,
         policy.penalty_multiplier,
     )
+}
+
+/// A checker's recorded cost may exceed the mean by one part in this many
+/// before files are moved off it.
+const COST_TOLERANCE_PARTS: usize = 50;
+
+/// A levelling must take at least one part in this many off the costliest
+/// checker, or the reference's association stays: the cost measure cannot
+/// tell a smaller difference from none, and every moved file makes its new
+/// checker resolve what the file uses.
+const COST_GAIN_PARTS: usize = 25;
+
+/// A file that fits a move, with its rank: the import neighbours it gains,
+/// its cost, and the lower file index among equals.
+type FittingFile = ((i64, usize, std::cmp::Reverse<usize>), usize);
+
+/// Levels the reference's association by recorded costs (a lane profile,
+/// [`crate::lane_profile`]) with as few moves as it takes, inside the
+/// reference's own peak budget ([`capped_level`]): while the costliest
+/// checker is more than the tolerance above the level, one of its files goes
+/// to the lightest checker that has room under its cap — a file that fits
+/// what the one has too much and the other too little, the one with the most
+/// import neighbours gained (those on the taking checker less those it
+/// leaves), the costliest among equals. A Program whose checkers are level by
+/// cost keeps the reference's association, file for file. `movable[file]` is
+/// false for a file no checker type checks.
+pub(crate) fn level_by_cost(
+    associations: &mut [usize],
+    costs: &[usize],
+    movable: &[bool],
+    adjacent: &[Vec<usize>],
+    checkers: usize,
+) {
+    if checkers < 2 {
+        return;
+    }
+    let mut loads = vec![0usize; checkers];
+    for (&checker, &cost) in associations.iter().zip(costs) {
+        loads[checker] += cost;
+    }
+    let mean = loads.iter().sum::<usize>() / checkers;
+    let (caps, level) = capped_level(&loads);
+    let limit = level + mean / COST_TOLERANCE_PARTS;
+    let costliest_before = loads.iter().copied().max().unwrap_or(0);
+    let reference = associations.to_vec();
+    'moves: loop {
+        // The lowest index among equals.
+        let heaviest = (0..checkers)
+            .max_by_key(|&checker| (loads[checker], std::cmp::Reverse(checker)))
+            .expect("two checkers at least");
+        if loads[heaviest] <= limit {
+            break;
+        }
+        let mut takers = (0..checkers)
+            .filter(|&checker| checker != heaviest && loads[checker] < caps[checker])
+            .collect::<Vec<_>>();
+        takers.sort_by_key(|&checker| (loads[checker], checker));
+        for lightest in takers {
+            let amount = (loads[heaviest] - level)
+                .min(level.min(caps[lightest]).saturating_sub(loads[lightest]));
+            // The import neighbours a file gains by the move: those on the
+            // taking checker less those it leaves.
+            let gain = |file: usize| {
+                adjacent[file]
+                    .iter()
+                    .map(|&other| {
+                        i64::from(associations[other] == lightest)
+                            - i64::from(associations[other] == heaviest)
+                    })
+                    .sum::<i64>()
+            };
+            let mut fitting: Option<FittingFile> = None;
+            let mut cheapest: Option<usize> = None;
+            for file in 0..associations.len() {
+                if associations[file] != heaviest || !movable[file] || costs[file] == 0 {
+                    continue;
+                }
+                if cheapest.is_none_or(|other| (costs[file], file) < (costs[other], other)) {
+                    cheapest = Some(file);
+                }
+                if costs[file] <= amount {
+                    let key = (gain(file), costs[file], std::cmp::Reverse(file));
+                    if fitting.is_none_or(|(best, _)| key > best) {
+                        fitting = Some((key, file));
+                    }
+                }
+            }
+            // Nothing fits: the cheapest file, if the pair's costlier checker
+            // is cheaper after its move and the taking one stays under its cap.
+            let file = fitting.map(|(_, file)| file).or_else(|| {
+                cheapest.filter(|&file| {
+                    loads[lightest] + costs[file] < loads[heaviest]
+                        && loads[lightest] + costs[file] <= caps[lightest]
+                })
+            });
+            let Some(file) = file else {
+                continue;
+            };
+            associations[file] = lightest;
+            loads[heaviest] -= costs[file];
+            loads[lightest] += costs[file];
+            continue 'moves;
+        }
+        break;
+    }
+    let costliest_after = loads.iter().copied().max().unwrap_or(0);
+    if costliest_before.saturating_sub(costliest_after) < costliest_before / COST_GAIN_PARTS {
+        associations.copy_from_slice(&reference);
+    }
+}
+
+/// The peak budget of a dealing, in its own cost unit: per checker the load
+/// it may reach, and the level the checkers under no cap share.
+///
+/// A checker that ends returns its tables while the others still check, so a
+/// pool's peak goes with the largest `(checkers - rank) * load` over the loads
+/// in ascending order (that many checkers are alive when the one of that rank
+/// ends), not with their sum. A dealing that is level by cost has no early
+/// end and the highest peak of all (measured 2026-11-18, four checkers: next
+/// 19 % faster with 54 MiB more, zod 0.5 % faster with 41 MiB more). The
+/// budget is that largest product for the loads as they are; the checker of a
+/// rank may not grow above `budget / (checkers - rank)`, and the level is the
+/// load at which the capped checkers and the others sum to the total.
+fn capped_level(loads: &[usize]) -> (Vec<usize>, usize) {
+    let checkers = loads.len();
+    let total = loads.iter().sum::<usize>();
+    let mut order = (0..checkers).collect::<Vec<_>>();
+    order.sort_by_key(|&checker| (loads[checker], checker));
+    let budget = order
+        .iter()
+        .enumerate()
+        .map(|(rank, &checker)| (checkers - rank) * loads[checker])
+        .max()
+        .unwrap_or(0);
+    let mut caps = vec![0usize; checkers];
+    for (rank, &checker) in order.iter().enumerate() {
+        caps[checker] = budget / (checkers - rank);
+    }
+    // The caps rise with the rank: the lowest ranks sit at theirs, the others
+    // share what is left.
+    let mut level = total / checkers;
+    let mut capped = 0usize;
+    for (rank, &checker) in order.iter().enumerate() {
+        level = (total - capped) / (checkers - rank);
+        if level <= caps[checker] {
+            break;
+        }
+        capped += caps[checker];
+    }
+    (caps, level)
 }
 
 /// tsgo `checkerAssociationSourceFileWeightMultiplier`: every file the
@@ -854,6 +1020,9 @@ pub(crate) struct ShardFileQueue {
     /// The statements its own checker checks of a file checked in ranges.
     owned_statements: rustc_hash::FxHashMap<usize, Range<usize>>,
     aborted: AtomicBool,
+    /// The checkers measure what every fixture's check costs (a lane
+    /// profile is written after the check).
+    measures_costs: bool,
 }
 
 #[derive(Debug, Default)]
@@ -890,7 +1059,17 @@ impl ShardFileQueue {
             lanes,
             owned_statements: rustc_hash::FxHashMap::default(),
             aborted: AtomicBool::new(false),
+            measures_costs: false,
         }
+    }
+
+    /// From now on the checkers measure what every fixture's check costs.
+    pub(crate) fn measure_costs(&mut self) {
+        self.measures_costs = true;
+    }
+
+    pub(crate) fn measures_costs(&self) -> bool {
+        self.measures_costs
     }
 
     /// Adds the statement ranges of `splits` (in ascending file index, so
@@ -1464,5 +1643,67 @@ mod tests {
             ShardFileQueue::associated(0, &[1], &[0], 8).shard_count(),
             1
         );
+    }
+
+    #[test]
+    fn a_profile_levels_the_dealing_with_few_moves() {
+        // Checker 0 holds 120 of 160 cost units; the mean is 53.
+        let costs = [50, 30, 20, 10, 10, 20, 20];
+        let mut associations = vec![0, 0, 0, 0, 0, 1, 2];
+        let adjacent = vec![Vec::new(); 7];
+        level_by_cost(&mut associations, &costs, &[true; 7], &adjacent, 3);
+        // The budget is checker 0's 120 (it ends alone): checker 1, the
+        // cheapest, may reach 40 and takes the 20; checker 2 may reach 60 and
+        // takes the 30 and one 10. Three checkers at 60, 40 and 60: half the
+        // longest load, and no more alive at any end than the budget holds.
+        assert_eq!(associations, [0, 2, 1, 2, 0, 1, 2]);
+        assert_eq!(capped_level(&[120, 20, 20]), (vec![120, 40, 60], 60));
+        // A level dealing is left as it is, file for file.
+        let mut level = vec![0, 1, 2, 0, 1, 2];
+        level_by_cost(
+            &mut level,
+            &[10, 10, 10, 10, 10, 10],
+            &[true; 6],
+            &vec![Vec::new(); 6],
+            3,
+        );
+        assert_eq!(level, [0, 1, 2, 0, 1, 2]);
+        // A levelling that takes less than a twenty-fifth off the costliest
+        // checker is not made: the 10 would go to checker 2 and leave 100 of
+        // the 103.
+        let mut slight = vec![0, 0, 1, 2];
+        level_by_cost(
+            &mut slight,
+            &[93, 10, 100, 50],
+            &[true; 4],
+            &vec![Vec::new(); 4],
+            3,
+        );
+        assert_eq!(slight, [0, 0, 1, 2]);
+        // Checkers that end together already hold the whole budget: nothing
+        // moves to the cheapest one.
+        let mut together = vec![0, 0, 1, 2];
+        level_by_cost(
+            &mut together,
+            &[100, 3, 100, 97],
+            &[true; 4],
+            &vec![Vec::new(); 4],
+            3,
+        );
+        assert_eq!(together, [0, 0, 1, 2]);
+        assert_eq!(capped_level(&[103, 100, 97]), (vec![291, 145, 97], 101));
+        // Among the files that fit, the one whose import neighbours are on
+        // the lightest checker goes; a file no checker type checks stays.
+        let costs = [40, 10, 10, 10, 10];
+        let mut associations = vec![0, 0, 0, 0, 1];
+        let adjacent = vec![vec![], vec![], vec![4], vec![], vec![2]];
+        level_by_cost(
+            &mut associations,
+            &costs,
+            &[true, false, true, true, true],
+            &adjacent,
+            2,
+        );
+        assert_eq!(associations, [0, 0, 1, 1, 1]);
     }
 }

@@ -11,8 +11,19 @@
 //! (region 9) and its byte length, with a flag for text that is not Unicode
 //! scalars. The text is canonical WTF-8, copied verbatim from the interned
 //! string.
+//!
+//! A thread takes ids and text room in runs of its own ([`ID_RUN`],
+//! [`TEXT_RUN`]) and fills them without touching memory another thread
+//! writes: ten parsers that appended name by name to one cursor passed its
+//! cache line and the lines of the newest records and texts from core to
+//! core at every new name. A thread that ends hands what it has not used to
+//! the next thread that stores a name ([`Supply::hand_on`]): a process that
+//! starts a thread per request keeps filling the same runs. An id nobody has
+//! used yet reads as the empty text, like every id never handed out.
 
+use std::cell::Cell;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use std::sync::{Mutex, PoisonError};
 
 use crate::{StoreRecord, FIRST_REGION, REGION_BYTES};
 
@@ -43,10 +54,154 @@ impl StoreRecord for NameRecord {
     const REGION: usize = RECORD_REGION;
 }
 
-/// The next name's id.
-static NEXT: AtomicU32 = AtomicU32::new(0);
-/// The next free byte of the text region.
-static CURSOR: AtomicUsize = AtomicUsize::new(0);
+/// The ids a thread takes at once: 2 KiB of records, whole cache lines on
+/// every supported target.
+const ID_RUN: u32 = 256;
+/// The text bytes a thread takes at once.
+const TEXT_RUN: usize = 8 << 10;
+/// A text from this length that does not fit what is left of the thread's
+/// run takes a range of its own, in whole [`TEXT_ALIGN`]s, and leaves the
+/// run as it is; a shorter one starts a new run and gives up less than this
+/// of the old one.
+const LONG_TEXT: usize = TEXT_RUN / 4;
+/// The alignment of a range taken from the text region: no two threads'
+/// ranges share a cache line.
+const TEXT_ALIGN: usize = 128;
+
+/// What a thread has taken and not yet used.
+#[derive(Clone, Copy)]
+struct Run {
+    id: u32,
+    id_end: u32,
+    text: usize,
+    text_end: usize,
+}
+
+impl Run {
+    /// Nothing taken: a thread before its first name. `id_end` is zero in
+    /// this state only (a run of ids ends at 256 or later).
+    const NONE: Self = Self {
+        id: 0,
+        id_end: 0,
+        text: 0,
+        text_end: 0,
+    };
+}
+
+/// Where the runs come from: the two cursors of the regions, and the runs
+/// that ended threads did not finish.
+struct Supply {
+    /// The first id no thread has taken.
+    next: AtomicU32,
+    /// The first byte of the text region no thread has taken.
+    cursor: AtomicUsize,
+    /// Unfinished runs of threads that have ended, each for one later thread.
+    /// At most as many as threads have stored names at the same time.
+    left: Mutex<Vec<Run>>,
+}
+
+static SUPPLY: Supply = Supply::new();
+
+impl Supply {
+    const fn new() -> Self {
+        Self {
+            next: AtomicU32::new(0),
+            cursor: AtomicUsize::new(0),
+            left: Mutex::new(Vec::new()),
+        }
+    }
+
+    /// An id and `len` text bytes that the holder of `run` alone owns.
+    #[inline]
+    fn claim(&self, run: &mut Run, len: usize) -> (u32, usize) {
+        if run.id == run.id_end {
+            self.refill_ids(run);
+        }
+        let id = run.id;
+        run.id += 1;
+        let start = if len <= run.text_end - run.text {
+            let start = run.text;
+            run.text += len;
+            start
+        } else if len >= LONG_TEXT {
+            self.cursor
+                .fetch_add(len.next_multiple_of(TEXT_ALIGN), Ordering::Relaxed)
+        } else {
+            let start = self.cursor.fetch_add(TEXT_RUN, Ordering::Relaxed);
+            run.text = start + len;
+            run.text_end = start + TEXT_RUN;
+            start
+        };
+        (id, start)
+    }
+
+    /// A thread's first name continues a run an ended thread left, ids and
+    /// text room; where none is left, or the ids of the one taken were used
+    /// up, a new run of ids comes from the cursor.
+    #[cold]
+    fn refill_ids(&self, run: &mut Run) {
+        if run.id_end == 0 {
+            let left = self
+                .left
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .pop();
+            if let Some(left) = left {
+                *run = left;
+            }
+        }
+        if run.id == run.id_end {
+            run.id = self.next.fetch_add(ID_RUN, Ordering::Relaxed);
+            assert!(
+                run.id < u32::MAX - ID_RUN,
+                "the name table holds 2^32 - 1 names"
+            );
+            run.id_end = run.id + ID_RUN;
+        }
+    }
+
+    /// Keep what an ending thread has not used for a later thread.
+    fn hand_on(&self, run: Run) {
+        if run.id < run.id_end || run.text < run.text_end {
+            self.left
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .push(run);
+        }
+    }
+}
+
+/// A thread's run; handed on when the thread ends.
+struct ThreadRun(Cell<Run>);
+
+impl Drop for ThreadRun {
+    fn drop(&mut self) {
+        SUPPLY.hand_on(self.0.get());
+    }
+}
+
+thread_local! {
+    static RUN: ThreadRun = const { ThreadRun(Cell::new(Run::NONE)) };
+}
+
+/// An id and `len` text bytes that this call alone owns.
+#[inline]
+fn claim(len: usize) -> (u32, usize) {
+    RUN.try_with(|thread| {
+        let mut run = thread.0.get();
+        let claimed = SUPPLY.claim(&mut run, len);
+        thread.0.set(run);
+        claimed
+    })
+    .unwrap_or_else(|_| {
+        // The thread's locals are being destroyed and one of them stores a
+        // name: a run for this one name, the rest of it for a later thread.
+        let mut run = Run::NONE;
+        let claimed = SUPPLY.claim(&mut run, len);
+        SUPPLY.hand_on(run);
+        claimed
+    })
+}
 
 /// Store a new name's text and return its id. Every call makes a new id;
 /// the caller hands the id to readers after this returns.
@@ -104,19 +259,20 @@ fn push_bytes(text: &[u8], flags: u32) -> u32 {
         .ok()
         .filter(|&len| len <= LEN_MASK)
         .expect("a name has at most 1 GiB of text");
-    let start = CURSOR.fetch_add(text.len(), Ordering::Relaxed);
+    let (id, start) = claim(text.len());
     assert!(
         start + text.len() <= u32::MAX as usize,
         "the name table holds 4 GiB of text"
     );
-    let id = NEXT.fetch_add(1, Ordering::Relaxed);
-    assert!(id < u32::MAX, "the name table holds 2^32 - 1 names");
     let record = crate::address::<NameRecord>(id);
     crate::system::commit(TEXT + start, text.len());
     crate::system::commit(record, std::mem::size_of::<NameRecord>());
-    // SAFETY: this call alone claimed the text range (the cursor's
-    // `fetch_add`) and the record (the id's `fetch_add`); both lie in the
-    // reservation, which `reserve` mapped, and no reader has the id yet.
+    // SAFETY: this call alone owns the text range and the record (`claim`
+    // hands each id and byte of a run out once; a run comes from the
+    // cursors' `fetch_add` and has one holder at a time: the thread that
+    // took it, then, under the supply's lock, the thread that continues
+    // it); both lie in the reservation, which `reserve` mapped, and no
+    // reader has the id yet.
     unsafe {
         std::ptr::copy_nonoverlapping(text.as_ptr(), (TEXT + start) as *mut u8, text.len());
         (record as *mut NameRecord).write(NameRecord {
@@ -159,11 +315,13 @@ pub fn scalar_text(id: u32) -> Option<&'static str> {
     Some(unsafe { std::str::from_utf8_unchecked(bytes_of(record)) })
 }
 
-/// The names stored and the bytes they take (records and text), for the
-/// memory report.
+/// The ids and the bytes (records and text) the threads have taken, for
+/// the memory report: the names stored, and beside them the unfinished
+/// runs — at most one of each kind per thread that stores names, running
+/// or waiting to be continued.
 pub fn usage() -> (usize, usize) {
-    let names = NEXT.load(Ordering::Relaxed) as usize;
-    let text = CURSOR.load(Ordering::Relaxed);
+    let names = SUPPLY.next.load(Ordering::Relaxed) as usize;
+    let text = SUPPLY.cursor.load(Ordering::Relaxed);
     (names, text + names * std::mem::size_of::<NameRecord>())
 }
 

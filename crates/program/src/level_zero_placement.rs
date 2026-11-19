@@ -758,6 +758,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             drop(claim);
             true
         };
+        let package_loads = self.resolver.shared_package_loads().cloned();
         let finished = std::thread::scope(|scope| {
             let _end_reading = EndReading(&leasing_ended);
             let mut crew = 0;
@@ -778,7 +779,14 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             }
             workers.map_spawning(
                 jobs,
-                || ModuleResolver::new_with_program_options(host, options, program_options).ok(),
+                || {
+                    ModuleResolver::new_with_program_options(host, options, program_options)
+                        .ok()
+                        .map(|resolver| match &package_loads {
+                            Some(loads) => resolver.with_shared_package_loads(Arc::clone(loads)),
+                            None => resolver,
+                        })
+                },
                 |resolver, job, spawned| {
                     let mut next = Vec::new();
                     let mut results = Vec::new();

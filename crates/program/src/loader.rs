@@ -886,6 +886,11 @@ fn load_program_worker(
             error,
         )
     })?;
+    if limits.workers.is_parallel() {
+        // The read-ahead's workers resolve with resolvers of their own: one
+        // table of package.json lookups for all of them and for the walk.
+        resolver = resolver.with_shared_package_loads(Arc::default());
+    }
     let path_context = resolver.path_context().clone();
     validate_type_roots(&program_options, &path_context)?;
     let library_directory = if program_options.no_lib() == Some(true) {
@@ -3218,9 +3223,17 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 .map(|index| seeds[index].clone())
                 .collect();
         }
+        let package_loads = self.resolver.shared_package_loads().cloned();
         let finished = workers.map_spawning(
             seeds,
-            || ModuleResolver::new_with_program_options(host, options, program_options).ok(),
+            || {
+                ModuleResolver::new_with_program_options(host, options, program_options)
+                    .ok()
+                    .map(|resolver| match &package_loads {
+                        Some(loads) => resolver.with_shared_package_loads(Arc::clone(loads)),
+                        None => resolver,
+                    })
+            },
             |resolver, (path, order), spawned| pass.read_source(resolver, path, order, spawned),
             |resolver| {
                 resolver
@@ -3928,10 +3941,16 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             let request_count = requests.len();
             let options = self.compiler_options;
             let program_options = self.program_options;
+            let package_loads = self.resolver.shared_package_loads().cloned();
             let resolve_chunk = |chunk: &[(JsString, ResolutionKey, bool)]| {
                 let host: &dyn CompilerHost = host;
                 let mut resolver =
-                    ModuleResolver::new_with_program_options(host, options, program_options).ok();
+                    ModuleResolver::new_with_program_options(host, options, program_options)
+                        .ok()
+                        .map(|resolver| match &package_loads {
+                            Some(loads) => resolver.with_shared_package_loads(Arc::clone(loads)),
+                            None => resolver,
+                        });
                 let resolved = chunk
                     .iter()
                     .map(|(containing_file, key, loads_source)| {
