@@ -645,9 +645,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             path_symbol_count: AtomicUsize::new(0),
             resolutions: Sharded::new(),
             target_resolutions: Sharded::new(),
-            resolved: AtomicUsize::new(0),
-            reused: AtomicUsize::new(0),
-            target_reused: AtomicUsize::new(0),
         };
         for path in seeds {
             if pass.admits(path) {
@@ -926,6 +923,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                                         byte_len: entry.byte_len,
                                         decoded: Ok(Box::new(parsed)),
                                     },
+                                    follows: FollowCounts::default(),
                                     type_resolutions: Vec::new(),
                                 };
                                 if let Some(resolver) = resolver.as_mut() {
@@ -1042,6 +1040,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 path,
                 order,
                 read,
+                follows: FollowCounts::default(),
                 type_resolutions: Vec::new(),
             });
         }
@@ -1051,7 +1050,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 .then_with(|| left.path.canonical().cmp(right.path.canonical()))
         });
         let count = sources.len();
+        let mut follows = FollowCounts::default();
         for source in sources {
+            follows.merge(source.follows);
             if let Some(bytes) = source.read.reserved_bytes() {
                 self.reserved_sources += 1;
                 self.reserved_bytes += bytes;
@@ -1069,8 +1070,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 },
             );
         }
-        self.directory_resolution_hits += pass.reused.load(Ordering::Relaxed);
-        self.target_resolution_hits += pass.target_reused.load(Ordering::Relaxed);
+        self.directory_resolution_hits += follows.reused;
+        self.target_resolution_hits += follows.target_reused;
         pass.resolutions.append_to(&mut self.directory_resolutions);
         pass.target_resolutions
             .append_to(&mut self.target_resolutions);

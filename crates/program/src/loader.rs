@@ -2095,11 +2095,32 @@ struct ReadAheadSource {
     path: ProgramPath,
     order: usize,
     read: PrefetchedRead,
+    follows: FollowCounts,
     type_resolutions: Vec<(
         TypeReferenceResolutionKey,
         ResolutionOutcome<HostResolvedTypeReferenceDirective>,
         Vec<ResolutionTrace>,
     )>,
+}
+
+/// What following one source's module requests did, for the read-ahead's
+/// trace line and the walk's hit counts. Counted in the source's own result
+/// and summed when the results are collected: counters shared by the
+/// workers were written by every worker for every import, which passed
+/// their cache line, and what lies beside it, from core to core.
+#[derive(Clone, Copy, Default)]
+struct FollowCounts {
+    resolved: usize,
+    reused: usize,
+    target_reused: usize,
+}
+
+impl FollowCounts {
+    fn merge(&mut self, other: Self) {
+        self.resolved += other.resolved;
+        self.reused += other.reused;
+        self.target_reused += other.target_reused;
+    }
 }
 
 /// What the parallel read-ahead's workers share: the inputs every source is
@@ -2134,9 +2155,6 @@ struct ParallelReadAhead<'a> {
     /// The resolutions by target ([`StagedGraph::target_resolutions`]),
     /// shared by all workers as `resolutions` is.
     target_resolutions: Sharded<(LexicalPath, ResolutionMode), Arc<PreparedModule>>,
-    resolved: AtomicUsize,
-    reused: AtomicUsize,
-    target_reused: AtomicUsize,
 }
 
 struct QueuedPath {
@@ -2256,6 +2274,7 @@ impl ParallelReadAhead<'_> {
             path,
             order,
             read,
+            follows: FollowCounts::default(),
             type_resolutions: Vec::new(),
         };
         if let Some(resolver) = resolver.as_mut() {
@@ -2356,6 +2375,7 @@ impl ParallelReadAhead<'_> {
         let Ok(plan) = &mut parse.plan else {
             return;
         };
+        let mut follows = FollowCounts::default();
         let canonical = source.path.canonical();
         // A referenced project's source is read ahead in vain: its output is
         // what the walk loads, and the output is read when it is reached.
@@ -2374,7 +2394,7 @@ impl ParallelReadAhead<'_> {
                 let directory_key = (directory.clone(), key.specifier().to_owned(), key.mode());
                 let facts = match self.resolutions.get_cloned(&directory_key) {
                     Some(host) => {
-                        self.reused.fetch_add(1, Ordering::Relaxed);
+                        follows.reused += 1;
                         host
                     }
                     None => {
@@ -2386,7 +2406,7 @@ impl ParallelReadAhead<'_> {
                             .and_then(|target_key| self.target_resolutions.get_cloned(target_key));
                         let facts = match shared {
                             Some(host) => {
-                                self.target_reused.fetch_add(1, Ordering::Relaxed);
+                                follows.target_reused += 1;
                                 host
                             }
                             None => {
@@ -2398,7 +2418,7 @@ impl ParallelReadAhead<'_> {
                                 ) else {
                                     continue;
                                 };
-                                self.resolved.fetch_add(1, Ordering::Relaxed);
+                                follows.resolved += 1;
                                 let outcome_only = host.is_outcome_only();
                                 let facts = Arc::new(PreparedModule::new(
                                     host,
@@ -2514,6 +2534,7 @@ impl ParallelReadAhead<'_> {
         plan.finish_preparation();
         source.scope = self.scope_preparation.prepare(resolver, &source.path);
         source.type_resolutions = type_resolutions;
+        source.follows = follows;
     }
 }
 
@@ -3194,9 +3215,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             path_symbol_count: AtomicUsize::new(0),
             resolutions: Sharded::new(),
             target_resolutions: Sharded::new(),
-            resolved: AtomicUsize::new(0),
-            reused: AtomicUsize::new(0),
-            target_reused: AtomicUsize::new(0),
         };
         let mut seeds: Vec<(ProgramPath, usize)> = Vec::new();
         for path in roots {
@@ -3265,9 +3283,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let ParallelReadAhead {
             resolutions,
             target_resolutions,
-            resolved,
-            reused,
-            target_reused,
             ..
         } = pass;
         let mut sources: Vec<ReadAheadSource> = Vec::new();
@@ -3285,7 +3300,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 .then_with(|| left.path.canonical().cmp(right.path.canonical()))
         });
         let read = sources.len();
+        let mut follows = FollowCounts::default();
         for source in sources {
+            follows.merge(source.follows);
             if let Some(byte_len) = source.read.reserved_bytes() {
                 self.reserved_sources += 1;
                 self.reserved_bytes += byte_len;
@@ -3303,8 +3320,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 },
             );
         }
-        let reused = reused.into_inner();
-        let target_reused = target_reused.into_inner();
+        let FollowCounts {
+            resolved,
+            reused,
+            target_reused,
+        } = follows;
         self.directory_resolution_hits += reused;
         self.target_resolution_hits += target_reused;
         self.directory_resolutions
@@ -3315,7 +3335,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             &format!(
                 "load: read-ahead in parallel ({} threads: {read} sources, {} resolutions, {reused} directory reuses, {target_reused} target reuses)",
                 workers.max_workers(),
-                resolved.into_inner(),
+                resolved,
             ),
             phase_started,
         );
