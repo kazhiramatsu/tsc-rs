@@ -96,3 +96,74 @@ fn source_loading_keeps_static_text_through_each_worker_budget() {
         }
     }
 }
+
+/// The first bytes rule a path out only when the component-wise comparison
+/// rules it out as well: for the library's spellings and for paths that
+/// merely resemble them, every JavaScript-path entry answers as the
+/// native-path entry of the same host, which parses the path.
+#[test]
+fn first_bytes_rule_out_only_what_is_not_the_embedded_library() {
+    let host = NativeCompilerHost::new(FsCompilerHost::from_process().unwrap());
+    let name = embedded_libraries::EMBEDDED_LIBRARIES[0].0;
+    let spellings = [
+        EMBEDDED_LIBRARY_DIRECTORY.to_owned(),
+        format!("{EMBEDDED_LIBRARY_DIRECTORY}/"),
+        "bundled:/libs".to_owned(),
+        "bundled:/libs/.".to_owned(),
+        format!("{EMBEDDED_LIBRARY_DIRECTORY}/{name}"),
+        format!("bundled:/libs/{name}"),
+        format!("{EMBEDDED_LIBRARY_DIRECTORY}/missing.d.ts"),
+        format!("{EMBEDDED_LIBRARY_DIRECTORY}/nested/{name}"),
+        format!("./{EMBEDDED_LIBRARY_DIRECTORY}"),
+        format!("/{EMBEDDED_LIBRARY_DIRECTORY}"),
+        format!("x{EMBEDDED_LIBRARY_DIRECTORY}"),
+        "Bundled:///libs".to_owned(),
+        "bundled".to_owned(),
+        "bundled:".to_owned(),
+        "bundled:///lib".to_owned(),
+        "/".to_owned(),
+    ];
+    for spelling in &spellings {
+        let js: JsStr<'_> = spelling.as_str().into();
+        let native = Path::new(spelling);
+        let embedded =
+            native == host.library_directory || host.embedded_file_name(native).is_some();
+        assert!(!embedded || host.embeddable(js).is_some(), "{spelling}");
+        assert_eq!(
+            host.directory_exists_js(js).unwrap(),
+            host.directory_exists(native).unwrap(),
+            "{spelling}"
+        );
+        assert_eq!(
+            host.file_exists_js(js).unwrap(),
+            host.file_exists(native).unwrap(),
+            "{spelling}"
+        );
+        assert_eq!(
+            host.read_file_js(js).unwrap(),
+            host.read_file(native).unwrap(),
+            "{spelling}"
+        );
+        assert_eq!(
+            host.realpath_js(js)
+                .unwrap()
+                .map(|path| path.to_string_lossy().into_owned()),
+            host.realpath(native)
+                .unwrap()
+                .map(|path| path.to_string_lossy().into_owned()),
+            "{spelling}"
+        );
+    }
+    assert!(host
+        .directory_exists_js(EMBEDDED_LIBRARY_DIRECTORY.into())
+        .unwrap());
+    assert!(host
+        .file_exists_js(
+            format!("{EMBEDDED_LIBRARY_DIRECTORY}/{name}")
+                .as_str()
+                .into()
+        )
+        .unwrap());
+    // A path that starts otherwise is the filesystem's alone.
+    assert!(host.embeddable("/work/bundled:/libs".into()).is_none());
+}

@@ -2095,11 +2095,32 @@ struct ReadAheadSource {
     path: ProgramPath,
     order: usize,
     read: PrefetchedRead,
+    follows: FollowCounts,
     type_resolutions: Vec<(
         TypeReferenceResolutionKey,
         ResolutionOutcome<HostResolvedTypeReferenceDirective>,
         Vec<ResolutionTrace>,
     )>,
+}
+
+/// What following one source's module requests did, for the read-ahead's
+/// trace line and the walk's hit counts. Counted in the source's own result
+/// and summed when the results are collected: counters shared by the
+/// workers were written by every worker for every import, which passed
+/// their cache line, and what lies beside it, from core to core.
+#[derive(Clone, Copy, Default)]
+struct FollowCounts {
+    resolved: usize,
+    reused: usize,
+    target_reused: usize,
+}
+
+impl FollowCounts {
+    fn merge(&mut self, other: Self) {
+        self.resolved += other.resolved;
+        self.reused += other.reused;
+        self.target_reused += other.target_reused;
+    }
 }
 
 /// What the parallel read-ahead's workers share: the inputs every source is
@@ -2130,13 +2151,12 @@ struct ParallelReadAhead<'a> {
     package_ids: Arc<PreparedPackageIds>,
     queued: Sharded<CanonicalPath, QueuedPath>,
     path_symbol_count: AtomicUsize,
-    resolutions: Sharded<(LexicalPath, JsString, ResolutionMode), Arc<PreparedModule>>,
+    /// The resolutions by containing directory, then by specifier and mode
+    /// ([`DirectoryResolutions`]).
+    resolutions: Sharded<LexicalPath, Arc<DirectoryResolutions>>,
     /// The resolutions by target ([`StagedGraph::target_resolutions`]),
     /// shared by all workers as `resolutions` is.
     target_resolutions: Sharded<(LexicalPath, ResolutionMode), Arc<PreparedModule>>,
-    resolved: AtomicUsize,
-    reused: AtomicUsize,
-    target_reused: AtomicUsize,
 }
 
 struct QueuedPath {
@@ -2256,6 +2276,7 @@ impl ParallelReadAhead<'_> {
             path,
             order,
             read,
+            follows: FollowCounts::default(),
             type_resolutions: Vec::new(),
         };
         if let Some(resolver) = resolver.as_mut() {
@@ -2356,6 +2377,7 @@ impl ParallelReadAhead<'_> {
         let Ok(plan) = &mut parse.plan else {
             return;
         };
+        let mut follows = FollowCounts::default();
         let canonical = source.path.canonical();
         // A referenced project's source is read ahead in vain: its output is
         // what the walk loads, and the output is read when it is reached.
@@ -2367,13 +2389,14 @@ impl ParallelReadAhead<'_> {
         // options on the walk, not with the read-ahead's resolver.
         if self.references.project_for_resolution(canonical).is_none() {
             let directory = resolver.lexical_paths().directory(containing_file);
+            let directory_resolutions = self.resolutions.get_or_default(&directory);
+            let containing_file_is_declaration = is_declaration_file_name(containing_file);
             for row in plan.module_rows_mut() {
                 let key = &row.key;
                 let loads_source = row.loads_source;
-                let directory_key = (directory.clone(), key.specifier().to_owned(), key.mode());
-                let facts = match self.resolutions.get_cloned(&directory_key) {
+                let facts = match directory_resolutions.get(key.specifier(), key.mode()) {
                     Some(host) => {
-                        self.reused.fetch_add(1, Ordering::Relaxed);
+                        follows.reused += 1;
                         host
                     }
                     None => {
@@ -2385,7 +2408,7 @@ impl ParallelReadAhead<'_> {
                             .and_then(|target_key| self.target_resolutions.get_cloned(target_key));
                         let facts = match shared {
                             Some(host) => {
-                                self.target_reused.fetch_add(1, Ordering::Relaxed);
+                                follows.target_reused += 1;
                                 host
                             }
                             None => {
@@ -2397,7 +2420,7 @@ impl ParallelReadAhead<'_> {
                                 ) else {
                                     continue;
                                 };
-                                self.resolved.fetch_add(1, Ordering::Relaxed);
+                                follows.resolved += 1;
                                 let outcome_only = host.is_outcome_only();
                                 let facts = Arc::new(PreparedModule::new(
                                     host,
@@ -2413,7 +2436,11 @@ impl ParallelReadAhead<'_> {
                                 facts
                             }
                         };
-                        self.resolutions.insert(directory_key, Arc::clone(&facts));
+                        directory_resolutions.insert(
+                            key.specifier(),
+                            key.mode(),
+                            Arc::clone(&facts),
+                        );
                         facts
                     }
                 };
@@ -2429,7 +2456,7 @@ impl ParallelReadAhead<'_> {
                 let mut prepared = PreparedModuleResolution::from_facts(facts);
                 prepared.policy = prepared.policy_for(
                     self.options,
-                    is_declaration_file_name(containing_file),
+                    containing_file_is_declaration,
                     loads_source,
                     |path| {
                         self.references
@@ -2513,7 +2540,128 @@ impl ParallelReadAhead<'_> {
         plan.finish_preparation();
         source.scope = self.scope_preparation.prepare(resolver, &source.path);
         source.type_resolutions = type_resolutions;
+        source.follows = follows;
     }
+}
+
+/// The read-ahead's module resolutions of one containing directory: by
+/// specifier, with a place per resolution mode. A source's requests share
+/// their directory, so its text is hashed and compared once per source
+/// (the lookup of this table in `ParallelReadAhead::resolutions`), and a
+/// request is looked up by its own specifier — no key is built unless the
+/// resolution is new. (One table keyed by directory, specifier and mode
+/// built an owned key and hashed the directory's text twice for every
+/// import.)
+struct DirectoryResolutions<V = Arc<PreparedModule>> {
+    by_specifier: Mutex<FxHashMap<JsString, [Option<V>; 3]>>,
+}
+
+impl<V> Default for DirectoryResolutions<V> {
+    fn default() -> Self {
+        Self {
+            by_specifier: Mutex::default(),
+        }
+    }
+}
+
+impl<V: Clone> DirectoryResolutions<V> {
+    /// The modes in the order of their places.
+    const MODES: [ResolutionMode; 3] = [
+        ResolutionMode::CommonJs,
+        ResolutionMode::EsNext,
+        ResolutionMode::Unspecified,
+    ];
+
+    fn place(mode: ResolutionMode) -> usize {
+        match mode {
+            ResolutionMode::CommonJs => 0,
+            ResolutionMode::EsNext => 1,
+            ResolutionMode::Unspecified => 2,
+        }
+    }
+
+    fn get(&self, specifier: JsStr<'_>, mode: ResolutionMode) -> Option<V> {
+        self.by_specifier
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(specifier.as_bytes())
+            .and_then(|modes| modes[Self::place(mode)].clone())
+    }
+
+    fn insert(&self, specifier: JsStr<'_>, mode: ResolutionMode, facts: V) {
+        let mut by_specifier = self
+            .by_specifier
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        match by_specifier.get_mut(specifier.as_bytes()) {
+            Some(modes) => modes[Self::place(mode)] = Some(facts),
+            None => {
+                let mut modes = [None, None, None];
+                modes[Self::place(mode)] = Some(facts);
+                by_specifier.insert(specifier.to_owned(), modes);
+            }
+        }
+    }
+
+    fn copy(&self) -> FxHashMap<JsString, [Option<V>; 3]> {
+        self.by_specifier
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+
+    /// Files the directory's resolutions under the walk's key (directory,
+    /// specifier, mode), when the workers have ended. The walk keeps them
+    /// in a map of its own: the order they are taken in is never observed.
+    fn append_to(
+        table: Arc<Self>,
+        directory: &LexicalPath,
+        target: &mut FxHashMap<(LexicalPath, JsString, ResolutionMode), V>,
+    ) {
+        let by_specifier = match Arc::try_unwrap(table) {
+            Ok(table) => table
+                .by_specifier
+                .into_inner()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+            // A worker's handle that outlived the read-ahead: its table is
+            // copied, not taken.
+            Err(table) => table.copy(),
+        };
+        target.reserve(by_specifier.len());
+        #[allow(clippy::iter_over_hash_type)]
+        for (specifier, modes) in by_specifier {
+            let mut left = modes.iter().flatten().count();
+            let mut specifier = Some(specifier);
+            for (mode, facts) in Self::MODES.into_iter().zip(modes) {
+                let Some(facts) = facts else {
+                    continue;
+                };
+                left -= 1;
+                // The specifier goes to its last resolution; one of the
+                // same specifier in another mode gets a copy.
+                let specifier = if left == 0 {
+                    specifier.take()
+                } else {
+                    specifier.clone()
+                }
+                .expect("the specifier of a resolution");
+                target.insert((directory.clone(), specifier, mode), facts);
+            }
+        }
+    }
+}
+
+/// The shard, of at most 64, of a key by its FxHash, for shards that keep
+/// their keys in an `FxHashMap`. The shard's map hashes the key the same
+/// way: it takes its bucket from the lowest bits of the hash and the
+/// seven-bit tag it files the key under from the top seven, and
+/// `FxHasher::finish` leaves the hash's best bits lowest. The shard takes
+/// six bits between the two. (A shard chosen by the top bits leaves the tags
+/// of its keys almost all alike: a lookup then compares the keys of the
+/// entries it passes, and the keys here are paths with long common
+/// prefixes.)
+pub(crate) fn shard_of_fx_hash(hash: u64, shards: usize) -> usize {
+    (hash >> 20) as usize % shards
 }
 
 /// A hash map split over mutex-guarded shards by key, shared by the
@@ -2533,12 +2681,14 @@ impl<K: Hash + Eq, V> Sharded<K, V> {
         }
     }
 
-    fn shard(&self, key: &K) -> std::sync::MutexGuard<'_, FxHashMap<K, V>> {
+    fn shard_index(key: &K) -> usize {
         let mut hasher = rustc_hash::FxHasher::default();
         key.hash(&mut hasher);
-        // FxHash mixes its high bits best.
-        let index = (hasher.finish() >> 58) as usize % Self::SHARDS;
-        self.shards[index]
+        shard_of_fx_hash(hasher.finish(), Self::SHARDS)
+    }
+
+    fn shard(&self, key: &K) -> std::sync::MutexGuard<'_, FxHashMap<K, V>> {
+        self.shards[Self::shard_index(key)]
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
@@ -2552,6 +2702,23 @@ impl<K: Hash + Eq, V> Sharded<K, V> {
 
     fn insert(&self, key: K, value: V) {
         self.shard(&key).insert(key, value);
+    }
+
+    /// The value of `key`, a default one put there on first sight.
+    fn get_or_default(&self, key: &K) -> V
+    where
+        K: Clone,
+        V: Clone + Default,
+    {
+        let mut shard = self.shard(key);
+        match shard.get(key) {
+            Some(value) => value.clone(),
+            None => {
+                let value = V::default();
+                shard.insert(key.clone(), value.clone());
+                value
+            }
+        }
     }
 
     fn append_to(mut self, target: &mut FxHashMap<K, V>) {
@@ -3178,9 +3345,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             path_symbol_count: AtomicUsize::new(0),
             resolutions: Sharded::new(),
             target_resolutions: Sharded::new(),
-            resolved: AtomicUsize::new(0),
-            reused: AtomicUsize::new(0),
-            target_reused: AtomicUsize::new(0),
         };
         let mut seeds: Vec<(ProgramPath, usize)> = Vec::new();
         for path in roots {
@@ -3249,9 +3413,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let ParallelReadAhead {
             resolutions,
             target_resolutions,
-            resolved,
-            reused,
-            target_reused,
             ..
         } = pass;
         let mut sources: Vec<ReadAheadSource> = Vec::new();
@@ -3269,7 +3430,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 .then_with(|| left.path.canonical().cmp(right.path.canonical()))
         });
         let read = sources.len();
+        let mut follows = FollowCounts::default();
         for source in sources {
+            follows.merge(source.follows);
             if let Some(byte_len) = source.read.reserved_bytes() {
                 self.reserved_sources += 1;
                 self.reserved_bytes += byte_len;
@@ -3287,19 +3450,23 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 },
             );
         }
-        let reused = reused.into_inner();
-        let target_reused = target_reused.into_inner();
+        let FollowCounts {
+            resolved,
+            reused,
+            target_reused,
+        } = follows;
         self.directory_resolution_hits += reused;
         self.target_resolution_hits += target_reused;
-        self.directory_resolutions
-            .extend(resolutions.into_entries());
+        for (directory, table) in resolutions.into_entries() {
+            DirectoryResolutions::append_to(table, &directory, &mut self.directory_resolutions);
+        }
         self.target_resolutions
             .extend(target_resolutions.into_entries());
         tsc_types::trace::mark(
             &format!(
                 "load: read-ahead in parallel ({} threads: {read} sources, {} resolutions, {reused} directory reuses, {target_reused} target reuses)",
                 workers.max_workers(),
-                resolved.into_inner(),
+                resolved,
             ),
             phase_started,
         );
@@ -9759,3 +9926,7 @@ fn prepared_read_ahead_elides_target(
 #[cfg(test)]
 #[path = "../tests/unit/loader/shared_source_tests.rs"]
 mod shared_source_tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/loader/shared_tables_tests.rs"]
+mod shared_tables_tests;

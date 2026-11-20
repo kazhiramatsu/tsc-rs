@@ -69,15 +69,93 @@ struct ObservationQuery<'a> {
     fingerprint: u64,
 }
 
+/// The lookup fingerprint of a path spelling, eight bytes a step. It is a
+/// function of the bytes alone, however they are fed: a lookup feeds the
+/// whole spelling, the canonical form is fed component by component, and a
+/// normalized path gets the same value both ways. Module resolution asks
+/// about tens of thousands of paths of about a hundred bytes in a load; a
+/// byte-serial hash of each cost more than the table lookup it keyed.
+#[derive(Clone, Copy, Debug)]
+struct ObservationFingerprint {
+    state: u64,
+    /// The bytes not yet mixed, the first of them in the lowest byte.
+    pending: u64,
+    pending_len: u32,
+    len: u64,
+}
+
+impl ObservationFingerprint {
+    const MULTIPLIER: u64 = 0x9e37_79b9_7f4a_7c15;
+
+    fn new() -> Self {
+        Self {
+            state: 0xcbf2_9ce4_8422_2325,
+            pending: 0,
+            pending_len: 0,
+            len: 0,
+        }
+    }
+
+    /// Both halves of the 64 × 64 → 128 product: a difference in any byte
+    /// reaches every bit before the next word is taken. (Rotate, xor and
+    /// multiply alone keep a difference in a word's last byte in the top
+    /// bits, and the next word's first byte or the length cancels it:
+    /// `x.ts` and `x.tsx`, `lt.cjs` and `da.cjs` across a word boundary.)
+    fn fold(value: u64) -> u64 {
+        let product = u128::from(value) * u128::from(Self::MULTIPLIER);
+        (product as u64) ^ ((product >> 64) as u64)
+    }
+
+    fn mix(&mut self, word: u64) {
+        self.state = Self::fold(self.state ^ word);
+    }
+
+    fn write(&mut self, mut bytes: &[u8]) {
+        self.len += bytes.len() as u64;
+        if self.pending_len != 0 {
+            let take = (8 - self.pending_len as usize).min(bytes.len());
+            for &byte in &bytes[..take] {
+                self.pending |= u64::from(byte) << (8 * self.pending_len);
+                self.pending_len += 1;
+            }
+            bytes = &bytes[take..];
+            if self.pending_len < 8 {
+                return;
+            }
+            self.mix(self.pending);
+            self.pending = 0;
+            self.pending_len = 0;
+        }
+        let (words, rest) = bytes.as_chunks::<8>();
+        for word in words {
+            self.mix(u64::from_le_bytes(*word));
+        }
+        for &byte in rest {
+            self.pending |= u64::from(byte) << (8 * self.pending_len);
+            self.pending_len += 1;
+        }
+    }
+
+    fn finish(&self) -> u64 {
+        let mut state = self.state;
+        if self.pending_len != 0 {
+            state = Self::fold(state ^ self.pending);
+        }
+        // The length tells a spelling from the same spelling with zero
+        // bytes behind it. The shard takes the low bits of the result.
+        Self::fold(state ^ self.len)
+    }
+}
+
 impl<'a> ObservationQuery<'a> {
     fn new(path: &'a Path) -> Self {
         let path = path.as_os_str();
-        let mut fingerprint = 0xcbf2_9ce4_8422_2325_u64;
-        for &byte in path.as_encoded_bytes() {
-            fingerprint ^= u64::from(byte);
-            fingerprint = fingerprint.wrapping_mul(0x0100_0000_01b3);
+        let mut fingerprint = ObservationFingerprint::new();
+        fingerprint.write(path.as_encoded_bytes());
+        Self {
+            path,
+            fingerprint: fingerprint.finish(),
         }
-        Self { path, fingerprint }
     }
 
     fn shard(self) -> usize {
@@ -145,20 +223,12 @@ impl<'a> Borrow<dyn ObservationLookup + 'a> for ObservationKey {
     }
 }
 
-const OBSERVATION_FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
-fn append_observation_fingerprint(fingerprint: &mut u64, bytes: &[u8]) {
-    for &byte in bytes {
-        *fingerprint ^= u64::from(byte);
-        *fingerprint = fingerprint.wrapping_mul(0x0100_0000_01b3);
-    }
-}
-
 // Equal Paths have equal component sequences, including the parsed prefix
 // kind (drive letters compare without case). Hash that sequence into a
 // deterministic spelling, without allocating or resolving '..'. Ordinary
-// normalized slash paths have exactly their existing raw FNV fingerprint.
+// normalized slash paths have exactly the fingerprint of their own bytes.
 fn canonical_observation_fingerprint(path: &OsStr) -> u64 {
-    let mut fingerprint = OBSERVATION_FNV_OFFSET;
+    let mut fingerprint = ObservationFingerprint::new();
     let mut separator = false;
     for component in Path::new(path).components() {
         match component {
@@ -167,49 +237,46 @@ fn canonical_observation_fingerprint(path: &OsStr) -> u64 {
                 separator = false;
             }
             Component::RootDir => {
-                append_observation_fingerprint(&mut fingerprint, b"/");
+                fingerprint.write(b"/");
                 separator = false;
             }
             other => {
                 if separator {
-                    append_observation_fingerprint(&mut fingerprint, b"/");
+                    fingerprint.write(b"/");
                 }
-                append_observation_fingerprint(
-                    &mut fingerprint,
-                    other.as_os_str().as_encoded_bytes(),
-                );
+                fingerprint.write(other.as_os_str().as_encoded_bytes());
                 separator = true;
             }
         }
     }
-    fingerprint
+    fingerprint.finish()
 }
-fn append_observation_prefix(fingerprint: &mut u64, prefix: Prefix<'_>) {
+fn append_observation_prefix(fingerprint: &mut ObservationFingerprint, prefix: Prefix<'_>) {
     match prefix {
-        Prefix::Disk(drive) => append_observation_fingerprint(fingerprint, &[drive, b':']),
+        Prefix::Disk(drive) => fingerprint.write(&[drive, b':']),
         Prefix::VerbatimDisk(drive) => {
-            append_observation_fingerprint(fingerprint, b"//?/");
-            append_observation_fingerprint(fingerprint, &[drive, b':']);
+            fingerprint.write(b"//?/");
+            fingerprint.write(&[drive, b':']);
         }
         Prefix::UNC(server, share) => {
-            append_observation_fingerprint(fingerprint, b"//");
-            append_observation_fingerprint(fingerprint, server.as_encoded_bytes());
-            append_observation_fingerprint(fingerprint, b"/");
-            append_observation_fingerprint(fingerprint, share.as_encoded_bytes());
+            fingerprint.write(b"//");
+            fingerprint.write(server.as_encoded_bytes());
+            fingerprint.write(b"/");
+            fingerprint.write(share.as_encoded_bytes());
         }
         Prefix::VerbatimUNC(server, share) => {
-            append_observation_fingerprint(fingerprint, b"//?/UNC/");
-            append_observation_fingerprint(fingerprint, server.as_encoded_bytes());
-            append_observation_fingerprint(fingerprint, b"/");
-            append_observation_fingerprint(fingerprint, share.as_encoded_bytes());
+            fingerprint.write(b"//?/UNC/");
+            fingerprint.write(server.as_encoded_bytes());
+            fingerprint.write(b"/");
+            fingerprint.write(share.as_encoded_bytes());
         }
         Prefix::DeviceNS(name) => {
-            append_observation_fingerprint(fingerprint, b"//./");
-            append_observation_fingerprint(fingerprint, name.as_encoded_bytes());
+            fingerprint.write(b"//./");
+            fingerprint.write(name.as_encoded_bytes());
         }
         Prefix::Verbatim(name) => {
-            append_observation_fingerprint(fingerprint, b"//?/");
-            append_observation_fingerprint(fingerprint, name.as_encoded_bytes());
+            fingerprint.write(b"//?/");
+            fingerprint.write(name.as_encoded_bytes());
         }
     }
 }
@@ -494,7 +561,7 @@ impl CompilerHost for FsCompilerHost {
     ) -> Result<Option<crate::SourceRead>, HostError> {
         let native = crate::js_path::filesystem_path(path, HostOperation::ReadFile)?;
         let read = || {
-            validate_input_path(&native, HostOperation::ReadFile)?;
+            // `filesystem_path` has validated the query; see `file_exists_js`.
             if !matches!(
                 self.observations
                     .presence(&native, HostOperation::ReadFile)?,
@@ -522,8 +589,9 @@ impl CompilerHost for FsCompilerHost {
 
     fn file_size_hint_js(&self, path: JsStr<'_>) -> Result<Option<u64>, HostError> {
         let native = crate::js_path::filesystem_path(path, HostOperation::ReadFile)?;
-        validate_input_path(&native, HostOperation::ReadFile)
-            .and_then(|_| self.observations.presence(&native, HostOperation::ReadFile))
+        // `filesystem_path` has validated the query; see `file_exists_js`.
+        self.observations
+            .presence(&native, HostOperation::ReadFile)
             .map(|present| match present {
                 Presence::File { len } => Some(len),
                 _ => None,
@@ -533,13 +601,22 @@ impl CompilerHost for FsCompilerHost {
 
     fn file_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError> {
         let native = crate::js_path::filesystem_path(path, HostOperation::FileExists)?;
-        self.file_exists(&native)
+        // `filesystem_path` has refused an empty query and one with a NUL,
+        // and the native form of a JavaScript path is Unicode text: there
+        // is nothing left for `validate_input_path` to refuse, and module
+        // resolution asks this of every candidate file.
+        self.observations
+            .presence(&native, HostOperation::FileExists)
+            .map(|present| matches!(present, Presence::File { .. }))
             .map_err(|error| retain_query_path(error, path, &native))
     }
 
     fn directory_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError> {
         let native = crate::js_path::filesystem_path(path, HostOperation::DirectoryExists)?;
-        self.directory_exists(&native)
+        // `filesystem_path` has validated the query; see `file_exists_js`.
+        self.observations
+            .presence(&native, HostOperation::DirectoryExists)
+            .map(|present| matches!(present, Presence::Directory))
             .map_err(|error| retain_query_path(error, path, &native))
     }
 

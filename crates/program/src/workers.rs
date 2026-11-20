@@ -60,6 +60,31 @@ pub fn run_thread_start_hook() {
     }
 }
 
+/// The start hook of a thread that works BESIDE the thread that loads the
+/// program: the bind crew ([`crate::source_binds`]) binds while that
+/// thread walks the sources in program order, finishes the graph and
+/// publishes the program — a chain of one thread that no worker can
+/// shorten, and whatever the crew has not bound when the chain ends is
+/// bound afterwards. Such a thread runs this hook instead of the
+/// thread-start hook (the CLI asks for the utility scheduling class, so
+/// that among them the loading thread keeps a performance core).
+static YIELDING_THREAD_START_HOOK: std::sync::OnceLock<fn()> = std::sync::OnceLock::new();
+
+/// Install the yielding threads' start hook; a second installation is
+/// ignored.
+pub fn set_yielding_thread_start_hook(hook: fn()) {
+    let _ = YIELDING_THREAD_START_HOOK.set(hook);
+}
+
+/// Run the yielding threads' start hook on the calling thread; without
+/// one the thread starts as every other worker does.
+pub(crate) fn run_yielding_thread_start_hook() {
+    match YIELDING_THREAD_START_HOOK.get() {
+        Some(hook) => hook(),
+        None => run_thread_start_hook(),
+    }
+}
+
 /// The number of threads (including the calling thread) one scoped
 /// parallel step may use.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

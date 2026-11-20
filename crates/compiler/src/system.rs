@@ -408,14 +408,37 @@ impl<F: FileSystem> FileSystem for BundledFs<F> {
 struct NativeCompilerHost {
     filesystem: FsCompilerHost,
     library_directory: PathBuf,
+    /// The first component of `library_directory` when it is an ordinary
+    /// name (`bundled:`): every spelling of the directory and of an entry
+    /// of it starts with these bytes. Empty when the directory starts
+    /// otherwise; no path is ruled out by its first bytes then.
+    library_head: Box<[u8]>,
 }
 
 impl NativeCompilerHost {
     fn new(filesystem: FsCompilerHost) -> Self {
+        let library_directory = PathBuf::from(EMBEDDED_LIBRARY_DIRECTORY);
+        let library_head = match library_directory.components().next() {
+            Some(std::path::Component::Normal(head)) => head.as_encoded_bytes().into(),
+            _ => Box::default(),
+        };
         Self {
             filesystem,
-            library_directory: PathBuf::from(EMBEDDED_LIBRARY_DIRECTORY),
+            library_directory,
+            library_head,
         }
+    }
+
+    /// `path` as a native path, unless its first bytes already say that it
+    /// names neither the embedded library directory nor an entry of it.
+    /// Module resolution asks the host about tens of thousands of paths in
+    /// a load; all but the library's own are answered by the filesystem
+    /// without being parsed into components here.
+    fn embeddable<'a>(&self, path: JsStr<'a>) -> Option<&'a Path> {
+        if !path.as_bytes().starts_with(&self.library_head) {
+            return None;
+        }
+        path.as_str().map(Path::new)
     }
 
     fn embedded_file_name<'a>(&self, path: &'a Path) -> Option<&'a str> {
@@ -451,9 +474,8 @@ impl CompilerHost for NativeCompilerHost {
         self.filesystem.current_directory_js()
     }
     fn read_file_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
-        if let Some(path) = path
-            .as_str()
-            .map(Path::new)
+        if let Some(path) = self
+            .embeddable(path)
             .filter(|path| self.embedded_file_name(path).is_some())
         {
             return Ok(self.embedded_bytes(path).map(<[u8]>::to_vec));
@@ -464,9 +486,8 @@ impl CompilerHost for NativeCompilerHost {
         &self,
         path: JsStr<'_>,
     ) -> Result<Option<tsc_host::SourceRead>, HostError> {
-        if let Some(path) = path
-            .as_str()
-            .map(Path::new)
+        if let Some(path) = self
+            .embeddable(path)
             .filter(|path| self.embedded_file_name(path).is_some())
         {
             return Ok(embedded_library_text(
@@ -477,9 +498,8 @@ impl CompilerHost for NativeCompilerHost {
         self.filesystem.read_file_contents_js(path)
     }
     fn file_size_hint_js(&self, path: JsStr<'_>) -> Result<Option<u64>, HostError> {
-        if let Some(path) = path
-            .as_str()
-            .map(Path::new)
+        if let Some(path) = self
+            .embeddable(path)
             .filter(|path| self.embedded_file_name(path).is_some())
         {
             return Ok(self.embedded_bytes(path).map(|bytes| bytes.len() as u64));
@@ -487,9 +507,8 @@ impl CompilerHost for NativeCompilerHost {
         self.filesystem.file_size_hint_js(path)
     }
     fn file_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError> {
-        if let Some(path) = path
-            .as_str()
-            .map(Path::new)
+        if let Some(path) = self
+            .embeddable(path)
             .filter(|path| self.embedded_file_name(path).is_some())
         {
             return Ok(self.embedded_bytes(path).is_some());
@@ -497,18 +516,18 @@ impl CompilerHost for NativeCompilerHost {
         self.filesystem.file_exists_js(path)
     }
     fn directory_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError> {
-        if path
-            .as_str()
-            .is_some_and(|path| Path::new(path) == self.library_directory)
+        if self
+            .embeddable(path)
+            .is_some_and(|path| path == self.library_directory)
         {
             return Ok(true);
         }
         self.filesystem.directory_exists_js(path)
     }
     fn read_directory_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
-        if path
-            .as_str()
-            .is_some_and(|path| Path::new(path) == self.library_directory)
+        if self
+            .embeddable(path)
+            .is_some_and(|path| path == self.library_directory)
         {
             return Ok(embedded_libraries::EMBEDDED_LIBRARIES
                 .iter()
@@ -526,9 +545,9 @@ impl CompilerHost for NativeCompilerHost {
         &self,
         path: JsStr<'_>,
     ) -> Result<Vec<tsc_host::DirectoryListingEntry>, HostError> {
-        if path
-            .as_str()
-            .is_some_and(|path| Path::new(path) == self.library_directory)
+        if self
+            .embeddable(path)
+            .is_some_and(|path| path == self.library_directory)
         {
             return Ok(embedded_libraries::EMBEDDED_LIBRARIES
                 .iter()
@@ -547,16 +566,16 @@ impl CompilerHost for NativeCompilerHost {
         self.filesystem.read_directory_listing_js(path)
     }
     fn get_directories_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
-        if path
-            .as_str()
-            .is_some_and(|path| Path::new(path) == self.library_directory)
+        if self
+            .embeddable(path)
+            .is_some_and(|path| path == self.library_directory)
         {
             return Ok(Vec::new());
         }
         self.filesystem.get_directories_js(path)
     }
     fn realpath_js(&self, path: JsStr<'_>) -> Result<Option<JsString>, HostError> {
-        if let Some(native) = path.as_str().map(Path::new) {
+        if let Some(native) = self.embeddable(path) {
             if native == self.library_directory || self.embedded_bytes(native).is_some() {
                 return Ok(Some(path.to_owned()));
             }

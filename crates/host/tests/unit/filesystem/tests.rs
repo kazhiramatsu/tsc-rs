@@ -246,3 +246,73 @@ fn cached_fingerprint_does_not_grow_the_owned_path_header() {
         std::mem::size_of::<std::path::PathBuf>()
     );
 }
+
+#[test]
+fn observation_fingerprint_depends_on_the_bytes_not_on_how_they_are_fed() {
+    use super::{canonical_observation_fingerprint, ObservationFingerprint, ObservationQuery};
+    use std::path::Path;
+
+    let text = b"/work/node_modules/@scope/package/dist/index.d.ts";
+    let mut whole = ObservationFingerprint::new();
+    whole.write(text);
+    for first in 0..=text.len() {
+        for second in first..=text.len() {
+            let mut pieces = ObservationFingerprint::new();
+            pieces.write(&text[..first]);
+            pieces.write(&text[first..second]);
+            pieces.write(&text[second..]);
+            assert_eq!(pieces.finish(), whole.finish(), "{first} {second}");
+        }
+    }
+    // A normalized spelling is found by its own bytes: the canonical
+    // fingerprint, fed component by component, is the lookup's.
+    for spelling in [
+        "",
+        ".",
+        "a",
+        "./a",
+        "a/b",
+        "a/../b",
+        "../x/y.ts",
+        "/",
+        "/a/b",
+        "/work/node_modules/pkg/package.json",
+    ] {
+        let path = Path::new(spelling);
+        assert_eq!(
+            canonical_observation_fingerprint(path.as_os_str()),
+            ObservationQuery::new(path).fingerprint,
+            "{spelling:?}"
+        );
+    }
+    // Zero bytes behind a spelling, and a shorter spelling, are other inputs.
+    let fingerprint = |bytes: &[u8]| {
+        let mut fingerprint = ObservationFingerprint::new();
+        fingerprint.write(bytes);
+        fingerprint.finish()
+    };
+    assert_ne!(fingerprint(b""), fingerprint(b"\0"));
+    assert_ne!(fingerprint(b"/work/a"), fingerprint(b"/work/a\0"));
+    assert_ne!(fingerprint(b"/work/a\0"), fingerprint(b"/work/a\0\0"));
+    assert_ne!(
+        fingerprint(b"/work/aaaaaaaa"),
+        fingerprint(b"/work/aaaaaaa")
+    );
+    // Neighbouring spellings stay apart wherever the difference falls in a
+    // word: one byte more, and two differing bytes side by side.
+    let tails: [&[u8]; 8] = [
+        b"x.ts", b"x.tsx", b"lt.cjs", b"da.cjs", b"la.cjs", b"dt.cjs", b"no.d.ts", b"fr.d.ts",
+    ];
+    let mut seen = std::collections::HashSet::new();
+    let mut spellings = 0;
+    for pad in 0..24 {
+        for tail in tails {
+            let mut spelling = vec![b'p'; pad];
+            spelling.push(b'/');
+            spelling.extend_from_slice(tail);
+            seen.insert(fingerprint(&spelling));
+            spellings += 1;
+        }
+    }
+    assert_eq!(seen.len(), spellings);
+}
