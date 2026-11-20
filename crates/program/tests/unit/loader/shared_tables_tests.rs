@@ -23,3 +23,36 @@ fn the_keys_of_a_shard_keep_their_tags_apart() {
     let fewest = tags.iter().map(|tags| tags.len()).min().unwrap();
     assert!(fewest >= 32, "a shard with {fewest} tags");
 }
+
+/// A directory's resolutions are found by a request's specifier and mode:
+/// the same specifier in another mode is another resolution, a later
+/// resolution of the same request takes the earlier one's place, and the
+/// walk's map gets each of them under (directory, specifier, mode).
+#[test]
+fn a_directorys_resolutions_are_kept_by_specifier_and_mode() {
+    let table = Arc::new(DirectoryResolutions::<u32>::default());
+    let model = JsString::from("./model");
+    let event = JsString::from("vs/base/common/event");
+    assert_eq!(table.get(model.as_js(), ResolutionMode::EsNext), None);
+    table.insert(model.as_js(), ResolutionMode::EsNext, 1);
+    table.insert(model.as_js(), ResolutionMode::CommonJs, 2);
+    table.insert(event.as_js(), ResolutionMode::Unspecified, 3);
+    assert_eq!(table.get(model.as_js(), ResolutionMode::EsNext), Some(1));
+    assert_eq!(table.get(model.as_js(), ResolutionMode::CommonJs), Some(2));
+    assert_eq!(table.get(model.as_js(), ResolutionMode::Unspecified), None);
+    assert_eq!(table.get(event.as_js(), ResolutionMode::EsNext), None);
+    table.insert(model.as_js(), ResolutionMode::EsNext, 4);
+    assert_eq!(table.get(model.as_js(), ResolutionMode::EsNext), Some(4));
+
+    let directory = LexicalPath::from_owned(JsString::from("/work/src"));
+    let mut walk = FxHashMap::default();
+    DirectoryResolutions::append_to(table, &directory, &mut walk);
+    let key = |specifier: &JsString, mode| (directory.clone(), specifier.clone(), mode);
+    assert_eq!(walk.len(), 3);
+    assert_eq!(walk.get(&key(&model, ResolutionMode::CommonJs)), Some(&2));
+    assert_eq!(walk.get(&key(&model, ResolutionMode::EsNext)), Some(&4));
+    assert_eq!(
+        walk.get(&key(&event, ResolutionMode::Unspecified)),
+        Some(&3)
+    );
+}

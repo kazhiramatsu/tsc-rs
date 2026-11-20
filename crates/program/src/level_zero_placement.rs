@@ -1072,7 +1072,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         }
         self.directory_resolution_hits += follows.reused;
         self.target_resolution_hits += follows.target_reused;
-        pass.resolutions.append_to(&mut self.directory_resolutions);
+        for (directory, table) in pass.resolutions.into_entries() {
+            DirectoryResolutions::append_to(table, &directory, &mut self.directory_resolutions);
+        }
         pass.target_resolutions
             .append_to(&mut self.target_resolutions);
         self.direct_layout = true;
