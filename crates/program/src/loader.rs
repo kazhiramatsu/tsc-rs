@@ -2517,6 +2517,19 @@ impl ParallelReadAhead<'_> {
     }
 }
 
+/// The shard, of at most 64, of a key by its FxHash, for shards that keep
+/// their keys in an `FxHashMap`. The shard's map hashes the key the same
+/// way: it takes its bucket from the lowest bits of the hash and the
+/// seven-bit tag it files the key under from the top seven, and
+/// `FxHasher::finish` leaves the hash's best bits lowest. The shard takes
+/// six bits between the two. (A shard chosen by the top bits leaves the tags
+/// of its keys almost all alike: a lookup then compares the keys of the
+/// entries it passes, and the keys here are paths with long common
+/// prefixes.)
+pub(crate) fn shard_of_fx_hash(hash: u64, shards: usize) -> usize {
+    (hash >> 20) as usize % shards
+}
+
 /// A hash map split over mutex-guarded shards by key, shared by the
 /// parallel read-ahead's workers.
 struct Sharded<K, V> {
@@ -2534,12 +2547,14 @@ impl<K: Hash + Eq, V> Sharded<K, V> {
         }
     }
 
-    fn shard(&self, key: &K) -> std::sync::MutexGuard<'_, FxHashMap<K, V>> {
+    fn shard_index(key: &K) -> usize {
         let mut hasher = rustc_hash::FxHasher::default();
         key.hash(&mut hasher);
-        // FxHash mixes its high bits best.
-        let index = (hasher.finish() >> 58) as usize % Self::SHARDS;
-        self.shards[index]
+        shard_of_fx_hash(hasher.finish(), Self::SHARDS)
+    }
+
+    fn shard(&self, key: &K) -> std::sync::MutexGuard<'_, FxHashMap<K, V>> {
+        self.shards[Self::shard_index(key)]
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
@@ -9760,3 +9775,7 @@ fn prepared_read_ahead_elides_target(
 #[cfg(test)]
 #[path = "../tests/unit/loader/shared_source_tests.rs"]
 mod shared_source_tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/loader/shared_tables_tests.rs"]
+mod shared_tables_tests;

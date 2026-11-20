@@ -102,7 +102,8 @@ impl PreparedPackageIds {
     pub(crate) fn intern(&self, id: PackageId) -> PreparedPackageRef {
         let mut hash = rustc_hash::FxHasher::default();
         id.hash(&mut hash);
-        let mut shard = self.shards[(hash.finish() >> 58) as usize]
+        let shard = crate::loader::shard_of_fx_hash(hash.finish(), self.shards.len());
+        let mut shard = self.shards[shard]
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some((id, &index)) = shard.get_key_value(&id) {
