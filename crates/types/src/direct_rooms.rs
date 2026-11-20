@@ -28,7 +28,7 @@ impl IdentityDomain {
             for &(space, count) in requests {
                 let id = state.next_lease_id;
                 state.next_lease_id += 1;
-                match state.allocators[space.index()].allocate_bump(space, count, id) {
+                match state.allocators[space.index()].allocate_room(space, count, id) {
                     Ok(range) => allocated.push((stripe, space, range, id)),
                     Err(error) => {
                         for (_, space, range, id) in allocated.into_iter().rev() {

@@ -25,8 +25,13 @@ pub const SPACES: [IdentitySpace; 4] = [
     IdentitySpace::NodeText,
 ];
 
-/// Count policy independent of both worker and checker budgets.
+/// Count policy independent of both worker and checker budgets. Under the
+/// identity scatter (a test build, `tsc_types::identity::scatters`) every
+/// source has a stripe of its own, so the scatter decides where each lies.
 pub fn stripe_width(entries: usize) -> usize {
+    if tsc_types::identity::scatters() {
+        return 1;
+    }
     entries.div_ceil(96).max(8)
 }
 

@@ -106,13 +106,22 @@ impl DiscoveredRooms {
             })
         };
         let text_bytes = source.text().len();
-        let fits = match (&room.0, counts(text_bytes, 1)) {
-            (Some((_, stripe)), Some((_, need))) => stripe.can_construct(need),
-            _ => false,
-        };
+        // Under the identity scatter (a test build) every source has a room
+        // of its own, so the scatter decides where each lies.
+        let own_room = tsc_types::identity::scatters();
+        let fits = !own_room
+            && match (&room.0, counts(text_bytes, 1)) {
+                (Some((_, stripe)), Some((_, need))) => stripe.can_construct(need),
+                _ => false,
+            };
         if !fits {
             self.retire(room);
-            let leased = counts(text_bytes.max(Self::ROOM_TEXT_BYTES), Self::ROOM_ENTRIES)
+            let (room_bytes, room_entries) = if own_room {
+                (text_bytes, 1)
+            } else {
+                (text_bytes.max(Self::ROOM_TEXT_BYTES), Self::ROOM_ENTRIES)
+            };
+            let leased = counts(room_bytes, room_entries)
                 .and_then(|(bounds, _)| self.domain.lease_rooms(&[bounds]).ok())
                 .and_then(|mut rooms| rooms.pop());
             if let Some(leased) = leased {
