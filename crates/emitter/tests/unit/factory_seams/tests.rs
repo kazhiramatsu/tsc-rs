@@ -1453,3 +1453,24 @@ fn prepared_print_memory_includes_presence_and_optional_metadata_storage() {
     assert!(exceptional.row("exceptional metadata estimated").requested > 0);
     assert_eq!(exceptional.row("metadata details").count, 1);
 }
+
+#[test]
+fn an_unsupported_syntax_error_names_no_node_identity() {
+    // A node's identity depends on where its file was placed; the message
+    // that reaches the command's stderr must not.
+    let message = |node: u32| {
+        TransformError::UnsupportedSyntax {
+            feature: crate::transform::UnsupportedTransformFeature::Decorators,
+            node: TransformNode {
+                source: TransformSourceId(3),
+                node: NodeId::new(node),
+            },
+        }
+        .to_string()
+    };
+    assert_eq!(message(17), message(900_017));
+    assert_eq!(
+        message(17),
+        "unsupported decorators syntax in transform source 3"
+    );
+}
