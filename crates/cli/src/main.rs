@@ -26,6 +26,21 @@ fn prefer_interactive_scheduling() {
     }
 }
 
+/// Ask the OS to schedule the calling thread as utility work. On macOS such
+/// a thread still runs on whatever core is free, a performance core
+/// included, and leaves the core to an interactive-class thread that can
+/// run: the bind crew starts this way, beside the thread whose ordered walk
+/// the load waits for. (The classes between the two, user-initiated and
+/// default, did not keep that thread on a performance core when measured.)
+/// On other platforms this is a no-op.
+fn prefer_utility_scheduling() {
+    #[cfg(target_os = "macos")]
+    // SAFETY: as in `prefer_interactive_scheduling`.
+    unsafe {
+        libc::pthread_set_qos_class_self_np(libc::qos_class_t::QOS_CLASS_UTILITY, 0);
+    }
+}
+
 /// tsgo `RunGC` (the language server's `custom/runGC`): mimalloc returns the
 /// memory the process no longer uses, the source texts' heap included.
 fn collect_memory() {
@@ -110,6 +125,7 @@ fn main() {
     // Every worker thread and checker shard starts with the same request;
     // the main thread reads, coordinates and runs the first shard itself.
     tsc_program::set_thread_start_hook(prefer_interactive_scheduling);
+    tsc_program::set_yielding_thread_start_hook(prefer_utility_scheduling);
     tsc_program::set_worker_idle_hook(collect_memory);
     prefer_interactive_scheduling();
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();

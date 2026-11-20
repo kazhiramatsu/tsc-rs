@@ -1,4 +1,9 @@
 //! Owned bind batches activated below the loader's read/parse priority.
+//!
+//! The crew binds beside the thread that loads the program, and that thread's
+//! chain (the ordered walk, the graph's finish, the publication) is what the
+//! load waits for: the crew's threads start with the yielding threads' hook
+//! ([`crate::workers::set_yielding_thread_start_hook`]).
 use crate::{prepared::PendingSourceBind, WorkerBudget};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -84,7 +89,7 @@ impl SourceBinds {
             .name("tsc-rs-bind".into())
             .stack_size(crate::workers::WORKER_STACK_BYTES)
             .spawn(move || {
-                crate::workers::run_thread_start_hook();
+                crate::workers::run_yielding_thread_start_hook();
                 let eligible = pending.count;
                 let mut jobs = Vec::with_capacity(eligible);
                 let mut sources = pending.batches.into_iter().flatten();
@@ -117,7 +122,7 @@ impl SourceBinds {
                             .name("tsc-rs-bind".into())
                             .stack_size(crate::workers::WORKER_STACK_BYTES)
                             .spawn_scoped(scope, || {
-                                crate::workers::run_thread_start_hook();
+                                crate::workers::run_yielding_thread_start_hook();
                                 run();
                             });
                     }
@@ -313,5 +318,36 @@ mod identity_handoff_tests {
             original,
             "handoff completed before the next lease"
         );
+    }
+}
+
+#[cfg(test)]
+mod yielding_start_tests {
+    use super::*;
+    use crate::PreparsedSyntax;
+    use std::{num::NonZeroUsize, sync::atomic::AtomicUsize};
+
+    static YIELDING_STARTS: AtomicUsize = AtomicUsize::new(0);
+
+    fn count_start() {
+        YIELDING_STARTS.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// The crew's owner and each of its scoped threads start with the
+    /// yielding threads' hook: what the embedding asks of the threads that
+    /// work beside the loading thread reaches all of them. (The hook is the
+    /// process's: the crews of the other tests count too, so at least.)
+    #[test]
+    fn the_crews_threads_start_with_the_yielding_hook() {
+        crate::workers::set_yielding_thread_start_hook(count_start);
+        let before = YIELDING_STARTS.load(Ordering::Relaxed);
+        let crew = SourceBinds::start_with(
+            vec![PreparsedSyntax::empty(), PreparsedSyntax::empty()],
+            WorkerBudget::new(NonZeroUsize::new(3).unwrap()),
+            |_| {},
+        )
+        .unwrap();
+        crew.finish();
+        assert!(YIELDING_STARTS.load(Ordering::Relaxed) >= before + 2);
     }
 }
