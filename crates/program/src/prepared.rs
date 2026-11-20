@@ -2371,16 +2371,11 @@ impl PreparedProgram {
         self.program_options.identity.source_binds = binds;
     }
 
-    /// End speculative binding before source adoption. In-flight slots finish
-    /// their own bind; the consumer uses the ordinary path for the remainder.
-    pub fn stop_source_binding(&self) {
-        if let Some(binds) = &self.program_options.identity.source_binds {
-            binds.stop();
-        }
-    }
-
-    /// Complete active slots after input projection and before the checker
-    /// leases identities. The ordered loader never calls this checkpoint.
+    /// End the bind crew after input projection and before the checker
+    /// session adopts a tree or leases an identity: a slot the crew is
+    /// binding finishes its bind, the slots it has not started are left to
+    /// the consumer's ordinary path. The ordered loader never calls this
+    /// checkpoint.
     pub fn finish_source_binding(&self) {
         if let Some(binds) = &self.program_options.identity.source_binds {
             let started = tsc_types::trace::enabled().then(std::time::Instant::now);
