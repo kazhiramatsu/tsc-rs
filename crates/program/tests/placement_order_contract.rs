@@ -68,17 +68,18 @@ fn level_zero_preserves_reference_order_reasons_diagnostics_and_trace() {
                         .preparsed_syntax()
                         .direct_layout()
                         .unwrap();
+                    // The referenced project's source is not in the program:
+                    // neither a root stripe nor a room holds it. Its output
+                    // is, and the walk parses it into its room.
                     assert_eq!(
                         layout.len(),
-                        2,
-                        "only globals and the root project's main file are placed"
+                        3,
+                        "globals, the root project's main file and the reference's output are placed"
                     );
                     assert!(layout
                         .iter()
                         .all(|placement| !placement.name.ends_with("lib/src/value.ts")));
-                    assert!(layout
-                        .iter()
-                        .all(|placement| !placement.name.ends_with("lib/dist/value.d.ts")));
+                    assert!(layout[2].name.ends_with("lib/dist/value.d.ts"));
                 }
                 let baseline = corpus::load(&fixture, workers, trace);
                 let paths: Vec<_> = program

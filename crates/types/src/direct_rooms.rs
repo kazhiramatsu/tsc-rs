@@ -10,7 +10,11 @@ pub struct Rooms {
 
 impl IdentityDomain {
     /// Lease an ordered prefix of stripes atomically under one domain lock.
-    /// Requests and order must be computed from input sizes, never workers.
+    /// For the stripes of a program's listed roots, requests and order are
+    /// computed from input sizes, never from workers: their identities are
+    /// the same in every run. The rooms of the sources found through imports
+    /// are leased one at a time as the loader's workers ask for them; which
+    /// identities those sources get depends on the workers' timing.
     pub fn lease_rooms(
         &self,
         stripes: &[Vec<(IdentitySpace, u32)>],

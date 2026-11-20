@@ -2157,6 +2157,10 @@ struct ParallelReadAhead<'a> {
     /// The resolutions by target ([`StagedGraph::target_resolutions`]),
     /// shared by all workers as `resolutions` is.
     target_resolutions: Sharded<(LexicalPath, ResolutionMode), Arc<PreparedModule>>,
+    /// The rooms for the sources found through imports
+    /// ([`level_zero_placement::DiscoveredRooms`]); none in the private
+    /// read-ahead, whose parses admission relocates.
+    discovered: Option<Arc<level_zero_placement::DiscoveredRooms>>,
 }
 
 struct QueuedPath {
@@ -2220,6 +2224,7 @@ impl ParallelReadAhead<'_> {
     fn read_source(
         &self,
         resolver: &mut Option<ModuleResolver<'_>>,
+        room: &mut level_zero_placement::DiscoveredRoom,
         path: ProgramPath,
         order: usize,
         spawned: &mut Vec<(ProgramPath, usize)>,
@@ -2261,13 +2266,26 @@ impl ParallelReadAhead<'_> {
                     (Some(mapper), Some((_, project))) => {
                         self.transform_ahead(resolver, &path, bytes, &mapper, project)
                     }
-                    _ => parse_root_ahead(
-                        &path,
-                        bytes,
-                        self.options,
-                        scope.as_ref(),
-                        self.program_options.parse_cache(),
-                    ),
+                    _ => {
+                        // A referenced project's source is read ahead in
+                        // vain (see `follow`): the walk loads its output, so
+                        // its parse takes no room.
+                        let rooms = self.discovered.as_deref().filter(|_| {
+                            self.references
+                                .redirect(path.canonical())
+                                .ok()
+                                .flatten()
+                                .is_none()
+                        });
+                        parse_root_ahead(
+                            &path,
+                            bytes,
+                            self.options,
+                            scope.as_ref(),
+                            self.program_options.parse_cache(),
+                            rooms.map(|rooms| (rooms, room)),
+                        )
+                    }
                 }
             }
         };
@@ -2910,6 +2928,10 @@ fn parse_root_ahead(
     options: &CompilerOptions,
     package_scope: Option<&PackageMetadata>,
     parse_cache: Option<&dyn crate::ParseCache>,
+    discovered: Option<(
+        &level_zero_placement::DiscoveredRooms,
+        &mut level_zero_placement::DiscoveredRoom,
+    )>,
 ) -> PrefetchedRead {
     let byte_len = bytes.len();
     // Under the phase trace a large source reports its decode, snapshot and
@@ -2933,7 +2955,11 @@ fn parse_root_ahead(
             tsc_types::trace::mark(&format!("load: snapshot {name}"), prepare_started);
         }
         let plan_started = std::time::Instant::now();
-        let planned = plan_source_requests_retaining_syntax(&prepared, options, parse_cache);
+        let planned = match discovered {
+            // In the worker's room: at its final identities.
+            Some((rooms, room)) if parse_cache.is_none() => rooms.plan(room, &prepared, options),
+            _ => plan_source_requests_retaining_syntax(&prepared, options, parse_cache),
+        };
         if let Some((_, name)) = &traced {
             tsc_types::trace::mark(&format!("load: parse and plan {name}"), plan_started);
         }
@@ -3036,6 +3062,12 @@ struct StagedGraph<'host, 'options, 'resolver> {
     direct_layout: bool,
     pending_source_binds: Option<Arc<crate::source_binds::SourceBinds>>,
     direct_stripes: level_zero_placement::Stripes,
+    /// The rooms of the sources found through imports, for the read-ahead's
+    /// workers and for the walk; none without an identity domain. They are
+    /// used in a load whose roots the direct read-ahead placed.
+    discovered_rooms: Option<Arc<level_zero_placement::DiscoveredRooms>>,
+    /// The room the walk fills with the sources it parses itself.
+    walk_room: level_zero_placement::DiscoveredRoom,
     host: &'host dyn CompilerHost,
     /// The host module resolution observes: `host`, or for a program that
     /// reads the sources of its referenced projects, the host that finds
@@ -3178,6 +3210,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             direct_layout: false,
             pending_source_binds: None,
             direct_stripes: level_zero_placement::Stripes::default(),
+            discovered_rooms: config
+                .program_options
+                .identity_domain()
+                .map(|domain| Arc::new(level_zero_placement::DiscoveredRooms::new(domain))),
+            walk_room: level_zero_placement::DiscoveredRoom::default(),
             host: config.host,
             resolution_host: config.resolution_host,
             compiler_options: config.compiler_options,
@@ -3345,6 +3382,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             path_symbol_count: AtomicUsize::new(0),
             resolutions: Sharded::new(),
             target_resolutions: Sharded::new(),
+            discovered: None,
         };
         let mut seeds: Vec<(ProgramPath, usize)> = Vec::new();
         for path in roots {
@@ -3398,7 +3436,16 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         None => resolver,
                     })
             },
-            |resolver, (path, order), spawned| pass.read_source(resolver, path, order, spawned),
+            |resolver, (path, order), spawned| {
+                // This private read-ahead owns no room (`discovered` is none).
+                pass.read_source(
+                    resolver,
+                    &mut level_zero_placement::DiscoveredRoom::default(),
+                    path,
+                    order,
+                    spawned,
+                )
+            },
             |resolver| {
                 resolver
                     .map(|mut resolver| {
@@ -3607,7 +3654,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             |(index, path, scope, bytes)| {
                 let large_parse_started = (tsc_types::trace::enabled() && bytes.len() >= 256 << 10)
                     .then(|| (std::time::Instant::now(), bytes.len()));
-                let parsed = parse_root_ahead(&path, bytes, options, scope.as_ref(), parse_cache);
+                let parsed =
+                    parse_root_ahead(&path, bytes, options, scope.as_ref(), parse_cache, None);
                 if let Some((started, len)) = large_parse_started {
                     tsc_types::trace::mark(
                         &format!("load: parse {:?} ({len} bytes)", path.display()),
@@ -3690,6 +3738,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                                 options,
                                 scope.as_ref(),
                                 parse_cache,
+                                None,
                             );
                             if let Some((started, len)) = large_parse_started {
                                 tsc_types::trace::mark(
@@ -4772,6 +4821,12 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 for source in &mut self.sources {
                     source.prepared.mark_identity_domain(domain);
                 }
+            }
+            // The rooms the walk filled join the layout after the roots'
+            // stripes and the read-ahead's rooms.
+            if let Some(rooms) = &self.discovered_rooms {
+                rooms.retire(&mut self.walk_room);
+                self.direct_stripes.extend(rooms.take_retired());
             }
             if self.direct_layout {
                 let layout = self.direct_stripes.finish_layout();
@@ -6106,11 +6161,24 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     } else {
                         options_for_file
                     };
-                    match plan_source_requests_retaining_syntax(
-                        &prepared,
-                        options_for_plan,
-                        self.program_options.parse_cache(),
-                    ) {
+                    // In the walk's room, at its final identities, when
+                    // the roots of this load were placed directly. A load
+                    // without the direct read-ahead (a host that does not
+                    // permit it, a parse cache, a traced resolution) keeps
+                    // every parse private, as before.
+                    let rooms = self
+                        .discovered_rooms
+                        .as_deref()
+                        .filter(|_| self.direct_layout);
+                    let planned = match rooms {
+                        Some(rooms) => rooms.plan(&mut self.walk_room, &prepared, options_for_plan),
+                        None => plan_source_requests_retaining_syntax(
+                            &prepared,
+                            options_for_plan,
+                            self.program_options.parse_cache(),
+                        ),
+                    };
+                    match planned {
                         Ok((plan, syntax)) => {
                             prepared = prepared.with_preparsed_syntax(syntax);
                             Ok(PreparedSourceRequests::new(plan))
