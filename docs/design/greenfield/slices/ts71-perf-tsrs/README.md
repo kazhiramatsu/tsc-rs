@@ -1553,6 +1553,47 @@ zod（作ったままの規則では −0.5 % のために +41 MiB）は 1 file 
 
 **次。** (1) 3 commit の着地（job は 13:31 に開始）。(2) 不安定な test の修正の PR。(3) 表の行：計測（所有者の言葉を待つ）と着地。(4) import で見つかった source の bind 用の番号を読み込みの終わりに path の順で予約し、bind の班に渡す（実行に依らない順；書いている途中）。(5) 直列の鎖の安い行と、班を root の割り当ての終わりから動かす形。(6) import の収集の持ち方、名前の表の予約を 1 回にする形。
 
+**結果 50（2026-11-20 13:30〜16:00：import で見つかった source を最終の番号で parse する 3 commit の着地（PR #1022）、front end の専用 slot fe5（import で見つかった source の bind を班に渡す行の計測、名前の表を 1 回で予約する形の不採用）、検査の側の読み直し（両 port の全体 compile の記録）、引き渡しの後の区間の新しい 2 行、運用）。**
+
+**着地（PR #1022、merge `5718b8de6`、11-20 15:57 JST、hosted run 44687921971）。** 結果 49 の 3 commit（`7997aae48` emitter の「対応していない構文」の error が node の番号を名指ししない、`8c1e33b0c` import で見つかった source を最終の番号で parse する、`ee57086f6` 番号をばらまく形は test 用の cargo feature と script として残す）。手元の確認は branch の head `ee57086f6` で：変えた 5 crate の test 1,970 件、release build、8 project の出力が base の binary と同一、counter、4 checker の対照（15,335 構成が一致、違うのは既知の 4 構成）、suites `--check` rc 0、emit の oracle 24 / 24、fingerprint の oracle 161,676 行で差 0、preset の出力 16 / 16。main の code の binary は `batch43-sel-ee57086f6`。
+
+**専用 slot fe5（15:45〜15:50、4.5 分、fan の最高 2,936 rpm；`fable52-1111/track-slots/fe5`）。** 基準は走らせる前に list に書いた。
+
+*import で見つかった source の bind を班に渡す行*（branch `perf/crew-binds-import-found`、2 commit、binary `n-cb1m`；base は `n-p5m` = main の code）。bind 用の番号を読み込みの終わりに path の順で予約し（実行に依らない順）、bind の班に渡す。純粋な front end（`--noCheck`、trace 付き）の対、差の中央値 ms（低かった対の数）：
+
+| project（対の数） | 全体 | 読み込み | 検査の準備の区間 | そのうち残りの bind | 同じ binary 同士の全体 |
+|---|---|---|---|---|---|
+| zod（16） | **−2.63（16 / 16）** | +1.32（4） | −4.35（16） | −4.55（16） | −0.56（9 / 16） |
+| next（16） | **−3.55（16 / 16）** | +0.33（6） | −4.15（16） | −3.94（16） | +0.37（4 / 16） |
+| playwright（12） | −2.14（10 / 12） | −0.18（6） | −2.07（12） | −2.21（12） | — |
+| vue（12） | −1.53（12 / 12） | +0.31（4） | −1.93（12） | −1.91（12） | — |
+| VS Code（16） | −0.06（8 / 16） | +2.76（5） | −2.84（14） | −2.37（15） | 朝の slot：+0.27、読み込みの四分位 −2.35〜+2.66 |
+
+front end が zod で 4.5 %、next で 4.6 %、playwright で 5.2 %、vue で 5.4 % 短くなり、VS Code は変わらない。**事前の基準に対して：** 1 つ目（zod と next で全体が 2 ms 以上、対の 4 分の 3 以上）は満たす；3 つ目（どの project も目盛りの外で遅くならない）も満たす；**2 つ目（読み込みが 1 ms を超えて長くならない）は zod で超えた（+1.32 ms：graph の仕上げ +0.49 は 16 対すべてで長い、publish +0.23）、VS Code でも数字は超えている（+2.76、朝の同じ binary 同士の幅の端）。** 書いた通りには合格ではない。問い（引き渡しの後の区間が、読み込みが同じだけ延びることなく縮むか）への答えは zod・next・playwright・vue で「はい」、VS Code では読み込みの読みが縮んだ分を打ち消している。残っているのは読み込みの側の費用で、昼の trace（同じ 2 本を 9 回ずつ、どこが動いたかの目安）では班が bind している横の「graph の仕上げ」と「publish」が各 +0.3 ms；予約そのものは source 1 つにつき保存済みの数を読むだけ。全体の compile（既定設定、9 対）の wall は zod −0.19 %、next +0.18 %、playwright −0.65 %、vue −1.52 % で、0.7〜1 % の効果を 9 対では見分けられない；peak は +0.1〜+1.9 MiB。
+
+*名前の表を読み込みの最初に 1 回で予約する形*（branch `perf/name-table-one-reservation`、`n-nt2m`）は**自分の基準の 3 つすべてに VS Code で不合格**：既定設定の front end の cycles −0.15 %（24 対中 13；求めたのは目盛りの外で約 −0.8 %、同じ binary 同士は +0.01 %）、**1 thread の cycles +0.47 %（9 対中 低いのは 1）、wall +0.64 %（9 対中 0）**、peak +2.4 / +3.2 MiB（上限 3）。next は良くなる（1 thread −0.62 %、既定 −0.88 %）、zod は目盛りの中。着地しない。hash を番号の横に置く形（結果 49）に続いて、共有の表そのものを安くする形は 2 つとも不採用；残っているのは表まで行く回数を減らす方向。（「最初から最終の大きさの表は早い時期の挿入を冷たい行に置く」という理由は integrator の読みで、分ける計測はしていない。）
+
+*import の要求の計画の索引*（`n-pl1m`）は測れなかった（下の「運用」）。
+
+**検査の側の読み直し（所有者の計画の 3 点目）。** 全体の compile を既定設定で両 port 3 回ずつ time profile に取った（next・vue・TypeScript の compiler・playwright；`fable52-1111/check-side/rec1`、読む道具 `tools/ck-classes.py`）。読み方で 2 回つまずいた：(1) **tsc-rs の 1 本目の shard は compile の thread で走る** — thread の名前で分けると checker の thread が 3 本対 4 本になり、「checker の時間が 2 割少ない」と見えるのは見かけ；main thread の `run_checker_shard` の下が 4 本目。(2) 昼は性能 core の 1 つを別の process が使っていることがあり、tsrs の記録 3 回のうち next と playwright の 2 回ずつで checker の thread が高効率 core で 40〜100 ms 走っていた — そういう記録は外した（残り：next 3 | 1、vue 2 | 2、TypeScript 3 | 2、playwright 3 | 1；薄いので、きれいな数字は slot で取り直す）。
+
+検査の走っている時間、tsc-rs | tsrs、ms（shard を長い順に；検査の wall はいちばん長い shard）：
+
+| project | 最長 | 2 本目 | 3 本目 | 4 本目 | 合計 |
+|---|---|---|---|---|---|
+| next | 423 \| 395（+7.2 %） | 273 \| 233 | 262 \| 226 | 189 \| 224 | 1146 \| 1078（+6.3 %） |
+| vue | 180 \| 170（+5.9 %） | 132 \| 134 | 114 \| 119 | 104 \| 103 | 530 \| 526（+0.7 %） |
+| TypeScript の compiler | 133 \| 121（+9.9 %） | 79 \| 75 | 65 \| 62 | 65 \| 61 | 343 \| 319（+7.4 %） |
+| playwright | 160 \| 162（−1.0 %） | 153 \| 142 | 135 \| 130 | 124 \| 120 | 572 \| 554（+3.3 %） |
+
+最長の shard の差（next +29 ms、vue +10、TypeScript +12）は、計測枠 pk21 から引いた「検査の側の差」（+26、+12、+12）と合う：**この 3 つでは、検査の側の wall の差は最長の shard の CPU そのもの**（playwright は −2 対 +7 で合わない）。葉の関数の種類では差を担うものがない（checker の thread に占める割合、next：allocator 2.3 | 2.6 %、複写 1.6 | 1.4、hash の表 4.6 | 4.3、kernel の memory 呼び出し 0.6 | 0.1、自分の code 89.5 | 90.3）。仕事の種類（いちばん近い自分の関数の名前で分ける；inline のされ方が port で違うので目安）でも単独の持ち主はいない：tsrs は symbol の表（`SymbolMap::search` ほか：next 218 | 106）と node の小道具で多く、tsc-rs は名前の解決、union と型の登録、instantiate、型の順序、flow で少しずつ多い。両 port が同じ名前で持つ入口の下の時間（inclusive；tsrs のきれいな記録が 1〜2 回なので 1 行 ±10 %）では、名前の解決は 3 project で同じだが TypeScript の compiler 自身の source では 34.7 | 25.0（1.39 倍、その project の差 24 ms のうち 9.7）、参照の flow の型は vue 77.0 | 59.0・playwright 46.7 | 38.0・TypeScript 74.7 | 67.5、構造の関係は next 462 | 422・vue 165 | 148。integrator の読み（結論ではない）：差は検査の code 全体に薄く広がっていて（命令あたりの cycles）、1 thread の counter の記録で見る候補は TypeScript の source での名前の解決（scope 1 段ごとの表引き）、参照の flow の型、構造の関係。
+
+**引き渡しの後の区間：新しい 2 行（check と test まで、計測はまだ）。** 表の行の上に積む。(a) `bc009f654`：session の checker が source ごとの情報の表を 1 つ共有する — 各 checker が起動のたびに 5 本の vector と token から file への hash map を作っていた（VS Code で 1 万件の挿入を 4 回）；command line の Program では token が file の番号そのものなので map も要らない。起動時の拒否は同じ 3 つの message を同じ順で出す。(b) `50c356569`：file を checker に配るための import の graph を、source の受け入れの横で別の thread が作る — VS Code で約 5,500 万命令が、compile の thread しか動いていない区間で走っていた。thread は token を file の番号として読み、driver は session の token が実際に番号だったときだけその graph を使う（そうでなければ今まで通り自分で辿る）；どちらも同じ関数を通るので、挿入の中身と順序は同じ。どちらも `cargo fmt`、`cargo clippy -p tsc-rs-checker --all-targets -- -D warnings`、自分の test と周りの test（8 件、27 件）が通っている；計測用の binary `n-hand2m` は build 中。
+
+**運用。** (1) slot fe5 で integrator が順番を間違えた：候補の最後の binary を build している最中に slot の前処理を始めた — slot は lock を待たず、lock を持っている job を止めて測るので、build が凍り、その binary を使う 2 行（要求の計画の索引）が失敗した。slot の list の binary はすべて前処理の前に存在を確かめる。(2) allocator が memory を返すまでの時間の対は front end の slot の list から外した（検査の側の項目で、都度取ってよい slot は front end の作業のもの）；昼に cycles と peak だけを読む list に分けた。(3) 新しい行 (a) の test の 1 つは integrator の思い込みで書いてあり失敗した：同じ token の file が 2 つあると、checker が起動する前に入口が別の message で断る — test を実際の振る舞いに合わせた。
+
+**次。** (1) 班に渡す行：着地前の確認（test、72 セルと 10 回ずつの出力、counter、oracle、fingerprint、peak；job は並べた）、読み込みの側の費用、全体の compile を 24 対で（次の slot）。(2) 要求の計画の索引を次の slot で。(3) 表の行：計測（所有者の言葉を待つ）と着地；新しい 2 行はその上。(4) 検査の側：1 thread の counter の記録（TypeScript の compiler を足した）、allocator の対。(5) 「列の記録」を既定にする設計（記録の置き場所と、配り方が変わっても出力が変わらない保証）は引き続き integrator の宿題 — 今回の表の通り、検査の wall は最長の shard で決まる。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
