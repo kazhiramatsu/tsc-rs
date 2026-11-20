@@ -263,6 +263,36 @@ impl BindAdmission {
                     .map(|counts| (syntax, counts))
             })
             .collect();
+        self.reserve_sources(sources);
+    }
+
+    /// The bind slices of the sources found through imports. Such a source
+    /// lies at its final identities as a root does (in a worker's room), but
+    /// no stripe's admission has seen it: when the read-ahead has ended and
+    /// its sources stand in the order of their paths, their symbols are
+    /// reserved here, in that order, and they go to the bind crew with the
+    /// roots — bound beside the walk instead of after the hand-off. Without
+    /// a crew the checker session reserves and binds them, as it always did.
+    fn reserve_discovered(&mut self, sources: &[ReadAheadSource]) {
+        if self.binds.is_none() {
+            return;
+        }
+        let discovered: Vec<_> = sources
+            .iter()
+            .filter_map(Self::syntax)
+            .filter_map(|syntax| {
+                syntax
+                    .unreserved_bind_counts(&self.domain)
+                    .map(|counts| (syntax, counts))
+            })
+            .collect();
+        self.reserve_sources(discovered);
+    }
+
+    /// One room for the symbols and private-name serials of `sources`, a
+    /// slice of it for each in their order, and their registration with the
+    /// crew.
+    fn reserve_sources(&mut self, sources: Vec<(&PreparsedSyntax, [u32; 2])>) {
         if sources.is_empty() {
             return;
         }
@@ -1144,9 +1174,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         if let Some(rooms) = &pass.discovered {
             self.direct_stripes.extend(rooms.take_retired());
         }
-        if let Some(admission) = bind_admission.as_ref() {
-            admission.lock().expect("ordered bind admission").finish();
-        }
         let stream = stream.into_inner().expect("ordered root stream");
         if tsc_types::trace::enabled() {
             eprintln!("[syntax-placement] level 0: config_lease_batches={} root_lease_batches={} leases={} root_prefix={} root_candidates={} stopped={}",
@@ -1190,6 +1217,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 .cmp(&right.order)
                 .then_with(|| left.path.canonical().cmp(right.path.canonical()))
         });
+        if let Some(admission) = bind_admission.as_ref() {
+            let mut admission = admission.lock().expect("ordered bind admission");
+            admission.reserve_discovered(&sources);
+            admission.finish();
+        }
         let count = sources.len();
         let mut follows = FollowCounts::default();
         for source in sources {

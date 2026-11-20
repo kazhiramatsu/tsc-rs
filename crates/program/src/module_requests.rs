@@ -1016,6 +1016,59 @@ pub(crate) fn plan_source_requests_in_stripe_into(
     Ok(syntax)
 }
 
+/// Where a source's requests so far stand in its plan, by key.
+///
+/// Every key of one source carries the same source path. A source has a
+/// handful of requests, and comparing the specifiers and modes of those few
+/// is cheaper than hashing the source's path with each look-up and keeping a
+/// second copy of each key in a map made anew for every source. A source of
+/// many requests (an index file of ten thousand `require` calls) gets the
+/// map once it has more than [`RequestIndex::LINEAR`] of them.
+#[derive(Default)]
+struct RequestIndex {
+    map: Option<rustc_hash::FxHashMap<ResolutionKey, usize>>,
+}
+
+impl RequestIndex {
+    const LINEAR: usize = 16;
+
+    /// The place of `key` among `requests`, the plan's requests so far.
+    fn find(&self, requests: &[ResolutionKey], key: &ResolutionKey) -> Option<usize> {
+        match &self.map {
+            Some(map) => map.get(key).copied(),
+            None => {
+                debug_assert!(requests
+                    .iter()
+                    .all(|request| request.source() == key.source()));
+                requests.iter().position(|request| {
+                    request.mode() == key.mode() && request.specifier() == key.specifier()
+                })
+            }
+        }
+    }
+
+    /// `requests` has just gained its last element.
+    fn pushed(&mut self, requests: &[ResolutionKey]) {
+        match &mut self.map {
+            Some(map) => {
+                let index = requests.len() - 1;
+                map.insert(requests[index].clone(), index);
+            }
+            None if requests.len() > Self::LINEAR => {
+                self.map = Some(
+                    requests
+                        .iter()
+                        .cloned()
+                        .enumerate()
+                        .map(|(index, key)| (key, index))
+                        .collect(),
+                );
+            }
+            None => {}
+        }
+    }
+}
+
 fn plan_module_requests_with_parser(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
@@ -1316,7 +1369,7 @@ fn plan_module_requests_with_parser(
     let mut module_request_loads = Vec::new();
     let mut module_request_spans: Vec<Vec<(u32, u32)>> = Vec::new();
     let mut module_request_occurrences = Vec::new();
-    let mut request_index = rustc_hash::FxHashMap::<ResolutionKey, usize>::default();
+    let mut request_index = RequestIndex::default();
     // tsc collectExternalModuleReferences prepends a synthesized `tslib`
     // import when importHelpers can participate in this source. The checker
     // later resolves that exact synthetic specifier while validating the
@@ -1345,9 +1398,9 @@ fn plan_module_requests_with_parser(
         .saturating_add(usize::from(has_synthetic_jsx_runtime));
     if has_synthetic_tslib {
         let key = ResolutionKey::new(source.path().canonical().clone(), "tslib", static_mode);
-        request_index.insert(key.clone(), module_requests.len());
         module_request_occurrences.push(module_requests.len() as u32);
         module_requests.push(key);
+        request_index.pushed(&module_requests);
         module_request_loads.push(true);
         module_request_spans.push(Vec::new());
     }
@@ -1357,9 +1410,9 @@ fn plan_module_requests_with_parser(
             jsx_runtime_import.expect("guarded JSX runtime synthetic import"),
             static_mode,
         );
-        request_index.insert(key.clone(), module_requests.len());
         module_request_occurrences.push(module_requests.len() as u32);
         module_requests.push(key);
+        request_index.pushed(&module_requests);
         module_request_loads.push(true);
         module_request_spans.push(Vec::new());
     }
@@ -1387,12 +1440,12 @@ fn plan_module_requests_with_parser(
         .chain(dynamic_occurrences)
         .chain(augmentation_occurrences)
     {
-        let index = match request_index.get(&occurrence.key) {
-            Some(&index) => index,
+        let index = match request_index.find(&module_requests, &occurrence.key) {
+            Some(index) => index,
             None => {
                 let index = module_requests.len();
-                request_index.insert(occurrence.key.clone(), index);
                 module_requests.push(occurrence.key);
+                request_index.pushed(&module_requests);
                 module_request_loads.push(false);
                 module_request_spans.push(Vec::new());
                 index
@@ -1412,7 +1465,8 @@ fn plan_module_requests_with_parser(
     // The source-file resolution cache is keyed by exact specifier and mode.
     // If another preprocessed occurrence owns the same key, checker lookups in
     // an augmentation body observe that ordinary authoritative row.
-    unpreprocessed_module_requests.retain(|key| !request_index.contains_key(key));
+    unpreprocessed_module_requests
+        .retain(|key| request_index.find(&module_requests, key).is_none());
 
     let mut module_request_occurrence_counts = vec![0_u32; module_requests.len()];
     for &request in &module_request_occurrences {

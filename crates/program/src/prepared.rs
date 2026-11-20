@@ -386,6 +386,21 @@ impl PreparsedSyntax {
             .then(|| tsc_binder::BindReservations::counts(&parsed.source))
     }
 
+    /// [`Self::bind_counts`] of a tree that no admission has given a bind
+    /// slice yet: a source found through an import, parsed into a worker's
+    /// room. None for a tree that has its slice or its bind, for a library
+    /// image, a private parse or another domain's tree.
+    pub(crate) fn unreserved_bind_counts(&self, domain: &IdentityDomain) -> Option<[u32; 2]> {
+        let slot = self.slot.lock().expect("retained parse");
+        let parsed = slot.as_ref()?;
+        (parsed.bind_reservations.is_none()
+            && parsed.bind_data.is_none()
+            && !matches!(parsed.source, RetainedSource::Library(_))
+            && parsed.source.arena.is_published()
+            && parsed.source.identity_owned_by(domain))
+        .then(|| tsc_binder::BindReservations::counts(&parsed.source))
+    }
+
     pub(crate) fn reserve_bind(&self, reservation: tsc_binder::BindReservations) {
         let mut slot = self.slot.lock().expect("retained parse");
         let parsed = slot.as_mut().expect("stripe parse has not been adopted");
@@ -2356,16 +2371,11 @@ impl PreparedProgram {
         self.program_options.identity.source_binds = binds;
     }
 
-    /// End speculative binding before source adoption. In-flight slots finish
-    /// their own bind; the consumer uses the ordinary path for the remainder.
-    pub fn stop_source_binding(&self) {
-        if let Some(binds) = &self.program_options.identity.source_binds {
-            binds.stop();
-        }
-    }
-
-    /// Complete active slots after input projection and before the checker
-    /// leases identities. The ordered loader never calls this checkpoint.
+    /// End the bind crew after input projection and before the checker
+    /// session adopts a tree or leases an identity: a slot the crew is
+    /// binding finishes its bind, the slots it has not started are left to
+    /// the consumer's ordinary path. The ordered loader never calls this
+    /// checkpoint.
     pub fn finish_source_binding(&self) {
         if let Some(binds) = &self.program_options.identity.source_binds {
             let started = tsc_types::trace::enabled().then(std::time::Instant::now);

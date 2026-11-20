@@ -617,3 +617,155 @@ fn check_interrupted_streams() {
         }
     }
 }
+
+/// With a bind crew (a load of many roots on several workers) the sources
+/// found through imports get their bind slices when the read-ahead has
+/// ended: after every root's, in the order of their paths whichever root's
+/// worker reached them first, so the slices are the same in every run and at
+/// every width. Without a crew the checker session reserves them, as before.
+#[test]
+fn the_crew_gets_import_found_sources_with_bind_slices_in_path_order() {
+    let _command = COMMAND.lock().unwrap();
+    let roots: Vec<_> = (0..300)
+        .map(|i| PathBuf::from(format!("/p/r{i:03}.ts")))
+        .collect();
+    let mut expected = None;
+    for workers in [1, 4, 16, 4] {
+        let mut inner = MemoryCompilerHost::builder("/p");
+        for (i, path) in roots.iter().enumerate() {
+            // The later path is imported by the earlier root.
+            let text = match i {
+                3 => "import './b-dep'; export const x3 = 3;".to_owned(),
+                250 => "import './a-dep'; export const x250 = 250;".to_owned(),
+                _ => format!("export const x{i} = [{i}, 'r{i}'];"),
+            };
+            inner = inner.file(path, text.into_bytes());
+        }
+        let host = StreamingHost {
+            inner: inner
+                .file(
+                    "/p/a-dep.ts",
+                    b"export const a = 1; export class A { #p = 1; m() { return this.#p; } }"
+                        .to_vec(),
+                )
+                .file(
+                    "/p/b-dep.ts",
+                    b"export function b(x: number) { return x + 2; }".to_vec(),
+                )
+                .build()
+                .unwrap(),
+            scramble: false,
+            observe: false,
+            state: Mutex::new(State {
+                completed: Vec::new(),
+                early_parsed: false,
+                libraries_read: 0,
+            }),
+            changed: Condvar::new(),
+        };
+        let domain = tsc_types::IdentityDomain::new();
+        let program = load_program(
+            &host,
+            &roots,
+            CompilerOptions {
+                no_emit: Some(true),
+                lib: Some(vec!["es5".into()]),
+                module: Some(199),
+                module_resolution: Some(3),
+                ..Default::default()
+            },
+            ProgramOptions::default()
+                .with_types(Vec::new())
+                .with_identity_domain(domain.clone())
+                .with_source_binding(),
+            &LibraryCatalog::typescript_7_1("bundled:///libs"),
+            ProgramLoadLimits::new(1000, 4000, 100, 1 << 20, 4 << 20)
+                .with_workers(WorkerBudget::new(NonZeroUsize::new(workers).unwrap())),
+        )
+        .unwrap();
+        // The crew's threads have ended before a tree is taken.
+        program.finish_source_binding();
+        let parts = |name: &str| {
+            program
+                .source_files()
+                .iter()
+                .find(|source| source.path().display() == name)
+                .unwrap()
+                .preparsed_syntax()
+                .take()
+                .unwrap()
+                .into_bind_parts()
+        };
+        let mut root_ends = [0; 2];
+        let mut root_base = None;
+        for root in &roots {
+            let (reservation, _, _) = parts(root.to_str().unwrap());
+            let reservation = reservation.expect("each root has its stripe's bind slice");
+            let ranges = [reservation.symbols.range(), reservation.serials.range()];
+            root_base.get_or_insert(ranges.map(|range| range.start()));
+            for (end, range) in root_ends.iter_mut().zip(ranges) {
+                *end = (*end).max(range.end());
+            }
+        }
+        let root_base = root_base.unwrap();
+        let mut slices = Vec::new();
+        for name in ["/p/a-dep.ts", "/p/b-dep.ts"] {
+            let (reservation, data, mut tree) = parts(name);
+            assert!(tree.arena.is_published(), "{name}: parsed into a room");
+            if workers == 1 {
+                assert!(
+                    reservation.is_none() && data.is_none(),
+                    "{name}: without a crew the checker session reserves and binds it"
+                );
+                continue;
+            }
+            let reservation =
+                reservation.expect("the read-ahead's end reserves an import-found source");
+            assert!(reservation.symbols.is_room_slice());
+            let ranges = [reservation.symbols.range(), reservation.serials.range()];
+            assert_eq!(ranges[0].len(), tree.arena.symbol_bound().max(1));
+            assert_eq!(ranges[1].len() as usize, tree.arena.nodes().len());
+            for (range, root_end) in ranges.iter().zip(root_ends) {
+                assert!(root_end <= range.start(), "{name}: after every root");
+            }
+            slices.push((
+                name,
+                std::array::from_fn::<_, 2, _>(|i| {
+                    (ranges[i].start() - root_base[i], ranges[i].len())
+                }),
+            ));
+            if let Some(data) = data {
+                // Bound by the crew: what a bind over the same slice gives.
+                assert!(data.identity_owned_by(&domain));
+                let crew = data.clone();
+                drop(data);
+                let mut direct = tsc_binder::Binder::bind_reserved(
+                    &mut tree,
+                    reservation.symbols.range(),
+                    reservation.serials.range().start(),
+                );
+                assert!(direct
+                    .attach_reserved_leases(&domain, reservation.symbols, reservation.serials)
+                    .unwrap());
+                assert_eq!(crew.symbols, direct.symbols);
+                assert_eq!(crew.node_symbol, direct.node_symbol);
+                assert_eq!(crew.locals, direct.locals);
+                assert_eq!(crew.node_flow, direct.node_flow);
+                assert_eq!(crew.bind_diagnostics, direct.bind_diagnostics);
+            }
+        }
+        if workers == 1 {
+            continue;
+        }
+        // One room, a slice each in path order: a-dep's, then b-dep's.
+        for i in 0..2 {
+            let (start, count) = slices[0].1[i];
+            assert_eq!(start + count, slices[1].1[i].0);
+        }
+        if let Some(expected) = &expected {
+            assert_eq!(&slices, expected, "workers={workers}");
+        } else {
+            expected = Some(slices);
+        }
+    }
+}
