@@ -298,6 +298,89 @@ fn filesystem_case_profile_matches_native_lookup() {
     );
 }
 
+/// A JavaScript-path query is validated once, where it becomes a native
+/// path: an empty query and one with a NUL fail closed at every entry, and
+/// every other query answers as the native-path entry does, also when the
+/// answer is a remembered one.
+#[test]
+fn javascript_path_queries_fail_closed_and_answer_as_native_queries() {
+    let tree = TempTree::new();
+    fs::create_dir(tree.path("directory")).unwrap();
+    fs::write(tree.path("directory/file.ts"), b"bytes").unwrap();
+    let host = FsCompilerHost::new(tree.root(), native_case_profile()).unwrap();
+    let root = tree.root().to_str().unwrap();
+
+    for query in [String::new(), format!("{root}/directory\0/file.ts")] {
+        let query = query.as_str();
+        let refused = [
+            (
+                host.file_exists_js(query.into()).map(drop),
+                HostOperation::FileExists,
+            ),
+            (
+                host.directory_exists_js(query.into()).map(drop),
+                HostOperation::DirectoryExists,
+            ),
+            (
+                host.file_size_hint_js(query.into()).map(drop),
+                HostOperation::ReadFile,
+            ),
+            (
+                host.read_file_contents_js(query.into()).map(drop),
+                HostOperation::ReadFile,
+            ),
+        ];
+        for (result, operation) in refused {
+            let error = result.expect_err("an invalid query is refused");
+            assert_eq!(error.kind(), HostErrorKind::InvalidInput, "{query:?}");
+            assert_eq!(error.operation(), operation, "{query:?}");
+        }
+    }
+
+    for _ in 0..2 {
+        for (relative, file, directory) in [
+            ("directory", false, true),
+            ("directory/", false, true),
+            ("directory/file.ts", true, false),
+            ("directory//file.ts", true, false),
+            ("directory/./file.ts", true, false),
+            ("directory/missing.ts", false, false),
+            ("missing/file.ts", false, false),
+        ] {
+            let query = format!("{root}/{relative}");
+            let native = Path::new(&query);
+            assert_eq!(host.file_exists(native).unwrap(), file, "{relative}");
+            assert_eq!(
+                host.directory_exists(native).unwrap(),
+                directory,
+                "{relative}"
+            );
+            assert_eq!(
+                host.file_exists_js(query.as_str().into()).unwrap(),
+                file,
+                "{relative}"
+            );
+            assert_eq!(
+                host.directory_exists_js(query.as_str().into()).unwrap(),
+                directory,
+                "{relative}"
+            );
+            assert_eq!(
+                host.file_size_hint_js(query.as_str().into()).unwrap(),
+                file.then_some(5),
+                "{relative}"
+            );
+            assert_eq!(
+                host.read_file_contents_js(query.as_str().into())
+                    .unwrap()
+                    .is_some(),
+                file,
+                "{relative}"
+            );
+        }
+    }
+}
+
 #[test]
 fn invalid_filesystem_host_inputs_fail_closed() {
     let tree = TempTree::new();
