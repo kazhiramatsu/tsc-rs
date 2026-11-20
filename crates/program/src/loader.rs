@@ -2367,6 +2367,7 @@ impl ParallelReadAhead<'_> {
         // options on the walk, not with the read-ahead's resolver.
         if self.references.project_for_resolution(canonical).is_none() {
             let directory = resolver.lexical_paths().directory(containing_file);
+            let containing_file_is_declaration = is_declaration_file_name(containing_file);
             for row in plan.module_rows_mut() {
                 let key = &row.key;
                 let loads_source = row.loads_source;
@@ -2429,7 +2430,7 @@ impl ParallelReadAhead<'_> {
                 let mut prepared = PreparedModuleResolution::from_facts(facts);
                 prepared.policy = prepared.policy_for(
                     self.options,
-                    is_declaration_file_name(containing_file),
+                    containing_file_is_declaration,
                     loads_source,
                     |path| {
                         self.references
