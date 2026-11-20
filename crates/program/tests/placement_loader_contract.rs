@@ -104,11 +104,101 @@ fn roots_are_dense_in_root_order_even_when_imported_first() {
             .iter()
             .find(|s| s.path().display() == "/p/dep.ts")
             .unwrap();
+        // A source found through an import is parsed into a room of its own:
+        // at its final identities, by a read-ahead worker or by the walk.
+        assert!(dependency.preparsed_syntax().has_direct_layout());
         let dependency = dependency.preparsed_syntax().take().unwrap();
         assert!(
-            !dependency.source().arena.is_published(),
-            "discovered source stays private"
+            dependency.source().arena.is_published(),
+            "the discovered source lies at its final identities ({workers} workers)"
         );
+    }
+}
+
+/// The sources a load finds through imports are parsed into rooms of their
+/// own, at their final identities, whichever thread reaches them: a
+/// read-ahead worker (four and sixteen workers) or the walk (one). A source
+/// larger than a room gets a room of its size. A source no room can hold
+/// (far denser than the bounds a room is leased by) keeps the private parse
+/// that admission relocates, and the sources after it are placed again.
+/// Which identities the placed sources get is not asserted: it depends on
+/// the workers' timing.
+#[test]
+fn import_found_sources_are_parsed_at_their_final_identities() {
+    let _command = COMMAND.lock().unwrap();
+    // Larger than a room's text and, with its comments, far inside the
+    // bounds its own room is leased by.
+    let big: String = (0..16_000)
+        .map(|i| format!("export const big{i} = {i}; // {}\n", "-".repeat(48)))
+        .collect();
+    assert!(big.len() > 1 << 20, "larger than a room's text");
+    // A node a byte, where a room is leased for nine nodes in thirty-two
+    // bytes: more nodes than a room of any source here holds.
+    let dense = ";".repeat(500_000);
+    let host = MemoryCompilerHost::builder("/p")
+        .file(
+            "/p/root.ts",
+            b"import './big'; import './dense'; import './one'; import './two'; export const root = 0;"
+                .to_vec(),
+        )
+        .file("/p/big.ts", big.into_bytes())
+        .file("/p/dense.ts", dense.into_bytes())
+        .file(
+            "/p/one.ts",
+            b"import './two'; export const one = 1;".to_vec(),
+        )
+        .file("/p/two.ts", b"export const two = 2;".to_vec())
+        .build()
+        .unwrap();
+    let roots = [PathBuf::from("/p/root.ts")];
+    for workers in [1, 4, 16] {
+        let program = load_no_lib_program(
+            &host,
+            &roots,
+            options(),
+            ProgramOptions::default()
+                .with_no_lib(true)
+                .with_identity_domain(tsc_types::IdentityDomain::new()),
+            ProgramLoadLimits::new(100, 1000, 100, 4 << 20, 16 << 20)
+                .with_workers(WorkerBudget::new(NonZeroUsize::new(workers).unwrap())),
+        )
+        .unwrap();
+        assert_eq!(program.source_files().len(), 5);
+        let layout = program.source_files()[0]
+            .preparsed_syntax()
+            .direct_layout()
+            .unwrap();
+        assert_eq!(
+            layout.len(),
+            4,
+            "the root and the three sources a room holds ({workers} workers)"
+        );
+        let mut node_ranges = Vec::new();
+        for source in program.source_files() {
+            let name = source.path().display().to_string_lossy().into_owned();
+            let parsed = source.preparsed_syntax().take().unwrap();
+            let tree = parsed.source();
+            assert_eq!(
+                tree.arena.is_published(),
+                name != "/p/dense.ts",
+                "{name} ({workers} workers)"
+            );
+            let local = tsc_syntax::parse_source_file_from_snapshot(
+                source.path().display().to_owned(),
+                std::sync::Arc::clone(source.snapshot()),
+                parsed.parse_options().clone(),
+                None,
+            );
+            assert!(source_files_structurally_equal(tree, &local), "{name}");
+            if tree.arena.is_published() {
+                let nodes = tree.arena.identity_leases().unwrap().nodes.range();
+                node_ranges.push((nodes.start(), nodes.end()));
+            }
+        }
+        node_ranges.sort_unstable();
+        for pair in node_ranges.windows(2) {
+            assert!(pair[0].1 <= pair[1].0, "two sources share node identities");
+        }
     }
 }
 

@@ -42,6 +42,135 @@ impl Drop for Stripes {
     }
 }
 
+/// The rooms of the sources found through imports.
+///
+/// A source the config lists is parsed in the stripe its place in the
+/// listing gives it. A source a worker reaches through an import has no
+/// place in that order yet: the worker parses it into a room it leases for
+/// itself, so the tree has its final identities from the first token and
+/// the checker's admission has nothing to relocate. Rooms are leased as the
+/// workers ask for them, so which identities such a source gets depends on
+/// the workers' timing and differs between runs; no output depends on the
+/// order of identities across files.
+pub(super) struct DiscoveredRooms {
+    domain: tsc_types::IdentityDomain,
+    next_ordinal: AtomicUsize,
+    retired: Mutex<Vec<(usize, &'static str, SyntaxStripe)>>,
+}
+
+/// The room one read-ahead worker, or the walk, is filling.
+#[derive(Default)]
+pub(super) struct DiscoveredRoom(Option<(usize, SyntaxStripe)>);
+
+impl DiscoveredRooms {
+    /// The source text a room is leased for.
+    const ROOM_TEXT_BYTES: usize = 1 << 20;
+    /// The sources a room expects (their slack units in the bounds).
+    const ROOM_ENTRIES: usize = 64;
+    /// Ordinals above every library and root stripe's.
+    const FIRST_ORDINAL: usize = usize::MAX / 2;
+
+    pub(super) fn new(domain: &tsc_types::IdentityDomain) -> Self {
+        Self {
+            domain: domain.clone(),
+            next_ordinal: AtomicUsize::new(Self::FIRST_ORDINAL),
+            retired: Mutex::new(Vec::new()),
+        }
+    }
+
+    /// Plan `source` over a parse in `room`. A room that cannot hold the
+    /// source is retired and another leased (a source larger than a room
+    /// gets one of its own size). A bundled library keeps its image path and
+    /// a mapped file its own; when the domain has no room left the parse is
+    /// private and admission relocates it, as before.
+    pub(super) fn plan(
+        &self,
+        room: &mut DiscoveredRoom,
+        source: &PreparedSourceFile,
+        options: &CompilerOptions,
+    ) -> Result<(crate::module_requests::SourceRequestPlan, PreparsedSyntax), ResolutionError> {
+        if source.path().display().starts_with("bundled:///libs/")
+            || source.content_mapped().is_some()
+        {
+            return crate::module_requests::plan_source_requests_retaining_syntax(
+                source, options, None,
+            );
+        }
+        let counts = |bytes: usize, entries: usize| {
+            direct::bounds(bytes, entries).map(|bounds| {
+                let mut counts = [0u32; 4];
+                for (slot, (_, count)) in counts.iter_mut().zip(&bounds) {
+                    *slot = *count;
+                }
+                (bounds, counts)
+            })
+        };
+        let text_bytes = source.text().len();
+        // Under the identity scatter (a test build) every source has a room
+        // of its own, so the scatter decides where each lies.
+        let own_room = tsc_types::identity::scatters();
+        let fits = !own_room
+            && match (&room.0, counts(text_bytes, 1)) {
+                (Some((_, stripe)), Some((_, need))) => stripe.can_construct(need),
+                _ => false,
+            };
+        if !fits {
+            self.retire(room);
+            let (room_bytes, room_entries) = if own_room {
+                (text_bytes, 1)
+            } else {
+                (text_bytes.max(Self::ROOM_TEXT_BYTES), Self::ROOM_ENTRIES)
+            };
+            let leased = counts(room_bytes, room_entries)
+                .and_then(|(bounds, _)| self.domain.lease_rooms(&[bounds]).ok())
+                .and_then(|mut rooms| rooms.pop());
+            if let Some(leased) = leased {
+                room.0 = Some((
+                    self.next_ordinal.fetch_add(1, Ordering::Relaxed),
+                    SyntaxStripe::new(leased),
+                ));
+            }
+        }
+        match room.0.as_mut() {
+            Some((_, stripe)) => {
+                crate::module_requests::plan_source_requests_in_stripe(source, options, stripe)
+            }
+            None => {
+                crate::module_requests::plan_source_requests_retaining_syntax(source, options, None)
+            }
+        }
+    }
+
+    /// Hand the room a worker has filled to the load (at the worker's end,
+    /// or when its next source does not fit).
+    pub(super) fn retire(&self, room: &mut DiscoveredRoom) {
+        if let Some((ordinal, stripe)) = room.0.take() {
+            self.retired
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push((ordinal, "discovered", stripe));
+        }
+    }
+
+    /// Every room handed over so far, for the load's layout.
+    pub(super) fn take_retired(&self) -> Vec<(usize, &'static str, SyntaxStripe)> {
+        std::mem::take(
+            &mut *self
+                .retired
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        )
+    }
+}
+
+impl Stripes {
+    /// The rooms of the sources found through imports join the layout after
+    /// the stripes of the roots (their ordinals follow).
+    pub(super) fn extend(&mut self, stripes: Vec<(usize, &'static str, SyntaxStripe)>) {
+        self.0.extend(stripes);
+    }
+}
+
 struct Entry {
     path: ProgramPath,
     byte_len: usize,
@@ -645,6 +774,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             path_symbol_count: AtomicUsize::new(0),
             resolutions: Sharded::new(),
             target_resolutions: Sharded::new(),
+            discovered: self.discovered_rooms.clone(),
         };
         for path in seeds {
             if pass.admits(path) {
@@ -777,14 +907,19 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             workers.map_spawning(
                 jobs,
                 || {
-                    ModuleResolver::new_with_program_options(host, options, program_options)
-                        .ok()
-                        .map(|resolver| match &package_loads {
-                            Some(loads) => resolver.with_shared_package_loads(Arc::clone(loads)),
-                            None => resolver,
-                        })
+                    (
+                        ModuleResolver::new_with_program_options(host, options, program_options)
+                            .ok()
+                            .map(|resolver| match &package_loads {
+                                Some(loads) => {
+                                    resolver.with_shared_package_loads(Arc::clone(loads))
+                                }
+                                None => resolver,
+                            }),
+                        DiscoveredRoom::default(),
+                    )
                 },
-                |resolver, job, spawned| {
+                |(resolver, room), job, spawned| {
                     let mut next = Vec::new();
                     let mut results = Vec::new();
                     let mut stripe_result = None;
@@ -852,7 +987,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                             // private read-ahead path; it never owns a room.
                             if workers.is_parallel() || pass.mapper_for(&path).is_none() {
                                 if let Some(source) =
-                                    pass.read_source(resolver, path, usize::MAX, &mut next)
+                                    pass.read_source(resolver, room, path, usize::MAX, &mut next)
                                 {
                                     results.push(source);
                                 }
@@ -991,7 +1126,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         Some((results, Vec::new()))
                     }
                 },
-                |resolver| {
+                |(resolver, mut room)| {
+                    if let Some(rooms) = &pass.discovered {
+                        rooms.retire(&mut room);
+                    }
                     resolver
                         .map(|mut resolver| {
                             (
@@ -1003,6 +1141,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 },
             )
         });
+        if let Some(rooms) = &pass.discovered {
+            self.direct_stripes.extend(rooms.take_retired());
+        }
         if let Some(admission) = bind_admission.as_ref() {
             admission.lock().expect("ordered bind admission").finish();
         }

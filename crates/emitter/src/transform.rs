@@ -1771,12 +1771,14 @@ impl fmt::Display for TransformError {
             Self::UnsupportedCompilerOption { option, detail } => {
                 write!(formatter, "unsupported transform option {option}: {detail}")
             }
+            // The node's identity is not part of the message: it depends
+            // on where the node's file was placed, which may differ from
+            // run to run, and this text reaches the command's stderr.
             Self::UnsupportedSyntax { feature, node } => write!(
                 formatter,
-                "unsupported {} syntax at transform node {}:{}",
+                "unsupported {} syntax in transform source {}",
                 feature.name(),
-                node.source().raw(),
-                node.node().index()
+                node.source().raw()
             ),
             Self::Resolver(error) => error.fmt(formatter),
             Self::InvalidLifecycle { operation, state } => {

@@ -312,13 +312,43 @@ fn scrambled_reads_keep_root_ranges_and_parse_before_the_last_read() {
             .preparsed_syntax()
             .direct_layout()
             .unwrap();
-        assert_eq!(layout.len(), 19, "two config libraries and seventeen roots");
+        assert_eq!(
+            layout.len(),
+            20,
+            "two config libraries, seventeen roots and the source r0 imports"
+        );
         assert!(layout[..2]
             .iter()
             .all(|p| p.name.starts_with("bundled:///libs/")));
         assert!(!layout
             .iter()
             .any(|p| p.name.ends_with("lib.es2015.promise.d.ts")));
+        // The source found through r0's import is parsed into a room that is
+        // leased after every root stripe, by a worker or by the walk: the
+        // stripes' ranges do not depend on it.
+        let (stripes, rooms) = layout.split_at(19);
+        assert!(rooms[0].name.ends_with("/p/early-dep.ts"));
+        for placement in stripes {
+            for (stripe, room) in placement.ranges().iter().zip(rooms[0].ranges()) {
+                assert!(stripe.end() <= room.start(), "{:?}", placement.name);
+            }
+        }
+        let imported = program
+            .source_files()
+            .iter()
+            .find(|source| source.path().display() == "/p/early-dep.ts")
+            .unwrap();
+        let (reservation, data, tree) = imported
+            .preparsed_syntax()
+            .take()
+            .unwrap()
+            .into_bind_parts();
+        assert!(tree.arena.is_published());
+        assert!(
+            reservation.is_none() && data.is_none(),
+            "the checker session reserves and binds an import-found source"
+        );
+        let layout = stripes;
         let bases = layout[0].ranges().map(|r| r.start());
         let relative: Vec<_> = layout
             .iter()

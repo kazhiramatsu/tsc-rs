@@ -161,6 +161,16 @@ integration files live under `tests/integration/` behind a single
 `tests/contracts.rs` target per crate; a few focused targets (the
 declaration-emit and UTF-16 contracts) stay separate files under `tests/`.
 
+No output may depend on the order of identities across files: the sources a
+load finds through imports get theirs in the order the loader's workers reach
+them, which differs from run to run. `python3 scripts/identity_scatter.py`
+builds the suites of the compiler, incremental, project, language-service,
+language-server and command-line crates with the cargo feature
+`identity-scatter` of `tsc-rs-types` and runs them without and with
+`TSRS_IDENTITY_SCATTER=<seed>`. Under the variable the place of every file's
+identities follows the seed; the script lists the tests that pass only
+without it.
+
 `cargo xtask codegen diagnostics` regenerates `crates/diagnostics/src/gen.rs`
 from the vendored `diagnosticMessages.json`; the hosted `rust` job verifies
 the generated file with `diagnostics-check`.

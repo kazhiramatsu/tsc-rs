@@ -12,6 +12,78 @@ use std::fmt;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock, Weak};
 
+/// The identity scatter: a test facility (cargo feature `identity-scatter`,
+/// off in every shipped build) for the rule that no output depends on the
+/// order of identities across files.
+///
+/// The loader parses the sources it finds through imports into rooms its
+/// workers lease as they reach them, so which identities such a source gets
+/// differs from run to run. With `TSRS_IDENTITY_SCATTER=<seed>` in the
+/// environment of a build with the feature, the place of every range of a
+/// tree's or a symbol table's identities follows the seed instead of the
+/// order of the requests: half of the ranges taken at a space's end leave a
+/// gap of one to three times their size in front of them, later ranges land
+/// in such gaps, and the loader leases a room for every source
+/// ([`scatters`]). A suite that passes without the variable and fails with
+/// it has found code that depends on the order.
+#[cfg(feature = "identity-scatter")]
+mod scatter {
+    use super::IdentitySpace;
+    use std::sync::OnceLock;
+
+    /// The seed, when the environment asks for the scatter.
+    pub(super) fn seed() -> Option<u64> {
+        static SEED: OnceLock<Option<u64>> = OnceLock::new();
+        *SEED.get_or_init(|| {
+            std::env::var("TSRS_IDENTITY_SCATTER")
+                .ok()
+                .and_then(|seed| seed.parse().ok())
+        })
+    }
+
+    /// A tree's nodes, arrays, array items and texts, and its symbols. A
+    /// checker's types and the private-name serials keep their order: they
+    /// are an order.
+    pub(super) fn covers(space: IdentitySpace) -> bool {
+        matches!(
+            space,
+            IdentitySpace::Node
+                | IdentitySpace::NodeArray
+                | IdentitySpace::NodeArrayItem
+                | IdentitySpace::NodeText
+                | IdentitySpace::Symbol
+        )
+    }
+
+    /// The draw of `request` in `space` (splitmix64 over the seed).
+    pub(super) fn draw(seed: u64, space: IdentitySpace, request: u64) -> u64 {
+        mix(seed ^ mix(request ^ ((space as u64) << 56)))
+    }
+
+    fn mix(mut value: u64) -> u64 {
+        value = value.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        value = (value ^ (value >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        value = (value ^ (value >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        value ^ (value >> 31)
+    }
+}
+
+/// Whether this process scatters its identity ranges (see the `scatter`
+/// module; never in a build without the cargo feature `identity-scatter`).
+/// The loader then leases a room for every source, so that the place of
+/// every file is the scatter's to choose.
+#[cfg(feature = "identity-scatter")]
+pub fn scatters() -> bool {
+    scatter::seed().is_some()
+}
+
+/// Whether this process scatters its identity ranges: never in a build
+/// without the cargo feature `identity-scatter` (a test facility).
+#[cfg(not(feature = "identity-scatter"))]
+pub const fn scatters() -> bool {
+    false
+}
+
 /// Persistent symbols occupy the low half of `SymbolId`. The checker owns the
 /// tagged high half for session-local transient symbols.
 pub const TRANSIENT_SYMBOL_BIT: u32 = 1 << 31;
@@ -214,6 +286,9 @@ struct RangeAllocator {
     bump: u32,
     free: BTreeMap<u32, u32>,
     active: BTreeMap<u32, ActiveRange>,
+    /// The scatter's requests of this space so far (its draws).
+    #[cfg(feature = "identity-scatter")]
+    requests: u64,
 }
 
 impl RangeAllocator {
@@ -224,7 +299,85 @@ impl RangeAllocator {
             bump: start,
             free: BTreeMap::new(),
             active: BTreeMap::new(),
+            #[cfg(feature = "identity-scatter")]
+            requests: 0,
         }
+    }
+
+    /// The scatter's draw for the next request of `space`, when the process
+    /// scatters that space.
+    #[cfg(feature = "identity-scatter")]
+    fn draw(&mut self, space: IdentitySpace) -> Option<u64> {
+        let seed = scatter::seed().filter(|_| scatter::covers(space))?;
+        self.requests += 1;
+        Some(scatter::draw(seed, space, self.requests))
+    }
+
+    /// The free interval the scatter takes for `count` identities in place
+    /// of the first one that fits: none for a quarter of the requests (they
+    /// go to the space's end although a gap fits), for the others one of the
+    /// first eight intervals that fit.
+    #[cfg(feature = "identity-scatter")]
+    fn scattered(
+        &mut self,
+        space: IdentitySpace,
+        count: u32,
+        first_fit: Option<(u32, u32)>,
+    ) -> Option<(u32, u32)> {
+        let Some(draw) = self.draw(space) else {
+            return first_fit;
+        };
+        if draw & 3 == 0 {
+            return None;
+        }
+        let fitting: Vec<(u32, u32)> = self
+            .free
+            .iter()
+            .filter(|&(&start, &end)| end - start >= count)
+            .map(|(&start, &end)| (start, end))
+            .take(8)
+            .collect();
+        (!fitting.is_empty()).then(|| fitting[(draw >> 2) as usize % fitting.len()])
+    }
+
+    /// Under the scatter half of the ranges taken at the space's end leave a
+    /// gap of one to three times their size in front of them, for later
+    /// ranges. No free interval ends at `bump` (`trim_free_tail`), so the gap
+    /// joins none; a quarter of the space is the most the gaps may reach.
+    #[cfg(feature = "identity-scatter")]
+    fn leave_gap(&mut self, space: IdentitySpace, count: u32) {
+        let Some(seed) = scatter::seed().filter(|_| scatter::covers(space)) else {
+            return;
+        };
+        let draw = scatter::draw(seed, space, !self.requests);
+        if draw & 1 == 0 {
+            return;
+        }
+        let pad = count.saturating_mul(1 + ((draw >> 1) % 3) as u32);
+        let gap_end = self.bump.checked_add(pad).filter(|gap_end| {
+            gap_end
+                .checked_add(count)
+                .is_some_and(|end| end <= self.limit / 4)
+        });
+        if let Some(gap_end) = gap_end {
+            self.free.insert(self.bump, gap_end);
+            self.bump = gap_end;
+        }
+    }
+
+    /// A room: at the space's end (the rooms of a load's roots lie in the
+    /// order they are leased in), or where the scatter puts it.
+    fn allocate_room(
+        &mut self,
+        space: IdentitySpace,
+        count: u32,
+        lease_id: u64,
+    ) -> Result<IdentityRange, IdentityError> {
+        #[cfg(feature = "identity-scatter")]
+        if scatter::seed().is_some() && scatter::covers(space) {
+            return self.allocate(space, count, lease_id);
+        }
+        self.allocate_bump(space, count, lease_id)
     }
 
     fn allocate(
@@ -241,6 +394,8 @@ impl RangeAllocator {
             .free
             .iter()
             .find_map(|(&start, &end)| (end - start >= count).then_some((start, end)));
+        #[cfg(feature = "identity-scatter")]
+        let candidate = self.scattered(space, count, candidate);
         if let Some((start, free_end)) = candidate {
             let end = start + count;
             self.free.remove(&start);
@@ -263,6 +418,8 @@ impl RangeAllocator {
         if count == 0 {
             return Ok(IdentityRange::new(self.bump, self.bump));
         }
+        #[cfg(feature = "identity-scatter")]
+        self.leave_gap(space, count);
         let end = self
             .bump
             .checked_add(count)

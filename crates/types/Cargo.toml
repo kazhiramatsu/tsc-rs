@@ -16,6 +16,10 @@ path = "src/lib.rs"
 phase-ledger = []
 # Aggregate performance counters (measurement builds only; see src/perf.rs).
 perf-counters = []
+# The identity scatter (test builds only; see src/identity.rs): with
+# TSRS_IDENTITY_SCATTER=<seed> the allocator decides where a range lands by
+# the seed, not by the order of the requests.
+identity-scatter = []
 
 [dependencies]
 hashbrown = { version = "0.16", default-features = false, features = ["inline-more"] }
