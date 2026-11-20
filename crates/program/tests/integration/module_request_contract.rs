@@ -1778,3 +1778,63 @@ fn checker_import_count_matches_tsgos_text_scan_inside_argument_trivia() {
     assert_eq!(plan.import_count(), 2);
     assert_eq!(plan.module_request_occurrences().len(), 2);
 }
+
+/// A source's requests are found by specifier and mode among the few it has,
+/// and by a map once it has more than sixteen: a repeated specifier joins
+/// its first request on both sides of that change, the same specifier under
+/// another mode stays a request of its own, and every occurrence keeps its
+/// span.
+#[test]
+fn repeated_requests_join_their_first_on_both_sides_of_the_index_threshold() {
+    let mut text = String::new();
+    // Forty distinct static imports; the 3rd, the 16th, the 17th, the 18th
+    // and the 40th are repeated at the end, and one more time as a
+    // `require` (another mode under Node16's rules for an ES module).
+    for i in 0..40 {
+        text.push_str(&format!("import './m{i:02}';\n"));
+    }
+    for i in [2, 15, 16, 17, 39] {
+        text.push_str(&format!("export * from './m{i:02}';\n"));
+    }
+    text.push_str("import m = require('./m16');\n");
+    let source = source(&text, ResolutionMode::EsNext);
+    let plan = plan_source_requests(&source, &node_options()).expect("plan forty imports");
+    let requests = plan.module_requests();
+    let names: Vec<_> = requests
+        .iter()
+        .map(|request| {
+            (
+                request
+                    .specifier()
+                    .as_str()
+                    .expect("scalar specifier")
+                    .to_owned(),
+                request.mode(),
+            )
+        })
+        .collect();
+    let mut expected: Vec<_> = (0..40)
+        .map(|i| (format!("./m{i:02}"), ResolutionMode::EsNext))
+        .collect();
+    expected.push(("./m16".to_owned(), ResolutionMode::CommonJs));
+    assert_eq!(names, expected);
+    for (index, request) in requests.iter().enumerate() {
+        let spans: Vec<_> = plan
+            .module_request_spans(request)
+            .iter()
+            .map(|&(start, end)| &text[start as usize..end as usize])
+            .collect();
+        let name = format!("'{}'", names[index].0);
+        let repeated = matches!(index, 2 | 15 | 16 | 17 | 39);
+        assert_eq!(
+            spans,
+            vec![name.as_str(); if repeated { 2 } else { 1 }],
+            "request {index}"
+        );
+    }
+    // Forty-six occurrences in source order name forty-one requests.
+    let occurrences = plan.module_request_occurrences();
+    assert_eq!(occurrences.len(), 46);
+    assert_eq!(&occurrences[..40], (0..40).collect::<Vec<u32>>().as_slice());
+    assert_eq!(&occurrences[40..], [2, 15, 16, 17, 39, 40]);
+}
