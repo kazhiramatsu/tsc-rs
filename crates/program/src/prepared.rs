@@ -386,6 +386,21 @@ impl PreparsedSyntax {
             .then(|| tsc_binder::BindReservations::counts(&parsed.source))
     }
 
+    /// [`Self::bind_counts`] of a tree that no admission has given a bind
+    /// slice yet: a source found through an import, parsed into a worker's
+    /// room. None for a tree that has its slice or its bind, for a library
+    /// image, a private parse or another domain's tree.
+    pub(crate) fn unreserved_bind_counts(&self, domain: &IdentityDomain) -> Option<[u32; 2]> {
+        let slot = self.slot.lock().expect("retained parse");
+        let parsed = slot.as_ref()?;
+        (parsed.bind_reservations.is_none()
+            && parsed.bind_data.is_none()
+            && !matches!(parsed.source, RetainedSource::Library(_))
+            && parsed.source.arena.is_published()
+            && parsed.source.identity_owned_by(domain))
+        .then(|| tsc_binder::BindReservations::counts(&parsed.source))
+    }
+
     pub(crate) fn reserve_bind(&self, reservation: tsc_binder::BindReservations) {
         let mut slot = self.slot.lock().expect("retained parse");
         let parsed = slot.as_mut().expect("stripe parse has not been adopted");
