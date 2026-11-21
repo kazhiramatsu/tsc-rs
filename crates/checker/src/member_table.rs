@@ -11,6 +11,10 @@ use tsc_types::{EscapedName, InlineOrShared, InlineOrSharedView};
 use crate::program::ProgramBinder;
 
 /// A resolved type's members, in insertion order, found by their own names.
+/// The one exception is a table made from a symbol table that holds a member
+/// under another key than its name (the clone of an alias's target in the
+/// alias's place, see `ProgramBinder::note_member_keyed_apart`): it is found
+/// by that table's keys, as the reference's map is, and always has an index.
 ///
 /// A lookup reads as few separate regions as it can. A table of at most
 /// [`LINEAR_MEMBERS`] members keeps one seven-bit tag of each member's name in
@@ -49,6 +53,10 @@ pub(crate) struct NameIndex {
     /// name sequence; such an index always has another handle, so it is
     /// never written again.
     of_sequence: AtomicBool,
+    /// The names are a symbol table's keys and one of them is not its
+    /// member's own name. Tags are confirmed against the members' own names,
+    /// so a table with such an index is read through it however small it is.
+    keyed_apart: bool,
 }
 
 impl Clone for NameIndex {
@@ -58,6 +66,7 @@ impl Clone for NameIndex {
             names: self.names.clone(),
             positions: self.positions.clone(),
             of_sequence: AtomicBool::new(false),
+            keyed_apart: self.keyed_apart,
         }
     }
 }
@@ -68,6 +77,7 @@ impl NameIndex {
             names: Vec::with_capacity(capacity),
             positions: HashTable::with_capacity(capacity),
             of_sequence: AtomicBool::new(false),
+            keyed_apart: false,
         }
     }
 
@@ -190,15 +200,16 @@ fn sequence_hash(names: &[EscapedName]) -> u64 {
 /// and never retains a binder-table handle or changes the lookup representation.
 pub(crate) struct MemberTableSource<'a> {
     table: &'a SymbolTable,
+    keyed_apart: bool,
 }
 
 impl<'a> MemberTableSource<'a> {
     #[inline]
     pub(crate) fn new(binder: &ProgramBinder<'_>, table: &'a SymbolTable) -> Self {
-        debug_assert!(table
-            .iter()
-            .all(|(&name, &symbol)| name == name_of(binder, symbol)));
-        Self { table }
+        Self {
+            table,
+            keyed_apart: keyed_apart(binder, table),
+        }
     }
 
     #[inline]
@@ -206,9 +217,10 @@ impl<'a> MemberTableSource<'a> {
         if self.table.is_empty() {
             return FrozenMembers::default();
         }
-        // SymbolTable keys are unique and are the symbols' own names. Its
-        // exact-length insertion-order iterator fills the Arc once; the tags
-        // or the index come from the keys, without reading a symbol record.
+        // SymbolTable keys are unique and, unless the table is keyed apart,
+        // the symbols' own names. Its exact-length insertion-order iterator
+        // fills the Arc once; the tags or the index come from the keys,
+        // without reading a symbol record.
         let symbols: std::sync::Arc<[SymbolId]> = self
             .table
             .values()
@@ -220,7 +232,7 @@ impl<'a> MemberTableSource<'a> {
             .collect();
         FrozenMembers {
             symbols: crate::state::SymbolIds::from_nonempty_arc(symbols),
-            index: index_of_names(self.table.iter().map(|(&name, _)| name), self.table.len()),
+            index: index_of_keys(self.table, self.keyed_apart),
         }
     }
 }
@@ -267,11 +279,44 @@ fn index_of_names(
     InlineOrShared::inline(tags)
 }
 
+/// Whether `table` holds a member under a key that is not the member's own
+/// name. Only a merge through an alias makes such a table and the binder
+/// notes the first one, so every other program's tables are answered without
+/// reading a symbol record.
+#[inline]
+fn keyed_apart(binder: &ProgramBinder<'_>, table: &SymbolTable) -> bool {
+    let apart = binder.members_keyed_apart()
+        && table
+            .iter()
+            .any(|(&name, &symbol)| name != name_of(binder, symbol));
+    debug_assert!(
+        apart
+            || table
+                .iter()
+                .all(|(&name, &symbol)| name == name_of(binder, symbol))
+    );
+    apart
+}
+
+/// The tags or the index of a symbol table's keys. A table keyed apart from
+/// its members' names gets an index of its keys whatever its size.
+fn index_of_keys(table: &SymbolTable, keyed_apart: bool) -> InlineOrShared<NameIndex> {
+    let keys = table.iter().map(|(&name, _)| name);
+    if keyed_apart {
+        let mut index = NameIndex::from_names(keys, table.len());
+        index.keyed_apart = true;
+        InlineOrShared::shared(index)
+    } else {
+        index_of_names(keys, table.len())
+    }
+}
+
 /// The index word of a published table of `len` members built with `index`:
-/// a table of at most [`LINEAR_MEMBERS`] members keeps tags.
+/// a table of at most [`LINEAR_MEMBERS`] members keeps tags, unless its index
+/// holds keys that are not its members' names.
 fn published_index(index: InlineOrShared<NameIndex>, len: usize) -> InlineOrShared<NameIndex> {
     let tags = match index.view() {
-        InlineOrSharedView::Shared(names) if len <= LINEAR_MEMBERS => {
+        InlineOrSharedView::Shared(names) if len <= LINEAR_MEMBERS && !names.keyed_apart => {
             Some(index_of_names(names.names[..len].iter().copied(), len))
         }
         _ => None,
@@ -346,14 +391,12 @@ impl MemberTable {
         }
     }
 
-    /// The members of `table`, whose keys are the members' names.
+    /// The members of `table` under its keys, which are the members' names
+    /// unless the table is keyed apart from them.
     pub fn from_symbol_table(binder: &ProgramBinder<'_>, table: &SymbolTable) -> Self {
-        debug_assert!(table
-            .iter()
-            .all(|(&name, &symbol)| name == name_of(binder, symbol)));
         Self {
             symbols: table.values().copied().collect(),
-            index: index_of_names(table.iter().map(|(&name, _)| name), table.len()),
+            index: index_of_keys(table, keyed_apart(binder, table)),
         }
     }
 
@@ -396,10 +439,11 @@ impl MemberTable {
             // The prefix of a longer followed sequence: its names come from
             // the index, not from the symbol records.
             let followed = self.index.as_shared().expect("an indexed builder");
-            let prefix = NameIndex::from_names(
+            let mut prefix = NameIndex::from_names(
                 followed.names[..len].iter().copied(),
                 self.symbols.capacity().max(len + 1),
             );
+            prefix.keyed_apart = followed.keyed_apart;
             self.index = InlineOrShared::shared(prefix);
         }
         self.index.make_unique().expect("an indexed builder")
@@ -1119,6 +1163,59 @@ mod tests {
         assert_eq!(std::mem::size_of::<FrozenMembers>(), 24);
         assert_eq!(std::mem::size_of::<ResolvedMembers>(), 48);
         assert_eq!(std::mem::size_of::<MembersExtras>(), 48);
+    }
+
+    #[test]
+    fn a_table_keyed_apart_from_a_members_name_answers_by_its_keys() {
+        with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+            let key = |name: &str| EscapedName::from_identifier_escaped_text(name);
+            for len in [2usize, 8, 9, 12] {
+                let ids = (0..len)
+                    .map(|i| property(&mut state.binder, &format!("m{i}")))
+                    .collect::<Vec<_>>();
+                // The keys of a table before any merge are its members' names.
+                let mut plain = SymbolTable::default();
+                for (i, &id) in ids.iter().enumerate() {
+                    plain.insert(key(&format!("m{i}")), id);
+                }
+                // The second member sits under another key than its name, as
+                // the clone of an alias's target sits under the alias's name.
+                let mut apart = SymbolTable::default();
+                for (i, &id) in ids.iter().enumerate() {
+                    let name = if i == 1 {
+                        key("alias")
+                    } else {
+                        key(&format!("m{i}"))
+                    };
+                    apart.insert(name, id);
+                }
+                state.binder.note_member_keyed_apart();
+
+                let frozen = MemberTableSource::new(&state.binder, &apart).freeze(|_, _| {});
+                let builder = MemberTable::from_symbol_table(&state.binder, &apart);
+                let republished: FrozenMembers = builder.clone().into();
+                let again: FrozenMembers = frozen.clone().into_builder().into();
+                let extra = property(&mut state.binder, "extra");
+                let mut grown = frozen.clone();
+                assert_eq!(grown.insert(&state.binder, extra), None);
+                for members in [&frozen, &republished, &again, &grown] {
+                    assert!(members.index.inline_bits().is_none());
+                    assert_eq!(members.get(&state.binder, "alias"), Some(ids[1]));
+                    assert_eq!(members.get(&state.binder, "m1"), None);
+                    assert_eq!(members.get(&state.binder, "m0"), Some(ids[0]));
+                    assert_eq!(members.symbols()[..len], ids[..]);
+                }
+                assert_eq!(builder.get(&state.binder, "alias"), Some(ids[1]));
+                assert_eq!(builder.get(&state.binder, "m1"), None);
+                assert_eq!(grown.get(&state.binder, "extra"), Some(extra));
+
+                // A table whose keys are its members' names keeps its form.
+                let named = MemberTableSource::new(&state.binder, &plain).freeze(|_, _| {});
+                assert_eq!(named.index.inline_bits().is_some(), len <= LINEAR_MEMBERS);
+                assert_eq!(named.get(&state.binder, "m1"), Some(ids[1]));
+                assert_eq!(named.get(&state.binder, "alias"), None);
+            }
+        });
     }
 
     #[test]

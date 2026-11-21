@@ -303,6 +303,15 @@ impl<'a> CheckerState<'a> {
                 if !resolved_flags.intersects(get_excluded_symbol_flags(source_flags))
                     || (source_flags | resolved_flags).intersects(SymbolFlags::ASSIGNMENT)
                 {
+                    // The clone of an alias's target takes the alias's place
+                    // in its table and keeps its own name: tsgo finds it by
+                    // the table's key, not by that name.
+                    if resolved_target != target
+                        && self.binder.symbol(resolved_target).escaped_name
+                            != self.binder.symbol(target).escaped_name
+                    {
+                        self.binder.note_member_keyed_apart();
+                    }
                     target = self.clone_symbol(resolved_target);
                 } else {
                     self.report_merge_symbol_error(target, source);

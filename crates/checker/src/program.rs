@@ -910,6 +910,10 @@ pub struct ProgramBinder<'a> {
     symbol_creation_bases: OnceLock<Box<[u32]>>,
     /// Checker-side symbols (tsc createSymbol 47652 adds Transient).
     transient: SymbolArena,
+    /// Set once a merge has put a symbol into a table under a key that is
+    /// not the symbol's own name (`note_member_keyed_apart`). Until then
+    /// every symbol table's keys are its symbols' names.
+    members_keyed_apart: bool,
 }
 
 /// Page-table routing over sorted, disjoint owner intervals: `id >>
@@ -1296,6 +1300,7 @@ impl<'a> ProgramBinder<'a> {
             direct_symbol_rooms,
             symbol_creation_bases: OnceLock::new(),
             transient: SymbolArena::with_base(TRANSIENT_SYMBOL_BIT),
+            members_keyed_apart: false,
         }
     }
 
@@ -1331,6 +1336,23 @@ impl<'a> ProgramBinder<'a> {
         (0..self.file_count())
             .map(|index| self.file(index).symbols.len())
             .sum()
+    }
+
+    /// A merge put the clone of an alias's target in the alias's place: the
+    /// clone keeps its own name (mergeSymbol clones the resolved target) and
+    /// the table keeps the alias's name as its key (mergeSymbolTable sets the
+    /// merged symbol under the key it merged). From here on a symbol table's
+    /// keys are not all its symbols' names, and a member table made from one
+    /// compares the two (`crate::member_table`).
+    pub(crate) fn note_member_keyed_apart(&mut self) {
+        self.members_keyed_apart = true;
+    }
+
+    /// Whether some symbol table may hold a symbol under a key that is not
+    /// the symbol's own name.
+    #[inline]
+    pub(crate) fn members_keyed_apart(&self) -> bool {
+        self.members_keyed_apart
     }
 
     /// The symbols this checker created.
