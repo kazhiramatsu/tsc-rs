@@ -8389,10 +8389,28 @@ impl<'a> CheckerState<'a> {
     #[inline]
     pub fn get_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         perf::bump(PerfCounter::TypeOfSymbolQueries);
-        if let Some(resolved) = self
-            .links
-            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
-        {
+        match self.links.lookup_symbol_type(symbol) {
+            crate::links::SymbolTypeLookup::Common(cached) => {
+                self.finish_symbol_type_lookup(symbol, cached)
+            }
+            crate::links::SymbolTypeLookup::Far => self.get_type_of_far_symbol(symbol),
+        }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn get_type_of_far_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
+        let cached = self.links.symbol(symbol).type_of_symbol.resolved();
+        self.finish_symbol_type_lookup(symbol, cached)
+    }
+
+    #[inline]
+    fn finish_symbol_type_lookup(
+        &mut self,
+        symbol: SymbolId,
+        cached: Option<TypeId>,
+    ) -> CheckResult<TypeId> {
+        if let Some(resolved) = cached {
             perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(resolved);
         }

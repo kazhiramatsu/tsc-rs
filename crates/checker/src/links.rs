@@ -770,6 +770,14 @@ struct PersistentSymbolLinks {
 
 const _: () = assert!(std::mem::size_of::<PersistentSymbolLinks>() == 12);
 
+/// A common symbol's cached type, or a request to finish the query using
+/// the sparse persistent page directory.
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) enum SymbolTypeLookup {
+    Common(Option<TypeId>),
+    Far,
+}
+
 /// A persistent symbol as a paged-table key: its index, dense from zero.
 #[derive(Clone, Copy, Debug)]
 struct PersistentSymbol(SymbolId);
@@ -1621,8 +1629,12 @@ impl<K: DenseKey, T: Default> PagedTable<K, T> {
     #[inline]
     pub(crate) fn get(&self, key: K) -> Option<&T> {
         let id = key.dense_index();
-        let page = self.page(id >> PAGE_SHIFT)?;
-        let slot = page[id & (PAGE_IDS - 1)];
+        self.get_from_page(id, self.page(id >> PAGE_SHIFT))
+    }
+
+    #[inline]
+    fn get_from_page(&self, id: usize, page: Option<&[u16; PAGE_IDS]>) -> Option<&T> {
+        let slot = page?[id & (PAGE_IDS - 1)];
         if slot == 0 {
             return None;
         }
@@ -1821,6 +1833,30 @@ impl LinksTables {
     pub(crate) fn read_symbol<R>(&self, id: SymbolId, read: impl FnOnce(&SymbolLinks) -> R) -> R {
         perf::bump(PerfCounter::LinksSymbolReads);
         read(&self.symbol(id))
+    }
+
+    /// Read a value type without entering the sparse page lookup. Its caller
+    /// can finish a far query out of line, keeping the common hit small.
+    #[inline]
+    pub(crate) fn lookup_symbol_type(&self, symbol: SymbolId) -> SymbolTypeLookup {
+        perf::bump(PerfCounter::LinksSymbolReads);
+        let cached = if let Some(index) = transient_index(symbol) {
+            self.transient_symbols
+                .get(index)
+                .and_then(|links| links.type_of_symbol.resolved())
+        } else {
+            let id = PersistentSymbol(symbol).dense_index();
+            let page_index = id >> PAGE_SHIFT;
+            if page_index >= DENSE_PAGES {
+                return SymbolTypeLookup::Far;
+            }
+            let table = &self.persistent_symbols;
+            let page = table.index.get(page_index).and_then(Option::as_deref);
+            table
+                .get_from_page(id, page)
+                .and_then(|links| links.type_of_symbol.resolved())
+        };
+        SymbolTypeLookup::Common(cached)
     }
 
     /// Check flags exist only on transient symbols. Selecting them directly

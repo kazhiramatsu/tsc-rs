@@ -180,6 +180,48 @@ fn paged_table_interleaves_regions_without_aliasing() {
 }
 
 #[test]
+fn symbol_type_lookup_distinguishes_dense_far_and_transient_ids() {
+    let mut links = LinksTables::default();
+    let far_start = (DENSE_PAGES * PAGE_IDS) as u32;
+    let persistent = SymbolId::new(3);
+    let far = SymbolId::new(far_start);
+    let transient = SymbolId::new(tsc_types::TRANSIENT_SYMBOL_BIT | 5);
+    let ty = TypeId::new(7);
+    for id in [persistent, transient, SymbolId::new(far_start - 1)] {
+        assert_eq!(links.lookup_symbol_type(id), SymbolTypeLookup::Common(None));
+    }
+    assert_eq!(links.lookup_symbol_type(far), SymbolTypeLookup::Far);
+    assert_eq!(links.symbol(far).type_of_symbol.resolved(), None);
+    for id in [persistent, transient, far] {
+        links.set_fresh_symbol_type(id, LinkSlot::Resolved(ty));
+        assert_eq!(links.symbol(id).type_of_symbol.resolved(), Some(ty));
+    }
+    for id in [persistent, transient] {
+        assert_eq!(
+            links.lookup_symbol_type(id),
+            SymbolTypeLookup::Common(Some(ty))
+        );
+    }
+    assert_eq!(links.lookup_symbol_type(far), SymbolTypeLookup::Far);
+    assert_eq!(
+        links.lookup_symbol_type(SymbolId::new(4)),
+        SymbolTypeLookup::Common(None)
+    );
+
+    crate::state::test_support::with_program_state(
+        &[("a.ts", "")],
+        &tsc_types::CompilerOptions::default(),
+        |state| {
+            let expected = state.tables.intrinsics.string;
+            state
+                .links
+                .set_fresh_symbol_type(far, LinkSlot::Resolved(expected));
+            assert_eq!(state.get_type_of_symbol(far).unwrap(), expected);
+        },
+    );
+}
+
+#[test]
 fn paged_table_far_pages_use_the_same_region_slots() {
     let far_id = DENSE_PAGES << PAGE_SHIFT;
     let next_region = far_id + (1 << REGION_SHIFT);
