@@ -3705,6 +3705,7 @@ impl LinksTables {
         target: SymbolId,
         mapper: MapperId,
         name_type: Option<TypeId>,
+        check_flags: tsc_types::CheckFlags,
     ) {
         let _ = speculation_depth;
         let links = self.transient_symbol_mut(id);
@@ -3712,6 +3713,7 @@ impl LinksTables {
             links.target.is_none() && links.mapper.is_none(),
             "instantiation links written twice for {id:?}"
         );
+        links.check_flags = check_flags;
         links.target = Some(target);
         links.mapper = Some(mapper);
         links.name_type = name_type;

@@ -967,8 +967,6 @@ impl<'a> CheckerState<'a> {
             );
         let name_type = self.links.symbol(symbol).name_type;
         let result = self.binder.create_symbol(source_flags, escaped_name);
-        self.links
-            .set_symbol_check_flags(self.speculation_depth, result, check_flags);
         {
             let transient = self.binder.symbol_mut(result);
             transient.set_declarations(declarations);
@@ -982,6 +980,7 @@ impl<'a> CheckerState<'a> {
             symbol,
             mapper,
             name_type,
+            check_flags,
         );
         result
     }
