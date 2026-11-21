@@ -1164,3 +1164,36 @@ fn short_signature_keeps_this_and_parameter_order_with_a_fresh_generic() {
         },
     );
 }
+
+#[test]
+fn known_alias_arguments_preserve_absent_and_empty_cache_entries() {
+    with_program_state(
+        &[("a.ts", "function f<T>() { var v: T; }")],
+        &CompilerOptions::default(),
+        |state| {
+            let t = declared_type_parameter(state, "T");
+            let alias = state.tables.type_of(t).symbol;
+            assert!(alias.is_some());
+            let string = state.tables.intrinsics.string;
+            let mapper = state.make_unary_type_mapper(t, string);
+            let empty = state.tables.empty_type_list();
+            state.push_active_mapper(mapper);
+            let before = state.total_instantiation_count;
+            for (args, known, delta) in [
+                (None, None, 1),
+                (Some([].as_slice()), Some(empty), 2),
+                (Some([].as_slice()), None, 2),
+                (None, None, 2),
+            ] {
+                assert_eq!(
+                    state
+                        .instantiate_type_with_alias(t, mapper, alias, args, known)
+                        .unwrap(),
+                    string
+                );
+                assert_eq!(state.total_instantiation_count - before, delta);
+            }
+            state.pop_active_mapper();
+        },
+    );
+}

@@ -1909,7 +1909,7 @@ impl<'a> CheckerState<'a> {
         mapper: Option<MapperId>,
     ) -> CheckResult<TypeId> {
         match mapper {
-            Some(mapper) => self.instantiate_type_with_alias(ty, mapper, None, None),
+            Some(mapper) => self.instantiate_type_with_alias(ty, mapper, None, None, None),
             None => Ok(ty),
         }
     }
@@ -1924,6 +1924,7 @@ impl<'a> CheckerState<'a> {
         mapper: MapperId,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
+        known_alias_arguments: Option<tsc_types::TypeListId>,
     ) -> CheckResult<TypeId> {
         let header = self.tables.type_of(ty);
         if header
@@ -1939,6 +1940,7 @@ impl<'a> CheckerState<'a> {
                     mapper,
                     alias_symbol,
                     alias_type_arguments,
+                    known_alias_arguments,
                 );
             }
         } else if header
@@ -1950,12 +1952,19 @@ impl<'a> CheckerState<'a> {
                 mapper,
                 alias_symbol,
                 alias_type_arguments,
+                known_alias_arguments,
             );
         }
         if header.alias.is_none() {
             return Ok(ty);
         }
-        self.check_instantiation_eligibility(ty, mapper, alias_symbol, alias_type_arguments)
+        self.check_instantiation_eligibility(
+            ty,
+            mapper,
+            alias_symbol,
+            alias_type_arguments,
+            known_alias_arguments,
+        )
     }
 
     /// Resolve containment in its usual order when the header alone cannot decide.
@@ -1966,6 +1975,7 @@ impl<'a> CheckerState<'a> {
         mapper: MapperId,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
+        known_alias_arguments: Option<tsc_types::TypeListId>,
     ) -> CheckResult<TypeId> {
         // tsgo (checker.go:22494-22500) also instantiates a type whose alias
         // type arguments could contain type variables, so `type Brand<T> =
@@ -1977,7 +1987,13 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(ty);
         }
-        self.instantiate_eligible_type(ty, mapper, alias_symbol, alias_type_arguments)
+        self.instantiate_eligible_type(
+            ty,
+            mapper,
+            alias_symbol,
+            alias_type_arguments,
+            known_alias_arguments,
+        )
     }
 
     /// Enter the counted instantiation only after checking the recursion limits.
@@ -1988,6 +2004,7 @@ impl<'a> CheckerState<'a> {
         mapper: MapperId,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
+        known_alias_arguments: Option<tsc_types::TypeListId>,
     ) -> CheckResult<TypeId> {
         if self.instantiation_stack.len() == 100 || self.instantiation_count >= 5_000_000 {
             return self.report_instantiation_limit(ty);
@@ -1996,9 +2013,16 @@ impl<'a> CheckerState<'a> {
         if index.is_none() {
             self.push_active_mapper(mapper);
         }
-        let alias_arguments = alias_symbol
-            .and(alias_type_arguments)
-            .map(|arguments| self.tables.intern_type_list(arguments));
+        let alias_arguments =
+            alias_symbol
+                .and(alias_type_arguments)
+                .map(|arguments| match known_alias_arguments {
+                    Some(id) => {
+                        debug_assert_eq!(self.tables.list(id), arguments);
+                        id
+                    }
+                    None => self.tables.intern_type_list(arguments),
+                });
         perf::bump(PerfCounter::MapperCacheLookups);
         // A new scope owns a cleared map. Only recursive visits can find
         // or publish an answer, but both visits intern their alias list above.

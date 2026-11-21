@@ -3447,8 +3447,13 @@ impl<'a> CheckerState<'a> {
             is_js,
         )?;
         let mapper = self.create_type_mapper(&type_parameters, filled.as_deref());
-        let instantiation =
-            self.instantiate_type_with_alias(ty, mapper, alias_symbol, alias_type_arguments)?;
+        let instantiation = self.instantiate_type_with_alias(
+            ty,
+            mapper,
+            alias_symbol,
+            alias_type_arguments,
+            id_key.alias_arguments,
+        )?;
         self.links
             .set_alias_instantiation(self.speculation_depth, symbol, id_key, instantiation);
         Ok(instantiation)
