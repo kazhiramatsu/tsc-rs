@@ -1478,7 +1478,26 @@ impl<'a> CheckerState<'a> {
 
     /// Also reports whether constraint substitution read this node's
     /// position, which a structural flow-reference key cannot describe.
+    #[inline]
     pub(crate) fn get_narrowable_type_for_reference_with_position(
+        &mut self,
+        ty: TypeId,
+        reference: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult<(TypeId, bool)> {
+        let record = self.tables.type_of(ty);
+        if !matches!(record.data, TypeData::Substitution(_))
+            && !record
+                .flags
+                .intersects(TypeFlags::UNION | TypeFlags::INTERSECTION | TypeFlags::INSTANTIABLE)
+        {
+            return Ok((ty, false));
+        }
+        self.narrowable_type_for_reference_worker(ty, reference, check_mode)
+    }
+
+    #[inline(never)]
+    fn narrowable_type_for_reference_worker(
         &mut self,
         mut ty: TypeId,
         reference: NodeId,

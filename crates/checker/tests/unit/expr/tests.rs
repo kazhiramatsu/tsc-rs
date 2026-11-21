@@ -1118,3 +1118,87 @@ fn control_flow_container_cache_matches_the_parent_walk_after_collisions() {
         assert!(replaced);
     });
 }
+
+#[test]
+fn narrowable_type_entry_preserves_position_reads_and_type_creation() {
+    use tsc_types::{IntersectionFlags, TypeId};
+
+    let text = "type Marker = { marker: number };
+        function f<T extends string | undefined>(x: T) { x; x.length; }";
+    let run = |fast| {
+        with_program_state(
+            &[("a.ts", text)],
+            &CompilerOptions {
+                strict: Some(true),
+                ..Default::default()
+            },
+            |state| {
+                let parameter = find_node(state, SyntaxKind::TypeParameter, None);
+                let symbol = state.get_symbol_of_declaration(parameter).unwrap();
+                let t = state.get_declared_type_of_symbol(symbol).unwrap();
+                let no_infer = state
+                    .tables
+                    .get_or_create_substitution_type(t, state.tables.intrinsics.unknown);
+                assert!(state.tables.is_no_infer_type(no_infer));
+                let marker = find_node(state, SyntaxKind::TypeLiteral, None);
+                let object = state.get_type_from_type_node(marker).unwrap();
+                let intersection = state
+                    .get_intersection_type(&[t, object], IntersectionFlags::NONE)
+                    .unwrap();
+                assert!(state
+                    .tables
+                    .flags_of(intersection)
+                    .intersects(tsc_types::TypeFlags::INTERSECTION));
+                let plain = find_node(
+                    state,
+                    SyntaxKind::Identifier,
+                    Some(SyntaxKind::ExpressionStatement),
+                );
+                let access = find_node(state, SyntaxKind::PropertyAccessExpression, None);
+                let receiver = state
+                    .record_of(access)
+                    .as_property_access_expression()
+                    .unwrap()
+                    .expression
+                    .unwrap();
+                let mut trace = Vec::new();
+                for reference in [plain, receiver] {
+                    for mode in [CheckMode::NORMAL, CheckMode::INFERENTIAL] {
+                        for ty in [
+                            state.tables.intrinsics.string,
+                            object,
+                            no_infer,
+                            t,
+                            intersection,
+                        ] {
+                            let start = state.tables.len();
+                            let result = if fast {
+                                state.get_narrowable_type_for_reference_with_position(
+                                    ty, reference, mode,
+                                )
+                            } else {
+                                state.narrowable_type_for_reference_worker(ty, reference, mode)
+                            }
+                            .unwrap();
+                            let created = (start..state.tables.len())
+                                .map(|i| {
+                                    let id = TypeId::new(i as u32);
+                                    (id, state.tables.flags_of(id))
+                                })
+                                .collect::<Vec<_>>();
+                            trace.push((
+                                result,
+                                created,
+                                state.total_instantiation_count,
+                                state.signatures.len(),
+                                state.binder.transient_symbol_count(),
+                            ));
+                        }
+                    }
+                }
+                trace
+            },
+        )
+    };
+    assert_eq!(run(true), run(false));
+}
