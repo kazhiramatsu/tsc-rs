@@ -4923,24 +4923,30 @@ impl<'a> CheckerState<'a> {
         let Some(symbol) = symbol else {
             return Ok(None);
         };
-        let hidden_type_only_export = !include_type_only_members
-            && self.tables.type_of(ty).symbol.is_some_and(|module_symbol| {
-                self.symbol_flags(module_symbol)
-                    .intersects(SymbolFlags::VALUE_MODULE)
-                    && self
-                        .links
-                        .symbol_cold()
-                        .type_only_export_star_map
-                        .get(module_symbol)
-                        .clone()
-                        .as_ref()
-                        .is_some_and(|map| map.contains_key(&NameKey::name(name)))
-            });
+        let hidden_type_only_export =
+            !include_type_only_members && self.hidden_by_type_only_export_star(ty, name);
         if !hidden_type_only_export && self.symbol_is_value(symbol, include_type_only_members)? {
             Ok(Some(symbol))
         } else {
             Ok(None)
         }
+    }
+
+    /// Whether `name` reaches the type of a module only through an
+    /// `export type * from` (the module's typeOnlyExportStarMap has it).
+    fn hidden_by_type_only_export_star(&self, ty: TypeId, name: EscapedName) -> bool {
+        self.tables.type_of(ty).symbol.is_some_and(|module_symbol| {
+            self.symbol_flags(module_symbol)
+                .intersects(SymbolFlags::VALUE_MODULE)
+                && self
+                    .links
+                    .symbol_cold()
+                    .type_only_export_star_map
+                    .get(module_symbol)
+                    .clone()
+                    .as_ref()
+                    .is_some_and(|map| map.contains_key(&NameKey::name(name)))
+        })
     }
 
     /// tsc-port: symbolIsValue @6.0.3
@@ -5197,6 +5203,22 @@ impl<'a> CheckerState<'a> {
                 && !self.may_be_augment_member(key)
             {
                 return Ok(None);
+            }
+            // tsgo getPropertyOfTypeEx (checker.go:19319-19324): a member the
+            // module has, but only through a type-only `export *`, ends the
+            // look-up. Object and Function do not answer for its name. Asked
+            // after the filter above: a name Object and Function cannot have
+            // gets no answer from them either way, and a miss stays as cheap.
+            if !include_type_only_members && self.hidden_by_type_only_export_star(reduced, name) {
+                let members = self.resolve_structured_type_members(reduced)?;
+                if self
+                    .members_of(members)
+                    .members
+                    .get_hashed(&self.binder, key)
+                    .is_some()
+                {
+                    return Ok(None);
+                }
             }
             let members = self.structured_member_headers(reduced)?;
             let (has_call, has_construct) = {

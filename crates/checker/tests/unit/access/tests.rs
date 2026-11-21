@@ -1275,3 +1275,56 @@ new ns.Foo().a;\nns.Foo;\nns.default;\nns.FooImpl;\nns.other;\n";
         ]
     );
 }
+
+/// tsgo 7.1 (tsgo-v71beta-3e9236361, default libraries): TS2339 at
+/// `use.ts(2,3)`, `(3,3)`, `(6,3)` and `(7,3)`, and nothing for `b.valueOf`.
+/// A name the module has only through `export type * from` ends the look-up
+/// (getPropertyOfTypeEx returns before the Object / Function augmentation),
+/// so `Object.prototype`'s `toString` and `hasOwnProperty` do not stand in.
+#[test]
+fn a_member_hidden_by_a_type_only_export_star_is_not_answered_by_object() {
+    let globals = "interface Object { toString(): string; hasOwnProperty(v: string): boolean; valueOf(): Object }\n\
+interface Function {}\ninterface CallableFunction extends Function {}\n\
+interface NewableFunction extends Function {}\ninterface Array<T> {}\ninterface String {}\n\
+interface Number {}\ninterface Boolean {}\ninterface RegExp {}\ninterface IArguments {}\n";
+    let use_text = "import * as b from \"./barrel\";\nb.toString;\nb.x;\nb.anchor;\nb.valueOf;\n\
+b.hasOwnProperty;\nb.toString();\n";
+    let result = check_program(
+        &[
+            InputFile::new("globals.d.ts".to_owned(), globals.to_owned()),
+            InputFile::new(
+                "mod.ts".to_owned(),
+                "export const toString = 1;\nexport const x = 1;\nexport function hasOwnProperty(): void {}\n"
+                    .to_owned(),
+            ),
+            InputFile::new(
+                "barrel.ts".to_owned(),
+                "export type * from \"./mod\";\nexport const anchor = 0;\n".to_owned(),
+            ),
+            InputFile::new("use.ts".to_owned(), use_text.to_owned()),
+        ],
+        &CompilerOptions::default(),
+    );
+    let at = |needle: &str| use_text.find(needle).expect("needle") as u32 + 2;
+    assert_eq!(
+        result
+            .diagnostics
+            .iter()
+            .filter_map(|diagnostic| {
+                let file = diagnostic.file_name.as_ref()?;
+                Some((
+                    file.as_js().as_str().expect("scalar name").to_owned(),
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                ))
+            })
+            .collect::<Vec<_>>(),
+        [
+            ("use.ts".to_owned(), 2339, at("b.toString;"), 8),
+            ("use.ts".to_owned(), 2339, at("b.x;"), 1),
+            ("use.ts".to_owned(), 2339, at("b.hasOwnProperty;"), 14),
+            ("use.ts".to_owned(), 2339, at("b.toString()"), 8),
+        ]
+    );
+}
