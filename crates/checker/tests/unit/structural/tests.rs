@@ -5,6 +5,7 @@ use tsc_types::{CheckFlags, CompilerOptions, LiteralValue, TemplateText};
 use crate::relpin::find_probe_annotation;
 use crate::relpin::{probe_relation, RelpinQuery, RelpinRelation, RelpinVerdict};
 use crate::state::CheckerState;
+use crate::{check_program, InputFile};
 
 fn probe(
     setup: &str,
@@ -22,6 +23,94 @@ fn probe(
         relation,
         options: &options,
     })
+}
+
+/// tsgo getUnionOrIntersectionProperty (checker.go:21837-21858): the cache
+/// without the Object / Function augmentation hands a non-partial property
+/// on to the augmented cache; nothing goes the other way, and a partial
+/// property stays where it was made.
+#[test]
+fn a_property_made_without_the_augmentation_also_answers_the_augmented_lookup() {
+    crate::state::test_support::with_program_state(
+        &[(
+            "a.ts",
+            "declare let first: { p: 1 | 2 } & { p: 2 | 3 };\n\
+declare let second: { p: 1 | 2 } & { p: 2 | 3; r: number };\n\
+declare let either: { p: 1 } | { q: 2 };\n",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let type_of = |state: &mut CheckerState, name: &str| {
+                let annotation =
+                    find_probe_annotation(state.binder.source(0), name).expect("annotation");
+                state.get_type_from_type_node(annotation).expect("type")
+            };
+            let property = |state: &mut CheckerState, ty, skip| {
+                state
+                    .get_union_or_intersection_property(ty, "p", skip)
+                    .expect("property lookup")
+                    .expect("p property")
+            };
+
+            let first = type_of(state, "first");
+            let plain = property(state, first, true);
+            assert!(!state.get_check_flags(plain).intersects(CheckFlags::PARTIAL));
+            assert_eq!(property(state, first, false), plain);
+            assert_eq!(property(state, first, true), plain);
+
+            // Asked the other way round, each look-up makes its own.
+            let second = type_of(state, "second");
+            let augmented = property(state, second, false);
+            let plain = property(state, second, true);
+            assert_ne!(plain, augmented);
+            assert_eq!(property(state, second, false), augmented);
+
+            // A property that only some constituents have is partial.
+            let either = type_of(state, "either");
+            let partial = property(state, either, true);
+            assert!(state
+                .get_check_flags(partial)
+                .intersects(CheckFlags::PARTIAL));
+            assert_ne!(property(state, either, false), partial);
+        },
+    );
+}
+
+/// tsgo 7.1 (tsgo-v71beta-3e9236361, no default libraries, the global file
+/// below): no diagnostic. The object literal's contextual type asks each
+/// intersection for `toString` without the Object augmentation; that property
+/// is made from the declaring constituent alone (`number`) and handed to the
+/// augmented cache, which the excess-property step reads
+/// (getTypeOfPropertyInTypes). Without the hand-over that step made a second
+/// property from both constituents, `(() => string) & number`, and TS2322 was
+/// reported on both declarations.
+#[test]
+fn the_excess_property_step_reads_the_property_made_without_the_augmentation() {
+    let globals = "interface Object { toString(): string; valueOf(): Object }\n\
+interface Function {}\ninterface CallableFunction extends Function {}\n\
+interface NewableFunction extends Function {}\ninterface Array<T> {}\ninterface String {}\n\
+interface Number {}\ninterface Boolean {}\ninterface RegExp {}\ninterface IArguments {}\n";
+    let use_text = "type Asked = { q: number } & { toString: number };\n\
+type Fresh = { q: number } & { toString: number };\n\
+declare const asked: Asked;\nasked.toString;\n\
+const first: Asked | { z: 1 } = { q: 1, toString: 5 };\n\
+const second: Fresh | { z: 1 } = { q: 1, toString: 5 };\nfirst;\nsecond;\n";
+    let result = check_program(
+        &[
+            InputFile::new("globals.d.ts".to_owned(), globals.to_owned()),
+            InputFile::new("use.ts".to_owned(), use_text.to_owned()),
+        ],
+        &CompilerOptions::default(),
+    );
+    let codes = result
+        .diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.code())
+        .collect::<Vec<_>>();
+    assert!(
+        codes.is_empty(),
+        "the reference reports nothing, got {codes:?}"
+    );
 }
 
 #[test]
