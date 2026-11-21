@@ -1095,3 +1095,40 @@ fn changed_instantiation_list_materializes_only_after_a_difference() {
         },
     );
 }
+
+#[test]
+fn conditional_key_mappers_match_composition_on_distributed_parameters() {
+    with_program_state(
+        &[("a.ts", "function f<T,U>() { var x: T; }")],
+        &CompilerOptions::default(),
+        |state| {
+            let t = declared_type_parameter(state, "T");
+            let u = declared_type_parameter(state, "U");
+            let distributed = state.get_distributed_type_from_type_parameter(t);
+            let string = state.tables.intrinsics.string;
+            for (source, target) in [(u, string), (t, u), (t, distributed)] {
+                let first = state.make_unary_type_mapper(source, target);
+                let second = state.create_type_mapper(&[t, u], Some(&[string, string]));
+                let composite = state.combine_type_mappers(Some(first), second);
+                let before = state.total_instantiation_count;
+                let visits = state.profile_ops[crate::line_profile::OP_MAPPED];
+                let expected = state.get_mapped_type(distributed, composite).unwrap();
+                let after = state.total_instantiation_count;
+                let middle = state.profile_ops[crate::line_profile::OP_MAPPED];
+                let mapper_count = state.mappers.len();
+                assert_eq!(
+                    state
+                        .map_conditional_parameter(distributed, Some(first), second)
+                        .unwrap(),
+                    expected
+                );
+                assert_eq!(state.mappers.len(), mapper_count);
+                assert_eq!(state.total_instantiation_count - after, after - before);
+                assert_eq!(
+                    state.profile_ops[crate::line_profile::OP_MAPPED] - middle,
+                    middle - visits
+                );
+            }
+        },
+    );
+}

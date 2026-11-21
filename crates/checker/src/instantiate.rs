@@ -585,17 +585,45 @@ impl<'a> CheckerState<'a> {
                 }
             }
             TypeMapper::Composite { mapper1, mapper2 } => {
-                let t1 = self.map_type_with_mapper(ty, mapper1)?;
-                if t1 != ty {
-                    self.instantiate_type(t1, Some(mapper2))
-                } else {
-                    self.map_type_with_mapper(t1, mapper2)
-                }
+                self.apply_composite_mapper(ty, mapper1, mapper2)
             }
             TypeMapper::Merged { mapper1, mapper2 } => {
                 let t1 = self.map_type_with_mapper(ty, mapper1)?;
                 self.map_type_with_mapper(t1, mapper2)
             }
+        }
+    }
+
+    /// Map the given input through both parts of a composite. A changed
+    /// left result needs full instantiation through the right mapper.
+    fn apply_composite_mapper(
+        &mut self,
+        ty: TypeId,
+        first: MapperId,
+        second: MapperId,
+    ) -> CheckResult<TypeId> {
+        let mapped = self.map_type_with_mapper(ty, first)?;
+        if mapped == ty {
+            self.map_type_with_mapper(ty, second)
+        } else {
+            self.instantiate_type(mapped, Some(second))
+        }
+    }
+
+    /// Conditional keys use the composite only for this application. Count
+    /// its dispatch and normalize its input once, as for an allocated mapper.
+    pub(crate) fn map_conditional_parameter(
+        &mut self,
+        ty: TypeId,
+        first: Option<MapperId>,
+        second: MapperId,
+    ) -> CheckResult<TypeId> {
+        let ty = self.get_non_distributed_type_parameter(ty);
+        if let Some(first) = first {
+            self.profile_ops[crate::line_profile::OP_MAPPED] += 1;
+            self.apply_composite_mapper(ty, first, second)
+        } else {
+            self.map_type_with_mapper(ty, second)
         }
     }
 
@@ -2293,10 +2321,10 @@ impl<'a> CheckerState<'a> {
                 unreachable!("Conditional flag implies conditional data");
             };
             let data = *self.tables.conditional_data(data);
-            let conditional_mapper = self.combine_type_mappers(data.mapper, mapper);
             return self.get_conditional_type_instantiation(
                 ty,
-                conditional_mapper,
+                data.mapper,
+                mapper,
                 /*for_constraint*/ false,
                 alias_symbol,
                 alias_type_arguments,

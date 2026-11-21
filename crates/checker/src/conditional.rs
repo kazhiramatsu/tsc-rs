@@ -500,6 +500,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_conditional_type_instantiation(
         &mut self,
         ty: TypeId,
+        first_mapper: Option<tsc_types::MapperId>,
         mapper: tsc_types::MapperId,
         for_constraint: bool,
         alias_symbol: Option<SymbolId>,
@@ -523,7 +524,11 @@ impl<'a> CheckerState<'a> {
                     .outer_type_parameters
                     .as_deref()
                     .expect("parameters counted above")[i];
-                type_arguments.push(state.get_mapped_type(parameter, mapper)?);
+                type_arguments.push(state.map_conditional_parameter(
+                    parameter,
+                    first_mapper,
+                    mapper,
+                )?);
             }
             // tsc's "C" prefix, getTypeListId and getAliasId as one value.
             let key = state.tables.instantiation_key(
@@ -679,7 +684,7 @@ impl<'a> CheckerState<'a> {
             {
                 let mapper = self.prepend_type_mapping(root_check_type, constraint, data.mapper);
                 let instantiated = self.get_conditional_type_instantiation(
-                    ty, mapper, /*for_constraint*/ true, None, None,
+                    ty, None, mapper, /*for_constraint*/ true, None, None,
                 )?;
                 if !self
                     .tables

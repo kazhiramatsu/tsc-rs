@@ -370,7 +370,7 @@ impl<'a> CheckerState<'a> {
                     let mapper =
                         self.prepend_type_mapping(root_check_type, constraint, data.mapper);
                     return self.get_conditional_type_instantiation(
-                        ty, mapper, /*for_constraint*/ false, None, None,
+                        ty, None, mapper, /*for_constraint*/ false, None, None,
                     );
                 }
             }
