@@ -4955,7 +4955,7 @@ impl<'a> CheckerState<'a> {
                 hit => hit,
             }
         } else {
-            match self.deferred_reference_property(ty, name)? {
+            match self.deferred_reference_property(ty, key)? {
                 Some(symbol) => symbol,
                 None => {
                     let members = self.resolve_structured_type_members(ty)?;

@@ -2838,12 +2838,6 @@ impl<'a> CheckerState<'a> {
         id
     }
 
-    /// A resolved members table from a symbol table the checker built (its
-    /// keys are the members' names).
-    pub(crate) fn member_table(&self, table: &SymbolTable) -> MemberTable {
-        MemberTable::from_symbol_table(&self.binder, table)
-    }
-
     /// Finished tables can fill the published Arc directly, without first
     /// copying their IDs into a mutable builder.
     #[inline]

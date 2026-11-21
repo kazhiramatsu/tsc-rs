@@ -15,7 +15,7 @@ use tsc_types::{
 use crate::evaluate::EvalValue;
 
 use crate::links::LinkSlot;
-use crate::member_table::{FreezeMembers, MemberTable};
+use crate::member_table::{FreezeMembers, HashedName, MemberTable};
 use crate::state::{
     CheckResult, CheckerState, IndexInfo, MembersId, ResolvedMembers, SignatureId, SymbolIds,
 };
@@ -50,12 +50,13 @@ impl DeferredReferenceMembers {
         &self,
         binder: &crate::program::ProgramBinder<'_>,
         declared: SymbolId,
+        key: HashedName,
     ) -> DeferredDeclaredMember {
-        let name = binder.symbol(declared).escaped_name;
+        debug_assert_eq!(key.name, binder.symbol(declared).escaped_name);
         if let Some(symbol) = self
             .instantiated
             .as_ref()
-            .and_then(|table| table.get(binder, name))
+            .and_then(|table| table.get_hashed(binder, key))
         {
             return DeferredDeclaredMember::Cached(symbol);
         }
@@ -4642,11 +4643,11 @@ impl<'a> CheckerState<'a> {
             // warming a declaration's type later must not change whether
             // this reference has a distinct instantiated symbol.
             let unaffected = self.freeze_unaffected_members(target, source, mapper, &properties);
-            let calls = self.members_of(source).call_signatures().to_vec();
+            let calls = self.members_of(source).call_signature_list();
             let mut calls = self.instantiate_signature_list(&calls, mapper)?;
-            let constructs = self.members_of(source).construct_signatures().to_vec();
+            let constructs = self.members_of(source).construct_signature_list();
             let mut constructs = self.instantiate_signature_list(&constructs, mapper)?;
-            let indices = self.members_of(source).index_infos().to_vec();
+            let indices = self.members_of(source).index_info_list();
             let mut indices = self.instantiate_index_info_list(&indices, mapper)?;
             let base_types = self.get_base_type_list(target)?;
             let mut bases = Vec::with_capacity(base_types.len());
@@ -4761,13 +4762,9 @@ impl<'a> CheckerState<'a> {
         symbol
     }
 
-    fn declared_property(
-        &self,
-        source: MembersId,
-        name: tsc_types::EscapedName,
-    ) -> Option<SymbolId> {
+    fn declared_property(&self, source: MembersId, key: HashedName) -> Option<SymbolId> {
         let record = self.members_of(source);
-        let symbol = record.members.get(&self.binder, name)?;
+        let symbol = record.members.get_hashed(&self.binder, key)?;
         // The common all-selected freeze shares the two lists, including
         // for tuple targets, whose synthesized members are all properties.
         if std::ptr::eq(record.members.symbols(), &*record.properties) {
@@ -4793,16 +4790,16 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn deferred_reference_property(
         &mut self,
         ty: TypeId,
-        name: tsc_types::EscapedName,
+        key: HashedName,
     ) -> CheckResult<Option<Option<SymbolId>>> {
-        if is_reserved_member_name(name) {
+        if is_reserved_member_name(key.name) {
             return Ok(None);
         }
         let Some((bases, own)) = self.with_deferred_reference_members(ty, |state, members| {
             let bases = members.bases.clone();
             let own = state
-                .declared_property(members.source, name)
-                .map(|declared| members.declared_member(&state.binder, declared));
+                .declared_property(members.source, key)
+                .map(|declared| members.declared_member(&state.binder, declared, key));
             (bases, own)
         })?
         else {
@@ -4814,7 +4811,7 @@ impl<'a> CheckerState<'a> {
             {
                 break;
             }
-            if let Some(symbol) = self.get_property_of_type_ex(base, name, true)? {
+            if let Some(symbol) = self.get_property_of_type_ex(base, key.name, true)? {
                 if !self.is_static_private_identifier_property(symbol) {
                     result = Some(symbol);
                 }
@@ -4875,7 +4872,8 @@ impl<'a> CheckerState<'a> {
                 let ready = self.deferred_reference_members[&ty]
                     .as_ref()
                     .expect("ready reference members");
-                let member = ready.declared_member(&self.binder, declared);
+                let key = HashedName::new(self.binder.symbol(declared).escaped_name);
+                let member = ready.declared_member(&self.binder, declared, key);
                 let symbol = self.realize_deferred_declared_member(ty, member);
                 members.insert(&self.binder, symbol);
             }
@@ -5114,13 +5112,14 @@ impl<'a> CheckerState<'a> {
             == *type_parameters
             && type_arguments.len() >= type_parameters.len();
         let source_symbol = self.tables.type_of(source_type).symbol;
-        let mut members_are_live_table = false;
+        let snapshot;
+        let mut live_table = None;
         if range_equal {
             members = match source_symbol {
                 Some(symbol) => {
-                    members_are_live_table = true;
-                    let table = self.get_members_of_symbol(symbol)?;
-                    self.member_table(&table)
+                    snapshot = self.get_members_of_symbol(symbol)?;
+                    live_table = Some(self.member_table_source(&snapshot));
+                    MemberTable::default()
                 }
                 None => {
                     let declared = self.members_of(source).properties.clone();
@@ -5150,7 +5149,7 @@ impl<'a> CheckerState<'a> {
         }
         let base_types = self.get_base_type_list(source_type)?;
         if !base_types.is_empty() {
-            if members_are_live_table {
+            if live_table.take().is_some() {
                 // Copy the declared properties (+ the index symbol) before
                 // inheriting — the symbol's own table must not absorb base
                 // members.
@@ -5215,7 +5214,10 @@ impl<'a> CheckerState<'a> {
             }
         }
         let container = self.tables.type_of(ty).symbol;
-        let (members, properties) = self.freeze_named_members(members, container)?;
+        let (members, properties) = match live_table {
+            Some(table) => self.freeze_named_members(table, container)?,
+            None => self.freeze_named_members(members, container)?,
+        };
         if mapper.is_some() {
             self.remember_member_shape(source, followed.as_ref(), &members);
         }

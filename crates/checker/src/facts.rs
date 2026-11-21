@@ -290,7 +290,10 @@ impl<'a> CheckerState<'a> {
         if !members.call_signatures().is_empty() || !members.construct_signatures().is_empty() {
             return Ok(true);
         }
-        let has_bind = match self.deferred_reference_property(ty, tsc_types::known_name!("bind"))? {
+        let has_bind = match self.deferred_reference_property(
+            ty,
+            crate::member_table::HashedName::new(tsc_types::known_name!("bind")),
+        )? {
             Some(symbol) => symbol.is_some(),
             None => {
                 let members = self.resolve_structured_type_members(ty)?;
