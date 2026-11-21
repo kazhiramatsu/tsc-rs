@@ -191,3 +191,66 @@ fn late_bound_index_info_includes_sibling_property_types() {
         .iter()
         .any(|diagnostic| diagnostic.code() == 2411));
 }
+
+#[test]
+fn late_bound_guard_reads_static_and_instance_links_after_parent_resolution() {
+    with_program_state(
+        &[(
+            "a.ts",
+            "declare const key: unique symbol;
+           class C { ordinary: number; [key]: string; static [key]: boolean }",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let class = *state.globals.get("C").unwrap();
+            let ordinary = *state
+                .binder
+                .symbol(class)
+                .members()
+                .get("ordinary")
+                .unwrap();
+            assert_eq!(state.get_late_bound_symbol(ordinary), Ok(ordinary));
+            let early: Vec<_> = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .filter(|&id| {
+                    state.kind_of(id) == SyntaxKind::PropertyDeclaration
+                        && state.has_late_bindable_ast_name(id)
+                })
+                .map(|id| state.node_symbol(id).unwrap())
+                .collect();
+            assert_eq!(early.len(), 2);
+            // A reader of the provisional instance table sees its own symbol.
+            let members = state.binder.symbol(class).members().clone();
+            state.links.set_symbol_resolved_members_late_bind(
+                state.speculation_depth,
+                class,
+                members,
+            );
+            assert_eq!(state.get_late_bound_symbol(early[0]), Ok(early[0]));
+            assert!(state
+                .links
+                .symbol_cold()
+                .late_symbol
+                .get(early[0])
+                .is_none());
+            state.links.revert_symbol_resolved_members(class);
+            for (symbol, is_static) in early.into_iter().zip([false, true]) {
+                let late = state.get_late_bound_symbol(symbol).unwrap();
+                assert_ne!(late, symbol);
+                assert_eq!(state.get_late_bound_symbol(symbol), Ok(late));
+                let table = if is_static {
+                    state.get_exports_of_symbol(class).unwrap()
+                } else {
+                    state.get_members_of_symbol(class).unwrap()
+                };
+                assert_eq!(
+                    table.get(state.binder.symbol(late).escaped_name),
+                    Some(&late)
+                );
+            }
+        },
+    );
+}

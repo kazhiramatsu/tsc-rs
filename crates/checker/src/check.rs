@@ -5570,6 +5570,7 @@ impl<'a> CheckerState<'a> {
     /// symbols; a symbol left unstamped self-resolves (tsc
     /// `links.lateSymbol ||= symbol`) — the stamp-as-self write is
     /// elided (pure memo).
+    #[inline]
     pub fn get_late_bound_symbol(&mut self, symbol: SymbolId) -> CheckResult<SymbolId> {
         let data = self.binder.symbol(symbol);
         if !data.flags.intersects(tsc_types::SymbolFlags::CLASS_MEMBER)
@@ -5577,14 +5578,21 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(symbol);
         }
-        if self.links.symbol_cold().late_symbol.get(symbol).is_none()
-            && data
-                .declaration_list()
-                .iter()
-                .any(|&declaration| self.has_late_bindable_ast_name(declaration))
+        self.get_late_bound_symbol_worker(symbol)
+    }
+
+    #[inline(never)]
+    fn get_late_bound_symbol_worker(&mut self, symbol: SymbolId) -> CheckResult<SymbolId> {
+        if let Some(late) = *self.links.symbol_cold().late_symbol.get(symbol) {
+            return Ok(late);
+        }
+        let data = self.binder.symbol(symbol);
+        if data
+            .declaration_list()
+            .iter()
+            .any(|&declaration| self.has_late_bindable_ast_name(declaration))
         {
-            let parent = data.parent;
-            if let Some(parent) = parent {
+            if let Some(parent) = data.parent {
                 let parent = self.get_merged_symbol(parent);
                 let source = self.binder.symbol(symbol).declaration_list();
                 let is_static = source.iter().any(|&declaration| {
