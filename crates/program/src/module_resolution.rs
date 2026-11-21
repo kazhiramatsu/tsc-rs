@@ -1777,10 +1777,10 @@ impl<'a> ModuleResolver<'a> {
         let package_name = package_name.into();
         let types_name = mangle_scoped_package_name(package_name);
         for ancestor in ancestor_directories(containing_directory) {
-            if base_name(&ancestor) == "node_modules" {
+            if base_name(ancestor.as_js()) == "node_modules" {
                 continue;
             }
-            let node_modules = join_normalized(&ancestor, "node_modules");
+            let node_modules = join_normalized(ancestor.as_js(), "node_modules");
             let candidates = [
                 join_normalized(&node_modules, package_name),
                 join_normalized(&join_normalized(&node_modules, "@types"), &types_name),
@@ -1932,10 +1932,10 @@ impl<'a> ModuleResolver<'a> {
         }
 
         for ancestor in ancestor_directories(&containing_directory) {
-            if base_name(&ancestor) == "node_modules" {
+            if base_name(ancestor.as_js()) == "node_modules" {
                 continue;
             }
-            let node_modules = join_normalized(&ancestor, "node_modules");
+            let node_modules = join_normalized(ancestor.as_js(), "node_modules");
             if !self.host.directory_exists_js(JsStr::from(&node_modules))? {
                 trace!(
                     self,
@@ -3675,10 +3675,10 @@ impl<'a> ModuleResolver<'a> {
         self.trace_node_modules_pass(probe_pass);
         let mut resolved_package_directory = false;
         for ancestor in ancestor_directories(containing_directory) {
-            if base_name(&ancestor) == "node_modules" {
+            if base_name(ancestor.as_js()) == "node_modules" {
                 continue;
             }
-            let node_modules = join_normalized(&ancestor, "node_modules");
+            let node_modules = join_normalized(ancestor.as_js(), "node_modules");
             if !self.host.directory_exists_js(JsStr::from(&node_modules))? {
                 trace!(
                     self,
@@ -4075,10 +4075,10 @@ impl<'a> ModuleResolver<'a> {
             let probe_pass = self.effective_module_probe_pass(probe_pass);
             self.trace_node_modules_pass(probe_pass);
             for ancestor in ancestor_directories(containing_directory) {
-                if base_name(&ancestor) == "node_modules" {
+                if base_name(ancestor.as_js()) == "node_modules" {
                     continue;
                 }
-                let node_modules = join_normalized(&ancestor, "node_modules");
+                let node_modules = join_normalized(ancestor.as_js(), "node_modules");
                 if !self.host.directory_exists_js(JsStr::from(&node_modules))? {
                     trace!(
                         self,
@@ -4291,10 +4291,10 @@ impl<'a> ModuleResolver<'a> {
         self.trace_node_modules_pass(probe_pass);
 
         for ancestor in ancestor_directories(containing_directory) {
-            if base_name(&ancestor) == "node_modules" {
+            if base_name(ancestor.as_js()) == "node_modules" {
                 continue;
             }
-            let node_modules = join_normalized(&ancestor, "node_modules");
+            let node_modules = join_normalized(ancestor.as_js(), "node_modules");
             if !self.host.directory_exists_js(JsStr::from(&node_modules))? {
                 trace!(
                     self,
@@ -4741,10 +4741,10 @@ impl<'a> ModuleResolver<'a> {
         let containing_directory = containing_directory.into();
         self.trace_node_modules_pass(ExtensionProbePass::Declaration);
         for ancestor in ancestor_directories(containing_directory) {
-            if base_name(&ancestor) == "node_modules" {
+            if base_name(ancestor.as_js()) == "node_modules" {
                 continue;
             }
-            let node_modules = join_normalized(&ancestor, "node_modules");
+            let node_modules = join_normalized(ancestor.as_js(), "node_modules");
             if !self.host.directory_exists_js(JsStr::from(&node_modules))? {
                 trace!(
                     self,
@@ -5941,7 +5941,7 @@ impl<'a> ModuleResolver<'a> {
         }
         let mut found = None;
         for ancestor in ancestor_directories(containing_directory) {
-            let package_json = join_normalized(&ancestor, "package.json");
+            let package_json = join_normalized(ancestor.as_js(), "package.json");
             if let Some(package) = self.load_package(&package_json)? {
                 found = Some(package);
                 break;
@@ -8734,23 +8734,33 @@ fn js_directory_name<'p>(path: impl Into<JsStr<'p>>) -> JsString {
 /// the `node_modules/@types` of the base directory and of each ancestor.
 pub fn default_type_roots<'d>(base_directory: impl Into<JsStr<'d>>) -> Vec<JsString> {
     ancestor_directories(base_directory)
-        .into_iter()
-        .map(|ancestor| join_normalized(&join_normalized(&ancestor, "node_modules"), "@types"))
+        .map(|ancestor| {
+            join_normalized(&join_normalized(ancestor.as_js(), "node_modules"), "@types")
+        })
         .collect()
 }
 
-fn ancestor_directories<'d>(directory: impl Into<JsStr<'d>>) -> Vec<JsString> {
-    let mut ancestors = Vec::new();
-    let mut current = directory.into().to_owned();
-    loop {
-        ancestors.push(current.clone());
-        let parent = crate::js_path::directory_name(current.as_js());
-        if parent == current {
-            break;
+/// Yield the requested spelling before computing its parent. A mixed-separator
+/// spelling can require owned storage, while forward-slash parents borrow prefixes.
+fn ancestor_directories<'d>(
+    directory: impl Into<JsStr<'d>>,
+) -> impl Iterator<Item = crate::js_path::PathText<'d>> {
+    use crate::js_path::PathText;
+    let directory = directory.into();
+    let mut current = PathText::Borrowed(directory);
+    std::iter::once(PathText::Borrowed(directory)).chain(std::iter::from_fn(move || {
+        let parent = match &current {
+            PathText::Borrowed(path) if !path.as_bytes().contains(&b'\\') => {
+                PathText::Borrowed(crate::js_path::slashed_directory_name(*path))
+            }
+            _ => PathText::Owned(crate::js_path::directory_name(current.as_js())),
+        };
+        if parent.as_js() == current.as_js() {
+            return None;
         }
-        current = parent;
-    }
-    ancestors
+        current = parent.clone();
+        Some(parent)
+    }))
 }
 
 #[path = "prepared_package_scope.rs"]
@@ -8841,6 +8851,43 @@ mod shared_package_loads_tests {
     ));
 
     #[test]
+    fn ancestor_search_restarts_both_extension_passes_at_the_same_directory() {
+        let host = host(true);
+        let settings = options(true);
+        let mut resolver = ModuleResolver::new(&host, &settings).unwrap();
+        let specifier = JsStr::from("absent");
+        let request = parse_package_request(specifier).unwrap();
+        let paths = [
+            "/empty/deep/node_modules",
+            "/empty/node_modules",
+            "/node_modules",
+        ];
+        let mut expected_trace = Vec::new();
+        for pass in [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback] {
+            resolver.trace_node_modules_pass(pass);
+            expected_trace.extend(resolver.take_trace());
+            for path in paths {
+                expected_trace.push(ResolutionTrace {
+                    message: &gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                    args: vec![path.into()],
+                });
+            }
+        }
+        host.probes.take();
+        let result = resolver
+            .resolve_from_node_modules("/empty/deep", specifier, &request, ResolutionMode::CommonJs)
+            .unwrap();
+        assert_eq!(result, (ResolutionOutcome::NotFound, false));
+        let expected_probes: Vec<_> = paths
+            .into_iter()
+            .chain(paths)
+            .map(|path| (tsc_host::HostOperation::DirectoryExists, path.into()))
+            .collect();
+        assert_eq!(host.probes.take(), expected_probes);
+        assert_eq!(resolver.take_trace(), expected_trace);
+    }
+
+    #[test]
     fn normalized_path_join_preserves_spelling_in_final_storage() {
         for (parent, child, expected) in [
             ("", "", "/"),
@@ -8870,10 +8917,11 @@ mod shared_package_loads_tests {
         assert_eq!(result.heap_bytes(), result.as_bytes().len());
     }
 
-    /// A host that remembers the files read.
+    /// A host that records resolver queries in their original spelling.
     struct ReadLog {
         inner: MemoryCompilerHost,
         reads: RefCell<Vec<PathBuf>>,
+        probes: RefCell<Vec<(tsc_host::HostOperation, std::ffi::OsString)>>,
     }
 
     impl CompilerHost for ReadLog {
@@ -8886,18 +8934,38 @@ mod shared_package_loads_tests {
         }
         fn read_file(&self, path: &Path) -> Result<Option<Vec<u8>>, HostError> {
             self.reads.borrow_mut().push(path.to_path_buf());
+            self.probes.borrow_mut().push((
+                tsc_host::HostOperation::ReadFile,
+                path.as_os_str().to_owned(),
+            ));
             self.inner.read_file(path)
         }
         fn file_exists(&self, path: &Path) -> Result<bool, HostError> {
+            self.probes.borrow_mut().push((
+                tsc_host::HostOperation::FileExists,
+                path.as_os_str().to_owned(),
+            ));
             self.inner.file_exists(path)
         }
         fn directory_exists(&self, path: &Path) -> Result<bool, HostError> {
+            self.probes.borrow_mut().push((
+                tsc_host::HostOperation::DirectoryExists,
+                path.as_os_str().to_owned(),
+            ));
             self.inner.directory_exists(path)
         }
         fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
+            self.probes.borrow_mut().push((
+                tsc_host::HostOperation::ReadDirectory,
+                path.as_os_str().to_owned(),
+            ));
             self.inner.read_directory(path)
         }
         fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
+            self.probes.borrow_mut().push((
+                tsc_host::HostOperation::Realpath,
+                path.as_os_str().to_owned(),
+            ));
             self.inner.realpath(path)
         }
     }
@@ -8914,7 +8982,8 @@ mod shared_package_loads_tests {
                 .file("/work/node_modules/pkg/index.d.ts", b"export {};".to_vec())
                 .build()
                 .unwrap(),
-            reads: RefCell::new(Vec::new()),
+            reads: RefCell::default(),
+            probes: RefCell::default(),
         }
     }
 
@@ -8970,6 +9039,70 @@ mod shared_package_loads_tests {
                     .unwrap(),
                 Some(expected)
             );
+        }
+    }
+
+    #[test]
+    fn ancestor_search_matches_eager_parents_probes_and_trace() {
+        let mut host = host(true);
+        let options = options(true);
+        for start in [
+            "/work/node_modules/pkg",
+            "/work/node_modules/pkg/lib",
+            "/work/src",
+            "/work/src/",
+            r"/work\src",
+            "//server/share/a",
+            "file:///c%3a/a/b",
+            "/denied/a",
+        ] {
+            let mut expected = Vec::new();
+            let mut path = JsString::from(start);
+            loop {
+                expected.push(path.clone());
+                let parent = crate::js_path::directory_name(path.as_js());
+                if path == parent {
+                    break;
+                }
+                path = parent;
+            }
+            assert_eq!(
+                ancestor_directories(start)
+                    .map(|p| p.as_js().to_owned())
+                    .collect::<Vec<_>>(),
+                expected
+            );
+            if start == "/denied/a" {
+                host.inner = MemoryCompilerHost::builder("/work")
+                    .failure(HostError::new(
+                        tsc_host::HostErrorKind::PermissionDenied,
+                        tsc_host::HostOperation::DirectoryExists,
+                        Some("/denied".into()),
+                        "test failure",
+                    ))
+                    .build()
+                    .unwrap();
+            }
+            let mut eager = ModuleResolver::new(&host, &options).unwrap();
+            host.probes.take();
+            let mut outcome = Ok(None);
+            for path in expected {
+                outcome = eager
+                    .load_package(join_normalized(&path, "package.json").as_js())
+                    .map(|p| p.map(|p| p.root.clone()));
+                if !matches!(outcome, Ok(None)) {
+                    break;
+                }
+            }
+            let probes = host.probes.take();
+            let mut lazy = ModuleResolver::new(&host, &options).unwrap();
+            host.probes.take();
+            let actual = lazy
+                .find_nearest_package_scope(start)
+                .map(|p| p.map(|p| p.root.clone()));
+            assert_eq!(actual, outcome, "{start}");
+            assert_eq!(host.probes.take(), probes, "{start}");
+            assert_eq!(lazy.take_trace(), eager.take_trace());
         }
     }
 
