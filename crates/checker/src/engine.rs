@@ -1468,10 +1468,15 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// (checker/relater.go:5030-5046): a `--generateTrace` instant for a
     /// relation of two unions or intersections whose sizes multiply past a
     /// million.
+    #[inline]
     fn trace_unions_or_intersections_too_large(&self, source: TypeId, target: TypeId) {
-        if self.st.tracer.is_none() {
-            return;
+        if self.st.tracer.is_some() {
+            self.trace_large_union_product(source, target);
         }
+    }
+
+    #[inline(never)]
+    fn trace_large_union_product(&self, source: TypeId, target: TypeId) {
         let both = TypeFlags::UNION.bits() | TypeFlags::INTERSECTION.bits();
         if self.flags(source).bits() & both == 0 || self.flags(target).bits() & both == 0 {
             return;

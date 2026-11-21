@@ -441,3 +441,53 @@ fn unknown_like_union_publishes_after_its_first_scan() {
         },
     );
 }
+
+#[test]
+fn large_union_trace_preserves_the_threshold_and_event_fields() {
+    use tsc_types::{
+        tracing::{CheckerTracer, Tracing},
+        ObjectFlags, UnionReduction,
+    };
+
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        let checker = identity_checker(state);
+        // The disabled path returns before even inspecting the IDs.
+        let unused = TypeId::new(u32::MAX - 1);
+        checker.trace_unions_or_intersections_too_large(unused, unused);
+        let literals: Vec<_> = (0..1001)
+            .map(|n| checker.st.tables.get_number_literal_type(n as f64))
+            .collect();
+        let source = checker
+            .st
+            .get_union_type_ex(&literals[..1000], UnionReduction::None)
+            .unwrap();
+        let target = checker
+            .st
+            .get_union_type_ex(&literals, UnionReduction::None)
+            .unwrap();
+        let trace = Tracing::start("trace", "", true);
+        checker.st.tracer = Some(CheckerTracer::new(trace.clone(), 0));
+        checker.trace_unions_or_intersections_too_large(source, target);
+        assert!(checker
+            .st
+            .tables
+            .object_flags_of(source)
+            .intersects(ObjectFlags::PRIMITIVE_UNION));
+        let flags =
+            checker.st.tables.object_flags_of(source).bits() & !ObjectFlags::PRIMITIVE_UNION.bits();
+        checker.st.tables.type_mut(source).object_flags = ObjectFlags::from_bits(flags);
+        checker.trace_unions_or_intersections_too_large(source, source);
+        checker.trace_unions_or_intersections_too_large(source, target);
+        let events: Vec<serde_json::Value> = serde_json::from_str(&trace.finish()[0].text).unwrap();
+        let events: Vec<_> = events
+            .iter()
+            .filter(|e| e["name"] == "traceUnionsOrIntersectionsTooLarge_DepthLimit")
+            .collect();
+        assert_eq!(events.len(), 1);
+        let args = &events[0]["args"];
+        assert_eq!(args["sourceId"], crate::tracing::trace_type_id(source));
+        assert_eq!(args["sourceSize"], 1000);
+        assert_eq!(args["targetId"], crate::tracing::trace_type_id(target));
+        assert_eq!(args["targetSize"], 1001);
+    });
+}
