@@ -1,6 +1,8 @@
 use std::collections::BTreeSet;
 use std::ops::Range;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
+
+use memchr::memmem::Finder;
 use tsc_diagnostics::{JsStr, JsString, PositionIndex};
 
 use tsc_syntax::utilities::{is_import_call, is_source_phase_import, is_source_phase_import_call};
@@ -84,6 +86,23 @@ fn import_node_at_position(source: &SourceFile, position: u32) -> NodeId {
     }
 }
 
+/// Merge the raw spelling hits in source order. The two spellings occupy
+/// disjoint byte ranges, and advancing past each full match keeps the
+/// original cursor's handling of `require` overlapping itself.
+fn dynamic_import_offsets(text: &[u8]) -> impl Iterator<Item = usize> + '_ {
+    static IMPORT: LazyLock<Finder<'static>> = LazyLock::new(|| Finder::new(b"import"));
+    static REQUIRE: LazyLock<Finder<'static>> = LazyLock::new(|| Finder::new(b"require"));
+
+    let mut imports = IMPORT.find_iter(text).peekable();
+    let mut requires = REQUIRE.find_iter(text).peekable();
+    std::iter::from_fn(move || match (imports.peek(), requires.peek()) {
+        (Some(import), Some(require)) if require < import => requires.next(),
+        (Some(_), _) => imports.next(),
+        (None, Some(_)) => requires.next(),
+        (None, None) => None,
+    })
+}
+
 /// tsgo ast.ForEachDynamicImportOrRequireCall scans raw text, then asks for
 /// the containing syntax node. Occurrences of "import" or "require" inside
 /// a dynamic call's leading argument trivia can count that same call again.
@@ -98,21 +117,9 @@ fn for_each_dynamic_import(
     {
         return Ok(0);
     }
-    let text = source.text().as_bytes();
-    let mut cursor = 0;
     let mut count = 0;
-    while let Some(offset) = memchr::memchr2(b'i', b'r', &text[cursor..]) {
-        cursor += offset;
-        let word: &[u8] = if text[cursor] == b'i' {
-            b"import"
-        } else {
-            b"require"
-        };
-        if !text[cursor..].starts_with(word) {
-            cursor += 1;
-            continue;
-        }
-        let id = import_node_at_position(source, cursor as u32);
+    for offset in dynamic_import_offsets(source.text().as_bytes()) {
+        let id = import_node_at_position(source, offset as u32);
         let node = source.arena.node(id);
         match node.data() {
             NodeData::CallExpression(call) => {
@@ -146,7 +153,6 @@ fn for_each_dynamic_import(
             }
             _ => {}
         }
-        cursor += word.len();
     }
     Ok(count)
 }
@@ -2433,6 +2439,75 @@ fn unsupported_at(
 #[cfg(test)]
 mod direct_library_tests {
     use super::*;
+
+    #[test]
+    fn dynamic_import_offsets_merge_raw_non_overlapping_hits() {
+        let text = "😀 // requirequire importrequire requireimport\n'require require';";
+        assert_eq!(
+            dynamic_import_offsets(text.as_bytes()).collect::<Vec<_>>(),
+            [8, 21, 27, 35, 42, 50, 58]
+        );
+        assert_eq!(dynamic_import_offsets(b"impor requir").next(), None);
+    }
+
+    #[test]
+    fn dynamic_import_scan_keeps_repeated_occurrences_and_propagates_errors() {
+        let path =
+            crate::ProgramPath::from_js_parts("/input.js".into(), "/input.js".into()).unwrap();
+        let source = PreparedSourceFile::new(
+            path,
+            "// require import\nrequire(/* require */ './dep.js');\nimport('./esm.js');\nrequire('./tail.js');",
+        );
+        let parsed = parse_source_file_from_snapshot(
+            source.path().display().to_owned(),
+            Arc::clone(source.snapshot()),
+            source_request_parse_options(&source, &CompilerOptions::default()),
+            None,
+        );
+        let statements = parsed
+            .arena
+            .node(parsed.root)
+            .as_source_file()
+            .unwrap()
+            .statements
+            .unwrap();
+        let calls: Vec<_> = parsed
+            .arena
+            .node_array(statements)
+            .nodes
+            .iter()
+            .map(|&id| {
+                parsed
+                    .arena
+                    .node(id)
+                    .as_expression_statement()
+                    .unwrap()
+                    .expression
+                    .unwrap()
+            })
+            .collect();
+        let expected = [calls[0], calls[0], calls[0], calls[0], calls[1], calls[2]];
+        let mut seen = Vec::new();
+        let count = for_each_dynamic_import(&parsed, |id| {
+            seen.push(id);
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(count, expected.len());
+        assert_eq!(seen, expected);
+
+        seen.clear();
+        let result = for_each_dynamic_import(&parsed, |id| {
+            seen.push(id);
+            if id == calls[1] {
+                return Err(ResolutionError::invalid_data("stop at the import call"));
+            }
+            Ok(())
+        });
+        assert!(result.is_err());
+        assert_eq!(seen, expected[..expected.len() - 1]);
+    }
+
     #[test]
     fn planning_keeps_the_supplied_ordinary_box() {
         let path =
