@@ -395,6 +395,58 @@ pub(crate) struct NamedMemberOrderBuffers {
     ranges: Vec<(u32, u32)>,
 }
 
+/// Containment compares positions across all declarations of a merged symbol.
+struct DeclarationRanges<'a> {
+    ranges: &'a [(u32, u32)],
+    previous: Option<(u32, u32)>,
+    indexed: bool,
+}
+
+impl<'a> DeclarationRanges<'a> {
+    fn new(ranges: &'a mut [(u32, u32)], member_count: usize) -> Self {
+        // For short lists the linear search avoids sorting scratch ranges.
+        let indexed = ranges.len() >= 8 && member_count >= 32;
+        if indexed {
+            ranges.sort_unstable_by_key(|&(start, _)| start);
+            let mut max_end = 0;
+            for (_, end) in ranges.iter_mut() {
+                max_end = max_end.max(*end);
+                *end = max_end;
+            }
+        }
+        Self {
+            ranges,
+            previous: None,
+            indexed,
+        }
+    }
+
+    fn contains(&mut self, pos: u32, end: u32) -> bool {
+        let covers = |(start, stop): (u32, u32)| start <= pos && end <= stop;
+        if let &[range] = self.ranges {
+            return covers(range);
+        }
+        if self.previous.is_some_and(covers) {
+            return true;
+        }
+        let found = if self.indexed {
+            // Any earlier start qualifies. Its largest end is stored at the
+            // last qualifying start, including when several starts coincide.
+            let count = self.ranges.partition_point(|&(start, _)| start <= pos);
+            self.ranges[..count]
+                .last()
+                .copied()
+                .filter(|&range| covers(range))
+        } else {
+            self.ranges.iter().copied().find(|&range| covers(range))
+        };
+        if found.is_some() {
+            self.previous = found;
+        }
+        found.is_some()
+    }
+}
+
 impl<'a> CheckerState<'a> {
     /// tsc-port: sortSymbolsIfTSGoCompat @6.0.3
     /// tsc-span: _tsc.js:90575-90580
@@ -443,17 +495,16 @@ impl<'a> CheckerState<'a> {
                     .map(|&declaration| (self.pos_of(declaration), self.end_of(declaration))),
             );
         }
-        let outside_container = |symbol: SymbolId| -> bool {
-            if container_ranges.is_empty() {
+        let mut containment = DeclarationRanges::new(&mut container_ranges, members.len());
+        let mut outside_container = |symbol: SymbolId| -> bool {
+            if containment.ranges.is_empty() {
                 return false;
             }
             let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
                 return true;
             };
             let (pos, end) = (self.pos_of(declaration), self.end_of(declaration));
-            !container_ranges
-                .iter()
-                .any(|&(start, stop)| start <= pos && stop >= end)
+            !containment.contains(pos, end)
         };
         keys.extend(
             members
