@@ -35,7 +35,7 @@ use crate::program::ProgramBinder;
 pub struct MemberTable<S = Vec<SymbolId>> {
     symbols: S,
     /// Inline: the name tags of at most [`LINEAR_MEMBERS`] members, member `i`
-    /// in bits `7 * i ..`, zero above the length. Shared: an index whose first
+    /// in byte `i`, with zero for an unused byte. Shared: an index whose first
     /// `symbols.len()` names are the members' names in order; it may continue
     /// with names this table does not have.
     index: InlineOrShared<NameIndex>,
@@ -240,28 +240,19 @@ impl<'a> MemberTableSource<'a> {
 /// The most members a table keeps name tags for instead of an index.
 pub(crate) const LINEAR_MEMBERS: usize = 8;
 
-/// Bit 0 of each of the eight seven-bit tag lanes.
-const TAG_LANES: u64 = 0x0002_0408_1020_4081;
-/// The low six bits of every lane.
-const TAG_LOW: u64 = TAG_LANES * 0x3f;
-/// The top bit of every lane.
-const TAG_HIGH: u64 = TAG_LANES << 6;
-
-/// The seven-bit tag of a name with this hash.
+/// A nonzero seven-bit fingerprint leaves each unused byte distinguishable
+/// from every search tag. The eighth tag fits below bit 63 of the word.
 #[inline]
 fn name_tag(hash: u64) -> u64 {
-    hash >> 57
+    (hash >> 57).max(1)
 }
 
-/// The top bit of every lane below `len` whose tag is `tag`.
+/// Set the high bit of every byte with the requested fingerprint.
 #[inline]
-fn tag_matches(tags: u64, tag: u64, len: usize) -> u64 {
-    debug_assert!(len <= LINEAR_MEMBERS && tag < 128);
-    let difference = tags ^ (tag * TAG_LANES);
-    // A lane's top bit is set by its own low bits or by itself: the sums stay
-    // inside their lanes, so every lane is judged exactly.
-    let nonzero = ((difference & TAG_LOW) + TAG_LOW) | difference;
-    !nonzero & TAG_HIGH & ((1 << (7 * len)) - 1)
+fn tag_matches(tags: u64, tag: u64) -> u64 {
+    let difference = tags ^ (tag * 0x0101_0101_0101_0101);
+    // Each difference fits in seven bits, so the addition stays in its byte.
+    !(difference + 0x7f7f_7f7f_7f7f_7f7f) & 0x8080_8080_8080_8080
 }
 
 /// The tags of at most [`LINEAR_MEMBERS`] names, or their index.
@@ -274,7 +265,7 @@ fn index_of_names(
     }
     let mut tags = 0;
     for (position, name) in names.into_iter().enumerate() {
-        tags |= name_tag(hash_name(name)) << (7 * position);
+        tags |= name_tag(hash_name(name)) << (8 * position);
     }
     InlineOrShared::inline(tags)
 }
@@ -456,16 +447,16 @@ impl MemberTable {
         let hash = hash_name(name);
         let len = self.symbols.len();
         if let Some(tags) = self.index.inline_bits() {
-            let mut matches = tag_matches(tags, name_tag(hash), len);
+            let mut matches = tag_matches(tags, name_tag(hash));
             while matches != 0 {
-                let position = (matches.trailing_zeros() / 7) as usize;
+                let position = (matches.trailing_zeros() >> 3) as usize;
                 if name_of(binder, self.symbols[position]) == name {
                     return Some(std::mem::replace(&mut self.symbols[position], symbol));
                 }
                 matches &= matches - 1;
             }
             if len < LINEAR_MEMBERS {
-                self.index = InlineOrShared::inline(tags | (name_tag(hash) << (7 * len)));
+                self.index = InlineOrShared::inline(tags | (name_tag(hash) << (8 * len)));
             } else {
                 // The first member beyond the tags: index the present ones.
                 let mut index = NameIndex::from_names(
@@ -560,12 +551,11 @@ impl<S: std::ops::Deref<Target = [SymbolId]>> MemberTable<S> {
         binder: &ProgramBinder<'_>,
         key: HashedName,
     ) -> Option<SymbolId> {
-        let symbols = self.symbols();
         match self.index.view() {
             InlineOrSharedView::Inline(tags) => {
-                let mut matches = tag_matches(tags, name_tag(key.hash), symbols.len());
+                let mut matches = tag_matches(tags, name_tag(key.hash));
                 while matches != 0 {
-                    let symbol = symbols[(matches.trailing_zeros() / 7) as usize];
+                    let symbol = self.symbols[(matches.trailing_zeros() >> 3) as usize];
                     if name_of(binder, symbol) == key.name {
                         return Some(symbol);
                     }
@@ -576,7 +566,7 @@ impl<S: std::ops::Deref<Target = [SymbolId]>> MemberTable<S> {
             // A followed index may continue beyond this table's members.
             InlineOrSharedView::Shared(index) => index
                 .find(key.name, key.hash)
-                .and_then(|position| symbols.get(position as usize).copied()),
+                .and_then(|position| self.symbols.get(position as usize).copied()),
         }
     }
 
@@ -1242,12 +1232,14 @@ mod tests {
                     assert_eq!(frozen.get_hashed(&state.binder, key), expected);
                     if position >= len {
                         let tags = frozen.index.inline_bits().unwrap();
-                        equal_tags += usize::from(tag_matches(tags, name_tag(key.hash), len) != 0);
+                        equal_tags += usize::from(tag_matches(tags, name_tag(key.hash)) != 0);
                     }
                 }
                 // The absent names that share a tag were refused by their names.
                 assert_eq!(equal_tags == 0, len == 0);
-                assert_eq!(frozen.index.inline_bits().unwrap() >> (7 * len), 0);
+                assert!(frozen.index.inline_bits().unwrap().to_le_bytes()[len..]
+                    .iter()
+                    .all(|&lane| lane == 0));
             }
             // A member of a present name is replaced in its position.
             let mut builder = MemberTable::from_symbols(&state.binder, &ids);
@@ -1260,22 +1252,26 @@ mod tests {
 
     #[test]
     fn tag_lanes_are_judged_exactly() {
+        assert_eq!(name_tag(0), 1);
+        assert_eq!(name_tag(1 << 57), 1);
         for len in 0..=LINEAR_MEMBERS {
-            for seed in 0..2000u64 {
-                let lanes = (0..len)
-                    .map(|i| (seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) >> (7 * i + 3)) & 127)
-                    .collect::<Vec<_>>();
-                let tags = lanes
-                    .iter()
-                    .enumerate()
-                    .fold(0, |tags, (i, lane)| tags | (lane << (7 * i)));
-                for tag in [0, 1, 63, 64, 126, 127, seed & 127] {
+            for seed in 0..256u64 {
+                let mut lanes = [0u8; LINEAR_MEMBERS];
+                for (position, lane) in lanes[..len].iter_mut().enumerate() {
+                    let raw = seed
+                        .wrapping_mul(0x9e37_79b9_7f4a_7c15)
+                        .rotate_left(position as u32 * 8);
+                    *lane = name_tag(raw) as u8;
+                }
+                let tags = u64::from_le_bytes(lanes);
+                assert_eq!(tags >> 63, 0);
+                for tag in 1..=127 {
                     let expected = lanes
                         .iter()
                         .enumerate()
-                        .filter(|(_, &lane)| lane == tag)
-                        .fold(0u64, |bits, (i, _)| bits | (1 << (7 * i + 6)));
-                    assert_eq!(tag_matches(tags, tag, len), expected);
+                        .filter(|(_, &lane)| u64::from(lane) == tag)
+                        .fold(0u64, |bits, (i, _)| bits | (0x80 << (8 * i)));
+                    assert_eq!(tag_matches(tags, tag), expected);
                 }
             }
         }
