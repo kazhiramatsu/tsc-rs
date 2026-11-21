@@ -4943,6 +4943,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs R4.18: same walk and type-id ordering, but each relation entry
     /// keeps its identity after the first walk that actually reaches it.
+    #[inline]
     pub(crate) fn is_deeply_nested_on_stack(
         &mut self,
         ty: TypeId,
@@ -4953,6 +4954,17 @@ impl<'a> CheckerState<'a> {
         if depth < max_depth {
             return Ok(false);
         }
+        self.walk_deeply_nested_stack(ty, stack, depth, max_depth)
+    }
+
+    #[inline(never)]
+    fn walk_deeply_nested_stack(
+        &mut self,
+        ty: TypeId,
+        stack: &[RelationStackEntry],
+        depth: usize,
+        max_depth: usize,
+    ) -> CheckResult<bool> {
         let target = self.get_recursion_target(ty)?;
         if let Some(top) = stack.get(depth - 1).filter(|entry| entry.ty == ty) {
             top.identity.set(Some(target));
@@ -4965,7 +4977,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let mut types = self.tables.cursor(types);
                 while let Some(member) = types.next(&self.tables) {
-                    if self.is_deeply_nested_on_stack(member, stack, depth, max_depth)? {
+                    if self.walk_deeply_nested_stack(member, stack, depth, max_depth)? {
                         return Ok(true);
                     }
                 }
