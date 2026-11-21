@@ -1636,7 +1636,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         head_message: Option<&'static DiagnosticMessage>,
         intersection_state: IntersectionState,
     ) -> CheckResult<Ternary> {
-        self.st.profile_ops[crate::line_profile::OP_RELATIONS] += 1;
+        if self.st.line_profile.count_relations {
+            self.st.profile_ops[crate::line_profile::OP_RELATIONS] += 1;
+        }
         if original_source == original_target {
             return Ok(Ternary::TRUE);
         }

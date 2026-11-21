@@ -3524,10 +3524,12 @@ fn init_checker_state<'a>(
     )>,
     host: HostFacts,
     checker_index: Option<usize>,
+    measure_lane_costs: bool,
 ) -> state::CheckerState<'a> {
     #[cfg(feature = "phase-ledger")]
     tsc_types::phase_ledger::switch(tsc_types::phase_ledger::Phase::CheckerInit);
-    let mut state = state::CheckerState::from_snapshot_deferring_globals(snapshot, options);
+    let mut state =
+        state::CheckerState::from_snapshot_deferring_globals(snapshot, options, measure_lane_costs);
     // tsgo `NewTracer` per checker of the pool: the checker's events carry
     // its index and its types file is written when the state ends.
     if let (Some(index), Some(tracing)) = (
@@ -4302,6 +4304,7 @@ fn run_checker_shard<'a>(
         Some((provider, metadata)),
         host,
         Some(shard_index),
+        queue.measures_costs(),
     );
     reserve_type_tables(&mut state, reserved_nodes);
     // W2c: every type created from here on is shard-local. In the exact mode
@@ -4996,6 +4999,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
                 Some((&*provider, metadata.as_slice())),
                 host.clone(),
                 None,
+                false,
             );
             reserve_type_tables(&mut state, 0);
             let facts = incremental::planner_facts(&mut state, &program_diagnostics);
@@ -5588,7 +5592,7 @@ fn check_snapshot_serially(
     planner: Option<&mut IncrementalPlanner<'_>>,
 ) -> CheckExecution {
     let init_started = std::time::Instant::now();
-    let mut state = init_checker_state(snapshot, options, authoritative, host, Some(0));
+    let mut state = init_checker_state(snapshot, options, authoritative, host, Some(0), false);
     reserve_type_tables(&mut state, snapshot_node_count(snapshot));
     let global_diagnostics = if collect_global_diagnostics {
         let mut rows = state.visible_global_diagnostics.clone();
@@ -6081,6 +6085,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 }),
             host,
             Some(0),
+            false,
         );
         reserve_type_tables(&mut state, snapshot_node_count(&snapshot));
         work_counters.record_checker_shards(1, 1);

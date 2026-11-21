@@ -491,3 +491,46 @@ fn large_union_trace_preserves_the_threshold_and_event_fields() {
         assert_eq!(args["targetSize"], 1001);
     });
 }
+
+#[test]
+fn relation_counts_follow_both_profile_readers() {
+    use crate::{
+        lane_profile,
+        line_profile::{LineProfiler, OP_RELATIONS},
+    };
+    fn observe(line: bool, lane: bool) -> (u64, u64, usize, usize, u64) {
+        let text = "let a: { p: { x: string } }; let b: { p: { x: string } };";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            let a = resolve(state, "a");
+            let b = resolve(state, "b");
+            state.line_profile = LineProfiler::with_readers(line, lane);
+            let before = state.profile_ops[OP_RELATIONS];
+            let cost = lane_profile::counted(state);
+            assert!(full_frame(state, a, a));
+            assert_eq!(
+                state.profile_ops[OP_RELATIONS] - before,
+                u64::from(line || lane)
+            );
+            assert!(full_frame(state, a, b));
+            (
+                state.profile_ops[OP_RELATIONS] - before,
+                lane_profile::counted(state) - cost,
+                state.tables.len(),
+                state.binder.transient_symbol_count(),
+                state.total_instantiation_count,
+            )
+        })
+    }
+    let observed = observe(true, false);
+    // The identical pair, the outer objects, their p properties and their x properties.
+    assert_eq!(observed.0, 4);
+    assert_eq!(observed, observe(false, true));
+    assert_eq!(observed, observe(true, true));
+    let idle = observe(false, false);
+    assert_eq!(idle.0, 0);
+    assert_eq!(observed.1 - idle.1, observed.0 * 1534);
+    assert_eq!(
+        (idle.2, idle.3, idle.4),
+        (observed.2, observed.3, observed.4)
+    );
+}

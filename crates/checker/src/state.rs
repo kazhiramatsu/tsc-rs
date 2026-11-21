@@ -1255,7 +1255,7 @@ pub struct CheckerState<'a> {
     /// statement-level check (see `line_profile`).
     pub(crate) line_profile: crate::line_profile::LineProfiler<'a>,
     /// Operation counters the line profile snapshots around each element
-    /// (`line_profile::OP_*`); plain increments, always on.
+    /// (`line_profile::OP_*`); relation counts are needed only by the line and lane profiles.
     pub(crate) profile_ops: [u64; crate::line_profile::OPS],
     /// tsc NodeLinks.deferredNodes, keyed by the owning file's root
     /// node. Driver state, not memoization (like the resolution stack),
@@ -2170,7 +2170,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: Rust checker arena/cache construction around the
     /// separately ledgered initializeTypeChecker slices.
     pub fn from_program(binders: Vec<&'a Binder<'a>>, options: &'a CompilerOptions) -> Self {
-        Self::from_program_binder(ProgramBinder::new(binders), options, true)
+        Self::from_program_binder(ProgramBinder::new(binders), options, true, false)
     }
 
     /// Fresh checker-session construction over an already parsed and bound
@@ -2179,7 +2179,7 @@ impl<'a> CheckerState<'a> {
     /// remain session-local.
     /// tsrs-native: fresh checker session over an immutable ProgramSnapshot.
     pub fn from_snapshot(snapshot: &'a ProgramSnapshot, options: &'a CompilerOptions) -> Self {
-        Self::from_program_binder(ProgramBinder::from_snapshot(snapshot), options, true)
+        Self::from_program_binder(ProgramBinder::from_snapshot(snapshot), options, true, false)
     }
 
     /// [`Self::from_snapshot`] without the globals merge: the caller installs
@@ -2192,8 +2192,14 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn from_snapshot_deferring_globals(
         snapshot: &'a ProgramSnapshot,
         options: &'a CompilerOptions,
+        measure_lane_costs: bool,
     ) -> Self {
-        Self::from_program_binder(ProgramBinder::from_snapshot(snapshot), options, false)
+        Self::from_program_binder(
+            ProgramBinder::from_snapshot(snapshot),
+            options,
+            false,
+            measure_lane_costs,
+        )
     }
 
     /// The initializeTypeChecker slice a constructor runs unless it was
@@ -2279,6 +2285,7 @@ impl<'a> CheckerState<'a> {
         mut binder: ProgramBinder<'a>,
         options: &'a CompilerOptions,
         initialize_globals: bool,
+        measure_lane_costs: bool,
     ) -> Self {
         let strict_null_checks = options.strict_option_value(options.strict_null_checks);
         let strict_function_types = options.strict_option_value(options.strict_function_types);
@@ -2460,7 +2467,10 @@ impl<'a> CheckerState<'a> {
             within_unreachable_code: false,
             reported_unreachable_nodes: rustc_hash::FxHashSet::default(),
             current_node: None,
-            line_profile: crate::line_profile::LineProfiler::new(),
+            line_profile: crate::line_profile::LineProfiler::with_readers(
+                crate::line_profile::enabled(),
+                measure_lane_costs,
+            ),
             profile_ops: [0; crate::line_profile::OPS],
             deferred_nodes: rustc_hash::FxHashMap::default(),
             deferred_node_sets: Vec::new(),
