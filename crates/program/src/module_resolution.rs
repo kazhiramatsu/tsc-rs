@@ -7695,13 +7695,26 @@ fn package_id_for_legacy_path_from_directory<'d, 'p>(
     // length without a containment check. Legacy package fields and
     // typesVersions substitutions may intentionally escape the package root,
     // so even their odd sliced spelling is observable.
-    let start = package_directory.len_units().saturating_add(1);
-    let submodule_name = lexical_path.substring(start, lexical_path.len_units());
+    let submodule_name = legacy_submodule_name(package_directory, lexical_path);
     let package_id = PackageId::new(name, submodule_name, version);
     Ok(Some(match &package.peer_dependencies {
         Some(peer_dependencies) => package_id.with_peer_dependencies(peer_dependencies.clone()),
         None => package_id,
     }))
+}
+
+/// A slash after the exact directory bytes ends the same prefix in UTF-16.
+#[inline]
+fn legacy_submodule_name(directory: JsStr<'_>, path: JsStr<'_>) -> JsString {
+    match path.as_bytes().strip_prefix(directory.as_bytes()) {
+        Some([b'/', suffix @ ..]) => JsStr::from_canonical_bytes(suffix).to_owned(),
+        _ => legacy_submodule_name_by_units(directory, path),
+    }
+}
+
+#[inline(never)]
+fn legacy_submodule_name_by_units(directory: JsStr<'_>, path: JsStr<'_>) -> JsString {
+    path.substring(directory.len_units().saturating_add(1), path.len_units())
 }
 
 /// tsgo `resolvedUsingExtraExtensions`: the resolution of a fully specified
@@ -8920,6 +8933,44 @@ mod shared_package_loads_tests {
             .iter()
             .filter(|path| path.ends_with("package.json"))
             .count()
+    }
+
+    #[test]
+    fn legacy_package_ids_preserve_utf16_suffixes() {
+        let host = host(true);
+        let settings = options(false);
+        let package = ModuleResolver::new(&host, &settings)
+            .unwrap()
+            .load_package("/work/node_modules/pkg/package.json")
+            .unwrap()
+            .unwrap();
+        let mut lone = JsString::from("/pkg");
+        lone.push_code_unit(0xd800);
+        let mut child = lone.clone();
+        child.push('/');
+        child.push_code_unit(0xdc00);
+        for (directory, path) in [
+            ("/pkg".into(), "/pkg/index.d.ts".into()),
+            ("/pkg".into(), "/pkg".into()),
+            ("/pkg".into(), "/PKG/index.d.ts".into()),
+            (
+                "/node_modules/pkg".into(),
+                "/node_modules/other/index.d.ts".into(),
+            ),
+            ("/😀".into(), "/😀/𐐷.d.ts".into()),
+            ("a".into(), "/😀/x".into()),
+            (lone, child),
+        ] {
+            let suffix = path
+                .as_js()
+                .substring(directory.len_units() + 1, path.len_units());
+            let expected = PackageId::new("pkg", suffix, "1.0.0");
+            assert_eq!(
+                package_id_for_legacy_path_from_directory(&package, &directory, &path, true)
+                    .unwrap(),
+                Some(expected)
+            );
+        }
     }
 
     #[test]
