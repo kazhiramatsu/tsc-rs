@@ -579,3 +579,26 @@ fn generic_reference_keys_survive_scratch_reuse_with_distinct_intersection_state
         assert!(std::sync::Arc::ptr_eq(&first, &again));
     });
 }
+
+#[test]
+fn generic_key_parts_preserve_nested_spelling_and_signed_state() {
+    use super::GenericKeyPart::{Intersection, Number, Punctuation};
+    let parts = [
+        Punctuation('*'),
+        Number(u32::MAX),
+        Punctuation('<'),
+        Number(10),
+        Punctuation('='),
+        Number(0),
+        Punctuation('>'),
+        Punctuation(','),
+        Number(1),
+        Punctuation('-'),
+        Number(10),
+        Intersection(i32::MIN),
+    ];
+    assert_eq!(
+        super::GenericKeyPart::spelling(&parts),
+        "*4294967295<10=0>,1-10:-2147483648"
+    );
+}
