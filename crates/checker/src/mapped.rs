@@ -156,7 +156,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.type_cold().mapped_modifiers_type.resolved(ty) {
+        if let Some(cached) = self.links.type_cold().mapped(ty).modifiers.resolved() {
             return Ok(cached);
         }
         let mapped = self.mapped_type_data(ty);
@@ -195,7 +195,7 @@ impl<'a> CheckerState<'a> {
                 _ => self.tables.intrinsics.unknown,
             }
         };
-        if let Some(cached) = self.links.type_cold().mapped_modifiers_type.resolved(ty) {
+        if let Some(cached) = self.links.type_cold().mapped(ty).modifiers.resolved() {
             return Ok(cached);
         }
         self.links.set_mapped_modifiers_type(ty, resolved);

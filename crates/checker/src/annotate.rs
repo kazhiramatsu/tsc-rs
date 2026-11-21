@@ -2859,7 +2859,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.type_cold().mapped_type_parameter.resolved(ty) {
+        if let Some(cached) = self.links.type_cold().mapped(ty).parameter.resolved() {
             return Ok(cached);
         }
         let declaration = self.mapped_type_declaration(ty);
@@ -2871,7 +2871,7 @@ impl<'a> CheckerState<'a> {
             .expect("parser invariant: MappedType type_parameter always parsed");
         let symbol = self.get_symbol_of_declaration(parameter)?;
         let resolved = self.get_declared_type_of_type_parameter(symbol);
-        if let Some(cached) = self.links.type_cold().mapped_type_parameter.resolved(ty) {
+        if let Some(cached) = self.links.type_cold().mapped(ty).parameter.resolved() {
             return Ok(cached);
         }
         self.links.set_mapped_type_parameter(ty, resolved);
@@ -2885,14 +2885,14 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.type_cold().mapped_constraint_type.resolved(ty) {
+        if let Some(cached) = self.links.type_cold().mapped(ty).constraint.resolved() {
             return Ok(cached);
         }
         let parameter = self.get_type_parameter_from_mapped_type(ty)?;
         let resolved = self
             .get_constraint_of_type_parameter(parameter)?
             .unwrap_or(self.tables.intrinsics.error);
-        if let Some(cached) = self.links.type_cold().mapped_constraint_type.resolved(ty) {
+        if let Some(cached) = self.links.type_cold().mapped(ty).constraint.resolved() {
             return Ok(cached);
         }
         self.links.set_mapped_constraint_type(ty, resolved);
@@ -2954,7 +2954,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 02e8bed481d8ce476e2ebdf76c56462d5f48c545cd98c5d49ae769f478d34b8d
     /// tsc-span: _tsc.js:58610-58617
     pub(crate) fn get_template_type_from_mapped_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.type_cold().mapped_template_type.resolved(ty) {
+        if let Some(cached) = self.links.type_cold().mapped(ty).template.resolved() {
             return Ok(cached);
         }
         let mapped = self.mapped_type_data(ty);
@@ -2975,7 +2975,7 @@ impl<'a> CheckerState<'a> {
             }
             None => self.tables.intrinsics.error,
         };
-        if let Some(cached) = self.links.type_cold().mapped_template_type.resolved(ty) {
+        if let Some(cached) = self.links.type_cold().mapped(ty).template.resolved() {
             return Ok(cached);
         }
         self.links.set_mapped_template_type(ty, resolved);

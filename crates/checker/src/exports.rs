@@ -410,11 +410,12 @@ impl CheckerState<'_> {
             self.type_assertion_failure(ty, "MappedType");
         }
         let cold = self.links.type_cold();
+        let mapped = cold.mapped(ty);
         [
-            cold.mapped_type_parameter.resolved(ty),
-            cold.mapped_constraint_type.resolved(ty),
+            mapped.parameter.resolved(),
+            mapped.constraint.resolved(),
             cold.mapped_name_type.get(ty).resolved().flatten(),
-            cold.mapped_template_type.resolved(ty),
+            mapped.template.resolved(),
         ]
     }
 

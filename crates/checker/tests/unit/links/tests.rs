@@ -346,3 +346,46 @@ fn outer_parameters_keep_empty_lists_and_overwrites_across_collisions() {
     assert_eq!(links.node_outer_type_parameters(a), Some(empty));
     assert_eq!(links.node_outer_type_parameters(b), Some(empty));
 }
+
+#[test]
+fn mapped_slots_share_records_but_keep_independent_transitions() {
+    let mut links = LinksTables::default();
+    let first = TypeId::new(14);
+    let second = TypeId::new(15);
+    let value = TypeId::new(u32::MAX - 1);
+    let initial = debug_resolving_open();
+    assert_eq!(links.type_cold.mapped(first).constraint, LinkSlot::Vacant);
+    assert_eq!(links.type_cold.mapped_types.len, 0);
+    links.set_fresh_mapped_type_parameter(first, value);
+    LinksTables::write_slot(
+        &mut links.type_cold.mapped_types.slot(first).constraint,
+        LinkSlot::Resolving,
+    );
+    assert_eq!(
+        links.type_cold.mapped(first).constraint,
+        LinkSlot::Resolving
+    );
+    links.set_mapped_constraint_type(first, value);
+    links.set_mapped_template_type(first, value);
+    links.set_mapped_modifiers_type(first, value);
+    links.set_mapped_template_type(first, second);
+    assert_eq!(links.type_cold.mapped_types.len, 1);
+    assert_eq!(
+        links.type_cold.mapped(first).parameter.resolved(),
+        Some(value)
+    );
+    assert_eq!(
+        links.type_cold.mapped(first).constraint.resolved(),
+        Some(value)
+    );
+    assert_eq!(
+        links.type_cold.mapped(first).modifiers.resolved(),
+        Some(value)
+    );
+    assert_eq!(
+        links.type_cold.mapped(first).template.resolved(),
+        Some(second)
+    );
+    assert_eq!(links.type_cold.mapped(second).template, LinkSlot::Vacant);
+    assert_eq!(debug_resolving_open(), initial);
+}

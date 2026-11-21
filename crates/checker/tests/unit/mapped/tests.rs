@@ -478,3 +478,44 @@ fn mapped_keys_preserve_modifier_sources_and_dotted_index_names() {
         },
     );
 }
+
+#[test]
+fn fresh_mapped_parts_publish_independently_across_speculation() {
+    with_program_state(
+        &[("a.ts", "declare let m: { [K in 'k']: K };")],
+        &CompilerOptions::default(),
+        |state| {
+            let source = annotation_type(state, "m");
+            let decl = state.mapped_type_data(source).declaration;
+            let mapped = state.tables.create_mapped_type(decl, None, None, None);
+            assert_eq!(state.get_mapped_type_parts(mapped), [None; 4]);
+            assert_eq!(
+                state.links.type_cold().mapped(mapped).modifiers.resolved(),
+                None
+            );
+            let p = state.get_type_parameter_from_mapped_type(source).unwrap();
+            state.links.set_fresh_mapped_type_parameter(mapped, p);
+            assert_eq!(
+                state.get_mapped_type_parts(mapped),
+                [Some(p), None, None, None]
+            );
+            let mark = state.begin_speculation();
+            let k = state.get_constraint_type_from_mapped_type(mapped).unwrap();
+            let value = state.get_template_type_from_mapped_type(mapped).unwrap();
+            let modifiers = state.get_modifiers_type_from_mapped_type(mapped).unwrap();
+            state.rollback_speculation(mark);
+            assert_eq!(
+                state.get_mapped_type_parts(mapped),
+                [Some(p), Some(k), None, Some(value)]
+            );
+            assert_eq!(
+                state.get_modifiers_type_from_mapped_type(mapped).unwrap(),
+                modifiers
+            );
+            assert_eq!(
+                state.get_constraint_type_from_mapped_type(mapped).unwrap(),
+                k
+            );
+        },
+    );
+}

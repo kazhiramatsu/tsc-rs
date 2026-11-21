@@ -1076,8 +1076,18 @@ pub struct TypeLinks {
 
 const _: () = assert!(std::mem::size_of::<TypeLinks>() == 20);
 
-/// The TypeLinks fields few types set, one sparse map per field (see
-/// [`SparseLinks`]).
+/// The lazily resolved parts of one mapped type. Reading a missing record
+/// observes four vacant slots without allocating an index page.
+#[derive(Debug, Default)]
+pub struct MappedTypeLinks {
+    pub parameter: LinkSlot<TypeId>,
+    pub constraint: LinkSlot<TypeId>,
+    pub template: LinkSlot<TypeId>,
+    pub modifiers: LinkSlot<TypeId>,
+}
+
+/// The type links that few types set. Four mapped-type slots share a record
+/// because they are resolved for the same types.
 #[derive(Debug, Default)]
 pub struct TypeLinksCold {
     /// tsc TypeParameter.default (getResolvedTypeParameterDefault
@@ -1086,19 +1096,10 @@ pub struct TypeLinksCold {
     /// resolvingDefaultType in-flight sentinel is the checker's
     /// in-progress set, so Err unwinds stay re-queryable.
     pub type_parameter_default: SparseLinks<TypeId, ValueSlot<TypeId>>,
-    /// tsc MappedType.typeParameter (getTypeParameterFromMappedType
-    /// 58601): declaration-derived and computed once.
-    pub mapped_type_parameter: SparseMemo<TypeId, TypeId>,
-    /// tsc MappedType.constraintType (58604).
-    pub mapped_constraint_type: SparseMemo<TypeId, TypeId>,
+    mapped_types: PagedTable<TypeId, MappedTypeLinks>,
     /// tsc MappedType.nameType (58607). The inner None records a mapped
     /// declaration without an `as` clause.
     pub mapped_name_type: SparseLinks<TypeId, LinkSlot<Option<TypeId>>>,
-    /// tsc MappedType.templateType (58610).
-    pub mapped_template_type: SparseMemo<TypeId, TypeId>,
-    /// tsc MappedType.modifiersType (58625), consumed when mapped
-    /// members/instantiation land in 9.5b.
-    pub mapped_modifiers_type: SparseMemo<TypeId, TypeId>,
     /// tsc MappedType.containsError, set by a mapped-property type
     /// resolution cycle (58581). This is monotone diagnostic state.
     pub mapped_contains_error: SparseFlag<TypeId>,
@@ -1217,6 +1218,15 @@ pub struct TypeLinksCold {
 }
 
 impl TypeLinksCold {
+    pub fn mapped(&self, ty: TypeId) -> &MappedTypeLinks {
+        self.mapped_types.get(ty).unwrap_or(&MappedTypeLinks {
+            parameter: LinkSlot::Vacant,
+            constraint: LinkSlot::Vacant,
+            template: LinkSlot::Vacant,
+            modifiers: LinkSlot::Vacant,
+        })
+    }
+
     /// The simplifiedForWriting or simplifiedForReading cache.
     pub fn simplified(&self, writing: bool) -> &SparseMemo<TypeId, TypeId> {
         if writing {
@@ -1237,11 +1247,8 @@ impl TypeLinksCold {
     fn memory_usage(&self) -> (usize, usize) {
         let Self {
             type_parameter_default,
-            mapped_type_parameter,
-            mapped_constraint_type,
+            mapped_types,
             mapped_name_type,
-            mapped_template_type,
-            mapped_modifiers_type,
             mapped_contains_error,
             mapped_apparent_type,
             intersection_apparent_type,
@@ -1279,11 +1286,8 @@ impl TypeLinksCold {
         } = self;
         sparse_memory_usage([
             type_parameter_default.memory_usage(),
-            mapped_type_parameter.memory_usage(),
-            mapped_constraint_type.memory_usage(),
+            mapped_types.memory_usage(),
             mapped_name_type.memory_usage(),
-            mapped_template_type.memory_usage(),
-            mapped_modifiers_type.memory_usage(),
             mapped_contains_error.memory_usage(),
             mapped_apparent_type.memory_usage(),
             intersection_apparent_type.memory_usage(),
@@ -3382,25 +3386,28 @@ impl LinksTables {
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.typeParameter.
     pub fn set_mapped_type_parameter(&mut self, id: TypeId, value: TypeId) {
-        self.type_cold
-            .mapped_type_parameter
-            .write(id, LinkSlot::Resolved(value));
+        Self::write_slot(
+            &mut self.type_cold.mapped_types.slot(id).parameter,
+            LinkSlot::Resolved(value),
+        );
     }
 
     /// tsrs-native: initialize the type parameter owned by a freshly
     /// allocated mapped-type instantiation.
     pub fn set_fresh_mapped_type_parameter(&mut self, id: TypeId, value: TypeId) {
-        self.type_cold
-            .mapped_type_parameter
-            .write(id, LinkSlot::Resolved(value));
+        Self::write_slot(
+            &mut self.type_cold.mapped_types.slot(id).parameter,
+            LinkSlot::Resolved(value),
+        );
     }
 
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.constraintType.
     pub fn set_mapped_constraint_type(&mut self, id: TypeId, value: TypeId) {
-        self.type_cold
-            .mapped_constraint_type
-            .write(id, LinkSlot::Resolved(value));
+        Self::write_slot(
+            &mut self.type_cold.mapped_types.slot(id).constraint,
+            LinkSlot::Resolved(value),
+        );
     }
 
     /// tsrs-native: one-write TypeLinks setter for tsc
@@ -3415,17 +3422,19 @@ impl LinksTables {
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.templateType.
     pub fn set_mapped_template_type(&mut self, id: TypeId, value: TypeId) {
-        self.type_cold
-            .mapped_template_type
-            .write(id, LinkSlot::Resolved(value));
+        Self::write_slot(
+            &mut self.type_cold.mapped_types.slot(id).template,
+            LinkSlot::Resolved(value),
+        );
     }
 
     /// tsrs-native: one-write TypeLinks setter for tsc
     /// MappedType.modifiersType.
     pub fn set_mapped_modifiers_type(&mut self, id: TypeId, value: TypeId) {
-        self.type_cold
-            .mapped_modifiers_type
-            .write(id, LinkSlot::Resolved(value));
+        Self::write_slot(
+            &mut self.type_cold.mapped_types.slot(id).modifiers,
+            LinkSlot::Resolved(value),
+        );
     }
 
     /// tsrs-native: LinksTables setter for tsc
