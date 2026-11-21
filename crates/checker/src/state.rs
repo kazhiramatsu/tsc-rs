@@ -1352,22 +1352,9 @@ pub struct CheckerState<'a> {
     pub(crate) contextual_binding_patterns: Vec<NodeId>,
 
     // ---- M4 5.5b: contextual-typing state ----
-    /// tsc contextualTypeNodes/contextualTypes/contextualIsCache
-    /// (47404-47406): the parallel-array contextual stack —
-    /// contextualTypeCount is the shared Vec length (pushContextualType
-    /// 73569 writes all three at the same index).
-    pub(crate) contextual_type_nodes: Vec<NodeId>,
-    pub(crate) contextual_types: Vec<Option<TypeId>>,
-    pub(crate) contextual_is_cache: Vec<bool>,
-    /// tsc inferenceContextNodes/inferenceContexts (47401-47402) —
-    /// the parallel-array inference-context stack. Production Some
-    /// pushes are live since 7.4: chooseOverload's per-candidate
-    /// context reaches checkExpressionWithContextualType's push site
-    /// (80565) through inferTypeArguments' phase-b argument checks
-    /// (and the overload-failure inference); None pushes still shadow
-    /// outer contexts for context-free checks, tsc-exactly.
-    pub(crate) inference_context_nodes: Vec<NodeId>,
-    pub(crate) inference_contexts: Vec<Option<crate::inference::InferenceContextId>>,
+    /// Contextual types and inference contexts have independent scopes.
+    pub(crate) contextual_types: crate::contextual::ContextualTypeStack,
+    pub(crate) inference_contexts: Vec<crate::contextual::InferenceContextEntry>,
     /// M6 7.1: the InferenceContext arena — InferenceContextId
     /// equality IS tsc's context object identity (contexts are GC
     /// objects there). E-class speculation state like `mappers`:
@@ -1767,10 +1754,7 @@ impl<'a> CheckerState<'a> {
             std::mem::take(&mut self.widening_contexts),
             std::mem::take(&mut self.undefined_properties),
             std::mem::take(&mut self.contextual_binding_patterns),
-            std::mem::take(&mut self.contextual_type_nodes),
             std::mem::take(&mut self.contextual_types),
-            std::mem::take(&mut self.contextual_is_cache),
-            std::mem::take(&mut self.inference_context_nodes),
             std::mem::take(&mut self.inference_contexts),
             std::mem::take(&mut self.inference_context_arena),
             std::mem::take(&mut self.inference_info_arena),
@@ -2510,10 +2494,7 @@ impl<'a> CheckerState<'a> {
             undefined_properties: rustc_hash::FxHashMap::default(),
             typeof_type: TypeId::new(0),
             contextual_binding_patterns: Vec::new(),
-            contextual_type_nodes: Vec::new(),
-            contextual_types: Vec::new(),
-            contextual_is_cache: Vec::new(),
-            inference_context_nodes: Vec::new(),
+            contextual_types: Default::default(),
             inference_contexts: Vec::new(),
             inference_context_arena: crate::inference_storage::InferencePool::default(),
             inference_info_arena: crate::inference_storage::InferencePool::default(),

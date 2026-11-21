@@ -380,12 +380,9 @@ fn mutate_everything(state: &mut CheckerState) {
         .resolution_property_names
         .push(TypeSystemPropertyName::TYPE);
     state.resolution_start += 7;
-    state.contextual_type_nodes.push(root);
-    state.contextual_types.push(Some(string));
-    state.contextual_is_cache.push(false);
+    state.push_contextual_type(root, Some(string), false);
     state.contextual_binding_patterns.push(root);
-    state.inference_context_nodes.push(root);
-    state.inference_contexts.push(None);
+    state.push_inference_context(root, None);
     state.awaited_type_stack.push(string);
     state.push_active_mapper(state.permissive_mapper);
     state.mapped_types_in_progress.push(InProgressMappedType {
@@ -451,11 +448,8 @@ struct Observed {
     resolution_results: usize,
     resolution_property_names: usize,
     resolution_start: usize,
-    contextual_type_nodes: usize,
     contextual_types: usize,
-    contextual_is_cache: usize,
     contextual_binding_patterns: usize,
-    inference_context_nodes: usize,
     inference_contexts: usize,
     awaited_type_stack: usize,
     active_type_mappers: usize,
@@ -501,11 +495,8 @@ fn observe(state: &CheckerState) -> Observed {
         resolution_results: state.resolution_results.len(),
         resolution_property_names: state.resolution_property_names.len(),
         resolution_start: state.resolution_start,
-        contextual_type_nodes: state.contextual_type_nodes.len(),
         contextual_types: state.contextual_types.len(),
-        contextual_is_cache: state.contextual_is_cache.len(),
         contextual_binding_patterns: state.contextual_binding_patterns.len(),
-        inference_context_nodes: state.inference_context_nodes.len(),
         inference_contexts: state.inference_contexts.len(),
         awaited_type_stack: state.awaited_type_stack.len(),
         active_type_mappers: state.active_type_mappers.len(),

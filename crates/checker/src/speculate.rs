@@ -90,11 +90,8 @@ pub struct SpeculationCheckpoint {
     resolution_results: usize,
     resolution_property_names: usize,
     resolution_start: usize,
-    contextual_type_nodes: usize,
     contextual_types: usize,
-    contextual_is_cache: usize,
     contextual_binding_patterns: usize,
-    inference_context_nodes: usize,
     inference_contexts: usize,
     awaited_type_stack: usize,
     active_type_mappers: usize,
@@ -162,11 +159,8 @@ impl CheckerState<'_> {
             resolution_results: self.resolution_results.len(),
             resolution_property_names: self.resolution_property_names.len(),
             resolution_start: self.resolution_start,
-            contextual_type_nodes: self.contextual_type_nodes.len(),
             contextual_types: self.contextual_types.len(),
-            contextual_is_cache: self.contextual_is_cache.len(),
             contextual_binding_patterns: self.contextual_binding_patterns.len(),
-            inference_context_nodes: self.inference_context_nodes.len(),
             inference_contexts: self.inference_contexts.len(),
             awaited_type_stack: self.awaited_type_stack.len(),
             active_type_mappers: self.active_type_mappers.len(),
@@ -216,22 +210,10 @@ impl CheckerState<'_> {
                     checkpoint.resolution_property_names,
                 ),
                 (self.resolution_start, checkpoint.resolution_start),
-                (
-                    self.contextual_type_nodes.len(),
-                    checkpoint.contextual_type_nodes,
-                ),
                 (self.contextual_types.len(), checkpoint.contextual_types),
-                (
-                    self.contextual_is_cache.len(),
-                    checkpoint.contextual_is_cache,
-                ),
                 (
                     self.contextual_binding_patterns.len(),
                     checkpoint.contextual_binding_patterns,
-                ),
-                (
-                    self.inference_context_nodes.len(),
-                    checkpoint.inference_context_nodes,
                 ),
                 (self.inference_contexts.len(), checkpoint.inference_contexts),
                 (self.awaited_type_stack.len(), checkpoint.awaited_type_stack),
@@ -348,15 +330,9 @@ impl CheckerState<'_> {
         self.resolution_property_names
             .truncate(checkpoint.resolution_property_names);
         self.resolution_start = checkpoint.resolution_start;
-        self.contextual_type_nodes
-            .truncate(checkpoint.contextual_type_nodes);
         self.contextual_types.truncate(checkpoint.contextual_types);
-        self.contextual_is_cache
-            .truncate(checkpoint.contextual_is_cache);
         self.contextual_binding_patterns
             .truncate(checkpoint.contextual_binding_patterns);
-        self.inference_context_nodes
-            .truncate(checkpoint.inference_context_nodes);
         self.inference_contexts
             .truncate(checkpoint.inference_contexts);
         self.awaited_type_stack

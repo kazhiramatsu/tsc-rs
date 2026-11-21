@@ -53,6 +53,44 @@ pub(crate) enum ContextualDiscriminator {
     SymbolType(SymbolId),
 }
 
+/// Contextual queries index the type at an eligible position. Keep its
+/// node and cache marker in the same entry for lookups and scope changes.
+#[derive(Default)]
+pub(crate) struct ContextualTypeStack {
+    entries: Vec<ContextualTypeEntry>,
+}
+
+impl ContextualTypeStack {
+    pub(crate) fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub(crate) fn truncate(&mut self, mark: usize) {
+        self.entries.truncate(mark);
+    }
+}
+
+impl std::ops::Index<usize> for ContextualTypeStack {
+    type Output = Option<TypeId>;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.entries[index].ty
+    }
+}
+
+/// A contextual type pushed for a node. Some queries skip cached entries.
+struct ContextualTypeEntry {
+    node: NodeId,
+    ty: Option<TypeId>,
+    is_cache: bool,
+}
+
+/// The innermost matching node supplies the context, including an explicit None.
+pub(crate) struct InferenceContextEntry {
+    node: NodeId,
+    context: Option<crate::inference::InferenceContextId>,
+}
+
 impl<'a> CheckerState<'a> {
     // ---- the contextual stacks (73557-73605) ----
 
@@ -74,28 +112,26 @@ impl<'a> CheckerState<'a> {
         ty: Option<TypeId>,
         is_cache: bool,
     ) {
-        self.contextual_type_nodes.push(node);
-        self.contextual_types.push(ty);
-        self.contextual_is_cache.push(is_cache);
+        self.contextual_types
+            .entries
+            .push(ContextualTypeEntry { node, ty, is_cache });
     }
 
     /// tsc-port: popContextualType @6.0.3
     /// tsc-hash: 750594d6d1c31565f912747eed06290bc008c0aade55c6b5d2ef2de7910c66c9
     /// tsc-span: _tsc.js:73575-73580
     pub(crate) fn pop_contextual_type(&mut self) {
-        self.contextual_type_nodes.pop();
-        self.contextual_types.pop();
-        self.contextual_is_cache.pop();
+        self.contextual_types.entries.pop();
     }
 
     /// tsc-port: findContextualNode @6.0.3
     /// tsc-hash: ee812153d4466d26d0df3c91de6dcf99bbc7463a34626c706c8d5b0084079c69
     /// tsc-span: _tsc.js:73581-73588
     fn find_contextual_node(&self, node: NodeId, include_caches: bool) -> Option<usize> {
-        (0..self.contextual_type_nodes.len()).rev().find(|&i| {
-            node == self.contextual_type_nodes[i]
-                && (include_caches || !self.contextual_is_cache[i])
-        })
+        self.contextual_types
+            .entries
+            .iter()
+            .rposition(|entry| node == entry.node && (include_caches || !entry.is_cache))
     }
 
     /// tsc-port: pushInferenceContext @6.0.3
@@ -106,15 +142,16 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         inference_context: Option<crate::inference::InferenceContextId>,
     ) {
-        self.inference_context_nodes.push(node);
-        self.inference_contexts.push(inference_context);
+        self.inference_contexts.push(InferenceContextEntry {
+            node,
+            context: inference_context,
+        });
     }
 
     /// tsc-port: popInferenceContext @6.0.3
     /// tsc-hash: c7d9b99b05a405da519f3d88cdf9403e47b70831b8f1b8947b57b264142ccef8
     /// tsc-span: _tsc.js:73594-73598
     pub(crate) fn pop_inference_context(&mut self) {
-        self.inference_context_nodes.pop();
         self.inference_contexts.pop();
     }
 
@@ -130,9 +167,9 @@ impl<'a> CheckerState<'a> {
         &self,
         node: NodeId,
     ) -> Option<crate::inference::InferenceContextId> {
-        for i in (0..self.inference_context_nodes.len()).rev() {
-            if self.is_node_descendant_of(node, self.inference_context_nodes[i]) {
-                return self.inference_contexts[i];
+        for entry in self.inference_contexts.iter().rev() {
+            if self.is_node_descendant_of(node, entry.node) {
+                return entry.context;
             }
         }
         None

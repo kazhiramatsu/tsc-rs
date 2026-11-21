@@ -665,7 +665,6 @@ fn context_arena_survives_pop_while_stack_balances() {
             // exactly like tsc's GC object would (chooseOverload
             // 76842 depends on trial-surviving context state).
             assert!(state.inference_contexts.is_empty());
-            assert!(state.inference_context_nodes.is_empty());
             assert_eq!(state.inference_context_arena.len(), 1);
             assert_eq!(state.inference_context(ctx).inferences.len(), 1);
         },
