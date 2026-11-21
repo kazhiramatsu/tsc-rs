@@ -68,3 +68,36 @@ fn missing_arity_zero_global_falls_back_to_empty_object() {
         assert_eq!(codes, [2318]);
     });
 }
+
+#[test]
+fn global_object_hits_preserve_diagnostics_and_the_next_type_id() {
+    for source in [
+        "interface Object { valueOf(): Object }",
+        "",
+        "interface Object<T> {}",
+    ] {
+        let observe = |repeat| {
+            with_program_state(
+                &[("lib.d.ts", source)],
+                &CompilerOptions::default(),
+                |state| {
+                    let first = state.global_object_type().unwrap();
+                    if repeat {
+                        assert_eq!(state.global_object_type().unwrap(), first);
+                    }
+                    let next = state.tables.get_string_literal_type("after Object");
+                    (
+                        first,
+                        next,
+                        state
+                            .diagnostics
+                            .iter()
+                            .map(|d| (d.code(), d.message_text().to_owned()))
+                            .collect::<Vec<_>>(),
+                    )
+                },
+            )
+        };
+        assert_eq!(observe(true), observe(false));
+    }
+}
