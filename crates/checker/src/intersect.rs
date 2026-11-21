@@ -29,6 +29,7 @@ impl<'a> CheckerState<'a> {
     /// table (5.7b review round #2: the raw early table is empty for
     /// a type literal whose only member is computed-named, which
     /// collapsed `O & "s"` intersections to the literal).
+    #[inline]
     pub fn is_empty_anonymous_object_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         if !self
             .tables
@@ -37,6 +38,11 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
+        self.empty_anonymous_object_members(ty)
+    }
+
+    #[inline(never)]
+    fn empty_anonymous_object_members(&mut self, ty: TypeId) -> CheckResult<bool> {
         // `type.members && isEmptyResolvedType(type)`: checks ALREADY
         // resolved members without forcing resolution. Either disjunct
         // makes the type empty (tsgo checker.go isEmptyAnonymousObjectType):

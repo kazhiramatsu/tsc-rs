@@ -534,3 +534,38 @@ fn relation_counts_follow_both_profile_readers() {
         (observed.2, observed.3, observed.4)
     );
 }
+
+#[test]
+fn empty_anonymous_objects_keep_late_members_and_unresolved_taint() {
+    with_program_state(
+        &[(
+            "a.ts",
+            "declare const key: unique symbol; let obj: { [key]: number };",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let frame = state.flow_frame_begin();
+            assert!(!state
+                .is_empty_anonymous_object_type(state.tables.intrinsics.string)
+                .unwrap());
+            assert_ne!(state.flow_frame_end(frame).0.transient, 0);
+            assert!(!state
+                .is_empty_anonymous_object_type(state.any_function_type)
+                .unwrap());
+            let obj = resolve(state, "obj");
+            let frame = state.flow_frame_begin();
+            assert!(!state.is_empty_anonymous_object_type(obj).unwrap());
+            assert_eq!(state.flow_frame_end(frame).0.transient, 0);
+            let symbol = state.binder.create_symbol(
+                tsc_types::SymbolFlags::TYPE_LITERAL,
+                tsc_types::EscapedName::from_identifier_escaped_text("__type"),
+            );
+            let synthetic = state.create_resolved_empty_anonymous_type(Some(symbol));
+            let members = state.resolve_structured_type_members(synthetic).unwrap();
+            state.members_mut(members).properties = vec![symbol].into();
+            let frame = state.flow_frame_begin();
+            assert!(state.is_empty_anonymous_object_type(synthetic).unwrap());
+            assert_ne!(state.flow_frame_end(frame).0.transient, 0);
+        },
+    );
+}
