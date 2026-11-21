@@ -1267,6 +1267,62 @@ fn packed_instantiation_keys_preserve_all_shapes_and_bounds() {
     assert_eq!(t.instantiations.len(), expected.len());
 }
 
+/// getObjectTypeInstantiation's seed is asked of the map once a target: the
+/// first call writes the target under its own key unless that key is taken,
+/// a later call neither reads the key nor touches the map, and each target
+/// has its own bit — below and past the words written so far.
+#[test]
+fn an_instantiation_target_is_seeded_once() {
+    let mut t = tables();
+    let key = |list: u32, alias: Option<u32>| InstantiationKey {
+        arguments: TypeListId::new(list),
+        alias_symbol: alias.map(SymbolId::new),
+        alias_arguments: None,
+        single_signature: false,
+    };
+    let (near, far, taken) = (TypeId::new(5), TypeId::new(64 * 9 + 63), TypeId::new(6));
+    let other = TypeId::new(77);
+
+    // The first instantiation of a target seeds its own key with itself.
+    t.instantiation_seed(near, |_| key(3, None));
+    assert_eq!(t.instantiation_get(near, key(3, None)), Some(near));
+    assert_eq!(t.instantiations.len(), 1);
+
+    // A later one does not ask for the key and leaves the map alone, even
+    // where the entry has been replaced since.
+    t.instantiation_insert(near, key(3, None), other);
+    t.instantiation_seed(near, |_| {
+        unreachable!("a seeded target's key is not read again")
+    });
+    assert_eq!(t.instantiation_get(near, key(3, None)), Some(other));
+    assert_eq!(t.instantiations.len(), 1);
+
+    // A key that is taken when the target is first instantiated stays.
+    t.instantiation_insert(taken, key(4, Some(7)), other);
+    t.instantiation_seed(taken, |_| key(4, Some(7)));
+    assert_eq!(t.instantiation_get(taken, key(4, Some(7))), Some(other));
+    t.instantiation_seed(taken, |_| {
+        unreachable!("a seeded target's key is not read again")
+    });
+    assert_eq!(t.instantiations.len(), 2);
+
+    // Each target has its own bit: the neighbour in the same word and a
+    // target past the words written so far are seeded when their turn comes.
+    t.instantiation_seed(far, |_| key(3, None));
+    assert_eq!(t.instantiation_get(far, key(3, None)), Some(far));
+    t.instantiation_seed(far, |_| {
+        unreachable!("a seeded target's key is not read again")
+    });
+    let neighbour = TypeId::new(4);
+    assert_eq!(t.instantiation_get(neighbour, key(3, None)), None);
+    t.instantiation_seed(neighbour, |_| key(3, None));
+    assert_eq!(
+        t.instantiation_get(neighbour, key(3, None)),
+        Some(neighbour)
+    );
+    assert_eq!(t.instantiations.len(), 4);
+}
+
 #[test]
 fn type_list_interning_keeps_four_byte_candidates_and_exact_boundary_items() {
     assert_eq!(std::mem::size_of::<TypeListId>(), 4);

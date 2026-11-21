@@ -1070,18 +1070,19 @@ impl<'a> CheckerState<'a> {
                     );
                     // 63489-63492: the target's instantiations map is seeded with
                     // itself under its own type-parameter list id (the interned ids
-                    // directly: the same key instantiation_key would build).
-                    let target_alias_symbol = state.tables.alias_symbol(target);
-                    let self_key = tsc_types::InstantiationKey {
-                        arguments: type_parameters,
-                        alias_symbol: target_alias_symbol,
-                        alias_arguments: target_alias_symbol
-                            .and(state.tables.alias_type_argument_list(target)),
-                        single_signature: false,
-                    };
-                    if state.tables.instantiation_get(target, self_key).is_none() {
-                        state.tables.instantiation_insert(target, self_key, target);
-                    }
+                    // directly: the same key instantiation_key would build) — the
+                    // first time the target is instantiated, as tsc seeds the map
+                    // it creates then.
+                    state.tables.instantiation_seed(target, |tables| {
+                        let target_alias_symbol = tables.alias_symbol(target);
+                        tsc_types::InstantiationKey {
+                            arguments: type_parameters,
+                            alias_symbol: target_alias_symbol,
+                            alias_arguments: target_alias_symbol
+                                .and(tables.alias_type_argument_list(target)),
+                            single_signature: false,
+                        }
+                    });
                     if let Some(existing) = state.tables.instantiation_get(target, id_key) {
                         return Ok(existing);
                     }

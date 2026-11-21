@@ -240,6 +240,9 @@ impl InstantiationKey {
 struct InstantiationCache {
     plain: HashMap<u64, TypeId>,
     full: HashMap<(TypeId, InstantiationKey), TypeId>,
+    /// One bit a type: the map has been seeded for it as a target (see
+    /// [`TypeTables::instantiation_seed`]).
+    seeded: Vec<u64>,
 }
 
 impl InstantiationCache {
@@ -282,7 +285,9 @@ impl InstantiationCache {
     }
 
     fn memory_usage(&self) -> usize {
-        map_bytes(&self.plain) + map_bytes(&self.full)
+        map_bytes(&self.plain)
+            + map_bytes(&self.full)
+            + self.seeded.capacity() * std::mem::size_of::<u64>()
     }
 }
 
@@ -2045,6 +2050,39 @@ impl TypeTables {
 
     pub fn instantiation_insert(&mut self, target: TypeId, key: InstantiationKey, value: TypeId) {
         self.instantiations.insert((target, key), value);
+    }
+
+    /// getObjectTypeInstantiation's seed (_tsc.js 63489-63492): a target's
+    /// instantiations map answers the target's own key — its type-parameter
+    /// list id and alias id — with the target. tsc seeds a target's map
+    /// when it creates the map; the port's one map is asked the first time
+    /// a target is instantiated, and a bit remembers that it was, so the
+    /// map is not probed for the seed on every later instantiation of the
+    /// target. `self_key` is read for that first time only. The map never
+    /// loses an entry, so the seed stays.
+    pub fn instantiation_seed(
+        &mut self,
+        target: TypeId,
+        self_key: impl FnOnce(&Self) -> InstantiationKey,
+    ) {
+        let index = target.index() as usize;
+        let (word, bit) = (index / 64, 1_u64 << (index % 64));
+        if self
+            .instantiations
+            .seeded
+            .get(word)
+            .is_some_and(|seeded| seeded & bit != 0)
+        {
+            return;
+        }
+        let key = self_key(self);
+        if self.instantiation_get(target, key).is_none() {
+            self.instantiation_insert(target, key, target);
+        }
+        if self.instantiations.seeded.len() <= word {
+            self.instantiations.seeded.resize(word + 1, 0);
+        }
+        self.instantiations.seeded[word] |= bit;
     }
 
     /// The instantiations-map key of `type_arguments` under an alias, for a
