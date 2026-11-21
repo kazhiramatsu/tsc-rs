@@ -2235,7 +2235,7 @@ impl<'a> CheckerState<'a> {
                     || !self.is_generic_object_type_state(left_type)?
                     || self.is_this_type_parameter(left_type));
             let index_info = if use_index_info {
-                self.get_applicable_index_info_for_name_info(apparent_type, right_text)?
+                self.get_applicable_index_info_for_name_info(apparent_type, right_name)?
             } else {
                 None
             };

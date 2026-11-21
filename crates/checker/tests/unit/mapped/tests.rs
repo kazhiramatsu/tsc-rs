@@ -411,3 +411,70 @@ fn recursively_expanding_union_defers_generic_mapped_indexed_access() {
         },
     );
 }
+
+#[test]
+fn mapped_keys_preserve_modifier_sources_and_dotted_index_names() {
+    let text = "declare const sym: unique symbol;
+        interface Source { readonly __x: string; 3: boolean; readonly [sym]: number }
+        declare let source: Source;
+        declare let copied: { [K in keyof Source]: Source[K] };
+        declare let renamed: { [K in keyof Source as K extends '__x' ? 'out' : K]: Source[K] };
+        declare let dict: { [s: string]: number };
+        let n: number = dict.__x;";
+    with_program_state(
+        &[("a.ts", text)],
+        &CompilerOptions {
+            no_property_access_from_index_signature: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            let source = annotation_type(state, "source");
+            let copied = annotation_type(state, "copied");
+            let renamed = annotation_type(state, "renamed");
+            let keys = state.get_properties_of_type_full(source).unwrap();
+            assert_eq!(keys.len(), 3);
+            for original in keys {
+                let key = state.binder.symbol(original).escaped_name;
+                let renamed_key = if key == "___x" {
+                    tsc_types::known_name!("out")
+                } else {
+                    key
+                };
+                for (ty, output) in [(copied, key), (renamed, renamed_key)] {
+                    let prop = state
+                        .get_property_of_type_full(ty, output)
+                        .unwrap()
+                        .unwrap();
+                    assert_eq!(state.binder.symbol(prop).escaped_name, output);
+                    assert_eq!(
+                        state.is_readonly_symbol(prop),
+                        state.is_readonly_symbol(original)
+                    );
+                    assert_eq!(
+                        state.get_type_of_symbol(prop),
+                        state.get_type_of_symbol(original)
+                    );
+                }
+            }
+            assert!(state
+                .get_property_of_object_type(renamed, "out")
+                .unwrap()
+                .is_some());
+            state.check_source_file(0);
+            let diagnostics: Vec<_> = state
+                .diagnostics
+                .iter()
+                .filter(|diag| diag.file_name.is_some())
+                .map(|diag| {
+                    (
+                        diag.code(),
+                        diag.start,
+                        diag.length,
+                        diag.message_text().as_str().unwrap(),
+                    )
+                })
+                .collect();
+            assert_eq!(diagnostics, [(4111, Some(text.rfind("__x").unwrap() as u32), Some(3), "Property '__x' comes from an index signature, so it must be accessed with ['__x'].")]);
+        },
+    );
+}

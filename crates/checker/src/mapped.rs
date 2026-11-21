@@ -575,7 +575,9 @@ impl<'a> CheckerState<'a> {
                 return Ok(());
             }
 
-            let modifiers_prop = if self.is_type_usable_as_property_name(key_type) {
+            let modifiers_prop = if key_type == prop_name_type {
+                self.get_property_of_type_full(modifiers_type, prop_name)?
+            } else if self.is_type_usable_as_property_name(key_type) {
                 let modifier_name = self
                     .get_property_name_from_type(key_type)
                     .expect("usable property-name type has a property name");
