@@ -1922,24 +1922,30 @@ impl<'a> CheckerState<'a> {
         let alias_arguments = alias_symbol
             .and(alias_type_arguments)
             .map(|arguments| self.tables.intern_type_list(arguments));
-        let key = crate::state::MapperCacheKey {
-            ty,
-            alias_symbol,
-            alias_arguments,
-        };
-        let cache_index = index.unwrap_or(self.active_type_mappers.len() - 1);
         perf::bump(PerfCounter::MapperCacheLookups);
-        if let Some(&cached) = self.active_type_mappers_caches[cache_index].get(&key) {
-            perf::bump(PerfCounter::MapperCacheHits);
-            return Ok(cached);
-        }
+        // A new scope owns a cleared map. Only recursive visits can find
+        // or publish an answer, but both visits intern their alias list above.
+        let cache_entry = if let Some(depth) = index {
+            let key = crate::state::MapperCacheKey {
+                ty,
+                alias_symbol,
+                alias_arguments,
+            };
+            if let Some(&cached) = self.active_type_mappers_caches[depth].get(&key) {
+                perf::bump(PerfCounter::MapperCacheHits);
+                return Ok(cached);
+            }
+            Some((depth, key))
+        } else {
+            None
+        };
         self.total_instantiation_count += 1;
         self.instantiation_count += 1;
         self.instantiation_stack.push(ty);
         let result = self.instantiate_type_worker(ty, mapper, alias_symbol, alias_type_arguments);
-        match (&result, index) {
+        match (&result, cache_entry) {
             (_, None) => self.pop_active_mapper(),
-            (Ok(value), Some(active)) => {
+            (Ok(value), Some((active, key))) => {
                 self.active_type_mappers_caches[active].insert(key, *value);
             }
             (Err(_), Some(_)) => {}
@@ -2429,24 +2435,21 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: pushActiveMapper @6.0.3
     /// tsc-hash: 2427ee73f242d95460bbfce1cdf64a5dc8ca97c820c33f7dad5bcb5f7b96b500
     /// tsc-span: _tsc.js:73606-73610
-    fn push_active_mapper(&mut self, mapper: MapperId) {
+    pub(crate) fn push_active_mapper(&mut self, mapper: MapperId) {
         perf::bump(PerfCounter::MapperScopePushes);
+        let depth = self.active_type_mappers.len();
+        if depth == self.active_type_mappers_caches.len() {
+            self.active_type_mappers_caches.push(Default::default());
+        }
         self.active_type_mappers.push(mapper);
-        // Inference pushes and pops a mapper around every instantiation; a
-        // reused cache keeps its capacity instead of rehashing up again.
-        let cache = self.spare_active_mapper_caches.pop().unwrap_or_default();
-        self.active_type_mappers_caches.push(cache);
     }
 
     /// tsc-port: popActiveMapper @6.0.3
     /// tsc-hash: 13a2f9c435dc40c4e65324e250a5929c9bc93e9c3505415df1bac1904a774b07
     /// tsc-span: _tsc.js:73611-73615
-    fn pop_active_mapper(&mut self) {
-        self.active_type_mappers.pop();
-        if let Some(mut cache) = self.active_type_mappers_caches.pop() {
-            cache.clear();
-            self.spare_active_mapper_caches.push(cache);
-        }
+    pub(crate) fn pop_active_mapper(&mut self) {
+        self.active_type_mappers.pop().expect("active mapper scope");
+        self.active_type_mappers_caches[self.active_type_mappers.len()].clear();
     }
 
     /// tsc-port: findActiveMapper @6.0.3
@@ -2468,7 +2471,7 @@ impl<'a> CheckerState<'a> {
     /// stack is dropped — stale entries there are a silent-wrong-type
     /// source, not a crash.
     pub(crate) fn clear_active_mapper_caches(&mut self) {
-        for cache in self.active_type_mappers_caches.iter_mut() {
+        for cache in &mut self.active_type_mappers_caches[..self.active_type_mappers.len()] {
             cache.clear();
         }
     }

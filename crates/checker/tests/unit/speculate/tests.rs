@@ -387,7 +387,7 @@ fn mutate_everything(state: &mut CheckerState) {
     state.inference_context_nodes.push(root);
     state.inference_contexts.push(None);
     state.awaited_type_stack.push(string);
-    state.active_type_mappers_caches.push(Default::default());
+    state.push_active_mapper(state.permissive_mapper);
     state.mapped_types_in_progress.push(InProgressMappedType {
         node: root,
         ty: string,
@@ -458,7 +458,7 @@ struct Observed {
     inference_context_nodes: usize,
     inference_contexts: usize,
     awaited_type_stack: usize,
-    active_type_mappers_caches: usize,
+    active_type_mappers: usize,
     mapped_types_in_progress: usize,
     flow_loop_start: u32,
     shared_flow: crate::flow_memo::SharedFlowCheckpoint,
@@ -508,7 +508,7 @@ fn observe(state: &CheckerState) -> Observed {
         inference_context_nodes: state.inference_context_nodes.len(),
         inference_contexts: state.inference_contexts.len(),
         awaited_type_stack: state.awaited_type_stack.len(),
-        active_type_mappers_caches: state.active_type_mappers_caches.len(),
+        active_type_mappers: state.active_type_mappers.len(),
         mapped_types_in_progress: state.mapped_types_in_progress.len(),
         flow_loop_start: state.flow_loop_start,
         shared_flow: state.shared_flow.checkpoint(),

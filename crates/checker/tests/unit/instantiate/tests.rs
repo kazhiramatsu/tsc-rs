@@ -1026,3 +1026,33 @@ fn leaf_mappers_count_once_and_keep_the_first_matching_source() {
         );
     });
 }
+
+#[test]
+fn mapper_cache_depths_keep_storage_and_clear_only_discarded_answers() {
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        let ty = state.tables.intrinsics.string;
+        let key = crate::state::MapperCacheKey {
+            ty,
+            alias_symbol: None,
+            alias_arguments: None,
+        };
+        state.push_active_mapper(state.permissive_mapper);
+        state.active_type_mappers_caches[0].insert(key, ty);
+        let checkpoint = state.begin_speculation();
+        state.push_active_mapper(state.restrictive_mapper);
+        state.active_type_mappers_caches[1].insert(key, ty);
+        let capacity = state.active_type_mappers_caches[1].capacity();
+        state.rollback_speculation(checkpoint);
+        assert_eq!(state.active_type_mappers_caches[0].get(&key), Some(&ty));
+        state.push_active_mapper(state.unique_literal_mapper);
+        assert_eq!(state.active_type_mappers_caches.len(), 2);
+        assert!(state.active_type_mappers_caches[1].is_empty());
+        assert_eq!(state.active_type_mappers_caches[1].capacity(), capacity);
+        state.clear_active_mapper_caches();
+        assert!(state.active_type_mappers_caches[0].is_empty());
+        state.active_type_mappers_caches[1].insert(key, ty);
+        state.pop_active_mapper();
+        assert!(state.active_type_mappers_caches[1].is_empty());
+        state.pop_active_mapper();
+    });
+}

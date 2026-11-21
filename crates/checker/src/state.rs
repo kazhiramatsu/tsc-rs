@@ -1140,9 +1140,8 @@ pub struct CheckerState<'a> {
     /// tsc activeTypeMappers/activeTypeMappersCaches/activeTypeMappersCount
     /// (47412-47414): the instantiation cache stack.
     pub(crate) active_type_mappers: Vec<crate::instantiate::MapperId>,
+    /// Each depth owns its map until checker teardown. Inactive slots are empty.
     pub(crate) active_type_mappers_caches: Vec<rustc_hash::FxHashMap<MapperCacheKey, TypeId>>,
-    /// Popped instantiation caches, cleared and kept for the next push.
-    pub(crate) spare_active_mapper_caches: Vec<rustc_hash::FxHashMap<MapperCacheKey, TypeId>>,
     /// tsgo instantiationStack (checker.go:598): the types being
     /// instantiated, innermost last; its length is tsc's instantiationDepth.
     /// The instantiation count resets at tsc's three entry points —
@@ -1737,7 +1736,6 @@ impl<'a> CheckerState<'a> {
             std::mem::take(&mut self.variance_stack),
             std::mem::take(&mut self.active_type_mappers),
             std::mem::take(&mut self.active_type_mappers_caches),
-            std::mem::take(&mut self.spare_active_mapper_caches),
             std::mem::take(&mut self.instantiation_stack),
             std::mem::take(&mut self.type_parameter_defaults_in_progress),
             std::mem::take(&mut self.mapped_types_in_progress),
@@ -2452,7 +2450,6 @@ impl<'a> CheckerState<'a> {
             reliability_flags: tsc_types::RelationComparisonResult::NONE,
             active_type_mappers: Vec::new(),
             active_type_mappers_caches: Vec::new(),
-            spare_active_mapper_caches: Vec::new(),
             instantiation_stack: Vec::new(),
             instantiation_count: 0,
             total_instantiation_count: 0,

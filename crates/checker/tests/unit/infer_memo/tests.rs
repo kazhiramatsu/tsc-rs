@@ -60,11 +60,9 @@ fn stored_outcome_is_not_replayed_inside_mapper_or_variance_work() {
 
             let mapper = state.create_type_mapper(&[t], Some(&[string]));
             // The paired empty cache is the state of a fresh active mapper.
-            state.active_type_mappers.push(mapper);
-            state.active_type_mappers_caches.push(Default::default());
+            state.push_active_mapper(mapper);
             infer(state);
-            state.active_type_mappers_caches.pop();
-            state.active_type_mappers.pop();
+            state.pop_active_mapper();
             assert_eq!(state.infer_memo.stats.lookups, before.lookups);
             assert_eq!(state.infer_memo.stats.hits, before.hits);
             assert_eq!(state.infer_memo.stats.stores, before.stores);
