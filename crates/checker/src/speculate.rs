@@ -71,12 +71,29 @@ pub enum SpeculationOutcome<T> {
     Rollback(T),
 }
 
+/// The value displaced by a speculative flow update. Committed inner
+/// trials leave their entries for an enclosing rollback.
+enum FlowUndo {
+    Label((usize, FlowId), Option<FlowId>),
+    Switch(NodeId, bool),
+}
+
+/// Flow state that can change while resolving an overload. Keep the tables
+/// private so every mutation within a trial can be reversed.
+#[derive(Default)]
+pub(crate) struct SpeculativeFlow {
+    /// A finally label's current antecedents come from this ReduceLabel node.
+    labels: HashMap<(usize, FlowId), FlowId>,
+    /// A switch being evaluated returns false on recursive entry.
+    switches: HashSet<NodeId>,
+    undo: Vec<FlowUndo>,
+}
+
 /// Everything `begin_speculation` captures. Vec-backed state stores its
 /// length (truncate-to-mark restoration: entries above the mark are the
 /// trial's own, entries below it were only mutated in ways that persist
-/// in tsc too — e.g. resolution_results cycle flags); map/set-backed
-/// state whose entries the trial may remove or overwrite stores a
-/// clone (they are empty or near-empty at every real boundary).
+/// in tsc too — e.g. resolution_results cycle flags). Flow-map changes
+/// are reversed to the saved journal length.
 #[must_use = "a speculation checkpoint must be committed or rolled back"]
 pub struct SpeculationCheckpoint {
     /// speculation_depth AFTER the begin increment; commit/rollback
@@ -101,14 +118,12 @@ pub struct SpeculationCheckpoint {
     flow_loop_stack: usize,
     flow_loop_start: u32,
     shared_flow: crate::flow_memo::SharedFlowCheckpoint,
-    /// Snapshot map (inventory: "snapshot map or forbid across
-    /// speculation") — entries are strictly scoped to an in-progress
-    /// ReduceLabel arm, so this is empty except when a trial opens
-    /// inside a try/finally flow walk.
+    flow_undo_mark: usize,
+    // The debug balance check compares the live collections with their
+    // complete entry state, including edits that might bypass the journal.
+    #[cfg(debug_assertions)]
     reduce_label_overrides: HashMap<(usize, FlowId), FlowId>,
-    /// Must be empty across the boundary (inventory row); the begin
-    /// debug_assert documents that claim, the clone keeps release
-    /// builds restoring rather than trusting it.
+    #[cfg(debug_assertions)]
     exhaustive_switch_computing: HashSet<NodeId>,
 
     // ---- B: counters / flags ----
@@ -133,6 +148,46 @@ impl Drop for SpeculationCheckpoint {
 }
 
 impl CheckerState<'_> {
+    pub(crate) fn reduce_label_overrides(&self) -> &HashMap<(usize, FlowId), FlowId> {
+        &self.speculative_flow.labels
+    }
+
+    pub(crate) fn exhaustive_switch_computing(&self) -> &HashSet<NodeId> {
+        &self.speculative_flow.switches
+    }
+
+    /// Install or restore a label while keeping an enclosing trial reversible.
+    pub(crate) fn replace_reduce_label(
+        &mut self,
+        key: (usize, FlowId),
+        value: Option<FlowId>,
+    ) -> Option<FlowId> {
+        let previous = match value {
+            Some(flow) => self.speculative_flow.labels.insert(key, flow),
+            None => self.speculative_flow.labels.remove(&key),
+        };
+        if self.speculation_depth != 0 && previous != value {
+            self.speculative_flow
+                .undo
+                .push(FlowUndo::Label(key, previous));
+        }
+        previous
+    }
+
+    /// Mark the interval during which a switch is being tested for exhaustiveness.
+    pub(crate) fn set_switch_computing(&mut self, node: NodeId, active: bool) {
+        let changed = if active {
+            self.speculative_flow.switches.insert(node)
+        } else {
+            self.speculative_flow.switches.remove(&node)
+        };
+        if self.speculation_depth != 0 && changed {
+            self.speculative_flow
+                .undo
+                .push(FlowUndo::Switch(node, !active));
+        }
+    }
+
     /// tsrs-native: the 7.0t transaction open — no tsc counterpart
     /// (module doc: tsc keeps trials clean via checkMode bypasses).
     ///
@@ -143,7 +198,7 @@ impl CheckerState<'_> {
     /// `speculate` wrapper, which also owns the Err boundary ordering.
     pub fn begin_speculation(&mut self) -> SpeculationCheckpoint {
         // `exhaustive_switch_computing` is a category-A transient: the
-        // checkpoint clones it, commit requires it balanced and rollback
+        // checkpoint covers it, commit requires it balanced and rollback
         // restores it. The 7.0t inventory assumed it empty at every
         // boundary, but computeExhaustiveSwitchStatement checks the switch
         // expression (checkExpressionCached, _tsc.js:78946) and the clause
@@ -170,8 +225,11 @@ impl CheckerState<'_> {
             flow_loop_stack: self.flow_loop_stack.len(),
             flow_loop_start: self.flow_loop_start,
             shared_flow: self.shared_flow.checkpoint(),
-            reduce_label_overrides: self.reduce_label_overrides.clone(),
-            exhaustive_switch_computing: self.exhaustive_switch_computing.clone(),
+            flow_undo_mark: self.speculative_flow.undo.len(),
+            #[cfg(debug_assertions)]
+            reduce_label_overrides: self.speculative_flow.labels.clone(),
+            #[cfg(debug_assertions)]
+            exhaustive_switch_computing: self.speculative_flow.switches.clone(),
             instantiation_depth: self.instantiation_stack.len() as u32,
             inline_level: self.inline_level,
             variance_stack: self.variance_stack.len(),
@@ -196,6 +254,9 @@ impl CheckerState<'_> {
             .commit_speculative_writes(checkpoint.speculative_links, checkpoint.depth - 1);
         checkpoint.resolved = true;
         self.speculation_depth -= 1;
+        if self.speculation_depth == 0 {
+            self.speculative_flow.undo.clear();
+        }
         #[cfg(test)]
         {
             self.speculation_commit_count += 1;
@@ -265,11 +326,11 @@ impl CheckerState<'_> {
                 "speculative region committed with unbalanced inference-blocked flag"
             );
             assert_eq!(
-                self.reduce_label_overrides, checkpoint.reduce_label_overrides,
+                self.speculative_flow.labels, checkpoint.reduce_label_overrides,
                 "speculative region committed with unbalanced ReduceLabel overrides"
             );
             assert_eq!(
-                self.exhaustive_switch_computing, checkpoint.exhaustive_switch_computing,
+                self.speculative_flow.switches, checkpoint.exhaustive_switch_computing,
                 "speculative region committed with unbalanced exhaustive-switch computations"
             );
         }
@@ -348,9 +409,38 @@ impl CheckerState<'_> {
         self.flow_loop_stack.truncate(checkpoint.flow_loop_stack);
         self.flow_loop_start = checkpoint.flow_loop_start;
         self.shared_flow.restore(checkpoint.shared_flow);
-        self.reduce_label_overrides = std::mem::take(&mut checkpoint.reduce_label_overrides);
-        self.exhaustive_switch_computing =
-            std::mem::take(&mut checkpoint.exhaustive_switch_computing);
+        while self.speculative_flow.undo.len() > checkpoint.flow_undo_mark {
+            match self
+                .speculative_flow
+                .undo
+                .pop()
+                .expect("journal exceeds checkpoint")
+            {
+                FlowUndo::Label(key, Some(previous)) => {
+                    self.speculative_flow.labels.insert(key, previous);
+                }
+                FlowUndo::Label(key, None) => {
+                    self.speculative_flow.labels.remove(&key);
+                }
+                FlowUndo::Switch(node, true) => {
+                    self.speculative_flow.switches.insert(node);
+                }
+                FlowUndo::Switch(node, false) => {
+                    self.speculative_flow.switches.remove(&node);
+                }
+            }
+        }
+        #[cfg(debug_assertions)]
+        {
+            debug_assert_eq!(
+                self.speculative_flow.labels,
+                checkpoint.reduce_label_overrides
+            );
+            debug_assert_eq!(
+                self.speculative_flow.switches,
+                checkpoint.exhaustive_switch_computing
+            );
+        }
 
         // B: counters / flags.
         self.instantiation_stack

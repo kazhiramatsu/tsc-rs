@@ -318,7 +318,7 @@ impl<'a> CheckerState<'a> {
         flow: FlowId,
         flow_node: &'graph FlowNode,
     ) -> &'graph [FlowId] {
-        if let Some(&origin) = self.reduce_label_overrides.get(&(file, flow)) {
+        if let Some(&origin) = self.reduce_label_overrides().get(&(file, flow)) {
             let FlowData::ReduceLabel { antecedents, .. } = arena.payload(origin) else {
                 unreachable!("an override names its originating ReduceLabel");
             };
@@ -804,22 +804,12 @@ impl<'a> CheckerState<'a> {
                     unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
                 };
                 let antecedent = plain_flow_antecedent(flow_node);
-                let saved = self
-                    .reduce_label_overrides
-                    .insert((query.file, target), flow);
+                let saved = self.replace_reduce_label((query.file, target), Some(flow));
                 self.flow_memo.taint(0);
                 query.reduce_depth += 1;
                 let result = self.get_type_at_flow_node(query, antecedent);
                 query.reduce_depth -= 1;
-                match saved {
-                    Some(previous) => {
-                        self.reduce_label_overrides
-                            .insert((query.file, target), previous);
-                    }
-                    None => {
-                        self.reduce_label_overrides.remove(&(query.file, target));
-                    }
-                }
+                self.replace_reduce_label((query.file, target), saved);
                 ty = result?;
             } else if flags.intersects(FlowFlags::START) {
                 // Start outer-resume: a bare non-this reference
@@ -1916,7 +1906,7 @@ impl<'a> CheckerState<'a> {
                 // tsgo isReachableFlowNodeWorker (checker/flow.go:2528-2537):
                 // a shared node's reachability is cached only while no
                 // ReduceLabel narrows a label's antecedents.
-                if !no_cache_check && self.reduce_label_overrides.is_empty() {
+                if !no_cache_check && self.reduce_label_overrides().is_empty() {
                     if let Some(reachable) = self.flow_node_reachable.get(&(file, flow)) {
                         return Ok(reachable);
                     }
@@ -2001,16 +1991,9 @@ impl<'a> CheckerState<'a> {
                     unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
                 };
                 let antecedent = self.flow_antecedent(file, flow);
-                let saved = self.reduce_label_overrides.insert((file, target), flow);
+                let saved = self.replace_reduce_label((file, target), Some(flow));
                 let result = self.is_reachable_flow_node_worker(file, antecedent, false);
-                match saved {
-                    Some(previous) => {
-                        self.reduce_label_overrides.insert((file, target), previous);
-                    }
-                    None => {
-                        self.reduce_label_overrides.remove(&(file, target));
-                    }
-                }
+                self.replace_reduce_label((file, target), saved);
                 return result;
             } else {
                 return Ok(!flags.intersects(FlowFlags::UNREACHABLE));
@@ -2087,16 +2070,9 @@ impl<'a> CheckerState<'a> {
                     unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
                 };
                 let antecedent = self.flow_antecedent(file, flow);
-                let saved = self.reduce_label_overrides.insert((file, target), flow);
+                let saved = self.replace_reduce_label((file, target), Some(flow));
                 let result = self.is_post_super_flow_node(file, antecedent, false);
-                match saved {
-                    Some(previous) => {
-                        self.reduce_label_overrides.insert((file, target), previous);
-                    }
-                    None => {
-                        self.reduce_label_overrides.remove(&(file, target));
-                    }
-                }
+                self.replace_reduce_label((file, target), saved);
                 return result;
             } else {
                 return flags.intersects(FlowFlags::UNREACHABLE);

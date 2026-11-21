@@ -274,16 +274,14 @@ fn antecedent_snapshot_survives_nested_reduce_label_overrides() {
                 let FlowData::ReduceLabel { antecedents, .. } = arena.payload(origin) else {
                     unreachable!("fixture reduce label");
                 };
-                state.reduce_label_overrides.insert((0, label), origin);
+                state.replace_reduce_label((0, label), Some(origin));
                 let snapshot = read(state);
-                let saved = state.reduce_label_overrides.insert((0, label), inner);
+                let saved = state.replace_reduce_label((0, label), Some(inner));
                 assert!(std::ptr::eq(snapshot, antecedents));
                 assert_eq!(read(state), &[other_start]);
-                state
-                    .reduce_label_overrides
-                    .insert((0, label), saved.unwrap());
+                state.replace_reduce_label((0, label), saved);
                 assert_eq!(read(state), antecedents);
-                state.reduce_label_overrides.remove(&(0, label));
+                state.replace_reduce_label((0, label), None);
                 assert_eq!(snapshot, antecedents);
                 assert_eq!(read(state), arena.antecedents(label));
             }
@@ -788,7 +786,7 @@ fn reachability_bypasses_a_shared_answer_under_a_reduce_label() {
         let shared = ids()
             .find(|&id| arena.flow(id).flags.intersects(FlowFlags::SHARED))
             .unwrap();
-        state.reduce_label_overrides.insert((0, label), origin);
+        state.replace_reduce_label((0, label), Some(origin));
         let expected = state
             .is_reachable_flow_node_worker(0, shared, false)
             .unwrap();
@@ -800,7 +798,7 @@ fn reachability_bypasses_a_shared_answer_under_a_reduce_label() {
                 .unwrap(),
             expected
         );
-        state.reduce_label_overrides.clear();
+        state.replace_reduce_label((0, label), None);
         state.last_flow_node = None;
         assert_eq!(
             state

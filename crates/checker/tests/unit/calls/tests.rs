@@ -2717,7 +2717,7 @@ pick(42);";
             let active_loop = crate::flow::FlowLoopEntry {
                 file: 0,
                 flow: tsc_binder::flow::FlowId::new(0),
-                key: "active".into(),
+                key: crate::flow::FlowCacheKey::Root(crate::flow::FlowKeyPrefix::Fields([0; 4])),
                 types: Vec::new(),
                 serial: 1,
             };

@@ -123,8 +123,8 @@ impl<'a> CheckerState<'a> {
             flow_loop_start: self.flow_loop_start,
             flow_loop_stack: self.flow_loop_stack.len(),
             shared_flow: self.shared_flow.checkpoint(),
-            reduce_label_overrides: self.reduce_label_overrides.len(),
-            exhaustive_switch_computing: self.exhaustive_switch_computing.len(),
+            reduce_label_overrides: self.reduce_label_overrides().len(),
+            exhaustive_switch_computing: self.exhaustive_switch_computing().len(),
             inline_level: self.inline_level,
             resolving_open: crate::links::debug_resolving_open(),
         }

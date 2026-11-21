@@ -868,7 +868,7 @@ impl CheckerState<'_> {
     pub(crate) fn flow_frame_memo(&self, query: &FlowQuery) -> Option<FrameMemo> {
         if self.inline_level != 0
             || query.reduce_depth != 0
-            || !self.reduce_label_overrides.is_empty()
+            || !self.reduce_label_overrides().is_empty()
             || self.flow_analysis_disabled
         {
             return None;
@@ -885,7 +885,7 @@ impl CheckerState<'_> {
     fn flow_memo_consult_ok(&self, query: &FlowQuery, hit: MemoHit) -> bool {
         !query.memo_faithful
             && !self.flow_analysis_disabled
-            && self.reduce_label_overrides.is_empty()
+            && self.reduce_label_overrides().is_empty()
             && self.flow_loop_stack.is_empty()
             && (hit.epoch == 0 || hit.epoch == self.flow_memo.type_cache_epoch)
             && self.active_type_mappers.is_empty()

@@ -1180,14 +1180,8 @@ pub struct CheckerState<'a> {
     /// window (sharedFlowStart..) and truncates back on exit — also on
     /// CheckAbort unwind (the unwind invariant).
     pub(crate) shared_flow: crate::flow_memo::SharedFlowState,
-    /// The ReduceLabel antecedent swap (getTypeAtFlowNode 70473): tsc
-    /// mutates `target.antecedent` in place during try/finally walks;
-    /// the binder graph is immutable to the checker, so the swapped
-    /// lists are identified by their originating ReduceLabel nodes, keyed
-    /// by (file, label). Entries are strictly scoped to an in-progress
-    /// ReduceLabel arm (restored on exit AND on unwind).
-    pub(crate) reduce_label_overrides:
-        rustc_hash::FxHashMap<(usize, tsc_binder::flow::FlowId), tsc_binder::flow::FlowId>,
+    /// Temporary flow overrides and switch markers, restored on candidate rollback.
+    pub(crate) speculative_flow: crate::speculate::SpeculativeFlow,
     /// tsc evolvingArrayTypes (70079): elementType→evolving-array memo
     /// (tsc indexes a sparse array by elementType.id).
     pub(crate) evolving_array_types: rustc_hash::FxHashMap<TypeId, TypeId>,
@@ -1421,11 +1415,6 @@ pub struct CheckerState<'a> {
     /// tsc links.isExhaustive settled verdicts (isExhaustiveSwitchStatement
     /// 78920) — state-side for the same reason.
     pub(crate) exhaustive_switch_cache: rustc_hash::FxHashMap<NodeId, bool>,
-    /// tsc links.isExhaustive === 0 (the in-progress marker): a
-    /// re-entrant computation of the same switch settles FALSE (the
-    /// cycle protocol); unwound entries are removed before the error
-    /// escapes (the unwind invariant).
-    pub(crate) exhaustive_switch_computing: rustc_hash::FxHashSet<NodeId>,
     /// tsc links.effectsSignature (getEffectsSignature 70195) —
     /// state-side; None IS the memoized unknownSignature verdict.
     pub(crate) effects_signature_cache: rustc_hash::FxHashMap<NodeId, Option<SignatureId>>,
@@ -1732,7 +1721,7 @@ impl<'a> CheckerState<'a> {
             std::mem::take(&mut self.type_parameter_defaults_in_progress),
             std::mem::take(&mut self.mapped_types_in_progress),
             std::mem::take(&mut self.shared_flow),
-            std::mem::take(&mut self.reduce_label_overrides),
+            std::mem::take(&mut self.speculative_flow),
             std::mem::take(&mut self.evolving_array_types),
             std::mem::take(&mut self.generic_object_flags),
             std::mem::take(&mut self.final_array_types),
@@ -1767,7 +1756,6 @@ impl<'a> CheckerState<'a> {
             std::mem::take(&mut self.flow_type_cache),
             std::mem::take(&mut self.switch_types_cache),
             std::mem::take(&mut self.exhaustive_switch_cache),
-            std::mem::take(&mut self.exhaustive_switch_computing),
             std::mem::take(&mut self.effects_signature_cache),
             std::mem::take(&mut self.partially_checked_ranges),
             std::mem::take(&mut self.contained_call_resolutions),
@@ -2457,7 +2445,7 @@ impl<'a> CheckerState<'a> {
             no_flow_context_nodes: Default::default(),
             union_front_cache: Default::default(),
             shared_flow: Default::default(),
-            reduce_label_overrides: rustc_hash::FxHashMap::default(),
+            speculative_flow: Default::default(),
             evolving_array_types: rustc_hash::FxHashMap::default(),
             generic_object_flags: rustc_hash::FxHashMap::default(),
             final_array_types: rustc_hash::FxHashMap::default(),
@@ -2512,7 +2500,6 @@ impl<'a> CheckerState<'a> {
             inline_level: 0,
             switch_types_cache: rustc_hash::FxHashMap::default(),
             exhaustive_switch_cache: rustc_hash::FxHashMap::default(),
-            exhaustive_switch_computing: rustc_hash::FxHashSet::default(),
             effects_signature_cache: rustc_hash::FxHashMap::default(),
             diagnostics: DiagnosticSink::default(),
             visible_global_diagnostics: Vec::new(),

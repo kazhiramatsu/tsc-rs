@@ -401,10 +401,8 @@ fn mutate_everything(state: &mut CheckerState) {
         },
         &mut 0,
     );
-    state
-        .reduce_label_overrides
-        .insert((0, FlowId::new(1)), FlowId::new(2));
-    state.exhaustive_switch_computing.insert(root);
+    state.replace_reduce_label((0, FlowId::new(1)), Some(FlowId::new(2)));
+    state.set_switch_computing(root, true);
     // B: counters / flags.
     state.instantiation_stack.extend([string; 5]);
     state.inline_level += 2;
@@ -503,8 +501,8 @@ fn observe(state: &CheckerState) -> Observed {
         mapped_types_in_progress: state.mapped_types_in_progress.len(),
         flow_loop_start: state.flow_loop_start,
         shared_flow: state.shared_flow.checkpoint(),
-        reduce_label_overrides: state.reduce_label_overrides.len(),
-        exhaustive_switch_computing: state.exhaustive_switch_computing.len(),
+        reduce_label_overrides: state.reduce_label_overrides().len(),
+        exhaustive_switch_computing: state.exhaustive_switch_computing().len(),
         instantiation_depth: state.instantiation_stack.len() as u32,
         inline_level: state.inline_level,
         variance_stack: state.variance_stack.len(),
@@ -1393,5 +1391,116 @@ fn nested_speculation_restores_shared_safety_with_its_window() {
         state.commit_speculation(balanced);
         assert_eq!(state.shared_flow.checkpoint(), original);
         state.shared_flow.restore(Default::default());
+    });
+}
+
+#[test]
+fn nested_candidate_restores_label_and_switch_to_the_outer_entry() {
+    with_state(|state| {
+        let node = state.binder.source(0).root;
+        let key = (0, FlowId::new(1));
+        let original = FlowId::new(2);
+        let outer = FlowId::new(3);
+        state.replace_reduce_label(key, Some(original));
+        state.set_switch_computing(node, true);
+        let candidate = state.begin_speculation();
+        state.replace_reduce_label(key, Some(outer));
+        state.set_switch_computing(node, false);
+        let inner = state.begin_speculation();
+        state.replace_reduce_label(key, None);
+        state.set_switch_computing(node, true);
+        state.replace_reduce_label(key, Some(outer));
+        state.set_switch_computing(node, false);
+        state.commit_speculation(inner);
+        state.reject_speculation(candidate);
+        assert_eq!(state.reduce_label_overrides().get(&key), Some(&original));
+        assert!(state.exhaustive_switch_computing().contains(&node));
+        assert!(state.speculative_flow.undo.is_empty());
+        state.replace_reduce_label(key, None);
+        state.set_switch_computing(node, false);
+    });
+}
+
+#[test]
+fn overloaded_call_in_a_switch_preserves_active_flow_state_and_candidate_order() {
+    let text = "declare function choose<T>(key: string, value: T): string;
+declare function choose<T>(key: number, value: T): number;
+declare function id<T>(x: T): T;
+function use(flag: 'on' | 'off') {
+    switch (flag) {
+        case 'on': return choose(1, id(1));
+        case 'off': return 0;
+    }
+}
+let firstError: number = 'bad';
+let secondError: string = 1;";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let source = state.binder.source(0);
+        let switch = source
+            .arena
+            .node_ids()
+            .find(|&n| state.kind_of(n) == SyntaxKind::SwitchStatement)
+            .unwrap();
+        let call = source
+            .arena
+            .node_ids()
+            .find(|&n| {
+                source
+                    .arena
+                    .node(n)
+                    .as_call_expression()
+                    .is_some_and(|c| state.escaped_text_of(c.expression) == Some("choose"))
+            })
+            .unwrap();
+        let mut declarations: Vec<_> = source
+            .arena
+            .node_ids()
+            .filter(|&n| {
+                source
+                    .arena
+                    .node(n)
+                    .as_function_declaration()
+                    .is_some_and(|f| state.escaped_text_of(f.name) == Some("choose"))
+            })
+            .collect();
+        declarations.sort_by_key(|&n| state.pos_of(n));
+        let key = (0, FlowId::new(8192));
+        let active = FlowId::new(8193);
+        state.replace_reduce_label(key, Some(active));
+        state.set_switch_computing(switch, true);
+        let mut candidates = Vec::new();
+        let winner = state
+            .get_resolved_signature(call, Some(&mut candidates), CheckMode::NORMAL)
+            .unwrap();
+        assert_eq!(
+            state.signature_of(winner).declaration,
+            Some(declarations[1])
+        );
+        assert_eq!(
+            candidates
+                .iter()
+                .map(|&sig| state.signature_of(sig).declaration.unwrap())
+                .collect::<Vec<_>>(),
+            declarations
+        );
+        assert!(state.speculation_commit_count > 0 && state.speculation_rollback_count > 0);
+        assert_eq!(state.reduce_label_overrides().get(&key), Some(&active));
+        assert!(state.exhaustive_switch_computing().contains(&switch));
+        state.replace_reduce_label(key, None);
+        state.set_switch_computing(switch, false);
+        state.check_source_file(0);
+        let errors: Vec<_> = state
+            .diagnostics
+            .iter()
+            .filter(|d| d.code() == 2322)
+            .map(|d| d.start.unwrap())
+            .collect();
+        assert_eq!(
+            errors,
+            [
+                text.find("firstError").unwrap() as u32,
+                text.find("secondError").unwrap() as u32
+            ]
+        );
     });
 }
