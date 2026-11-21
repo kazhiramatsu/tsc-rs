@@ -1951,7 +1951,7 @@ impl<'a> CheckerState<'a> {
             // literal value (tsc passes `indexType.value` there) use
             // index_literal_value_display instead.
             Some(tsc_types::LiteralData::String(value)) => {
-                Some(EscapedName::escape(self.tables.literal_text(value)))
+                Some(self.tables.literal_property_name(value))
             }
             Some(tsc_types::LiteralData::Number(value)) => Some(EscapedName::escape(
                 tsc_types::tables::js_number_to_string(value.get())

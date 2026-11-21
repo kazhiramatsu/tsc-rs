@@ -285,6 +285,35 @@ fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
 }
 
 #[test]
+fn literal_property_names_are_interned_on_use_and_shared_across_checkers() {
+    let read = |check_order| {
+        with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+            let mut units: Vec<_> = "__indexed_literal_name_order".encode_utf16().collect();
+            units.push(0xD800);
+            let regular = state.tables.get_string_literal_type_from_utf16(&units);
+            let fresh = state.tables.get_fresh_type_of_literal_type(regular);
+            let before = tsc_types::EscapedName::internal("indexed_literal_name_before");
+            let name = state.property_name_from_type(fresh).unwrap();
+            if check_order {
+                assert!(before.index() < name.index());
+            }
+            assert_eq!(Some(name), state.property_name_from_type(regular));
+            units.insert(0, u16::from(b'_'));
+            assert_eq!(
+                name.as_js(),
+                tsc_types::JsString::from_code_units(&units).as_js()
+            );
+            name
+        })
+    };
+    let first = read(true);
+    assert_eq!(
+        first,
+        std::thread::spawn(move || read(false)).join().unwrap()
+    );
+}
+
+#[test]
 fn double_underscore_element_access_resolves() {
     // S1: tsc clean. Pre-fix the raw `__x` propName missed the
     // escaped-keyed member table → 7053.

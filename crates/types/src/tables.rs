@@ -630,6 +630,32 @@ fn list_at(items: &[TypeId], id: TypeListId) -> &[TypeId] {
 struct LiteralTexts {
     bytes: Vec<u8>,
     spans: Vec<(u32, u32)>,
+    property_names: Vec<PropertyNameSlot>,
+}
+
+/// A literal text's escaped property name once it was asked for: the name's
+/// ID, or [`PropertyNameSlot::EMPTY`] before that (no name has that ID). Four
+/// bytes a text. Two readers may both fill a slot: the name table gives both
+/// the same ID.
+#[derive(Debug)]
+struct PropertyNameSlot(std::sync::atomic::AtomicU32);
+
+impl PropertyNameSlot {
+    const EMPTY: u32 = u32::MAX;
+}
+
+impl Default for PropertyNameSlot {
+    fn default() -> Self {
+        Self(std::sync::atomic::AtomicU32::new(Self::EMPTY))
+    }
+}
+
+impl Clone for PropertyNameSlot {
+    fn clone(&self) -> Self {
+        Self(std::sync::atomic::AtomicU32::new(
+            self.0.load(std::sync::atomic::Ordering::Relaxed),
+        ))
+    }
 }
 
 impl LiteralTexts {
@@ -650,11 +676,14 @@ impl LiteralTexts {
         self.bytes.extend_from_slice(text.as_bytes());
         let end = u32::try_from(self.bytes.len()).expect("a checker's literal texts fit 4 GiB");
         self.spans.push((start, end));
+        self.property_names.push(Default::default());
         id
     }
 
     fn heap_bytes(&self) -> usize {
-        self.bytes.capacity() + self.spans.capacity() * std::mem::size_of::<(u32, u32)>()
+        self.bytes.capacity()
+            + self.spans.capacity() * std::mem::size_of::<(u32, u32)>()
+            + self.property_names.capacity() * std::mem::size_of::<PropertyNameSlot>()
     }
 }
 
@@ -1194,6 +1223,23 @@ impl TypeTables {
     #[inline]
     pub fn literal_text(&self, id: LiteralTextId) -> crate::JsStr<'_> {
         self.literal_texts.get(id)
+    }
+
+    /// Escape the stored spelling on its first use as a property name. Literal
+    /// twins can reuse the name because their text and its global ID are permanent.
+    pub fn literal_property_name(&self, id: LiteralTextId) -> EscapedName {
+        use std::sync::atomic::Ordering::Relaxed;
+        let slot = &self.literal_texts.property_names[id.index() as usize].0;
+        let stored = slot.load(Relaxed);
+        let name = if stored == PropertyNameSlot::EMPTY {
+            let name = EscapedName::escape(self.literal_text(id));
+            slot.store(name.index(), Relaxed);
+            name
+        } else {
+            EscapedName::from_index(stored)
+        };
+        debug_assert_eq!(name, EscapedName::escape(self.literal_text(id)));
+        name
     }
 
     /// A bigint literal's value.
