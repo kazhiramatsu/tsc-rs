@@ -608,3 +608,164 @@ fn optional_chain_receivers_match_the_file_backed_walk() {
         },
     );
 }
+
+#[test]
+fn loop_keys_preserve_decimal_prefix_and_dotted_suffix_equality() {
+    use super::{FlowCacheKey, FlowKeyPrefix, FlowQuery};
+    use tsc_syntax::SyntaxKind;
+    use tsc_types::{EscapedName, JsString};
+
+    let text = r#"declare let x: any; declare const k: any; const {p} = x; class C { field!: typeof this; }
+        x; (x!); x.a.b; x["a.b"]; x[k]; x["@"]; x["\uD800"]; this;"#;
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let tree = state.binder.source(0);
+        let mut expressions: Vec<_> = tree
+            .arena
+            .node_ids()
+            .filter_map(|id| state.record_of(id).as_expression_statement()?.expression)
+            .collect();
+        expressions.sort_by_key(|&node| state.pos_of(node));
+        let type_this = tree
+            .arena
+            .node_ids()
+            .find(|&id| state.is_this_in_type_query(id))
+            .unwrap();
+        let [x, wrapper, path, dotted, indexed, at, surrogate, this] = expressions[..] else {
+            panic!("expected eight expression statements")
+        };
+        let pattern = tree
+            .arena
+            .node_ids()
+            .find(|&id| state.kind_of(id) == SyntaxKind::ObjectBindingPattern)
+            .unwrap();
+        let argument = state
+            .record_of(indexed)
+            .as_element_access_expression()
+            .unwrap()
+            .argument_expression
+            .unwrap();
+        let symbol = state.get_resolved_symbol(x).unwrap().unwrap().index();
+        let index_symbol = state
+            .get_resolved_symbol(argument)
+            .unwrap()
+            .unwrap()
+            .index();
+        let declared = state.tables.intrinsics.string;
+        let initial = state.tables.intrinsics.number;
+        let mut pairs = Vec::new();
+        for container in [None, Some(tree.root)] {
+            let prefix = container.map_or("-1".to_owned(), |id| id.index().to_string());
+            let d = declared.index();
+            let i = initial.index();
+            let base = format!("{prefix}|{d}|{i}|{symbol}");
+            for (node, suffix) in [
+                (x, "".into()),
+                (wrapper, "".into()),
+                (path, ".a.b".into()),
+                (dotted, ".a.b".into()),
+                (indexed, format!(".@{index_symbol}").into()),
+                (at, ".@".into()),
+                (surrogate, JsString::from_code_units(&[0x2e, 0xd800])),
+            ] {
+                let key = state
+                    .get_flow_cache_key(node, declared, initial, container)
+                    .unwrap()
+                    .unwrap();
+                let mut expected = JsString::from(base.as_str());
+                expected.push_js(suffix.as_js());
+                pairs.push((key, expected));
+            }
+            let this_key = state
+                .get_flow_cache_key(this, declared, initial, container)
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                state
+                    .get_flow_cache_key(type_this, declared, initial, container)
+                    .unwrap(),
+                Some(this_key.clone())
+            );
+            pairs.push((this_key, format!("0|{prefix}|{d}|{i}").into()));
+            let pattern_key = state
+                .get_flow_cache_key(pattern, declared, initial, container)
+                .unwrap()
+                .unwrap();
+            pairs.push((pattern_key, format!("{}#{d}", pattern.index()).into()));
+            let dynamic = format!("@{index_symbol}");
+            let other = state
+                .get_flow_cache_key(argument, declared, initial, container)
+                .unwrap()
+                .unwrap();
+            pairs.push((other, format!("{prefix}|{d}|{i}|{index_symbol}").into()));
+            for props in [
+                vec![dynamic.as_str()],
+                vec![],
+                vec!["a", "b"],
+                vec!["a.b"],
+                vec!["@"],
+                vec![""],
+            ] {
+                let mut query = FlowQuery::for_memo_test(state, x);
+                query.flow_container = container;
+                query.declared_type = declared;
+                query.initial_type = initial;
+                query.synthetic_props = Some(
+                    props
+                        .iter()
+                        .map(|s| EscapedName::from_identifier_escaped_text(s))
+                        .collect(),
+                );
+                let key = state.get_or_set_cache_key(&mut query).unwrap().unwrap();
+                assert_eq!(
+                    state.get_or_set_cache_key(&mut query).unwrap(),
+                    Some(key.clone())
+                );
+                pairs.push((key, format!("{base}.{}", props.join(".")).into()));
+            }
+        }
+        // These numeric positions can spell the same prefix across root kinds.
+        pairs.push((
+            FlowCacheKey::Root(FlowKeyPrefix::Fields([0, 1, 2, 3])),
+            "0|1|2|3".into(),
+        ));
+        pairs.push((
+            FlowCacheKey::this(
+                Some(tsc_syntax::NodeId::new(1)),
+                tsc_types::TypeId::new(2),
+                tsc_types::TypeId::new(3),
+            ),
+            "0|1|2|3".into(),
+        ));
+        for (key, old) in &pairs {
+            let (prefix, suffix) = match key {
+                FlowCacheKey::Root(prefix) => (prefix, None),
+                FlowCacheKey::Access(access) => (&access.0, Some(&access.1)),
+            };
+            let mut spelling = JsString::from(match prefix {
+                FlowKeyPrefix::Fields(fields) => fields
+                    .map(|field| {
+                        if field == u32::MAX {
+                            "-1".to_string()
+                        } else {
+                            field.to_string()
+                        }
+                    })
+                    .join("|"),
+                FlowKeyPrefix::Node(node, ty) => format!("{}#{}", node.index(), ty.index()),
+            });
+            if let Some(suffix) = suffix {
+                spelling.push_js(suffix.as_js());
+            }
+            assert_eq!(&spelling, old);
+            for (other, other_old) in &pairs {
+                assert_eq!(key == other, old == other_old, "{old:?}, {other_old:?}");
+            }
+        }
+        let mut cache = rustc_hash::FxHashMap::default();
+        let mut legacy = rustc_hash::FxHashMap::default();
+        for (index, (key, old)) in pairs.into_iter().enumerate() {
+            let ty = tsc_types::TypeId::new(index as u32);
+            assert_eq!(cache.insert(key, ty), legacy.insert(old, ty));
+        }
+    });
+}

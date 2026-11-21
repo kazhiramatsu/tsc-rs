@@ -1214,8 +1214,9 @@ pub struct CheckerState<'a> {
     /// are per-file arena indices here, so (file, FlowId) is the
     /// stable identity tsc's lazily assigned flow.id provides. Lives
     /// across queries (never trimmed), like tsc's.
-    pub(crate) flow_loop_caches:
-        crate::flow::caches::FlowIdentityCache<rustc_hash::FxHashMap<tsc_types::JsString, TypeId>>,
+    pub(crate) flow_loop_caches: crate::flow::caches::FlowIdentityCache<
+        rustc_hash::FxHashMap<crate::flow::FlowCacheKey, TypeId>,
+    >,
     /// tsc lastFlowNode/lastFlowNodeReachable (47401-47402): the
     /// single-entry reachability memo — the immediately previous
     /// isReachableFlowNode query (reachability is asked per statement

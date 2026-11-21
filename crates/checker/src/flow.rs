@@ -108,7 +108,7 @@ pub(crate) struct FlowQuery<'a> {
     /// tsc `key`/`isKeySet` (70395-70396): the lazily computed flow
     /// cache key — outer None = not computed yet (isKeySet false),
     /// Some(None) = computed, reference has no key.
-    pub(crate) key: Option<Option<JsString>>,
+    pub(crate) key: Option<Option<FlowCacheKey>>,
     /// tsc getSyntheticElementAccess (55897): a destructuring query's
     /// reference is the parse-node-factory access chain
     /// `base["p0"]["p1"]…` with the base access's flowNode. The arena
@@ -202,6 +202,44 @@ pub(crate) struct SharedFlow {
     pub(crate) flags: u8,
 }
 
+/// The numeric portion before the first dot in a loop reference key.
+/// Identifier and `this` use the same four field positions. The value
+/// u32::MAX stands for the absent container (-1), outside every ID domain.
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+pub(crate) enum FlowKeyPrefix {
+    Fields([u32; 4]),
+    Node(NodeId, TypeId),
+}
+
+/// Most roots fit inline. Accesses keep the exact dotted JavaScript string,
+/// so a literal property containing a dot compares like the corresponding path.
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub(crate) enum FlowCacheKey {
+    Root(FlowKeyPrefix),
+    Access(std::sync::Arc<(FlowKeyPrefix, JsString)>),
+}
+
+impl FlowCacheKey {
+    fn this(container: Option<NodeId>, declared: TypeId, initial: TypeId) -> Self {
+        Self::Root(FlowKeyPrefix::Fields([
+            0,
+            container.map_or(u32::MAX, NodeId::index),
+            declared.index(),
+            initial.index(),
+        ]))
+    }
+
+    fn suffix_mut(&mut self) -> &mut JsString {
+        if let Self::Root(prefix) = *self {
+            *self = Self::Access(std::sync::Arc::new((prefix, JsString::new())));
+        }
+        let Self::Access(access) = self else {
+            unreachable!()
+        };
+        &mut std::sync::Arc::make_mut(access).1
+    }
+}
+
 /// One in-progress loop-label fixpoint frame: tsc's parallel
 /// flowLoopNodes[i]/flowLoopKeys[i]/flowLoopTypes[i] entry at index
 /// i < flowLoopCount (the Vec length here). Published before a
@@ -210,7 +248,7 @@ pub(crate) struct SharedFlow {
 pub(crate) struct FlowLoopEntry {
     pub(crate) file: usize,
     pub(crate) flow: FlowId,
-    pub(crate) key: JsString,
+    pub(crate) key: FlowCacheKey,
     pub(crate) types: Vec<TypeId>,
     pub(crate) serial: u32,
 }
@@ -1460,7 +1498,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getOrSetCacheKey @6.0.3
     /// tsc-hash: e224dd54f074c1f3304e88be454bdbbd8ae9105ce337bfb6b83b6d39ce4beef7
     /// tsc-span: _tsc.js:70413-70419
-    fn get_or_set_cache_key(&mut self, query: &mut FlowQuery) -> CheckResult<Option<JsString>> {
+    fn get_or_set_cache_key(&mut self, query: &mut FlowQuery) -> CheckResult<Option<FlowCacheKey>> {
         if let Some(key) = &query.key {
             return Ok(key.clone());
         }
@@ -1470,17 +1508,11 @@ impl<'a> CheckerState<'a> {
         // this-rooted chain keys from the ThisKeyword arm's base
         // (69414 "0|…") — the container node's own kind never keys.
         let base_key = if query.synthetic_this_root {
-            let mut key = String::with_capacity(34);
-            key.push_str("0|");
-            match query.flow_container {
-                Some(container) => tsc_types::push_decimal(&mut key, container.index()),
-                None => key.push_str("-1"),
-            }
-            key.push('|');
-            tsc_types::push_decimal(&mut key, query.declared_type.index());
-            key.push('|');
-            tsc_types::push_decimal(&mut key, query.initial_type.index());
-            Some(JsString::from(key))
+            Some(FlowCacheKey::this(
+                query.flow_container,
+                query.declared_type,
+                query.initial_type,
+            ))
         } else {
             self.get_flow_cache_key(
                 query.reference,
@@ -1491,12 +1523,13 @@ impl<'a> CheckerState<'a> {
         };
         let key = match (&query.synthetic_props, base_key) {
             (Some(props), Some(mut base_key)) => {
-                base_key.push('.');
+                let suffix = base_key.suffix_mut();
+                suffix.push('.');
                 for (index, property) in props.iter().enumerate() {
                     if index != 0 {
-                        base_key.push('.');
+                        suffix.push('.');
                     }
-                    base_key.push_js(property.as_js());
+                    suffix.push_js(property.as_js());
                 }
                 Some(base_key)
             }
@@ -1511,50 +1544,32 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 680d4522c23b10729b148621ff3f5b43e22e5a17351b666d2ef862ede1d455ed
     /// tsc-span: _tsc.js:69407-69447
     ///
-    /// The key strings mirror tsc's exactly, with tsc-rs's stable ids
-    /// standing in for tsc's lazily assigned node/type/symbol ids
-    /// (the key only needs identity, not any particular numbering).
+    /// Build the numeric root lazily, then append accessed names in their original order.
     fn get_flow_cache_key(
         &mut self,
         node: NodeId,
         declared_type: TypeId,
         initial_type: TypeId,
         flow_container: Option<NodeId>,
-    ) -> CheckResult<Option<JsString>> {
-        // The key's fields in decimal, as tsc's template strings write them
-        // (a formatter per key was a measurable share of a check).
-        fn push_container(key: &mut String, container: Option<NodeId>) {
-            match container {
-                Some(container) => tsc_types::push_decimal(key, container.index()),
-                None => key.push_str("-1"),
-            }
-        }
+    ) -> CheckResult<Option<FlowCacheKey>> {
         match self.kind_of(node) {
             SyntaxKind::Identifier if !self.is_this_in_type_query(node) => {
                 Ok(self.get_resolved_symbol(node)?.map(|symbol| {
-                    let mut key = String::with_capacity(32);
-                    push_container(&mut key, flow_container);
-                    key.push('|');
-                    tsc_types::push_decimal(&mut key, declared_type.index());
-                    key.push('|');
-                    tsc_types::push_decimal(&mut key, initial_type.index());
-                    key.push('|');
-                    tsc_types::push_decimal(&mut key, symbol.index());
-                    JsString::from(key)
+                    FlowCacheKey::Root(FlowKeyPrefix::Fields([
+                        flow_container.map_or(u32::MAX, NodeId::index),
+                        declared_type.index(),
+                        initial_type.index(),
+                        symbol.index(),
+                    ]))
                 }))
             }
             // The this-in-type-query Identifier falls through to the
             // ThisKeyword arm, exactly as tsc's switch does.
-            SyntaxKind::Identifier | SyntaxKind::ThisKeyword => {
-                let mut key = String::with_capacity(32);
-                key.push_str("0|");
-                push_container(&mut key, flow_container);
-                key.push('|');
-                tsc_types::push_decimal(&mut key, declared_type.index());
-                key.push('|');
-                tsc_types::push_decimal(&mut key, initial_type.index());
-                Ok(Some(JsString::from(key)))
-            }
+            SyntaxKind::Identifier | SyntaxKind::ThisKeyword => Ok(Some(FlowCacheKey::this(
+                flow_container,
+                declared_type,
+                initial_type,
+            ))),
             SyntaxKind::NonNullExpression => {
                 let Some(data) = self.record_of(node).as_non_null_expression() else {
                     return Ok(None);
@@ -1599,8 +1614,9 @@ impl<'a> CheckerState<'a> {
                     return Ok(None);
                 };
                 let mut key = left_key;
-                key.push('.');
-                key.push_str(right_text);
+                let suffix = key.suffix_mut();
+                suffix.push('.');
+                suffix.push_str(right_text);
                 Ok(Some(key))
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
@@ -1623,8 +1639,9 @@ impl<'a> CheckerState<'a> {
                         return Ok(None);
                     };
                     let mut key = key;
-                    key.push('.');
-                    key.push_js(prop_name.as_js());
+                    let suffix = key.suffix_mut();
+                    suffix.push('.');
+                    suffix.push_js(prop_name.as_js());
                     return Ok(Some(key));
                 }
                 if self.kind_of(node) == SyntaxKind::ElementAccessExpression {
@@ -1649,8 +1666,9 @@ impl<'a> CheckerState<'a> {
                                         return Ok(None);
                                     };
                                     let mut key = key;
-                                    key.push_str(".@");
-                                    key.push_str(&symbol.index().to_string());
+                                    let suffix = key.suffix_mut();
+                                    suffix.push_str(".@");
+                                    suffix.push_str(&symbol.index().to_string());
                                     return Ok(Some(key));
                                 }
                             }
@@ -1664,13 +1682,10 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::FunctionDeclaration
             | SyntaxKind::FunctionExpression
             | SyntaxKind::ArrowFunction
-            | SyntaxKind::MethodDeclaration => {
-                let mut key = String::with_capacity(21);
-                tsc_types::push_decimal(&mut key, node.index());
-                key.push('#');
-                tsc_types::push_decimal(&mut key, declared_type.index());
-                Ok(Some(JsString::from(key)))
-            }
+            | SyntaxKind::MethodDeclaration => Ok(Some(FlowCacheKey::Root(FlowKeyPrefix::Node(
+                node,
+                declared_type,
+            )))),
             _ => Ok(None),
         }
     }

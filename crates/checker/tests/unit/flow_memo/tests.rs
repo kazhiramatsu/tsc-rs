@@ -586,7 +586,7 @@ fn a_shared_answer_from_a_finished_loop_taints_every_enclosing_frame() {
         state.flow_loop_stack.push(crate::flow::FlowLoopEntry {
             file: 0,
             flow: tsc_binder::flow::FlowId::new(0),
-            key: tsc_types::JsString::from("loop"),
+            key: crate::flow::FlowCacheKey::Root(crate::flow::FlowKeyPrefix::Fields([0; 4])),
             types: vec![state.tables.intrinsics.string],
             serial: source,
         });
@@ -1183,7 +1183,7 @@ fn consultation_guards_live_context_and_depth() {
         state.flow_loop_stack.push(crate::flow::FlowLoopEntry {
             file: 0,
             flow: FlowId::new(0),
-            key: "x".into(),
+            key: crate::flow::FlowCacheKey::Root(crate::flow::FlowKeyPrefix::Fields([0; 4])),
             types: Vec::new(),
             serial: 1,
         });
