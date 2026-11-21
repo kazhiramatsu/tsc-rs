@@ -2529,6 +2529,14 @@ fn resolved_source_walk_observes_replaced_members_and_keeps_global_fallback() {
                 assert_eq!(state.get_resolved_property(captured, source, name).unwrap(),
                     state.get_property_of_type_full(source, name).unwrap());
             }
+            let annotation = find_probe_annotation(state.binder.source(0), "target").unwrap();
+            let target = state.get_type_from_type_node(annotation).unwrap();
+            let replacement = state.resolve_structured_type_members(target).unwrap();
+            let z = state.members_of(replacement).members.get(&state.binder, "z").unwrap();
+            let epoch = state.links.members_reset_epoch;
+            state.links.set_type_members(state.speculation_depth, source, crate::links::LinkSlot::Resolved(replacement));
+            assert_eq!(state.links.members_reset_epoch, epoch);
+            assert_eq!(state.get_resolved_property(captured, source, tsc_types::known_name!("z")), Ok(Some(z)));
             state.links.retract_type_members(source);
             state.resolve_structured_type_members(source).unwrap();
             let name = tsc_types::EscapedName::from_identifier_escaped_text("x");
@@ -2679,4 +2687,186 @@ fn property_name_counts_keep_first_occurrences_across_growth_and_clear() {
     counts.clear();
     counts.add(names[0]);
     assert_eq!(counts.entries, vec![(names[0], 1)]);
+}
+
+#[test]
+fn resolved_miss_uses_only_the_applicable_globals() {
+    use super::HashedName;
+    use tsc_types::EscapedName;
+
+    crate::state::test_support::with_program_state(
+        &[(
+            "a.ts",
+            "interface Object { shared: number }
+            interface Function {}
+            interface CallableFunction { callable: number }
+            interface NewableFunction { newable: number }
+            declare let f: () => void;",
+        )],
+        &CompilerOptions {
+            strict_bind_call_apply: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            let globals = [
+                state.global_object_type().unwrap(),
+                state.global_function_type().unwrap(),
+                state.global_callable_function_type().unwrap(),
+                state.global_newable_function_type().unwrap(),
+            ];
+            for ty in globals {
+                state.resolve_structured_type_members(ty).unwrap();
+            }
+            let annotation = find_probe_annotation(state.binder.source(0), "f").unwrap();
+            let f = state.get_type_from_type_node(annotation).unwrap();
+            state.resolve_structured_type_members(f).unwrap();
+            let source = state.resolved_property_source(f);
+            assert!(source.is_some());
+            let callable = state
+                .get_property_of_object_type(globals[2], "callable")
+                .unwrap()
+                .unwrap();
+            for depth in [0, 1, 0] {
+                if depth == 1 {
+                    state.links.retract_type_members(f);
+                    state.resolve_structured_type_members(f).unwrap();
+                }
+                state.members_resolving = depth;
+                for (name, expected) in [("callable", Some(callable)), ("newable", None)] {
+                    let name = EscapedName::from_identifier_escaped_text(name);
+                    assert!(state.may_be_augment_member(HashedName::new(name)));
+                    assert_eq!(state.get_resolved_property(source, f, name), Ok(expected));
+                    for include in [false, true] {
+                        for skip in [false, true] {
+                            assert_eq!(
+                                state.get_property_of_type_ex_with_include_type_only_members(
+                                    f, name, skip, include
+                                ),
+                                Ok(if skip { None } else { expected })
+                            );
+                        }
+                    }
+                }
+            }
+        },
+    );
+}
+
+#[test]
+// tsgo getPropertyOfTypeEx (checker.go:19319-19324): the hidden member ends the
+// look-up; Object's member of the same name does not answer for it.
+fn hidden_type_only_export_ends_the_lookup() {
+    crate::state::test_support::with_program_state(
+        &[
+            ("globals.ts", "interface Object { shared: number }"),
+            ("a.ts", "export class shared {}"),
+            ("b.ts", "export type * from './a';"),
+        ],
+        &CompilerOptions::default(),
+        |state| {
+            let module = state
+                .binder
+                .node_symbol(state.binder.source(2).root)
+                .unwrap();
+            let ty = state.get_type_of_symbol(module).unwrap();
+            let global = state.global_object_type().unwrap();
+            let shared = state
+                .get_property_of_object_type(global, "shared")
+                .unwrap()
+                .unwrap();
+            let members = state.resolve_structured_type_members(ty).unwrap();
+            let own = state
+                .members_of(members)
+                .members
+                .get(&state.binder, "shared")
+                .unwrap();
+            assert_ne!(own, shared);
+            for (skip, include, expected) in [
+                (true, false, None),
+                (false, false, None),
+                (true, true, Some(own)),
+                (false, true, Some(own)),
+            ] {
+                assert_eq!(
+                    state.get_property_of_type_ex_with_include_type_only_members(
+                        ty, "shared", skip, include
+                    ),
+                    Ok(expected)
+                );
+            }
+        },
+    );
+}
+
+#[test]
+fn plain_object_dispatch_preserves_ids_and_work_at_each_query() {
+    use super::SignatureKind;
+    let text = "interface F<T> { (x: T): T; (): number; new(): F<T>; z: T; a: string }
+        interface Array<T> { filter(predicate: (x: T) => unknown): T[] }
+        interface ReadonlyArray<T> { filter(predicate: (x: T) => unknown): T[] }
+        declare let overload: F<number>;
+        declare let arrays: string[] | number[];
+        declare let mapped: { [P in 's' | 't']: number };
+        declare let union: { a: string } | { [key: string]: string };
+        declare let reduced: ({ kind: 1 } & { kind: 2 }) | { z: number };";
+    let mut source = parse_published_source_file(
+        "a.ts".to_owned(),
+        text.to_owned(),
+        ParseOptions {
+            script_kind: ScriptKind::Ts,
+            ..ParseOptions::default()
+        },
+        None,
+    );
+    assert!(source.parse_diagnostics.is_empty());
+    let binder = bind_source_file(&mut source);
+    let options = CompilerOptions::default();
+    // Both checkers see the same binder IDs and start with fresh semantic arenas.
+    let trace = |use_entry| {
+        let mut state = CheckerState::new(binder.source, &binder, &options);
+        let counts = |state: &CheckerState<'_>| {
+            let c = crate::CheckerCounts::of(state, true);
+            (c.types, c.instantiations, c.symbols)
+        };
+        let mut signatures = Vec::new();
+        let mut properties = Vec::new();
+        for name in ["overload", "arrays", "mapped", "union", "reduced"] {
+            let annotation = find_probe_annotation(state.binder.source(0), name).unwrap();
+            let ty = state.get_type_from_type_node(annotation).unwrap();
+            let ty = if name == "arrays" {
+                let method = state
+                    .get_property_of_type_full(ty, "filter")
+                    .unwrap()
+                    .unwrap();
+                state.get_type_of_symbol(method).unwrap()
+            } else {
+                ty
+            };
+            for _ in 0..2 {
+                for kind in [SignatureKind::Call, SignatureKind::Construct] {
+                    let ids = if use_entry {
+                        state.get_signatures_of_type(ty, kind)
+                    } else {
+                        state.get_signatures_of_type_worker(ty, kind)
+                    }
+                    .unwrap();
+                    if name == "overload" {
+                        assert_eq!(ids.len(), if kind == SignatureKind::Call { 2 } else { 1 });
+                    }
+                    signatures.push((ids, counts(&state)));
+                }
+            }
+            for _ in 0..2 {
+                let ids = if use_entry {
+                    state.get_properties_of_type_full(ty)
+                } else {
+                    state.get_properties_of_type_worker(ty)
+                }
+                .unwrap();
+                properties.push((ids, counts(&state)));
+            }
+        }
+        (signatures, properties)
+    };
+    assert_eq!(trace(true), trace(false));
 }
