@@ -8685,11 +8685,17 @@ fn join_normalized_js(parent: JsStr<'_>, mut child: JsStr<'_>) -> JsString {
     while let Some(tail) = child.strip_prefix("/") {
         child = tail;
     }
-    let mut result = crate::loader_counters::js_owned("path.join", parent);
-    if !result.ends_with("/") {
+    // A slash separates the operands, so their byte lengths add without
+    // forming a surrogate pair at the boundary.
+    let separator = !parent.ends_with("/");
+    let bytes = parent.as_bytes().len() + usize::from(separator) + child.as_bytes().len();
+    let mut result = JsString::with_capacity(bytes);
+    result.push_js(parent);
+    if separator {
         result.push('/');
     }
     result.push_js(child);
+    crate::loader_counters::js("path.join", result.as_js());
     result
 }
 
@@ -8820,6 +8826,36 @@ mod shared_package_loads_tests {
         env!("CARGO_MANIFEST_DIR"),
         "/../host/tests/support/scalar_query_bridge.rs"
     ));
+
+    #[test]
+    fn normalized_path_join_preserves_spelling_in_final_storage() {
+        for (parent, child, expected) in [
+            ("", "", "/"),
+            ("", "///child", "/child"),
+            ("parent", "", "parent/"),
+            ("parent/", "///child/", "parent/child/"),
+        ] {
+            let result = join_normalized(parent, child);
+            assert_eq!(result, expected);
+            assert_eq!(result.heap_bytes(), 0);
+        }
+        let mut parent = JsString::from("/parent");
+        parent.push_code_unit(0xd800);
+        let mut child = JsString::from("///");
+        child.push_code_unit(0xdc00);
+        child.push_str("long-child/");
+        let mut expected = parent.clone();
+        expected.push('/');
+        expected.push_code_unit(0xdc00);
+        expected.push_str("long-child/");
+        let result = join_normalized(&parent, &child);
+        assert_eq!(result, expected);
+        assert_eq!(result.heap_bytes(), expected.as_bytes().len());
+
+        let result = join_normalized("/a-parent-already-on-the-heap", "child");
+        assert_eq!(result, "/a-parent-already-on-the-heap/child");
+        assert_eq!(result.heap_bytes(), result.as_bytes().len());
+    }
 
     /// A host that remembers the files read.
     struct ReadLog {
