@@ -422,45 +422,51 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isUnknownLikeUnionType @6.0.3
     /// tsc-hash: db66676e0affd408e748429ddd64881c82c0a42b92b120e2c54f6726f6e3fed4
     /// tsc-span: _tsc.js:64653-64662
+    #[inline]
     fn is_unknown_like_union_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         if !self.tables.strict_null_checks || !self.tables.flags_of(ty).intersects(TypeFlags::UNION)
         {
             return Ok(false);
         }
-        if !self
-            .tables
-            .object_flags_of(ty)
-            .intersects(ObjectFlags::IS_UNKNOWN_LIKE_UNION_COMPUTED)
-        {
-            let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
-                unreachable!("union flag implies union data");
-            };
-            let types = self.tables.list_copy(types);
-            let is_unknown_like = types.len() >= 3
-                && self
-                    .tables
-                    .flags_of(types[0])
-                    .intersects(TypeFlags::UNDEFINED)
-                && self.tables.flags_of(types[1]).intersects(TypeFlags::NULL)
-                && {
-                    let mut any_empty = false;
-                    for &t in types.iter() {
-                        if self.is_empty_anonymous_object_type(t)? {
-                            any_empty = true;
-                            break;
-                        }
-                    }
-                    any_empty
-                };
-            let new_flags = self.tables.object_flags_of(ty).bits()
-                | ObjectFlags::IS_UNKNOWN_LIKE_UNION_COMPUTED.bits()
-                | if is_unknown_like {
-                    ObjectFlags::IS_UNKNOWN_LIKE_UNION.bits()
-                } else {
-                    0
-                };
-            self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(new_flags);
+        let flags = self.tables.object_flags_of(ty);
+        if flags.intersects(ObjectFlags::IS_UNKNOWN_LIKE_UNION_COMPUTED) {
+            return Ok(flags.intersects(ObjectFlags::IS_UNKNOWN_LIKE_UNION));
         }
+        self.compute_unknown_like_union_type(ty)
+    }
+
+    /// Publish the verdict after the fallible member queries have finished.
+    #[cold]
+    #[inline(never)]
+    fn compute_unknown_like_union_type(&mut self, ty: TypeId) -> CheckResult<bool> {
+        let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
+            unreachable!("union flag implies union data");
+        };
+        let types = self.tables.list_copy(types);
+        let is_unknown_like = types.len() >= 3
+            && self
+                .tables
+                .flags_of(types[0])
+                .intersects(TypeFlags::UNDEFINED)
+            && self.tables.flags_of(types[1]).intersects(TypeFlags::NULL)
+            && {
+                let mut any_empty = false;
+                for &t in types.iter() {
+                    if self.is_empty_anonymous_object_type(t)? {
+                        any_empty = true;
+                        break;
+                    }
+                }
+                any_empty
+            };
+        let new_flags = self.tables.object_flags_of(ty).bits()
+            | ObjectFlags::IS_UNKNOWN_LIKE_UNION_COMPUTED.bits()
+            | if is_unknown_like {
+                ObjectFlags::IS_UNKNOWN_LIKE_UNION.bits()
+            } else {
+                0
+            };
+        self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(new_flags);
         Ok(self
             .tables
             .object_flags_of(ty)

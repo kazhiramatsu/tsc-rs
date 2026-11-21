@@ -382,3 +382,62 @@ fn short_membership_keeps_the_ordered_result_for_present_ids() {
         }
     });
 }
+
+#[test]
+fn unknown_like_union_publishes_after_its_first_scan() {
+    use tsc_types::{ObjectFlags, UnionReduction};
+
+    let options = CompilerOptions {
+        strict_null_checks: Some(true),
+        ..Default::default()
+    };
+    with_program_state(
+        &[(
+            "a.ts",
+            "declare const key: unique symbol; let obj: { [key]: number };",
+        )],
+        &options,
+        |state| {
+            let undefined = state.tables.intrinsics.undefined;
+            let null = state.tables.intrinsics.null;
+            let computed = ObjectFlags::IS_UNKNOWN_LIKE_UNION_COMPUTED;
+            let value = ObjectFlags::IS_UNKNOWN_LIKE_UNION;
+            assert!(!state.is_unknown_like_union_type(undefined).unwrap());
+            let object = resolve(state, "obj");
+            for (part, expected) in [(state.empty_object_type, true), (object, false)] {
+                let union = state
+                    .get_union_type_ex(&[undefined, null, part], UnionReduction::None)
+                    .unwrap();
+                state.tables.strict_null_checks = false;
+                assert!(!state.is_unknown_like_union_type(union).unwrap());
+                assert!(!state.tables.object_flags_of(union).intersects(computed));
+                state.tables.strict_null_checks = true;
+                let first = state.flow_frame_begin();
+                assert_eq!(state.is_unknown_like_union_type(union).unwrap(), expected);
+                let first_taint = state.flow_frame_end(first).0;
+                if part == object {
+                    assert_eq!(first_taint.transient, 0);
+                }
+                let flags = state.tables.object_flags_of(union);
+                assert!(flags.intersects(computed));
+                assert_eq!(flags.intersects(value), expected);
+                let counts = (
+                    state.tables.len(),
+                    state.binder.transient_symbol_count(),
+                    state.total_instantiation_count,
+                );
+                let repeat = state.flow_frame_begin();
+                assert_eq!(state.is_unknown_like_union_type(union).unwrap(), expected);
+                assert_ne!(state.flow_frame_end(repeat).0.transient, 0);
+                assert_eq!(
+                    counts,
+                    (
+                        state.tables.len(),
+                        state.binder.transient_symbol_count(),
+                        state.total_instantiation_count
+                    )
+                );
+            }
+        },
+    );
+}
