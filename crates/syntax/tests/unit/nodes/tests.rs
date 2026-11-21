@@ -96,6 +96,48 @@ fn a_payload_past_three_slots_spills_its_cold_fields_to_a_tail() {
 }
 
 #[test]
+fn first_two_payload_slots_keep_their_offsets_across_a_spill() {
+    let slots = [11, 22, 33];
+    let data = NodeData::BinaryExpression(BinaryExpressionData {
+        left: NodeId::from_position(slots[0]),
+        operator_token: NodeId::from_position(slots[1]),
+        right: NodeId::from_position(slots[2]),
+    });
+    let mut tails = tsc_store::tails::Tails::new();
+    let mut node = record(&data, None, &mut tails);
+    assert_eq!(node.words, slots);
+
+    // Attaching JSDoc spills slot 2. Replacing the attachment reuses its tail.
+    node.encode(&data, array(7), &mut tails, true);
+    assert_ne!(node.literal_flags & HAS_TAIL, 0);
+    assert_eq!(node.words[..2], slots[..2]);
+    let position = node.words[2];
+    let js_doc = NodeArrayId::new(8);
+    node.encode(&data, Some(js_doc), &mut tails, true);
+    assert_eq!(node.words, [slots[0], slots[1], position]);
+    assert_eq!(tails.words_mut(position, 2), &[slots[2], js_doc.position()]);
+
+    let (words, comment, payload) = node.image_payload();
+    assert_eq!(words, slots);
+    let restored = Node::from_image_payload(
+        node.kind,
+        &words,
+        comment,
+        js_doc.position(),
+        payload,
+        &mut tails,
+    )
+    .unwrap();
+    for record in [node, restored] {
+        assert_eq!(record.words[..2], slots[..2]);
+        assert_eq!(record.slots::<1>(), [slots[0]]);
+        assert_eq!(record.slots::<2>(), [slots[0], slots[1]]);
+        assert_eq!(record.data(), data);
+        assert_eq!(record.js_doc(), Some(js_doc));
+    }
+}
+
+#[test]
 fn scalars_comments_and_texts_read_back() {
     let mut tails = tsc_store::tails::Tails::new();
     let tag = NodeData::JSDocParameterTag(JSDocParameterTagData {
@@ -164,7 +206,14 @@ fn an_empty_payload_kind_built_as_a_token_reads_back_a_token() {
     let empty = NodeData::missing(SyntaxKind::JSDocAllType);
     node.encode(&empty, None, &mut tails, false);
     assert_eq!(node.data(), empty);
+    assert!(node.as_js_doc_all_type().is_some());
     assert_eq!(node.js_doc(), None);
+
+    // Model a tail position whose numeric value equals the inline marker.
+    node.literal_flags |= HAS_TAIL;
+    assert_eq!(node.words[2], 1);
+    assert_eq!(node.data(), NodeData::Token);
+    assert!(node.as_js_doc_all_type().is_none());
 }
 
 fn legacy_map_identity_words<E>(
@@ -190,11 +239,11 @@ fn legacy_map_identity_words<E>(
         return Ok(());
     }
     for (index, &space) in spaces.iter().enumerate().take(2) {
-        each(space, &mut node.words[index + 1])?;
+        each(space, &mut node.words[index])?;
     }
     let at = count.saturating_sub(2);
     let len = at + 1 + if has_comment { 4 } else { 0 };
-    let tail = tails.words_mut(node.words[0], len as u32);
+    let tail = tails.words_mut(node.words[2], len as u32);
     for (index, &space) in spaces.iter().enumerate().skip(2) {
         each(space, &mut tail[index - 2])?;
     }
@@ -219,8 +268,8 @@ fn relocation_layout_matches_legacy_for_every_kind_and_storage_form() {
         if node.literal_flags & HAS_TAIL != 0 {
             let (count, comment) = payload_shape(node.kind);
             let len = count.saturating_sub(2) + 1 + if comment { 4 } else { 0 };
-            words[0] = 0; // Each independent tail has its own store position.
-            words.extend_from_slice(tails.words_mut(node.words[0], len as u32));
+            words[2] = 0; // Each independent tail has its own store position.
+            words.extend_from_slice(tails.words_mut(node.words[2], len as u32));
         }
         words
     }
@@ -257,7 +306,7 @@ fn relocation_layout_matches_legacy_for_every_kind_and_storage_form() {
                     if comment && form == 3 {
                         tail[at + 1] = TextId::EMPTY.position();
                     }
-                    input.words[0] = old_tails.push(&tail);
+                    input.words[2] = old_tails.push(&tail);
                     input.literal_flags |= HAS_TAIL;
                 }
                 for fail_at in [None, Some(0), Some(1), Some(2), Some(5)] {

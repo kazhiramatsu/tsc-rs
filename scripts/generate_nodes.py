@@ -393,9 +393,9 @@ pub enum NodePayload {
     Kind(SyntaxKind),
 }
 
-/// `literal_flags` bit 15: the record's word 0 names a tail (see
-/// `tsc_store::tails`) holding the payload's slots past the second, the JSDoc
-/// attachment and a JSDoc comment, and words 1-2 hold the first two slots.
+/// When bit 15 of `literal_flags` is set, word 2 names a tail holding the
+/// remaining slots, JSDoc attachment and comment. The first two payload slots
+/// always occupy words 0 and 1 so their readers can ignore this bit.
 const HAS_TAIL: u16 = 1 << 15;
 
 /// The identity spaces of payload slots (see `IdentityLayout`).
@@ -404,7 +404,7 @@ pub(crate) const SPACE_NODE: u8 = 1;
 pub(crate) const SPACE_ARRAY: u8 = 2;
 pub(crate) const SPACE_TEXT: u8 = 3;
 
-/// Word 2 of a record of a kind whose payload has no fields (EmptyStatement,
+/// Word 2 of a tail-free record of a kind whose payload has no fields (EmptyStatement,
 /// JSDocAllType, ...): the payload is that kind's, not `Token` (the parser
 /// and the factory build some of them as tokens, and readers tell them
 /// apart by `NodeData::kind`).
@@ -617,22 +617,17 @@ impl Node {
         self.literal_flags = (flags & !HAS_TAIL) | (self.literal_flags & HAS_TAIL);
     }
 
-    /// The node's `n` payload slots (`n` the kind's slot count).
+    /// The first `N` payload slots of the node.
     #[inline(always)]
     fn slots<const N: usize>(&self) -> [u32; N] {
         let mut out = [0u32; N];
-        if self.literal_flags & HAS_TAIL == 0 {
-            let inline = N.min(3);
-            out[..inline].copy_from_slice(&self.words[..inline]);
-        } else {
-            if N > 0 {
-                out[0] = self.words[1];
-            }
-            if N > 1 {
-                out[1] = self.words[2];
-            }
-            if N > 2 {
-                out[2..].copy_from_slice(tsc_store::tails::tail(self.words[0], N as u32 - 2));
+        let inline = N.min(2);
+        out[..inline].copy_from_slice(&self.words[..inline]);
+        if N > 2 {
+            if self.literal_flags & HAS_TAIL == 0 {
+                out[2] = self.words[2];
+            } else {
+                out[2..].copy_from_slice(tsc_store::tails::tail(self.words[2], N as u32 - 2));
             }
         }
         out
@@ -641,17 +636,22 @@ impl Node {
     /// Payload slot `index` (below the kind's slot count) as stored.
     #[inline(always)]
     fn slot(&self, index: usize) -> u32 {
-        if self.literal_flags & HAS_TAIL == 0 {
-            if index < 3 {
-                self.words[index]
-            } else {
-                0
-            }
-        } else if index < 2 {
-            self.words[index + 1]
+        if index < 2 {
+            self.words[index]
+        } else if self.literal_flags & HAS_TAIL != 0 {
+            tsc_store::tails::tail(self.words[2], index as u32 - 1)[index - 2]
+        } else if index == 2 {
+            self.words[2]
         } else {
-            tsc_store::tails::tail(self.words[0], index as u32 - 1)[index - 2]
+            0
         }
+    }
+
+    /// Fieldless kinds can also be built as tokens. Only an inline record
+    /// can carry their payload marker in word 2.
+    #[inline]
+    fn has_empty_payload(&self) -> bool {
+        self.literal_flags & HAS_TAIL == 0 && self.words[2] == EMPTY_PAYLOAD
     }
 
     /// The JSDoc comment words of a kind of `slots` slots with a comment.
@@ -661,7 +661,7 @@ impl Node {
             return [0; 4];
         }
         let at = slots.saturating_sub(2) + 1;
-        let tail = tsc_store::tails::tail(self.words[0], at as u32 + 4);
+        let tail = tsc_store::tails::tail(self.words[2], at as u32 + 4);
         [tail[at], tail[at + 1], tail[at + 2], tail[at + 3]]
     }
 
@@ -678,7 +678,7 @@ impl Node {
             }
         } else {
             let at = slots.saturating_sub(2);
-            tsc_store::tails::tail(self.words[0], at as u32 + 1)[at]
+            tsc_store::tails::tail(self.words[2], at as u32 + 1)[at]
         };
         NodeArrayId::from_position(word)
     }
@@ -754,15 +754,15 @@ impl Node {
             at + 1
         };
         let position = if in_place && self.literal_flags & HAS_TAIL != 0 {
-            tails.rewrite(self.words[0], &tail[..len]);
-            self.words[0]
+            tails.rewrite(self.words[2], &tail[..len]);
+            self.words[2]
         } else {
             tails.push(&tail[..len])
         };
         self.words = [
-            position,
             slots.first().copied().unwrap_or(0),
             slots.get(1).copied().unwrap_or(0),
+            position,
         ];
         self.literal_flags |= HAS_TAIL;
     }
@@ -798,20 +798,18 @@ impl Node {
             }
             Ok(())
         };
+        each(layout.space(0), &mut self.words[0])?;
+        each(layout.space(1), &mut self.words[1])?;
         if self.literal_flags & HAS_TAIL == 0 {
-            each(layout.space(0), &mut self.words[0])?;
-            each(layout.space(1), &mut self.words[1])?;
             each(layout.space(2), &mut self.words[2])?;
             if count < 3 {
                 each(SPACE_ARRAY, &mut self.words[count])?;
             }
             return Ok(());
         }
-        each(layout.space(0), &mut self.words[1])?;
-        each(layout.space(1), &mut self.words[2])?;
         let at = count.saturating_sub(2);
         let len = at + 1 + if layout.has_comment() { 4 } else { 0 };
-        let tail = tails.words_mut(self.words[0], len as u32);
+        let tail = tails.words_mut(self.words[2], len as u32);
         for index in 2..count {
             each(layout.space(index), &mut tail[index - 2])?;
         }
@@ -833,7 +831,7 @@ impl Node {
         if self.literal_flags & HAS_TAIL != 0 {
             let (slots, has_comment) = payload_shape(self.kind);
             let len = slots.saturating_sub(2) + 1 + if has_comment { 4 } else { 0 };
-            self.words[0] = tails.push(tsc_store::tails::tail(self.words[0], len as u32));
+            self.words[2] = tails.push(tsc_store::tails::tail(self.words[2], len as u32));
         }
     }
 
@@ -905,7 +903,11 @@ impl Node {
             words[spilled] = js_doc;
             let length = spilled + 1 + if has_comment { 4 } else { 0 };
             if has_comment { words[spilled + 1..length].copy_from_slice(&comment); }
-            node.words = [tails.push(&words[..length]), slots.first().copied().unwrap_or(0), slots.get(1).copied().unwrap_or(0)];
+            node.words = [
+                slots.first().copied().unwrap_or(0),
+                slots.get(1).copied().unwrap_or(0),
+                tails.push(&words[..length]),
+            ];
             node.literal_flags |= HAS_TAIL;
         }
         Some(node)
@@ -1232,7 +1234,7 @@ def render_payload_codec(kinds):
         snake = snake_case(kind.name)
         if not kind.fields:
             out.append(
-                f"SyntaxKind::{kind.name} => if self.words[2] == EMPTY_PAYLOAD "
+                f"SyntaxKind::{kind.name} => if self.has_empty_payload() "
                 f"{{ NodeData::{kind.name}({kind.data_name} {{}}) }} else {{ NodeData::Token }},"
             )
             continue
@@ -1247,7 +1249,7 @@ def render_payload_codec(kinds):
             out.append("#[inline]")
             out.append(f"pub fn as_{snake}(&self) -> Option<{kind.data_name}> {{")
             out.append(
-                f"(self.kind == SyntaxKind::{kind.name} && self.words[2] == EMPTY_PAYLOAD)"
+                f"(self.kind == SyntaxKind::{kind.name} && self.has_empty_payload())"
                 f".then_some({kind.data_name} {{}})"
             )
             out += ["}", ""]
