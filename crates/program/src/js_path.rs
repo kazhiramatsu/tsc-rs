@@ -201,7 +201,7 @@ impl<'p> PathText<'p> {
         }
     }
 
-    fn into_owned(self) -> JsString {
+    pub(crate) fn into_owned(self) -> JsString {
         match self {
             Self::Borrowed(path) => crate::loader_counters::js_owned("path.owned", path),
             Self::Owned(path) => path,

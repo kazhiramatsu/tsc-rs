@@ -5953,17 +5953,29 @@ impl<'a> ModuleResolver<'a> {
         Ok(found)
     }
 
+    #[inline]
     fn load_package<'p>(
         &mut self,
         package_json: impl Into<JsStr<'p>>,
     ) -> Result<Option<Arc<CachedPackage>>, ResolutionError> {
         let package_json = package_json.into();
-        let cache_key = canonical_text(
-            package_json,
-            self.path_context.use_case_sensitive_file_names(),
-        );
+        let case_sensitive = self.path_context.use_case_sensitive_file_names();
+        let key = if case_sensitive
+            || package_json
+                .as_bytes()
+                .iter()
+                .all(|b| b.is_ascii() && !b.is_ascii_uppercase())
+        {
+            crate::js_path::PathText::Borrowed(package_json)
+        } else {
+            crate::js_path::PathText::Owned(canonical_text(package_json, false))
+        };
         if self.package_cache_enabled {
-            if let Some(entry) = self.package_cache.get(&cache_key) {
+            if let Some(entry) = self.package_cache.get(key.as_js().as_bytes()) {
+                debug_assert_eq!(
+                    key.as_js(),
+                    canonical_text(package_json, case_sensitive).as_js()
+                );
                 return Ok(match entry {
                     PackageCacheEntry::Missing { directory_exists } => {
                         if *directory_exists {
@@ -5987,6 +5999,15 @@ impl<'a> ModuleResolver<'a> {
             }
         }
 
+        self.load_package_miss(package_json, key.into_owned())
+    }
+
+    #[inline(never)]
+    fn load_package_miss(
+        &mut self,
+        package_json: JsStr<'_>,
+        cache_key: JsString,
+    ) -> Result<Option<Arc<CachedPackage>>, ResolutionError> {
         let package_directory = crate::js_path::directory_name(package_json);
         let shared = self
             .shares_package_loads()
@@ -9103,6 +9124,86 @@ mod shared_package_loads_tests {
             assert_eq!(actual, outcome, "{start}");
             assert_eq!(host.probes.take(), probes, "{start}");
             assert_eq!(lazy.take_trace(), eager.take_trace());
+        }
+    }
+
+    #[test]
+    fn manifest_key_hits_keep_probes_spelling_and_trace() {
+        use tsc_host::HostOperation::{DirectoryExists, FileExists, ReadFile};
+        let settings = options(true);
+        for sensitive in [false, true] {
+            for cached in [false, true] {
+                let mut host = host(sensitive);
+                host.inner = MemoryCompilerHost::builder("/work")
+                    .case_sensitive(sensitive)
+                    .file("/work/ascii/package.json", b"{}".to_vec())
+                    .file("/work/é/package.json", b"{}".to_vec())
+                    .file("/work/é/lib/file.ts", vec![])
+                    .failure(HostError::new(
+                        tsc_host::HostErrorKind::PermissionDenied,
+                        DirectoryExists,
+                        Some("/work/error".into()),
+                        "test failure",
+                    ))
+                    .build()
+                    .unwrap();
+                let mut resolver = ModuleResolver::new(&host, &settings).unwrap();
+                resolver.package_cache_enabled = cached;
+                for (directory, exists, present) in [
+                    ("/work/ascii", true, true),
+                    ("/work/é", true, true),
+                    ("/work/é/lib", true, false),
+                    ("/work/missing", false, false),
+                ] {
+                    let filename = format!("{directory}/package.json");
+                    assert_eq!(resolver.load_package(&filename).unwrap().is_some(), present);
+                    resolver.take_trace();
+                    host.probes.take();
+                    let query = if sensitive || directory == "/work/ascii" {
+                        filename.clone()
+                    } else {
+                        filename.to_uppercase()
+                    };
+                    assert_eq!(resolver.load_package(&query).unwrap().is_some(), present);
+                    let trace = resolver.take_trace();
+                    if exists {
+                        let message = match (cached, present) {
+                            (true, true) => &gen::File_0_exists_according_to_earlier_cached_lookups,
+                            (true, false) => {
+                                &gen::File_0_does_not_exist_according_to_earlier_cached_lookups
+                            }
+                            (false, true) => &gen::Found_package_json_at_0,
+                            (false, false) => &gen::File_0_does_not_exist,
+                        };
+                        assert_eq!(trace.len(), 1);
+                        assert_eq!(trace[0].message(), message);
+                        assert_eq!(trace[0].args(), &[JsString::from(&query)]);
+                    } else {
+                        assert!(trace.is_empty());
+                    }
+                    let mut calls = Vec::new();
+                    if !cached {
+                        calls.push((
+                            DirectoryExists,
+                            std::ffi::OsString::from(query.rsplit_once('/').unwrap().0),
+                        ));
+                        if exists {
+                            calls.push((FileExists, query.clone().into()));
+                        }
+                        if present {
+                            calls.push((ReadFile, query.clone().into()));
+                        }
+                    }
+                    assert_eq!(host.probes.take(), calls);
+                }
+                for _ in 0..2 {
+                    assert!(resolver.load_package("/work/error/package.json").is_err());
+                    assert_eq!(
+                        host.probes.take(),
+                        [(DirectoryExists, "/work/error".into())]
+                    );
+                }
+            }
         }
     }
 
