@@ -1236,6 +1236,29 @@ mod tests {
                     }
                 }
                 // The absent names that share a tag were refused by their names.
+                // A name's tag is seven bits of its process-wide id times a
+                // constant. The names here get nearly consecutive ids, so
+                // their tags repeat almost exactly every 44 names and drift
+                // slowly: for about one first id in eighteen none of the six
+                // hundred returns to the first member's tag, and which first
+                // id a run gets depends on what the suite's other tests
+                // interned before. So the search goes on until a name shares
+                // a tag (within a thousand further names of consecutive ids).
+                if len != 0 && equal_tags == 0 {
+                    let tags = frozen.index.inline_bits().unwrap();
+                    let (name, key) = (names.len()..)
+                        .map(|i| {
+                            let name = format!("n{i}");
+                            let key =
+                                HashedName::new(EscapedName::from_identifier_escaped_text(&name));
+                            (name, key)
+                        })
+                        .find(|(_, key)| tag_matches(tags, name_tag(key.hash)) != 0)
+                        .expect("some further name shares a member's tag");
+                    assert_eq!(builder.get(&state.binder, name.as_str()), None);
+                    assert_eq!(frozen.get_hashed(&state.binder, key), None);
+                    equal_tags += 1;
+                }
                 assert_eq!(equal_tags == 0, len == 0);
                 assert!(frozen.index.inline_bits().unwrap().to_le_bytes()[len..]
                     .iter()
