@@ -367,42 +367,53 @@ impl<'text> Scanner<'text> {
         self.token_flags = TokenFlags::empty();
         self.value_clear();
 
+        let bytes = self.text.as_bytes();
         loop {
-            self.token_start = self.pos;
             if self.pos >= self.end {
+                self.token_start = self.pos;
                 self.token = SyntaxKind::EndOfFileToken;
                 return self.token;
             }
-            let byte = self.text.as_bytes()[self.pos];
-            match BYTE_CLASS[byte as usize] {
+            let mut byte = bytes[self.pos];
+            let mut class = BYTE_CLASS[byte as usize];
+            if matches!(class, b' ' | b'\n') && self.skip_trivia {
+                // Track the run locally and leave the first other byte ready
+                // to dispatch, including comments and Unicode trivia.
+                let mut pos = self.pos;
+                let mut line_break = false;
+                while matches!(class, b' ' | b'\n') {
+                    line_break |= class == b'\n';
+                    pos += 1;
+                    if pos == self.end {
+                        break;
+                    }
+                    byte = bytes[pos];
+                    class = BYTE_CLASS[byte as usize];
+                }
+                self.pos = pos;
+                if line_break {
+                    self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
+                }
+                if pos == self.end {
+                    continue;
+                }
+            }
+            self.token_start = self.pos;
+            match class {
                 b'a' => return self.scan_identifier(),
                 b' ' => {
                     self.skip_single_line_whitespace();
-                    if self.skip_trivia {
-                        continue;
-                    }
                     self.token = SyntaxKind::WhitespaceTrivia;
                     return self.token;
                 }
                 b'\n' => {
                     self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
                     self.pos += 1;
-                    if self.skip_trivia {
-                        // Once a line break is recorded, consume indentation and
-                        // further ASCII line breaks together (tsgo scanASCIIWhile).
-                        let rest = &self.text.as_bytes()[self.pos..self.end];
-                        self.pos += rest
-                            .iter()
-                            .position(|&b| b != b' ' && !(b'\t'..=b'\r').contains(&b))
-                            .unwrap_or(rest.len());
-                    } else {
-                        if byte == b'\r' && self.text.as_bytes().get(self.pos) == Some(&b'\n') {
-                            self.pos += 1;
-                        }
-                        self.token = SyntaxKind::NewLineTrivia;
-                        return self.token;
+                    if byte == b'\r' && bytes.get(self.pos) == Some(&b'\n') {
+                        self.pos += 1;
                     }
-                    continue;
+                    self.token = SyntaxKind::NewLineTrivia;
+                    return self.token;
                 }
                 0x80 => {
                     if let Some(kind) = self.scan_non_ascii() {

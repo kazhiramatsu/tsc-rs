@@ -1,6 +1,54 @@
 use super::*;
 
 #[test]
+fn ascii_trivia_preserves_token_starts_and_flags_across_other_trivia() {
+    let text = " \t\r\n\x0b\x0c\u{a0}/** doc */\u{2028} \t* \tπ \r";
+    let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+    scanner.set_skip_jsdoc_leading_asterisks(true);
+    assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+    assert_eq!(scanner.full_start_pos(), 0);
+    assert_eq!(scanner.token_start(), text.find('π').unwrap());
+    assert_eq!(scanner.token_value(), "π");
+    assert!(scanner.has_preceding_line_break());
+    assert!(scanner.has_preceding_jsdoc_comment());
+    assert!(scanner.has_preceding_jsdoc_leading_asterisks());
+
+    let previous_end = scanner.pos();
+    assert_eq!(scanner.scan(), SyntaxKind::EndOfFileToken);
+    assert_eq!(scanner.full_start_pos(), previous_end);
+    assert_eq!(scanner.token_start(), text.len());
+    assert!(scanner.has_preceding_line_break());
+    assert!(!scanner.has_preceding_jsdoc_comment());
+    assert!(!scanner.has_preceding_jsdoc_leading_asterisks());
+}
+
+#[test]
+fn ascii_trivia_keeps_returned_whitespace_grouping_and_range_boundaries() {
+    let text = " \t\u{a0} \r\nx";
+    let cr = text.find('\r').unwrap();
+    let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+    scanner.set_skip_trivia(false);
+    assert_eq!(scanner.scan(), SyntaxKind::WhitespaceTrivia);
+    assert_eq!(scanner.token_start(), 0);
+    assert_eq!(scanner.pos(), cr);
+    assert!(!scanner.has_preceding_line_break());
+
+    scanner.reset_range(cr, cr + 1);
+    assert_eq!(scanner.scan(), SyntaxKind::NewLineTrivia);
+    assert_eq!(scanner.token_start(), cr);
+    assert_eq!(scanner.pos(), cr + 2);
+    assert!(scanner.has_preceding_line_break());
+
+    scanner.set_skip_trivia(true);
+    scanner.reset_range(cr, cr + 1);
+    assert_eq!(scanner.scan(), SyntaxKind::EndOfFileToken);
+    assert_eq!(scanner.full_start_pos(), cr);
+    assert_eq!(scanner.token_start(), cr + 1);
+    assert_eq!(scanner.pos(), cr + 1);
+    assert!(scanner.has_preceding_line_break());
+}
+
+#[test]
 fn punctuation_trivia_and_eof_clear_a_previous_cooked_value() {
     for skip in [false, true] {
         let mut scanner = Scanner::new(
