@@ -1,6 +1,6 @@
 use tsc_binder::flow::FlowId;
 use tsc_diagnostics::{gen as diagnostics, RelatedInfo};
-use tsc_syntax::SyntaxKind;
+use tsc_syntax::{NodeId, SyntaxKind};
 use tsc_types::{
     CheckMode, CompilerOptions, NodeCheckFlags, SymbolFlags, TypeData, TypeFlags,
     TypeSystemPropertyName,
@@ -600,14 +600,32 @@ fn link_protocols_persist_on_commit_and_rollback() {
         let committed_members = state.alloc_members(ResolvedMembers::default());
         let rolled_back_members = state.alloc_members(ResolvedMembers::default());
         let exercise = |state: &mut CheckerState, node, symbol, ty, members| {
-            state.links.set_node_resolved_signature_call_protocol(
+            let mut cursor = crate::links::NodeLinksCursor::new(node);
+            cursor.set_call_signature(
+                &mut state.links,
                 state.speculation_depth,
-                node,
                 LinkSlot::Resolving,
             );
+            // Other nodes can grow the page and chunk directories during dispatch.
+            for offset in 1..=300 {
+                state.links.set_node_resolved_type(
+                    state.speculation_depth,
+                    NodeId::new(node.index() + 32768 + offset),
+                    LinkSlot::Resolved(state.tables.intrinsics.string),
+                );
+            }
             state.links.set_node_resolved_signature_call_protocol(
                 state.speculation_depth,
                 node,
+                LinkSlot::Resolved(state.any_signature),
+            );
+            assert_eq!(
+                cursor.read(&state.links, |record| record.resolved_signature.get()),
+                LinkSlot::Resolved(state.any_signature)
+            );
+            cursor.set_call_signature(
+                &mut state.links,
+                state.speculation_depth,
                 LinkSlot::Resolved(state.any_signature),
             );
             state.links.set_node_resolved_type(

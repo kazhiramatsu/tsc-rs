@@ -1528,6 +1528,169 @@ impl<T: Default> DenseLinks<T> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct NodeLinksLocation(NonZeroU32);
 
+impl NodeLinksLocation {
+    fn from_position(position: usize) -> Self {
+        // NodeId indices stop at u32::MAX - 1, so the final region has
+        // one fewer key. Its last record position + 1 still fits a u32.
+        let index = u32::try_from(position)
+            .ok()
+            .and_then(|position| position.checked_add(1))
+            .and_then(NonZeroU32::new)
+            .expect("a node record location fits a nonzero u32");
+        Self(index)
+    }
+}
+
+/// Remembers the address of a node's links for one recursive query. Each
+/// read sees the current fields. An unsuccessful read leaves the table alone.
+pub(crate) struct NodeLinksCursor {
+    node: NodeId,
+    location: Option<NodeLinksLocation>,
+}
+
+impl NodeLinksCursor {
+    pub(crate) fn new(node: NodeId) -> Self {
+        Self {
+            node,
+            location: None,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn read<R>(&mut self, links: &LinksTables, read: impl FnOnce(&NodeLinks) -> R) -> R {
+        perf::bump(PerfCounter::LinksNodeReads);
+        if let Some(location) = self.location {
+            return read(links.located_node(self.node, location));
+        }
+        if let Some((location, record)) = links.node_with_location(self.node) {
+            self.location = Some(location);
+            return read(record);
+        }
+        perf::bump(PerfCounter::LinksNodeReadAbsent);
+        read(&links.absent_node)
+    }
+
+    #[inline]
+    fn slot<'t>(&mut self, links: &'t mut LinksTables) -> &'t mut NodeLinks {
+        let location = *self.location.get_or_insert_with(|| {
+            NodeLinksLocation::from_position(links.node.slot_position(self.node))
+        });
+        debug_assert_eq!(
+            links.node_with_location(self.node).map(|(found, _)| found),
+            Some(location)
+        );
+        links
+            .node
+            .get_mut_at_position((location.0.get() - 1) as usize)
+    }
+
+    pub(crate) fn set_type(&mut self, links: &mut LinksTables, value: LinkSlot<TypeId>) {
+        LinksTables::write_value_slot(&mut self.slot(links).resolved_type, value);
+    }
+
+    pub(crate) fn finish_type_reference(
+        &mut self,
+        links: &mut LinksTables,
+        symbol: Option<SymbolId>,
+        value: TypeId,
+    ) {
+        let links = self.slot(links);
+        note_resolving_transition(links.resolved_symbol.is_resolving(), false);
+        note_resolving_transition(links.resolved_type.is_resolving(), false);
+        links.resolved_symbol = symbol.map_or(LinkSlot::Vacant, LinkSlot::Resolved).into();
+        links.resolved_type = LinkSlot::Resolved(value).into();
+    }
+
+    pub(crate) fn set_symbol(&mut self, links: &mut LinksTables, value: SymbolId) {
+        let slot = &mut self.slot(links).resolved_symbol;
+        match slot.get() {
+            LinkSlot::Resolved(existing) if existing == value => {}
+            // tsc assigns links.resolvedSymbol on every check of the access
+            // (checkPropertyAccessExpressionOrQualifiedName), speculative
+            // candidates included, and a completed resolution now persists
+            // past its candidate: the re-check's symbol — a fresh transient
+            // property over the same declaration, or the late twin —
+            // overwrites it, last write wins as in tsc.
+            LinkSlot::Resolved(_) => {
+                *slot = LinkSlot::Resolved(value).into();
+            }
+            _ => {
+                note_resolving_transition(slot.is_resolving(), false);
+                *slot = LinkSlot::Resolved(value).into();
+            }
+        }
+    }
+
+    pub(crate) fn set_call_signature(
+        &mut self,
+        links: &mut LinksTables,
+        speculation_depth: u32,
+        value: LinkSlot<SignatureId>,
+    ) {
+        if speculation_depth != 0
+            && !links
+                .speculative_resolved_signature_writes
+                .iter()
+                .any(|(depth, node, _)| *depth == speculation_depth && *node == self.node)
+        {
+            let previous = self.slot(links).resolved_signature.get();
+            links.speculative_resolved_signature_writes.push((
+                speculation_depth,
+                self.node,
+                previous,
+            ));
+        }
+        let slot = &mut self.slot(links).resolved_signature;
+        match (slot.get(), &value) {
+            (LinkSlot::Vacant, LinkSlot::Resolving)
+            | (LinkSlot::Resolving, LinkSlot::Resolving)
+            | (LinkSlot::Resolving, LinkSlot::Resolved(_))
+            | (LinkSlot::Resolved(_), LinkSlot::Resolved(_)) => {
+                note_resolving_transition(slot.is_resolving(), value.is_resolving());
+                *slot = value.into();
+            }
+            _ => panic!("call resolvedSignature protocol violated: {slot:?} -> {value:?}"),
+        }
+    }
+
+    pub(crate) fn swap_call_signature(
+        &mut self,
+        links: &mut LinksTables,
+        value: LinkSlot<SignatureId>,
+    ) -> LinkSlot<SignatureId> {
+        // This is an explicitly scoped park/restore pair, not a cache
+        // publication; its caller restores the returned slot even when
+        // the checked argument returns Err.
+        let slot = &mut self.slot(links).resolved_signature;
+        note_resolving_transition(slot.is_resolving(), value.is_resolving());
+        slot.replace(value)
+    }
+
+    pub(crate) fn revert_call_signature(&mut self, links: &mut LinksTables) {
+        let slot = &mut self.slot(links).resolved_signature;
+        if slot.is_resolving() {
+            note_resolving_transition(true, false);
+            *slot = LinkSlot::Vacant.into();
+        }
+    }
+
+    pub(crate) fn restore_resolving_signature(&mut self, links: &mut LinksTables) {
+        let slot = &mut self.slot(links).resolved_signature;
+        if !slot.is_resolving() {
+            note_resolving_transition(false, true);
+            *slot = LinkSlot::Resolving.into();
+        }
+    }
+
+    pub(crate) fn clear_call_signature(&mut self, links: &mut LinksTables) {
+        let slot = &mut self.slot(links).resolved_signature;
+        if slot.get() != LinkSlot::Vacant {
+            note_resolving_transition(slot.is_resolving(), false);
+            *slot = LinkSlot::Vacant.into();
+        }
+    }
+}
+
 /// Side table keyed by a dense compiler-assigned id.
 ///
 /// tsrs-native: tsc hangs a links object directly off each node/symbol/type;
@@ -1672,6 +1835,12 @@ impl<K: DenseKey, T: Default> PagedTable<K, T> {
     /// `entry(key).or_default()` protocol of the previous map).
     #[inline]
     pub(crate) fn slot(&mut self, key: K) -> &mut T {
+        let position = self.slot_position(key);
+        self.get_mut_at_position(position)
+    }
+
+    #[inline]
+    fn slot_position(&mut self, key: K) -> usize {
         let id = key.dense_index();
         let page_index = id >> PAGE_SHIFT;
         let offset = id & (PAGE_IDS - 1);
@@ -1682,9 +1851,14 @@ impl<K: DenseKey, T: Default> PagedTable<K, T> {
         }
         let slot = (entry - 1) as usize;
         let chunk = ((id >> REGION_SHIFT) << REGION_CHUNK_SHIFT) | (slot >> CHUNK_SHIFT);
-        &mut self.chunks[chunk]
+        (chunk << CHUNK_SHIFT) | (slot & (CHUNK_RECORDS - 1))
+    }
+
+    #[inline]
+    fn get_mut_at_position(&mut self, position: usize) -> &mut T {
+        &mut self.chunks[position >> CHUNK_SHIFT]
             .as_mut()
-            .expect("an indexed record has a chunk")[slot & (CHUNK_RECORDS - 1)]
+            .expect("an indexed record has a chunk")[position & (CHUNK_RECORDS - 1)]
     }
 
     /// Allocate records independently within each region. The id determines
@@ -1778,14 +1952,7 @@ impl LinksTables {
     #[inline]
     pub(crate) fn node_with_location(&self, id: NodeId) -> Option<(NodeLinksLocation, &NodeLinks)> {
         let (position, record) = self.node.get_with_position(id)?;
-        // NodeId indices stop at u32::MAX - 1, so the final region has
-        // one fewer key. Its last record position + 1 still fits a u32.
-        let index = u32::try_from(position)
-            .ok()
-            .and_then(|position| position.checked_add(1))
-            .and_then(NonZeroU32::new)
-            .expect("a node record location fits a nonzero u32");
-        Some((NodeLinksLocation(index), record))
+        Some((NodeLinksLocation::from_position(position), record))
     }
 
     /// A location is checker-local, and its owner node is immutable for the
@@ -2151,7 +2318,7 @@ impl LinksTables {
         id: NodeId,
         value: LinkSlot<TypeId>,
     ) {
-        Self::write_value_slot(&mut self.node.slot(id).resolved_type, value);
+        NodeLinksCursor::new(id).set_type(self, value)
     }
 
     /// getTypeFromTypeReference's tail assignments (60587-60588) are
@@ -2172,11 +2339,7 @@ impl LinksTables {
         symbol: Option<SymbolId>,
         value: TypeId,
     ) {
-        let links = self.node.slot(id);
-        note_resolving_transition(links.resolved_symbol.is_resolving(), false);
-        note_resolving_transition(links.resolved_type.is_resolving(), false);
-        links.resolved_symbol = symbol.map_or(LinkSlot::Vacant, LinkSlot::Resolved).into();
-        links.resolved_type = LinkSlot::Resolved(value).into();
+        NodeLinksCursor::new(id).finish_type_reference(self, symbol, value)
     }
 
     /// getTypeFromJSDocValueReference's resolvedJSDocType assignment
@@ -2370,31 +2533,7 @@ impl LinksTables {
         id: NodeId,
         value: LinkSlot<SignatureId>,
     ) {
-        if speculation_depth != 0
-            && !self
-                .speculative_resolved_signature_writes
-                .iter()
-                .any(|(depth, node, _)| *depth == speculation_depth && *node == id)
-        {
-            let previous = self
-                .node
-                .get(id)
-                .map(|links| links.resolved_signature.get())
-                .unwrap_or_default();
-            self.speculative_resolved_signature_writes
-                .push((speculation_depth, id, previous));
-        }
-        let slot = &mut self.node.slot(id).resolved_signature;
-        match (slot.get(), &value) {
-            (LinkSlot::Vacant, LinkSlot::Resolving)
-            | (LinkSlot::Resolving, LinkSlot::Resolving)
-            | (LinkSlot::Resolving, LinkSlot::Resolved(_))
-            | (LinkSlot::Resolved(_), LinkSlot::Resolved(_)) => {
-                note_resolving_transition(slot.is_resolving(), value.is_resolving());
-                *slot = value.into();
-            }
-            _ => panic!("call resolvedSignature protocol violated: {slot:?} -> {value:?}"),
-        }
+        NodeLinksCursor::new(id).set_call_signature(self, speculation_depth, value)
     }
 
     /// getContextuallyTypedParameterType's IIFE stash (72708-72712):
@@ -2407,17 +2546,11 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn swap_node_resolved_signature_iife(
         &mut self,
-        speculation_depth: u32,
+        _speculation_depth: u32,
         id: NodeId,
         value: LinkSlot<SignatureId>,
     ) -> LinkSlot<SignatureId> {
-        // This is an explicitly scoped park/restore pair, not a cache
-        // publication; its caller restores the returned slot even when
-        // the checked argument returns Err.
-        let _ = speculation_depth;
-        let slot = &mut self.node.slot(id).resolved_signature;
-        note_resolving_transition(slot.is_resolving(), value.is_resolving());
-        slot.replace(value)
+        NodeLinksCursor::new(id).swap_call_signature(self, value)
     }
 
     /// Err-unwind twin for the call protocol: tsc cannot fail inside
@@ -2429,11 +2562,7 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn revert_node_resolved_signature_call(&mut self, id: NodeId) {
-        let slot = &mut self.node.slot(id).resolved_signature;
-        if slot.is_resolving() {
-            note_resolving_transition(true, false);
-            *slot = LinkSlot::Vacant.into();
-        }
+        NodeLinksCursor::new(id).revert_call_signature(self)
     }
 
     /// tsrs-native: the RE-ENTRANT-frame arm of tsc 77505's `: cached`
@@ -2447,11 +2576,7 @@ impl LinksTables {
     /// over the outer frame's sentinel and the outer frame's
     /// Resolving-gated Err revert can no longer see it (the F7 leak).
     pub fn restore_node_resolved_signature_call_resolving(&mut self, id: NodeId) {
-        let slot = &mut self.node.slot(id).resolved_signature;
-        if !slot.is_resolving() {
-            note_resolving_transition(false, true);
-            *slot = LinkSlot::Resolving.into();
-        }
+        NodeLinksCursor::new(id).restore_resolving_signature(self)
     }
 
     /// tsrs-native: the mid-fixpoint twin of tsc 77505's `: cached`
@@ -2466,11 +2591,7 @@ impl LinksTables {
     /// poisoning the later statement-path check into skipping
     /// argument checking).
     pub fn clear_node_resolved_signature_call(&mut self, id: NodeId) {
-        let slot = &mut self.node.slot(id).resolved_signature;
-        if slot.get() != LinkSlot::Vacant {
-            note_resolving_transition(slot.is_resolving(), false);
-            *slot = LinkSlot::Vacant.into();
-        }
+        NodeLinksCursor::new(id).clear_call_signature(self)
     }
 
     /// tsrs-native: capture the call-cache journal position at a
@@ -3642,23 +3763,7 @@ impl LinksTables {
         id: NodeId,
         value: SymbolId,
     ) {
-        let slot = &mut self.node.slot(id).resolved_symbol;
-        match slot.get() {
-            LinkSlot::Resolved(existing) if existing == value => {}
-            // tsc assigns links.resolvedSymbol on every check of the access
-            // (checkPropertyAccessExpressionOrQualifiedName), speculative
-            // candidates included, and a completed resolution now persists
-            // past its candidate: the re-check's symbol — a fresh transient
-            // property over the same declaration, or the late twin —
-            // overwrites it, last write wins as in tsc.
-            LinkSlot::Resolved(_) => {
-                *slot = LinkSlot::Resolved(value).into();
-            }
-            _ => {
-                note_resolving_transition(slot.is_resolving(), false);
-                *slot = LinkSlot::Resolved(value).into();
-            }
-        }
+        NodeLinksCursor::new(id).set_symbol(self, value)
     }
 
     /// Read the declaration's cached outer parameter list, including an empty one.

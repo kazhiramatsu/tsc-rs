@@ -1596,10 +1596,8 @@ impl<'a> CheckerState<'a> {
     /// getUnresolvedSymbolForEntityName so the type remains error-like
     /// while retaining its written alias identity.
     pub(crate) fn get_type_from_type_reference(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        let mut cursor = crate::links::NodeLinksCursor::new(node);
+        if let Some(cached) = cursor.read(&self.links, |links| links.resolved_type.resolved()) {
             return Ok(cached);
         }
         if self.is_const_type_reference_node(node) {
@@ -1612,12 +1610,7 @@ impl<'a> CheckerState<'a> {
             });
             if let Some(expression) = expression {
                 let resolved = self.check_expression_cached(expression, CheckMode::NORMAL)?;
-                self.links.overwrite_type_reference_resolution(
-                    self.speculation_depth,
-                    node,
-                    Some(self.unknown_symbol),
-                    resolved,
-                );
+                cursor.finish_type_reference(&mut self.links, Some(self.unknown_symbol), resolved);
                 return Ok(resolved);
             }
         }
@@ -1632,7 +1625,7 @@ impl<'a> CheckerState<'a> {
             resolved = self.get_intended_type_from_jsdoc_type_reference(node)?;
         }
         if resolved.is_none() {
-            let resolved_symbol = self.get_symbol_from_type_reference(node)?;
+            let resolved_symbol = self.get_symbol_from_type_reference(node, &mut cursor)?;
             symbol = Some(resolved_symbol);
             let reference_type = self.get_type_reference_type(node, resolved_symbol)?;
             resolved = Some(self.get_distributed_type_parameter(node, reference_type)?);
@@ -1643,12 +1636,7 @@ impl<'a> CheckerState<'a> {
         // type-parameter-default recursion can complete an inner
         // computation of this same node first (see
         // overwrite_type_reference_resolution).
-        self.links.overwrite_type_reference_resolution(
-            self.speculation_depth,
-            node,
-            symbol,
-            resolved,
-        );
+        cursor.finish_type_reference(&mut self.links, symbol, resolved);
         Ok(resolved)
     }
 
@@ -1678,7 +1666,10 @@ impl<'a> CheckerState<'a> {
                     if self.is_simple_identifier_type_reference(check_type) {
                         // tsgo checker.go:23517 consults the symbol cache even
                         // while a reference's full type is still resolving.
-                        let check_symbol = self.get_symbol_from_type_reference(check_type)?;
+                        let check_symbol = self.get_symbol_from_type_reference(
+                            check_type,
+                            &mut crate::links::NodeLinksCursor::new(check_type),
+                        )?;
                         if Some(check_symbol) == symbol {
                             return Ok(self.get_distributed_type_from_type_parameter(ty));
                         }
@@ -1949,16 +1940,16 @@ impl<'a> CheckerState<'a> {
 
     /// tsgo checker.go:23606-23613: cache the symbol before computing
     /// the reference type, including ancestor conditional-type probes.
-    fn get_symbol_from_type_reference(&mut self, node: NodeId) -> CheckResult<SymbolId> {
-        if let Some(symbol) = self
-            .links
-            .read_node(node, |links| links.resolved_symbol.resolved())
-        {
+    fn get_symbol_from_type_reference(
+        &mut self,
+        node: NodeId,
+        cursor: &mut crate::links::NodeLinksCursor,
+    ) -> CheckResult<SymbolId> {
+        if let Some(symbol) = cursor.read(&self.links, |links| links.resolved_symbol.resolved()) {
             return Ok(symbol);
         }
         let symbol = self.resolve_type_reference_name(node, SymbolFlags::TYPE, false)?;
-        self.links
-            .set_node_resolved_symbol(self.speculation_depth, node, symbol);
+        cursor.set_symbol(&mut self.links, symbol);
         Ok(symbol)
     }
 

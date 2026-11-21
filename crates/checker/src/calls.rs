@@ -6962,10 +6962,9 @@ impl<'a> CheckerState<'a> {
         candidates_out: Option<&mut Vec<SignatureId>>,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
+        let mut cursor = crate::links::NodeLinksCursor::new(node);
         self.profile_ops[crate::line_profile::OP_SIGNATURES] += 1;
-        let cached = self
-            .links
-            .read_node(node, |links| links.resolved_signature.get());
+        let cached = cursor.read(&self.links, |links| links.resolved_signature.get());
         if let (LinkSlot::Resolved(cached), None) = (&cached, &candidates_out) {
             return Ok(*cached);
         }
@@ -6982,17 +6981,9 @@ impl<'a> CheckerState<'a> {
         // and puts the cached signature back when it does not memoize.
         let rerun = matches!(cached, LinkSlot::Resolved(_));
         if rerun {
-            self.links.swap_node_resolved_signature_iife(
-                self.speculation_depth,
-                node,
-                LinkSlot::Resolving,
-            );
+            cursor.swap_call_signature(&mut self.links, LinkSlot::Resolving);
         } else {
-            self.links.set_node_resolved_signature_call_protocol(
-                self.speculation_depth,
-                node,
-                LinkSlot::Resolving,
-            );
+            cursor.set_call_signature(&mut self.links, self.speculation_depth, LinkSlot::Resolving);
         }
         let result = self.resolve_signature_dispatch(node, candidates_out, check_mode);
         self.resolution_start = save_resolution_start;
@@ -7010,39 +7001,32 @@ impl<'a> CheckerState<'a> {
                 // possible that this inner resolution sets the
                 // resolvedSignature first. In such a case we ignore the
                 // local result and reuse the correct one that was cached."
-                let result = match self
-                    .links
-                    .read_node(node, |links| links.resolved_signature.get())
+                let result = match cursor.read(&self.links, |links| links.resolved_signature.get())
                 {
                     LinkSlot::Resolved(cached) => cached,
                     _ => result,
                 };
                 if self.flow_loop_start as usize == self.flow_loop_stack.len() {
-                    self.links.set_node_resolved_signature_call_protocol(
+                    cursor.set_call_signature(
+                        &mut self.links,
                         self.speculation_depth,
-                        node,
                         LinkSlot::Resolved(result),
                     );
                 } else if wrote_sentinel {
-                    self.links.clear_node_resolved_signature_call(node);
+                    cursor.clear_call_signature(&mut self.links);
                 } else if rerun {
-                    self.links.swap_node_resolved_signature_iife(
-                        self.speculation_depth,
-                        node,
-                        cached,
-                    );
+                    cursor.swap_call_signature(&mut self.links, cached);
                 } else {
-                    self.links
-                        .restore_node_resolved_signature_call_resolving(node);
+                    cursor.restore_resolving_signature(&mut self.links);
                 }
                 Ok(result)
             }
             Err(err) => {
                 if wrote_sentinel {
                     if self.flow_loop_start as usize == self.flow_loop_stack.len() {
-                        self.links.revert_node_resolved_signature_call(node);
+                        cursor.revert_call_signature(&mut self.links);
                     } else {
-                        self.links.clear_node_resolved_signature_call(node);
+                        cursor.clear_call_signature(&mut self.links);
                     }
                     // tsrs-native: a Vacant left by THIS unwind is a
                     // containment-reverted resolution — record it so
@@ -7052,21 +7036,15 @@ impl<'a> CheckerState<'a> {
                     // revert instead and feeds contextual reads, so it
                     // never reaches here as Vacant).
                     if matches!(
-                        self.links
-                            .read_node(node, |links| links.resolved_signature.get()),
+                        cursor.read(&self.links, |links| links.resolved_signature.get()),
                         LinkSlot::Vacant
                     ) {
                         self.contained_call_resolutions.insert(node);
                     }
                 } else if rerun {
-                    self.links.swap_node_resolved_signature_iife(
-                        self.speculation_depth,
-                        node,
-                        cached,
-                    );
+                    cursor.swap_call_signature(&mut self.links, cached);
                 } else {
-                    self.links
-                        .restore_node_resolved_signature_call_resolving(node);
+                    cursor.restore_resolving_signature(&mut self.links);
                 }
                 Err(err)
             }

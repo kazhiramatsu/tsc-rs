@@ -2688,3 +2688,69 @@ fn argument_error_span_skips_parentheses() {
         [(2345, 40, 1)]
     );
 }
+
+#[test]
+fn dirty_call_resolution_restores_the_entry_and_reports_rerun_candidates() {
+    let text = "declare function pick(x: string): string;
+declare function pick(x: number): number;
+pick(42);";
+    crate::state::test_support::with_program_state(
+        &[("a.ts", text)],
+        &CompilerOptions::default(),
+        |state| {
+            let source = state.binder.source(0);
+            let call = source
+                .arena
+                .node_ids()
+                .find(|&id| state.kind_of(id) == tsc_syntax::SyntaxKind::CallExpression)
+                .unwrap();
+            let mut declarations: Vec<_> = source
+                .arena
+                .node_ids()
+                .filter(|&id| state.kind_of(id) == tsc_syntax::SyntaxKind::FunctionDeclaration)
+                .collect();
+            declarations.sort_by_key(|&id| state.pos_of(id));
+            let expected: Vec<_> = declarations
+                .into_iter()
+                .map(|id| state.get_signature_from_declaration(id).unwrap())
+                .collect();
+            let active_loop = crate::flow::FlowLoopEntry {
+                file: 0,
+                flow: tsc_binder::flow::FlowId::new(0),
+                key: "active".into(),
+                types: Vec::new(),
+                serial: 1,
+            };
+            state.flow_loop_stack.push(active_loop);
+            let first = state
+                .get_resolved_signature(call, None, CheckMode::NORMAL)
+                .unwrap();
+            assert_eq!(first, expected[1]);
+            assert!(
+                state
+                    .links
+                    .read_node(call, |node| node.resolved_signature.get())
+                    == crate::links::LinkSlot::Vacant
+            );
+            let active_loop = state.flow_loop_stack.pop().unwrap();
+            assert_eq!(
+                state.get_resolved_signature(call, None, CheckMode::NORMAL),
+                Ok(first)
+            );
+            state.flow_loop_stack.push(active_loop);
+            let mut candidates = Vec::new();
+            assert_eq!(
+                state.get_resolved_signature(call, Some(&mut candidates), CheckMode::NORMAL),
+                Ok(first)
+            );
+            assert_eq!(candidates, expected);
+            assert_eq!(
+                state
+                    .links
+                    .read_node(call, |node| node.resolved_signature.resolved()),
+                Some(first)
+            );
+            state.flow_loop_stack.pop();
+        },
+    );
+}

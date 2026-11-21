@@ -3101,13 +3101,11 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
+        let mut cursor = crate::links::NodeLinksCursor::new(node);
         if !check_mode.is_empty() {
             return self.check_expression(node, check_mode);
         }
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = cursor.read(&self.links, |links| links.resolved_type.resolved()) {
             return Ok(cached);
         }
         let save_flow_loop_start = self.flow_loop_start;
@@ -3117,16 +3115,11 @@ impl<'a> CheckerState<'a> {
         self.restore_flow_type_cache(save_flow_type_cache);
         self.flow_loop_start = save_flow_loop_start;
         let ty = result?;
-        if self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
+        if cursor
+            .read(&self.links, |links| links.resolved_type.resolved())
             .is_none()
         {
-            self.links.set_node_resolved_type(
-                self.speculation_depth,
-                node,
-                crate::links::LinkSlot::Resolved(ty),
-            );
+            cursor.set_type(&mut self.links, crate::links::LinkSlot::Resolved(ty));
         }
         Ok(ty)
     }
