@@ -75,12 +75,12 @@ impl<V: Default> FlowIdentityCache<V> {
 /// exact original key. Lookup chooses its table from the input file alone,
 /// so a normal miss never probes an additional fallback table.
 #[derive(Debug, Default)]
-pub(crate) struct FlowNodeCache {
+struct SparseFlowNodes {
     packed: HashTable<u64>,
     wide: FxHashMap<(usize, FlowId), bool>,
 }
 
-impl FlowNodeCache {
+impl SparseFlowNodes {
     #[inline]
     fn key((file, flow): (usize, FlowId)) -> Option<u64> {
         if file > (u32::MAX >> 1) as usize {
@@ -130,6 +130,114 @@ impl FlowNodeCache {
 
     pub(crate) fn memory_bytes(&self) -> usize {
         self.packed.capacity() * (std::mem::size_of::<u64>() + 1) * 8 / 7 + map_bytes(&self.wide)
+    }
+}
+
+/// A 64-byte page holds 256 local flow answers. Beyond these directory
+/// bounds an isolated file or flow consumes just one sparse entry.
+type FlowPage = [u64; 8];
+type FileFlowPages = Vec<Option<Box<FlowPage>>>;
+const PAGED_FILES: usize = 4096;
+const PAGES_PER_FILE: usize = 256;
+/// Grow a directory over short gaps. Isolated keys stay in the hash table
+/// even if later inserts fill the gap around them.
+const MAX_DIRECTORY_GAP: usize = 16;
+
+#[derive(Debug, Default)]
+pub(crate) struct FlowNodeCache {
+    pages: Vec<FileFlowPages>,
+    paged_entries: usize,
+    sparse: SparseFlowNodes,
+    #[cfg(debug_assertions)]
+    paged_shadow: FxHashMap<(usize, FlowId), bool>,
+}
+
+impl FlowNodeCache {
+    #[inline]
+    fn location((file, flow): (usize, FlowId)) -> Option<(usize, usize, u32)> {
+        let index = flow.index() as usize;
+        let page = index / 256;
+        (file < PAGED_FILES && page < PAGES_PER_FILE).then_some((
+            page,
+            index / 32 % 8,
+            (index as u32 % 32) * 2,
+        ))
+    }
+
+    #[inline]
+    fn answer(bits: u64) -> Option<bool> {
+        match bits & 3 {
+            0 => None,
+            1 => Some(false),
+            2 => Some(true),
+            _ => unreachable!("invalid flow answer"),
+        }
+    }
+
+    #[inline]
+    pub(crate) fn get(&self, key: &(usize, FlowId)) -> Option<bool> {
+        if let Some((page, word, shift)) = Self::location(*key) {
+            let answer = self
+                .pages
+                .get(key.0)
+                .and_then(|file| file.get(page))
+                .and_then(Option::as_ref)
+                .and_then(|words| Self::answer(words[word] >> shift));
+            #[cfg(debug_assertions)]
+            debug_assert_eq!(answer, self.paged_shadow.get(key).copied());
+            if answer.is_some() {
+                return answer;
+            }
+        }
+        if self.sparse.len() == 0 {
+            None
+        } else {
+            self.sparse.get(key)
+        }
+    }
+
+    pub(crate) fn insert(&mut self, key: (usize, FlowId), answer: bool) -> Option<bool> {
+        let Some((page, word, shift)) = Self::location(key) else {
+            return self.sparse.insert(key, answer);
+        };
+        if key.0.saturating_sub(self.pages.len()) > MAX_DIRECTORY_GAP
+            || page.saturating_sub(self.pages.get(key.0).map_or(0, Vec::len)) > MAX_DIRECTORY_GAP
+            || (self.sparse.len() != 0 && self.sparse.get(&key).is_some())
+        {
+            return self.sparse.insert(key, answer);
+        }
+        let pages = &mut self.pages;
+        if pages.len() <= key.0 {
+            pages.resize_with(key.0 + 1, Vec::new);
+        }
+        let file = &mut pages[key.0];
+        if file.len() <= page {
+            file.resize_with(page + 1, || None);
+        }
+        let words = file[page].get_or_insert_with(|| Box::new([0; 8]));
+        let previous = Self::answer(words[word] >> shift);
+        words[word] = (words[word] & !(3 << shift)) | ((1 + u64::from(answer)) << shift);
+        self.paged_entries += usize::from(previous.is_none());
+        #[cfg(debug_assertions)]
+        debug_assert_eq!(self.paged_shadow.insert(key, answer), previous);
+        previous
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.paged_entries + self.sparse.len()
+    }
+
+    pub(crate) fn memory_bytes(&self) -> usize {
+        self.sparse.memory_bytes()
+            + self.pages.capacity() * std::mem::size_of::<FileFlowPages>()
+            + self
+                .pages
+                .iter()
+                .map(|pages| {
+                    pages.capacity() * std::mem::size_of::<Option<Box<FlowPage>>>()
+                        + pages.iter().flatten().count() * std::mem::size_of::<FlowPage>()
+                })
+                .sum::<usize>()
     }
 }
 
@@ -218,7 +326,7 @@ mod tests {
         for file in [0, 1, (1usize << 31) - 1] {
             for flow in [0, 1, (1u32 << 31) - 1, 1u32 << 31, u32::MAX - 1] {
                 let key = (file, FlowId::new(flow));
-                let packed = FlowNodeCache::key(key).unwrap();
+                let packed = SparseFlowNodes::key(key).unwrap();
                 assert_eq!(packed >> 33, file as u64);
                 assert_eq!(((packed >> 1) & u64::from(u32::MAX)) as u32, flow);
                 assert_eq!(cache.get(&key), None);
@@ -230,7 +338,7 @@ mod tests {
             }
         }
         assert_eq!(cache.len(), 15);
-        assert_eq!(cache.wide.len(), 0);
+        assert_eq!(cache.sparse.wide.len(), 0);
     }
 
     #[test]
@@ -241,7 +349,7 @@ mod tests {
         files.dedup();
         for &file in &files {
             let key = (file, FlowId::new(u32::MAX - 1));
-            assert_eq!(FlowNodeCache::key(key), None);
+            assert_eq!(SparseFlowNodes::key(key), None);
             assert_eq!(cache.get(&key), None);
             assert_eq!(cache.insert(key, true), None);
             assert_eq!(cache.get(&key), Some(true));
@@ -249,11 +357,43 @@ mod tests {
             assert_eq!(cache.get(&key), Some(false));
         }
         assert_eq!(cache.len(), files.len());
-        assert_eq!(cache.packed.len(), 0);
+        assert_eq!(cache.sparse.packed.len(), 0);
         let low = (0, FlowId::new(u32::MAX - 1));
         assert_eq!(cache.get(&low), None);
         cache.insert(low, true);
         assert_eq!(cache.len(), files.len() + 1);
+    }
+
+    #[test]
+    fn paged_boolean_answers_match_sparse_storage_across_boundaries() {
+        let mut paged = FlowNodeCache::default();
+        let mut sparse = SparseFlowNodes::default();
+        for answer in [false, true, true, false] {
+            for file in [0, 1, PAGED_FILES - 1, PAGED_FILES, usize::MAX] {
+                for index in [0, 31, 32, 255, 256, 65535, 65536, u32::MAX - 1] {
+                    let key = (file, FlowId::new(index));
+                    assert_eq!(paged.get(&key), sparse.get(&key));
+                    assert_eq!(paged.insert(key, answer), sparse.insert(key, answer));
+                    assert_eq!(paged.get(&key), Some(answer));
+                }
+            }
+        }
+        assert_eq!(paged.len(), sparse.len());
+        assert_eq!(paged.get(&(2, FlowId::new(256))), None);
+        assert_eq!(paged.get(&(1, FlowId::new(257))), None);
+        let files = &paged.pages;
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0].iter().flatten().count(), 2);
+
+        // Later directory growth must leave an isolated sparse answer visible.
+        let isolated = (0, FlowId::new(32 * 256));
+        paged.insert(isolated, false);
+        for page in 2..=32 {
+            paged.insert((0, FlowId::new(page * 256 + 1)), true);
+        }
+        assert_eq!(paged.get(&isolated), Some(false));
+        assert_eq!(paged.insert(isolated, true), Some(false));
+        assert_eq!(paged.get(&isolated), Some(true));
     }
 
     #[test]

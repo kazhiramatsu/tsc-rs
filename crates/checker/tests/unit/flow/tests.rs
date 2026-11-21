@@ -769,3 +769,44 @@ fn loop_keys_preserve_decimal_prefix_and_dotted_suffix_equality() {
         }
     });
 }
+
+#[test]
+fn reachability_bypasses_a_shared_answer_under_a_reduce_label() {
+    use tsc_binder::flow::{FlowData, FlowId};
+    use tsc_types::FlowFlags;
+
+    let text = "function f(b: boolean) { try { if (b) return 1; } finally { b; } }";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let arena = state.binder.flow_arena(0);
+        let ids = || (0..arena.len() as u32).map(FlowId::new);
+        let (origin, label) = ids()
+            .find_map(|id| match arena.payload(id) {
+                FlowData::ReduceLabel { target, .. } => Some((id, target)),
+                _ => None,
+            })
+            .unwrap();
+        let shared = ids()
+            .find(|&id| arena.flow(id).flags.intersects(FlowFlags::SHARED))
+            .unwrap();
+        state.reduce_label_overrides.insert((0, label), origin);
+        let expected = state
+            .is_reachable_flow_node_worker(0, shared, false)
+            .unwrap();
+        state.flow_node_reachable.insert((0, shared), !expected);
+        state.last_flow_node = None;
+        assert_eq!(
+            state
+                .is_reachable_flow_node_worker(0, shared, false)
+                .unwrap(),
+            expected
+        );
+        state.reduce_label_overrides.clear();
+        state.last_flow_node = None;
+        assert_eq!(
+            state
+                .is_reachable_flow_node_worker(0, shared, false)
+                .unwrap(),
+            !expected
+        );
+    });
+}
