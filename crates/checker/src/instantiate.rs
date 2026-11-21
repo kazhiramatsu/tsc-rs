@@ -792,9 +792,7 @@ impl<'a> CheckerState<'a> {
         mapper: MapperId,
         erase_type_parameters: bool,
     ) -> CheckResult<SignatureId> {
-        // The source's fields are read in place (no copy of its lists);
-        // the lists are re-read by index, the signature arena growing while
-        // the members are instantiated.
+        // Copy scalar fields before instantiating anything that can grow the signature arena.
         let source = self.signature_of(signature);
         let (declaration, flags, source_this_parameter, min_argument_count, from_method) = (
             source.declaration,
@@ -805,25 +803,34 @@ impl<'a> CheckerState<'a> {
         );
         let isolated_signature_kind = source.isolated_signature_kind();
         let type_parameter_count = source.type_parameters().map(|list| list.len());
-        let parameter_count = source.parameters.len();
         let mut mapper = mapper;
         let mut fresh_type_parameters: Option<Vec<TypeId>> = None;
         if let Some(count) = type_parameter_count {
             if !erase_type_parameters {
                 let mut fresh: Vec<TypeId> = Vec::with_capacity(count);
-                for index in 0..count {
-                    let tp = self
+                let fresh_mapper = if count == 1 {
+                    let original = self
                         .signature_of(signature)
                         .type_parameters()
-                        .expect("counted above")[index];
-                    fresh.push(self.clone_type_parameter(tp));
-                }
-                let sources = tsc_types::TypeListCopy::new(
-                    self.signature_of(signature)
-                        .type_parameters()
-                        .expect("counted above"),
-                );
-                let fresh_mapper = self.create_type_mapper(&sources, Some(&fresh));
+                        .expect("counted above")[0];
+                    let clone = self.clone_type_parameter(original);
+                    fresh.push(clone);
+                    self.make_unary_type_mapper(original, clone)
+                } else {
+                    for index in 0..count {
+                        let tp = self
+                            .signature_of(signature)
+                            .type_parameters()
+                            .expect("counted above")[index];
+                        fresh.push(self.clone_type_parameter(tp));
+                    }
+                    let sources = tsc_types::TypeListCopy::new(
+                        self.signature_of(signature)
+                            .type_parameters()
+                            .expect("counted above"),
+                    );
+                    self.create_type_mapper(&sources, Some(&fresh))
+                };
                 mapper = self.combine_type_mappers(Some(fresh_mapper), mapper);
                 self.retain_inference_mapper(Some(mapper));
                 for &tp in &fresh {
@@ -834,17 +841,28 @@ impl<'a> CheckerState<'a> {
         }
         let this_parameter =
             source_this_parameter.map(|this| self.instantiate_symbol(this, mapper));
-        let mut parameters: Vec<SymbolId> = Vec::with_capacity(parameter_count);
-        for index in 0..parameter_count {
-            let parameter = self.signature_of(signature).parameters[index];
-            parameters.push(self.instantiate_symbol(parameter, mapper));
-        }
+        let parameters: Box<[SymbolId]> = match *self.signature_of(signature).parameters {
+            [one] => Box::new([self.instantiate_symbol(one, mapper)]),
+            [first, second] => Box::new([
+                self.instantiate_symbol(first, mapper),
+                self.instantiate_symbol(second, mapper),
+            ]),
+            ref longer => {
+                let count = longer.len();
+                let mut parameters = Vec::with_capacity(count);
+                for index in 0..count {
+                    let parameter = self.signature_of(signature).parameters[index];
+                    parameters.push(self.instantiate_symbol(parameter, mapper));
+                }
+                parameters.into_boxed_slice()
+            }
+        };
         let result = {
             let mut signature_data = crate::state::Signature::new();
             signature_data.declaration = declaration;
             signature_data.flags = flags & SignatureFlags::PROPAGATING_FLAGS;
             signature_data.set_type_parameters(fresh_type_parameters.map(Vec::into_boxed_slice));
-            signature_data.set_parameters(parameters.into_boxed_slice());
+            signature_data.set_parameters(parameters);
             signature_data.this_parameter = this_parameter;
             signature_data.set_min_argument_count(min_argument_count);
             signature_data.set_from_method(from_method);

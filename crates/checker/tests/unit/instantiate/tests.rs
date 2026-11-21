@@ -1132,3 +1132,35 @@ fn conditional_key_mappers_match_composition_on_distributed_parameters() {
         },
     );
 }
+
+#[test]
+fn short_signature_keeps_this_and_parameter_order_with_a_fresh_generic() {
+    with_program_state(
+        &[(
+            "a.ts",
+            "function f<T>() { var sig: <U>(this: T, first: U, second: T) => U; }",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let annotation = annotation_of_var(state, "sig");
+            let signature = state.get_signature_from_declaration(annotation).unwrap();
+            let original = state.signature_of(signature).type_parameters().unwrap()[0];
+            let t = declared_type_parameter(state, "T");
+            let string = state.tables.intrinsics.string;
+            let mapper = state.make_unary_type_mapper(t, string);
+            let mapped = state
+                .instantiate_signature(signature, mapper, false)
+                .unwrap();
+            let result = state.signature_of(mapped);
+            let fresh = result.type_parameters().unwrap()[0];
+            assert_ne!(fresh, original);
+            let this = result.this_parameter.unwrap();
+            let [first, second] = *result.parameters else {
+                panic!("expected two parameters")
+            };
+            assert_eq!(state.get_type_of_symbol(this).unwrap(), string);
+            assert_eq!(state.get_type_of_symbol(first).unwrap(), fresh);
+            assert_eq!(state.get_type_of_symbol(second).unwrap(), string);
+        },
+    );
+}
