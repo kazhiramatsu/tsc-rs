@@ -2890,6 +2890,14 @@ impl PreparedProgramBuilder {
         self.diagnostics = diagnostics;
     }
 
+    /// Look up a published file by its canonical path during alias-free
+    /// publication. A physical path alone does not name a published file.
+    pub(crate) fn published_source_id(&self, path: &CanonicalPath) -> Option<SourceFileId> {
+        let id = self.source_by_canonical.get(path).copied();
+        debug_assert!(id.is_none_or(|id| self.source_files[id.index()].path().canonical() == path));
+        id
+    }
+
     /// The loader knows its complete publication order before adding files.
     pub(crate) fn reserve_source_files(&mut self, additional: usize) {
         self.source_files.reserve_exact(additional);

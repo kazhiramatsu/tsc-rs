@@ -1,3 +1,4 @@
+use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 
 use tsc_host::{CompilerHost, HostError, HostErrorKind, HostOperation, MemoryCompilerHost};
@@ -5,7 +6,7 @@ use tsc_program::{
     load_no_lib_program, load_program, CompilerOptions, LibraryCatalog, PreparedProgram,
     ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit, ProgramLoadLimits,
     ProgramLoadOperation, ProgramOptions, ProgramPath, ResolutionError, ResolutionOutcome,
-    TypeReferenceResolution, TypeReferenceResolutionKey,
+    TypeReferenceResolution, TypeReferenceResolutionKey, WorkerBudget,
 };
 
 const LIBRARY_DIRECTORY: &str = "/typescript/lib";
@@ -717,20 +718,27 @@ fn library_prefix_publication_remaps_root_and_automatic_type_target_ids() {
         .build()
         .expect("build automatic target ID-remapping graph");
     let roots = [PathBuf::from("/work/root.ts")];
-    let program = load_program(
-        &host,
-        &roots,
-        CompilerOptions {
-            lib: Some(vec!["es5".to_owned()]),
-            ..compiler_options()
-        },
-        ProgramOptions::default()
-            .with_types(vec!["pkg".to_owned().into()])
-            .with_type_roots(vec![path("/types")]),
-        &LibraryCatalog::typescript_7_1(LIBRARY_DIRECTORY),
-        generous_limits(),
-    )
-    .expect("publish library prefix before root and automatic package");
+    let publish = |workers| {
+        load_program(
+            &host,
+            &roots,
+            CompilerOptions {
+                lib: Some(vec!["es5".to_owned()]),
+                ..compiler_options()
+            },
+            ProgramOptions::default()
+                .with_types(vec!["pkg".to_owned().into()])
+                .with_type_roots(vec![path("/types")]),
+            &LibraryCatalog::typescript_7_1(LIBRARY_DIRECTORY),
+            generous_limits().with_workers(workers),
+        )
+        .expect("publish library prefix before root and automatic package")
+    };
+    let program = publish(WorkerBudget::serial());
+    assert_eq!(
+        publish(WorkerBudget::new(NonZeroUsize::new(4).unwrap())),
+        program
+    );
 
     assert_eq!(
         source_paths(&program),

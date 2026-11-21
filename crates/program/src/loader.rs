@@ -8203,13 +8203,25 @@ fn publish_program(
     let mut published_ids = vec![None; staged.sources.len()];
     let mut module_indices: Vec<Option<crate::resolution::PreparedModuleIndices>> =
         (0..staged.sources.len()).map(|_| None).collect();
-    // Hashed, never iterated: every module and type resolution looks its
-    // target up here (VS Code: 112k lookups of long path keys).
-    let mut source_by_canonical =
-        FxHashMap::<CanonicalPath, SourceFileId>::with_capacity_and_hasher(
+    // Project and package redirects can give the walk a different lookup
+    // from the builder. Only those publications need a second index.
+    let has_redirects = !staged.project_reference_redirects.is_empty()
+        || staged
+            .library_postorder
+            .iter()
+            .chain(&staged.ordinary_postorder)
+            .any(|&index| {
+                !staged.sources[index]
+                    .prepared
+                    .package_redirect_paths()
+                    .is_empty()
+            });
+    let mut redirect_index = has_redirects.then(|| {
+        FxHashMap::with_capacity_and_hasher(
             staged.library_postorder.len() + staged.ordinary_postorder.len(),
             Default::default(),
-        );
+        )
+    });
     let mut module_batches: Vec<Option<(CanonicalPath, Vec<StagedModuleResolution>)>> =
         (0..staged.sources.len()).map(|_| None).collect();
     let mut staged_sources: Vec<Option<StagedSource>> =
@@ -8241,22 +8253,24 @@ fn publish_program(
         module_batches[source_index] =
             Some((canonical.clone(), staged_source.module_requests.rows));
         published_ids[source_index] = Some(source_id);
-        source_by_canonical.insert(canonical, source_id);
-        for (redirected, output) in &staged.project_reference_redirects {
-            if *output == source_index {
-                source_by_canonical.insert(redirected.canonical().clone(), source_id);
+        if let Some(source_by_canonical) = &mut redirect_index {
+            source_by_canonical.insert(canonical, source_id);
+            for (redirected, output) in &staged.project_reference_redirects {
+                if *output == source_index {
+                    source_by_canonical.insert(redirected.canonical().clone(), source_id);
+                }
             }
-        }
-        for redirect in package_redirects {
-            if let Some(previous) =
-                source_by_canonical.insert(redirect.canonical().clone(), source_id)
-            {
-                if previous != source_id {
-                    return Err(ProgramLoadError::invalid_data_js(
-                        ProgramLoadOperation::BuildPreparedProgram,
-                        Some(redirect.display().to_owned()),
-                        "package redirect identity belongs to more than one staged source",
-                    ));
+            for redirect in package_redirects {
+                if let Some(previous) =
+                    source_by_canonical.insert(redirect.canonical().clone(), source_id)
+                {
+                    if previous != source_id {
+                        return Err(ProgramLoadError::invalid_data_js(
+                            ProgramLoadOperation::BuildPreparedProgram,
+                            Some(redirect.display().to_owned()),
+                            "package redirect identity belongs to more than one staged source",
+                        ));
+                    }
                 }
             }
         }
@@ -8319,20 +8333,26 @@ fn publish_program(
                 ))
             }),
     );
-    let redirected_source = |path: &CanonicalPath| -> Option<SourceFileId> {
-        let references = project_references.as_ref()?;
-        let redirected = if reads_reference_sources {
-            references.source_for_output(path)?.source().to_owned()
-        } else {
-            references.output_for_source(path)?.output_dts()?.to_owned()
+    let published_source =
+        |builder: &crate::PreparedProgramBuilder, path: &CanonicalPath| match &redirect_index {
+            Some(index) => index.get(path).copied(),
+            None => builder.published_source_id(path),
         };
-        let redirected = crate::module_resolution::make_program_path(
-            redirected.as_js(),
-            case_sensitive_file_names,
-        )
-        .ok()?;
-        source_by_canonical.get(redirected.canonical()).copied()
-    };
+    let redirected_source =
+        |builder: &crate::PreparedProgramBuilder, path: &CanonicalPath| -> Option<SourceFileId> {
+            let references = project_references.as_ref()?;
+            let redirected = if reads_reference_sources {
+                references.source_for_output(path)?.source().to_owned()
+            } else {
+                references.output_for_source(path)?.output_dts()?.to_owned()
+            };
+            let redirected = crate::module_resolution::make_program_path(
+                redirected.as_js(),
+                case_sensitive_file_names,
+            )
+            .ok()?;
+            published_source(builder, redirected.canonical())
+        };
     timer.mark("load: publish package map");
     let row_count = module_batches
         .iter()
@@ -8382,10 +8402,9 @@ fn publish_program(
                 }
             }
             .or_else(|| {
-                resolution
-                    .host
-                    .resolved()
-                    .and_then(|module| redirected_source(module.resolved_file().canonical()))
+                resolution.host.resolved().and_then(|module| {
+                    redirected_source(&builder, module.resolved_file().canonical())
+                })
             });
             let binding = crate::resolution::ModuleBinding {
                 source,
@@ -8443,7 +8462,7 @@ fn publish_program(
                 }
             }
             .or_else(|| match resolution.host.resolved() {
-                Some(module) => redirected_source(module.resolved_file().canonical()),
+                Some(module) => redirected_source(&builder, module.resolved_file().canonical()),
                 None => None,
             });
             let exact_path = matches!(resolution.target, StagedModuleTarget::Source(_, true));
@@ -8526,21 +8545,23 @@ fn publish_program(
     }
     timer.mark("load: publish module resolutions");
     for resolution in staged.type_resolutions {
-        let bound = bind_type_resolution(resolution.host, &source_by_canonical, &redirected_source)
-            .map_err(|error| {
-                ProgramLoadError::resolution_js(
-                    ProgramLoadOperation::BindResolutions,
-                    Some(crate::loader_counters::js_owned(
-                        "bind.error",
-                        resolution.key.origin().canonical_path().as_js(),
-                    )),
-                    Some(crate::loader_counters::js_owned(
-                        "bind.error",
-                        resolution.key.specifier(),
-                    )),
-                    error,
-                )
-            })?;
+        let bound = bind_type_resolution(resolution.host, |path| {
+            published_source(&builder, path).or_else(|| redirected_source(&builder, path))
+        })
+        .map_err(|error| {
+            ProgramLoadError::resolution_js(
+                ProgramLoadOperation::BindResolutions,
+                Some(crate::loader_counters::js_owned(
+                    "bind.error",
+                    resolution.key.origin().canonical_path().as_js(),
+                )),
+                Some(crate::loader_counters::js_owned(
+                    "bind.error",
+                    resolution.key.specifier(),
+                )),
+                error,
+            )
+        })?;
         let bound = bound.with_diagnostics(resolution.diagnostics);
         builder
             .add_type_reference_resolution(resolution.key, Ok(bound))
@@ -8631,17 +8652,12 @@ fn bind_module_resolution(
 
 fn bind_type_resolution(
     host: ResolutionOutcome<HostResolvedTypeReferenceDirective>,
-    source_by_canonical: &FxHashMap<CanonicalPath, SourceFileId>,
-    redirected_source: &dyn Fn(&CanonicalPath) -> Option<SourceFileId>,
+    source_for_path: impl FnOnce(&CanonicalPath) -> Option<SourceFileId>,
 ) -> Result<TypeReferenceResolution, ResolutionError> {
     let ResolutionOutcome::Resolved(host) = host else {
         return Ok(TypeReferenceResolution::not_found());
     };
-    let Some(source) = source_by_canonical
-        .get(host.resolved_file().canonical())
-        .copied()
-        .or_else(|| redirected_source(host.resolved_file().canonical()))
-    else {
+    let Some(source) = source_for_path(host.resolved_file().canonical()) else {
         return Err(ResolutionError::invalid_data(format!(
             "resolved type-reference target {} is not owned by the prepared program",
             host.resolved_file().display().to_string_lossy()
