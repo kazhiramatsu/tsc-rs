@@ -728,3 +728,42 @@ fn an_aliased_constraint_keeps_its_keyof_origin_without_an_origin_request() {
     );
     assert_eq!(result.work_counters.types(), 96 - 1);
 }
+
+#[test]
+fn string_index_walk_stops_before_resolving_a_nested_mapped_constraint() {
+    let source = "function f<T>() {\n\
+                  let m: { [K in keyof T]: T[K] };\n\
+                  let dict: { [s: string]: number };\n\
+                  }";
+    with_program_state(&[("a.ts", source)], &CompilerOptions::default(), |state| {
+        let source = annotation_type(state, "m");
+        let declaration = state.mapped_type_data(source).declaration;
+        let cold = state
+            .tables
+            .create_mapped_type(declaration, None, None, None);
+        let dict = annotation_type(state, "dict");
+        let stop = state.tables.intrinsics.number;
+        let inner = state
+            .tables
+            .create_origin_union_or_intersection_type(TypeFlags::INTERSECTION, [dict, stop, cold]);
+        let outer = state
+            .tables
+            .create_origin_union_or_intersection_type(TypeFlags::UNION, [dict, inner, cold]);
+        let list = state.tables.intern_type_list(&[dict, inner, cold]);
+        let mut cursor = state.tables.cursor(list);
+        assert_eq!(cursor.next(&state.tables), Some(dict));
+        for index in 0..2048 {
+            state
+                .tables
+                .intern_type_list(&[tsc_types::TypeId::new(index), outer]);
+        }
+        assert_eq!(cursor.next(&state.tables), Some(inner));
+        assert_eq!(cursor.next(&state.tables), Some(cold));
+        assert!(cursor.is_empty());
+        assert!(!state.is_string_index_signature_only_type(outer).unwrap());
+        assert!(state.is_string_index_signature_only_type(dict).unwrap());
+        assert_eq!(state.get_mapped_type_parts(cold), [None; 4]);
+        assert!(!state.is_string_index_signature_only_type(cold).unwrap());
+        assert!(state.get_mapped_type_parts(cold)[1].is_some());
+    });
+}
