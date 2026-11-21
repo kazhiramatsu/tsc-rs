@@ -226,6 +226,34 @@ impl SymbolMap {
         self.find(name).map(|(position, _)| position)
     }
 
+    /// Append in insertion order to a map without an index (`bits` are its
+    /// name bits) and build the index at the usual threshold.
+    fn append_unindexed(&mut self, bits: usize, name: EscapedName, value: SymbolId) {
+        // A full vector grows to the next power of two: four slots after
+        // the two inline entries, then doubling.
+        self.entries.push((name, value));
+        if self.entries.len() >= INDEXED_FROM {
+            self.index();
+        } else {
+            self.positions = InlineOrBox::inline(bits | name_bit(name));
+        }
+    }
+
+    fn insert_absent(&mut self, name: EscapedName, value: SymbolId) {
+        debug_assert!(self.find(name).is_none());
+        if let Some(bits) = self.positions.inline_bits() {
+            self.append_unindexed(bits, name, value);
+            return;
+        }
+        let positions = self.positions.as_boxed_mut().unwrap();
+        let entries = self.entries.as_slice();
+        let position = u32::try_from(entries.len()).expect("symbol table size");
+        positions.insert_unique(hash_name(name), position, |&position| {
+            hash_name(entries[position as usize].0)
+        });
+        self.entries.push((name, value));
+    }
+
     /// Insert or replace; a replaced entry keeps its position, as in a
     /// JavaScript `Map`.
     fn insert(&mut self, name: EscapedName, value: SymbolId) -> Option<SymbolId> {
@@ -233,14 +261,7 @@ impl SymbolMap {
             if let Some(position) = find_unindexed(&self.entries, bits, name) {
                 return Some(std::mem::replace(&mut self.entries[position].1, value));
             }
-            // A full vector grows to the next power of two: four slots
-            // after the two inline entries, then doubling.
-            self.entries.push((name, value));
-            if self.entries.len() >= INDEXED_FROM {
-                self.index();
-            } else {
-                self.positions = InlineOrBox::inline(bits | name_bit(name));
-            }
+            self.append_unindexed(bits, name, value);
             return None;
         }
         let positions = self.positions.as_boxed_mut().unwrap();
@@ -449,6 +470,11 @@ impl SymbolTable {
 
     pub fn insert(&mut self, key: EscapedName, value: SymbolId) -> Option<SymbolId> {
         self.map_mut().insert(key, value)
+    }
+
+    /// Insert after a miss in this table, with no intervening table writes.
+    pub(crate) fn insert_absent(&mut self, key: EscapedName, value: SymbolId) {
+        self.map_mut().insert_absent(key, value);
     }
 
     pub fn iter(&self) -> Iter<'_> {

@@ -763,7 +763,7 @@ impl<'a> BinderWorker<'a> {
                 match existing {
                     None => {
                         let symbol = self.create_symbol(SymbolFlags::NONE, name);
-                        self.table_mut(table).insert(name, symbol);
+                        self.table_mut(table).insert_absent(name, symbol);
                         if is_replaceable_by_method {
                             self.symbols
                                 .symbol_mut(symbol)

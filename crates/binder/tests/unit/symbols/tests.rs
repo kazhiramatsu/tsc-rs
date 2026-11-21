@@ -45,6 +45,23 @@ fn symbol_table_preserves_insertion_order() {
 }
 
 #[test]
+fn known_absent_insert_keeps_the_same_order_through_index_growth() {
+    let mut arena = SymbolArena::default();
+    let mut table = SymbolTable::default();
+    let mut ordinary = SymbolTable::default();
+    for index in 0..40 {
+        let name = escape_leading_underscores(&format!("n{index}"));
+        assert_eq!(table.get(name), None);
+        let id = arena.alloc(SymbolFlags::NONE, name);
+        table.insert_absent(name, id);
+        ordinary.insert(name, id);
+        assert_eq!(table.get_full(name), Some((index, &name, &id)));
+        assert!(table.iter().eq(ordinary.iter()));
+        assert_eq!(table, ordinary);
+    }
+}
+
+#[test]
 fn arena_allocates_sequential_ids() {
     let mut arena = SymbolArena::default();
     let first = arena.alloc(SymbolFlags::NONE, crate::escape_leading_underscores("a"));
