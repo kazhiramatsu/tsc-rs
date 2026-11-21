@@ -662,17 +662,32 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4ae83b985bfc4d9c367541290d29b207ce34af46a4b465b0e36cae2056847f03
     /// tsc-span: _tsc.js:89010-89325
     /// d2: d2:984775a91d6ec0d2e27b820a9d34a31328ef5845e0fd5dd8a5e751f3040d2ca8
+    #[inline]
     pub(crate) fn check_grammar_modifiers(&mut self, node: NodeId) -> bool {
+        let written = node_util::modifiers_of(&Published, node);
+        if written.is_none()
+            && (!self.is_in_js_file(node) || self.reparsed_modifier_tags(node).is_empty())
+        {
+            return false;
+        }
+        self.check_grammar_modifier_list(node, written)
+    }
+
+    #[inline(never)]
+    fn check_grammar_modifier_list(&mut self, node: NodeId, written: Option<NodeArrayId>) -> bool {
         let node_kind = self.kind_of(node);
         let parent = self.parent_of(node);
         let parent_kind = parent.map(|parent| self.kind_of(parent));
-        if self.report_obvious_decorator_errors(node) == Some(true) {
-            return true;
+        let modifiers = self.nodes_of(written);
+        if written.is_some() {
+            if self.report_obvious_decorator_errors(node, &modifiers) == Some(true) {
+                return true;
+            }
+            if let Some(result) = self.report_obvious_modifier_errors(node, &modifiers, parent_kind)
+            {
+                return result;
+            }
         }
-        if let Some(result) = self.report_obvious_modifier_errors(node) {
-            return result;
-        }
-        let modifiers = self.nodes_of(node_util::modifiers_of(&Published, node));
         if node_kind == SyntaxKind::Parameter {
             let is_this = match self.record_of(node).as_parameter() {
                 Some(data) => data
@@ -731,24 +746,26 @@ impl<'a> CheckerState<'a> {
         // `@readonly`/`@private`/`@public`/`@protected`/`@override` tags to
         // the written ones, each spanning its tag (reparser.go:525-566); the
         // order rules do not apply to them.
-        let mut entries: Vec<(NodeId, SyntaxKind, bool)> = modifiers
-            .iter()
-            .map(|&modifier| (modifier, self.kind_of(modifier), false))
-            .collect();
-        if self.is_in_js_file(node) {
-            for &tag in self.reparsed_modifier_tags(node) {
-                let keyword = match self.kind_of(tag) {
-                    SyntaxKind::JSDocReadonlyTag => SyntaxKind::ReadonlyKeyword,
-                    SyntaxKind::JSDocPrivateTag => SyntaxKind::PrivateKeyword,
-                    SyntaxKind::JSDocPublicTag => SyntaxKind::PublicKeyword,
-                    SyntaxKind::JSDocProtectedTag => SyntaxKind::ProtectedKeyword,
-                    SyntaxKind::JSDocOverrideTag => SyntaxKind::OverrideKeyword,
-                    _ => continue,
-                };
-                entries.push((tag, keyword, true));
-            }
-        }
-        for (modifier, modifier_kind, reparsed) in entries {
+        let tags = if self.is_in_js_file(node) {
+            self.reparsed_modifier_tags(node)
+        } else {
+            &[]
+        };
+        let written = modifiers
+            .into_iter()
+            .map(|id| (id, Published.node(id).kind, false));
+        let hosted = tags.iter().filter_map(|&tag| {
+            let kind = match Published.node(tag).kind {
+                SyntaxKind::JSDocReadonlyTag => SyntaxKind::ReadonlyKeyword,
+                SyntaxKind::JSDocPrivateTag => SyntaxKind::PrivateKeyword,
+                SyntaxKind::JSDocPublicTag => SyntaxKind::PublicKeyword,
+                SyntaxKind::JSDocProtectedTag => SyntaxKind::ProtectedKeyword,
+                SyntaxKind::JSDocOverrideTag => SyntaxKind::OverrideKeyword,
+                _ => return None,
+            };
+            Some((tag, kind, true))
+        });
+        for (modifier, modifier_kind, reparsed) in written.chain(hosted) {
             if modifier_kind == SyntaxKind::Decorator {
                 let grandparent = parent.and_then(|parent| self.parent_of(parent));
                 if !self.node_can_be_decorated(
@@ -1596,16 +1613,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 1253f02e67c0d9dc5a5d8bc962446417abdabf9f6836e69e20ca13383781592e
     /// tsc-span: _tsc.js:89326-89330
     /// d2: d2:89d6695aecb00ac6fe50a0fd96b200447b88716016cdbe55f33ead8ee910e089
-    fn report_obvious_modifier_errors(&mut self, node: NodeId) -> Option<bool> {
-        let Some(modifiers) = node_util::modifiers_of(&Published, node) else {
-            // tsgo `node.Modifiers() == nil`: reparsed JavaScript modifiers
-            // count (they only occur where modifiers are legal).
-            if self.is_in_js_file(node) && !self.reparsed_modifier_tags(node).is_empty() {
-                return None;
-            }
-            return Some(false);
-        };
-        let modifiers = self.binder.node_array(modifiers).nodes;
+    fn report_obvious_modifier_errors(
+        &mut self,
+        node: NodeId,
+        modifiers: &[NodeId],
+        parent_kind: Option<SyntaxKind>,
+    ) -> Option<bool> {
         let first_modifier_except = |allowed: Option<SyntaxKind>| {
             modifiers
                 .iter()
@@ -1613,7 +1626,6 @@ impl<'a> CheckerState<'a> {
                 .find(|&modifier| self.kind_of(modifier) != SyntaxKind::Decorator)
                 .filter(|&modifier| Some(self.kind_of(modifier)) != allowed)
         };
-        let parent_kind = self.parent_of(node).map(|parent| self.kind_of(parent));
         let illegal = match self.kind_of(node) {
             SyntaxKind::GetAccessor
             | SyntaxKind::SetAccessor
@@ -1678,7 +1690,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 6d7dc7cfc009f9a1a3a358fcc89a00cb93c909d2d7862e95ac462d258192fc38
     /// tsc-span: _tsc.js:89384-89387
     /// d2: d2:55c15520a95ac1344d3d7821855541d5399e383a7f086017cba15c88381e54f9
-    fn report_obvious_decorator_errors(&mut self, node: NodeId) -> Option<bool> {
+    fn report_obvious_decorator_errors(
+        &mut self,
+        node: NodeId,
+        modifiers: &[NodeId],
+    ) -> Option<bool> {
         let can_have_illegal_decorators = matches!(
             self.kind_of(node),
             SyntaxKind::PropertyAssignment
@@ -1702,8 +1718,9 @@ impl<'a> CheckerState<'a> {
         if !can_have_illegal_decorators {
             return None;
         }
-        self.nodes_of(node_util::modifiers_of(&Published, node))
-            .into_iter()
+        modifiers
+            .iter()
+            .copied()
             .find(|&modifier| self.kind_of(modifier) == SyntaxKind::Decorator)
             .map(|decorator| {
                 self.grammar_error_on_first_token(
