@@ -1183,11 +1183,11 @@ pub struct CheckerState<'a> {
     /// The ReduceLabel antecedent swap (getTypeAtFlowNode 70473): tsc
     /// mutates `target.antecedent` in place during try/finally walks;
     /// the binder graph is immutable to the checker, so the swapped
-    /// lists live here keyed by (file, label) and every label read
-    /// consults them. Entries are strictly scoped to an in-progress
+    /// lists are identified by their originating ReduceLabel nodes, keyed
+    /// by (file, label). Entries are strictly scoped to an in-progress
     /// ReduceLabel arm (restored on exit AND on unwind).
     pub(crate) reduce_label_overrides:
-        rustc_hash::FxHashMap<(usize, tsc_binder::flow::FlowId), Vec<tsc_binder::flow::FlowId>>,
+        rustc_hash::FxHashMap<(usize, tsc_binder::flow::FlowId), tsc_binder::flow::FlowId>,
     /// tsc evolvingArrayTypes (70079): elementType→evolving-array memo
     /// (tsc indexes a sparse array by elementType.id).
     pub(crate) evolving_array_types: rustc_hash::FxHashMap<TypeId, TypeId>,

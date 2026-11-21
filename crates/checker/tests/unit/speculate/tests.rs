@@ -406,7 +406,7 @@ fn mutate_everything(state: &mut CheckerState) {
     );
     state
         .reduce_label_overrides
-        .insert((0, FlowId::new(1)), vec![FlowId::new(2)]);
+        .insert((0, FlowId::new(1)), FlowId::new(2));
     state.exhaustive_switch_computing.insert(root);
     // B: counters / flags.
     state.instantiation_stack.extend([string; 5]);

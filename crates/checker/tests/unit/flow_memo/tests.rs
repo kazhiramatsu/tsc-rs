@@ -1,7 +1,7 @@
 use super::*;
 use crate::state::test_support::with_program_state;
 use crate::state::ResolutionTarget;
-use tsc_types::{CompilerOptions, TypeSystemPropertyName};
+use tsc_types::{CompilerOptions, FlowFlags, TypeSystemPropertyName};
 
 fn query<'a>(state: &mut CheckerState<'a>, reference: NodeId) -> FlowQuery<'a> {
     FlowQuery::for_memo_test(state, reference)
@@ -37,35 +37,43 @@ fn counters() -> FlowCounters {
 
 #[test]
 fn borrowed_label_shapes_follow_override_replacement_and_restore() {
+    use tsc_binder::flow::FlowData;
+
     with_program_state(
-        &[("a.ts", "let value: string | number = 1; while (value) { if (typeof value === 'string') value = value.length; else value = 'next'; } value;")],
+        &[("a.ts", "function f(value: number, b: boolean) { try { try { if (b) return value; value = 2; } finally { value; } } finally { value; } }")],
         &CompilerOptions::default(),
         |state| {
             let reference = *identifiers(state, "value").last().unwrap();
             let q = query(state, reference);
             let file = q.file_index();
             let arena = state.binder.flow_arena(file);
-            let label = (0..arena.len())
-                .map(|index| FlowId::new(index as u32))
-                .find(|&flow| arena.flow(flow).flags.intersects(FlowFlags::BRANCH_LABEL | FlowFlags::LOOP_LABEL))
-                .unwrap();
+            let mut reductions = (0..arena.len() as u32)
+                .map(FlowId::new)
+                .filter_map(|origin| match arena.payload(origin) {
+                    FlowData::ReduceLabel { target, antecedents } => Some((target, origin, antecedents)),
+                    _ => None,
+                });
+            let (label, origin, reduced) = reductions.next().expect("first inner exit");
+            let (_, replacement, replaced) = reductions
+                .find(|(target, _, _)| *target == label)
+                .expect("another exit from the same finally label");
             let record = arena.flow(label);
             let before = *record;
-            let original: Vec<_> = state.flow_label_antecedents(file, label).to_vec();
-            assert_eq!(state.flow_label_antecedents_view(&q, label, record), original);
-            let saved = state.reduce_label_overrides.get(&(file, label)).cloned();
-            for replacement in [vec![], vec![FlowId::new(0)], vec![FlowId::new(1), FlowId::new(0)]] {
-                state.reduce_label_overrides.insert((file, label), replacement.clone());
-                let snapshot: Vec<_> = state.flow_label_antecedents(file, label).to_vec();
-                assert_eq!(state.flow_label_antecedents_view(&q, label, record), replacement);
-                assert_eq!(state.flow_label_antecedents_view(&q, label, record), snapshot);
-                assert_eq!(*record, before);
-            }
-            match saved {
-                Some(previous) => { state.reduce_label_overrides.insert((file, label), previous); }
-                None => { state.reduce_label_overrides.remove(&(file, label)); }
-            }
-            assert_eq!(state.flow_label_antecedents_view(&q, label, record), original);
+            let original = state.flow_label_antecedents(file, label);
+            assert!(std::ptr::eq(original, arena.antecedents_from(record)));
+            state.reduce_label_overrides.insert((file, label), origin);
+            let snapshot = state.flow_label_antecedents(file, label);
+            assert!(std::ptr::eq(snapshot, reduced));
+            let saved = state.reduce_label_overrides.insert((file, label), replacement).unwrap();
+            assert!(std::ptr::eq(state.flow_label_antecedents(file, label), replaced));
+            state.reduce_label_overrides.insert((file, label), saved);
+            let trial = state.begin_speculation();
+            state.reduce_label_overrides.insert((file, label), replacement);
+            state.rollback_speculation(trial);
+            assert!(std::ptr::eq(state.flow_label_antecedents(file, label), reduced));
+            state.reduce_label_overrides.remove(&(file, label));
+            assert!(std::ptr::eq(state.flow_label_antecedents(file, label), original));
+            assert!(std::ptr::eq(snapshot, reduced));
             assert_eq!(*record, before);
         },
     );
@@ -1191,7 +1199,7 @@ fn consultation_guards_live_context_and_depth() {
         state.flow_analysis_disabled = false;
         state
             .reduce_label_overrides
-            .insert((0, FlowId::new(0)), Vec::new());
+            .insert((0, FlowId::new(0)), FlowId::new(0));
         assert!(!state.flow_memo_consult_ok(&q, hit));
         state.reduce_label_overrides.clear();
         state.flow_memo.serial = UNTAINTED - 1;
@@ -1473,7 +1481,7 @@ fn shared_effects_and_inline_reduce_contexts_block_stores() {
         q.reduce_depth = 0;
         state
             .reduce_label_overrides
-            .insert((0, FlowId::new(0)), Vec::new());
+            .insert((0, FlowId::new(0)), FlowId::new(0));
         assert!(state.flow_frame_memo(&q).is_none());
         state.reduce_label_overrides.clear();
         state.flow_analysis_disabled = true;

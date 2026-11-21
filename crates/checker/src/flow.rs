@@ -215,42 +215,6 @@ pub(crate) struct FlowLoopEntry {
     pub(crate) serial: u32,
 }
 
-/// Immutable arena antecedents can be borrowed across the recursive walk.
-/// Reduce-label overrides and callers without a separate arena borrow keep
-/// an owned snapshot (inline for the usual small label).
-pub(crate) enum FlowAntecedents<'a> {
-    Borrowed(&'a [FlowId]),
-    Inline { len: usize, flows: [FlowId; 4] },
-    Heap(Vec<FlowId>),
-}
-
-impl FlowAntecedents<'_> {
-    fn new(antecedents: &[FlowId]) -> Self {
-        if antecedents.len() <= 4 {
-            let mut flows = [FlowId::new(0); 4];
-            flows[..antecedents.len()].copy_from_slice(antecedents);
-            Self::Inline {
-                len: antecedents.len(),
-                flows,
-            }
-        } else {
-            Self::Heap(antecedents.to_vec())
-        }
-    }
-}
-
-impl std::ops::Deref for FlowAntecedents<'_> {
-    type Target = [FlowId];
-
-    fn deref(&self) -> &[FlowId] {
-        match self {
-            Self::Borrowed(flows) => flows,
-            Self::Inline { len, flows } => &flows[..*len],
-            Self::Heap(flows) => flows,
-        }
-    }
-}
-
 impl<'a> CheckerState<'a> {
     /// tsc-port: createFlowType @6.0.3
     /// tsc-hash: 6c62e978ce2e99049bfa9f92da21d61691a7fd53aea3085dd19d06425de9526b
@@ -300,50 +264,30 @@ impl<'a> CheckerState<'a> {
         plain_flow_antecedent(self.binder.file(file).flow.flow(flow))
     }
 
-    /// A LABEL's antecedent list, override-aware: a ReduceLabel arm in
-    /// progress (try/finally) temporarily swaps the target label's
-    /// antecedents — tsc mutates `target.antecedent` in place (70473);
-    /// the binder graph is immutable to the checker, so the swap lives
-    /// in `reduce_label_overrides` and every label read consults it.
-    /// tsrs-native: override-map view over the binder arena.
-    pub(crate) fn flow_label_antecedents(
-        &self,
-        file: usize,
-        flow: FlowId,
-    ) -> FlowAntecedents<'static> {
-        let antecedents = self.reduce_label_overrides.get(&(file, flow)).map_or_else(
-            || self.binder.file(file).flow.antecedents(flow),
-            Vec::as_slice,
-        );
-        FlowAntecedents::new(antecedents)
+    /// Read the active label list. Both ordinary and reduced lists belong to
+    /// the immutable flow graph, so a recursive walk can keep the returned
+    /// slice even while a nested reduction replaces the map entry.
+    pub(crate) fn flow_label_antecedents(&self, file: usize, flow: FlowId) -> &'a [FlowId] {
+        let arena = self.binder.flow_arena(file);
+        self.flow_label_antecedents_from(file, arena, flow, arena.flow(flow))
     }
 
-    /// Shape-only reads do not outlive this borrow. Recursive joins keep the
-    /// override snapshots used by flow_label_antecedents_in.
     #[inline]
-    pub(crate) fn flow_label_antecedents_view<'b>(
-        &'b self,
-        query: &FlowQuery<'b>,
-        flow: FlowId,
-        flow_node: &'b FlowNode,
-    ) -> &'b [FlowId] {
-        self.reduce_label_overrides
-            .get(&(query.file, flow))
-            .map_or_else(|| query.arena.antecedents_from(flow_node), Vec::as_slice)
-    }
-
-    fn flow_label_antecedents_in<'b>(
+    fn flow_label_antecedents_from<'graph>(
         &self,
         file: usize,
-        arena: &'b FlowArena,
+        arena: &'graph FlowArena,
         flow: FlowId,
-    ) -> FlowAntecedents<'b> {
-        if let Some(overridden) = self.reduce_label_overrides.get(&(file, flow)) {
-            return FlowAntecedents::new(overridden);
+        flow_node: &'graph FlowNode,
+    ) -> &'graph [FlowId] {
+        if let Some(&origin) = self.reduce_label_overrides.get(&(file, flow)) {
+            let FlowData::ReduceLabel { antecedents, .. } = arena.payload(origin) else {
+                unreachable!("an override names its originating ReduceLabel");
+            };
+            antecedents
+        } else {
+            arena.antecedents_from(flow_node)
         }
-        // tsgo iterates the immutable binder list directly. Overrides must
-        // remain snapshots: a recursive walk can temporarily replace them.
-        FlowAntecedents::Borrowed(arena.antecedents(flow))
     }
 
     fn flow_payload_node(&self, file: usize, flow: FlowId) -> Option<NodeId> {
@@ -742,13 +686,21 @@ impl<'a> CheckerState<'a> {
                 }
                 shared = Some(flow);
             }
+            let antecedents = flags
+                .intersects(FlowFlags::BRANCH_LABEL | FlowFlags::LOOP_LABEL)
+                .then(|| self.flow_label_antecedents_from(query.file, flow_arena, flow, flow_node));
             if let Some(memo) = memo.as_ref() {
+                let ends_iteration = flags.intersects(
+                    FlowFlags::TRUE_CONDITION
+                        | FlowFlags::FALSE_CONDITION
+                        | FlowFlags::SWITCH_CLAUSE,
+                ) || antecedents.is_some_and(|list| list.len() > 1);
                 if let Some((ty, ends_iteration)) = self.flow_memo_at_node(
                     query,
                     memo,
                     entry_flow,
                     flow,
-                    flow_node,
+                    ends_iteration,
                     shared,
                     #[cfg(feature = "flow-memo-shadow")]
                     &frame,
@@ -781,16 +733,15 @@ impl<'a> CheckerState<'a> {
                 ty = self.get_type_at_flow_condition(query, flow_node)?;
             } else if flags.intersects(FlowFlags::SWITCH_CLAUSE) {
                 ty = self.get_type_at_switch_clause(query, flow_node)?;
-            } else if flags.intersects(FlowFlags::BRANCH_LABEL | FlowFlags::LOOP_LABEL) {
-                let antecedents = self.flow_label_antecedents_view(query, flow, flow_node);
+            } else if let Some(antecedents) = antecedents {
                 if antecedents.len() == 1 {
                     flow = antecedents[0];
                     continue;
                 }
                 let join = if flags.intersects(FlowFlags::BRANCH_LABEL) {
-                    self.get_type_at_flow_branch_label(query, flow)
+                    self.get_type_at_flow_branch_label(query, antecedents)
                 } else {
-                    self.get_type_at_flow_loop_label(query, flow)
+                    self.get_type_at_flow_loop_label(query, flow, antecedents)
                 };
                 // Dependency failures are not flow answers. Every
                 // production Err propagates to the outer containment
@@ -810,18 +761,14 @@ impl<'a> CheckerState<'a> {
                 // label's antecedents temporarily swapped (tsc mutates
                 // target.antecedent in place; the override map is the
                 // immutable-arena equivalent, restored ALSO on unwind).
-                let FlowData::ReduceLabel {
-                    target,
-                    antecedents,
-                } = query.arena.payload_from(flow_node)
+                let FlowData::ReduceLabel { target, .. } = query.arena.payload_from(flow_node)
                 else {
                     unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
                 };
-                let swapped = antecedents.to_vec();
                 let antecedent = plain_flow_antecedent(flow_node);
                 let saved = self
                     .reduce_label_overrides
-                    .insert((query.file, target), swapped);
+                    .insert((query.file, target), flow);
                 self.flow_memo.taint(0);
                 query.reduce_depth += 1;
                 let result = self.get_type_at_flow_node(query, antecedent);
@@ -1315,16 +1262,13 @@ impl<'a> CheckerState<'a> {
     fn get_type_at_flow_branch_label(
         &mut self,
         query: &mut FlowQuery,
-        flow: FlowId,
+        antecedents: &[FlowId],
     ) -> CheckResult<FlowType> {
         let mut antecedent_types: Vec<TypeId> = Vec::new();
         let mut subtype_reduction = false;
         let mut seen_incomplete = false;
         let mut bypass_flow: Option<FlowId> = None;
-        for &antecedent in self
-            .flow_label_antecedents_in(query.file, query.arena, flow)
-            .iter()
-        {
+        for &antecedent in antecedents {
             if bypass_flow.is_none() && self.is_empty_switch_clause_flow(query, antecedent) {
                 bypass_flow = Some(antecedent);
                 continue;
@@ -1407,6 +1351,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         query: &mut FlowQuery,
         flow: FlowId,
+        antecedents: &[FlowId],
     ) -> CheckResult<FlowType> {
         // getFlowNodeId(flow) → flowLoopCaches[id]: FlowIds are
         // per-file, so (file, FlowId) is the cache identity.
@@ -1441,10 +1386,7 @@ impl<'a> CheckerState<'a> {
         let mut antecedent_types: Vec<TypeId> = Vec::new();
         let mut subtype_reduction = false;
         let mut first_antecedent_type: Option<FlowType> = None;
-        for &antecedent in self
-            .flow_label_antecedents_in(query.file, query.arena, flow)
-            .iter()
-        {
+        for &antecedent in antecedents {
             let flow_type = if first_antecedent_type.is_none() {
                 let first = self.get_type_at_flow_node(query, antecedent)?;
                 if query.memo_aborted {
@@ -2038,16 +1980,13 @@ impl<'a> CheckerState<'a> {
                 flow = self.flow_antecedent(file, flow);
             } else if flags.intersects(FlowFlags::REDUCE_LABEL) {
                 self.last_flow_node = None;
-                let FlowData::ReduceLabel {
-                    target,
-                    antecedents,
-                } = self.binder.file(file).flow.payload(flow)
+                let FlowData::ReduceLabel { target, .. } =
+                    self.binder.file(file).flow.payload(flow)
                 else {
                     unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
                 };
-                let swapped = antecedents.to_vec();
                 let antecedent = self.flow_antecedent(file, flow);
-                let saved = self.reduce_label_overrides.insert((file, target), swapped);
+                let saved = self.reduce_label_overrides.insert((file, target), flow);
                 let result = self.is_reachable_flow_node_worker(file, antecedent, false);
                 match saved {
                     Some(previous) => {
@@ -2127,16 +2066,13 @@ impl<'a> CheckerState<'a> {
                     .first()
                     .expect("LOOP_LABEL flow nodes carry an entry antecedent");
             } else if flags.intersects(FlowFlags::REDUCE_LABEL) {
-                let FlowData::ReduceLabel {
-                    target,
-                    antecedents,
-                } = self.binder.file(file).flow.payload(flow)
+                let FlowData::ReduceLabel { target, .. } =
+                    self.binder.file(file).flow.payload(flow)
                 else {
                     unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
                 };
-                let swapped = antecedents.to_vec();
                 let antecedent = self.flow_antecedent(file, flow);
-                let saved = self.reduce_label_overrides.insert((file, target), swapped);
+                let saved = self.reduce_label_overrides.insert((file, target), flow);
                 let result = self.is_post_super_flow_node(file, antecedent, false);
                 match saved {
                     Some(previous) => {

@@ -108,7 +108,7 @@ pub struct SpeculationCheckpoint {
     /// speculation") — entries are strictly scoped to an in-progress
     /// ReduceLabel arm, so this is empty except when a trial opens
     /// inside a try/finally flow walk.
-    reduce_label_overrides: HashMap<(usize, FlowId), Vec<FlowId>>,
+    reduce_label_overrides: HashMap<(usize, FlowId), FlowId>,
     /// Must be empty across the boundary (inventory row); the begin
     /// debug_assert documents that claim, the clone keeps release
     /// builds restoring rather than trusting it.

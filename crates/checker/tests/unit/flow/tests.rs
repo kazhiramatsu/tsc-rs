@@ -249,34 +249,43 @@ fn exhaustive_switch_query_may_open_candidate_trials_while_computing() {
 
 #[test]
 fn antecedent_snapshot_survives_nested_reduce_label_overrides() {
-    use tsc_binder::flow::FlowId;
+    use super::{CheckerState, FlowArena, FlowData, FlowFlags};
+    use tsc_binder::flow::FlowPayload;
+
     with_program_state(
         &[("a.ts", "let value = 1;\n")],
         &CompilerOptions::default(),
         |state| {
-            let label = FlowId::new(0);
-            let original = state.flow_label_antecedents(0, label).to_vec();
+            let mut arena = FlowArena::for_bind();
+            let start = arena.create_flow_node(FlowFlags::START, FlowPayload::None, None);
+            let other_start = arena.create_flow_node(FlowFlags::START, FlowPayload::None, None);
+            let label = arena.create_branch_label();
+            arena.add_antecedent(label, start);
+            let inner = arena.create_reduce_label(label, vec![other_start], start);
+            let mut outer = Vec::new();
             for count in [0, 1, 4, 5, 9] {
-                let outer: Vec<FlowId> = (1..=count).map(FlowId::new).collect();
-                state
-                    .reduce_label_overrides
-                    .insert((0, label), outer.clone());
-                let snapshot = state.flow_label_antecedents(0, label);
-                let saved = state
-                    .reduce_label_overrides
-                    .insert((0, label), vec![FlowId::new(99)]);
-                assert_eq!(&*snapshot, outer.as_slice());
-                assert_eq!(&*state.flow_label_antecedents(0, label), &[FlowId::new(99)]);
+                outer.push(arena.create_reduce_label(label, vec![start; count], start));
+            }
+            arena.freeze();
+            let read = |state: &CheckerState<'_>| {
+                state.flow_label_antecedents_from(0, &arena, label, arena.flow(label))
+            };
+            for origin in outer {
+                let FlowData::ReduceLabel { antecedents, .. } = arena.payload(origin) else {
+                    unreachable!("fixture reduce label");
+                };
+                state.reduce_label_overrides.insert((0, label), origin);
+                let snapshot = read(state);
+                let saved = state.reduce_label_overrides.insert((0, label), inner);
+                assert!(std::ptr::eq(snapshot, antecedents));
+                assert_eq!(read(state), &[other_start]);
                 state
                     .reduce_label_overrides
                     .insert((0, label), saved.unwrap());
-                assert_eq!(&*state.flow_label_antecedents(0, label), outer.as_slice());
+                assert_eq!(read(state), antecedents);
                 state.reduce_label_overrides.remove(&(0, label));
-                assert_eq!(&*snapshot, outer.as_slice());
-                assert_eq!(
-                    &*state.flow_label_antecedents(0, label),
-                    original.as_slice()
-                );
+                assert_eq!(snapshot, antecedents);
+                assert_eq!(read(state), arena.antecedents(label));
             }
         },
     );
