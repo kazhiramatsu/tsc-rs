@@ -63,16 +63,17 @@ fn root_end_byte(path: JsStr<'_>) -> usize {
         }
         return 2;
     }
-    let Some((scheme, rest)) = path.split_once("://") else {
+    let mut colons = memchr::memchr_iter(b':', bytes);
+    let Some(scheme_end) = colons.find(|&index| bytes[index + 1..].starts_with(b"//")) else {
         return 0;
     };
-    let authority_start = scheme.as_bytes().len() + 3;
-    let Some((authority, _)) = rest.split_once("/") else {
+    let authority_start = scheme_end + 3;
+    let Some(length) = memchr::memchr(b'/', &bytes[authority_start..]) else {
         return bytes.len();
     };
-    let authority_end = authority_start + authority.as_bytes().len();
-    if scheme == "file"
-        && (authority.is_empty() || authority == "localhost")
+    let authority_end = authority_start + length;
+    if &bytes[..scheme_end] == b"file"
+        && matches!(&bytes[authority_start..authority_end], b"" | b"localhost")
         && bytes
             .get(authority_end + 1)
             .is_some_and(u8::is_ascii_alphabetic)

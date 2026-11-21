@@ -456,3 +456,20 @@ fn first_dotdot_prefixes_keep_utf16_short_prefix_and_root_rules() {
         }
     }
 }
+
+#[test]
+fn delimiter_search_preserves_root_lengths() {
+    for path in [
+        "",
+        "a:b://c",
+        "a::://c/d",
+        "//server/share",
+        "file:///c%3a/x",
+        "é://α/β",
+    ] {
+        let path = JsStr::from(path);
+        assert_eq!(root_end_byte(path), old_root_end_byte(path));
+    }
+    let path = JsString::from_code_units(&[0xd800, 58, 47, 47, 0xdc00, 47, 0]);
+    assert_eq!(root_end_byte(path.as_js()), old_root_end_byte(path.as_js()));
+}

@@ -296,8 +296,17 @@ impl<'a> JsStr<'a> {
         self.bytes.ends_with(suffix.as_bytes())
     }
 
+    #[inline]
     pub fn contains(self, scalar_pattern: &str) -> bool {
-        self.split_once(scalar_pattern).is_some()
+        self.find_scalar(scalar_pattern).is_some()
+    }
+
+    #[inline]
+    fn find_scalar(self, pattern: &str) -> Option<usize> {
+        match pattern.as_bytes() {
+            [byte] => memchr::memchr(*byte, self.bytes),
+            bytes => memchr::memmem::find(self.bytes, bytes),
+        }
     }
 
     /// Arbitrary JavaScript prefix comparison. Unlike the scalar fast path,
@@ -351,8 +360,9 @@ impl<'a> JsStr<'a> {
 
     /// Split on a Unicode-scalar separator. Its UTF-8 bytes can only match
     /// whole code points in canonical WTF-8, so both views stay canonical.
+    #[inline]
     pub fn split_once(self, separator: &str) -> Option<(Self, Self)> {
-        let index = memchr::memmem::find(self.bytes, separator.as_bytes())?;
+        let index = self.find_scalar(separator)?;
         Some((
             Self {
                 bytes: &self.bytes[..index],
