@@ -1650,10 +1650,13 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<bool> {
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             let types = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+                TypeData::Union { types, .. } => *types,
                 _ => unreachable!("union flag implies payload"),
             };
-            for t in types {
+            // The cursor keeps the original list bounds across callbacks
+            // that might grow the interned list storage.
+            let mut cursor = self.tables.cursor(types);
+            while let Some(t) = cursor.next(&self.tables) {
                 if predicate(self, t)? {
                     return Ok(true);
                 }
