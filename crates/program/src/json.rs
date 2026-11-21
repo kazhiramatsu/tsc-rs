@@ -51,9 +51,7 @@ pub fn read_package_json_object_from_snapshot(
         return Map::new();
     }
     if let Ok(value) = serde_json::from_str::<serde_json::Value>(snapshot.text()) {
-        let mut value = Value::from(value);
-        encode_user_object_keys(&mut value);
-        return match value {
+        return match strict_package_value(value) {
             Value::Object(object) => object,
             _ => Map::new(),
         };
@@ -74,28 +72,33 @@ pub fn package_json_property<'a, 'n>(
     json_object_get(value.as_object()?, property)
 }
 
-fn encode_user_object_keys(value: &mut Value) {
+/// Build the ordered package object with its stored property names and JS numbers.
+fn strict_package_value(value: serde_json::Value) -> Value {
     match value {
-        Value::Array(values) => {
-            for value in values {
-                encode_user_object_keys(value);
-            }
+        serde_json::Value::Object(members) => Value::Object(
+            members
+                .into_iter()
+                .map(|(name, value)| {
+                    (
+                        encode_user_object_key(name.into()),
+                        strict_package_value(value),
+                    )
+                })
+                .collect(),
+        ),
+        serde_json::Value::Array(values) => {
+            Value::Array(values.into_iter().map(strict_package_value).collect())
         }
-        Value::Object(object) => {
-            let old = std::mem::take(object);
-            for (key, mut value) in old {
-                encode_user_object_keys(&mut value);
-                object.insert(encode_user_object_key(key), value);
-            }
-        }
-        Value::Number(number) => {
+        serde_json::Value::Number(number) => {
             let value = number
                 .as_f64()
                 .expect("strict JSON numbers are finite JavaScript numbers");
-            *number = Number::from_f64(value)
-                .expect("a finite JavaScript number remains a serde JSON number");
+            Value::Number(
+                Number::from_f64(value)
+                    .expect("a finite JavaScript number remains a serde JSON number"),
+            )
         }
-        Value::Null | Value::Bool(_) | Value::String(_) => {}
+        scalar => Value::from(scalar),
     }
 }
 

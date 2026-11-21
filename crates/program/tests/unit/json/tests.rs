@@ -473,3 +473,73 @@ fn shared_filename_case_profile_retains_typescript_units() {
         );
     }
 }
+
+#[test]
+fn strict_package_values_preserve_member_order_and_number_bits() {
+    let text = r#"{"exports":[{"default":"first","\u0000x":-0,"__proto__":{"n":9007199254740993},"default":"last"}]}"#;
+    let (snapshot, root) = parse_json_object("package.json".into(), text.into());
+    assert_eq!(snapshot.text(), text);
+    let exports = root["exports"][0].as_object().unwrap();
+    assert_eq!(
+        exports
+            .keys()
+            .filter_map(decode_user_object_key)
+            .collect::<Vec<_>>(),
+        ["default", "\0x", "__proto__"]
+    );
+    assert_eq!(exports["default"], json!("last"));
+    assert_eq!(
+        json_object_get(exports, "\0x")
+            .unwrap()
+            .as_f64()
+            .unwrap()
+            .to_bits(),
+        (-0.0f64).to_bits()
+    );
+    assert_eq!(
+        exports["__proto__"]["n"].as_f64(),
+        Some(9_007_199_254_740_992.0)
+    );
+    assert!(jsonc_prototype(exports).is_none());
+}
+
+#[test]
+fn package_resolution_observes_duplicate_export_conditions_in_place() {
+    use crate::{CompilerOptions, ModuleResolver, ResolutionMode, ResolutionOutcome};
+    use tsc_host::MemoryCompilerHost;
+    let options = CompilerOptions {
+        module: Some(199),
+        module_resolution: Some(99),
+        ..CompilerOptions::default()
+    };
+    for extra in [
+        r#""extra":0"#,
+        r#""extra":"\ud800""#,
+        r#"/* JSONC */ "extra":0"#,
+    ] {
+        // Replacing the first 'types' keeps its slot before 'default'.
+        let manifest = format!(
+            r#"{{{extra},"name":"pkg","version":"1","exports":{{".":{{
+            "\u0000types":"./bad.d.ts","types":"./bad.d.ts","default":"./bad.d.ts","types":"./good.d.ts"
+        }}}}}}"#
+        );
+        let host = MemoryCompilerHost::builder("/work")
+            .file("/work/node_modules/pkg/package.json", manifest.into_bytes())
+            .file("/work/node_modules/pkg/bad.d.ts", b"export {};".to_vec())
+            .file("/work/node_modules/pkg/good.d.ts", b"export {};".to_vec())
+            .build()
+            .unwrap();
+        let result = ModuleResolver::new(&host, &options)
+            .unwrap()
+            .resolve("/work/main.cts", "pkg", ResolutionMode::CommonJs)
+            .unwrap();
+        let ResolutionOutcome::Resolved(module) = result else {
+            panic!("expected package target")
+        };
+        assert_eq!(
+            module.resolved_file().display(),
+            "/work/node_modules/pkg/good.d.ts"
+        );
+        assert_eq!(module.package_id().unwrap().submodule_name(), "good.d.ts");
+    }
+}
