@@ -1462,7 +1462,9 @@ impl<'a> CheckerState<'a> {
         index_infos: impl Into<crate::state::IndexInfos>,
         object_flags: ObjectFlags,
     ) -> TypeId {
-        let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+        let id = self
+            .tables
+            .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         // createObjectType(16 /* Anonymous */ | extra) — tsc's
         // createAnonymousType stamps Anonymous unconditionally; the
         // parameter carries only the caller's extras (two callers had

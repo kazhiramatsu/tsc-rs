@@ -5087,7 +5087,7 @@ impl<'a> CheckerState<'a> {
         let data = self.tables.type_of(ty);
         if !matches!(
             data.data,
-            TypeData::Object | TypeData::Reference { .. } | TypeData::GenericType { .. }
+            TypeData::Object { .. } | TypeData::Reference { .. } | TypeData::GenericType { .. }
         ) || data.flags != TypeFlags::OBJECT
             || data.object_flags.intersects(ObjectFlags::MAPPED)
             || data.symbol.is_some_and(|symbol| {

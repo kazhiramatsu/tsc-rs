@@ -1510,7 +1510,9 @@ impl<'a> CheckerState<'a> {
             None => self.empty_type_literal_type,
             Some(_) if members_empty && alias_symbol.is_none() => self.empty_type_literal_type,
             Some(symbol) => {
-                let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+                let id = self
+                    .tables
+                    .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
                 let alias_type_arguments = self.get_type_arguments_for_alias_symbol(alias_symbol);
                 let alias_type_arguments = self
                     .tables
@@ -2039,14 +2041,40 @@ impl<'a> CheckerState<'a> {
         };
         let ty = self.tables.create_deferred_reference_shell(target);
         self.retain_inference_mapper(mapper);
-        self.links
-            .set_fresh_type_deferred_reference_links(ty, node, mapper);
+        self.set_fresh_type_deferred_reference_links(ty, node, mapper);
         let alias_type_arguments = self
             .tables
             .intern_alias_arguments(alias_type_arguments.as_deref());
         self.tables
             .set_alias(ty, alias_symbol, alias_type_arguments);
         Ok(ty)
+    }
+
+    /// Read the node retained by a deferred reference or instantiation expression.
+    #[inline]
+    pub(crate) fn type_deferred_node(&self, ty: TypeId) -> Option<NodeId> {
+        NodeId::from_position(self.tables.type_of(ty).deferred_node_position())
+    }
+
+    /// Stamp a fresh shell. Resolving its arguments later keeps the original node.
+    pub(crate) fn set_fresh_type_deferred_reference_links(
+        &mut self,
+        ty: TypeId,
+        node: NodeId,
+        mapper: Option<crate::instantiate::MapperId>,
+    ) {
+        let position = match &mut self.tables.type_mut(ty).data {
+            TypeData::Reference { node_position, .. } | TypeData::Object { node_position } => {
+                node_position
+            }
+            _ => unreachable!("only a reference or instantiation expression carries a node"),
+        };
+        assert_eq!(
+            *position, 0,
+            "deferred reference links written twice for {ty:?}"
+        );
+        self.links.set_fresh_deferred_mapper(ty, mapper);
+        *position = node.position();
     }
 
     /// tsc-port: getTypeArguments @6.0.3
@@ -2085,9 +2113,7 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intern_type_list(&fallback));
         }
         let node = self
-            .links
-            .ty(ty)
-            .deferred_node
+            .type_deferred_node(ty)
             .expect("unresolved references are deferred (node-carrying)");
         let computed = (|state: &mut Self| -> CheckResult<Vec<TypeId>> {
             match_record! { state.record_of(node), {
@@ -3919,7 +3945,9 @@ impl<'a> CheckerState<'a> {
         } else {
             ObjectFlags::INTERFACE
         };
-        let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+        let id = self
+            .tables
+            .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         self.tables.type_mut(id).object_flags = kind;
         self.tables.type_mut(id).symbol = Some(symbol);
         self.links
@@ -10041,7 +10069,9 @@ impl<'a> CheckerState<'a> {
                 return Ok(resolved);
             }
         }
-        let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+        let id = self
+            .tables
+            .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         self.tables.type_mut(id).object_flags = ObjectFlags::ANONYMOUS;
         self.tables.type_mut(id).symbol = Some(symbol);
         let resolved = if self.symbol_flags(symbol).intersects(SymbolFlags::CLASS) {
@@ -11229,7 +11259,7 @@ impl<'a> CheckerState<'a> {
         let mut properties: Vec<SymbolId> = members.values().copied().collect();
         let id = self
             .tables
-            .create_type(TypeFlags::OBJECT, tsc_types::TypeData::Object);
+            .create_type(TypeFlags::OBJECT, tsc_types::TypeData::PLAIN_OBJECT);
         self.tables.type_mut(id).object_flags = ObjectFlags::ANONYMOUS | object_flags;
         self.order_named_members_if_stable(&mut properties, None);
         let members_id = self.alloc_members(crate::state::ResolvedMembers::new(

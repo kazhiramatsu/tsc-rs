@@ -971,3 +971,29 @@ fn instantiation_scratch_returns_buffers_after_an_early_error() {
         );
     });
 }
+
+#[test]
+fn instantiation_expression_copies_keep_the_originating_type_query() {
+    with_program_state(
+        &[(
+            "a.ts",
+            "declare function id<A>(x: A): A; function f<T>() { var x: typeof id<T>; }",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let query = annotation_of_var(state, "x");
+            let source = state.get_type_from_type_node(query).unwrap();
+            let node = state.type_deferred_node(source).unwrap();
+            assert_eq!(node, query);
+            let t = declared_type_parameter(state, "T");
+            let mapper = state.make_unary_type_mapper(t, state.tables.intrinsics.string);
+            let copy = state.instantiate_type(source, Some(mapper)).unwrap();
+            assert_ne!(copy, source);
+            assert_eq!(state.type_deferred_node(copy), Some(node));
+            assert!(state
+                .tables
+                .object_flags_of(copy)
+                .contains(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE | ObjectFlags::INSTANTIATED));
+        },
+    );
+}

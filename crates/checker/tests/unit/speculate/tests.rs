@@ -594,10 +594,10 @@ fn link_protocols_persist_on_commit_and_rollback() {
             .expect("fixture has a declaration");
         let committed_type = state
             .tables
-            .create_type(TypeFlags::OBJECT, TypeData::Object);
+            .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         let rolled_back_type = state
             .tables
-            .create_type(TypeFlags::OBJECT, TypeData::Object);
+            .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         let committed_symbol = state.binder.create_symbol(
             SymbolFlags::VARIABLE,
             tsc_types::EscapedName::from_escaped_value(("committed".to_owned()).into()),
@@ -1343,7 +1343,7 @@ fn a_transient_symbols_reference_meaning_and_declared_type_are_its_own() {
         assert_eq!(state.links.symbol_is_referenced(second), SymbolFlags::ALL);
         let ty = state
             .tables
-            .create_type(TypeFlags::OBJECT, TypeData::Object);
+            .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         state
             .links
             .set_symbol_declared_type(depth, second, LinkSlot::Resolved(ty));

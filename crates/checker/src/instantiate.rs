@@ -882,32 +882,23 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: fb17fb2693f1b9664336314c08f11b85b999e573f3a4b070da39a7b35e99a791
     /// tsc-span: _tsc.js:63463-63517
     ///
-    /// The Reference and InstantiationExpressionType arms carry the
-    /// originating node through the checker-owned deferred-node slot.
+    /// The worker passes the originating node of references and instantiation expressions.
     fn get_object_type_instantiation(
         &mut self,
         ty: TypeId,
+        node: Option<NodeId>,
         mapper: MapperId,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
     ) -> CheckResult<TypeId> {
         let object_flags = self.tables.object_flags_of(ty);
         let is_reference = object_flags.intersects(ObjectFlags::REFERENCE);
-        let declaration = if is_reference {
-            // 63464: deferred references carry their node.
-            self.links
-                .ty(ty)
-                .deferred_node
-                .expect("References here are deferred (worker !node gate)")
-        } else if object_flags.intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE) {
-            // 63464 second arm: instantiation-expression types carry
-            // their `f<...>`/`typeof f<...>` node in the same slot
-            // (stamped at creation, 77999, and propagated to
-            // Instantiated copies, 63649-63651).
-            self.links
-                .ty(ty)
-                .deferred_node
-                .expect("InstantiationExpressionType types stamp their node at creation")
+        let declaration = if object_flags
+            .intersects(ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
+        {
+            node.expect(
+                "deferred references and instantiation expressions carry their originating node",
+            )
         } else {
             let symbol = self
                 .tables
@@ -1427,8 +1418,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: bde1b975a7540a89787ebe33ba5a6687d2d56e37688858dd76a35ab126603da9
     /// tsc-span: _tsc.js:63637-63657
     ///
-    /// The InstantiationExpressionType node copy (63648-63650) is dead
-    /// until M6.
+    /// An instantiated expression keeps its originating syntax node.
     fn instantiate_anonymous_type(
         &mut self,
         ty: TypeId,
@@ -1469,7 +1459,9 @@ impl<'a> CheckerState<'a> {
                 .set_fresh_mapped_type_parameter(result, fresh_type_parameter);
             result
         } else {
-            let result = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+            let result = self
+                .tables
+                .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
             self.retain_inference_mapper(Some(mapper));
             self.links
                 .set_type_instantiation_links(self.speculation_depth, result, ty, mapper);
@@ -1485,12 +1477,9 @@ impl<'a> CheckerState<'a> {
             // instantiation-expression node — it stays the declaration
             // key for getObjectTypeInstantiation (63464).
             let node = self
-                .links
-                .ty(ty)
-                .deferred_node
+                .type_deferred_node(ty)
                 .expect("InstantiationExpressionType types stamp their node at creation");
-            self.links
-                .set_fresh_type_deferred_reference_links(result, node, None);
+            self.set_fresh_type_deferred_reference_links(result, node, None);
         }
         let new_alias_symbol = alias_symbol.or(source_alias_symbol);
         self.with_instantiated_alias_arguments(
@@ -2077,9 +2066,14 @@ impl<'a> CheckerState<'a> {
             if object_flags
                 .intersects(ObjectFlags::REFERENCE | ObjectFlags::ANONYMOUS | ObjectFlags::MAPPED)
             {
-                if object_flags.intersects(ObjectFlags::REFERENCE)
-                    && self.links.ty(ty).deferred_node.is_none()
+                let node = if object_flags
+                    .intersects(ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
                 {
+                    self.type_deferred_node(ty)
+                } else {
+                    None
+                };
+                if object_flags.intersects(ObjectFlags::REFERENCE) && node.is_none() {
                     // The !type.node fast path (63725-63729); deferred
                     // (node-carrying) references fall through to
                     // getObjectTypeInstantiation.
@@ -2102,6 +2096,7 @@ impl<'a> CheckerState<'a> {
                 }
                 return self.get_object_type_instantiation(
                     ty,
+                    node,
                     mapper,
                     alias_symbol,
                     alias_type_arguments,
@@ -2468,9 +2463,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 69d9595fd8e7e94d39069abfae52d4c64f24df7bcc018db02a0ed42f60cf744d
     /// tsc-span: _tsc.js:68331-68343
     ///
-    /// The Reference `type.node` read is constant false (no deferred
-    /// references before M8); getTypeArguments is the eager tables
-    /// accessor for the same reason.
     /// A computed answer returns inline; the worker computes it once.
     #[inline]
     pub fn could_contain_type_variables(&mut self, ty: TypeId) -> bool {
@@ -2504,7 +2496,7 @@ impl<'a> CheckerState<'a> {
                     // `type.node || some(getTypeArguments(type), ...)`
                     // (68336): node-carrying references short-circuit
                     // true without forcing their arguments.
-                    self.links.ty(ty).deferred_node.is_some() || {
+                    self.type_deferred_node(ty).is_some() || {
                         let arguments: Vec<TypeId> = self.tables.type_arguments(ty).to_vec();
                         arguments
                             .into_iter()

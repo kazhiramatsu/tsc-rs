@@ -32,12 +32,10 @@ pub trait TypeOrderContext {
     /// tsc compareElementLabels (90837-90848) over labeled tuple element
     /// declarations.
     fn compare_element_labels(&self, a: Option<u32>, b: Option<u32>) -> Ordering;
-    /// The `node` of a deferred type reference (checker TypeLinks).
-    fn deferred_node(&self, ty: TypeId) -> Option<u32>;
     /// tsc's `type.mapper` of a deferred reference or an instantiated
     /// anonymous object type (checker TypeLinks); mapped types carry theirs
     /// in their type data.
-    fn object_mapper(&self, ty: TypeId) -> Option<MapperId>;
+    fn object_mapper(&self, ty: TypeId, has_node: bool) -> Option<MapperId>;
     /// tsc compareTypeMappers (90859-90898); the implementation recurses
     /// into [`compare_types`] for the mapper's sources and targets.
     fn compare_mappers(
@@ -126,7 +124,11 @@ pub fn compare_types(
             if c != Ordering::Equal {
                 return c;
             }
-            let c = compare_optional_nodes(ctx, ctx.deferred_node(t1), ctx.deferred_node(t2));
+            let c = compare_optional_nodes(
+                ctx,
+                tables.type_of(t1).deferred_node_position().checked_sub(1),
+                tables.type_of(t2).deferred_node_position().checked_sub(1),
+            );
             if c != Ordering::Equal {
                 return c;
             }
@@ -157,8 +159,8 @@ pub fn compare_types(
                     return c;
                 }
             }
-            let node1 = ctx.deferred_node(t1);
-            let node2 = ctx.deferred_node(t2);
+            let node1 = tables.type_of(t1).deferred_node_position().checked_sub(1);
+            let node2 = tables.type_of(t2).deferred_node_position().checked_sub(1);
             if node1.is_none() && node2.is_none() {
                 let c = compare_type_lists(
                     tables,
@@ -174,7 +176,11 @@ pub fn compare_types(
                 if c != Ordering::Equal {
                     return c;
                 }
-                let c = ctx.compare_mappers(tables, ctx.object_mapper(t1), ctx.object_mapper(t2));
+                let c = ctx.compare_mappers(
+                    tables,
+                    ctx.object_mapper(t1, node1.is_some()),
+                    ctx.object_mapper(t2, node2.is_some()),
+                );
                 if c != Ordering::Equal {
                     return c;
                 }
@@ -665,7 +671,7 @@ fn anonymous_or_mapped_mapper(
     match &tables.type_of(ty).data {
         TypeData::Mapped(data) => ctx.mapped_instantiation_mapper(data.mapper),
         TypeData::ReverseMapped(_) => None,
-        _ => ctx.object_mapper(ty),
+        _ => ctx.object_mapper(ty, tables.type_of(ty).deferred_node_position() != 0),
     }
 }
 

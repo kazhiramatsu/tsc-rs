@@ -64,7 +64,7 @@ fn value_slots_keep_replacements_clearing_and_identity_bounds() {
     check::<MembersId>();
     assert_eq!(debug_resolving_open(), initial);
     assert_eq!(std::mem::size_of::<NodeLinks>(), 16);
-    assert_eq!(std::mem::size_of::<TypeLinks>(), 24);
+    assert_eq!(std::mem::size_of::<TypeLinks>(), 20);
 }
 
 #[test]

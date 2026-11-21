@@ -513,7 +513,7 @@ impl<'a> CheckerState<'a> {
                 .intersects(ObjectFlags::REFERENCE)
                 && !matches!(self.tables.type_of(ty).data, TypeData::TupleTarget(_))
             {
-                if self.links.ty(ty).deferred_node.is_some() {
+                if self.type_deferred_node(ty).is_some() {
                     let target = self.tables.reference_target(ty);
                     let arguments = self.get_type_argument_list(ty)?;
                     let arguments = self.tables.list_copy(arguments);
@@ -4405,7 +4405,9 @@ impl<'a> CheckerState<'a> {
             source_members.index_infos().to_vec(),
         ));
         let symbol = self.tables.type_of(ty).symbol;
-        let regular = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+        let regular = self
+            .tables
+            .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         let object_flags =
             self.tables.object_flags_of(ty).bits() & !ObjectFlags::FRESH_LITERAL.bits();
         self.tables.type_mut(regular).object_flags = ObjectFlags::from_bits(object_flags);
@@ -5135,7 +5137,7 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::OBJECT) && !self.is_object_or_array_literal_type(ty) {
             let object_flags = self.tables.object_flags_of(ty);
             if object_flags.intersects(ObjectFlags::REFERENCE) {
-                if let Some(node) = self.links.ty(ty).deferred_node {
+                if let Some(node) = self.type_deferred_node(ty) {
                     return RecursionIdentity::Node(node);
                 }
             }

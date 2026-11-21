@@ -40,7 +40,7 @@ fn non_nullable_union_summary_uses_final_member_flags() {
         let mut t = TypeTables::new(strict, false, &IdentityDomain::new());
         let string = t.intrinsics.string;
         let number = t.intrinsics.number;
-        let object = t.create_type(TypeFlags::OBJECT, TypeData::Object);
+        let object = t.create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         let literal = t.get_string_literal_type("a");
         let enum_type = t.create_computed_enum_type(SymbolId::new(10));
         for member in [
@@ -820,8 +820,8 @@ fn substitution_type_model_constructibility() {
 #[test]
 fn distinct_anonymous_object_types_never_intern() {
     let mut t = tables();
-    let a = t.create_type(TypeFlags::OBJECT, TypeData::Object);
-    let b = t.create_type(TypeFlags::OBJECT, TypeData::Object);
+    let a = t.create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
+    let b = t.create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
     assert_ne!(a, b);
 }
 
@@ -1654,4 +1654,30 @@ fn a_cloned_type_parameter_keeps_its_target_and_mapper_in_its_record() {
     assert_eq!(t.type_parameter_target(clone), Some(declared));
     // Both live in the 32-byte record: no table beside the type store.
     assert_eq!(std::mem::size_of::<Type>(), 32);
+}
+
+#[test]
+fn reference_clones_copy_the_argument_slot_and_start_without_a_node() {
+    let mut tables = tables();
+    let target = tables.create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
+    let string = tables.intrinsics.string;
+    let eager = tables.create_type_reference(target, &[string]);
+    assert_eq!(tables.type_of(eager).deferred_node_position(), 0);
+    let source = tables.create_deferred_reference_shell(target);
+    let TypeData::Reference { node_position, .. } = &mut tables.type_mut(source).data else {
+        unreachable!();
+    };
+    *node_position = u32::MAX;
+    let unresolved = tables.clone_type_reference(source);
+    assert_eq!(tables.type_of(unresolved).deferred_node_position(), 0);
+    assert_eq!(tables.try_type_argument_list(unresolved), None);
+    tables.set_resolved_type_arguments(source, &[string]);
+    let resolved = tables.clone_type_reference(source);
+    assert_eq!(tables.type_of(source).deferred_node_position(), u32::MAX);
+    assert_eq!(tables.type_of(resolved).deferred_node_position(), 0);
+    assert_eq!(tables.reference_target(resolved), target);
+    assert_eq!(
+        tables.try_type_argument_list(resolved),
+        tables.try_type_argument_list(eager)
+    );
 }

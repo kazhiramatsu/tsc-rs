@@ -420,7 +420,7 @@ impl<'a> CheckerState<'a> {
         self.tables
             .object_flags_of(ty)
             .intersects(ObjectFlags::REFERENCE)
-            && self.links.ty(ty).deferred_node.is_none()
+            && self.type_deferred_node(ty).is_none()
     }
 
     /// tsc-port: isTypeReferenceWithGenericArguments @6.0.3

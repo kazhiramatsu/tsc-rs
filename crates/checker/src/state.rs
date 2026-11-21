@@ -2809,7 +2809,9 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: Option<SymbolId>,
     ) -> TypeId {
-        let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+        let id = self
+            .tables
+            .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         self.tables.type_mut(id).object_flags = ObjectFlags::ANONYMOUS;
         self.tables.type_mut(id).symbol = symbol;
         let members = self.alloc_members(ResolvedMembers::default());

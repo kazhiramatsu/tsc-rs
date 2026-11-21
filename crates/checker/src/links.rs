@@ -1046,8 +1046,7 @@ impl SymbolLinksCold {
 /// The fields below are the ones a large share of type records set
 /// (resolved members, instantiation target and mapper), the
 /// type-parameter constraint caches the relation paths read for most
-/// generic types, and the deferred-reference node they test on every
-/// reference; the other TypeLinks fields live in [`TypeLinksCold`].
+/// generic types. The other TypeLinks fields live in [`TypeLinksCold`].
 #[derive(Clone, Debug, Default)]
 pub struct TypeLinks {
     pub resolved_members: ValueSlot<MembersId>,
@@ -1065,16 +1064,9 @@ pub struct TypeLinks {
     /// tsc type.mapper for ObjectFlags::INSTANTIATED anonymous types
     /// (63659).
     pub instantiated_mapper: Option<MapperId>,
-    /// tsc TypeReference.node for DEFERRED references
-    /// (createDeferredTypeReference 60196): the TypeReference/ArrayType/
-    /// TupleType node the lazy getTypeArguments reads. `Some` IS the
-    /// deferred-ness test (isNonDeferredTypeReference 67388 checks
-    /// !type.node) — it stays `Some` after the arguments resolve. Few
-    /// references are deferred, but the relation paths test every one.
-    pub deferred_node: Option<NodeId>,
 }
 
-const _: () = assert!(std::mem::size_of::<TypeLinks>() == 24);
+const _: () = assert!(std::mem::size_of::<TypeLinks>() == 20);
 
 /// The TypeLinks fields few types set, one sparse map per field (see
 /// [`SparseLinks`]).
@@ -4115,20 +4107,9 @@ impl LinksTables {
         self.type_cold.declared_members.clear(id);
     }
 
-    /// tsrs-native: initialize createDeferredTypeReference's node/mapper
-    /// stamp (60196-60197) once on a fresh deferred-reference shell.
-    pub fn set_fresh_type_deferred_reference_links(
-        &mut self,
-        id: TypeId,
-        node: NodeId,
-        mapper: Option<MapperId>,
-    ) {
-        let links = self.ty.slot(id);
-        assert!(
-            links.deferred_node.is_none() && self.type_cold.deferred_mapper.get(id).is_none(),
-            "deferred reference links written twice for {id:?}"
-        );
-        links.deferred_node = Some(node);
+    /// Store the mapper captured by a fresh deferred reference, if it has one.
+    pub(crate) fn set_fresh_deferred_mapper(&mut self, id: TypeId, mapper: Option<MapperId>) {
+        assert!(self.type_cold.deferred_mapper.get(id).is_none());
         if mapper.is_some() {
             self.type_cold.deferred_mapper.set(id, mapper);
         }

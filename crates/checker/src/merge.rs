@@ -935,7 +935,9 @@ impl<'a> CheckerState<'a> {
             self.unknown_symbol,
             LinkSlot::Resolved(self.tables.intrinsics.error),
         );
-        let global_this_type = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+        let global_this_type = self
+            .tables
+            .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         self.tables.type_mut(global_this_type).object_flags = tsc_types::ObjectFlags::ANONYMOUS;
         self.tables.type_mut(global_this_type).symbol = Some(self.global_this_symbol);
         self.links.set_symbol_type(

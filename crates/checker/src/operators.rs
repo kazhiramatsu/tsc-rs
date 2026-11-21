@@ -2743,7 +2743,9 @@ impl<'a> CheckerState<'a> {
                         .symbol_mut(symbol)
                         .set_declarations(declarations);
                 }
-                let result = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+                let result = self
+                    .tables
+                    .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
                 self.tables.type_mut(result).object_flags = tsc_types::ObjectFlags::ANONYMOUS
                     | tsc_types::ObjectFlags::INSTANTIATION_EXPRESSION_TYPE;
                 self.tables.type_mut(result).symbol = Some(symbol);
@@ -2757,14 +2759,9 @@ impl<'a> CheckerState<'a> {
                 ));
                 self.links
                     .set_fresh_type_members(result, crate::links::LinkSlot::Resolved(members_id));
-                // tsc stamps result.node = node (77999): the same
-                // type.node field deferred references ride, so it
-                // shares the deferred_node slot —
-                // getObjectTypeInstantiation selects it as the
-                // declaration (63464) and instantiateAnonymousType
-                // propagates it to Instantiated copies (63649-63651).
-                self.links
-                    .set_fresh_type_deferred_reference_links(result, node, None);
+                // The originating expression is the declaration key for this
+                // object and for each of its instantiated copies.
+                self.set_fresh_type_deferred_reference_links(result, node, None);
                 return Ok(result);
             }
             return Ok(ty);

@@ -6134,7 +6134,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
 
-        let Some(node) = self.links.ty(ty).deferred_node else {
+        let Some(node) = self.type_deferred_node(ty) else {
             return Ok(true);
         };
         let Some(data) = self.record_of(node).as_type_reference() else {
@@ -6677,7 +6677,7 @@ impl<'a> CheckerState<'a> {
             // its plain reference (a deferred and a regular reference are
             // one), and its nesting is not bounded by a symbol.
             let is_array_or_tuple = self.is_array_type(ty)? || self.tables.is_tuple_type(ty);
-            if (is_array_or_tuple || self.links.ty(ty).deferred_node.is_some())
+            if (is_array_or_tuple || self.type_deferred_node(ty).is_some())
                 && self.display_check_truncation_length()
             {
                 return Ok(self.display_truncation_type_node());
@@ -7299,7 +7299,7 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(ty)
             .intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
         {
-            if let Some(existing) = self.links.ty(ty).deferred_node {
+            if let Some(existing) = self.type_deferred_node(ty) {
                 if self.kind_of(existing) == SyntaxKind::TypeQuery
                     && self.get_type_from_type_node(existing)? == ty
                 {
@@ -9565,7 +9565,9 @@ impl<'a> CheckerState<'a> {
                 + properties.len();
             if type_element_count != 0 {
                 let source_symbol = self.tables.type_of(ty).symbol;
-                let remainder = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+                let remainder = self
+                    .tables
+                    .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
                 self.tables.type_mut(remainder).object_flags = ObjectFlags::ANONYMOUS;
                 self.tables.type_mut(remainder).symbol = source_symbol;
                 let mut properties = properties.to_vec();

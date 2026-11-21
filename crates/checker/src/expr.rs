@@ -3218,7 +3218,7 @@ impl<'a> CheckerState<'a> {
         let source_object_flags = self.tables.object_flags_of(ty);
         let id = self
             .tables
-            .create_type(TypeFlags::OBJECT, tsc_types::TypeData::Object);
+            .create_type(TypeFlags::OBJECT, tsc_types::TypeData::PLAIN_OBJECT);
         self.tables.type_mut(id).object_flags = source_object_flags;
         self.tables.type_mut(id).symbol = symbol;
         self.order_named_members_if_stable(&mut properties, symbol);

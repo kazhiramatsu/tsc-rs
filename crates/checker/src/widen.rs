@@ -364,7 +364,7 @@ impl<'a> CheckerState<'a> {
         let symbol = self.tables.type_of(ty).symbol;
         let result = self
             .tables
-            .create_type(TypeFlags::OBJECT, tsc_types::TypeData::Object);
+            .create_type(TypeFlags::OBJECT, tsc_types::TypeData::PLAIN_OBJECT);
         let carried = self.tables.object_flags_of(ty).bits()
             & (ObjectFlags::JS_LITERAL.bits() | ObjectFlags::NON_INFERRABLE_TYPE.bits());
         self.tables.type_mut(result).object_flags =

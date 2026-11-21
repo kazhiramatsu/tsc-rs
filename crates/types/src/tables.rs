@@ -3596,6 +3596,7 @@ impl TypeTables {
         let id = self.create_type(
             TypeFlags::OBJECT,
             TypeData::Reference {
+                node_position: 0,
                 target,
                 resolved_type_arguments: Some(arguments),
             },
@@ -3614,13 +3615,6 @@ impl TypeTables {
         id
     }
 
-    /// The type-object slice of createDeferredTypeReference (60188-
-    /// 60201): a Reference shell with NO resolved type arguments and NO
-    /// propagating flags (the arguments are unknown until the checker's
-    /// lazy getTypeArguments reads the node). NOT interned — tsc creates
-    /// a fresh object per call; identity comes from the caller's caches
-    /// (node links / target.instantiations). The node, mapper and alias
-    /// fields live checker-side (TypeLinks / Type alias fields).
     /// tsc-port: cloneTypeReference @6.0.3
     /// tsc-hash: acb47c4c400a97d9673a211f924708dc2b88b81a3c9a26d300e701aca159ddc5
     /// tsc-span: _tsc.js:60181-60187
@@ -3636,7 +3630,15 @@ impl TypeTables {
             source_type.object_flags,
         );
         let data = match source_type.data {
-            data @ TypeData::Reference { .. } => data,
+            TypeData::Reference {
+                target,
+                resolved_type_arguments,
+                ..
+            } => TypeData::Reference {
+                target,
+                resolved_type_arguments,
+                node_position: 0,
+            },
             // A zero-arity tuple IS its target (createTupleType 61224
             // returns the tupleTarget for arity 0); the target
             // self-aliases (target = self, resolvedTypeArguments =
@@ -3645,6 +3647,7 @@ impl TypeTables {
             TypeData::TupleTarget(target) if self.tuple_target(target).element_flags.is_empty() => {
                 TypeData::Reference {
                     target: source,
+                    node_position: 0,
                     resolved_type_arguments: Some(self.intern_type_list(&[])),
                 }
             }
@@ -3656,11 +3659,13 @@ impl TypeTables {
         id
     }
 
+    /// Create a fresh reference before its caller stamps the originating node.
     pub fn create_deferred_reference_shell(&mut self, target: TypeId) -> TypeId {
         let symbol = self.type_of(target).symbol;
         let id = self.create_type(
             TypeFlags::OBJECT,
             TypeData::Reference {
+                node_position: 0,
                 target,
                 resolved_type_arguments: None,
             },
