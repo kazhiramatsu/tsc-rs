@@ -4334,12 +4334,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 9c2b1ea3f2113f2c77230deba94d6bda93f3a13f722929468e52407b4525146c
     /// tsc-span: _tsc.js:58423-58455
     fn resolve_reverse_mapped_type_members(&mut self, ty: TypeId) -> CheckResult<MembersId> {
-        if let Some(cached) = self
+        // Structured dispatch just observed this slot before reading the type flags.
+        debug_assert!(self
             .links
             .read_ty(ty, |links| links.resolved_members.resolved())
-        {
-            return Ok(cached);
-        }
+            .is_none());
         let reverse = match self.tables.type_of(ty).data {
             TypeData::ReverseMapped(data) => data,
             _ => unreachable!("reverse mapped flags imply reverse payload"),
@@ -4498,37 +4497,34 @@ impl<'a> CheckerState<'a> {
         }
         let target = self.tables.reference_target(ty);
         let source = self.resolve_declared_members(target)?;
-        let (source_type_parameters, this_type) = match &self.tables.type_of(target).data {
+        let (parameter_list, this_type) = match self.tables.type_of(target).data {
             TypeData::GenericType {
                 type_parameters,
                 this_type,
                 ..
-            } => (self.tables.list(*type_parameters).to_vec(), *this_type),
-            TypeData::TupleTarget(data) => (
-                self.tables
-                    .list(self.tables.tuple_target(*data).type_parameters)
-                    .to_vec(),
-                self.tables.tuple_target(*data).this_type,
-            ),
+            } => (type_parameters, this_type),
+            TypeData::TupleTarget(data) => {
+                let tuple = self.tables.tuple_target(data);
+                (tuple.type_parameters, tuple.this_type)
+            }
             _ => unreachable!("reference targets are generic or tuple targets"),
         };
-        let mut type_parameters = source_type_parameters;
-        type_parameters.push(this_type);
-        let type_arguments = self.get_type_arguments(ty)?.to_vec();
-        let padded_type_arguments = if type_arguments.len() == type_parameters.len() {
-            type_arguments
-        } else {
-            let mut padded = type_arguments;
-            padded.push(ty);
-            padded
-        };
-        self.resolve_object_type_members(
-            ty,
-            target,
-            source,
-            &type_parameters,
-            &padded_type_arguments,
-        )
+        self.with_instantiation_type_list(|state, parameters| {
+            let declared = state.tables.list(parameter_list);
+            parameters.reserve(declared.len() + 1);
+            parameters.extend_from_slice(declared);
+            parameters.push(this_type);
+            state.with_instantiation_type_list(|state, arguments| {
+                let resolved = state.get_type_arguments(ty)?;
+                let needs_this = resolved.len() != parameters.len();
+                arguments.reserve(resolved.len() + usize::from(needs_this));
+                arguments.extend_from_slice(resolved);
+                if needs_this {
+                    arguments.push(ty);
+                }
+                state.resolve_object_type_members(ty, target, source, parameters, arguments)
+            })
+        })
     }
 
     /// Resolve signatures and index information without requiring every

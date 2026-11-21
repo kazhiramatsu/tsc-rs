@@ -445,12 +445,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 24d56cfe94497835f00ce92b68c33b908ce35213aed2242621b2c7479dd3c159
     /// tsc-span: _tsc.js:58510-58576
     pub(crate) fn resolve_mapped_type_members(&mut self, ty: TypeId) -> CheckResult<MembersId> {
-        if let Some(cached) = self
+        // Structured dispatch just observed this slot before reading the type flags.
+        debug_assert!(self
             .links
             .read_ty(ty, |links| links.resolved_members.resolved())
-        {
-            return Ok(cached);
-        }
+            .is_none());
 
         // tsc publishes an empty resolved shell before walking the key
         // domain so recursive readers terminate. A Rust CheckAbort

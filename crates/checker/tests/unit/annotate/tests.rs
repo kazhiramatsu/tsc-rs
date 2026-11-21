@@ -935,3 +935,86 @@ fn identity_members_freeze_aliases_and_select_inherited_properties_in_order() {
         },
     );
 }
+
+#[test]
+fn eager_reference_members_pad_this_across_nested_resolution() {
+    with_state(
+        "interface Base<T> { self(): this; item: T }
+         interface Derived<T> extends Base<T> { own: T }
+         declare let d: Derived<string>;",
+        |state| {
+            let ty = annotation_type(state, "d");
+            let id = state.resolve_structured_type_members(ty).unwrap();
+            let record = state.members_of(id);
+            let item = record.members.get(&state.binder, "item").unwrap();
+            let own = record.members.get(&state.binder, "own").unwrap();
+            let method = record.members.get(&state.binder, "self").unwrap();
+            assert_eq!(
+                state.get_type_of_symbol(item).unwrap(),
+                state.tables.intrinsics.string
+            );
+            assert_eq!(
+                state.get_type_of_symbol(own).unwrap(),
+                state.tables.intrinsics.string
+            );
+            let method_ty = state.get_type_of_symbol(method).unwrap();
+            let sigs = state
+                .get_signatures_of_type(method_ty, crate::state::SignatureKind::Call)
+                .unwrap();
+            assert_eq!(state.get_return_type_of_signature(sigs[0]).unwrap(), ty);
+            let counts = crate::CheckerCounts::of(state, true);
+            assert_eq!(state.resolve_structured_type_members(ty), Ok(id));
+            assert_eq!(
+                state.get_property_of_object_type(ty, "self"),
+                Ok(Some(method))
+            );
+            assert_eq!(
+                state.get_signatures_of_type(method_ty, crate::state::SignatureKind::Call),
+                Ok(sigs)
+            );
+            let repeated = crate::CheckerCounts::of(state, true);
+            assert_eq!(
+                (counts.types, counts.instantiations, counts.symbols),
+                (repeated.types, repeated.instantiations, repeated.symbols)
+            );
+            assert_eq!(
+                (counts.types, counts.instantiations, counts.symbols),
+                (74, 6, 17)
+            );
+        },
+    );
+}
+
+#[test]
+fn recursive_mapped_member_lookup_observes_the_published_shell() {
+    with_state(
+        "type MapKeys<T> = { [K in keyof T]: MapKeys<T[K]> };
+         interface Recursive { next: Recursive }
+         declare let value: MapKeys<Recursive>;",
+        |state| {
+            let ty = annotation_type(state, "value");
+            assert!(state
+                .tables
+                .object_flags_of(ty)
+                .intersects(ObjectFlags::MAPPED));
+            // Reenter after shell publication, while its key domain is being resolved.
+            let shell = state.alloc_members(Default::default());
+            state
+                .links
+                .set_type_members(state.speculation_depth, ty, LinkSlot::Resolved(shell));
+            state.members_resolving += 1;
+            assert_eq!(state.resolve_structured_type_members(ty), Ok(shell));
+            assert!(state.get_properties_of_type_full(ty).unwrap().is_empty());
+            state.members_resolving -= 1;
+            state.links.retract_type_members(ty);
+            let complete = state.resolve_structured_type_members(ty).unwrap();
+            assert_ne!(shell, complete);
+            let next = state
+                .members_of(complete)
+                .members
+                .get(&state.binder, "next")
+                .unwrap();
+            assert_eq!(state.get_type_of_symbol(next), Ok(ty));
+        },
+    );
+}
