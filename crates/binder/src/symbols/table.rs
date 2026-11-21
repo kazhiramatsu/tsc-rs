@@ -4,6 +4,7 @@ use hashbrown::hash_table::{Entry, HashTable};
 use indexmap::{set, IndexSet};
 use rustc_hash::{FxBuildHasher, FxHasher};
 use smallvec::SmallVec;
+use tsc_store::InlineOrBox;
 use tsc_types::{EscapedName, JsStr, JsString, SymbolId};
 
 /// A key of a symbol table: a name, or an already escaped text, which is
@@ -81,7 +82,7 @@ pub struct SymbolTable(Option<Box<SymbolMap>>);
 /// indexes it by `usize` (about 60 bytes). A checker builds such a table for
 /// every class or interface instantiation, including the inherited members,
 /// so a large program holds millions of entries; most maps are small, and a
-/// small one is scanned instead of indexed.
+/// small one uses a fingerprint to reject misses before scanning its entries.
 ///
 /// The first [`INLINE_ENTRIES`] entries live in the map itself: most binder
 /// tables (a scope's locals, a symbol's members or exports) hold one or two
@@ -91,7 +92,7 @@ pub struct SymbolTable(Option<Box<SymbolMap>>);
 #[derive(Default)]
 struct SymbolMap {
     entries: EntryVec,
-    positions: Option<Box<HashTable<u32>>>,
+    positions: InlineOrBox<HashTable<u32>>,
 }
 
 // A copy's vector holds exactly its entries, as a `Vec`'s copy does (the
@@ -129,6 +130,36 @@ fn hash_name(name: EscapedName) -> u64 {
     hasher.finish()
 }
 
+/// One bit per name, with the last lane folded into its neighbor to fit the
+/// tagged word. Exact comparisons resolve collisions.
+#[inline]
+fn name_bit(name: EscapedName) -> usize {
+    let index = name.index() as usize;
+    let lane = (index ^ (index >> 6)) & (usize::BITS as usize - 1);
+    1 << lane.min(usize::BITS as usize - 2)
+}
+
+#[inline]
+fn find_unindexed(
+    entries: &[(EscapedName, SymbolId)],
+    bits: usize,
+    name: EscapedName,
+) -> Option<usize> {
+    match entries {
+        [] => None,
+        [(first, _)] => (*first == name).then_some(0),
+        [(first, _), (second, _)] => {
+            if *first == name {
+                Some(0)
+            } else {
+                (*second == name).then_some(1)
+            }
+        }
+        _ if bits & name_bit(name) == 0 => None,
+        _ => entries.iter().position(|(candidate, _)| *candidate == name),
+    }
+}
+
 impl SymbolMap {
     fn len(&self) -> usize {
         self.entries.len()
@@ -152,7 +183,7 @@ impl SymbolMap {
 
     fn reserve(&mut self, additional: usize) {
         self.reserve_entries(additional);
-        if let Some(positions) = &mut self.positions {
+        if let Some(positions) = self.positions.as_boxed_mut() {
             let entries = self.entries.as_slice();
             positions.reserve(additional, |&position| {
                 hash_name(entries[position as usize].0)
@@ -169,7 +200,7 @@ impl SymbolMap {
                 hash_name(entries[position as usize].0)
             });
         }
-        self.positions = Some(Box::new(positions));
+        self.positions = InlineOrBox::boxed(positions);
     }
 
     /// The entry of `name` and its position. A read decides once whether the
@@ -177,13 +208,16 @@ impl SymbolMap {
     #[inline]
     fn find(&self, name: EscapedName) -> Option<(usize, &(EscapedName, SymbolId))> {
         let entries = self.entries.as_slice();
-        let position = match &self.positions {
-            Some(positions) => positions
+        let position = match self.positions.inline_bits() {
+            Some(bits) => find_unindexed(entries, bits, name),
+            None => self
+                .positions
+                .as_boxed()
+                .unwrap()
                 .find(hash_name(name), |&position| {
                     entries[position as usize].0 == name
                 })
                 .map(|&position| position as usize),
-            None => entries.iter().position(|(candidate, _)| *candidate == name),
         }?;
         Some((position, &entries[position]))
     }
@@ -195,12 +229,8 @@ impl SymbolMap {
     /// Insert or replace; a replaced entry keeps its position, as in a
     /// JavaScript `Map`.
     fn insert(&mut self, name: EscapedName, value: SymbolId) -> Option<SymbolId> {
-        let Some(positions) = &mut self.positions else {
-            if let Some(position) = self
-                .entries
-                .iter()
-                .position(|(candidate, _)| *candidate == name)
-            {
+        if let Some(bits) = self.positions.inline_bits() {
+            if let Some(position) = find_unindexed(&self.entries, bits, name) {
                 return Some(std::mem::replace(&mut self.entries[position].1, value));
             }
             // A full vector grows to the next power of two: four slots
@@ -208,9 +238,12 @@ impl SymbolMap {
             self.entries.push((name, value));
             if self.entries.len() >= INDEXED_FROM {
                 self.index();
+            } else {
+                self.positions = InlineOrBox::inline(bits | name_bit(name));
             }
             return None;
-        };
+        }
+        let positions = self.positions.as_boxed_mut().unwrap();
         let entries = self.entries.as_slice();
         let entry = positions.entry(
             hash_name(name),
@@ -237,7 +270,7 @@ impl SymbolMap {
     /// Remove an entry and close the gap, keeping the others in order.
     fn shift_remove(&mut self, name: EscapedName) -> Option<SymbolId> {
         let position = self.position(name)?;
-        if let Some(positions) = &mut self.positions {
+        if let Some(positions) = self.positions.as_boxed_mut() {
             let removed = position as u32;
             positions
                 .find_entry(hash_name(name), |&candidate| candidate == removed)
@@ -345,7 +378,7 @@ impl SymbolTable {
             };
             std::mem::size_of::<SymbolMap>()
                 + vector
-                + map.positions.as_ref().map_or(0, |positions| {
+                + map.positions.as_boxed().map_or(0, |positions| {
                     std::mem::size_of::<HashTable<u32>>()
                         + positions.capacity() * (std::mem::size_of::<u32>() + 1)
                 })

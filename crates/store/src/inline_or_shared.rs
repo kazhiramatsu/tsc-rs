@@ -9,6 +9,88 @@ use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::sync::Arc;
 
+/// Inline bits or an exclusively owned value in one word.
+pub struct InlineOrBox<T> {
+    // Odd addresses encode bits. Even addresses own a Box allocation.
+    word: *mut T,
+    marker: PhantomData<Box<T>>,
+}
+
+// SAFETY: the word either holds bits or has the ownership of Box<T>.
+unsafe impl<T: Send> Send for InlineOrBox<T> {}
+// SAFETY: shared access to the word exposes at most a shared reference to T.
+unsafe impl<T: Sync> Sync for InlineOrBox<T> {}
+
+impl<T> InlineOrBox<T> {
+    /// Inline bits leave the low bit of the word available as a tag.
+    #[inline]
+    pub fn inline(bits: usize) -> Self {
+        assert!(bits <= usize::MAX >> 1);
+        Self {
+            word: std::ptr::without_provenance_mut((bits << 1) | 1),
+            marker: PhantomData,
+        }
+    }
+
+    /// Store a value whose alignment leaves the low bit clear.
+    #[inline]
+    pub fn boxed(value: T) -> Self {
+        assert!(std::mem::align_of::<T>() >= 2);
+        Self {
+            word: Box::into_raw(Box::new(value)),
+            marker: PhantomData,
+        }
+    }
+
+    #[inline]
+    fn is_inline(&self) -> bool {
+        self.word.addr() & 1 != 0
+    }
+
+    #[inline]
+    pub fn inline_bits(&self) -> Option<usize> {
+        self.is_inline().then(|| self.word.addr() >> 1)
+    }
+
+    #[inline]
+    pub fn as_boxed(&self) -> Option<&T> {
+        // SAFETY: an even address points to the owned value.
+        (!self.is_inline()).then(|| unsafe { &*self.word })
+    }
+
+    #[inline]
+    pub fn as_boxed_mut(&mut self) -> Option<&mut T> {
+        // SAFETY: an even address points to the owned value, and the borrow is exclusive.
+        (!self.is_inline()).then(|| unsafe { &mut *self.word })
+    }
+}
+
+impl<T> Default for InlineOrBox<T> {
+    fn default() -> Self {
+        Self::inline(0)
+    }
+}
+
+impl<T: Clone> Clone for InlineOrBox<T> {
+    fn clone(&self) -> Self {
+        if let Some(bits) = self.inline_bits() {
+            Self::inline(bits)
+        } else {
+            // SAFETY: an even address points to the owned value.
+            Self::boxed(unsafe { (*self.word).clone() })
+        }
+    }
+}
+
+impl<T> Drop for InlineOrBox<T> {
+    fn drop(&mut self) {
+        if !self.is_inline() {
+            // SAFETY: this word owns the allocation returned by Box::into_raw.
+            drop(unsafe { Box::from_raw(self.word) });
+        }
+    }
+}
+
 /// Sixty-three inline bits, or one handle of a shared `T`.
 pub struct InlineOrShared<T> {
     /// Odd address: `(bits << 1) | 1`, without provenance. Even address: `Arc::into_raw` of the shared value.
@@ -192,6 +274,29 @@ mod tests {
         fn drop(&mut self) {
             self.0.fetch_add(1, Ordering::Relaxed);
         }
+    }
+
+    #[test]
+    fn inline_or_box_preserves_bits_and_clones_boxed_values_independently() {
+        let bits = usize::MAX >> 1;
+        let mut word = InlineOrBox::<Counted>::inline(bits);
+        assert_eq!(std::mem::size_of_val(&word), std::mem::size_of::<usize>());
+        assert_eq!(word.clone().inline_bits(), Some(bits));
+        assert!(word.as_boxed_mut().is_none());
+
+        let drops = Arc::new(AtomicUsize::new(0));
+        word = InlineOrBox::boxed(Counted(drops.clone(), 7));
+        let mut copy = word.clone();
+        copy.as_boxed_mut().unwrap().1 = 9;
+        assert_eq!(word.as_boxed().unwrap().1, 7);
+        assert_eq!(copy.as_boxed().unwrap().1, 9);
+        assert!(copy.inline_bits().is_none());
+
+        word = InlineOrBox::default();
+        assert_eq!(word.inline_bits(), Some(0));
+        assert_eq!(drops.load(Ordering::Relaxed), 1);
+        drop(copy);
+        assert_eq!(drops.load(Ordering::Relaxed), 2);
     }
 
     #[test]
