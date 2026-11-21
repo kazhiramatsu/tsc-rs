@@ -498,11 +498,18 @@ impl<'a> CheckerState<'a> {
                     None => self.tables.intrinsics.any,
                 })
             }
+            TypeMapper::Composite { mapper1, mapper2 } => {
+                self.apply_composite_mapper(ty, mapper1, mapper2)
+            }
+            TypeMapper::Merged { mapper1, mapper2 } => {
+                let t1 = self.map_type_with_mapper(ty, mapper1)?;
+                self.map_type_with_mapper(t1, mapper2)
+            }
             mapper => self.map_type_with_non_leaf_mapper(ty, mapper),
         }
     }
 
-    /// Keep the state needed by recursive and deferred applications off the leaf path.
+    /// Keep the deferred and function mapper bodies off the common dispatch path.
     #[inline(never)]
     fn map_type_with_non_leaf_mapper(
         &mut self,
@@ -510,8 +517,11 @@ impl<'a> CheckerState<'a> {
         mapper: TypeMapper,
     ) -> CheckResult<TypeId> {
         match mapper {
-            TypeMapper::Simple { .. } | TypeMapper::Array { .. } => {
-                unreachable!("leaf mapper handled at entry")
+            TypeMapper::Simple { .. }
+            | TypeMapper::Array { .. }
+            | TypeMapper::Merged { .. }
+            | TypeMapper::Composite { .. } => {
+                unreachable!("mapper handled at entry")
             }
             // 63341-63350: linear source scan, thunk on match,
             // identity otherwise. The scan reads the mapper pair's
@@ -583,13 +593,6 @@ impl<'a> CheckerState<'a> {
                 } else {
                     Ok(ty)
                 }
-            }
-            TypeMapper::Composite { mapper1, mapper2 } => {
-                self.apply_composite_mapper(ty, mapper1, mapper2)
-            }
-            TypeMapper::Merged { mapper1, mapper2 } => {
-                let t1 = self.map_type_with_mapper(ty, mapper1)?;
-                self.map_type_with_mapper(t1, mapper2)
             }
         }
     }

@@ -1024,6 +1024,18 @@ fn leaf_mappers_count_once_and_keep_the_first_matching_source() {
             state.profile_ops[crate::line_profile::OP_MAPPED] - before,
             6
         );
+        let parameter = state.tables.create_synthesized_type_parameter(None);
+        let first = state.create_type_mapper(&[string, string], Some(&[parameter, boolean]));
+        let second = state.make_unary_type_mapper(parameter, number);
+        let merged = state.merge_type_mappers(Some(first), second);
+        let composite = state.combine_type_mappers(Some(first), second);
+        for (mapper, instantiations) in [(merged, 0), (composite, 1)] {
+            let count = state.total_instantiation_count;
+            let ops = state.profile_ops[crate::line_profile::OP_MAPPED];
+            assert_eq!(state.map_type_with_mapper(string, mapper).unwrap(), number);
+            assert_eq!(state.total_instantiation_count - count, instantiations);
+            assert_eq!(state.profile_ops[crate::line_profile::OP_MAPPED] - ops, 3);
+        }
     });
 }
 
