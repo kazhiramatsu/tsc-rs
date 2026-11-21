@@ -148,6 +148,45 @@ fn deferred_reference_members_keep_identity_across_lookup_and_enumeration() {
 }
 
 #[test]
+fn deferred_reference_members_publish_each_frozen_identity_once() {
+    use super::DeferredDeclaredMember;
+
+    with_state(
+        "interface Box<T> { plain: number; value: T } declare const box: Box<string>;",
+        |state| {
+            let ty = annotation_type(state, "box");
+            let target = state.tables.reference_target(ty);
+            let source = state.resolve_declared_members(target).unwrap();
+            let table = &state.members_of(source).members;
+            let plain = table.get(&state.binder, "plain").unwrap();
+            let value = table.get(&state.binder, "value").unwrap();
+            state.get_type_of_symbol(plain).unwrap();
+            state.structured_member_headers(ty).unwrap();
+            for (declared, unaffected) in [(plain, true), (value, false)] {
+                let ready = state.deferred_reference_members[&ty].as_ref().unwrap();
+                assert!(matches!(ready.declared_member(&state.binder, declared),
+                DeferredDeclaredMember::Publish { declared: id, mapper } if id == declared && mapper.is_none() == unaffected));
+                let name = state.binder.symbol(declared).escaped_name;
+                let symbol = state
+                    .deferred_reference_property(ty, name)
+                    .unwrap()
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(symbol == declared, unaffected);
+                let ready = state.deferred_reference_members[&ty].as_ref().unwrap();
+                assert!(
+                    matches!(ready.declared_member(&state.binder, declared), DeferredDeclaredMember::Cached(id) if id == symbol)
+                );
+                assert_eq!(
+                    state.deferred_reference_property(ty, name).unwrap(),
+                    Some(Some(symbol))
+                );
+            }
+        },
+    );
+}
+
+#[test]
 fn deferred_reference_members_freeze_identity_before_declaration_type_warms() {
     with_state(
         "interface Box<T> { plain: number; value: T; }\ndeclare const box: Box<string>;",

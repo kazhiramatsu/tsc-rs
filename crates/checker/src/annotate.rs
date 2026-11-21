@@ -35,7 +35,37 @@ pub(crate) struct DeferredReferenceMembers {
     finishing: bool,
 }
 
+/// The result of reading a ready reference's instantiated table and its
+/// frozen identity decision. Publication can require a mutable checker.
+enum DeferredDeclaredMember {
+    Cached(SymbolId),
+    Publish {
+        declared: SymbolId,
+        mapper: Option<crate::instantiate::MapperId>,
+    },
+}
+
 impl DeferredReferenceMembers {
+    fn declared_member(
+        &self,
+        binder: &crate::program::ProgramBinder<'_>,
+        declared: SymbolId,
+    ) -> DeferredDeclaredMember {
+        let name = binder.symbol(declared).escaped_name;
+        if let Some(symbol) = self
+            .instantiated
+            .as_ref()
+            .and_then(|table| table.get(binder, name))
+        {
+            return DeferredDeclaredMember::Cached(symbol);
+        }
+        let unaffected = self.unaffected.binary_search(&declared).is_ok();
+        DeferredDeclaredMember::Publish {
+            declared,
+            mapper: (!unaffected).then_some(self.mapper),
+        }
+    }
+
     pub(crate) fn heap_bytes(&self, usage: &mut tsc_diagnostics::MemoryUsage) -> usize {
         self.unaffected.heap_bytes_once(usage)
             + self.instantiated.as_deref().map_or(0, |table| {
@@ -4522,6 +4552,16 @@ impl<'a> CheckerState<'a> {
     }
 
     fn prepare_deferred_reference_members(&mut self, ty: TypeId) -> CheckResult<Option<MembersId>> {
+        self.with_deferred_reference_members(ty, |_, members| members.header)
+    }
+
+    /// Read the part of a ready record the caller needs before it resumes
+    /// checking. Recursive reads during preparation see the existing sentinel.
+    fn with_deferred_reference_members<R>(
+        &mut self,
+        ty: TypeId,
+        read: impl FnOnce(&Self, &DeferredReferenceMembers) -> R,
+    ) -> CheckResult<Option<R>> {
         if !self
             .tables
             .object_flags_of(ty)
@@ -4534,8 +4574,22 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         if let Some(entry) = self.deferred_reference_members.get(&ty) {
-            return Ok(entry.as_ref().map(|members| members.header));
+            return Ok(entry.as_ref().map(|members| read(self, members)));
         }
+        let Some(ready) = self.create_deferred_reference_members(ty)? else {
+            return Ok(None);
+        };
+        // The projection only reads settled IDs and clones the base snapshot.
+        // Publish before the caller can instantiate a symbol or visit a base.
+        let result = read(self, &ready);
+        self.deferred_reference_members.insert(ty, Some(ready));
+        Ok(Some(result))
+    }
+
+    fn create_deferred_reference_members(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult<Option<DeferredReferenceMembers>> {
         let target = self.tables.reference_target(ty);
         if target == ty
             || !self
@@ -4667,9 +4721,7 @@ impl<'a> CheckerState<'a> {
                     .read_ty(ty, |links| links.resolved_members.resolved())
                     .is_none() =>
             {
-                let header = members.header;
-                self.deferred_reference_members.insert(ty, Some(members));
-                Ok(Some(header))
+                Ok(Some(members))
             }
             Ok(_) => {
                 self.deferred_reference_members.remove(&ty);
@@ -4682,23 +4734,21 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn deferred_declared_member(&mut self, ty: TypeId, declared: SymbolId) -> SymbolId {
-        let name = self.binder.symbol(declared).escaped_name;
-        let members = self.deferred_reference_members[&ty]
-            .as_ref()
-            .expect("ready reference members");
-        if let Some(symbol) = members
-            .instantiated
-            .as_ref()
-            .and_then(|table| table.get(&self.binder, name))
-        {
-            return symbol;
-        }
-        let mapper = members.mapper;
-        let symbol = if members.unaffected.binary_search(&declared).is_ok() {
-            declared
-        } else {
-            self.new_instantiated_symbol(declared, mapper)
+    fn realize_deferred_declared_member(
+        &mut self,
+        ty: TypeId,
+        member: DeferredDeclaredMember,
+    ) -> SymbolId {
+        let symbol = match member {
+            DeferredDeclaredMember::Cached(symbol) => return symbol,
+            DeferredDeclaredMember::Publish {
+                declared,
+                mapper: None,
+            } => declared,
+            DeferredDeclaredMember::Publish {
+                declared,
+                mapper: Some(mapper),
+            } => self.new_instantiated_symbol(declared, mapper),
         };
         self.deferred_reference_members
             .get_mut(&ty)
@@ -4745,14 +4795,20 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         name: tsc_types::EscapedName,
     ) -> CheckResult<Option<Option<SymbolId>>> {
-        if is_reserved_member_name(name) || self.prepare_deferred_reference_members(ty)?.is_none() {
+        if is_reserved_member_name(name) {
             return Ok(None);
         }
-        let members = self.deferred_reference_members[&ty].as_ref().unwrap();
-        let source = members.source;
-        let bases = members.bases.clone();
-        let declared = self.declared_property(source, name);
-        let mut result = declared.map(|symbol| self.deferred_declared_member(ty, symbol));
+        let Some((bases, own)) = self.with_deferred_reference_members(ty, |state, members| {
+            let bases = members.bases.clone();
+            let own = state
+                .declared_property(members.source, name)
+                .map(|declared| members.declared_member(&state.binder, declared));
+            (bases, own)
+        })?
+        else {
+            return Ok(None);
+        };
+        let mut result = own.map(|member| self.realize_deferred_declared_member(ty, member));
         for base in bases {
             if result.is_some_and(|symbol| self.symbol_flags(symbol).intersects(SymbolFlags::VALUE))
             {
@@ -4816,7 +4872,11 @@ impl<'a> CheckerState<'a> {
                 None => MemberTable::with_capacity(properties.len()),
             };
             for &declared in &properties {
-                let symbol = self.deferred_declared_member(ty, declared);
+                let ready = self.deferred_reference_members[&ty]
+                    .as_ref()
+                    .expect("ready reference members");
+                let member = ready.declared_member(&self.binder, declared);
+                let symbol = self.realize_deferred_declared_member(ty, member);
                 members.insert(&self.binder, symbol);
             }
             for base in bases {
