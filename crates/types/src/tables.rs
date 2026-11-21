@@ -682,6 +682,17 @@ impl<'a> IntoIterator for &'a TypeListCopy {
     }
 }
 
+/// The index after the last item of a list of `len` items whose length word
+/// is at `at`, when that index is a `u32` too: a [`ListCursor`] keeps a list's
+/// end in one, so a list must end, not only start, inside the range.
+#[inline]
+const fn list_end(at: u32, len: u32) -> Option<u32> {
+    match at.checked_add(1) {
+        Some(first) => first.checked_add(len),
+        None => None,
+    }
+}
+
 /// The interned list at `id` in `items` (see `TypeTables::list_items`).
 #[inline]
 fn list_at(items: &[TypeId], id: TypeListId) -> &[TypeId] {
@@ -2088,6 +2099,8 @@ impl TypeTables {
         }
         let at = u32::try_from(self.list_items.len()).expect("type list items fit u32");
         let len = u32::try_from(types.len()).expect("a type list's length fits u32");
+        // Refused like a start past the range: a cursor's end would wrap.
+        list_end(at, len).expect("type list items fit u32");
         let id = TypeListId::new(at);
         // The length word and payload are one append: reserve both before
         // pushing the word so a boundary cannot grow the pool twice.

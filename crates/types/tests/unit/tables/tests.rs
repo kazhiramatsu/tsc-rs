@@ -9,6 +9,25 @@ fn tables() -> TypeTables {
 }
 
 #[test]
+fn a_list_ends_inside_the_index_range_or_is_refused() {
+    assert_eq!(list_end(0, 0), Some(1));
+    assert_eq!(list_end(5, 3), Some(9));
+    assert_eq!(list_end(u32::MAX - 3, 2), Some(u32::MAX));
+    // The start fits and the end does not: a cursor's end would be zero.
+    assert_eq!(list_end(u32::MAX - 2, 2), None);
+    assert_eq!(list_end(u32::MAX, 0), None);
+    let mut tables = tables();
+    let a = tables.intrinsics.number;
+    let b = tables.intrinsics.string;
+    let list = tables.intern_type_list(&[a, b]);
+    let mut cursor = tables.cursor(list);
+    assert_eq!(cursor.len(), 2);
+    assert_eq!(cursor.next(&tables), Some(a));
+    assert_eq!(cursor.next(&tables), Some(b));
+    assert_eq!(cursor.next(&tables), None);
+}
+
+#[test]
 fn a_finished_checkers_type_range_is_not_reissued_when_its_records_are_dropped() {
     let domain = IdentityDomain::new();
     let mut first = TypeTables::new(true, false, &domain);
