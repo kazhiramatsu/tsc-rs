@@ -1041,18 +1041,33 @@ fn mapper_cache_depths_keep_storage_and_clear_only_discarded_answers() {
         let checkpoint = state.begin_speculation();
         state.push_active_mapper(state.restrictive_mapper);
         state.active_type_mappers_caches[1].insert(key, ty);
-        let capacity = state.active_type_mappers_caches[1].capacity();
+        let empty = state.tables.empty_type_list();
+        let number = state.tables.intrinsics.number;
+        for (alias, args, answer) in [(1, None, number), (1, Some(empty), ty), (2, None, ty)] {
+            let aliased = crate::state::MapperCacheKey {
+                alias_symbol: Some(tsc_types::SymbolId::new(alias)),
+                alias_arguments: args,
+                ..key
+            };
+            state.active_type_mappers_caches[1].insert(aliased, answer);
+            assert_eq!(
+                state.active_type_mappers_caches[1].get(&aliased),
+                Some(&answer)
+            );
+        }
+        assert_eq!(state.active_type_mappers_caches[1].len(), 4);
+        let capacity = state.active_type_mappers_caches[1].capacities();
         state.rollback_speculation(checkpoint);
         assert_eq!(state.active_type_mappers_caches[0].get(&key), Some(&ty));
         state.push_active_mapper(state.unique_literal_mapper);
         assert_eq!(state.active_type_mappers_caches.len(), 2);
-        assert!(state.active_type_mappers_caches[1].is_empty());
-        assert_eq!(state.active_type_mappers_caches[1].capacity(), capacity);
+        assert_eq!(state.active_type_mappers_caches[1].len(), 0);
+        assert_eq!(state.active_type_mappers_caches[1].capacities(), capacity);
         state.clear_active_mapper_caches();
-        assert!(state.active_type_mappers_caches[0].is_empty());
+        assert_eq!(state.active_type_mappers_caches[0].len(), 0);
         state.active_type_mappers_caches[1].insert(key, ty);
         state.pop_active_mapper();
-        assert!(state.active_type_mappers_caches[1].is_empty());
+        assert_eq!(state.active_type_mappers_caches[1].len(), 0);
         state.pop_active_mapper();
     });
 }
@@ -1193,6 +1208,31 @@ fn known_alias_arguments_preserve_absent_and_empty_cache_entries() {
                 );
                 assert_eq!(state.total_instantiation_count - before, delta);
             }
+            state.pop_active_mapper();
+        },
+    );
+}
+
+#[test]
+fn depth_limit_precedes_an_active_mapper_hit() {
+    with_program_state(
+        &[("a.ts", "function f<T>() { var v: T; }")],
+        &CompilerOptions::default(),
+        |state| {
+            let t = declared_type_parameter(state, "T");
+            let string = state.tables.intrinsics.string;
+            let mapper = state.make_unary_type_mapper(t, string);
+            state.push_active_mapper(mapper);
+            assert_eq!(state.instantiate_type(t, Some(mapper)).unwrap(), string);
+            let before = state.total_instantiation_count;
+            state.instantiation_stack.resize(100, string);
+            assert_eq!(
+                state.instantiate_type(t, Some(mapper)).unwrap(),
+                state.tables.intrinsics.error
+            );
+            assert_eq!(state.total_instantiation_count, before);
+            assert!(state.diagnostics.iter().any(|d| d.code() == 2589));
+            state.instantiation_stack.clear();
             state.pop_active_mapper();
         },
     );

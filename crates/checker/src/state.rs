@@ -1143,7 +1143,7 @@ pub struct CheckerState<'a> {
     /// (47412-47414): the instantiation cache stack.
     pub(crate) active_type_mappers: Vec<crate::instantiate::MapperId>,
     /// Each depth owns its map until checker teardown. Inactive slots are empty.
-    pub(crate) active_type_mappers_caches: Vec<rustc_hash::FxHashMap<MapperCacheKey, TypeId>>,
+    pub(crate) active_type_mappers_caches: Vec<ActiveMapperCache>,
     /// tsgo instantiationStack (checker.go:598): the types being
     /// instantiated, innermost last; its length is tsc's instantiationDepth.
     /// The instantiation count resets at tsc's three entry points —
@@ -3498,6 +3498,47 @@ pub(crate) struct MapperCacheKey {
     pub(crate) ty: TypeId,
     pub(crate) alias_symbol: Option<SymbolId>,
     pub(crate) alias_arguments: Option<tsc_types::TypeListId>,
+}
+
+/// One active mapper scope. Both tables expire together when inference
+/// resolves or the scope is popped, including a speculative rollback.
+#[derive(Default)]
+pub(crate) struct ActiveMapperCache {
+    plain: rustc_hash::FxHashMap<TypeId, TypeId>,
+    aliased: rustc_hash::FxHashMap<MapperCacheKey, TypeId>,
+}
+
+impl ActiveMapperCache {
+    pub(crate) fn get(&self, key: &MapperCacheKey) -> Option<&TypeId> {
+        if key.alias_symbol.is_none() && key.alias_arguments.is_none() {
+            self.plain.get(&key.ty)
+        } else {
+            self.aliased.get(key)
+        }
+    }
+
+    pub(crate) fn insert(&mut self, key: MapperCacheKey, value: TypeId) {
+        if key.alias_symbol.is_none() && key.alias_arguments.is_none() {
+            self.plain.insert(key.ty, value);
+        } else {
+            self.aliased.insert(key, value);
+        }
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.plain.clear();
+        self.aliased.clear();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn len(&self) -> usize {
+        self.plain.len() + self.aliased.len()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn capacities(&self) -> (usize, usize) {
+        (self.plain.capacity(), self.aliased.capacity())
+    }
 }
 
 impl<T: Clone> SharedList<T> {

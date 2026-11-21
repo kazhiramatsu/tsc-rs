@@ -1153,12 +1153,20 @@ fn resolution_clears_active_mapper_caches_on_every_miss() {
                 },
                 string,
             );
+            state.active_type_mappers_caches[0].insert(
+                crate::state::MapperCacheKey {
+                    ty: string,
+                    alias_symbol: state.tables.type_of(t).symbol,
+                    alias_arguments: Some(state.tables.empty_type_list()),
+                },
+                any,
+            );
             let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
             let _ = state.get_inferred_type(ctx, 0).expect("resolves");
             // 69310: a fresh resolution invalidates every level of
             // the active-mapper cache stack (depth preserved).
             assert_eq!(state.active_type_mappers.len(), 1);
-            assert!(state.active_type_mappers_caches[0].is_empty());
+            assert_eq!(state.active_type_mappers_caches[0].len(), 0);
             // A memo HIT does not re-clear (the 69272 early
             // return).
             state.active_type_mappers_caches[0].insert(
