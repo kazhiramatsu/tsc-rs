@@ -316,3 +316,79 @@ fn observation_fingerprint_depends_on_the_bytes_not_on_how_they_are_fed() {
     }
     assert_eq!(seen.len(), spellings);
 }
+
+#[cfg(unix)]
+#[test]
+fn observation_shortcut_requires_verbatim_absolute_components() {
+    use super::*;
+    use std::os::unix::ffi::OsStrExt;
+    for (spelling, verbatim) in [
+        (b"/".as_slice(), true),
+        (b"/a/b", true),
+        (b"/\xff/.dots/..x", true),
+        (b"/a\\b", true),
+        (b"relative", false),
+        (b"", false),
+        (b"/.", false),
+        (b"/a/../b", false),
+        (b"/a/./b", false),
+        (b"/a//b", false),
+        (b"/a/", false),
+        (b"//a", false),
+        (b"//", false),
+    ] {
+        let path = Path::new(OsStr::from_bytes(spelling));
+        assert_eq!(has_verbatim_components(spelling), verbatim);
+        assert_eq!(
+            lookup_fingerprint(ObservationQuery::new(path)),
+            canonical_observation_fingerprint(path.as_os_str())
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn observation_shortcut_preserves_metadata_and_realpath_calls() {
+    use super::*;
+    let cache = ObservationCache::default();
+    let mut calls = Vec::new();
+    for spelling in ["/link", "/link", "/denied", "/denied"] {
+        let path = Path::new(spelling);
+        let result = cache.presence_with_metadata(path, HostOperation::FileExists, |path, op| {
+            calls.push((op, path.to_owned()));
+            if path == Path::new("/denied") {
+                Err(map_io_error(
+                    io::Error::from(io::ErrorKind::PermissionDenied),
+                    op,
+                    Some(path.to_owned()),
+                ))
+            } else {
+                Ok(None)
+            }
+        });
+        if spelling == "/denied" {
+            let error = result.unwrap_err();
+            assert_eq!(error.kind(), HostErrorKind::PermissionDenied);
+            assert_eq!(error.path(), Some(path));
+        }
+    }
+    for _ in 0..2 {
+        let path = Path::new("/link");
+        let result = cache
+            .realpath(path, || {
+                calls.push((HostOperation::Realpath, path.to_owned()));
+                Ok(Some(PathBuf::from("/physical")))
+            })
+            .unwrap();
+        assert_eq!(result.as_deref(), Some(Path::new("/physical")));
+    }
+    assert_eq!(
+        calls,
+        [
+            (HostOperation::FileExists, "/link".into()),
+            (HostOperation::FileExists, "/denied".into()),
+            (HostOperation::FileExists, "/denied".into()),
+            (HostOperation::Realpath, "/link".into()),
+        ]
+    );
+}

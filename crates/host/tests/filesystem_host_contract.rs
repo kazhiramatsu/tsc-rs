@@ -582,3 +582,31 @@ fn filesystem_contents_share_utf8_and_preserve_decoder_inputs() {
         assert!(host.read_file_contents_js(path.as_js()).unwrap().is_none());
     }
 }
+
+#[cfg(unix)]
+#[test]
+fn observation_cache_retries_a_symlink_loop_and_keeps_its_successful_lookup() {
+    use std::os::unix::fs::symlink;
+    let tree = TempTree::new();
+    let link = tree.path("link");
+    let file = tree.path("target.ts");
+    let host = FsCompilerHost::new(tree.root(), true).unwrap();
+    symlink(&link, &link).unwrap();
+    let error = host.file_exists(&link).unwrap_err();
+    assert_eq!(error.path(), Some(link.as_path()));
+    assert_eq!(error.operation(), HostOperation::FileExists);
+    fs::remove_file(&link).unwrap();
+    fs::write(&file, b"target").unwrap();
+    symlink(&file, &link).unwrap();
+    assert!(host.file_exists(&link).unwrap());
+    assert_eq!(
+        host.realpath(&link).unwrap().as_deref(),
+        Some(file.as_path())
+    );
+    fs::remove_file(&link).unwrap();
+    assert!(host.file_exists(&link).unwrap());
+    assert_eq!(
+        host.realpath(&link).unwrap().as_deref(),
+        Some(file.as_path())
+    );
+}
