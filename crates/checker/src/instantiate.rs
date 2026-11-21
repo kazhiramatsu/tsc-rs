@@ -1166,13 +1166,16 @@ impl<'a> CheckerState<'a> {
                             return Ok(existing);
                         }
                     }
-                    let id_key = state.tables.instantiation_key(
+                    let (id_key, existing) = state.tables.lookup_instantiation(
+                        target,
                         type_arguments,
                         new_alias_symbol,
                         new_alias_type_arguments,
                         single_signature,
                     );
-                    if let Some(existing) = state.tables.instantiation_get(target, id_key) {
+                    perf::bump(PerfCounter::InstantiationLookups);
+                    if let Some(existing) = existing {
+                        perf::bump(PerfCounter::InstantiationHits);
                         if plain_key {
                             state
                                 .tables
