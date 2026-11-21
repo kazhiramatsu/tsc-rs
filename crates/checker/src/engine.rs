@@ -129,10 +129,7 @@ impl<'a> CheckerState<'a> {
         // two of them needs equal values, and literals are neither objects
         // nor structured. Narrowing by equality asks this of every member
         // of a union (a SyntaxKind comparison: hundreds of enum members).
-        if self.is_value_literal(source)
-            && self.is_value_literal(target)
-            && !self.literal_values_equal(source, target)
-        {
+        if self.unequal_value_literals(source, target) {
             return Ok(false);
         }
         if relation != RelationKind::Identity {
@@ -409,14 +406,35 @@ impl<'a> CheckerState<'a> {
         self.tables.literal_type_values_equal(source, target)
     }
 
-    /// A string, number or bigint literal type (an enum member included)
-    /// with no other flag: not a union, not a computed enum type.
-    fn is_value_literal(&self, ty: TypeId) -> bool {
-        const VALUE_LITERAL: i32 = TypeFlags::STRING_LITERAL.bits()
-            | TypeFlags::NUMBER_LITERAL.bits()
-            | TypeFlags::BIG_INT_LITERAL.bits();
-        let flags = self.tables.flags_of(ty).bits();
-        flags & VALUE_LITERAL != 0 && flags & !(VALUE_LITERAL | TypeFlags::ENUM_LITERAL.bits()) == 0
+    /// After regularization and the ID equality check, distinct ordinary
+    /// literals of one kind have unequal values. Enum members can share a
+    /// value with another member or an ordinary literal.
+    #[inline]
+    fn unequal_value_literals(&self, source: TypeId, target: TypeId) -> bool {
+        let value =
+            TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL | TypeFlags::BIG_INT_LITERAL;
+        let allowed = value | TypeFlags::ENUM_LITERAL;
+        let s = self.tables.flags_of(source);
+        if !s.intersects(value) || !allowed.contains(s) {
+            return false;
+        }
+        let t = self.tables.flags_of(target);
+        if !t.intersects(value) || !allowed.contains(t) {
+            return false;
+        }
+        if s & value != t & value {
+            return true;
+        }
+        if s == t
+            && matches!(
+                s,
+                TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL | TypeFlags::BIG_INT_LITERAL
+            )
+        {
+            debug_assert!(!self.literal_values_equal(source, target));
+            return true;
+        }
+        !self.literal_values_equal(source, target)
     }
 
     /// tsc-port: isUnknownLikeUnionType @6.0.3

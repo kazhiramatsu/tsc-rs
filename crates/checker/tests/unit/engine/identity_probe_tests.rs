@@ -569,3 +569,57 @@ fn empty_anonymous_objects_keep_late_members_and_unresolved_taint() {
         },
     );
 }
+
+#[test]
+fn literal_rejection_matches_payload_equality_for_every_relation() {
+    let source = "namespace A { export enum E { X = 0 } }
+        namespace B { export enum E { X = 0 } }
+        let a: A.E.X; let b: B.E.X;";
+    with_program_state(&[("a.ts", source)], &CompilerOptions::default(), |state| {
+        let a = resolve(state, "a");
+        let b = resolve(state, "b");
+        let zero = state.tables.get_number_literal_type(-0.0);
+        assert_eq!(zero, state.tables.get_number_literal_type(0.0));
+        let nan = state.tables.get_number_literal_type(f64::NAN);
+        let other_nan = state
+            .tables
+            .get_number_literal_type(f64::from_bits(f64::NAN.to_bits() + 1));
+        let big = state
+            .tables
+            .get_bigint_literal_type(tsc_types::PseudoBigInt {
+                negative: false,
+                base10_value: "1".into(),
+            });
+        let high = state.tables.get_string_literal_type_from_utf16(&[0xd800]);
+        let replacement = state.tables.get_string_literal_type_from_utf16(&[0xfffd]);
+        let values = [a, b, zero, nan, other_nan, big, high, replacement];
+        for lhs in values {
+            let lhs = state.tables.type_of(lhs).regular_type().unwrap();
+            let fresh = state.tables.get_fresh_type_of_literal_type(lhs);
+            for relation in RelationKind::ALL {
+                assert!(state.is_type_related_to(fresh, lhs, relation).unwrap());
+                for rhs in values {
+                    let rhs = state.tables.type_of(rhs).regular_type().unwrap();
+                    if lhs == rhs {
+                        continue;
+                    }
+                    let unequal = !state.tables.literal_type_values_equal(lhs, rhs);
+                    assert_eq!(state.unequal_value_literals(lhs, rhs), unequal);
+                    let related = state.is_type_related_to(fresh, rhs, relation).unwrap();
+                    let expected = if unequal {
+                        false
+                    } else if relation == RelationKind::Identity {
+                        let flags = state.tables.flags_of(lhs);
+                        flags == state.tables.flags_of(rhs)
+                            && flags.intersects(tsc_types::TypeFlags::SINGLETON)
+                    } else {
+                        (relation == RelationKind::Comparable
+                            && state.is_simple_type_related_to(rhs, lhs, relation).unwrap())
+                            || state.is_simple_type_related_to(lhs, rhs, relation).unwrap()
+                    };
+                    assert_eq!(related, expected, "{lhs:?} / {rhs:?} / {relation:?}");
+                }
+            }
+        }
+    });
+}
