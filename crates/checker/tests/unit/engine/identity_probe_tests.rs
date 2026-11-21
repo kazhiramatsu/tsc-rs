@@ -292,3 +292,24 @@ fn active_keys_follow_the_live_prefix_across_unwinds_and_frame_loans() {
         }
     });
 }
+
+#[test]
+fn short_membership_keeps_the_ordered_result_for_present_ids() {
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        state.stable_type_ordering = true;
+        let a = state.tables.get_string_literal_type("a");
+        let b = state.tables.get_string_literal_type("b");
+        let c = state.tables.get_string_literal_type("c");
+        let fresh = state.tables.get_fresh_type_of_literal_type(a);
+        let checker = identity_checker(state);
+        assert!(!checker.contains_type_ordered(&[c, b, a], c));
+        for slice in [&[][..], &[a, b, c], &[c, b, a], &[a; 8], &[a; 9]] {
+            let ctx = crate::type_order::order_ctx!(checker.st);
+            for id in [a, b, c, fresh] {
+                let expected =
+                    tsc_types::type_order::search_type(&checker.st.tables, ctx.order(), slice, id);
+                assert_eq!(checker.contains_type_ordered(slice, id), expected.is_ok());
+            }
+        }
+    });
+}

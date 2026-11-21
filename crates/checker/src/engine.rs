@@ -1625,6 +1625,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// union/intersection `type.types` property access.
     /// containsType over a member list kept in this checker's order.
     pub(crate) fn contains_type_ordered(&self, types: &[TypeId], ty: TypeId) -> bool {
+        // Content order breaks ties by ID. Absence proves a miss even when
+        // the current order would fail to find a present member.
+        if self.st.stable_type_ordering && types.len() <= 8 && !types.contains(&ty) {
+            return false;
+        }
         let ctx = crate::type_order::order_ctx!(self.st);
         tsc_types::type_order::contains_type(&self.st.tables, ctx.order(), types, ty)
     }
