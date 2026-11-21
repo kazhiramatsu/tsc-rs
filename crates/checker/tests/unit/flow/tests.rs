@@ -810,3 +810,82 @@ fn reachability_bypasses_a_shared_answer_under_a_reduce_label() {
         );
     });
 }
+
+#[test]
+fn synthetic_reference_matches_the_real_path_and_its_prefixes() {
+    use tsc_syntax::SyntaxKind;
+    use tsc_types::EscapedName;
+
+    let text =
+        "declare let root: any, other: any; root; root.a; root.a.b; other.a.b; (root.a.b = other);";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let tree = state.binder.source(0);
+        let mut targets: Vec<_> = tree
+            .arena
+            .node_ids()
+            .filter_map(|id| state.record_of(id).as_expression_statement()?.expression)
+            .collect();
+        targets.sort_by_key(|&id| state.pos_of(id));
+        let [root, prefix, whole, other, assignment] = targets[..] else {
+            panic!("five probe expressions")
+        };
+        let mut query = super::FlowQuery::for_memo_test(state, root);
+        query.synthetic_props = Some(
+            ["a", "b"]
+                .map(EscapedName::from_identifier_escaped_text)
+                .to_vec(),
+        );
+        for (target, matches, contains) in [
+            (root, false, true),
+            (prefix, false, true),
+            (whole, true, false),
+            (other, false, false),
+            (assignment, true, false),
+        ] {
+            assert_eq!(state.is_matching_reference(whole, target).unwrap(), matches);
+            assert_eq!(
+                state.is_matching_query_reference(&query, target).unwrap(),
+                matches
+            );
+            assert_eq!(
+                state.contains_matching_reference(whole, target).unwrap(),
+                contains
+            );
+            assert_eq!(
+                state
+                    .contains_matching_query_reference(&query, target)
+                    .unwrap(),
+                contains
+            );
+            assert_eq!(
+                state
+                    .query_reference_receiver_matches(&query, target)
+                    .unwrap(),
+                state.is_matching_reference(prefix, target).unwrap()
+            );
+        }
+
+        query.synthetic_props = None;
+        let symbol = state.get_resolved_symbol(root).unwrap().unwrap();
+        query.memo_key = state.flow_memo_key(&mut query);
+        assert!(query.identifier_location.is_some());
+        assert!(!state
+            .contains_matching_query_reference(&query, root)
+            .unwrap());
+        state.links.revert_node_resolved_symbol_late_bind(root);
+        let target = state
+            .record_of(prefix)
+            .as_property_access_expression()
+            .unwrap()
+            .expression
+            .unwrap();
+        assert_eq!(state.kind_of(target), SyntaxKind::Identifier);
+        assert!(state.is_matching_query_reference(&query, target).unwrap());
+        assert_eq!(
+            state
+                .links
+                .read_node(root, |links| links.resolved_symbol.resolved()),
+            Some(symbol)
+        );
+    });
+}

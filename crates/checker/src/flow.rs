@@ -2581,6 +2581,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: containsMatchingReference @6.0.3
     /// tsc-hash: 792f946d12e93e4bda7e12ed10bd21472ebfa560d5a58ca4d3798e674475d22c
     /// tsc-span: _tsc.js:69544-69552
+    #[inline(never)]
     fn contains_matching_reference(&mut self, source: NodeId, target: NodeId) -> CheckResult<bool> {
         let mut source = source;
         while matches!(
@@ -3451,12 +3452,13 @@ impl<'a> CheckerState<'a> {
     /// the single entry every walk/narrower site uses, so a synthetic
     /// destructuring chain matches exactly like tsc's synthetic node.
     /// tsrs-native: dispatch over FlowQuery::synthetic_props.
+    #[inline]
     pub(crate) fn is_matching_query_reference(
         &mut self,
         query: &FlowQuery,
         target: NodeId,
     ) -> CheckResult<bool> {
-        match (&query.synthetic_props, query.identifier_location) {
+        match (query.synthetic_props.as_deref(), query.identifier_location) {
             (None, Some(location)) => match self.kind_of(target) {
                 SyntaxKind::ParenthesizedExpression
                 | SyntaxKind::NonNullExpression
@@ -3471,15 +3473,12 @@ impl<'a> CheckerState<'a> {
                 ),
             },
             (None, None) => self.is_matching_reference(query.reference, target),
-            (Some(props), _) => {
-                let props = props.clone();
-                self.is_matching_synthetic_chain(
-                    query.reference,
-                    &props,
-                    query.synthetic_this_root,
-                    target,
-                )
-            }
+            (Some(props), _) => self.is_matching_synthetic_chain(
+                query.reference,
+                props,
+                query.synthetic_this_root,
+                target,
+            ),
         }
     }
 
@@ -3490,6 +3489,7 @@ impl<'a> CheckerState<'a> {
     /// receivers (an empty chain IS the base — plain matching, or the
     /// ThisKeyword kind test when the chain is this-rooted).
     /// tsrs-native: chain-encoded source arm of the same tsc span.
+    #[inline(never)]
     fn is_matching_synthetic_chain(
         &mut self,
         base: NodeId,
@@ -3630,14 +3630,29 @@ impl<'a> CheckerState<'a> {
     /// source: the synthetic chain strips one level at a time (each
     /// prefix is "contained"), then continues into the real base.
     /// tsrs-native: dispatch over FlowQuery::synthetic_props.
+    #[inline]
     pub(crate) fn contains_matching_query_reference(
         &mut self,
         query: &FlowQuery,
         target: NodeId,
     ) -> CheckResult<bool> {
-        let Some(props) = query.synthetic_props.clone() else {
-            return self.contains_matching_reference(query.reference, target);
-        };
+        if let Some(props) = query.synthetic_props.as_deref() {
+            return self.synthetic_chain_contains_reference(query, props, target);
+        }
+        if query.identifier_location.is_some() {
+            debug_assert_eq!(self.kind_of(query.reference), SyntaxKind::Identifier);
+            return Ok(false);
+        }
+        self.contains_matching_reference(query.reference, target)
+    }
+
+    #[inline(never)]
+    fn synthetic_chain_contains_reference(
+        &mut self,
+        query: &FlowQuery,
+        props: &[EscapedName],
+        target: NodeId,
+    ) -> CheckResult<bool> {
         for len in (1..props.len()).rev() {
             if self.is_matching_synthetic_chain(
                 query.reference,
@@ -3695,9 +3710,8 @@ impl<'a> CheckerState<'a> {
         query: &FlowQuery,
         target: NodeId,
     ) -> CheckResult<bool> {
-        match &query.synthetic_props {
+        match query.synthetic_props.as_deref() {
             Some(props) => {
-                let props = props.clone();
                 let receiver = &props[..props.len().saturating_sub(1)];
                 self.is_matching_synthetic_chain(
                     query.reference,
@@ -3726,10 +3740,19 @@ impl<'a> CheckerState<'a> {
         source: NodeId,
         query: &FlowQuery,
     ) -> CheckResult<bool> {
-        let Some(props) = query.synthetic_props.clone() else {
-            return self.optional_chain_contains_reference(source, query.reference);
-        };
-        let mut source = source;
+        match query.synthetic_props.as_deref() {
+            Some(props) => self.optional_chain_contains_synthetic_reference(source, query, props),
+            None => self.optional_chain_contains_reference(source, query.reference),
+        }
+    }
+
+    #[inline(never)]
+    fn optional_chain_contains_synthetic_reference(
+        &mut self,
+        mut source: NodeId,
+        query: &FlowQuery,
+        props: &[EscapedName],
+    ) -> CheckResult<bool> {
         loop {
             if !node_util::is_optional_chain(&Published, source) {
                 return Ok(false);
@@ -3748,7 +3771,7 @@ impl<'a> CheckerState<'a> {
             if self.real_node_matches_synthetic_chain(
                 source,
                 query.reference,
-                &props,
+                props,
                 query.synthetic_this_root,
             )? {
                 return Ok(true);
