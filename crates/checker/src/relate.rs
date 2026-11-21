@@ -465,13 +465,18 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b4b42e8e4438b8e4fc50feded93c2cd44214d3d16431695fe434401f546b4bed
     /// tsc-span: _tsc.js:67391-67393
     fn is_type_reference_with_generic_arguments(&self, ty: TypeId) -> bool {
-        self.is_non_deferred_type_reference(ty)
-            && self.tables.type_arguments(ty).iter().any(|&t| {
-                self.tables
-                    .flags_of(t)
-                    .intersects(TypeFlags::TYPE_PARAMETER)
-                    || self.is_type_reference_with_generic_arguments(t)
-            })
+        self.is_non_deferred_type_reference(ty) && self.has_generic_type_argument(ty)
+    }
+
+    fn has_generic_type_argument(&self, ty: TypeId) -> bool {
+        self.tables.type_arguments(ty).iter().any(|&t| {
+            #[cfg(test)]
+            tests::GENERIC_ARGUMENT_VISITS.set(tests::GENERIC_ARGUMENT_VISITS.get() + 1);
+            self.tables
+                .flags_of(t)
+                .intersects(TypeFlags::TYPE_PARAMETER)
+                || self.is_type_reference_with_generic_arguments(t)
+        })
     }
 
     /// tsc-port: getGenericTypeReferenceRelationKey @6.0.3
@@ -617,6 +622,7 @@ impl<'a> CheckerState<'a> {
     /// Ids swap so the smaller comes first for the IDENTITY relation
     /// only; `:intersectionState` suffix when nonzero; NO alias
     /// context.
+    #[inline]
     pub fn get_relation_key(
         &mut self,
         source: TypeId,
@@ -631,9 +637,35 @@ impl<'a> CheckerState<'a> {
             } else {
                 (source, target)
             };
-        if self.is_type_reference_with_generic_arguments(source)
-            && self.is_type_reference_with_generic_arguments(target)
+        let pair = RelationKey::Pair {
+            source: source.index(),
+            target: target.index(),
+            intersection: intersection_state.bits(),
+        };
+        if !self.is_non_deferred_type_reference(source)
+            || !self.is_non_deferred_type_reference(target)
         {
+            return Ok(pair);
+        }
+        self.relation_key_for_eager_references(
+            source,
+            target,
+            intersection_state,
+            ignore_constraints,
+            pair,
+        )
+    }
+
+    #[inline(never)]
+    fn relation_key_for_eager_references(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        intersection_state: IntersectionState,
+        ignore_constraints: bool,
+        pair: RelationKey,
+    ) -> CheckResult<RelationKey> {
+        if self.has_generic_type_argument(source) && self.has_generic_type_argument(target) {
             return self.get_generic_type_reference_relation_key(
                 source,
                 target,
@@ -641,11 +673,7 @@ impl<'a> CheckerState<'a> {
                 ignore_constraints,
             );
         }
-        Ok(RelationKey::Pair {
-            source: source.index(),
-            target: target.index(),
-            intersection: intersection_state.bits(),
-        })
+        Ok(pair)
     }
 
     /// tsc-port: isEnumTypeRelatedTo @6.0.3
