@@ -4898,10 +4898,20 @@ impl<'a> CheckerState<'a> {
         key: HashedName,
         include_type_only_members: bool,
     ) -> CheckResult<Option<SymbolId>> {
-        let name = key.name;
         if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
             return Ok(None);
         }
+        self.get_property_of_known_object_type(ty, key, include_type_only_members)
+    }
+
+    /// Look up a property after the caller has checked the object's type flags.
+    fn get_property_of_known_object_type(
+        &mut self,
+        ty: TypeId,
+        key: HashedName,
+        include_type_only_members: bool,
+    ) -> CheckResult<Option<SymbolId>> {
+        let name = key.name;
         let symbol = if let Some(members) = self
             .links
             .read_ty(ty, |links| links.resolved_members.resolved())
@@ -5188,7 +5198,7 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::OBJECT) {
             let key = HashedName::new(name);
             if let Some(symbol) =
-                self.get_property_of_object_type_hashed(reduced, key, include_type_only_members)?
+                self.get_property_of_known_object_type(reduced, key, include_type_only_members)?
             {
                 return Ok(Some(symbol));
             }
