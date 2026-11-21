@@ -9,7 +9,7 @@
 use tsc_binder::node_util::get_name_of_declaration;
 use tsc_binder::{SymbolId, SymbolTable};
 use tsc_diagnostics::{gen as diagnostics, RelatedInfo};
-use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
+use tsc_syntax::{NodeArrayId, NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{EscapedName, JsStr, JsString, NodeFlags, SymbolFlags, TypeData, TypeFlags};
 
 use crate::links::LinkSlot;
@@ -1009,7 +1009,7 @@ impl<'a> CheckerState<'a> {
             };
             self.collect_module_augmentations(
                 source,
-                Published.node_array(statements).nodes,
+                statements,
                 /*in_ambient_module*/ false,
                 &mut global_augmentations,
                 &mut module_augmentations,
@@ -1121,12 +1121,16 @@ impl<'a> CheckerState<'a> {
     fn collect_module_augmentations(
         &self,
         source: &tsc_syntax::SourceFile,
-        statements: &[NodeId],
+        statements: NodeArrayId,
         in_ambient_module: bool,
         global_augmentations: &mut Vec<NodeId>,
         module_augmentations: &mut Vec<NodeId>,
     ) {
         let is_external_module_file = source.external_module_indicator.is_some();
+        let statements = source
+            .arena
+            .module_declaration_candidates(statements)
+            .unwrap_or_else(|| Published.node_array(statements).nodes);
         for &statement in statements {
             if self.kind_of(statement) != SyntaxKind::ModuleDeclaration
                 || !tsc_binder::node_util::is_ambient_module(&Published, statement)
@@ -1174,7 +1178,7 @@ impl<'a> CheckerState<'a> {
             };
             self.collect_module_augmentations(
                 source,
-                Published.node_array(nested).nodes,
+                nested,
                 /*in_ambient_module*/ true,
                 global_augmentations,
                 module_augmentations,

@@ -1803,6 +1803,15 @@ impl<'text> Parser<'text> {
     fn parse_list(
         &mut self,
         context: ParsingContext,
+        parse_element: impl FnMut(&mut Self) -> Option<NodeId>,
+    ) -> crate::NodeArrayId {
+        self.parse_list_with_module_candidates(context, false, parse_element)
+    }
+
+    fn parse_list_with_module_candidates(
+        &mut self,
+        context: ParsingContext,
+        collect_modules: bool,
         mut parse_element: impl FnMut(&mut Self) -> Option<NodeId>,
     ) -> crate::NodeArrayId {
         let saved_context = self.parsing_context;
@@ -1813,6 +1822,7 @@ impl<'text> Parser<'text> {
             context,
             ParsingContext::SourceElements | ParsingContext::BlockStatements
         );
+        let mut modules = Vec::new();
 
         while !self.is_list_terminator(context) {
             if self.is_list_element(context, false) {
@@ -1822,10 +1832,12 @@ impl<'text> Parser<'text> {
                     .map(|node| self.consume_node(node))
                     .or_else(|| parse_element(self));
                 if let Some(element) = element {
-                    if function_free
-                        && self.arena.node(element).kind == SyntaxKind::FunctionDeclaration
-                    {
-                        function_free = false;
+                    if function_free || collect_modules {
+                        let kind = self.arena.node(element).kind;
+                        function_free &= kind != SyntaxKind::FunctionDeclaration;
+                        if collect_modules && kind == SyntaxKind::ModuleDeclaration {
+                            modules.push(element);
+                        }
                     }
                     self.node_stack.push(element);
                     if start_pos == self.scanner.full_start_pos() {
@@ -1848,8 +1860,12 @@ impl<'text> Parser<'text> {
             false,
             crate::NodeArrayRole::Children,
         );
-        if function_free {
-            self.arena.mark_function_free(array);
+        if function_free || collect_modules {
+            self.arena.record_statement_list_facts(
+                array,
+                function_free,
+                collect_modules.then_some(modules),
+            );
         }
         array
     }
@@ -3374,9 +3390,11 @@ impl<'text> Parser<'text> {
     fn parse_module_block(&mut self) -> NodeId {
         let pos = self.node_pos();
         let statements = if self.parse_expected(SyntaxKind::OpenBraceToken, None) {
-            let statements = self.parse_list(ParsingContext::BlockStatements, |parser| {
-                Some(parser.parse_statement())
-            });
+            let statements = self.parse_list_with_module_candidates(
+                ParsingContext::BlockStatements,
+                true,
+                |parser| Some(parser.parse_statement()),
+            );
             self.parse_expected(SyntaxKind::CloseBraceToken, None);
             statements
         } else {
@@ -10996,10 +11014,11 @@ fn parse_source_file_from_snapshot_worker(
     // tsgo parseListIndex(PCSourceElements, parseToplevelStatement): each
     // statement knows its place in the list.
     let list_start = parser.node_stack.len();
-    let mut statements = parser.parse_list(ParsingContext::SourceElements, |parser| {
-        let index = parser.node_stack.len() - list_start;
-        Some(parser.parse_toplevel_statement(index))
-    });
+    let mut statements =
+        parser.parse_list_with_module_candidates(ParsingContext::SourceElements, true, |parser| {
+            let index = parser.node_stack.len() - list_start;
+            Some(parser.parse_toplevel_statement(index))
+        });
     debug_assert_eq!(parser.token(), SyntaxKind::EndOfFileToken);
     let end_of_file_token = parser.parse_token_node();
 

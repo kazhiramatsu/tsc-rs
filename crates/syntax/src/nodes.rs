@@ -105,6 +105,8 @@ pub struct MissingListMarker {
 pub(crate) enum ListState {
     Unknown(MissingListMarker),
     FunctionFree,
+    ModuleCandidatesKnown,
+    FunctionFreeAndModuleCandidatesKnown,
 }
 
 impl From<bool> for ListState {
@@ -119,7 +121,7 @@ impl std::ops::Deref for NodeArrayRecord {
     fn deref(&self) -> &Self::Target {
         match &self.list_state {
             ListState::Unknown(marker) => marker,
-            ListState::FunctionFree => &MissingListMarker {
+            _ => &MissingListMarker {
                 is_missing_list: false,
             },
         }

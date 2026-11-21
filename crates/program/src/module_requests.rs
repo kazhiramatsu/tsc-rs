@@ -157,68 +157,6 @@ fn for_each_dynamic_import(
     Ok(count)
 }
 
-/// Source-phase imports are present in parser Imports(), although the loader
-/// deliberately creates no resolution request for them (tsgo references.go).
-fn source_phase_static_import_count(source: &SourceFile) -> usize {
-    fn static_count(source: &SourceFile, statements: &[NodeId], ambient: bool) -> usize {
-        let mut count = 0;
-        for &id in statements {
-            let node = source.arena.node(id);
-            match node.data() {
-                NodeData::ImportDeclaration(import)
-                    if is_source_phase_import(&source.arena, id) =>
-                {
-                    if let Some(literal) = import
-                        .module_specifier
-                        .and_then(|id| source.arena.node(id).as_string_literal())
-                    {
-                        let name = source.arena.text_js(literal.text);
-                        count += usize::from(
-                            !name.is_empty()
-                                && (!ambient || !is_external_module_name_relative(name)),
-                        );
-                    }
-                }
-                NodeData::ModuleDeclaration(module) => {
-                    let Some(name) = module.name else {
-                        continue;
-                    };
-                    let name = source.arena.node(name);
-                    let is_ambient = name.kind == SyntaxKind::StringLiteral
-                        || NodeFlags::from_bits(node.flags)
-                            .contains(NodeFlags::GLOBAL_AUGMENTATION);
-                    let declared = module.modifiers.is_some_and(|modifiers| {
-                        source
-                            .arena
-                            .node_array(modifiers)
-                            .modifier_flags
-                            .intersects(tsc_types::ModifierFlags::AMBIENT)
-                    });
-                    if is_ambient
-                        && (ambient || declared || source.is_declaration_file)
-                        && !ambient
-                        && source.external_module_indicator.is_none()
-                    {
-                        if let Some(statements) = module_body_statements(source, module.body) {
-                            count += static_count(source, statements, true);
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-        count
-    }
-    let statements = source
-        .arena
-        .node(source.root)
-        .as_source_file()
-        .and_then(|root| root.statements)
-        .map(|statements| source.arena.node_array(statements).nodes)
-        .unwrap_or_default();
-    static_count(source, statements, false)
-}
-
 /// A source-owned triple-slash type-reference request and its diagnostic span.
 ///
 /// The span is the UTF-16 range covering only the `types` attribute value,
@@ -1198,16 +1136,17 @@ fn plan_module_requests_with_parser(
     let mut hosted_import_count = 0;
     let mut augmentation_occurrences = Vec::new();
     let mut unpreprocessed_module_requests = BTreeSet::new();
-    collect_static_module_references(StaticModuleReferenceContext {
-        parsed,
-        source,
-        expanded,
-        static_mode,
-        import_syntax_affects_resolution,
-        static_occurrences: &mut static_occurrences,
-        augmentation_occurrences: &mut augmentation_occurrences,
-        unpreprocessed_module_requests: &mut unpreprocessed_module_requests,
-    })?;
+    let source_phase_import_count =
+        collect_static_module_references(StaticModuleReferenceContext {
+            parsed,
+            source,
+            expanded,
+            static_mode,
+            import_syntax_affects_resolution,
+            static_occurrences: &mut static_occurrences,
+            augmentation_occurrences: &mut augmentation_occurrences,
+            unpreprocessed_module_requests: &mut unpreprocessed_module_requests,
+        })?;
 
     // The remaining tree walk collects reparsed JSDoc @import declarations
     // and the checker-only EOF JSDoc requests. TS calls/types use only the
@@ -1370,7 +1309,7 @@ fn plan_module_requests_with_parser(
     let import_count = static_import_count
         + hosted_import_count
         + dynamic_import_count
-        + source_phase_static_import_count(parsed);
+        + source_phase_import_count;
     let mut module_requests = Vec::new();
     let mut module_request_loads = Vec::new();
     let mut module_request_spans: Vec<Vec<(u32, u32)>> = Vec::new();
@@ -1737,9 +1676,11 @@ struct StaticModuleReferenceContext<'a> {
 /// in a global script. External augmentations and nested non-relative ambient
 /// declarations are terminal module-augmentation entries. Their bodies are
 /// retained separately as checker-visible, host-unpreprocessed requests.
+///
+/// Source-phase imports contribute to the import count without requests.
 fn collect_static_module_references(
     context: StaticModuleReferenceContext<'_>,
-) -> Result<(), ResolutionError> {
+) -> Result<usize, ResolutionError> {
     let StaticModuleReferenceContext {
         parsed,
         source,
@@ -1783,13 +1724,11 @@ fn collect_static_module_reference_statements(
     static_occurrences: &mut Vec<ModuleRequestOccurrence>,
     augmentation_occurrences: &mut Vec<ModuleRequestOccurrence>,
     unpreprocessed_module_requests: &mut BTreeSet<ResolutionKey>,
-) -> Result<(), ResolutionError> {
+) -> Result<usize, ResolutionError> {
+    let mut source_phase_import_count = 0;
     for &node_id in statements {
         let node = parsed.arena.node(node_id);
         match node.data() {
-            NodeData::ImportDeclaration(_) if is_source_phase_import(&parsed.arena, node_id) => {
-                continue;
-            }
             NodeData::ImportDeclaration(import) => {
                 if let Some(module_specifier) = import.module_specifier {
                     let module_specifier = parsed.arena.node(module_specifier);
@@ -1800,6 +1739,10 @@ fn collect_static_module_reference_statements(
                                     parsed.arena.text_js(literal.text),
                                 ))
                         {
+                            if is_source_phase_import(&parsed.arena, node_id) {
+                                source_phase_import_count += 1;
+                                continue;
+                            }
                             let mode = import
                                 .attributes
                                 .filter(|_| expanded)
@@ -1979,7 +1922,7 @@ fn collect_static_module_reference_statements(
                     );
                 } else if !in_ambient_module {
                     if let Some(body_statements) = module_body_statements(parsed, module.body) {
-                        collect_static_module_reference_statements(
+                        source_phase_import_count += collect_static_module_reference_statements(
                             parsed,
                             body_statements,
                             source,
@@ -1997,7 +1940,7 @@ fn collect_static_module_reference_statements(
             _ => {}
         }
     }
-    Ok(())
+    Ok(source_phase_import_count)
 }
 
 /// Every import and export declaration's request, wherever it is. The plan
@@ -2439,6 +2382,45 @@ fn unsupported_at(
 #[cfg(test)]
 mod direct_library_tests {
     use super::*;
+
+    #[test]
+    fn module_request_weights_follow_source_phase_ambient_boundaries() {
+        let path =
+            crate::ProgramPath::from_js_parts("/input.ts".into(), "/input.ts".into()).unwrap();
+        let options = CompilerOptions::default();
+        for (text, expected_count, expected_augmentation) in [
+            (
+                "import source a from 'a'; import source b from ''; import source c from './c';",
+                2,
+                None,
+            ),
+            (
+                concat!(
+                    "declare module 'ambient' { import source a from 'a'; ",
+                    "import source b from ''; import source c from './c'; }"
+                ),
+                1,
+                None,
+            ),
+            (
+                "export {}; declare module 'ambient' { import source a from 'a'; }",
+                0,
+                Some("ambient"),
+            ),
+        ] {
+            let source = PreparedSourceFile::new(path.clone(), text);
+            let (plan, _) =
+                plan_module_requests_worker(&source, &options, true, false, None).unwrap();
+            assert_eq!(plan.import_count(), expected_count, "{text}");
+            assert!(
+                plan.module_requests()
+                    .iter()
+                    .map(ResolutionKey::specifier)
+                    .eq(expected_augmentation.map(JsStr::from)),
+                "{text}"
+            );
+        }
+    }
 
     #[test]
     fn dynamic_import_offsets_merge_raw_non_overlapping_hits() {

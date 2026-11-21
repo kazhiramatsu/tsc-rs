@@ -531,6 +531,117 @@ mod tests {
     use tsc_diagnostics::DocumentVersion;
 
     const TEXT: &str = "export class C { #x = 'hello'; f<T>(x: T) { return [x, this.#x]; } }";
+
+    fn source_with_nested_modules() -> SourceFile {
+        let text = concat!(
+            "declare let a: number; ",
+            "declare module 'outer' { function b(): void; module 'inner' {} } ",
+            "declare namespace N {}"
+        );
+        crate::parse_source_file("lib.test.d.ts", text, ParseOptions::default(), None)
+    }
+
+    #[test]
+    fn module_declaration_candidates_keep_their_statement_order_after_relocation() {
+        let mut source = source_with_nested_modules();
+        let domain = IdentityDomain::new();
+        let _padding = domain.lease(IdentitySpace::Node, 10).unwrap();
+        let _arrays = domain.lease(IdentitySpace::NodeArray, 10).unwrap();
+        let check = |source: &SourceFile| {
+            let root = source.arena.node(source.root).statements_field().unwrap();
+            let candidates = source.arena.module_declaration_candidates(root).unwrap();
+            let root_nodes = source.arena.node_array(root).nodes;
+            assert_eq!(candidates, &root_nodes[1..]);
+            assert!(source.arena.is_known_function_free_statement_list(root));
+            let outer = source
+                .arena
+                .node(candidates[0])
+                .as_module_declaration()
+                .unwrap();
+            let body = source
+                .arena
+                .node(outer.body.unwrap())
+                .statements_field()
+                .unwrap();
+            let nested = source.arena.module_declaration_candidates(body).unwrap();
+            assert_eq!(nested, &source.arena.node_array(body).nodes[1..]);
+            assert!(!source.arena.is_known_function_free_statement_list(body));
+            let inner = source
+                .arena
+                .node(nested[0])
+                .as_module_declaration()
+                .unwrap();
+            let empty = source
+                .arena
+                .node(inner.body.unwrap())
+                .statements_field()
+                .unwrap();
+            assert_eq!(
+                source.arena.module_declaration_candidates(empty),
+                Some(&[][..])
+            );
+        };
+        check(&source);
+        check(&source.clone());
+        let leases = source.lease_identities(&domain).unwrap();
+        source.relocate_with_leases(leases).unwrap();
+        check(&source);
+    }
+
+    #[test]
+    fn module_declaration_candidates_follow_edits_and_image_restore() {
+        let source = source_with_nested_modules();
+        let mut edited = source.clone();
+        let root = edited.arena.node(edited.root).statements_field().unwrap();
+        let outer = edited.arena.node_array(root).nodes[1];
+        let namespace = edited.arena.node_array(root).nodes[2];
+        let body = edited
+            .arena
+            .node(outer)
+            .as_module_declaration()
+            .unwrap()
+            .body
+            .unwrap();
+        let empty_body = edited
+            .arena
+            .node(namespace)
+            .as_module_declaration()
+            .unwrap()
+            .body
+            .unwrap();
+        let replacement = edited.arena.node(empty_body).data();
+        edited.arena.set_data(body, replacement);
+        let empty = edited.arena.node(body).statements_field().unwrap();
+        assert_eq!(
+            edited.arena.module_declaration_candidates(empty),
+            Some(&[][..])
+        );
+        let record = edited.arena.node_arrays()[empty.index() as usize].clone();
+        *edited.arena.node_array_mut(root) = record;
+        assert_eq!(edited.arena.module_declaration_candidates(root), None);
+        assert!(edited.arena.node_array(root).nodes.is_empty());
+
+        let mut reshaped = source.clone();
+        let statement = reshaped.arena.node_array(root).nodes[0];
+        reshaped.arena.reshape(
+            statement,
+            crate::SyntaxKind::ModuleDeclaration,
+            source.arena.node(outer).data(),
+        );
+        assert_eq!(reshaped.arena.module_declaration_candidates(root), None);
+        let image = crate::library_image::SyntaxImage::capture(&source).unwrap();
+        let restored = image.restore().unwrap();
+        assert_eq!(restored.arena.module_declaration_candidates(root), None);
+        assert_eq!(
+            restored.arena.node_array(root),
+            source.arena.node_array(root)
+        );
+        assert_eq!(
+            crate::library_image::SyntaxImage::capture(&restored).unwrap(),
+            image
+        );
+    }
+
     fn snapshot(text: &str) -> Arc<TextSnapshot> {
         TextSnapshot::new(text.to_owned(), DocumentVersion::default())
     }

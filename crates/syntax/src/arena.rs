@@ -73,6 +73,9 @@ pub struct NodeArena {
     copied_subtrees: bool,
     /// A caller with mutable records may have changed a statement kind or list.
     statement_facts_invalidated: bool,
+    /// Nonempty candidate lists in array allocation order. Empty answers
+    /// need only the marker in the array record.
+    module_declaration_candidates: Vec<(usize, Box<[NodeId]>)>,
     /// tsgo SourceFile.NodeCount, before lazy TypeScript JSDoc parsing.
     parse_node_count: Option<usize>,
     /// Difference between tsgo factory allocations and physical records.
@@ -110,6 +113,7 @@ impl Clone for NodeArena {
             symbol_bound: self.symbol_bound,
             copied_subtrees: self.copied_subtrees,
             statement_facts_invalidated: self.statement_facts_invalidated,
+            module_declaration_candidates: self.module_declaration_candidates.clone(),
             parse_node_count: self.parse_node_count,
             factory_node_adjustment: self.factory_node_adjustment,
         }
@@ -1133,11 +1137,51 @@ impl NodeArena {
         start..start + record.len as usize
     }
 
-    /// Remember the parser's proof about the direct children of a new list.
-    pub(crate) fn mark_function_free(&mut self, id: NodeArrayId) {
+    /// Record the statement kinds observed while the parser built this list.
+    pub(crate) fn record_statement_list_facts(
+        &mut self,
+        id: NodeArrayId,
+        function_free: bool,
+        module_declarations: Option<Vec<NodeId>>,
+    ) {
         let index = self.array_index(id);
         debug_assert!(!self.arrays[index].is_missing_list);
-        self.arrays[index].list_state = ListState::FunctionFree;
+        self.arrays[index].list_state = match (function_free, &module_declarations) {
+            (true, None) => ListState::FunctionFree,
+            (false, None) => return,
+            (true, Some(_)) => ListState::FunctionFreeAndModuleCandidatesKnown,
+            (false, Some(_)) => ListState::ModuleCandidatesKnown,
+        };
+        if let Some(candidates) = module_declarations.filter(|nodes| !nodes.is_empty()) {
+            debug_assert!(self
+                .module_declaration_candidates
+                .last()
+                .is_none_or(|(last, _)| *last < index));
+            self.module_declaration_candidates
+                .push((index, candidates.into_boxed_slice()));
+        }
+    }
+
+    /// Direct module declarations in statement order, when known for this array.
+    pub fn module_declaration_candidates(&self, id: NodeArrayId) -> Option<&[NodeId]> {
+        if self.statement_facts_invalidated || !self.contains_array(id) {
+            return None;
+        }
+        let index = self.array_index(id);
+        if !matches!(
+            self.arrays[index].list_state,
+            ListState::ModuleCandidatesKnown | ListState::FunctionFreeAndModuleCandidatesKnown
+        ) {
+            return None;
+        }
+        let candidates = self
+            .module_declaration_candidates
+            .binary_search_by_key(&index, |(key, _)| *key)
+            .ok()
+            .map_or(&[][..], |slot| {
+                self.module_declaration_candidates[slot].1.as_ref()
+            });
+        Some(candidates)
     }
 
     /// Whether the parser proved this list contains no direct function declaration.
@@ -1146,7 +1190,7 @@ impl NodeArena {
         !self.statement_facts_invalidated
             && matches!(
                 self.arrays[self.array_index(id)].list_state,
-                ListState::FunctionFree
+                ListState::FunctionFree | ListState::FunctionFreeAndModuleCandidatesKnown
             )
     }
 
@@ -1260,6 +1304,11 @@ impl NodeArena {
             });
         for node in &mut self.array_items {
             *node = shift.node(*node, &mut inside);
+        }
+        for (_, candidates) in &mut self.module_declaration_candidates {
+            for node in candidates.iter_mut() {
+                *node = shift.node(*node, &mut inside);
+            }
         }
         if !inside {
             // `nodes` drops unpublished: the store slots are scrubbed and the
