@@ -56,6 +56,8 @@ pub(crate) enum Ancestor {
     Quit,
 }
 
+pub(crate) type ControlFlowContainerSlot = std::cell::Cell<Option<(NodeId, Option<NodeId>)>>;
+
 impl<'a> CheckerState<'a> {
     /// tsc findAncestor (12299): walk node.parent upward until the
     /// callback answers Yes (return that node) or Quit (return None).
@@ -1706,7 +1708,22 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ff8e1e22dc314ecb69cd469fc7bb0ca3a9b1e4e57ccedbda833cf29744337954
     /// tsc-span: _tsc.js:71477-71479
     pub(crate) fn get_control_flow_container(&self, node: NodeId) -> Option<NodeId> {
-        self.find_ancestor(self.parent_of(node), |state, n| {
+        let parent = self.parent_of(node)?;
+        let slot = &self.control_flow_containers
+            [parent.index() as usize % self.control_flow_containers.len()];
+        if let Some((tag, container)) = slot.get() {
+            if tag == parent {
+                debug_assert_eq!(container, self.walk_control_flow_container(parent));
+                return container;
+            }
+        }
+        let container = self.walk_control_flow_container(parent);
+        slot.set(Some((parent, container)));
+        container
+    }
+
+    fn walk_control_flow_container(&self, parent: NodeId) -> Option<NodeId> {
+        self.find_ancestor(Some(parent), |state, n| {
             let kind = state.kind_of(n);
             let is_container = (node_util::is_function_like_kind(kind)
                 && node_util::get_immediately_invoked_function_expression(&Published, n).is_none())

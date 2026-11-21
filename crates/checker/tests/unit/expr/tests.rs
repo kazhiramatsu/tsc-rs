@@ -1085,3 +1085,36 @@ fn generic_union_constraints_keep_plain_types_and_recursive_constraints() {
         },
     );
 }
+
+#[test]
+fn control_flow_container_cache_matches_the_parent_walk_after_collisions() {
+    let text = "namespace M { function f() { one + two; ((() => three))(); pass(() => four); }
+                class C { x = five + six; } seven + eight; }";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let tree = state.binder.source(0);
+        let nodes: Vec<_> = tree.arena.node_ids().collect();
+        let mut replaced = false;
+        for &node in nodes.iter().chain(nodes.iter().rev()) {
+            let parent = state.parent_of(node);
+            let expected = parent.and_then(|id| state.walk_control_flow_container(id));
+            if let Some(parent) = parent {
+                let slot = &state.control_flow_containers
+                    [parent.index() as usize % state.control_flow_containers.len()];
+                replaced |= slot.get().is_some_and(|(old, _)| old != parent);
+            }
+            assert_eq!(state.get_control_flow_container(node), expected);
+            assert_eq!(state.get_control_flow_container(node), expected);
+            if state.kind_of(node) == SyntaxKind::Identifier {
+                let kind = match state.escaped_text_of(Some(node)) {
+                    Some("one" | "two" | "three") => SyntaxKind::FunctionDeclaration,
+                    Some("four") => SyntaxKind::ArrowFunction,
+                    Some("five" | "six") => SyntaxKind::PropertyDeclaration,
+                    Some("seven" | "eight") => SyntaxKind::ModuleBlock,
+                    _ => continue,
+                };
+                assert_eq!(state.kind_of(expected.unwrap()), kind);
+            }
+        }
+        assert!(replaced);
+    });
+}
