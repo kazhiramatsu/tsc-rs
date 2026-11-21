@@ -5921,6 +5921,10 @@ impl<'a> CheckerState<'a> {
                         SymbolFlags::from_bits(optional_flag.bits() & prop_symbol_flags.bits())
                     };
                 }
+                // Only a distinct property can enter the recursive identity comparison.
+                let read_modifiers = single_prop
+                    .is_none_or(|existing| existing == prop)
+                    .then_some(modifiers);
                 match single_prop {
                     None => {
                         single_prop = Some(prop);
@@ -5970,9 +5974,10 @@ impl<'a> CheckerState<'a> {
                     }
                     _ => {}
                 }
-                if is_union && self.is_readonly_symbol(prop)? {
+                let readonly = self.is_readonly_symbol_with_modifiers(prop, read_modifiers)?;
+                if is_union && readonly {
                     check_flags |= CheckFlags::READONLY.bits();
-                } else if !is_union && !self.is_readonly_symbol(prop)? {
+                } else if !is_union && !readonly {
                     check_flags &= !CheckFlags::READONLY.bits();
                 }
                 // tsgo folds the read and the write (set accessor)
@@ -6364,6 +6369,14 @@ impl<'a> CheckerState<'a> {
     /// Short-circuit the symbol flags before querying assignment descriptor
     /// types. Declaration order and the first checker abort are preserved.
     pub fn is_readonly_symbol(&mut self, symbol: SymbolId) -> CheckResult<bool> {
+        self.is_readonly_symbol_with_modifiers(symbol, None)
+    }
+
+    fn is_readonly_symbol_with_modifiers(
+        &mut self,
+        symbol: SymbolId,
+        read_modifiers: Option<ModifierFlags>,
+    ) -> CheckResult<bool> {
         if self
             .get_check_flags(symbol)
             .intersects(CheckFlags::READONLY)
@@ -6371,12 +6384,20 @@ impl<'a> CheckerState<'a> {
             return Ok(true);
         }
         let flags = self.symbol_flags(symbol);
-        if flags.intersects(SymbolFlags::PROPERTY)
-            && self
-                .get_declaration_modifier_flags_from_symbol(symbol)
-                .intersects(ModifierFlags::READONLY)
-        {
-            return Ok(true);
+        if flags.intersects(SymbolFlags::PROPERTY) {
+            let modifiers = match read_modifiers {
+                Some(modifiers) => {
+                    debug_assert_eq!(
+                        modifiers,
+                        self.get_declaration_modifier_flags_from_symbol(symbol)
+                    );
+                    modifiers
+                }
+                None => self.get_declaration_modifier_flags_from_symbol(symbol),
+            };
+            if modifiers.intersects(ModifierFlags::READONLY) {
+                return Ok(true);
+            }
         }
         if flags.intersects(SymbolFlags::VARIABLE)
             && self.get_declaration_node_flags_from_symbol(symbol)

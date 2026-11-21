@@ -2870,3 +2870,53 @@ fn plain_object_dispatch_preserves_ids_and_work_at_each_query() {
     };
     assert_eq!(trace(true), trace(false));
 }
+
+#[test]
+fn union_readonly_query_keeps_descriptor_and_instantiated_member_flags() {
+    crate::state::test_support::with_program_state(
+        &[("a.js", "class Descriptor {}\nObject.defineProperty(Descriptor, 'x', { value: 1, writable: false });"),
+          ("b.ts", "interface Pair<T> { readonly r: T; w: T }
+            interface Common { readonly shared: number }
+            interface Left extends Common { l: number }
+            interface Right extends Common { r: string }
+            declare let siblings: Left | Right;
+            declare let related: Pair<string> | Pair<number>;
+            declare let descriptor: typeof Descriptor | { x: number };")],
+        &CompilerOptions { allow_js: true, check_js: Some(true), ..CompilerOptions::default() },
+        |state| {
+            let call = state.binder.source(0).arena.node_ids().find(|&node|
+                tsc_binder::assignment::is_bindable_object_define_property_call(state.binder.source(0), node)
+            ).unwrap();
+            let tsc_syntax::NodeData::CallExpression(data) = state.data_of(call) else { unreachable!() };
+            let descriptor = state.nodes_of(data.arguments)[2];
+            for (variable, name, readonly) in [
+                ("siblings", "shared", true), ("related", "r", true), ("related", "w", false), ("descriptor", "x", true)
+            ] {
+                let node = find_probe_annotation(state.binder.source(1), variable).unwrap();
+                let ty = state.get_type_from_type_node(node).unwrap();
+                if variable != "descriptor" {
+                    let tsc_types::TypeData::Union { types, .. } = state.tables.type_of(ty).data else {
+                        panic!("expected a union of two references");
+                    };
+                    let [first, second] = *state.tables.list(types) else { panic!("expected two constituents") };
+                    let a = state.get_property_of_object_type(first, name).unwrap().unwrap();
+                    let b = state.get_property_of_object_type(second, name).unwrap().unwrap();
+                    if variable == "siblings" {
+                        assert_eq!(a, b);
+                    } else {
+                        assert_ne!(a, b);
+                        assert_eq!(state.get_target_symbol(a), state.get_target_symbol(b));
+                    }
+                }
+                if variable == "descriptor" {
+                    assert!(state.links.node(descriptor).resolved_type.resolved().is_none());
+                }
+                let prop = state.get_property_of_type_full(ty, name).unwrap().unwrap_or_else(|| panic!("missing {variable}.{name}"));
+                assert_eq!(state.is_readonly_symbol(prop), Ok(readonly));
+                if variable == "descriptor" {
+                    assert!(state.links.node(descriptor).resolved_type.resolved().is_some());
+                }
+            }
+        },
+    );
+}
