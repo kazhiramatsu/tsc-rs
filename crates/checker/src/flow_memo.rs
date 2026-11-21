@@ -7,11 +7,11 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use rustc_hash::{FxHashMap, FxHasher};
-use tsc_binder::flow::{FlowId, FlowNode};
+use tsc_binder::flow::FlowId;
 #[cfg(test)]
 use tsc_syntax::NodeData;
 use tsc_syntax::{NodeId, SyntaxKind};
-use tsc_types::{FlowFlags, NodeFlags, TypeId};
+use tsc_types::{NodeFlags, TypeId};
 
 use crate::flow::{FlowQuery, FlowType, SharedFlow};
 use crate::state::CheckerState;
@@ -866,20 +866,12 @@ impl CheckerState<'_> {
         memo: &FrameMemo,
         entry: FlowId,
         flow: FlowId,
-        flow_node: &FlowNode,
+        ends_iteration: bool,
         shared: Option<FlowId>,
         #[cfg(feature = "flow-memo-shadow")] frame: &FlowFrame,
     ) -> Option<(FlowType, bool)> {
-        let flags = flow_node.flags;
         #[cfg(not(feature = "flow-memo-shadow"))]
         let _ = shared;
-        let ends_iteration = flags.intersects(
-            FlowFlags::TRUE_CONDITION | FlowFlags::FALSE_CONDITION | FlowFlags::SWITCH_CLAUSE,
-        ) || flags.intersects(FlowFlags::BRANCH_LABEL | FlowFlags::LOOP_LABEL)
-            && self
-                .flow_label_antecedents_view(query, flow, flow_node)
-                .len()
-                > 1;
         if flow != entry && !ends_iteration {
             if !is_checkpoint(query.file_index(), flow) {
                 return None;

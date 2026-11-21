@@ -1,6 +1,6 @@
 //! One resolution per target of a path-relative request: requests from
 //! several directories that name one file share the first's resolution (the
-//! loader's per-target memo over `ModuleResolver::relative_request_target`),
+//! loader's per-target memo over `ModuleResolver::prepare_relative_request`),
 //! and requests whose outcome can depend on more than the target resolve
 //! one by one.
 

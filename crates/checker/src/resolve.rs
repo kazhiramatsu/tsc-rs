@@ -326,6 +326,7 @@ impl<'a> CheckerState<'a> {
         let mut property_with_invalid_initializer: Option<NodeId> = None;
         let mut associated_declaration_for_containing_initializer: Option<NodeId> = None;
         let mut within_deferred_context = false;
+        let mut name_is_const = None;
 
         'walk: while let Some(loc) = location {
             // tsrs H4.6: these kinds have no locals or resolver switch arm,
@@ -339,7 +340,10 @@ impl<'a> CheckerState<'a> {
             // The first location of a walk from a token, which is none of
             // the nodes the checks below compare the last location with.
             let after_token = from_token && last_location.is_none();
-            if name == tsc_types::known_name!("const") && self.is_const_assertion(loc) {
+            // Keep the first name lookup at the first non-pass-through scope.
+            if *name_is_const.get_or_insert_with(|| name == tsc_types::known_name!("const"))
+                && self.is_const_assertion(loc)
+            {
                 return Ok(None);
             }
             if matches!(
@@ -1200,10 +1204,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:19850-19861
     fn get_is_deferred_context(&self, location: NodeId, last_location: Option<NodeId>) -> bool {
         let kind = self.kind_of(location);
-        let source = self.binder.source_of_node(location);
         if kind != SyntaxKind::ArrowFunction && kind != SyntaxKind::FunctionExpression {
-            return node_util::is_part_of_type_query(&Published, location)
-                && self.kind_of(location) == SyntaxKind::TypeQuery
+            return kind == SyntaxKind::TypeQuery
                 || (is_function_like_declaration_kind(kind)
                     || (kind == SyntaxKind::PropertyDeclaration
                         && !self.is_static_node(location)))
@@ -1213,11 +1215,11 @@ impl<'a> CheckerState<'a> {
             return false;
         }
         if node_util::asterisk_token_of(&Published, location).is_some()
-            || has_syntactic_modifier(source, location, ModifierFlags::ASYNC)
+            || has_syntactic_modifier(&Published, location, ModifierFlags::ASYNC)
         {
             return true;
         }
-        get_immediately_invoked_function_expression(source, location).is_none()
+        get_immediately_invoked_function_expression(&Published, location).is_none()
     }
 
     /// tsc-port: isSelfReferenceLocation @6.0.3

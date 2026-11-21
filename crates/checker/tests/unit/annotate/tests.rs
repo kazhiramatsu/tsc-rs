@@ -45,6 +45,73 @@ fn with_state<R>(text: &str, run: impl FnOnce(&mut CheckerState) -> R) -> R {
 }
 
 #[test]
+fn deferred_reference_members_classify_the_frozen_property_selection() {
+    let source = "interface All { z: number; a: number; }
+        interface Wide<A, B, C, D, E, F, G, H> { z: number; }
+        interface Small<T> { (): T; z: T; }
+        interface Large<T> { (): T; z: T; a: T; b: T; c: T; d: T; e: T; f: T; g: T; h: T; }";
+    for stable in [false, true] {
+        with_state(source, |state| {
+            state.stable_type_ordering = stable;
+            for name in ["All", "Small", "Large", "Wide"] {
+                let mut owner = *state.globals.get(name).unwrap();
+                if name == "All" {
+                    owner = state.clone_symbol(owner);
+                    // Present the properties in a different order from their
+                    // declarations so stable ordering must rearrange them.
+                    let members =
+                        std::sync::Arc::make_mut(state.binder.symbol_mut(owner).members_mut());
+                    let z = tsc_types::known_name!("z");
+                    let symbol = members.shift_remove(z).unwrap();
+                    members.insert(z, symbol);
+                }
+                let target = state.get_declared_type_of_symbol(owner).unwrap();
+                let source = state.resolve_declared_members(target).unwrap();
+                let record = state.members_of(source);
+                let properties = record.properties.clone();
+                let member_ids = record.members.symbol_list();
+                let index = state.declared_property_indexes.get(&source);
+                match name {
+                    "Large" | "Wide" => {
+                        assert!(index.unwrap().sorted.as_deref().unwrap().is_sorted())
+                    }
+                    "All" if stable => {
+                        assert_ne!(&*member_ids, &*properties);
+                        assert!(index.unwrap().sorted.is_none());
+                    }
+                    _ => assert!(index.is_none()),
+                }
+                for &id in &member_ids {
+                    let key = state.binder.symbol(id).escaped_name;
+                    assert_eq!(
+                        state.declared_property(source, key),
+                        properties.contains(&id).then_some(id)
+                    );
+                }
+                if name == "All" && stable {
+                    let extra_name = tsc_types::known_name!("extra");
+                    let extra = state
+                        .binder
+                        .create_symbol(tsc_types::SymbolFlags::PROPERTY, extra_name);
+                    let mut members = state.members_of(source).members.clone().into_builder();
+                    members.insert(&state.binder, extra);
+                    state.members_mut(source).members = members.into();
+                    assert_eq!(state.declared_property(source, extra_name), None);
+                }
+                // Replace just the property list under the published ID.
+                state.members_mut(source).properties = Default::default();
+                for &id in &member_ids {
+                    assert_eq!(
+                        state.declared_property(source, state.binder.symbol(id).escaped_name),
+                        None
+                    );
+                }
+            }
+        });
+    }
+}
+
+#[test]
 fn deferred_reference_members_keep_identity_across_lookup_and_enumeration() {
     with_state(
         "interface Box<T> { value: T; other: T; }\n\
@@ -76,6 +143,45 @@ fn deferred_reference_members_keep_identity_across_lookup_and_enumeration() {
                 state.get_type_of_symbol(other_value).unwrap(),
                 state.tables.intrinsics.number
             );
+        },
+    );
+}
+
+#[test]
+fn deferred_reference_members_publish_each_frozen_identity_once() {
+    use super::DeferredDeclaredMember;
+
+    with_state(
+        "interface Box<T> { plain: number; value: T } declare const box: Box<string>;",
+        |state| {
+            let ty = annotation_type(state, "box");
+            let target = state.tables.reference_target(ty);
+            let source = state.resolve_declared_members(target).unwrap();
+            let table = &state.members_of(source).members;
+            let plain = table.get(&state.binder, "plain").unwrap();
+            let value = table.get(&state.binder, "value").unwrap();
+            state.get_type_of_symbol(plain).unwrap();
+            state.structured_member_headers(ty).unwrap();
+            for (declared, unaffected) in [(plain, true), (value, false)] {
+                let ready = state.deferred_reference_members[&ty].as_ref().unwrap();
+                assert!(matches!(ready.declared_member(&state.binder, declared),
+                DeferredDeclaredMember::Publish { declared: id, mapper } if id == declared && mapper.is_none() == unaffected));
+                let name = state.binder.symbol(declared).escaped_name;
+                let symbol = state
+                    .deferred_reference_property(ty, name)
+                    .unwrap()
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(symbol == declared, unaffected);
+                let ready = state.deferred_reference_members[&ty].as_ref().unwrap();
+                assert!(
+                    matches!(ready.declared_member(&state.binder, declared), DeferredDeclaredMember::Cached(id) if id == symbol)
+                );
+                assert_eq!(
+                    state.deferred_reference_property(ty, name).unwrap(),
+                    Some(Some(symbol))
+                );
+            }
         },
     );
 }

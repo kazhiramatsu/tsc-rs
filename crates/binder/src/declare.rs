@@ -433,7 +433,7 @@ impl<'a> BinderWorker<'a> {
 
     /// Keep the private marker equal to whether `node` has a locals table.
     pub(crate) fn set_has_locals(&mut self, node: NodeId, has_locals: bool) {
-        let flags = &mut self.source.arena.node_mut(node).flags;
+        let flags = self.source.arena.node_flags_mut(node);
         if has_locals {
             *flags |= HAS_LOCALS;
         } else {
@@ -448,14 +448,14 @@ impl<'a> BinderWorker<'a> {
     }
 
     pub fn set_flags_of(&mut self, node: NodeId, flags: NodeFlags) {
-        let record = self.source.arena.node_mut(node);
+        let record_flags = self.source.arena.node_flags_mut(node);
         debug_assert_eq!(
             flags.bits() & !BINDER_NODE_FLAG_MASK,
-            record.flags & !(BINDER_NODE_FLAG_MASK | HAS_LOCALS),
+            *record_flags & !(BINDER_NODE_FLAG_MASK | HAS_LOCALS),
             "the binder changes only the node flags it owns"
         );
-        record.flags =
-            (record.flags & !BINDER_NODE_FLAG_MASK) | (flags.bits() & BINDER_NODE_FLAG_MASK);
+        *record_flags =
+            (*record_flags & !BINDER_NODE_FLAG_MASK) | (flags.bits() & BINDER_NODE_FLAG_MASK);
     }
 
     pub fn next_symbol_id(&self) -> u32 {
@@ -763,7 +763,7 @@ impl<'a> BinderWorker<'a> {
                 match existing {
                     None => {
                         let symbol = self.create_symbol(SymbolFlags::NONE, name);
-                        self.table_mut(table).insert(name, symbol);
+                        self.table_mut(table).insert_absent(name, symbol);
                         if is_replaceable_by_method {
                             self.symbols
                                 .symbol_mut(symbol)

@@ -45,6 +45,23 @@ fn symbol_table_preserves_insertion_order() {
 }
 
 #[test]
+fn known_absent_insert_keeps_the_same_order_through_index_growth() {
+    let mut arena = SymbolArena::default();
+    let mut table = SymbolTable::default();
+    let mut ordinary = SymbolTable::default();
+    for index in 0..40 {
+        let name = escape_leading_underscores(&format!("n{index}"));
+        assert_eq!(table.get(name), None);
+        let id = arena.alloc(SymbolFlags::NONE, name);
+        table.insert_absent(name, id);
+        ordinary.insert(name, id);
+        assert_eq!(table.get_full(name), Some((index, &name, &id)));
+        assert!(table.iter().eq(ordinary.iter()));
+        assert_eq!(table, ordinary);
+    }
+}
+
+#[test]
 fn arena_allocates_sequential_ids() {
     let mut arena = SymbolArena::default();
     let first = arena.alloc(SymbolFlags::NONE, crate::escape_leading_underscores("a"));
@@ -146,6 +163,54 @@ fn a_symbol_table_reads_the_same_below_and_above_its_index_threshold() {
         indexed.shift_remove(*name);
     }
     assert_eq!(scanned, indexed);
+}
+
+#[test]
+fn a_symbol_table_filter_survives_collisions_cloning_removal_and_clear() {
+    let names: Vec<_> = (0..=usize::BITS)
+        .map(|index| escape_leading_underscores(&format!("tableFilter{index}")))
+        .collect();
+    let mut lanes = [None; usize::BITS as usize - 1];
+    let (kept, absent) = names
+        .iter()
+        .copied()
+        .find_map(|name| {
+            let index = name.index() as usize;
+            let lane = (index ^ (index >> 6)) & (usize::BITS as usize - 1);
+            lanes[lane.min(usize::BITS as usize - 2)]
+                .replace(name)
+                .map(|kept| (kept, name))
+        })
+        .unwrap();
+    let extras: Vec<_> = names
+        .into_iter()
+        .filter(|name| *name != kept && *name != absent)
+        .take(3)
+        .collect();
+    let id = SymbolId::new(0);
+    let mut table: SymbolTable = [kept, extras[0], extras[1], extras[2]]
+        .into_iter()
+        .map(|name| (name, id))
+        .collect();
+
+    let mut copy = table.clone();
+    assert_eq!(copy.get(kept), Some(&id));
+    assert_eq!(copy.get(absent), None);
+    assert_eq!(copy.shift_remove(kept), Some(id));
+    assert_eq!(copy.get(absent), None);
+    assert_eq!(copy.insert(absent, id), None);
+    assert_eq!(copy.get_full(absent), Some((3, &absent, &id)));
+    assert_eq!(table.get(kept), Some(&id));
+    assert_eq!(table.get(absent), None);
+
+    table.clear();
+    assert_eq!(table.get(kept), None);
+    table.extend(copy);
+    assert_eq!(
+        table.keys().copied().collect::<Vec<_>>(),
+        [extras[0], extras[1], extras[2], absent]
+    );
+    assert_eq!(table.get(absent), Some(&id));
 }
 
 #[test]

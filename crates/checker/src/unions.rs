@@ -111,8 +111,8 @@ impl<'a> CheckerState<'a> {
         if types.len() == 1 {
             return Ok(types[0]);
         }
-        if types.len() == 2
-            && origin.is_none()
+        let origin_free_pair = types.len() == 2 && origin.is_none();
+        if origin_free_pair
             && (self.tables.flags_of(types[0]).intersects(TypeFlags::UNION)
                 || self.tables.flags_of(types[1]).intersects(TypeFlags::UNION))
         {
@@ -127,11 +127,20 @@ impl<'a> CheckerState<'a> {
                 alias_symbol,
                 alias_type_arguments,
                 None,
+                false,
             )?;
             self.tables.union_of_union_types_insert(key, id);
             return Ok(id);
         }
-        self.get_union_type_ex_worker(types, reduction, alias_symbol, alias_type_arguments, origin)
+        // Any origin-free pair reaching this point passed both union flag checks.
+        self.get_union_type_ex_worker(
+            types,
+            reduction,
+            alias_symbol,
+            alias_type_arguments,
+            origin,
+            origin_free_pair,
+        )
     }
 
     fn get_union_type_ex_worker(
@@ -141,8 +150,20 @@ impl<'a> CheckerState<'a> {
         alias_symbol: Option<tsc_binder::SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
         origin: Option<TypeId>,
+        non_union_pair: bool,
     ) -> CheckResult<TypeId> {
         self.with_instantiation_type_list(|state, type_set| {
+            #[cfg(feature = "perf-counters")]
+            perf::union_collection(perf::UnionCollectionSite::Checker, types.len());
+            let ctx = crate::type_order::order_ctx!(state);
+            let includes = match ctx.order() {
+                Some(order) if non_union_pair => {
+                    state
+                        .tables
+                        .collect_non_union_pair(order, type_set, [types[0], types[1]])
+                }
+                order => state.tables.add_types_to_union(order, type_set, 0, types),
+            };
             state.get_union_type_ex_with_buffer(
                 types,
                 reduction,
@@ -150,6 +171,7 @@ impl<'a> CheckerState<'a> {
                 alias_type_arguments,
                 origin,
                 type_set,
+                includes,
             )
         })
     }
@@ -163,14 +185,8 @@ impl<'a> CheckerState<'a> {
         alias_type_arguments: Option<&[TypeId]>,
         origin: Option<TypeId>,
         type_set: &mut Vec<TypeId>,
+        includes: i32,
     ) -> CheckResult<TypeId> {
-        #[cfg(feature = "perf-counters")]
-        perf::union_collection(perf::UnionCollectionSite::Checker, types.len());
-        let includes = {
-            let ctx = crate::type_order::order_ctx!(self);
-            self.tables
-                .add_types_to_union(ctx.order(), type_set, 0, types)
-        };
         if reduction != UnionReduction::None {
             if includes & TypeFlags::ANY_OR_UNKNOWN.bits() != 0 {
                 return Ok(if includes & TypeFlags::ANY.bits() != 0 {

@@ -40,7 +40,7 @@ fn non_nullable_union_summary_uses_final_member_flags() {
         let mut t = TypeTables::new(strict, false, &IdentityDomain::new());
         let string = t.intrinsics.string;
         let number = t.intrinsics.number;
-        let object = t.create_type(TypeFlags::OBJECT, TypeData::Object);
+        let object = t.create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         let literal = t.get_string_literal_type("a");
         let enum_type = t.create_computed_enum_type(SymbolId::new(10));
         for member in [
@@ -820,8 +820,8 @@ fn substitution_type_model_constructibility() {
 #[test]
 fn distinct_anonymous_object_types_never_intern() {
     let mut t = tables();
-    let a = t.create_type(TypeFlags::OBJECT, TypeData::Object);
-    let b = t.create_type(TypeFlags::OBJECT, TypeData::Object);
+    let a = t.create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
+    let b = t.create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
     assert_ne!(a, b);
 }
 
@@ -1267,6 +1267,162 @@ fn packed_instantiation_keys_preserve_all_shapes_and_bounds() {
     assert_eq!(t.instantiations.len(), expected.len());
 }
 
+/// getObjectTypeInstantiation's seed is asked of the map once a target: the
+/// first call writes the target under its own key unless that key is taken,
+/// a later call neither reads the key nor touches the map, and each target
+/// has its own bit — below and past the words written so far.
+#[test]
+fn an_instantiation_target_is_seeded_once() {
+    let mut t = tables();
+    let key = |list: u32, alias: Option<u32>| InstantiationKey {
+        arguments: TypeListId::new(list),
+        alias_symbol: alias.map(SymbolId::new),
+        alias_arguments: None,
+        single_signature: false,
+    };
+    let (near, far, taken) = (TypeId::new(5), TypeId::new(64 * 9 + 63), TypeId::new(6));
+    let other = TypeId::new(77);
+
+    // The first instantiation of a target seeds its own key with itself.
+    t.instantiation_seed(near, |_| key(3, None));
+    assert_eq!(t.instantiation_get(near, key(3, None)), Some(near));
+    assert_eq!(t.instantiations.len(), 1);
+
+    // A later one does not ask for the key and leaves the map alone, even
+    // where the entry has been replaced since.
+    t.instantiation_insert(near, key(3, None), other);
+    t.instantiation_seed(near, |_| {
+        unreachable!("a seeded target's key is not read again")
+    });
+    assert_eq!(t.instantiation_get(near, key(3, None)), Some(other));
+    assert_eq!(t.instantiations.len(), 1);
+
+    // A key that is taken when the target is first instantiated stays.
+    t.instantiation_insert(taken, key(4, Some(7)), other);
+    t.instantiation_seed(taken, |_| key(4, Some(7)));
+    assert_eq!(t.instantiation_get(taken, key(4, Some(7))), Some(other));
+    t.instantiation_seed(taken, |_| {
+        unreachable!("a seeded target's key is not read again")
+    });
+    assert_eq!(t.instantiations.len(), 2);
+
+    // Each target has its own bit: the neighbour in the same word and a
+    // target past the words written so far are seeded when their turn comes.
+    t.instantiation_seed(far, |_| key(3, None));
+    assert_eq!(t.instantiation_get(far, key(3, None)), Some(far));
+    t.instantiation_seed(far, |_| {
+        unreachable!("a seeded target's key is not read again")
+    });
+    let neighbour = TypeId::new(4);
+    assert_eq!(t.instantiation_get(neighbour, key(3, None)), None);
+    t.instantiation_seed(neighbour, |_| key(3, None));
+    assert_eq!(
+        t.instantiation_get(neighbour, key(3, None)),
+        Some(neighbour)
+    );
+    assert_eq!(t.instantiations.len(), 4);
+}
+
+/// The front of the instantiations map answers the plain key of one or two
+/// arguments from the arguments themselves and only repeats the map: a
+/// reference found or made through the map is answered by the front
+/// afterwards, without another list or map entry; keys of no argument or of
+/// three are left to the map; a
+/// slot holds one key (another key of the same slot replaces it, and both
+/// are still answered by the map); and when the map changes an answer the
+/// front forgets what it held.
+#[test]
+fn the_instantiation_front_repeats_the_map_for_one_or_two_arguments() {
+    let mut t = tables();
+    let (string, number, boolean) = (
+        t.intrinsics.string,
+        t.intrinsics.number,
+        t.intrinsics.boolean,
+    );
+    let target = t.intrinsics.any;
+
+    // Nothing is held before the map has answered.
+    assert_eq!(t.instantiation_front_get(target, &[string]), None);
+    let one = t.create_type_reference(target, &[string]);
+    let two = t.create_type_reference(target, &[string, number]);
+    let swapped = t.create_type_reference(target, &[number, string]);
+    assert!(one != two && two != swapped && one != swapped);
+    assert_eq!(t.instantiation_front_get(target, &[string]), Some(one));
+    assert_eq!(
+        t.instantiation_front_get(target, &[string, number]),
+        Some(two)
+    );
+    assert_eq!(
+        t.instantiation_front_get(target, &[number, string]),
+        Some(swapped)
+    );
+    assert_eq!(t.instantiation_front_get(number, &[string]), None);
+
+    // A reference that exists is answered without another list or entry.
+    let (lists, entries) = (t.list_ids.len(), t.instantiations.len());
+    assert_eq!(t.create_type_reference(target, &[string]), one);
+    assert_eq!(t.create_type_reference(target, &[string, number]), two);
+    assert_eq!((t.list_ids.len(), t.instantiations.len()), (lists, entries));
+
+    // Keys the front does not take are the map's alone.
+    let none = t.create_type_reference(target, &[]);
+    let three = t.create_type_reference(target, &[string, number, boolean]);
+    assert_eq!(t.instantiation_front_get(target, &[]), None);
+    assert_eq!(
+        t.instantiation_front_get(target, &[string, number, boolean]),
+        None
+    );
+    assert_eq!(t.create_type_reference(target, &[]), none);
+    assert_eq!(
+        t.create_type_reference(target, &[string, number, boolean]),
+        three
+    );
+    assert_eq!(InstantiationFront::key(target, &[]), None);
+    assert_eq!(
+        InstantiationFront::key(target, &[string, number, boolean]),
+        None
+    );
+
+    // One key a slot: two keys of the same slot replace each other in the
+    // front, and the map answers both.
+    let first = InstantiationFront::key(target, &[string]).unwrap();
+    let rival = (0..u32::MAX - 1)
+        .map(TypeId::new)
+        .find(|&candidate| {
+            candidate != string
+                && InstantiationFront::key(target, &[candidate]).is_some_and(|key| {
+                    InstantiationFront::slot(key) == InstantiationFront::slot(first)
+                })
+        })
+        .unwrap();
+    t.instantiation_front_put(target, &[rival], two);
+    assert_eq!(t.instantiation_front_get(target, &[rival]), Some(two));
+    assert_eq!(t.instantiation_front_get(target, &[string]), None);
+    assert_eq!(t.create_type_reference(target, &[string]), one);
+    assert_eq!(t.instantiation_front_get(target, &[string]), Some(one));
+    assert_eq!(t.instantiation_front_get(target, &[rival]), None);
+
+    // The front repeats the map: a changed answer empties it.
+    let list = t.intern_type_list(&[string, number]);
+    assert_eq!(
+        t.instantiation_front_get(target, &[string, number]),
+        Some(two)
+    );
+    t.instantiation_insert(target, InstantiationKey::plain(list), two);
+    assert_eq!(
+        t.instantiation_front_get(target, &[string, number]),
+        Some(two)
+    );
+    t.instantiation_insert(target, InstantiationKey::plain(list), three);
+    assert_eq!(t.instantiation_front_get(target, &[string, number]), None);
+    assert_eq!(t.instantiation_front_get(target, &[string]), None);
+    assert_eq!(t.create_type_reference(target, &[string, number]), three);
+    assert_eq!(
+        t.instantiation_front_get(target, &[string, number]),
+        Some(three)
+    );
+}
+
 #[test]
 fn type_list_interning_keeps_four_byte_candidates_and_exact_boundary_items() {
     assert_eq!(std::mem::size_of::<TypeListId>(), 4);
@@ -1498,4 +1654,133 @@ fn a_cloned_type_parameter_keeps_its_target_and_mapper_in_its_record() {
     assert_eq!(t.type_parameter_target(clone), Some(declared));
     // Both live in the 32-byte record: no table beside the type store.
     assert_eq!(std::mem::size_of::<Type>(), 32);
+}
+
+#[test]
+fn reference_clones_copy_the_argument_slot_and_start_without_a_node() {
+    let mut tables = tables();
+    let target = tables.create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
+    let string = tables.intrinsics.string;
+    let eager = tables.create_type_reference(target, &[string]);
+    assert_eq!(tables.type_of(eager).deferred_node_position(), 0);
+    let source = tables.create_deferred_reference_shell(target);
+    let TypeData::Reference { node_position, .. } = &mut tables.type_mut(source).data else {
+        unreachable!();
+    };
+    *node_position = u32::MAX;
+    let unresolved = tables.clone_type_reference(source);
+    assert_eq!(tables.type_of(unresolved).deferred_node_position(), 0);
+    assert_eq!(tables.try_type_argument_list(unresolved), None);
+    tables.set_resolved_type_arguments(source, &[string]);
+    let resolved = tables.clone_type_reference(source);
+    assert_eq!(tables.type_of(source).deferred_node_position(), u32::MAX);
+    assert_eq!(tables.type_of(resolved).deferred_node_position(), 0);
+    assert_eq!(tables.reference_target(resolved), target);
+    assert_eq!(
+        tables.try_type_argument_list(resolved),
+        tables.try_type_argument_list(eager)
+    );
+}
+
+#[test]
+fn plain_union_lookup_checks_colliding_lists_and_keeps_first_creation() {
+    let mut t = tables();
+    let (a, b) = (
+        t.get_string_literal_type("aa"),
+        t.get_string_literal_type("bb"),
+    );
+    let members = [a, b];
+    let reversed = [b, a];
+    let other = t.create_origin_union_or_intersection_type(TypeFlags::UNION, reversed);
+    let reversed_id = t.intern_type_list(&reversed);
+    let hash = hash_type_list(&members);
+    // Give a different ordered list the very same hash as the query.
+    t.plain_unions.insert_unique(
+        hash,
+        PlainUnion {
+            hash,
+            members: reversed_id,
+            ty: other,
+        },
+        |e| e.hash,
+    );
+
+    let args = [a, b, a];
+    let start = t.list_items.len() as u32;
+    let count = t.len();
+    let union = t.get_union_type_from_sorted_list(
+        members,
+        ObjectFlags::PRIMITIVE_UNION,
+        None,
+        Some(&args),
+        None,
+    );
+    assert_eq!(t.len(), count + 1);
+    assert_eq!(t.members_of(union), members);
+    assert_eq!(t.intern_type_list(&members).index(), start);
+    assert_eq!(
+        t.alias_type_argument_list(union).unwrap().index(),
+        start + 3
+    );
+    assert_eq!(t.alias_type_arguments(union), Some(&args[..]));
+
+    for i in 0..128 {
+        let literal = t.get_number_literal_type(f64::from(i));
+        t.get_union_type_from_sorted_list([a, literal], ObjectFlags::NONE, None, None, None);
+    }
+    let list_words = t.list_items.len();
+    let count = t.len();
+    assert_eq!(
+        t.get_union_type_from_sorted_list(members, ObjectFlags::NONE, None, Some(&[b, a, b]), None),
+        union
+    );
+    assert_eq!(t.list_items.len(), list_words);
+    assert_eq!(t.len(), count);
+    assert!(t
+        .object_flags_of(union)
+        .intersects(ObjectFlags::PRIMITIVE_UNION));
+    assert_eq!(t.alias_type_arguments(union), Some(&args[..]));
+
+    let alias = Some(SymbolId::new(17));
+    let aliased = t.get_union_type_from_sorted_list(members, ObjectFlags::NONE, alias, None, None);
+    let with_origin =
+        t.get_union_type_from_sorted_list(members, ObjectFlags::NONE, None, None, Some(aliased));
+    assert_ne!(aliased, union);
+    assert_ne!(with_origin, union);
+    t.release_scalar_lookup_buffers();
+    assert_eq!(t.plain_unions.capacity(), 0);
+}
+
+#[test]
+fn one_sorted_named_union_can_reuse_members_without_a_set() {
+    let mut t = tables();
+    let ids: Vec<_> = (0..10)
+        .map(|n| t.get_number_literal_type(f64::from(n)))
+        .collect();
+    let alias = Some(SymbolId::new(7));
+    for size in [2, 8, 10] {
+        let members = &ids[..size];
+        let named =
+            t.get_union_type_from_sorted_list(members, ObjectFlags::NONE, alias, None, None);
+        let mut scratch = UnionScratch::default();
+        let count = t.len();
+        let result = t.named_union_origin(None, members, &[named], None, &mut scratch);
+        assert!(matches!(result, NamedUnionOrigin::Existing(id) if id == named));
+        assert_eq!(t.len(), count);
+        assert!(scratch.named_members.is_empty());
+        if size <= 8 {
+            let mut scratch = UnionScratch::default();
+            let reduced = &members[..size - 1];
+            let result = t.named_union_origin(None, reduced, &[named], None, &mut scratch);
+            assert!(matches!(result, NamedUnionOrigin::Existing(id) if id == named));
+            assert!(scratch.named_members.is_empty());
+        }
+        let mut scratch = UnionScratch::default();
+        let result = t.named_union_origin(None, members, &[named], alias, &mut scratch);
+        let NamedUnionOrigin::Created(origin) = result else {
+            panic!("expected alias origin")
+        };
+        assert_eq!(t.members_of(origin), &[named]);
+        assert_eq!(t.len(), count + 1);
+    }
 }

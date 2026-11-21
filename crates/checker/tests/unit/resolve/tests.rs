@@ -199,25 +199,42 @@ fn const_resolution_inside_const_assertion_returns_none() {
         &[("a.ts", "var v = 1 as const;\n")],
         &CompilerOptions::default(),
         |state| {
+            let constant = tsc_types::EscapedName::internal("const");
+            let symbol = state
+                .binder
+                .create_symbol(SymbolFlags::TYPE_ALIAS, constant);
+            std::sync::Arc::make_mut(&mut state.globals).insert(constant, symbol);
+            let root = state.binder.source(0).root;
+            let inner = identifier_named(state, "const");
+            for (node, expected) in [(inner, None), (root, Some(symbol))] {
+                assert_eq!(
+                    state.resolve_name(Some(node), constant, SymbolFlags::TYPE, None, false, false),
+                    Ok(expected)
+                );
+            }
+        },
+    );
+}
+
+#[test]
+fn deferred_context_uses_the_type_query_and_the_published_function_syntax() {
+    with_program_state(
+        &[("a.ts", "declare let x: number; type Q = typeof x; (() => x)(); (async () => x)(); const f = function () { return x; };\n")],
+        &CompilerOptions::default(),
+        |state| {
             let source = state.binder.source(0);
-            let as_expression = source
-                .arena
-                .node_ids()
-                .find(|&id| source.arena.node(id).kind == SyntaxKind::AsExpression)
-                .expect("as expression");
-            assert_eq!(
-                state
-                    .resolve_name(
-                        Some(as_expression),
-                        "const",
-                        SymbolFlags::TYPE,
-                        None,
-                        false,
-                        false
-                    )
-                    .expect("resolve_name"),
-                None
-            );
+            let mut contexts = source.arena.node_ids().filter(|&node| {
+                matches!(source.arena.node(node).kind, SyntaxKind::TypeQuery | SyntaxKind::ArrowFunction | SyntaxKind::FunctionExpression)
+            });
+            let query = contexts.next().unwrap();
+            let sync = contexts.next().unwrap();
+            let asynchronous = contexts.next().unwrap();
+            let deferred = contexts.next().unwrap();
+            assert!(contexts.next().is_none());
+            assert!(state.get_is_deferred_context(query, None));
+            assert!(!state.get_is_deferred_context(sync, None));
+            assert!(state.get_is_deferred_context(asynchronous, None));
+            assert!(state.get_is_deferred_context(deferred, None));
         },
     );
 }

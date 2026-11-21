@@ -971,3 +971,196 @@ fn instantiation_scratch_returns_buffers_after_an_early_error() {
         );
     });
 }
+
+#[test]
+fn instantiation_expression_copies_keep_the_originating_type_query() {
+    with_program_state(
+        &[(
+            "a.ts",
+            "declare function id<A>(x: A): A; function f<T>() { var x: typeof id<T>; }",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let query = annotation_of_var(state, "x");
+            let source = state.get_type_from_type_node(query).unwrap();
+            let node = state.type_deferred_node(source).unwrap();
+            assert_eq!(node, query);
+            let t = declared_type_parameter(state, "T");
+            let mapper = state.make_unary_type_mapper(t, state.tables.intrinsics.string);
+            let copy = state.instantiate_type(source, Some(mapper)).unwrap();
+            assert_ne!(copy, source);
+            assert_eq!(state.type_deferred_node(copy), Some(node));
+            assert!(state
+                .tables
+                .object_flags_of(copy)
+                .contains(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE | ObjectFlags::INSTANTIATED));
+        },
+    );
+}
+
+#[test]
+fn leaf_mappers_count_once_and_keep_the_first_matching_source() {
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        let string = state.tables.intrinsics.string;
+        let number = state.tables.intrinsics.number;
+        let boolean = state.tables.intrinsics.boolean;
+        let simple = state.make_unary_type_mapper(string, number);
+        let array = state.create_type_mapper(&[string, string], Some(&[number, boolean]));
+        let eraser = state.create_type_eraser(&[number, boolean]);
+        let before = state.profile_ops[crate::line_profile::OP_MAPPED];
+        for mapper in [simple, array] {
+            assert_eq!(state.map_type_with_mapper(string, mapper).unwrap(), number);
+            assert_eq!(
+                state.map_type_with_mapper(boolean, mapper).unwrap(),
+                boolean
+            );
+        }
+        assert_eq!(
+            state.map_type_with_mapper(number, eraser).unwrap(),
+            state.tables.intrinsics.any
+        );
+        assert_eq!(state.map_type_with_mapper(string, eraser).unwrap(), string);
+        assert_eq!(
+            state.profile_ops[crate::line_profile::OP_MAPPED] - before,
+            6
+        );
+    });
+}
+
+#[test]
+fn mapper_cache_depths_keep_storage_and_clear_only_discarded_answers() {
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        let ty = state.tables.intrinsics.string;
+        let key = crate::state::MapperCacheKey {
+            ty,
+            alias_symbol: None,
+            alias_arguments: None,
+        };
+        state.push_active_mapper(state.permissive_mapper);
+        state.active_type_mappers_caches[0].insert(key, ty);
+        let checkpoint = state.begin_speculation();
+        state.push_active_mapper(state.restrictive_mapper);
+        state.active_type_mappers_caches[1].insert(key, ty);
+        let capacity = state.active_type_mappers_caches[1].capacity();
+        state.rollback_speculation(checkpoint);
+        assert_eq!(state.active_type_mappers_caches[0].get(&key), Some(&ty));
+        state.push_active_mapper(state.unique_literal_mapper);
+        assert_eq!(state.active_type_mappers_caches.len(), 2);
+        assert!(state.active_type_mappers_caches[1].is_empty());
+        assert_eq!(state.active_type_mappers_caches[1].capacity(), capacity);
+        state.clear_active_mapper_caches();
+        assert!(state.active_type_mappers_caches[0].is_empty());
+        state.active_type_mappers_caches[1].insert(key, ty);
+        state.pop_active_mapper();
+        assert!(state.active_type_mappers_caches[1].is_empty());
+        state.pop_active_mapper();
+    });
+}
+
+#[test]
+fn changed_instantiation_list_materializes_only_after_a_difference() {
+    with_program_state(
+        &[("a.ts", "function f<T>() { var x: T; }")],
+        &CompilerOptions::default(),
+        |state| {
+            let t = declared_type_parameter(state, "T");
+            let number = state.tables.intrinsics.number;
+            let string = state.tables.intrinsics.string;
+            let mapper = state.make_unary_type_mapper(t, string);
+            for (items, expected) in [
+                (vec![], None),
+                (vec![number, number], None),
+                (vec![t, number, t], Some(vec![string, number, string])),
+                (vec![number, t, number], Some(vec![number, string, number])),
+                (vec![number, number, t], Some(vec![number, number, string])),
+            ] {
+                let list = state.tables.intern_type_list(&items);
+                let depth = state.instantiation_type_lists.len();
+                let count = state.total_instantiation_count;
+                state
+                    .with_changed_instantiation_list(list, mapper, |_, changed| {
+                        assert_eq!(changed, expected.as_deref());
+                        Ok(())
+                    })
+                    .unwrap();
+                assert_eq!(
+                    state.total_instantiation_count - count,
+                    items.iter().filter(|&&item| item == t).count() as u64
+                );
+                if expected.is_none() {
+                    assert_eq!(state.instantiation_type_lists.len(), depth);
+                }
+                assert!(state.instantiation_type_lists.iter().all(Vec::is_empty));
+            }
+        },
+    );
+}
+
+#[test]
+fn conditional_key_mappers_match_composition_on_distributed_parameters() {
+    with_program_state(
+        &[("a.ts", "function f<T,U>() { var x: T; }")],
+        &CompilerOptions::default(),
+        |state| {
+            let t = declared_type_parameter(state, "T");
+            let u = declared_type_parameter(state, "U");
+            let distributed = state.get_distributed_type_from_type_parameter(t);
+            let string = state.tables.intrinsics.string;
+            for (source, target) in [(u, string), (t, u), (t, distributed)] {
+                let first = state.make_unary_type_mapper(source, target);
+                let second = state.create_type_mapper(&[t, u], Some(&[string, string]));
+                let composite = state.combine_type_mappers(Some(first), second);
+                let before = state.total_instantiation_count;
+                let visits = state.profile_ops[crate::line_profile::OP_MAPPED];
+                let expected = state.get_mapped_type(distributed, composite).unwrap();
+                let after = state.total_instantiation_count;
+                let middle = state.profile_ops[crate::line_profile::OP_MAPPED];
+                let mapper_count = state.mappers.len();
+                assert_eq!(
+                    state
+                        .map_conditional_parameter(distributed, Some(first), second)
+                        .unwrap(),
+                    expected
+                );
+                assert_eq!(state.mappers.len(), mapper_count);
+                assert_eq!(state.total_instantiation_count - after, after - before);
+                assert_eq!(
+                    state.profile_ops[crate::line_profile::OP_MAPPED] - middle,
+                    middle - visits
+                );
+            }
+        },
+    );
+}
+
+#[test]
+fn short_signature_keeps_this_and_parameter_order_with_a_fresh_generic() {
+    with_program_state(
+        &[(
+            "a.ts",
+            "function f<T>() { var sig: <U>(this: T, first: U, second: T) => U; }",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let annotation = annotation_of_var(state, "sig");
+            let signature = state.get_signature_from_declaration(annotation).unwrap();
+            let original = state.signature_of(signature).type_parameters().unwrap()[0];
+            let t = declared_type_parameter(state, "T");
+            let string = state.tables.intrinsics.string;
+            let mapper = state.make_unary_type_mapper(t, string);
+            let mapped = state
+                .instantiate_signature(signature, mapper, false)
+                .unwrap();
+            let result = state.signature_of(mapped);
+            let fresh = result.type_parameters().unwrap()[0];
+            assert_ne!(fresh, original);
+            let this = result.this_parameter.unwrap();
+            let [first, second] = *result.parameters else {
+                panic!("expected two parameters")
+            };
+            assert_eq!(state.get_type_of_symbol(this).unwrap(), string);
+            assert_eq!(state.get_type_of_symbol(first).unwrap(), fresh);
+            assert_eq!(state.get_type_of_symbol(second).unwrap(), string);
+        },
+    );
+}

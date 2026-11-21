@@ -91,6 +91,14 @@ fn rows(state: &CheckerState) -> Vec<(u32, u32, u32)> {
 }
 
 #[test]
+fn binary_trampoline_checks_left_and_right_child_frames_in_order() {
+    let text = "missingA * missingB + missingC * missingD;\n                const valid: number = 1 * 2 + 3 * 4;\n";
+    let expected = ["missingA", "missingB", "missingC", "missingD"]
+        .map(|name| (2304, text.find(name).unwrap() as u32, name.len() as u32));
+    assert_eq!(checked_rows(text), expected);
+}
+
+#[test]
 fn synthetic_missing_operator_slots_are_error_typed_and_siblings_stay_valid() {
     with_synthetic_recovery_state(
         "1 + 2;\n3 + 4;\n-1;\n-2;\ntrue ? 1 : 2;\nfalse ? 3 : 4;\n",

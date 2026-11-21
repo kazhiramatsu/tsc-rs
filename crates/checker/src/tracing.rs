@@ -219,7 +219,7 @@ impl CheckerState<'_> {
                 .try_type_arguments(ty)
                 .map(trace_ids)
                 .unwrap_or_default();
-            if let Some(node) = self.links.ty(ty).deferred_node {
+            if let Some(node) = self.type_deferred_node(ty) {
                 descriptor.reference_location = self.trace_location(node);
             }
         }

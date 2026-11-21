@@ -64,7 +64,7 @@ fn value_slots_keep_replacements_clearing_and_identity_bounds() {
     check::<MembersId>();
     assert_eq!(debug_resolving_open(), initial);
     assert_eq!(std::mem::size_of::<NodeLinks>(), 16);
-    assert_eq!(std::mem::size_of::<TypeLinks>(), 24);
+    assert_eq!(std::mem::size_of::<TypeLinks>(), 20);
 }
 
 #[test]
@@ -180,6 +180,48 @@ fn paged_table_interleaves_regions_without_aliasing() {
 }
 
 #[test]
+fn symbol_type_lookup_distinguishes_dense_far_and_transient_ids() {
+    let mut links = LinksTables::default();
+    let far_start = (DENSE_PAGES * PAGE_IDS) as u32;
+    let persistent = SymbolId::new(3);
+    let far = SymbolId::new(far_start);
+    let transient = SymbolId::new(tsc_types::TRANSIENT_SYMBOL_BIT | 5);
+    let ty = TypeId::new(7);
+    for id in [persistent, transient, SymbolId::new(far_start - 1)] {
+        assert_eq!(links.lookup_symbol_type(id), SymbolTypeLookup::Common(None));
+    }
+    assert_eq!(links.lookup_symbol_type(far), SymbolTypeLookup::Far);
+    assert_eq!(links.symbol(far).type_of_symbol.resolved(), None);
+    for id in [persistent, transient, far] {
+        links.set_fresh_symbol_type(id, LinkSlot::Resolved(ty));
+        assert_eq!(links.symbol(id).type_of_symbol.resolved(), Some(ty));
+    }
+    for id in [persistent, transient] {
+        assert_eq!(
+            links.lookup_symbol_type(id),
+            SymbolTypeLookup::Common(Some(ty))
+        );
+    }
+    assert_eq!(links.lookup_symbol_type(far), SymbolTypeLookup::Far);
+    assert_eq!(
+        links.lookup_symbol_type(SymbolId::new(4)),
+        SymbolTypeLookup::Common(None)
+    );
+
+    crate::state::test_support::with_program_state(
+        &[("a.ts", "")],
+        &tsc_types::CompilerOptions::default(),
+        |state| {
+            let expected = state.tables.intrinsics.string;
+            state
+                .links
+                .set_fresh_symbol_type(far, LinkSlot::Resolved(expected));
+            assert_eq!(state.get_type_of_symbol(far).unwrap(), expected);
+        },
+    );
+}
+
+#[test]
 fn paged_table_far_pages_use_the_same_region_slots() {
     let far_id = DENSE_PAGES << PAGE_SHIFT;
     let next_region = far_id + (1 << REGION_SHIFT);
@@ -280,4 +322,27 @@ fn finished_paged_links_release_their_pages_and_keep_other_link_owners() {
     assert_eq!(links.node_cold.memory_usage(), cold);
     assert_eq!(links.ty.memory_usage(), dense);
     assert_eq!(links.transient_symbols.len(), 1);
+}
+
+#[test]
+fn outer_parameters_keep_empty_lists_and_overwrites_across_collisions() {
+    let mut links = LinksTables::default();
+    let a = NodeId::new(5);
+    let b = NodeId::new(a.index() + OuterTypeParameters::SLOTS as u32);
+    let empty = tsc_types::TypeListId::new(0);
+    let list = tsc_types::TypeListId::new(17);
+    assert_eq!(links.node_outer_type_parameters(a), None);
+    links.set_node_outer_type_parameters(a, empty);
+    assert_eq!(links.node_outer_type_parameters(b), None);
+    links.set_node_outer_type_parameters(b, list);
+    assert_eq!(links.node_outer_type_parameters(a), Some(empty));
+    assert_eq!(
+        links.node_cold.outer_type_parameters.slots[5],
+        Some((a, empty))
+    );
+    assert_eq!(links.node_outer_type_parameters(b), Some(list));
+    links.set_node_outer_type_parameters(b, empty);
+    assert_eq!(links.node_outer_type_parameters(b), Some(empty));
+    assert_eq!(links.node_outer_type_parameters(a), Some(empty));
+    assert_eq!(links.node_outer_type_parameters(b), Some(empty));
 }

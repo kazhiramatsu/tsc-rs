@@ -550,6 +550,49 @@ pub struct NodeLinks {
 
 const _: () = assert!(std::mem::size_of::<NodeLinks>() == 16);
 
+/// The declaration memo keeps its most recent answer at each of 1,024 slots.
+/// A collision still reads the full memo. Empty parameter lists have an ID too.
+#[derive(Debug, Default)]
+struct OuterTypeParameters {
+    memo: SparseMemo<NodeId, tsc_types::TypeListId>,
+    slots: Vec<Option<(NodeId, tsc_types::TypeListId)>>,
+}
+
+impl OuterTypeParameters {
+    const SLOTS: usize = 1024;
+
+    #[inline]
+    fn get(&mut self, declaration: NodeId) -> Option<tsc_types::TypeListId> {
+        let slot = self
+            .slots
+            .get_mut(declaration.index() as usize % Self::SLOTS)?;
+        if let Some((key, list)) = *slot {
+            if key == declaration {
+                return Some(list);
+            }
+        }
+        let list = self.memo.resolved(declaration)?;
+        *slot = Some((declaration, list));
+        Some(list)
+    }
+
+    fn set(&mut self, declaration: NodeId, list: tsc_types::TypeListId) {
+        self.memo.write(declaration, LinkSlot::Resolved(list));
+        if self.slots.is_empty() {
+            self.slots = vec![None; Self::SLOTS];
+        }
+        self.slots[declaration.index() as usize % Self::SLOTS] = Some((declaration, list));
+    }
+
+    fn memory_usage(&self) -> (usize, usize) {
+        let (entries, bytes) = self.memo.memory_usage();
+        (
+            entries,
+            bytes + std::mem::size_of_val(self.slots.as_slice()),
+        )
+    }
+}
+
 /// An array literal's (first, last) spread element indices.
 pub type SpreadIndices = (Option<u32>, Option<u32>);
 
@@ -597,7 +640,7 @@ pub struct NodeLinksCold {
     pub jsx_flags: SparseLinks<NodeId, tsc_types::JsxFlags>,
     /// tsc links.outerTypeParameters (getObjectTypeInstantiation 63466)
     /// on the instantiated type's declaration node.
-    pub outer_type_parameters: SparseMemo<NodeId, tsc_types::TypeListId>,
+    outer_type_parameters: OuterTypeParameters,
     /// tsc links.enumMemberValue (computeEnumMemberValues 85587) on
     /// EnumMember nodes.
     pub enum_member_value: SparseLinks<NodeId, Option<crate::evaluate::EvaluatorResult>>,
@@ -726,6 +769,14 @@ struct PersistentSymbolLinks {
 }
 
 const _: () = assert!(std::mem::size_of::<PersistentSymbolLinks>() == 12);
+
+/// A common symbol's cached type, or a request to finish the query using
+/// the sparse persistent page directory.
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) enum SymbolTypeLookup {
+    Common(Option<TypeId>),
+    Far,
+}
 
 /// A persistent symbol as a paged-table key: its index, dense from zero.
 #[derive(Clone, Copy, Debug)]
@@ -1003,8 +1054,7 @@ impl SymbolLinksCold {
 /// The fields below are the ones a large share of type records set
 /// (resolved members, instantiation target and mapper), the
 /// type-parameter constraint caches the relation paths read for most
-/// generic types, and the deferred-reference node they test on every
-/// reference; the other TypeLinks fields live in [`TypeLinksCold`].
+/// generic types. The other TypeLinks fields live in [`TypeLinksCold`].
 #[derive(Clone, Debug, Default)]
 pub struct TypeLinks {
     pub resolved_members: ValueSlot<MembersId>,
@@ -1022,16 +1072,9 @@ pub struct TypeLinks {
     /// tsc type.mapper for ObjectFlags::INSTANTIATED anonymous types
     /// (63659).
     pub instantiated_mapper: Option<MapperId>,
-    /// tsc TypeReference.node for DEFERRED references
-    /// (createDeferredTypeReference 60196): the TypeReference/ArrayType/
-    /// TupleType node the lazy getTypeArguments reads. `Some` IS the
-    /// deferred-ness test (isNonDeferredTypeReference 67388 checks
-    /// !type.node) — it stays `Some` after the arguments resolve. Few
-    /// references are deferred, but the relation paths test every one.
-    pub deferred_node: Option<NodeId>,
 }
 
-const _: () = assert!(std::mem::size_of::<TypeLinks>() == 24);
+const _: () = assert!(std::mem::size_of::<TypeLinks>() == 20);
 
 /// The TypeLinks fields few types set, one sparse map per field (see
 /// [`SparseLinks`]).
@@ -1586,8 +1629,12 @@ impl<K: DenseKey, T: Default> PagedTable<K, T> {
     #[inline]
     pub(crate) fn get(&self, key: K) -> Option<&T> {
         let id = key.dense_index();
-        let page = self.page(id >> PAGE_SHIFT)?;
-        let slot = page[id & (PAGE_IDS - 1)];
+        self.get_from_page(id, self.page(id >> PAGE_SHIFT))
+    }
+
+    #[inline]
+    fn get_from_page(&self, id: usize, page: Option<&[u16; PAGE_IDS]>) -> Option<&T> {
+        let slot = page?[id & (PAGE_IDS - 1)];
         if slot == 0 {
             return None;
         }
@@ -1786,6 +1833,30 @@ impl LinksTables {
     pub(crate) fn read_symbol<R>(&self, id: SymbolId, read: impl FnOnce(&SymbolLinks) -> R) -> R {
         perf::bump(PerfCounter::LinksSymbolReads);
         read(&self.symbol(id))
+    }
+
+    /// Read a value type without entering the sparse page lookup. Its caller
+    /// can finish a far query out of line, keeping the common hit small.
+    #[inline]
+    pub(crate) fn lookup_symbol_type(&self, symbol: SymbolId) -> SymbolTypeLookup {
+        perf::bump(PerfCounter::LinksSymbolReads);
+        let cached = if let Some(index) = transient_index(symbol) {
+            self.transient_symbols
+                .get(index)
+                .and_then(|links| links.type_of_symbol.resolved())
+        } else {
+            let id = PersistentSymbol(symbol).dense_index();
+            let page_index = id >> PAGE_SHIFT;
+            if page_index >= DENSE_PAGES {
+                return SymbolTypeLookup::Far;
+            }
+            let table = &self.persistent_symbols;
+            let page = table.index.get(page_index).and_then(Option::as_deref);
+            table
+                .get_from_page(id, page)
+                .and_then(|links| links.type_of_symbol.resolved())
+        };
+        SymbolTypeLookup::Common(cached)
     }
 
     /// Check flags exist only on transient symbols. Selecting them directly
@@ -3581,12 +3652,19 @@ impl LinksTables {
         }
     }
 
+    /// Read the declaration's cached outer parameter list, including an empty one.
+    #[inline]
+    pub(crate) fn node_outer_type_parameters(
+        &mut self,
+        id: NodeId,
+    ) -> Option<tsc_types::TypeListId> {
+        self.node_cold.outer_type_parameters.get(id)
+    }
+
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn set_node_outer_type_parameters(&mut self, id: NodeId, value: tsc_types::TypeListId) {
-        self.node_cold
-            .outer_type_parameters
-            .write(id, LinkSlot::Resolved(value));
+        self.node_cold.outer_type_parameters.set(id, value);
     }
 
     /// tsrs-native: createUnionOrIntersectionProperty's identical-
@@ -4065,20 +4143,9 @@ impl LinksTables {
         self.type_cold.declared_members.clear(id);
     }
 
-    /// tsrs-native: initialize createDeferredTypeReference's node/mapper
-    /// stamp (60196-60197) once on a fresh deferred-reference shell.
-    pub fn set_fresh_type_deferred_reference_links(
-        &mut self,
-        id: TypeId,
-        node: NodeId,
-        mapper: Option<MapperId>,
-    ) {
-        let links = self.ty.slot(id);
-        assert!(
-            links.deferred_node.is_none() && self.type_cold.deferred_mapper.get(id).is_none(),
-            "deferred reference links written twice for {id:?}"
-        );
-        links.deferred_node = Some(node);
+    /// Store the mapper captured by a fresh deferred reference, if it has one.
+    pub(crate) fn set_fresh_deferred_mapper(&mut self, id: TypeId, mapper: Option<MapperId>) {
+        assert!(self.type_cold.deferred_mapper.get(id).is_none());
         if mapper.is_some() {
             self.type_cold.deferred_mapper.set(id, mapper);
         }

@@ -757,7 +757,7 @@ fn update_source_file_worker(
         )?;
         let permanent = source.arena.node(source.root).flags
             & NodeFlags::PERMANENTLY_SET_INCREMENTAL_FLAGS.bits();
-        parsed.arena.node_mut(parsed.root).flags |= permanent;
+        *parsed.arena.node_flags_mut(parsed.root) |= permanent;
         parsed.js_doc_diagnostics =
             merge_jsdoc_diagnostics(&source, &parsed, &stats.reused_old_ranges)?;
     }

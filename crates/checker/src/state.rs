@@ -901,6 +901,8 @@ pub struct CheckerState<'a> {
     /// shares it when the name sequence repeats. A hint only — a table that
     /// leaves the sequence builds its own index.
     pub(crate) member_shapes: rustc_hash::FxHashMap<MembersId, crate::member_table::MemberShape>,
+    pub(crate) declared_property_indexes:
+        rustc_hash::FxHashMap<MembersId, crate::annotate::DeclaredPropertyIndex>,
     /// The one name index of every name sequence a published table of more
     /// than eight members has: tables that repeat a sequence share it,
     /// whichever path built them.
@@ -1140,9 +1142,8 @@ pub struct CheckerState<'a> {
     /// tsc activeTypeMappers/activeTypeMappersCaches/activeTypeMappersCount
     /// (47412-47414): the instantiation cache stack.
     pub(crate) active_type_mappers: Vec<crate::instantiate::MapperId>,
+    /// Each depth owns its map until checker teardown. Inactive slots are empty.
     pub(crate) active_type_mappers_caches: Vec<rustc_hash::FxHashMap<MapperCacheKey, TypeId>>,
-    /// Popped instantiation caches, cleared and kept for the next push.
-    pub(crate) spare_active_mapper_caches: Vec<rustc_hash::FxHashMap<MapperCacheKey, TypeId>>,
     /// tsgo instantiationStack (checker.go:598): the types being
     /// instantiated, innermost last; its length is tsc's instantiationDepth.
     /// The instantiation count resets at tsc's three entry points —
@@ -1182,11 +1183,11 @@ pub struct CheckerState<'a> {
     /// The ReduceLabel antecedent swap (getTypeAtFlowNode 70473): tsc
     /// mutates `target.antecedent` in place during try/finally walks;
     /// the binder graph is immutable to the checker, so the swapped
-    /// lists live here keyed by (file, label) and every label read
-    /// consults them. Entries are strictly scoped to an in-progress
+    /// lists are identified by their originating ReduceLabel nodes, keyed
+    /// by (file, label). Entries are strictly scoped to an in-progress
     /// ReduceLabel arm (restored on exit AND on unwind).
     pub(crate) reduce_label_overrides:
-        rustc_hash::FxHashMap<(usize, tsc_binder::flow::FlowId), Vec<tsc_binder::flow::FlowId>>,
+        rustc_hash::FxHashMap<(usize, tsc_binder::flow::FlowId), tsc_binder::flow::FlowId>,
     /// tsc evolvingArrayTypes (70079): elementType→evolving-array memo
     /// (tsc indexes a sparse array by elementType.id).
     pub(crate) evolving_array_types: rustc_hash::FxHashMap<TypeId, TypeId>,
@@ -1737,7 +1738,6 @@ impl<'a> CheckerState<'a> {
             std::mem::take(&mut self.variance_stack),
             std::mem::take(&mut self.active_type_mappers),
             std::mem::take(&mut self.active_type_mappers_caches),
-            std::mem::take(&mut self.spare_active_mapper_caches),
             std::mem::take(&mut self.instantiation_stack),
             std::mem::take(&mut self.type_parameter_defaults_in_progress),
             std::mem::take(&mut self.mapped_types_in_progress),
@@ -1978,7 +1978,14 @@ impl<'a> CheckerState<'a> {
         rows.push((
             "resolved members",
             self.members.len(),
-            self.members.len() * std::mem::size_of::<ResolvedMembers>() + members_heap,
+            self.members.len() * std::mem::size_of::<ResolvedMembers>()
+                + members_heap
+                + map_bytes(&self.declared_property_indexes)
+                + self
+                    .declared_property_indexes
+                    .values()
+                    .map(|index| index.heap_bytes())
+                    .sum::<usize>(),
         ));
         rows.push((
             "deferred reference members",
@@ -2377,6 +2384,7 @@ impl<'a> CheckerState<'a> {
             augment_filter: None,
             member_shapes: Default::default(),
             member_indexes: Default::default(),
+            declared_property_indexes: Default::default(),
             contextual_relevant: Default::default(),
             deferred_reference_members: Default::default(),
             named_member_order_buffers: Default::default(),
@@ -2452,7 +2460,6 @@ impl<'a> CheckerState<'a> {
             reliability_flags: tsc_types::RelationComparisonResult::NONE,
             active_type_mappers: Vec::new(),
             active_type_mappers_caches: Vec::new(),
-            spare_active_mapper_caches: Vec::new(),
             instantiation_stack: Vec::new(),
             instantiation_count: 0,
             total_instantiation_count: 0,
@@ -2809,7 +2816,9 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: Option<SymbolId>,
     ) -> TypeId {
-        let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+        let id = self
+            .tables
+            .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         self.tables.type_mut(id).object_flags = ObjectFlags::ANONYMOUS;
         self.tables.type_mut(id).symbol = symbol;
         let members = self.alloc_members(ResolvedMembers::default());

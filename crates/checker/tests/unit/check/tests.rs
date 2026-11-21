@@ -5800,7 +5800,7 @@ fn display_composer_splits_abstract_constructs_from_object_members() {
             extras.construct_signatures = construct_signatures.into();
             let mixed = state
                 .tables
-                .create_type(TypeFlags::OBJECT, TypeData::Object);
+                .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
             state.tables.type_mut(mixed).object_flags = ObjectFlags::ANONYMOUS;
             let mixed_members = state.alloc_members(mixed_members);
             state

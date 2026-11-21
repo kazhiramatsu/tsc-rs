@@ -1144,8 +1144,7 @@ fn resolution_clears_active_mapper_caches_on_every_miss() {
             let mapper = state.make_unary_type_mapper(t, any);
             // Simulate an in-flight instantiation frame (73607):
             // one active mapper with a warm cache row.
-            state.active_type_mappers.push(mapper);
-            state.active_type_mappers_caches.push(Default::default());
+            state.push_active_mapper(mapper);
             state.active_type_mappers_caches[0].insert(
                 crate::state::MapperCacheKey {
                     ty: string,
@@ -1172,8 +1171,7 @@ fn resolution_clears_active_mapper_caches_on_every_miss() {
             );
             let _ = state.get_inferred_type(ctx, 0).expect("memo");
             assert_eq!(state.active_type_mappers_caches[0].len(), 1);
-            state.active_type_mappers.pop();
-            state.active_type_mappers_caches.pop();
+            state.pop_active_mapper();
         },
     );
 }

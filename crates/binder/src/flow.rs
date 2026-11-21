@@ -133,6 +133,10 @@ pub struct FlowArena {
     nodes: Vec<FlowNode>,
     cells: Vec<ListCell>,
     pool: Box<[FlowId]>,
+    /// Each reduce label writes a length before its antecedents.
+    reduce_label_headers: usize,
+    /// Replaced chains stay in scratch until freeze but are not written.
+    abandoned_cells: usize,
     frozen: bool,
 }
 
@@ -140,9 +144,8 @@ impl FlowArena {
     pub(crate) fn for_image(count: usize) -> Self {
         Self {
             nodes: Vec::with_capacity(count),
-            cells: Vec::new(),
-            pool: Box::default(),
             frozen: true,
+            ..Self::default()
         }
     }
 
@@ -426,23 +429,9 @@ impl FlowArena {
         if self.frozen {
             return;
         }
-        // The pool's exact size first, so it is allocated once (a grown and
-        // then shrunk list leaves the allocator a hole per file).
-        let size = self
-            .nodes
-            .iter()
-            .map(|node| {
-                if node.is_label() {
-                    self.walk(node.a).count()
-                } else if node.flags.intersects(FlowFlags::REDUCE_LABEL) {
-                    1 + self.walk(node.c).count()
-                } else if node.flags.intersects(FlowFlags::SWITCH_CLAUSE) {
-                    2
-                } else {
-                    0
-                }
-            })
-            .sum();
+        // Each live cell is written once, including the two cells of each
+        // switch clause. Reduce labels also write their length.
+        let size = self.cells.len() - self.abandoned_cells + self.reduce_label_headers;
         let mut pool = Vec::with_capacity(size);
         let mut nodes = std::mem::take(&mut self.nodes);
         for node in &mut nodes {
@@ -467,6 +456,8 @@ impl FlowArena {
         nodes.shrink_to_fit();
         self.nodes = nodes;
         self.pool = pool.into_boxed_slice();
+        self.reduce_label_headers = 0;
+        self.abandoned_cells = 0;
         let mut cells = std::mem::take(&mut self.cells);
         cells.clear();
         FLOW_CELLS.with(|slot| slot.set(Some(cells)));
@@ -525,6 +516,7 @@ impl FlowArena {
         antecedent: FlowId,
     ) -> FlowId {
         let (head, _) = self.chain(&antecedents);
+        self.reduce_label_headers += 1;
         self.push(FlowNode {
             flags: FlowFlags::REDUCE_LABEL,
             a: target.index(),
@@ -536,7 +528,9 @@ impl FlowArena {
     /// Replace a label's antecedent list (the finally label of a try
     /// statement takes the normal, exception and return exits at once).
     pub fn set_label_antecedents(&mut self, label: FlowId, antecedents: Vec<FlowId>) {
-        assert!(self.flow(label).is_label() && !self.frozen);
+        let old = *self.flow(label);
+        assert!(old.is_label() && !self.frozen);
+        self.abandoned_cells += self.walk(old.a).count();
         let (head, tail) = self.chain(&antecedents);
         let node = self.flow_mut(label);
         node.a = head;

@@ -387,7 +387,7 @@ fn mutate_everything(state: &mut CheckerState) {
     state.inference_context_nodes.push(root);
     state.inference_contexts.push(None);
     state.awaited_type_stack.push(string);
-    state.active_type_mappers_caches.push(Default::default());
+    state.push_active_mapper(state.permissive_mapper);
     state.mapped_types_in_progress.push(InProgressMappedType {
         node: root,
         ty: string,
@@ -406,7 +406,7 @@ fn mutate_everything(state: &mut CheckerState) {
     );
     state
         .reduce_label_overrides
-        .insert((0, FlowId::new(1)), vec![FlowId::new(2)]);
+        .insert((0, FlowId::new(1)), FlowId::new(2));
     state.exhaustive_switch_computing.insert(root);
     // B: counters / flags.
     state.instantiation_stack.extend([string; 5]);
@@ -458,7 +458,7 @@ struct Observed {
     inference_context_nodes: usize,
     inference_contexts: usize,
     awaited_type_stack: usize,
-    active_type_mappers_caches: usize,
+    active_type_mappers: usize,
     mapped_types_in_progress: usize,
     flow_loop_start: u32,
     shared_flow: crate::flow_memo::SharedFlowCheckpoint,
@@ -508,7 +508,7 @@ fn observe(state: &CheckerState) -> Observed {
         inference_context_nodes: state.inference_context_nodes.len(),
         inference_contexts: state.inference_contexts.len(),
         awaited_type_stack: state.awaited_type_stack.len(),
-        active_type_mappers_caches: state.active_type_mappers_caches.len(),
+        active_type_mappers: state.active_type_mappers.len(),
         mapped_types_in_progress: state.mapped_types_in_progress.len(),
         flow_loop_start: state.flow_loop_start,
         shared_flow: state.shared_flow.checkpoint(),
@@ -594,10 +594,10 @@ fn link_protocols_persist_on_commit_and_rollback() {
             .expect("fixture has a declaration");
         let committed_type = state
             .tables
-            .create_type(TypeFlags::OBJECT, TypeData::Object);
+            .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         let rolled_back_type = state
             .tables
-            .create_type(TypeFlags::OBJECT, TypeData::Object);
+            .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         let committed_symbol = state.binder.create_symbol(
             SymbolFlags::VARIABLE,
             tsc_types::EscapedName::from_escaped_value(("committed".to_owned()).into()),
@@ -1343,7 +1343,7 @@ fn a_transient_symbols_reference_meaning_and_declared_type_are_its_own() {
         assert_eq!(state.links.symbol_is_referenced(second), SymbolFlags::ALL);
         let ty = state
             .tables
-            .create_type(TypeFlags::OBJECT, TypeData::Object);
+            .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         state
             .links
             .set_symbol_declared_type(depth, second, LinkSlot::Resolved(ty));

@@ -27,7 +27,7 @@ use tsc_types::perf::{self, PerfCounter};
 pub(crate) struct DeferredReferenceMembers {
     source: MembersId,
     mapper: crate::instantiate::MapperId,
-    unaffected: Box<[SymbolId]>,
+    unaffected: SymbolIds,
     // Most references never request a declared member.
     instantiated: Option<Box<MemberTable>>,
     bases: crate::state::SharedList<TypeId>,
@@ -35,13 +35,59 @@ pub(crate) struct DeferredReferenceMembers {
     finishing: bool,
 }
 
+/// The result of reading a ready reference's instantiated table and its
+/// frozen identity decision. Publication can require a mutable checker.
+enum DeferredDeclaredMember {
+    Cached(SymbolId),
+    Publish {
+        declared: SymbolId,
+        mapper: Option<crate::instantiate::MapperId>,
+    },
+}
+
 impl DeferredReferenceMembers {
+    fn declared_member(
+        &self,
+        binder: &crate::program::ProgramBinder<'_>,
+        declared: SymbolId,
+    ) -> DeferredDeclaredMember {
+        let name = binder.symbol(declared).escaped_name;
+        if let Some(symbol) = self
+            .instantiated
+            .as_ref()
+            .and_then(|table| table.get(binder, name))
+        {
+            return DeferredDeclaredMember::Cached(symbol);
+        }
+        let unaffected = self.unaffected.binary_search(&declared).is_ok();
+        DeferredDeclaredMember::Publish {
+            declared,
+            mapper: (!unaffected).then_some(self.mapper),
+        }
+    }
+
     pub(crate) fn heap_bytes(&self, usage: &mut tsc_diagnostics::MemoryUsage) -> usize {
-        std::mem::size_of_val(&*self.unaffected)
+        self.unaffected.heap_bytes_once(usage)
             + self.instantiated.as_deref().map_or(0, |table| {
                 std::mem::size_of::<MemberTable>() + table.heap_bytes()
             })
             + self.bases.heap_bytes_once(usage)
+    }
+}
+
+/// Extra membership information for a declared table whose enumeration uses
+/// a separate list. Keep both immutable lists so a partial replacement under
+/// the same MembersId can fall back to the currently published properties.
+pub(crate) struct DeclaredPropertyIndex {
+    members: SymbolIds,
+    properties: SymbolIds,
+    /// Absent when the freeze kept every member and only the order changed.
+    sorted: Option<Box<[SymbolId]>>,
+}
+
+impl DeclaredPropertyIndex {
+    pub(crate) fn heap_bytes(&self) -> usize {
+        self.sorted.as_deref().map_or(0, std::mem::size_of_val)
     }
 }
 
@@ -1510,7 +1556,9 @@ impl<'a> CheckerState<'a> {
             None => self.empty_type_literal_type,
             Some(_) if members_empty && alias_symbol.is_none() => self.empty_type_literal_type,
             Some(symbol) => {
-                let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+                let id = self
+                    .tables
+                    .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
                 let alias_type_arguments = self.get_type_arguments_for_alias_symbol(alias_symbol);
                 let alias_type_arguments = self
                     .tables
@@ -2039,14 +2087,40 @@ impl<'a> CheckerState<'a> {
         };
         let ty = self.tables.create_deferred_reference_shell(target);
         self.retain_inference_mapper(mapper);
-        self.links
-            .set_fresh_type_deferred_reference_links(ty, node, mapper);
+        self.set_fresh_type_deferred_reference_links(ty, node, mapper);
         let alias_type_arguments = self
             .tables
             .intern_alias_arguments(alias_type_arguments.as_deref());
         self.tables
             .set_alias(ty, alias_symbol, alias_type_arguments);
         Ok(ty)
+    }
+
+    /// Read the node retained by a deferred reference or instantiation expression.
+    #[inline]
+    pub(crate) fn type_deferred_node(&self, ty: TypeId) -> Option<NodeId> {
+        NodeId::from_position(self.tables.type_of(ty).deferred_node_position())
+    }
+
+    /// Stamp a fresh shell. Resolving its arguments later keeps the original node.
+    pub(crate) fn set_fresh_type_deferred_reference_links(
+        &mut self,
+        ty: TypeId,
+        node: NodeId,
+        mapper: Option<crate::instantiate::MapperId>,
+    ) {
+        let position = match &mut self.tables.type_mut(ty).data {
+            TypeData::Reference { node_position, .. } | TypeData::Object { node_position } => {
+                node_position
+            }
+            _ => unreachable!("only a reference or instantiation expression carries a node"),
+        };
+        assert_eq!(
+            *position, 0,
+            "deferred reference links written twice for {ty:?}"
+        );
+        self.links.set_fresh_deferred_mapper(ty, mapper);
+        *position = node.position();
     }
 
     /// tsc-port: getTypeArguments @6.0.3
@@ -2085,9 +2159,7 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intern_type_list(&fallback));
         }
         let node = self
-            .links
-            .ty(ty)
-            .deferred_node
+            .type_deferred_node(ty)
             .expect("unresolved references are deferred (node-carrying)");
         let computed = (|state: &mut Self| -> CheckResult<Vec<TypeId>> {
             match_record! { state.record_of(node), {
@@ -3919,7 +3991,9 @@ impl<'a> CheckerState<'a> {
         } else {
             ObjectFlags::INTERFACE
         };
-        let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+        let id = self
+            .tables
+            .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         self.tables.type_mut(id).object_flags = kind;
         self.tables.type_mut(id).symbol = Some(symbol);
         self.links
@@ -4478,6 +4552,16 @@ impl<'a> CheckerState<'a> {
     }
 
     fn prepare_deferred_reference_members(&mut self, ty: TypeId) -> CheckResult<Option<MembersId>> {
+        self.with_deferred_reference_members(ty, |_, members| members.header)
+    }
+
+    /// Read the part of a ready record the caller needs before it resumes
+    /// checking. Recursive reads during preparation see the existing sentinel.
+    fn with_deferred_reference_members<R>(
+        &mut self,
+        ty: TypeId,
+        read: impl FnOnce(&Self, &DeferredReferenceMembers) -> R,
+    ) -> CheckResult<Option<R>> {
         if !self
             .tables
             .object_flags_of(ty)
@@ -4490,8 +4574,22 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         if let Some(entry) = self.deferred_reference_members.get(&ty) {
-            return Ok(entry.as_ref().map(|members| members.header));
+            return Ok(entry.as_ref().map(|members| read(self, members)));
         }
+        let Some(ready) = self.create_deferred_reference_members(ty)? else {
+            return Ok(None);
+        };
+        // The projection only reads settled IDs and clones the base snapshot.
+        // Publish before the caller can instantiate a symbol or visit a base.
+        let result = read(self, &ready);
+        self.deferred_reference_members.insert(ty, Some(ready));
+        Ok(Some(result))
+    }
+
+    fn create_deferred_reference_members(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult<Option<DeferredReferenceMembers>> {
         let target = self.tables.reference_target(ty);
         if target == ty
             || !self
@@ -4623,9 +4721,7 @@ impl<'a> CheckerState<'a> {
                     .read_ty(ty, |links| links.resolved_members.resolved())
                     .is_none() =>
             {
-                let header = members.header;
-                self.deferred_reference_members.insert(ty, Some(members));
-                Ok(Some(header))
+                Ok(Some(members))
             }
             Ok(_) => {
                 self.deferred_reference_members.remove(&ty);
@@ -4638,23 +4734,21 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn deferred_declared_member(&mut self, ty: TypeId, declared: SymbolId) -> SymbolId {
-        let name = self.binder.symbol(declared).escaped_name;
-        let members = self.deferred_reference_members[&ty]
-            .as_ref()
-            .expect("ready reference members");
-        if let Some(symbol) = members
-            .instantiated
-            .as_ref()
-            .and_then(|table| table.get(&self.binder, name))
-        {
-            return symbol;
-        }
-        let mapper = members.mapper;
-        let symbol = if members.unaffected.binary_search(&declared).is_ok() {
-            declared
-        } else {
-            self.new_instantiated_symbol(declared, mapper)
+    fn realize_deferred_declared_member(
+        &mut self,
+        ty: TypeId,
+        member: DeferredDeclaredMember,
+    ) -> SymbolId {
+        let symbol = match member {
+            DeferredDeclaredMember::Cached(symbol) => return symbol,
+            DeferredDeclaredMember::Publish {
+                declared,
+                mapper: None,
+            } => declared,
+            DeferredDeclaredMember::Publish {
+                declared,
+                mapper: Some(mapper),
+            } => self.new_instantiated_symbol(declared, mapper),
         };
         self.deferred_reference_members
             .get_mut(&ty)
@@ -4667,6 +4761,33 @@ impl<'a> CheckerState<'a> {
         symbol
     }
 
+    fn declared_property(
+        &self,
+        source: MembersId,
+        name: tsc_types::EscapedName,
+    ) -> Option<SymbolId> {
+        let record = self.members_of(source);
+        let symbol = record.members.get(&self.binder, name)?;
+        // The common all-selected freeze shares the two lists, including
+        // for tuple targets, whose synthesized members are all properties.
+        if std::ptr::eq(record.members.symbols(), &*record.properties) {
+            return Some(symbol);
+        }
+        let selected = match self.declared_property_indexes.get(&source) {
+            Some(index)
+                if std::ptr::eq(&*index.members, record.members.symbols())
+                    && std::ptr::eq(&*index.properties, &*record.properties) =>
+            {
+                index
+                    .sorted
+                    .as_ref()
+                    .is_none_or(|ids| ids.binary_search(&symbol).is_ok())
+            }
+            _ => record.properties.contains(&symbol),
+        };
+        selected.then_some(symbol)
+    }
+
     /// Outer None means the type requires normal member resolution. Inner
     /// None is a completed lookup whose name was absent.
     pub(crate) fn deferred_reference_property(
@@ -4674,18 +4795,20 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         name: tsc_types::EscapedName,
     ) -> CheckResult<Option<Option<SymbolId>>> {
-        if is_reserved_member_name(name) || self.prepare_deferred_reference_members(ty)?.is_none() {
+        if is_reserved_member_name(name) {
             return Ok(None);
         }
-        let members = self.deferred_reference_members[&ty].as_ref().unwrap();
-        let source = members.source;
-        let bases = members.bases.clone();
-        let declared = self
-            .members_of(source)
-            .members
-            .get(&self.binder, name)
-            .filter(|symbol| self.members_of(source).properties.contains(symbol));
-        let mut result = declared.map(|symbol| self.deferred_declared_member(ty, symbol));
+        let Some((bases, own)) = self.with_deferred_reference_members(ty, |state, members| {
+            let bases = members.bases.clone();
+            let own = state
+                .declared_property(members.source, name)
+                .map(|declared| members.declared_member(&state.binder, declared));
+            (bases, own)
+        })?
+        else {
+            return Ok(None);
+        };
+        let mut result = own.map(|member| self.realize_deferred_declared_member(ty, member));
         for base in bases {
             if result.is_some_and(|symbol| self.symbol_flags(symbol).intersects(SymbolFlags::VALUE))
             {
@@ -4749,7 +4872,11 @@ impl<'a> CheckerState<'a> {
                 None => MemberTable::with_capacity(properties.len()),
             };
             for &declared in &properties {
-                let symbol = self.deferred_declared_member(ty, declared);
+                let ready = self.deferred_reference_members[&ty]
+                    .as_ref()
+                    .expect("ready reference members");
+                let member = ready.declared_member(&self.binder, declared);
+                let symbol = self.realize_deferred_declared_member(ty, member);
                 members.insert(&self.binder, symbol);
             }
             for base in bases {
@@ -4875,7 +5002,9 @@ impl<'a> CheckerState<'a> {
             .expect("class/interface targets carry their declaring symbol");
         let declared = self.get_members_of_symbol(symbol)?;
         let members = self.member_table_source(&declared);
-        let (members, properties) = self.freeze_named_members(members, Some(symbol))?;
+        let (members, selected) = self.freeze_selected_members(members)?;
+        let all_selected = members.len() == selected.len();
+        let properties = self.order_named_member_list(&members, selected, Some(symbol));
         // tsc resolveDeclaredMembers publishes declaredProperties
         // FIRST and fills signatures/index infos into the type in
         // place (57772-57781): a nested reader reached through the
@@ -4906,6 +5035,7 @@ impl<'a> CheckerState<'a> {
         if let Some(existing) = self.links.type_cold().declared_members.resolved(target) {
             return Ok(existing);
         }
+        self.index_declared_properties(id, all_selected);
         self.links.set_type_declared_members(target, id);
         let filled = (|state: &mut Self| -> CheckResult<()> {
             let call_signatures = state.get_signatures_of_symbol(call_symbol)?;
@@ -4922,9 +5052,32 @@ impl<'a> CheckerState<'a> {
             Ok(()) => Ok(id),
             Err(err) => {
                 self.links.retract_type_declared_members(target);
+                self.declared_property_indexes.remove(&id);
                 Err(err)
             }
         }
+    }
+
+    /// Shared lists already record an all-selected freeze. Keep an index for
+    /// a reordered all-selected list or a mixed table above the linear limit.
+    fn index_declared_properties(&mut self, id: MembersId, all_selected: bool) {
+        let record = self.members_of(id);
+        if std::ptr::eq(record.members.symbols(), &*record.properties)
+            || (!all_selected && record.members.len() <= crate::member_table::LINEAR_MEMBERS)
+        {
+            return;
+        }
+        let sorted = (!all_selected).then(|| {
+            let mut ids = record.properties.to_vec().into_boxed_slice();
+            ids.sort_unstable();
+            ids
+        });
+        let index = DeclaredPropertyIndex {
+            members: record.members.symbol_list(),
+            properties: record.properties.clone(),
+            sorted,
+        };
+        self.declared_property_indexes.insert(id, index);
     }
 
     /// tsc-port: resolveObjectTypeMembers @6.0.3
@@ -7359,14 +7512,19 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c7763b3f1125d6016a597248984eb7ef72ea51ea6f831d542e00f4177e87f433
     /// tsc-span: _tsc.js:57599-57601
     pub(crate) fn is_static_private_identifier_property(&self, symbol: SymbolId) -> bool {
-        self.binder
-            .symbol(symbol)
-            .value_declaration
-            .is_some_and(|declaration| {
-                self.name_of_node(declaration)
-                    .is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier)
-                    && self.has_static_modifier(declaration)
-            })
+        let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
+            return false;
+        };
+        let (modifiers, name) = match_record! { self.record_of(declaration), {
+            as_property_declaration(data) => (data.modifiers, data.name),
+            as_method_declaration(data) => (data.modifiers, data.name),
+            as_get_accessor(data) => (data.modifiers, data.name),
+            as_set_accessor(data) => (data.modifiers, data.name),
+            _ => return false,
+        }};
+        self.modifier_flags_of(modifiers)
+            .intersects(ModifierFlags::STATIC)
+            && name.is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier)
     }
 
     /// tsgo-port: isThisless @7.1 (checker.go:21206-21221): a parameter
@@ -7897,13 +8055,21 @@ impl<'a> CheckerState<'a> {
         )
     }
 
-    /// Select properties in the same pass that fills the final member Arc.
-    /// The default insertion-order path neither builds a candidate Vec nor
-    /// compares an independently built property list with the member list.
     fn freeze_named_members(
         &mut self,
         members: impl FreezeMembers,
         container: Option<SymbolId>,
+    ) -> CheckResult<(crate::member_table::FrozenMembers, SymbolIds)> {
+        let (members, properties) = self.freeze_selected_members(members)?;
+        let properties = self.order_named_member_list(&members, properties, container);
+        Ok((members, properties))
+    }
+
+    /// Select properties in the same pass that fills the final member Arc.
+    /// The returned selection is still in the member table's insertion order.
+    fn freeze_selected_members(
+        &mut self,
+        members: impl FreezeMembers,
     ) -> CheckResult<(crate::member_table::FrozenMembers, SymbolIds)> {
         let mut result = Ok(());
         let (mut members, properties) = members.freeze_with_filter(|symbol| {
@@ -7922,7 +8088,6 @@ impl<'a> CheckerState<'a> {
         // Before the caller remembers the table's shape: the shape is then
         // the index of the name sequence, whichever table had it first.
         self.member_indexes.share(&mut members);
-        let properties = self.order_named_member_list(&members, properties, container);
         Ok((members, properties))
     }
 
@@ -8224,10 +8389,28 @@ impl<'a> CheckerState<'a> {
     #[inline]
     pub fn get_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         perf::bump(PerfCounter::TypeOfSymbolQueries);
-        if let Some(resolved) = self
-            .links
-            .read_symbol(symbol, |links| links.type_of_symbol.resolved())
-        {
+        match self.links.lookup_symbol_type(symbol) {
+            crate::links::SymbolTypeLookup::Common(cached) => {
+                self.finish_symbol_type_lookup(symbol, cached)
+            }
+            crate::links::SymbolTypeLookup::Far => self.get_type_of_far_symbol(symbol),
+        }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn get_type_of_far_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
+        let cached = self.links.symbol(symbol).type_of_symbol.resolved();
+        self.finish_symbol_type_lookup(symbol, cached)
+    }
+
+    #[inline]
+    fn finish_symbol_type_lookup(
+        &mut self,
+        symbol: SymbolId,
+        cached: Option<TypeId>,
+    ) -> CheckResult<TypeId> {
+        if let Some(resolved) = cached {
             perf::bump(PerfCounter::TypeOfSymbolHits);
             return Ok(resolved);
         }
@@ -10041,7 +10224,9 @@ impl<'a> CheckerState<'a> {
                 return Ok(resolved);
             }
         }
-        let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+        let id = self
+            .tables
+            .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         self.tables.type_mut(id).object_flags = ObjectFlags::ANONYMOUS;
         self.tables.type_mut(id).symbol = Some(symbol);
         let resolved = if self.symbol_flags(symbol).intersects(SymbolFlags::CLASS) {
@@ -11229,7 +11414,7 @@ impl<'a> CheckerState<'a> {
         let mut properties: Vec<SymbolId> = members.values().copied().collect();
         let id = self
             .tables
-            .create_type(TypeFlags::OBJECT, tsc_types::TypeData::Object);
+            .create_type(TypeFlags::OBJECT, tsc_types::TypeData::PLAIN_OBJECT);
         self.tables.type_mut(id).object_flags = ObjectFlags::ANONYMOUS | object_flags;
         self.order_named_members_if_stable(&mut properties, None);
         let members_id = self.alloc_members(crate::state::ResolvedMembers::new(

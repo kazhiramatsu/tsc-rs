@@ -257,3 +257,34 @@ fn literal_regularization_entry_preserves_fresh_twins_and_union_identity() {
     }
     assert_eq!(observe(false), observe(true));
 }
+
+#[test]
+fn declaration_ranges_match_inclusive_containment_in_any_visit_order() {
+    let input = [
+        (12, 15),
+        (5, 9),
+        (8, 22),
+        (8, 10),
+        (3, 4),
+        (22, 22),
+        (30, 40),
+        (12, 17),
+    ];
+    for range_count in 0..=input.len() {
+        let source = &input[..range_count];
+        for member_count in [4, 64] {
+            let mut scratch = source.to_vec();
+            let mut ranges = super::DeclarationRanges::new(&mut scratch, member_count);
+            for pos in (0..=42).rev().chain(0..=42) {
+                for end in 0..=42 {
+                    assert_eq!(
+                        ranges.contains(pos, end),
+                        source
+                            .iter()
+                            .any(|&(start, stop)| start <= pos && end <= stop)
+                    );
+                }
+            }
+        }
+    }
+}

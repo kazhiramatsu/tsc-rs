@@ -6,12 +6,9 @@
 //! assertions/satisfies, instantiation expressions, meta-properties and
 //! the instanceof/in slices.
 //!
-//! The trampoline shape is MANDATORY (extraction §7): tsc walks nested
-//! binary chains iteratively over parallel state/node stacks with ONE
-//! shared user-state record — a recursive checkBinary would overflow on
-//! the same deep chains tsc handles, and the checkExpression call ORDER
-//! (left-to-right, one eager call per non-binary operand) is observable
-//! through type interning.
+//! The trampoline walks nested binary chains iteratively to bound the
+//! call stack. It checks non-binary operands from left to right, since
+//! the order of those checks determines the order of type interning.
 
 use tsc_binder::node_util;
 use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
@@ -61,42 +58,31 @@ fn token_text(kind: SyntaxKind) -> &'static str {
     tsc_syntax::tokens::token_to_string(kind).expect("operator tokens have token text")
 }
 
-/// createCheckBinaryExpression's user state (79827-79832): ONE record
-/// shared by every frame of a trampoline run. leftType lives at
-/// typeStack[stackIndex], lastResult at typeStack[stackIndex + 1].
-struct BinaryCheckState {
-    check_mode: CheckMode,
+/// The current binary expression and the operand types needed to resume it.
+struct BinaryFrame {
+    node: NodeId,
+    phase: BinaryState,
+    left_type: Option<TypeId>,
+    last_result: Option<TypeId>,
     skip: bool,
-    stack_index: usize,
-    type_stack: Vec<Option<TypeId>>,
 }
 
-impl BinaryCheckState {
-    fn left_type(&self) -> Option<TypeId> {
-        self.type_stack.get(self.stack_index).copied().flatten()
-    }
-
-    fn set_left_type(&mut self, ty: Option<TypeId>) {
-        self.ensure(self.stack_index);
-        let index = self.stack_index;
-        self.type_stack[index] = ty;
-    }
-
-    fn last_result(&self) -> Option<TypeId> {
-        self.type_stack.get(self.stack_index + 1).copied().flatten()
-    }
-
-    fn set_last_result(&mut self, ty: Option<TypeId>) {
-        self.ensure(self.stack_index + 1);
-        let index = self.stack_index + 1;
-        self.type_stack[index] = ty;
-    }
-
-    fn ensure(&mut self, index: usize) {
-        if self.type_stack.len() <= index {
-            self.type_stack.resize(index + 1, None);
+impl BinaryFrame {
+    fn new(node: NodeId) -> Self {
+        Self {
+            node,
+            phase: BinaryState::Enter,
+            left_type: None,
+            last_result: None,
+            skip: false,
         }
     }
+}
+
+/// A frame runs to completion or pauses to check a binary child.
+enum BinaryProgress {
+    Descend(NodeId),
+    Done(TypeId),
 }
 
 /// The trampoline's per-frame progression (BinaryExpressionState
@@ -141,106 +127,103 @@ impl<'a> CheckerState<'a> {
     ///
     /// A checker abort anywhere in the walk unwinds the whole binary
     /// expression, matching recursive containment in the other bands.
+    #[inline]
     pub(crate) fn check_binary_expression(
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
-        let mut state_stack: Vec<BinaryState> = vec![BinaryState::Enter];
-        let mut node_stack: Vec<NodeId> = vec![node];
-        let mut user: Option<BinaryCheckState> = None;
-        let mut stack_index: usize = 0;
+        let mut frame = BinaryFrame::new(node);
+        match self.check_binary_frame(&mut frame, check_mode)? {
+            BinaryProgress::Done(ty) => Ok(ty),
+            BinaryProgress::Descend(child) => {
+                self.check_nested_binary_expression(frame, child, check_mode)
+            }
+        }
+    }
+
+    /// Allocate a stack only when a binary child suspends the current frame.
+    #[inline(never)]
+    fn check_nested_binary_expression(
+        &mut self,
+        mut frame: BinaryFrame,
+        child: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult<TypeId> {
+        let mut suspended = Vec::new();
+        let mut progress = BinaryProgress::Descend(child);
         loop {
-            let frame_node = node_stack[stack_index];
-            match state_stack[stack_index] {
-                BinaryState::Enter => {
-                    state_stack[stack_index] = BinaryState::Left;
-                    self.binary_on_enter(frame_node, &mut user, check_mode)?;
+            match progress {
+                BinaryProgress::Descend(child) => {
+                    suspended.push(frame);
+                    frame = BinaryFrame::new(child);
                 }
-                BinaryState::Left => {
-                    // Advance THEN maybe-push (BinaryExpressionState.left).
-                    state_stack[stack_index] = BinaryState::Operator;
-                    let Some((left, _, _)) = self.binary_parts(frame_node) else {
-                        return Ok(self.tables.intrinsics.error);
+                BinaryProgress::Done(result) => {
+                    let Some(parent) = suspended.pop() else {
+                        return Ok(result);
                     };
-                    let state = user.as_mut().expect("onEnter ran");
-                    if !state.skip {
-                        if let Some(next) = self.binary_maybe_check_expression(&mut user, left)? {
-                            stack_index += 1;
-                            state_stack.truncate(stack_index);
-                            node_stack.truncate(stack_index);
-                            state_stack.push(BinaryState::Enter);
-                            node_stack.push(next);
+                    frame = parent;
+                    frame.last_result = Some(result);
+                }
+            }
+            progress = self.check_binary_frame(&mut frame, check_mode)?;
+        }
+    }
+
+    /// Advance until the frame needs a binary child or has its result.
+    fn check_binary_frame(
+        &mut self,
+        frame: &mut BinaryFrame,
+        check_mode: CheckMode,
+    ) -> CheckResult<BinaryProgress> {
+        loop {
+            match frame.phase {
+                BinaryState::Enter => {
+                    frame.phase = BinaryState::Left;
+                    self.binary_on_enter(frame, check_mode)?;
+                }
+                BinaryState::Left | BinaryState::Right => {
+                    let checking_left = frame.phase == BinaryState::Left;
+                    frame.phase = if checking_left {
+                        BinaryState::Operator
+                    } else {
+                        BinaryState::Exit
+                    };
+                    let Some((left, _, right)) = self.binary_parts(frame.node) else {
+                        return Ok(BinaryProgress::Done(self.tables.intrinsics.error));
+                    };
+                    if !frame.skip {
+                        let operand = if checking_left { left } else { right };
+                        if let Some(child) =
+                            self.binary_maybe_check_expression(frame, operand, check_mode)?
+                        {
+                            return Ok(BinaryProgress::Descend(child));
                         }
                     }
                 }
                 BinaryState::Operator => {
-                    state_stack[stack_index] = BinaryState::Right;
-                    self.binary_on_operator(frame_node, user.as_mut().expect("onEnter ran"))?;
-                }
-                BinaryState::Right => {
-                    state_stack[stack_index] = BinaryState::Exit;
-                    let Some((_, _, right)) = self.binary_parts(frame_node) else {
-                        return Ok(self.tables.intrinsics.error);
-                    };
-                    let state = user.as_mut().expect("onEnter ran");
-                    if !state.skip {
-                        if let Some(next) = self.binary_maybe_check_expression(&mut user, right)? {
-                            stack_index += 1;
-                            state_stack.truncate(stack_index);
-                            node_stack.truncate(stack_index);
-                            state_stack.push(BinaryState::Enter);
-                            node_stack.push(next);
-                        }
-                    }
+                    frame.phase = BinaryState::Right;
+                    self.binary_on_operator(frame)?;
                 }
                 BinaryState::Exit => {
-                    let result =
-                        self.binary_on_exit(frame_node, user.as_mut().expect("onEnter ran"))?;
-                    if stack_index > 0 {
-                        stack_index -= 1;
-                        // foldState: setLastResult(state, result).
-                        user.as_mut()
-                            .expect("shared record")
-                            .set_last_result(Some(result));
-                    } else {
-                        return Ok(result);
-                    }
+                    let result = self.binary_on_exit(frame, check_mode)?;
+                    return Ok(BinaryProgress::Done(result));
                 }
             }
         }
     }
 
-    /// onEnter (79817-79850): re-entry bumps the shared record; a JS
-    /// expando initializer checks only its right side; `=` with an
-    /// object/array-literal LHS routes to the destructuring family and
-    /// skips the operand walk.
+    /// onEnter (79817-79850): a destructuring assignment checks its right
+    /// side through checkExpression and skips the trampoline's operand walk.
     fn binary_on_enter(
         &mut self,
-        node: NodeId,
-        user: &mut Option<BinaryCheckState>,
+        frame: &mut BinaryFrame,
         check_mode: CheckMode,
     ) -> CheckResult<()> {
-        match user {
-            Some(state) => {
-                state.stack_index += 1;
-                state.skip = false;
-                state.set_left_type(None);
-                state.set_last_result(None);
-            }
-            None => {
-                *user = Some(BinaryCheckState {
-                    check_mode,
-                    skip: false,
-                    stack_index: 0,
-                    type_stack: vec![None, None],
-                });
-            }
-        }
+        let node = frame.node;
         let Some((left, operator_token, right)) = self.binary_parts(node) else {
-            let state = user.as_mut().expect("created above");
-            state.skip = true;
-            state.set_last_result(Some(self.tables.intrinsics.error));
+            frame.skip = true;
+            frame.last_result = Some(self.tables.intrinsics.error);
             return Ok(());
         };
         // tsc 6.0 took the type of the right operand alone for a defaulted
@@ -255,16 +238,12 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::ObjectLiteralExpression | SyntaxKind::ArrayLiteralExpression
             )
         {
-            let state = user.as_mut().expect("created above");
-            state.skip = true;
-            let check_mode = state.check_mode;
+            frame.skip = true;
             let right_type = self.check_expression(right, check_mode)?;
             let right_is_this = self.kind_of(right) == SyntaxKind::ThisKeyword;
             let result =
                 self.check_destructuring_assignment(left, right_type, check_mode, right_is_this)?;
-            user.as_mut()
-                .expect("created above")
-                .set_last_result(Some(result));
+            frame.last_result = Some(result);
         }
         Ok(())
     }
@@ -272,22 +251,19 @@ impl<'a> CheckerState<'a> {
     /// onOperator (79857-79878): stash leftType, then the logical-band
     /// probes — the `&&`/if-parent truthy-callable check and the
     /// binary-logical truthiness classifier.
-    fn binary_on_operator(
-        &mut self,
-        node: NodeId,
-        state: &mut BinaryCheckState,
-    ) -> CheckResult<()> {
-        if state.skip {
+    fn binary_on_operator(&mut self, frame: &mut BinaryFrame) -> CheckResult<()> {
+        if frame.skip {
             return Ok(());
         }
-        let left_type = state
-            .last_result()
+        let left_type = frame
+            .last_result
+            .take()
             .expect("left operand checked before operator");
-        state.set_left_type(Some(left_type));
-        state.set_last_result(None);
+        frame.left_type = Some(left_type);
+        let node = frame.node;
         let Some((left, operator_token, _)) = self.binary_parts(node) else {
-            state.skip = true;
-            state.set_last_result(Some(self.tables.intrinsics.error));
+            frame.skip = true;
+            frame.last_result = Some(self.tables.intrinsics.error);
             return Ok(());
         };
         let operator = self.operator_kind(operator_token);
@@ -325,57 +301,45 @@ impl<'a> CheckerState<'a> {
     /// checked frames fold operand types through the worker.
     fn binary_on_exit(
         &mut self,
-        node: NodeId,
-        state: &mut BinaryCheckState,
+        frame: &BinaryFrame,
+        check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
-        let result = if state.skip {
-            state.last_result().expect("skip frames stash their result")
-        } else {
-            let left_type = state.left_type().expect("operator stashed leftType");
-            let right_type = state
-                .last_result()
-                .expect("right operand checked before exit");
-            match self.binary_parts(node) {
-                Some((left, operator_token, right)) => self.check_binary_like_expression_worker(
-                    left,
-                    operator_token,
-                    right,
-                    left_type,
-                    right_type,
-                    state.check_mode,
-                    Some(node),
-                )?,
-                None => self.tables.intrinsics.error,
-            }
-        };
-        state.skip = false;
-        state.set_left_type(None);
-        state.set_last_result(None);
-        state.stack_index = state.stack_index.wrapping_sub(1);
-        Ok(result)
+        if frame.skip {
+            return Ok(frame.last_result.expect("skip frames stash their result"));
+        }
+        let left_type = frame.left_type.expect("operator stashed leftType");
+        let right_type = frame
+            .last_result
+            .expect("right operand checked before exit");
+        match self.binary_parts(frame.node) {
+            Some((left, operator_token, right)) => self.check_binary_like_expression_worker(
+                left,
+                operator_token,
+                right,
+                left_type,
+                right_type,
+                check_mode,
+                Some(frame.node),
+            ),
+            None => Ok(self.tables.intrinsics.error),
+        }
     }
 
-    /// maybeCheckExpression (79917-79922): the ONLY recursion into
-    /// checkExpression — binary children become frames instead.
+    /// maybeCheckExpression (79917-79922): binary operands become frames.
     fn binary_maybe_check_expression(
         &mut self,
-        user: &mut Option<BinaryCheckState>,
+        frame: &mut BinaryFrame,
         node: NodeId,
+        check_mode: CheckMode,
     ) -> CheckResult<Option<NodeId>> {
         if self.kind_of(node) == SyntaxKind::BinaryExpression {
             if self.binary_parts(node).is_some() {
                 return Ok(Some(node));
             }
-            user.as_mut()
-                .expect("onEnter ran")
-                .set_last_result(Some(self.tables.intrinsics.error));
-            return Ok(None);
+            frame.last_result = Some(self.tables.intrinsics.error);
+        } else {
+            frame.last_result = Some(self.check_expression(node, check_mode)?);
         }
-        let check_mode = user.as_ref().expect("onEnter ran").check_mode;
-        let ty = self.check_expression(node, check_mode)?;
-        user.as_mut()
-            .expect("onEnter ran")
-            .set_last_result(Some(ty));
         Ok(None)
     }
 
@@ -2743,7 +2707,9 @@ impl<'a> CheckerState<'a> {
                         .symbol_mut(symbol)
                         .set_declarations(declarations);
                 }
-                let result = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+                let result = self
+                    .tables
+                    .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
                 self.tables.type_mut(result).object_flags = tsc_types::ObjectFlags::ANONYMOUS
                     | tsc_types::ObjectFlags::INSTANTIATION_EXPRESSION_TYPE;
                 self.tables.type_mut(result).symbol = Some(symbol);
@@ -2757,14 +2723,9 @@ impl<'a> CheckerState<'a> {
                 ));
                 self.links
                     .set_fresh_type_members(result, crate::links::LinkSlot::Resolved(members_id));
-                // tsc stamps result.node = node (77999): the same
-                // type.node field deferred references ride, so it
-                // shares the deferred_node slot —
-                // getObjectTypeInstantiation selects it as the
-                // declaration (63464) and instantiateAnonymousType
-                // propagates it to Instantiated copies (63649-63651).
-                self.links
-                    .set_fresh_type_deferred_reference_links(result, node, None);
+                // The originating expression is the declaration key for this
+                // object and for each of its instantiated copies.
+                self.set_fresh_type_deferred_reference_links(result, node, None);
                 return Ok(result);
             }
             return Ok(ty);

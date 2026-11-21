@@ -30,12 +30,11 @@ fn resolve(state: &mut CheckerState, name: &str) -> TypeId {
         .expect("annotation resolves")
 }
 
-/// checkTypeRelatedTo's frame without the identity verdicts in front of it.
-fn full_frame(state: &mut CheckerState, source: TypeId, target: TypeId) -> bool {
+fn identity_checker<'s, 'a>(state: &'s mut CheckerState<'a>) -> RelationChecker<'s, 'a> {
     let relation = RelationKind::Identity;
     let relation_count = (16_000_000 - state.relations.cache(relation).len() as i64) >> 3;
     let scratch = std::mem::take(&mut state.relation_scratch);
-    let mut checker = RelationChecker {
+    RelationChecker {
         st: state,
         relation,
         maybe_keys: scratch.maybe_keys,
@@ -49,7 +48,12 @@ fn full_frame(state: &mut CheckerState, source: TypeId, target: TypeId) -> bool 
         overflow: false,
         relation_count,
         error_state: RelationErrorState::default(),
-    };
+    }
+}
+
+/// checkTypeRelatedTo's frame without the identity verdicts in front of it.
+fn full_frame(state: &mut CheckerState, source: TypeId, target: TypeId) -> bool {
+    let mut checker = identity_checker(state);
     let result = checker
         .is_related_to(
             source,
@@ -172,6 +176,7 @@ fn normalization_gate_matches_the_full_loop_for_all_normalizing_kinds() {
                 var parameter: T;
                 var reference: Box<T>;
                 var union: Box<T> | string;
+                var reducible: ({ tag: 0 } & { tag: 1 }) | number;
                 var intersection: Box<T> & { tag: 1 };
                 var conditional: T extends unknown ? T : never;
                 var indexed: O[K];
@@ -207,6 +212,17 @@ fn normalization_gate_matches_the_full_loop_for_all_normalizing_kinds() {
                 .tables
                 .object_flags_of(tuple)
                 .intersects(tsc_types::ObjectFlags::REFERENCE));
+            let plain_union = state.tables.type_of(inputs[4]);
+            assert_eq!(plain_union.flags, tsc_types::TypeFlags::UNION);
+            assert!(!plain_union.object_flags.intersects(
+                tsc_types::ObjectFlags::REFERENCE | tsc_types::ObjectFlags::CONTAINS_INTERSECTIONS
+            ));
+            let reducible = resolve(state, "reducible");
+            assert!(state
+                .tables
+                .object_flags_of(reducible)
+                .intersects(tsc_types::ObjectFlags::CONTAINS_INTERSECTIONS));
+            inputs.push(reducible);
             let fresh = state.tables.get_fresh_type_of_literal_type(inputs[1]);
             assert!(state.tables.is_fresh_literal_type(fresh));
             inputs.push(fresh);
@@ -235,4 +251,65 @@ fn normalization_gate_matches_the_full_loop_for_all_normalizing_kinds() {
         })
     }
     assert_eq!(observe(false), observe(true));
+}
+
+#[test]
+fn active_keys_follow_the_live_prefix_across_unwinds_and_frame_loans() {
+    use super::{IntersectionState, RelationComparisonResult, RelationKey};
+
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        let mut checker = identity_checker(state);
+        let keys: Vec<_> = (0..40)
+            .map(|i| RelationKey::Generic(format!("*{i}").into()))
+            .collect();
+        for (i, key) in keys.iter().enumerate() {
+            checker.push_active_key(key);
+            assert_eq!(checker.maybe_keys_set.is_empty(), i < 32);
+            assert!(keys[..=i].iter().all(|key| checker.has_active_key(key)));
+        }
+        let frame = checker.loan_frame(IntersectionState::NONE);
+        checker.restore_frame(frame);
+        let budget = checker.relation_count;
+        for depth in [34, 32, 2] {
+            checker.reset_maybe_stack(depth, false, RelationComparisonResult::NONE);
+            assert!(keys[..depth].iter().all(|key| checker.has_active_key(key)));
+            assert!(keys[depth..].iter().all(|key| !checker.has_active_key(key)));
+            assert_eq!(checker.maybe_keys_set.is_empty(), depth <= 32);
+        }
+        assert_eq!(checker.relation_count, budget);
+        for key in &keys[5..36] {
+            checker.push_active_key(key);
+        }
+        assert!(checker.has_active_key(&keys[35]));
+        assert!(!checker.has_active_key(&keys[2]));
+        checker.reset_maybe_stack(0, true, RelationComparisonResult::NONE);
+        assert_eq!(checker.relation_count, budget - 33);
+        assert!(checker.maybe_keys_set.is_empty());
+        for (i, key) in keys.iter().enumerate() {
+            let verdict = checker.st.relations.cache(checker.relation).get(key);
+            assert_eq!(verdict.is_some(), i < 2 || (5..36).contains(&i));
+            assert!(!checker.has_active_key(key));
+        }
+    });
+}
+
+#[test]
+fn short_membership_keeps_the_ordered_result_for_present_ids() {
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        state.stable_type_ordering = true;
+        let a = state.tables.get_string_literal_type("a");
+        let b = state.tables.get_string_literal_type("b");
+        let c = state.tables.get_string_literal_type("c");
+        let fresh = state.tables.get_fresh_type_of_literal_type(a);
+        let checker = identity_checker(state);
+        assert!(!checker.contains_type_ordered(&[c, b, a], c));
+        for slice in [&[][..], &[a, b, c], &[c, b, a], &[a; 8], &[a; 9]] {
+            let ctx = crate::type_order::order_ctx!(checker.st);
+            for id in [a, b, c, fresh] {
+                let expected =
+                    tsc_types::type_order::search_type(&checker.st.tables, ctx.order(), slice, id);
+                assert_eq!(checker.contains_type_ordered(slice, id), expected.is_ok());
+            }
+        }
+    });
 }

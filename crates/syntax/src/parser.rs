@@ -1803,12 +1803,26 @@ impl<'text> Parser<'text> {
     fn parse_list(
         &mut self,
         context: ParsingContext,
+        parse_element: impl FnMut(&mut Self) -> Option<NodeId>,
+    ) -> crate::NodeArrayId {
+        self.parse_list_with_module_candidates(context, false, parse_element)
+    }
+
+    fn parse_list_with_module_candidates(
+        &mut self,
+        context: ParsingContext,
+        collect_modules: bool,
         mut parse_element: impl FnMut(&mut Self) -> Option<NodeId>,
     ) -> crate::NodeArrayId {
         let saved_context = self.parsing_context;
         self.parsing_context |= context.bit();
         let mark = self.start_node_list();
         let list_pos = self.node_pos();
+        let mut function_free = matches!(
+            context,
+            ParsingContext::SourceElements | ParsingContext::BlockStatements
+        );
+        let mut modules = Vec::new();
 
         while !self.is_list_terminator(context) {
             if self.is_list_element(context, false) {
@@ -1818,6 +1832,13 @@ impl<'text> Parser<'text> {
                     .map(|node| self.consume_node(node))
                     .or_else(|| parse_element(self));
                 if let Some(element) = element {
+                    if function_free || collect_modules {
+                        let kind = self.arena.node(element).kind;
+                        function_free &= kind != SyntaxKind::FunctionDeclaration;
+                        if collect_modules && kind == SyntaxKind::ModuleDeclaration {
+                            modules.push(element);
+                        }
+                    }
                     self.node_stack.push(element);
                     if start_pos == self.scanner.full_start_pos() {
                         self.record_token_skip(ParseTokenSkipSite::ListNoProgress);
@@ -1832,13 +1853,21 @@ impl<'text> Parser<'text> {
         }
 
         self.parsing_context = saved_context;
-        self.finish_node_list(
+        let array = self.finish_node_list(
             mark,
             list_pos,
             self.node_pos(),
             false,
             crate::NodeArrayRole::Children,
-        )
+        );
+        if function_free || collect_modules {
+            self.arena.record_statement_list_facts(
+                array,
+                function_free,
+                collect_modules.then_some(modules),
+            );
+        }
+        array
     }
 
     fn parse_delimited_list(
@@ -2736,7 +2765,7 @@ impl<'text> Parser<'text> {
         if let Some(list) = modifiers {
             let nodes = self.arena.node_array(list).nodes.to_vec();
             for modifier in nodes {
-                self.arena.node_mut(modifier).flags |= NodeFlags::AMBIENT.bits();
+                self.arena.node_mut_preserving_kind(modifier).flags |= NodeFlags::AMBIENT.bits();
             }
         }
     }
@@ -2794,7 +2823,7 @@ impl<'text> Parser<'text> {
             Some(&gen::Declaration_expected),
             &[],
         );
-        self.arena.node_mut(missing).pos = pos as u32;
+        self.arena.node_mut_preserving_kind(missing).pos = pos as u32;
         if let Some(mut data) = self.arena.node(missing).as_missing_declaration() {
             data.modifiers = modifiers;
             self.arena
@@ -3361,9 +3390,11 @@ impl<'text> Parser<'text> {
     fn parse_module_block(&mut self) -> NodeId {
         let pos = self.node_pos();
         let statements = if self.parse_expected(SyntaxKind::OpenBraceToken, None) {
-            let statements = self.parse_list(ParsingContext::BlockStatements, |parser| {
-                Some(parser.parse_statement())
-            });
+            let statements = self.parse_list_with_module_candidates(
+                ParsingContext::BlockStatements,
+                true,
+                |parser| Some(parser.parse_statement()),
+            );
             self.parse_expected(SyntaxKind::CloseBraceToken, None);
             statements
         } else {
@@ -4076,7 +4107,9 @@ impl<'text> Parser<'text> {
             }),
             pos,
         );
-        self.arena.node_mut(block).set_multi_line(multi_line);
+        self.arena
+            .node_mut_preserving_kind(block)
+            .set_multi_line(multi_line);
 
         if self.token() == SyntaxKind::EqualsToken {
             self.parse_error_at_current_token(
@@ -6006,7 +6039,7 @@ impl<'text> Parser<'text> {
                 let invalid_pos = self.arena.node(invalid_element).pos;
                 let invalid_end = self.arena.node(invalid_element).end as usize;
                 {
-                    let operator = self.arena.node_mut(operator_token);
+                    let operator = self.arena.node_mut_preserving_kind(operator_token);
                     operator.pos = invalid_pos;
                     operator.end = invalid_pos;
                 }
@@ -6661,7 +6694,7 @@ impl<'text> Parser<'text> {
             Some(&gen::Expression_expected),
             &[],
         );
-        self.arena.node_mut(missing).pos = pos as u32;
+        self.arena.node_mut_preserving_kind(missing).pos = pos as u32;
         if let Some(mut data) = self.arena.node(missing).as_missing_declaration() {
             data.modifiers = modifiers;
             self.arena
@@ -6866,7 +6899,8 @@ impl<'text> Parser<'text> {
             }) {
                 let mut current = node;
                 while self.arena.node(current).kind == SyntaxKind::NonNullExpression {
-                    self.arena.node_mut(current).flags |= NodeFlags::OPTIONAL_CHAIN.bits();
+                    self.arena.node_mut_preserving_kind(current).flags |=
+                        NodeFlags::OPTIONAL_CHAIN.bits();
                     let Some(next) = inner_expression(self, current) else {
                         break;
                     };
@@ -7312,7 +7346,9 @@ impl<'text> Parser<'text> {
             }),
             pos,
         );
-        self.arena.node_mut(array).set_multi_line(Some(multi_line));
+        self.arena
+            .node_mut_preserving_kind(array)
+            .set_multi_line(Some(multi_line));
         array
     }
 
@@ -7338,7 +7374,9 @@ impl<'text> Parser<'text> {
             }),
             pos,
         );
-        self.arena.node_mut(object).set_multi_line(Some(multi_line));
+        self.arena
+            .node_mut_preserving_kind(object)
+            .set_multi_line(Some(multi_line));
         object
     }
 
@@ -7983,7 +8021,7 @@ impl<'text> Parser<'text> {
         };
         let id = self.arena.alloc_node(data, pos, end, NodeFlags::NONE);
         self.arena
-            .node_mut(id)
+            .node_mut_preserving_kind(id)
             .set_template_flags(self.scanner.template_literal_flags());
         self.next_token();
         self.finish_node_at(id, pos, end)
@@ -8004,7 +8042,7 @@ impl<'text> Parser<'text> {
             NodeFlags::NONE,
         );
         self.arena
-            .node_mut(id)
+            .node_mut_preserving_kind(id)
             .set_has_extended_unicode_escape(Some(has_extended_unicode_escape));
         self.next_token();
         self.finish_node_at(id, pos, end)
@@ -8023,7 +8061,7 @@ impl<'text> Parser<'text> {
             NodeFlags::NONE,
         );
         self.arena
-            .node_mut(id)
+            .node_mut_preserving_kind(id)
             .set_numeric_literal_flags(numeric_literal_flags);
         self.next_token();
         self.finish_node_at(id, pos, end)
@@ -8056,7 +8094,9 @@ impl<'text> Parser<'text> {
             end,
             NodeFlags::NONE,
         );
-        self.arena.node_mut(id).set_is_unterminated(is_unterminated);
+        self.arena
+            .node_mut_preserving_kind(id)
+            .set_is_unterminated(is_unterminated);
         self.next_token();
         self.finish_node_at(id, pos, end)
     }
@@ -8078,7 +8118,7 @@ impl<'text> Parser<'text> {
             NodeFlags::NONE,
         );
         self.arena
-            .node_mut(id)
+            .node_mut_preserving_kind(id)
             .set_template_flags(self.scanner.template_literal_flags());
         self.next_token();
         self.finish_node_at(id, pos, end)
@@ -10514,7 +10554,7 @@ impl<'text> Parser<'text> {
             self.arena.set_js_doc(host, js_doc);
             self.arena.attach_js_doc(host);
             if deprecated {
-                self.arena.node_mut(host).flags |= NodeFlags::DEPRECATED.bits();
+                self.arena.node_mut_preserving_kind(host).flags |= NodeFlags::DEPRECATED.bits();
             }
         }
         lazy_nodes
@@ -10667,7 +10707,7 @@ impl<'text> Parser<'text> {
     #[inline]
     fn finish_node_fields(&mut self, id: NodeId, pos: usize, end: usize) -> SyntaxKind {
         let (is_jsdoc_candidate, kind) = {
-            let node = self.arena.node_mut(id);
+            let node = self.arena.node_mut_preserving_kind(id);
             node.pos = pos as u32;
             node.end = end as u32;
             // finishNode preserves every current parser context flag,
@@ -10974,10 +11014,11 @@ fn parse_source_file_from_snapshot_worker(
     // tsgo parseListIndex(PCSourceElements, parseToplevelStatement): each
     // statement knows its place in the list.
     let list_start = parser.node_stack.len();
-    let mut statements = parser.parse_list(ParsingContext::SourceElements, |parser| {
-        let index = parser.node_stack.len() - list_start;
-        Some(parser.parse_toplevel_statement(index))
-    });
+    let mut statements =
+        parser.parse_list_with_module_candidates(ParsingContext::SourceElements, true, |parser| {
+            let index = parser.node_stack.len() - list_start;
+            Some(parser.parse_toplevel_statement(index))
+        });
     debug_assert_eq!(parser.token(), SyntaxKind::EndOfFileToken);
     let end_of_file_token = parser.parse_token_node();
 

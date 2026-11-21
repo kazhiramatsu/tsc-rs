@@ -2258,6 +2258,14 @@ impl<'a> BinderWorker<'a> {
     /// and duplicate-diagnostic order.
     fn bind_each_functions_first(&mut self, nodes: Option<NodeArrayId>) {
         let Some(nodes) = nodes else { return };
+        if self
+            .source
+            .arena
+            .is_known_function_free_statement_list(nodes)
+        {
+            self.bind_each(Some(nodes));
+            return;
+        }
         let count = self.source.arena.node_array(nodes).nodes.len();
         for index in 0..count {
             let node = self.source.arena.node_array(nodes).nodes[index];

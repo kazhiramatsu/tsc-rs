@@ -258,6 +258,34 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
+    /// Visit every element once. Only a changed list needs scratch storage,
+    /// which stays checked out through the callback and is returned even on error.
+    fn with_changed_instantiation_list<R>(
+        &mut self,
+        source: tsc_types::TypeListId,
+        mapper: MapperId,
+        use_list: impl FnOnce(&mut Self, Option<&[TypeId]>) -> CheckResult<R>,
+    ) -> CheckResult<R> {
+        let mut cursor = self.tables.cursor(source);
+        let len = cursor.len();
+        while let Some(ty) = cursor.next(&self.tables) {
+            let mapped = self.instantiate_type(ty, Some(mapper))?;
+            if mapped != ty {
+                return self.with_instantiation_type_list(|state, result| {
+                    result.reserve(len);
+                    let prefix_len = len - cursor.len() - 1;
+                    result.extend_from_slice(&state.tables.list(source)[..prefix_len]);
+                    result.push(mapped);
+                    while let Some(ty) = cursor.next(&state.tables) {
+                        result.push(state.instantiate_type(ty, Some(mapper))?);
+                    }
+                    use_list(state, Some(result))
+                });
+            }
+        }
+        use_list(self, None)
+    }
+
     fn with_instantiated_alias_arguments<R>(
         &mut self,
         source_arguments: Option<tsc_types::TypeListId>,
@@ -452,6 +480,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getMappedType @6.0.3
     /// tsc-hash: 1de145bdc6a4fc936f2d547c707305081eede73870da72023bc151fa83e65252
     /// tsc-span: _tsc.js:63327-63358
+    #[inline]
     fn map_type_with_mapper(&mut self, ty: TypeId, mapper: MapperId) -> CheckResult<TypeId> {
         self.profile_ops[crate::line_profile::OP_MAPPED] += 1;
         match *self.mapper(mapper) {
@@ -468,6 +497,21 @@ impl<'a> CheckerState<'a> {
                     Some(targets) => self.mapper_list(targets)[index],
                     None => self.tables.intrinsics.any,
                 })
+            }
+            mapper => self.map_type_with_non_leaf_mapper(ty, mapper),
+        }
+    }
+
+    /// Keep the state needed by recursive and deferred applications off the leaf path.
+    #[inline(never)]
+    fn map_type_with_non_leaf_mapper(
+        &mut self,
+        ty: TypeId,
+        mapper: TypeMapper,
+    ) -> CheckResult<TypeId> {
+        match mapper {
+            TypeMapper::Simple { .. } | TypeMapper::Array { .. } => {
+                unreachable!("leaf mapper handled at entry")
             }
             // 63341-63350: linear source scan, thunk on match,
             // identity otherwise. The scan reads the mapper pair's
@@ -541,17 +585,45 @@ impl<'a> CheckerState<'a> {
                 }
             }
             TypeMapper::Composite { mapper1, mapper2 } => {
-                let t1 = self.map_type_with_mapper(ty, mapper1)?;
-                if t1 != ty {
-                    self.instantiate_type(t1, Some(mapper2))
-                } else {
-                    self.map_type_with_mapper(t1, mapper2)
-                }
+                self.apply_composite_mapper(ty, mapper1, mapper2)
             }
             TypeMapper::Merged { mapper1, mapper2 } => {
                 let t1 = self.map_type_with_mapper(ty, mapper1)?;
                 self.map_type_with_mapper(t1, mapper2)
             }
+        }
+    }
+
+    /// Map the given input through both parts of a composite. A changed
+    /// left result needs full instantiation through the right mapper.
+    fn apply_composite_mapper(
+        &mut self,
+        ty: TypeId,
+        first: MapperId,
+        second: MapperId,
+    ) -> CheckResult<TypeId> {
+        let mapped = self.map_type_with_mapper(ty, first)?;
+        if mapped == ty {
+            self.map_type_with_mapper(ty, second)
+        } else {
+            self.instantiate_type(mapped, Some(second))
+        }
+    }
+
+    /// Conditional keys use the composite only for this application. Count
+    /// its dispatch and normalize its input once, as for an allocated mapper.
+    pub(crate) fn map_conditional_parameter(
+        &mut self,
+        ty: TypeId,
+        first: Option<MapperId>,
+        second: MapperId,
+    ) -> CheckResult<TypeId> {
+        let ty = self.get_non_distributed_type_parameter(ty);
+        if let Some(first) = first {
+            self.profile_ops[crate::line_profile::OP_MAPPED] += 1;
+            self.apply_composite_mapper(ty, first, second)
+        } else {
+            self.map_type_with_mapper(ty, second)
         }
     }
 
@@ -720,9 +792,7 @@ impl<'a> CheckerState<'a> {
         mapper: MapperId,
         erase_type_parameters: bool,
     ) -> CheckResult<SignatureId> {
-        // The source's fields are read in place (no copy of its lists);
-        // the lists are re-read by index, the signature arena growing while
-        // the members are instantiated.
+        // Copy scalar fields before instantiating anything that can grow the signature arena.
         let source = self.signature_of(signature);
         let (declaration, flags, source_this_parameter, min_argument_count, from_method) = (
             source.declaration,
@@ -733,25 +803,34 @@ impl<'a> CheckerState<'a> {
         );
         let isolated_signature_kind = source.isolated_signature_kind();
         let type_parameter_count = source.type_parameters().map(|list| list.len());
-        let parameter_count = source.parameters.len();
         let mut mapper = mapper;
         let mut fresh_type_parameters: Option<Vec<TypeId>> = None;
         if let Some(count) = type_parameter_count {
             if !erase_type_parameters {
                 let mut fresh: Vec<TypeId> = Vec::with_capacity(count);
-                for index in 0..count {
-                    let tp = self
+                let fresh_mapper = if count == 1 {
+                    let original = self
                         .signature_of(signature)
                         .type_parameters()
-                        .expect("counted above")[index];
-                    fresh.push(self.clone_type_parameter(tp));
-                }
-                let sources = tsc_types::TypeListCopy::new(
-                    self.signature_of(signature)
-                        .type_parameters()
-                        .expect("counted above"),
-                );
-                let fresh_mapper = self.create_type_mapper(&sources, Some(&fresh));
+                        .expect("counted above")[0];
+                    let clone = self.clone_type_parameter(original);
+                    fresh.push(clone);
+                    self.make_unary_type_mapper(original, clone)
+                } else {
+                    for index in 0..count {
+                        let tp = self
+                            .signature_of(signature)
+                            .type_parameters()
+                            .expect("counted above")[index];
+                        fresh.push(self.clone_type_parameter(tp));
+                    }
+                    let sources = tsc_types::TypeListCopy::new(
+                        self.signature_of(signature)
+                            .type_parameters()
+                            .expect("counted above"),
+                    );
+                    self.create_type_mapper(&sources, Some(&fresh))
+                };
                 mapper = self.combine_type_mappers(Some(fresh_mapper), mapper);
                 self.retain_inference_mapper(Some(mapper));
                 for &tp in &fresh {
@@ -762,17 +841,28 @@ impl<'a> CheckerState<'a> {
         }
         let this_parameter =
             source_this_parameter.map(|this| self.instantiate_symbol(this, mapper));
-        let mut parameters: Vec<SymbolId> = Vec::with_capacity(parameter_count);
-        for index in 0..parameter_count {
-            let parameter = self.signature_of(signature).parameters[index];
-            parameters.push(self.instantiate_symbol(parameter, mapper));
-        }
+        let parameters: Box<[SymbolId]> = match *self.signature_of(signature).parameters {
+            [one] => Box::new([self.instantiate_symbol(one, mapper)]),
+            [first, second] => Box::new([
+                self.instantiate_symbol(first, mapper),
+                self.instantiate_symbol(second, mapper),
+            ]),
+            ref longer => {
+                let count = longer.len();
+                let mut parameters = Vec::with_capacity(count);
+                for index in 0..count {
+                    let parameter = self.signature_of(signature).parameters[index];
+                    parameters.push(self.instantiate_symbol(parameter, mapper));
+                }
+                parameters.into_boxed_slice()
+            }
+        };
         let result = {
             let mut signature_data = crate::state::Signature::new();
             signature_data.declaration = declaration;
             signature_data.flags = flags & SignatureFlags::PROPAGATING_FLAGS;
             signature_data.set_type_parameters(fresh_type_parameters.map(Vec::into_boxed_slice));
-            signature_data.set_parameters(parameters.into_boxed_slice());
+            signature_data.set_parameters(parameters);
             signature_data.this_parameter = this_parameter;
             signature_data.set_min_argument_count(min_argument_count);
             signature_data.set_from_method(from_method);
@@ -882,32 +972,23 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: fb17fb2693f1b9664336314c08f11b85b999e573f3a4b070da39a7b35e99a791
     /// tsc-span: _tsc.js:63463-63517
     ///
-    /// The Reference and InstantiationExpressionType arms carry the
-    /// originating node through the checker-owned deferred-node slot.
+    /// The worker passes the originating node of references and instantiation expressions.
     fn get_object_type_instantiation(
         &mut self,
         ty: TypeId,
+        node: Option<NodeId>,
         mapper: MapperId,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
     ) -> CheckResult<TypeId> {
         let object_flags = self.tables.object_flags_of(ty);
         let is_reference = object_flags.intersects(ObjectFlags::REFERENCE);
-        let declaration = if is_reference {
-            // 63464: deferred references carry their node.
-            self.links
-                .ty(ty)
-                .deferred_node
-                .expect("References here are deferred (worker !node gate)")
-        } else if object_flags.intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE) {
-            // 63464 second arm: instantiation-expression types carry
-            // their `f<...>`/`typeof f<...>` node in the same slot
-            // (stamped at creation, 77999, and propagated to
-            // Instantiated copies, 63649-63651).
-            self.links
-                .ty(ty)
-                .deferred_node
-                .expect("InstantiationExpressionType types stamp their node at creation")
+        let declaration = if object_flags
+            .intersects(ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
+        {
+            node.expect(
+                "deferred references and instantiation expressions carry their originating node",
+            )
         } else {
             let symbol = self
                 .tables
@@ -958,12 +1039,7 @@ impl<'a> CheckerState<'a> {
         };
         // The outer type parameters as an interned list: the cache, the
         // seeded self key and the loop below read it without a copy.
-        let type_parameters = match self
-            .links
-            .node_cold()
-            .outer_type_parameters
-            .resolved(declaration)
-        {
+        let type_parameters = match self.links.node_outer_type_parameters(declaration) {
             Some(cached) => cached,
             None => {
                 let mut outer = self
@@ -1032,8 +1108,7 @@ impl<'a> CheckerState<'a> {
                 list
             }
         };
-        let parameter_count = self.tables.list(type_parameters).len();
-        if parameter_count == 0 {
+        if type_parameters == self.tables.empty_type_list() {
             return Ok(ty);
         }
         // `type.mapper` (63485): the deferred-reference mapper for
@@ -1046,8 +1121,8 @@ impl<'a> CheckerState<'a> {
             self.links.read_ty(ty, |links| links.instantiated_mapper)
         };
         self.with_instantiation_type_list(|state, type_arguments| {
-            type_arguments.reserve(parameter_count);
             let mut parameters = state.tables.cursor(type_parameters);
+            type_arguments.reserve(parameters.len());
             while let Some(tp) = parameters.next(&state.tables) {
                 type_arguments.push(state.map_type_with_composite_mapper(
                     tp,
@@ -1062,27 +1137,47 @@ impl<'a> CheckerState<'a> {
                 alias_symbol,
                 alias_type_arguments,
                 |state, new_alias_type_arguments| {
+                    // 63489-63492: the target's instantiations map is seeded with
+                    // itself under its own type-parameter list id (the interned ids
+                    // directly: the same key instantiation_key would build) — the
+                    // first time the target is instantiated, as tsc seeds the map
+                    // it creates then.
+                    state.tables.instantiation_seed(target, |tables| {
+                        let target_alias_symbol = tables.alias_symbol(target);
+                        tsc_types::InstantiationKey {
+                            arguments: type_parameters,
+                            alias_symbol: target_alias_symbol,
+                            alias_arguments: target_alias_symbol
+                                .and(tables.alias_type_argument_list(target)),
+                            single_signature: false,
+                        }
+                    });
+                    // The plain key - no alias, no single-signature mark - of
+                    // one or two arguments is answered by the map's front from
+                    // the arguments themselves: no list is interned for a type
+                    // that exists.
+                    let single_signature =
+                        object_flags.intersects(ObjectFlags::SINGLE_SIGNATURE_TYPE);
+                    let plain_key = new_alias_symbol.is_none() && !single_signature;
+                    if plain_key {
+                        if let Some(existing) =
+                            state.tables.instantiation_front_get(target, type_arguments)
+                        {
+                            return Ok(existing);
+                        }
+                    }
                     let id_key = state.tables.instantiation_key(
                         type_arguments,
                         new_alias_symbol,
                         new_alias_type_arguments,
-                        object_flags.intersects(ObjectFlags::SINGLE_SIGNATURE_TYPE),
+                        single_signature,
                     );
-                    // 63489-63492: the target's instantiations map is seeded with
-                    // itself under its own type-parameter list id (the interned ids
-                    // directly: the same key instantiation_key would build).
-                    let target_alias_symbol = state.tables.alias_symbol(target);
-                    let self_key = tsc_types::InstantiationKey {
-                        arguments: type_parameters,
-                        alias_symbol: target_alias_symbol,
-                        alias_arguments: target_alias_symbol
-                            .and(state.tables.alias_type_argument_list(target)),
-                        single_signature: false,
-                    };
-                    if state.tables.instantiation_get(target, self_key).is_none() {
-                        state.tables.instantiation_insert(target, self_key, target);
-                    }
                     if let Some(existing) = state.tables.instantiation_get(target, id_key) {
+                        if plain_key {
+                            state
+                                .tables
+                                .instantiation_front_put(target, type_arguments, existing);
+                        }
                         return Ok(existing);
                     }
                     let mut new_mapper = state.create_type_mapper_from_stored_sources(
@@ -1131,6 +1226,11 @@ impl<'a> CheckerState<'a> {
                         )?
                     };
                     state.tables.instantiation_insert(target, id_key, result);
+                    if plain_key {
+                        state
+                            .tables
+                            .instantiation_front_put(target, type_arguments, result);
+                    }
                     // 63503-63514: propagate couldContainTypeVariables over the
                     // type arguments onto the result's memo bits.
                     let result_object_flags = state.tables.object_flags_of(result);
@@ -1408,8 +1508,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: bde1b975a7540a89787ebe33ba5a6687d2d56e37688858dd76a35ab126603da9
     /// tsc-span: _tsc.js:63637-63657
     ///
-    /// The InstantiationExpressionType node copy (63648-63650) is dead
-    /// until M6.
+    /// An instantiated expression keeps its originating syntax node.
     fn instantiate_anonymous_type(
         &mut self,
         ty: TypeId,
@@ -1450,7 +1549,9 @@ impl<'a> CheckerState<'a> {
                 .set_fresh_mapped_type_parameter(result, fresh_type_parameter);
             result
         } else {
-            let result = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+            let result = self
+                .tables
+                .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
             self.retain_inference_mapper(Some(mapper));
             self.links
                 .set_type_instantiation_links(self.speculation_depth, result, ty, mapper);
@@ -1466,12 +1567,9 @@ impl<'a> CheckerState<'a> {
             // instantiation-expression node — it stays the declaration
             // key for getObjectTypeInstantiation (63464).
             let node = self
-                .links
-                .ty(ty)
-                .deferred_node
+                .type_deferred_node(ty)
                 .expect("InstantiationExpressionType types stamp their node at creation");
-            self.links
-                .set_fresh_type_deferred_reference_links(result, node, None);
+            self.set_fresh_type_deferred_reference_links(result, node, None);
         }
         let new_alias_symbol = alias_symbol.or(source_alias_symbol);
         self.with_instantiated_alias_arguments(
@@ -1816,7 +1914,50 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: instantiateTypeWithAlias @6.0.3
     /// tsc-hash: 7b89d170da7ed964a1fd3c86df71375fa36abc08195649e149cb30d6f255ece9
     /// tsc-span: _tsc.js:63685-63716
+    #[inline]
     pub(crate) fn instantiate_type_with_alias(
+        &mut self,
+        ty: TypeId,
+        mapper: MapperId,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+    ) -> CheckResult<TypeId> {
+        let header = self.tables.type_of(ty);
+        if header
+            .object_flags
+            .intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED)
+        {
+            if header
+                .object_flags
+                .intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES)
+            {
+                return self.instantiate_eligible_type(
+                    ty,
+                    mapper,
+                    alias_symbol,
+                    alias_type_arguments,
+                );
+            }
+        } else if header
+            .flags
+            .intersects(TypeFlags::STRUCTURED_OR_INSTANTIABLE)
+        {
+            return self.check_instantiation_eligibility(
+                ty,
+                mapper,
+                alias_symbol,
+                alias_type_arguments,
+            );
+        }
+        if header.alias.is_none() {
+            return Ok(ty);
+        }
+        self.check_instantiation_eligibility(ty, mapper, alias_symbol, alias_type_arguments)
+    }
+
+    /// Resolve containment in its usual order when the header alone cannot decide.
+    #[inline(never)]
+    fn check_instantiation_eligibility(
         &mut self,
         ty: TypeId,
         mapper: MapperId,
@@ -1833,52 +1974,20 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(ty);
         }
+        self.instantiate_eligible_type(ty, mapper, alias_symbol, alias_type_arguments)
+    }
+
+    /// Enter the counted instantiation only after checking the recursion limits.
+    #[inline(never)]
+    fn instantiate_eligible_type(
+        &mut self,
+        ty: TypeId,
+        mapper: MapperId,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+    ) -> CheckResult<TypeId> {
         if self.instantiation_stack.len() == 100 || self.instantiation_count >= 5_000_000 {
-            self.trace_instant("instantiateType_DepthLimit", || {
-                tsc_types::tracing::Args::new()
-                    .with("typeId", crate::tracing::trace_type_id(ty))
-                    .with("instantiationDepth", self.instantiation_stack.len())
-                    .with("instantiationCount", self.instantiation_count)
-            });
-            // tsgo (checker.go:22502-22518) names the types that recur on
-            // the instantiation stack. currentNode is the driver's element
-            // cursor (5.4); queries outside the driver (probe entries,
-            // relpin) still emit file-less.
-            let current_node = self.current_node;
-            let names = self.circular_type_names()?;
-            match names.as_slice() {
-                [] => {
-                    self.error_at(
-                        current_node,
-                        &diagnostics::Type_instantiation_is_excessively_deep_and_possibly_infinite,
-                        &[],
-                    );
-                }
-                [name] => {
-                    self.error_at_js(
-                        current_node,
-                        &diagnostics::Instantiations_of_type_0_appear_infinitely_circular,
-                        &[name.into()],
-                    );
-                }
-                _ => {
-                    let mut list = tsc_types::JsString::new();
-                    for (index, name) in names.iter().enumerate() {
-                        if index != 0 {
-                            list.push_str(", ");
-                        }
-                        list.push_str("'");
-                        list.push_js(name.as_js());
-                        list.push_str("'");
-                    }
-                    self.error_at_js(
-                        current_node,
-                        &diagnostics::Instantiations_of_the_following_types_appear_infinitely_circular_0,
-                        &[(&list).into()],
-                    );
-                }
-            }
-            return Ok(self.tables.intrinsics.error);
+            return self.report_instantiation_limit(ty);
         }
         let index = self.find_active_mapper(mapper);
         if index.is_none() {
@@ -1887,30 +1996,85 @@ impl<'a> CheckerState<'a> {
         let alias_arguments = alias_symbol
             .and(alias_type_arguments)
             .map(|arguments| self.tables.intern_type_list(arguments));
-        let key = crate::state::MapperCacheKey {
-            ty,
-            alias_symbol,
-            alias_arguments,
-        };
-        let cache_index = index.unwrap_or(self.active_type_mappers.len() - 1);
         perf::bump(PerfCounter::MapperCacheLookups);
-        if let Some(&cached) = self.active_type_mappers_caches[cache_index].get(&key) {
-            perf::bump(PerfCounter::MapperCacheHits);
-            return Ok(cached);
-        }
+        // A new scope owns a cleared map. Only recursive visits can find
+        // or publish an answer, but both visits intern their alias list above.
+        let cache_entry = if let Some(depth) = index {
+            let key = crate::state::MapperCacheKey {
+                ty,
+                alias_symbol,
+                alias_arguments,
+            };
+            if let Some(&cached) = self.active_type_mappers_caches[depth].get(&key) {
+                perf::bump(PerfCounter::MapperCacheHits);
+                return Ok(cached);
+            }
+            Some((depth, key))
+        } else {
+            None
+        };
         self.total_instantiation_count += 1;
         self.instantiation_count += 1;
         self.instantiation_stack.push(ty);
         let result = self.instantiate_type_worker(ty, mapper, alias_symbol, alias_type_arguments);
-        match (&result, index) {
+        match (&result, cache_entry) {
             (_, None) => self.pop_active_mapper(),
-            (Ok(value), Some(active)) => {
+            (Ok(value), Some((active, key))) => {
                 self.active_type_mappers_caches[active].insert(key, *value);
             }
             (Err(_), Some(_)) => {}
         }
         self.instantiation_stack.pop();
         result
+    }
+
+    #[inline(never)]
+    fn report_instantiation_limit(&mut self, ty: TypeId) -> CheckResult<TypeId> {
+        self.trace_instant("instantiateType_DepthLimit", || {
+            tsc_types::tracing::Args::new()
+                .with("typeId", crate::tracing::trace_type_id(ty))
+                .with("instantiationDepth", self.instantiation_stack.len())
+                .with("instantiationCount", self.instantiation_count)
+        });
+        // tsgo (checker.go:22502-22518) names the types that recur on
+        // the instantiation stack. currentNode is the driver's element
+        // cursor (5.4); queries outside the driver (probe entries,
+        // relpin) still emit file-less.
+        let current_node = self.current_node;
+        let names = self.circular_type_names()?;
+        match names.as_slice() {
+            [] => {
+                self.error_at(
+                    current_node,
+                    &diagnostics::Type_instantiation_is_excessively_deep_and_possibly_infinite,
+                    &[],
+                );
+            }
+            [name] => {
+                self.error_at_js(
+                    current_node,
+                    &diagnostics::Instantiations_of_type_0_appear_infinitely_circular,
+                    &[name.into()],
+                );
+            }
+            _ => {
+                let mut list = tsc_types::JsString::new();
+                for (index, name) in names.iter().enumerate() {
+                    if index != 0 {
+                        list.push_str(", ");
+                    }
+                    list.push_str("'");
+                    list.push_js(name.as_js());
+                    list.push_str("'");
+                }
+                self.error_at_js(
+                    current_node,
+                    &diagnostics::Instantiations_of_the_following_types_appear_infinitely_circular_0,
+                    &[(&list).into()],
+                );
+            }
+        }
+        Ok(self.tables.intrinsics.error)
     }
 
     fn alias_type_arguments_could_contain_type_variables(&mut self, ty: TypeId) -> bool {
@@ -1920,13 +2084,7 @@ impl<'a> CheckerState<'a> {
         let Some(arguments) = self.tables.alias_type_argument_list(ty) else {
             return false;
         };
-        let mut arguments = self.tables.cursor(arguments);
-        while let Some(argument) = arguments.next(&self.tables) {
-            if self.could_contain_type_variables(argument) {
-                return true;
-            }
-        }
-        false
+        self.list_could_contain_type_variables(arguments)
     }
 
     /// tsgo: getCircularTypeNames (checker.go:22546-22564). The types that
@@ -1998,9 +2156,14 @@ impl<'a> CheckerState<'a> {
             if object_flags
                 .intersects(ObjectFlags::REFERENCE | ObjectFlags::ANONYMOUS | ObjectFlags::MAPPED)
             {
-                if object_flags.intersects(ObjectFlags::REFERENCE)
-                    && self.links.ty(ty).deferred_node.is_none()
+                let node = if object_flags
+                    .intersects(ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
                 {
+                    self.type_deferred_node(ty)
+                } else {
+                    None
+                };
+                if object_flags.intersects(ObjectFlags::REFERENCE) && node.is_none() {
                     // The !type.node fast path (63725-63729); deferred
                     // (node-carrying) references fall through to
                     // getObjectTypeInstantiation.
@@ -2009,20 +2172,23 @@ impl<'a> CheckerState<'a> {
                         .tables
                         .try_type_argument_list(ty)
                         .expect("eager references have resolved type arguments");
-                    return self.with_instantiation_type_list(|state, arguments| {
-                        state.instantiate_type_list_into(resolved, mapper, arguments)?;
-                        if arguments == state.tables.list(resolved) {
-                            Ok(ty)
-                        } else {
-                            state.create_normalized_type_reference_forced(target, arguments)
-                        }
-                    });
+                    return self.with_changed_instantiation_list(
+                        resolved,
+                        mapper,
+                        |state, arguments| match arguments {
+                            Some(arguments) => {
+                                state.create_normalized_type_reference_forced(target, arguments)
+                            }
+                            None => Ok(ty),
+                        },
+                    );
                 }
                 if object_flags.intersects(ObjectFlags::REVERSE_MAPPED) {
                     return self.instantiate_reverse_mapped_type(ty, mapper);
                 }
                 return self.get_object_type_instantiation(
                     ty,
+                    node,
                     mapper,
                     alias_symbol,
                     alias_type_arguments,
@@ -2054,45 +2220,56 @@ impl<'a> CheckerState<'a> {
                     _ => unreachable!("union/intersection flag implies member data"),
                 },
             };
-            return self.with_instantiation_type_list(|state, new_types| {
-                state.instantiate_type_list_into(source_types, mapper, new_types)?;
-                if new_types == state.tables.list(source_types)
-                    && alias_symbol == state.tables.alias_symbol(ty)
-                {
-                    return Ok(ty);
-                }
-                let new_alias_symbol = alias_symbol.or(state.tables.alias_symbol(ty));
-                state.with_instantiated_alias_arguments(
-                    state.tables.alias_type_argument_list(ty),
-                    mapper,
-                    alias_symbol,
-                    alias_type_arguments,
-                    |state, new_alias_type_arguments| {
-                        let origin_is_intersection = origin.is_some_and(|origin| {
-                            state
-                                .tables
-                                .flags_of(origin)
-                                .intersects(TypeFlags::INTERSECTION)
-                        });
-                        if flags.intersects(TypeFlags::INTERSECTION) || origin_is_intersection {
-                            state.get_intersection_type_ex(
-                                new_types,
-                                IntersectionFlags::NONE,
-                                new_alias_symbol,
-                                new_alias_type_arguments,
-                            )
-                        } else {
-                            state.get_union_type_ex_with_origin(
-                                new_types,
-                                UnionReduction::Literal,
-                                new_alias_symbol,
-                                new_alias_type_arguments,
-                                None,
-                            )
-                        }
-                    },
-                )
-            });
+            return self.with_changed_instantiation_list(
+                source_types,
+                mapper,
+                |state, new_types| {
+                    if new_types.is_none() && alias_symbol == state.tables.alias_symbol(ty) {
+                        return Ok(ty);
+                    }
+                    let new_alias_symbol = alias_symbol.or(state.tables.alias_symbol(ty));
+                    state.with_instantiated_alias_arguments(
+                        state.tables.alias_type_argument_list(ty),
+                        mapper,
+                        alias_symbol,
+                        alias_type_arguments,
+                        |state, new_alias_type_arguments| {
+                            // An alias change alone still rebuilds the type. Give the mutable
+                            // constructor an owned view of the original members in that case.
+                            let original;
+                            let new_types = match new_types {
+                                Some(changed) => changed,
+                                None => {
+                                    original = state.tables.list_copy(source_types);
+                                    &original
+                                }
+                            };
+                            let origin_is_intersection = origin.is_some_and(|origin| {
+                                state
+                                    .tables
+                                    .flags_of(origin)
+                                    .intersects(TypeFlags::INTERSECTION)
+                            });
+                            if flags.intersects(TypeFlags::INTERSECTION) || origin_is_intersection {
+                                state.get_intersection_type_ex(
+                                    new_types,
+                                    IntersectionFlags::NONE,
+                                    new_alias_symbol,
+                                    new_alias_type_arguments,
+                                )
+                            } else {
+                                state.get_union_type_ex_with_origin(
+                                    new_types,
+                                    UnionReduction::Literal,
+                                    new_alias_symbol,
+                                    new_alias_type_arguments,
+                                    None,
+                                )
+                            }
+                        },
+                    )
+                },
+            );
         }
         if flags.intersects(TypeFlags::INDEX) {
             // 63749: the StringsOnly bit deliberately drops on
@@ -2162,10 +2339,10 @@ impl<'a> CheckerState<'a> {
                 unreachable!("Conditional flag implies conditional data");
             };
             let data = *self.tables.conditional_data(data);
-            let conditional_mapper = self.combine_type_mappers(data.mapper, mapper);
             return self.get_conditional_type_instantiation(
                 ty,
-                conditional_mapper,
+                data.mapper,
+                mapper,
                 /*for_constraint*/ false,
                 alias_symbol,
                 alias_type_arguments,
@@ -2339,24 +2516,21 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: pushActiveMapper @6.0.3
     /// tsc-hash: 2427ee73f242d95460bbfce1cdf64a5dc8ca97c820c33f7dad5bcb5f7b96b500
     /// tsc-span: _tsc.js:73606-73610
-    fn push_active_mapper(&mut self, mapper: MapperId) {
+    pub(crate) fn push_active_mapper(&mut self, mapper: MapperId) {
         perf::bump(PerfCounter::MapperScopePushes);
+        let depth = self.active_type_mappers.len();
+        if depth == self.active_type_mappers_caches.len() {
+            self.active_type_mappers_caches.push(Default::default());
+        }
         self.active_type_mappers.push(mapper);
-        // Inference pushes and pops a mapper around every instantiation; a
-        // reused cache keeps its capacity instead of rehashing up again.
-        let cache = self.spare_active_mapper_caches.pop().unwrap_or_default();
-        self.active_type_mappers_caches.push(cache);
     }
 
     /// tsc-port: popActiveMapper @6.0.3
     /// tsc-hash: 13a2f9c435dc40c4e65324e250a5929c9bc93e9c3505415df1bac1904a774b07
     /// tsc-span: _tsc.js:73611-73615
-    fn pop_active_mapper(&mut self) {
-        self.active_type_mappers.pop();
-        if let Some(mut cache) = self.active_type_mappers_caches.pop() {
-            cache.clear();
-            self.spare_active_mapper_caches.push(cache);
-        }
+    pub(crate) fn pop_active_mapper(&mut self) {
+        self.active_type_mappers.pop().expect("active mapper scope");
+        self.active_type_mappers_caches[self.active_type_mappers.len()].clear();
     }
 
     /// tsc-port: findActiveMapper @6.0.3
@@ -2378,7 +2552,7 @@ impl<'a> CheckerState<'a> {
     /// stack is dropped — stale entries there are a silent-wrong-type
     /// source, not a crash.
     pub(crate) fn clear_active_mapper_caches(&mut self) {
-        for cache in self.active_type_mappers_caches.iter_mut() {
+        for cache in &mut self.active_type_mappers_caches[..self.active_type_mappers.len()] {
             cache.clear();
         }
     }
@@ -2389,9 +2563,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 69d9595fd8e7e94d39069abfae52d4c64f24df7bcc018db02a0ed42f60cf744d
     /// tsc-span: _tsc.js:68331-68343
     ///
-    /// The Reference `type.node` read is constant false (no deferred
-    /// references before M8); getTypeArguments is the eager tables
-    /// accessor for the same reason.
     /// A computed answer returns inline; the worker computes it once.
     #[inline]
     pub fn could_contain_type_variables(&mut self, ty: TypeId) -> bool {
@@ -2425,11 +2596,12 @@ impl<'a> CheckerState<'a> {
                     // `type.node || some(getTypeArguments(type), ...)`
                     // (68336): node-carrying references short-circuit
                     // true without forcing their arguments.
-                    self.links.ty(ty).deferred_node.is_some() || {
-                        let arguments: Vec<TypeId> = self.tables.type_arguments(ty).to_vec();
-                        arguments
-                            .into_iter()
-                            .any(|argument| self.could_contain_type_variables(argument))
+                    self.type_deferred_node(ty).is_some() || {
+                        let arguments = self
+                            .tables
+                            .try_type_argument_list(ty)
+                            .expect("eager references have resolved type arguments");
+                        self.list_could_contain_type_variables(arguments)
                     }
                 }) || (object_flags.intersects(ObjectFlags::ANONYMOUS)
                     && self.tables.type_of(ty).symbol.is_some_and(|symbol| {
@@ -2451,14 +2623,11 @@ impl<'a> CheckerState<'a> {
                 && !flags.intersects(TypeFlags::ENUM_LITERAL)
                 && !self.is_non_generic_top_level_type(ty)
                 && {
-                    let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                        TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
-                        TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+                    let types = match self.tables.type_of(ty).data {
+                        TypeData::Union { types, .. } | TypeData::Intersection { types } => types,
                         _ => unreachable!("union/intersection flag implies member data"),
                     };
-                    members
-                        .into_iter()
-                        .any(|member| self.could_contain_type_variables(member))
+                    self.list_could_contain_type_variables(types)
                 });
         // Go checker.go:22690 caches every eligible type, including type
         // parameters, indexed accesses and conditional/template types.
@@ -2472,6 +2641,17 @@ impl<'a> CheckerState<'a> {
             };
         self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(updated);
         result
+    }
+
+    /// Re-read the backing store after each recursive call, stopping at the first match.
+    fn list_could_contain_type_variables(&mut self, list: tsc_types::TypeListId) -> bool {
+        let mut cursor = self.tables.cursor(list);
+        while let Some(ty) = cursor.next(&self.tables) {
+            if self.could_contain_type_variables(ty) {
+                return true;
+            }
+        }
+        false
     }
 
     /// tsc-port: isNonGenericTopLevelType @6.0.3

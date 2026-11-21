@@ -250,7 +250,7 @@ fn generic_alias_of_type_literal_stamps_the_anonymous_type() {
             // shell carrying the alias.
             assert!(matches!(
                 state.tables.type_of(instantiated).data,
-                TypeData::Object
+                TypeData::Object { .. }
             ));
             assert_eq!(
                 state.tables.alias_symbol(instantiated),

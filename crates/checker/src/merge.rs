@@ -9,7 +9,7 @@
 use tsc_binder::node_util::get_name_of_declaration;
 use tsc_binder::{SymbolId, SymbolTable};
 use tsc_diagnostics::{gen as diagnostics, RelatedInfo};
-use tsc_syntax::{NodeData, NodeId, NodeLookup, Published, SyntaxKind};
+use tsc_syntax::{NodeArrayId, NodeData, NodeId, NodeLookup, Published, SyntaxKind};
 use tsc_types::{EscapedName, JsStr, JsString, NodeFlags, SymbolFlags, TypeData, TypeFlags};
 
 use crate::links::LinkSlot;
@@ -303,6 +303,15 @@ impl<'a> CheckerState<'a> {
                 if !resolved_flags.intersects(get_excluded_symbol_flags(source_flags))
                     || (source_flags | resolved_flags).intersects(SymbolFlags::ASSIGNMENT)
                 {
+                    // The clone of an alias's target takes the alias's place
+                    // in its table and keeps its own name: tsgo finds it by
+                    // the table's key, not by that name.
+                    if resolved_target != target
+                        && self.binder.symbol(resolved_target).escaped_name
+                            != self.binder.symbol(target).escaped_name
+                    {
+                        self.binder.note_member_keyed_apart();
+                    }
                     target = self.clone_symbol(resolved_target);
                 } else {
                     self.report_merge_symbol_error(target, source);
@@ -926,7 +935,9 @@ impl<'a> CheckerState<'a> {
             self.unknown_symbol,
             LinkSlot::Resolved(self.tables.intrinsics.error),
         );
-        let global_this_type = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+        let global_this_type = self
+            .tables
+            .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         self.tables.type_mut(global_this_type).object_flags = tsc_types::ObjectFlags::ANONYMOUS;
         self.tables.type_mut(global_this_type).symbol = Some(self.global_this_symbol);
         self.links.set_symbol_type(
@@ -998,7 +1009,7 @@ impl<'a> CheckerState<'a> {
             };
             self.collect_module_augmentations(
                 source,
-                Published.node_array(statements).nodes,
+                statements,
                 /*in_ambient_module*/ false,
                 &mut global_augmentations,
                 &mut module_augmentations,
@@ -1110,12 +1121,16 @@ impl<'a> CheckerState<'a> {
     fn collect_module_augmentations(
         &self,
         source: &tsc_syntax::SourceFile,
-        statements: &[NodeId],
+        statements: NodeArrayId,
         in_ambient_module: bool,
         global_augmentations: &mut Vec<NodeId>,
         module_augmentations: &mut Vec<NodeId>,
     ) {
         let is_external_module_file = source.external_module_indicator.is_some();
+        let statements = source
+            .arena
+            .module_declaration_candidates(statements)
+            .unwrap_or_else(|| Published.node_array(statements).nodes);
         for &statement in statements {
             if self.kind_of(statement) != SyntaxKind::ModuleDeclaration
                 || !tsc_binder::node_util::is_ambient_module(&Published, statement)
@@ -1163,7 +1178,7 @@ impl<'a> CheckerState<'a> {
             };
             self.collect_module_augmentations(
                 source,
-                Published.node_array(nested).nodes,
+                nested,
                 /*in_ambient_module*/ true,
                 global_augmentations,
                 module_augmentations,

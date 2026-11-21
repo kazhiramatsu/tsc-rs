@@ -92,7 +92,7 @@ fn thisless_heritage_interface_stays_plain_but_members_escape() {
                 .get_declared_type_of_class_or_interface(symbol)
                 .expect("declared type in slice");
             assert!(
-                matches!(state.tables.type_of(declared).data, TypeData::Object),
+                matches!(state.tables.type_of(declared).data, TypeData::Object { .. }),
                 "thisless heritage interfaces stay plain InterfaceTypes"
             );
             // 5.3a: heritage members merge through getBaseTypes —
@@ -145,11 +145,11 @@ fn cyclic_heritage_reads_the_thisless_shell() {
             // mid-cycle: both stay thisless.
             assert!(matches!(
                 state.tables.type_of(declared_a).data,
-                TypeData::Object
+                TypeData::Object { .. }
             ));
             assert!(matches!(
                 state.tables.type_of(declared_b).data,
-                TypeData::Object
+                TypeData::Object { .. }
             ));
         },
     );

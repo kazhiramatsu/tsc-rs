@@ -446,7 +446,7 @@ pub struct TemplateLiteralData {
 /// Every variant is identities, bits and small flags (`Copy`, 16 bytes):
 /// lists are interned type lists, texts and the few large payloads (tuple
 /// targets, template literals, intrinsic names, bigints) are ids into the
-/// tables' lists. The tag is a byte and the first variant carries nothing,
+/// tables' lists. The tag is a byte and a zero node position means absent,
 /// so an all-zero record is a valid (empty object) type: the type store's
 /// contract (`tsc_store::StoreRecord`).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -455,7 +455,10 @@ pub enum TypeData {
     /// Anonymous object types AND class/interface declared types —
     /// distinguished by object_flags (Anonymous vs Class/Interface).
     /// Members resolve lazily in the checker (resolveStructuredTypeMembers).
-    Object,
+    Object {
+        /// The instantiation expression that created this object, or zero.
+        node_position: u32,
+    },
     /// any/unknown/string/... incl. error/silentNever/wildcard/missing
     /// variants (createIntrinsicType 50111). The boolean literal
     /// intrinsics carry their fresh/regular twins (47070-47077).
@@ -515,9 +518,11 @@ pub enum TypeData {
     /// tuple values like `[number, string]` point at a TupleTarget.
     /// `resolved_type_arguments` is `Some` from creation for plain
     /// references; DEFERRED references (createDeferredTypeReference
-    /// 60188, node/mapper in checker TypeLinks) start `None` and are
+    /// 60188, mapper in checker links) start `None` and are
     /// filled by the checker's lazy getTypeArguments (60202).
     Reference {
+        /// The deferred reference's syntax node position, or zero for eager references.
+        node_position: u32,
         target: TypeId,
         resolved_type_arguments: Option<crate::tables::TypeListId>,
     },
@@ -621,7 +626,24 @@ impl tsc_store::StoreRecord for Type {
     const REGION: usize = 7;
 }
 
+impl TypeData {
+    /// An object created without an originating instantiation expression.
+    pub const PLAIN_OBJECT: Self = Self::Object { node_position: 0 };
+}
+
 impl Type {
+    /// The originating syntax node's store position. Zero also covers tuple
+    /// and generic targets, which can have reference flags without a node.
+    #[inline]
+    pub fn deferred_node_position(&self) -> u32 {
+        match self.data {
+            TypeData::Reference { node_position, .. } | TypeData::Object { node_position } => {
+                node_position
+            }
+            _ => 0,
+        }
+    }
+
     pub fn new(flags: TypeFlags, data: TypeData) -> Self {
         Self {
             flags,

@@ -1,4 +1,4 @@
-use crate::lexical_path_cache::{LexicalPath, PurePathCache};
+use crate::lexical_path_cache::{FileResolutionContext, LexicalPath, PurePathCache};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -280,7 +280,7 @@ impl HostModuleResolution {
 
     /// Whether the resolution is its outcome alone: it reported nothing and
     /// was not traced, so a request for the same target can share it (see
-    /// [`ModuleResolver::relative_request_target`]).
+    /// [`ModuleResolver::prepare_relative_request`]).
     pub(crate) fn is_outcome_only(&self) -> bool {
         self.diagnostics.is_empty() && self.trace.is_empty()
     }
@@ -300,6 +300,23 @@ impl HostModuleResolution {
 
     pub fn into_outcome(self) -> ResolutionOutcome<HostResolvedModule> {
         self.outcome
+    }
+}
+
+/// The spellings for one relative request eligible for the target cache.
+pub(crate) struct PreparedRelativeRequest<'specifier> {
+    context: FileResolutionContext,
+    specifier: JsStr<'specifier>,
+    target_key: (LexicalPath, ResolutionMode),
+}
+
+impl PreparedRelativeRequest<'_> {
+    pub(crate) fn target_key(&self) -> &(LexicalPath, ResolutionMode) {
+        &self.target_key
+    }
+
+    pub(crate) fn into_target_key(self) -> (LexicalPath, ResolutionMode) {
+        self.target_key
     }
 }
 
@@ -1264,11 +1281,12 @@ impl<'a> ModuleResolver<'a> {
     /// containing directory) to be absent and no API resolution in front; a
     /// traced request names its containing file, and a redirected
     /// resolver's requests are not the program's.
-    pub(crate) fn relative_request_target(
+    pub(crate) fn prepare_relative_request<'specifier>(
         &self,
         containing_file: JsStr<'_>,
-        specifier: JsStr<'_>,
-    ) -> Option<LexicalPath> {
+        specifier: JsStr<'specifier>,
+        mode: ResolutionMode,
+    ) -> Option<PreparedRelativeRequest<'specifier>> {
         if !is_path_relative_specifier(specifier)
             || specifier.contains("\0")
             || self.trace.is_some()
@@ -1289,10 +1307,13 @@ impl<'a> ModuleResolver<'a> {
             .lexical_paths
             .normalize(specifier, Some(context.directory.as_js()), true)
             .ok()?;
-        Some(preserve_node_directory_spelling(
-            target,
-            has_node_directory_spelling(specifier),
-        ))
+        let target =
+            preserve_node_directory_spelling(target, has_node_directory_spelling(specifier));
+        Some(PreparedRelativeRequest {
+            context,
+            specifier,
+            target_key: (target, mode),
+        })
     }
 
     pub fn path_context(&self) -> &PathContext {
@@ -1879,6 +1900,7 @@ impl<'a> ModuleResolver<'a> {
                 ResolutionMode::Unspecified,
                 &[ExtensionProbePass::JsonConfig],
                 /* optional_follow_realpath */ false,
+                None,
             );
         }
         if specifier.starts_with("#") {
@@ -1970,7 +1992,28 @@ impl<'a> ModuleResolver<'a> {
                 }
             }
         }
-        self.resolve_request(&containing_file, &containing_directory, specifier, mode)
+        self.resolve_request(
+            &containing_file,
+            &containing_directory,
+            specifier,
+            mode,
+            None,
+        )
+    }
+
+    /// A miss in the target cache can use the spellings already prepared
+    /// for that same request. The eligibility check excluded API overrides.
+    pub(crate) fn resolve_prepared_relative(
+        &mut self,
+        request: &PreparedRelativeRequest<'_>,
+    ) -> Result<HostModuleResolution, ResolutionError> {
+        self.resolve_request(
+            &request.context.file,
+            &request.context.directory,
+            request.specifier,
+            request.target_key.1,
+            Some(&request.target_key.0),
+        )
     }
 
     /// tsgo `ResolveModuleNameFromDirectory`: a request from a directory,
@@ -1986,7 +2029,7 @@ impl<'a> ModuleResolver<'a> {
             Some(self.current_directory_text()),
             true,
         )?;
-        self.resolve_request(&directory, &directory, specifier.into(), mode)
+        self.resolve_request(&directory, &directory, specifier.into(), mode, None)
     }
 
     fn resolve_request(
@@ -1995,6 +2038,7 @@ impl<'a> ModuleResolver<'a> {
         containing_directory: &JsString,
         specifier: JsStr<'_>,
         mode: ResolutionMode,
+        prepared_target: Option<&LexicalPath>,
     ) -> Result<HostModuleResolution, ResolutionError> {
         self.validate_supported_module_configuration(mode)?;
         let _ = self.take_trace();
@@ -2013,7 +2057,7 @@ impl<'a> ModuleResolver<'a> {
         }
         self.trace_module_resolution_kind();
         let (mut result, diagnostics) = self.with_input_request(true, |resolver| {
-            resolver.resolve_module_request(containing_directory, specifier, mode)
+            resolver.resolve_module_request(containing_directory, specifier, mode, prepared_target)
         })?;
         result.diagnostics = diagnostics;
         self.trace_module_resolution_result(specifier, &result);
@@ -2137,13 +2181,14 @@ impl<'a> ModuleResolver<'a> {
         containing_directory: impl Into<JsStr<'j0>>,
         specifier: impl Into<JsStr<'j1>>,
         mode: ResolutionMode,
+        prepared_target: Option<&LexicalPath>,
     ) -> Result<HostModuleResolution, ResolutionError> {
         let containing_directory = containing_directory.into();
         let specifier = specifier.into();
         self.trace_resolution_mode(mode);
         if is_relative_specifier(specifier) {
             return self
-                .resolve_relative(containing_directory, specifier, mode)
+                .resolve_relative(containing_directory, specifier, mode, prepared_target)
                 .map(HostModuleResolution::new);
         }
 
@@ -3105,6 +3150,7 @@ impl<'a> ModuleResolver<'a> {
                                 context.mode,
                                 &[context.pass],
                                 /* optional_follow_realpath */ false,
+                                None,
                             )?
                         } else {
                             self.resolve_using_optional_settings(
@@ -4843,6 +4889,7 @@ impl<'a> ModuleResolver<'a> {
         containing_directory: impl Into<JsStr<'j0>>,
         specifier: impl Into<JsStr<'j1>>,
         mode: ResolutionMode,
+        prepared_target: Option<&LexicalPath>,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let containing_directory = containing_directory.into();
         let specifier = specifier.into();
@@ -4861,6 +4908,7 @@ impl<'a> ModuleResolver<'a> {
             mode,
             &[ExtensionProbePass::All],
             /* optional_follow_realpath */ true,
+            prepared_target,
         )
     }
 
@@ -4871,16 +4919,23 @@ impl<'a> ModuleResolver<'a> {
         mode: ResolutionMode,
         probe_passes: &[ExtensionProbePass],
         optional_follow_realpath: bool,
+        prepared_target: Option<&LexicalPath>,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let containing_directory = containing_directory.into();
         let specifier = specifier.into();
         let directory_spelling = has_node_directory_spelling(specifier);
-        let target = preserve_node_directory_spelling(
-            self.lexical_paths
-                .normalize(specifier, Some(containing_directory), true)?,
-            directory_spelling,
-        );
-        let external = path_contains_node_modules(&target);
+        let normalized;
+        let target = if let Some(target) = prepared_target {
+            target
+        } else {
+            normalized = preserve_node_directory_spelling(
+                self.lexical_paths
+                    .normalize(specifier, Some(containing_directory), true)?,
+                directory_spelling,
+            );
+            &normalized
+        };
+        let external = path_contains_node_modules(target);
         let allow_implicit = !self.is_node_esm_mode(mode);
 
         let outcome = 'resolved: {
@@ -4902,7 +4957,7 @@ impl<'a> ModuleResolver<'a> {
                 self.extensions_text(probe_pass).as_str()
             );
                 if !directory_spelling {
-                    let parent = js_directory_name(&target);
+                    let parent = js_directory_name(target);
                     if !self.host.directory_exists_js(JsStr::from(&parent))? {
                         trace!(
                             self,
@@ -4913,13 +4968,13 @@ impl<'a> ModuleResolver<'a> {
                     }
                     let outcome = self.probe_legacy_file(
                         None,
-                        &target,
+                        target,
                         probe_pass,
                         allow_implicit,
                         LegacyResolutionContext {
                             is_external_library_import: external,
                             attach_package_id: false,
-                            resolved_using_ts_extension: is_typescript_family_specifier(&target),
+                            resolved_using_ts_extension: is_typescript_family_specifier(target),
                             follow_realpath: false,
                         },
                     )?;
@@ -4929,7 +4984,7 @@ impl<'a> ModuleResolver<'a> {
                     }
                 }
 
-                let target_exists = self.host.directory_exists_js(JsStr::from(&target))?;
+                let target_exists = self.host.directory_exists_js(target.as_js())?;
                 if !target_exists {
                     trace!(
                         self,
@@ -4941,7 +4996,7 @@ impl<'a> ModuleResolver<'a> {
                 if !allow_implicit {
                     continue;
                 }
-                let package_json = join_normalized(&target, "package.json");
+                let package_json = join_normalized(target, "package.json");
                 if let Some(directory_package) = self.load_package(&package_json)? {
                     let outcome = self.resolve_legacy_package(
                         &directory_package,
@@ -4966,7 +5021,7 @@ impl<'a> ModuleResolver<'a> {
                     } else {
                         "index"
                     };
-                    let index = join_normalized(&target, index_name);
+                    let index = join_normalized(target, index_name);
                     let outcome = self.probe_legacy_file(
                         None,
                         &index,
@@ -8630,11 +8685,17 @@ fn join_normalized_js(parent: JsStr<'_>, mut child: JsStr<'_>) -> JsString {
     while let Some(tail) = child.strip_prefix("/") {
         child = tail;
     }
-    let mut result = crate::loader_counters::js_owned("path.join", parent);
-    if !result.ends_with("/") {
+    // A slash separates the operands, so their byte lengths add without
+    // forming a surrogate pair at the boundary.
+    let separator = !parent.ends_with("/");
+    let bytes = parent.as_bytes().len() + usize::from(separator) + child.as_bytes().len();
+    let mut result = JsString::with_capacity(bytes);
+    result.push_js(parent);
+    if separator {
         result.push('/');
     }
     result.push_js(child);
+    crate::loader_counters::js("path.join", result.as_js());
     result
 }
 
@@ -8766,6 +8827,36 @@ mod shared_package_loads_tests {
         "/../host/tests/support/scalar_query_bridge.rs"
     ));
 
+    #[test]
+    fn normalized_path_join_preserves_spelling_in_final_storage() {
+        for (parent, child, expected) in [
+            ("", "", "/"),
+            ("", "///child", "/child"),
+            ("parent", "", "parent/"),
+            ("parent/", "///child/", "parent/child/"),
+        ] {
+            let result = join_normalized(parent, child);
+            assert_eq!(result, expected);
+            assert_eq!(result.heap_bytes(), 0);
+        }
+        let mut parent = JsString::from("/parent");
+        parent.push_code_unit(0xd800);
+        let mut child = JsString::from("///");
+        child.push_code_unit(0xdc00);
+        child.push_str("long-child/");
+        let mut expected = parent.clone();
+        expected.push('/');
+        expected.push_code_unit(0xdc00);
+        expected.push_str("long-child/");
+        let result = join_normalized(&parent, &child);
+        assert_eq!(result, expected);
+        assert_eq!(result.heap_bytes(), expected.as_bytes().len());
+
+        let result = join_normalized("/a-parent-already-on-the-heap", "child");
+        assert_eq!(result, "/a-parent-already-on-the-heap/child");
+        assert_eq!(result.heap_bytes(), result.as_bytes().len());
+    }
+
     /// A host that remembers the files read.
     struct ReadLog {
         inner: MemoryCompilerHost,
@@ -8829,6 +8920,59 @@ mod shared_package_loads_tests {
             .iter()
             .filter(|path| path.ends_with("package.json"))
             .count()
+    }
+
+    #[test]
+    fn prepared_relative_request_preserves_resolution_and_target_spelling() {
+        let host = host(true);
+        let settings = options(false);
+        for (specifier, target) in [
+            ("./main", "/work/src/main"),
+            ("../node_modules/pkg/", "/work/node_modules/pkg/"),
+            ("./missing", "/work/src/missing"),
+        ] {
+            let mode = ResolutionMode::CommonJs;
+            let mut ordinary = ModuleResolver::new(&host, &settings).unwrap();
+            let expected = ordinary
+                .resolve_with_facts("src/main.ts", specifier, mode)
+                .unwrap();
+            let expected_reads = host.reads.take();
+            let mut resolver = ModuleResolver::new(&host, &settings).unwrap();
+            let request = resolver
+                .prepare_relative_request("src/main.ts".into(), specifier.into(), mode)
+                .unwrap();
+            assert_eq!(request.target_key().0.as_js(), target);
+            assert_eq!(request.target_key().1, mode);
+            assert_eq!(
+                resolver.resolve_prepared_relative(&request).unwrap(),
+                expected
+            );
+            assert_eq!(
+                resolver.package_json_probes(),
+                ordinary.package_json_probes()
+            );
+            assert_eq!(host.reads.take(), expected_reads);
+        }
+        let traced = options(true);
+        let resolver = ModuleResolver::new(&host, &traced).unwrap();
+        let prepare_main = |resolver: &ModuleResolver<'_>| {
+            resolver.prepare_relative_request(
+                "src/main.ts".into(),
+                "./main".into(),
+                ResolutionMode::CommonJs,
+            )
+        };
+        assert!(prepare_main(&resolver).is_none());
+        let redirected = ModuleResolver::new(&host, &settings)
+            .unwrap()
+            .with_redirect_config("/work/redirect/tsconfig.json".into(), false);
+        assert!(prepare_main(&redirected).is_none());
+        let root =
+            crate::ProgramPath::from_js_parts("/work/src".into(), "/work/src".into()).unwrap();
+        let program_options = crate::ProgramOptions::default().with_root_dirs(vec![root]);
+        let with_roots =
+            ModuleResolver::new_with_program_options(&host, &settings, &program_options).unwrap();
+        assert!(prepare_main(&with_roots).is_none());
     }
 
     /// A resolver of a load takes another resolver's package.json lookup:

@@ -475,15 +475,20 @@ impl<'a> CheckerState<'a> {
     /// twin (createNormalizedTypeReference over the forced arguments).
     #[inline]
     pub fn get_normalized_type(&mut self, ty: TypeId, writing: bool) -> CheckResult<TypeId> {
-        if !self.tables.flags_of(ty).intersects(
+        let header = self.tables.type_of(ty);
+        if header.flags == TypeFlags::UNION
+            && !header
+                .object_flags
+                .intersects(ObjectFlags::REFERENCE | ObjectFlags::CONTAINS_INTERSECTIONS)
+        {
+            return Ok(ty);
+        }
+        if !header.flags.intersects(
             TypeFlags::FRESHABLE
                 | TypeFlags::UNION_OR_INTERSECTION
                 | TypeFlags::SUBSTITUTION
                 | TypeFlags::SIMPLIFIABLE,
-        ) && !self
-            .tables
-            .object_flags_of(ty)
-            .intersects(ObjectFlags::REFERENCE)
+        ) && !header.object_flags.intersects(ObjectFlags::REFERENCE)
         {
             return Ok(ty);
         }
@@ -513,7 +518,7 @@ impl<'a> CheckerState<'a> {
                 .intersects(ObjectFlags::REFERENCE)
                 && !matches!(self.tables.type_of(ty).data, TypeData::TupleTarget(_))
             {
-                if self.links.ty(ty).deferred_node.is_some() {
+                if self.type_deferred_node(ty).is_some() {
                     let target = self.tables.reference_target(ty);
                     let arguments = self.get_type_argument_list(ty)?;
                     let arguments = self.tables.list_copy(arguments);
@@ -1370,6 +1375,9 @@ pub(crate) struct RelationScratch {
     pub(crate) target_stack: Vec<RelationStackEntry>,
 }
 
+// A longer active prefix also has a hash index for cycle checks.
+const MAYBE_SCAN_LIMIT: usize = 32;
+
 pub(crate) struct RelationChecker<'r, 'a> {
     pub(crate) st: &'r mut CheckerState<'a>,
     pub(crate) relation: RelationKind,
@@ -1617,6 +1625,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// union/intersection `type.types` property access.
     /// containsType over a member list kept in this checker's order.
     pub(crate) fn contains_type_ordered(&self, types: &[TypeId], ty: TypeId) -> bool {
+        // Content order breaks ties by ID. Absence proves a miss even when
+        // the current order would fail to find a present member.
+        if self.st.stable_type_ordering && types.len() <= 8 && !types.contains(&ty) {
+            return false;
+        }
         let ctx = crate::type_order::order_ctx!(self.st);
         tsc_types::type_order::contains_type(&self.st.tables, ctx.order(), types, ty)
     }
@@ -3747,7 +3760,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             return Ok(Ternary::FALSE);
         }
         if !self.maybe_keys.is_empty() {
-            if self.maybe_keys_set.contains(&id) {
+            if self.has_active_key(&id) {
                 return Ok(Ternary::MAYBE);
             }
             if id.has_constraint_marker() {
@@ -3758,7 +3771,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     self.relation,
                     /*ignore_constraints*/ true,
                 )?;
-                if self.maybe_keys_set.contains(&broadest) {
+                if self.has_active_key(&broadest) {
                     return Ok(Ternary::MAYBE);
                 }
             }
@@ -3771,13 +3784,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         let maybe_start = self.maybe_count;
-        if self.maybe_keys.len() == self.maybe_count {
-            self.maybe_keys.push(id.clone());
-        } else {
-            self.maybe_keys[self.maybe_count] = id.clone();
-        }
-        self.maybe_keys_set.insert(id.clone());
-        self.maybe_count += 1;
+        self.push_active_key(&id);
         let save_expanding_flags = self.expanding_flags;
         let save_source_depth = self.source_depth;
         let save_target_depth = self.target_depth;
@@ -3907,19 +3914,48 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         Ok(result)
     }
 
+    fn has_active_key(&self, key: &RelationKey) -> bool {
+        if self.maybe_count <= MAYBE_SCAN_LIMIT {
+            self.maybe_keys[..self.maybe_count].contains(key)
+        } else {
+            self.maybe_keys_set.contains(key)
+        }
+    }
+
+    fn push_active_key(&mut self, key: &RelationKey) {
+        if self.maybe_count == self.maybe_keys.len() {
+            self.maybe_keys.push(key.clone());
+        } else {
+            self.maybe_keys[self.maybe_count] = key.clone();
+        }
+        self.maybe_count += 1;
+        if self.maybe_count == MAYBE_SCAN_LIMIT + 1 {
+            self.maybe_keys_set
+                .extend(self.maybe_keys[..self.maybe_count].iter().cloned());
+        } else if self.maybe_count > MAYBE_SCAN_LIMIT {
+            self.maybe_keys_set.insert(key.clone());
+        }
+    }
+
     fn reset_maybe_stack(
         &mut self,
         maybe_start: usize,
         mark_all_as_succeeded: bool,
         propagating_variance_flags: RelationComparisonResult,
     ) {
-        for i in maybe_start..self.maybe_count {
-            let key = self.maybe_keys[i].clone();
-            self.maybe_keys_set.remove(&key);
-            if mark_all_as_succeeded {
+        let popped = &self.maybe_keys[maybe_start..self.maybe_count];
+        if maybe_start > MAYBE_SCAN_LIMIT {
+            for key in popped {
+                self.maybe_keys_set.remove(key);
+            }
+        } else if self.maybe_count > MAYBE_SCAN_LIMIT {
+            self.maybe_keys_set.clear();
+        }
+        if mark_all_as_succeeded {
+            for key in popped {
                 perf::bump(PerfCounter::RelationSets);
                 self.st.relations.cache_mut(self.relation).insert(
-                    key,
+                    key.clone(),
                     RelationComparisonResult::from_bits(
                         RelationComparisonResult::SUCCEEDED.bits()
                             | propagating_variance_flags.bits(),
@@ -4405,7 +4441,9 @@ impl<'a> CheckerState<'a> {
             source_members.index_infos().to_vec(),
         ));
         let symbol = self.tables.type_of(ty).symbol;
-        let regular = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+        let regular = self
+            .tables
+            .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         let object_flags =
             self.tables.object_flags_of(ty).bits() & !ObjectFlags::FRESH_LITERAL.bits();
         self.tables.type_mut(regular).object_flags = ObjectFlags::from_bits(object_flags);
@@ -4905,6 +4943,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs R4.18: same walk and type-id ordering, but each relation entry
     /// keeps its identity after the first walk that actually reaches it.
+    #[inline]
     pub(crate) fn is_deeply_nested_on_stack(
         &mut self,
         ty: TypeId,
@@ -4915,6 +4954,17 @@ impl<'a> CheckerState<'a> {
         if depth < max_depth {
             return Ok(false);
         }
+        self.walk_deeply_nested_stack(ty, stack, depth, max_depth)
+    }
+
+    #[inline(never)]
+    fn walk_deeply_nested_stack(
+        &mut self,
+        ty: TypeId,
+        stack: &[RelationStackEntry],
+        depth: usize,
+        max_depth: usize,
+    ) -> CheckResult<bool> {
         let target = self.get_recursion_target(ty)?;
         if let Some(top) = stack.get(depth - 1).filter(|entry| entry.ty == ty) {
             top.identity.set(Some(target));
@@ -4927,7 +4977,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let mut types = self.tables.cursor(types);
                 while let Some(member) = types.next(&self.tables) {
-                    if self.is_deeply_nested_on_stack(member, stack, depth, max_depth)? {
+                    if self.walk_deeply_nested_stack(member, stack, depth, max_depth)? {
                         return Ok(true);
                     }
                 }
@@ -5135,7 +5185,7 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::OBJECT) && !self.is_object_or_array_literal_type(ty) {
             let object_flags = self.tables.object_flags_of(ty);
             if object_flags.intersects(ObjectFlags::REFERENCE) {
-                if let Some(node) = self.links.ty(ty).deferred_node {
+                if let Some(node) = self.type_deferred_node(ty) {
                     return RecursionIdentity::Node(node);
                 }
             }

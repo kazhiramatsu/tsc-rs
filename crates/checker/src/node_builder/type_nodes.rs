@@ -1907,7 +1907,7 @@ fn type_to_type_node_worker(
         }
         // tsgo (#64556): an array or tuple goes through visitAndTransformType
         // too (arrayOrTupleTypeToNode), so a cycle through one is detected.
-        let has_node = checker.links.ty(r#type).deferred_node.is_some();
+        let has_node = checker.type_deferred_node(r#type).is_some();
         let is_array_or_tuple = checker
             .is_array_type(r#type)
             .map_err(|abort| checker_abort_error(checker, context, abort))?
@@ -2847,7 +2847,7 @@ fn create_anonymous_type_node(
         .object_flags
         .intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
     {
-        if let Some(existing) = checker.links.ty(r#type).deferred_node {
+        if let Some(existing) = checker.type_deferred_node(r#type) {
             if checker.kind_of(existing) == SyntaxKind::TypeQuery
                 && checker
                     .get_type_from_type_node(existing)
@@ -3239,12 +3239,10 @@ fn visit_and_transform_type(
     let composite = if is_array_or_tuple {
         None
     } else if type_data.object_flags.intersects(ObjectFlags::REFERENCE)
-        && checker.links.ty(r#type).deferred_node.is_some()
+        && checker.type_deferred_node(r#type).is_some()
     {
         checker
-            .links
-            .ty(r#type)
-            .deferred_node
+            .type_deferred_node(r#type)
             .map(super::context::CompositeSymbolIdentity::Node)
     } else if let TypeData::Conditional(conditional) = &type_data.data {
         let conditional = checker.tables.conditional_data(*conditional);
@@ -3523,7 +3521,7 @@ fn create_type_node_from_object_type(
         if type_element_count != 0 {
             let remainder = checker
                 .tables
-                .create_type(TypeFlags::OBJECT, TypeData::Object);
+                .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
             checker.tables.type_mut(remainder).object_flags = ObjectFlags::ANONYMOUS;
             checker.tables.type_mut(remainder).symbol = checker.tables.type_of(r#type).symbol;
             let call_signatures = resolved.call_signatures().to_vec();
@@ -3884,14 +3882,15 @@ fn type_reference_to_type_node(
         .into_iter()
         .any(|protocol| checker.is_reference_to_type(r#type, protocol));
         if is_iterable_protocol {
-            let written_argument_count = checker.links.ty(r#type).deferred_node.and_then(|node| {
-                match checker.data_of(node) {
-                    NodeData::TypeReference(data) => {
-                        Some(checker.nodes_of(data.type_arguments).len())
-                    }
-                    _ => None,
-                }
-            });
+            let written_argument_count =
+                checker
+                    .type_deferred_node(r#type)
+                    .and_then(|node| match checker.data_of(node) {
+                        NodeData::TypeReference(data) => {
+                            Some(checker.nodes_of(data.type_arguments).len())
+                        }
+                        _ => None,
+                    });
             if written_argument_count.is_none_or(|count| count < type_parameter_count) {
                 while type_parameter_count > 0 {
                     let argument = arguments[type_parameter_count - 1];

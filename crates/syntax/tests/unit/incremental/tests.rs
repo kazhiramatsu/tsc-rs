@@ -195,6 +195,48 @@ fn compare_incremental(
 }
 
 #[test]
+fn function_free_statement_lists_account_for_reused_declarations() {
+    let before = "function kept() {}\nconst edited = 1;\n";
+    let start = before.find("= 1").unwrap() + 2;
+    let mut after = before.to_owned();
+    after.replace_range(start..start + 1, "2");
+    let options = ParseOptions::default();
+    let old = create_language_service_source_file(
+        "functions.ts",
+        TextSnapshot::new(before, DocumentVersion::new("old")),
+        options.clone(),
+    );
+    let updated = update_language_service_source_file(
+        old,
+        TextSnapshot::new(after, DocumentVersion::new("new")),
+        ByteTextChangeRange {
+            span: ByteTextSpan::new(start as u32, 1),
+            new_length: 1,
+        },
+        options,
+        IncrementalParseOptions {
+            record_reuse_lineage: true,
+        },
+    )
+    .expect("valid exact incremental edit");
+    let source = &updated.source;
+    let statements = source.arena.node(source.root).statements_field().unwrap();
+    let function = source.arena.node_array(statements).nodes[0];
+    assert_eq!(
+        source.arena.node(function).kind,
+        SyntaxKind::FunctionDeclaration
+    );
+    assert!(updated
+        .stats
+        .lineage
+        .iter()
+        .any(|item| item.new_node == function));
+    assert!(!source
+        .arena
+        .is_known_function_free_statement_list(statements));
+}
+
+#[test]
 fn a_reused_import_meta_subtree_remains_the_module_indicator() {
     let before = "function meta() { return import.meta; }\nconst value = 1;\n";
     let start = before.find("= 1").unwrap() + 2;

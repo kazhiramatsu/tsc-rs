@@ -1431,7 +1431,9 @@ impl<'a> CheckerState<'a> {
                 ),
             },
         };
-        let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+        let id = self
+            .tables
+            .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
         self.tables.type_mut(id).object_flags =
             ObjectFlags::ANONYMOUS | ObjectFlags::SINGLE_SIGNATURE_TYPE;
         // tsgo: the declaration's symbol, so the type instantiates through

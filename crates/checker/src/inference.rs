@@ -2449,8 +2449,8 @@ impl InferTypesWalker<'_, '_> {
             && target_object_flags.intersects(ObjectFlags::REFERENCE)
             && (self.st.tables.reference_target(source) == self.st.tables.reference_target(target)
                 || self.st.is_array_type(source)? && self.st.is_array_type(target)?)
-            && !(self.st.links.ty(source).deferred_node.is_some()
-                && self.st.links.ty(target).deferred_node.is_some());
+            && !(self.st.type_deferred_node(source).is_some()
+                && self.st.type_deferred_node(target).is_some());
         if matching_references {
             // tsgo inference.go:228-230: matching references infer between
             // their type arguments once per key.

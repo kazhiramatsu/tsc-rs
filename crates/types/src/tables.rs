@@ -160,6 +160,15 @@ pub struct UnionKey {
     pub alias: AliasKey,
 }
 
+/// A canonical union without an origin or alias symbol. Its interned list
+/// supplies the exact key and the saved hash lets the table grow without
+/// reading each union's members again.
+struct PlainUnion {
+    hash: u64,
+    members: TypeListId,
+    ty: TypeId,
+}
+
 /// unionOfUnionTypes (46990): the two-union fast path's key, the smaller
 /// id first (getUnionType 61469-61475), with the checker's alias.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -233,6 +242,79 @@ impl InstantiationKey {
     }
 }
 
+/// A bounded front of the instantiations map for its commonest key: a
+/// target with one or two type arguments, no alias and no single-signature
+/// mark. Such a key lies in a slot with its answer — sixteen bytes, at the
+/// place its hash names — so a look-up reads one slot and needs no list id:
+/// the arguments are not interned and the map of every instantiation is not
+/// probed. A slot holds the last such key that hashed to it; a slot that
+/// holds another key says nothing, and the caller asks the map.
+///
+/// The front only repeats the map: a slot is written with the answer the
+/// map holds for that key, and when the map changes an answer the front is
+/// emptied (see [`InstantiationCache::insert`]).
+#[derive(Default)]
+struct InstantiationFront {
+    /// Empty until the first entry, then `1 << Self::BITS` slots of
+    /// `[target, first argument, second argument or 0, answer]`, each id as
+    /// its store position (the index plus one): no id is zero, and a zero
+    /// first word is an empty slot.
+    slots: Vec<[u32; 4]>,
+}
+
+impl InstantiationFront {
+    /// 65,536 slots: one megabyte a checker.
+    const BITS: u32 = 16;
+
+    /// The key's three words, for the keys the front takes.
+    #[inline]
+    fn key(target: TypeId, arguments: &[TypeId]) -> Option<[u32; 3]> {
+        match *arguments {
+            [first] => Some([target.position(), first.position(), 0]),
+            [first, second] => Some([target.position(), first.position(), second.position()]),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    fn slot(key: [u32; 3]) -> usize {
+        const K: u64 = 0x9E37_79B9_7F4A_7C15;
+        let mixed = (u64::from(key[0]) | (u64::from(key[1]) << 32)).wrapping_mul(K)
+            ^ u64::from(key[2]).wrapping_mul(0xC2B2_AE3D_27D4_EB4F);
+        (mixed.wrapping_mul(K) >> (64 - Self::BITS)) as usize
+    }
+
+    #[inline]
+    fn get(&self, target: TypeId, arguments: &[TypeId]) -> Option<TypeId> {
+        let key = Self::key(target, arguments)?;
+        let slot = self.slots.get(Self::slot(key))?;
+        if slot[..3] == key {
+            TypeId::from_position(slot[3])
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    fn put(&mut self, target: TypeId, arguments: &[TypeId], answer: TypeId) {
+        let Some(key) = Self::key(target, arguments) else {
+            return;
+        };
+        if self.slots.is_empty() {
+            self.slots = vec![[0; 4]; 1 << Self::BITS];
+        }
+        self.slots[Self::slot(key)] = [key[0], key[1], key[2], answer.position()];
+    }
+
+    fn clear(&mut self) {
+        self.slots.fill([0; 4]);
+    }
+
+    fn memory_usage(&self) -> usize {
+        self.slots.capacity() * std::mem::size_of::<[u32; 4]>()
+    }
+}
+
 /// The same instantiation map split by key shape. The common alias-free
 /// key uses all 32 list-id bits, 31 target-id bits and the signature bit.
 /// Large target ids and every other shape retain the complete key.
@@ -240,6 +322,10 @@ impl InstantiationKey {
 struct InstantiationCache {
     plain: HashMap<u64, TypeId>,
     full: HashMap<(TypeId, InstantiationKey), TypeId>,
+    front: InstantiationFront,
+    /// One bit a type: the map has been seeded for it as a target (see
+    /// [`TypeTables::instantiation_seed`]).
+    seeded: Vec<u64>,
 }
 
 impl InstantiationCache {
@@ -267,10 +353,15 @@ impl InstantiationCache {
         (target, key): (TypeId, InstantiationKey),
         value: TypeId,
     ) -> Option<TypeId> {
-        match Self::packed_key(target, key) {
+        let previous = match Self::packed_key(target, key) {
             Some(packed) => self.plain.insert(packed, value),
             None => self.full.insert((target, key), value),
+        };
+        // The front repeats this map's answers; one of them has changed.
+        if previous.is_some_and(|previous| previous != value) {
+            self.front.clear();
         }
+        previous
     }
 
     fn len(&self) -> usize {
@@ -282,7 +373,10 @@ impl InstantiationCache {
     }
 
     fn memory_usage(&self) -> usize {
-        map_bytes(&self.plain) + map_bytes(&self.full)
+        map_bytes(&self.plain)
+            + map_bytes(&self.full)
+            + self.front.memory_usage()
+            + self.seeded.capacity() * std::mem::size_of::<u64>()
     }
 }
 
@@ -349,8 +443,9 @@ pub struct TypeTables {
     /// 63096) — the string interpolation collapses -0/+0 and every
     /// NaN, which EnumLiteralKey reproduces bitwise.
     enum_literal_types: HashMap<(SymbolId, EnumLiteralKey), TypeId>,
-    /// unionTypes (46989), keyed by the member list and alias.
+    /// Unions keyed by an origin or an alias symbol, in addition to a list ID.
     union_types: HashMap<UnionKey, TypeId>,
+    plain_unions: hashbrown::HashTable<PlainUnion>,
     /// unionOfUnionTypes (46990) — the 2-union getUnionType fast path.
     union_of_union_types: HashMap<UnionOfUnionKey, TypeId>,
     /// intersectionTypes (46991).
@@ -652,6 +747,7 @@ impl TypeTables {
         }
 
         release(&mut self.union_types);
+        release_table(&mut self.plain_unions);
         release(&mut self.union_of_union_types);
         release(&mut self.intersection_types);
         release(&mut self.indexed_access_types);
@@ -757,7 +853,8 @@ impl TypeTables {
             + self.tuple_types.keys().map(String::capacity).sum::<usize>()
             + self.template_literal_types.capacity()
                 * (std::mem::size_of::<(TemplateLiteralId, TypeId)>() + 1);
-        usage.other_map_bytes += map_bytes(&self.union_types)
+        usage.other_map_bytes += self.plain_unions.allocation_size()
+            + map_bytes(&self.union_types)
             + map_bytes(&self.union_of_union_types)
             + map_bytes(&self.intersection_types)
             + map_bytes(&self.indexed_access_types);
@@ -858,6 +955,7 @@ impl TypeTables {
             bigint_literal_types: HashMap::default(),
             enum_literal_types: HashMap::default(),
             union_types: HashMap::default(),
+            plain_unions: hashbrown::HashTable::new(),
             union_of_union_types: HashMap::default(),
             intersection_types: HashMap::default(),
             tuple_types: HashMap::default(),
@@ -898,6 +996,7 @@ impl TypeTables {
             std::mem::take(&mut self.bigint_literal_types),
             std::mem::take(&mut self.enum_literal_types),
             std::mem::take(&mut self.union_types),
+            std::mem::take(&mut self.plain_unions),
             std::mem::take(&mut self.union_of_union_types),
             std::mem::take(&mut self.intersection_types),
             std::mem::take(&mut self.tuple_types),
@@ -1864,7 +1963,10 @@ impl TypeTables {
     /// the same id, so a cache that tsc keys by a `getTypeListId` string can
     /// carry this id in a value key instead of formatting the list.
     pub fn intern_type_list(&mut self, types: &[TypeId]) -> TypeListId {
-        let hash = hash_type_list(types);
+        self.intern_type_list_with_hash(types, hash_type_list(types))
+    }
+
+    fn intern_type_list_with_hash(&mut self, types: &[TypeId], hash: u64) -> TypeListId {
         let items = &self.list_items;
         if let Some(&id) = self.list_ids.find(hash, |&id| list_at(items, id) == types) {
             return id;
@@ -1881,6 +1983,12 @@ impl TypeTables {
         self.list_ids
             .insert_unique(hash, id, |&id| hash_type_list(list_at(items, id)));
         id
+    }
+
+    /// The list interned once at startup for a sequence with no elements.
+    #[inline]
+    pub fn empty_type_list(&self) -> TypeListId {
+        self.empty_list
     }
 
     /// The interned list `id`.
@@ -2045,6 +2153,60 @@ impl TypeTables {
 
     pub fn instantiation_insert(&mut self, target: TypeId, key: InstantiationKey, value: TypeId) {
         self.instantiations.insert((target, key), value);
+    }
+
+    /// The instantiation of `target` under the plain key of `arguments` (no
+    /// alias, no single-signature mark) when the map's front holds it: one
+    /// slot read, and the arguments are not interned. `None` says nothing
+    /// about the map — ask it with the list's id.
+    #[inline]
+    pub fn instantiation_front_get(&self, target: TypeId, arguments: &[TypeId]) -> Option<TypeId> {
+        let hit = self.instantiations.front.get(target, arguments);
+        if hit.is_some() {
+            crate::perf::bump(crate::perf::PerfCounter::InstantiationLookups);
+            crate::perf::bump(crate::perf::PerfCounter::InstantiationHits);
+        }
+        hit
+    }
+
+    /// Tell the front the answer the map holds for the plain key of
+    /// `arguments` under `target`: `value` must be that answer.
+    #[inline]
+    pub fn instantiation_front_put(&mut self, target: TypeId, arguments: &[TypeId], value: TypeId) {
+        self.instantiations.front.put(target, arguments, value);
+    }
+
+    /// getObjectTypeInstantiation's seed (_tsc.js 63489-63492): a target's
+    /// instantiations map answers the target's own key — its type-parameter
+    /// list id and alias id — with the target. tsc seeds a target's map
+    /// when it creates the map; the port's one map is asked the first time
+    /// a target is instantiated, and a bit remembers that it was, so the
+    /// map is not probed for the seed on every later instantiation of the
+    /// target. `self_key` is read for that first time only. The map never
+    /// loses an entry, so the seed stays.
+    pub fn instantiation_seed(
+        &mut self,
+        target: TypeId,
+        self_key: impl FnOnce(&Self) -> InstantiationKey,
+    ) {
+        let index = target.index() as usize;
+        let (word, bit) = (index / 64, 1_u64 << (index % 64));
+        if self
+            .instantiations
+            .seeded
+            .get(word)
+            .is_some_and(|seeded| seeded & bit != 0)
+        {
+            return;
+        }
+        let key = self_key(self);
+        if self.instantiation_get(target, key).is_none() {
+            self.instantiation_insert(target, key, target);
+        }
+        if self.instantiations.seeded.len() <= word {
+            self.instantiations.seeded.resize(word + 1, 0);
+        }
+        self.instantiations.seeded[word] |= bit;
     }
 
     /// The instantiations-map key of `type_arguments` under an alias, for a
@@ -2371,25 +2533,39 @@ impl TypeTables {
                     None => pair[0] <= pair[1],
                 })
         });
-        let named_members = &mut scratch.named_members;
-        if members_are_sorted {
+        let short_members = match named_unions.as_slice() {
+            &[union] if members_are_sorted => {
+                let members = self.members_of(union);
+                if alias_symbol.is_none() && type_set == members {
+                    return NamedUnionOrigin::Existing(union);
+                }
+                (type_set.len() <= 8 && members.len() <= 8).then_some(members)
+            }
+            _ => None,
+        };
+        let reduced_types = &mut scratch.reduced;
+        if let Some(members) = short_members {
+            reduced_types.extend(type_set.iter().copied().filter(|t| !members.contains(t)));
+        } else if members_are_sorted {
+            let named_members = &mut scratch.named_members;
             named_members.extend(
                 named_unions
                     .iter()
                     .flat_map(|&union| self.members_of(union).iter().copied()),
             );
-        }
-        let reduced_types = &mut scratch.reduced;
-        for &t in type_set {
-            let in_named = if members_are_sorted {
-                named_members.contains(&t)
-            } else {
-                named_unions.iter().any(|&union| {
+            reduced_types.extend(
+                type_set
+                    .iter()
+                    .copied()
+                    .filter(|t| !named_members.contains(t)),
+            );
+        } else {
+            for &t in type_set {
+                if !named_unions.iter().any(|&union| {
                     crate::type_order::contains_type(self, order, self.members_of(union), t)
-                })
-            };
-            if !in_named {
-                reduced_types.push(t);
+                }) {
+                    reduced_types.push(t);
+                }
             }
         }
         if alias_symbol.is_none() && named_unions.len() == 1 && reduced_types.is_empty() {
@@ -2477,6 +2653,36 @@ impl TypeTables {
             }
         }
         false
+    }
+
+    /// Collect two inputs already checked for union flags into an empty
+    /// content-ordered member list. Each source contributes its flags before
+    /// the surviving members are put in order.
+    pub fn collect_non_union_pair(
+        &self,
+        order: &dyn crate::TypeOrderContext,
+        type_set: &mut Vec<TypeId>,
+        [first, second]: [TypeId; 2],
+    ) -> i32 {
+        debug_assert!(type_set.is_empty());
+        debug_assert!(!self.flags_of(first).intersects(TypeFlags::UNION));
+        debug_assert!(!self.flags_of(second).intersects(TypeFlags::UNION));
+        let mut includes = 0;
+        type_set.reserve(2);
+        if self.include_type_in_union(&mut includes, first) {
+            type_set.push(first);
+        }
+        if first != second && self.include_type_in_union(&mut includes, second) {
+            type_set.push(second);
+        }
+        if type_set.len() == 2 {
+            #[cfg(feature = "perf-counters")]
+            crate::perf::union_sort_comparison(2);
+            if crate::type_order::compare_types(self, order, second, first).is_lt() {
+                type_set.swap(0, 1);
+            }
+        }
+        includes
     }
 
     /// tsc-port: addTypesToUnion @6.0.3
@@ -2922,6 +3128,29 @@ impl TypeTables {
         if types.len() == 1 {
             return types[0];
         }
+        if origin.is_none() && alias_symbol.is_none() {
+            let hash = hash_type_list(types);
+            crate::perf::bump(crate::perf::PerfCounter::AliasIdCalls);
+            crate::perf::bump(crate::perf::PerfCounter::UnionLookups);
+            if let Some(entry) = self.plain_unions.find(hash, |entry| {
+                entry.hash == hash && self.list(entry.members) == types
+            }) {
+                crate::perf::bump(crate::perf::PerfCounter::UnionHits);
+                return entry.ty;
+            }
+            let members = self.intern_type_list_with_hash(types, hash);
+            let ty = self.create_union_from_sorted_list(
+                types,
+                members,
+                precomputed_object_flags,
+                None,
+                alias_type_arguments,
+                None,
+            );
+            self.plain_unions
+                .insert_unique(hash, PlainUnion { hash, members, ty }, |entry| entry.hash);
+            return ty;
+        }
         // 61615-61620: a union or intersection origin stands for its
         // members in the key; an origin index type (createOriginIndexType)
         // is keyed with the members.
@@ -2947,6 +3176,29 @@ impl TypeTables {
             crate::perf::bump(crate::perf::PerfCounter::UnionHits);
             return id;
         }
+        let id = self.create_union_from_sorted_list(
+            types,
+            members,
+            precomputed_object_flags,
+            alias_symbol,
+            alias_type_arguments,
+            origin,
+        );
+        self.union_types.insert(key, id);
+        id
+    }
+
+    /// Create the first union for a canonical key, recording the flags and
+    /// alias arguments supplied by the call that missed.
+    fn create_union_from_sorted_list(
+        &mut self,
+        types: &[TypeId],
+        members: TypeListId,
+        precomputed_object_flags: ObjectFlags,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+        origin: Option<TypeId>,
+    ) -> TypeId {
         let boolean_pair = types.len() == 2
             && self
                 .flags_of(types[0])
@@ -2988,7 +3240,6 @@ impl TypeTables {
         let alias_type_arguments = self.intern_alias_arguments(alias_type_arguments);
         self.type_mut(id).object_flags = object_flags;
         self.set_alias(id, alias_symbol, alias_type_arguments);
-        self.union_types.insert(key, id);
         id
     }
 
@@ -3438,15 +3689,20 @@ impl TypeTables {
         type_arguments: &[TypeId],
         extra_flags: ObjectFlags,
     ) -> TypeId {
+        if let Some(id) = self.instantiation_front_get(target, type_arguments) {
+            return id;
+        }
         let arguments = self.intern_type_list(type_arguments);
         let key = (target, InstantiationKey::plain(arguments));
         if let Some(&id) = self.instantiations.get(&key) {
+            self.instantiations.front.put(target, type_arguments, id);
             return id;
         }
         let symbol = self.type_of(target).symbol;
         let id = self.create_type(
             TypeFlags::OBJECT,
             TypeData::Reference {
+                node_position: 0,
                 target,
                 resolved_type_arguments: Some(arguments),
             },
@@ -3461,16 +3717,10 @@ impl TypeTables {
         self.type_mut(id).object_flags = object_flags;
         self.type_mut(id).symbol = symbol;
         self.instantiations.insert(key, id);
+        self.instantiations.front.put(target, type_arguments, id);
         id
     }
 
-    /// The type-object slice of createDeferredTypeReference (60188-
-    /// 60201): a Reference shell with NO resolved type arguments and NO
-    /// propagating flags (the arguments are unknown until the checker's
-    /// lazy getTypeArguments reads the node). NOT interned — tsc creates
-    /// a fresh object per call; identity comes from the caller's caches
-    /// (node links / target.instantiations). The node, mapper and alias
-    /// fields live checker-side (TypeLinks / Type alias fields).
     /// tsc-port: cloneTypeReference @6.0.3
     /// tsc-hash: acb47c4c400a97d9673a211f924708dc2b88b81a3c9a26d300e701aca159ddc5
     /// tsc-span: _tsc.js:60181-60187
@@ -3486,7 +3736,15 @@ impl TypeTables {
             source_type.object_flags,
         );
         let data = match source_type.data {
-            data @ TypeData::Reference { .. } => data,
+            TypeData::Reference {
+                target,
+                resolved_type_arguments,
+                ..
+            } => TypeData::Reference {
+                target,
+                resolved_type_arguments,
+                node_position: 0,
+            },
             // A zero-arity tuple IS its target (createTupleType 61224
             // returns the tupleTarget for arity 0); the target
             // self-aliases (target = self, resolvedTypeArguments =
@@ -3495,6 +3753,7 @@ impl TypeTables {
             TypeData::TupleTarget(target) if self.tuple_target(target).element_flags.is_empty() => {
                 TypeData::Reference {
                     target: source,
+                    node_position: 0,
                     resolved_type_arguments: Some(self.intern_type_list(&[])),
                 }
             }
@@ -3506,11 +3765,13 @@ impl TypeTables {
         id
     }
 
+    /// Create a fresh reference before its caller stamps the originating node.
     pub fn create_deferred_reference_shell(&mut self, target: TypeId) -> TypeId {
         let symbol = self.type_of(target).symbol;
         let id = self.create_type(
             TypeFlags::OBJECT,
             TypeData::Reference {
+                node_position: 0,
                 target,
                 resolved_type_arguments: None,
             },

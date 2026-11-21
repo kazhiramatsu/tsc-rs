@@ -98,7 +98,6 @@ pub struct SpeculationCheckpoint {
     inference_contexts: usize,
     awaited_type_stack: usize,
     active_type_mappers: usize,
-    active_type_mappers_caches: usize,
     reliability_flags: tsc_types::RelationComparisonResult,
     type_parameter_defaults_in_progress: usize,
     mapped_types_in_progress: usize,
@@ -109,7 +108,7 @@ pub struct SpeculationCheckpoint {
     /// speculation") — entries are strictly scoped to an in-progress
     /// ReduceLabel arm, so this is empty except when a trial opens
     /// inside a try/finally flow walk.
-    reduce_label_overrides: HashMap<(usize, FlowId), Vec<FlowId>>,
+    reduce_label_overrides: HashMap<(usize, FlowId), FlowId>,
     /// Must be empty across the boundary (inventory row); the begin
     /// debug_assert documents that claim, the clone keeps release
     /// builds restoring rather than trusting it.
@@ -171,7 +170,6 @@ impl CheckerState<'_> {
             inference_contexts: self.inference_contexts.len(),
             awaited_type_stack: self.awaited_type_stack.len(),
             active_type_mappers: self.active_type_mappers.len(),
-            active_type_mappers_caches: self.active_type_mappers_caches.len(),
             reliability_flags: self.reliability_flags,
             type_parameter_defaults_in_progress: self.type_parameter_defaults_in_progress.len(),
             mapped_types_in_progress: self.mapped_types_in_progress.len(),
@@ -240,10 +238,6 @@ impl CheckerState<'_> {
                 (
                     self.active_type_mappers.len(),
                     checkpoint.active_type_mappers,
-                ),
-                (
-                    self.active_type_mappers_caches.len(),
-                    checkpoint.active_type_mappers_caches,
                 ),
                 (
                     self.type_parameter_defaults_in_progress.len(),
@@ -367,10 +361,9 @@ impl CheckerState<'_> {
             .truncate(checkpoint.inference_contexts);
         self.awaited_type_stack
             .truncate(checkpoint.awaited_type_stack);
-        self.active_type_mappers
-            .truncate(checkpoint.active_type_mappers);
-        self.active_type_mappers_caches
-            .truncate(checkpoint.active_type_mappers_caches);
+        while self.active_type_mappers.len() > checkpoint.active_type_mappers {
+            self.pop_active_mapper();
+        }
         self.reliability_flags = checkpoint.reliability_flags;
         self.type_parameter_defaults_in_progress
             .truncate(checkpoint.type_parameter_defaults_in_progress);

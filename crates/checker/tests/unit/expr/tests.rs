@@ -961,6 +961,41 @@ const tupleBad: [string] = probeTuple;
 }
 
 #[test]
+fn some_type_result_visits_the_original_union_until_the_predicate_matches() {
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        let intrinsics = &state.tables.intrinsics;
+        let union = state
+            .get_union_type(&[intrinsics.string, intrinsics.number, intrinsics.bigint])
+            .unwrap();
+        let original = state
+            .tables
+            .union_or_intersection_members(union)
+            .unwrap()
+            .to_vec();
+        assert_eq!(original.len(), 3);
+        let mut visited = Vec::new();
+        let matched = state.some_type_result(union, |state, member| {
+            visited.push(member);
+            // Grow the shared pool while the walk is between constituents.
+            state.tables.intern_type_list(&[member; 4096]);
+            Ok(member == original[1])
+        });
+        assert_eq!(matched, Ok(true));
+        assert_eq!(visited, original[..2]);
+
+        visited.clear();
+        assert_eq!(
+            state.some_type_result(union, |_, member| {
+                visited.push(member);
+                Ok(false)
+            }),
+            Ok(false)
+        );
+        assert_eq!(visited, original);
+    });
+}
+
+#[test]
 fn generic_union_constraints_keep_plain_types_and_recursive_constraints() {
     // checker.go:32073 only resolves constraints for instantiable types.
     with_program_state(
