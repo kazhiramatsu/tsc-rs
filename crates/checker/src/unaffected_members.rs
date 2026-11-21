@@ -116,10 +116,15 @@ impl CheckerState<'_> {
     }
 
     /// The original walk, also used when the bounded memo cannot admit a key.
-    fn fresh_unaffected_members(&mut self, properties: &[SymbolId], mapper: MapperId) -> SymbolIds {
+    fn fresh_unaffected_members(
+        &mut self,
+        properties: &[SymbolId],
+        mapper: MapperId,
+        maps_this_only: bool,
+    ) -> SymbolIds {
         let mut result = Vec::new();
         for &symbol in properties {
-            if self.symbol_unaffected_by_instantiation(symbol, mapper) {
+            if self.symbol_unaffected_by_instantiation(symbol, mapper, maps_this_only) {
                 if result.is_empty() {
                     result.reserve(properties.len());
                 }
@@ -170,7 +175,7 @@ impl CheckerState<'_> {
             self.unaffected_members.payload_bytes -= entry.heap_bytes();
         }
         if !self.unaffected_members.admits(properties.len()) {
-            return self.fresh_unaffected_members(properties, mapper);
+            return self.fresh_unaffected_members(properties, mapper, maps_this_only);
         }
         let (mut snapshot, mut pending) = match previous.filter(|_| matches) {
             Some(entry) => (entry.snapshot, entry.pending.into_vec()),
@@ -186,8 +191,8 @@ impl CheckerState<'_> {
             let syntax_proven = was_unaffected
                 && maps_this_only
                 && symbol.index() & tsc_types::TRANSIENT_SYMBOL_BIT == 0;
-            let unaffected =
-                syntax_proven || self.symbol_unaffected_by_instantiation(symbol, mapper);
+            let unaffected = syntax_proven
+                || self.symbol_unaffected_by_instantiation(symbol, mapper, maps_this_only);
             if unaffected != was_unaffected {
                 if unaffected {
                     added.push(symbol);

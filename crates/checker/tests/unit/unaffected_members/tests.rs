@@ -121,12 +121,12 @@ fn merged_table_identity_length_and_reset_epoch_each_invalidate() {
         let (target, table, mapper, properties) = input(state, "a");
         assert_eq!(properties.len(), 2);
         for &sym in &properties {state.get_type_of_symbol(sym).unwrap();}
-        let expected = state.fresh_unaffected_members(&properties, mapper);
+        let expected = state.fresh_unaffected_members(&properties, mapper, state.maps_this_only(mapper));
         assert_eq!(state.freeze_unaffected_members(target, table, mapper, &properties), expected);
         let replacement = state.alloc_members(state.members_of(table).clone());
         assert_eq!(state.freeze_unaffected_members(target, replacement, mapper, &properties), expected);
         assert_eq!(state.unaffected_members.entries[&target].table, replacement);
-        assert_eq!(state.freeze_unaffected_members(target, replacement, mapper, &properties[..1]), state.fresh_unaffected_members(&properties[..1], mapper));
+        assert_eq!(state.freeze_unaffected_members(target, replacement, mapper, &properties[..1]), state.fresh_unaffected_members(&properties[..1], mapper, state.maps_this_only(mapper)));
         assert_eq!(state.unaffected_members.entries[&target].len, 1);
         state.links.members_reset_epoch += 1;
         assert_eq!(state.freeze_unaffected_members(target, table, mapper, &properties), expected);
@@ -148,7 +148,8 @@ fn byte_cap_falls_through_to_the_original_decision() {
             for &sym in &properties {
                 state.get_type_of_symbol(sym).unwrap();
             }
-            let expected = state.fresh_unaffected_members(&properties, mapper);
+            let expected =
+                state.fresh_unaffected_members(&properties, mapper, state.maps_this_only(mapper));
             state.unaffected_members.payload_bytes = MAX_BYTES;
             assert_eq!(
                 state.freeze_unaffected_members(target, table, mapper, &properties),
@@ -192,7 +193,8 @@ fn entry_cap_falls_through_without_evicting_another_targets_decisions() {
         |state| {
             let (target, table, mapper, properties) = input(state, "a");
             state.get_type_of_symbol(properties[0]).unwrap();
-            let expected = state.fresh_unaffected_members(&properties, mapper);
+            let expected =
+                state.fresh_unaffected_members(&properties, mapper, state.maps_this_only(mapper));
             for index in 0..MAX_ENTRIES {
                 state.unaffected_members.entries.insert(
                     TypeId::new(1_000_000 + index as u32),
@@ -247,4 +249,31 @@ fn pending_transient_declarations_are_rechecked_and_older_snapshots_stay_frozen(
             assert_eq!(&*frozen, &[transient]);
         },
     );
+}
+
+#[test]
+fn this_only_batch_keeps_thisless_members_and_instantiates_this_members_in_order() {
+    let source = "interface Box<T> { plain(): number; first(): this; second(): this }\n\
+                  declare const a: Box<string>;";
+    with_program_state(&[("a.ts", source)], &CompilerOptions::default(), |state| {
+        let (target, table, _, properties) = input(state, "a");
+        let reference = annotation(state, "a");
+        let TypeData::GenericType { this_type, .. } = state.tables.type_of(target).data else {
+            unreachable!()
+        };
+        let mapper = state.make_unary_type_mapper(this_type, reference);
+        let plain = symbol(state, table, "plain");
+        let snapshot = state.freeze_unaffected_members(target, table, mapper, &properties);
+        assert_eq!(&*snapshot, &[plain]);
+        let before = state.binder.transient_symbol_count();
+        let values: Vec<_> = properties
+            .iter()
+            .map(|&symbol| state.instantiate_symbol_in_batch(symbol, mapper, true))
+            .collect();
+        assert_eq!(values[0], plain);
+        assert_eq!(state.links.symbol(values[1]).target, Some(properties[1]));
+        assert_eq!(state.links.symbol(values[2]).target, Some(properties[2]));
+        assert!(values[1].index() < values[2].index());
+        assert_eq!(state.binder.transient_symbol_count(), before + 2);
+    });
 }

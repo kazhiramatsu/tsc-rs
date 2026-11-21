@@ -7447,8 +7447,9 @@ impl<'a> CheckerState<'a> {
             Some(shape) => MemberTable::following(shape, symbols.len()),
             None => MemberTable::with_capacity(symbols.len()),
         };
+        let maps_this_only = !symbols.is_empty() && self.maps_this_only(mapper);
         for &symbol in symbols {
-            let value = self.instantiate_symbol(symbol, mapper);
+            let value = self.instantiate_symbol_in_batch(symbol, mapper, maps_this_only);
             result.insert(&self.binder, value);
         }
         Ok(result)

@@ -839,20 +839,27 @@ impl<'a> CheckerState<'a> {
                 fresh_type_parameters = Some(fresh);
             }
         }
-        let this_parameter =
-            source_this_parameter.map(|this| self.instantiate_symbol(this, mapper));
+        let has_symbols =
+            source_this_parameter.is_some() || !self.signature_of(signature).parameters.is_empty();
+        let maps_this_only = has_symbols && self.maps_this_only(mapper);
+        let this_parameter = source_this_parameter
+            .map(|this| self.instantiate_symbol_in_batch(this, mapper, maps_this_only));
         let parameters: Box<[SymbolId]> = match *self.signature_of(signature).parameters {
-            [one] => Box::new([self.instantiate_symbol(one, mapper)]),
+            [one] => Box::new([self.instantiate_symbol_in_batch(one, mapper, maps_this_only)]),
             [first, second] => Box::new([
-                self.instantiate_symbol(first, mapper),
-                self.instantiate_symbol(second, mapper),
+                self.instantiate_symbol_in_batch(first, mapper, maps_this_only),
+                self.instantiate_symbol_in_batch(second, mapper, maps_this_only),
             ]),
             ref longer => {
                 let count = longer.len();
                 let mut parameters = Vec::with_capacity(count);
                 for index in 0..count {
                     let parameter = self.signature_of(signature).parameters[index];
-                    parameters.push(self.instantiate_symbol(parameter, mapper));
+                    parameters.push(self.instantiate_symbol_in_batch(
+                        parameter,
+                        mapper,
+                        maps_this_only,
+                    ));
                 }
                 parameters.into_boxed_slice()
             }
@@ -881,7 +888,16 @@ impl<'a> CheckerState<'a> {
     /// signatures' parameters, as `I<this>` instantiates them), as is a
     /// symbol whose resolved type cannot contain type variables.
     pub fn instantiate_symbol(&mut self, symbol: SymbolId, mapper: MapperId) -> SymbolId {
-        if self.symbol_unaffected_by_instantiation(symbol, mapper) {
+        self.instantiate_symbol_in_batch(symbol, mapper, self.maps_this_only(mapper))
+    }
+
+    pub(crate) fn instantiate_symbol_in_batch(
+        &mut self,
+        symbol: SymbolId,
+        mapper: MapperId,
+        maps_this_only: bool,
+    ) -> SymbolId {
+        if self.symbol_unaffected_by_instantiation(symbol, mapper, maps_this_only) {
             return symbol;
         }
         self.new_instantiated_symbol(symbol, mapper)
@@ -891,8 +907,10 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         mapper: MapperId,
+        maps_this_only: bool,
     ) -> bool {
-        if self.maps_this_only(mapper) && self.is_thisless(symbol) {
+        debug_assert_eq!(maps_this_only, self.maps_this_only(mapper));
+        if maps_this_only && self.is_thisless(symbol) {
             return true;
         }
         let links = self.links.symbol(symbol);
