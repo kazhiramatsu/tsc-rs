@@ -958,12 +958,7 @@ impl<'a> CheckerState<'a> {
         };
         // The outer type parameters as an interned list: the cache, the
         // seeded self key and the loop below read it without a copy.
-        let type_parameters = match self
-            .links
-            .node_cold()
-            .outer_type_parameters
-            .resolved(declaration)
-        {
+        let type_parameters = match self.links.node_outer_type_parameters(declaration) {
             Some(cached) => cached,
             None => {
                 let mut outer = self
@@ -1032,8 +1027,7 @@ impl<'a> CheckerState<'a> {
                 list
             }
         };
-        let parameter_count = self.tables.list(type_parameters).len();
-        if parameter_count == 0 {
+        if type_parameters == self.tables.empty_type_list() {
             return Ok(ty);
         }
         // `type.mapper` (63485): the deferred-reference mapper for
@@ -1046,8 +1040,8 @@ impl<'a> CheckerState<'a> {
             self.links.read_ty(ty, |links| links.instantiated_mapper)
         };
         self.with_instantiation_type_list(|state, type_arguments| {
-            type_arguments.reserve(parameter_count);
             let mut parameters = state.tables.cursor(type_parameters);
+            type_arguments.reserve(parameters.len());
             while let Some(tp) = parameters.next(&state.tables) {
                 type_arguments.push(state.map_type_with_composite_mapper(
                     tp,

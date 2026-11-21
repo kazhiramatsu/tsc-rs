@@ -550,6 +550,49 @@ pub struct NodeLinks {
 
 const _: () = assert!(std::mem::size_of::<NodeLinks>() == 16);
 
+/// The declaration memo keeps its most recent answer at each of 1,024 slots.
+/// A collision still reads the full memo. Empty parameter lists have an ID too.
+#[derive(Debug, Default)]
+struct OuterTypeParameters {
+    memo: SparseMemo<NodeId, tsc_types::TypeListId>,
+    slots: Vec<Option<(NodeId, tsc_types::TypeListId)>>,
+}
+
+impl OuterTypeParameters {
+    const SLOTS: usize = 1024;
+
+    #[inline]
+    fn get(&mut self, declaration: NodeId) -> Option<tsc_types::TypeListId> {
+        let slot = self
+            .slots
+            .get_mut(declaration.index() as usize % Self::SLOTS)?;
+        if let Some((key, list)) = *slot {
+            if key == declaration {
+                return Some(list);
+            }
+        }
+        let list = self.memo.resolved(declaration)?;
+        *slot = Some((declaration, list));
+        Some(list)
+    }
+
+    fn set(&mut self, declaration: NodeId, list: tsc_types::TypeListId) {
+        self.memo.write(declaration, LinkSlot::Resolved(list));
+        if self.slots.is_empty() {
+            self.slots = vec![None; Self::SLOTS];
+        }
+        self.slots[declaration.index() as usize % Self::SLOTS] = Some((declaration, list));
+    }
+
+    fn memory_usage(&self) -> (usize, usize) {
+        let (entries, bytes) = self.memo.memory_usage();
+        (
+            entries,
+            bytes + std::mem::size_of_val(self.slots.as_slice()),
+        )
+    }
+}
+
 /// An array literal's (first, last) spread element indices.
 pub type SpreadIndices = (Option<u32>, Option<u32>);
 
@@ -597,7 +640,7 @@ pub struct NodeLinksCold {
     pub jsx_flags: SparseLinks<NodeId, tsc_types::JsxFlags>,
     /// tsc links.outerTypeParameters (getObjectTypeInstantiation 63466)
     /// on the instantiated type's declaration node.
-    pub outer_type_parameters: SparseMemo<NodeId, tsc_types::TypeListId>,
+    outer_type_parameters: OuterTypeParameters,
     /// tsc links.enumMemberValue (computeEnumMemberValues 85587) on
     /// EnumMember nodes.
     pub enum_member_value: SparseLinks<NodeId, Option<crate::evaluate::EvaluatorResult>>,
@@ -3581,12 +3624,19 @@ impl LinksTables {
         }
     }
 
+    /// Read the declaration's cached outer parameter list, including an empty one.
+    #[inline]
+    pub(crate) fn node_outer_type_parameters(
+        &mut self,
+        id: NodeId,
+    ) -> Option<tsc_types::TypeListId> {
+        self.node_cold.outer_type_parameters.get(id)
+    }
+
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn set_node_outer_type_parameters(&mut self, id: NodeId, value: tsc_types::TypeListId) {
-        self.node_cold
-            .outer_type_parameters
-            .write(id, LinkSlot::Resolved(value));
+        self.node_cold.outer_type_parameters.set(id, value);
     }
 
     /// tsrs-native: createUnionOrIntersectionProperty's identical-

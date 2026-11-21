@@ -281,3 +281,26 @@ fn finished_paged_links_release_their_pages_and_keep_other_link_owners() {
     assert_eq!(links.ty.memory_usage(), dense);
     assert_eq!(links.transient_symbols.len(), 1);
 }
+
+#[test]
+fn outer_parameters_keep_empty_lists_and_overwrites_across_collisions() {
+    let mut links = LinksTables::default();
+    let a = NodeId::new(5);
+    let b = NodeId::new(a.index() + OuterTypeParameters::SLOTS as u32);
+    let empty = tsc_types::TypeListId::new(0);
+    let list = tsc_types::TypeListId::new(17);
+    assert_eq!(links.node_outer_type_parameters(a), None);
+    links.set_node_outer_type_parameters(a, empty);
+    assert_eq!(links.node_outer_type_parameters(b), None);
+    links.set_node_outer_type_parameters(b, list);
+    assert_eq!(links.node_outer_type_parameters(a), Some(empty));
+    assert_eq!(
+        links.node_cold.outer_type_parameters.slots[5],
+        Some((a, empty))
+    );
+    assert_eq!(links.node_outer_type_parameters(b), Some(list));
+    links.set_node_outer_type_parameters(b, empty);
+    assert_eq!(links.node_outer_type_parameters(b), Some(empty));
+    assert_eq!(links.node_outer_type_parameters(a), Some(empty));
+    assert_eq!(links.node_outer_type_parameters(b), Some(empty));
+}

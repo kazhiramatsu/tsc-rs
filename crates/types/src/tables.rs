@@ -1968,6 +1968,12 @@ impl TypeTables {
         id
     }
 
+    /// The list interned once at startup for a sequence with no elements.
+    #[inline]
+    pub fn empty_type_list(&self) -> TypeListId {
+        self.empty_list
+    }
+
     /// The interned list `id`.
     #[inline]
     pub fn list(&self, id: TypeListId) -> &[TypeId] {
