@@ -1545,8 +1545,11 @@ impl<'a> CheckerState<'a> {
             "anonymous type must have symbol to be instantiated"
         );
         let source_symbol = source.symbol;
-        let source_alias_symbol = self.tables.alias_symbol(ty);
-        let source_alias_type_arguments = self.tables.alias_type_argument_list(ty);
+        let source_alias = if alias_symbol.is_none() {
+            self.tables.alias(ty)
+        } else {
+            None
+        };
         let source_object_flags = self.tables.object_flags_of(ty);
         let result = if source_object_flags.intersects(ObjectFlags::MAPPED) {
             let type_parameter = self.get_type_parameter_from_mapped_type(ty)?;
@@ -1594,9 +1597,9 @@ impl<'a> CheckerState<'a> {
                 .expect("InstantiationExpressionType types stamp their node at creation");
             self.set_fresh_type_deferred_reference_links(result, node, None);
         }
-        let new_alias_symbol = alias_symbol.or(source_alias_symbol);
+        let new_alias_symbol = alias_symbol.or_else(|| source_alias.and_then(|alias| alias.symbol));
         self.with_instantiated_alias_arguments(
-            source_alias_type_arguments,
+            source_alias.and_then(|alias| alias.type_arguments),
             mapper,
             alias_symbol,
             alias_type_arguments,

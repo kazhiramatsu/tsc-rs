@@ -1290,3 +1290,71 @@ fn instantiated_transient_keeps_original_flags_name_and_declarations_after_rollb
         }
     });
 }
+
+#[test]
+fn anonymous_shells_keep_alias_arguments_creation_order_and_origin() {
+    let source = "declare function id<A>(x: A): A;\n\
+                  function f<T>() { var x: typeof id<T>; var m: { [K in keyof T]: T[K] }; }";
+    with_program_state(&[("a.ts", source)], &CompilerOptions::default(), |state| {
+        let t = declared_type_parameter(state, "T");
+        let string = state.tables.intrinsics.string;
+        let explicit_arg = state
+            .tables
+            .create_type(TypeFlags::OBJECT, tsc_types::TypeData::PLAIN_OBJECT);
+        state.tables.type_mut(explicit_arg).object_flags =
+            ObjectFlags::ANONYMOUS | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
+        let mapper = state.make_unary_type_mapper(t, string);
+        let original = state.tables.type_of(t).symbol.unwrap();
+        let other = state.binder.create_symbol(
+            SymbolFlags::TYPE_ALIAS,
+            tsc_types::EscapedName::internal("outer"),
+        );
+        let args = state.tables.intern_type_list(&[t]);
+        for (var, mapped) in [("x", false), ("m", true)] {
+            let node = annotation_of_var(state, var);
+            let source = state.get_type_from_type_node(node).unwrap();
+            state.tables.set_alias(source, Some(original), Some(args));
+            for explicit in [false, true] {
+                let before = state.tables.len() as u32;
+                let result = state
+                    .instantiate_anonymous_type(
+                        source,
+                        mapper,
+                        explicit.then_some(other),
+                        explicit.then_some([explicit_arg].as_slice()),
+                    )
+                    .unwrap();
+                assert_eq!(result.index(), before + u32::from(mapped));
+                let inherited = state.tables.object_flags_of(source).bits()
+                    & !(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED
+                        | ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES)
+                        .bits();
+                let propagated = if explicit {
+                    ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL
+                } else {
+                    ObjectFlags::NONE
+                };
+                assert_eq!(
+                    state.tables.object_flags_of(result),
+                    ObjectFlags::from_bits(inherited) | ObjectFlags::INSTANTIATED | propagated
+                );
+                if mapped {
+                    let fresh = state.get_type_parameter_from_mapped_type(result).unwrap();
+                    assert_eq!(fresh.index(), before);
+                    assert_eq!(state.mapped_type_declaration(result), node);
+                } else {
+                    assert_eq!(state.type_deferred_node(result), Some(node));
+                }
+                let expected = if explicit { explicit_arg } else { string };
+                assert_eq!(
+                    state.tables.alias_symbol(result),
+                    Some(if explicit { other } else { original })
+                );
+                assert_eq!(
+                    state.tables.alias_type_arguments(result),
+                    Some([expected].as_slice())
+                );
+            }
+        }
+    });
+}
