@@ -3323,19 +3323,25 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ee3bdb8977701e194a71bc78bdf77e9f22b52d20800425ade1f126d340f6bd65
     /// tsc-span: _tsc.js:76088-76189
     ///
-    /// Report/Probe capture the shared elaborateError diagnostics as
+    /// Reporting captures the shared elaborateError diagnostics as
     /// applicability data; a declined walk re-enters the source-level
     /// relation reporter at the tag name. Silent mode remains a verdict
     /// only, and the 6229 factory-arity probe is fully live.
+    #[inline(never)]
     fn check_applicable_signature_for_jsx_call_like_element(
         &mut self,
         node: NodeId,
         signature: SignatureId,
         relation: RelationKind,
         check_mode: CheckMode,
-        mode: ApplicabilityMode,
+        errors: Option<&mut Vec<ApplicabilityError>>,
         mut containing_message_chain: Option<MessageChain>,
-    ) -> CheckResult<Option<Vec<ApplicabilityError>>> {
+    ) -> CheckResult<bool> {
+        let mode = if errors.is_some() {
+            ApplicabilityMode::Report
+        } else {
+            ApplicabilityMode::Silent
+        };
         let param_type = self.get_effective_first_argument_for_jsx_signature(signature, node)?;
         let is_jsx_open_fragment = self.kind_of(node) == SyntaxKind::JsxOpeningFragment;
         let mut attributes_node = None;
@@ -3364,16 +3370,19 @@ impl<'a> CheckerState<'a> {
         if let Some(factory_arity_error) =
             self.check_tag_name_expects_too_many_arguments(node, mode)?
         {
-            return Ok(Some(vec![factory_arity_error]));
+            if let Some(errors) = errors {
+                errors.push(factory_arity_error);
+            }
+            return Ok(false);
         }
         let initially_related =
             self.is_type_related_to(check_attributes_type, param_type, relation)?;
         if initially_related {
-            return Ok(None);
+            return Ok(true);
         }
-        if mode == ApplicabilityMode::Silent {
-            return Ok(Some(Vec::new()));
-        }
+        let Some(errors) = errors else {
+            return Ok(false);
+        };
         let relation_error_node = match_record! { self.record_of(node), {
             as_jsx_opening_element(data) => data.tag_name.unwrap_or(node),
             as_jsx_self_closing_element(data) => data.tag_name.unwrap_or(node),
@@ -3389,9 +3398,8 @@ impl<'a> CheckerState<'a> {
                     containing_message_chain.clone(),
                 )?;
             if elaborated.reported() {
-                return Ok(Some(
-                    self.applicability_errors_from_diagnostics(diagnostics, mode),
-                ));
+                *errors = self.applicability_errors_from_diagnostics(diagnostics, mode);
+                return Ok(false);
             }
         }
         let (_, diagnostic, _) = self.capture_type_assignable_to_diagnostic_with_containing_chain(
@@ -3401,10 +3409,9 @@ impl<'a> CheckerState<'a> {
             &diagnostics::Type_0_is_not_assignable_to_type_1,
             &mut containing_message_chain,
         )?;
-        Ok(Some(self.applicability_errors_from_diagnostics(
-            diagnostic.into_iter().collect(),
-            mode,
-        )))
+        *errors =
+            self.applicability_errors_from_diagnostics(diagnostic.into_iter().collect(), mode);
+        Ok(false)
     }
 
     /// checkTagNameDoesNotExpectTooManyArguments (76109-76188), verdict
@@ -3741,22 +3748,20 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: bd05784a6cdf0b44aae49b1b7135d05b6105da3b41e39e7b01d3950a29709f1b
     /// tsc-span: _tsc.js:76194-76276
     ///
-    /// None = applicable; Some = the errorOutputContainer contents.
-    /// Silent mode (selection) collects verdicts only; Report builds
-    /// the head diagnostics that resolveCall either publishes directly
-    /// or nests under its overload chain. maybeAddMissingAwaitInfo
-    /// (76265-76275) rides as related rows.
+    /// Test applicability in argument order. A reporting caller supplies
+    /// the destination for the first mismatch's diagnostics and related rows.
+    #[inline]
     #[allow(clippy::too_many_arguments)] // Upstream arguments plus the shared diagnostic chain.
-    fn get_signature_applicability_error(
+    fn is_signature_applicable(
         &mut self,
         node: NodeId,
         args: &EffectiveCallArguments<'_>,
         signature: SignatureId,
         relation: RelationKind,
         check_mode: CheckMode,
-        mode: ApplicabilityMode,
-        containing_message_chain: Option<MessageChain>,
-    ) -> CheckResult<Option<Vec<ApplicabilityError>>> {
+        mut errors: Option<&mut Vec<ApplicabilityError>>,
+        mut containing_message_chain: Option<MessageChain>,
+    ) -> CheckResult<bool> {
         if matches!(
             self.kind_of(node),
             SyntaxKind::JsxOpeningElement
@@ -3768,68 +3773,27 @@ impl<'a> CheckerState<'a> {
                 signature,
                 relation,
                 check_mode,
-                mode,
+                errors,
                 containing_message_chain,
             );
         }
-        let this_type = self.get_this_type_of_signature(signature)?;
-        if let Some(this_type) = this_type {
+        if let Some(this_type) = self.get_this_type_of_signature(signature)? {
             let is_new = self.kind_of(node) == SyntaxKind::NewExpression;
             let is_super_property_call = matches!(self.record_of(node).as_call_expression(), Some(data) if data.expression.is_some_and(|expression| self.is_super_property(expression)));
-            if this_type != self.tables.intrinsics.void && !is_new && !is_super_property_call {
-                let this_argument_node = self.get_this_argument_of_call(node);
-                let this_argument_type = self.get_this_argument_type(this_argument_node)?;
-                let head = &diagnostics::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1;
-                // tsgo checker.go:9501 calls checkTypeRelatedToEx directly,
-                // including selection passes with no error node.
-                let (related, output) = if mode == ApplicabilityMode::Silent {
-                    (
-                        self.check_type_related_to(this_argument_type, this_type, relation)?,
-                        None,
-                    )
-                } else {
-                    self.check_relation_with_error_output_at(
-                        this_argument_type,
-                        this_type,
-                        relation,
-                        Some(head),
-                        containing_message_chain.clone(),
-                        Some(this_argument_node.unwrap_or(node)),
-                    )?
-                };
-                if !related {
-                    if mode == ApplicabilityMode::Silent {
-                        return Ok(Some(Vec::new()));
-                    }
-                    let span = self.diag_span_of_node(this_argument_node.unwrap_or(node));
-                    let diagnostic = match mode {
-                        ApplicabilityMode::Report => Some(if let Some(output) = output {
-                            let mut diagnostic = self.diagnostic_at_span(&span, output.message);
-                            diagnostic.related = output.related;
-                            diagnostic
-                        } else {
-                            self.build_relation_error_with_head_and_containing_chain(
-                                this_argument_type,
-                                this_type,
-                                &span,
-                                head,
-                                containing_message_chain,
-                            )?
-                        }),
-                        _ => None,
-                    };
-                    let related = diagnostic
-                        .as_ref()
-                        .map(|diagnostic| diagnostic.related.clone())
-                        .unwrap_or_default();
-                    return Ok(Some(vec![ApplicabilityError {
-                        related,
-                        diagnostic,
-                    }]));
-                }
+            if this_type != self.tables.intrinsics.void
+                && !is_new
+                && !is_super_property_call
+                && !self.check_signature_this_applicability(
+                    node,
+                    this_type,
+                    relation,
+                    errors.as_deref_mut(),
+                    &mut containing_message_chain,
+                )?
+            {
+                return Ok(false);
             }
         }
-        let head = &diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1;
         let rest_type = self.get_non_array_rest_type(signature)?;
         let arg_count = if rest_type.is_some() {
             std::cmp::min(self.get_parameter_count(signature)? - 1, args.len())
@@ -3850,197 +3814,223 @@ impl<'a> CheckerState<'a> {
                 arg_type
             };
             if !self.is_type_related_to(check_arg_type, param_type, relation)? {
-                if mode == ApplicabilityMode::Silent {
-                    return Ok(Some(Vec::new()));
-                }
-                let effective = match arg {
-                    EffectiveArg::Node(arg_node) => Some(self.get_effective_check_node(arg_node)),
-                    EffectiveArg::Synthetic { .. } => None,
-                };
-                if let Some(effective) = effective {
-                    if let Some(mut errors) = self.capture_argument_elaboration(
-                        effective,
-                        param_type,
-                        head,
-                        mode,
-                        containing_message_chain.clone(),
-                    )? {
-                        if let Some(await_related) = self.missing_await_related(
-                            node,
-                            &arg,
-                            check_arg_type,
-                            param_type,
-                            relation,
-                        )? {
-                            if let Some(first) = errors.first_mut() {
-                                first.related.push(await_related.clone());
-                                if let Some(diagnostic) = first.diagnostic.as_mut() {
-                                    diagnostic.related.push(await_related);
-                                }
-                            }
-                        }
-                        return Ok(Some(errors));
-                    }
-                    let mut errors = self.capture_argument_relation_error(
-                        effective,
-                        check_arg_type,
-                        param_type,
-                        head,
-                        mode,
-                        containing_message_chain,
-                    )?;
-                    if let Some(await_related) = self.missing_await_related(
+                if let Some(errors) = errors {
+                    self.report_argument_applicability_error(
                         node,
                         &arg,
                         check_arg_type,
                         param_type,
                         relation,
-                    )? {
-                        if let Some(first) = errors.first_mut() {
-                            first.related.push(await_related.clone());
-                            if let Some(diagnostic) = first.diagnostic.as_mut() {
-                                diagnostic.related.push(await_related);
-                            }
-                        }
-                    }
-                    return Ok(Some(errors));
+                        errors,
+                        containing_message_chain,
+                    )?;
                 }
-                // The elaboration gate: elementwise elaborations move
-                // the code/span (Err); the did-you-mean flavor keeps
-                // the head but reports at the walked node.
-                //
-                // 76229: errorNode = effectiveCheckArgumentNode — the
-                // span skips parentheses/satisfies exactly like the
-                // rest branch below.
-                let span = match effective {
-                    Some(effective) => self.diag_span_of_node(effective),
-                    None => self.diag_span_of_effective_arg(node, &arg),
-                };
-                let mut related: Vec<RelatedInfo> = Vec::new();
-                if let Some(await_related) =
-                    self.missing_await_related(node, &arg, check_arg_type, param_type, relation)?
-                {
-                    related.push(await_related);
-                }
-                let diagnostic = match mode {
-                    ApplicabilityMode::Report => {
-                        let report_target = self.spread_argument_relation_report_target(
-                            node,
-                            &arg,
-                            check_arg_type,
-                            param_type,
-                        )?;
-                        let mut diagnostic = self
-                            .build_relation_error_with_head_and_containing_chain(
-                                check_arg_type,
-                                report_target,
-                                &span,
-                                head,
-                                containing_message_chain,
-                            )?;
-                        diagnostic.related.extend(related);
-                        related = diagnostic.related.clone();
-                        Some(diagnostic)
-                    }
-                    _ => None,
-                };
-                return Ok(Some(vec![ApplicabilityError {
-                    related,
-                    diagnostic,
-                }]));
+                return Ok(false);
             }
         }
         if let Some(rest_type) = rest_type {
-            let spread_type = self.get_spread_argument_type(
-                node,
-                args,
-                arg_count,
-                args.len(),
-                rest_type,
-                /*inference_context*/ None,
-                check_mode,
-            )?;
-            // tsgo checker.go:9549 uses the same direct checker route for
-            // the spread tuple, rather than an isTypeRelatedTo probe.
-            let (related, output) = if mode == ApplicabilityMode::Silent {
-                (
-                    self.check_type_related_to(spread_type, rest_type, relation)?,
-                    None,
-                )
+            return self.check_signature_rest_applicability(
+                node, args, arg_count, rest_type, relation, check_mode, errors,
+            );
+        }
+        Ok(true)
+    }
+
+    /// Check the receiver once, using the reporting relation only when a
+    /// diagnostic destination is present.
+    #[inline(never)]
+    fn check_signature_this_applicability(
+        &mut self,
+        node: NodeId,
+        this_type: TypeId,
+        relation: RelationKind,
+        errors: Option<&mut Vec<ApplicabilityError>>,
+        containing_message_chain: &mut Option<MessageChain>,
+    ) -> CheckResult<bool> {
+        let this_argument_node = self.get_this_argument_of_call(node);
+        let this_argument_type = self.get_this_argument_type(this_argument_node)?;
+        // Selection also uses the direct relation, with no error node.
+        let Some(errors) = errors else {
+            return self.check_type_related_to(this_argument_type, this_type, relation);
+        };
+        let head =
+            &diagnostics::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1;
+        let error_node = this_argument_node.unwrap_or(node);
+        let (related, output) = self.check_relation_with_error_output_at(
+            this_argument_type,
+            this_type,
+            relation,
+            Some(head),
+            containing_message_chain.clone(),
+            Some(error_node),
+        )?;
+        if !related {
+            let span = self.diag_span_of_node(error_node);
+            let diagnostic = if let Some(output) = output {
+                let mut diagnostic = self.diagnostic_at_span(&span, output.message);
+                diagnostic.related = output.related;
+                diagnostic
             } else {
-                let error_node = match args.len() - arg_count {
-                    0 => Some(node),
-                    1 => match args.at(arg_count) {
-                        EffectiveArg::Node(arg_node) => {
-                            Some(self.get_effective_check_node(arg_node))
-                        }
-                        EffectiveArg::Synthetic { .. } => None,
-                    },
-                    _ => None,
-                };
-                self.check_relation_with_error_output_at(
-                    spread_type,
-                    rest_type,
-                    relation,
-                    Some(head),
-                    None,
-                    error_node,
+                self.build_relation_error_with_head_and_containing_chain(
+                    this_argument_type,
+                    this_type,
+                    &span,
+                    head,
+                    containing_message_chain.take(),
                 )?
             };
-            if !related {
-                if mode == ApplicabilityMode::Silent {
-                    return Ok(Some(Vec::new()));
-                }
-                let rest_arg_count = args.len() - arg_count;
-                let span = if rest_arg_count == 0 {
-                    self.diag_span_of_node(node)
-                } else if rest_arg_count == 1 {
-                    match args.at(arg_count) {
-                        EffectiveArg::Node(arg_node) => {
-                            self.diag_span_of_node(self.get_effective_check_node(arg_node))
-                        }
-                        arg @ EffectiveArg::Synthetic { .. } => {
-                            self.diag_span_of_effective_arg(node, &arg)
-                        }
-                    }
-                } else {
-                    let pos = self.effective_arg_pos(&args.at(arg_count));
-                    let end = self.effective_arg_end(&args.at(args.len() - 1));
-                    self.diag_span_of_byte_range(node, pos, end)
-                };
-                let mut related: Vec<RelatedInfo> = Vec::new();
-                if let Some(await_related) =
-                    self.missing_await_related_at(Some(&span), spread_type, rest_type, relation)?
-                {
-                    related.push(await_related);
-                }
-                let diagnostic = match mode {
-                    ApplicabilityMode::Report => {
-                        let mut diagnostic = if let Some(output) = output {
-                            let mut diagnostic = self.diagnostic_at_span(&span, output.message);
-                            diagnostic.related = output.related;
-                            diagnostic
-                        } else {
-                            self.build_relation_error_with_head(
-                                spread_type,
-                                rest_type,
-                                &span,
-                                head,
-                            )?
-                        };
-                        diagnostic.related.extend(related);
-                        related = diagnostic.related.clone();
-                        Some(diagnostic)
-                    }
-                    _ => None,
-                };
-                return Ok(Some(vec![ApplicabilityError {
-                    related,
-                    diagnostic,
-                }]));
-            }
+            errors.push(ApplicabilityError {
+                related: diagnostic.related.clone(),
+                diagnostic: Some(diagnostic),
+            });
         }
-        Ok(None)
+        Ok(related)
+    }
+
+    /// Elaborate a mismatched argument and attach any missing-await row.
+    #[inline(never)]
+    #[allow(clippy::too_many_arguments)] // The failed relation and its diagnostic destination.
+    fn report_argument_applicability_error(
+        &mut self,
+        node: NodeId,
+        arg: &EffectiveArg,
+        check_arg_type: TypeId,
+        param_type: TypeId,
+        relation: RelationKind,
+        errors: &mut Vec<ApplicabilityError>,
+        containing_message_chain: Option<MessageChain>,
+    ) -> CheckResult<()> {
+        let head = &diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1;
+        if let EffectiveArg::Node(arg_node) = *arg {
+            let effective = self.get_effective_check_node(arg_node);
+            let mut captured = match self.capture_argument_elaboration(
+                effective,
+                param_type,
+                head,
+                ApplicabilityMode::Report,
+                containing_message_chain.clone(),
+            )? {
+                Some(errors) => errors,
+                None => self.capture_argument_relation_error(
+                    effective,
+                    check_arg_type,
+                    param_type,
+                    head,
+                    ApplicabilityMode::Report,
+                    containing_message_chain,
+                )?,
+            };
+            if let Some(await_related) =
+                self.missing_await_related(node, arg, check_arg_type, param_type, relation)?
+            {
+                if let Some(first) = captured.first_mut() {
+                    first.related.push(await_related.clone());
+                    if let Some(diagnostic) = first.diagnostic.as_mut() {
+                        diagnostic.related.push(await_related);
+                    }
+                }
+            }
+            *errors = captured;
+            return Ok(());
+        }
+
+        let span = self.diag_span_of_effective_arg(node, arg);
+        let await_related =
+            self.missing_await_related(node, arg, check_arg_type, param_type, relation)?;
+        let report_target =
+            self.spread_argument_relation_report_target(node, arg, check_arg_type, param_type)?;
+        let mut diagnostic = self.build_relation_error_with_head_and_containing_chain(
+            check_arg_type,
+            report_target,
+            &span,
+            head,
+            containing_message_chain,
+        )?;
+        diagnostic.related.extend(await_related);
+        errors.push(ApplicabilityError {
+            related: diagnostic.related.clone(),
+            diagnostic: Some(diagnostic),
+        });
+        Ok(())
+    }
+
+    /// Check the spread tuple and report a mismatch at the original span.
+    #[inline(never)]
+    #[allow(clippy::too_many_arguments)] // The spread argument range and its diagnostic destination.
+    fn check_signature_rest_applicability(
+        &mut self,
+        node: NodeId,
+        args: &EffectiveCallArguments<'_>,
+        arg_count: usize,
+        rest_type: TypeId,
+        relation: RelationKind,
+        check_mode: CheckMode,
+        errors: Option<&mut Vec<ApplicabilityError>>,
+    ) -> CheckResult<bool> {
+        let spread_type = self.get_spread_argument_type(
+            node,
+            args,
+            arg_count,
+            args.len(),
+            rest_type,
+            /*inference_context*/ None,
+            check_mode,
+        )?;
+        // The spread tuple uses the direct relation in both modes.
+        let Some(errors) = errors else {
+            return self.check_type_related_to(spread_type, rest_type, relation);
+        };
+        let head = &diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1;
+        let rest_arg_count = args.len() - arg_count;
+        let error_node = match rest_arg_count {
+            0 => Some(node),
+            1 => match args.at(arg_count) {
+                EffectiveArg::Node(arg_node) => Some(self.get_effective_check_node(arg_node)),
+                EffectiveArg::Synthetic { .. } => None,
+            },
+            _ => None,
+        };
+        let (related, output) = self.check_relation_with_error_output_at(
+            spread_type,
+            rest_type,
+            relation,
+            Some(head),
+            None,
+            error_node,
+        )?;
+        if !related {
+            let span = if rest_arg_count == 0 {
+                self.diag_span_of_node(node)
+            } else if rest_arg_count == 1 {
+                match args.at(arg_count) {
+                    EffectiveArg::Node(arg_node) => {
+                        self.diag_span_of_node(self.get_effective_check_node(arg_node))
+                    }
+                    arg @ EffectiveArg::Synthetic { .. } => {
+                        self.diag_span_of_effective_arg(node, &arg)
+                    }
+                }
+            } else {
+                let pos = self.effective_arg_pos(&args.at(arg_count));
+                let end = self.effective_arg_end(&args.at(args.len() - 1));
+                self.diag_span_of_byte_range(node, pos, end)
+            };
+            let await_related =
+                self.missing_await_related_at(Some(&span), spread_type, rest_type, relation)?;
+            let mut diagnostic = if let Some(output) = output {
+                let mut diagnostic = self.diagnostic_at_span(&span, output.message);
+                diagnostic.related = output.related;
+                diagnostic
+            } else {
+                self.build_relation_error_with_head(spread_type, rest_type, &span, head)?
+            };
+            diagnostic.related.extend(await_related);
+            errors.push(ApplicabilityError {
+                related: diagnostic.related.clone(),
+                diagnostic: Some(diagnostic),
+            });
+        }
+        Ok(related)
     }
 
     fn effective_arg_pos(&self, arg: &EffectiveArg) -> u32 {
@@ -4367,21 +4357,21 @@ impl<'a> CheckerState<'a> {
             // (checker.go:9846-9853). tsc 6.0 threaded one mutable
             // containing chain through every argument relation, so later
             // rows were appended under the earlier ones.
-            let errors = match self.get_signature_applicability_error(
+            let mut errors = Vec::new();
+            match self.is_signature_applicable(
                 node,
                 &args,
                 last,
                 RelationKind::Assignable,
                 CheckMode::NORMAL,
-                ApplicabilityMode::Report,
+                Some(&mut errors),
                 /*containing_message_chain*/ None,
             ) {
-                Ok(errors) => errors.unwrap_or_else(|| {
-                    panic!(
-                        "No error for last overload signature @{:?}",
-                        self.binder.source_of_node(node).file_name
-                    )
-                }),
+                Ok(false) => {}
+                Ok(true) => panic!(
+                    "No error for last overload signature @{:?}",
+                    self.binder.source_of_node(node).file_name
+                ),
                 Err(err) => {
                     // The post-report implementation probe still runs
                     // before an unrenderable diagnostic unwinds; preserve
@@ -4389,7 +4379,7 @@ impl<'a> CheckerState<'a> {
                     let _ = self.implementation_success_elaboration(ctx, last);
                     return Err(err);
                 }
-            };
+            }
             for error in errors {
                 let mut diagnostic = error.diagnostic.expect("Report mode builds diagnostics");
                 if let Some(prefix) = &prefix {
@@ -4620,18 +4610,15 @@ impl<'a> CheckerState<'a> {
             {
                 return Ok(None);
             }
-            if self
-                .get_signature_applicability_error(
-                    node,
-                    args,
-                    candidate,
-                    relation,
-                    CheckMode::NORMAL,
-                    ApplicabilityMode::Silent,
-                    None,
-                )?
-                .is_some()
-            {
+            if !self.is_signature_applicable(
+                node,
+                args,
+                candidate,
+                relation,
+                CheckMode::NORMAL,
+                None,
+                None,
+            )? {
                 ctx.candidates_for_argument_error = Some(vec![candidate]);
                 return Ok(None);
             }
@@ -4826,18 +4813,15 @@ impl<'a> CheckerState<'a> {
         } else {
             check_candidate = candidate;
         }
-        if self
-            .get_signature_applicability_error(
-                node,
-                args,
-                check_candidate,
-                relation,
-                arg_check_mode,
-                ApplicabilityMode::Silent,
-                None,
-            )?
-            .is_some()
-        {
+        if !self.is_signature_applicable(
+            node,
+            args,
+            check_candidate,
+            relation,
+            arg_check_mode,
+            None,
+            None,
+        )? {
             return Ok(OverloadCandidateTrial {
                 disposition: OverloadCandidateDisposition::ArgumentError(check_candidate),
                 arg_check_mode,
@@ -4878,18 +4862,15 @@ impl<'a> CheckerState<'a> {
                     });
                 }
             }
-            if self
-                .get_signature_applicability_error(
-                    node,
-                    args,
-                    check_candidate,
-                    relation,
-                    arg_check_mode,
-                    ApplicabilityMode::Silent,
-                    None,
-                )?
-                .is_some()
-            {
+            if !self.is_signature_applicable(
+                node,
+                args,
+                check_candidate,
+                relation,
+                arg_check_mode,
+                None,
+                None,
+            )? {
                 return Ok(OverloadCandidateTrial {
                     disposition: OverloadCandidateDisposition::ArgumentError(check_candidate),
                     arg_check_mode,

@@ -1832,6 +1832,56 @@ fn array_member_elaboration_rechecks_the_syntax_specific_source() {
 }
 
 #[test]
+fn applicability_verdict_is_independent_of_the_diagnostic_destination() {
+    use crate::relate::RelationKind;
+
+    with_program_state(
+        &[(
+            "a.ts",
+            "declare function take(value: number): void; take(1); take('wrong');",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let arena = &state.binder.source(0).arena;
+            let declaration = arena
+                .node_ids()
+                .find(|&node| arena.node(node).kind == SyntaxKind::FunctionDeclaration)
+                .unwrap();
+            let calls: Vec<_> = arena
+                .node_ids()
+                .filter(|&node| arena.node(node).kind == SyntaxKind::CallExpression)
+                .collect();
+            assert_eq!(calls.len(), 2);
+            let signature = state.get_signature_from_declaration(declaration).unwrap();
+            for (call, expected) in calls.into_iter().zip([true, false]) {
+                let args = state.get_effective_call_arguments(call).unwrap();
+                for report in [false, true] {
+                    let mut errors = Vec::new();
+                    assert_eq!(
+                        state.is_signature_applicable(
+                            call,
+                            &args,
+                            signature,
+                            RelationKind::Assignable,
+                            CheckMode::NORMAL,
+                            report.then_some(&mut errors),
+                            None,
+                        ),
+                        Ok(expected)
+                    );
+                    if report && !expected {
+                        assert_eq!(errors.len(), 1);
+                        assert_eq!(errors[0].diagnostic.as_ref().unwrap().code(), 2345);
+                    } else {
+                        assert!(errors.is_empty());
+                    }
+                }
+            }
+        },
+    );
+}
+
+#[test]
 fn object_literal_arg_reports_member_row() {
     // elaborateObjectLiteral → elaborateElementwise: the row
     // anchors at the property name, not the outer argument.
