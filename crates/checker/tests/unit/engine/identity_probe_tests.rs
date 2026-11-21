@@ -176,6 +176,7 @@ fn normalization_gate_matches_the_full_loop_for_all_normalizing_kinds() {
                 var parameter: T;
                 var reference: Box<T>;
                 var union: Box<T> | string;
+                var reducible: ({ tag: 0 } & { tag: 1 }) | number;
                 var intersection: Box<T> & { tag: 1 };
                 var conditional: T extends unknown ? T : never;
                 var indexed: O[K];
@@ -211,6 +212,17 @@ fn normalization_gate_matches_the_full_loop_for_all_normalizing_kinds() {
                 .tables
                 .object_flags_of(tuple)
                 .intersects(tsc_types::ObjectFlags::REFERENCE));
+            let plain_union = state.tables.type_of(inputs[4]);
+            assert_eq!(plain_union.flags, tsc_types::TypeFlags::UNION);
+            assert!(!plain_union.object_flags.intersects(
+                tsc_types::ObjectFlags::REFERENCE | tsc_types::ObjectFlags::CONTAINS_INTERSECTIONS
+            ));
+            let reducible = resolve(state, "reducible");
+            assert!(state
+                .tables
+                .object_flags_of(reducible)
+                .intersects(tsc_types::ObjectFlags::CONTAINS_INTERSECTIONS));
+            inputs.push(reducible);
             let fresh = state.tables.get_fresh_type_of_literal_type(inputs[1]);
             assert!(state.tables.is_fresh_literal_type(fresh));
             inputs.push(fresh);

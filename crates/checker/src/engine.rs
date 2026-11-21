@@ -475,15 +475,20 @@ impl<'a> CheckerState<'a> {
     /// twin (createNormalizedTypeReference over the forced arguments).
     #[inline]
     pub fn get_normalized_type(&mut self, ty: TypeId, writing: bool) -> CheckResult<TypeId> {
-        if !self.tables.flags_of(ty).intersects(
+        let header = self.tables.type_of(ty);
+        if header.flags == TypeFlags::UNION
+            && !header
+                .object_flags
+                .intersects(ObjectFlags::REFERENCE | ObjectFlags::CONTAINS_INTERSECTIONS)
+        {
+            return Ok(ty);
+        }
+        if !header.flags.intersects(
             TypeFlags::FRESHABLE
                 | TypeFlags::UNION_OR_INTERSECTION
                 | TypeFlags::SUBSTITUTION
                 | TypeFlags::SIMPLIFIABLE,
-        ) && !self
-            .tables
-            .object_flags_of(ty)
-            .intersects(ObjectFlags::REFERENCE)
+        ) && !header.object_flags.intersects(ObjectFlags::REFERENCE)
         {
             return Ok(ty);
         }
