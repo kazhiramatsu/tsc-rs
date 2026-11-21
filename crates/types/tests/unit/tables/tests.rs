@@ -1681,3 +1681,72 @@ fn reference_clones_copy_the_argument_slot_and_start_without_a_node() {
         tables.try_type_argument_list(eager)
     );
 }
+
+#[test]
+fn plain_union_lookup_checks_colliding_lists_and_keeps_first_creation() {
+    let mut t = tables();
+    let (a, b) = (
+        t.get_string_literal_type("aa"),
+        t.get_string_literal_type("bb"),
+    );
+    let members = [a, b];
+    let reversed = [b, a];
+    let other = t.create_origin_union_or_intersection_type(TypeFlags::UNION, reversed);
+    let reversed_id = t.intern_type_list(&reversed);
+    let hash = hash_type_list(&members);
+    // Give a different ordered list the very same hash as the query.
+    t.plain_unions.insert_unique(
+        hash,
+        PlainUnion {
+            hash,
+            members: reversed_id,
+            ty: other,
+        },
+        |e| e.hash,
+    );
+
+    let args = [a, b, a];
+    let start = t.list_items.len() as u32;
+    let count = t.len();
+    let union = t.get_union_type_from_sorted_list(
+        members,
+        ObjectFlags::PRIMITIVE_UNION,
+        None,
+        Some(&args),
+        None,
+    );
+    assert_eq!(t.len(), count + 1);
+    assert_eq!(t.members_of(union), members);
+    assert_eq!(t.intern_type_list(&members).index(), start);
+    assert_eq!(
+        t.alias_type_argument_list(union).unwrap().index(),
+        start + 3
+    );
+    assert_eq!(t.alias_type_arguments(union), Some(&args[..]));
+
+    for i in 0..128 {
+        let literal = t.get_number_literal_type(f64::from(i));
+        t.get_union_type_from_sorted_list([a, literal], ObjectFlags::NONE, None, None, None);
+    }
+    let list_words = t.list_items.len();
+    let count = t.len();
+    assert_eq!(
+        t.get_union_type_from_sorted_list(members, ObjectFlags::NONE, None, Some(&[b, a, b]), None),
+        union
+    );
+    assert_eq!(t.list_items.len(), list_words);
+    assert_eq!(t.len(), count);
+    assert!(t
+        .object_flags_of(union)
+        .intersects(ObjectFlags::PRIMITIVE_UNION));
+    assert_eq!(t.alias_type_arguments(union), Some(&args[..]));
+
+    let alias = Some(SymbolId::new(17));
+    let aliased = t.get_union_type_from_sorted_list(members, ObjectFlags::NONE, alias, None, None);
+    let with_origin =
+        t.get_union_type_from_sorted_list(members, ObjectFlags::NONE, None, None, Some(aliased));
+    assert_ne!(aliased, union);
+    assert_ne!(with_origin, union);
+    t.release_scalar_lookup_buffers();
+    assert_eq!(t.plain_unions.capacity(), 0);
+}

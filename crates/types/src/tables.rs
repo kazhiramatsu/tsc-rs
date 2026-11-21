@@ -160,6 +160,15 @@ pub struct UnionKey {
     pub alias: AliasKey,
 }
 
+/// A canonical union without an origin or alias symbol. Its interned list
+/// supplies the exact key and the saved hash lets the table grow without
+/// reading each union's members again.
+struct PlainUnion {
+    hash: u64,
+    members: TypeListId,
+    ty: TypeId,
+}
+
 /// unionOfUnionTypes (46990): the two-union fast path's key, the smaller
 /// id first (getUnionType 61469-61475), with the checker's alias.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -434,8 +443,9 @@ pub struct TypeTables {
     /// 63096) — the string interpolation collapses -0/+0 and every
     /// NaN, which EnumLiteralKey reproduces bitwise.
     enum_literal_types: HashMap<(SymbolId, EnumLiteralKey), TypeId>,
-    /// unionTypes (46989), keyed by the member list and alias.
+    /// Unions keyed by an origin or an alias symbol, in addition to a list ID.
     union_types: HashMap<UnionKey, TypeId>,
+    plain_unions: hashbrown::HashTable<PlainUnion>,
     /// unionOfUnionTypes (46990) — the 2-union getUnionType fast path.
     union_of_union_types: HashMap<UnionOfUnionKey, TypeId>,
     /// intersectionTypes (46991).
@@ -737,6 +747,7 @@ impl TypeTables {
         }
 
         release(&mut self.union_types);
+        release_table(&mut self.plain_unions);
         release(&mut self.union_of_union_types);
         release(&mut self.intersection_types);
         release(&mut self.indexed_access_types);
@@ -842,7 +853,8 @@ impl TypeTables {
             + self.tuple_types.keys().map(String::capacity).sum::<usize>()
             + self.template_literal_types.capacity()
                 * (std::mem::size_of::<(TemplateLiteralId, TypeId)>() + 1);
-        usage.other_map_bytes += map_bytes(&self.union_types)
+        usage.other_map_bytes += self.plain_unions.allocation_size()
+            + map_bytes(&self.union_types)
             + map_bytes(&self.union_of_union_types)
             + map_bytes(&self.intersection_types)
             + map_bytes(&self.indexed_access_types);
@@ -943,6 +955,7 @@ impl TypeTables {
             bigint_literal_types: HashMap::default(),
             enum_literal_types: HashMap::default(),
             union_types: HashMap::default(),
+            plain_unions: hashbrown::HashTable::new(),
             union_of_union_types: HashMap::default(),
             intersection_types: HashMap::default(),
             tuple_types: HashMap::default(),
@@ -983,6 +996,7 @@ impl TypeTables {
             std::mem::take(&mut self.bigint_literal_types),
             std::mem::take(&mut self.enum_literal_types),
             std::mem::take(&mut self.union_types),
+            std::mem::take(&mut self.plain_unions),
             std::mem::take(&mut self.union_of_union_types),
             std::mem::take(&mut self.intersection_types),
             std::mem::take(&mut self.tuple_types),
@@ -1949,7 +1963,10 @@ impl TypeTables {
     /// the same id, so a cache that tsc keys by a `getTypeListId` string can
     /// carry this id in a value key instead of formatting the list.
     pub fn intern_type_list(&mut self, types: &[TypeId]) -> TypeListId {
-        let hash = hash_type_list(types);
+        self.intern_type_list_with_hash(types, hash_type_list(types))
+    }
+
+    fn intern_type_list_with_hash(&mut self, types: &[TypeId], hash: u64) -> TypeListId {
         let items = &self.list_items;
         if let Some(&id) = self.list_ids.find(hash, |&id| list_at(items, id) == types) {
             return id;
@@ -3067,6 +3084,29 @@ impl TypeTables {
         if types.len() == 1 {
             return types[0];
         }
+        if origin.is_none() && alias_symbol.is_none() {
+            let hash = hash_type_list(types);
+            crate::perf::bump(crate::perf::PerfCounter::AliasIdCalls);
+            crate::perf::bump(crate::perf::PerfCounter::UnionLookups);
+            if let Some(entry) = self.plain_unions.find(hash, |entry| {
+                entry.hash == hash && self.list(entry.members) == types
+            }) {
+                crate::perf::bump(crate::perf::PerfCounter::UnionHits);
+                return entry.ty;
+            }
+            let members = self.intern_type_list_with_hash(types, hash);
+            let ty = self.create_union_from_sorted_list(
+                types,
+                members,
+                precomputed_object_flags,
+                None,
+                alias_type_arguments,
+                None,
+            );
+            self.plain_unions
+                .insert_unique(hash, PlainUnion { hash, members, ty }, |entry| entry.hash);
+            return ty;
+        }
         // 61615-61620: a union or intersection origin stands for its
         // members in the key; an origin index type (createOriginIndexType)
         // is keyed with the members.
@@ -3092,6 +3132,29 @@ impl TypeTables {
             crate::perf::bump(crate::perf::PerfCounter::UnionHits);
             return id;
         }
+        let id = self.create_union_from_sorted_list(
+            types,
+            members,
+            precomputed_object_flags,
+            alias_symbol,
+            alias_type_arguments,
+            origin,
+        );
+        self.union_types.insert(key, id);
+        id
+    }
+
+    /// Create the first union for a canonical key, recording the flags and
+    /// alias arguments supplied by the call that missed.
+    fn create_union_from_sorted_list(
+        &mut self,
+        types: &[TypeId],
+        members: TypeListId,
+        precomputed_object_flags: ObjectFlags,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+        origin: Option<TypeId>,
+    ) -> TypeId {
         let boolean_pair = types.len() == 2
             && self
                 .flags_of(types[0])
@@ -3133,7 +3196,6 @@ impl TypeTables {
         let alias_type_arguments = self.intern_alias_arguments(alias_type_arguments);
         self.type_mut(id).object_flags = object_flags;
         self.set_alias(id, alias_symbol, alias_type_arguments);
-        self.union_types.insert(key, id);
         id
     }
 
