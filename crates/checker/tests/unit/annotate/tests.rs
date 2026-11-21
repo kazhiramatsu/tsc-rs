@@ -1018,3 +1018,22 @@ fn recursive_mapped_member_lookup_observes_the_published_shell() {
         },
     );
 }
+
+#[test]
+fn declaration_routing_keeps_cross_file_overload_order() {
+    crate::state::test_support::with_program_state(
+        &[("a.ts", "function f(x: number): number;"),
+          ("b.ts", "function f(x: string): string; function f(x: any) { return x; } let typed: string;")],
+        &CompilerOptions::default(),
+        |state| {
+            let f = state.resolve_file_scope_name("f", tsc_types::SymbolFlags::VALUE).unwrap();
+            let signatures = state.get_signatures_of_symbol(Some(f)).unwrap();
+            let owners: Vec<_> = signatures.into_iter().map(|sig|
+                state.binder.file_index_of_node(state.signature_of(sig).declaration.unwrap())
+            ).collect();
+            assert_eq!(owners, [0, 1]);
+            let typed = state.resolve_file_scope_name("typed", tsc_types::SymbolFlags::VALUE).unwrap();
+            assert_eq!(state.get_type_of_symbol(typed), Ok(state.tables.intrinsics.string));
+        }
+    );
+}

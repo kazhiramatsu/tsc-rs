@@ -9171,7 +9171,6 @@ impl<'a> CheckerState<'a> {
         include_optionality: bool,
         check_mode: CheckMode,
     ) -> CheckResult<Option<TypeId>> {
-        let source = self.binder.source_of_node(declaration);
         let kind = self.kind_of(declaration);
         let parent = self.parent_of(declaration);
         if kind == SyntaxKind::VariableDeclaration {
@@ -9277,6 +9276,7 @@ impl<'a> CheckerState<'a> {
                     SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
                 )
             });
+            let source = self.binder.source_of_node(declaration);
             let exported = node_util::get_combined_modifier_flags(source, declaration)
                 .intersects(ModifierFlags::EXPORT);
             let ambient = self.node_flags(declaration) & tsc_types::NodeFlags::AMBIENT.bits() != 0;
@@ -9396,6 +9396,7 @@ impl<'a> CheckerState<'a> {
             // flow answer returns None (the caller's widening tail
             // reports the implicit any).
             let class = parent.expect("property declaration has a parent");
+            let source = self.binder.source_of_node(declaration);
             let ambient_member = node_util::get_combined_modifier_flags(source, declaration)
                 .intersects(ModifierFlags::AMBIENT);
             if !self.has_static_modifier(declaration) {
@@ -10456,13 +10457,7 @@ impl<'a> CheckerState<'a> {
                 let previous = declarations[i - 1];
                 let same_parent = self.parent_of(declaration) == self.parent_of(previous);
                 let same_kind = self.kind_of(declaration) == self.kind_of(previous);
-                let adjacent = Published.node(declaration).pos
-                    == self
-                        .binder
-                        .source_of_node(previous)
-                        .arena
-                        .node(previous)
-                        .end;
+                let adjacent = Published.node(declaration).pos == Published.node(previous).end;
                 if same_parent && same_kind && adjacent {
                     continue;
                 }
