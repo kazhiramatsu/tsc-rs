@@ -2655,6 +2655,36 @@ impl TypeTables {
         false
     }
 
+    /// Collect two inputs already checked for union flags into an empty
+    /// content-ordered member list. Each source contributes its flags before
+    /// the surviving members are put in order.
+    pub fn collect_non_union_pair(
+        &self,
+        order: &dyn crate::TypeOrderContext,
+        type_set: &mut Vec<TypeId>,
+        [first, second]: [TypeId; 2],
+    ) -> i32 {
+        debug_assert!(type_set.is_empty());
+        debug_assert!(!self.flags_of(first).intersects(TypeFlags::UNION));
+        debug_assert!(!self.flags_of(second).intersects(TypeFlags::UNION));
+        let mut includes = 0;
+        type_set.reserve(2);
+        if self.include_type_in_union(&mut includes, first) {
+            type_set.push(first);
+        }
+        if first != second && self.include_type_in_union(&mut includes, second) {
+            type_set.push(second);
+        }
+        if type_set.len() == 2 {
+            #[cfg(feature = "perf-counters")]
+            crate::perf::union_sort_comparison(2);
+            if crate::type_order::compare_types(self, order, second, first).is_lt() {
+                type_set.swap(0, 1);
+            }
+        }
+        includes
+    }
+
     /// tsc-port: addTypesToUnion @6.0.3
     /// tsc-hash: 14b6eea2a85c949d2f78fa0e81a934b7a2168d3e5c42fb693dbcbdee0e65192c
     /// tsc-span: _tsc.js:61358-61367

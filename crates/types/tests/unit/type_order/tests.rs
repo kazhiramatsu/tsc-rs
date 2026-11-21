@@ -1141,3 +1141,50 @@ fn named_union_finishing_reuses_markers_and_checks_unmarked_lists() {
         }
     }
 }
+
+#[test]
+fn non_union_pairs_match_general_collection_in_both_null_modes() {
+    use crate::{IdentityDomain, ObjectFlags, SymbolId, TypeFlags, TypeTables};
+
+    for strict in [false, true] {
+        let mut tables = TypeTables::new(strict, false, &IdentityDomain::new());
+        let z = tables.get_string_literal_type("z");
+        let a = tables.get_string_literal_type("a");
+        tables.set_alias(z, Some(SymbolId::new(2)), None);
+        tables.set_alias(a, Some(SymbolId::new(1)), None);
+        let param = tables.create_synthesized_type_parameter(None);
+        let intersection = tables.create_origin_union_or_intersection_type(
+            TypeFlags::INTERSECTION,
+            [param, tables.intrinsics.string],
+        );
+        tables.type_mut(intersection).object_flags = ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE;
+        let i = &tables.intrinsics;
+        let values = [
+            z,
+            a,
+            param,
+            intersection,
+            i.never,
+            i.null_widening,
+            i.null,
+            i.undefined_widening,
+            i.undefined,
+            i.wildcard,
+            i.error,
+        ];
+        let order = TestOrderContext::default();
+        for first in values {
+            for second in values {
+                let pair = [first, second];
+                let mut expected = Vec::new();
+                let expected_flags =
+                    tables.add_types_to_union(Some(&order), &mut expected, 0, &pair);
+                let comparisons = order.symbol_comparisons.take();
+                let mut actual = Vec::new();
+                let flags = tables.collect_non_union_pair(&order, &mut actual, pair);
+                assert_eq!((actual, flags), (expected, expected_flags), "{pair:?}");
+                assert_eq!(order.symbol_comparisons.take(), comparisons);
+            }
+        }
+    }
+}
