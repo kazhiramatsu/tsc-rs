@@ -29,6 +29,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isGenericMappedType @6.0.3
     /// tsc-hash: 0de4059bb2606e0ea8b724e86d10d096d4e9fba0de0e0ee4b01cdd51d92b09a1
     /// tsc-span: _tsc.js:58659-58671
+    #[inline]
     pub(crate) fn is_generic_mapped_type_state(&mut self, ty: TypeId) -> CheckResult<bool> {
         if !self
             .tables
@@ -37,6 +38,11 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
+        self.is_generic_mapped_type_worker(ty)
+    }
+
+    #[inline(never)]
+    fn is_generic_mapped_type_worker(&mut self, ty: TypeId) -> CheckResult<bool> {
         let constraint = self.get_constraint_type_from_mapped_type(ty)?;
         if self
             .get_generic_object_flags(constraint)?

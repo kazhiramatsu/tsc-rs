@@ -519,3 +519,24 @@ fn fresh_mapped_parts_publish_independently_across_speculation() {
         },
     );
 }
+
+#[test]
+fn generic_mapped_predicate_repeats_only_the_required_instantiation() {
+    let source = "function f<T extends string>() {\n\
+                  let o: {}; let c: { [K in T]: number };\n\
+                  let n: { [K in 'k' as T]: number };\n\
+                  }";
+    with_program_state(&[("a.ts", source)], &CompilerOptions::default(), |state| {
+        let ordinary = annotation_type(state, "o");
+        let constraint = annotation_type(state, "c");
+        let name = annotation_type(state, "n");
+        let before = state.total_instantiation_count;
+        for completed in 0..2 {
+            assert!(!state.is_generic_mapped_type_state(ordinary).unwrap());
+            assert!(state.is_generic_mapped_type_state(constraint).unwrap());
+            assert_eq!(state.total_instantiation_count - before, completed);
+            assert!(state.is_generic_mapped_type_state(name).unwrap());
+            assert_eq!(state.total_instantiation_count - before, completed + 1);
+        }
+    });
+}
