@@ -1056,3 +1056,42 @@ fn mapper_cache_depths_keep_storage_and_clear_only_discarded_answers() {
         state.pop_active_mapper();
     });
 }
+
+#[test]
+fn changed_instantiation_list_materializes_only_after_a_difference() {
+    with_program_state(
+        &[("a.ts", "function f<T>() { var x: T; }")],
+        &CompilerOptions::default(),
+        |state| {
+            let t = declared_type_parameter(state, "T");
+            let number = state.tables.intrinsics.number;
+            let string = state.tables.intrinsics.string;
+            let mapper = state.make_unary_type_mapper(t, string);
+            for (items, expected) in [
+                (vec![], None),
+                (vec![number, number], None),
+                (vec![t, number, t], Some(vec![string, number, string])),
+                (vec![number, t, number], Some(vec![number, string, number])),
+                (vec![number, number, t], Some(vec![number, number, string])),
+            ] {
+                let list = state.tables.intern_type_list(&items);
+                let depth = state.instantiation_type_lists.len();
+                let count = state.total_instantiation_count;
+                state
+                    .with_changed_instantiation_list(list, mapper, |_, changed| {
+                        assert_eq!(changed, expected.as_deref());
+                        Ok(())
+                    })
+                    .unwrap();
+                assert_eq!(
+                    state.total_instantiation_count - count,
+                    items.iter().filter(|&&item| item == t).count() as u64
+                );
+                if expected.is_none() {
+                    assert_eq!(state.instantiation_type_lists.len(), depth);
+                }
+                assert!(state.instantiation_type_lists.iter().all(Vec::is_empty));
+            }
+        },
+    );
+}

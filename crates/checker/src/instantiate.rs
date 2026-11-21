@@ -258,6 +258,34 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
+    /// Visit every element once. Only a changed list needs scratch storage,
+    /// which stays checked out through the callback and is returned even on error.
+    fn with_changed_instantiation_list<R>(
+        &mut self,
+        source: tsc_types::TypeListId,
+        mapper: MapperId,
+        use_list: impl FnOnce(&mut Self, Option<&[TypeId]>) -> CheckResult<R>,
+    ) -> CheckResult<R> {
+        let mut cursor = self.tables.cursor(source);
+        let len = cursor.len();
+        while let Some(ty) = cursor.next(&self.tables) {
+            let mapped = self.instantiate_type(ty, Some(mapper))?;
+            if mapped != ty {
+                return self.with_instantiation_type_list(|state, result| {
+                    result.reserve(len);
+                    let prefix_len = len - cursor.len() - 1;
+                    result.extend_from_slice(&state.tables.list(source)[..prefix_len]);
+                    result.push(mapped);
+                    while let Some(ty) = cursor.next(&state.tables) {
+                        result.push(state.instantiate_type(ty, Some(mapper))?);
+                    }
+                    use_list(state, Some(result))
+                });
+            }
+        }
+        use_list(self, None)
+    }
+
     fn with_instantiated_alias_arguments<R>(
         &mut self,
         source_arguments: Option<tsc_types::TypeListId>,
@@ -2010,13 +2038,7 @@ impl<'a> CheckerState<'a> {
         let Some(arguments) = self.tables.alias_type_argument_list(ty) else {
             return false;
         };
-        let mut arguments = self.tables.cursor(arguments);
-        while let Some(argument) = arguments.next(&self.tables) {
-            if self.could_contain_type_variables(argument) {
-                return true;
-            }
-        }
-        false
+        self.list_could_contain_type_variables(arguments)
     }
 
     /// tsgo: getCircularTypeNames (checker.go:22546-22564). The types that
@@ -2104,14 +2126,16 @@ impl<'a> CheckerState<'a> {
                         .tables
                         .try_type_argument_list(ty)
                         .expect("eager references have resolved type arguments");
-                    return self.with_instantiation_type_list(|state, arguments| {
-                        state.instantiate_type_list_into(resolved, mapper, arguments)?;
-                        if arguments == state.tables.list(resolved) {
-                            Ok(ty)
-                        } else {
-                            state.create_normalized_type_reference_forced(target, arguments)
-                        }
-                    });
+                    return self.with_changed_instantiation_list(
+                        resolved,
+                        mapper,
+                        |state, arguments| match arguments {
+                            Some(arguments) => {
+                                state.create_normalized_type_reference_forced(target, arguments)
+                            }
+                            None => Ok(ty),
+                        },
+                    );
                 }
                 if object_flags.intersects(ObjectFlags::REVERSE_MAPPED) {
                     return self.instantiate_reverse_mapped_type(ty, mapper);
@@ -2150,45 +2174,56 @@ impl<'a> CheckerState<'a> {
                     _ => unreachable!("union/intersection flag implies member data"),
                 },
             };
-            return self.with_instantiation_type_list(|state, new_types| {
-                state.instantiate_type_list_into(source_types, mapper, new_types)?;
-                if new_types == state.tables.list(source_types)
-                    && alias_symbol == state.tables.alias_symbol(ty)
-                {
-                    return Ok(ty);
-                }
-                let new_alias_symbol = alias_symbol.or(state.tables.alias_symbol(ty));
-                state.with_instantiated_alias_arguments(
-                    state.tables.alias_type_argument_list(ty),
-                    mapper,
-                    alias_symbol,
-                    alias_type_arguments,
-                    |state, new_alias_type_arguments| {
-                        let origin_is_intersection = origin.is_some_and(|origin| {
-                            state
-                                .tables
-                                .flags_of(origin)
-                                .intersects(TypeFlags::INTERSECTION)
-                        });
-                        if flags.intersects(TypeFlags::INTERSECTION) || origin_is_intersection {
-                            state.get_intersection_type_ex(
-                                new_types,
-                                IntersectionFlags::NONE,
-                                new_alias_symbol,
-                                new_alias_type_arguments,
-                            )
-                        } else {
-                            state.get_union_type_ex_with_origin(
-                                new_types,
-                                UnionReduction::Literal,
-                                new_alias_symbol,
-                                new_alias_type_arguments,
-                                None,
-                            )
-                        }
-                    },
-                )
-            });
+            return self.with_changed_instantiation_list(
+                source_types,
+                mapper,
+                |state, new_types| {
+                    if new_types.is_none() && alias_symbol == state.tables.alias_symbol(ty) {
+                        return Ok(ty);
+                    }
+                    let new_alias_symbol = alias_symbol.or(state.tables.alias_symbol(ty));
+                    state.with_instantiated_alias_arguments(
+                        state.tables.alias_type_argument_list(ty),
+                        mapper,
+                        alias_symbol,
+                        alias_type_arguments,
+                        |state, new_alias_type_arguments| {
+                            // An alias change alone still rebuilds the type. Give the mutable
+                            // constructor an owned view of the original members in that case.
+                            let original;
+                            let new_types = match new_types {
+                                Some(changed) => changed,
+                                None => {
+                                    original = state.tables.list_copy(source_types);
+                                    &original
+                                }
+                            };
+                            let origin_is_intersection = origin.is_some_and(|origin| {
+                                state
+                                    .tables
+                                    .flags_of(origin)
+                                    .intersects(TypeFlags::INTERSECTION)
+                            });
+                            if flags.intersects(TypeFlags::INTERSECTION) || origin_is_intersection {
+                                state.get_intersection_type_ex(
+                                    new_types,
+                                    IntersectionFlags::NONE,
+                                    new_alias_symbol,
+                                    new_alias_type_arguments,
+                                )
+                            } else {
+                                state.get_union_type_ex_with_origin(
+                                    new_types,
+                                    UnionReduction::Literal,
+                                    new_alias_symbol,
+                                    new_alias_type_arguments,
+                                    None,
+                                )
+                            }
+                        },
+                    )
+                },
+            );
         }
         if flags.intersects(TypeFlags::INDEX) {
             // 63749: the StringsOnly bit deliberately drops on
@@ -2516,10 +2551,11 @@ impl<'a> CheckerState<'a> {
                     // (68336): node-carrying references short-circuit
                     // true without forcing their arguments.
                     self.type_deferred_node(ty).is_some() || {
-                        let arguments: Vec<TypeId> = self.tables.type_arguments(ty).to_vec();
-                        arguments
-                            .into_iter()
-                            .any(|argument| self.could_contain_type_variables(argument))
+                        let arguments = self
+                            .tables
+                            .try_type_argument_list(ty)
+                            .expect("eager references have resolved type arguments");
+                        self.list_could_contain_type_variables(arguments)
                     }
                 }) || (object_flags.intersects(ObjectFlags::ANONYMOUS)
                     && self.tables.type_of(ty).symbol.is_some_and(|symbol| {
@@ -2541,14 +2577,11 @@ impl<'a> CheckerState<'a> {
                 && !flags.intersects(TypeFlags::ENUM_LITERAL)
                 && !self.is_non_generic_top_level_type(ty)
                 && {
-                    let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                        TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
-                        TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+                    let types = match self.tables.type_of(ty).data {
+                        TypeData::Union { types, .. } | TypeData::Intersection { types } => types,
                         _ => unreachable!("union/intersection flag implies member data"),
                     };
-                    members
-                        .into_iter()
-                        .any(|member| self.could_contain_type_variables(member))
+                    self.list_could_contain_type_variables(types)
                 });
         // Go checker.go:22690 caches every eligible type, including type
         // parameters, indexed accesses and conditional/template types.
@@ -2562,6 +2595,17 @@ impl<'a> CheckerState<'a> {
             };
         self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(updated);
         result
+    }
+
+    /// Re-read the backing store after each recursive call, stopping at the first match.
+    fn list_could_contain_type_variables(&mut self, list: tsc_types::TypeListId) -> bool {
+        let mut cursor = self.tables.cursor(list);
+        while let Some(ty) = cursor.next(&self.tables) {
+            if self.could_contain_type_variables(ty) {
+                return true;
+            }
+        }
+        false
     }
 
     /// tsc-port: isNonGenericTopLevelType @6.0.3
