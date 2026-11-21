@@ -1370,6 +1370,9 @@ pub(crate) struct RelationScratch {
     pub(crate) target_stack: Vec<RelationStackEntry>,
 }
 
+// A longer active prefix also has a hash index for cycle checks.
+const MAYBE_SCAN_LIMIT: usize = 32;
+
 pub(crate) struct RelationChecker<'r, 'a> {
     pub(crate) st: &'r mut CheckerState<'a>,
     pub(crate) relation: RelationKind,
@@ -3747,7 +3750,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             return Ok(Ternary::FALSE);
         }
         if !self.maybe_keys.is_empty() {
-            if self.maybe_keys_set.contains(&id) {
+            if self.has_active_key(&id) {
                 return Ok(Ternary::MAYBE);
             }
             if id.has_constraint_marker() {
@@ -3758,7 +3761,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     self.relation,
                     /*ignore_constraints*/ true,
                 )?;
-                if self.maybe_keys_set.contains(&broadest) {
+                if self.has_active_key(&broadest) {
                     return Ok(Ternary::MAYBE);
                 }
             }
@@ -3771,13 +3774,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         let maybe_start = self.maybe_count;
-        if self.maybe_keys.len() == self.maybe_count {
-            self.maybe_keys.push(id.clone());
-        } else {
-            self.maybe_keys[self.maybe_count] = id.clone();
-        }
-        self.maybe_keys_set.insert(id.clone());
-        self.maybe_count += 1;
+        self.push_active_key(&id);
         let save_expanding_flags = self.expanding_flags;
         let save_source_depth = self.source_depth;
         let save_target_depth = self.target_depth;
@@ -3907,19 +3904,48 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         Ok(result)
     }
 
+    fn has_active_key(&self, key: &RelationKey) -> bool {
+        if self.maybe_count <= MAYBE_SCAN_LIMIT {
+            self.maybe_keys[..self.maybe_count].contains(key)
+        } else {
+            self.maybe_keys_set.contains(key)
+        }
+    }
+
+    fn push_active_key(&mut self, key: &RelationKey) {
+        if self.maybe_count == self.maybe_keys.len() {
+            self.maybe_keys.push(key.clone());
+        } else {
+            self.maybe_keys[self.maybe_count] = key.clone();
+        }
+        self.maybe_count += 1;
+        if self.maybe_count == MAYBE_SCAN_LIMIT + 1 {
+            self.maybe_keys_set
+                .extend(self.maybe_keys[..self.maybe_count].iter().cloned());
+        } else if self.maybe_count > MAYBE_SCAN_LIMIT {
+            self.maybe_keys_set.insert(key.clone());
+        }
+    }
+
     fn reset_maybe_stack(
         &mut self,
         maybe_start: usize,
         mark_all_as_succeeded: bool,
         propagating_variance_flags: RelationComparisonResult,
     ) {
-        for i in maybe_start..self.maybe_count {
-            let key = self.maybe_keys[i].clone();
-            self.maybe_keys_set.remove(&key);
-            if mark_all_as_succeeded {
+        let popped = &self.maybe_keys[maybe_start..self.maybe_count];
+        if maybe_start > MAYBE_SCAN_LIMIT {
+            for key in popped {
+                self.maybe_keys_set.remove(key);
+            }
+        } else if self.maybe_count > MAYBE_SCAN_LIMIT {
+            self.maybe_keys_set.clear();
+        }
+        if mark_all_as_succeeded {
+            for key in popped {
                 perf::bump(PerfCounter::RelationSets);
                 self.st.relations.cache_mut(self.relation).insert(
-                    key,
+                    key.clone(),
                     RelationComparisonResult::from_bits(
                         RelationComparisonResult::SUCCEEDED.bits()
                             | propagating_variance_flags.bits(),
