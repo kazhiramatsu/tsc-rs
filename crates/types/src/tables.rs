@@ -2533,25 +2533,39 @@ impl TypeTables {
                     None => pair[0] <= pair[1],
                 })
         });
-        let named_members = &mut scratch.named_members;
-        if members_are_sorted {
+        let short_members = match named_unions.as_slice() {
+            &[union] if members_are_sorted => {
+                let members = self.members_of(union);
+                if alias_symbol.is_none() && type_set == members {
+                    return NamedUnionOrigin::Existing(union);
+                }
+                (type_set.len() <= 8 && members.len() <= 8).then_some(members)
+            }
+            _ => None,
+        };
+        let reduced_types = &mut scratch.reduced;
+        if let Some(members) = short_members {
+            reduced_types.extend(type_set.iter().copied().filter(|t| !members.contains(t)));
+        } else if members_are_sorted {
+            let named_members = &mut scratch.named_members;
             named_members.extend(
                 named_unions
                     .iter()
                     .flat_map(|&union| self.members_of(union).iter().copied()),
             );
-        }
-        let reduced_types = &mut scratch.reduced;
-        for &t in type_set {
-            let in_named = if members_are_sorted {
-                named_members.contains(&t)
-            } else {
-                named_unions.iter().any(|&union| {
+            reduced_types.extend(
+                type_set
+                    .iter()
+                    .copied()
+                    .filter(|t| !named_members.contains(t)),
+            );
+        } else {
+            for &t in type_set {
+                if !named_unions.iter().any(|&union| {
                     crate::type_order::contains_type(self, order, self.members_of(union), t)
-                })
-            };
-            if !in_named {
-                reduced_types.push(t);
+                }) {
+                    reduced_types.push(t);
+                }
             }
         }
         if alias_symbol.is_none() && named_unions.len() == 1 && reduced_types.is_empty() {

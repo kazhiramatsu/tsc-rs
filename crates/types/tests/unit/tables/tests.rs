@@ -1750,3 +1750,37 @@ fn plain_union_lookup_checks_colliding_lists_and_keeps_first_creation() {
     t.release_scalar_lookup_buffers();
     assert_eq!(t.plain_unions.capacity(), 0);
 }
+
+#[test]
+fn one_sorted_named_union_can_reuse_members_without_a_set() {
+    let mut t = tables();
+    let ids: Vec<_> = (0..10)
+        .map(|n| t.get_number_literal_type(f64::from(n)))
+        .collect();
+    let alias = Some(SymbolId::new(7));
+    for size in [2, 8, 10] {
+        let members = &ids[..size];
+        let named =
+            t.get_union_type_from_sorted_list(members, ObjectFlags::NONE, alias, None, None);
+        let mut scratch = UnionScratch::default();
+        let count = t.len();
+        let result = t.named_union_origin(None, members, &[named], None, &mut scratch);
+        assert!(matches!(result, NamedUnionOrigin::Existing(id) if id == named));
+        assert_eq!(t.len(), count);
+        assert!(scratch.named_members.is_empty());
+        if size <= 8 {
+            let mut scratch = UnionScratch::default();
+            let reduced = &members[..size - 1];
+            let result = t.named_union_origin(None, reduced, &[named], None, &mut scratch);
+            assert!(matches!(result, NamedUnionOrigin::Existing(id) if id == named));
+            assert!(scratch.named_members.is_empty());
+        }
+        let mut scratch = UnionScratch::default();
+        let result = t.named_union_origin(None, members, &[named], alias, &mut scratch);
+        let NamedUnionOrigin::Created(origin) = result else {
+            panic!("expected alias origin")
+        };
+        assert_eq!(t.members_of(origin), &[named]);
+        assert_eq!(t.len(), count + 1);
+    }
+}
