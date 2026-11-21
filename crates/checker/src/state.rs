@@ -1662,7 +1662,8 @@ pub struct CheckerState<'a> {
     pub(crate) merged_symbol_bits: Vec<u64>,
     /// The relation checker's work lists, kept between calls instead of
     /// allocated per `checkTypeRelatedTo` (tsrs recycles them likewise).
-    pub(crate) relation_scratch: crate::engine::RelationScratch,
+    #[allow(clippy::vec_box)] // Active walks and frame loans transfer individual boxes.
+    pub(crate) relation_work_pool: Vec<Box<crate::engine::RelationWork>>,
     /// Resolved conditional branches in front of their links (see
     /// `conditional::ConditionalBranchSlot`).
     pub(crate) conditional_branches: Box<[crate::conditional::ConditionalBranchSlot]>,
@@ -1797,7 +1798,7 @@ impl<'a> CheckerState<'a> {
             std::mem::take(&mut self.diagnostics),
             std::mem::take(&mut self.visible_global_diagnostics),
             std::mem::take(&mut self.globals),
-            std::mem::take(&mut self.relation_scratch),
+            std::mem::take(&mut self.relation_work_pool),
             std::mem::take(&mut self.conditional_branches),
             std::mem::take(&mut self.order_guard),
         );
@@ -2557,7 +2558,7 @@ impl<'a> CheckerState<'a> {
             resolution_start: 0,
             merged_symbols: rustc_hash::FxHashMap::default(),
             merged_symbol_bits: Vec::new(),
-            relation_scratch: Default::default(),
+            relation_work_pool: Default::default(),
             conditional_branches: vec![
                 crate::conditional::ConditionalBranchSlot::default();
                 crate::conditional::CONDITIONAL_BRANCH_SLOTS

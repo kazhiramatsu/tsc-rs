@@ -4726,34 +4726,20 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
-        let mut checker = crate::engine::RelationChecker {
-            st: self,
-            relation,
-            maybe_keys: Vec::new(),
-            maybe_keys_set: rustc_hash::FxHashSet::default(),
-            source_stack: Vec::new(),
-            target_stack: Vec::new(),
-            maybe_count: 0,
-            source_depth: 0,
-            target_depth: 0,
-            expanding_flags: tsc_types::ExpandingFlags::NONE,
-            overflow: false,
-            relation_count,
-            error_state: Default::default(),
-        };
-        Ok(
-            match checker.excess_properties_worker(
-                source,
-                target,
-                /*report_errors*/ true,
-                Some(error_node),
-            )? {
-                crate::engine::ExcessPropertyOutcome::UnknownProperty { diagnostic } => {
-                    diagnostic.map(|diagnostic| *diagnostic)
-                }
-                _ => None,
-            },
-        )
+        let mut checker = crate::engine::RelationChecker::new(self, relation, relation_count);
+        let outcome = checker.excess_properties_worker(
+            source,
+            target,
+            /*report_errors*/ true,
+            Some(error_node),
+        )?;
+        checker.recycle();
+        Ok(match outcome {
+            crate::engine::ExcessPropertyOutcome::UnknownProperty { diagnostic } => {
+                diagnostic.map(|diagnostic| *diagnostic)
+            }
+            _ => None,
+        })
     }
 
     /// tsc-port: reportUnmatchedProperty @6.0.3 (the head-override

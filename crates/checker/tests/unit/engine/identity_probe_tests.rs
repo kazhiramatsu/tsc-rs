@@ -4,7 +4,7 @@
 
 use tsc_types::{CompilerOptions, TypeId};
 
-use super::{ExpandingFlags, RecursionFlags, RelationChecker, RelationErrorState};
+use super::{RecursionFlags, RelationChecker};
 use crate::relate::RelationKind;
 use crate::relpin::find_probe_annotation;
 use crate::state::test_support::with_program_state;
@@ -33,22 +33,7 @@ fn resolve(state: &mut CheckerState, name: &str) -> TypeId {
 fn identity_checker<'s, 'a>(state: &'s mut CheckerState<'a>) -> RelationChecker<'s, 'a> {
     let relation = RelationKind::Identity;
     let relation_count = (16_000_000 - state.relations.cache(relation).len() as i64) >> 3;
-    let scratch = std::mem::take(&mut state.relation_scratch);
-    RelationChecker {
-        st: state,
-        relation,
-        maybe_keys: scratch.maybe_keys,
-        maybe_keys_set: scratch.maybe_keys_set,
-        source_stack: scratch.source_stack,
-        target_stack: scratch.target_stack,
-        maybe_count: 0,
-        source_depth: 0,
-        target_depth: 0,
-        expanding_flags: ExpandingFlags::NONE,
-        overflow: false,
-        relation_count,
-        error_state: RelationErrorState::default(),
-    }
+    RelationChecker::new(state, relation, relation_count)
 }
 
 /// checkTypeRelatedTo's frame without the identity verdicts in front of it.
@@ -63,8 +48,8 @@ fn full_frame(state: &mut CheckerState, source: TypeId, target: TypeId) -> bool 
             super::IntersectionState::NONE,
         )
         .expect("full identity check");
-    assert!(!checker.overflow, "no overflow on these pairs");
-    state.relation_scratch = checker.into_scratch();
+    assert!(!checker.work.overflow, "no overflow on these pairs");
+    checker.recycle();
     super::is_true(result)
 }
 
@@ -264,32 +249,116 @@ fn active_keys_follow_the_live_prefix_across_unwinds_and_frame_loans() {
             .collect();
         for (i, key) in keys.iter().enumerate() {
             checker.push_active_key(key);
-            assert_eq!(checker.maybe_keys_set.is_empty(), i < 32);
+            assert_eq!(checker.work.maybe_keys_set.is_empty(), i < 32);
             assert!(keys[..=i].iter().all(|key| checker.has_active_key(key)));
         }
         let frame = checker.loan_frame(IntersectionState::NONE);
+        let outer = std::ptr::from_ref(&*frame.work);
+        let nested = RelationChecker::new(checker.st, RelationKind::Assignable, 17);
+        assert_ne!(outer, std::ptr::from_ref(&*nested.work));
+        assert_eq!(nested.work.relation_count, 17);
+        assert!(nested.work.maybe_keys.is_empty());
+        nested.recycle();
         checker.restore_frame(frame);
-        let budget = checker.relation_count;
+        let budget = checker.work.relation_count;
         for depth in [34, 32, 2] {
             checker.reset_maybe_stack(depth, false, RelationComparisonResult::NONE);
             assert!(keys[..depth].iter().all(|key| checker.has_active_key(key)));
             assert!(keys[depth..].iter().all(|key| !checker.has_active_key(key)));
-            assert_eq!(checker.maybe_keys_set.is_empty(), depth <= 32);
+            assert_eq!(checker.work.maybe_keys_set.is_empty(), depth <= 32);
         }
-        assert_eq!(checker.relation_count, budget);
+        assert_eq!(checker.work.relation_count, budget);
         for key in &keys[5..36] {
             checker.push_active_key(key);
         }
         assert!(checker.has_active_key(&keys[35]));
         assert!(!checker.has_active_key(&keys[2]));
         checker.reset_maybe_stack(0, true, RelationComparisonResult::NONE);
-        assert_eq!(checker.relation_count, budget - 33);
-        assert!(checker.maybe_keys_set.is_empty());
+        assert_eq!(checker.work.relation_count, budget - 33);
+        assert!(checker.work.maybe_keys_set.is_empty());
         for (i, key) in keys.iter().enumerate() {
             let verdict = checker.st.relations.cache(checker.relation).get(key);
             assert_eq!(verdict.is_some(), i < 2 || (5..36).contains(&i));
             assert!(!checker.has_active_key(key));
         }
+        checker.recycle();
+        let string = state.tables.intrinsics.string;
+        let number = state.tables.intrinsics.number;
+        let (_, diagnostic) = state
+            .check_relation_with_error_output_at_worker(
+                string,
+                number,
+                RelationKind::Assignable,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+        assert!(diagnostic.is_some());
+        assert!(state
+            .check_type_related_to(string, string, RelationKind::Assignable)
+            .unwrap());
+        let again = identity_checker(state);
+        assert_eq!(outer, std::ptr::from_ref(&*again.work));
+        assert!(again.work.maybe_keys.is_empty());
+        assert!(again.work.source_stack.is_empty() && again.work.target_stack.is_empty());
+        assert!(again.error_state.error_chain.is_none());
+    });
+}
+
+#[test]
+fn active_keys_follow_the_loan_through_a_forward_constraint_clamp() {
+    use super::{IntersectionState, RelationFrameLoan, RelationKey};
+    use crate::inference::CompareTypesFn;
+    use tsc_types::{InferenceFlags, SymbolFlags};
+
+    let text = "declare function callback<T extends U, U extends string>(x: T, y: U): T;";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let symbol = state
+            .resolve_file_scope_name("callback", SymbolFlags::FUNCTION)
+            .unwrap();
+        let ty = state.get_type_of_symbol(symbol).unwrap();
+        let signature = state
+            .get_signatures_of_type(ty, crate::state::SignatureKind::Call)
+            .unwrap()[0];
+        let parameters = state
+            .signature_of(signature)
+            .cloned_type_parameters()
+            .unwrap();
+        let context = state.create_inference_context(
+            &parameters,
+            Some(signature),
+            InferenceFlags::NONE,
+            Some(CompareTypesFn::RelationFrame),
+        );
+        let first = state.inference_context(context).inferences[0];
+        let forward = state.inference_context(context).inferences[1];
+        let number = state.tables.intrinsics.number;
+        let string = state.tables.intrinsics.string;
+        state.inference_info_mut(first).candidates = Some(vec![number].into());
+        state.inference_info_mut(forward).candidates = Some(vec![number].into());
+
+        let mut checker = RelationChecker::new(state, RelationKind::Assignable, 29);
+        let active = RelationKey::Generic("*active".into());
+        checker.push_active_key(&active);
+        let frame = checker.loan_frame(IntersectionState::NONE);
+        checker.st.relation_frame_loan = RelationFrameLoan::Available(frame);
+        assert_eq!(checker.st.get_inferred_type(context, 0).unwrap(), string);
+        assert_eq!(
+            checker.st.inference_info(forward).inferred_type,
+            Some(string)
+        );
+        let RelationFrameLoan::Available(frame) =
+            std::mem::replace(&mut checker.st.relation_frame_loan, RelationFrameLoan::None)
+        else {
+            panic!("clamp did not return the loan")
+        };
+        checker.restore_frame(frame);
+        assert_eq!(checker.work.relation_count, 29);
+        assert_eq!(checker.work.maybe_count, 1);
+        assert!(checker.has_active_key(&active));
+        assert!(checker.error_state.error_chain.is_none());
+        checker.recycle();
     });
 }
 

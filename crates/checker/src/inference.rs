@@ -1399,16 +1399,7 @@ impl<'a> CheckerState<'a> {
                     RelationFrameLoan::Available(frame) => {
                         let RelationFrame {
                             relation,
-                            maybe_keys,
-                            maybe_keys_set,
-                            source_stack,
-                            target_stack,
-                            maybe_count,
-                            source_depth,
-                            target_depth,
-                            expanding_flags,
-                            overflow,
-                            relation_count,
+                            work,
                             intersection_state,
                         } = frame;
                         self.relation_frame_loan = RelationFrameLoan::InFlight {
@@ -1418,16 +1409,7 @@ impl<'a> CheckerState<'a> {
                         let mut checker = RelationChecker {
                             st: self,
                             relation,
-                            maybe_keys,
-                            maybe_keys_set,
-                            source_stack,
-                            target_stack,
-                            maybe_count,
-                            source_depth,
-                            target_depth,
-                            expanding_flags,
-                            overflow,
-                            relation_count,
+                            work,
                             error_state: Default::default(),
                         };
                         let related = checker.is_related_to(
@@ -1437,31 +1419,9 @@ impl<'a> CheckerState<'a> {
                             /*report_errors*/ false,
                             intersection_state,
                         );
-                        let RelationChecker {
-                            maybe_keys,
-                            maybe_keys_set,
-                            source_stack,
-                            target_stack,
-                            maybe_count,
-                            source_depth,
-                            target_depth,
-                            expanding_flags,
-                            overflow,
-                            relation_count,
-                            ..
-                        } = checker;
                         self.relation_frame_loan = RelationFrameLoan::Available(RelationFrame {
                             relation,
-                            maybe_keys,
-                            maybe_keys_set,
-                            source_stack,
-                            target_stack,
-                            maybe_count,
-                            source_depth,
-                            target_depth,
-                            expanding_flags,
-                            overflow,
-                            relation_count,
+                            work: checker.work,
                             intersection_state,
                         });
                         Ok(related? != tsc_types::Ternary::FALSE)
@@ -1481,21 +1441,7 @@ impl<'a> CheckerState<'a> {
                         // untouched).
                         let relation_count =
                             (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
-                        let mut checker = RelationChecker {
-                            st: self,
-                            relation,
-                            maybe_keys: Vec::new(),
-                            maybe_keys_set: rustc_hash::FxHashSet::default(),
-                            source_stack: Vec::new(),
-                            target_stack: Vec::new(),
-                            maybe_count: 0,
-                            source_depth: 0,
-                            target_depth: 0,
-                            expanding_flags: tsc_types::ExpandingFlags::NONE,
-                            overflow: false,
-                            relation_count,
-                            error_state: Default::default(),
-                        };
+                        let mut checker = RelationChecker::new(self, relation, relation_count);
                         let related = checker.is_related_to(
                             source,
                             target,
@@ -1503,6 +1449,7 @@ impl<'a> CheckerState<'a> {
                             /*report_errors*/ false,
                             intersection_state,
                         )?;
+                        checker.recycle();
                         Ok(related != tsc_types::Ternary::FALSE)
                     }
                     RelationFrameLoan::None => panic!(

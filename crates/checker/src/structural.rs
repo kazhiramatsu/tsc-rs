@@ -1047,8 +1047,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if target_flags.intersects(TypeFlags::CONDITIONAL) {
             if self.st.is_deeply_nested_on_stack(
                 target,
-                &self.target_stack,
-                self.target_depth,
+                &self.work.target_stack,
+                self.work.target_depth,
                 10,
             )? {
                 return Ok(Ternary::MAYBE);
@@ -1364,8 +1364,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         } else if source_flags.intersects(TypeFlags::CONDITIONAL) {
             if self.st.is_deeply_nested_on_stack(
                 source,
-                &self.source_stack,
-                self.source_depth,
+                &self.work.source_stack,
+                self.work.source_depth,
                 10,
             )? {
                 return Ok(Ternary::MAYBE);
@@ -5442,21 +5442,7 @@ impl<'a> CheckerState<'a> {
         // This frame carries the signature comparison. Its Assignable
         // callback still enters the checker's query, matching tsgo's
         // compareTypesAssignableWorker rather than using the ambient frame.
-        let mut checker = crate::engine::RelationChecker {
-            st: self,
-            relation,
-            maybe_keys: Vec::new(),
-            maybe_keys_set: rustc_hash::FxHashSet::default(),
-            source_stack: Vec::new(),
-            target_stack: Vec::new(),
-            maybe_count: 0,
-            source_depth: 0,
-            target_depth: 0,
-            expanding_flags: tsc_types::ExpandingFlags::NONE,
-            overflow: false,
-            relation_count,
-            error_state: Default::default(),
-        };
+        let mut checker = crate::engine::RelationChecker::new(self, relation, relation_count);
         let verdict = checker.compare_signatures_related(
             erased_source,
             erased_target,
@@ -5470,6 +5456,7 @@ impl<'a> CheckerState<'a> {
             // dead here either way.
             crate::inference::CompareTypesFn::Assignable,
         )?;
+        checker.recycle();
         Ok(verdict != Ternary::FALSE)
     }
 
@@ -7139,21 +7126,7 @@ impl<'a> CheckerState<'a> {
             RelationKind::Identity
         };
         let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
-        let mut checker = RelationChecker {
-            st: self,
-            relation,
-            maybe_keys: Vec::new(),
-            maybe_keys_set: rustc_hash::FxHashSet::default(),
-            source_stack: Vec::new(),
-            target_stack: Vec::new(),
-            maybe_count: 0,
-            source_depth: 0,
-            target_depth: 0,
-            expanding_flags: tsc_types::ExpandingFlags::NONE,
-            overflow: false,
-            relation_count,
-            error_state: Default::default(),
-        };
+        let mut checker = RelationChecker::new(self, relation, relation_count);
         let related = checker.compare_signatures_identical_ex(
             source,
             target,
@@ -7162,6 +7135,7 @@ impl<'a> CheckerState<'a> {
             ignore_return_types,
             RelationChecker::compare_signature_identity_using_query,
         )?;
+        checker.recycle();
         Ok(is_true(related))
     }
 
