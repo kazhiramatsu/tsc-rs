@@ -7452,14 +7452,19 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c7763b3f1125d6016a597248984eb7ef72ea51ea6f831d542e00f4177e87f433
     /// tsc-span: _tsc.js:57599-57601
     pub(crate) fn is_static_private_identifier_property(&self, symbol: SymbolId) -> bool {
-        self.binder
-            .symbol(symbol)
-            .value_declaration
-            .is_some_and(|declaration| {
-                self.name_of_node(declaration)
-                    .is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier)
-                    && self.has_static_modifier(declaration)
-            })
+        let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
+            return false;
+        };
+        let (modifiers, name) = match_record! { self.record_of(declaration), {
+            as_property_declaration(data) => (data.modifiers, data.name),
+            as_method_declaration(data) => (data.modifiers, data.name),
+            as_get_accessor(data) => (data.modifiers, data.name),
+            as_set_accessor(data) => (data.modifiers, data.name),
+            _ => return false,
+        }};
+        self.modifier_flags_of(modifiers)
+            .intersects(ModifierFlags::STATIC)
+            && name.is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier)
     }
 
     /// tsgo-port: isThisless @7.1 (checker.go:21206-21221): a parameter
