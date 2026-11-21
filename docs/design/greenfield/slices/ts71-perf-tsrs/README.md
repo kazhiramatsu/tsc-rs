@@ -1671,6 +1671,18 @@ front end が zod で 4.5 %、next で 4.6 %、playwright で 5.2 %、vue で 5.
 
 **次。** (1) 3 件目の修正の PR の着地。(2) README の表（main が変わったので、tsgo と最新の tsrs 相手の計測枠が要る）。(3) 修正前後の head の専用の対と page 表の詰めた形。(4) 残りの peak（mapped slot の page +3.5、relation の cache +2.1）。(5) 所有者と決めること：「列の記録」を既定にする設計（next / playwright / TypeScript の compiler はこれで前に出る；記録の置き場所と出力の同一性の保証の 2 点）、型 record を定数 address で読む試作（上限 2.3 %）。(6) 勘定の道具を `scripts/perf/` へ、古い lane の clone と binary の整理。
 
+**結果 54（2026-11-21 23:35〜11-22 00:20：3 件目の修正の着地（PR #1026）、所有者の指示（3 本の線）、既定設定で膨らむ cycles の勘定、fast mode の勘定の 1 段目）。**
+
+**着地（PR #1026、merge `31e096e0c`、11-22 00:17 JST、hosted run 44915448851）。** 1 commit：union / intersection の property を Object・Function の補いなしで作ったとき、補いありの cache にも渡す（参照実装 `getUnionOrIntersectionProperty`）。main は `{ q: number } & { toString: number }` を含む union への object literal の代入に誤った TS2322 を出していた（tsgo は何も出さない）。test 2 本（診断の test は tsgo の出力に固定；修正の 14 行を外すと 2 本とも落ちることを確認）、probe（既定の library あり・なしの両構成で tsgo と一致）。symbol の counter は宣言どおり（1 checker：VS Code −34、playwright −19、next −5、zod −1；型と instantiation は不変、8 project の診断は不変）。#1025 の branch に積む train で手元の確認を先に済ませ、#1025 の merge 直後に PR を出した（checker の test 2,163 件、8 project の出力同一、4 checker の conformance 15,335 同一・既知の 4 構成、suites 0、oracle 24 / 24 で VS Code の Symbols だけが宣言どおり、fingerprint 相違 0、preset 16 / 16）。
+
+**所有者の指示（11-21 23:5x〜11-22 00:0x）。** 「まだ改善すべき部分があると思います。サボらずにチューニングを継続してください。」「引き続きシングルスレッドの速度をあげること、マルチスレッド時の動作を理論値までもっていくこと、fastモードもtsrsより高速化すること。これらを全力で継続しなさい。」— 着地の後の状況報告が「今日は終わり」に読めたのが原因。fast mode は 11-15 から脇に置いていたが、これで再開。
+
+**既定設定が足す cycles を service と関数で（`tools/ck-rec4.sh` → `fable52-1111/check-side/rec5`：両 port の cycle profile を 1 thread と既定設定で、main の新しい code と相手の最新 release；読み取り `tools/cyc-growth.py`）。** TypeScript の compiler：こちら +425 M（+30 %）、相手 +380（+28 %）；next：+1,517（+30 %）| +1,630（+34 %）；vue：+735（+35 %）| +669（+31 %）。「こちらの増え − 相手の増え」が 2 project 以上で実行の 0.5 % を超える service：**instantiation（next +77、vue +40）、relation（+58、+41）、conditional / indexed / mapped（+39、+27）**；逆に member と property は相手の方が大きく膨らむ（next で相手 +533、こちら +343：4 checker がそれぞれ共有の宣言の member を解決し直す仕事）。「自分の crate の frame が無い sample」（next +38）は `tsc-cleanup` thread — 終わった checker の状態を裏で捨てる thread — で、wall の上には無い。**同じ profile の時間軸：next では checker 3 つが約 480 ms で終わり、残り 1 つが最後の約 220 ms を単独で走る**（実行の 27 %）。multi-thread を理論値に近づける最大の項は配り方の偏り（最長の shard は平均の 1.1〜1.55 倍）。
+
+**fast mode の勘定の 1 段目（`tools/fast-account.py`：両 port の既定と fast を交互に 7 回、8 project、rusage；機械の load は 12 で wall は荒い）。** 相手の `--fast` 対こちらの `TSRS_FAST=1`、wall：vue −9.6 %、playwright −10.3、next −10.6、TypeScript の compiler −2.5、VS Code −8.2、zod −15.3、effect −14.3、hono −16.9（幾何平均 **−11.1 %**、相手が速い；同じ表の既定設定は +0.7 %）。内訳：(1) 幅（CPU 時間 / wall）が相手 5.6〜6.5、こちら 5.2〜6.2（相手は盗み取り、こちらは静的な配置）；(2) 命令数は fast では両者ほぼ同じ（−3.3〜+5.9 %）— 相手の fast は自分の既定より命令を 2〜10 % 減らし（遅延の宣言 parse、遅延 member、履歴の cache）、こちらの fast は checker を増やす分 3〜11 % 増やす — ので、命令あたりの cycles の差がそのまま出て cycles は相手が 5〜9 % 少ない；(3) peak は相手の fast が自分の既定より下がる（VS Code 1,813 MiB、こちらの fast 2,468）。
+
+**次。** (1) 1 thread：rec5 から勘定を取り直し、review の 3 巡目と lane。(2) multi-thread：配り方の平準化を既定にする設計（記録の置き場所、出力の同一性を検出 + fallback で保証する範囲；限界に近い文の census）、並列時に膨らむ 3 service の review。(3) fast：幅の差（静的な配置と記録による平準化、盗み取りの可否）と仕事の差（相手だけが fast で省いている仕事の一覧）を 2 段目の勘定に。README の表は計測枠が要る（main が 3 回変わった）。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
