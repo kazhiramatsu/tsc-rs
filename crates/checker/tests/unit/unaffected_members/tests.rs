@@ -47,7 +47,8 @@ fn pending_types_are_retried_without_changing_an_earlier_references_identity() {
         state.get_type_of_symbol(plain).unwrap();
         let b = annotation(state, "b");
         state.structured_member_headers(b).unwrap();
-        assert!(state.unaffected_members.entries[&target].settled.contains(&plain));
+        assert!(state.unaffected_members.entries[&target].snapshot.contains(&plain));
+        assert!(!state.unaffected_members.entries[&target].pending.contains(&plain));
         assert_ne!(state.get_property_of_object_type(a, "plain").unwrap(), Some(plain));
         assert_eq!(state.get_property_of_object_type(b, "plain").unwrap(), Some(plain));
     });
@@ -91,24 +92,25 @@ fn this_only_mapper_is_part_of_the_stamp_and_unresolved_syntax_true_stays_pendin
             let this_mapper = state.create_type_mapper(&[this_type], Some(&[reference]));
             let method = properties[0];
             assert!(state.maps_this_only(this_mapper));
-            assert_eq!(
-                &*state.freeze_unaffected_members(target, table, this_mapper, &properties),
-                &[method]
-            );
+            let first = state.freeze_unaffected_members(target, table, this_mapper, &properties);
+            assert_eq!(&*first, &[method]);
+            let pending = state.freeze_unaffected_members(target, table, this_mapper, &properties);
+            assert_eq!(pending.as_ptr(), first.as_ptr());
             assert_eq!(
                 &*state.unaffected_members.entries[&target].pending,
                 &[method]
             );
             state.get_type_of_symbol(method).unwrap();
-            assert_eq!(
-                &*state.freeze_unaffected_members(target, table, this_mapper, &properties),
-                &[method]
-            );
+            let settled = state.freeze_unaffected_members(target, table, this_mapper, &properties);
+            assert_eq!(settled.as_ptr(), first.as_ptr());
+            let hit = state.freeze_unaffected_members(target, table, this_mapper, &properties);
+            assert_eq!(hit.as_ptr(), first.as_ptr());
             assert!(state.unaffected_members.entries[&target].pending.is_empty());
             assert!(state
                 .freeze_unaffected_members(target, table, general, &properties)
                 .is_empty());
             assert!(!state.unaffected_members.entries[&target].maps_this_only);
+            assert_eq!(&*first, &[method]);
         },
     );
 }
@@ -153,6 +155,22 @@ fn byte_cap_falls_through_to_the_original_decision() {
                 expected
             );
             assert!(state.unaffected_members.entries.is_empty());
+
+            // The preliminary test can admit the symbol IDs while the shared
+            // snapshot's allocation would put the published entry over budget.
+            let symbol_bytes = std::mem::size_of_val(properties.as_slice());
+            assert!(expected.heap_bytes() > symbol_bytes);
+            let buckets = state.unaffected_members.insertion_buckets();
+            let remaining = MAX_BYTES - UnaffectedMembers::map_bytes(buckets) - symbol_bytes;
+            state.unaffected_members.payload_bytes = remaining;
+            assert!(state.unaffected_members.admits(properties.len()));
+            assert_eq!(
+                state.freeze_unaffected_members(target, table, mapper, &properties),
+                expected
+            );
+            assert!(state.unaffected_members.entries.is_empty());
+            assert_eq!(state.unaffected_members.payload_bytes, remaining);
+
             state.unaffected_members.payload_bytes = 0;
             assert_eq!(
                 state.freeze_unaffected_members(target, table, mapper, &properties),
@@ -182,7 +200,7 @@ fn entry_cap_falls_through_without_evicting_another_targets_decisions() {
                         table,
                         len: 0,
                         maps_this_only: false,
-                        settled: Box::new([]),
+                        snapshot: SymbolIds::new(),
                         pending: Box::new([]),
                     },
                 );
@@ -196,6 +214,37 @@ fn entry_cap_falls_through_without_evicting_another_targets_decisions() {
             assert_eq!(state.unaffected_members.entries.len(), MAX_ENTRIES);
             assert!(!state.unaffected_members.entries.contains_key(&target));
             assert!(state.unaffected_members.heap_bytes() <= MAX_BYTES);
+        },
+    );
+}
+
+#[test]
+fn pending_transient_declarations_are_rechecked_and_older_snapshots_stay_frozen() {
+    with_program_state(
+        &[(
+            "a.ts",
+            "interface Box<T> { method(): number } declare const a: Box<string>;",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let (target, table, _, properties) = input(state, "a");
+            let reference = annotation(state, "a");
+            let TypeData::GenericType { this_type, .. } = state.tables.type_of(target).data else {
+                unreachable!()
+            };
+            let mapper = state.make_unary_type_mapper(this_type, reference);
+            let method = state.binder.symbol(properties[0]);
+            let node = method.declarations()[0];
+            let transient = state
+                .binder
+                .create_symbol(method.flags, method.escaped_name);
+            state.binder.set_declarations_from(transient, &[node]);
+            let frozen = state.freeze_unaffected_members(target, table, mapper, &[transient]);
+            assert_eq!(&*frozen, &[transient]);
+            state.binder.set_declarations_from(transient, &[]);
+            let current = state.freeze_unaffected_members(target, table, mapper, &[transient]);
+            assert!(current.is_empty());
+            assert_eq!(&*frozen, &[transient]);
         },
     );
 }

@@ -27,7 +27,7 @@ use tsc_types::perf::{self, PerfCounter};
 pub(crate) struct DeferredReferenceMembers {
     source: MembersId,
     mapper: crate::instantiate::MapperId,
-    unaffected: Box<[SymbolId]>,
+    unaffected: SymbolIds,
     // Most references never request a declared member.
     instantiated: Option<Box<MemberTable>>,
     bases: crate::state::SharedList<TypeId>,
@@ -37,7 +37,7 @@ pub(crate) struct DeferredReferenceMembers {
 
 impl DeferredReferenceMembers {
     pub(crate) fn heap_bytes(&self, usage: &mut tsc_diagnostics::MemoryUsage) -> usize {
-        std::mem::size_of_val(&*self.unaffected)
+        self.unaffected.heap_bytes_once(usage)
             + self.instantiated.as_deref().map_or(0, |table| {
                 std::mem::size_of::<MemberTable>() + table.heap_bytes()
             })

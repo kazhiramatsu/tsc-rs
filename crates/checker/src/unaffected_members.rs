@@ -1,6 +1,6 @@
-//! Reuse only settled symbol-identity decisions at each reference's original
-//! eager boundary. No symbol type is resolved to populate this memo.
-use crate::state::{CheckerState, MembersId};
+//! Freeze each reference's member identities at its original eager boundary.
+//! Resolved decisions and immutable syntax proofs can be reused across visits.
+use crate::state::{CheckerState, MembersId, SymbolIds};
 use rustc_hash::FxHashMap;
 use tsc_binder::SymbolId;
 use tsc_types::{MapperId, SymbolFlags, TypeId};
@@ -12,15 +12,15 @@ struct Entry {
     table: MembersId,
     len: usize,
     maps_this_only: bool,
-    /// Sorted, permanently unaffected members. Settled false decisions need
-    /// no per-symbol record; all other members remain in declaration order.
-    settled: Box<[SymbolId]>,
+    /// Sorted membership as of the last visit, shared with references frozen then.
+    snapshot: SymbolIds,
+    /// Decisions to revisit, in their original declaration order.
     pending: Box<[SymbolId]>,
 }
 
 impl Entry {
     fn heap_bytes(&self) -> usize {
-        std::mem::size_of_val(self.settled.as_ref()) + std::mem::size_of_val(self.pending.as_ref())
+        self.snapshot.heap_bytes() + std::mem::size_of_val(self.pending.as_ref())
     }
 }
 
@@ -61,8 +61,9 @@ impl UnaffectedMembers {
             return false;
         }
         let buckets = self.insertion_buckets();
-        // Every retained symbol is either settled true or pending, so at
-        // most one SymbolId per declared position is retained.
+        // Keep the original admission check before walking any properties.
+        // A pending positive occurs in both lists, so check the actual
+        // retained bytes before publishing the entry too.
         len.checked_mul(std::mem::size_of::<SymbolId>())
             .and_then(|n| n.checked_add(self.payload_bytes))
             .and_then(|n| n.checked_add(Self::map_bytes(buckets)))
@@ -78,11 +79,19 @@ impl UnaffectedMembers {
     pub(crate) fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
         usage.hash_map("memo: unaffected members", &self.entries);
         for entry in self.entries.values() {
-            for list in [&entry.settled, &entry.pending] {
-                if !list.is_empty() && usage.claim(list.as_ptr() as usize) {
-                    let bytes = std::mem::size_of_val(list.as_ref());
-                    usage.add("memo: unaffected member lists", list.len(), bytes, bytes);
-                }
+            let bytes = entry.snapshot.heap_bytes_once(usage);
+            if bytes != 0 {
+                usage.add(
+                    "memo: unaffected member lists",
+                    entry.snapshot.len(),
+                    bytes,
+                    bytes,
+                );
+            }
+            let list = &entry.pending;
+            if !list.is_empty() && usage.claim(list.as_ptr() as usize) {
+                let bytes = std::mem::size_of_val(list.as_ref());
+                usage.add("memo: unaffected member lists", list.len(), bytes, bytes);
             }
         }
     }
@@ -107,11 +116,7 @@ impl CheckerState<'_> {
     }
 
     /// The original walk, also used when the bounded memo cannot admit a key.
-    fn fresh_unaffected_members(
-        &mut self,
-        properties: &[SymbolId],
-        mapper: MapperId,
-    ) -> Box<[SymbolId]> {
+    fn fresh_unaffected_members(&mut self, properties: &[SymbolId], mapper: MapperId) -> SymbolIds {
         let mut result = Vec::new();
         for &symbol in properties {
             if self.symbol_unaffected_by_instantiation(symbol, mapper) {
@@ -123,7 +128,7 @@ impl CheckerState<'_> {
         }
         result.sort_unstable();
         result.dedup();
-        result.into_boxed_slice()
+        result.into()
     }
 
     pub(crate) fn freeze_unaffected_members(
@@ -132,9 +137,9 @@ impl CheckerState<'_> {
         table: MembersId,
         mapper: MapperId,
         properties: &[SymbolId],
-    ) -> Box<[SymbolId]> {
+    ) -> SymbolIds {
         if properties.is_empty() {
-            return Box::new([]);
+            return SymbolIds::new();
         }
         let epoch = self.links.members_reset_epoch;
         if self.unaffected_members.epoch != epoch {
@@ -152,7 +157,7 @@ impl CheckerState<'_> {
                     && entry.maps_this_only == maps_this_only =>
             {
                 if entry.pending.is_empty() {
-                    return entry.settled.clone();
+                    return entry.snapshot.clone();
                 }
                 true
             }
@@ -167,40 +172,59 @@ impl CheckerState<'_> {
         if !self.unaffected_members.admits(properties.len()) {
             return self.fresh_unaffected_members(properties, mapper);
         }
-        let (mut settled, pending) = match previous.filter(|_| matches) {
-            Some(entry) => (entry.settled.into_vec(), entry.pending),
-            None => (Vec::new(), properties.into()),
+        let (mut snapshot, mut pending) = match previous.filter(|_| matches) {
+            Some(entry) => (entry.snapshot, entry.pending.into_vec()),
+            None => (SymbolIds::new(), properties.to_vec()),
         };
-        let mut result = settled.clone();
-        let mut still_pending = Vec::new();
-        for &symbol in &pending {
-            let unaffected = self.symbol_unaffected_by_instantiation(symbol, mapper);
-            if unaffected {
-                result.push(symbol);
-            }
-            if self.unaffected_decision_settled(symbol) {
+        let mut added = Vec::new();
+        let mut removed = Vec::new();
+        pending.retain(|&symbol| {
+            let was_unaffected = snapshot.binary_search(&symbol).is_ok();
+            // A positive result with an unresolved read or write type can
+            // only have come from is_thisless. Published binder declarations
+            // are immutable; transient symbols can acquire new declarations.
+            let syntax_proven = was_unaffected
+                && maps_this_only
+                && symbol.index() & tsc_types::TRANSIENT_SYMBOL_BIT == 0;
+            let unaffected =
+                syntax_proven || self.symbol_unaffected_by_instantiation(symbol, mapper);
+            if unaffected != was_unaffected {
                 if unaffected {
-                    settled.push(symbol);
+                    added.push(symbol);
+                } else {
+                    removed.push(symbol);
                 }
-            } else {
-                still_pending.push(symbol);
             }
+            !self.unaffected_decision_settled(symbol)
+        });
+        if !added.is_empty() || !removed.is_empty() {
+            let mut next = snapshot.to_vec();
+            if !removed.is_empty() {
+                removed.sort_unstable();
+                next.retain(|symbol| removed.binary_search(symbol).is_err());
+            }
+            next.append(&mut added);
+            next.sort_unstable();
+            next.dedup();
+            snapshot = next.into();
         }
-        settled.sort_unstable();
-        settled.dedup();
-        result.sort_unstable();
-        result.dedup();
         let entry = Entry {
             table,
             len: properties.len(),
             maps_this_only,
-            settled: settled.into_boxed_slice(),
-            pending: still_pending.into_boxed_slice(),
+            snapshot: snapshot.clone(),
+            pending: pending.into_boxed_slice(),
         };
-        self.unaffected_members.payload_bytes += entry.heap_bytes();
-        self.unaffected_members.map_buckets = self.unaffected_members.insertion_buckets();
-        self.unaffected_members.entries.insert(target, entry);
-        result.into_boxed_slice()
+        let bytes = entry.heap_bytes();
+        let buckets = self.unaffected_members.insertion_buckets();
+        if self.unaffected_members.payload_bytes + bytes + UnaffectedMembers::map_bytes(buckets)
+            <= MAX_BYTES
+        {
+            self.unaffected_members.payload_bytes += bytes;
+            self.unaffected_members.map_buckets = buckets;
+            self.unaffected_members.entries.insert(target, entry);
+        }
+        snapshot
     }
 }
 
