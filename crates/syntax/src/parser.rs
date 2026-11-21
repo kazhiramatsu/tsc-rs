@@ -1809,6 +1809,10 @@ impl<'text> Parser<'text> {
         self.parsing_context |= context.bit();
         let mark = self.start_node_list();
         let list_pos = self.node_pos();
+        let mut function_free = matches!(
+            context,
+            ParsingContext::SourceElements | ParsingContext::BlockStatements
+        );
 
         while !self.is_list_terminator(context) {
             if self.is_list_element(context, false) {
@@ -1818,6 +1822,11 @@ impl<'text> Parser<'text> {
                     .map(|node| self.consume_node(node))
                     .or_else(|| parse_element(self));
                 if let Some(element) = element {
+                    if function_free
+                        && self.arena.node(element).kind == SyntaxKind::FunctionDeclaration
+                    {
+                        function_free = false;
+                    }
                     self.node_stack.push(element);
                     if start_pos == self.scanner.full_start_pos() {
                         self.record_token_skip(ParseTokenSkipSite::ListNoProgress);
@@ -1832,13 +1841,17 @@ impl<'text> Parser<'text> {
         }
 
         self.parsing_context = saved_context;
-        self.finish_node_list(
+        let array = self.finish_node_list(
             mark,
             list_pos,
             self.node_pos(),
             false,
             crate::NodeArrayRole::Children,
-        )
+        );
+        if function_free {
+            self.arena.mark_function_free(array);
+        }
+        array
     }
 
     fn parse_delimited_list(
@@ -2736,7 +2749,7 @@ impl<'text> Parser<'text> {
         if let Some(list) = modifiers {
             let nodes = self.arena.node_array(list).nodes.to_vec();
             for modifier in nodes {
-                self.arena.node_mut(modifier).flags |= NodeFlags::AMBIENT.bits();
+                self.arena.node_mut_preserving_kind(modifier).flags |= NodeFlags::AMBIENT.bits();
             }
         }
     }
@@ -2794,7 +2807,7 @@ impl<'text> Parser<'text> {
             Some(&gen::Declaration_expected),
             &[],
         );
-        self.arena.node_mut(missing).pos = pos as u32;
+        self.arena.node_mut_preserving_kind(missing).pos = pos as u32;
         if let Some(mut data) = self.arena.node(missing).as_missing_declaration() {
             data.modifiers = modifiers;
             self.arena
@@ -4076,7 +4089,9 @@ impl<'text> Parser<'text> {
             }),
             pos,
         );
-        self.arena.node_mut(block).set_multi_line(multi_line);
+        self.arena
+            .node_mut_preserving_kind(block)
+            .set_multi_line(multi_line);
 
         if self.token() == SyntaxKind::EqualsToken {
             self.parse_error_at_current_token(
@@ -6006,7 +6021,7 @@ impl<'text> Parser<'text> {
                 let invalid_pos = self.arena.node(invalid_element).pos;
                 let invalid_end = self.arena.node(invalid_element).end as usize;
                 {
-                    let operator = self.arena.node_mut(operator_token);
+                    let operator = self.arena.node_mut_preserving_kind(operator_token);
                     operator.pos = invalid_pos;
                     operator.end = invalid_pos;
                 }
@@ -6661,7 +6676,7 @@ impl<'text> Parser<'text> {
             Some(&gen::Expression_expected),
             &[],
         );
-        self.arena.node_mut(missing).pos = pos as u32;
+        self.arena.node_mut_preserving_kind(missing).pos = pos as u32;
         if let Some(mut data) = self.arena.node(missing).as_missing_declaration() {
             data.modifiers = modifiers;
             self.arena
@@ -6866,7 +6881,8 @@ impl<'text> Parser<'text> {
             }) {
                 let mut current = node;
                 while self.arena.node(current).kind == SyntaxKind::NonNullExpression {
-                    self.arena.node_mut(current).flags |= NodeFlags::OPTIONAL_CHAIN.bits();
+                    self.arena.node_mut_preserving_kind(current).flags |=
+                        NodeFlags::OPTIONAL_CHAIN.bits();
                     let Some(next) = inner_expression(self, current) else {
                         break;
                     };
@@ -7312,7 +7328,9 @@ impl<'text> Parser<'text> {
             }),
             pos,
         );
-        self.arena.node_mut(array).set_multi_line(Some(multi_line));
+        self.arena
+            .node_mut_preserving_kind(array)
+            .set_multi_line(Some(multi_line));
         array
     }
 
@@ -7338,7 +7356,9 @@ impl<'text> Parser<'text> {
             }),
             pos,
         );
-        self.arena.node_mut(object).set_multi_line(Some(multi_line));
+        self.arena
+            .node_mut_preserving_kind(object)
+            .set_multi_line(Some(multi_line));
         object
     }
 
@@ -7983,7 +8003,7 @@ impl<'text> Parser<'text> {
         };
         let id = self.arena.alloc_node(data, pos, end, NodeFlags::NONE);
         self.arena
-            .node_mut(id)
+            .node_mut_preserving_kind(id)
             .set_template_flags(self.scanner.template_literal_flags());
         self.next_token();
         self.finish_node_at(id, pos, end)
@@ -8004,7 +8024,7 @@ impl<'text> Parser<'text> {
             NodeFlags::NONE,
         );
         self.arena
-            .node_mut(id)
+            .node_mut_preserving_kind(id)
             .set_has_extended_unicode_escape(Some(has_extended_unicode_escape));
         self.next_token();
         self.finish_node_at(id, pos, end)
@@ -8023,7 +8043,7 @@ impl<'text> Parser<'text> {
             NodeFlags::NONE,
         );
         self.arena
-            .node_mut(id)
+            .node_mut_preserving_kind(id)
             .set_numeric_literal_flags(numeric_literal_flags);
         self.next_token();
         self.finish_node_at(id, pos, end)
@@ -8056,7 +8076,9 @@ impl<'text> Parser<'text> {
             end,
             NodeFlags::NONE,
         );
-        self.arena.node_mut(id).set_is_unterminated(is_unterminated);
+        self.arena
+            .node_mut_preserving_kind(id)
+            .set_is_unterminated(is_unterminated);
         self.next_token();
         self.finish_node_at(id, pos, end)
     }
@@ -8078,7 +8100,7 @@ impl<'text> Parser<'text> {
             NodeFlags::NONE,
         );
         self.arena
-            .node_mut(id)
+            .node_mut_preserving_kind(id)
             .set_template_flags(self.scanner.template_literal_flags());
         self.next_token();
         self.finish_node_at(id, pos, end)
@@ -10514,7 +10536,7 @@ impl<'text> Parser<'text> {
             self.arena.set_js_doc(host, js_doc);
             self.arena.attach_js_doc(host);
             if deprecated {
-                self.arena.node_mut(host).flags |= NodeFlags::DEPRECATED.bits();
+                self.arena.node_mut_preserving_kind(host).flags |= NodeFlags::DEPRECATED.bits();
             }
         }
         lazy_nodes
@@ -10667,7 +10689,7 @@ impl<'text> Parser<'text> {
     #[inline]
     fn finish_node_fields(&mut self, id: NodeId, pos: usize, end: usize) -> SyntaxKind {
         let (is_jsdoc_candidate, kind) = {
-            let node = self.arena.node_mut(id);
+            let node = self.arena.node_mut_preserving_kind(id);
             node.pos = pos as u32;
             node.end = end as u32;
             // finishNode preserves every current parser context flag,

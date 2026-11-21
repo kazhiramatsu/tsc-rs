@@ -1617,7 +1617,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             ));
         }
         if nested {
-            self.parser.arena.node_mut(name).flags |=
+            self.parser.arena.node_mut_preserving_kind(name).flags |=
                 NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE.bits();
         }
         Some(name)

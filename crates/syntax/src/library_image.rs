@@ -709,7 +709,7 @@ impl SyntaxImage {
                 pos,
                 end,
                 has_trailing_comma: flags & 1 != 0,
-                is_missing_list: flags & 2 != 0,
+                list_state: (flags & 2 != 0).into(),
                 modifier_flags: modifiers as u16,
             });
         }

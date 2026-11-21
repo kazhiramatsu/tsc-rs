@@ -1,7 +1,9 @@
 use crate::for_each_child::{
     for_each_child, try_visit_each_child, NodeDataChildVisitor, NodeLookup,
 };
-use crate::nodes::{Node, NodeArray, NodeArrayId, NodeArrayRecord, NodeData, NodeId, TextId};
+use crate::nodes::{
+    ListState, Node, NodeArray, NodeArrayId, NodeArrayRecord, NodeData, NodeId, TextId,
+};
 use crate::relocate::{collect_node_data_ids, remap_node_data_ids};
 use crate::utilities::modifier_to_flag;
 use crate::SyntaxKind;
@@ -69,6 +71,8 @@ pub struct NodeArena {
     /// Whether subtrees of another tree were copied in (an incremental
     /// parse), uncounted for the symbol bound.
     copied_subtrees: bool,
+    /// A caller with mutable records may have changed a statement kind or list.
+    statement_facts_invalidated: bool,
     /// tsgo SourceFile.NodeCount, before lazy TypeScript JSDoc parsing.
     parse_node_count: Option<usize>,
     /// Difference between tsgo factory allocations and physical records.
@@ -105,6 +109,7 @@ impl Clone for NodeArena {
             identifier_count: self.identifier_count,
             symbol_bound: self.symbol_bound,
             copied_subtrees: self.copied_subtrees,
+            statement_facts_invalidated: self.statement_facts_invalidated,
             parse_node_count: self.parse_node_count,
             factory_node_adjustment: self.factory_node_adjustment,
         }
@@ -303,7 +308,7 @@ impl SubtreeCopier {
                 NodeFlags::from_bits(old_node.flags),
             );
             destination
-                .node_mut(id)
+                .node_mut_preserving_kind(id)
                 .set_literal_flags(old_node.literal_flags());
             let index = self.node_index(*old_id);
             self.node_map[index] = id;
@@ -986,7 +991,7 @@ impl NodeArena {
             pos: pos as u32,
             end: end as u32,
             has_trailing_comma,
-            is_missing_list: false,
+            list_state: false.into(),
             modifier_flags: modifier_flags.bits() as u16,
         });
         self.array_next = id.position();
@@ -1028,8 +1033,21 @@ impl NodeArena {
     }
 
     pub fn node_mut(&mut self, id: NodeId) -> &mut Node {
+        self.statement_facts_invalidated = true;
+        self.node_mut_preserving_kind(id)
+    }
+
+    /// Borrow a record for an edit that preserves its kind.
+    #[inline]
+    pub(crate) fn node_mut_preserving_kind(&mut self, id: NodeId) -> &mut Node {
         let index = self.node_index(id);
         &mut self.nodes[index]
+    }
+
+    /// Edit node flags while keeping the parser's statement-list facts.
+    #[inline]
+    pub fn node_flags_mut(&mut self, id: NodeId) -> &mut i32 {
+        &mut self.node_mut_preserving_kind(id).flags
     }
 
     /// Attach the parser's JSDoc list to `host` (the tree's builder owns it
@@ -1068,6 +1086,7 @@ impl NodeArena {
             modifier_to_flag(kind)
         );
         let js_doc = self.nodes[index].js_doc();
+        self.statement_facts_invalidated |= self.nodes[index].kind != kind;
         self.nodes[index].kind = kind;
         self.nodes[index].encode(&data, js_doc, &mut self.tails, false);
     }
@@ -1089,6 +1108,7 @@ impl NodeArena {
     }
 
     pub fn nodes_mut(&mut self) -> &mut [Node] {
+        self.statement_facts_invalidated = true;
         &mut self.nodes
     }
 
@@ -1113,9 +1133,26 @@ impl NodeArena {
         start..start + record.len as usize
     }
 
-    /// The stored record of `id`, for writing its range and list markers;
-    /// the elements of an array never change after its allocation.
+    /// Remember the parser's proof about the direct children of a new list.
+    pub(crate) fn mark_function_free(&mut self, id: NodeArrayId) {
+        let index = self.array_index(id);
+        debug_assert!(!self.arrays[index].is_missing_list);
+        self.arrays[index].list_state = ListState::FunctionFree;
+    }
+
+    /// Whether the parser proved this list contains no direct function declaration.
+    #[inline]
+    pub fn is_known_function_free_statement_list(&self, id: NodeArrayId) -> bool {
+        !self.statement_facts_invalidated
+            && matches!(
+                self.arrays[self.array_index(id)].list_state,
+                ListState::FunctionFree
+            )
+    }
+
+    /// Borrow an array record for editing. A replacement can name other elements.
     pub fn node_array_mut(&mut self, id: NodeArrayId) -> &mut NodeArrayRecord {
+        self.statement_facts_invalidated = true;
         let index = self.array_index(id);
         &mut self.arrays[index]
     }

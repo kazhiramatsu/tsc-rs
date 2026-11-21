@@ -194,6 +194,37 @@ fn duplicate_diagnostic_order_matches_functions_first_binding() {
 }
 
 #[test]
+fn function_free_statement_lists_copied_between_arenas_bind_functions_first() {
+    let mut source = parse("var f: any;\nfunction f() {}");
+    let donor = parse("var f: any;\ndebugger      ;");
+    let root = source.arena.node(source.root).statements_field().unwrap();
+    let other = donor.arena.node(donor.root).statements_field().unwrap();
+    assert!(donor.arena.is_known_function_free_statement_list(other));
+    let record = donor.arena.node_arrays()[other.index() as usize].clone();
+    let function = source.arena.node_array(root).nodes[1];
+    *source.arena.node_array_mut(root) = record;
+    let binder = bind(&mut source);
+    assert_eq!(diag_pins(&binder), [(2300, 21, 1), (2300, 4, 1)]);
+    let symbol = binder.locals[&binder.source.root]["f"];
+    assert_eq!(binder.symbols.symbol(symbol).declarations()[0], function);
+}
+
+#[test]
+fn function_free_statement_lists_bind_in_the_same_order_as_the_fallback() {
+    let mut source = parse("namespace N { export let x; } { let a; let a; } const f = () => 1;");
+    let mut ordinary = source.clone();
+    let _ = ordinary.arena.nodes_mut();
+    let optimized = bind(&mut source);
+    let ordinary = bind(&mut ordinary);
+    assert_eq!(optimized.locals, ordinary.locals);
+    assert_eq!(optimized.node_symbol, ordinary.node_symbol);
+    assert_eq!(optimized.node_flow, ordinary.node_flow);
+    assert_eq!(optimized.flow, ordinary.flow);
+    assert_eq!(optimized.symbols.len(), ordinary.symbols.len());
+    assert_eq!(diag_pins(&optimized), diag_pins(&ordinary));
+}
+
+#[test]
 fn module_always_strict_reserves_future_reserved_words() {
     // Oracle-pinned: `var private = 1; export {};` in a module file
     // reports 1214 (the Modules-are-automatically-strict variant)

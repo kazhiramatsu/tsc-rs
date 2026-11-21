@@ -8,6 +8,78 @@ fn nodes_of_kind(source: &crate::SourceFile, kind: SyntaxKind) -> Vec<NodeId> {
 }
 
 #[test]
+fn function_free_statement_lists_track_direct_children() {
+    let mut source =
+        parse_ts("namespace N { let a; } { function f() {} } const g = function() {};");
+    let root = source.arena.node(source.root).statements_field().unwrap();
+    let module = nodes_of_kind(&source, SyntaxKind::ModuleBlock)[0];
+    let module = source.arena.node(module).statements_field().unwrap();
+    let mixed = nodes_of_kind(&source, SyntaxKind::Block)
+        .into_iter()
+        .filter_map(|node| source.arena.node(node).statements_field())
+        .find(|&list| !source.arena.node_array(list).nodes.is_empty())
+        .unwrap();
+    assert!(source.arena.is_known_function_free_statement_list(root));
+    assert!(source.arena.is_known_function_free_statement_list(module));
+    assert!(!source.arena.is_known_function_free_statement_list(mixed));
+
+    let synthetic = source.arena.alloc_synthetic_array(&[]);
+    assert!(!source
+        .arena
+        .is_known_function_free_statement_list(synthetic));
+    let _ = source.arena.nodes_mut();
+    assert!(!source.arena.is_known_function_free_statement_list(root));
+}
+
+#[test]
+fn function_free_statement_lists_follow_payloads_kinds_and_image_restore() {
+    let mut source = crate::parse_source_file(
+        "lib.test.d.ts",
+        "declare namespace A { interface I {} } declare namespace B { function f(): void; }",
+        ParseOptions::default(),
+        None,
+    );
+    let blocks = nodes_of_kind(&source, SyntaxKind::ModuleBlock);
+    let [first, second] = blocks[..] else {
+        panic!("two namespace bodies")
+    };
+    let pure = source.arena.node(first).statements_field().unwrap();
+    let mixed = source.arena.node(second).statements_field().unwrap();
+    assert!(source.arena.is_known_function_free_statement_list(pure));
+    assert!(!source.arena.is_known_function_free_statement_list(mixed));
+
+    let image = crate::arena::library_image::SyntaxImage::capture(&source).unwrap();
+    let restored = image.restore().unwrap();
+    assert!(!restored.arena.is_known_function_free_statement_list(pure));
+    assert_eq!(
+        image,
+        crate::arena::library_image::SyntaxImage::capture(&restored).unwrap()
+    );
+
+    let replacement = source.arena.node(second).data();
+    source.arena.set_data(first, replacement);
+    let list = source.arena.node(first).statements_field().unwrap();
+    assert_eq!(list, mixed);
+    assert!(!source.arena.is_known_function_free_statement_list(list));
+
+    let mut cloned = source.clone();
+    let statement = cloned.arena.node_array(pure).nodes[0];
+    cloned.arena.reshape(
+        statement,
+        SyntaxKind::FunctionDeclaration,
+        NodeData::missing(SyntaxKind::FunctionDeclaration),
+    );
+    assert!(!cloned.arena.is_known_function_free_statement_list(pure));
+    assert!(source.arena.is_known_function_free_statement_list(pure));
+
+    // A mutable marker is still a Boolean field, including on a cloned record.
+    let mut record = source.arena.node_arrays()[pure.index() as usize].clone();
+    record.is_missing_list = true;
+    assert!(record.is_missing_list);
+    assert!(!source.arena.node_array(pure).is_missing_list);
+}
+
+#[test]
 fn amd_pragmas_are_source_owned_and_duplicate_module_names_report_exactly() {
     let source = parse_ts(concat!(
         "/// <amd-module name=\"first\" />\n",

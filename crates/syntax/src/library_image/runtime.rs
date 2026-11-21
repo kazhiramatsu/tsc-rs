@@ -432,7 +432,7 @@ impl StaticLibraryImage {
                 pos,
                 end,
                 has_trailing_comma: packed & 1 != 0,
-                is_missing_list: packed & 2 != 0,
+                list_state: (packed & 2 != 0).into(),
                 modifier_flags: (packed >> 2) as u16,
             });
         }

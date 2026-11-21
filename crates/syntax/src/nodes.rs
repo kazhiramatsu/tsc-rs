@@ -78,19 +78,93 @@ pub struct NodeArray<'a> {
 /// The stored form of a tsc NodeArray: its elements are the `len` ids at
 /// `items` in the arena's item store. Transform flags are emitter-session
 /// facts and are not stored with syntax.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone)]
 pub struct NodeArrayRecord {
     pub(crate) items: u32,
     pub(crate) len: u32,
     pub pos: u32,
     pub end: u32,
     pub has_trailing_comma: bool,
-    /// tsc createMissingList's isMissingList marker.
-    pub is_missing_list: bool,
+    /// Parsed statement lists use the missing-list byte for their binding facts.
+    pub(crate) list_state: ListState,
     /// The syntactic modifier flags of the elements (tsgo's
     /// `ModifierList.ModifierFlags`), computed once when the array is
     /// allocated; they fit in 16 bits (`ModifierFlags::SYNTACTIC_MODIFIERS`).
     pub(crate) modifier_flags: u16,
+}
+
+/// The writable missing-list marker exposed by a node array record.
+#[derive(Clone, Copy)]
+pub struct MissingListMarker {
+    pub is_missing_list: bool,
+}
+
+/// Only a present list can have known statements. The extra discriminants
+/// fit in the same byte as the missing-list Boolean.
+#[derive(Clone, Copy)]
+pub(crate) enum ListState {
+    Unknown(MissingListMarker),
+    FunctionFree,
+}
+
+impl From<bool> for ListState {
+    fn from(is_missing_list: bool) -> Self {
+        Self::Unknown(MissingListMarker { is_missing_list })
+    }
+}
+
+impl std::ops::Deref for NodeArrayRecord {
+    type Target = MissingListMarker;
+
+    fn deref(&self) -> &Self::Target {
+        match &self.list_state {
+            ListState::Unknown(marker) => marker,
+            ListState::FunctionFree => &MissingListMarker {
+                is_missing_list: false,
+            },
+        }
+    }
+}
+
+impl std::ops::DerefMut for NodeArrayRecord {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        if !matches!(self.list_state, ListState::Unknown(_)) {
+            self.list_state = false.into();
+        }
+        let ListState::Unknown(marker) = &mut self.list_state else {
+            unreachable!()
+        };
+        marker
+    }
+}
+
+// Comparisons and debug output expose the logical missing-list marker.
+impl PartialEq for NodeArrayRecord {
+    fn eq(&self, other: &Self) -> bool {
+        self.items == other.items
+            && self.len == other.len
+            && self.pos == other.pos
+            && self.end == other.end
+            && self.has_trailing_comma == other.has_trailing_comma
+            && self.is_missing_list == other.is_missing_list
+            && self.modifier_flags == other.modifier_flags
+    }
+}
+
+impl Eq for NodeArrayRecord {}
+
+impl std::fmt::Debug for NodeArrayRecord {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NodeArrayRecord")
+            .field("items", &self.items)
+            .field("len", &self.len)
+            .field("pos", &self.pos)
+            .field("end", &self.end)
+            .field("has_trailing_comma", &self.has_trailing_comma)
+            .field("is_missing_list", &self.is_missing_list)
+            .field("modifier_flags", &self.modifier_flags)
+            .finish()
+    }
 }
 
 impl NodeArrayRecord {
