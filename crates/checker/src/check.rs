@@ -1800,7 +1800,10 @@ impl<'a> CheckerState<'a> {
         let save_within_unreachable_code = self.within_unreachable_code;
         self.current_node = Some(node);
         self.instantiation_count = 0;
-        let profiled = self.line_profile_enter(node);
+        let profiled = self.line_profile.enabled();
+        if profiled {
+            self.line_profile_enter(node);
+        }
         #[cfg(debug_assertions)]
         let unwind_entry = self.unwind_snapshot();
         // CheckAbort containment boundary: tsc has no failure channel
@@ -1842,18 +1845,18 @@ impl<'a> CheckerState<'a> {
         snapshot
     }
 
-    fn line_profile_enter(&mut self, node: NodeId) -> bool {
-        if !self.line_profile.enabled() {
-            return false;
-        }
+    #[cold]
+    #[inline(never)]
+    fn line_profile_enter(&mut self, node: NodeId) {
         let source = self.binder.source_of_node(node);
         let start =
             tsc_syntax::skip_trivia(source.text(), self.binder.node_record(node).pos as usize);
         let snapshot = self.line_profile_snapshot();
         self.line_profile.enter(source, start, snapshot);
-        true
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn line_profile_exit(&mut self) {
         let snapshot = self.line_profile_snapshot();
         self.line_profile.exit(snapshot);
@@ -4111,7 +4114,10 @@ impl<'a> CheckerState<'a> {
         let save_current_node = self.current_node;
         self.current_node = Some(node);
         self.instantiation_count = 0;
-        let profiled = self.line_profile_enter(node);
+        let profiled = self.line_profile.enabled();
+        if profiled {
+            self.line_profile_enter(node);
+        }
         #[cfg(debug_assertions)]
         let unwind_entry = self.unwind_snapshot();
         if let Err(err) = self.check_deferred_node_worker(node) {

@@ -319,3 +319,7 @@ pub fn write_report() -> Option<usize> {
     }
     Some(rows.len())
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/check/line_profile.rs"]
+mod tests;
