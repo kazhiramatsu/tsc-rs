@@ -5787,6 +5787,20 @@ impl<'a> CheckerState<'a> {
         let property = self.create_union_or_intersection_property(ty, name, skip)?;
         if let Some(property) = property {
             self.links.set_union_property(key, property);
+            // tsgo getUnionOrIntersectionProperty (checker.go:21849-21856): a
+            // property made without the Object / Function augmentation also
+            // answers the augmented look-up, unless it is partial or that
+            // look-up already has its answer. The two look-ups then share one
+            // symbol instead of making the same property twice.
+            let augmented = (ty, name, false);
+            if skip
+                && !self
+                    .get_check_flags(property)
+                    .intersects(CheckFlags::PARTIAL)
+                && self.links.union_property(&augmented).is_none()
+            {
+                self.links.set_union_property(augmented, property);
+            }
         }
         Ok(property)
     }
