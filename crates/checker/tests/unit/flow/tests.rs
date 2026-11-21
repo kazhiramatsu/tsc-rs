@@ -537,3 +537,74 @@ fn assignment_union_membership_uses_the_unions_active_order() {
         });
     }
 }
+
+#[test]
+fn optional_chain_receivers_match_the_file_backed_walk() {
+    use tsc_binder::node_util::{expression_of, is_optional_chain};
+    use tsc_syntax::{NodeId, NodeLookup, Published, SyntaxKind};
+
+    fn receivers(tree: &impl NodeLookup, mut node: NodeId) -> Vec<NodeId> {
+        let mut visits = Vec::new();
+        while is_optional_chain(tree, node) {
+            node = expression_of(tree, node).unwrap();
+            visits.push(node);
+        }
+        visits
+    }
+
+    let text = "export {}; declare const a: any; a.b; a?.b!.c; a?.['b'].c; a.b?.();";
+    with_program_state(
+        &[("one.ts", text), ("two.ts", text)],
+        &CompilerOptions::default(),
+        |state| {
+            for file in 0..2 {
+                let tree = state.binder.source(file);
+                let base = tree
+                    .arena
+                    .node_ids()
+                    .find(|&id| {
+                        state.kind_of(id) == SyntaxKind::Identifier
+                            && state.escaped_text_of(Some(id)) == Some("a")
+                    })
+                    .unwrap();
+                let mut query = super::FlowQuery::for_memo_test(state, base);
+                query.synthetic_props =
+                    Some(vec![tsc_types::EscapedName::from_identifier_escaped_text(
+                        "b",
+                    )]);
+                let mut synthetic_hit = false;
+                let mut plain_hit = false;
+                for node in tree.arena.node_ids() {
+                    let visits = receivers(tree, node);
+                    assert_eq!(receivers(&Published, node), visits);
+                    let plain = visits
+                        .iter()
+                        .any(|&id| state.is_matching_reference(id, base).unwrap());
+                    let synthetic = visits.iter().any(|&id| {
+                        state
+                            .real_node_matches_synthetic_chain(
+                                id,
+                                base,
+                                query.synthetic_props.as_deref().unwrap(),
+                                false,
+                            )
+                            .unwrap()
+                    });
+                    assert_eq!(
+                        state.optional_chain_contains_reference(node, base).unwrap(),
+                        plain
+                    );
+                    assert_eq!(
+                        state
+                            .optional_chain_contains_query_reference(node, &query)
+                            .unwrap(),
+                        synthetic
+                    );
+                    plain_hit |= plain;
+                    synthetic_hit |= synthetic;
+                }
+                assert!(plain_hit && synthetic_hit);
+            }
+        },
+    );
+}

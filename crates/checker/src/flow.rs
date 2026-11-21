@@ -2593,8 +2593,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<bool> {
         let mut source = source;
         loop {
-            let file_source = self.binder.source_of_node(source);
-            if !node_util::is_optional_chain(file_source, source) {
+            if !node_util::is_optional_chain(&Published, source) {
                 return Ok(false);
             }
             let next = match self.data_of(source) {
@@ -3717,8 +3716,7 @@ impl<'a> CheckerState<'a> {
         };
         let mut source = source;
         loop {
-            let file_source = self.binder.source_of_node(source);
-            if !node_util::is_optional_chain(file_source, source) {
+            if !node_util::is_optional_chain(&Published, source) {
                 return Ok(false);
             }
             let next = match self.data_of(source) {
