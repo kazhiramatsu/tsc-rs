@@ -1,8 +1,13 @@
 # Lane `<name>` — <one-line goal>
 
+<!-- The older form: one PATCH per row, for a lane that works from profiles without a row review. For rows that come
+     from the account's join tables use `row-review-spec.md` and then `row-impl-spec.md`. Keep every path relative to
+     the lane's clone; no home paths, no personal details. -->
+
 Base: this clone's HEAD (`<commit>`, = main [+ which merged lanes]). Policy: outputs (diagnostics, emit, conformance) byte-identical; the
-`--extendedDiagnostics` work counters may change and are recorded. Reference: tsgo at `/Users/hiramatsu/dev/tsc-rs/target/typescript7/upstream/tsc/internal/`
-(read-only) [and tsrs at `tsrs-src/` if present]. Evidence in `target/lane-<name>/evidence/` (profiles, `callers.py`, notes, catalog rows).
+`--extendedDiagnostics` work counters may change and are recorded. Reference: tsgo at `target/reference-go/internal/` (a read-only link
+in this clone) [and the other port at `target/other-port/` if present, for reading a mechanism only - nothing is copied from either].
+Evidence in `target/lane-<name>/evidence/` (profiles, `callers.py`, notes, catalog rows).
 
 ## Evidence (why these rows)
 

@@ -58,6 +58,11 @@ short user guide.
   work and for deltas that wall cannot resolve, not the verdict: an
   instruction increase that does not make the compiler slower is acceptable,
   and an instruction decrease that costs time is not a gain.
+  A question about a gap to another compiler starts from the skill's account
+  of the whole gap (every sample of both ports on a common list of names,
+  the differences summing to the gap) before any single cause is tested, and
+  a prototype, census or lane is started only with a row of that account
+  that bounds its gain (owner's decision 2026-11-21).
 
 ## Merging
 
