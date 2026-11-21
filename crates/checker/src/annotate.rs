@@ -10421,9 +10421,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:78111-78120
     pub fn get_type_of_parameter(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         let declared = self.get_type_of_symbol(symbol)?;
+        if !self.tables.strict_null_checks {
+            return Ok(declared);
+        }
         let declaration = self.binder.symbol(symbol).value_declaration;
         let is_optional = declaration.is_some_and(|declaration| {
-            matches!(self.record_of(declaration).as_parameter(), Some(data) if data.question_token.is_some() || data.initializer.is_some())
+            let record = self.record_of(declaration);
+            record.kind == SyntaxKind::Parameter
+                && (record.question_token_field().is_some() || record.initializer_field().is_some())
         });
         Ok(self.add_optionality(declared, /*is_property*/ false, is_optional))
     }

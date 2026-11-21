@@ -2920,3 +2920,94 @@ fn union_readonly_query_keeps_descriptor_and_instantiated_member_flags() {
         },
     );
 }
+
+#[test]
+fn fixed_parameter_optional_slots_follow_strict_null_checks() {
+    for strict in [false, true] {
+        crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                "function f(a: number, b?: number, c: number = 0) {}",
+            )],
+            &CompilerOptions {
+                strict_null_checks: Some(strict),
+                ..CompilerOptions::default()
+            },
+            |state| {
+                let source = state.binder.source(0);
+                let declaration = source
+                    .arena
+                    .node_ids()
+                    .find(|&id| {
+                        source.arena.node(id).kind == tsc_syntax::SyntaxKind::FunctionDeclaration
+                    })
+                    .unwrap();
+                let sig = state.get_signature_from_declaration(declaration).unwrap();
+                let number = state.tables.intrinsics.number;
+                assert_eq!(state.try_get_type_at_position(sig, 0), Ok(Some(number)));
+                for pos in [1, 2] {
+                    let ty = state.try_get_type_at_position(sig, pos).unwrap().unwrap();
+                    assert_eq!(
+                        state.maybe_type_of_kind(ty, tsc_types::TypeFlags::UNDEFINED),
+                        strict
+                    );
+                    assert!(state.maybe_type_of_kind(ty, tsc_types::TypeFlags::NUMBER));
+                }
+                assert_eq!(state.try_get_type_at_position(sig, 3), Ok(None));
+                let name = state
+                    .binder
+                    .symbol(state.signature_of(sig).parameters[0])
+                    .escaped_name;
+                let synthetic = state
+                    .binder
+                    .create_symbol(tsc_types::SymbolFlags::FUNCTION_SCOPED_VARIABLE, name);
+                state
+                    .links
+                    .overwrite_symbol_type_for_binding_element(0, synthetic, number);
+                assert_eq!(state.get_type_of_parameter(synthetic), Ok(number));
+            },
+        );
+    }
+}
+
+#[test]
+fn fixed_and_variadic_rest_tuple_positions_keep_their_bounds() {
+    let text = "interface Array<T> { [i: number]: T }
+declare function fixed(...args: [number, string]): void;
+declare function variadic(...args: [number, ...string[]]): void;";
+    for strict in [false, true] {
+        crate::state::test_support::with_program_state(
+            &[("a.ts", text)],
+            &CompilerOptions {
+                strict_null_checks: Some(strict),
+                ..Default::default()
+            },
+            |state| {
+                let source = state.binder.source(0);
+                for decl in source.arena.node_ids().filter(|&id| {
+                    source.arena.node(id).kind == tsc_syntax::SyntaxKind::FunctionDeclaration
+                }) {
+                    let name = state
+                        .escaped_text_of(
+                            source
+                                .arena
+                                .node(decl)
+                                .as_function_declaration()
+                                .unwrap()
+                                .name,
+                        )
+                        .unwrap();
+                    let sig = state.get_signature_from_declaration(decl).unwrap();
+                    let number = state.tables.intrinsics.number;
+                    let string = state.tables.intrinsics.string;
+                    assert_eq!(state.try_get_type_at_position(sig, 0), Ok(Some(number)));
+                    assert_eq!(state.try_get_type_at_position(sig, 1), Ok(Some(string)));
+                    assert_eq!(
+                        state.try_get_type_at_position(sig, 4),
+                        Ok((name == "variadic").then_some(string))
+                    );
+                }
+            },
+        );
+    }
+}
