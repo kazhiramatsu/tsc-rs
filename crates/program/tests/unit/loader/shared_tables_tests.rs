@@ -46,13 +46,26 @@ fn a_directorys_resolutions_are_kept_by_specifier_and_mode() {
 
     let directory = LexicalPath::from_owned(JsString::from("/work/src"));
     let mut walk = FxHashMap::default();
+    DirectoryResolutions::append_to(Arc::default(), &directory, &mut walk);
+    assert!(walk.is_empty());
     DirectoryResolutions::append_to(table, &directory, &mut walk);
-    let key = |specifier: &JsString, mode| (directory.clone(), specifier.clone(), mode);
-    assert_eq!(walk.len(), 3);
-    assert_eq!(walk.get(&key(&model, ResolutionMode::CommonJs)), Some(&2));
-    assert_eq!(walk.get(&key(&model, ResolutionMode::EsNext)), Some(&4));
+    let additional = Arc::new(DirectoryResolutions::default());
+    additional.insert(model.as_js(), ResolutionMode::CommonJs, 7);
+    let other = LexicalPath::from_owned("/work/other".into());
+    DirectoryResolutions::append_to(Arc::clone(&additional), &other, &mut walk);
+    additional.insert(event.as_js(), ResolutionMode::EsNext, 5);
+    DirectoryResolutions::append_to(additional, &directory, &mut walk);
+    assert_eq!(walk.len(), 2);
+    let table = &walk[&directory];
+    assert_eq!(table.get(model.as_js(), ResolutionMode::CommonJs), Some(&7));
+    assert_eq!(table.get(model.as_js(), ResolutionMode::EsNext), Some(&4));
     assert_eq!(
-        walk.get(&key(&event, ResolutionMode::Unspecified)),
+        table.get(event.as_js(), ResolutionMode::Unspecified),
         Some(&3)
+    );
+    assert_eq!(table.get(event.as_js(), ResolutionMode::EsNext), Some(&5));
+    assert_eq!(
+        walk[&other].get(event.as_js(), ResolutionMode::EsNext),
+        None
     );
 }
