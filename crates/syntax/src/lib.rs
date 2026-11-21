@@ -163,10 +163,92 @@ pub struct ContentMapperOutput {
     pub span_map: Option<tsc_diagnostics::spanmap::SpanMap>,
 }
 
+/// The final check directive in the leading trivia of a source file.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CheckDirective {
+    Check,
+    NoCheck,
+}
+
+/// tsrs-native: lexical projection of leading-comment @ts-check/@ts-nocheck
+/// (processCommentPragmas 36215 + processPragmasIntoFields checkJsDirective ~36288, last
+/// wins); not a structural port
+pub fn check_directive(text: &str) -> Option<CheckDirective> {
+    let mut rest = text;
+    // getLeadingCommentRanges starts after a leading shebang. Keep
+    // this test on the RAW offset zero: a BOM before `#!` makes it an
+    // ordinary token sequence, not shebang trivia.
+    if let Some(after) = rest.strip_prefix("#!") {
+        let line_end = after
+            .find(['\n', '\r', '\u{2028}', '\u{2029}'])
+            .unwrap_or(after.len());
+        rest = &after[line_end..];
+    }
+    let mut directive = None;
+    loop {
+        // JS WhiteSpace includes BOM; Rust's is_whitespace does not.
+        rest = rest.trim_start_matches(|c: char| c.is_whitespace() || c == '\u{FEFF}');
+        if let Some(after) = rest.strip_prefix("//") {
+            let line_end = after
+                .find(['\n', '\r', '\u{2028}', '\u{2029}'])
+                .unwrap_or(after.len());
+            let comment = &after[..line_end];
+            // singleLinePragmaRegEx: ^///?\s*@([^\s:]+)
+            let body = comment.strip_prefix('/').unwrap_or(comment).trim_start();
+            if let Some(name_and_tail) = body.strip_prefix('@') {
+                let name_end = name_and_tail
+                    .find(|c: char| c.is_whitespace() || c == ':')
+                    .unwrap_or(name_and_tail.len());
+                match name_and_tail[..name_end].to_ascii_lowercase().as_str() {
+                    "ts-nocheck" => directive = Some(CheckDirective::NoCheck),
+                    "ts-check" => directive = Some(CheckDirective::Check),
+                    _ => {}
+                }
+            }
+            rest = &after[line_end..];
+            continue;
+        }
+        if let Some(after) = rest.strip_prefix("/*") {
+            match after.find("*/") {
+                Some(end) => {
+                    rest = &after[end + 2..];
+                    continue;
+                }
+                None => break,
+            }
+        }
+        break;
+    }
+    directive
+}
+
+/// Immutable lexical facts shared by clones of a parsed source. Keep the
+/// source file's existing snapshot field pointer-sized for heap reporting.
+#[derive(PartialEq)]
+struct SourceSnapshot {
+    text: Arc<TextSnapshot>,
+    check_directive: Option<CheckDirective>,
+}
+
+impl SourceSnapshot {
+    fn new(text: Arc<TextSnapshot>) -> Arc<Self> {
+        Arc::new(Self {
+            check_directive: check_directive(text.text()),
+            text,
+        })
+    }
+}
+
+impl std::fmt::Debug for SourceSnapshot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.text.fmt(f)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourceFile {
     pub file_name: JsString,
-    snapshot: Arc<TextSnapshot>,
+    snapshot: Arc<SourceSnapshot>,
     pub language_variant: LanguageVariant,
     /// tsgo `SourceFile.ScriptKind`: the kind it was parsed as.
     pub script_kind: ScriptKind,
@@ -288,7 +370,7 @@ impl SourceFile {
     ) -> Self {
         Self {
             file_name,
-            snapshot,
+            snapshot: SourceSnapshot::new(snapshot),
             language_variant,
             script_kind,
             is_declaration_file,
@@ -378,15 +460,21 @@ impl SourceFile {
     }
 
     pub fn snapshot(&self) -> &Arc<TextSnapshot> {
-        &self.snapshot
+        &self.snapshot.text
     }
 
     pub fn text(&self) -> &str {
-        self.snapshot.text()
+        self.snapshot().text()
+    }
+
+    /// The leading check directive belongs to the same immutable text as the positions.
+    pub fn check_directive(&self) -> Option<CheckDirective> {
+        debug_assert_eq!(self.snapshot.check_directive, check_directive(self.text()));
+        self.snapshot.check_directive
     }
 
     pub fn positions(&self) -> &PositionIndex {
-        self.snapshot.positions()
+        self.snapshot().positions()
     }
 
     pub fn node_count(&self) -> usize {
@@ -626,7 +714,7 @@ impl SourceFile {
     pub fn add_owned_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
         const STRINGS: &str = "strings: stable owners";
         usage.js_string(STRINGS, &self.file_name);
-        TextSnapshot::add_memory_usage(&self.snapshot, usage);
+        TextSnapshot::add_memory_usage(self.snapshot(), usage);
         usage.diagnostics(&self.parse_diagnostics);
         usage.diagnostics(&self.js_doc_diagnostics);
         usage.vec("source metadata vectors", &self.referenced_files);

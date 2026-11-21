@@ -356,3 +356,26 @@ fn rare_facts_and_flags_round_trip_through_a_single_box() {
         row
     );
 }
+
+#[test]
+fn published_source_ids_follow_canonical_spelling_with_a_shared_realpath() {
+    let mut builder = builder();
+    let physical = path("/physical/mod.ts", "/physical/mod.ts");
+    let mut expected = Vec::new();
+    for name in ["/work/a.ts", "/work/b.ts", "/work/a.ts"] {
+        let canonical = path(name, name);
+        let file = PreparedSourceFile::new(canonical.clone(), "").with_real_path(physical.clone());
+        let id = builder.add_source_file(file).unwrap();
+        assert_eq!(builder.published_source_id(canonical.canonical()), Some(id));
+        expected.push(id.raw());
+    }
+    assert_eq!(expected, [0, 1, 0]);
+    assert_eq!(builder.published_source_id(physical.canonical()), None);
+
+    let mut conflict = PreparedSourceFile::new(path("/work/c.ts", "/work/c.ts"), "");
+    conflict.remember_package_redirect(path("/work/b.ts", "/work/b.ts"));
+    assert_eq!(
+        builder.add_source_file(conflict).unwrap_err().kind(),
+        PreparationErrorKind::IdentityConflict
+    );
+}

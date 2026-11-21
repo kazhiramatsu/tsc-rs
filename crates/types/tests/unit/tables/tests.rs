@@ -9,6 +9,25 @@ fn tables() -> TypeTables {
 }
 
 #[test]
+fn a_list_ends_inside_the_index_range_or_is_refused() {
+    assert_eq!(list_end(0, 0), Some(1));
+    assert_eq!(list_end(5, 3), Some(9));
+    assert_eq!(list_end(u32::MAX - 3, 2), Some(u32::MAX));
+    // The start fits and the end does not: a cursor's end would be zero.
+    assert_eq!(list_end(u32::MAX - 2, 2), None);
+    assert_eq!(list_end(u32::MAX, 0), None);
+    let mut tables = tables();
+    let a = tables.intrinsics.number;
+    let b = tables.intrinsics.string;
+    let list = tables.intern_type_list(&[a, b]);
+    let mut cursor = tables.cursor(list);
+    assert_eq!(cursor.len(), 2);
+    assert_eq!(cursor.next(&tables), Some(a));
+    assert_eq!(cursor.next(&tables), Some(b));
+    assert_eq!(cursor.next(&tables), None);
+}
+
+#[test]
 fn a_finished_checkers_type_range_is_not_reissued_when_its_records_are_dropped() {
     let domain = IdentityDomain::new();
     let mut first = TypeTables::new(true, false, &domain);
@@ -1265,6 +1284,69 @@ fn packed_instantiation_keys_preserve_all_shapes_and_bounds() {
         assert_eq!(t.instantiation_get(target, key), Some(replacement));
     }
     assert_eq!(t.instantiations.len(), expected.len());
+}
+
+#[test]
+fn borrowed_instantiation_probes_distinguish_collisions_and_keep_miss_order() {
+    let mut t = tables();
+    let target = t.intrinsics.any;
+    // Fresh IDs keep these sequences distinct from built-in union lists.
+    let a: [TypeId; 3] = std::array::from_fn(|_| t.create_type_parameter(false, None));
+    let b = [a[1], a[0], a[2]];
+    let list_a = t.intern_type_list(&a);
+    let list_b = t.intern_type_list(&b);
+    let mut collisions = InstantiationCache::default();
+    for (list, value) in [(list_a, a[0]), (list_b, b[0])] {
+        collisions.insert(target, InstantiationKey::plain(list), value, Some(7));
+    }
+    for args in [a, b] {
+        assert_eq!(
+            collisions
+                .find_arguments(&t.list_items, target, false, &args, 7)
+                .unwrap()
+                .value,
+            args[0]
+        );
+    }
+
+    assert!(collisions
+        .find_arguments(&t.list_items, a[2], false, &a, 7)
+        .is_none());
+    assert!(collisions
+        .find_arguments(&t.list_items, target, true, &a, 7)
+        .is_none());
+
+    t.instantiation_seed(target, |_| InstantiationKey::plain(list_a));
+    let next = t.list_items.len();
+    assert_eq!(t.create_type_reference(target, &a), target);
+    t.instantiation_insert(target, InstantiationKey::plain(list_a), a[2]);
+    assert_eq!(
+        t.lookup_instantiation(target, &a, None, Some(&[]), false).1,
+        Some(a[2])
+    );
+    assert_eq!(t.list_items.len(), next);
+    let count = t.types.len();
+    let mut worker = || {
+        let (key, existing) = t.lookup_instantiation(target, &b[..2], None, None, true);
+        assert_eq!(existing, None);
+        assert_eq!(key.arguments.index() as usize, next);
+        assert_eq!(
+            t.intern_type_list(&a[..2]).index(),
+            key.arguments.index() + 3
+        );
+        Err::<(), _>(key)
+    };
+    let failed_key = worker().unwrap_err();
+    assert_eq!(t.instantiation_get(target, failed_key), None);
+    assert_eq!(t.types.len(), count);
+    assert_eq!(t.list_items.len(), next + 6);
+
+    // An ID-only insertion can precede the allocation of that list.
+    let future = InstantiationKey::plain(TypeListId::new(t.list_items.len() as u32));
+    t.instantiation_insert(target, future, b[2]);
+    assert_eq!(t.create_type_reference(target, &b[..1]), b[2]);
+    t.instantiation_insert(target, future, b[0]);
+    assert_eq!(t.create_type_reference(target, &b[..1]), b[0]);
 }
 
 /// getObjectTypeInstantiation's seed is asked of the map once a target: the

@@ -42,6 +42,7 @@ struct TracedHost {
     read_ahead: bool,
     reads: RefCell<Vec<String>>,
     package_json_file_probes: RefCell<Vec<String>>,
+    probes: RefCell<Vec<(HostOperation, PathBuf)>>,
     faults: RefCell<BTreeMap<PathBuf, VecDeque<HostError>>>,
 }
 
@@ -52,6 +53,7 @@ impl TracedHost {
             read_ahead,
             reads: RefCell::new(Vec::new()),
             package_json_file_probes: RefCell::new(Vec::new()),
+            probes: RefCell::default(),
             faults: RefCell::new(BTreeMap::new()),
         }
     }
@@ -83,6 +85,9 @@ impl CompilerHost for TracedHost {
     }
 
     fn read_file(&self, path: &Path) -> Result<Option<Vec<u8>>, HostError> {
+        self.probes
+            .borrow_mut()
+            .push((HostOperation::ReadFile, path.to_owned()));
         self.reads
             .borrow_mut()
             .push(path.to_string_lossy().into_owned());
@@ -95,6 +100,9 @@ impl CompilerHost for TracedHost {
     }
 
     fn file_exists(&self, path: &Path) -> Result<bool, HostError> {
+        self.probes
+            .borrow_mut()
+            .push((HostOperation::FileExists, path.to_owned()));
         if path.file_name().is_some_and(|name| name == "package.json") {
             self.package_json_file_probes
                 .borrow_mut()
@@ -104,14 +112,23 @@ impl CompilerHost for TracedHost {
     }
 
     fn directory_exists(&self, path: &Path) -> Result<bool, HostError> {
+        self.probes
+            .borrow_mut()
+            .push((HostOperation::DirectoryExists, path.to_owned()));
         self.inner.directory_exists(path)
     }
 
     fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
+        self.probes
+            .borrow_mut()
+            .push((HostOperation::ReadDirectory, path.to_owned()));
         self.inner.read_directory(path)
     }
 
     fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
+        self.probes
+            .borrow_mut()
+            .push((HostOperation::Realpath, path.to_owned()));
         self.inner.realpath(path)
     }
 
@@ -1173,5 +1190,56 @@ fn redirected_project_metadata_is_probed_once_in_source_read_order() {
         assert_eq!(reads, expected_reads);
         let expected: Vec<_> = fixture.list_files.iter().map(String::as_str).collect();
         assert_eq!(source_paths(&program), expected);
+    }
+}
+
+#[test]
+fn grouped_directory_resolutions_preserve_the_walk() {
+    let roots = [
+        "/work/a/one.mts",
+        "/work/a/two.cts",
+        "/work/b/three.cts",
+        "/work/b/four.cts",
+    ];
+    let fixture = |denied| {
+        let mut builder = MemoryCompilerHost::builder("/work");
+        for root in roots {
+            builder = builder.file(root, b"import './dep.js'; import 'absent';".to_vec());
+        }
+        for path in ["/work/a/dep.ts", "/work/b/dep.ts"] {
+            builder = builder.file(path, DEP.to_vec());
+        }
+        if denied {
+            builder = builder.failure(read_error("/work/b/dep.ts"));
+        }
+        builder.build().unwrap()
+    };
+    for trace in [false, true] {
+        let options = CompilerOptions {
+            module: Some(199),
+            module_resolution: Some(99),
+            trace_resolution: Some(trace),
+            ..compiler_options()
+        };
+        for denied in [false, true] {
+            let serial = TracedHost::new(fixture(denied), false);
+            let expected = load(&serial, &roots, options.clone(), serial_limits());
+            let ordered = TracedHost::new(fixture(denied), false);
+            let observed = load(&ordered, &roots, options.clone(), parallel_limits());
+            assert_eq!(serial.probes.take(), ordered.probes.take());
+            let parallel = load(&fixture(denied), &roots, options.clone(), parallel_limits());
+            if denied {
+                let expected = expected.unwrap_err();
+                assert_eq!(observed.unwrap_err(), expected);
+                assert_eq!(parallel.unwrap_err(), expected);
+            } else {
+                let expected = expected.unwrap();
+                let parallel = parallel.unwrap();
+                assert_eq!(source_paths(&parallel), source_paths(&expected));
+                assert_eq!(parallel.resolution_trace(), expected.resolution_trace());
+                assert_eq!(parallel, expected);
+                assert_eq!(observed.unwrap(), expected);
+            }
+        }
     }
 }

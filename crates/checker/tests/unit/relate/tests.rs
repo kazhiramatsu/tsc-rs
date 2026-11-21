@@ -579,3 +579,97 @@ fn generic_reference_keys_survive_scratch_reuse_with_distinct_intersection_state
         assert!(std::sync::Arc::ptr_eq(&first, &again));
     });
 }
+
+#[test]
+fn generic_key_parts_preserve_nested_spelling_and_signed_state() {
+    use super::GenericKeyPart::{Intersection, Number, Punctuation};
+    let parts = [
+        Punctuation('*'),
+        Number(u32::MAX),
+        Punctuation('<'),
+        Number(10),
+        Punctuation('='),
+        Number(0),
+        Punctuation('>'),
+        Punctuation(','),
+        Number(1),
+        Punctuation('-'),
+        Number(10),
+        Intersection(i32::MIN),
+    ];
+    assert_eq!(
+        super::GenericKeyPart::spelling(&parts),
+        "*4294967295<10=0>,1-10:-2147483648"
+    );
+}
+
+thread_local! {
+    pub(super) static GENERIC_ARGUMENT_VISITS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[test]
+fn relation_keys_keep_deferred_roots_as_pairs_after_forcing() {
+    crate::state::test_support::with_program_state(
+        &[(
+            "a.ts",
+            "interface Box<T> { value: T } type A = Box<number>; let v: A;",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let node = crate::relpin::find_probe_annotation(state.binder.source(0), "v").unwrap();
+            let deferred = state.get_type_from_type_node(node).unwrap();
+            assert!(state.type_deferred_node(deferred).is_some());
+            let tuple = state.tables.get_tuple_target_type(
+                None,
+                TupleTargetFlags::new(&[ElementFlags::REQUIRED]).unwrap(),
+                false,
+                None,
+            );
+            let mut deep = tuple;
+            for _ in 0..8 {
+                deep = state
+                    .create_normalized_type_reference_forced(tuple, &[deep])
+                    .unwrap();
+            }
+            GENERIC_ARGUMENT_VISITS.set(0);
+            for target in [state.empty_object_type, deferred, deferred] {
+                for (a, b) in [(deep, target), (target, deep)] {
+                    let key = state
+                        .get_relation_key(
+                            a,
+                            b,
+                            IntersectionState::TARGET,
+                            RelationKind::Identity,
+                            false,
+                        )
+                        .unwrap();
+                    assert_eq!(
+                        key,
+                        RelationKey::Pair {
+                            source: a.index().min(b.index()),
+                            target: a.index().max(b.index()),
+                            intersection: 2
+                        }
+                    );
+                }
+                assert_eq!(GENERIC_ARGUMENT_VISITS.get(), 0);
+                if target == deferred {
+                    state.get_type_arguments(deferred).unwrap();
+                }
+            }
+            assert!(matches!(
+                state
+                    .get_relation_key(
+                        deep,
+                        tuple,
+                        IntersectionState::NONE,
+                        RelationKind::Assignable,
+                        false
+                    )
+                    .unwrap(),
+                RelationKey::Generic(_)
+            ));
+            assert!(GENERIC_ARGUMENT_VISITS.get() > 0);
+        },
+    );
+}

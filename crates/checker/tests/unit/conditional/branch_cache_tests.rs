@@ -76,3 +76,61 @@ fn two_conditional_types_sharing_a_slot_read_their_own_branches() {
         );
     });
 }
+
+#[test]
+fn conditional_branch_reads_use_their_own_mappers_and_count_only_cold_calls() {
+    with_program_state(
+        &[(
+            "a.ts",
+            "function f<T, V>() { let v: V; let x: T extends { p: infer U } ? V : V; }",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let ty = annotation(state, "x");
+            let tsc_types::TypeData::Conditional(id) = state.tables.type_of(ty).data else {
+                panic!("deferred conditional")
+            };
+            let data = *state.tables.conditional_data(id);
+            let mut root = state.tables.conditional_root(data.root).clone();
+            let t = annotation(state, "v");
+            // Populate each optional list even when the source has no named alias.
+            assert!(!root.infer_type_parameters.is_empty());
+            root.outer_type_parameters = Some(Box::new([t]));
+            root.alias_symbol = state.tables.type_of(t).symbol;
+            root.alias_type_arguments = Some(Box::new([t]));
+            let root = state.tables.create_conditional_root(root);
+            let string = state.tables.intrinsics.string;
+            let number = state.tables.intrinsics.number;
+            let mapper = state.make_unary_type_mapper(t, string);
+            let combined = state.make_unary_type_mapper(t, number);
+            let ty = state.tables.create_conditional_type(
+                tsc_types::ConditionalTypeData {
+                    root,
+                    mapper: Some(mapper),
+                    combined_mapper: Some(combined),
+                    ..data
+                },
+                None,
+                None,
+            );
+            let before = state.total_instantiation_count;
+            for _ in 0..2 {
+                assert_eq!(
+                    state.get_true_type_from_conditional_type(ty).unwrap(),
+                    string
+                );
+                assert_eq!(
+                    state.get_false_type_from_conditional_type(ty).unwrap(),
+                    string
+                );
+                assert_eq!(
+                    state
+                        .get_inferred_true_type_from_conditional_type(ty)
+                        .unwrap(),
+                    number
+                );
+                assert_eq!(state.total_instantiation_count - before, 3);
+            }
+        },
+    );
+}

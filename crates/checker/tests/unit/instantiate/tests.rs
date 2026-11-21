@@ -1024,6 +1024,18 @@ fn leaf_mappers_count_once_and_keep_the_first_matching_source() {
             state.profile_ops[crate::line_profile::OP_MAPPED] - before,
             6
         );
+        let parameter = state.tables.create_synthesized_type_parameter(None);
+        let first = state.create_type_mapper(&[string, string], Some(&[parameter, boolean]));
+        let second = state.make_unary_type_mapper(parameter, number);
+        let merged = state.merge_type_mappers(Some(first), second);
+        let composite = state.combine_type_mappers(Some(first), second);
+        for (mapper, instantiations) in [(merged, 0), (composite, 1)] {
+            let count = state.total_instantiation_count;
+            let ops = state.profile_ops[crate::line_profile::OP_MAPPED];
+            assert_eq!(state.map_type_with_mapper(string, mapper).unwrap(), number);
+            assert_eq!(state.total_instantiation_count - count, instantiations);
+            assert_eq!(state.profile_ops[crate::line_profile::OP_MAPPED] - ops, 3);
+        }
     });
 }
 
@@ -1041,18 +1053,33 @@ fn mapper_cache_depths_keep_storage_and_clear_only_discarded_answers() {
         let checkpoint = state.begin_speculation();
         state.push_active_mapper(state.restrictive_mapper);
         state.active_type_mappers_caches[1].insert(key, ty);
-        let capacity = state.active_type_mappers_caches[1].capacity();
+        let empty = state.tables.empty_type_list();
+        let number = state.tables.intrinsics.number;
+        for (alias, args, answer) in [(1, None, number), (1, Some(empty), ty), (2, None, ty)] {
+            let aliased = crate::state::MapperCacheKey {
+                alias_symbol: Some(tsc_types::SymbolId::new(alias)),
+                alias_arguments: args,
+                ..key
+            };
+            state.active_type_mappers_caches[1].insert(aliased, answer);
+            assert_eq!(
+                state.active_type_mappers_caches[1].get(&aliased),
+                Some(&answer)
+            );
+        }
+        assert_eq!(state.active_type_mappers_caches[1].len(), 4);
+        let capacity = state.active_type_mappers_caches[1].capacities();
         state.rollback_speculation(checkpoint);
         assert_eq!(state.active_type_mappers_caches[0].get(&key), Some(&ty));
         state.push_active_mapper(state.unique_literal_mapper);
         assert_eq!(state.active_type_mappers_caches.len(), 2);
-        assert!(state.active_type_mappers_caches[1].is_empty());
-        assert_eq!(state.active_type_mappers_caches[1].capacity(), capacity);
+        assert_eq!(state.active_type_mappers_caches[1].len(), 0);
+        assert_eq!(state.active_type_mappers_caches[1].capacities(), capacity);
         state.clear_active_mapper_caches();
-        assert!(state.active_type_mappers_caches[0].is_empty());
+        assert_eq!(state.active_type_mappers_caches[0].len(), 0);
         state.active_type_mappers_caches[1].insert(key, ty);
         state.pop_active_mapper();
-        assert!(state.active_type_mappers_caches[1].is_empty());
+        assert_eq!(state.active_type_mappers_caches[1].len(), 0);
         state.pop_active_mapper();
     });
 }
@@ -1163,4 +1190,171 @@ fn short_signature_keeps_this_and_parameter_order_with_a_fresh_generic() {
             assert_eq!(state.get_type_of_symbol(second).unwrap(), string);
         },
     );
+}
+
+#[test]
+fn known_alias_arguments_preserve_absent_and_empty_cache_entries() {
+    with_program_state(
+        &[("a.ts", "function f<T>() { var v: T; }")],
+        &CompilerOptions::default(),
+        |state| {
+            let t = declared_type_parameter(state, "T");
+            let alias = state.tables.type_of(t).symbol;
+            assert!(alias.is_some());
+            let string = state.tables.intrinsics.string;
+            let mapper = state.make_unary_type_mapper(t, string);
+            let empty = state.tables.empty_type_list();
+            state.push_active_mapper(mapper);
+            let before = state.total_instantiation_count;
+            for (args, known, delta) in [
+                (None, None, 1),
+                (Some([].as_slice()), Some(empty), 2),
+                (Some([].as_slice()), None, 2),
+                (None, None, 2),
+            ] {
+                assert_eq!(
+                    state
+                        .instantiate_type_with_alias(t, mapper, alias, args, known)
+                        .unwrap(),
+                    string
+                );
+                assert_eq!(state.total_instantiation_count - before, delta);
+            }
+            state.pop_active_mapper();
+        },
+    );
+}
+
+#[test]
+fn depth_limit_precedes_an_active_mapper_hit() {
+    with_program_state(
+        &[("a.ts", "function f<T>() { var v: T; }")],
+        &CompilerOptions::default(),
+        |state| {
+            let t = declared_type_parameter(state, "T");
+            let string = state.tables.intrinsics.string;
+            let mapper = state.make_unary_type_mapper(t, string);
+            state.push_active_mapper(mapper);
+            assert_eq!(state.instantiate_type(t, Some(mapper)).unwrap(), string);
+            let before = state.total_instantiation_count;
+            state.instantiation_stack.resize(100, string);
+            assert_eq!(
+                state.instantiate_type(t, Some(mapper)).unwrap(),
+                state.tables.intrinsics.error
+            );
+            assert_eq!(state.total_instantiation_count, before);
+            assert!(state.diagnostics.iter().any(|d| d.code() == 2589));
+            state.instantiation_stack.clear();
+            state.pop_active_mapper();
+        },
+    );
+}
+
+#[test]
+fn instantiated_transient_keeps_original_flags_name_and_declarations_after_rollback() {
+    use tsc_types::{CheckFlags, EscapedName};
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        let name = EscapedName::internal("prop");
+        let original = state.binder.create_symbol(SymbolFlags::PROPERTY, name);
+        let node = state.binder.source(0).root;
+        state.binder.set_declarations_from(original, &[node]);
+        state.binder.symbol_mut(original).value_declaration = Some(node);
+        let flags = CheckFlags::READONLY | CheckFlags::OPTIONAL_PARAMETER;
+        let name_type = state.tables.intrinsics.string;
+        state.links.set_symbol_check_flags(0, original, flags);
+        state
+            .links
+            .set_symbol_name_type(0, original, Some(name_type));
+        let first = state.new_instantiated_symbol(original, state.permissive_mapper);
+        state
+            .links
+            .set_symbol_name_type(0, first, Some(state.tables.intrinsics.number));
+        let mut previous = first;
+        for trial in [true, false] {
+            let mark = trial.then(|| state.begin_speculation());
+            let result = state.new_instantiated_symbol(first, state.restrictive_mapper);
+            if let Some(mark) = mark {
+                state.rollback_speculation(mark);
+            }
+            let links = state.links.symbol(result);
+            assert_eq!(links.target, Some(original));
+            assert_eq!(links.check_flags, flags | CheckFlags::INSTANTIATED);
+            assert_eq!(links.name_type, Some(name_type));
+            assert!(
+                matches!(state.mapper(links.mapper.unwrap()), super::TypeMapper::Composite { mapper1, mapper2 } if *mapper1 == state.permissive_mapper && *mapper2 == state.restrictive_mapper)
+            );
+            assert_eq!(state.binder.symbol(result).declarations(), &[node]);
+            assert_eq!(state.binder.symbol(result).value_declaration, Some(node));
+            assert_eq!(result.index(), previous.index() + 1);
+            previous = result;
+        }
+    });
+}
+
+#[test]
+fn anonymous_shells_keep_alias_arguments_creation_order_and_origin() {
+    let source = "declare function id<A>(x: A): A;\n\
+                  function f<T>() { var x: typeof id<T>; var m: { [K in keyof T]: T[K] }; }";
+    with_program_state(&[("a.ts", source)], &CompilerOptions::default(), |state| {
+        let t = declared_type_parameter(state, "T");
+        let string = state.tables.intrinsics.string;
+        let explicit_arg = state
+            .tables
+            .create_type(TypeFlags::OBJECT, tsc_types::TypeData::PLAIN_OBJECT);
+        state.tables.type_mut(explicit_arg).object_flags =
+            ObjectFlags::ANONYMOUS | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
+        let mapper = state.make_unary_type_mapper(t, string);
+        let original = state.tables.type_of(t).symbol.unwrap();
+        let other = state.binder.create_symbol(
+            SymbolFlags::TYPE_ALIAS,
+            tsc_types::EscapedName::internal("outer"),
+        );
+        let args = state.tables.intern_type_list(&[t]);
+        for (var, mapped) in [("x", false), ("m", true)] {
+            let node = annotation_of_var(state, var);
+            let source = state.get_type_from_type_node(node).unwrap();
+            state.tables.set_alias(source, Some(original), Some(args));
+            for explicit in [false, true] {
+                let before = state.tables.len() as u32;
+                let result = state
+                    .instantiate_anonymous_type(
+                        source,
+                        mapper,
+                        explicit.then_some(other),
+                        explicit.then_some([explicit_arg].as_slice()),
+                    )
+                    .unwrap();
+                assert_eq!(result.index(), before + u32::from(mapped));
+                let inherited = state.tables.object_flags_of(source).bits()
+                    & !(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED
+                        | ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES)
+                        .bits();
+                let propagated = if explicit {
+                    ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL
+                } else {
+                    ObjectFlags::NONE
+                };
+                assert_eq!(
+                    state.tables.object_flags_of(result),
+                    ObjectFlags::from_bits(inherited) | ObjectFlags::INSTANTIATED | propagated
+                );
+                if mapped {
+                    let fresh = state.get_type_parameter_from_mapped_type(result).unwrap();
+                    assert_eq!(fresh.index(), before);
+                    assert_eq!(state.mapped_type_declaration(result), node);
+                } else {
+                    assert_eq!(state.type_deferred_node(result), Some(node));
+                }
+                let expected = if explicit { explicit_arg } else { string };
+                assert_eq!(
+                    state.tables.alias_symbol(result),
+                    Some(if explicit { other } else { original })
+                );
+                assert_eq!(
+                    state.tables.alias_type_arguments(result),
+                    Some([expected].as_slice())
+                );
+            }
+        }
+    });
 }

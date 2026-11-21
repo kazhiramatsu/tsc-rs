@@ -1143,7 +1143,7 @@ pub struct CheckerState<'a> {
     /// (47412-47414): the instantiation cache stack.
     pub(crate) active_type_mappers: Vec<crate::instantiate::MapperId>,
     /// Each depth owns its map until checker teardown. Inactive slots are empty.
-    pub(crate) active_type_mappers_caches: Vec<rustc_hash::FxHashMap<MapperCacheKey, TypeId>>,
+    pub(crate) active_type_mappers_caches: Vec<ActiveMapperCache>,
     /// tsgo instantiationStack (checker.go:598): the types being
     /// instantiated, innermost last; its length is tsc's instantiationDepth.
     /// The instantiation count resets at tsc's three entry points —
@@ -1180,14 +1180,8 @@ pub struct CheckerState<'a> {
     /// window (sharedFlowStart..) and truncates back on exit — also on
     /// CheckAbort unwind (the unwind invariant).
     pub(crate) shared_flow: crate::flow_memo::SharedFlowState,
-    /// The ReduceLabel antecedent swap (getTypeAtFlowNode 70473): tsc
-    /// mutates `target.antecedent` in place during try/finally walks;
-    /// the binder graph is immutable to the checker, so the swapped
-    /// lists are identified by their originating ReduceLabel nodes, keyed
-    /// by (file, label). Entries are strictly scoped to an in-progress
-    /// ReduceLabel arm (restored on exit AND on unwind).
-    pub(crate) reduce_label_overrides:
-        rustc_hash::FxHashMap<(usize, tsc_binder::flow::FlowId), tsc_binder::flow::FlowId>,
+    /// Temporary flow overrides and switch markers, restored on candidate rollback.
+    pub(crate) speculative_flow: crate::speculate::SpeculativeFlow,
     /// tsc evolvingArrayTypes (70079): elementType→evolving-array memo
     /// (tsc indexes a sparse array by elementType.id).
     pub(crate) evolving_array_types: rustc_hash::FxHashMap<TypeId, TypeId>,
@@ -1214,8 +1208,9 @@ pub struct CheckerState<'a> {
     /// are per-file arena indices here, so (file, FlowId) is the
     /// stable identity tsc's lazily assigned flow.id provides. Lives
     /// across queries (never trimmed), like tsc's.
-    pub(crate) flow_loop_caches:
-        crate::flow::caches::FlowIdentityCache<rustc_hash::FxHashMap<tsc_types::JsString, TypeId>>,
+    pub(crate) flow_loop_caches: crate::flow::caches::FlowIdentityCache<
+        rustc_hash::FxHashMap<crate::flow::FlowCacheKey, TypeId>,
+    >,
     /// tsc lastFlowNode/lastFlowNodeReachable (47401-47402): the
     /// single-entry reachability memo — the immediately previous
     /// isReachableFlowNode query (reachability is asked per statement
@@ -1260,7 +1255,7 @@ pub struct CheckerState<'a> {
     /// statement-level check (see `line_profile`).
     pub(crate) line_profile: crate::line_profile::LineProfiler<'a>,
     /// Operation counters the line profile snapshots around each element
-    /// (`line_profile::OP_*`); plain increments, always on.
+    /// (`line_profile::OP_*`); relation counts are needed only by the line and lane profiles.
     pub(crate) profile_ops: [u64; crate::line_profile::OPS],
     /// tsc NodeLinks.deferredNodes, keyed by the owning file's root
     /// node. Driver state, not memoization (like the resolution stack),
@@ -1351,22 +1346,9 @@ pub struct CheckerState<'a> {
     pub(crate) contextual_binding_patterns: Vec<NodeId>,
 
     // ---- M4 5.5b: contextual-typing state ----
-    /// tsc contextualTypeNodes/contextualTypes/contextualIsCache
-    /// (47404-47406): the parallel-array contextual stack —
-    /// contextualTypeCount is the shared Vec length (pushContextualType
-    /// 73569 writes all three at the same index).
-    pub(crate) contextual_type_nodes: Vec<NodeId>,
-    pub(crate) contextual_types: Vec<Option<TypeId>>,
-    pub(crate) contextual_is_cache: Vec<bool>,
-    /// tsc inferenceContextNodes/inferenceContexts (47401-47402) —
-    /// the parallel-array inference-context stack. Production Some
-    /// pushes are live since 7.4: chooseOverload's per-candidate
-    /// context reaches checkExpressionWithContextualType's push site
-    /// (80565) through inferTypeArguments' phase-b argument checks
-    /// (and the overload-failure inference); None pushes still shadow
-    /// outer contexts for context-free checks, tsc-exactly.
-    pub(crate) inference_context_nodes: Vec<NodeId>,
-    pub(crate) inference_contexts: Vec<Option<crate::inference::InferenceContextId>>,
+    /// Contextual types and inference contexts have independent scopes.
+    pub(crate) contextual_types: crate::contextual::ContextualTypeStack,
+    pub(crate) inference_contexts: Vec<crate::contextual::InferenceContextEntry>,
     /// M6 7.1: the InferenceContext arena — InferenceContextId
     /// equality IS tsc's context object identity (contexts are GC
     /// objects there). E-class speculation state like `mappers`:
@@ -1433,11 +1415,6 @@ pub struct CheckerState<'a> {
     /// tsc links.isExhaustive settled verdicts (isExhaustiveSwitchStatement
     /// 78920) — state-side for the same reason.
     pub(crate) exhaustive_switch_cache: rustc_hash::FxHashMap<NodeId, bool>,
-    /// tsc links.isExhaustive === 0 (the in-progress marker): a
-    /// re-entrant computation of the same switch settles FALSE (the
-    /// cycle protocol); unwound entries are removed before the error
-    /// escapes (the unwind invariant).
-    pub(crate) exhaustive_switch_computing: rustc_hash::FxHashSet<NodeId>,
     /// tsc links.effectsSignature (getEffectsSignature 70195) —
     /// state-side; None IS the memoized unknownSignature verdict.
     pub(crate) effects_signature_cache: rustc_hash::FxHashMap<NodeId, Option<SignatureId>>,
@@ -1638,6 +1615,8 @@ pub struct CheckerState<'a> {
     pub(crate) jsx_implicit_import_containers: rustc_hash::FxHashMap<usize, Option<SymbolId>>,
     /// tsgo getCombinedNodeFlagsCached: the last tree-stable node and result.
     pub(crate) combined_node_flags_cache: std::cell::Cell<Option<(NodeId, tsc_types::NodeFlags)>>,
+    /// The syntactic container of a starting parent in this published program.
+    pub(crate) control_flow_containers: [crate::expr::ControlFlowContainerSlot; 16],
     /// tsc `node.jsDoc.jsDocCache` (getJSDocTagsWorker): effective,
     /// ownership-filtered tags are syntax-stable and computed once per
     /// host. The checker keeps the cache outside the immutable arena.
@@ -1683,7 +1662,8 @@ pub struct CheckerState<'a> {
     pub(crate) merged_symbol_bits: Vec<u64>,
     /// The relation checker's work lists, kept between calls instead of
     /// allocated per `checkTypeRelatedTo` (tsrs recycles them likewise).
-    pub(crate) relation_scratch: crate::engine::RelationScratch,
+    #[allow(clippy::vec_box)] // Active walks and frame loans transfer individual boxes.
+    pub(crate) relation_work_pool: Vec<Box<crate::engine::RelationWork>>,
     /// Resolved conditional branches in front of their links (see
     /// `conditional::ConditionalBranchSlot`).
     pub(crate) conditional_branches: Box<[crate::conditional::ConditionalBranchSlot]>,
@@ -1742,7 +1722,7 @@ impl<'a> CheckerState<'a> {
             std::mem::take(&mut self.type_parameter_defaults_in_progress),
             std::mem::take(&mut self.mapped_types_in_progress),
             std::mem::take(&mut self.shared_flow),
-            std::mem::take(&mut self.reduce_label_overrides),
+            std::mem::take(&mut self.speculative_flow),
             std::mem::take(&mut self.evolving_array_types),
             std::mem::take(&mut self.generic_object_flags),
             std::mem::take(&mut self.final_array_types),
@@ -1764,10 +1744,7 @@ impl<'a> CheckerState<'a> {
             std::mem::take(&mut self.widening_contexts),
             std::mem::take(&mut self.undefined_properties),
             std::mem::take(&mut self.contextual_binding_patterns),
-            std::mem::take(&mut self.contextual_type_nodes),
             std::mem::take(&mut self.contextual_types),
-            std::mem::take(&mut self.contextual_is_cache),
-            std::mem::take(&mut self.inference_context_nodes),
             std::mem::take(&mut self.inference_contexts),
             std::mem::take(&mut self.inference_context_arena),
             std::mem::take(&mut self.inference_info_arena),
@@ -1780,7 +1757,6 @@ impl<'a> CheckerState<'a> {
             std::mem::take(&mut self.flow_type_cache),
             std::mem::take(&mut self.switch_types_cache),
             std::mem::take(&mut self.exhaustive_switch_cache),
-            std::mem::take(&mut self.exhaustive_switch_computing),
             std::mem::take(&mut self.effects_signature_cache),
             std::mem::take(&mut self.partially_checked_ranges),
             std::mem::take(&mut self.contained_call_resolutions),
@@ -1822,7 +1798,7 @@ impl<'a> CheckerState<'a> {
             std::mem::take(&mut self.diagnostics),
             std::mem::take(&mut self.visible_global_diagnostics),
             std::mem::take(&mut self.globals),
-            std::mem::take(&mut self.relation_scratch),
+            std::mem::take(&mut self.relation_work_pool),
             std::mem::take(&mut self.conditional_branches),
             std::mem::take(&mut self.order_guard),
         );
@@ -2194,7 +2170,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: Rust checker arena/cache construction around the
     /// separately ledgered initializeTypeChecker slices.
     pub fn from_program(binders: Vec<&'a Binder<'a>>, options: &'a CompilerOptions) -> Self {
-        Self::from_program_binder(ProgramBinder::new(binders), options, true)
+        Self::from_program_binder(ProgramBinder::new(binders), options, true, false)
     }
 
     /// Fresh checker-session construction over an already parsed and bound
@@ -2203,7 +2179,7 @@ impl<'a> CheckerState<'a> {
     /// remain session-local.
     /// tsrs-native: fresh checker session over an immutable ProgramSnapshot.
     pub fn from_snapshot(snapshot: &'a ProgramSnapshot, options: &'a CompilerOptions) -> Self {
-        Self::from_program_binder(ProgramBinder::from_snapshot(snapshot), options, true)
+        Self::from_program_binder(ProgramBinder::from_snapshot(snapshot), options, true, false)
     }
 
     /// [`Self::from_snapshot`] without the globals merge: the caller installs
@@ -2216,8 +2192,14 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn from_snapshot_deferring_globals(
         snapshot: &'a ProgramSnapshot,
         options: &'a CompilerOptions,
+        measure_lane_costs: bool,
     ) -> Self {
-        Self::from_program_binder(ProgramBinder::from_snapshot(snapshot), options, false)
+        Self::from_program_binder(
+            ProgramBinder::from_snapshot(snapshot),
+            options,
+            false,
+            measure_lane_costs,
+        )
     }
 
     /// The initializeTypeChecker slice a constructor runs unless it was
@@ -2303,6 +2285,7 @@ impl<'a> CheckerState<'a> {
         mut binder: ProgramBinder<'a>,
         options: &'a CompilerOptions,
         initialize_globals: bool,
+        measure_lane_costs: bool,
     ) -> Self {
         let strict_null_checks = options.strict_option_value(options.strict_null_checks);
         let strict_function_types = options.strict_option_value(options.strict_function_types);
@@ -2470,7 +2453,7 @@ impl<'a> CheckerState<'a> {
             no_flow_context_nodes: Default::default(),
             union_front_cache: Default::default(),
             shared_flow: Default::default(),
-            reduce_label_overrides: rustc_hash::FxHashMap::default(),
+            speculative_flow: Default::default(),
             evolving_array_types: rustc_hash::FxHashMap::default(),
             generic_object_flags: rustc_hash::FxHashMap::default(),
             final_array_types: rustc_hash::FxHashMap::default(),
@@ -2484,7 +2467,10 @@ impl<'a> CheckerState<'a> {
             within_unreachable_code: false,
             reported_unreachable_nodes: rustc_hash::FxHashSet::default(),
             current_node: None,
-            line_profile: crate::line_profile::LineProfiler::new(),
+            line_profile: crate::line_profile::LineProfiler::with_readers(
+                crate::line_profile::enabled(),
+                measure_lane_costs,
+            ),
             profile_ops: [0; crate::line_profile::OPS],
             deferred_nodes: rustc_hash::FxHashMap::default(),
             deferred_node_sets: Vec::new(),
@@ -2507,10 +2493,7 @@ impl<'a> CheckerState<'a> {
             undefined_properties: rustc_hash::FxHashMap::default(),
             typeof_type: TypeId::new(0),
             contextual_binding_patterns: Vec::new(),
-            contextual_type_nodes: Vec::new(),
-            contextual_types: Vec::new(),
-            contextual_is_cache: Vec::new(),
-            inference_context_nodes: Vec::new(),
+            contextual_types: Default::default(),
             inference_contexts: Vec::new(),
             inference_context_arena: crate::inference_storage::InferencePool::default(),
             inference_info_arena: crate::inference_storage::InferencePool::default(),
@@ -2528,7 +2511,6 @@ impl<'a> CheckerState<'a> {
             inline_level: 0,
             switch_types_cache: rustc_hash::FxHashMap::default(),
             exhaustive_switch_cache: rustc_hash::FxHashMap::default(),
-            exhaustive_switch_computing: rustc_hash::FxHashSet::default(),
             effects_signature_cache: rustc_hash::FxHashMap::default(),
             diagnostics: DiagnosticSink::default(),
             visible_global_diagnostics: Vec::new(),
@@ -2574,6 +2556,7 @@ impl<'a> CheckerState<'a> {
             distributed_type_parameters: rustc_hash::FxHashMap::default(),
             jsx_implicit_import_containers: rustc_hash::FxHashMap::default(),
             combined_node_flags_cache: Default::default(),
+            control_flow_containers: Default::default(),
             jsdoc_tag_cache: Default::default(),
             global_type_memos: Default::default(),
             decorator_context_override_type_cache: Default::default(),
@@ -2585,7 +2568,7 @@ impl<'a> CheckerState<'a> {
             resolution_start: 0,
             merged_symbols: rustc_hash::FxHashMap::default(),
             merged_symbol_bits: Vec::new(),
-            relation_scratch: Default::default(),
+            relation_work_pool: Default::default(),
             conditional_branches: vec![
                 crate::conditional::ConditionalBranchSlot::default();
                 crate::conditional::CONDITIONAL_BRANCH_SLOTS
@@ -2836,12 +2819,6 @@ impl<'a> CheckerState<'a> {
         let id = MembersId::new(self.members.len() as u32);
         self.members.push(members);
         id
-    }
-
-    /// A resolved members table from a symbol table the checker built (its
-    /// keys are the members' names).
-    pub(crate) fn member_table(&self, table: &SymbolTable) -> MemberTable {
-        MemberTable::from_symbol_table(&self.binder, table)
     }
 
     /// Finished tables can fill the published Arc directly, without first
@@ -3500,6 +3477,47 @@ pub(crate) struct MapperCacheKey {
     pub(crate) ty: TypeId,
     pub(crate) alias_symbol: Option<SymbolId>,
     pub(crate) alias_arguments: Option<tsc_types::TypeListId>,
+}
+
+/// One active mapper scope. Both tables expire together when inference
+/// resolves or the scope is popped, including a speculative rollback.
+#[derive(Default)]
+pub(crate) struct ActiveMapperCache {
+    plain: rustc_hash::FxHashMap<TypeId, TypeId>,
+    aliased: rustc_hash::FxHashMap<MapperCacheKey, TypeId>,
+}
+
+impl ActiveMapperCache {
+    pub(crate) fn get(&self, key: &MapperCacheKey) -> Option<&TypeId> {
+        if key.alias_symbol.is_none() && key.alias_arguments.is_none() {
+            self.plain.get(&key.ty)
+        } else {
+            self.aliased.get(key)
+        }
+    }
+
+    pub(crate) fn insert(&mut self, key: MapperCacheKey, value: TypeId) {
+        if key.alias_symbol.is_none() && key.alias_arguments.is_none() {
+            self.plain.insert(key.ty, value);
+        } else {
+            self.aliased.insert(key, value);
+        }
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.plain.clear();
+        self.aliased.clear();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn len(&self) -> usize {
+        self.plain.len() + self.aliased.len()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn capacities(&self) -> (usize, usize) {
+        (self.plain.capacity(), self.aliased.capacity())
+    }
 }
 
 impl<T: Clone> SharedList<T> {

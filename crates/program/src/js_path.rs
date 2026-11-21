@@ -63,16 +63,17 @@ fn root_end_byte(path: JsStr<'_>) -> usize {
         }
         return 2;
     }
-    let Some((scheme, rest)) = path.split_once("://") else {
+    let mut colons = memchr::memchr_iter(b':', bytes);
+    let Some(scheme_end) = colons.find(|&index| bytes[index + 1..].starts_with(b"//")) else {
         return 0;
     };
-    let authority_start = scheme.as_bytes().len() + 3;
-    let Some((authority, _)) = rest.split_once("/") else {
+    let authority_start = scheme_end + 3;
+    let Some(length) = memchr::memchr(b'/', &bytes[authority_start..]) else {
         return bytes.len();
     };
-    let authority_end = authority_start + authority.as_bytes().len();
-    if scheme == "file"
-        && (authority.is_empty() || authority == "localhost")
+    let authority_end = authority_start + length;
+    if &bytes[..scheme_end] == b"file"
+        && matches!(&bytes[authority_start..authority_end], b"" | b"localhost")
         && bytes
             .get(authority_end + 1)
             .is_some_and(u8::is_ascii_alphabetic)
@@ -144,9 +145,14 @@ pub fn directory_name(path: JsStr<'_>) -> JsString {
     } else {
         path
     };
+    crate::loader_counters::js_owned("path.directory", slashed_directory_name(slashed))
+}
+
+/// The parent of a path with forward slashes is a prefix of that path.
+pub(crate) fn slashed_directory_name(slashed: JsStr<'_>) -> JsStr<'_> {
     let root_length = root_end_byte(slashed);
     if root_length == slashed.as_bytes().len() {
-        return crate::loader_counters::js_owned("path.directory", slashed);
+        return slashed;
     }
     let trimmed = slashed.strip_suffix("/").unwrap_or(slashed);
     let last_separator = trimmed
@@ -154,10 +160,7 @@ pub fn directory_name(path: JsStr<'_>) -> JsString {
         .iter()
         .rposition(|byte| *byte == b'/')
         .unwrap_or(0);
-    crate::loader_counters::js_owned(
-        "path.directory",
-        prefix(trimmed, root_length.max(last_separator)),
-    )
+    prefix(trimmed, root_length.max(last_separator))
 }
 
 fn replace_scalar(text: JsStr<'_>, separator: &str, replacement: &str) -> JsString {
@@ -175,6 +178,7 @@ fn replace_scalar(text: JsStr<'_>, separator: &str, replacement: &str) -> JsStri
 
 /// A pure path operation can retain its input until a changed spelling or
 /// the public owned-returning boundary actually needs storage.
+#[derive(Clone)]
 pub(crate) enum PathText<'p> {
     Borrowed(JsStr<'p>),
     Owned(JsString),
@@ -197,7 +201,7 @@ impl<'p> PathText<'p> {
         }
     }
 
-    fn into_owned(self) -> JsString {
+    pub(crate) fn into_owned(self) -> JsString {
         match self {
             Self::Borrowed(path) => crate::loader_counters::js_owned("path.owned", path),
             Self::Owned(path) => path,

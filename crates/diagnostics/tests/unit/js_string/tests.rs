@@ -491,3 +491,18 @@ fn ascii_lowercase_preserves_wtf8_and_storage() {
     value.make_ascii_lowercase();
     assert_eq!(value.to_utf16(), [0xd800, 97, 0xdc00]);
 }
+
+#[test]
+fn delimiter_search_preserves_canonical_slices() {
+    let text = JsString::from_code_units(&[0xd800, 0, 0x2f, 0x2f, 0xe9, 0xdc00]);
+    for pattern in ["", "\0", "/", "//", "é", "é/", "."] {
+        let expected = memchr::memmem::find(text.as_bytes(), pattern.as_bytes());
+        assert_eq!(text.as_js().contains(pattern), expected.is_some());
+        assert_eq!(
+            text.as_js()
+                .split_once(pattern)
+                .map(|(a, b)| (a.as_bytes(), b.as_bytes())),
+            expected.map(|i| (&text.as_bytes()[..i], &text.as_bytes()[i + pattern.len()..]))
+        );
+    }
+}

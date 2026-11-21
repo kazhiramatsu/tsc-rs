@@ -320,12 +320,45 @@ impl InstantiationFront {
 /// Large target ids and every other shape retain the complete key.
 #[derive(Default)]
 struct InstantiationCache {
-    plain: HashMap<u64, TypeId>,
+    plain: hashbrown::HashTable<PlainInstantiation>,
     full: HashMap<(TypeId, InstantiationKey), TypeId>,
     front: InstantiationFront,
     /// One bit a type: the map has been seeded for it as a target (see
     /// [`TypeTables::instantiation_seed`]).
     seeded: Vec<u64>,
+}
+
+/// The packed identity supports ID-based writes. The hash of the argument
+/// sequence also lets a caller find this entry before interning its slice.
+/// The entry keeps the 32 bits that hash is spread from
+/// ([`instantiation_hash`]), so it stays at sixteen bytes.
+struct PlainInstantiation {
+    key: u64,
+    hash: u32,
+    value: TypeId,
+}
+
+const _: () = assert!(std::mem::size_of::<PlainInstantiation>() == 16);
+
+impl PlainInstantiation {
+    fn arguments(&self) -> TypeListId {
+        TypeListId::new((self.key >> 31) as u32)
+    }
+}
+
+/// The table's hash of a plain instantiation: 32 mixed bits, spread so that
+/// the bucket index (the low bits) and the control byte (the top seven) both
+/// come from them. A rehash rebuilds it from the 32 bits an entry keeps.
+fn instantiation_hash(target: TypeId, single_signature: bool, arguments_hash: u64) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = rustc_hash::FxHasher::default();
+    (target, single_signature, arguments_hash).hash(&mut hasher);
+    let mixed = hasher.finish();
+    spread_instantiation_hash((mixed ^ (mixed >> 32)) as u32)
+}
+
+const fn spread_instantiation_hash(bits: u32) -> u64 {
+    (bits as u64) << 32 | bits as u64
 }
 
 impl InstantiationCache {
@@ -339,29 +372,62 @@ impl InstantiationCache {
             )
     }
 
-    #[inline]
-    fn get(&self, &(target, key): &(TypeId, InstantiationKey)) -> Option<&TypeId> {
-        match Self::packed_key(target, key) {
-            Some(packed) => self.plain.get(&packed),
-            None => self.full.get(&(target, key)),
-        }
+    fn find_arguments(
+        &self,
+        items: &[TypeId],
+        target: TypeId,
+        single_signature: bool,
+        arguments: &[TypeId],
+        hash: u64,
+    ) -> Option<&PlainInstantiation> {
+        self.plain.find(hash, |entry| {
+            entry.hash == hash as u32
+                && entry.key as u32 & 0x7fff_ffff == target.index()
+                && entry.key >> 63 == u64::from(single_signature)
+                && list_at(items, entry.arguments()) == arguments
+        })
     }
 
-    #[inline]
-    fn insert(
-        &mut self,
-        (target, key): (TypeId, InstantiationKey),
-        value: TypeId,
-    ) -> Option<TypeId> {
-        let previous = match Self::packed_key(target, key) {
-            Some(packed) => self.plain.insert(packed, value),
-            None => self.full.insert((target, key), value),
+    fn get(&self, target: TypeId, key: InstantiationKey, hash: Option<u64>) -> Option<TypeId> {
+        if let (Some(packed), Some(hash)) = (Self::packed_key(target, key), hash) {
+            if let Some(entry) = self.plain.find(hash, |entry| entry.key == packed) {
+                debug_assert_eq!(spread_instantiation_hash(entry.hash), hash);
+                return Some(entry.value);
+            }
+        }
+        self.full.get(&(target, key)).copied()
+    }
+
+    fn insert(&mut self, target: TypeId, key: InstantiationKey, value: TypeId, hash: Option<u64>) {
+        let previous = if let (Some(packed), Some(hash)) = (Self::packed_key(target, key), hash) {
+            // An ID-only entry can predate its argument list. Move it to
+            // the slice-searchable table once the actual list exists.
+            let opaque = self.full.remove(&(target, key));
+            match self.plain.entry(
+                hash,
+                |entry| entry.key == packed,
+                |entry| spread_instantiation_hash(entry.hash),
+            ) {
+                hashbrown::hash_table::Entry::Occupied(mut entry) => {
+                    debug_assert!(opaque.is_none());
+                    Some(std::mem::replace(&mut entry.get_mut().value, value))
+                }
+                hashbrown::hash_table::Entry::Vacant(entry) => {
+                    entry.insert(PlainInstantiation {
+                        key: packed,
+                        hash: hash as u32,
+                        value,
+                    });
+                    opaque
+                }
+            }
+        } else {
+            self.full.insert((target, key), value)
         };
         // The front repeats this map's answers; one of them has changed.
         if previous.is_some_and(|previous| previous != value) {
             self.front.clear();
         }
-        previous
     }
 
     fn len(&self) -> usize {
@@ -369,11 +435,12 @@ impl InstantiationCache {
     }
 
     fn reserve(&mut self, additional: usize) {
-        self.plain.reserve(additional);
+        self.plain
+            .reserve(additional, |entry| spread_instantiation_hash(entry.hash));
     }
 
     fn memory_usage(&self) -> usize {
-        map_bytes(&self.plain)
+        self.plain.capacity() * (std::mem::size_of::<PlainInstantiation>() + 1) * 8 / 7
             + map_bytes(&self.full)
             + self.front.memory_usage()
             + self.seeded.capacity() * std::mem::size_of::<u64>()
@@ -615,6 +682,17 @@ impl<'a> IntoIterator for &'a TypeListCopy {
     }
 }
 
+/// The index after the last item of a list of `len` items whose length word
+/// is at `at`, when that index is a `u32` too: a [`ListCursor`] keeps a list's
+/// end in one, so a list must end, not only start, inside the range.
+#[inline]
+const fn list_end(at: u32, len: u32) -> Option<u32> {
+    match at.checked_add(1) {
+        Some(first) => first.checked_add(len),
+        None => None,
+    }
+}
+
 /// The interned list at `id` in `items` (see `TypeTables::list_items`).
 #[inline]
 fn list_at(items: &[TypeId], id: TypeListId) -> &[TypeId] {
@@ -630,6 +708,34 @@ fn list_at(items: &[TypeId], id: TypeListId) -> &[TypeId] {
 struct LiteralTexts {
     bytes: Vec<u8>,
     spans: Vec<(u32, u32)>,
+    property_names: Vec<PropertyNameSlot>,
+}
+
+/// A literal text's escaped property name once it was asked for: the name's
+/// ID, or [`PropertyNameSlot::EMPTY`] before that (no name has that ID). Four
+/// bytes a text. Two readers may both fill a slot: the name table gives both
+/// the same ID.
+#[derive(Debug)]
+struct PropertyNameSlot(std::sync::atomic::AtomicU32);
+
+const _: () = assert!(std::mem::size_of::<PropertyNameSlot>() == 4);
+
+impl PropertyNameSlot {
+    const EMPTY: u32 = u32::MAX;
+}
+
+impl Default for PropertyNameSlot {
+    fn default() -> Self {
+        Self(std::sync::atomic::AtomicU32::new(Self::EMPTY))
+    }
+}
+
+impl Clone for PropertyNameSlot {
+    fn clone(&self) -> Self {
+        Self(std::sync::atomic::AtomicU32::new(
+            self.0.load(std::sync::atomic::Ordering::Relaxed),
+        ))
+    }
 }
 
 impl LiteralTexts {
@@ -650,11 +756,14 @@ impl LiteralTexts {
         self.bytes.extend_from_slice(text.as_bytes());
         let end = u32::try_from(self.bytes.len()).expect("a checker's literal texts fit 4 GiB");
         self.spans.push((start, end));
+        self.property_names.push(Default::default());
         id
     }
 
     fn heap_bytes(&self) -> usize {
-        self.bytes.capacity() + self.spans.capacity() * std::mem::size_of::<(u32, u32)>()
+        self.bytes.capacity()
+            + self.spans.capacity() * std::mem::size_of::<(u32, u32)>()
+            + self.property_names.capacity() * std::mem::size_of::<PropertyNameSlot>()
     }
 }
 
@@ -754,7 +863,7 @@ impl TypeTables {
         release(&mut self.number_literal_types);
         release(&mut self.string_mapping_types);
         release(&mut self.substitution_types);
-        release(&mut self.instantiations.plain);
+        release_table(&mut self.instantiations.plain);
         release(&mut self.instantiations.full);
         release_table(&mut self.list_ids);
         release_table(&mut self.string_literal_types);
@@ -1194,6 +1303,23 @@ impl TypeTables {
     #[inline]
     pub fn literal_text(&self, id: LiteralTextId) -> crate::JsStr<'_> {
         self.literal_texts.get(id)
+    }
+
+    /// Escape the stored spelling on its first use as a property name. Literal
+    /// twins can reuse the name because their text and its global ID are permanent.
+    pub fn literal_property_name(&self, id: LiteralTextId) -> EscapedName {
+        use std::sync::atomic::Ordering::Relaxed;
+        let slot = &self.literal_texts.property_names[id.index() as usize].0;
+        let stored = slot.load(Relaxed);
+        let name = if stored == PropertyNameSlot::EMPTY {
+            let name = EscapedName::escape(self.literal_text(id));
+            slot.store(name.index(), Relaxed);
+            name
+        } else {
+            EscapedName::from_index(stored)
+        };
+        debug_assert_eq!(name, EscapedName::escape(self.literal_text(id)));
+        name
     }
 
     /// A bigint literal's value.
@@ -1973,6 +2099,8 @@ impl TypeTables {
         }
         let at = u32::try_from(self.list_items.len()).expect("type list items fit u32");
         let len = u32::try_from(types.len()).expect("a type list's length fits u32");
+        // Refused like a start past the range: a cursor's end would wrap.
+        list_end(at, len).expect("type list items fit u32");
         let id = TypeListId::new(at);
         // The length word and payload are one append: reserve both before
         // pushing the word so a boundary cannot grow the pool twice.
@@ -2139,12 +2267,73 @@ impl TypeTables {
         }
     }
 
+    /// ID-only callers can supply an opaque key. Only IDs in the list
+    /// interner can stand for a borrowed argument sequence.
+    fn instantiation_list_hash(&self, target: TypeId, key: InstantiationKey) -> Option<u64> {
+        InstantiationCache::packed_key(target, key)?;
+        let start = key.arguments.index() as usize;
+        let (length, tail) = self.list_items.get(start..)?.split_first()?;
+        let arguments = tail.get(..length.index() as usize)?;
+        let hash = hash_type_list(arguments);
+        self.list_ids.find(hash, |&id| id == key.arguments)?;
+        Some(instantiation_hash(target, key.single_signature, hash))
+    }
+
+    /// Probe by the ordered argument IDs, retaining the original intern point
+    /// on a miss. The stored key supplies the arguments even for an object
+    /// instantiation whose resulting type has no argument list of its own.
+    pub fn lookup_instantiation(
+        &mut self,
+        target: TypeId,
+        arguments: &[TypeId],
+        alias_symbol: Option<SymbolId>,
+        alias_arguments: Option<&[TypeId]>,
+        single_signature: bool,
+    ) -> (InstantiationKey, Option<TypeId>) {
+        if alias_symbol.is_some() || target.index() >= 1 << 31 {
+            let key =
+                self.instantiation_key(arguments, alias_symbol, alias_arguments, single_signature);
+            return (key, self.instantiations.full.get(&(target, key)).copied());
+        }
+        let list_hash = hash_type_list(arguments);
+        let hash = instantiation_hash(target, single_signature, list_hash);
+        if let Some(entry) = self.instantiations.find_arguments(
+            &self.list_items,
+            target,
+            single_signature,
+            arguments,
+            hash,
+        ) {
+            let key = InstantiationKey {
+                single_signature,
+                ..InstantiationKey::plain(entry.arguments())
+            };
+            debug_assert_eq!(
+                self.list_ids
+                    .find(list_hash, |&id| self.list(id) == arguments),
+                Some(&key.arguments)
+            );
+            debug_assert_eq!(
+                self.instantiations.get(target, key, Some(hash)),
+                Some(entry.value)
+            );
+            return (key, Some(entry.value));
+        }
+        let key = InstantiationKey {
+            single_signature,
+            ..InstantiationKey::plain(self.intern_type_list_with_hash(arguments, list_hash))
+        };
+        (key, self.instantiations.full.get(&(target, key)).copied())
+    }
+
     /// The per-target instantiations map (`type.instantiations`) —
     /// createTypeReference keys by list id; getObjectTypeInstantiation
     /// keys by list id + alias id over the SAME map.
     pub fn instantiation_get(&self, target: TypeId, key: InstantiationKey) -> Option<TypeId> {
         crate::perf::bump(crate::perf::PerfCounter::InstantiationLookups);
-        let hit = self.instantiations.get(&(target, key)).copied();
+        let hit = self
+            .instantiations
+            .get(target, key, self.instantiation_list_hash(target, key));
         if hit.is_some() {
             crate::perf::bump(crate::perf::PerfCounter::InstantiationHits);
         }
@@ -2152,7 +2341,8 @@ impl TypeTables {
     }
 
     pub fn instantiation_insert(&mut self, target: TypeId, key: InstantiationKey, value: TypeId) {
-        self.instantiations.insert((target, key), value);
+        let hash = self.instantiation_list_hash(target, key);
+        self.instantiations.insert(target, key, value, hash);
     }
 
     /// The instantiation of `target` under the plain key of `arguments` (no
@@ -3692,9 +3882,8 @@ impl TypeTables {
         if let Some(id) = self.instantiation_front_get(target, type_arguments) {
             return id;
         }
-        let arguments = self.intern_type_list(type_arguments);
-        let key = (target, InstantiationKey::plain(arguments));
-        if let Some(&id) = self.instantiations.get(&key) {
+        let (key, existing) = self.lookup_instantiation(target, type_arguments, None, None, false);
+        if let Some(id) = existing {
             self.instantiations.front.put(target, type_arguments, id);
             return id;
         }
@@ -3704,7 +3893,7 @@ impl TypeTables {
             TypeData::Reference {
                 node_position: 0,
                 target,
-                resolved_type_arguments: Some(arguments),
+                resolved_type_arguments: Some(key.arguments),
             },
         );
         let object_flags = ObjectFlags::from_bits(
@@ -3716,7 +3905,7 @@ impl TypeTables {
         );
         self.type_mut(id).object_flags = object_flags;
         self.type_mut(id).symbol = symbol;
-        self.instantiations.insert(key, id);
+        self.instantiation_insert(target, key, id);
         self.instantiations.front.put(target, type_arguments, id);
         id
     }
@@ -3987,8 +4176,7 @@ impl TypeTables {
         let this_type = self.create_type_parameter(true, Some(target));
         self.tuple_targets[payload.index() as usize].this_type = this_type;
         // instantiations.set(getTypeListId(typeParameters), type) (61191).
-        let key = (target, InstantiationKey::plain(type_parameters));
-        self.instantiations.insert(key, target);
+        self.instantiation_insert(target, InstantiationKey::plain(type_parameters), target);
         target
     }
 

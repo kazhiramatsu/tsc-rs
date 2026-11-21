@@ -515,10 +515,16 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: initializeTypeChecker @6.0.3
     /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
     /// tsc-span: _tsc.js:88732-88906
+    #[inline]
     pub fn global_object_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.object {
             return Ok(cached);
         }
+        self.resolve_global_object_type()
+    }
+
+    #[inline(never)]
+    fn resolve_global_object_type(&mut self) -> CheckResult<TypeId> {
         let symbol = self.init_probed_global_type_symbol("Object")?;
         let resolved = self.get_type_of_global_symbol(symbol, 0)?;
         self.global_type_memos.object = Some(resolved);

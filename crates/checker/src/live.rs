@@ -629,6 +629,7 @@ fn new_checker_state(owner: &LiveOwner) -> CheckerState<'_> {
         Some((&*owner.provider, &owner.metadata)),
         owner.host.clone(),
         Some(0),
+        false,
     );
     reserve_type_tables(&mut state, snapshot_node_count(&owner.snapshot));
     state

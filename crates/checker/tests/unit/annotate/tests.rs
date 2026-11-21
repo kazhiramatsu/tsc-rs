@@ -6,6 +6,7 @@ use tsc_types::{
 };
 
 use crate::links::LinkSlot;
+use crate::member_table::HashedName;
 use crate::relpin::find_probe_annotation;
 use crate::state::CheckerState;
 use crate::{check_program, InputFile};
@@ -84,7 +85,7 @@ fn deferred_reference_members_classify_the_frozen_property_selection() {
                 for &id in &member_ids {
                     let key = state.binder.symbol(id).escaped_name;
                     assert_eq!(
-                        state.declared_property(source, key),
+                        state.declared_property(source, HashedName::new(key)),
                         properties.contains(&id).then_some(id)
                     );
                 }
@@ -96,13 +97,19 @@ fn deferred_reference_members_classify_the_frozen_property_selection() {
                     let mut members = state.members_of(source).members.clone().into_builder();
                     members.insert(&state.binder, extra);
                     state.members_mut(source).members = members.into();
-                    assert_eq!(state.declared_property(source, extra_name), None);
+                    assert_eq!(
+                        state.declared_property(source, HashedName::new(extra_name)),
+                        None
+                    );
                 }
                 // Replace just the property list under the published ID.
                 state.members_mut(source).properties = Default::default();
                 for &id in &member_ids {
                     assert_eq!(
-                        state.declared_property(source, state.binder.symbol(id).escaped_name),
+                        state.declared_property(
+                            source,
+                            HashedName::new(state.binder.symbol(id).escaped_name)
+                        ),
                         None
                     );
                 }
@@ -163,22 +170,24 @@ fn deferred_reference_members_publish_each_frozen_identity_once() {
             state.get_type_of_symbol(plain).unwrap();
             state.structured_member_headers(ty).unwrap();
             for (declared, unaffected) in [(plain, true), (value, false)] {
+                let key = HashedName::new(state.binder.symbol(declared).escaped_name);
                 let ready = state.deferred_reference_members[&ty].as_ref().unwrap();
-                assert!(matches!(ready.declared_member(&state.binder, declared),
-                DeferredDeclaredMember::Publish { declared: id, mapper } if id == declared && mapper.is_none() == unaffected));
-                let name = state.binder.symbol(declared).escaped_name;
+                assert!(
+                    matches!(ready.declared_member(&state.binder, declared, key),
+                DeferredDeclaredMember::Publish { declared: id, mapper } if id == declared && mapper.is_none() == unaffected)
+                );
                 let symbol = state
-                    .deferred_reference_property(ty, name)
+                    .deferred_reference_property(ty, key)
                     .unwrap()
                     .unwrap()
                     .unwrap();
                 assert_eq!(symbol == declared, unaffected);
                 let ready = state.deferred_reference_members[&ty].as_ref().unwrap();
                 assert!(
-                    matches!(ready.declared_member(&state.binder, declared), DeferredDeclaredMember::Cached(id) if id == symbol)
+                    matches!(ready.declared_member(&state.binder, declared, key), DeferredDeclaredMember::Cached(id) if id == symbol)
                 );
                 assert_eq!(
-                    state.deferred_reference_property(ty, name).unwrap(),
+                    state.deferred_reference_property(ty, key).unwrap(),
                     Some(Some(symbol))
                 );
             }
@@ -804,5 +813,227 @@ fn deferred_reference_realization_retires_the_record_and_keeps_warmed_and_new_me
             assert_eq!(state.get_properties_of_type_full(ty).unwrap(), all);
             assert!(!state.deferred_reference_members.contains_key(&ty));
         },
+    );
+}
+
+#[test]
+fn deferred_reference_headers_and_members_keep_their_ids_through_enumeration() {
+    with_state(
+        "interface Base<T> { [index: number]: T; inherited: T }
+         interface Box<T> extends Base<T> {
+             (arg: T): T; new(): Box<T>; plain: number;
+             get(arg: T): T; get(): number;
+         }
+         declare let box: Box<string>;",
+        |state| {
+            let ty = annotation_type(state, "box");
+            let source = state
+                .resolve_declared_members(state.tables.reference_target(ty))
+                .unwrap();
+            let plain = state
+                .members_of(source)
+                .members
+                .get(&state.binder, "plain")
+                .unwrap();
+            let header = state.structured_member_headers(ty).unwrap();
+            let calls = state.members_of(header).call_signature_list();
+            let constructs = state.members_of(header).construct_signature_list();
+            let indices = state.members_of(header).index_info_list();
+            assert_eq!((calls.len(), constructs.len(), indices.len()), (1, 1, 1));
+            assert_eq!(indices[0].value_type, state.tables.intrinsics.string);
+            state.get_type_of_symbol(plain).unwrap();
+            let own = state
+                .get_property_of_object_type(ty, "get")
+                .unwrap()
+                .unwrap();
+            let inherited = state
+                .get_property_of_object_type(ty, "inherited")
+                .unwrap()
+                .unwrap();
+            let method = state.get_type_of_symbol(own).unwrap();
+            let overloads = state
+                .get_signatures_of_type(method, crate::state::SignatureKind::Call)
+                .unwrap();
+            assert_eq!(overloads.len(), 2);
+            let counts = |state: &CheckerState<'_>| {
+                let c = crate::CheckerCounts::of(state, true);
+                (c.types, c.instantiations, c.symbols)
+            };
+            let before = counts(state);
+            let members = state.get_properties_of_type_full(ty).unwrap();
+            let after = counts(state);
+            assert!(members.contains(&own) && members.contains(&inherited));
+            assert!(!members.contains(&plain));
+            assert_eq!(state.get_properties_of_type_full(ty).unwrap(), members);
+            assert_eq!(state.structured_member_headers(ty).unwrap(), header);
+            assert_eq!(state.members_of(header).call_signatures(), &*calls);
+            assert_eq!(
+                state.members_of(header).construct_signatures(),
+                &*constructs
+            );
+            assert_eq!(
+                state
+                    .get_signatures_of_type(method, crate::state::SignatureKind::Call)
+                    .unwrap(),
+                overloads
+            );
+            assert_eq!(counts(state), after);
+            assert_eq!((before, after), ((74, 4, 24), (74, 4, 25)));
+        },
+    );
+}
+
+#[test]
+fn identity_members_freeze_aliases_and_select_inherited_properties_in_order() {
+    with_state(
+        "interface Base { base: boolean }
+         interface Solo { (): number; own: string }
+         interface Derived extends Base { (): number; own: string }",
+        |state| {
+            state.stable_type_ordering = false;
+            for (name, inherits) in [("Solo", false), ("Derived", true)] {
+                let owner = state.clone_symbol(*state.globals.get(name).unwrap());
+                let own = state
+                    .binder
+                    .symbol(owner)
+                    .members()
+                    .get("own")
+                    .copied()
+                    .unwrap();
+                let alias_name = tsc_types::known_name!("alias");
+                let alias = state
+                    .binder
+                    .create_symbol(tsc_types::SymbolFlags::ALIAS, alias_name);
+                state
+                    .links
+                    .set_fresh_symbol_alias_target(alias, LinkSlot::Resolved(own));
+                std::sync::Arc::make_mut(state.binder.symbol_mut(owner).members_mut())
+                    .insert(alias_name, alias);
+                let ty = state.get_declared_type_of_symbol(owner).unwrap();
+                let id = state.resolve_structured_type_members(ty).unwrap();
+                let record = state.members_of(id);
+                assert_eq!(record.members.get(&state.binder, alias_name), Some(alias));
+                let mut expected = vec![own, alias];
+                if inherits {
+                    let base = *state.globals.get("Base").unwrap();
+                    expected.push(*state.binder.symbol(base).members().get("base").unwrap());
+                }
+                assert_eq!(&*record.properties, expected);
+                assert_eq!(record.call_signatures().len(), 1);
+                assert_eq!(
+                    record
+                        .members
+                        .get(&state.binder, tsc_types::InternalSymbolName::CALL)
+                        .is_some(),
+                    !inherits
+                );
+                assert_eq!(
+                    record.members.get(&state.binder, "base").is_some(),
+                    inherits
+                );
+            }
+        },
+    );
+}
+
+#[test]
+fn eager_reference_members_pad_this_across_nested_resolution() {
+    with_state(
+        "interface Base<T> { self(): this; item: T }
+         interface Derived<T> extends Base<T> { own: T }
+         declare let d: Derived<string>;",
+        |state| {
+            let ty = annotation_type(state, "d");
+            let id = state.resolve_structured_type_members(ty).unwrap();
+            let record = state.members_of(id);
+            let item = record.members.get(&state.binder, "item").unwrap();
+            let own = record.members.get(&state.binder, "own").unwrap();
+            let method = record.members.get(&state.binder, "self").unwrap();
+            assert_eq!(
+                state.get_type_of_symbol(item).unwrap(),
+                state.tables.intrinsics.string
+            );
+            assert_eq!(
+                state.get_type_of_symbol(own).unwrap(),
+                state.tables.intrinsics.string
+            );
+            let method_ty = state.get_type_of_symbol(method).unwrap();
+            let sigs = state
+                .get_signatures_of_type(method_ty, crate::state::SignatureKind::Call)
+                .unwrap();
+            assert_eq!(state.get_return_type_of_signature(sigs[0]).unwrap(), ty);
+            let counts = crate::CheckerCounts::of(state, true);
+            assert_eq!(state.resolve_structured_type_members(ty), Ok(id));
+            assert_eq!(
+                state.get_property_of_object_type(ty, "self"),
+                Ok(Some(method))
+            );
+            assert_eq!(
+                state.get_signatures_of_type(method_ty, crate::state::SignatureKind::Call),
+                Ok(sigs)
+            );
+            let repeated = crate::CheckerCounts::of(state, true);
+            assert_eq!(
+                (counts.types, counts.instantiations, counts.symbols),
+                (repeated.types, repeated.instantiations, repeated.symbols)
+            );
+            assert_eq!(
+                (counts.types, counts.instantiations, counts.symbols),
+                (74, 6, 17)
+            );
+        },
+    );
+}
+
+#[test]
+fn recursive_mapped_member_lookup_observes_the_published_shell() {
+    with_state(
+        "type MapKeys<T> = { [K in keyof T]: MapKeys<T[K]> };
+         interface Recursive { next: Recursive }
+         declare let value: MapKeys<Recursive>;",
+        |state| {
+            let ty = annotation_type(state, "value");
+            assert!(state
+                .tables
+                .object_flags_of(ty)
+                .intersects(ObjectFlags::MAPPED));
+            // Reenter after shell publication, while its key domain is being resolved.
+            let shell = state.alloc_members(Default::default());
+            state
+                .links
+                .set_type_members(state.speculation_depth, ty, LinkSlot::Resolved(shell));
+            state.members_resolving += 1;
+            assert_eq!(state.resolve_structured_type_members(ty), Ok(shell));
+            assert!(state.get_properties_of_type_full(ty).unwrap().is_empty());
+            state.members_resolving -= 1;
+            state.links.retract_type_members(ty);
+            let complete = state.resolve_structured_type_members(ty).unwrap();
+            assert_ne!(shell, complete);
+            let next = state
+                .members_of(complete)
+                .members
+                .get(&state.binder, "next")
+                .unwrap();
+            assert_eq!(state.get_type_of_symbol(next), Ok(ty));
+        },
+    );
+}
+
+#[test]
+fn declaration_routing_keeps_cross_file_overload_order() {
+    crate::state::test_support::with_program_state(
+        &[("a.ts", "function f(x: number): number;"),
+          ("b.ts", "function f(x: string): string; function f(x: any) { return x; } let typed: string;")],
+        &CompilerOptions::default(),
+        |state| {
+            let f = state.resolve_file_scope_name("f", tsc_types::SymbolFlags::VALUE).unwrap();
+            let signatures = state.get_signatures_of_symbol(Some(f)).unwrap();
+            let owners: Vec<_> = signatures.into_iter().map(|sig|
+                state.binder.file_index_of_node(state.signature_of(sig).declaration.unwrap())
+            ).collect();
+            assert_eq!(owners, [0, 1]);
+            let typed = state.resolve_file_scope_name("typed", tsc_types::SymbolFlags::VALUE).unwrap();
+            assert_eq!(state.get_type_of_symbol(typed), Ok(state.tables.intrinsics.string));
+        }
     );
 }

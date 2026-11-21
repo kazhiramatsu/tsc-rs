@@ -1908,12 +1908,13 @@ impl<'a> CheckerState<'a> {
             return Ok(infos.len() == 1 && infos[0].key_type == self.tables.intrinsics.string);
         }
         if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
-            let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
-                TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+            let mut members = match self.tables.type_of(ty).data {
+                TypeData::Union { types, .. } | TypeData::Intersection { types } => {
+                    self.tables.cursor(types)
+                }
                 _ => unreachable!("union/intersection flag implies member data"),
             };
-            for member in members {
+            while let Some(member) = members.next(&self.tables) {
                 if !self.is_string_index_signature_only_type(member)? {
                     return Ok(false);
                 }
@@ -1951,7 +1952,7 @@ impl<'a> CheckerState<'a> {
             // literal value (tsc passes `indexType.value` there) use
             // index_literal_value_display instead.
             Some(tsc_types::LiteralData::String(value)) => {
-                Some(EscapedName::escape(self.tables.literal_text(value)))
+                Some(self.tables.literal_property_name(value))
             }
             Some(tsc_types::LiteralData::Number(value)) => Some(EscapedName::escape(
                 tsc_types::tables::js_number_to_string(value.get())

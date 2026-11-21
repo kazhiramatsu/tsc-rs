@@ -2442,13 +2442,16 @@ impl<'a> CheckerState<'a> {
         if let Some(&cached) = self.exhaustive_switch_cache.get(&switch_statement) {
             return Ok(cached);
         }
-        if self.exhaustive_switch_computing.contains(&switch_statement) {
+        if self
+            .exhaustive_switch_computing()
+            .contains(&switch_statement)
+        {
             self.exhaustive_switch_cache.insert(switch_statement, false);
             return Ok(false);
         }
-        self.exhaustive_switch_computing.insert(switch_statement);
+        self.set_switch_computing(switch_statement, true);
         let computed = self.compute_exhaustive_switch_statement(switch_statement);
-        self.exhaustive_switch_computing.remove(&switch_statement);
+        self.set_switch_computing(switch_statement, false);
         let computed = computed?;
         // The narrow-family caches (switch types, exhaustiveness, effects
         // signatures, resolved type predicates) stand in for tsc's links and

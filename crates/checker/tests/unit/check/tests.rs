@@ -11439,3 +11439,69 @@ fn rejected_candidate_retains_collision_reports_until_flags_are_complete() {
         assert!(state.deferred_diagnostics.is_empty());
     });
 }
+
+#[test]
+fn modifier_grammar_checks_a_modified_this_before_other_parameter_rules() {
+    let mut source = tsc_syntax::parse_published_source_file(
+        "a.ts",
+        "class C { m(public this: C) {} }",
+        Default::default(),
+        None,
+    );
+    let parameter = source
+        .arena
+        .node_ids()
+        .find(|&id| source.arena.node(id).kind == SyntaxKind::Parameter)
+        .unwrap();
+    let error = &source.parse_diagnostics[0];
+    assert_eq!(
+        (error.code(), error.start, error.length),
+        (1433, Some(12), Some(6))
+    );
+
+    // An externally built tree can carry the same modifier without a parser
+    // diagnostic. Exercise the checker's own first-token error on that record.
+    source.parse_diagnostics = Default::default();
+    let binder = tsc_binder::bind_source_file(&mut source);
+    let options = CompilerOptions::default();
+    let mut state = CheckerState::new(binder.source, &binder, &options);
+    assert!(state.check_grammar_modifiers(parameter));
+    let error = state.diagnostics.last().unwrap();
+    assert_eq!(
+        (error.code(), error.start, error.length),
+        (1433, Some(12), Some(6))
+    );
+    assert!(checked_diags("class C { m(this: C) {} }").is_empty());
+}
+
+#[test]
+fn modifier_grammar_reports_a_duplicate_at_the_hosted_jsdoc_tag() {
+    let text = "class C {
+/** @private */
+private field;
+}";
+    with_program_state(
+        &[("modifiers.js", text)],
+        &CompilerOptions::default(),
+        |state| {
+            let source = state.binder.source(0);
+            let member = source
+                .arena
+                .node_ids()
+                .find(|&node| state.kind_of(node) == SyntaxKind::PropertyDeclaration)
+                .unwrap();
+            let tags = state.reparsed_modifier_tags(member);
+            assert_eq!(tags.len(), 1);
+            assert!(state.check_grammar_modifiers(member));
+            let diagnostic = state.diagnostics.last().unwrap();
+            assert_eq!(
+                diagnostic.code(),
+                tsc_diagnostics::gen::Accessibility_modifier_already_seen.code
+            );
+            assert_eq!(
+                diagnostic.start,
+                Some(text.find("@private").unwrap() as u32)
+            );
+        },
+    );
+}

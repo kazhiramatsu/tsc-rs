@@ -97,6 +97,7 @@ static ROWS: Mutex<Vec<Row>> = Mutex::new(Vec::new());
 /// The per-checker collector.
 pub struct LineProfiler<'a> {
     enabled: bool,
+    pub(crate) count_relations: bool,
     stack: Vec<Frame>,
     rows: FxHashMap<(usize, u32), Accumulator>,
     files: FxHashMap<usize, &'a SourceFile>,
@@ -104,8 +105,14 @@ pub struct LineProfiler<'a> {
 
 impl<'a> LineProfiler<'a> {
     pub fn new() -> Self {
+        Self::with_readers(enabled(), false)
+    }
+
+    /// The shard queue fixes its cost reader before constructing any checkers.
+    pub(crate) fn with_readers(line_enabled: bool, measure_lane_costs: bool) -> Self {
         Self {
-            enabled: enabled(),
+            enabled: line_enabled,
+            count_relations: line_enabled || measure_lane_costs,
             stack: Vec::new(),
             rows: FxHashMap::default(),
             files: FxHashMap::default(),
@@ -319,3 +326,7 @@ pub fn write_report() -> Option<usize> {
     }
     Some(rows.len())
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/check/line_profile.rs"]
+mod tests;

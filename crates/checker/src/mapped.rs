@@ -29,6 +29,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isGenericMappedType @6.0.3
     /// tsc-hash: 0de4059bb2606e0ea8b724e86d10d096d4e9fba0de0e0ee4b01cdd51d92b09a1
     /// tsc-span: _tsc.js:58659-58671
+    #[inline]
     pub(crate) fn is_generic_mapped_type_state(&mut self, ty: TypeId) -> CheckResult<bool> {
         if !self
             .tables
@@ -37,6 +38,11 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
+        self.is_generic_mapped_type_worker(ty)
+    }
+
+    #[inline(never)]
+    fn is_generic_mapped_type_worker(&mut self, ty: TypeId) -> CheckResult<bool> {
         let constraint = self.get_constraint_type_from_mapped_type(ty)?;
         if self
             .get_generic_object_flags(constraint)?
@@ -156,7 +162,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.type_cold().mapped_modifiers_type.resolved(ty) {
+        if let Some(cached) = self.links.type_cold().mapped(ty).modifiers.resolved() {
             return Ok(cached);
         }
         let mapped = self.mapped_type_data(ty);
@@ -195,7 +201,7 @@ impl<'a> CheckerState<'a> {
                 _ => self.tables.intrinsics.unknown,
             }
         };
-        if let Some(cached) = self.links.type_cold().mapped_modifiers_type.resolved(ty) {
+        if let Some(cached) = self.links.type_cold().mapped(ty).modifiers.resolved() {
             return Ok(cached);
         }
         self.links.set_mapped_modifiers_type(ty, resolved);
@@ -445,12 +451,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 24d56cfe94497835f00ce92b68c33b908ce35213aed2242621b2c7479dd3c159
     /// tsc-span: _tsc.js:58510-58576
     pub(crate) fn resolve_mapped_type_members(&mut self, ty: TypeId) -> CheckResult<MembersId> {
-        if let Some(cached) = self
+        // Structured dispatch just observed this slot before reading the type flags.
+        debug_assert!(self
             .links
             .read_ty(ty, |links| links.resolved_members.resolved())
-        {
-            return Ok(cached);
-        }
+            .is_none());
 
         // tsc publishes an empty resolved shell before walking the key
         // domain so recursive readers terminate. A Rust CheckAbort
@@ -576,7 +581,9 @@ impl<'a> CheckerState<'a> {
                 return Ok(());
             }
 
-            let modifiers_prop = if self.is_type_usable_as_property_name(key_type) {
+            let modifiers_prop = if key_type == prop_name_type {
+                self.get_property_of_type_full(modifiers_type, prop_name)?
+            } else if self.is_type_usable_as_property_name(key_type) {
                 let modifier_name = self
                     .get_property_name_from_type(key_type)
                     .expect("usable property-name type has a property name");

@@ -52,3 +52,11 @@ fn canonical_paths_order_and_hash_as_their_text() {
         state.hash_one(JsStr::from("/src/a.ts").to_owned())
     );
 }
+
+#[test]
+fn delimiter_search_preserves_nul_error_spelling() {
+    let path = JsString::from_code_units(&[0xd800, 0, 0xdc00]);
+    let error = validate_js_path(path.as_js(), "display path").unwrap_err();
+    assert_eq!(error.js_path(), Some(path.as_js()));
+    assert_eq!(error.detail(), "display path contains a NUL byte");
+}

@@ -4,7 +4,7 @@
 
 use tsc_types::{CompilerOptions, TypeId};
 
-use super::{ExpandingFlags, RecursionFlags, RelationChecker, RelationErrorState};
+use super::{RecursionFlags, RelationChecker};
 use crate::relate::RelationKind;
 use crate::relpin::find_probe_annotation;
 use crate::state::test_support::with_program_state;
@@ -33,22 +33,7 @@ fn resolve(state: &mut CheckerState, name: &str) -> TypeId {
 fn identity_checker<'s, 'a>(state: &'s mut CheckerState<'a>) -> RelationChecker<'s, 'a> {
     let relation = RelationKind::Identity;
     let relation_count = (16_000_000 - state.relations.cache(relation).len() as i64) >> 3;
-    let scratch = std::mem::take(&mut state.relation_scratch);
-    RelationChecker {
-        st: state,
-        relation,
-        maybe_keys: scratch.maybe_keys,
-        maybe_keys_set: scratch.maybe_keys_set,
-        source_stack: scratch.source_stack,
-        target_stack: scratch.target_stack,
-        maybe_count: 0,
-        source_depth: 0,
-        target_depth: 0,
-        expanding_flags: ExpandingFlags::NONE,
-        overflow: false,
-        relation_count,
-        error_state: RelationErrorState::default(),
-    }
+    RelationChecker::new(state, relation, relation_count)
 }
 
 /// checkTypeRelatedTo's frame without the identity verdicts in front of it.
@@ -63,8 +48,8 @@ fn full_frame(state: &mut CheckerState, source: TypeId, target: TypeId) -> bool 
             super::IntersectionState::NONE,
         )
         .expect("full identity check");
-    assert!(!checker.overflow, "no overflow on these pairs");
-    state.relation_scratch = checker.into_scratch();
+    assert!(!checker.work.overflow, "no overflow on these pairs");
+    checker.recycle();
     super::is_true(result)
 }
 
@@ -151,7 +136,7 @@ fn kept_recursion_entries_match_fresh_walks_at_every_depth() {
             let types = [a, b, a, c, b, c];
             let entries: Vec<_> = types.iter().copied().map(RelationStackEntry::new).collect();
             assert!(!state.is_deeply_nested_on_stack(a, &entries, 1, 3).unwrap());
-            assert!(entries.iter().all(|entry| entry.identity.get().is_none()));
+            assert!(entries.iter().all(|entry| entry.identity.get() == super::StackIdentity::UNSET));
             for max_depth in [1, 2, 3, 10] {
                 for depth in 1..=types.len() {
                     for ty in types {
@@ -264,32 +249,116 @@ fn active_keys_follow_the_live_prefix_across_unwinds_and_frame_loans() {
             .collect();
         for (i, key) in keys.iter().enumerate() {
             checker.push_active_key(key);
-            assert_eq!(checker.maybe_keys_set.is_empty(), i < 32);
+            assert_eq!(checker.work.maybe_keys_set.is_empty(), i < 32);
             assert!(keys[..=i].iter().all(|key| checker.has_active_key(key)));
         }
         let frame = checker.loan_frame(IntersectionState::NONE);
+        let outer = std::ptr::from_ref(&*frame.work);
+        let nested = RelationChecker::new(checker.st, RelationKind::Assignable, 17);
+        assert_ne!(outer, std::ptr::from_ref(&*nested.work));
+        assert_eq!(nested.work.relation_count, 17);
+        assert!(nested.work.maybe_keys.is_empty());
+        nested.recycle();
         checker.restore_frame(frame);
-        let budget = checker.relation_count;
+        let budget = checker.work.relation_count;
         for depth in [34, 32, 2] {
             checker.reset_maybe_stack(depth, false, RelationComparisonResult::NONE);
             assert!(keys[..depth].iter().all(|key| checker.has_active_key(key)));
             assert!(keys[depth..].iter().all(|key| !checker.has_active_key(key)));
-            assert_eq!(checker.maybe_keys_set.is_empty(), depth <= 32);
+            assert_eq!(checker.work.maybe_keys_set.is_empty(), depth <= 32);
         }
-        assert_eq!(checker.relation_count, budget);
+        assert_eq!(checker.work.relation_count, budget);
         for key in &keys[5..36] {
             checker.push_active_key(key);
         }
         assert!(checker.has_active_key(&keys[35]));
         assert!(!checker.has_active_key(&keys[2]));
         checker.reset_maybe_stack(0, true, RelationComparisonResult::NONE);
-        assert_eq!(checker.relation_count, budget - 33);
-        assert!(checker.maybe_keys_set.is_empty());
+        assert_eq!(checker.work.relation_count, budget - 33);
+        assert!(checker.work.maybe_keys_set.is_empty());
         for (i, key) in keys.iter().enumerate() {
             let verdict = checker.st.relations.cache(checker.relation).get(key);
             assert_eq!(verdict.is_some(), i < 2 || (5..36).contains(&i));
             assert!(!checker.has_active_key(key));
         }
+        checker.recycle();
+        let string = state.tables.intrinsics.string;
+        let number = state.tables.intrinsics.number;
+        let (_, diagnostic) = state
+            .check_relation_with_error_output_at_worker(
+                string,
+                number,
+                RelationKind::Assignable,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+        assert!(diagnostic.is_some());
+        assert!(state
+            .check_type_related_to(string, string, RelationKind::Assignable)
+            .unwrap());
+        let again = identity_checker(state);
+        assert_eq!(outer, std::ptr::from_ref(&*again.work));
+        assert!(again.work.maybe_keys.is_empty());
+        assert!(again.work.source_stack.is_empty() && again.work.target_stack.is_empty());
+        assert!(again.error_state.error_chain.is_none());
+    });
+}
+
+#[test]
+fn active_keys_follow_the_loan_through_a_forward_constraint_clamp() {
+    use super::{IntersectionState, RelationFrameLoan, RelationKey};
+    use crate::inference::CompareTypesFn;
+    use tsc_types::{InferenceFlags, SymbolFlags};
+
+    let text = "declare function callback<T extends U, U extends string>(x: T, y: U): T;";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let symbol = state
+            .resolve_file_scope_name("callback", SymbolFlags::FUNCTION)
+            .unwrap();
+        let ty = state.get_type_of_symbol(symbol).unwrap();
+        let signature = state
+            .get_signatures_of_type(ty, crate::state::SignatureKind::Call)
+            .unwrap()[0];
+        let parameters = state
+            .signature_of(signature)
+            .cloned_type_parameters()
+            .unwrap();
+        let context = state.create_inference_context(
+            &parameters,
+            Some(signature),
+            InferenceFlags::NONE,
+            Some(CompareTypesFn::RelationFrame),
+        );
+        let first = state.inference_context(context).inferences[0];
+        let forward = state.inference_context(context).inferences[1];
+        let number = state.tables.intrinsics.number;
+        let string = state.tables.intrinsics.string;
+        state.inference_info_mut(first).candidates = Some(vec![number].into());
+        state.inference_info_mut(forward).candidates = Some(vec![number].into());
+
+        let mut checker = RelationChecker::new(state, RelationKind::Assignable, 29);
+        let active = RelationKey::Generic("*active".into());
+        checker.push_active_key(&active);
+        let frame = checker.loan_frame(IntersectionState::NONE);
+        checker.st.relation_frame_loan = RelationFrameLoan::Available(frame);
+        assert_eq!(checker.st.get_inferred_type(context, 0).unwrap(), string);
+        assert_eq!(
+            checker.st.inference_info(forward).inferred_type,
+            Some(string)
+        );
+        let RelationFrameLoan::Available(frame) =
+            std::mem::replace(&mut checker.st.relation_frame_loan, RelationFrameLoan::None)
+        else {
+            panic!("clamp did not return the loan")
+        };
+        checker.restore_frame(frame);
+        assert_eq!(checker.work.relation_count, 29);
+        assert_eq!(checker.work.maybe_count, 1);
+        assert!(checker.has_active_key(&active));
+        assert!(checker.error_state.error_chain.is_none());
+        checker.recycle();
     });
 }
 
@@ -312,4 +381,309 @@ fn short_membership_keeps_the_ordered_result_for_present_ids() {
             }
         }
     });
+}
+
+#[test]
+fn unknown_like_union_publishes_after_its_first_scan() {
+    use tsc_types::{ObjectFlags, UnionReduction};
+
+    let options = CompilerOptions {
+        strict_null_checks: Some(true),
+        ..Default::default()
+    };
+    with_program_state(
+        &[(
+            "a.ts",
+            "declare const key: unique symbol; let obj: { [key]: number };",
+        )],
+        &options,
+        |state| {
+            let undefined = state.tables.intrinsics.undefined;
+            let null = state.tables.intrinsics.null;
+            let computed = ObjectFlags::IS_UNKNOWN_LIKE_UNION_COMPUTED;
+            let value = ObjectFlags::IS_UNKNOWN_LIKE_UNION;
+            assert!(!state.is_unknown_like_union_type(undefined).unwrap());
+            let object = resolve(state, "obj");
+            for (part, expected) in [(state.empty_object_type, true), (object, false)] {
+                let union = state
+                    .get_union_type_ex(&[undefined, null, part], UnionReduction::None)
+                    .unwrap();
+                state.tables.strict_null_checks = false;
+                assert!(!state.is_unknown_like_union_type(union).unwrap());
+                assert!(!state.tables.object_flags_of(union).intersects(computed));
+                state.tables.strict_null_checks = true;
+                let first = state.flow_frame_begin();
+                assert_eq!(state.is_unknown_like_union_type(union).unwrap(), expected);
+                let first_taint = state.flow_frame_end(first).0;
+                if part == object {
+                    assert_eq!(first_taint.transient, 0);
+                }
+                let flags = state.tables.object_flags_of(union);
+                assert!(flags.intersects(computed));
+                assert_eq!(flags.intersects(value), expected);
+                let counts = (
+                    state.tables.len(),
+                    state.binder.transient_symbol_count(),
+                    state.total_instantiation_count,
+                );
+                let repeat = state.flow_frame_begin();
+                assert_eq!(state.is_unknown_like_union_type(union).unwrap(), expected);
+                assert_ne!(state.flow_frame_end(repeat).0.transient, 0);
+                assert_eq!(
+                    counts,
+                    (
+                        state.tables.len(),
+                        state.binder.transient_symbol_count(),
+                        state.total_instantiation_count
+                    )
+                );
+            }
+        },
+    );
+}
+
+#[test]
+fn large_union_trace_preserves_the_threshold_and_event_fields() {
+    use tsc_types::{
+        tracing::{CheckerTracer, Tracing},
+        ObjectFlags, UnionReduction,
+    };
+
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        let checker = identity_checker(state);
+        // The disabled path returns before even inspecting the IDs.
+        let unused = TypeId::new(u32::MAX - 1);
+        checker.trace_unions_or_intersections_too_large(unused, unused);
+        let literals: Vec<_> = (0..1001)
+            .map(|n| checker.st.tables.get_number_literal_type(n as f64))
+            .collect();
+        let source = checker
+            .st
+            .get_union_type_ex(&literals[..1000], UnionReduction::None)
+            .unwrap();
+        let target = checker
+            .st
+            .get_union_type_ex(&literals, UnionReduction::None)
+            .unwrap();
+        let trace = Tracing::start("trace", "", true);
+        checker.st.tracer = Some(CheckerTracer::new(trace.clone(), 0));
+        checker.trace_unions_or_intersections_too_large(source, target);
+        assert!(checker
+            .st
+            .tables
+            .object_flags_of(source)
+            .intersects(ObjectFlags::PRIMITIVE_UNION));
+        let flags =
+            checker.st.tables.object_flags_of(source).bits() & !ObjectFlags::PRIMITIVE_UNION.bits();
+        checker.st.tables.type_mut(source).object_flags = ObjectFlags::from_bits(flags);
+        checker.trace_unions_or_intersections_too_large(source, source);
+        checker.trace_unions_or_intersections_too_large(source, target);
+        let events: Vec<serde_json::Value> = serde_json::from_str(&trace.finish()[0].text).unwrap();
+        let events: Vec<_> = events
+            .iter()
+            .filter(|e| e["name"] == "traceUnionsOrIntersectionsTooLarge_DepthLimit")
+            .collect();
+        assert_eq!(events.len(), 1);
+        let args = &events[0]["args"];
+        assert_eq!(args["sourceId"], crate::tracing::trace_type_id(source));
+        assert_eq!(args["sourceSize"], 1000);
+        assert_eq!(args["targetId"], crate::tracing::trace_type_id(target));
+        assert_eq!(args["targetSize"], 1001);
+    });
+}
+
+#[test]
+fn relation_counts_follow_both_profile_readers() {
+    use crate::{
+        lane_profile,
+        line_profile::{LineProfiler, OP_RELATIONS},
+    };
+    fn observe(line: bool, lane: bool) -> (u64, u64, usize, usize, u64) {
+        let text = "let a: { p: { x: string } }; let b: { p: { x: string } };";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            let a = resolve(state, "a");
+            let b = resolve(state, "b");
+            state.line_profile = LineProfiler::with_readers(line, lane);
+            let before = state.profile_ops[OP_RELATIONS];
+            let cost = lane_profile::counted(state);
+            assert!(full_frame(state, a, a));
+            assert_eq!(
+                state.profile_ops[OP_RELATIONS] - before,
+                u64::from(line || lane)
+            );
+            assert!(full_frame(state, a, b));
+            (
+                state.profile_ops[OP_RELATIONS] - before,
+                lane_profile::counted(state) - cost,
+                state.tables.len(),
+                state.binder.transient_symbol_count(),
+                state.total_instantiation_count,
+            )
+        })
+    }
+    let observed = observe(true, false);
+    // The identical pair, the outer objects, their p properties and their x properties.
+    assert_eq!(observed.0, 4);
+    assert_eq!(observed, observe(false, true));
+    assert_eq!(observed, observe(true, true));
+    let idle = observe(false, false);
+    assert_eq!(idle.0, 0);
+    assert_eq!(observed.1 - idle.1, observed.0 * 1534);
+    assert_eq!(
+        (idle.2, idle.3, idle.4),
+        (observed.2, observed.3, observed.4)
+    );
+}
+
+#[test]
+fn empty_anonymous_objects_keep_late_members_and_unresolved_taint() {
+    with_program_state(
+        &[(
+            "a.ts",
+            "declare const key: unique symbol; let obj: { [key]: number };",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let frame = state.flow_frame_begin();
+            assert!(!state
+                .is_empty_anonymous_object_type(state.tables.intrinsics.string)
+                .unwrap());
+            assert_ne!(state.flow_frame_end(frame).0.transient, 0);
+            assert!(!state
+                .is_empty_anonymous_object_type(state.any_function_type)
+                .unwrap());
+            let obj = resolve(state, "obj");
+            let frame = state.flow_frame_begin();
+            assert!(!state.is_empty_anonymous_object_type(obj).unwrap());
+            assert_eq!(state.flow_frame_end(frame).0.transient, 0);
+            let symbol = state.binder.create_symbol(
+                tsc_types::SymbolFlags::TYPE_LITERAL,
+                tsc_types::EscapedName::from_identifier_escaped_text("__type"),
+            );
+            let synthetic = state.create_resolved_empty_anonymous_type(Some(symbol));
+            let members = state.resolve_structured_type_members(synthetic).unwrap();
+            state.members_mut(members).properties = vec![symbol].into();
+            let frame = state.flow_frame_begin();
+            assert!(state.is_empty_anonymous_object_type(synthetic).unwrap());
+            assert_ne!(state.flow_frame_end(frame).0.transient, 0);
+        },
+    );
+}
+
+#[test]
+fn literal_rejection_matches_payload_equality_for_every_relation() {
+    let source = "namespace A { export enum E { X = 0 } }
+        namespace B { export enum E { X = 0 } }
+        let a: A.E.X; let b: B.E.X;";
+    with_program_state(&[("a.ts", source)], &CompilerOptions::default(), |state| {
+        let a = resolve(state, "a");
+        let b = resolve(state, "b");
+        let zero = state.tables.get_number_literal_type(-0.0);
+        assert_eq!(zero, state.tables.get_number_literal_type(0.0));
+        let nan = state.tables.get_number_literal_type(f64::NAN);
+        let other_nan = state
+            .tables
+            .get_number_literal_type(f64::from_bits(f64::NAN.to_bits() + 1));
+        let big = state
+            .tables
+            .get_bigint_literal_type(tsc_types::PseudoBigInt {
+                negative: false,
+                base10_value: "1".into(),
+            });
+        let high = state.tables.get_string_literal_type_from_utf16(&[0xd800]);
+        let replacement = state.tables.get_string_literal_type_from_utf16(&[0xfffd]);
+        let values = [a, b, zero, nan, other_nan, big, high, replacement];
+        for lhs in values {
+            let lhs = state.tables.type_of(lhs).regular_type().unwrap();
+            let fresh = state.tables.get_fresh_type_of_literal_type(lhs);
+            for relation in RelationKind::ALL {
+                assert!(state.is_type_related_to(fresh, lhs, relation).unwrap());
+                for rhs in values {
+                    let rhs = state.tables.type_of(rhs).regular_type().unwrap();
+                    if lhs == rhs {
+                        continue;
+                    }
+                    let unequal = !state.tables.literal_type_values_equal(lhs, rhs);
+                    assert_eq!(state.unequal_value_literals(lhs, rhs), unequal);
+                    let related = state.is_type_related_to(fresh, rhs, relation).unwrap();
+                    let expected = if unequal {
+                        false
+                    } else if relation == RelationKind::Identity {
+                        let flags = state.tables.flags_of(lhs);
+                        flags == state.tables.flags_of(rhs)
+                            && flags.intersects(tsc_types::TypeFlags::SINGLETON)
+                    } else {
+                        (relation == RelationKind::Comparable
+                            && state.is_simple_type_related_to(rhs, lhs, relation).unwrap())
+                            || state.is_simple_type_related_to(lhs, rhs, relation).unwrap()
+                    };
+                    assert_eq!(related, expected, "{lhs:?} / {rhs:?} / {relation:?}");
+                }
+            }
+        }
+    });
+}
+
+#[test]
+fn recursion_stack_tags_preserve_id_spaces_and_short_circuit_intersections() {
+    use super::{
+        RecursionIdentity as Identity, RecursionTarget, RelationStackEntry, StackIdentity,
+    };
+    let raw = tsc_types::TRANSIENT_SYMBOL_BIT | 7;
+    let keys = [
+        StackIdentity::UNSET,
+        RecursionTarget::Identity(Identity::Symbol(tsc_binder::SymbolId::new(raw))).packed(),
+        RecursionTarget::Identity(Identity::Symbol(tsc_binder::SymbolId::new(7))).packed(),
+        RecursionTarget::Identity(Identity::Node(tsc_syntax::NodeId::new(raw))).packed(),
+        RecursionTarget::Identity(Identity::Type(TypeId::new(raw))).packed(),
+        RecursionTarget::Identity(Identity::ConditionalRoot(
+            tsc_types::ConditionalRootId::new(raw),
+        ))
+        .packed(),
+        RecursionTarget::Intersection(TypeId::new(raw)).packed(),
+    ];
+    for (i, key) in keys.iter().enumerate() {
+        assert!(!keys[..i].contains(key));
+    }
+    assert_eq!(keys.last().unwrap().intersection(), Some(TypeId::new(raw)));
+    with_program_state(
+        &[(
+            "a.ts",
+            "type M<T> = { [K in keyof T]: T[K] }; let later: M<{ x: 1 }>;",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let later = resolve(state, "later");
+            let first = state.tables.intrinsics.string;
+            let inner = state.tables.create_intersection_type(
+                [first, later],
+                tsc_types::ObjectFlags::NONE,
+                None,
+                None,
+            );
+            let outer = state.tables.create_intersection_type(
+                [inner, later],
+                tsc_types::ObjectFlags::NONE,
+                None,
+                None,
+            );
+            assert!(state
+                .tables
+                .object_flags_of(later)
+                .contains(tsc_types::ObjectFlags::INSTANTIATED_MAPPED));
+            let stack = [RelationStackEntry::new(outer)];
+            for _ in 0..2 {
+                assert!(state
+                    .is_deeply_nested_on_stack(first, &stack, 1, 1)
+                    .unwrap());
+                assert!(state
+                    .links
+                    .type_cold()
+                    .mapped(later)
+                    .modifiers
+                    .resolved()
+                    .is_none());
+            }
+        },
+    );
 }

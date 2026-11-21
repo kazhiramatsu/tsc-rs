@@ -1088,74 +1088,7 @@ pub(crate) fn is_js_file_name<'n>(name: impl Into<JsStr<'n>>) -> bool {
         .any(|extension| name.ends_with(extension))
 }
 
-/// tsc check directive: extractPragmas walks
-/// getLeadingCommentRanges(text, 0) — single-line comments BEFORE the
-/// first token — and the LAST ts-check/ts-nocheck pragma wins
-/// (processPragmasIntoFields); skipTypeChecking then drops the file's
-/// bind+check diagnostics whole (parse diagnostics stay). Pragma names
-/// lowercase; the name must end at whitespace/colon/EOL like
-/// `@([^\s:]+)`. This producer stays TEXTUAL (exact over leading
-/// trivia, which is all extractPragmas reads); the 5.8e directive
-/// completion moved @ts-ignore/@ts-expect-error to scanner-collected
-/// SourceFile.comment_directives — swap this too if the parser ever
-/// grows real pragma processing (M8 surface).
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CheckDirective {
-    Check,
-    NoCheck,
-}
-
-/// tsrs-native: lexical projection of leading-comment @ts-check/@ts-nocheck
-/// (processCommentPragmas 36215 + processPragmasIntoFields checkJsDirective ~36288, last
-/// wins); not a structural port
-pub fn check_directive(text: &str) -> Option<CheckDirective> {
-    let mut rest = text;
-    // getLeadingCommentRanges starts after a leading shebang. Keep
-    // this test on the RAW offset zero: a BOM before `#!` makes it an
-    // ordinary token sequence, not shebang trivia.
-    if let Some(after) = rest.strip_prefix("#!") {
-        let line_end = after
-            .find(['\n', '\r', '\u{2028}', '\u{2029}'])
-            .unwrap_or(after.len());
-        rest = &after[line_end..];
-    }
-    let mut directive = None;
-    loop {
-        // JS WhiteSpace includes BOM; Rust's is_whitespace does not.
-        rest = rest.trim_start_matches(|c: char| c.is_whitespace() || c == '\u{FEFF}');
-        if let Some(after) = rest.strip_prefix("//") {
-            let line_end = after
-                .find(['\n', '\r', '\u{2028}', '\u{2029}'])
-                .unwrap_or(after.len());
-            let comment = &after[..line_end];
-            // singleLinePragmaRegEx: ^///?\s*@([^\s:]+)
-            let body = comment.strip_prefix('/').unwrap_or(comment).trim_start();
-            if let Some(name_and_tail) = body.strip_prefix('@') {
-                let name_end = name_and_tail
-                    .find(|c: char| c.is_whitespace() || c == ':')
-                    .unwrap_or(name_and_tail.len());
-                match name_and_tail[..name_end].to_ascii_lowercase().as_str() {
-                    "ts-nocheck" => directive = Some(CheckDirective::NoCheck),
-                    "ts-check" => directive = Some(CheckDirective::Check),
-                    _ => {}
-                }
-            }
-            rest = &after[line_end..];
-            continue;
-        }
-        if let Some(after) = rest.strip_prefix("/*") {
-            match after.find("*/") {
-                Some(end) => {
-                    rest = &after[end + 2..];
-                    continue;
-                }
-                None => break,
-            }
-        }
-        break;
-    }
-    directive
-}
+pub use tsc_syntax::{check_directive, CheckDirective};
 
 /// tsc-port: canIncludeBindAndCheckDiagnostics @6.0.3
 /// tsc-hash: e833101f7d0b7e59d1247180868406c7e65ac869387a07face9965d430e98204
@@ -1198,7 +1131,7 @@ pub(crate) fn should_skip_type_checking_file(
         || source.file_name.as_js().ends_with(".json")
         || !can_include_bind_and_check_diagnostics(
             source.is_source_file_js(),
-            check_directive(source.text()),
+            source.check_directive(),
             options,
         )
 }
@@ -3591,10 +3524,12 @@ fn init_checker_state<'a>(
     )>,
     host: HostFacts,
     checker_index: Option<usize>,
+    measure_lane_costs: bool,
 ) -> state::CheckerState<'a> {
     #[cfg(feature = "phase-ledger")]
     tsc_types::phase_ledger::switch(tsc_types::phase_ledger::Phase::CheckerInit);
-    let mut state = state::CheckerState::from_snapshot_deferring_globals(snapshot, options);
+    let mut state =
+        state::CheckerState::from_snapshot_deferring_globals(snapshot, options, measure_lane_costs);
     // tsgo `NewTracer` per checker of the pool: the checker's events carry
     // its index and its types file is written when the state ends.
     if let (Some(index), Some(tracing)) = (
@@ -3828,7 +3763,7 @@ fn syntactic_rows_of_sources<'s>(
                 // tsgo GetSyntacticDiagnostics (compiler/program.go:743-754):
                 // the option-dependent rows of a JavaScript file the checker
                 // does not check (IsCheckJSEnabledForFile).
-                let check_js = match check_directive(source.text()) {
+                let check_js = match source.check_directive() {
                     Some(directive) => directive == CheckDirective::Check,
                     None => options.check_js == Some(true),
                 };
@@ -4369,6 +4304,7 @@ fn run_checker_shard<'a>(
         Some((provider, metadata)),
         host,
         Some(shard_index),
+        queue.measures_costs(),
     );
     reserve_type_tables(&mut state, reserved_nodes);
     // W2c: every type created from here on is shard-local. In the exact mode
@@ -5063,6 +4999,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
                 Some((&*provider, metadata.as_slice())),
                 host.clone(),
                 None,
+                false,
             );
             reserve_type_tables(&mut state, 0);
             let facts = incremental::planner_facts(&mut state, &program_diagnostics);
@@ -5655,7 +5592,7 @@ fn check_snapshot_serially(
     planner: Option<&mut IncrementalPlanner<'_>>,
 ) -> CheckExecution {
     let init_started = std::time::Instant::now();
-    let mut state = init_checker_state(snapshot, options, authoritative, host, Some(0));
+    let mut state = init_checker_state(snapshot, options, authoritative, host, Some(0), false);
     reserve_type_tables(&mut state, snapshot_node_count(snapshot));
     let global_diagnostics = if collect_global_diagnostics {
         let mut rows = state.visible_global_diagnostics.clone();
@@ -6148,6 +6085,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 }),
             host,
             Some(0),
+            false,
         );
         reserve_type_tables(&mut state, snapshot_node_count(&snapshot));
         work_counters.record_checker_shards(1, 1);
@@ -6689,7 +6627,7 @@ fn bind_and_check_rows(
     options: &CompilerOptions,
 ) -> DiagnosticList {
     let javascript_file = source.is_source_file_js();
-    let directive = check_directive(source.text());
+    let directive = source.check_directive();
     let plain_js = is_plain_js_file(javascript_file, directive, options);
 
     // getBindAndCheckDiagnosticsForFileNoCache:

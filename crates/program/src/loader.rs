@@ -2577,7 +2577,7 @@ impl ParallelReadAhead<'_> {
 /// built an owned key and hashed the directory's text twice for every
 /// import.)
 struct DirectoryResolutions<V = Arc<PreparedModule>> {
-    by_specifier: Mutex<FxHashMap<JsString, [Option<V>; 3]>>,
+    by_specifier: Mutex<SpecifierResolutions<V>>,
 }
 
 impl<V> Default for DirectoryResolutions<V> {
@@ -2588,14 +2588,18 @@ impl<V> Default for DirectoryResolutions<V> {
     }
 }
 
-impl<V: Clone> DirectoryResolutions<V> {
-    /// The modes in the order of their places.
-    const MODES: [ResolutionMode; 3] = [
-        ResolutionMode::CommonJs,
-        ResolutionMode::EsNext,
-        ResolutionMode::Unspecified,
-    ];
+/// One directory's mode slots. Workers lock this table until hand-off;
+/// the loader then owns it and reads the same slots directly.
+#[derive(Clone)]
+struct SpecifierResolutions<V>(FxHashMap<JsString, [Option<V>; 3]>);
 
+impl<V> Default for SpecifierResolutions<V> {
+    fn default() -> Self {
+        Self(FxHashMap::default())
+    }
+}
+
+impl<V> SpecifierResolutions<V> {
     fn place(mode: ResolutionMode) -> usize {
         match mode {
             ResolutionMode::CommonJs => 0,
@@ -2604,72 +2608,75 @@ impl<V: Clone> DirectoryResolutions<V> {
         }
     }
 
+    fn get(&self, specifier: JsStr<'_>, mode: ResolutionMode) -> Option<&V> {
+        self.0.get(specifier.as_bytes())?[Self::place(mode)].as_ref()
+    }
+
+    fn insert(&mut self, specifier: JsStr<'_>, mode: ResolutionMode, facts: V) {
+        if let Some(slots) = self.0.get_mut(specifier.as_bytes()) {
+            slots[Self::place(mode)] = Some(facts);
+        } else {
+            self.insert_owned(specifier.to_owned(), mode, facts);
+        }
+    }
+
+    fn insert_owned(&mut self, specifier: JsString, mode: ResolutionMode, facts: V) {
+        self.0.entry(specifier).or_default()[Self::place(mode)] = Some(facts);
+    }
+
+    /// Incoming facts replace only the slots the workers filled.
+    fn merge(&mut self, incoming: Self) {
+        #[allow(clippy::iter_over_hash_type)]
+        for (specifier, modes) in incoming.0 {
+            let slots = self.0.entry(specifier).or_default();
+            for (slot, value) in slots.iter_mut().zip(modes) {
+                if value.is_some() {
+                    *slot = value;
+                }
+            }
+        }
+    }
+}
+
+impl<V: Clone> DirectoryResolutions<V> {
     fn get(&self, specifier: JsStr<'_>, mode: ResolutionMode) -> Option<V> {
         self.by_specifier
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .get(specifier.as_bytes())
-            .and_then(|modes| modes[Self::place(mode)].clone())
+            .get(specifier, mode)
+            .cloned()
     }
 
     fn insert(&self, specifier: JsStr<'_>, mode: ResolutionMode, facts: V) {
-        let mut by_specifier = self
-            .by_specifier
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        match by_specifier.get_mut(specifier.as_bytes()) {
-            Some(modes) => modes[Self::place(mode)] = Some(facts),
-            None => {
-                let mut modes = [None, None, None];
-                modes[Self::place(mode)] = Some(facts);
-                by_specifier.insert(specifier.to_owned(), modes);
-            }
-        }
-    }
-
-    fn copy(&self) -> FxHashMap<JsString, [Option<V>; 3]> {
         self.by_specifier
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone()
+            .insert(specifier, mode, facts);
     }
 
-    /// Files the directory's resolutions under the walk's key (directory,
-    /// specifier, mode), when the workers have ended. The walk keeps them
-    /// in a map of its own: the order they are taken in is never observed.
     fn append_to(
         table: Arc<Self>,
         directory: &LexicalPath,
-        target: &mut FxHashMap<(LexicalPath, JsString, ResolutionMode), V>,
+        target: &mut FxHashMap<LexicalPath, SpecifierResolutions<V>>,
     ) {
-        let by_specifier = match Arc::try_unwrap(table) {
+        let incoming = match Arc::try_unwrap(table) {
             Ok(table) => table
                 .by_specifier
                 .into_inner()
                 .unwrap_or_else(std::sync::PoisonError::into_inner),
-            // A worker's handle that outlived the read-ahead: its table is
-            // copied, not taken.
-            Err(table) => table.copy(),
+            Err(table) => table
+                .by_specifier
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone(),
         };
-        target.reserve(by_specifier.len());
-        #[allow(clippy::iter_over_hash_type)]
-        for (specifier, modes) in by_specifier {
-            let mut left = modes.iter().flatten().count();
-            let mut specifier = Some(specifier);
-            for (mode, facts) in Self::MODES.into_iter().zip(modes) {
-                let Some(facts) = facts else {
-                    continue;
-                };
-                left -= 1;
-                // The specifier goes to its last resolution; one of the
-                // same specifier in another mode gets a copy.
-                let specifier = if left == 0 {
-                    specifier.take()
-                } else {
-                    specifier.clone()
-                }
-                .expect("the specifier of a resolution");
-                target.insert((directory.clone(), specifier, mode), facts);
+        if incoming.0.is_empty() {
+            return;
+        }
+        match target.get_mut(directory) {
+            Some(existing) => existing.merge(incoming),
+            None => {
+                target.insert(directory.clone(), incoming);
             }
         }
     }
@@ -3161,8 +3168,7 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// that directory selects), so every file of a directory shares it.
     /// Hashed, never iterated: an ordered map compared the directory strings
     /// of every lookup (VS Code: 112k lookups of 60-byte paths).
-    directory_resolutions:
-        rustc_hash::FxHashMap<(LexicalPath, JsString, ResolutionMode), Arc<PreparedModule>>,
+    directory_resolutions: FxHashMap<LexicalPath, SpecifierResolutions<Arc<PreparedModule>>>,
     directory_resolution_hits: usize,
     /// One resolution per (target of a path-relative request, mode), for the
     /// requests whose outcome is a function of that target
@@ -4095,18 +4101,20 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let mut planned: Vec<(ResolutionKey, bool, Result<Arc<PreparedModule>, usize>)> =
             Vec::with_capacity(requests.len());
         for (containing_file, key, loads_source) in requests {
-            let directory_key = (
-                self.resolver
-                    .lexical_paths()
-                    .directory(containing_file.as_js()),
-                key.specifier().to_owned(),
-                key.mode(),
-            );
-            if let Some(host) = self.directory_resolutions.get(&directory_key) {
+            let directory = self
+                .resolver
+                .lexical_paths()
+                .directory(containing_file.as_js());
+            if let Some(host) = self
+                .directory_resolutions
+                .get(&directory)
+                .and_then(|table| table.get(key.specifier(), key.mode()))
+            {
                 self.directory_resolution_hits += 1;
                 planned.push((key, loads_source, Ok(host.clone())));
                 continue;
             }
+            let directory_key = (directory, key.specifier().to_owned(), key.mode());
             let index = match by_directory.get(&directory_key) {
                 Some(&index) => {
                     self.directory_resolution_hits += 1;
@@ -4122,10 +4130,12 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             planned.push((key, loads_source, Err(index)));
         }
         let resolved = self.resolve_requests_ahead(unique);
-        for (directory_key, index) in by_directory {
+        for ((directory, specifier, mode), index) in by_directory {
             if let Some(host) = &resolved[index].2 {
                 self.directory_resolutions
-                    .insert(directory_key, host.clone());
+                    .entry(directory)
+                    .or_default()
+                    .insert_owned(specifier, mode, host.clone());
             }
         }
         planned
@@ -7237,6 +7247,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             if self.sources[source].module_requests.all_ready {
                 self.pre_resolved_hits += request_count;
             } else {
+                let mut containing_directory = None;
                 for request_index in 0..request_count {
                     if self.sources[source].module_requests.rows[request_index].ready {
                         self.pre_resolved_hits += 1;
@@ -7258,16 +7269,19 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                             host
                         }
                         None => {
-                            let directory_key = (
+                            let directory = containing_directory.get_or_insert_with(|| {
                                 self.resolver
                                     .lexical_paths()
-                                    .directory(containing_file.as_js()),
-                                key.specifier().to_owned(),
-                                key.mode(),
+                                    .directory(containing_file.as_js())
+                            });
+                            debug_assert_eq!(
+                                directory.as_js(),
+                                crate::js_path::directory_name(containing_file.as_js()).as_js()
                             );
                             match self
                                 .directory_resolutions
-                                .get(&directory_key)
+                                .get(directory)
+                                .and_then(|table| table.get(key.specifier(), key.mode()))
                                 .filter(|_| containing_project.is_none())
                             {
                                 Some(host) => {
@@ -7296,7 +7310,13 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                                     ));
                                     if containing_project.is_none() {
                                         self.directory_resolutions
-                                            .insert(directory_key, Arc::clone(&facts));
+                                            .entry(directory.clone())
+                                            .or_default()
+                                            .insert(
+                                                key.specifier(),
+                                                key.mode(),
+                                                Arc::clone(&facts),
+                                            );
                                     }
                                     PreparedModuleResolution::from_facts(facts)
                                 }
@@ -8183,13 +8203,25 @@ fn publish_program(
     let mut published_ids = vec![None; staged.sources.len()];
     let mut module_indices: Vec<Option<crate::resolution::PreparedModuleIndices>> =
         (0..staged.sources.len()).map(|_| None).collect();
-    // Hashed, never iterated: every module and type resolution looks its
-    // target up here (VS Code: 112k lookups of long path keys).
-    let mut source_by_canonical =
-        FxHashMap::<CanonicalPath, SourceFileId>::with_capacity_and_hasher(
+    // Project and package redirects can give the walk a different lookup
+    // from the builder. Only those publications need a second index.
+    let has_redirects = !staged.project_reference_redirects.is_empty()
+        || staged
+            .library_postorder
+            .iter()
+            .chain(&staged.ordinary_postorder)
+            .any(|&index| {
+                !staged.sources[index]
+                    .prepared
+                    .package_redirect_paths()
+                    .is_empty()
+            });
+    let mut redirect_index = has_redirects.then(|| {
+        FxHashMap::with_capacity_and_hasher(
             staged.library_postorder.len() + staged.ordinary_postorder.len(),
             Default::default(),
-        );
+        )
+    });
     let mut module_batches: Vec<Option<(CanonicalPath, Vec<StagedModuleResolution>)>> =
         (0..staged.sources.len()).map(|_| None).collect();
     let mut staged_sources: Vec<Option<StagedSource>> =
@@ -8221,22 +8253,24 @@ fn publish_program(
         module_batches[source_index] =
             Some((canonical.clone(), staged_source.module_requests.rows));
         published_ids[source_index] = Some(source_id);
-        source_by_canonical.insert(canonical, source_id);
-        for (redirected, output) in &staged.project_reference_redirects {
-            if *output == source_index {
-                source_by_canonical.insert(redirected.canonical().clone(), source_id);
+        if let Some(source_by_canonical) = &mut redirect_index {
+            source_by_canonical.insert(canonical, source_id);
+            for (redirected, output) in &staged.project_reference_redirects {
+                if *output == source_index {
+                    source_by_canonical.insert(redirected.canonical().clone(), source_id);
+                }
             }
-        }
-        for redirect in package_redirects {
-            if let Some(previous) =
-                source_by_canonical.insert(redirect.canonical().clone(), source_id)
-            {
-                if previous != source_id {
-                    return Err(ProgramLoadError::invalid_data_js(
-                        ProgramLoadOperation::BuildPreparedProgram,
-                        Some(redirect.display().to_owned()),
-                        "package redirect identity belongs to more than one staged source",
-                    ));
+            for redirect in package_redirects {
+                if let Some(previous) =
+                    source_by_canonical.insert(redirect.canonical().clone(), source_id)
+                {
+                    if previous != source_id {
+                        return Err(ProgramLoadError::invalid_data_js(
+                            ProgramLoadOperation::BuildPreparedProgram,
+                            Some(redirect.display().to_owned()),
+                            "package redirect identity belongs to more than one staged source",
+                        ));
+                    }
                 }
             }
         }
@@ -8299,20 +8333,26 @@ fn publish_program(
                 ))
             }),
     );
-    let redirected_source = |path: &CanonicalPath| -> Option<SourceFileId> {
-        let references = project_references.as_ref()?;
-        let redirected = if reads_reference_sources {
-            references.source_for_output(path)?.source().to_owned()
-        } else {
-            references.output_for_source(path)?.output_dts()?.to_owned()
+    let published_source =
+        |builder: &crate::PreparedProgramBuilder, path: &CanonicalPath| match &redirect_index {
+            Some(index) => index.get(path).copied(),
+            None => builder.published_source_id(path),
         };
-        let redirected = crate::module_resolution::make_program_path(
-            redirected.as_js(),
-            case_sensitive_file_names,
-        )
-        .ok()?;
-        source_by_canonical.get(redirected.canonical()).copied()
-    };
+    let redirected_source =
+        |builder: &crate::PreparedProgramBuilder, path: &CanonicalPath| -> Option<SourceFileId> {
+            let references = project_references.as_ref()?;
+            let redirected = if reads_reference_sources {
+                references.source_for_output(path)?.source().to_owned()
+            } else {
+                references.output_for_source(path)?.output_dts()?.to_owned()
+            };
+            let redirected = crate::module_resolution::make_program_path(
+                redirected.as_js(),
+                case_sensitive_file_names,
+            )
+            .ok()?;
+            published_source(builder, redirected.canonical())
+        };
     timer.mark("load: publish package map");
     let row_count = module_batches
         .iter()
@@ -8362,10 +8402,9 @@ fn publish_program(
                 }
             }
             .or_else(|| {
-                resolution
-                    .host
-                    .resolved()
-                    .and_then(|module| redirected_source(module.resolved_file().canonical()))
+                resolution.host.resolved().and_then(|module| {
+                    redirected_source(&builder, module.resolved_file().canonical())
+                })
             });
             let binding = crate::resolution::ModuleBinding {
                 source,
@@ -8423,7 +8462,7 @@ fn publish_program(
                 }
             }
             .or_else(|| match resolution.host.resolved() {
-                Some(module) => redirected_source(module.resolved_file().canonical()),
+                Some(module) => redirected_source(&builder, module.resolved_file().canonical()),
                 None => None,
             });
             let exact_path = matches!(resolution.target, StagedModuleTarget::Source(_, true));
@@ -8506,21 +8545,23 @@ fn publish_program(
     }
     timer.mark("load: publish module resolutions");
     for resolution in staged.type_resolutions {
-        let bound = bind_type_resolution(resolution.host, &source_by_canonical, &redirected_source)
-            .map_err(|error| {
-                ProgramLoadError::resolution_js(
-                    ProgramLoadOperation::BindResolutions,
-                    Some(crate::loader_counters::js_owned(
-                        "bind.error",
-                        resolution.key.origin().canonical_path().as_js(),
-                    )),
-                    Some(crate::loader_counters::js_owned(
-                        "bind.error",
-                        resolution.key.specifier(),
-                    )),
-                    error,
-                )
-            })?;
+        let bound = bind_type_resolution(resolution.host, |path| {
+            published_source(&builder, path).or_else(|| redirected_source(&builder, path))
+        })
+        .map_err(|error| {
+            ProgramLoadError::resolution_js(
+                ProgramLoadOperation::BindResolutions,
+                Some(crate::loader_counters::js_owned(
+                    "bind.error",
+                    resolution.key.origin().canonical_path().as_js(),
+                )),
+                Some(crate::loader_counters::js_owned(
+                    "bind.error",
+                    resolution.key.specifier(),
+                )),
+                error,
+            )
+        })?;
         let bound = bound.with_diagnostics(resolution.diagnostics);
         builder
             .add_type_reference_resolution(resolution.key, Ok(bound))
@@ -8611,17 +8652,12 @@ fn bind_module_resolution(
 
 fn bind_type_resolution(
     host: ResolutionOutcome<HostResolvedTypeReferenceDirective>,
-    source_by_canonical: &FxHashMap<CanonicalPath, SourceFileId>,
-    redirected_source: &dyn Fn(&CanonicalPath) -> Option<SourceFileId>,
+    source_for_path: impl FnOnce(&CanonicalPath) -> Option<SourceFileId>,
 ) -> Result<TypeReferenceResolution, ResolutionError> {
     let ResolutionOutcome::Resolved(host) = host else {
         return Ok(TypeReferenceResolution::not_found());
     };
-    let Some(source) = source_by_canonical
-        .get(host.resolved_file().canonical())
-        .copied()
-        .or_else(|| redirected_source(host.resolved_file().canonical()))
-    else {
+    let Some(source) = source_for_path(host.resolved_file().canonical()) else {
         return Err(ResolutionError::invalid_data(format!(
             "resolved type-reference target {} is not owned by the prepared program",
             host.resolved_file().display().to_string_lossy()

@@ -2101,7 +2101,7 @@ impl<'a> CheckerState<'a> {
                         let source = self.binder.source_of_node(class);
                         crate::is_plain_js_file(
                             source.is_source_file_js(),
-                            crate::check_directive(source.text()),
+                            source.check_directive(),
                             self.options,
                         )
                     });
@@ -2235,7 +2235,7 @@ impl<'a> CheckerState<'a> {
                     || !self.is_generic_object_type_state(left_type)?
                     || self.is_this_type_parameter(left_type));
             let index_info = if use_index_info {
-                self.get_applicable_index_info_for_name_info(apparent_type, right_text)?
+                self.get_applicable_index_info_for_name_info(apparent_type, right_name)?
             } else {
                 None
             };

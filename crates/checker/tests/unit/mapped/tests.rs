@@ -411,3 +411,132 @@ fn recursively_expanding_union_defers_generic_mapped_indexed_access() {
         },
     );
 }
+
+#[test]
+fn mapped_keys_preserve_modifier_sources_and_dotted_index_names() {
+    let text = "declare const sym: unique symbol;
+        interface Source { readonly __x: string; 3: boolean; readonly [sym]: number }
+        declare let source: Source;
+        declare let copied: { [K in keyof Source]: Source[K] };
+        declare let renamed: { [K in keyof Source as K extends '__x' ? 'out' : K]: Source[K] };
+        declare let dict: { [s: string]: number };
+        let n: number = dict.__x;";
+    with_program_state(
+        &[("a.ts", text)],
+        &CompilerOptions {
+            no_property_access_from_index_signature: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            let source = annotation_type(state, "source");
+            let copied = annotation_type(state, "copied");
+            let renamed = annotation_type(state, "renamed");
+            let keys = state.get_properties_of_type_full(source).unwrap();
+            assert_eq!(keys.len(), 3);
+            for original in keys {
+                let key = state.binder.symbol(original).escaped_name;
+                let renamed_key = if key == "___x" {
+                    tsc_types::known_name!("out")
+                } else {
+                    key
+                };
+                for (ty, output) in [(copied, key), (renamed, renamed_key)] {
+                    let prop = state
+                        .get_property_of_type_full(ty, output)
+                        .unwrap()
+                        .unwrap();
+                    assert_eq!(state.binder.symbol(prop).escaped_name, output);
+                    assert_eq!(
+                        state.is_readonly_symbol(prop),
+                        state.is_readonly_symbol(original)
+                    );
+                    assert_eq!(
+                        state.get_type_of_symbol(prop),
+                        state.get_type_of_symbol(original)
+                    );
+                }
+            }
+            assert!(state
+                .get_property_of_object_type(renamed, "out")
+                .unwrap()
+                .is_some());
+            state.check_source_file(0);
+            let diagnostics: Vec<_> = state
+                .diagnostics
+                .iter()
+                .filter(|diag| diag.file_name.is_some())
+                .map(|diag| {
+                    (
+                        diag.code(),
+                        diag.start,
+                        diag.length,
+                        diag.message_text().as_str().unwrap(),
+                    )
+                })
+                .collect();
+            assert_eq!(diagnostics, [(4111, Some(text.rfind("__x").unwrap() as u32), Some(3), "Property '__x' comes from an index signature, so it must be accessed with ['__x'].")]);
+        },
+    );
+}
+
+#[test]
+fn fresh_mapped_parts_publish_independently_across_speculation() {
+    with_program_state(
+        &[("a.ts", "declare let m: { [K in 'k']: K };")],
+        &CompilerOptions::default(),
+        |state| {
+            let source = annotation_type(state, "m");
+            let decl = state.mapped_type_data(source).declaration;
+            let mapped = state.tables.create_mapped_type(decl, None, None, None);
+            assert_eq!(state.get_mapped_type_parts(mapped), [None; 4]);
+            assert_eq!(
+                state.links.type_cold().mapped(mapped).modifiers.resolved(),
+                None
+            );
+            let p = state.get_type_parameter_from_mapped_type(source).unwrap();
+            state.links.set_fresh_mapped_type_parameter(mapped, p);
+            assert_eq!(
+                state.get_mapped_type_parts(mapped),
+                [Some(p), None, None, None]
+            );
+            let mark = state.begin_speculation();
+            let k = state.get_constraint_type_from_mapped_type(mapped).unwrap();
+            let value = state.get_template_type_from_mapped_type(mapped).unwrap();
+            let modifiers = state.get_modifiers_type_from_mapped_type(mapped).unwrap();
+            state.rollback_speculation(mark);
+            assert_eq!(
+                state.get_mapped_type_parts(mapped),
+                [Some(p), Some(k), None, Some(value)]
+            );
+            assert_eq!(
+                state.get_modifiers_type_from_mapped_type(mapped).unwrap(),
+                modifiers
+            );
+            assert_eq!(
+                state.get_constraint_type_from_mapped_type(mapped).unwrap(),
+                k
+            );
+        },
+    );
+}
+
+#[test]
+fn generic_mapped_predicate_repeats_only_the_required_instantiation() {
+    let source = "function f<T extends string>() {\n\
+                  let o: {}; let c: { [K in T]: number };\n\
+                  let n: { [K in 'k' as T]: number };\n\
+                  }";
+    with_program_state(&[("a.ts", source)], &CompilerOptions::default(), |state| {
+        let ordinary = annotation_type(state, "o");
+        let constraint = annotation_type(state, "c");
+        let name = annotation_type(state, "n");
+        let before = state.total_instantiation_count;
+        for completed in 0..2 {
+            assert!(!state.is_generic_mapped_type_state(ordinary).unwrap());
+            assert!(state.is_generic_mapped_type_state(constraint).unwrap());
+            assert_eq!(state.total_instantiation_count - before, completed);
+            assert!(state.is_generic_mapped_type_state(name).unwrap());
+            assert_eq!(state.total_instantiation_count - before, completed + 1);
+        }
+    });
+}

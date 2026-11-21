@@ -189,3 +189,75 @@ fn unsummarized_nullable_union_uses_the_indexed_facts_walk() {
         });
     }
 }
+
+#[test]
+fn filter_callbacks_preserve_member_order_origins_and_created_types() {
+    use crate::state::CheckerState;
+    use tsc_types::{TypeData, TypeId};
+
+    for pass in [0_u8, 1, 3, 6, 7] {
+        for replace in [false, true] {
+            let run = |optimized| {
+                with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+                    let members = [1., 2., 3.].map(|n| state.tables.get_number_literal_type(n));
+                    let nested = state
+                        .tables
+                        .create_origin_union_or_intersection_type(TypeFlags::UNION, &members[..2]);
+                    let origin = state.tables.create_origin_union_or_intersection_type(
+                        TypeFlags::UNION,
+                        [nested, members[2]],
+                    );
+                    let union = state.tables.get_union_type_from_sorted_list(
+                        members,
+                        ObjectFlags::NONE,
+                        None,
+                        None,
+                        Some(origin),
+                    );
+                    let mut calls = Vec::new();
+                    let mut predicate = |state: &mut CheckerState<'_>, member: TypeId| {
+                        let index = calls.len();
+                        let created = state.tables.get_number_literal_type(50. + index as f64);
+                        let list = state.tables.intern_type_list(&[created, member]);
+                        calls.push((member, created, list));
+                        if replace && index == 0 {
+                            let replacement = state.tables.intern_type_list(&[members[0], created]);
+                            let TypeData::Union { types, .. } =
+                                &mut state.tables.type_mut(union).data
+                            else {
+                                unreachable!()
+                            };
+                            *types = replacement;
+                        }
+                        Ok(pass & (1 << index) != 0)
+                    };
+                    let result = if optimized {
+                        state.filter_type_with(union, &mut predicate).unwrap()
+                    } else {
+                        let mut keep = rustc_hash::FxHashSet::default();
+                        for member in members {
+                            if predicate(state, member).unwrap() {
+                                keep.insert(member);
+                            }
+                        }
+                        state
+                            .tables
+                            .filter_type(union, |_, member| keep.contains(&member))
+                    };
+                    let origin = match state.tables.type_of(result).data {
+                        TypeData::Union { origin, .. } => origin,
+                        _ => None,
+                    };
+                    (
+                        calls,
+                        result,
+                        origin,
+                        state.tables.len(),
+                        state.tables.get_number_literal_type(99.),
+                    )
+                })
+            };
+            assert_eq!(run(true), run(false));
+        }
+    }
+}

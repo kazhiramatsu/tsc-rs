@@ -290,7 +290,10 @@ impl<'a> CheckerState<'a> {
         if !members.call_signatures().is_empty() || !members.construct_signatures().is_empty() {
             return Ok(true);
         }
-        let has_bind = match self.deferred_reference_property(ty, tsc_types::known_name!("bind"))? {
+        let has_bind = match self.deferred_reference_property(
+            ty,
+            crate::member_table::HashedName::new(tsc_types::known_name!("bind")),
+        )? {
             Some(symbol) => symbol.is_some(),
             None => {
                 let members = self.resolve_structured_type_members(ty)?;
@@ -527,15 +530,32 @@ impl<'a> CheckerState<'a> {
         mut predicate: impl FnMut(&mut Self, TypeId) -> CheckResult<bool>,
     ) -> CheckResult<TypeId> {
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
-            let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
-                _ => unreachable!("union flag implies union data"),
+            let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
+                unreachable!("union flag implies union data");
             };
-            // The predicate runs in list order; this set is only queried
-            // with `contains` when reconstructing that same ordered list.
+            let mut cursor = self.tables.cursor(types);
+            let length = cursor.len();
+            let accepted = loop {
+                match cursor.next(&self.tables) {
+                    Some(member) if !predicate(self, member)? => break length - cursor.len() - 1,
+                    Some(_) => {}
+                    None => {
+                        let current = self.tables.type_of(ty);
+                        if current.flags.intersects(TypeFlags::UNION)
+                            && matches!(current.data, TypeData::Union { types: list, .. } if list == types)
+                        {
+                            return Ok(ty);
+                        }
+                        break length;
+                    }
+                }
+            };
+            // The immutable list still holds the accepted prefix even when a
+            // predicate grows the store or replaces the union's member list.
             let mut keep =
-                rustc_hash::FxHashSet::with_capacity_and_hasher(members.len(), Default::default());
-            for member in members {
+                rustc_hash::FxHashSet::with_capacity_and_hasher(length, Default::default());
+            keep.extend(self.tables.list(types)[..accepted].iter().copied());
+            while let Some(member) = cursor.next(&self.tables) {
                 if predicate(self, member)? {
                     keep.insert(member);
                 }

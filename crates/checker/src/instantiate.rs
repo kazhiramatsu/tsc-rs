@@ -498,11 +498,18 @@ impl<'a> CheckerState<'a> {
                     None => self.tables.intrinsics.any,
                 })
             }
+            TypeMapper::Composite { mapper1, mapper2 } => {
+                self.apply_composite_mapper(ty, mapper1, mapper2)
+            }
+            TypeMapper::Merged { mapper1, mapper2 } => {
+                let t1 = self.map_type_with_mapper(ty, mapper1)?;
+                self.map_type_with_mapper(t1, mapper2)
+            }
             mapper => self.map_type_with_non_leaf_mapper(ty, mapper),
         }
     }
 
-    /// Keep the state needed by recursive and deferred applications off the leaf path.
+    /// Keep the deferred and function mapper bodies off the common dispatch path.
     #[inline(never)]
     fn map_type_with_non_leaf_mapper(
         &mut self,
@@ -510,8 +517,11 @@ impl<'a> CheckerState<'a> {
         mapper: TypeMapper,
     ) -> CheckResult<TypeId> {
         match mapper {
-            TypeMapper::Simple { .. } | TypeMapper::Array { .. } => {
-                unreachable!("leaf mapper handled at entry")
+            TypeMapper::Simple { .. }
+            | TypeMapper::Array { .. }
+            | TypeMapper::Merged { .. }
+            | TypeMapper::Composite { .. } => {
+                unreachable!("mapper handled at entry")
             }
             // 63341-63350: linear source scan, thunk on match,
             // identity otherwise. The scan reads the mapper pair's
@@ -583,13 +593,6 @@ impl<'a> CheckerState<'a> {
                 } else {
                     Ok(ty)
                 }
-            }
-            TypeMapper::Composite { mapper1, mapper2 } => {
-                self.apply_composite_mapper(ty, mapper1, mapper2)
-            }
-            TypeMapper::Merged { mapper1, mapper2 } => {
-                let t1 = self.map_type_with_mapper(ty, mapper1)?;
-                self.map_type_with_mapper(t1, mapper2)
             }
         }
     }
@@ -839,20 +842,27 @@ impl<'a> CheckerState<'a> {
                 fresh_type_parameters = Some(fresh);
             }
         }
-        let this_parameter =
-            source_this_parameter.map(|this| self.instantiate_symbol(this, mapper));
+        let has_symbols =
+            source_this_parameter.is_some() || !self.signature_of(signature).parameters.is_empty();
+        let maps_this_only = has_symbols && self.maps_this_only(mapper);
+        let this_parameter = source_this_parameter
+            .map(|this| self.instantiate_symbol_in_batch(this, mapper, maps_this_only));
         let parameters: Box<[SymbolId]> = match *self.signature_of(signature).parameters {
-            [one] => Box::new([self.instantiate_symbol(one, mapper)]),
+            [one] => Box::new([self.instantiate_symbol_in_batch(one, mapper, maps_this_only)]),
             [first, second] => Box::new([
-                self.instantiate_symbol(first, mapper),
-                self.instantiate_symbol(second, mapper),
+                self.instantiate_symbol_in_batch(first, mapper, maps_this_only),
+                self.instantiate_symbol_in_batch(second, mapper, maps_this_only),
             ]),
             ref longer => {
                 let count = longer.len();
                 let mut parameters = Vec::with_capacity(count);
                 for index in 0..count {
                     let parameter = self.signature_of(signature).parameters[index];
-                    parameters.push(self.instantiate_symbol(parameter, mapper));
+                    parameters.push(self.instantiate_symbol_in_batch(
+                        parameter,
+                        mapper,
+                        maps_this_only,
+                    ));
                 }
                 parameters.into_boxed_slice()
             }
@@ -881,7 +891,16 @@ impl<'a> CheckerState<'a> {
     /// signatures' parameters, as `I<this>` instantiates them), as is a
     /// symbol whose resolved type cannot contain type variables.
     pub fn instantiate_symbol(&mut self, symbol: SymbolId, mapper: MapperId) -> SymbolId {
-        if self.symbol_unaffected_by_instantiation(symbol, mapper) {
+        self.instantiate_symbol_in_batch(symbol, mapper, self.maps_this_only(mapper))
+    }
+
+    pub(crate) fn instantiate_symbol_in_batch(
+        &mut self,
+        symbol: SymbolId,
+        mapper: MapperId,
+        maps_this_only: bool,
+    ) -> SymbolId {
+        if self.symbol_unaffected_by_instantiation(symbol, mapper, maps_this_only) {
             return symbol;
         }
         self.new_instantiated_symbol(symbol, mapper)
@@ -891,8 +910,10 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         mapper: MapperId,
+        maps_this_only: bool,
     ) -> bool {
-        if self.maps_this_only(mapper) && self.is_thisless(symbol) {
+        debug_assert_eq!(maps_this_only, self.maps_this_only(mapper));
+        if maps_this_only && self.is_thisless(symbol) {
             return true;
         }
         let links = self.links.symbol(symbol);
@@ -949,8 +970,6 @@ impl<'a> CheckerState<'a> {
             );
         let name_type = self.links.symbol(symbol).name_type;
         let result = self.binder.create_symbol(source_flags, escaped_name);
-        self.links
-            .set_symbol_check_flags(self.speculation_depth, result, check_flags);
         {
             let transient = self.binder.symbol_mut(result);
             transient.set_declarations(declarations);
@@ -964,6 +983,7 @@ impl<'a> CheckerState<'a> {
             symbol,
             mapper,
             name_type,
+            check_flags,
         );
         result
     }
@@ -1166,13 +1186,16 @@ impl<'a> CheckerState<'a> {
                             return Ok(existing);
                         }
                     }
-                    let id_key = state.tables.instantiation_key(
+                    let (id_key, existing) = state.tables.lookup_instantiation(
+                        target,
                         type_arguments,
                         new_alias_symbol,
                         new_alias_type_arguments,
                         single_signature,
                     );
-                    if let Some(existing) = state.tables.instantiation_get(target, id_key) {
+                    perf::bump(PerfCounter::InstantiationLookups);
+                    if let Some(existing) = existing {
+                        perf::bump(PerfCounter::InstantiationHits);
                         if plain_key {
                             state
                                 .tables
@@ -1522,8 +1545,11 @@ impl<'a> CheckerState<'a> {
             "anonymous type must have symbol to be instantiated"
         );
         let source_symbol = source.symbol;
-        let source_alias_symbol = self.tables.alias_symbol(ty);
-        let source_alias_type_arguments = self.tables.alias_type_argument_list(ty);
+        let source_alias = if alias_symbol.is_none() {
+            self.tables.alias(ty)
+        } else {
+            None
+        };
         let source_object_flags = self.tables.object_flags_of(ty);
         let result = if source_object_flags.intersects(ObjectFlags::MAPPED) {
             let type_parameter = self.get_type_parameter_from_mapped_type(ty)?;
@@ -1571,9 +1597,9 @@ impl<'a> CheckerState<'a> {
                 .expect("InstantiationExpressionType types stamp their node at creation");
             self.set_fresh_type_deferred_reference_links(result, node, None);
         }
-        let new_alias_symbol = alias_symbol.or(source_alias_symbol);
+        let new_alias_symbol = alias_symbol.or_else(|| source_alias.and_then(|alias| alias.symbol));
         self.with_instantiated_alias_arguments(
-            source_alias_type_arguments,
+            source_alias.and_then(|alias| alias.type_arguments),
             mapper,
             alias_symbol,
             alias_type_arguments,
@@ -1906,7 +1932,7 @@ impl<'a> CheckerState<'a> {
         mapper: Option<MapperId>,
     ) -> CheckResult<TypeId> {
         match mapper {
-            Some(mapper) => self.instantiate_type_with_alias(ty, mapper, None, None),
+            Some(mapper) => self.instantiate_type_with_alias(ty, mapper, None, None, None),
             None => Ok(ty),
         }
     }
@@ -1921,6 +1947,7 @@ impl<'a> CheckerState<'a> {
         mapper: MapperId,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
+        known_alias_arguments: Option<tsc_types::TypeListId>,
     ) -> CheckResult<TypeId> {
         let header = self.tables.type_of(ty);
         if header
@@ -1936,6 +1963,7 @@ impl<'a> CheckerState<'a> {
                     mapper,
                     alias_symbol,
                     alias_type_arguments,
+                    known_alias_arguments,
                 );
             }
         } else if header
@@ -1947,12 +1975,19 @@ impl<'a> CheckerState<'a> {
                 mapper,
                 alias_symbol,
                 alias_type_arguments,
+                known_alias_arguments,
             );
         }
         if header.alias.is_none() {
             return Ok(ty);
         }
-        self.check_instantiation_eligibility(ty, mapper, alias_symbol, alias_type_arguments)
+        self.check_instantiation_eligibility(
+            ty,
+            mapper,
+            alias_symbol,
+            alias_type_arguments,
+            known_alias_arguments,
+        )
     }
 
     /// Resolve containment in its usual order when the header alone cannot decide.
@@ -1963,6 +1998,7 @@ impl<'a> CheckerState<'a> {
         mapper: MapperId,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
+        known_alias_arguments: Option<tsc_types::TypeListId>,
     ) -> CheckResult<TypeId> {
         // tsgo (checker.go:22494-22500) also instantiates a type whose alias
         // type arguments could contain type variables, so `type Brand<T> =
@@ -1974,7 +2010,13 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(ty);
         }
-        self.instantiate_eligible_type(ty, mapper, alias_symbol, alias_type_arguments)
+        self.instantiate_eligible_type(
+            ty,
+            mapper,
+            alias_symbol,
+            alias_type_arguments,
+            known_alias_arguments,
+        )
     }
 
     /// Enter the counted instantiation only after checking the recursion limits.
@@ -1985,6 +2027,7 @@ impl<'a> CheckerState<'a> {
         mapper: MapperId,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
+        known_alias_arguments: Option<tsc_types::TypeListId>,
     ) -> CheckResult<TypeId> {
         if self.instantiation_stack.len() == 100 || self.instantiation_count >= 5_000_000 {
             return self.report_instantiation_limit(ty);
@@ -1993,9 +2036,16 @@ impl<'a> CheckerState<'a> {
         if index.is_none() {
             self.push_active_mapper(mapper);
         }
-        let alias_arguments = alias_symbol
-            .and(alias_type_arguments)
-            .map(|arguments| self.tables.intern_type_list(arguments));
+        let alias_arguments =
+            alias_symbol
+                .and(alias_type_arguments)
+                .map(|arguments| match known_alias_arguments {
+                    Some(id) => {
+                        debug_assert_eq!(self.tables.list(id), arguments);
+                        id
+                    }
+                    None => self.tables.intern_type_list(arguments),
+                });
         perf::bump(PerfCounter::MapperCacheLookups);
         // A new scope owns a cleared map. Only recursive visits can find
         // or publish an answer, but both visits intern their alias list above.

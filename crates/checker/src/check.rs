@@ -61,11 +61,8 @@ struct UnwindSnapshot {
     resolution_results: usize,
     resolution_property_names: usize,
     resolution_start: usize,
-    contextual_type_nodes: usize,
     contextual_types: usize,
-    contextual_is_cache: usize,
     contextual_binding_patterns: usize,
-    inference_context_nodes: usize,
     inference_contexts: usize,
     awaited_type_stack: usize,
     active_type_mappers: usize,
@@ -106,11 +103,8 @@ impl<'a> CheckerState<'a> {
             resolution_results: self.resolution_results.len(),
             resolution_property_names: self.resolution_property_names.len(),
             resolution_start: self.resolution_start,
-            contextual_type_nodes: self.contextual_type_nodes.len(),
             contextual_types: self.contextual_types.len(),
-            contextual_is_cache: self.contextual_is_cache.len(),
             contextual_binding_patterns: self.contextual_binding_patterns.len(),
-            inference_context_nodes: self.inference_context_nodes.len(),
             inference_contexts: self.inference_contexts.len(),
             awaited_type_stack: self.awaited_type_stack.len(),
             active_type_mappers: self.active_type_mappers.len(),
@@ -129,8 +123,8 @@ impl<'a> CheckerState<'a> {
             flow_loop_start: self.flow_loop_start,
             flow_loop_stack: self.flow_loop_stack.len(),
             shared_flow: self.shared_flow.checkpoint(),
-            reduce_label_overrides: self.reduce_label_overrides.len(),
-            exhaustive_switch_computing: self.exhaustive_switch_computing.len(),
+            reduce_label_overrides: self.reduce_label_overrides().len(),
+            exhaustive_switch_computing: self.exhaustive_switch_computing().len(),
             inline_level: self.inline_level,
             resolving_open: crate::links::debug_resolving_open(),
         }
@@ -334,11 +328,8 @@ impl<'a> CheckerState<'a> {
                 resolution_results: 0,
                 resolution_property_names: 0,
                 resolution_start: 0,
-                contextual_type_nodes: 0,
                 contextual_types: 0,
-                contextual_is_cache: 0,
                 contextual_binding_patterns: 0,
-                inference_context_nodes: 0,
                 inference_contexts: 0,
                 awaited_type_stack: 0,
                 active_type_mappers: 0,
@@ -671,17 +662,32 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4ae83b985bfc4d9c367541290d29b207ce34af46a4b465b0e36cae2056847f03
     /// tsc-span: _tsc.js:89010-89325
     /// d2: d2:984775a91d6ec0d2e27b820a9d34a31328ef5845e0fd5dd8a5e751f3040d2ca8
+    #[inline]
     pub(crate) fn check_grammar_modifiers(&mut self, node: NodeId) -> bool {
+        let written = node_util::modifiers_of(&Published, node);
+        if written.is_none()
+            && (!self.is_in_js_file(node) || self.reparsed_modifier_tags(node).is_empty())
+        {
+            return false;
+        }
+        self.check_grammar_modifier_list(node, written)
+    }
+
+    #[inline(never)]
+    fn check_grammar_modifier_list(&mut self, node: NodeId, written: Option<NodeArrayId>) -> bool {
         let node_kind = self.kind_of(node);
         let parent = self.parent_of(node);
         let parent_kind = parent.map(|parent| self.kind_of(parent));
-        if self.report_obvious_decorator_errors(node) == Some(true) {
-            return true;
+        let modifiers = self.nodes_of(written);
+        if written.is_some() {
+            if self.report_obvious_decorator_errors(node, &modifiers) == Some(true) {
+                return true;
+            }
+            if let Some(result) = self.report_obvious_modifier_errors(node, &modifiers, parent_kind)
+            {
+                return result;
+            }
         }
-        if let Some(result) = self.report_obvious_modifier_errors(node) {
-            return result;
-        }
-        let modifiers = self.nodes_of(node_util::modifiers_of(&Published, node));
         if node_kind == SyntaxKind::Parameter {
             let is_this = match self.record_of(node).as_parameter() {
                 Some(data) => data
@@ -740,24 +746,26 @@ impl<'a> CheckerState<'a> {
         // `@readonly`/`@private`/`@public`/`@protected`/`@override` tags to
         // the written ones, each spanning its tag (reparser.go:525-566); the
         // order rules do not apply to them.
-        let mut entries: Vec<(NodeId, SyntaxKind, bool)> = modifiers
-            .iter()
-            .map(|&modifier| (modifier, self.kind_of(modifier), false))
-            .collect();
-        if self.is_in_js_file(node) {
-            for &tag in self.reparsed_modifier_tags(node) {
-                let keyword = match self.kind_of(tag) {
-                    SyntaxKind::JSDocReadonlyTag => SyntaxKind::ReadonlyKeyword,
-                    SyntaxKind::JSDocPrivateTag => SyntaxKind::PrivateKeyword,
-                    SyntaxKind::JSDocPublicTag => SyntaxKind::PublicKeyword,
-                    SyntaxKind::JSDocProtectedTag => SyntaxKind::ProtectedKeyword,
-                    SyntaxKind::JSDocOverrideTag => SyntaxKind::OverrideKeyword,
-                    _ => continue,
-                };
-                entries.push((tag, keyword, true));
-            }
-        }
-        for (modifier, modifier_kind, reparsed) in entries {
+        let tags = if self.is_in_js_file(node) {
+            self.reparsed_modifier_tags(node)
+        } else {
+            &[]
+        };
+        let written = modifiers
+            .into_iter()
+            .map(|id| (id, Published.node(id).kind, false));
+        let hosted = tags.iter().filter_map(|&tag| {
+            let kind = match Published.node(tag).kind {
+                SyntaxKind::JSDocReadonlyTag => SyntaxKind::ReadonlyKeyword,
+                SyntaxKind::JSDocPrivateTag => SyntaxKind::PrivateKeyword,
+                SyntaxKind::JSDocPublicTag => SyntaxKind::PublicKeyword,
+                SyntaxKind::JSDocProtectedTag => SyntaxKind::ProtectedKeyword,
+                SyntaxKind::JSDocOverrideTag => SyntaxKind::OverrideKeyword,
+                _ => return None,
+            };
+            Some((tag, kind, true))
+        });
+        for (modifier, modifier_kind, reparsed) in written.chain(hosted) {
             if modifier_kind == SyntaxKind::Decorator {
                 let grandparent = parent.and_then(|parent| self.parent_of(parent));
                 if !self.node_can_be_decorated(
@@ -1605,16 +1613,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 1253f02e67c0d9dc5a5d8bc962446417abdabf9f6836e69e20ca13383781592e
     /// tsc-span: _tsc.js:89326-89330
     /// d2: d2:89d6695aecb00ac6fe50a0fd96b200447b88716016cdbe55f33ead8ee910e089
-    fn report_obvious_modifier_errors(&mut self, node: NodeId) -> Option<bool> {
-        let Some(modifiers) = node_util::modifiers_of(&Published, node) else {
-            // tsgo `node.Modifiers() == nil`: reparsed JavaScript modifiers
-            // count (they only occur where modifiers are legal).
-            if self.is_in_js_file(node) && !self.reparsed_modifier_tags(node).is_empty() {
-                return None;
-            }
-            return Some(false);
-        };
-        let modifiers = self.binder.node_array(modifiers).nodes;
+    fn report_obvious_modifier_errors(
+        &mut self,
+        node: NodeId,
+        modifiers: &[NodeId],
+        parent_kind: Option<SyntaxKind>,
+    ) -> Option<bool> {
         let first_modifier_except = |allowed: Option<SyntaxKind>| {
             modifiers
                 .iter()
@@ -1622,7 +1626,6 @@ impl<'a> CheckerState<'a> {
                 .find(|&modifier| self.kind_of(modifier) != SyntaxKind::Decorator)
                 .filter(|&modifier| Some(self.kind_of(modifier)) != allowed)
         };
-        let parent_kind = self.parent_of(node).map(|parent| self.kind_of(parent));
         let illegal = match self.kind_of(node) {
             SyntaxKind::GetAccessor
             | SyntaxKind::SetAccessor
@@ -1687,7 +1690,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 6d7dc7cfc009f9a1a3a358fcc89a00cb93c909d2d7862e95ac462d258192fc38
     /// tsc-span: _tsc.js:89384-89387
     /// d2: d2:55c15520a95ac1344d3d7821855541d5399e383a7f086017cba15c88381e54f9
-    fn report_obvious_decorator_errors(&mut self, node: NodeId) -> Option<bool> {
+    fn report_obvious_decorator_errors(
+        &mut self,
+        node: NodeId,
+        modifiers: &[NodeId],
+    ) -> Option<bool> {
         let can_have_illegal_decorators = matches!(
             self.kind_of(node),
             SyntaxKind::PropertyAssignment
@@ -1711,8 +1718,9 @@ impl<'a> CheckerState<'a> {
         if !can_have_illegal_decorators {
             return None;
         }
-        self.nodes_of(node_util::modifiers_of(&Published, node))
-            .into_iter()
+        modifiers
+            .iter()
+            .copied()
             .find(|&modifier| self.kind_of(modifier) == SyntaxKind::Decorator)
             .map(|decorator| {
                 self.grammar_error_on_first_token(
@@ -1809,7 +1817,10 @@ impl<'a> CheckerState<'a> {
         let save_within_unreachable_code = self.within_unreachable_code;
         self.current_node = Some(node);
         self.instantiation_count = 0;
-        let profiled = self.line_profile_enter(node);
+        let profiled = self.line_profile.enabled();
+        if profiled {
+            self.line_profile_enter(node);
+        }
         #[cfg(debug_assertions)]
         let unwind_entry = self.unwind_snapshot();
         // CheckAbort containment boundary: tsc has no failure channel
@@ -1851,18 +1862,18 @@ impl<'a> CheckerState<'a> {
         snapshot
     }
 
-    fn line_profile_enter(&mut self, node: NodeId) -> bool {
-        if !self.line_profile.enabled() {
-            return false;
-        }
+    #[cold]
+    #[inline(never)]
+    fn line_profile_enter(&mut self, node: NodeId) {
         let source = self.binder.source_of_node(node);
         let start =
             tsc_syntax::skip_trivia(source.text(), self.binder.node_record(node).pos as usize);
         let snapshot = self.line_profile_snapshot();
         self.line_profile.enter(source, start, snapshot);
-        true
     }
 
+    #[cold]
+    #[inline(never)]
     pub(crate) fn line_profile_exit(&mut self) {
         let snapshot = self.line_profile_snapshot();
         self.line_profile.exit(snapshot);
@@ -4120,7 +4131,10 @@ impl<'a> CheckerState<'a> {
         let save_current_node = self.current_node;
         self.current_node = Some(node);
         self.instantiation_count = 0;
-        let profiled = self.line_profile_enter(node);
+        let profiled = self.line_profile.enabled();
+        if profiled {
+            self.line_profile_enter(node);
+        }
         #[cfg(debug_assertions)]
         let unwind_entry = self.unwind_snapshot();
         if let Err(err) = self.check_deferred_node_worker(node) {
@@ -4712,34 +4726,20 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
-        let mut checker = crate::engine::RelationChecker {
-            st: self,
-            relation,
-            maybe_keys: Vec::new(),
-            maybe_keys_set: rustc_hash::FxHashSet::default(),
-            source_stack: Vec::new(),
-            target_stack: Vec::new(),
-            maybe_count: 0,
-            source_depth: 0,
-            target_depth: 0,
-            expanding_flags: tsc_types::ExpandingFlags::NONE,
-            overflow: false,
-            relation_count,
-            error_state: Default::default(),
-        };
-        Ok(
-            match checker.excess_properties_worker(
-                source,
-                target,
-                /*report_errors*/ true,
-                Some(error_node),
-            )? {
-                crate::engine::ExcessPropertyOutcome::UnknownProperty { diagnostic } => {
-                    diagnostic.map(|diagnostic| *diagnostic)
-                }
-                _ => None,
-            },
-        )
+        let mut checker = crate::engine::RelationChecker::new(self, relation, relation_count);
+        let outcome = checker.excess_properties_worker(
+            source,
+            target,
+            /*report_errors*/ true,
+            Some(error_node),
+        )?;
+        checker.recycle();
+        Ok(match outcome {
+            crate::engine::ExcessPropertyOutcome::UnknownProperty { diagnostic } => {
+                diagnostic.map(|diagnostic| *diagnostic)
+            }
+            _ => None,
+        })
     }
 
     /// tsc-port: reportUnmatchedProperty @6.0.3 (the head-override
@@ -5570,6 +5570,7 @@ impl<'a> CheckerState<'a> {
     /// symbols; a symbol left unstamped self-resolves (tsc
     /// `links.lateSymbol ||= symbol`) — the stamp-as-self write is
     /// elided (pure memo).
+    #[inline]
     pub fn get_late_bound_symbol(&mut self, symbol: SymbolId) -> CheckResult<SymbolId> {
         let data = self.binder.symbol(symbol);
         if !data.flags.intersects(tsc_types::SymbolFlags::CLASS_MEMBER)
@@ -5577,14 +5578,21 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(symbol);
         }
-        if self.links.symbol_cold().late_symbol.get(symbol).is_none()
-            && data
-                .declaration_list()
-                .iter()
-                .any(|&declaration| self.has_late_bindable_ast_name(declaration))
+        self.get_late_bound_symbol_worker(symbol)
+    }
+
+    #[inline(never)]
+    fn get_late_bound_symbol_worker(&mut self, symbol: SymbolId) -> CheckResult<SymbolId> {
+        if let Some(late) = *self.links.symbol_cold().late_symbol.get(symbol) {
+            return Ok(late);
+        }
+        let data = self.binder.symbol(symbol);
+        if data
+            .declaration_list()
+            .iter()
+            .any(|&declaration| self.has_late_bindable_ast_name(declaration))
         {
-            let parent = data.parent;
-            if let Some(parent) = parent {
+            if let Some(parent) = data.parent {
                 let parent = self.get_merged_symbol(parent);
                 let source = self.binder.symbol(symbol).declaration_list();
                 let is_static = source.iter().any(|&declaration| {

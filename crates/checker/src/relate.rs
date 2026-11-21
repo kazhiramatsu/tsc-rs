@@ -256,13 +256,42 @@ impl std::fmt::Display for RelationKey {
     }
 }
 
+/// The fields and punctuation of a generic key. Decimal spelling is needed
+/// only when this sequence first enters the checker's string interner.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum GenericKeyPart {
+    Number(u32),
+    Punctuation(char),
+    Intersection(i32),
+}
+
+impl GenericKeyPart {
+    fn spelling(parts: &[Self]) -> String {
+        let mut text = String::new();
+        for part in parts {
+            match *part {
+                Self::Number(id) => tsc_types::push_decimal(&mut text, id),
+                Self::Punctuation(ch) => text.push(ch),
+                Self::Intersection(state) => {
+                    text.push(':');
+                    if state < 0 {
+                        text.push('-');
+                    }
+                    tsc_types::push_decimal(&mut text, state.unsigned_abs());
+                }
+            }
+        }
+        text
+    }
+}
+
 /// The per-checker relation state: `[RelCache; 5]` plus the auxiliary
 /// enumRelation map (symbol-id-pair keyed, 64683).
 #[derive(Debug, Default)]
 pub struct RelationCaches {
     per_relation: [RelationCache; 5],
-    generic_keys: rustc_hash::FxHashSet<Arc<str>>,
-    key_buffers: Vec<(String, Vec<TypeId>)>,
+    generic_keys: HashMap<Box<[GenericKeyPart]>, Arc<str>>,
+    key_buffers: Vec<(Vec<GenericKeyPart>, Vec<TypeId>)>,
     pub enum_relation: HashMap<String, RelationComparisonResult>,
 }
 
@@ -322,7 +351,7 @@ impl RelationCaches {
                 generics: HashMap::default(),
             }),
             enum_relation: HashMap::default(),
-            generic_keys: rustc_hash::FxHashSet::default(),
+            generic_keys: HashMap::default(),
             key_buffers: Vec::new(),
         }
     }
@@ -340,18 +369,27 @@ impl RelationCaches {
                 .keys()
                 .map(String::capacity)
                 .sum::<usize>();
-        bytes += self.generic_keys.capacity() * (std::mem::size_of::<Arc<str>>() + 1) * 8 / 7
+        bytes += self.generic_keys.capacity()
+            * (std::mem::size_of::<(Box<[GenericKeyPart]>, Arc<str>)>() + 1)
+            * 8
+            / 7
             + self
                 .generic_keys
                 .iter()
-                .map(|key| key.len() + 2 * std::mem::size_of::<usize>())
+                .map(|(parts, key)| {
+                    std::mem::size_of_val(parts.as_ref())
+                        + key.len()
+                        + 2 * std::mem::size_of::<usize>()
+                })
                 .sum::<usize>()
-            + self.key_buffers.capacity() * std::mem::size_of::<(String, Vec<TypeId>)>()
+            + self.key_buffers.capacity()
+                * std::mem::size_of::<(Vec<GenericKeyPart>, Vec<TypeId>)>()
             + self
                 .key_buffers
                 .iter()
                 .map(|(text, parameters)| {
-                    text.capacity() + parameters.capacity() * std::mem::size_of::<TypeId>()
+                    text.capacity() * std::mem::size_of::<GenericKeyPart>()
+                        + parameters.capacity() * std::mem::size_of::<TypeId>()
                 })
                 .sum::<usize>();
         for cache in &self.per_relation {
@@ -427,13 +465,18 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b4b42e8e4438b8e4fc50feded93c2cd44214d3d16431695fe434401f546b4bed
     /// tsc-span: _tsc.js:67391-67393
     fn is_type_reference_with_generic_arguments(&self, ty: TypeId) -> bool {
-        self.is_non_deferred_type_reference(ty)
-            && self.tables.type_arguments(ty).iter().any(|&t| {
-                self.tables
-                    .flags_of(t)
-                    .intersects(TypeFlags::TYPE_PARAMETER)
-                    || self.is_type_reference_with_generic_arguments(t)
-            })
+        self.is_non_deferred_type_reference(ty) && self.has_generic_type_argument(ty)
+    }
+
+    fn has_generic_type_argument(&self, ty: TypeId) -> bool {
+        self.tables.type_arguments(ty).iter().any(|&t| {
+            #[cfg(test)]
+            tests::GENERIC_ARGUMENT_VISITS.set(tests::GENERIC_ARGUMENT_VISITS.get() + 1);
+            self.tables
+                .flags_of(t)
+                .intersects(TypeFlags::TYPE_PARAMETER)
+                || self.is_type_reference_with_generic_arguments(t)
+        })
     }
 
     /// tsc-port: getGenericTypeReferenceRelationKey @6.0.3
@@ -460,11 +503,14 @@ impl<'a> CheckerState<'a> {
             &mut result,
         );
         let key = key.map(|()| {
-            if let Some(key) = self.relations.generic_keys.get(result.as_str()) {
+            if let Some(key) = self.relations.generic_keys.get(result.as_slice()) {
+                debug_assert_eq!(GenericKeyPart::spelling(&result), key.as_ref());
                 RelationKey::Generic(key.clone())
             } else {
-                let key: Arc<str> = Arc::from(result.as_str());
-                self.relations.generic_keys.insert(key.clone());
+                let key: Arc<str> = Arc::from(GenericKeyPart::spelling(&result));
+                self.relations
+                    .generic_keys
+                    .insert(result.clone().into_boxed_slice(), key.clone());
                 RelationKey::Generic(key)
             }
         });
@@ -482,9 +528,9 @@ impl<'a> CheckerState<'a> {
         intersection_state: IntersectionState,
         ignore_constraints: bool,
         type_parameters: &mut Vec<TypeId>,
-        result: &mut String,
+        result: &mut Vec<GenericKeyPart>,
     ) -> CheckResult<()> {
-        let mut constraint_marker = "";
+        let mut constraint_marker = false;
         self.get_type_reference_id(
             source,
             0,
@@ -493,7 +539,7 @@ impl<'a> CheckerState<'a> {
             &mut constraint_marker,
             result,
         )?;
-        result.push(',');
+        result.push(GenericKeyPart::Punctuation(','));
         self.get_type_reference_id(
             target,
             0,
@@ -502,16 +548,12 @@ impl<'a> CheckerState<'a> {
             &mut constraint_marker,
             result,
         )?;
-        if !constraint_marker.is_empty() {
-            result.insert(0, '*');
+        if constraint_marker {
+            result.insert(0, GenericKeyPart::Punctuation('*'));
         }
         let intersection = intersection_state.bits();
         if intersection != 0 {
-            result.push(':');
-            if intersection < 0 {
-                result.push('-');
-            }
-            tsc_types::tables::push_decimal(result, intersection.unsigned_abs());
+            result.push(GenericKeyPart::Intersection(intersection));
         }
         Ok(())
     }
@@ -522,10 +564,12 @@ impl<'a> CheckerState<'a> {
         depth: u32,
         ignore_constraints: bool,
         type_parameters: &mut Vec<TypeId>,
-        constraint_marker: &mut &'static str,
-        result: &mut String,
+        constraint_marker: &mut bool,
+        result: &mut Vec<GenericKeyPart>,
     ) -> CheckResult<()> {
-        tsc_types::tables::push_decimal(result, self.tables.reference_target(ty).index());
+        result.push(GenericKeyPart::Number(
+            self.tables.reference_target(ty).index(),
+        ));
         let arguments = self
             .tables
             .try_type_argument_list(ty)
@@ -545,16 +589,15 @@ impl<'a> CheckerState<'a> {
                             type_parameters.len() - 1
                         }
                     };
-                    result.push('=');
-                    tsc_types::tables::push_decimal(
-                        result,
+                    result.push(GenericKeyPart::Punctuation('='));
+                    result.push(GenericKeyPart::Number(
                         u32::try_from(index).expect("type parameter ids fit u32"),
-                    );
+                    ));
                     continue;
                 }
-                *constraint_marker = "*";
+                *constraint_marker = true;
             } else if depth < 4 && self.is_type_reference_with_generic_arguments(t) {
-                result.push('<');
+                result.push(GenericKeyPart::Punctuation('<'));
                 self.get_type_reference_id(
                     t,
                     depth + 1,
@@ -563,11 +606,11 @@ impl<'a> CheckerState<'a> {
                     constraint_marker,
                     result,
                 )?;
-                result.push('>');
+                result.push(GenericKeyPart::Punctuation('>'));
                 continue;
             }
-            result.push('-');
-            tsc_types::tables::push_decimal(result, t.index());
+            result.push(GenericKeyPart::Punctuation('-'));
+            result.push(GenericKeyPart::Number(t.index()));
         }
         Ok(())
     }
@@ -579,6 +622,7 @@ impl<'a> CheckerState<'a> {
     /// Ids swap so the smaller comes first for the IDENTITY relation
     /// only; `:intersectionState` suffix when nonzero; NO alias
     /// context.
+    #[inline]
     pub fn get_relation_key(
         &mut self,
         source: TypeId,
@@ -593,9 +637,35 @@ impl<'a> CheckerState<'a> {
             } else {
                 (source, target)
             };
-        if self.is_type_reference_with_generic_arguments(source)
-            && self.is_type_reference_with_generic_arguments(target)
+        let pair = RelationKey::Pair {
+            source: source.index(),
+            target: target.index(),
+            intersection: intersection_state.bits(),
+        };
+        if !self.is_non_deferred_type_reference(source)
+            || !self.is_non_deferred_type_reference(target)
         {
+            return Ok(pair);
+        }
+        self.relation_key_for_eager_references(
+            source,
+            target,
+            intersection_state,
+            ignore_constraints,
+            pair,
+        )
+    }
+
+    #[inline(never)]
+    fn relation_key_for_eager_references(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        intersection_state: IntersectionState,
+        ignore_constraints: bool,
+        pair: RelationKey,
+    ) -> CheckResult<RelationKey> {
+        if self.has_generic_type_argument(source) && self.has_generic_type_argument(target) {
             return self.get_generic_type_reference_relation_key(
                 source,
                 target,
@@ -603,11 +673,7 @@ impl<'a> CheckerState<'a> {
                 ignore_constraints,
             );
         }
-        Ok(RelationKey::Pair {
-            source: source.index(),
-            target: target.index(),
-            intersection: intersection_state.bits(),
-        })
+        Ok(pair)
     }
 
     /// tsc-port: isEnumTypeRelatedTo @6.0.3

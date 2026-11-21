@@ -21,7 +21,9 @@ use crate::inference::CompareTypesFn;
 use crate::member_table::{HashedName, NameFilter};
 use crate::relate::RelationKind;
 pub use crate::state::SignatureKind;
-use crate::state::{CheckResult, CheckerState, IndexInfo, SignatureId, SignatureIds, SymbolIds};
+use crate::state::{
+    CheckResult, CheckerState, IndexInfo, MembersId, SignatureId, SignatureIds, SymbolIds,
+};
 use tsc_binder::NameKey;
 
 /// A source table retained by a property walk, invalidated by member retraction.
@@ -1045,8 +1047,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if target_flags.intersects(TypeFlags::CONDITIONAL) {
             if self.st.is_deeply_nested_on_stack(
                 target,
-                &self.target_stack,
-                self.target_depth,
+                &self.work.target_stack,
+                self.work.target_depth,
                 10,
             )? {
                 return Ok(Ternary::MAYBE);
@@ -1362,8 +1364,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         } else if source_flags.intersects(TypeFlags::CONDITIONAL) {
             if self.st.is_deeply_nested_on_stack(
                 source,
-                &self.source_stack,
-                self.source_depth,
+                &self.work.source_stack,
+                self.work.source_depth,
                 10,
             )? {
                 return Ok(Ternary::MAYBE);
@@ -4829,10 +4831,26 @@ impl<'a> CheckerState<'a> {
         Ok(result)
     }
 
+    /// Reduction and apparent-type lookup both return this object unchanged.
+    #[inline]
+    fn is_plain_apparent_object(&self, ty: TypeId) -> bool {
+        let data = self.tables.type_of(ty);
+        data.flags == TypeFlags::OBJECT && !data.object_flags.intersects(ObjectFlags::MAPPED)
+    }
+
     /// tsc-port: getReducedApparentType @6.0.3
     /// tsc-hash: b1cf0cc54d00b7b1594d9b40a29bcf06e62f81238c47afb524d6e6f82a8f9ec3
     /// tsc-span: _tsc.js:59098-59100
+    #[inline]
     pub fn get_reduced_apparent_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
+        if self.is_plain_apparent_object(ty) {
+            return Ok(ty);
+        }
+        self.get_reduced_apparent_type_worker(ty)
+    }
+
+    #[inline(never)]
+    fn get_reduced_apparent_type_worker(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let reduced = self.get_reduced_type(ty)?;
         let apparent = self.get_apparent_type(reduced)?;
         self.get_reduced_type(apparent)
@@ -4841,8 +4859,18 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getPropertiesOfType @6.0.3
     /// tsc-hash: 24909f78d7ea360522b5188e5af3c7b09613e4dc2e455ea321c4ec054b4d7576
     /// tsc-span: _tsc.js:58745-58748
+    #[inline]
     pub fn get_properties_of_type_full(&mut self, ty: TypeId) -> CheckResult<SymbolIds> {
-        let reduced = self.get_reduced_apparent_type(ty)?;
+        if self.is_plain_apparent_object(ty) {
+            let members = self.resolve_structured_type_members(ty)?;
+            return Ok(self.members_of(members).properties.clone());
+        }
+        self.get_properties_of_type_worker(ty)
+    }
+
+    #[inline(never)]
+    fn get_properties_of_type_worker(&mut self, ty: TypeId) -> CheckResult<SymbolIds> {
+        let reduced = self.get_reduced_apparent_type_worker(ty)?;
         if self
             .tables
             .flags_of(reduced)
@@ -4901,7 +4929,7 @@ impl<'a> CheckerState<'a> {
         if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
             return Ok(None);
         }
-        self.get_property_of_known_object_type(ty, key, include_type_only_members)
+        self.get_property_of_known_object_type(ty, key, true, include_type_only_members)
     }
 
     /// Look up a property after the caller has checked the object's type flags.
@@ -4909,6 +4937,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         key: HashedName,
+        skip_augment: bool,
         include_type_only_members: bool,
     ) -> CheckResult<Option<SymbolId>> {
         let name = key.name;
@@ -4916,11 +4945,17 @@ impl<'a> CheckerState<'a> {
             .links
             .read_ty(ty, |links| links.resolved_members.resolved())
         {
-            self.members_of(members)
+            match self
+                .members_of(members)
                 .members
                 .get_hashed(&self.binder, key)
+            {
+                None if skip_augment => return Ok(None),
+                None => return self.resolved_property_fallback(ty, members, key),
+                hit => hit,
+            }
         } else {
-            match self.deferred_reference_property(ty, name)? {
+            match self.deferred_reference_property(ty, key)? {
                 Some(symbol) => symbol,
                 None => {
                     let members = self.resolve_structured_type_members(ty)?;
@@ -4930,16 +4965,80 @@ impl<'a> CheckerState<'a> {
                 }
             }
         };
-        let Some(symbol) = symbol else {
-            return Ok(None);
-        };
-        let hidden_type_only_export =
-            !include_type_only_members && self.hidden_by_type_only_export_star(ty, name);
-        if !hidden_type_only_export && self.symbol_is_value(symbol, include_type_only_members)? {
-            Ok(Some(symbol))
-        } else {
-            Ok(None)
+        if let Some(symbol) = symbol {
+            // tsgo getPropertyOfTypeEx (checker.go:19319-19324): a member the
+            // module has, but only through a type-only `export *`, ends the
+            // look-up. Object and Function do not answer for its name.
+            if !include_type_only_members && self.hidden_by_type_only_export_star(ty, name) {
+                return Ok(None);
+            }
+            if self.symbol_is_value(symbol, include_type_only_members)? {
+                return Ok(Some(symbol));
+            }
         }
+        if skip_augment {
+            return Ok(None);
+        }
+        // Alias checking and deferred resolution can replace or retract the table.
+        if let Some(members) = self
+            .links
+            .read_ty(ty, |links| links.resolved_members.resolved())
+        {
+            return self.resolved_property_fallback(ty, members, key);
+        }
+        let members = self.structured_member_headers(ty)?;
+        self.get_augmented_property(ty, members, key)
+    }
+
+    /// The caller observed this table after the last operation that could reenter resolution.
+    fn resolved_property_fallback(
+        &mut self,
+        ty: TypeId,
+        members: MembersId,
+        key: HashedName,
+    ) -> CheckResult<Option<SymbolId>> {
+        debug_assert_eq!(
+            self.links
+                .read_ty(ty, |links| links.resolved_members.resolved()),
+            Some(members)
+        );
+        if !self.may_be_augment_member(key) {
+            return Ok(None);
+        }
+        self.get_augmented_property(ty, members, key)
+    }
+
+    fn get_augmented_property(
+        &mut self,
+        ty: TypeId,
+        members: MembersId,
+        key: HashedName,
+    ) -> CheckResult<Option<SymbolId>> {
+        let (has_call, has_construct) = {
+            let resolved = self.members_of(members);
+            (
+                !resolved.call_signatures().is_empty(),
+                !resolved.construct_signatures().is_empty(),
+            )
+        };
+        let function_type = if ty == self.any_function_type {
+            Some(self.global_function_type()?)
+        } else if has_call {
+            Some(self.global_callable_function_type()?)
+        } else if has_construct {
+            Some(self.global_newable_function_type()?)
+        } else {
+            None
+        };
+        if let Some(function_type) = function_type {
+            if let Some(symbol) =
+                self.get_property_of_object_type_hashed(function_type, key, false)?
+            {
+                return Ok(Some(symbol));
+            }
+        }
+        let global_object = self.global_object_type()?;
+        self.get_property_of_object_type_hashed(global_object, key, false)
     }
 
     /// Whether `name` reaches the type of a module only through an
@@ -4953,7 +5052,6 @@ impl<'a> CheckerState<'a> {
                     .symbol_cold()
                     .type_only_export_star_map
                     .get(module_symbol)
-                    .clone()
                     .as_ref()
                     .is_some_and(|map| map.contains_key(&NameKey::name(name)))
         })
@@ -5142,7 +5240,7 @@ impl<'a> CheckerState<'a> {
                 Some(symbol) if self.symbol_flags(symbol).intersects(SymbolFlags::VALUE) => {
                     return Ok(Some(symbol));
                 }
-                None if !self.may_be_augment_member(key) => return Ok(None),
+                None => return self.resolved_property_fallback(ty, source.members, key),
                 _ => {}
             }
         }
@@ -5151,6 +5249,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs ALG.7: resolved global member tables are immutable until a retraction.
     /// False positives retain the original path; a rejection skips only reads.
+    #[inline]
     pub(crate) fn may_be_augment_member(&mut self, key: HashedName) -> bool {
         if self.members_resolving != 0 {
             return true;
@@ -5161,11 +5260,16 @@ impl<'a> CheckerState<'a> {
                 return filter.may_contain(key);
             }
         }
+        self.build_augment_filter(key, epoch)
+    }
+
+    #[inline(never)]
+    fn build_augment_filter(&mut self, key: HashedName, epoch: u64) -> bool {
         let Some(types) = self.initialized_augment_types() else {
             return true;
         };
-        let mut filter = NameFilter::default();
-        for ty in types {
+        let mut tables = [None; 4];
+        for (slot, ty) in tables.iter_mut().zip(types) {
             if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
                 continue;
             }
@@ -5175,6 +5279,10 @@ impl<'a> CheckerState<'a> {
             else {
                 return true;
             };
+            *slot = Some(members);
+        }
+        let mut filter = NameFilter::default();
+        for members in tables.into_iter().flatten() {
             for &symbol in self.members_of(members).members.symbols() {
                 filter.insert(HashedName::new(self.binder.symbol(symbol).escaped_name));
             }
@@ -5185,6 +5293,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs-native: include-carrying body behind the getPropertyOfType
     /// compatibility wrappers.
+    #[inline]
     pub(crate) fn get_property_of_type_ex_with_include_type_only_members(
         &mut self,
         ty: TypeId,
@@ -5193,69 +5302,39 @@ impl<'a> CheckerState<'a> {
         include_type_only_members: bool,
     ) -> CheckResult<Option<SymbolId>> {
         let name = name.name();
-        let reduced = self.get_reduced_apparent_type(ty)?;
+        if self.is_plain_apparent_object(ty) {
+            return self.get_property_of_known_object_type(
+                ty,
+                HashedName::new(name),
+                skip_object_function_property_augment,
+                include_type_only_members,
+            );
+        }
+        self.get_property_of_type_worker(
+            ty,
+            name,
+            skip_object_function_property_augment,
+            include_type_only_members,
+        )
+    }
+
+    #[inline(never)]
+    fn get_property_of_type_worker(
+        &mut self,
+        ty: TypeId,
+        name: EscapedName,
+        skip_object_function_property_augment: bool,
+        include_type_only_members: bool,
+    ) -> CheckResult<Option<SymbolId>> {
+        let reduced = self.get_reduced_apparent_type_worker(ty)?;
         let flags = self.tables.flags_of(reduced);
         if flags.intersects(TypeFlags::OBJECT) {
-            let key = HashedName::new(name);
-            if let Some(symbol) =
-                self.get_property_of_known_object_type(reduced, key, include_type_only_members)?
-            {
-                return Ok(Some(symbol));
-            }
-            if skip_object_function_property_augment {
-                return Ok(None);
-            }
-            // Only resolved tables can be answered without the fallback's lazy effects.
-            if self
-                .links
-                .read_ty(reduced, |links| links.resolved_members.resolved())
-                .is_some()
-                && !self.may_be_augment_member(key)
-            {
-                return Ok(None);
-            }
-            // tsgo getPropertyOfTypeEx (checker.go:19319-19324): a member the
-            // module has, but only through a type-only `export *`, ends the
-            // look-up. Object and Function do not answer for its name. Asked
-            // after the filter above: a name Object and Function cannot have
-            // gets no answer from them either way, and a miss stays as cheap.
-            if !include_type_only_members && self.hidden_by_type_only_export_star(reduced, name) {
-                let members = self.resolve_structured_type_members(reduced)?;
-                if self
-                    .members_of(members)
-                    .members
-                    .get_hashed(&self.binder, key)
-                    .is_some()
-                {
-                    return Ok(None);
-                }
-            }
-            let members = self.structured_member_headers(reduced)?;
-            let (has_call, has_construct) = {
-                let resolved = self.members_of(members);
-                (
-                    !resolved.call_signatures().is_empty(),
-                    !resolved.construct_signatures().is_empty(),
-                )
-            };
-            let function_type = if reduced == self.any_function_type {
-                Some(self.global_function_type()?)
-            } else if has_call {
-                Some(self.global_callable_function_type()?)
-            } else if has_construct {
-                Some(self.global_newable_function_type()?)
-            } else {
-                None
-            };
-            if let Some(function_type) = function_type {
-                if let Some(symbol) =
-                    self.get_property_of_object_type_hashed(function_type, key, false)?
-                {
-                    return Ok(Some(symbol));
-                }
-            }
-            let global_object = self.global_object_type()?;
-            return self.get_property_of_object_type_hashed(global_object, key, false);
+            return self.get_property_of_known_object_type(
+                reduced,
+                HashedName::new(name),
+                skip_object_function_property_augment,
+                include_type_only_members,
+            );
         }
         if flags.intersects(TypeFlags::INTERSECTION) {
             if let Some(property) = self.get_property_of_union_or_intersection_type(
@@ -5363,21 +5442,7 @@ impl<'a> CheckerState<'a> {
         // This frame carries the signature comparison. Its Assignable
         // callback still enters the checker's query, matching tsgo's
         // compareTypesAssignableWorker rather than using the ambient frame.
-        let mut checker = crate::engine::RelationChecker {
-            st: self,
-            relation,
-            maybe_keys: Vec::new(),
-            maybe_keys_set: rustc_hash::FxHashSet::default(),
-            source_stack: Vec::new(),
-            target_stack: Vec::new(),
-            maybe_count: 0,
-            source_depth: 0,
-            target_depth: 0,
-            expanding_flags: tsc_types::ExpandingFlags::NONE,
-            overflow: false,
-            relation_count,
-            error_state: Default::default(),
-        };
+        let mut checker = crate::engine::RelationChecker::new(self, relation, relation_count);
         let verdict = checker.compare_signatures_related(
             erased_source,
             erased_target,
@@ -5391,6 +5456,7 @@ impl<'a> CheckerState<'a> {
             // dead here either way.
             crate::inference::CompareTypesFn::Assignable,
         )?;
+        checker.recycle();
         Ok(verdict != Ternary::FALSE)
     }
 
@@ -5842,6 +5908,10 @@ impl<'a> CheckerState<'a> {
                         SymbolFlags::from_bits(optional_flag.bits() & prop_symbol_flags.bits())
                     };
                 }
+                // Only a distinct property can enter the recursive identity comparison.
+                let read_modifiers = single_prop
+                    .is_none_or(|existing| existing == prop)
+                    .then_some(modifiers);
                 match single_prop {
                     None => {
                         single_prop = Some(prop);
@@ -5891,9 +5961,10 @@ impl<'a> CheckerState<'a> {
                     }
                     _ => {}
                 }
-                if is_union && self.is_readonly_symbol(prop)? {
+                let readonly = self.is_readonly_symbol_with_modifiers(prop, read_modifiers)?;
+                if is_union && readonly {
                     check_flags |= CheckFlags::READONLY.bits();
-                } else if !is_union && !self.is_readonly_symbol(prop)? {
+                } else if !is_union && !readonly {
                     check_flags &= !CheckFlags::READONLY.bits();
                 }
                 // tsgo folds the read and the write (set accessor)
@@ -6285,6 +6356,14 @@ impl<'a> CheckerState<'a> {
     /// Short-circuit the symbol flags before querying assignment descriptor
     /// types. Declaration order and the first checker abort are preserved.
     pub fn is_readonly_symbol(&mut self, symbol: SymbolId) -> CheckResult<bool> {
+        self.is_readonly_symbol_with_modifiers(symbol, None)
+    }
+
+    fn is_readonly_symbol_with_modifiers(
+        &mut self,
+        symbol: SymbolId,
+        read_modifiers: Option<ModifierFlags>,
+    ) -> CheckResult<bool> {
         if self
             .get_check_flags(symbol)
             .intersects(CheckFlags::READONLY)
@@ -6292,12 +6371,20 @@ impl<'a> CheckerState<'a> {
             return Ok(true);
         }
         let flags = self.symbol_flags(symbol);
-        if flags.intersects(SymbolFlags::PROPERTY)
-            && self
-                .get_declaration_modifier_flags_from_symbol(symbol)
-                .intersects(ModifierFlags::READONLY)
-        {
-            return Ok(true);
+        if flags.intersects(SymbolFlags::PROPERTY) {
+            let modifiers = match read_modifiers {
+                Some(modifiers) => {
+                    debug_assert_eq!(
+                        modifiers,
+                        self.get_declaration_modifier_flags_from_symbol(symbol)
+                    );
+                    modifiers
+                }
+                None => self.get_declaration_modifier_flags_from_symbol(symbol),
+            };
+            if modifiers.intersects(ModifierFlags::READONLY) {
+                return Ok(true);
+            }
         }
         if flags.intersects(SymbolFlags::VARIABLE)
             && self.get_declaration_node_flags_from_symbol(symbol)
@@ -7039,21 +7126,7 @@ impl<'a> CheckerState<'a> {
             RelationKind::Identity
         };
         let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
-        let mut checker = RelationChecker {
-            st: self,
-            relation,
-            maybe_keys: Vec::new(),
-            maybe_keys_set: rustc_hash::FxHashSet::default(),
-            source_stack: Vec::new(),
-            target_stack: Vec::new(),
-            maybe_count: 0,
-            source_depth: 0,
-            target_depth: 0,
-            expanding_flags: tsc_types::ExpandingFlags::NONE,
-            overflow: false,
-            relation_count,
-            error_state: Default::default(),
-        };
+        let mut checker = RelationChecker::new(self, relation, relation_count);
         let related = checker.compare_signatures_identical_ex(
             source,
             target,
@@ -7062,6 +7135,7 @@ impl<'a> CheckerState<'a> {
             ignore_return_types,
             RelationChecker::compare_signature_identity_using_query,
         )?;
+        checker.recycle();
         Ok(is_true(related))
     }
 
@@ -8061,7 +8135,32 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         kind: SignatureKind,
     ) -> CheckResult<SignatureIds> {
-        let reduced = self.get_reduced_apparent_type(ty)?;
+        if self.is_plain_apparent_object(ty) {
+            return self.structured_signature_list(ty, kind);
+        }
+        self.get_signatures_of_type_worker(ty, kind)
+    }
+
+    fn structured_signature_list(
+        &mut self,
+        ty: TypeId,
+        kind: SignatureKind,
+    ) -> CheckResult<SignatureIds> {
+        let members = self.structured_member_headers(ty)?;
+        let resolved = self.members_of(members);
+        Ok(match kind {
+            SignatureKind::Call => resolved.call_signature_list(),
+            SignatureKind::Construct => resolved.construct_signature_list(),
+        })
+    }
+
+    #[inline(never)]
+    fn get_signatures_of_type_worker(
+        &mut self,
+        ty: TypeId,
+        kind: SignatureKind,
+    ) -> CheckResult<SignatureIds> {
+        let reduced = self.get_reduced_apparent_type_worker(ty)?;
         // getSignaturesOfStructuredType: unions and intersections
         // resolve through their member synthesis (5.3d) like objects.
         let result = if !self
@@ -8071,12 +8170,7 @@ impl<'a> CheckerState<'a> {
         {
             SignatureIds::new()
         } else {
-            let members = self.structured_member_headers(reduced)?;
-            let resolved = self.members_of(members);
-            match kind {
-                SignatureKind::Call => resolved.call_signature_list(),
-                SignatureKind::Construct => resolved.construct_signature_list(),
-            }
+            self.structured_signature_list(reduced, kind)?
         };
 
         // A union such as `Fizz[] | Buzz[]` has a union of incompatible

@@ -56,6 +56,8 @@ pub(crate) enum Ancestor {
     Quit,
 }
 
+pub(crate) type ControlFlowContainerSlot = std::cell::Cell<Option<(NodeId, Option<NodeId>)>>;
+
 impl<'a> CheckerState<'a> {
     /// tsc findAncestor (12299): walk node.parent upward until the
     /// callback answers Yes (return that node) or Quit (return None).
@@ -1476,7 +1478,26 @@ impl<'a> CheckerState<'a> {
 
     /// Also reports whether constraint substitution read this node's
     /// position, which a structural flow-reference key cannot describe.
+    #[inline]
     pub(crate) fn get_narrowable_type_for_reference_with_position(
+        &mut self,
+        ty: TypeId,
+        reference: NodeId,
+        check_mode: CheckMode,
+    ) -> CheckResult<(TypeId, bool)> {
+        let record = self.tables.type_of(ty);
+        if !matches!(record.data, TypeData::Substitution(_))
+            && !record
+                .flags
+                .intersects(TypeFlags::UNION | TypeFlags::INTERSECTION | TypeFlags::INSTANTIABLE)
+        {
+            return Ok((ty, false));
+        }
+        self.narrowable_type_for_reference_worker(ty, reference, check_mode)
+    }
+
+    #[inline(never)]
+    fn narrowable_type_for_reference_worker(
         &mut self,
         mut ty: TypeId,
         reference: NodeId,
@@ -1706,7 +1727,22 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ff8e1e22dc314ecb69cd469fc7bb0ca3a9b1e4e57ccedbda833cf29744337954
     /// tsc-span: _tsc.js:71477-71479
     pub(crate) fn get_control_flow_container(&self, node: NodeId) -> Option<NodeId> {
-        self.find_ancestor(self.parent_of(node), |state, n| {
+        let parent = self.parent_of(node)?;
+        let slot = &self.control_flow_containers
+            [parent.index() as usize % self.control_flow_containers.len()];
+        if let Some((tag, container)) = slot.get() {
+            if tag == parent {
+                debug_assert_eq!(container, self.walk_control_flow_container(parent));
+                return container;
+            }
+        }
+        let container = self.walk_control_flow_container(parent);
+        slot.set(Some((parent, container)));
+        container
+    }
+
+    fn walk_control_flow_container(&self, parent: NodeId) -> Option<NodeId> {
+        self.find_ancestor(Some(parent), |state, n| {
             let kind = state.kind_of(n);
             let is_container = (node_util::is_function_like_kind(kind)
                 && node_util::get_immediately_invoked_function_expression(&Published, n).is_none())
@@ -3065,13 +3101,11 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
+        let mut cursor = crate::links::NodeLinksCursor::new(node);
         if !check_mode.is_empty() {
             return self.check_expression(node, check_mode);
         }
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = cursor.read(&self.links, |links| links.resolved_type.resolved()) {
             return Ok(cached);
         }
         let save_flow_loop_start = self.flow_loop_start;
@@ -3081,16 +3115,11 @@ impl<'a> CheckerState<'a> {
         self.restore_flow_type_cache(save_flow_type_cache);
         self.flow_loop_start = save_flow_loop_start;
         let ty = result?;
-        if self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
+        if cursor
+            .read(&self.links, |links| links.resolved_type.resolved())
             .is_none()
         {
-            self.links.set_node_resolved_type(
-                self.speculation_depth,
-                node,
-                crate::links::LinkSlot::Resolved(ty),
-            );
+            cursor.set_type(&mut self.links, crate::links::LinkSlot::Resolved(ty));
         }
         Ok(ty)
     }

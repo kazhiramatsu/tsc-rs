@@ -227,6 +227,7 @@ impl<'a> Borrow<dyn ObservationLookup + 'a> for ObservationKey {
 // kind (drive letters compare without case). Hash that sequence into a
 // deterministic spelling, without allocating or resolving '..'. Ordinary
 // normalized slash paths have exactly the fingerprint of their own bytes.
+#[inline(never)]
 fn canonical_observation_fingerprint(path: &OsStr) -> u64 {
     let mut fingerprint = ObservationFingerprint::new();
     let mut separator = false;
@@ -251,6 +252,33 @@ fn canonical_observation_fingerprint(path: &OsStr) -> u64 {
     }
     fingerprint.finish()
 }
+/// On Unix the component spelling of a simple absolute path is its input.
+/// Not where a backslash separates components as well (Cygwin): there the
+/// component walk rewrites `/a\b` and the raw bytes are not its spelling.
+#[cfg(all(unix, not(target_os = "cygwin")))]
+fn has_verbatim_components(bytes: &[u8]) -> bool {
+    let Some(tail) = bytes.strip_prefix(b"/") else {
+        return false;
+    };
+    tail.is_empty()
+        || tail
+            .split(|&byte| byte == b'/')
+            .all(|part| !matches!(part, b"" | b"." | b".."))
+}
+
+#[inline]
+fn lookup_fingerprint(query: ObservationQuery<'_>) -> u64 {
+    #[cfg(all(unix, not(target_os = "cygwin")))]
+    if has_verbatim_components(query.path.as_encoded_bytes()) {
+        debug_assert_eq!(
+            query.fingerprint,
+            canonical_observation_fingerprint(query.path)
+        );
+        return query.fingerprint;
+    }
+    canonical_observation_fingerprint(query.path)
+}
+
 fn append_observation_prefix(fingerprint: &mut ObservationFingerprint, prefix: Prefix<'_>) {
     match prefix {
         Prefix::Disk(drive) => fingerprint.write(&[drive, b':']),
@@ -296,7 +324,7 @@ fn lookup_observation_alias<'a, T>(
     table: &'a HashMap<ObservationKey, T>,
     query: ObservationQuery<'_>,
 ) -> Result<&'a T, u64> {
-    let fingerprint = canonical_observation_fingerprint(query.path);
+    let fingerprint = lookup_fingerprint(query);
     if fingerprint != query.fingerprint {
         if let Some(value) = table.get(&ObservationQuery {
             fingerprint,
@@ -311,6 +339,15 @@ fn lookup_observation_alias<'a, T>(
 
 impl ObservationCache {
     fn presence(&self, path: &Path, operation: HostOperation) -> Result<Presence, HostError> {
+        self.presence_with_metadata(path, operation, metadata_if_present)
+    }
+
+    fn presence_with_metadata(
+        &self,
+        path: &Path,
+        operation: HostOperation,
+        metadata: impl FnOnce(&Path, HostOperation) -> Result<Option<fs::Metadata>, HostError>,
+    ) -> Result<Presence, HostError> {
         let query = ObservationQuery::new(path);
         let shard = &self.presence[query.shard()];
         let fingerprint = {
@@ -322,7 +359,7 @@ impl ObservationCache {
                 Err(fingerprint) => fingerprint,
             }
         };
-        let present = match metadata_if_present(path, operation)? {
+        let present = match metadata(path, operation)? {
             None => Presence::Missing,
             Some(metadata) if metadata.is_file() => Presence::File {
                 len: metadata.len(),

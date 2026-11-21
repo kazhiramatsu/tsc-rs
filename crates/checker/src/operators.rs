@@ -2889,36 +2889,37 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkGrammarTypeArguments @6.0.3
     /// tsc-hash: 0ec184a91fd848949484577ec95c93edaedd1d12bcd1e82b5bfa2fca64b94c92
     /// tsc-span: _tsc.js:89537-89539
+    #[inline]
     pub(crate) fn check_grammar_type_arguments(
         &mut self,
         node: NodeId,
         type_arguments: Option<tsc_syntax::NodeArrayId>,
     ) -> bool {
-        self.check_grammar_for_disallowed_trailing_comma(
-            type_arguments,
-            &tsc_diagnostics::gen::Trailing_comma_not_allowed,
-        ) || self.check_grammar_for_at_least_one_type_argument(node, type_arguments)
-    }
-
-    /// checkGrammarForAtLeastOneTypeArgument (89528-89536).
-    fn check_grammar_for_at_least_one_type_argument(
-        &mut self,
-        node: NodeId,
-        type_arguments: Option<tsc_syntax::NodeArrayId>,
-    ) -> bool {
-        let Some(array_id) = type_arguments else {
+        let Some(id) = type_arguments else {
             return false;
         };
-        let source = self.binder.source_of_node(node);
-        let array = Published.node_array(array_id);
-        if !array.nodes.is_empty() {
-            return false;
+        let array = self.binder.node_array(id);
+        if let Some(&first) = array.nodes.first() {
+            return array.has_trailing_comma
+                && self.report_trailing_comma(
+                    first,
+                    array.end,
+                    &tsc_diagnostics::gen::Trailing_comma_not_allowed,
+                );
         }
+        self.report_empty_type_arguments(node, array.pos, array.end)
+    }
+
+    /// An empty list has no first element to locate its file. Its owner
+    /// provides both the recovery diagnostics and the text around the list.
+    #[inline(never)]
+    fn report_empty_type_arguments(&mut self, node: NodeId, pos: u32, end: u32) -> bool {
+        let source = self.binder.source_of_node(node);
         if !source.parse_diagnostics.is_empty() {
             return false;
         }
-        let start_byte = array.pos as usize - "<".len();
-        let end_byte = tsc_syntax::skip_trivia(source.text(), array.end as usize) + ">".len();
+        let start_byte = pos as usize - "<".len();
+        let end_byte = tsc_syntax::skip_trivia(source.text(), end as usize) + ">".len();
         let to_utf16 = |byte: usize| -> u32 {
             source
                 .positions()
@@ -3469,6 +3470,16 @@ impl<'a> CheckerState<'a> {
         let Some(&first) = array.nodes.first() else {
             return false;
         };
+        self.report_trailing_comma(first, array.end, message)
+    }
+
+    #[inline(never)]
+    fn report_trailing_comma(
+        &mut self,
+        first: NodeId,
+        end: u32,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
+    ) -> bool {
         let source = self.binder.source_of_node(first);
         if !source.parse_diagnostics.is_empty() {
             return false;
@@ -3479,8 +3490,8 @@ impl<'a> CheckerState<'a> {
                 .byte_to_utf16((byte) as u32)
                 .unwrap_or(byte as u32)
         };
-        let start = to_utf16(array.end as usize - 1);
-        let end = to_utf16(array.end as usize);
+        let start = to_utf16(end as usize - 1);
+        let end = to_utf16(end as usize);
         let diagnostic = tsc_diagnostics::Diagnostic::new_js(
             Some(source.file_name.clone()),
             Some(start),

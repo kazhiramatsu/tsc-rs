@@ -108,7 +108,7 @@ pub(crate) struct FlowQuery<'a> {
     /// tsc `key`/`isKeySet` (70395-70396): the lazily computed flow
     /// cache key — outer None = not computed yet (isKeySet false),
     /// Some(None) = computed, reference has no key.
-    pub(crate) key: Option<Option<JsString>>,
+    pub(crate) key: Option<Option<FlowCacheKey>>,
     /// tsc getSyntheticElementAccess (55897): a destructuring query's
     /// reference is the parse-node-factory access chain
     /// `base["p0"]["p1"]…` with the base access's flowNode. The arena
@@ -202,6 +202,44 @@ pub(crate) struct SharedFlow {
     pub(crate) flags: u8,
 }
 
+/// The numeric portion before the first dot in a loop reference key.
+/// Identifier and `this` use the same four field positions. The value
+/// u32::MAX stands for the absent container (-1), outside every ID domain.
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+pub(crate) enum FlowKeyPrefix {
+    Fields([u32; 4]),
+    Node(NodeId, TypeId),
+}
+
+/// Most roots fit inline. Accesses keep the exact dotted JavaScript string,
+/// so a literal property containing a dot compares like the corresponding path.
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub(crate) enum FlowCacheKey {
+    Root(FlowKeyPrefix),
+    Access(std::sync::Arc<(FlowKeyPrefix, JsString)>),
+}
+
+impl FlowCacheKey {
+    fn this(container: Option<NodeId>, declared: TypeId, initial: TypeId) -> Self {
+        Self::Root(FlowKeyPrefix::Fields([
+            0,
+            container.map_or(u32::MAX, NodeId::index),
+            declared.index(),
+            initial.index(),
+        ]))
+    }
+
+    fn suffix_mut(&mut self) -> &mut JsString {
+        if let Self::Root(prefix) = *self {
+            *self = Self::Access(std::sync::Arc::new((prefix, JsString::new())));
+        }
+        let Self::Access(access) = self else {
+            unreachable!()
+        };
+        &mut std::sync::Arc::make_mut(access).1
+    }
+}
+
 /// One in-progress loop-label fixpoint frame: tsc's parallel
 /// flowLoopNodes[i]/flowLoopKeys[i]/flowLoopTypes[i] entry at index
 /// i < flowLoopCount (the Vec length here). Published before a
@@ -210,7 +248,7 @@ pub(crate) struct SharedFlow {
 pub(crate) struct FlowLoopEntry {
     pub(crate) file: usize,
     pub(crate) flow: FlowId,
-    pub(crate) key: JsString,
+    pub(crate) key: FlowCacheKey,
     pub(crate) types: Vec<TypeId>,
     pub(crate) serial: u32,
 }
@@ -280,7 +318,7 @@ impl<'a> CheckerState<'a> {
         flow: FlowId,
         flow_node: &'graph FlowNode,
     ) -> &'graph [FlowId] {
-        if let Some(&origin) = self.reduce_label_overrides.get(&(file, flow)) {
+        if let Some(&origin) = self.reduce_label_overrides().get(&(file, flow)) {
             let FlowData::ReduceLabel { antecedents, .. } = arena.payload(origin) else {
                 unreachable!("an override names its originating ReduceLabel");
             };
@@ -377,7 +415,7 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.error);
         }
         self.flow_invocation_count += 1;
-        let shared_checkpoint = self.shared_flow.checkpoint();
+        let shared_checkpoint = self.shared_flow.begin_query();
         let shared_flow_start = self.shared_flow.len();
         let file = self.binder.file_index_of_node(reference);
         let mut query = FlowQuery {
@@ -464,7 +502,7 @@ impl<'a> CheckerState<'a> {
             return Ok(declared_type);
         };
         self.flow_invocation_count += 1;
-        let shared_checkpoint = self.shared_flow.checkpoint();
+        let shared_checkpoint = self.shared_flow.begin_query();
         let shared_flow_start = self.shared_flow.len();
         let mut query = FlowQuery {
             reference,
@@ -494,7 +532,7 @@ impl<'a> CheckerState<'a> {
         if query.memo_aborted {
             // A replacement can omit shared entries and make a later branch
             // deeper. Replay the whole walk faithfully before reporting TS2563.
-            self.shared_flow.restore(shared_checkpoint);
+            self.shared_flow.restart_query(shared_checkpoint);
             query.impure_shared = 0;
             query.memo_used = false;
             query.memo_aborted = false;
@@ -674,15 +712,15 @@ impl<'a> CheckerState<'a> {
             if flags.intersects(FlowFlags::SHARED) {
                 // The shared-flow cache is scoped to THIS
                 // getFlowTypeOfReference invocation (sharedFlowStart..).
-                for index in query.shared_flow_start..self.shared_flow.len() {
-                    if self.shared_flow[index].flow == flow {
-                        let cached = self.shared_flow[index];
-                        self.flow_memo_consume(cached.transient, cached.reference);
-                        self.flow_memo.add_flags(cached.flags);
-                        shared_height = Some(cached.height);
-                        shared = None;
-                        return Ok(cached.flow_type);
-                    }
+                if let Some(&cached) = self
+                    .shared_flow
+                    .find_in_query(query.shared_flow_start, flow)
+                {
+                    self.flow_memo_consume(cached.transient, cached.reference);
+                    self.flow_memo.add_flags(cached.flags);
+                    shared_height = Some(cached.height);
+                    shared = None;
+                    return Ok(cached.flow_type);
                 }
                 shared = Some(flow);
             }
@@ -766,22 +804,12 @@ impl<'a> CheckerState<'a> {
                     unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
                 };
                 let antecedent = plain_flow_antecedent(flow_node);
-                let saved = self
-                    .reduce_label_overrides
-                    .insert((query.file, target), flow);
+                let saved = self.replace_reduce_label((query.file, target), Some(flow));
                 self.flow_memo.taint(0);
                 query.reduce_depth += 1;
                 let result = self.get_type_at_flow_node(query, antecedent);
                 query.reduce_depth -= 1;
-                match saved {
-                    Some(previous) => {
-                        self.reduce_label_overrides
-                            .insert((query.file, target), previous);
-                    }
-                    None => {
-                        self.reduce_label_overrides.remove(&(query.file, target));
-                    }
-                }
+                self.replace_reduce_label((query.file, target), saved);
                 ty = result?;
             } else if flags.intersects(FlowFlags::START) {
                 // Start outer-resume: a bare non-this reference
@@ -1460,7 +1488,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getOrSetCacheKey @6.0.3
     /// tsc-hash: e224dd54f074c1f3304e88be454bdbbd8ae9105ce337bfb6b83b6d39ce4beef7
     /// tsc-span: _tsc.js:70413-70419
-    fn get_or_set_cache_key(&mut self, query: &mut FlowQuery) -> CheckResult<Option<JsString>> {
+    fn get_or_set_cache_key(&mut self, query: &mut FlowQuery) -> CheckResult<Option<FlowCacheKey>> {
         if let Some(key) = &query.key {
             return Ok(key.clone());
         }
@@ -1470,17 +1498,11 @@ impl<'a> CheckerState<'a> {
         // this-rooted chain keys from the ThisKeyword arm's base
         // (69414 "0|…") — the container node's own kind never keys.
         let base_key = if query.synthetic_this_root {
-            let mut key = String::with_capacity(34);
-            key.push_str("0|");
-            match query.flow_container {
-                Some(container) => tsc_types::push_decimal(&mut key, container.index()),
-                None => key.push_str("-1"),
-            }
-            key.push('|');
-            tsc_types::push_decimal(&mut key, query.declared_type.index());
-            key.push('|');
-            tsc_types::push_decimal(&mut key, query.initial_type.index());
-            Some(JsString::from(key))
+            Some(FlowCacheKey::this(
+                query.flow_container,
+                query.declared_type,
+                query.initial_type,
+            ))
         } else {
             self.get_flow_cache_key(
                 query.reference,
@@ -1491,12 +1513,13 @@ impl<'a> CheckerState<'a> {
         };
         let key = match (&query.synthetic_props, base_key) {
             (Some(props), Some(mut base_key)) => {
-                base_key.push('.');
+                let suffix = base_key.suffix_mut();
+                suffix.push('.');
                 for (index, property) in props.iter().enumerate() {
                     if index != 0 {
-                        base_key.push('.');
+                        suffix.push('.');
                     }
-                    base_key.push_js(property.as_js());
+                    suffix.push_js(property.as_js());
                 }
                 Some(base_key)
             }
@@ -1511,50 +1534,32 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 680d4522c23b10729b148621ff3f5b43e22e5a17351b666d2ef862ede1d455ed
     /// tsc-span: _tsc.js:69407-69447
     ///
-    /// The key strings mirror tsc's exactly, with tsc-rs's stable ids
-    /// standing in for tsc's lazily assigned node/type/symbol ids
-    /// (the key only needs identity, not any particular numbering).
+    /// Build the numeric root lazily, then append accessed names in their original order.
     fn get_flow_cache_key(
         &mut self,
         node: NodeId,
         declared_type: TypeId,
         initial_type: TypeId,
         flow_container: Option<NodeId>,
-    ) -> CheckResult<Option<JsString>> {
-        // The key's fields in decimal, as tsc's template strings write them
-        // (a formatter per key was a measurable share of a check).
-        fn push_container(key: &mut String, container: Option<NodeId>) {
-            match container {
-                Some(container) => tsc_types::push_decimal(key, container.index()),
-                None => key.push_str("-1"),
-            }
-        }
+    ) -> CheckResult<Option<FlowCacheKey>> {
         match self.kind_of(node) {
             SyntaxKind::Identifier if !self.is_this_in_type_query(node) => {
                 Ok(self.get_resolved_symbol(node)?.map(|symbol| {
-                    let mut key = String::with_capacity(32);
-                    push_container(&mut key, flow_container);
-                    key.push('|');
-                    tsc_types::push_decimal(&mut key, declared_type.index());
-                    key.push('|');
-                    tsc_types::push_decimal(&mut key, initial_type.index());
-                    key.push('|');
-                    tsc_types::push_decimal(&mut key, symbol.index());
-                    JsString::from(key)
+                    FlowCacheKey::Root(FlowKeyPrefix::Fields([
+                        flow_container.map_or(u32::MAX, NodeId::index),
+                        declared_type.index(),
+                        initial_type.index(),
+                        symbol.index(),
+                    ]))
                 }))
             }
             // The this-in-type-query Identifier falls through to the
             // ThisKeyword arm, exactly as tsc's switch does.
-            SyntaxKind::Identifier | SyntaxKind::ThisKeyword => {
-                let mut key = String::with_capacity(32);
-                key.push_str("0|");
-                push_container(&mut key, flow_container);
-                key.push('|');
-                tsc_types::push_decimal(&mut key, declared_type.index());
-                key.push('|');
-                tsc_types::push_decimal(&mut key, initial_type.index());
-                Ok(Some(JsString::from(key)))
-            }
+            SyntaxKind::Identifier | SyntaxKind::ThisKeyword => Ok(Some(FlowCacheKey::this(
+                flow_container,
+                declared_type,
+                initial_type,
+            ))),
             SyntaxKind::NonNullExpression => {
                 let Some(data) = self.record_of(node).as_non_null_expression() else {
                     return Ok(None);
@@ -1599,8 +1604,9 @@ impl<'a> CheckerState<'a> {
                     return Ok(None);
                 };
                 let mut key = left_key;
-                key.push('.');
-                key.push_str(right_text);
+                let suffix = key.suffix_mut();
+                suffix.push('.');
+                suffix.push_str(right_text);
                 Ok(Some(key))
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
@@ -1623,8 +1629,9 @@ impl<'a> CheckerState<'a> {
                         return Ok(None);
                     };
                     let mut key = key;
-                    key.push('.');
-                    key.push_js(prop_name.as_js());
+                    let suffix = key.suffix_mut();
+                    suffix.push('.');
+                    suffix.push_js(prop_name.as_js());
                     return Ok(Some(key));
                 }
                 if self.kind_of(node) == SyntaxKind::ElementAccessExpression {
@@ -1649,8 +1656,9 @@ impl<'a> CheckerState<'a> {
                                         return Ok(None);
                                     };
                                     let mut key = key;
-                                    key.push_str(".@");
-                                    key.push_str(&symbol.index().to_string());
+                                    let suffix = key.suffix_mut();
+                                    suffix.push_str(".@");
+                                    suffix.push_str(&symbol.index().to_string());
                                     return Ok(Some(key));
                                 }
                             }
@@ -1664,13 +1672,10 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::FunctionDeclaration
             | SyntaxKind::FunctionExpression
             | SyntaxKind::ArrowFunction
-            | SyntaxKind::MethodDeclaration => {
-                let mut key = String::with_capacity(21);
-                tsc_types::push_decimal(&mut key, node.index());
-                key.push('#');
-                tsc_types::push_decimal(&mut key, declared_type.index());
-                Ok(Some(JsString::from(key)))
-            }
+            | SyntaxKind::MethodDeclaration => Ok(Some(FlowCacheKey::Root(FlowKeyPrefix::Node(
+                node,
+                declared_type,
+            )))),
             _ => Ok(None),
         }
     }
@@ -1901,7 +1906,7 @@ impl<'a> CheckerState<'a> {
                 // tsgo isReachableFlowNodeWorker (checker/flow.go:2528-2537):
                 // a shared node's reachability is cached only while no
                 // ReduceLabel narrows a label's antecedents.
-                if !no_cache_check && self.reduce_label_overrides.is_empty() {
+                if !no_cache_check && self.reduce_label_overrides().is_empty() {
                     if let Some(reachable) = self.flow_node_reachable.get(&(file, flow)) {
                         return Ok(reachable);
                     }
@@ -1986,16 +1991,9 @@ impl<'a> CheckerState<'a> {
                     unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
                 };
                 let antecedent = self.flow_antecedent(file, flow);
-                let saved = self.reduce_label_overrides.insert((file, target), flow);
+                let saved = self.replace_reduce_label((file, target), Some(flow));
                 let result = self.is_reachable_flow_node_worker(file, antecedent, false);
-                match saved {
-                    Some(previous) => {
-                        self.reduce_label_overrides.insert((file, target), previous);
-                    }
-                    None => {
-                        self.reduce_label_overrides.remove(&(file, target));
-                    }
-                }
+                self.replace_reduce_label((file, target), saved);
                 return result;
             } else {
                 return Ok(!flags.intersects(FlowFlags::UNREACHABLE));
@@ -2072,16 +2070,9 @@ impl<'a> CheckerState<'a> {
                     unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
                 };
                 let antecedent = self.flow_antecedent(file, flow);
-                let saved = self.reduce_label_overrides.insert((file, target), flow);
+                let saved = self.replace_reduce_label((file, target), Some(flow));
                 let result = self.is_post_super_flow_node(file, antecedent, false);
-                match saved {
-                    Some(previous) => {
-                        self.reduce_label_overrides.insert((file, target), previous);
-                    }
-                    None => {
-                        self.reduce_label_overrides.remove(&(file, target));
-                    }
-                }
+                self.replace_reduce_label((file, target), saved);
                 return result;
             } else {
                 return flags.intersects(FlowFlags::UNREACHABLE);
@@ -2566,6 +2557,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: containsMatchingReference @6.0.3
     /// tsc-hash: 792f946d12e93e4bda7e12ed10bd21472ebfa560d5a58ca4d3798e674475d22c
     /// tsc-span: _tsc.js:69544-69552
+    #[inline(never)]
     fn contains_matching_reference(&mut self, source: NodeId, target: NodeId) -> CheckResult<bool> {
         let mut source = source;
         while matches!(
@@ -2593,8 +2585,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<bool> {
         let mut source = source;
         loop {
-            let file_source = self.binder.source_of_node(source);
-            if !node_util::is_optional_chain(file_source, source) {
+            if !node_util::is_optional_chain(&Published, source) {
                 return Ok(false);
             }
             let next = match self.data_of(source) {
@@ -3437,12 +3428,13 @@ impl<'a> CheckerState<'a> {
     /// the single entry every walk/narrower site uses, so a synthetic
     /// destructuring chain matches exactly like tsc's synthetic node.
     /// tsrs-native: dispatch over FlowQuery::synthetic_props.
+    #[inline]
     pub(crate) fn is_matching_query_reference(
         &mut self,
         query: &FlowQuery,
         target: NodeId,
     ) -> CheckResult<bool> {
-        match (&query.synthetic_props, query.identifier_location) {
+        match (query.synthetic_props.as_deref(), query.identifier_location) {
             (None, Some(location)) => match self.kind_of(target) {
                 SyntaxKind::ParenthesizedExpression
                 | SyntaxKind::NonNullExpression
@@ -3457,15 +3449,12 @@ impl<'a> CheckerState<'a> {
                 ),
             },
             (None, None) => self.is_matching_reference(query.reference, target),
-            (Some(props), _) => {
-                let props = props.clone();
-                self.is_matching_synthetic_chain(
-                    query.reference,
-                    &props,
-                    query.synthetic_this_root,
-                    target,
-                )
-            }
+            (Some(props), _) => self.is_matching_synthetic_chain(
+                query.reference,
+                props,
+                query.synthetic_this_root,
+                target,
+            ),
         }
     }
 
@@ -3476,6 +3465,7 @@ impl<'a> CheckerState<'a> {
     /// receivers (an empty chain IS the base — plain matching, or the
     /// ThisKeyword kind test when the chain is this-rooted).
     /// tsrs-native: chain-encoded source arm of the same tsc span.
+    #[inline(never)]
     fn is_matching_synthetic_chain(
         &mut self,
         base: NodeId,
@@ -3616,14 +3606,29 @@ impl<'a> CheckerState<'a> {
     /// source: the synthetic chain strips one level at a time (each
     /// prefix is "contained"), then continues into the real base.
     /// tsrs-native: dispatch over FlowQuery::synthetic_props.
+    #[inline]
     pub(crate) fn contains_matching_query_reference(
         &mut self,
         query: &FlowQuery,
         target: NodeId,
     ) -> CheckResult<bool> {
-        let Some(props) = query.synthetic_props.clone() else {
-            return self.contains_matching_reference(query.reference, target);
-        };
+        if let Some(props) = query.synthetic_props.as_deref() {
+            return self.synthetic_chain_contains_reference(query, props, target);
+        }
+        if query.identifier_location.is_some() {
+            debug_assert_eq!(self.kind_of(query.reference), SyntaxKind::Identifier);
+            return Ok(false);
+        }
+        self.contains_matching_reference(query.reference, target)
+    }
+
+    #[inline(never)]
+    fn synthetic_chain_contains_reference(
+        &mut self,
+        query: &FlowQuery,
+        props: &[EscapedName],
+        target: NodeId,
+    ) -> CheckResult<bool> {
         for len in (1..props.len()).rev() {
             if self.is_matching_synthetic_chain(
                 query.reference,
@@ -3681,9 +3686,8 @@ impl<'a> CheckerState<'a> {
         query: &FlowQuery,
         target: NodeId,
     ) -> CheckResult<bool> {
-        match &query.synthetic_props {
+        match query.synthetic_props.as_deref() {
             Some(props) => {
-                let props = props.clone();
                 let receiver = &props[..props.len().saturating_sub(1)];
                 self.is_matching_synthetic_chain(
                     query.reference,
@@ -3712,13 +3716,21 @@ impl<'a> CheckerState<'a> {
         source: NodeId,
         query: &FlowQuery,
     ) -> CheckResult<bool> {
-        let Some(props) = query.synthetic_props.clone() else {
-            return self.optional_chain_contains_reference(source, query.reference);
-        };
-        let mut source = source;
+        match query.synthetic_props.as_deref() {
+            Some(props) => self.optional_chain_contains_synthetic_reference(source, query, props),
+            None => self.optional_chain_contains_reference(source, query.reference),
+        }
+    }
+
+    #[inline(never)]
+    fn optional_chain_contains_synthetic_reference(
+        &mut self,
+        mut source: NodeId,
+        query: &FlowQuery,
+        props: &[EscapedName],
+    ) -> CheckResult<bool> {
         loop {
-            let file_source = self.binder.source_of_node(source);
-            if !node_util::is_optional_chain(file_source, source) {
+            if !node_util::is_optional_chain(&Published, source) {
                 return Ok(false);
             }
             let next = match self.data_of(source) {
@@ -3735,7 +3747,7 @@ impl<'a> CheckerState<'a> {
             if self.real_node_matches_synthetic_chain(
                 source,
                 query.reference,
-                &props,
+                props,
                 query.synthetic_this_root,
             )? {
                 return Ok(true);

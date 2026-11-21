@@ -129,10 +129,7 @@ impl<'a> CheckerState<'a> {
         // two of them needs equal values, and literals are neither objects
         // nor structured. Narrowing by equality asks this of every member
         // of a union (a SyntaxKind comparison: hundreds of enum members).
-        if self.is_value_literal(source)
-            && self.is_value_literal(target)
-            && !self.literal_values_equal(source, target)
-        {
+        if self.unequal_value_literals(source, target) {
             return Ok(false);
         }
         if relation != RelationKind::Identity {
@@ -409,58 +406,85 @@ impl<'a> CheckerState<'a> {
         self.tables.literal_type_values_equal(source, target)
     }
 
-    /// A string, number or bigint literal type (an enum member included)
-    /// with no other flag: not a union, not a computed enum type.
-    fn is_value_literal(&self, ty: TypeId) -> bool {
-        const VALUE_LITERAL: i32 = TypeFlags::STRING_LITERAL.bits()
-            | TypeFlags::NUMBER_LITERAL.bits()
-            | TypeFlags::BIG_INT_LITERAL.bits();
-        let flags = self.tables.flags_of(ty).bits();
-        flags & VALUE_LITERAL != 0 && flags & !(VALUE_LITERAL | TypeFlags::ENUM_LITERAL.bits()) == 0
+    /// After regularization and the ID equality check, distinct ordinary
+    /// literals of one kind have unequal values. Enum members can share a
+    /// value with another member or an ordinary literal.
+    #[inline]
+    fn unequal_value_literals(&self, source: TypeId, target: TypeId) -> bool {
+        let value =
+            TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL | TypeFlags::BIG_INT_LITERAL;
+        let allowed = value | TypeFlags::ENUM_LITERAL;
+        let s = self.tables.flags_of(source);
+        if !s.intersects(value) || !allowed.contains(s) {
+            return false;
+        }
+        let t = self.tables.flags_of(target);
+        if !t.intersects(value) || !allowed.contains(t) {
+            return false;
+        }
+        if s & value != t & value {
+            return true;
+        }
+        if s == t
+            && matches!(
+                s,
+                TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL | TypeFlags::BIG_INT_LITERAL
+            )
+        {
+            debug_assert!(!self.literal_values_equal(source, target));
+            return true;
+        }
+        !self.literal_values_equal(source, target)
     }
 
     /// tsc-port: isUnknownLikeUnionType @6.0.3
     /// tsc-hash: db66676e0affd408e748429ddd64881c82c0a42b92b120e2c54f6726f6e3fed4
     /// tsc-span: _tsc.js:64653-64662
+    #[inline]
     fn is_unknown_like_union_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         if !self.tables.strict_null_checks || !self.tables.flags_of(ty).intersects(TypeFlags::UNION)
         {
             return Ok(false);
         }
-        if !self
-            .tables
-            .object_flags_of(ty)
-            .intersects(ObjectFlags::IS_UNKNOWN_LIKE_UNION_COMPUTED)
-        {
-            let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
-                unreachable!("union flag implies union data");
-            };
-            let types = self.tables.list_copy(types);
-            let is_unknown_like = types.len() >= 3
-                && self
-                    .tables
-                    .flags_of(types[0])
-                    .intersects(TypeFlags::UNDEFINED)
-                && self.tables.flags_of(types[1]).intersects(TypeFlags::NULL)
-                && {
-                    let mut any_empty = false;
-                    for &t in types.iter() {
-                        if self.is_empty_anonymous_object_type(t)? {
-                            any_empty = true;
-                            break;
-                        }
-                    }
-                    any_empty
-                };
-            let new_flags = self.tables.object_flags_of(ty).bits()
-                | ObjectFlags::IS_UNKNOWN_LIKE_UNION_COMPUTED.bits()
-                | if is_unknown_like {
-                    ObjectFlags::IS_UNKNOWN_LIKE_UNION.bits()
-                } else {
-                    0
-                };
-            self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(new_flags);
+        let flags = self.tables.object_flags_of(ty);
+        if flags.intersects(ObjectFlags::IS_UNKNOWN_LIKE_UNION_COMPUTED) {
+            return Ok(flags.intersects(ObjectFlags::IS_UNKNOWN_LIKE_UNION));
         }
+        self.compute_unknown_like_union_type(ty)
+    }
+
+    /// Publish the verdict after the fallible member queries have finished.
+    #[cold]
+    #[inline(never)]
+    fn compute_unknown_like_union_type(&mut self, ty: TypeId) -> CheckResult<bool> {
+        let TypeData::Union { types, .. } = self.tables.type_of(ty).data else {
+            unreachable!("union flag implies union data");
+        };
+        let types = self.tables.list_copy(types);
+        let is_unknown_like = types.len() >= 3
+            && self
+                .tables
+                .flags_of(types[0])
+                .intersects(TypeFlags::UNDEFINED)
+            && self.tables.flags_of(types[1]).intersects(TypeFlags::NULL)
+            && {
+                let mut any_empty = false;
+                for &t in types.iter() {
+                    if self.is_empty_anonymous_object_type(t)? {
+                        any_empty = true;
+                        break;
+                    }
+                }
+                any_empty
+            };
+        let new_flags = self.tables.object_flags_of(ty).bits()
+            | ObjectFlags::IS_UNKNOWN_LIKE_UNION_COMPUTED.bits()
+            | if is_unknown_like {
+                ObjectFlags::IS_UNKNOWN_LIKE_UNION.bits()
+            } else {
+                0
+            };
+        self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(new_flags);
         Ok(self
             .tables
             .object_flags_of(ty)
@@ -833,22 +857,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(true);
             }
         }
-        let scratch = std::mem::take(&mut self.relation_scratch);
-        let mut checker = RelationChecker {
-            st: self,
-            relation,
-            maybe_keys: scratch.maybe_keys,
-            maybe_keys_set: scratch.maybe_keys_set,
-            source_stack: scratch.source_stack,
-            target_stack: scratch.target_stack,
-            maybe_count: 0,
-            source_depth: 0,
-            target_depth: 0,
-            expanding_flags: ExpandingFlags::NONE,
-            overflow: false,
-            relation_count,
-            error_state: RelationErrorState::default(),
-        };
+        let mut checker = RelationChecker::new(self, relation, relation_count);
         let result = checker.is_related_to(
             source,
             target,
@@ -857,7 +866,7 @@ impl<'a> CheckerState<'a> {
             IntersectionState::NONE,
         )?;
         let overflow = checker.overflow_error_output(source, target)?;
-        self.relation_scratch = checker.into_scratch();
+        checker.recycle();
         if let Some(output) = overflow {
             // Even a verdict-only probe publishes a fresh overflow at
             // currentNode (64883-64888). Cached probes remain silent.
@@ -1007,25 +1016,8 @@ impl<'a> CheckerState<'a> {
         error_node: Option<tsc_syntax::NodeId>,
     ) -> CheckResult<(bool, Option<RelationErrorOutput>)> {
         let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
-        let scratch = std::mem::take(&mut self.relation_scratch);
-        let mut checker = RelationChecker {
-            st: self,
-            relation,
-            maybe_keys: scratch.maybe_keys,
-            maybe_keys_set: scratch.maybe_keys_set,
-            source_stack: scratch.source_stack,
-            target_stack: scratch.target_stack,
-            maybe_count: 0,
-            source_depth: 0,
-            target_depth: 0,
-            expanding_flags: ExpandingFlags::NONE,
-            overflow: false,
-            relation_count,
-            error_state: RelationErrorState {
-                error_node,
-                ..RelationErrorState::default()
-            },
-        };
+        let mut checker = RelationChecker::new(self, relation, relation_count);
+        checker.error_state.error_node = error_node;
         let result = checker.is_related_to_with_head(
             source,
             target,
@@ -1038,6 +1030,7 @@ impl<'a> CheckerState<'a> {
             // The overflow row bypasses errorInfo and the containing chain.
             // Its consumer owns publication so later related-info additions
             // do not create a second, distinct diagnostic in the program.
+            checker.recycle();
             return Ok((!is_false(result), Some(output)));
         }
         // checkTypeRelatedTo publishes `errorInfo` independently of its
@@ -1132,7 +1125,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         let error_node = checker.error_state.error_node;
-        self.relation_scratch = checker.into_scratch();
+        checker.recycle();
         Ok((
             related,
             message.map(|message| RelationErrorOutput {
@@ -1359,28 +1352,10 @@ fn is_excess_property_message(message: &'static DiagnosticMessage) -> bool {
     )
 }
 
-/// The checkTypeRelatedTo closure state (maybe stack, recursion
-/// stacks, complexity budget) — checker-key §1.2's four invariants:
-/// Maybe results are never cached mid-recursion, commit happens on
-/// unwind of the outermost frame, relationCount bounds complexity,
-/// depth 100 per side hard-cuts recursion.
-/// A relation check's work lists between checks: the outermost
-/// `checkTypeRelatedTo` of a chain takes them and hands them back
-/// emptied, so the lists are allocated once, not per check.
+/// Recursion state shared by a relation and its inference callbacks. Keeping
+/// it in a box lets a nested walk take a different set of stacks and budget.
 #[derive(Default)]
-pub(crate) struct RelationScratch {
-    pub(crate) maybe_keys: Vec<RelationKey>,
-    pub(crate) maybe_keys_set: HashSet<RelationKey>,
-    pub(crate) source_stack: Vec<RelationStackEntry>,
-    pub(crate) target_stack: Vec<RelationStackEntry>,
-}
-
-// A longer active prefix also has a hash index for cycle checks.
-const MAYBE_SCAN_LIMIT: usize = 32;
-
-pub(crate) struct RelationChecker<'r, 'a> {
-    pub(crate) st: &'r mut CheckerState<'a>,
-    pub(crate) relation: RelationKind,
+pub(crate) struct RelationWork {
     pub(crate) maybe_keys: Vec<RelationKey>,
     pub(crate) maybe_keys_set: HashSet<RelationKey>,
     pub(crate) source_stack: Vec<RelationStackEntry>,
@@ -1391,6 +1366,15 @@ pub(crate) struct RelationChecker<'r, 'a> {
     pub(crate) expanding_flags: ExpandingFlags,
     pub(crate) overflow: bool,
     pub(crate) relation_count: i64,
+}
+
+// A longer active prefix also has a hash index for cycle checks.
+const MAYBE_SCAN_LIMIT: usize = 32;
+
+pub(crate) struct RelationChecker<'r, 'a> {
+    pub(crate) st: &'r mut CheckerState<'a>,
+    pub(crate) relation: RelationKind,
+    pub(crate) work: Box<RelationWork>,
     pub(crate) error_state: RelationErrorState,
 }
 
@@ -1401,7 +1385,7 @@ pub(crate) struct RelationChecker<'r, 'a> {
 /// (getInferredType 69300-69306) must compare under the LIVE frame —
 /// same maybe stack, recursion depths, and budget. Rust can't store
 /// that closure in the inference context, so the walker LOANS its
-/// frame fields (mem::take) and PARKS the loan on the state
+/// work record and PARKS the loan on the state
 /// (`CheckerState::relation_frame_loan`) for the duration of the
 /// iSICO call — a parameter cannot reach every consumer, because
 /// getInferredType re-enters through the non-fixing mapper's deferred
@@ -1413,16 +1397,7 @@ pub(crate) struct RelationChecker<'r, 'a> {
 /// argument.
 pub(crate) struct RelationFrame {
     pub(crate) relation: RelationKind,
-    pub(crate) maybe_keys: Vec<RelationKey>,
-    pub(crate) maybe_keys_set: HashSet<RelationKey>,
-    pub(crate) source_stack: Vec<RelationStackEntry>,
-    pub(crate) target_stack: Vec<RelationStackEntry>,
-    pub(crate) maybe_count: usize,
-    pub(crate) source_depth: usize,
-    pub(crate) target_depth: usize,
-    pub(crate) expanding_flags: ExpandingFlags,
-    pub(crate) overflow: bool,
-    pub(crate) relation_count: i64,
+    pub(crate) work: Box<RelationWork>,
     pub(crate) intersection_state: IntersectionState,
 }
 
@@ -1456,77 +1431,46 @@ pub(crate) enum RelationFrameLoan {
 }
 
 impl<'r, 'a> RelationChecker<'r, 'a> {
-    /// tsrs-native: frame loan for the RelationFrame worker (the
-    /// Rust face of tsc's isRelatedToWorker closure capture, 67070).
-    ///
-    /// The work lists, emptied, for the next relation check.
-    fn into_scratch(self) -> RelationScratch {
-        let RelationChecker {
-            mut maybe_keys,
-            mut maybe_keys_set,
-            mut source_stack,
-            mut target_stack,
-            ..
-        } = self;
-        maybe_keys.clear();
-        maybe_keys_set.clear();
-        source_stack.clear();
-        target_stack.clear();
-        RelationScratch {
-            maybe_keys,
-            maybe_keys_set,
-            source_stack,
-            target_stack,
+    pub(crate) fn new(st: &'r mut CheckerState<'a>, relation: RelationKind, budget: i64) -> Self {
+        let mut work = st.relation_work_pool.pop().unwrap_or_default();
+        work.relation_count = budget;
+        Self {
+            st,
+            relation,
+            work,
+            error_state: RelationErrorState::default(),
         }
     }
 
-    /// Detach the frame fields for a state-level call that must
-    /// compare under this live frame (see RelationFrame). Pair every
-    /// loan with restore_frame BEFORE propagating an Err.
+    /// Retain the stack capacities. Diagnostic ownership ends with the walker.
+    pub(crate) fn recycle(mut self) {
+        self.work.maybe_keys.clear();
+        self.work.maybe_keys_set.clear();
+        self.work.source_stack.clear();
+        self.work.target_stack.clear();
+        self.work.maybe_count = 0;
+        self.work.source_depth = 0;
+        self.work.target_depth = 0;
+        self.work.expanding_flags = ExpandingFlags::NONE;
+        self.work.overflow = false;
+        self.work.relation_count = 0;
+        self.st.relation_work_pool.push(self.work);
+    }
+
+    /// Park the live record during a state-level inference call. The lending
+    /// walker keeps its diagnostics and an idle record until the loan returns.
     pub(crate) fn loan_frame(&mut self, intersection_state: IntersectionState) -> RelationFrame {
+        let idle = self.st.relation_work_pool.pop().unwrap_or_default();
         RelationFrame {
             relation: self.relation,
-            maybe_keys: std::mem::take(&mut self.maybe_keys),
-            maybe_keys_set: std::mem::take(&mut self.maybe_keys_set),
-            source_stack: std::mem::take(&mut self.source_stack),
-            target_stack: std::mem::take(&mut self.target_stack),
-            maybe_count: self.maybe_count,
-            source_depth: self.source_depth,
-            target_depth: self.target_depth,
-            expanding_flags: self.expanding_flags,
-            overflow: self.overflow,
-            relation_count: self.relation_count,
+            work: std::mem::replace(&mut self.work, idle),
             intersection_state,
         }
     }
 
-    /// tsrs-native: loan_frame's return half (no tsc counterpart —
-    /// the closure frees itself).
     pub(crate) fn restore_frame(&mut self, frame: RelationFrame) {
-        let RelationFrame {
-            relation: _,
-            maybe_keys,
-            maybe_keys_set,
-            source_stack,
-            target_stack,
-            maybe_count,
-            source_depth,
-            target_depth,
-            expanding_flags,
-            overflow,
-            relation_count,
-            intersection_state: _,
-        } = frame;
-        self.maybe_keys = maybe_keys;
-        self.maybe_keys_set = maybe_keys_set;
-        self.source_stack = source_stack;
-        self.target_stack = target_stack;
-        self.maybe_count = maybe_count;
-        self.source_depth = source_depth;
-        self.target_depth = target_depth;
-        self.expanding_flags = expanding_flags;
-        self.overflow = overflow;
-        self.relation_count = relation_count;
+        let idle = std::mem::replace(&mut self.work, frame.work);
+        self.st.relation_work_pool.push(idle);
     }
 }
 
@@ -1542,10 +1486,15 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// (checker/relater.go:5030-5046): a `--generateTrace` instant for a
     /// relation of two unions or intersections whose sizes multiply past a
     /// million.
+    #[inline]
     fn trace_unions_or_intersections_too_large(&self, source: TypeId, target: TypeId) {
-        if self.st.tracer.is_none() {
-            return;
+        if self.st.tracer.is_some() {
+            self.trace_large_union_product(source, target);
         }
+    }
+
+    #[inline(never)]
+    fn trace_large_union_product(&self, source: TypeId, target: TypeId) {
         let both = TypeFlags::UNION.bits() | TypeFlags::INTERSECTION.bits();
         if self.flags(source).bits() & both == 0 || self.flags(target).bits() & both == 0 {
             return;
@@ -1578,12 +1527,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         source: TypeId,
         target: TypeId,
     ) -> CheckResult<Option<RelationErrorOutput>> {
-        if !self.overflow {
+        if !self.work.overflow {
             return Ok(None);
         }
         // tsgo (relater.go:371-381): the only overflow left is the
         // complexity budget; 100 levels of nesting end in Maybe.
-        let (depth, target_depth) = (self.source_depth, self.target_depth);
+        let (depth, target_depth) = (self.work.source_depth, self.work.target_depth);
         self.st.trace_instant("checkTypeRelatedTo_DepthLimit", || {
             relation_trace_args(source, target)
                 .with("depth", depth)
@@ -1705,7 +1654,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         head_message: Option<&'static DiagnosticMessage>,
         intersection_state: IntersectionState,
     ) -> CheckResult<Ternary> {
-        self.st.profile_ops[crate::line_profile::OP_RELATIONS] += 1;
+        if self.st.line_profile.count_relations {
+            self.st.profile_ops[crate::line_profile::OP_RELATIONS] += 1;
+        }
         if original_source == original_target {
             return Ok(Ternary::TRUE);
         }
@@ -3711,7 +3662,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         intersection_state: IntersectionState,
         recursion_flags: RecursionFlags,
     ) -> CheckResult<Ternary> {
-        if self.overflow {
+        if self.work.overflow {
             return Ok(Ternary::FALSE);
         }
         let id = self.st.get_relation_key(
@@ -3755,11 +3706,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 });
             }
         }
-        if self.relation_count <= 0 {
-            self.overflow = true;
+        if self.work.relation_count <= 0 {
+            self.work.overflow = true;
             return Ok(Ternary::FALSE);
         }
-        if !self.maybe_keys.is_empty() {
+        if !self.work.maybe_keys.is_empty() {
             if self.has_active_key(&id) {
                 return Ok(Ternary::MAYBE);
             }
@@ -3775,7 +3726,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     return Ok(Ternary::MAYBE);
                 }
             }
-            if self.source_depth == 100 || self.target_depth == 100 {
+            if self.work.source_depth == 100 || self.work.target_depth == 100 {
                 // tsgo (relater.go:3135-3140) stops relating at 100 levels
                 // and assumes the types related, as it does for a
                 // comparison already in progress; tsc 6.0 failed the whole
@@ -3783,50 +3734,52 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 return Ok(Ternary::MAYBE);
             }
         }
-        let maybe_start = self.maybe_count;
+        let maybe_start = self.work.maybe_count;
         self.push_active_key(&id);
-        let save_expanding_flags = self.expanding_flags;
-        let save_source_depth = self.source_depth;
-        let save_target_depth = self.target_depth;
+        let save_expanding_flags = self.work.expanding_flags;
+        let save_source_depth = self.work.source_depth;
+        let save_target_depth = self.work.target_depth;
         let mut save_reliability_flags = None;
         let outcome = (|| {
             if recursion_flags.intersects(RecursionFlags::SOURCE) {
-                if self.source_stack.len() == self.source_depth {
-                    self.source_stack.push(RelationStackEntry::new(source));
+                if self.work.source_stack.len() == self.work.source_depth {
+                    self.work.source_stack.push(RelationStackEntry::new(source));
                 } else {
-                    self.source_stack[self.source_depth] = RelationStackEntry::new(source);
+                    self.work.source_stack[self.work.source_depth] =
+                        RelationStackEntry::new(source);
                 }
-                self.source_depth += 1;
-                if !self.expanding_flags.intersects(ExpandingFlags::SOURCE)
+                self.work.source_depth += 1;
+                if !self.work.expanding_flags.intersects(ExpandingFlags::SOURCE)
                     && self.st.is_deeply_nested_on_stack(
                         source,
-                        &self.source_stack,
-                        self.source_depth,
+                        &self.work.source_stack,
+                        self.work.source_depth,
                         3,
                     )?
                 {
-                    self.expanding_flags = ExpandingFlags::from_bits(
-                        self.expanding_flags.bits() | ExpandingFlags::SOURCE.bits(),
+                    self.work.expanding_flags = ExpandingFlags::from_bits(
+                        self.work.expanding_flags.bits() | ExpandingFlags::SOURCE.bits(),
                     );
                 }
             }
             if recursion_flags.intersects(RecursionFlags::TARGET) {
-                if self.target_stack.len() == self.target_depth {
-                    self.target_stack.push(RelationStackEntry::new(target));
+                if self.work.target_stack.len() == self.work.target_depth {
+                    self.work.target_stack.push(RelationStackEntry::new(target));
                 } else {
-                    self.target_stack[self.target_depth] = RelationStackEntry::new(target);
+                    self.work.target_stack[self.work.target_depth] =
+                        RelationStackEntry::new(target);
                 }
-                self.target_depth += 1;
-                if !self.expanding_flags.intersects(ExpandingFlags::TARGET)
+                self.work.target_depth += 1;
+                if !self.work.expanding_flags.intersects(ExpandingFlags::TARGET)
                     && self.st.is_deeply_nested_on_stack(
                         target,
-                        &self.target_stack,
-                        self.target_depth,
+                        &self.work.target_stack,
+                        self.work.target_depth,
                         3,
                     )?
                 {
-                    self.expanding_flags = ExpandingFlags::from_bits(
-                        self.expanding_flags.bits() | ExpandingFlags::TARGET.bits(),
+                    self.work.expanding_flags = ExpandingFlags::from_bits(
+                        self.work.expanding_flags.bits() | ExpandingFlags::TARGET.bits(),
                     );
                 }
             }
@@ -3834,8 +3787,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             // own reliability flags.
             save_reliability_flags = Some(self.st.reliability_flags);
             self.st.reliability_flags = RelationComparisonResult::NONE;
-            if self.expanding_flags == ExpandingFlags::BOTH {
-                let (depth, target_depth) = (self.source_depth, self.target_depth);
+            if self.work.expanding_flags == ExpandingFlags::BOTH {
+                let (depth, target_depth) = (self.work.source_depth, self.work.target_depth);
                 self.st
                     .trace_instant("recursiveTypeRelatedTo_DepthLimit", || {
                         relation_trace_args(source, target)
@@ -3864,9 +3817,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
             None => RelationComparisonResult::NONE,
         };
-        self.source_depth = save_source_depth;
-        self.target_depth = save_target_depth;
-        self.expanding_flags = save_expanding_flags;
+        self.work.source_depth = save_source_depth;
+        self.work.target_depth = save_target_depth;
+        self.work.expanding_flags = save_expanding_flags;
         let result = match outcome {
             Ok(result) => result,
             Err(err) => {
@@ -3881,7 +3834,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         };
         if is_true(result) || result == Ternary::MAYBE {
-            if result == Ternary::TRUE || (self.source_depth == 0 && self.target_depth == 0) {
+            if result == Ternary::TRUE
+                || (self.work.source_depth == 0 && self.work.target_depth == 0)
+            {
                 if result == Ternary::TRUE || result == Ternary::MAYBE {
                     self.reset_maybe_stack(
                         maybe_start,
@@ -3904,7 +3859,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     RelationComparisonResult::FAILED.bits() | propagating_variance_flags.bits(),
                 ),
             );
-            self.relation_count -= 1;
+            self.work.relation_count -= 1;
             self.reset_maybe_stack(
                 maybe_start,
                 /*mark_all_as_succeeded*/ false,
@@ -3915,25 +3870,28 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     }
 
     fn has_active_key(&self, key: &RelationKey) -> bool {
-        if self.maybe_count <= MAYBE_SCAN_LIMIT {
-            self.maybe_keys[..self.maybe_count].contains(key)
+        if self.work.maybe_count <= MAYBE_SCAN_LIMIT {
+            self.work.maybe_keys[..self.work.maybe_count].contains(key)
         } else {
-            self.maybe_keys_set.contains(key)
+            self.work.maybe_keys_set.contains(key)
         }
     }
 
     fn push_active_key(&mut self, key: &RelationKey) {
-        if self.maybe_count == self.maybe_keys.len() {
-            self.maybe_keys.push(key.clone());
+        if self.work.maybe_count == self.work.maybe_keys.len() {
+            self.work.maybe_keys.push(key.clone());
         } else {
-            self.maybe_keys[self.maybe_count] = key.clone();
+            self.work.maybe_keys[self.work.maybe_count] = key.clone();
         }
-        self.maybe_count += 1;
-        if self.maybe_count == MAYBE_SCAN_LIMIT + 1 {
-            self.maybe_keys_set
-                .extend(self.maybe_keys[..self.maybe_count].iter().cloned());
-        } else if self.maybe_count > MAYBE_SCAN_LIMIT {
-            self.maybe_keys_set.insert(key.clone());
+        self.work.maybe_count += 1;
+        if self.work.maybe_count == MAYBE_SCAN_LIMIT + 1 {
+            self.work.maybe_keys_set.extend(
+                self.work.maybe_keys[..self.work.maybe_count]
+                    .iter()
+                    .cloned(),
+            );
+        } else if self.work.maybe_count > MAYBE_SCAN_LIMIT {
+            self.work.maybe_keys_set.insert(key.clone());
         }
     }
 
@@ -3943,13 +3901,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         mark_all_as_succeeded: bool,
         propagating_variance_flags: RelationComparisonResult,
     ) {
-        let popped = &self.maybe_keys[maybe_start..self.maybe_count];
+        let popped = &self.work.maybe_keys[maybe_start..self.work.maybe_count];
         if maybe_start > MAYBE_SCAN_LIMIT {
             for key in popped {
-                self.maybe_keys_set.remove(key);
+                self.work.maybe_keys_set.remove(key);
             }
-        } else if self.maybe_count > MAYBE_SCAN_LIMIT {
-            self.maybe_keys_set.clear();
+        } else if self.work.maybe_count > MAYBE_SCAN_LIMIT {
+            self.work.maybe_keys_set.clear();
         }
         if mark_all_as_succeeded {
             for key in popped {
@@ -3961,10 +3919,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             | propagating_variance_flags.bits(),
                     ),
                 );
-                self.relation_count -= 1;
+                self.work.relation_count -= 1;
             }
         }
-        self.maybe_count = maybe_start;
+        self.work.maybe_count = maybe_start;
     }
 }
 
@@ -4967,7 +4925,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<bool> {
         let target = self.get_recursion_target(ty)?;
         if let Some(top) = stack.get(depth - 1).filter(|entry| entry.ty == ty) {
-            top.identity.set(Some(target));
+            top.identity.set(target.packed());
         }
         let identity = match target {
             RecursionTarget::Identity(identity) => identity,
@@ -4984,22 +4942,19 @@ impl<'a> CheckerState<'a> {
                 return Ok(false);
             }
         };
+        let wanted = RecursionTarget::Identity(identity).packed();
         let mut count = 0;
         let mut last_type_id = 0;
         for entry in stack.iter().take(depth) {
-            let target = match entry.identity.get() {
-                Some(target) => target,
-                None => {
-                    let target = self.get_recursion_target(entry.ty)?;
-                    entry.identity.set(Some(target));
-                    target
-                }
-            };
-            let matches = match target {
-                RecursionTarget::Identity(key) => key == identity,
-                RecursionTarget::Intersection(target) => {
-                    self.intersection_has_matching_recursion_identity(target, identity)?
-                }
+            let mut key = entry.identity.get();
+            if key == StackIdentity::UNSET {
+                key = self.get_recursion_target(entry.ty)?.packed();
+                entry.identity.set(key);
+            }
+            let matches = if let Some(target) = key.intersection() {
+                self.intersection_has_matching_recursion_identity(target, identity)?
+            } else {
+                key == wanted
             };
             if matches {
                 if entry.ty.index() >= last_type_id {
@@ -5309,14 +5264,14 @@ impl<'a> CheckerState<'a> {
 #[derive(Clone, Debug)]
 pub(crate) struct RelationStackEntry {
     ty: TypeId,
-    identity: std::cell::Cell<Option<RecursionTarget>>,
+    identity: std::cell::Cell<StackIdentity>,
 }
 
 impl RelationStackEntry {
     fn new(ty: TypeId) -> Self {
         Self {
             ty,
-            identity: std::cell::Cell::new(None),
+            identity: std::cell::Cell::new(StackIdentity::UNSET),
         }
     }
 }
@@ -5325,6 +5280,33 @@ impl RelationStackEntry {
 enum RecursionTarget {
     Identity(RecursionIdentity),
     Intersection(TypeId),
+}
+
+/// A stack comparison reads one word. The upper half identifies the ID
+/// space and the lower half retains every ID bit, including symbol ownership.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct StackIdentity(u64);
+
+impl StackIdentity {
+    const UNSET: Self = Self(0);
+    const INTERSECTION: u64 = 5;
+
+    fn intersection(self) -> Option<TypeId> {
+        (self.0 >> 32 == Self::INTERSECTION).then(|| TypeId::new(self.0 as u32))
+    }
+}
+
+impl RecursionTarget {
+    fn packed(self) -> StackIdentity {
+        let (tag, id) = match self {
+            Self::Identity(RecursionIdentity::Symbol(id)) => (1, id.index()),
+            Self::Identity(RecursionIdentity::Node(id)) => (2, id.index()),
+            Self::Identity(RecursionIdentity::Type(id)) => (3, id.index()),
+            Self::Identity(RecursionIdentity::ConditionalRoot(id)) => (4, id.index()),
+            Self::Intersection(id) => (StackIdentity::INTERSECTION, id.index()),
+        };
+        StackIdentity((tag << 32) | u64::from(id))
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

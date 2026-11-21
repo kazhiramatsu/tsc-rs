@@ -414,3 +414,39 @@ const values = [1, , ...middle, false];
         });
     }
 }
+
+#[test]
+fn nested_contexts_select_the_innermost_eligible_entry() {
+    with_program_state(
+        &[("a.ts", "let x = 1;")],
+        &CompilerOptions::default(),
+        |state| {
+            let node = find_node(state, SyntaxKind::NumericLiteral, None);
+            let number = state.tables.intrinsics.number;
+            let string = state.tables.intrinsics.string;
+            state.push_contextual_type(node, Some(number), false);
+            state.push_contextual_type(node, Some(string), true);
+            assert_eq!(
+                state.get_contextual_type(node, ContextFlags::NONE),
+                Ok(Some(string))
+            );
+            assert_eq!(
+                state.get_contextual_type(node, ContextFlags::NO_CONSTRAINTS),
+                Ok(Some(number))
+            );
+            let context = crate::inference::InferenceContextId::new(0);
+            state.push_inference_context(node, Some(context));
+            state.push_inference_context(node, None);
+            assert_eq!(state.get_inference_context(node), None);
+            state.pop_contextual_type();
+            state.pop_inference_context();
+            assert_eq!(state.get_inference_context(node), Some(context));
+            assert_eq!(
+                state.get_contextual_type(node, ContextFlags::NONE),
+                Ok(Some(number))
+            );
+            state.pop_inference_context();
+            state.pop_contextual_type();
+        },
+    );
+}

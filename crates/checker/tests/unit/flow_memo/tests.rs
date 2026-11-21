@@ -61,17 +61,17 @@ fn borrowed_label_shapes_follow_override_replacement_and_restore() {
             let before = *record;
             let original = state.flow_label_antecedents(file, label);
             assert!(std::ptr::eq(original, arena.antecedents_from(record)));
-            state.reduce_label_overrides.insert((file, label), origin);
+            state.replace_reduce_label((file, label), Some(origin));
             let snapshot = state.flow_label_antecedents(file, label);
             assert!(std::ptr::eq(snapshot, reduced));
-            let saved = state.reduce_label_overrides.insert((file, label), replacement).unwrap();
+            let saved = state.replace_reduce_label((file, label), Some(replacement)).unwrap();
             assert!(std::ptr::eq(state.flow_label_antecedents(file, label), replaced));
-            state.reduce_label_overrides.insert((file, label), saved);
+            state.replace_reduce_label((file, label), Some(saved));
             let trial = state.begin_speculation();
-            state.reduce_label_overrides.insert((file, label), replacement);
+            state.replace_reduce_label((file, label), Some(replacement));
             state.rollback_speculation(trial);
             assert!(std::ptr::eq(state.flow_label_antecedents(file, label), reduced));
-            state.reduce_label_overrides.remove(&(file, label));
+            state.replace_reduce_label((file, label), None);
             assert!(std::ptr::eq(state.flow_label_antecedents(file, label), original));
             assert!(std::ptr::eq(snapshot, reduced));
             assert_eq!(*record, before);
@@ -586,7 +586,7 @@ fn a_shared_answer_from_a_finished_loop_taints_every_enclosing_frame() {
         state.flow_loop_stack.push(crate::flow::FlowLoopEntry {
             file: 0,
             flow: tsc_binder::flow::FlowId::new(0),
-            key: tsc_types::JsString::from("loop"),
+            key: crate::flow::FlowCacheKey::Root(crate::flow::FlowKeyPrefix::Fields([0; 4])),
             types: vec![state.tables.intrinsics.string],
             serial: source,
         });
@@ -744,7 +744,7 @@ fn checker_run_leaves_no_open_frame() {
         assert_eq!(state.flow_memo.frame_depth(), 0);
         assert!(state.shared_flow.is_empty());
         assert!(state.flow_loop_stack.is_empty());
-        assert!(state.reduce_label_overrides.is_empty());
+        assert!(state.reduce_label_overrides().is_empty());
         assert!(state.resolution_targets.is_empty());
         assert!(state.flow_memo.checkpoints.is_empty());
         assert!(state.flow_memo.shadow_hits.is_empty());
@@ -1183,7 +1183,7 @@ fn consultation_guards_live_context_and_depth() {
         state.flow_loop_stack.push(crate::flow::FlowLoopEntry {
             file: 0,
             flow: FlowId::new(0),
-            key: "x".into(),
+            key: crate::flow::FlowCacheKey::Root(crate::flow::FlowKeyPrefix::Fields([0; 4])),
             types: Vec::new(),
             serial: 1,
         });
@@ -1197,11 +1197,9 @@ fn consultation_guards_live_context_and_depth() {
         state.flow_analysis_disabled = true;
         assert!(!state.flow_memo_consult_ok(&q, hit));
         state.flow_analysis_disabled = false;
-        state
-            .reduce_label_overrides
-            .insert((0, FlowId::new(0)), FlowId::new(0));
+        state.replace_reduce_label((0, FlowId::new(0)), Some(FlowId::new(0)));
         assert!(!state.flow_memo_consult_ok(&q, hit));
-        state.reduce_label_overrides.clear();
+        state.replace_reduce_label((0, FlowId::new(0)), None);
         state.flow_memo.serial = UNTAINTED - 1;
         assert!(!state.flow_memo_consult_ok(&q, hit));
     });
@@ -1479,11 +1477,9 @@ fn shared_effects_and_inline_reduce_contexts_block_stores() {
         q.reduce_depth = 1;
         assert!(state.flow_frame_memo(&q).is_none());
         q.reduce_depth = 0;
-        state
-            .reduce_label_overrides
-            .insert((0, FlowId::new(0)), FlowId::new(0));
+        state.replace_reduce_label((0, FlowId::new(0)), Some(FlowId::new(0)));
         assert!(state.flow_frame_memo(&q).is_none());
-        state.reduce_label_overrides.clear();
+        state.replace_reduce_label((0, FlowId::new(0)), None);
         state.flow_analysis_disabled = true;
         assert!(state.flow_frame_memo(&q).is_none());
         state.flow_analysis_disabled = false;
@@ -1779,6 +1775,52 @@ fn memo_walks_loops_reduce_labels_and_property_references_without_changing_answe
         assert_eq!(state.flow_memo.frame_depth(), 0);
         assert!(state.shared_flow.is_empty());
         assert!(state.flow_loop_stack.is_empty());
-        assert!(state.reduce_label_overrides.is_empty());
+        assert!(state.reduce_label_overrides().is_empty());
     });
+}
+
+#[test]
+fn shared_scan_mask_preserves_first_entry_and_restores_the_query_suffix() {
+    let mut entries = SharedFlowState::default();
+    let entry = |id, height: u16| SharedFlow {
+        flow: FlowId::new(id),
+        flow_type: FlowType::Type(TypeId::new(height.into())),
+        transient: height.into(),
+        reference: height.into(),
+        height,
+        flags: height as u8,
+    };
+    let outer = entries.begin_query();
+    entries.record(entry(5, 1), &mut 0);
+    entries.record(entry(5, 2), &mut 0);
+    entries.record(entry(69, 3), &mut 0);
+    assert!(std::ptr::eq(
+        entries.find_in_query(0, FlowId::new(5)).unwrap(),
+        &entries[0]
+    ));
+    assert!(std::ptr::eq(
+        entries.find_in_query(0, FlowId::new(69)).unwrap(),
+        &entries[2]
+    ));
+    assert!(entries.find_in_query(0, FlowId::new(133)).is_none());
+    let inner = entries.begin_query();
+    entries.record(entry(5, 4), &mut 0);
+    assert!(std::ptr::eq(
+        entries.find_in_query(inner.len, FlowId::new(5)).unwrap(),
+        &entries[3]
+    ));
+    let candidate = entries.checkpoint();
+    entries.record(entry(10, 5), &mut 0);
+    entries.restore(candidate);
+    assert_eq!(entries.query_mask, 1 << 5);
+    entries.restart_query(inner);
+    assert_eq!(entries.query_mask, 0);
+    assert!(entries.find_in_query(inner.len, FlowId::new(5)).is_none());
+    entries.restore(inner);
+    assert!(std::ptr::eq(
+        entries.find_in_query(0, FlowId::new(5)).unwrap(),
+        &entries[0]
+    ));
+    entries.restore(outer);
+    assert_eq!(entries.checkpoint(), SharedFlowCheckpoint::default());
 }

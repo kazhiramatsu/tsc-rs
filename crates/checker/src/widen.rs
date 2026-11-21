@@ -811,7 +811,7 @@ impl<'a> CheckerState<'a> {
         let source = self.binder.source_of_node(node);
         crate::can_include_bind_and_check_diagnostics(
             /*javascript_file*/ true,
-            crate::check_directive(source.text()),
+            source.check_directive(),
             self.options,
         )
     }
@@ -827,7 +827,7 @@ impl<'a> CheckerState<'a> {
         let source = self.binder.source_of_node(node);
         !crate::is_plain_js_file(
             /*javascript_file*/ true,
-            crate::check_directive(source.text()),
+            source.check_directive(),
             self.options,
         )
     }

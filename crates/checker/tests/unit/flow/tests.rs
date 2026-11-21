@@ -274,16 +274,14 @@ fn antecedent_snapshot_survives_nested_reduce_label_overrides() {
                 let FlowData::ReduceLabel { antecedents, .. } = arena.payload(origin) else {
                     unreachable!("fixture reduce label");
                 };
-                state.reduce_label_overrides.insert((0, label), origin);
+                state.replace_reduce_label((0, label), Some(origin));
                 let snapshot = read(state);
-                let saved = state.reduce_label_overrides.insert((0, label), inner);
+                let saved = state.replace_reduce_label((0, label), Some(inner));
                 assert!(std::ptr::eq(snapshot, antecedents));
                 assert_eq!(read(state), &[other_start]);
-                state
-                    .reduce_label_overrides
-                    .insert((0, label), saved.unwrap());
+                state.replace_reduce_label((0, label), saved);
                 assert_eq!(read(state), antecedents);
-                state.reduce_label_overrides.remove(&(0, label));
+                state.replace_reduce_label((0, label), None);
                 assert_eq!(snapshot, antecedents);
                 assert_eq!(read(state), arena.antecedents(label));
             }
@@ -536,4 +534,356 @@ fn assignment_union_membership_uses_the_unions_active_order() {
             assert!(!state.type_maybe_assignable_to(union, absent).unwrap());
         });
     }
+}
+
+#[test]
+fn optional_chain_receivers_match_the_file_backed_walk() {
+    use tsc_binder::node_util::{expression_of, is_optional_chain};
+    use tsc_syntax::{NodeId, NodeLookup, Published, SyntaxKind};
+
+    fn receivers(tree: &impl NodeLookup, mut node: NodeId) -> Vec<NodeId> {
+        let mut visits = Vec::new();
+        while is_optional_chain(tree, node) {
+            node = expression_of(tree, node).unwrap();
+            visits.push(node);
+        }
+        visits
+    }
+
+    let text = "export {}; declare const a: any; a.b; a?.b!.c; a?.['b'].c; a.b?.();";
+    with_program_state(
+        &[("one.ts", text), ("two.ts", text)],
+        &CompilerOptions::default(),
+        |state| {
+            for file in 0..2 {
+                let tree = state.binder.source(file);
+                let base = tree
+                    .arena
+                    .node_ids()
+                    .find(|&id| {
+                        state.kind_of(id) == SyntaxKind::Identifier
+                            && state.escaped_text_of(Some(id)) == Some("a")
+                    })
+                    .unwrap();
+                let mut query = super::FlowQuery::for_memo_test(state, base);
+                query.synthetic_props =
+                    Some(vec![tsc_types::EscapedName::from_identifier_escaped_text(
+                        "b",
+                    )]);
+                let mut synthetic_hit = false;
+                let mut plain_hit = false;
+                for node in tree.arena.node_ids() {
+                    let visits = receivers(tree, node);
+                    assert_eq!(receivers(&Published, node), visits);
+                    let plain = visits
+                        .iter()
+                        .any(|&id| state.is_matching_reference(id, base).unwrap());
+                    let synthetic = visits.iter().any(|&id| {
+                        state
+                            .real_node_matches_synthetic_chain(
+                                id,
+                                base,
+                                query.synthetic_props.as_deref().unwrap(),
+                                false,
+                            )
+                            .unwrap()
+                    });
+                    assert_eq!(
+                        state.optional_chain_contains_reference(node, base).unwrap(),
+                        plain
+                    );
+                    assert_eq!(
+                        state
+                            .optional_chain_contains_query_reference(node, &query)
+                            .unwrap(),
+                        synthetic
+                    );
+                    plain_hit |= plain;
+                    synthetic_hit |= synthetic;
+                }
+                assert!(plain_hit && synthetic_hit);
+            }
+        },
+    );
+}
+
+#[test]
+fn loop_keys_preserve_decimal_prefix_and_dotted_suffix_equality() {
+    use super::{FlowCacheKey, FlowKeyPrefix, FlowQuery};
+    use tsc_syntax::SyntaxKind;
+    use tsc_types::{EscapedName, JsString};
+
+    let text = r#"declare let x: any; declare const k: any; const {p} = x; class C { field!: typeof this; }
+        x; (x!); x.a.b; x["a.b"]; x[k]; x["@"]; x["\uD800"]; this;"#;
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let tree = state.binder.source(0);
+        let mut expressions: Vec<_> = tree
+            .arena
+            .node_ids()
+            .filter_map(|id| state.record_of(id).as_expression_statement()?.expression)
+            .collect();
+        expressions.sort_by_key(|&node| state.pos_of(node));
+        let type_this = tree
+            .arena
+            .node_ids()
+            .find(|&id| state.is_this_in_type_query(id))
+            .unwrap();
+        let [x, wrapper, path, dotted, indexed, at, surrogate, this] = expressions[..] else {
+            panic!("expected eight expression statements")
+        };
+        let pattern = tree
+            .arena
+            .node_ids()
+            .find(|&id| state.kind_of(id) == SyntaxKind::ObjectBindingPattern)
+            .unwrap();
+        let argument = state
+            .record_of(indexed)
+            .as_element_access_expression()
+            .unwrap()
+            .argument_expression
+            .unwrap();
+        let symbol = state.get_resolved_symbol(x).unwrap().unwrap().index();
+        let index_symbol = state
+            .get_resolved_symbol(argument)
+            .unwrap()
+            .unwrap()
+            .index();
+        let declared = state.tables.intrinsics.string;
+        let initial = state.tables.intrinsics.number;
+        let mut pairs = Vec::new();
+        for container in [None, Some(tree.root)] {
+            let prefix = container.map_or("-1".to_owned(), |id| id.index().to_string());
+            let d = declared.index();
+            let i = initial.index();
+            let base = format!("{prefix}|{d}|{i}|{symbol}");
+            for (node, suffix) in [
+                (x, "".into()),
+                (wrapper, "".into()),
+                (path, ".a.b".into()),
+                (dotted, ".a.b".into()),
+                (indexed, format!(".@{index_symbol}").into()),
+                (at, ".@".into()),
+                (surrogate, JsString::from_code_units(&[0x2e, 0xd800])),
+            ] {
+                let key = state
+                    .get_flow_cache_key(node, declared, initial, container)
+                    .unwrap()
+                    .unwrap();
+                let mut expected = JsString::from(base.as_str());
+                expected.push_js(suffix.as_js());
+                pairs.push((key, expected));
+            }
+            let this_key = state
+                .get_flow_cache_key(this, declared, initial, container)
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                state
+                    .get_flow_cache_key(type_this, declared, initial, container)
+                    .unwrap(),
+                Some(this_key.clone())
+            );
+            pairs.push((this_key, format!("0|{prefix}|{d}|{i}").into()));
+            let pattern_key = state
+                .get_flow_cache_key(pattern, declared, initial, container)
+                .unwrap()
+                .unwrap();
+            pairs.push((pattern_key, format!("{}#{d}", pattern.index()).into()));
+            let dynamic = format!("@{index_symbol}");
+            let other = state
+                .get_flow_cache_key(argument, declared, initial, container)
+                .unwrap()
+                .unwrap();
+            pairs.push((other, format!("{prefix}|{d}|{i}|{index_symbol}").into()));
+            for props in [
+                vec![dynamic.as_str()],
+                vec![],
+                vec!["a", "b"],
+                vec!["a.b"],
+                vec!["@"],
+                vec![""],
+            ] {
+                let mut query = FlowQuery::for_memo_test(state, x);
+                query.flow_container = container;
+                query.declared_type = declared;
+                query.initial_type = initial;
+                query.synthetic_props = Some(
+                    props
+                        .iter()
+                        .map(|s| EscapedName::from_identifier_escaped_text(s))
+                        .collect(),
+                );
+                let key = state.get_or_set_cache_key(&mut query).unwrap().unwrap();
+                assert_eq!(
+                    state.get_or_set_cache_key(&mut query).unwrap(),
+                    Some(key.clone())
+                );
+                pairs.push((key, format!("{base}.{}", props.join(".")).into()));
+            }
+        }
+        // These numeric positions can spell the same prefix across root kinds.
+        pairs.push((
+            FlowCacheKey::Root(FlowKeyPrefix::Fields([0, 1, 2, 3])),
+            "0|1|2|3".into(),
+        ));
+        pairs.push((
+            FlowCacheKey::this(
+                Some(tsc_syntax::NodeId::new(1)),
+                tsc_types::TypeId::new(2),
+                tsc_types::TypeId::new(3),
+            ),
+            "0|1|2|3".into(),
+        ));
+        for (key, old) in &pairs {
+            let (prefix, suffix) = match key {
+                FlowCacheKey::Root(prefix) => (prefix, None),
+                FlowCacheKey::Access(access) => (&access.0, Some(&access.1)),
+            };
+            let mut spelling = JsString::from(match prefix {
+                FlowKeyPrefix::Fields(fields) => fields
+                    .map(|field| {
+                        if field == u32::MAX {
+                            "-1".to_string()
+                        } else {
+                            field.to_string()
+                        }
+                    })
+                    .join("|"),
+                FlowKeyPrefix::Node(node, ty) => format!("{}#{}", node.index(), ty.index()),
+            });
+            if let Some(suffix) = suffix {
+                spelling.push_js(suffix.as_js());
+            }
+            assert_eq!(&spelling, old);
+            for (other, other_old) in &pairs {
+                assert_eq!(key == other, old == other_old, "{old:?}, {other_old:?}");
+            }
+        }
+        let mut cache = rustc_hash::FxHashMap::default();
+        let mut legacy = rustc_hash::FxHashMap::default();
+        for (index, (key, old)) in pairs.into_iter().enumerate() {
+            let ty = tsc_types::TypeId::new(index as u32);
+            assert_eq!(cache.insert(key, ty), legacy.insert(old, ty));
+        }
+    });
+}
+
+#[test]
+fn reachability_bypasses_a_shared_answer_under_a_reduce_label() {
+    use tsc_binder::flow::{FlowData, FlowId};
+    use tsc_types::FlowFlags;
+
+    let text = "function f(b: boolean) { try { if (b) return 1; } finally { b; } }";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let arena = state.binder.flow_arena(0);
+        let ids = || (0..arena.len() as u32).map(FlowId::new);
+        let (origin, label) = ids()
+            .find_map(|id| match arena.payload(id) {
+                FlowData::ReduceLabel { target, .. } => Some((id, target)),
+                _ => None,
+            })
+            .unwrap();
+        let shared = ids()
+            .find(|&id| arena.flow(id).flags.intersects(FlowFlags::SHARED))
+            .unwrap();
+        state.replace_reduce_label((0, label), Some(origin));
+        let expected = state
+            .is_reachable_flow_node_worker(0, shared, false)
+            .unwrap();
+        state.flow_node_reachable.insert((0, shared), !expected);
+        state.last_flow_node = None;
+        assert_eq!(
+            state
+                .is_reachable_flow_node_worker(0, shared, false)
+                .unwrap(),
+            expected
+        );
+        state.replace_reduce_label((0, label), None);
+        state.last_flow_node = None;
+        assert_eq!(
+            state
+                .is_reachable_flow_node_worker(0, shared, false)
+                .unwrap(),
+            !expected
+        );
+    });
+}
+
+#[test]
+fn synthetic_reference_matches_the_real_path_and_its_prefixes() {
+    use tsc_syntax::SyntaxKind;
+    use tsc_types::EscapedName;
+
+    let text =
+        "declare let root: any, other: any; root; root.a; root.a.b; other.a.b; (root.a.b = other);";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let tree = state.binder.source(0);
+        let mut targets: Vec<_> = tree
+            .arena
+            .node_ids()
+            .filter_map(|id| state.record_of(id).as_expression_statement()?.expression)
+            .collect();
+        targets.sort_by_key(|&id| state.pos_of(id));
+        let [root, prefix, whole, other, assignment] = targets[..] else {
+            panic!("five probe expressions")
+        };
+        let mut query = super::FlowQuery::for_memo_test(state, root);
+        query.synthetic_props = Some(
+            ["a", "b"]
+                .map(EscapedName::from_identifier_escaped_text)
+                .to_vec(),
+        );
+        for (target, matches, contains) in [
+            (root, false, true),
+            (prefix, false, true),
+            (whole, true, false),
+            (other, false, false),
+            (assignment, true, false),
+        ] {
+            assert_eq!(state.is_matching_reference(whole, target).unwrap(), matches);
+            assert_eq!(
+                state.is_matching_query_reference(&query, target).unwrap(),
+                matches
+            );
+            assert_eq!(
+                state.contains_matching_reference(whole, target).unwrap(),
+                contains
+            );
+            assert_eq!(
+                state
+                    .contains_matching_query_reference(&query, target)
+                    .unwrap(),
+                contains
+            );
+            assert_eq!(
+                state
+                    .query_reference_receiver_matches(&query, target)
+                    .unwrap(),
+                state.is_matching_reference(prefix, target).unwrap()
+            );
+        }
+
+        query.synthetic_props = None;
+        let symbol = state.get_resolved_symbol(root).unwrap().unwrap();
+        query.memo_key = state.flow_memo_key(&mut query);
+        assert!(query.identifier_location.is_some());
+        assert!(!state
+            .contains_matching_query_reference(&query, root)
+            .unwrap());
+        state.links.revert_node_resolved_symbol_late_bind(root);
+        let target = state
+            .record_of(prefix)
+            .as_property_access_expression()
+            .unwrap()
+            .expression
+            .unwrap();
+        assert_eq!(state.kind_of(target), SyntaxKind::Identifier);
+        assert!(state.is_matching_query_reference(&query, target).unwrap());
+        assert_eq!(
+            state
+                .links
+                .read_node(root, |links| links.resolved_symbol.resolved()),
+            Some(symbol)
+        );
+    });
 }

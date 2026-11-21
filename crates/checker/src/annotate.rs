@@ -15,7 +15,7 @@ use tsc_types::{
 use crate::evaluate::EvalValue;
 
 use crate::links::LinkSlot;
-use crate::member_table::{FreezeMembers, MemberTable};
+use crate::member_table::{FreezeMembers, HashedName, MemberTable};
 use crate::state::{
     CheckResult, CheckerState, IndexInfo, MembersId, ResolvedMembers, SignatureId, SymbolIds,
 };
@@ -50,12 +50,13 @@ impl DeferredReferenceMembers {
         &self,
         binder: &crate::program::ProgramBinder<'_>,
         declared: SymbolId,
+        key: HashedName,
     ) -> DeferredDeclaredMember {
-        let name = binder.symbol(declared).escaped_name;
+        debug_assert_eq!(key.name, binder.symbol(declared).escaped_name);
         if let Some(symbol) = self
             .instantiated
             .as_ref()
-            .and_then(|table| table.get(binder, name))
+            .and_then(|table| table.get_hashed(binder, key))
         {
             return DeferredDeclaredMember::Cached(symbol);
         }
@@ -1595,10 +1596,8 @@ impl<'a> CheckerState<'a> {
     /// getUnresolvedSymbolForEntityName so the type remains error-like
     /// while retaining its written alias identity.
     pub(crate) fn get_type_from_type_reference(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        let mut cursor = crate::links::NodeLinksCursor::new(node);
+        if let Some(cached) = cursor.read(&self.links, |links| links.resolved_type.resolved()) {
             return Ok(cached);
         }
         if self.is_const_type_reference_node(node) {
@@ -1611,12 +1610,7 @@ impl<'a> CheckerState<'a> {
             });
             if let Some(expression) = expression {
                 let resolved = self.check_expression_cached(expression, CheckMode::NORMAL)?;
-                self.links.overwrite_type_reference_resolution(
-                    self.speculation_depth,
-                    node,
-                    Some(self.unknown_symbol),
-                    resolved,
-                );
+                cursor.finish_type_reference(&mut self.links, Some(self.unknown_symbol), resolved);
                 return Ok(resolved);
             }
         }
@@ -1631,7 +1625,7 @@ impl<'a> CheckerState<'a> {
             resolved = self.get_intended_type_from_jsdoc_type_reference(node)?;
         }
         if resolved.is_none() {
-            let resolved_symbol = self.get_symbol_from_type_reference(node)?;
+            let resolved_symbol = self.get_symbol_from_type_reference(node, &mut cursor)?;
             symbol = Some(resolved_symbol);
             let reference_type = self.get_type_reference_type(node, resolved_symbol)?;
             resolved = Some(self.get_distributed_type_parameter(node, reference_type)?);
@@ -1642,12 +1636,7 @@ impl<'a> CheckerState<'a> {
         // type-parameter-default recursion can complete an inner
         // computation of this same node first (see
         // overwrite_type_reference_resolution).
-        self.links.overwrite_type_reference_resolution(
-            self.speculation_depth,
-            node,
-            symbol,
-            resolved,
-        );
+        cursor.finish_type_reference(&mut self.links, symbol, resolved);
         Ok(resolved)
     }
 
@@ -1677,7 +1666,10 @@ impl<'a> CheckerState<'a> {
                     if self.is_simple_identifier_type_reference(check_type) {
                         // tsgo checker.go:23517 consults the symbol cache even
                         // while a reference's full type is still resolving.
-                        let check_symbol = self.get_symbol_from_type_reference(check_type)?;
+                        let check_symbol = self.get_symbol_from_type_reference(
+                            check_type,
+                            &mut crate::links::NodeLinksCursor::new(check_type),
+                        )?;
                         if Some(check_symbol) == symbol {
                             return Ok(self.get_distributed_type_from_type_parameter(ty));
                         }
@@ -1948,16 +1940,16 @@ impl<'a> CheckerState<'a> {
 
     /// tsgo checker.go:23606-23613: cache the symbol before computing
     /// the reference type, including ancestor conditional-type probes.
-    fn get_symbol_from_type_reference(&mut self, node: NodeId) -> CheckResult<SymbolId> {
-        if let Some(symbol) = self
-            .links
-            .read_node(node, |links| links.resolved_symbol.resolved())
-        {
+    fn get_symbol_from_type_reference(
+        &mut self,
+        node: NodeId,
+        cursor: &mut crate::links::NodeLinksCursor,
+    ) -> CheckResult<SymbolId> {
+        if let Some(symbol) = cursor.read(&self.links, |links| links.resolved_symbol.resolved()) {
             return Ok(symbol);
         }
         let symbol = self.resolve_type_reference_name(node, SymbolFlags::TYPE, false)?;
-        self.links
-            .set_node_resolved_symbol(self.speculation_depth, node, symbol);
+        cursor.set_symbol(&mut self.links, symbol);
         Ok(symbol)
     }
 
@@ -2858,7 +2850,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.type_cold().mapped_type_parameter.resolved(ty) {
+        if let Some(cached) = self.links.type_cold().mapped(ty).parameter.resolved() {
             return Ok(cached);
         }
         let declaration = self.mapped_type_declaration(ty);
@@ -2870,7 +2862,7 @@ impl<'a> CheckerState<'a> {
             .expect("parser invariant: MappedType type_parameter always parsed");
         let symbol = self.get_symbol_of_declaration(parameter)?;
         let resolved = self.get_declared_type_of_type_parameter(symbol);
-        if let Some(cached) = self.links.type_cold().mapped_type_parameter.resolved(ty) {
+        if let Some(cached) = self.links.type_cold().mapped(ty).parameter.resolved() {
             return Ok(cached);
         }
         self.links.set_mapped_type_parameter(ty, resolved);
@@ -2884,14 +2876,14 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.type_cold().mapped_constraint_type.resolved(ty) {
+        if let Some(cached) = self.links.type_cold().mapped(ty).constraint.resolved() {
             return Ok(cached);
         }
         let parameter = self.get_type_parameter_from_mapped_type(ty)?;
         let resolved = self
             .get_constraint_of_type_parameter(parameter)?
             .unwrap_or(self.tables.intrinsics.error);
-        if let Some(cached) = self.links.type_cold().mapped_constraint_type.resolved(ty) {
+        if let Some(cached) = self.links.type_cold().mapped(ty).constraint.resolved() {
             return Ok(cached);
         }
         self.links.set_mapped_constraint_type(ty, resolved);
@@ -2953,7 +2945,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 02e8bed481d8ce476e2ebdf76c56462d5f48c545cd98c5d49ae769f478d34b8d
     /// tsc-span: _tsc.js:58610-58617
     pub(crate) fn get_template_type_from_mapped_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self.links.type_cold().mapped_template_type.resolved(ty) {
+        if let Some(cached) = self.links.type_cold().mapped(ty).template.resolved() {
             return Ok(cached);
         }
         let mapped = self.mapped_type_data(ty);
@@ -2974,7 +2966,7 @@ impl<'a> CheckerState<'a> {
             }
             None => self.tables.intrinsics.error,
         };
-        if let Some(cached) = self.links.type_cold().mapped_template_type.resolved(ty) {
+        if let Some(cached) = self.links.type_cold().mapped(ty).template.resolved() {
             return Ok(cached);
         }
         self.links.set_mapped_template_type(ty, resolved);
@@ -3446,8 +3438,13 @@ impl<'a> CheckerState<'a> {
             is_js,
         )?;
         let mapper = self.create_type_mapper(&type_parameters, filled.as_deref());
-        let instantiation =
-            self.instantiate_type_with_alias(ty, mapper, alias_symbol, alias_type_arguments)?;
+        let instantiation = self.instantiate_type_with_alias(
+            ty,
+            mapper,
+            alias_symbol,
+            alias_type_arguments,
+            id_key.alias_arguments,
+        )?;
         self.links
             .set_alias_instantiation(self.speculation_depth, symbol, id_key, instantiation);
         Ok(instantiation)
@@ -4333,12 +4330,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 9c2b1ea3f2113f2c77230deba94d6bda93f3a13f722929468e52407b4525146c
     /// tsc-span: _tsc.js:58423-58455
     fn resolve_reverse_mapped_type_members(&mut self, ty: TypeId) -> CheckResult<MembersId> {
-        if let Some(cached) = self
+        // Structured dispatch just observed this slot before reading the type flags.
+        debug_assert!(self
             .links
             .read_ty(ty, |links| links.resolved_members.resolved())
-        {
-            return Ok(cached);
-        }
+            .is_none());
         let reverse = match self.tables.type_of(ty).data {
             TypeData::ReverseMapped(data) => data,
             _ => unreachable!("reverse mapped flags imply reverse payload"),
@@ -4497,37 +4493,34 @@ impl<'a> CheckerState<'a> {
         }
         let target = self.tables.reference_target(ty);
         let source = self.resolve_declared_members(target)?;
-        let (source_type_parameters, this_type) = match &self.tables.type_of(target).data {
+        let (parameter_list, this_type) = match self.tables.type_of(target).data {
             TypeData::GenericType {
                 type_parameters,
                 this_type,
                 ..
-            } => (self.tables.list(*type_parameters).to_vec(), *this_type),
-            TypeData::TupleTarget(data) => (
-                self.tables
-                    .list(self.tables.tuple_target(*data).type_parameters)
-                    .to_vec(),
-                self.tables.tuple_target(*data).this_type,
-            ),
+            } => (type_parameters, this_type),
+            TypeData::TupleTarget(data) => {
+                let tuple = self.tables.tuple_target(data);
+                (tuple.type_parameters, tuple.this_type)
+            }
             _ => unreachable!("reference targets are generic or tuple targets"),
         };
-        let mut type_parameters = source_type_parameters;
-        type_parameters.push(this_type);
-        let type_arguments = self.get_type_arguments(ty)?.to_vec();
-        let padded_type_arguments = if type_arguments.len() == type_parameters.len() {
-            type_arguments
-        } else {
-            let mut padded = type_arguments;
-            padded.push(ty);
-            padded
-        };
-        self.resolve_object_type_members(
-            ty,
-            target,
-            source,
-            &type_parameters,
-            &padded_type_arguments,
-        )
+        self.with_instantiation_type_list(|state, parameters| {
+            let declared = state.tables.list(parameter_list);
+            parameters.reserve(declared.len() + 1);
+            parameters.extend_from_slice(declared);
+            parameters.push(this_type);
+            state.with_instantiation_type_list(|state, arguments| {
+                let resolved = state.get_type_arguments(ty)?;
+                let needs_this = resolved.len() != parameters.len();
+                arguments.reserve(resolved.len() + usize::from(needs_this));
+                arguments.extend_from_slice(resolved);
+                if needs_this {
+                    arguments.push(ty);
+                }
+                state.resolve_object_type_members(ty, target, source, parameters, arguments)
+            })
+        })
     }
 
     /// Resolve signatures and index information without requiring every
@@ -4642,11 +4635,11 @@ impl<'a> CheckerState<'a> {
             // warming a declaration's type later must not change whether
             // this reference has a distinct instantiated symbol.
             let unaffected = self.freeze_unaffected_members(target, source, mapper, &properties);
-            let calls = self.members_of(source).call_signatures().to_vec();
+            let calls = self.members_of(source).call_signature_list();
             let mut calls = self.instantiate_signature_list(&calls, mapper)?;
-            let constructs = self.members_of(source).construct_signatures().to_vec();
+            let constructs = self.members_of(source).construct_signature_list();
             let mut constructs = self.instantiate_signature_list(&constructs, mapper)?;
-            let indices = self.members_of(source).index_infos().to_vec();
+            let indices = self.members_of(source).index_info_list();
             let mut indices = self.instantiate_index_info_list(&indices, mapper)?;
             let base_types = self.get_base_type_list(target)?;
             let mut bases = Vec::with_capacity(base_types.len());
@@ -4761,13 +4754,9 @@ impl<'a> CheckerState<'a> {
         symbol
     }
 
-    fn declared_property(
-        &self,
-        source: MembersId,
-        name: tsc_types::EscapedName,
-    ) -> Option<SymbolId> {
+    fn declared_property(&self, source: MembersId, key: HashedName) -> Option<SymbolId> {
         let record = self.members_of(source);
-        let symbol = record.members.get(&self.binder, name)?;
+        let symbol = record.members.get_hashed(&self.binder, key)?;
         // The common all-selected freeze shares the two lists, including
         // for tuple targets, whose synthesized members are all properties.
         if std::ptr::eq(record.members.symbols(), &*record.properties) {
@@ -4793,16 +4782,16 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn deferred_reference_property(
         &mut self,
         ty: TypeId,
-        name: tsc_types::EscapedName,
+        key: HashedName,
     ) -> CheckResult<Option<Option<SymbolId>>> {
-        if is_reserved_member_name(name) {
+        if is_reserved_member_name(key.name) {
             return Ok(None);
         }
         let Some((bases, own)) = self.with_deferred_reference_members(ty, |state, members| {
             let bases = members.bases.clone();
             let own = state
-                .declared_property(members.source, name)
-                .map(|declared| members.declared_member(&state.binder, declared));
+                .declared_property(members.source, key)
+                .map(|declared| members.declared_member(&state.binder, declared, key));
             (bases, own)
         })?
         else {
@@ -4814,7 +4803,7 @@ impl<'a> CheckerState<'a> {
             {
                 break;
             }
-            if let Some(symbol) = self.get_property_of_type_ex(base, name, true)? {
+            if let Some(symbol) = self.get_property_of_type_ex(base, key.name, true)? {
                 if !self.is_static_private_identifier_property(symbol) {
                     result = Some(symbol);
                 }
@@ -4875,7 +4864,8 @@ impl<'a> CheckerState<'a> {
                 let ready = self.deferred_reference_members[&ty]
                     .as_ref()
                     .expect("ready reference members");
-                let member = ready.declared_member(&self.binder, declared);
+                let key = HashedName::new(self.binder.symbol(declared).escaped_name);
+                let member = ready.declared_member(&self.binder, declared, key);
                 let symbol = self.realize_deferred_declared_member(ty, member);
                 members.insert(&self.binder, symbol);
             }
@@ -5114,13 +5104,14 @@ impl<'a> CheckerState<'a> {
             == *type_parameters
             && type_arguments.len() >= type_parameters.len();
         let source_symbol = self.tables.type_of(source_type).symbol;
-        let mut members_are_live_table = false;
+        let snapshot;
+        let mut live_table = None;
         if range_equal {
             members = match source_symbol {
                 Some(symbol) => {
-                    members_are_live_table = true;
-                    let table = self.get_members_of_symbol(symbol)?;
-                    self.member_table(&table)
+                    snapshot = self.get_members_of_symbol(symbol)?;
+                    live_table = Some(self.member_table_source(&snapshot));
+                    MemberTable::default()
                 }
                 None => {
                     let declared = self.members_of(source).properties.clone();
@@ -5150,7 +5141,7 @@ impl<'a> CheckerState<'a> {
         }
         let base_types = self.get_base_type_list(source_type)?;
         if !base_types.is_empty() {
-            if members_are_live_table {
+            if live_table.take().is_some() {
                 // Copy the declared properties (+ the index symbol) before
                 // inheriting — the symbol's own table must not absorb base
                 // members.
@@ -5215,7 +5206,10 @@ impl<'a> CheckerState<'a> {
             }
         }
         let container = self.tables.type_of(ty).symbol;
-        let (members, properties) = self.freeze_named_members(members, container)?;
+        let (members, properties) = match live_table {
+            Some(table) => self.freeze_named_members(table, container)?,
+            None => self.freeze_named_members(members, container)?,
+        };
         if mapper.is_some() {
             self.remember_member_shape(source, followed.as_ref(), &members);
         }
@@ -7444,8 +7438,9 @@ impl<'a> CheckerState<'a> {
             Some(shape) => MemberTable::following(shape, symbols.len()),
             None => MemberTable::with_capacity(symbols.len()),
         };
+        let maps_this_only = !symbols.is_empty() && self.maps_this_only(mapper);
         for &symbol in symbols {
-            let value = self.instantiate_symbol(symbol, mapper);
+            let value = self.instantiate_symbol_in_batch(symbol, mapper, maps_this_only);
             result.insert(&self.binder, value);
         }
         Ok(result)
@@ -9176,7 +9171,6 @@ impl<'a> CheckerState<'a> {
         include_optionality: bool,
         check_mode: CheckMode,
     ) -> CheckResult<Option<TypeId>> {
-        let source = self.binder.source_of_node(declaration);
         let kind = self.kind_of(declaration);
         let parent = self.parent_of(declaration);
         if kind == SyntaxKind::VariableDeclaration {
@@ -9282,6 +9276,7 @@ impl<'a> CheckerState<'a> {
                     SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
                 )
             });
+            let source = self.binder.source_of_node(declaration);
             let exported = node_util::get_combined_modifier_flags(source, declaration)
                 .intersects(ModifierFlags::EXPORT);
             let ambient = self.node_flags(declaration) & tsc_types::NodeFlags::AMBIENT.bits() != 0;
@@ -9401,6 +9396,7 @@ impl<'a> CheckerState<'a> {
             // flow answer returns None (the caller's widening tail
             // reports the implicit any).
             let class = parent.expect("property declaration has a parent");
+            let source = self.binder.source_of_node(declaration);
             let ambient_member = node_util::get_combined_modifier_flags(source, declaration)
                 .intersects(ModifierFlags::AMBIENT);
             if !self.has_static_modifier(declaration) {
@@ -10425,9 +10421,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:78111-78120
     pub fn get_type_of_parameter(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         let declared = self.get_type_of_symbol(symbol)?;
+        if !self.tables.strict_null_checks {
+            return Ok(declared);
+        }
         let declaration = self.binder.symbol(symbol).value_declaration;
         let is_optional = declaration.is_some_and(|declaration| {
-            matches!(self.record_of(declaration).as_parameter(), Some(data) if data.question_token.is_some() || data.initializer.is_some())
+            let record = self.record_of(declaration);
+            record.kind == SyntaxKind::Parameter
+                && (record.question_token_field().is_some() || record.initializer_field().is_some())
         });
         Ok(self.add_optionality(declared, /*is_property*/ false, is_optional))
     }
@@ -10461,13 +10462,7 @@ impl<'a> CheckerState<'a> {
                 let previous = declarations[i - 1];
                 let same_parent = self.parent_of(declaration) == self.parent_of(previous);
                 let same_kind = self.kind_of(declaration) == self.kind_of(previous);
-                let adjacent = Published.node(declaration).pos
-                    == self
-                        .binder
-                        .source_of_node(previous)
-                        .arena
-                        .node(previous)
-                        .end;
+                let adjacent = Published.node(declaration).pos == Published.node(previous).end;
                 if same_parent && same_kind && adjacent {
                     continue;
                 }

@@ -88,7 +88,7 @@ impl ScopePreparation {
         let mut packages = Vec::new();
         if !memo_only {
             for ancestor in ancestor_directories(directory.as_js()) {
-                let query = join_normalized(&ancestor, "package.json");
+                let query = join_normalized(ancestor.as_js(), "package.json");
                 let cached = self
                     .packages
                     .lock()

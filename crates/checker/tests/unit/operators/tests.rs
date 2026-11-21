@@ -1440,3 +1440,117 @@ fn satisfies_unrelated_operand_error_keeps_missing_property_related_information(
         assert_eq!(&*state.diagnostics, &before);
     });
 }
+
+#[test]
+fn type_argument_grammar_uses_the_owner_of_each_error_span() {
+    let text = "/*😀*/ f<T>(); f<T,>(); f<>();";
+    with_program_state(
+        &[("a.ts", text), ("b.ts", text)],
+        &CompilerOptions::default(),
+        |state| {
+            let first_file = state.binder.source(0);
+            let owner = state.binder.source(1).root;
+            let lists: Vec<_> = first_file
+                .arena
+                .node_ids()
+                .filter_map(|id| {
+                    first_file
+                        .arena
+                        .node(id)
+                        .as_call_expression()
+                        .and_then(|call| call.type_arguments)
+                })
+                .collect();
+            assert_eq!(lists.len(), 3);
+            let before = state.diagnostics.len();
+            assert!(!state.check_grammar_type_arguments(owner, Some(lists[0])));
+            assert!(state.check_grammar_type_arguments(owner, Some(lists[1])));
+            assert!(state.check_grammar_type_arguments(owner, Some(lists[2])));
+            let actual: Vec<_> = state.diagnostics[before..]
+                .iter()
+                .map(|diag| {
+                    (
+                        diag.code(),
+                        diag.file_name
+                            .as_ref()
+                            .unwrap()
+                            .to_string_lossy()
+                            .into_owned(),
+                        diag.start,
+                        diag.length,
+                    )
+                })
+                .collect();
+            let utf16 =
+                |needle| Some(text[..text.find(needle).unwrap()].encode_utf16().count() as u32);
+            assert_eq!(
+                actual,
+                [
+                    (1009, "a.ts".to_owned(), utf16(","), Some(1)),
+                    (1099, "b.ts".to_owned(), utf16("<>"), Some(2))
+                ]
+            );
+        },
+    );
+}
+
+#[test]
+fn type_argument_grammar_suppression_uses_the_diagnostic_file() {
+    let clean = "f<T,>(); f<>();";
+    let broken = "f<T,>(); f<>(); let x = ;";
+    crate::state::test_support::with_program_state_allow_parse_diagnostics(
+        &[("broken.ts", broken), ("clean.ts", clean)],
+        &CompilerOptions::default(),
+        |state| {
+            assert!(!state.binder.source(0).parse_diagnostics.is_empty());
+            for (file, owner) in [(0, 1), (1, 0)] {
+                let source = state.binder.source(file);
+                let owner = state.binder.source(owner).root;
+                let lists: Vec<_> = source
+                    .arena
+                    .node_ids()
+                    .filter_map(|id| source.arena.node(id).as_call_expression()?.type_arguments)
+                    .collect();
+                assert_eq!(lists.len(), 2);
+                assert_eq!(
+                    state.check_grammar_type_arguments(owner, Some(lists[0])),
+                    file == 1
+                );
+                assert_eq!(
+                    state.check_grammar_type_arguments(owner, Some(lists[1])),
+                    file == 0
+                );
+            }
+        },
+    );
+}
+
+#[test]
+fn type_argument_grammar_reports_a_recovered_empty_list_with_a_comma() {
+    with_synthetic_recovery_state(
+        "f<>();",
+        |source| {
+            let (call, list) = source
+                .arena
+                .node_ids()
+                .find_map(|id| {
+                    let list = source.arena.node(id).as_call_expression()?.type_arguments?;
+                    Some((id, list))
+                })
+                .unwrap();
+            assert!(source.arena.node_array(list).nodes.is_empty());
+            source.arena.node_array_mut(list).has_trailing_comma = true;
+            vec![call]
+        },
+        |state, nodes| {
+            let owner = nodes[0];
+            let list = state
+                .record_of(owner)
+                .as_call_expression()
+                .unwrap()
+                .type_arguments;
+            assert!(state.check_grammar_type_arguments(owner, list));
+            assert_eq!(rows(state), [(1099, 1, 2)]);
+        },
+    );
+}
