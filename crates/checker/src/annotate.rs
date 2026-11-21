@@ -45,6 +45,22 @@ impl DeferredReferenceMembers {
     }
 }
 
+/// Extra membership information for a declared table whose enumeration uses
+/// a separate list. Keep both immutable lists so a partial replacement under
+/// the same MembersId can fall back to the currently published properties.
+pub(crate) struct DeclaredPropertyIndex {
+    members: SymbolIds,
+    properties: SymbolIds,
+    /// Absent when the freeze kept every member and only the order changed.
+    sorted: Option<Box<[SymbolId]>>,
+}
+
+impl DeclaredPropertyIndex {
+    pub(crate) fn heap_bytes(&self) -> usize {
+        self.sorted.as_deref().map_or(0, std::mem::size_of_val)
+    }
+}
+
 /// A node list of the checked program, borrowed for the program's life
 /// (the published tree outlives the checker): it reads as a slice, and
 /// iterating it by value yields the ids, as iterating a copied `Vec` did.
@@ -4695,6 +4711,33 @@ impl<'a> CheckerState<'a> {
         symbol
     }
 
+    fn declared_property(
+        &self,
+        source: MembersId,
+        name: tsc_types::EscapedName,
+    ) -> Option<SymbolId> {
+        let record = self.members_of(source);
+        let symbol = record.members.get(&self.binder, name)?;
+        // The common all-selected freeze shares the two lists, including
+        // for tuple targets, whose synthesized members are all properties.
+        if std::ptr::eq(record.members.symbols(), &*record.properties) {
+            return Some(symbol);
+        }
+        let selected = match self.declared_property_indexes.get(&source) {
+            Some(index)
+                if std::ptr::eq(&*index.members, record.members.symbols())
+                    && std::ptr::eq(&*index.properties, &*record.properties) =>
+            {
+                index
+                    .sorted
+                    .as_ref()
+                    .is_none_or(|ids| ids.binary_search(&symbol).is_ok())
+            }
+            _ => record.properties.contains(&symbol),
+        };
+        selected.then_some(symbol)
+    }
+
     /// Outer None means the type requires normal member resolution. Inner
     /// None is a completed lookup whose name was absent.
     pub(crate) fn deferred_reference_property(
@@ -4708,11 +4751,7 @@ impl<'a> CheckerState<'a> {
         let members = self.deferred_reference_members[&ty].as_ref().unwrap();
         let source = members.source;
         let bases = members.bases.clone();
-        let declared = self
-            .members_of(source)
-            .members
-            .get(&self.binder, name)
-            .filter(|symbol| self.members_of(source).properties.contains(symbol));
+        let declared = self.declared_property(source, name);
         let mut result = declared.map(|symbol| self.deferred_declared_member(ty, symbol));
         for base in bases {
             if result.is_some_and(|symbol| self.symbol_flags(symbol).intersects(SymbolFlags::VALUE))
@@ -4903,7 +4942,9 @@ impl<'a> CheckerState<'a> {
             .expect("class/interface targets carry their declaring symbol");
         let declared = self.get_members_of_symbol(symbol)?;
         let members = self.member_table_source(&declared);
-        let (members, properties) = self.freeze_named_members(members, Some(symbol))?;
+        let (members, selected) = self.freeze_selected_members(members)?;
+        let all_selected = members.len() == selected.len();
+        let properties = self.order_named_member_list(&members, selected, Some(symbol));
         // tsc resolveDeclaredMembers publishes declaredProperties
         // FIRST and fills signatures/index infos into the type in
         // place (57772-57781): a nested reader reached through the
@@ -4934,6 +4975,7 @@ impl<'a> CheckerState<'a> {
         if let Some(existing) = self.links.type_cold().declared_members.resolved(target) {
             return Ok(existing);
         }
+        self.index_declared_properties(id, all_selected);
         self.links.set_type_declared_members(target, id);
         let filled = (|state: &mut Self| -> CheckResult<()> {
             let call_signatures = state.get_signatures_of_symbol(call_symbol)?;
@@ -4950,9 +4992,32 @@ impl<'a> CheckerState<'a> {
             Ok(()) => Ok(id),
             Err(err) => {
                 self.links.retract_type_declared_members(target);
+                self.declared_property_indexes.remove(&id);
                 Err(err)
             }
         }
+    }
+
+    /// Shared lists already record an all-selected freeze. Keep an index for
+    /// a reordered all-selected list or a mixed table above the linear limit.
+    fn index_declared_properties(&mut self, id: MembersId, all_selected: bool) {
+        let record = self.members_of(id);
+        if std::ptr::eq(record.members.symbols(), &*record.properties)
+            || (!all_selected && record.members.len() <= crate::member_table::LINEAR_MEMBERS)
+        {
+            return;
+        }
+        let sorted = (!all_selected).then(|| {
+            let mut ids = record.properties.to_vec().into_boxed_slice();
+            ids.sort_unstable();
+            ids
+        });
+        let index = DeclaredPropertyIndex {
+            members: record.members.symbol_list(),
+            properties: record.properties.clone(),
+            sorted,
+        };
+        self.declared_property_indexes.insert(id, index);
     }
 
     /// tsc-port: resolveObjectTypeMembers @6.0.3
@@ -7925,13 +7990,21 @@ impl<'a> CheckerState<'a> {
         )
     }
 
-    /// Select properties in the same pass that fills the final member Arc.
-    /// The default insertion-order path neither builds a candidate Vec nor
-    /// compares an independently built property list with the member list.
     fn freeze_named_members(
         &mut self,
         members: impl FreezeMembers,
         container: Option<SymbolId>,
+    ) -> CheckResult<(crate::member_table::FrozenMembers, SymbolIds)> {
+        let (members, properties) = self.freeze_selected_members(members)?;
+        let properties = self.order_named_member_list(&members, properties, container);
+        Ok((members, properties))
+    }
+
+    /// Select properties in the same pass that fills the final member Arc.
+    /// The returned selection is still in the member table's insertion order.
+    fn freeze_selected_members(
+        &mut self,
+        members: impl FreezeMembers,
     ) -> CheckResult<(crate::member_table::FrozenMembers, SymbolIds)> {
         let mut result = Ok(());
         let (mut members, properties) = members.freeze_with_filter(|symbol| {
@@ -7950,7 +8023,6 @@ impl<'a> CheckerState<'a> {
         // Before the caller remembers the table's shape: the shape is then
         // the index of the name sequence, whichever table had it first.
         self.member_indexes.share(&mut members);
-        let properties = self.order_named_member_list(&members, properties, container);
         Ok((members, properties))
     }
 

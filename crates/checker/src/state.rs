@@ -901,6 +901,8 @@ pub struct CheckerState<'a> {
     /// shares it when the name sequence repeats. A hint only — a table that
     /// leaves the sequence builds its own index.
     pub(crate) member_shapes: rustc_hash::FxHashMap<MembersId, crate::member_table::MemberShape>,
+    pub(crate) declared_property_indexes:
+        rustc_hash::FxHashMap<MembersId, crate::annotate::DeclaredPropertyIndex>,
     /// The one name index of every name sequence a published table of more
     /// than eight members has: tables that repeat a sequence share it,
     /// whichever path built them.
@@ -1976,7 +1978,14 @@ impl<'a> CheckerState<'a> {
         rows.push((
             "resolved members",
             self.members.len(),
-            self.members.len() * std::mem::size_of::<ResolvedMembers>() + members_heap,
+            self.members.len() * std::mem::size_of::<ResolvedMembers>()
+                + members_heap
+                + map_bytes(&self.declared_property_indexes)
+                + self
+                    .declared_property_indexes
+                    .values()
+                    .map(|index| index.heap_bytes())
+                    .sum::<usize>(),
         ));
         rows.push((
             "deferred reference members",
@@ -2375,6 +2384,7 @@ impl<'a> CheckerState<'a> {
             augment_filter: None,
             member_shapes: Default::default(),
             member_indexes: Default::default(),
+            declared_property_indexes: Default::default(),
             contextual_relevant: Default::default(),
             deferred_reference_members: Default::default(),
             named_member_order_buffers: Default::default(),

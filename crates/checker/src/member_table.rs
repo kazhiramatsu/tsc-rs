@@ -238,7 +238,7 @@ impl<'a> MemberTableSource<'a> {
 }
 
 /// The most members a table keeps name tags for instead of an index.
-const LINEAR_MEMBERS: usize = 8;
+pub(crate) const LINEAR_MEMBERS: usize = 8;
 
 /// Bit 0 of each of the eight seven-bit tag lanes.
 const TAG_LANES: u64 = 0x0002_0408_1020_4081;
