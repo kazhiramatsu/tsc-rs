@@ -2418,12 +2418,14 @@ impl ParallelReadAhead<'_> {
                         host
                     }
                     None => {
-                        let target_key = resolver
-                            .relative_request_target(containing_file, key.specifier())
-                            .map(|target| (target, key.mode()));
-                        let shared = target_key
-                            .as_ref()
-                            .and_then(|target_key| self.target_resolutions.get_cloned(target_key));
+                        let relative = resolver.prepare_relative_request(
+                            containing_file,
+                            key.specifier(),
+                            key.mode(),
+                        );
+                        let shared = relative.as_ref().and_then(|request| {
+                            self.target_resolutions.get_cloned(request.target_key())
+                        });
                         let facts = match shared {
                             Some(host) => {
                                 follows.target_reused += 1;
@@ -2431,11 +2433,15 @@ impl ParallelReadAhead<'_> {
                             }
                             None => {
                                 // Left for the walk to resolve and report.
-                                let Ok(host) = resolver.resolve_with_facts(
-                                    containing_file,
-                                    key.specifier(),
-                                    key.mode(),
-                                ) else {
+                                let result = match &relative {
+                                    Some(request) => resolver.resolve_prepared_relative(request),
+                                    None => resolver.resolve_with_facts(
+                                        containing_file,
+                                        key.specifier(),
+                                        key.mode(),
+                                    ),
+                                };
+                                let Ok(host) = result else {
                                     continue;
                                 };
                                 follows.resolved += 1;
@@ -2445,10 +2451,10 @@ impl ParallelReadAhead<'_> {
                                     key.mode(),
                                     &self.package_ids,
                                 ));
-                                if let Some(target_key) = target_key {
+                                if let Some(request) = relative {
                                     if outcome_only {
                                         self.target_resolutions
-                                            .insert(target_key, Arc::clone(&facts));
+                                            .insert(request.into_target_key(), Arc::clone(&facts));
                                     }
                                 }
                                 facts
@@ -3160,7 +3166,7 @@ struct StagedGraph<'host, 'options, 'resolver> {
     directory_resolution_hits: usize,
     /// One resolution per (target of a path-relative request, mode), for the
     /// requests whose outcome is a function of that target
-    /// ([`ModuleResolver::relative_request_target`]). The files of a project
+    /// ([`ModuleResolver::prepare_relative_request`]). The files of a project
     /// name each of its modules from many directories (VS Code: 54,906
     /// directory and specifier pairs for 7,455 targets), and each pair misses
     /// the per-directory cache once; the resolver then probes the same
@@ -5494,23 +5500,27 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         containing_file: &JsString,
         key: &ResolutionKey,
     ) -> Result<HostModuleResolution, ResolutionError> {
-        let target_key = self
-            .resolver
-            .relative_request_target(containing_file.as_js(), key.specifier())
-            .map(|target| (target, key.mode()));
-        if let Some(target_key) = &target_key {
-            if let Some(host) = self.target_resolutions.get(target_key) {
+        let relative = self.resolver.prepare_relative_request(
+            containing_file.as_js(),
+            key.specifier(),
+            key.mode(),
+        );
+        if let Some(request) = &relative {
+            if let Some(host) = self.target_resolutions.get(request.target_key()) {
                 self.target_resolution_hits += 1;
                 return Ok(Arc::unwrap_or_clone(Arc::clone(host)).into_host());
             }
         }
-        let host =
-            self.resolver
-                .resolve_with_facts(containing_file, key.specifier(), key.mode())?;
-        if let Some(target_key) = target_key {
+        let host = match &relative {
+            Some(request) => self.resolver.resolve_prepared_relative(request),
+            None => self
+                .resolver
+                .resolve_with_facts(containing_file, key.specifier(), key.mode()),
+        }?;
+        if let Some(request) = relative {
             if host.is_outcome_only() {
                 self.target_resolutions.insert(
-                    target_key,
+                    request.into_target_key(),
                     Arc::new(PreparedModule::new(
                         host.clone(),
                         key.mode(),
