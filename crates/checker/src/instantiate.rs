@@ -452,6 +452,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getMappedType @6.0.3
     /// tsc-hash: 1de145bdc6a4fc936f2d547c707305081eede73870da72023bc151fa83e65252
     /// tsc-span: _tsc.js:63327-63358
+    #[inline]
     fn map_type_with_mapper(&mut self, ty: TypeId, mapper: MapperId) -> CheckResult<TypeId> {
         self.profile_ops[crate::line_profile::OP_MAPPED] += 1;
         match *self.mapper(mapper) {
@@ -468,6 +469,21 @@ impl<'a> CheckerState<'a> {
                     Some(targets) => self.mapper_list(targets)[index],
                     None => self.tables.intrinsics.any,
                 })
+            }
+            mapper => self.map_type_with_non_leaf_mapper(ty, mapper),
+        }
+    }
+
+    /// Keep the state needed by recursive and deferred applications off the leaf path.
+    #[inline(never)]
+    fn map_type_with_non_leaf_mapper(
+        &mut self,
+        ty: TypeId,
+        mapper: TypeMapper,
+    ) -> CheckResult<TypeId> {
+        match mapper {
+            TypeMapper::Simple { .. } | TypeMapper::Array { .. } => {
+                unreachable!("leaf mapper handled at entry")
             }
             // 63341-63350: linear source scan, thunk on match,
             // identity otherwise. The scan reads the mapper pair's

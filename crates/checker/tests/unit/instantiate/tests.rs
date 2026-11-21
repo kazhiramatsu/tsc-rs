@@ -997,3 +997,32 @@ fn instantiation_expression_copies_keep_the_originating_type_query() {
         },
     );
 }
+
+#[test]
+fn leaf_mappers_count_once_and_keep_the_first_matching_source() {
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        let string = state.tables.intrinsics.string;
+        let number = state.tables.intrinsics.number;
+        let boolean = state.tables.intrinsics.boolean;
+        let simple = state.make_unary_type_mapper(string, number);
+        let array = state.create_type_mapper(&[string, string], Some(&[number, boolean]));
+        let eraser = state.create_type_eraser(&[number, boolean]);
+        let before = state.profile_ops[crate::line_profile::OP_MAPPED];
+        for mapper in [simple, array] {
+            assert_eq!(state.map_type_with_mapper(string, mapper).unwrap(), number);
+            assert_eq!(
+                state.map_type_with_mapper(boolean, mapper).unwrap(),
+                boolean
+            );
+        }
+        assert_eq!(
+            state.map_type_with_mapper(number, eraser).unwrap(),
+            state.tables.intrinsics.any
+        );
+        assert_eq!(state.map_type_with_mapper(string, eraser).unwrap(), string);
+        assert_eq!(
+            state.profile_ops[crate::line_profile::OP_MAPPED] - before,
+            6
+        );
+    });
+}
