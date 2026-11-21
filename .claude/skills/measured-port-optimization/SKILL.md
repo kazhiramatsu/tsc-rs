@@ -62,7 +62,11 @@ possible: every cycle sample of both ports is put on the same list of names, and
    outermost frame that names the phase. Never split "front end / check" as whole minus a `--noCheck` run: such a run is not
    the whole run's first part (next: 1,084 | 989 M cycles against load + bind 602 | 639 M inside the whole run).
 4. **Load and bind by module**: `H/tools/cyc-modules.py DIR CELLS load` — the module of each sample's nearest own function.
-   Scanner, parser, binder, module resolution correspond module to module between the ports.
+   Binder, loader and module resolution correspond module to module between the ports; a boundary that one port inlines
+   across does NOT: the other port inlines its scanner's entry (the whitespace run and the dispatch) into parser
+   functions, so "scanner 125 | 92" on playwright was no excess of the scanner — scanner + parser + tree together are
+   261 | 300 on next, 116 | 125 on ts (ours cheaper) and 159 | 139, 252 | 233 on vue and playwright. Compare the smallest
+   group of modules that no inlining crosses, exactly as for functions in step 6.
 5. **The check by service**: `H/tools/cyc-services.py DIR CELLS --out DIR` — a sample goes to its DEEPEST frame whose function
    is in a service family (lists of the reference's function names, the SAME lists for both ports: relation, instantiation,
    members, flow, calls, …). A helper with a port's own name matches no family and is charged to the service that called
@@ -87,8 +91,9 @@ possible: every cycle sample of both ports is put on the same list of names, and
 Worked example (2026-11-21, ours | theirs, M cycles of a one-thread run; files `H/fable52-1111/gap-1121/account/`): next
 load 470 | 459, bind 133 | 180, check 4,284 | 4,025; vue load 230 | 172, check 1,865 | 1,902; playwright load 387 | 302,
 check 1,728 | 1,640; ts check 1,220 | 1,145. The gap is the check on next and ts, the load on vue, both on playwright —
-four projects had been treated as one "check-side memory" problem. Load by module: our scanner 1.3–1.6 times theirs, our
-parser cheaper. Check by service (next / vue / playwright / ts): relation +108 / +34 / +7 / +42, instantiation
+four projects had been treated as one "check-side memory" problem. Load: scanner + parser + tree are cheaper than theirs
+on next and ts and 20 M dearer on vue and playwright; loader, module resolution and paths are dearer (playwright 80 | 46).
+Check by service (next / vue / playwright / ts): relation +108 / +34 / +7 / +42, instantiation
 +74 / +28 / +14 / +4, members +48 / +46 / −3 / +24, flow +13 / −4 / +22 / +34; unions −42 / −47 / −17 / −5, names
 −32 / −7 / −9 / −8. Records put together and per-target instantiation tables — the two structures under study that week —
 were each bounded at about 1 % of a run by this table.
@@ -271,6 +276,8 @@ prints once; a job listed in the scheduler's file STARTS; dry-read a job to its 
 - "Front end / check" split by a `--noCheck` run.
 - A simulation's shares read without checking its total against the real count.
 - A leaf-name join: "accessor ≈ 13 % of check self" was unrelated functions of one name.
+- A module-to-module comparison across a boundary one port inlines ("our scanner is 1.3–1.6 times theirs" — reported to
+  the owner, a candidate built on it, corrected two hours later).
 - A count gate passed and time lost (17,364 `stat` probes replaced by cached listings: +1.2 … +2.7 %).
 - A bimodal case read from 3 rounds, or 7 of 9 candidate rounds in the high mode read as +1.47 %.
 - A window's first configuration charged to the base; a window disturbed by other work published.
