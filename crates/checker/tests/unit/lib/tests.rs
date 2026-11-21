@@ -6599,6 +6599,78 @@ fn check_directive_matches_shebang_bom_and_unicode_line_breaks() {
 }
 
 #[test]
+fn check_directive_follows_the_parsed_snapshot() {
+    use tsc_diagnostics::{ByteTextChangeRange, ByteTextSpan, DocumentVersion, TextSnapshot};
+    use tsc_syntax::{create_language_service_source_file, update_language_service_source_file};
+
+    let text = "// @ts-nocheck\u{2028}// @ts-check\nlet x; // @ts-nocheck";
+    let edit = text.find("// @ts-check").unwrap() + "// @ts-".len();
+    let mut edited = text.to_owned();
+    edited.insert_str(edit, "no");
+    let options = tsc_syntax::ParseOptions {
+        script_kind: tsc_syntax::ScriptKind::Js,
+        ..Default::default()
+    };
+    let before = create_language_service_source_file(
+        "a.js",
+        TextSnapshot::new(text, DocumentVersion::default()),
+        options.clone(),
+    );
+    let after = update_language_service_source_file(
+        before.clone(),
+        TextSnapshot::new(edited.as_str(), DocumentVersion::new("edited")),
+        ByteTextChangeRange {
+            span: ByteTextSpan::new(edit as u32, 0),
+            new_length: 2,
+        },
+        options,
+        Default::default(),
+    )
+    .unwrap()
+    .source;
+    assert_eq!(before.check_directive(), Some(CheckDirective::Check));
+    assert_eq!(after.check_directive(), Some(CheckDirective::NoCheck));
+    assert!(!format!("{before:?}").contains("check_directive:"));
+    let bom = tsc_syntax::parse_source_file(
+        "a.js",
+        "\u{FEFF}#!/bin/sh\n// @ts-check",
+        Default::default(),
+        None,
+    );
+    assert_eq!(bom.check_directive(), None);
+
+    let options = CompilerOptions::default();
+    crate::state::test_support::with_program_state(
+        &[("a.js", before.text()), ("b.js", after.text())],
+        &options,
+        |state| {
+            for (file, enabled) in [(0, true), (1, false)] {
+                let source = state.binder.source(file);
+                assert_eq!(
+                    can_include_bind_and_check_diagnostics(
+                        true,
+                        source.check_directive(),
+                        &options
+                    ),
+                    enabled
+                );
+                let node = source
+                    .arena
+                    .node_ids()
+                    .find(|&node| {
+                        source.arena.node(node).kind == tsc_syntax::SyntaxKind::VariableDeclaration
+                    })
+                    .unwrap();
+                for _ in 0..2 {
+                    assert_eq!(state.is_check_js_enabled_for_node(node), enabled);
+                    assert_eq!(state.is_effectively_checked_js_node(node), enabled);
+                }
+            }
+        },
+    );
+}
+
+#[test]
 fn unicode_line_break_last_ts_check_restores_semantic_diagnostics() {
     let result = check_program(
         &[InputFile::new(

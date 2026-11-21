@@ -384,7 +384,7 @@ impl EmitResolver for CheckerSession<'_> {
         let source = state.binder.source(source_index);
         Ok(crate::can_include_bind_and_check_diagnostics(
             source.is_source_file_js(),
-            crate::check_directive(source.text()),
+            source.check_directive(),
             state.options,
         ))
     }

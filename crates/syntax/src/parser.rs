@@ -1598,7 +1598,7 @@ impl<'text> Parser<'text> {
             // text holds `await` is parsed again, so an incremental parse
             // reparses the same top-level statements as a full parse.
             || memchr::memmem::find(
-                &source.snapshot.text().as_bytes()[node.pos as usize..node.end as usize],
+                &source.text().as_bytes()[node.pos as usize..node.end as usize],
                 b"await",
             )
             .is_some()
@@ -11063,7 +11063,7 @@ fn parse_source_file_from_snapshot_worker(
     let incremental_stats = finished.incremental_stats;
     let source = SourceFile {
         file_name: finished.file_name,
-        snapshot,
+        snapshot: crate::SourceSnapshot::new(snapshot),
         language_variant: finished.language_variant,
         script_kind: options.script_kind,
         is_declaration_file: finished.is_declaration_file,
@@ -11253,7 +11253,7 @@ fn parse_json_text_with_options(
     let finished = parser.finish(statements, end_of_file_token, false);
     SourceFile {
         file_name: finished.file_name,
-        snapshot,
+        snapshot: crate::SourceSnapshot::new(snapshot),
         language_variant: finished.language_variant,
         script_kind: ScriptKind::Json,
         is_declaration_file: finished.is_declaration_file,
