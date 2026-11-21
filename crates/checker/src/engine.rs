@@ -4925,7 +4925,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<bool> {
         let target = self.get_recursion_target(ty)?;
         if let Some(top) = stack.get(depth - 1).filter(|entry| entry.ty == ty) {
-            top.identity.set(Some(target));
+            top.identity.set(target.packed());
         }
         let identity = match target {
             RecursionTarget::Identity(identity) => identity,
@@ -4942,22 +4942,19 @@ impl<'a> CheckerState<'a> {
                 return Ok(false);
             }
         };
+        let wanted = RecursionTarget::Identity(identity).packed();
         let mut count = 0;
         let mut last_type_id = 0;
         for entry in stack.iter().take(depth) {
-            let target = match entry.identity.get() {
-                Some(target) => target,
-                None => {
-                    let target = self.get_recursion_target(entry.ty)?;
-                    entry.identity.set(Some(target));
-                    target
-                }
-            };
-            let matches = match target {
-                RecursionTarget::Identity(key) => key == identity,
-                RecursionTarget::Intersection(target) => {
-                    self.intersection_has_matching_recursion_identity(target, identity)?
-                }
+            let mut key = entry.identity.get();
+            if key == StackIdentity::UNSET {
+                key = self.get_recursion_target(entry.ty)?.packed();
+                entry.identity.set(key);
+            }
+            let matches = if let Some(target) = key.intersection() {
+                self.intersection_has_matching_recursion_identity(target, identity)?
+            } else {
+                key == wanted
             };
             if matches {
                 if entry.ty.index() >= last_type_id {
@@ -5267,14 +5264,14 @@ impl<'a> CheckerState<'a> {
 #[derive(Clone, Debug)]
 pub(crate) struct RelationStackEntry {
     ty: TypeId,
-    identity: std::cell::Cell<Option<RecursionTarget>>,
+    identity: std::cell::Cell<StackIdentity>,
 }
 
 impl RelationStackEntry {
     fn new(ty: TypeId) -> Self {
         Self {
             ty,
-            identity: std::cell::Cell::new(None),
+            identity: std::cell::Cell::new(StackIdentity::UNSET),
         }
     }
 }
@@ -5283,6 +5280,33 @@ impl RelationStackEntry {
 enum RecursionTarget {
     Identity(RecursionIdentity),
     Intersection(TypeId),
+}
+
+/// A stack comparison reads one word. The upper half identifies the ID
+/// space and the lower half retains every ID bit, including symbol ownership.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct StackIdentity(u64);
+
+impl StackIdentity {
+    const UNSET: Self = Self(0);
+    const INTERSECTION: u64 = 5;
+
+    fn intersection(self) -> Option<TypeId> {
+        (self.0 >> 32 == Self::INTERSECTION).then(|| TypeId::new(self.0 as u32))
+    }
+}
+
+impl RecursionTarget {
+    fn packed(self) -> StackIdentity {
+        let (tag, id) = match self {
+            Self::Identity(RecursionIdentity::Symbol(id)) => (1, id.index()),
+            Self::Identity(RecursionIdentity::Node(id)) => (2, id.index()),
+            Self::Identity(RecursionIdentity::Type(id)) => (3, id.index()),
+            Self::Identity(RecursionIdentity::ConditionalRoot(id)) => (4, id.index()),
+            Self::Intersection(id) => (StackIdentity::INTERSECTION, id.index()),
+        };
+        StackIdentity((tag << 32) | u64::from(id))
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

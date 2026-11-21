@@ -136,7 +136,7 @@ fn kept_recursion_entries_match_fresh_walks_at_every_depth() {
             let types = [a, b, a, c, b, c];
             let entries: Vec<_> = types.iter().copied().map(RelationStackEntry::new).collect();
             assert!(!state.is_deeply_nested_on_stack(a, &entries, 1, 3).unwrap());
-            assert!(entries.iter().all(|entry| entry.identity.get().is_none()));
+            assert!(entries.iter().all(|entry| entry.identity.get() == super::StackIdentity::UNSET));
             for max_depth in [1, 2, 3, 10] {
                 for depth in 1..=types.len() {
                     for ty in types {
@@ -622,4 +622,68 @@ fn literal_rejection_matches_payload_equality_for_every_relation() {
             }
         }
     });
+}
+
+#[test]
+fn recursion_stack_tags_preserve_id_spaces_and_short_circuit_intersections() {
+    use super::{
+        RecursionIdentity as Identity, RecursionTarget, RelationStackEntry, StackIdentity,
+    };
+    let raw = tsc_types::TRANSIENT_SYMBOL_BIT | 7;
+    let keys = [
+        StackIdentity::UNSET,
+        RecursionTarget::Identity(Identity::Symbol(tsc_binder::SymbolId::new(raw))).packed(),
+        RecursionTarget::Identity(Identity::Symbol(tsc_binder::SymbolId::new(7))).packed(),
+        RecursionTarget::Identity(Identity::Node(tsc_syntax::NodeId::new(raw))).packed(),
+        RecursionTarget::Identity(Identity::Type(TypeId::new(raw))).packed(),
+        RecursionTarget::Identity(Identity::ConditionalRoot(
+            tsc_types::ConditionalRootId::new(raw),
+        ))
+        .packed(),
+        RecursionTarget::Intersection(TypeId::new(raw)).packed(),
+    ];
+    for (i, key) in keys.iter().enumerate() {
+        assert!(!keys[..i].contains(key));
+    }
+    assert_eq!(keys.last().unwrap().intersection(), Some(TypeId::new(raw)));
+    with_program_state(
+        &[(
+            "a.ts",
+            "type M<T> = { [K in keyof T]: T[K] }; let later: M<{ x: 1 }>;",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let later = resolve(state, "later");
+            let first = state.tables.intrinsics.string;
+            let inner = state.tables.create_intersection_type(
+                [first, later],
+                tsc_types::ObjectFlags::NONE,
+                None,
+                None,
+            );
+            let outer = state.tables.create_intersection_type(
+                [inner, later],
+                tsc_types::ObjectFlags::NONE,
+                None,
+                None,
+            );
+            assert!(state
+                .tables
+                .object_flags_of(later)
+                .contains(tsc_types::ObjectFlags::INSTANTIATED_MAPPED));
+            let stack = [RelationStackEntry::new(outer)];
+            for _ in 0..2 {
+                assert!(state
+                    .is_deeply_nested_on_stack(first, &stack, 1, 1)
+                    .unwrap());
+                assert!(state
+                    .links
+                    .type_cold()
+                    .mapped(later)
+                    .modifiers
+                    .resolved()
+                    .is_none());
+            }
+        },
+    );
 }
