@@ -1062,12 +1062,6 @@ impl<'a> CheckerState<'a> {
                 alias_symbol,
                 alias_type_arguments,
                 |state, new_alias_type_arguments| {
-                    let id_key = state.tables.instantiation_key(
-                        type_arguments,
-                        new_alias_symbol,
-                        new_alias_type_arguments,
-                        object_flags.intersects(ObjectFlags::SINGLE_SIGNATURE_TYPE),
-                    );
                     // 63489-63492: the target's instantiations map is seeded with
                     // itself under its own type-parameter list id (the interned ids
                     // directly: the same key instantiation_key would build) — the
@@ -1083,7 +1077,32 @@ impl<'a> CheckerState<'a> {
                             single_signature: false,
                         }
                     });
+                    // The plain key - no alias, no single-signature mark - of
+                    // one or two arguments is answered by the map's front from
+                    // the arguments themselves: no list is interned for a type
+                    // that exists.
+                    let single_signature =
+                        object_flags.intersects(ObjectFlags::SINGLE_SIGNATURE_TYPE);
+                    let plain_key = new_alias_symbol.is_none() && !single_signature;
+                    if plain_key {
+                        if let Some(existing) =
+                            state.tables.instantiation_front_get(target, type_arguments)
+                        {
+                            return Ok(existing);
+                        }
+                    }
+                    let id_key = state.tables.instantiation_key(
+                        type_arguments,
+                        new_alias_symbol,
+                        new_alias_type_arguments,
+                        single_signature,
+                    );
                     if let Some(existing) = state.tables.instantiation_get(target, id_key) {
+                        if plain_key {
+                            state
+                                .tables
+                                .instantiation_front_put(target, type_arguments, existing);
+                        }
                         return Ok(existing);
                     }
                     let mut new_mapper = state.create_type_mapper_from_stored_sources(
@@ -1132,6 +1151,11 @@ impl<'a> CheckerState<'a> {
                         )?
                     };
                     state.tables.instantiation_insert(target, id_key, result);
+                    if plain_key {
+                        state
+                            .tables
+                            .instantiation_front_put(target, type_arguments, result);
+                    }
                     // 63503-63514: propagate couldContainTypeVariables over the
                     // type arguments onto the result's memo bits.
                     let result_object_flags = state.tables.object_flags_of(result);

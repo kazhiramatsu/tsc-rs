@@ -233,6 +233,79 @@ impl InstantiationKey {
     }
 }
 
+/// A bounded front of the instantiations map for its commonest key: a
+/// target with one or two type arguments, no alias and no single-signature
+/// mark. Such a key lies in a slot with its answer — sixteen bytes, at the
+/// place its hash names — so a look-up reads one slot and needs no list id:
+/// the arguments are not interned and the map of every instantiation is not
+/// probed. A slot holds the last such key that hashed to it; a slot that
+/// holds another key says nothing, and the caller asks the map.
+///
+/// The front only repeats the map: a slot is written with the answer the
+/// map holds for that key, and when the map changes an answer the front is
+/// emptied (see [`InstantiationCache::insert`]).
+#[derive(Default)]
+struct InstantiationFront {
+    /// Empty until the first entry, then `1 << Self::BITS` slots of
+    /// `[target, first argument, second argument or 0, answer]`, each id as
+    /// its store position (the index plus one): no id is zero, and a zero
+    /// first word is an empty slot.
+    slots: Vec<[u32; 4]>,
+}
+
+impl InstantiationFront {
+    /// 65,536 slots: one megabyte a checker.
+    const BITS: u32 = 16;
+
+    /// The key's three words, for the keys the front takes.
+    #[inline]
+    fn key(target: TypeId, arguments: &[TypeId]) -> Option<[u32; 3]> {
+        match *arguments {
+            [first] => Some([target.position(), first.position(), 0]),
+            [first, second] => Some([target.position(), first.position(), second.position()]),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    fn slot(key: [u32; 3]) -> usize {
+        const K: u64 = 0x9E37_79B9_7F4A_7C15;
+        let mixed = (u64::from(key[0]) | (u64::from(key[1]) << 32)).wrapping_mul(K)
+            ^ u64::from(key[2]).wrapping_mul(0xC2B2_AE3D_27D4_EB4F);
+        (mixed.wrapping_mul(K) >> (64 - Self::BITS)) as usize
+    }
+
+    #[inline]
+    fn get(&self, target: TypeId, arguments: &[TypeId]) -> Option<TypeId> {
+        let key = Self::key(target, arguments)?;
+        let slot = self.slots.get(Self::slot(key))?;
+        if slot[..3] == key {
+            TypeId::from_position(slot[3])
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    fn put(&mut self, target: TypeId, arguments: &[TypeId], answer: TypeId) {
+        let Some(key) = Self::key(target, arguments) else {
+            return;
+        };
+        if self.slots.is_empty() {
+            self.slots = vec![[0; 4]; 1 << Self::BITS];
+        }
+        self.slots[Self::slot(key)] = [key[0], key[1], key[2], answer.position()];
+    }
+
+    fn clear(&mut self) {
+        self.slots.fill([0; 4]);
+    }
+
+    fn memory_usage(&self) -> usize {
+        self.slots.capacity() * std::mem::size_of::<[u32; 4]>()
+    }
+}
+
 /// The same instantiation map split by key shape. The common alias-free
 /// key uses all 32 list-id bits, 31 target-id bits and the signature bit.
 /// Large target ids and every other shape retain the complete key.
@@ -240,6 +313,7 @@ impl InstantiationKey {
 struct InstantiationCache {
     plain: HashMap<u64, TypeId>,
     full: HashMap<(TypeId, InstantiationKey), TypeId>,
+    front: InstantiationFront,
     /// One bit a type: the map has been seeded for it as a target (see
     /// [`TypeTables::instantiation_seed`]).
     seeded: Vec<u64>,
@@ -270,10 +344,15 @@ impl InstantiationCache {
         (target, key): (TypeId, InstantiationKey),
         value: TypeId,
     ) -> Option<TypeId> {
-        match Self::packed_key(target, key) {
+        let previous = match Self::packed_key(target, key) {
             Some(packed) => self.plain.insert(packed, value),
             None => self.full.insert((target, key), value),
+        };
+        // The front repeats this map's answers; one of them has changed.
+        if previous.is_some_and(|previous| previous != value) {
+            self.front.clear();
         }
+        previous
     }
 
     fn len(&self) -> usize {
@@ -287,6 +366,7 @@ impl InstantiationCache {
     fn memory_usage(&self) -> usize {
         map_bytes(&self.plain)
             + map_bytes(&self.full)
+            + self.front.memory_usage()
             + self.seeded.capacity() * std::mem::size_of::<u64>()
     }
 }
@@ -2052,6 +2132,27 @@ impl TypeTables {
         self.instantiations.insert((target, key), value);
     }
 
+    /// The instantiation of `target` under the plain key of `arguments` (no
+    /// alias, no single-signature mark) when the map's front holds it: one
+    /// slot read, and the arguments are not interned. `None` says nothing
+    /// about the map — ask it with the list's id.
+    #[inline]
+    pub fn instantiation_front_get(&self, target: TypeId, arguments: &[TypeId]) -> Option<TypeId> {
+        let hit = self.instantiations.front.get(target, arguments);
+        if hit.is_some() {
+            crate::perf::bump(crate::perf::PerfCounter::InstantiationLookups);
+            crate::perf::bump(crate::perf::PerfCounter::InstantiationHits);
+        }
+        hit
+    }
+
+    /// Tell the front the answer the map holds for the plain key of
+    /// `arguments` under `target`: `value` must be that answer.
+    #[inline]
+    pub fn instantiation_front_put(&mut self, target: TypeId, arguments: &[TypeId], value: TypeId) {
+        self.instantiations.front.put(target, arguments, value);
+    }
+
     /// getObjectTypeInstantiation's seed (_tsc.js 63489-63492): a target's
     /// instantiations map answers the target's own key — its type-parameter
     /// list id and alias id — with the target. tsc seeds a target's map
@@ -3476,9 +3577,13 @@ impl TypeTables {
         type_arguments: &[TypeId],
         extra_flags: ObjectFlags,
     ) -> TypeId {
+        if let Some(id) = self.instantiation_front_get(target, type_arguments) {
+            return id;
+        }
         let arguments = self.intern_type_list(type_arguments);
         let key = (target, InstantiationKey::plain(arguments));
         if let Some(&id) = self.instantiations.get(&key) {
+            self.instantiations.front.put(target, type_arguments, id);
             return id;
         }
         let symbol = self.type_of(target).symbol;
@@ -3499,6 +3604,7 @@ impl TypeTables {
         self.type_mut(id).object_flags = object_flags;
         self.type_mut(id).symbol = symbol;
         self.instantiations.insert(key, id);
+        self.instantiations.front.put(target, type_arguments, id);
         id
     }
 

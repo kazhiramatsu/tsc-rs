@@ -1323,6 +1323,106 @@ fn an_instantiation_target_is_seeded_once() {
     assert_eq!(t.instantiations.len(), 4);
 }
 
+/// The front of the instantiations map answers the plain key of one or two
+/// arguments from the arguments themselves and only repeats the map: a
+/// reference found or made through the map is answered by the front
+/// afterwards, without another list or map entry; keys of no argument or of
+/// three are left to the map; a
+/// slot holds one key (another key of the same slot replaces it, and both
+/// are still answered by the map); and when the map changes an answer the
+/// front forgets what it held.
+#[test]
+fn the_instantiation_front_repeats_the_map_for_one_or_two_arguments() {
+    let mut t = tables();
+    let (string, number, boolean) = (
+        t.intrinsics.string,
+        t.intrinsics.number,
+        t.intrinsics.boolean,
+    );
+    let target = t.intrinsics.any;
+
+    // Nothing is held before the map has answered.
+    assert_eq!(t.instantiation_front_get(target, &[string]), None);
+    let one = t.create_type_reference(target, &[string]);
+    let two = t.create_type_reference(target, &[string, number]);
+    let swapped = t.create_type_reference(target, &[number, string]);
+    assert!(one != two && two != swapped && one != swapped);
+    assert_eq!(t.instantiation_front_get(target, &[string]), Some(one));
+    assert_eq!(
+        t.instantiation_front_get(target, &[string, number]),
+        Some(two)
+    );
+    assert_eq!(
+        t.instantiation_front_get(target, &[number, string]),
+        Some(swapped)
+    );
+    assert_eq!(t.instantiation_front_get(number, &[string]), None);
+
+    // A reference that exists is answered without another list or entry.
+    let (lists, entries) = (t.list_ids.len(), t.instantiations.len());
+    assert_eq!(t.create_type_reference(target, &[string]), one);
+    assert_eq!(t.create_type_reference(target, &[string, number]), two);
+    assert_eq!((t.list_ids.len(), t.instantiations.len()), (lists, entries));
+
+    // Keys the front does not take are the map's alone.
+    let none = t.create_type_reference(target, &[]);
+    let three = t.create_type_reference(target, &[string, number, boolean]);
+    assert_eq!(t.instantiation_front_get(target, &[]), None);
+    assert_eq!(
+        t.instantiation_front_get(target, &[string, number, boolean]),
+        None
+    );
+    assert_eq!(t.create_type_reference(target, &[]), none);
+    assert_eq!(
+        t.create_type_reference(target, &[string, number, boolean]),
+        three
+    );
+    assert_eq!(InstantiationFront::key(target, &[]), None);
+    assert_eq!(
+        InstantiationFront::key(target, &[string, number, boolean]),
+        None
+    );
+
+    // One key a slot: two keys of the same slot replace each other in the
+    // front, and the map answers both.
+    let first = InstantiationFront::key(target, &[string]).unwrap();
+    let rival = (0..u32::MAX - 1)
+        .map(TypeId::new)
+        .find(|&candidate| {
+            candidate != string
+                && InstantiationFront::key(target, &[candidate]).is_some_and(|key| {
+                    InstantiationFront::slot(key) == InstantiationFront::slot(first)
+                })
+        })
+        .unwrap();
+    t.instantiation_front_put(target, &[rival], two);
+    assert_eq!(t.instantiation_front_get(target, &[rival]), Some(two));
+    assert_eq!(t.instantiation_front_get(target, &[string]), None);
+    assert_eq!(t.create_type_reference(target, &[string]), one);
+    assert_eq!(t.instantiation_front_get(target, &[string]), Some(one));
+    assert_eq!(t.instantiation_front_get(target, &[rival]), None);
+
+    // The front repeats the map: a changed answer empties it.
+    let list = t.intern_type_list(&[string, number]);
+    assert_eq!(
+        t.instantiation_front_get(target, &[string, number]),
+        Some(two)
+    );
+    t.instantiation_insert(target, InstantiationKey::plain(list), two);
+    assert_eq!(
+        t.instantiation_front_get(target, &[string, number]),
+        Some(two)
+    );
+    t.instantiation_insert(target, InstantiationKey::plain(list), three);
+    assert_eq!(t.instantiation_front_get(target, &[string, number]), None);
+    assert_eq!(t.instantiation_front_get(target, &[string]), None);
+    assert_eq!(t.create_type_reference(target, &[string, number]), three);
+    assert_eq!(
+        t.instantiation_front_get(target, &[string, number]),
+        Some(three)
+    );
+}
+
 #[test]
 fn type_list_interning_keeps_four_byte_candidates_and_exact_boundary_items() {
     assert_eq!(std::mem::size_of::<TypeListId>(), 4);
