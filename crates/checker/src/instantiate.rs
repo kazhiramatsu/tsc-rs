@@ -1841,7 +1841,50 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: instantiateTypeWithAlias @6.0.3
     /// tsc-hash: 7b89d170da7ed964a1fd3c86df71375fa36abc08195649e149cb30d6f255ece9
     /// tsc-span: _tsc.js:63685-63716
+    #[inline]
     pub(crate) fn instantiate_type_with_alias(
+        &mut self,
+        ty: TypeId,
+        mapper: MapperId,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+    ) -> CheckResult<TypeId> {
+        let header = self.tables.type_of(ty);
+        if header
+            .object_flags
+            .intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED)
+        {
+            if header
+                .object_flags
+                .intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES)
+            {
+                return self.instantiate_eligible_type(
+                    ty,
+                    mapper,
+                    alias_symbol,
+                    alias_type_arguments,
+                );
+            }
+        } else if header
+            .flags
+            .intersects(TypeFlags::STRUCTURED_OR_INSTANTIABLE)
+        {
+            return self.check_instantiation_eligibility(
+                ty,
+                mapper,
+                alias_symbol,
+                alias_type_arguments,
+            );
+        }
+        if header.alias.is_none() {
+            return Ok(ty);
+        }
+        self.check_instantiation_eligibility(ty, mapper, alias_symbol, alias_type_arguments)
+    }
+
+    /// Resolve containment in its usual order when the header alone cannot decide.
+    #[inline(never)]
+    fn check_instantiation_eligibility(
         &mut self,
         ty: TypeId,
         mapper: MapperId,
@@ -1858,52 +1901,20 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(ty);
         }
+        self.instantiate_eligible_type(ty, mapper, alias_symbol, alias_type_arguments)
+    }
+
+    /// Enter the counted instantiation only after checking the recursion limits.
+    #[inline(never)]
+    fn instantiate_eligible_type(
+        &mut self,
+        ty: TypeId,
+        mapper: MapperId,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+    ) -> CheckResult<TypeId> {
         if self.instantiation_stack.len() == 100 || self.instantiation_count >= 5_000_000 {
-            self.trace_instant("instantiateType_DepthLimit", || {
-                tsc_types::tracing::Args::new()
-                    .with("typeId", crate::tracing::trace_type_id(ty))
-                    .with("instantiationDepth", self.instantiation_stack.len())
-                    .with("instantiationCount", self.instantiation_count)
-            });
-            // tsgo (checker.go:22502-22518) names the types that recur on
-            // the instantiation stack. currentNode is the driver's element
-            // cursor (5.4); queries outside the driver (probe entries,
-            // relpin) still emit file-less.
-            let current_node = self.current_node;
-            let names = self.circular_type_names()?;
-            match names.as_slice() {
-                [] => {
-                    self.error_at(
-                        current_node,
-                        &diagnostics::Type_instantiation_is_excessively_deep_and_possibly_infinite,
-                        &[],
-                    );
-                }
-                [name] => {
-                    self.error_at_js(
-                        current_node,
-                        &diagnostics::Instantiations_of_type_0_appear_infinitely_circular,
-                        &[name.into()],
-                    );
-                }
-                _ => {
-                    let mut list = tsc_types::JsString::new();
-                    for (index, name) in names.iter().enumerate() {
-                        if index != 0 {
-                            list.push_str(", ");
-                        }
-                        list.push_str("'");
-                        list.push_js(name.as_js());
-                        list.push_str("'");
-                    }
-                    self.error_at_js(
-                        current_node,
-                        &diagnostics::Instantiations_of_the_following_types_appear_infinitely_circular_0,
-                        &[(&list).into()],
-                    );
-                }
-            }
-            return Ok(self.tables.intrinsics.error);
+            return self.report_instantiation_limit(ty);
         }
         let index = self.find_active_mapper(mapper);
         if index.is_none() {
@@ -1936,6 +1947,55 @@ impl<'a> CheckerState<'a> {
         }
         self.instantiation_stack.pop();
         result
+    }
+
+    #[inline(never)]
+    fn report_instantiation_limit(&mut self, ty: TypeId) -> CheckResult<TypeId> {
+        self.trace_instant("instantiateType_DepthLimit", || {
+            tsc_types::tracing::Args::new()
+                .with("typeId", crate::tracing::trace_type_id(ty))
+                .with("instantiationDepth", self.instantiation_stack.len())
+                .with("instantiationCount", self.instantiation_count)
+        });
+        // tsgo (checker.go:22502-22518) names the types that recur on
+        // the instantiation stack. currentNode is the driver's element
+        // cursor (5.4); queries outside the driver (probe entries,
+        // relpin) still emit file-less.
+        let current_node = self.current_node;
+        let names = self.circular_type_names()?;
+        match names.as_slice() {
+            [] => {
+                self.error_at(
+                    current_node,
+                    &diagnostics::Type_instantiation_is_excessively_deep_and_possibly_infinite,
+                    &[],
+                );
+            }
+            [name] => {
+                self.error_at_js(
+                    current_node,
+                    &diagnostics::Instantiations_of_type_0_appear_infinitely_circular,
+                    &[name.into()],
+                );
+            }
+            _ => {
+                let mut list = tsc_types::JsString::new();
+                for (index, name) in names.iter().enumerate() {
+                    if index != 0 {
+                        list.push_str(", ");
+                    }
+                    list.push_str("'");
+                    list.push_js(name.as_js());
+                    list.push_str("'");
+                }
+                self.error_at_js(
+                    current_node,
+                    &diagnostics::Instantiations_of_the_following_types_appear_infinitely_circular_0,
+                    &[(&list).into()],
+                );
+            }
+        }
+        Ok(self.tables.intrinsics.error)
     }
 
     fn alias_type_arguments_could_contain_type_variables(&mut self, ty: TypeId) -> bool {
