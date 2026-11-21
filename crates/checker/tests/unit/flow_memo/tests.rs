@@ -1782,3 +1782,49 @@ fn memo_walks_loops_reduce_labels_and_property_references_without_changing_answe
         assert!(state.reduce_label_overrides.is_empty());
     });
 }
+
+#[test]
+fn shared_scan_mask_preserves_first_entry_and_restores_the_query_suffix() {
+    let mut entries = SharedFlowState::default();
+    let entry = |id, height: u16| SharedFlow {
+        flow: FlowId::new(id),
+        flow_type: FlowType::Type(TypeId::new(height.into())),
+        transient: height.into(),
+        reference: height.into(),
+        height,
+        flags: height as u8,
+    };
+    let outer = entries.begin_query();
+    entries.record(entry(5, 1), &mut 0);
+    entries.record(entry(5, 2), &mut 0);
+    entries.record(entry(69, 3), &mut 0);
+    assert!(std::ptr::eq(
+        entries.find_in_query(0, FlowId::new(5)).unwrap(),
+        &entries[0]
+    ));
+    assert!(std::ptr::eq(
+        entries.find_in_query(0, FlowId::new(69)).unwrap(),
+        &entries[2]
+    ));
+    assert!(entries.find_in_query(0, FlowId::new(133)).is_none());
+    let inner = entries.begin_query();
+    entries.record(entry(5, 4), &mut 0);
+    assert!(std::ptr::eq(
+        entries.find_in_query(inner.len, FlowId::new(5)).unwrap(),
+        &entries[3]
+    ));
+    let candidate = entries.checkpoint();
+    entries.record(entry(10, 5), &mut 0);
+    entries.restore(candidate);
+    assert_eq!(entries.query_mask, 1 << 5);
+    entries.restart_query(inner);
+    assert_eq!(entries.query_mask, 0);
+    assert!(entries.find_in_query(inner.len, FlowId::new(5)).is_none());
+    entries.restore(inner);
+    assert!(std::ptr::eq(
+        entries.find_in_query(0, FlowId::new(5)).unwrap(),
+        &entries[0]
+    ));
+    entries.restore(outer);
+    assert_eq!(entries.checkpoint(), SharedFlowCheckpoint::default());
+}

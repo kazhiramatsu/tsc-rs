@@ -640,12 +640,14 @@ fn shared_replay_safe(shared: &[SharedFlow]) -> bool {
 pub(crate) struct SharedFlowState {
     records: Vec<SharedFlow>,
     last_unsafe: usize,
+    query_mask: u64,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct SharedFlowCheckpoint {
     len: usize,
     last_unsafe: usize,
+    query_mask: u64,
 }
 
 impl std::ops::Deref for SharedFlowState {
@@ -663,7 +665,41 @@ impl SharedFlowState {
         SharedFlowCheckpoint {
             len: self.records.len(),
             last_unsafe: self.last_unsafe,
+            query_mask: self.query_mask,
         }
+    }
+
+    /// A nested reference query starts with an empty suffix. Its caller's
+    /// mask travels with the checkpoint, including across speculative restores.
+    pub(crate) fn begin_query(&mut self) -> SharedFlowCheckpoint {
+        let outer = self.checkpoint();
+        self.query_mask = 0;
+        outer
+    }
+
+    pub(crate) fn restart_query(&mut self, outer: SharedFlowCheckpoint) {
+        self.restore(outer);
+        self.query_mask = 0;
+    }
+
+    #[inline]
+    pub(crate) fn find_in_query(&self, start: usize, flow: FlowId) -> Option<&SharedFlow> {
+        let scan = || {
+            self.records
+                .get(start..)?
+                .iter()
+                .find(|entry| entry.flow == flow)
+        };
+        let found = if self.query_mask & (1 << (flow.index() % 64)) == 0 {
+            None
+        } else {
+            scan()
+        };
+        debug_assert_eq!(
+            found.map(std::ptr::from_ref),
+            scan().map(std::ptr::from_ref)
+        );
+        found
     }
 
     #[inline]
@@ -671,6 +707,7 @@ impl SharedFlowState {
         debug_assert!(checkpoint.len <= self.records.len());
         self.records.truncate(checkpoint.len);
         self.last_unsafe = checkpoint.last_unsafe;
+        self.query_mask = checkpoint.query_mask;
         debug_assert!(self.last_unsafe <= self.records.len());
     }
 
@@ -682,6 +719,7 @@ impl SharedFlowState {
             self.last_unsafe = self.records.len() + 1;
         }
         self.records.push(shared);
+        self.query_mask |= 1 << (shared.flow.index() % 64);
     }
 
     #[inline]
