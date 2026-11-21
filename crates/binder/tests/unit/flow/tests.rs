@@ -113,3 +113,31 @@ fn a_frozen_arena_reads_every_kind_as_it_was_built() {
     unfrozen.add_antecedent(empty, start);
     assert_eq!(unfrozen.label_items(empty), vec![start]);
 }
+
+#[test]
+fn freeze_sizes_the_pool_from_live_cells_and_reduce_headers() {
+    let mut arena = FlowArena::for_bind();
+    let start = arena.create_flow_node(FlowFlags::START, FlowPayload::None, None);
+    let replaced = arena.create_branch_label();
+    arena.add_antecedent(replaced, start);
+    arena.add_antecedent(replaced, start);
+    arena.set_label_antecedents(replaced, vec![start, start]);
+    arena.set_label_antecedents(replaced, Vec::new());
+    arena.add_antecedent(replaced, start);
+    arena.create_reduce_label(replaced, Vec::new(), start);
+    arena.create_reduce_label(replaced, vec![start, start], start);
+
+    assert_eq!(arena.cells.len(), 6);
+    assert_eq!(arena.abandoned_cells, 3);
+    assert_eq!(arena.reduce_label_headers, 2);
+    arena.freeze();
+    assert_eq!(
+        arena.pool.as_ref(),
+        &[start, FlowId::new(0), FlowId::new(2), start, start]
+    );
+
+    let mut next = FlowArena::for_bind();
+    assert!(next.cells.is_empty());
+    next.freeze();
+    assert!(next.pool.is_empty());
+}
