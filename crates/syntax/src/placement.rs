@@ -542,6 +542,46 @@ mod tests {
     }
 
     #[test]
+    fn a_candidate_list_recorded_out_of_allocation_order_is_dropped() {
+        let mut source = source_with_nested_modules();
+        let root = source.arena.node(source.root).statements_field().unwrap();
+        let of_root = source
+            .arena
+            .module_declaration_candidates(root)
+            .unwrap()
+            .to_vec();
+        let outer = source
+            .arena
+            .node(of_root[0])
+            .as_module_declaration()
+            .unwrap();
+        let body = source
+            .arena
+            .node(outer.body.unwrap())
+            .statements_field()
+            .unwrap();
+        let of_body = source
+            .arena
+            .module_declaration_candidates(body)
+            .unwrap()
+            .to_vec();
+        assert_ne!(of_body, [of_root[0]]);
+        // The root's list was recorded last: a record for the list inside it
+        // now arrives out of order and must not be searched for.
+        source
+            .arena
+            .record_statement_list_facts(body, false, Some(vec![of_root[0]]));
+        assert_eq!(
+            source.arena.module_declaration_candidates(body),
+            Some(&of_body[..])
+        );
+        assert_eq!(
+            source.arena.module_declaration_candidates(root),
+            Some(&of_root[..])
+        );
+    }
+
+    #[test]
     fn module_declaration_candidates_keep_their_statement_order_after_relocation() {
         let mut source = source_with_nested_modules();
         let domain = IdentityDomain::new();

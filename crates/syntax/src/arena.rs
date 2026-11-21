@@ -1146,6 +1146,15 @@ impl NodeArena {
     ) {
         let index = self.array_index(id);
         debug_assert!(!self.arrays[index].is_missing_list);
+        // The candidates are found by array position, so their records must
+        // arrive in allocation order, as the parser's do (an inner list is
+        // made before the list around it). One that does not is dropped: its
+        // list keeps what was known of it and is otherwise scanned as before.
+        let module_declarations = module_declarations.filter(|_| {
+            self.module_declaration_candidates
+                .last()
+                .is_none_or(|(last, _)| *last < index)
+        });
         self.arrays[index].list_state = match (function_free, &module_declarations) {
             (true, None) => ListState::FunctionFree,
             (false, None) => return,
@@ -1153,10 +1162,6 @@ impl NodeArena {
             (false, Some(_)) => ListState::ModuleCandidatesKnown,
         };
         if let Some(candidates) = module_declarations.filter(|nodes| !nodes.is_empty()) {
-            debug_assert!(self
-                .module_declaration_candidates
-                .last()
-                .is_none_or(|(last, _)| *last < index));
             self.module_declaration_candidates
                 .push((index, candidates.into_boxed_slice()));
         }
