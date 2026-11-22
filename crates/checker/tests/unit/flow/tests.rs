@@ -197,6 +197,47 @@ fn the_assignment_walk_visits_identifiers_below_target_holders_and_every_node_it
     ));
 }
 
+/// `isEvolvingArrayOperationTarget` reads a property name by its identity:
+/// `length` wherever it is read, `push` and `unshift` only as the callee of
+/// a call, no other name, and an element assignment only with a numeric
+/// index.
+#[test]
+fn the_evolving_array_test_knows_length_push_and_unshift_by_name_identity() {
+    let text = "declare let x: any;\n\
+        x.length;\n\
+        x.push(1);\n\
+        x.unshift(1);\n\
+        x.push;\n\
+        x.pop();\n\
+        x.lengths;\n\
+        (x).length;\n\
+        x[0] = 1;\n\
+        x[\"key\"] = 1;\n\
+        x;\n";
+    let expected = [
+        false, // the declaration's own name
+        true, true, true, false, false, false, true, true, false, false,
+    ];
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let mut references: Vec<_> = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .filter(|&node| {
+                state.kind_of(node) == tsc_syntax::SyntaxKind::Identifier
+                    && state.escaped_text_of(Some(node)) == Some("x")
+            })
+            .collect();
+        references.sort_by_key(|&node| state.pos_of(node));
+        let answers: Vec<bool> = references
+            .into_iter()
+            .map(|node| state.is_evolving_array_operation_target(node).unwrap())
+            .collect();
+        assert_eq!(answers, expected);
+    });
+}
+
 #[test]
 fn flow_type_accessors() {
     let ty = tsc_types::TypeId::new(7);

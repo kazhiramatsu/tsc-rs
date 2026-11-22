@@ -2872,15 +2872,21 @@ impl<'a> CheckerState<'a> {
             };
             let name_is_identifier =
                 name.is_some_and(|name| self.kind_of(name) == SyntaxKind::Identifier);
-            let name_text = self.escaped_text_of(name);
+            // The name is compared by identity. Every reference under a
+            // property access comes through here (checkIdentifier asks
+            // before it knows whether the answer matters), and reading the
+            // name's text for three comparisons was a read of the name
+            // table each time.
+            let name_id = name.and_then(|name| self.identifier_name_of(name));
             let grand_is_call = self
                 .parent_of(parent)
                 .is_some_and(|grand| self.kind_of(grand) == SyntaxKind::CallExpression);
             // isPushOrUnshiftIdentifier (15983) folded into the match.
-            let is_length_push_or_unshift = name_text == Some("length")
+            let is_length_push_or_unshift = name_id == Some(tsc_types::known_name!("length"))
                 || (grand_is_call
                     && name_is_identifier
-                    && matches!(name_text, Some("push") | Some("unshift")));
+                    && (name_id == Some(tsc_types::known_name!("push"))
+                        || name_id == Some(tsc_types::known_name!("unshift"))));
             if is_length_push_or_unshift {
                 return Ok(true);
             }
