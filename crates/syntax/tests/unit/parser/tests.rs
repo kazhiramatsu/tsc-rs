@@ -4469,6 +4469,81 @@ fn jsdoc_body_text_keeps_ranges_and_factory_counts() {
 }
 
 #[test]
+fn jsdoc_trimmed_tag_text_keeps_parts_and_factory_counts() {
+    for (source, expected, counts) in [
+        (
+            "/** @param x first\n * second\u{a0} */",
+            Some("first\nsecond"),
+            (4, 5),
+        ),
+        ("/** @param x  \u{a0} */", None, (4, 4)),
+        (
+            "/** @param x see {@link X} more\u{feff} */",
+            Some(" more"),
+            (8, 8),
+        ),
+    ] {
+        let mut parser = Parser::new("tag.js".into(), source, LanguageVariant::Jsx, true);
+        let doc = jsdoc::parse_jsdoc_comment(&mut parser, 0, source.len(), NodeFlags::NONE);
+        let tags = parser
+            .arena
+            .node(doc.node)
+            .as_js_doc()
+            .unwrap()
+            .tags
+            .unwrap();
+        let [tag] = *parser.arena.node_array(tags).nodes else {
+            panic!("one tag")
+        };
+        let tag = parser.arena.node(tag);
+        assert_eq!(
+            (tag.pos, tag.end),
+            (source.find('@').unwrap() as u32, source.len() as u32 - 2)
+        );
+        let comment = tag.as_js_doc_parameter_tag().unwrap().comment;
+        let text = comment.map(|comment| match comment {
+            crate::JSDocComment::Text {
+                text,
+                pos,
+                end,
+                text_end,
+            } => {
+                assert_eq!(pos as usize, source.find("first").unwrap());
+                assert_eq!((end, text_end), (tag.end, tag.end));
+                parser.arena.text_utf8(text)
+            }
+            crate::JSDocComment::Nodes(id) => {
+                let parts = parser.arena.node_array(id);
+                let [first, link, last] = *parts.nodes else {
+                    panic!("three tag parts")
+                };
+                assert_eq!(
+                    parser
+                        .arena
+                        .text_utf8(parser.arena.node(first).as_js_doc_text().unwrap().text),
+                    "see "
+                );
+                assert_eq!(parser.arena.node(link).kind, SyntaxKind::JSDocLink);
+                let ranges = [first, link, last].map(|id| {
+                    let node = parser.arena.node(id);
+                    (node.pos, node.end)
+                });
+                assert_eq!(ranges, [(13, 17), (17, 26), (26, 35)]);
+                let last = parser.arena.node(last);
+                assert_eq!(last.end, tag.end);
+                parser.arena.text_utf8(last.as_js_doc_text().unwrap().text)
+            }
+        });
+        assert_eq!(text, expected);
+        assert_eq!(
+            (parser.arena.len(), parser.arena.factory_node_count()),
+            counts
+        );
+        assert!(parser.js_doc_diagnostics.is_empty() && parser.parse_diagnostics.is_empty());
+    }
+}
+
+#[test]
 fn jsdoc_overlapping_parts_and_tags_keep_array_order_and_reuse_root_scratch() {
     let text = concat!(
         "/** root {@link Root} tail\n",
