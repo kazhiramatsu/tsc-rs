@@ -333,18 +333,46 @@ enum GenericKeyPart {
 }
 
 impl GenericKeyPart {
+    /// Append the shortest decimal spelling, filling the buffer backwards by
+    /// pairs. Only the most significant pair can have a redundant zero.
+    fn push_decimal(text: &mut String, mut value: u32) {
+        const PAIRS: &[u8; 200] = b"00010203040506070809\
+            10111213141516171819\
+            20212223242526272829\
+            30313233343536373839\
+            40414243444546474849\
+            50515253545556575859\
+            60616263646566676869\
+            70717273747576777879\
+            80818283848586878889\
+            90919293949596979899";
+        let mut digits = [0; 10];
+        let mut start = digits.len();
+        loop {
+            let pair = (value % 100) as usize * 2;
+            start -= 2;
+            digits[start..start + 2].copy_from_slice(&PAIRS[pair..pair + 2]);
+            if value < 100 {
+                start += usize::from(value < 10);
+                break;
+            }
+            value /= 100;
+        }
+        text.push_str(std::str::from_utf8(&digits[start..]).expect("decimal digits are ASCII"));
+    }
+
     fn spelling(parts: &[Self]) -> String {
         let mut text = String::new();
         for part in parts {
             match *part {
-                Self::Number(id) => tsc_types::push_decimal(&mut text, id),
+                Self::Number(id) => Self::push_decimal(&mut text, id),
                 Self::Punctuation(ch) => text.push(ch),
                 Self::Intersection(state) => {
                     text.push(':');
                     if state < 0 {
                         text.push('-');
                     }
-                    tsc_types::push_decimal(&mut text, state.unsigned_abs());
+                    Self::push_decimal(&mut text, state.unsigned_abs());
                 }
             }
         }

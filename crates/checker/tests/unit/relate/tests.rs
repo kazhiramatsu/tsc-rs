@@ -578,6 +578,28 @@ fn generic_reference_keys_survive_scratch_reuse_with_distinct_intersection_state
             panic!("generic tuple keys");
         };
         assert!(std::sync::Arc::ptr_eq(&first, &again));
+
+        let other = state.tables.get_tuple_target_type(
+            None,
+            TupleTargetFlags::new(&[ElementFlags::OPTIONAL, ElementFlags::OPTIONAL]).unwrap(),
+            false,
+            None,
+        );
+        let mut identity_key = |a, b| {
+            let RelationKey::Generic(text) = state
+                .get_relation_key(a, b, IntersectionState::NONE, RelationKind::Identity, false)
+                .unwrap()
+            else {
+                panic!("generic identity key");
+            };
+            text
+        };
+        assert!(std::sync::Arc::ptr_eq(
+            &identity_key(target, other),
+            &identity_key(other, target)
+        ));
+        assert!(!state.is_type_identical_to(target, other).unwrap());
+        assert!(!state.is_type_identical_to(other, target).unwrap());
     });
 }
 
@@ -602,6 +624,32 @@ fn generic_key_parts_preserve_nested_spelling_and_signed_state() {
         super::GenericKeyPart::spelling(&parts),
         "*4294967295<10=0>,1-10:-2147483648"
     );
+}
+
+#[test]
+fn generic_key_spelling_matches_decimal_at_every_width_and_pair() {
+    use super::GenericKeyPart::{self, Intersection, Number, Punctuation};
+    let boundaries = (0..=9).flat_map(|power| {
+        let value = 10u32.pow(power);
+        [value - 1, value, value + 1]
+    });
+    for value in boundaries
+        .chain(0..100)
+        .chain((0..100).map(|pair| 10000 + pair * 100 + pair))
+        .chain([u32::MAX])
+    {
+        let state = -(value as i32).saturating_abs();
+        let parts = [
+            Number(value),
+            Punctuation('='),
+            Number(0),
+            Intersection(state),
+        ];
+        assert_eq!(
+            GenericKeyPart::spelling(&parts),
+            format!("{value}=0:{state}")
+        );
+    }
 }
 
 thread_local! {
