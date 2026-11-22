@@ -658,6 +658,27 @@ pub struct PackageJsonProbe {
     pub exists: bool,
 }
 
+/// An exact missing spelling already belongs to the map as its key.
+#[derive(Clone)]
+enum RecordedProbe {
+    MissingAtKey,
+    Spelled(PackageJsonProbe),
+}
+
+const _: () = assert!(size_of::<RecordedProbe>() <= size_of::<PackageJsonProbe>());
+
+impl RecordedProbe {
+    fn into_public(self, key: impl FnOnce() -> JsString) -> PackageJsonProbe {
+        match self {
+            Self::MissingAtKey => PackageJsonProbe {
+                path: key(),
+                exists: false,
+            },
+            Self::Spelled(probe) => probe,
+        }
+    }
+}
+
 /// A suffix-free hit borrows its canonical query; only an expanded
 /// moduleSuffixes candidate needs a new owner.
 enum ProbedFile<'a> {
@@ -999,7 +1020,7 @@ pub struct ModuleResolver<'a> {
     shared_package_loads: Option<Arc<SharedPackageLoads>>,
     /// Every package.json this resolver probed, by canonical path (see
     /// [`PackageJsonProbe`]).
-    package_json_probes: std::cell::RefCell<BTreeMap<JsString, PackageJsonProbe>>,
+    package_json_probes: std::cell::RefCell<BTreeMap<JsString, RecordedProbe>>,
     /// Record the real path of a found package.json (an incremental program
     /// writes it to its build info; tsgo `ensurePackageJsonsForState`).
     record_package_json_realpaths: bool,
@@ -1754,16 +1775,17 @@ impl<'a> ModuleResolver<'a> {
     pub fn package_json_probes(&self) -> Vec<PackageJsonProbe> {
         self.package_json_probes
             .borrow()
-            .values()
-            .cloned()
+            .iter()
+            .map(|(key, probe)| probe.clone().into_public(|| key.clone()))
             .collect()
     }
 
     /// Take the probes (see [`Self::package_json_probes`]) out of a resolver
     /// that is about to be dropped.
     pub fn take_package_json_probes(&mut self) -> Vec<PackageJsonProbe> {
-        std::mem::take(&mut *self.package_json_probes.borrow_mut())
-            .into_values()
+        std::mem::take(self.package_json_probes.get_mut())
+            .into_iter()
+            .map(|(key, probe)| probe.into_public(|| key))
             .collect()
     }
 
@@ -6139,16 +6161,21 @@ impl<'a> ModuleResolver<'a> {
         if self.package_json_probes.borrow().contains_key(cache_key) {
             return Ok(());
         }
-        let path = if exists && self.record_package_json_realpaths {
-            self.host
-                .realpath_js(package_json)?
-                .unwrap_or_else(|| package_json.to_owned())
+        let probe = if !exists && package_json == cache_key.as_js() {
+            RecordedProbe::MissingAtKey
         } else {
-            package_json.to_owned()
+            let path = if exists && self.record_package_json_realpaths {
+                self.host
+                    .realpath_js(package_json)?
+                    .unwrap_or_else(|| package_json.to_owned())
+            } else {
+                package_json.to_owned()
+            };
+            RecordedProbe::Spelled(PackageJsonProbe { path, exists })
         };
         self.package_json_probes
             .borrow_mut()
-            .insert(cache_key.clone(), PackageJsonProbe { path, exists });
+            .insert(cache_key.clone(), probe);
         Ok(())
     }
 
@@ -9220,6 +9247,58 @@ mod shared_package_loads_tests {
                     );
                 }
             }
+        }
+    }
+
+    #[test]
+    fn missing_probes_publish_the_first_display_spelling_and_positive_realpath() {
+        for sensitive in [true, false] {
+            let host = MemoryCompilerHost::builder("/work")
+                .case_sensitive(sensitive)
+                .realpath("/work/link/package.json", "/real/package.json")
+                .file("/work/link/package.json", b"{}".to_vec())
+                .file("/real/package.json", b"{}".to_vec())
+                .build()
+                .unwrap();
+            let settings = CompilerOptions {
+                incremental: Some(true),
+                ..options(false)
+            };
+            let mut resolver = ModuleResolver::new(&host, &settings).unwrap();
+            let first = "/work/Mixed/package.json";
+            let missing = canonical_text(first, sensitive);
+            resolver
+                .record_package_json_probe(&missing, first.into(), false)
+                .unwrap();
+            resolver
+                .record_package_json_probe(&missing, missing.as_js(), true)
+                .unwrap();
+            let link: JsString = "/work/link/package.json".into();
+            resolver
+                .record_package_json_probe(&link, link.as_js(), true)
+                .unwrap();
+            let peer: JsString = "/work/node_modules/peer/package.json".into();
+            resolver
+                .record_package_json_probe(&peer, peer.as_js(), false)
+                .unwrap();
+            let public = resolver.package_json_probes();
+            assert_eq!(public.len(), 3);
+            for (path, exists) in [
+                (first, false),
+                ("/real/package.json", true),
+                ("/work/node_modules/peer/package.json", false),
+            ] {
+                assert!(public.contains(&PackageJsonProbe {
+                    path: path.into(),
+                    exists
+                }));
+            }
+            assert!(matches!(
+                resolver.package_json_probes.borrow().get(&peer),
+                Some(RecordedProbe::MissingAtKey)
+            ));
+            assert_eq!(resolver.take_package_json_probes(), public);
+            assert!(resolver.package_json_probes().is_empty());
         }
     }
 
