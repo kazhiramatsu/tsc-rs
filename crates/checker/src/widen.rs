@@ -415,28 +415,28 @@ impl<'a> CheckerState<'a> {
         } else if self.is_object_literal_type(ty) {
             result = Some(self.get_widened_type_of_object_literal(ty, context)?);
         } else if flags.intersects(TypeFlags::UNION) {
-            let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                tsc_types::TypeData::Union { types, .. } => self.tables.list(*types).to_vec(),
+            let members = match self.tables.type_of(ty).data {
+                tsc_types::TypeData::Union { types, .. } => types,
                 _ => unreachable!("union flag implies union data"),
             };
             let union_context = match context {
                 Some(context) => context,
-                None => self.create_widening_context(
-                    /*parent*/ None,
-                    /*property_name*/ None,
-                    Some(members.clone()),
-                ),
+                None => {
+                    let siblings = self.tables.list(members).to_vec();
+                    self.create_widening_context(
+                        /*parent*/ None,
+                        /*property_name*/ None,
+                        Some(siblings),
+                    )
+                }
             };
+            let mut members = self.tables.cursor(members);
             let mut widened = Vec::with_capacity(members.len());
-            for member in &members {
-                let next = if self
-                    .tables
-                    .flags_of(*member)
-                    .intersects(TypeFlags::NULLABLE)
-                {
-                    *member
+            while let Some(member) = members.next(&self.tables) {
+                let next = if self.tables.flags_of(member).intersects(TypeFlags::NULLABLE) {
+                    member
                 } else {
-                    self.get_widened_type_with_context(*member, Some(union_context))?
+                    self.get_widened_type_with_context(member, Some(union_context))?
                 };
                 widened.push(next);
             }
@@ -454,12 +454,13 @@ impl<'a> CheckerState<'a> {
             };
             result = Some(self.get_union_type_ex(&widened, reduction)?);
         } else if flags.intersects(TypeFlags::INTERSECTION) {
-            let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                tsc_types::TypeData::Intersection { types } => self.tables.list(*types).to_vec(),
+            let members = match self.tables.type_of(ty).data {
+                tsc_types::TypeData::Intersection { types } => types,
                 _ => unreachable!("intersection flag implies intersection data"),
             };
+            let mut members = self.tables.cursor(members);
             let mut widened = Vec::with_capacity(members.len());
-            for member in members {
+            while let Some(member) = members.next(&self.tables) {
                 widened.push(self.get_widened_type(member)?);
             }
             result =

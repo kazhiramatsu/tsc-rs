@@ -532,3 +532,91 @@ fn null_widening_reports_7018_and_7011() {
             [(7018, 13, 7), (7011, 34, 1), (7018, 104, 7)]
         );
 }
+
+#[test]
+fn widening_source_lists_keep_nested_union_and_intersection_order() {
+    use tsc_syntax::SyntaxKind;
+    use tsc_types::{CheckMode, IntersectionFlags, TypeFlags, UnionReduction};
+
+    assert_eq!(
+        checked_rows(
+            "declare const cond: boolean;
+             const nested = cond ? { p: { x: 1 } } : { p: { y: 's' } };
+             nested.p.x;
+             nested.p.y;"
+        ),
+        []
+    );
+
+    with_program_state(&[("a.ts", "({});")], &CompilerOptions::default(), |state| {
+        let source = state.binder.source(0);
+        let empty = source
+            .arena
+            .node_ids()
+            .find(|&node| state.kind_of(node) == SyntaxKind::ObjectLiteralExpression)
+            .unwrap();
+        let empty = state.check_expression(empty, CheckMode::NORMAL).unwrap();
+        let string = state.tables.intrinsics.string;
+        let union = state
+            .get_union_type_ex(&[empty, string], UnionReduction::None)
+            .unwrap();
+        assert!(state.tables.flags_of(union).intersects(TypeFlags::UNION));
+        let widened = state.get_widened_type(union).unwrap();
+        assert!(state.is_empty_object_type(widened).unwrap());
+    });
+
+    let run = |through_intersection| {
+        with_program_state(
+            &[("a.ts", "({ left: 1 }); ({ right: 2 });")],
+            &CompilerOptions::default(),
+            |state| {
+                let source = state.binder.source(0);
+                let expressions: Vec<_> = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| state.kind_of(node) == SyntaxKind::ObjectLiteralExpression)
+                    .collect();
+                let mut members = Vec::new();
+                for expression in expressions {
+                    members.push(
+                        state
+                            .check_expression(expression, CheckMode::NORMAL)
+                            .unwrap(),
+                    );
+                }
+                let intersection = state
+                    .get_intersection_type(&members, IntersectionFlags::NONE)
+                    .unwrap();
+                assert!(state
+                    .tables
+                    .flags_of(intersection)
+                    .intersects(TypeFlags::INTERSECTION));
+                let tsc_types::TypeData::Intersection { types } =
+                    state.tables.type_of(intersection).data
+                else {
+                    unreachable!();
+                };
+                let result = if through_intersection {
+                    state.get_widened_type(intersection).unwrap()
+                } else {
+                    let mut widened = Vec::new();
+                    let source_members = state.tables.list(types).to_vec();
+                    for member in source_members {
+                        widened.push(state.get_widened_type(member).unwrap());
+                    }
+                    state
+                        .get_intersection_type(&widened, IntersectionFlags::NONE)
+                        .unwrap()
+                };
+                assert_ne!(result, intersection);
+                (
+                    result,
+                    state.tables.len(),
+                    state.total_instantiation_count,
+                    state.binder.transient_symbol_count(),
+                )
+            },
+        )
+    };
+    assert_eq!(run(true), run(false));
+}
