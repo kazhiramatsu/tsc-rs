@@ -886,6 +886,17 @@ fn deferred_references_instantiate_through_the_canonical_node_cache() {
                 .get(instance)
                 .is_some());
             let expected = state.tables.intrinsics.string;
+            // Repeating the alias substitution hits this same deferred
+            // instance without forcing the canonical reference's arguments.
+            let canonical = state.links.node(node).resolved_type.resolved().unwrap();
+            let u = state.tables.alias_type_arguments(canonical).unwrap()[0];
+            let mapper = state.make_unary_type_mapper(u, expected);
+            let before = state.total_instantiation_count;
+            assert_eq!(
+                state.instantiate_type(canonical, Some(mapper)).unwrap(),
+                instance
+            );
+            assert_eq!(state.total_instantiation_count - before, 2);
             let arguments = state.get_type_arguments(instance).expect("forcible");
             assert_eq!(arguments, [expected]);
             assert_eq!(state.type_deferred_node(instance), Some(node));
@@ -951,6 +962,42 @@ fn generic_reference_relations_flow_through_instantiated_arguments() {
             assert_eq!(state.is_type_assignable_to(narrow, wide), Ok(true));
             assert_eq!(state.is_type_assignable_to(wide, narrow), Ok(false));
             assert!(state.tables.flags_of(narrow).intersects(TypeFlags::OBJECT));
+        },
+    );
+}
+
+#[test]
+fn type_reference_probe_returns_a_completed_failed_resolution_without_reporting_again() {
+    with_program_state(
+        &[("a.ts", "declare var value: MissingType;")],
+        &CompilerOptions::default(),
+        |state| {
+            let reference = annotation_of(state, "value");
+            assert!(state.links.node_with_location(reference).is_none());
+            let first = state.get_type_from_type_reference(reference).unwrap();
+            assert!(state
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code() == 2304));
+            let counts = (
+                state.diagnostics.len(),
+                state.tables.len(),
+                state.total_instantiation_count,
+                state.binder.transient_symbol_count(),
+            );
+            assert_eq!(
+                state.get_type_from_type_reference(reference).unwrap(),
+                first
+            );
+            assert_eq!(
+                counts,
+                (
+                    state.diagnostics.len(),
+                    state.tables.len(),
+                    state.total_instantiation_count,
+                    state.binder.transient_symbol_count(),
+                )
+            );
         },
     );
 }

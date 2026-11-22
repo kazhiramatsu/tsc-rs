@@ -173,27 +173,29 @@ pub(crate) fn checker_owners(
     for path in state.program_path_index.keys() {
         usage.js_string(STRINGS, path);
     }
-    usage.vec(
-        "checker authoritative file metadata",
-        &state.authoritative_source_tokens,
-    );
-    usage.hash_map(TABLES, &state.authoritative_source_index_by_token);
-    usage.vec(
-        "checker authoritative file metadata",
-        &state.authoritative_source_may_be_emitted,
-    );
-    usage.vec(
-        "checker authoritative file metadata",
-        &state.authoritative_implied_node_formats,
-    );
-    usage.vec(
-        "checker authoritative file metadata",
-        &state.authoritative_implied_node_formats_for_emit,
-    );
-    usage.vec(
-        "checker authoritative file metadata",
-        &state.authoritative_project_references,
-    );
+    if include_shared {
+        let sources = state.authoritative_sources;
+        usage.add(
+            "checker authoritative token index",
+            sources.by_token.len(),
+            sources.by_token.len()
+                * std::mem::size_of::<(crate::AuthoritativeSourceToken, crate::ProgramFileId)>(),
+            sources.by_token.allocation_size(),
+        );
+        if usage.vec("checker authoritative file metadata", &sources.files) {
+            for file in &sources.files {
+                usage.js_string(STRINGS, &file.file_name);
+                if let Some(reference) = &file.project_reference {
+                    if usage.arc("referenced project options", &reference.options) {
+                        usage.js_string(STRINGS, &reference.options.common_source_directory);
+                        if let Some(dir) = &reference.options.out_dir {
+                            usage.js_string(STRINGS, dir);
+                        }
+                    }
+                }
+            }
+        }
+    }
     state.diagnostics.add_memory_usage(usage);
     usage.diagnostics(&state.visible_global_diagnostics);
 }
@@ -210,7 +212,7 @@ pub(crate) fn print_reserved_vec<T>(label: &str, name: &str, values: &Vec<T>) ->
 
 pub(crate) fn print_reserved_arenas(state: &CheckerState<'_>, label: &str) -> usize {
     print_reserved_vec(label, "signatures", &state.signatures)
-        + print_reserved_vec(label, "resolved_members", &state.members)
+        + print_reserved_vec(label, "resolved_members", state.member_arena())
         + print_reserved_vec(label, "mappers", &state.mappers)
         + print_reserved_vec(label, "mapper_lists", &state.mapper_lists)
         + state

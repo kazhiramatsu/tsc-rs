@@ -2384,6 +2384,69 @@ fn iife_argument_types_flow_into_untyped_parameters() {
         );
 }
 
+#[test]
+fn iife_signature_minimum_uses_the_invocation_argument_list() {
+    let options = CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        ..Default::default()
+    };
+    for (name, text, arity, minimum, has_this, expected_rows, counts) in [
+        (
+            "a.js",
+            "(((function(a, b, c) {})))(1);",
+            3,
+            1,
+            false,
+            &[6133, 6133, 6133][..],
+            [65, 0, 10],
+        ),
+        (
+            "a.ts",
+            "(function(this: void, a, b: number, c) {})(1);",
+            3,
+            2,
+            true,
+            &[2554, 6133, 6133, 6133][..],
+            [65, 0, 11],
+        ),
+        (
+            "a.ts",
+            "const f = (function(a, b) {});",
+            2,
+            2,
+            false,
+            &[7006, 7006, 6133, 6133][..],
+            [63, 0, 10],
+        ),
+    ] {
+        with_program_state(&[(name, text)], &options, |state| {
+            let declaration = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .find(|&node| state.kind_of(node) == SyntaxKind::FunctionExpression)
+                .unwrap();
+            let id = state.get_signature_from_declaration(declaration).unwrap();
+            let signature = state.signature_of(id);
+            assert_eq!(signature.parameters.len(), arity);
+            assert_eq!(signature.min_argument_count(), minimum);
+            assert_eq!(signature.this_parameter.is_some(), has_this);
+            state.check_source_file(0);
+            let rows: Vec<_> = state
+                .diagnostics
+                .iter()
+                .filter(|row| row.file_name.is_some())
+                .map(|row| row.code())
+                .collect();
+            assert_eq!(rows, expected_rows);
+            let work = crate::CheckerCounts::of(state, true);
+            assert_eq!([work.types, work.instantiations, work.symbols], counts);
+        });
+    }
+}
+
 // ---- 5.7b review round 2: late-bound members in intersections ----
 
 #[test]
@@ -2753,4 +2816,64 @@ pick(42);";
             state.flow_loop_stack.pop();
         },
     );
+}
+
+#[test]
+fn predicate_presence_uses_positive_negative_and_recursive_signature_answers() {
+    let text = "declare function typed(value: unknown): value is string;
+declare function asserted(value: unknown): asserts value;
+declare function plain(value: unknown): boolean;
+function recursive(value: unknown) {
+    return typeof value === 'string' && recursive(value);
+}";
+    let run = |presence| {
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            let declarations: Vec<_> = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .filter(|&node| state.kind_of(node) == SyntaxKind::FunctionDeclaration)
+                .collect();
+            let mut answers = Vec::new();
+            for declaration in declarations {
+                let signature = state.get_signature_from_declaration(declaration).unwrap();
+                assert!(state.signature_of(signature).type_predicate().is_none());
+                let first = if presence {
+                    state.has_type_predicate_of_signature(signature).unwrap()
+                } else {
+                    state
+                        .get_type_predicate_of_signature(signature)
+                        .unwrap()
+                        .is_some()
+                };
+                let cached = state.signature_of(signature).type_predicate().unwrap();
+                assert_eq!(first, cached.is_some());
+                let counts = (
+                    state.tables.len(),
+                    state.total_instantiation_count,
+                    state.binder.transient_symbol_count(),
+                    state.diagnostics.len(),
+                );
+                assert_eq!(
+                    state.has_type_predicate_of_signature(signature).unwrap(),
+                    first
+                );
+                assert_eq!(
+                    (
+                        state.tables.len(),
+                        state.total_instantiation_count,
+                        state.binder.transient_symbol_count(),
+                        state.diagnostics.len()
+                    ),
+                    counts
+                );
+                answers.push((first, counts));
+            }
+            assert_eq!(answers.len(), 4);
+            assert!(answers[0].0 && answers[1].0 && !answers[2].0);
+            answers
+        })
+    };
+    assert_eq!(run(true), run(false));
 }

@@ -1373,11 +1373,7 @@ impl<'a> CheckerState<'a> {
                         }
                         let parent_is_abstract_class = parent.is_some_and(|parent| {
                             self.kind_of(parent) == SyntaxKind::ClassDeclaration
-                                && node_util::has_syntactic_modifier(
-                                    &Published,
-                                    parent,
-                                    ModifierFlags::ABSTRACT,
-                                )
+                                && self.has_written_modifier(parent, ModifierFlags::ABSTRACT)
                         });
                         if !parent_is_abstract_class {
                             return self.grammar_error_on_node(
@@ -1983,14 +1979,19 @@ impl<'a> CheckerState<'a> {
     /// exactly like tsc. This is the sole JSDoc dispatch path: checker
     /// consumers do not reconstruct tags from source text.
     fn check_source_element_worker(&mut self, node: NodeId) -> CheckResult<()> {
-        self.check_attached_jsdoc(node);
+        let record = self.record_of(node);
+        let documents = self.nodes_of(record.js_doc());
+        if !documents.is_empty() {
+            let in_js_file = record.flags & tsc_types::NodeFlags::JAVA_SCRIPT_FILE.bits() != 0;
+            self.check_attached_jsdoc(&documents, in_js_file);
+        }
         if self.options.allow_unreachable_code != Some(true)
             && !self.within_unreachable_code
             && self.check_source_element_unreachable(node)?
         {
             self.within_unreachable_code = true;
         }
-        match self.kind_of(node) {
+        match record.kind {
             SyntaxKind::TypeParameter => self.check_type_parameter(node),
             SyntaxKind::Parameter => self.check_parameter(node),
             SyntaxKind::PropertyDeclaration => self.check_property_declaration(node),
@@ -2160,9 +2161,8 @@ impl<'a> CheckerState<'a> {
     /// Comments and tags are parser-owned arena nodes. Links in comment
     /// fragments are checked in every source kind; semantic tag nodes
     /// are dispatched only for JS files, matching tsc.
-    fn check_attached_jsdoc(&mut self, host: NodeId) {
-        let documents = self.direct_jsdoc_documents(host);
-        let in_js_file = self.is_in_js_file(host);
+    #[inline(never)]
+    fn check_attached_jsdoc(&mut self, documents: &[NodeId], in_js_file: bool) {
         for &document in documents {
             self.check_jsdoc_comment_links(document);
             let tags = match self.record_of(document).as_js_doc() {
@@ -3908,11 +3908,8 @@ impl<'a> CheckerState<'a> {
                 }
                 SyntaxKind::PropertyDeclaration => {
                     let source = self.binder.source_of_node(parent);
-                    let is_static = tsc_binder::node_util::has_syntactic_modifier(
-                        &Published,
-                        parent,
-                        tsc_types::ModifierFlags::STATIC,
-                    );
+                    let is_static =
+                        self.has_written_modifier(parent, tsc_types::ModifierFlags::STATIC);
                     let is_readonly =
                         tsc_binder::node_util::get_effective_modifier_flags(source, parent)
                             .intersects(tsc_types::ModifierFlags::READONLY);
@@ -3926,11 +3923,8 @@ impl<'a> CheckerState<'a> {
                     }
                 }
                 SyntaxKind::PropertySignature => {
-                    let is_readonly = tsc_binder::node_util::has_syntactic_modifier(
-                        &Published,
-                        parent,
-                        tsc_types::ModifierFlags::READONLY,
-                    );
+                    let is_readonly =
+                        self.has_written_modifier(parent, tsc_types::ModifierFlags::READONLY);
                     if !is_readonly {
                         let name = self.name_of_node(parent);
                         return self.grammar_error_on_node(
@@ -5028,11 +5022,7 @@ impl<'a> CheckerState<'a> {
                     .symbol(target_prop)
                     .value_declaration
                     .is_some_and(|declaration| {
-                        tsc_binder::node_util::has_syntactic_modifier(
-                            &Published,
-                            declaration,
-                            ModifierFlags::STATIC,
-                        )
+                        self.has_written_modifier(declaration, ModifierFlags::STATIC)
                     });
                 if is_static {
                     continue;
@@ -5596,11 +5586,7 @@ impl<'a> CheckerState<'a> {
                 let parent = self.get_merged_symbol(parent);
                 let source = self.binder.symbol(symbol).declaration_list();
                 let is_static = source.iter().any(|&declaration| {
-                    tsc_binder::node_util::has_syntactic_modifier(
-                        &Published,
-                        declaration,
-                        tsc_types::ModifierFlags::STATIC,
-                    )
+                    self.has_written_modifier(declaration, tsc_types::ModifierFlags::STATIC)
                 });
                 if is_static {
                     self.get_exports_of_symbol(parent)?;
@@ -9893,11 +9879,7 @@ impl<'a> CheckerState<'a> {
                 }
                 if class_parent
                     && property_declaration.is_some_and(|declaration| {
-                        tsc_binder::node_util::has_syntactic_modifier(
-                            &Published,
-                            declaration,
-                            ModifierFlags::ACCESSOR,
-                        )
+                        self.has_written_modifier(declaration, ModifierFlags::ACCESSOR)
                     })
                 {
                     let read = self.type_to_string_ex(property_type, fully_qualified)?;
@@ -10724,8 +10706,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let optional = self.is_optional_parameter_display(parameter)?;
-        let parameter_property = tsc_binder::node_util::has_syntactic_modifier(
-            &Published,
+        let parameter_property = self.has_written_modifier(
             parameter,
             tsc_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
         );
@@ -11164,21 +11145,10 @@ impl<'a> CheckerState<'a> {
             let mut has_in = false;
             let mut has_out = false;
             for declaration in declarations {
-                has_const |= tsc_binder::node_util::has_syntactic_modifier(
-                    &Published,
-                    declaration,
-                    tsc_types::ModifierFlags::CONST,
-                );
-                has_in |= tsc_binder::node_util::has_syntactic_modifier(
-                    &Published,
-                    declaration,
-                    tsc_types::ModifierFlags::IN,
-                );
-                has_out |= tsc_binder::node_util::has_syntactic_modifier(
-                    &Published,
-                    declaration,
-                    tsc_types::ModifierFlags::OUT,
-                );
+                has_const |=
+                    self.has_written_modifier(declaration, tsc_types::ModifierFlags::CONST);
+                has_in |= self.has_written_modifier(declaration, tsc_types::ModifierFlags::IN);
+                has_out |= self.has_written_modifier(declaration, tsc_types::ModifierFlags::OUT);
             }
             if has_const {
                 modifiers.push_js(("const ").into());
@@ -12010,13 +11980,8 @@ impl<'a> CheckerState<'a> {
                 ]))
             }),
             NodeData::ConstructorType(data) => self.with_reused_node_scope(node, |state| {
-                let is_abstract = {
-                    tsc_binder::node_util::has_syntactic_modifier(
-                        &Published,
-                        node,
-                        tsc_types::ModifierFlags::ABSTRACT,
-                    )
-                };
+                let is_abstract =
+                    state.has_written_modifier(node, tsc_types::ModifierFlags::ABSTRACT);
                 let modifier = if is_abstract { "abstract " } else { "" };
                 let type_parameters = state.type_parameter_nodes_text_display(
                     state.nodes_of(data.type_parameters).to_vec(),

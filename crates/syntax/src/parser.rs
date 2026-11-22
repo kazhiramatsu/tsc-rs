@@ -1558,8 +1558,21 @@ impl<'text> Parser<'text> {
         result
     }
 
-    fn current_node(&self, context: ParsingContext) -> Option<ReusableNode> {
-        let cursor = self.syntax_cursor.as_ref()?;
+    /// Fresh lists have no candidates. Keep their eligibility and element
+    /// parsing paths out of the incremental lookup frame.
+    #[inline]
+    fn current_node(&self, context: ParsingContext, incremental: bool) -> Option<ReusableNode> {
+        debug_assert_eq!(incremental, self.syntax_cursor.is_some());
+        if incremental {
+            self.current_node_from_cursor(context)
+        } else {
+            None
+        }
+    }
+
+    #[inline(never)]
+    fn current_node_from_cursor(&self, context: ParsingContext) -> Option<ReusableNode> {
+        let cursor = self.syntax_cursor.as_ref().expect("incremental list");
         if !Self::is_reusable_parsing_context(context) || self.parse_error_before_next_finished_node
         {
             return None;
@@ -1814,6 +1827,7 @@ impl<'text> Parser<'text> {
         collect_modules: bool,
         mut parse_element: impl FnMut(&mut Self) -> Option<NodeId>,
     ) -> crate::NodeArrayId {
+        let incremental = self.syntax_cursor.is_some();
         let saved_context = self.parsing_context;
         self.parsing_context |= context.bit();
         let mark = self.start_node_list();
@@ -1825,10 +1839,10 @@ impl<'text> Parser<'text> {
         let mut modules = Vec::new();
 
         while !self.is_list_terminator(context) {
-            if self.is_list_element(context, false) {
+            if self.is_list_element(context, false, incremental) {
                 let start_pos = self.scanner.full_start_pos();
                 let element = self
-                    .current_node(context)
+                    .current_node(context, incremental)
                     .map(|node| self.consume_node(node))
                     .or_else(|| parse_element(self));
                 if let Some(element) = element {
@@ -1888,16 +1902,17 @@ impl<'text> Parser<'text> {
         mut parse_element: impl FnMut(&mut Self) -> Option<NodeId>,
         consider_semicolon_as_delimiter: bool,
     ) -> Option<crate::NodeArrayId> {
+        let incremental = self.syntax_cursor.is_some();
         let saved_context = self.parsing_context;
         self.parsing_context |= context.bit();
         let mark = self.start_node_list();
         let list_pos = self.node_pos();
 
         loop {
-            if self.is_list_element(context, false) {
+            if self.is_list_element(context, false, incremental) {
                 let start_pos = self.scanner.full_start_pos();
                 let element = self
-                    .current_node(context)
+                    .current_node(context, incremental)
                     .map(|node| self.consume_node(node))
                     .or_else(|| parse_element(self));
                 let Some(element) = element else {
@@ -2034,8 +2049,13 @@ impl<'text> Parser<'text> {
         }
     }
 
-    fn is_list_element(&mut self, context: ParsingContext, in_error_recovery: bool) -> bool {
-        if self.current_node(context).is_some() {
+    fn is_list_element(
+        &mut self,
+        context: ParsingContext,
+        in_error_recovery: bool,
+        incremental: bool,
+    ) -> bool {
+        if self.current_node(context, incremental).is_some() {
             return true;
         }
         match context {
@@ -2169,7 +2189,8 @@ impl<'text> Parser<'text> {
     fn is_in_some_parsing_context(&mut self) -> bool {
         for context in ParsingContext::ALL {
             if self.parsing_context & context.bit() != 0
-                && (self.is_list_element(context, true) || self.is_list_terminator(context))
+                && (self.is_list_element(context, true, self.syntax_cursor.is_some())
+                    || self.is_list_terminator(context))
             {
                 return true;
             }
@@ -9340,8 +9361,8 @@ impl<'text> Parser<'text> {
     fn parse_union_or_intersection_type(
         &mut self,
         operator: SyntaxKind,
-        parse_constituent_type: fn(&mut Self) -> NodeId,
-        create_type_node: fn(crate::NodeArrayId) -> NodeData,
+        parse_constituent_type: impl Fn(&mut Self) -> NodeId,
+        create_type_node: impl FnOnce(crate::NodeArrayId) -> NodeData,
     ) -> NodeId {
         let pos = self.node_pos();
         let is_union_type = operator == SyntaxKind::BarToken;
@@ -10022,9 +10043,9 @@ impl<'text> Parser<'text> {
     /// The escaped name of the current identifier token (tsc factory
     /// createIdentifier: escapedText is the ESCAPED form; idText stays raw).
     fn current_token_name(&mut self) -> tsc_types::EscapedName {
-        if let Some(value) = self.scanner.token_value_source() {
-            if !value.is_empty() {
-                return self.names.escape_str(value);
+        if let Some(range) = self.scanner.token_value_source_range() {
+            if !range.is_empty() {
+                return self.names.escape_source_range(self.source_text, range);
             }
         }
         let value = self.scanner.token_value();
@@ -11026,26 +11047,34 @@ fn parse_source_file_from_snapshot_worker(
     // top-level await re-parses those statements in the Await context.
     let force_external_module = !parser.is_declaration_file && options.force_external_module;
     let detects_jsx_module = !parser.is_declaration_file && options.detect_external_module_from_jsx;
-    let is_external_module = force_external_module
-        || parser
+    let can_reparse = !parser.is_declaration_file && !parser.possible_await_spans.is_empty();
+    let detect = |parser: &Parser<'_>, statements| {
+        parser
             .is_file_probably_external_module(statements)
-            .is_some()
-        || (detects_jsx_module && parser.jsx_external_module_indicator(statements).is_some());
-    // tsgo parseSourceFileWorker (parser.go:451): a module reparses the
-    // spans of statements that created an `await` identifier.
-    let reparse_top_level_await = !parser.is_declaration_file
-        && is_external_module
-        && !parser.possible_await_spans.is_empty();
-    if reparse_top_level_await {
+            .or_else(|| {
+                detects_jsx_module
+                    .then(|| parser.jsx_external_module_indicator(statements))
+                    .flatten()
+            })
+    };
+    // A forced reparse needs the indicator only for the replacement tree.
+    let indicator = if can_reparse && force_external_module {
+        None
+    } else {
+        detect(&parser, statements)
+    };
+    let reparse_top_level_await = can_reparse && (force_external_module || indicator.is_some());
+    let detected_external_module_indicator = if reparse_top_level_await {
         statements = parser.reparse_top_level_await(statements);
-    }
-    let detected_external_module_indicator = parser
-        .is_file_probably_external_module(statements)
-        .or_else(|| {
-            detects_jsx_module
-                .then(|| parser.jsx_external_module_indicator(statements))
-                .flatten()
-        });
+        detect(&parser, statements)
+    } else {
+        // Only a reparse decision reuses this answer. In instrumented builds
+        // a name comparison records a text read, so do not replay it there.
+        if can_reparse && !tsc_types::perf::enabled() {
+            debug_assert_eq!(indicator, detect(&parser, statements));
+        }
+        indicator
+    };
 
     // tsgo allocates the original SourceFile before reparsing top-level await
     // and another afterwards. This parser allocates only the final root.

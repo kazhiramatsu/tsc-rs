@@ -28,10 +28,30 @@ use tsc_types::{
 use tsc_syntax::NodeId;
 
 use crate::evaluate::EvalValue;
-use crate::relate::{EnumRelationError, EnumRelationOutcome, RelationKey, RelationKind};
+use crate::relate::{CanonicalRelationKey, EnumRelationError, EnumRelationOutcome, RelationKind};
 use crate::state::{CheckResult, CheckerState};
 use tsc_binder::NameKey;
 use tsc_types::perf::{self, PerfCounter};
+
+/// Variance comparisons can borrow filled arguments or revisit a stable list
+/// ID after a recursive check grows the type tables.
+pub(crate) trait RelationArguments: Copy {
+    fn types<'a>(&'a self, tables: &'a tsc_types::TypeTables) -> &'a [TypeId];
+}
+
+impl RelationArguments for &[TypeId] {
+    #[inline]
+    fn types<'a>(&'a self, _tables: &'a tsc_types::TypeTables) -> &'a [TypeId] {
+        self
+    }
+}
+
+impl RelationArguments for tsc_types::TypeListId {
+    #[inline]
+    fn types<'a>(&'a self, tables: &'a tsc_types::TypeTables) -> &'a [TypeId] {
+        tables.list(*self)
+    }
+}
 
 fn enum_relation_value_text(value: &EvalValue) -> JsString {
     match value {
@@ -59,6 +79,20 @@ pub(crate) fn is_false(result: Ternary) -> bool {
 /// tsrs-native: Rust predicate for tsc's inline Ternary truth test.
 pub(crate) fn is_true(result: Ternary) -> bool {
     result.bits() != 0
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LiteralComparison {
+    Unequal,
+    EqualEnumMembers,
+    Other,
+}
+
+#[inline]
+fn exact_enum_member_pair(s: i32, t: i32) -> bool {
+    const NUMBER: i32 = TypeFlags::ENUM_LITERAL.bits() | TypeFlags::NUMBER_LITERAL.bits();
+    const STRING: i32 = TypeFlags::ENUM_LITERAL.bits() | TypeFlags::STRING_LITERAL.bits();
+    s == t && matches!(s, NUMBER | STRING)
 }
 
 impl<'a> CheckerState<'a> {
@@ -129,8 +163,18 @@ impl<'a> CheckerState<'a> {
         // two of them needs equal values, and literals are neither objects
         // nor structured. Narrowing by equality asks this of every member
         // of a union (a SyntaxKind comparison: hundreds of enum members).
-        if self.unequal_value_literals(source, target) {
-            return Ok(false);
+        match self.compare_value_literals(source, target) {
+            LiteralComparison::Unequal => return Ok(false),
+            LiteralComparison::EqualEnumMembers if relation != RelationKind::Identity => {
+                if relation == RelationKind::Comparable {
+                    if self.relate_equal_enum_members(target, source, None)? {
+                        return Ok(true);
+                    }
+                    return self.is_simple_type_related_to(source, target, relation);
+                }
+                return self.relate_equal_enum_members(source, target, None);
+            }
+            _ => {}
         }
         if relation != RelationKind::Identity {
             if (relation == RelationKind::Comparable
@@ -162,7 +206,7 @@ impl<'a> CheckerState<'a> {
         if self.tables.flags_of(source).intersects(TypeFlags::OBJECT)
             && self.tables.flags_of(target).intersects(TypeFlags::OBJECT)
         {
-            let key = self.get_relation_key(
+            let key = self.canonical_relation_key(
                 source,
                 target,
                 IntersectionState::NONE,
@@ -170,7 +214,7 @@ impl<'a> CheckerState<'a> {
                 /*ignore_constraints*/ false,
             )?;
             perf::bump(PerfCounter::RelationLookups);
-            if let Some(related) = self.relations.cache(relation).get(&key) {
+            if let Some(related) = self.relations.cache(relation).get_canonical(&key) {
                 perf::bump(PerfCounter::RelationEntryFound);
                 perf::bump(PerfCounter::RelationReturnedCached);
                 return Ok(related.intersects(RelationComparisonResult::SUCCEEDED));
@@ -233,6 +277,15 @@ impl<'a> CheckerState<'a> {
                 )
                 && self.is_unknown_like_union_type(target)?;
             return Ok(related);
+        }
+        if exact_enum_member_pair(s, t) {
+            if self.literal_values_equal(source, target) {
+                return self.relate_equal_enum_members(source, target, enum_error);
+            }
+            if let Some(error) = enum_error {
+                *error = None;
+            }
+            return Ok(false);
         }
         self.simple_type_relation_worker(source, target, relation, enum_error, s, t)
     }
@@ -402,6 +455,32 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
+    /// These literal flags leave only the enum relation after the values match.
+    #[inline(never)]
+    fn relate_equal_enum_members(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        enum_error: Option<&mut Option<EnumRelationError>>,
+    ) -> CheckResult<bool> {
+        debug_assert!(
+            exact_enum_member_pair(
+                self.tables.flags_of(source).bits(),
+                self.tables.flags_of(target).bits()
+            ) && self.literal_values_equal(source, target)
+        );
+        let symbol = |ty| self.tables.type_of(ty).symbol.expect("enum member symbol");
+        match self.enum_type_relation(symbol(source), symbol(target), enum_error.is_some())? {
+            EnumRelationOutcome::Related => Ok(true),
+            EnumRelationOutcome::Unrelated(detail) => {
+                if let Some(error) = enum_error {
+                    *error = detail;
+                }
+                Ok(false)
+            }
+        }
+    }
+
     fn literal_values_equal(&self, source: TypeId, target: TypeId) -> bool {
         self.tables.literal_type_values_equal(source, target)
     }
@@ -410,20 +489,20 @@ impl<'a> CheckerState<'a> {
     /// literals of one kind have unequal values. Enum members can share a
     /// value with another member or an ordinary literal.
     #[inline]
-    fn unequal_value_literals(&self, source: TypeId, target: TypeId) -> bool {
+    fn compare_value_literals(&self, source: TypeId, target: TypeId) -> LiteralComparison {
         let value =
             TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL | TypeFlags::BIG_INT_LITERAL;
         let allowed = value | TypeFlags::ENUM_LITERAL;
         let s = self.tables.flags_of(source);
         if !s.intersects(value) || !allowed.contains(s) {
-            return false;
+            return LiteralComparison::Other;
         }
         let t = self.tables.flags_of(target);
         if !t.intersects(value) || !allowed.contains(t) {
-            return false;
+            return LiteralComparison::Other;
         }
         if s & value != t & value {
-            return true;
+            return LiteralComparison::Unequal;
         }
         if s == t
             && matches!(
@@ -432,9 +511,15 @@ impl<'a> CheckerState<'a> {
             )
         {
             debug_assert!(!self.literal_values_equal(source, target));
-            return true;
+            return LiteralComparison::Unequal;
         }
-        !self.literal_values_equal(source, target)
+        if !self.literal_values_equal(source, target) {
+            LiteralComparison::Unequal
+        } else if exact_enum_member_pair(s.bits(), t.bits()) {
+            LiteralComparison::EqualEnumMembers
+        } else {
+            LiteralComparison::Other
+        }
     }
 
     /// tsc-port: isUnknownLikeUnionType @6.0.3
@@ -1356,8 +1441,8 @@ fn is_excess_property_message(message: &'static DiagnosticMessage) -> bool {
 /// it in a box lets a nested walk take a different set of stacks and budget.
 #[derive(Default)]
 pub(crate) struct RelationWork {
-    pub(crate) maybe_keys: Vec<RelationKey>,
-    pub(crate) maybe_keys_set: HashSet<RelationKey>,
+    pub(crate) maybe_keys: Vec<CanonicalRelationKey>,
+    pub(crate) maybe_keys_set: HashSet<CanonicalRelationKey>,
     pub(crate) source_stack: Vec<RelationStackEntry>,
     pub(crate) target_stack: Vec<RelationStackEntry>,
     pub(crate) maybe_count: usize,
@@ -1540,7 +1625,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         });
         let overflow_bits = RelationComparisonResult::COMPLEXITY_OVERFLOW;
         let message = &diagnostics::Excessive_complexity_comparing_types_0_and_1;
-        let id = self.st.get_relation_key(
+        let id = self.st.canonical_relation_key(
             source,
             target,
             IntersectionState::NONE,
@@ -1548,7 +1633,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             /*ignore_constraints*/ false,
         )?;
         perf::bump(PerfCounter::RelationSets);
-        self.st.relations.cache_mut(self.relation).insert(
+        self.st.relations.cache_mut(self.relation).insert_canonical(
             id,
             RelationComparisonResult::from_bits(
                 RelationComparisonResult::FAILED.bits() | overflow_bits.bits(),
@@ -3535,19 +3620,21 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-port: typeArgumentsRelatedTo @6.0.3
     /// tsc-hash: 48c9af2e688dd0f7f130ca540d0bd3d9202216800c1de96f5c3f5cacdf2be4e3
     /// tsc-span: _tsc.js:65630-65724
-    pub(crate) fn type_arguments_related_to(
+    pub(crate) fn type_arguments_related_to<L: RelationArguments>(
         &mut self,
-        sources: &[TypeId],
-        targets: &[TypeId],
+        sources: L,
+        targets: L,
         variances: &[tsc_types::VarianceFlags],
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult<Ternary> {
         use tsc_types::VarianceFlags;
-        if sources.len() != targets.len() && self.relation == RelationKind::Identity {
+        let source_len = sources.types(&self.st.tables).len();
+        let target_len = targets.types(&self.st.tables).len();
+        if source_len != target_len && self.relation == RelationKind::Identity {
             return Ok(Ternary::FALSE);
         }
-        let length = sources.len().min(targets.len());
+        let length = source_len.min(target_len);
         let mut result = Ternary::TRUE;
         for i in 0..length {
             let variance_flags = if i < variances.len() {
@@ -3559,8 +3646,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if variance == VarianceFlags::INDEPENDENT.bits() {
                 continue;
             }
-            let s = sources[i];
-            let t = targets[i];
+            let s = sources.types(&self.st.tables)[i];
+            let t = targets.types(&self.st.tables)[i];
             let related;
             if variance_flags.intersects(VarianceFlags::UNMEASURABLE) {
                 // Unmeasurable arguments compare identically (or as
@@ -3665,7 +3752,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if self.work.overflow {
             return Ok(Ternary::FALSE);
         }
-        let id = self.st.get_relation_key(
+        let id = self.st.canonical_relation_key(
             source,
             target,
             intersection_state,
@@ -3673,7 +3760,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             /*ignore_constraints*/ false,
         )?;
         perf::bump(PerfCounter::RelationLookups);
-        if let Some(entry) = self.st.relations.cache(self.relation).get(&id) {
+        if let Some(entry) = self.st.relations.cache(self.relation).get_canonical(&id) {
             perf::bump(PerfCounter::RelationEntryFound);
             // 65739-65741: a failed, non-overflow cached relation is
             // deliberately recomputed in reporting mode so the exact
@@ -3715,7 +3802,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 return Ok(Ternary::MAYBE);
             }
             if id.has_constraint_marker() {
-                let broadest = self.st.get_relation_key(
+                let broadest = self.st.canonical_relation_key(
                     source,
                     target,
                     intersection_state,
@@ -3853,7 +3940,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         } else {
             perf::bump(PerfCounter::RelationSets);
-            self.st.relations.cache_mut(self.relation).insert(
+            self.st.relations.cache_mut(self.relation).insert_canonical(
                 id,
                 RelationComparisonResult::from_bits(
                     RelationComparisonResult::FAILED.bits() | propagating_variance_flags.bits(),
@@ -3869,7 +3956,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         Ok(result)
     }
 
-    fn has_active_key(&self, key: &RelationKey) -> bool {
+    fn has_active_key(&self, key: &CanonicalRelationKey) -> bool {
         if self.work.maybe_count <= MAYBE_SCAN_LIMIT {
             self.work.maybe_keys[..self.work.maybe_count].contains(key)
         } else {
@@ -3877,7 +3964,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
     }
 
-    fn push_active_key(&mut self, key: &RelationKey) {
+    fn push_active_key(&mut self, key: &CanonicalRelationKey) {
         if self.work.maybe_count == self.work.maybe_keys.len() {
             self.work.maybe_keys.push(key.clone());
         } else {
@@ -3912,7 +3999,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if mark_all_as_succeeded {
             for key in popped {
                 perf::bump(PerfCounter::RelationSets);
-                self.st.relations.cache_mut(self.relation).insert(
+                self.st.relations.cache_mut(self.relation).insert_canonical(
                     key.clone(),
                     RelationComparisonResult::from_bits(
                         RelationComparisonResult::SUCCEEDED.bits()
@@ -3989,14 +4076,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(false);
             }
             let members = self.resolve_structured_type_members(ty)?;
-            let properties = &self.members_of(members).properties;
-            return Ok(!properties.is_empty()
-                && properties.iter().all(|&p| {
-                    self.binder
-                        .symbol(p)
-                        .flags
-                        .intersects(tsc_types::SymbolFlags::OPTIONAL)
-                }));
+            return Ok(self.has_only_optional_properties(ty, members));
         }
         if flags.intersects(TypeFlags::SUBSTITUTION) {
             let TypeData::Substitution(data) = self.tables.type_of(ty).data else {
@@ -5144,20 +5224,21 @@ impl<'a> CheckerState<'a> {
                     return RecursionIdentity::Node(node);
                 }
             }
-            let from_type_node = object_flags.intersects(ObjectFlags::FROM_TYPE_NODE);
-            if let Some(symbol) = self.tables.type_of(ty).symbol {
-                let is_anonymous_class = object_flags.intersects(ObjectFlags::ANONYMOUS)
-                    && self
-                        .binder
-                        .symbol(symbol)
-                        .flags
-                        .intersects(SymbolFlags::CLASS);
-                if !is_anonymous_class && !from_type_node {
-                    return RecursionIdentity::Symbol(symbol);
+            if !object_flags.intersects(ObjectFlags::FROM_TYPE_NODE) {
+                if let Some(symbol) = self.tables.type_of(ty).symbol {
+                    let is_anonymous_class = object_flags.intersects(ObjectFlags::ANONYMOUS)
+                        && self
+                            .binder
+                            .symbol(symbol)
+                            .flags
+                            .intersects(SymbolFlags::CLASS);
+                    if !is_anonymous_class {
+                        return RecursionIdentity::Symbol(symbol);
+                    }
                 }
-            }
-            if self.tables.is_tuple_type(ty) && !from_type_node {
-                return RecursionIdentity::Type(self.tables.reference_target(ty));
+                if self.tables.is_tuple_type(ty) {
+                    return RecursionIdentity::Type(self.tables.reference_target(ty));
+                }
             }
         }
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {

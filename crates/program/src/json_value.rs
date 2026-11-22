@@ -1,10 +1,9 @@
 //! JSON values retain JavaScript strings until an explicit output boundary.
 //!
 //! `serde_json::Value` cannot represent an unpaired surrogate in either a
-//! string or an object key. It is used only for the scalar strict-JSON fast
-//! path, then converted here. The syntax-based converter constructs this same
-//! representation directly, including values which JSON.parse accepts but
-//! serde rejects. Object queries accept canonical views, never arbitrary bytes.
+//! string or an object key. The strict package reader builds our values during
+//! deserialization. The syntax-based fallback also represents values which
+//! JSON.parse accepts but serde rejects. Object queries accept canonical views.
 
 use rustc_hash::FxHashMap as HashMap;
 use std::fmt::Write;

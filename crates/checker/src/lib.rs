@@ -480,6 +480,97 @@ pub struct AuthoritativeSourceMetadata {
     pub project_reference: Option<tsc_program::ProjectReferenceFile>,
 }
 
+type AuthoritativeTokenIndex =
+    hashbrown::HashMap<AuthoritativeSourceToken, ProgramFileId, rustc_hash::FxBuildHasher>;
+
+/// The ordered host metadata for one snapshot. Association and the checkers
+/// borrow the same token index. Invalid input still participates in file
+/// assignment, but a checker can install only a valid projection.
+struct AuthoritativeSources {
+    files: Vec<AuthoritativeSourceMetadata>,
+    by_token: AuthoritativeTokenIndex,
+    invalid: Option<String>,
+}
+
+static EMPTY_AUTHORITATIVE_SOURCES: AuthoritativeSources = AuthoritativeSources {
+    files: Vec::new(),
+    by_token: AuthoritativeTokenIndex::with_hasher(rustc_hash::FxBuildHasher),
+    invalid: None,
+};
+
+impl AuthoritativeSources {
+    fn new(snapshot: &ProgramSnapshot, files: Vec<AuthoritativeSourceMetadata>) -> Self {
+        let (by_token, invalid) = Self::index_files(
+            &files,
+            snapshot
+                .documents()
+                .iter()
+                .map(|doc| &doc.source().file_name),
+        );
+        Self {
+            files,
+            by_token,
+            invalid,
+        }
+    }
+
+    fn index_files<'s>(
+        files: &[AuthoritativeSourceMetadata],
+        names: impl ExactSizeIterator<Item = &'s JsString>,
+    ) -> (AuthoritativeTokenIndex, Option<String>) {
+        let mut invalid = (files.len() != names.len()).then(|| {
+            format!(
+                "authoritative source metadata has {} rows for {} checker files",
+                files.len(),
+                names.len()
+            )
+        });
+        let mut by_token = AuthoritativeTokenIndex::default();
+        for (file_index, (source, name)) in files.iter().zip(names).enumerate() {
+            // Association takes the last matching token within the snapshot,
+            // even when installation reports an earlier invalid row.
+            let previous = by_token.insert(source.token, program_file_id(file_index));
+            if invalid.is_none() {
+                if source.file_name != *name {
+                    invalid = Some(format!(
+                        "authoritative source metadata row {file_index} names {:?}, checker file is {:?}",
+                        source.file_name, name
+                    ));
+                } else if let Some(previous) = previous {
+                    invalid = Some(format!(
+                        "authoritative source token {} is shared by checker files {} and {file_index}",
+                        source.token.0, previous.index()
+                    ));
+                }
+            }
+        }
+        (by_token, invalid)
+    }
+
+    /// Installed projections cover all their checker files.
+    fn file_index(&self, token: AuthoritativeSourceToken) -> Option<usize> {
+        debug_assert!(self.invalid.is_none());
+        self.file_index_in_snapshot(token, self.files.len())
+    }
+
+    /// Association can see invalid metadata before a checker reports it.
+    fn file_index_in_snapshot(
+        &self,
+        token: AuthoritativeSourceToken,
+        file_count: usize,
+    ) -> Option<usize> {
+        let index = self.by_token.get(&token)?.index();
+        debug_assert_eq!(
+            self.files
+                .iter()
+                .take(file_count)
+                .rposition(|file| file.token == token),
+            Some(index)
+        );
+        Some(index)
+    }
+}
+
 /// One exact checker-to-host module lookup. `containing_file` is diagnostic
 /// context only; providers must key by the stable source token, specifier,
 /// and mode.
@@ -3501,7 +3592,7 @@ fn include_processor_diagnostics_of_state(state: &state::CheckerState<'_>) -> Ve
         .include_processor_diagnostics()
         .into_iter()
         .filter_map(|(token, mut row)| {
-            let &file = state.authoritative_source_index_by_token.get(&token)?;
+            let file = state.authoritative_sources.file_index(token)?;
             row.file_name = Some(state.binder.source(file).file_name.clone());
             Some(row)
         })
@@ -3520,9 +3611,10 @@ fn init_checker_state<'a>(
     options: &'a CompilerOptions,
     authoritative: Option<(
         &'a dyn AuthoritativeModuleProvider,
-        &[AuthoritativeSourceMetadata],
+        &'a AuthoritativeSources,
     )>,
     host: HostFacts,
+    augmentations: Option<&merge::AugmentationInputs>,
     checker_index: Option<usize>,
     measure_lane_costs: bool,
 ) -> state::CheckerState<'a> {
@@ -3575,7 +3667,17 @@ fn init_checker_state<'a>(
     // order consumed by getUnionType when stableTypeOrdering is off.
     // Requesting the public global-diagnostics bucket controls only
     // observation of the rows.
-    state.merge_module_augmentations_around(|state| state.materialize_init_global_diagnostics());
+    if let Some(inputs) = augmentations {
+        // Identifier text reads are observable in instrumentation builds.
+        if !tsc_types::perf::enabled() {
+            debug_assert_eq!(*inputs, merge::AugmentationInputs::for_snapshot(snapshot));
+        }
+        state
+            .merge_augmentation_inputs(inputs, |state| state.materialize_init_global_diagnostics());
+    } else {
+        state
+            .merge_module_augmentations_around(|state| state.materialize_init_global_diagnostics());
+    }
     state
 }
 
@@ -3790,7 +3892,7 @@ fn syntactic_rows_of_sources<'s>(
 /// file-attributed rows and partially-checked ranges recorded up to then.
 /// Rows are cloned when the owner finishes a file, before later checks can
 /// add or update diagnostics in that file.
-#[derive(Clone, Default)]
+#[derive(Default)]
 struct LedgerSnapshot {
     rows: Vec<Diagnostic>,
     globals_by_file: Vec<Vec<Diagnostic>>,
@@ -3891,9 +3993,7 @@ struct ShardOutput {
     /// verdict arrived depends on completion order.
     after_eager: Option<(CheckerCounts, u32, crate::order_guard::DisplayMarks)>,
     /// Owner-local per-file snapshots after the requested check pass.
-    fixture: LedgerSnapshot,
-    /// The ledger after every pass.
-    complete: LedgerSnapshot,
+    ledger: LedgerSnapshot,
     /// The file-less bucket right after checker initialization; identical
     /// across shards by construction (same snapshot, same init sequence).
     init_globals: Vec<Diagnostic>,
@@ -4072,7 +4172,7 @@ fn reserve_type_tables(state: &mut state::CheckerState<'_>, node_count: usize) {
     state.links.reserve_transient_symbols(transient_symbols);
     state.mappers.reserve(reserve(1.5));
     state.mapper_lists.reserve(reserve(2.0));
-    state.members.reserve(reserve(0.5));
+    state.reserve_members(reserve(0.5));
     state.signatures.reserve(reserve(0.25));
     state.inference_context_arena.reserve(reserve(0.1));
     state.inference_info_arena.reserve(reserve(0.1));
@@ -4281,8 +4381,9 @@ fn run_checker_shard<'a>(
     snapshot: &'a ProgramSnapshot,
     options: &'a CompilerOptions,
     provider: &'a dyn AuthoritativeModuleProvider,
-    metadata: &[AuthoritativeSourceMetadata],
+    metadata: &'a AuthoritativeSources,
     host: HostFacts,
+    augmentations: Arc<merge::AugmentationInputs>,
     queue: &shard::ShardFileQueue,
     reserved_nodes: usize,
     complete_library_prefix: bool,
@@ -4303,9 +4404,11 @@ fn run_checker_shard<'a>(
         options,
         Some((provider, metadata)),
         host,
+        Some(&augmentations),
         Some(shard_index),
         queue.measures_costs(),
     );
+    drop(augmentations);
     reserve_type_tables(&mut state, reserved_nodes);
     // W2c: every type created from here on is shard-local. In the exact mode
     // the guard records order-consuming operations over two or more of them
@@ -4404,7 +4507,6 @@ fn run_checker_shard<'a>(
             break;
         }
     }
-    let fixture = captured.clone();
     #[cfg(feature = "phase-ledger")]
     tsc_types::phase_ledger::switch(tsc_types::phase_ledger::Phase::Finalization);
     files.sort_unstable();
@@ -4438,7 +4540,6 @@ fn run_checker_shard<'a>(
             );
         deposit(shard_index, closes_gate);
     }
-    let complete = captured;
     // The module facts of the files this shard checked; the merge adds the
     // cached rows from every shard's ledger.
     let incremental = if incremental_facts {
@@ -4466,8 +4567,7 @@ fn run_checker_shard<'a>(
         counts: CheckerCounts::of(&state, shard_index == 0),
         closes_gate,
         after_eager: None,
-        fixture,
-        complete,
+        ledger: captured,
         init_globals,
         partial_check_records: std::mem::take(&mut state.partial_check_records),
         failure,
@@ -4590,8 +4690,7 @@ fn merge_shard_outputs(
         }
         by_file
     }
-    let fixture_rows = rows_by_file(outputs.iter().map(|output| &output.fixture));
-    let complete_rows = rows_by_file(outputs.iter().map(|output| &output.complete));
+    let rows = rows_by_file(outputs.iter().map(|output| &output.ledger));
     let file_count = snapshot.documents().len();
     let unselected = |file: usize| selected.is_some_and(|selected| !selected[file]);
     let skip = |file: usize| {
@@ -4604,22 +4703,20 @@ fn merge_shard_outputs(
                 options,
             )
     };
-    let assemble = |file: usize,
-                    rows: &rustc_hash::FxHashMap<&JsString, Vec<&Diagnostic>>,
-                    ledger: fn(&ShardOutput) -> &LedgerSnapshot|
-     -> DiagnosticList {
+    let assemble = |file: usize| {
         let document = snapshot.document(file);
         let source = document.source();
         let empty = Vec::new();
         let checker_for_file = rows.get(&source.file_name).unwrap_or(&empty);
         let globals = outputs
             .iter()
-            .flat_map(|output| ledger(output).globals_by_file[file].iter().cloned())
+            .flat_map(|output| output.ledger.globals_by_file[file].iter().cloned())
             .collect::<Vec<_>>();
         let ranges = outputs
             .iter()
             .flat_map(|output| {
-                ledger(output)
+                output
+                    .ledger
                     .partially_checked_ranges
                     .get(&file)
                     .into_iter()
@@ -4638,33 +4735,28 @@ fn merge_shard_outputs(
         )
     };
 
-    // Fixture projection: the public per-file getters as observed after the
-    // fixture pass and before library completion.
-    for file in lib_count..file_count {
-        if skip(file) {
-            continue;
-        }
-        let source = snapshot.document(file).source();
-        let result_index = file - lib_count;
-        if let Some(rows) = fixture_rows.get(&source.file_name) {
-            file_diagnostics[result_index].suggestion.extend(
-                rows.iter()
-                    .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Suggestion)
-                    .map(|diagnostic| (*diagnostic).clone()),
-            );
-        }
-        file_diagnostics[result_index].semantic =
-            assemble(file, &fixture_rows, |output| &output.fixture);
-    }
-
-    // Whole-Program getter: every file after completion, one stable
-    // sort/dedupe after flattening (getDiagnosticsHelper's undefined arm).
+    // Both public getters observe the same captured semantic rows. Only
+    // fixtures also have a per-file result and a separate suggestion pass.
     let mut diagnostics = Vec::new();
     for file in 0..file_count {
         if skip(file) {
             continue;
         }
-        diagnostics.extend(assemble(file, &complete_rows, |output| &output.complete));
+        let semantic = assemble(file);
+        if file < lib_count {
+            diagnostics.extend(semantic);
+        } else {
+            let result = &mut file_diagnostics[file - lib_count];
+            if let Some(rows) = rows.get(&snapshot.document(file).source().file_name) {
+                result.suggestion.extend(
+                    rows.iter()
+                        .filter(|row| row.category() == DiagnosticCategory::Suggestion)
+                        .map(|row| (*row).clone()),
+                );
+            }
+            diagnostics.extend_from_slice(&semantic);
+            result.semantic = semantic;
+        }
     }
     tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
     // W2e: a display-class observation counts only when the diagnostic it
@@ -4713,19 +4805,16 @@ fn merge_shard_outputs(
                         let document = snapshot.document(file);
                         let source = document.source();
                         let empty = Vec::new();
-                        let checker_for_file =
-                            complete_rows.get(&source.file_name).unwrap_or(&empty);
+                        let checker_for_file = rows.get(&source.file_name).unwrap_or(&empty);
                         let globals = outputs
                             .iter()
-                            .flat_map(|output| {
-                                output.complete.globals_by_file[file].iter().cloned()
-                            })
+                            .flat_map(|output| output.ledger.globals_by_file[file].iter().cloned())
                             .collect::<Vec<_>>();
                         let ranges = outputs
                             .iter()
                             .flat_map(|output| {
                                 output
-                                    .complete
+                                    .ledger
                                     .partially_checked_ranges
                                     .get(&file)
                                     .into_iter()
@@ -4751,7 +4840,7 @@ fn merge_shard_outputs(
             planner_global_rows: false,
             check_global_rows: outputs.iter().any(|output| {
                 output
-                    .complete
+                    .ledger
                     .globals_by_file
                     .iter()
                     .any(|rows| !rows.is_empty())
@@ -4957,6 +5046,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         Vec::with_capacity(run.lib_metadata.len() + authoritative_program_metadata.len());
     metadata.extend(run.lib_metadata.iter().cloned());
     metadata.extend(authoritative_program_metadata);
+    let metadata = AuthoritativeSources::new(&snapshot, metadata);
     if syntactic_closed {
         // Syntax closes getters, but emit still needs an initialized resolver.
         // Reuse the existing serial snapshot executor for this closed request.
@@ -4982,6 +5072,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             planner,
         );
     }
+    let augmentations = Arc::new(merge::AugmentationInputs::for_snapshot(&snapshot));
     let complete_library_prefix = run.library_prefix == LibraryPrefixCompletion::Complete;
 
     // The incremental program's planner runs over one initialized checker on
@@ -4996,8 +5087,9 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             let mut state = init_checker_state(
                 &snapshot,
                 options,
-                Some((&*provider, metadata.as_slice())),
+                Some((&*provider, &metadata)),
                 host.clone(),
+                Some(&augmentations),
                 None,
                 false,
             );
@@ -5068,20 +5160,14 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let mut adjacent = vec![Vec::new(); node_counts.len()];
     // The files each file imports, for the locality association's modules.
     let mut targets_of = vec![Vec::new(); if locality { node_counts.len() } else { 0 }];
-    let indices = metadata
-        .iter()
-        .take(node_counts.len())
-        .enumerate()
-        .map(|(index, source)| (source.token, index))
-        .collect::<rustc_hash::FxHashMap<_, _>>();
     let provider = factory.provider();
     for (token, count, targets) in provider.checker_association_imports() {
-        let Some(&file) = indices.get(&token) else {
+        let Some(file) = metadata.file_index_in_snapshot(token, node_counts.len()) else {
             continue;
         };
         imports[file] = count;
         for target in targets {
-            let Some(&other) = indices.get(&target) else {
+            let Some(other) = metadata.file_index_in_snapshot(target, node_counts.len()) else {
                 continue;
             };
             if file != other {
@@ -5233,18 +5319,6 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     };
     let shard_count = queue.shard_count();
 
-    // An owned copy for the serial replay (W2c), taken before any shard slot
-    // exists: the replay never reconstructs host facts from admitted sources
-    // (ignored inputs and package.json manifests matter).
-    let replay_host = host.clone();
-    // One HostFacts per shard in take-once slots: a shard takes its slot on
-    // whichever thread runs it, so a refused spawn leaves the facts for the
-    // coordinator's fallback. The original moves into slot 0.
-    let mut hosts = Vec::with_capacity(shard_count);
-    for _ in 1..shard_count {
-        hosts.push(std::sync::Mutex::new(Some(host.clone())));
-    }
-    hosts.insert(0, std::sync::Mutex::new(Some(host)));
     let emit_closure: Option<ShardEmitClosure<'_>> = sharded_emit.as_ref().map(|emit| emit.emit);
     let eager_closure: Option<ShardEagerClosure<'_>> =
         sharded_emit.as_ref().and_then(|emit| emit.eager);
@@ -5260,19 +5334,17 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     // Shards still checking, read by every shard's eager emit.
     let checking = std::sync::atomic::AtomicUsize::new(shard_count);
     let eager_remaining = std::sync::atomic::AtomicUsize::new(shard_count);
-    let run_shard = |shard_index: usize| {
-        let host = hosts[shard_index]
-            .lock()
-            .expect("host facts slot")
-            .take()
-            .expect("each shard takes its host facts once");
+    // The last shard to finish initialization releases the lists. A later
+    // standalone serial replay initializes from the published documents.
+    let run_shard = |shard_index: usize, augmentations| {
         run_checker_shard(
             shard_index,
             &snapshot,
             options,
             &*providers[shard_index],
             &metadata,
-            host,
+            host.clone(),
+            augmentations,
             &queue,
             queue.reserved_nodes(shard_index),
             complete_library_prefix,
@@ -5313,20 +5385,21 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         }
         // The coordinator runs shard 0 itself; the others run on scoped
         // threads. A refused thread is not an error: the coordinator runs
-        // that shard too, with the untouched host facts of its slot.
+        // that shard too, with the same immutable initialization inputs.
         for (shard_index, slot) in results.iter_mut().enumerate().skip(1) {
+            let inputs = Arc::clone(&augmentations);
             match std::thread::Builder::new()
                 .name(format!("tsc-rs-checker-{shard_index}"))
                 .stack_size(tsc_program::WORKER_STACK_BYTES)
                 .spawn_scoped(scope, move || {
                     tsc_program::run_thread_start_hook();
-                    run_shard(shard_index)
+                    run_shard(shard_index, inputs)
                 }) {
                 Ok(handle) => handles.push((shard_index, handle)),
-                Err(_) => *slot = Some(run_shard(shard_index)),
+                Err(_) => *slot = Some(run_shard(shard_index, Arc::clone(&augmentations))),
             }
         }
-        results[0] = Some(run_shard(0));
+        results[0] = Some(run_shard(0, augmentations));
         for (shard_index, handle) in handles {
             results[shard_index] = Some(
                 handle
@@ -5535,7 +5608,6 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             replay_started,
         );
     }
-    drop(hosts);
     let provider = factory.provider();
     let execution = check_snapshot_serially(
         &snapshot,
@@ -5543,8 +5615,8 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         options,
         &program_diagnostics,
         file_diagnostics,
-        Some((&*provider, metadata.as_slice())),
-        replay_host,
+        Some((&*provider, &metadata)),
+        host,
         collect_global_diagnostics,
         complete_library_prefix,
         true,
@@ -5577,10 +5649,7 @@ fn check_snapshot_serially(
     options: &CompilerOptions,
     program_diagnostics: &[Diagnostic],
     mut file_diagnostics: Vec<FileDiagnosticPasses>,
-    authoritative: Option<(
-        &dyn AuthoritativeModuleProvider,
-        &[AuthoritativeSourceMetadata],
-    )>,
+    authoritative: Option<(&dyn AuthoritativeModuleProvider, &AuthoritativeSources)>,
     host: HostFacts,
     collect_global_diagnostics: bool,
     complete_library_prefix: bool,
@@ -5592,7 +5661,8 @@ fn check_snapshot_serially(
     planner: Option<&mut IncrementalPlanner<'_>>,
 ) -> CheckExecution {
     let init_started = std::time::Instant::now();
-    let mut state = init_checker_state(snapshot, options, authoritative, host, Some(0), false);
+    let mut state =
+        init_checker_state(snapshot, options, authoritative, host, None, Some(0), false);
     reserve_type_tables(&mut state, snapshot_node_count(snapshot));
     let global_diagnostics = if collect_global_diagnostics {
         let mut rows = state.visible_global_diagnostics.clone();
@@ -6016,8 +6086,8 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         report_program_memory(&snapshot);
         let authoritative_metadata = authoritative_run.map(|run| {
             let mut metadata = run.lib_metadata.clone();
-            metadata.extend(authoritative_program_metadata.iter().cloned());
-            metadata
+            metadata.extend(authoritative_program_metadata);
+            AuthoritativeSources::new(&snapshot, metadata)
         });
         // A per-checker provider source reaching the serial driver
         // constructs exactly one provider for its one checker state.
@@ -6049,7 +6119,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 Some((
                     provider,
                     authoritative_metadata
-                        .as_deref()
+                        .as_ref()
                         .expect("authoritative metadata assembled above"),
                 )),
                 host,
@@ -6073,7 +6143,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             &snapshot,
             options,
             authoritative_run
-                .zip(authoritative_metadata.as_deref())
+                .zip(authoritative_metadata.as_ref())
                 .map(|(run, metadata)| {
                     let provider: &dyn AuthoritativeModuleProvider = match run.provider {
                         AuthoritativeProviderSource::Shared(provider) => provider,
@@ -6084,6 +6154,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                     (provider, metadata)
                 }),
             host,
+            None,
             Some(0),
             false,
         );
@@ -6113,11 +6184,11 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 &snapshot, &session, &unchecked,
             );
             state = session.into_state();
-            if let Some(run) = authoritative_run {
+            if let Some((run, sources)) = authoritative_run.zip(authoritative_metadata.as_ref()) {
                 append_include_processor_diagnostics(
                     &mut program_diagnostics,
                     run,
-                    &authoritative_program_metadata,
+                    &sources.files[run.lib_metadata.len()..],
                 );
             }
         }

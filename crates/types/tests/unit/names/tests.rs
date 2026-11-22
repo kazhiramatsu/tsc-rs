@@ -70,9 +70,15 @@ fn colliding_texts_keep_their_own_names() {
     let mut held = HeldNameCache::take();
     for round in 0..2 {
         for text in &texts {
+            let source = format!("π{text}/");
+            let start = "π".len();
             let raw = JsStr::from_str(text);
             assert_eq!(
-                held.escape(raw),
+                if round == 0 {
+                    held.escape_source_range(&source, start..start + text.len())
+                } else {
+                    held.escape(raw)
+                },
                 EscapedName::escape(raw),
                 "{text:?} (round {round})"
             );
@@ -150,4 +156,38 @@ fn contextual_name_hints_are_exact_across_intern_and_escape_paths() {
         assert!(!name.may_be_contextual_identifier());
         assert_eq!(name, cache.escape(word.into()));
     }
+}
+
+#[test]
+fn long_name_misses_share_the_scalar_and_js_identity_across_threads() {
+    let spellings: Vec<_> = [16, 17, 19, 24, 25]
+        .into_iter()
+        .flat_map(|len| {
+            let ordinary = format!("hash_{}", "x".repeat(len - 5));
+            let escaped = format!("__{}", &ordinary[2..]);
+            [ordinary, escaped]
+        })
+        .collect();
+    let barrier = std::sync::Barrier::new(2);
+    let run = |scalar| {
+        let mut held = HeldNameCache::take();
+        barrier.wait();
+        spellings
+            .iter()
+            .map(|raw| {
+                let id = if scalar {
+                    held.escape_str(raw)
+                } else {
+                    held.escape(raw.as_str().into())
+                };
+                assert_eq!(id, EscapedName::escape(raw.as_str().into()));
+                id
+            })
+            .collect::<Vec<_>>()
+    };
+    std::thread::scope(|scope| {
+        let other = scope.spawn(|| run(false));
+        let ours = run(true);
+        assert_eq!(ours, other.join().unwrap());
+    });
 }

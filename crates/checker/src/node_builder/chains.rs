@@ -76,11 +76,12 @@ fn symbol_flags_for_meaning(meaning: EmitSymbolMeaning) -> SymbolFlags {
 
 pub(crate) fn program_source_id(checker: &CheckerState<'_>, file_index: usize) -> SourceFileId {
     let raw = checker
-        .authoritative_source_tokens
+        .authoritative_sources
+        .files
         .get(file_index)
         .map_or_else(
             || u32::try_from(file_index).unwrap_or_default(),
-            |token| token.0,
+            |file| file.token.0,
         );
     SourceFileId::from_raw(raw)
 }

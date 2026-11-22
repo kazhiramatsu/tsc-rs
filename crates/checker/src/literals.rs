@@ -1027,9 +1027,11 @@ impl<'a> CheckerState<'a> {
         check_mode: CheckMode,
         acc: &mut ObjectLiteralAcc,
     ) -> CheckResult<()> {
-        let properties: Vec<NodeId> = match self.record_of(node).as_object_literal_expression() {
-            Some(data) => self.nodes_of(data.properties).to_vec(),
-            _ => Vec::new(),
+        let record = self.record_of(node);
+        let properties = || {
+            record
+                .as_object_literal_expression()
+                .and_then(|data| data.properties)
         };
         acc.contextual_type =
             self.get_apparent_type_of_contextual_type(node, ContextFlags::NONE)?;
@@ -1059,14 +1061,14 @@ impl<'a> CheckerState<'a> {
             && acc.is_in_javascript
             && self.node_flags(node) & tsc_types::NodeFlags::JSON_FILE.bits() == 0;
         // Pre-pass: force every computed name (74159-74163).
-        for &member_decl in &properties {
+        for member_decl in self.nodes_of(properties()) {
             if let Some(name) = self.name_of_named_declaration(member_decl) {
                 if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
                     self.check_computed_property_name(name)?;
                 }
             }
         }
-        for member_decl in properties {
+        for member_decl in self.nodes_of(properties()) {
             // getSymbolOfDeclaration (74166): the LATE-BOUND hop is
             // load-bearing for computed-name accessors — the get/set
             // halves of one `[Symbol.x]` pair share a late symbol,

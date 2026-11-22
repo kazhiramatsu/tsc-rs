@@ -266,6 +266,37 @@ const BYTE_CLASS: [u8; 256] = {
     table
 };
 
+/// Count skipped ASCII trivia within the scan range. Once a line break has
+/// been seen, horizontal and vertical whitespace can share the same test.
+#[inline]
+fn ascii_trivia_run(bytes: &[u8]) -> (usize, bool) {
+    let horizontal = bytes
+        .iter()
+        .position(|byte| !matches!(byte, b' ' | b'\t' | 0x0b | 0x0c))
+        .unwrap_or(bytes.len());
+    if !matches!(bytes.get(horizontal), Some(b'\r' | b'\n')) {
+        return (horizontal, false);
+    }
+    let rest = &bytes[horizontal + 1..];
+    let tail = rest
+        .iter()
+        .position(|byte| !matches!(byte, b' ' | b'\t'..=b'\r'))
+        .unwrap_or(rest.len());
+    (horizontal + 1 + tail, true)
+}
+
+/// The byte after the last line separator in a comment body, if it has one.
+fn multiline_last_line(body: &[u8]) -> Option<usize> {
+    memchr::memrchr3_iter(b'\r', b'\n', 0xe2, body).find_map(|index| {
+        if body[index] != 0xe2 {
+            Some(index + 1)
+        } else {
+            matches!(body.get(index..index + 3), Some([0xe2, 0x80, 0xa8 | 0xa9]))
+                .then_some(index + 3)
+        }
+    })
+}
+
 const IDENTIFIER_PART: [bool; 256] = {
     let mut table = [false; 256];
     let mut i = 0;
@@ -379,24 +410,16 @@ impl<'text> Scanner<'text> {
             if matches!(class, b' ' | b'\n') && self.skip_trivia {
                 // Track the run locally and leave the first other byte ready
                 // to dispatch, including comments and Unicode trivia.
-                let mut pos = self.pos;
-                let mut line_break = false;
-                while matches!(class, b' ' | b'\n') {
-                    line_break |= class == b'\n';
-                    pos += 1;
-                    if pos == self.end {
-                        break;
-                    }
-                    byte = bytes[pos];
-                    class = BYTE_CLASS[byte as usize];
-                }
-                self.pos = pos;
+                let (len, line_break) = ascii_trivia_run(&bytes[self.pos..self.end]);
+                self.pos += len;
                 if line_break {
                     self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
                 }
-                if pos == self.end {
+                if self.pos == self.end {
                     continue;
                 }
+                byte = bytes[self.pos];
+                class = BYTE_CLASS[byte as usize];
             }
             self.token_start = self.pos;
             match class {
@@ -1039,10 +1062,16 @@ impl<'text> Scanner<'text> {
         }
     }
 
+    /// Byte offsets of the uncooked token value in the parser's source.
+    pub(crate) fn token_value_source_range(&self) -> Option<std::ops::Range<usize>> {
+        (!self.token_value.cooked).then_some(self.token_value.start..self.token_value.end)
+    }
+
     /// The token's value as a slice of the source, unless an escape (or a
     /// normalization) cooked it. The slice outlives the next token.
     pub(crate) fn token_value_source(&self) -> Option<&'text str> {
-        (!self.token_value.cooked).then(|| &self.text[self.token_value.start..self.token_value.end])
+        self.token_value_source_range()
+            .map(|range| &self.text[range])
     }
 
     /// The value of a token whose value is Unicode scalars by grammar (an
@@ -1318,27 +1347,18 @@ impl<'text> Scanner<'text> {
         if self.pos < self.end && self.text.is_char_boundary(self.end) {
             let body_start = self.pos;
             let bytes = self.text.as_bytes();
-            // The star is bounded; its slash lookahead may be past scanRange.
-            let closing = memchr::memchr_iter(b'*', &bytes[body_start..self.end])
-                .find(|&index| bytes.get(body_start + index + 1) == Some(&b'/'));
-            let body_end = closing.map_or(self.end, |index| body_start + index);
-            self.pos = if closing.is_some() {
-                body_end + 2
-            } else {
-                self.end
-            };
+            let rest = &bytes[body_start..self.end];
+            // Consult the byte outside the range only for a final star.
+            let closing = memchr::memmem::find(rest, b"*/").or_else(|| {
+                (rest.last() == Some(&b'*') && bytes.get(self.end) == Some(&b'/'))
+                    .then_some(rest.len() - 1)
+            });
+            let body = &rest[..closing.unwrap_or(rest.len())];
             comment_closed = closing.is_some();
-            if let Some(index) = memchr::memrchr2(b'\r', b'\n', &bytes[body_start..body_end]) {
-                last_line_start = body_start + index + 1;
+            self.pos = closing.map_or(self.end, |index| body_start + index + 2);
+            if let Some(offset) = multiline_last_line(body) {
+                last_line_start = body_start + offset;
                 self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
-            }
-            let unicode_start = last_line_start.max(body_start);
-            let rest = &bytes[unicode_start..body_end];
-            for index in memchr::memchr_iter(0xe2, rest) {
-                if matches!(rest.get(index..index + 3), Some([0xe2, 0x80, 0xa8 | 0xa9])) {
-                    last_line_start = unicode_start + index + 3;
-                    self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
-                }
             }
         } else {
             while self.pos < self.end {

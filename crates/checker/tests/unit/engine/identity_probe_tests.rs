@@ -240,12 +240,16 @@ fn normalization_gate_matches_the_full_loop_for_all_normalizing_kinds() {
 
 #[test]
 fn active_keys_follow_the_live_prefix_across_unwinds_and_frame_loans() {
-    use super::{IntersectionState, RelationComparisonResult, RelationKey};
+    use super::{CanonicalRelationKey, IntersectionState, RelationComparisonResult};
 
     with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
         let mut checker = identity_checker(state);
         let keys: Vec<_> = (0..40)
-            .map(|i| RelationKey::Generic(format!("*{i}").into()))
+            .map(|i| match i % 3 {
+                0 => CanonicalRelationKey::pair(i, (1 << 28) - 1, 3),
+                1 => CanonicalRelationKey::pair(i, 1 << 28, 3),
+                _ => CanonicalRelationKey::Generic(format!("*{i}").into()),
+            })
             .collect();
         for (i, key) in keys.iter().enumerate() {
             checker.push_active_key(key);
@@ -261,7 +265,7 @@ fn active_keys_follow_the_live_prefix_across_unwinds_and_frame_loans() {
         nested.recycle();
         checker.restore_frame(frame);
         let budget = checker.work.relation_count;
-        for depth in [34, 32, 2] {
+        for depth in [34, 33, 32, 2] {
             checker.reset_maybe_stack(depth, false, RelationComparisonResult::NONE);
             assert!(keys[..depth].iter().all(|key| checker.has_active_key(key)));
             assert!(keys[depth..].iter().all(|key| !checker.has_active_key(key)));
@@ -277,7 +281,11 @@ fn active_keys_follow_the_live_prefix_across_unwinds_and_frame_loans() {
         assert_eq!(checker.work.relation_count, budget - 33);
         assert!(checker.work.maybe_keys_set.is_empty());
         for (i, key) in keys.iter().enumerate() {
-            let verdict = checker.st.relations.cache(checker.relation).get(key);
+            let verdict = checker
+                .st
+                .relations
+                .cache(checker.relation)
+                .get_canonical(key);
             assert_eq!(verdict.is_some(), i < 2 || (5..36).contains(&i));
             assert!(!checker.has_active_key(key));
         }
@@ -307,8 +315,55 @@ fn active_keys_follow_the_live_prefix_across_unwinds_and_frame_loans() {
 }
 
 #[test]
+fn active_compact_pair_defers_the_verdict_and_replays_a_reported_failure() {
+    use super::{IntersectionState, RelationComparisonResult, Ternary};
+    with_program_state(
+        &[(
+            "a.ts",
+            "let a: { value: number }; let b: { value: string };",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let a = resolve(state, "a");
+            let b = resolve(state, "b");
+            let kind = RelationKind::Assignable;
+            let key = state
+                .canonical_relation_key(a, b, IntersectionState::NONE, kind, false)
+                .unwrap();
+            let mut r = RelationChecker::new(state, kind, 40);
+            let compare = |r: &mut RelationChecker, report| {
+                r.recursive_type_related_to(
+                    a,
+                    b,
+                    report,
+                    IntersectionState::NONE,
+                    RecursionFlags::BOTH,
+                )
+                .unwrap()
+            };
+            r.push_active_key(&key);
+            assert_eq!(compare(&mut r, false), Ternary::MAYBE);
+            assert_eq!(r.st.relations.cache(kind).get_canonical(&key), None);
+            assert_eq!(r.work.relation_count, 40);
+            r.reset_maybe_stack(0, false, RelationComparisonResult::NONE);
+            assert_eq!(compare(&mut r, false), Ternary::FALSE);
+            assert_eq!(
+                r.st.relations.cache(kind).get_canonical(&key),
+                Some(RelationComparisonResult::FAILED)
+            );
+            let budget = r.work.relation_count;
+            assert_eq!(compare(&mut r, false), Ternary::FALSE);
+            assert_eq!(r.work.relation_count, budget);
+            assert_eq!(compare(&mut r, true), Ternary::FALSE);
+            assert_eq!(r.work.relation_count, budget - 1);
+            assert!(r.capture_current_error_info().is_some());
+        },
+    );
+}
+
+#[test]
 fn active_keys_follow_the_loan_through_a_forward_constraint_clamp() {
-    use super::{IntersectionState, RelationFrameLoan, RelationKey};
+    use super::{CanonicalRelationKey, IntersectionState, RelationFrameLoan};
     use crate::inference::CompareTypesFn;
     use tsc_types::{InferenceFlags, SymbolFlags};
 
@@ -339,7 +394,7 @@ fn active_keys_follow_the_loan_through_a_forward_constraint_clamp() {
         state.inference_info_mut(forward).candidates = Some(vec![number].into());
 
         let mut checker = RelationChecker::new(state, RelationKind::Assignable, 29);
-        let active = RelationKey::Generic("*active".into());
+        let active = CanonicalRelationKey::Generic("*active".into());
         checker.push_active_key(&active);
         let frame = checker.loan_frame(IntersectionState::NONE);
         checker.st.relation_frame_loan = RelationFrameLoan::Available(frame);
@@ -572,9 +627,11 @@ fn empty_anonymous_objects_keep_late_members_and_unresolved_taint() {
 
 #[test]
 fn literal_rejection_matches_payload_equality_for_every_relation() {
-    let source = "namespace A { export enum E { X = 0 } }
-        namespace B { export enum E { X = 0 } }
-        let a: A.E.X; let b: B.E.X;";
+    let source = "namespace A { export enum E { X = -0, Y = 's' } }
+        namespace B { export enum E { X = 0, Y = 's' } }
+        namespace C { export enum E { X = 0, Y = 's', Z = 3 } }
+        let a: A.E.X; let b: B.E.X; let c: C.E.X;
+        let ay: A.E.Y; let by: B.E.Y; let cz: C.E.Z;";
     with_program_state(&[("a.ts", source)], &CompilerOptions::default(), |state| {
         let a = resolve(state, "a");
         let b = resolve(state, "b");
@@ -592,7 +649,22 @@ fn literal_rejection_matches_payload_equality_for_every_relation() {
             });
         let high = state.tables.get_string_literal_type_from_utf16(&[0xd800]);
         let replacement = state.tables.get_string_literal_type_from_utf16(&[0xfffd]);
-        let values = [a, b, zero, nan, other_nan, big, high, replacement];
+        let c = resolve(state, "c");
+        let values = [
+            a,
+            b,
+            c,
+            resolve(state, "ay"),
+            resolve(state, "by"),
+            resolve(state, "cz"),
+            state.tables.get_string_literal_type("s"),
+            zero,
+            nan,
+            other_nan,
+            big,
+            high,
+            replacement,
+        ];
         for lhs in values {
             let lhs = state.tables.type_of(lhs).regular_type().unwrap();
             let fresh = state.tables.get_fresh_type_of_literal_type(lhs);
@@ -604,7 +676,10 @@ fn literal_rejection_matches_payload_equality_for_every_relation() {
                         continue;
                     }
                     let unequal = !state.tables.literal_type_values_equal(lhs, rhs);
-                    assert_eq!(state.unequal_value_literals(lhs, rhs), unequal);
+                    assert_eq!(
+                        state.compare_value_literals(lhs, rhs) == super::LiteralComparison::Unequal,
+                        unequal
+                    );
                     let related = state.is_type_related_to(fresh, rhs, relation).unwrap();
                     let expected = if unequal {
                         false
@@ -613,13 +688,51 @@ fn literal_rejection_matches_payload_equality_for_every_relation() {
                         flags == state.tables.flags_of(rhs)
                             && flags.intersects(tsc_types::TypeFlags::SINGLETON)
                     } else {
-                        (relation == RelationKind::Comparable
-                            && state.is_simple_type_related_to(rhs, lhs, relation).unwrap())
-                            || state.is_simple_type_related_to(lhs, rhs, relation).unwrap()
+                        let mut worker = |source, target| {
+                            state
+                                .simple_type_relation_worker(
+                                    source,
+                                    target,
+                                    relation,
+                                    None,
+                                    state.tables.flags_of(source).bits(),
+                                    state.tables.flags_of(target).bits(),
+                                )
+                                .unwrap()
+                        };
+                        (relation == RelationKind::Comparable && worker(rhs, lhs))
+                            || worker(lhs, rhs)
                     };
                     assert_eq!(related, expected, "{lhs:?} / {rhs:?} / {relation:?}");
                 }
             }
+        }
+        let counts = |state: &CheckerState| {
+            let c = crate::CheckerCounts::of(state, true);
+            (c.types, c.instantiations, c.symbols)
+        };
+        // C.E.X has equal value but its enum has an extra member. Replay the
+        // cached boolean failure in a reporting frame twice.
+        assert!(!state
+            .is_type_related_to(c, a, RelationKind::Assignable)
+            .unwrap());
+        let mut previous = None;
+        for _ in 0..2 {
+            let error = state
+                .relation_error_output_with_context(c, a, RelationKind::Assignable, None, None)
+                .unwrap()
+                .expect("extra enum member");
+            assert_eq!(error.message.code, 2322);
+            assert_eq!(error.message.next.len(), 1);
+            assert_eq!(
+                error.message.next[0].text,
+                "Property 'Z' is missing in type 'A.E'."
+            );
+            let observation = (error.message.text, counts(state));
+            if let Some(expected) = &previous {
+                assert_eq!(&observation, expected);
+            }
+            previous = Some(observation);
         }
     });
 }
@@ -683,6 +796,63 @@ fn recursion_stack_tags_preserve_id_spaces_and_short_circuit_intersections() {
                     .modifiers
                     .resolved()
                     .is_none());
+            }
+        },
+    );
+}
+
+#[test]
+fn recursion_identity_distinguishes_written_references_from_instantiations() {
+    use super::RecursionIdentity::{Node, Symbol, Type};
+    use tsc_types::{ElementFlags, ObjectFlags, TupleTargetFlags};
+    with_program_state(
+        &[(
+            "a.ts",
+            "class C {} declare let ctor: typeof C; function f<T>(p: T) { let param: T; }",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let target = state.tables.get_tuple_target_type(
+                None,
+                TupleTargetFlags::new(&[ElementFlags::REQUIRED]).unwrap(),
+                false,
+                None,
+            );
+            let written = state.tables.create_type_reference_ex(
+                target,
+                &[state.tables.intrinsics.string],
+                ObjectFlags::FROM_TYPE_NODE,
+            );
+            let instantiated = state
+                .tables
+                .create_type_reference(target, &[state.tables.intrinsics.number]);
+            let node = find_probe_annotation(state.binder.source(0), "ctor").unwrap();
+            let deferred = state
+                .create_deferred_type_reference(target, node, None, None, None)
+                .unwrap();
+            state.tables.type_mut(deferred).object_flags |= ObjectFlags::FROM_TYPE_NODE;
+            let static_side = resolve(state, "ctor");
+            let parameter = resolve(state, "param");
+            let cases = [
+                (written, Type(written)),
+                (instantiated, Type(target)),
+                (deferred, Node(node)),
+                (static_side, Type(static_side)),
+                (
+                    parameter,
+                    Symbol(state.tables.type_of(parameter).symbol.unwrap()),
+                ),
+            ];
+            for (ty, identity) in cases {
+                assert_eq!(state.get_recursion_identity_from_target(ty), identity);
+                for (other, expected) in cases {
+                    assert_eq!(
+                        state
+                            .is_deeply_nested_type(ty, &[other, other], 2, 2)
+                            .unwrap(),
+                        identity == expected
+                    );
+                }
             }
         },
     );

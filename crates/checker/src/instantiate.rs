@@ -944,15 +944,20 @@ impl<'a> CheckerState<'a> {
     ) -> SymbolId {
         let mut symbol = symbol;
         let mut mapper = mapper;
-        let links = self.links.symbol(symbol);
-        if links.check_flags.intersects(CheckFlags::INSTANTIATED) {
-            let target = links
+        let mut source_links = self.links.transient_symbol(symbol);
+        if let Some(wrapper) =
+            source_links.filter(|links| links.check_flags.intersects(CheckFlags::INSTANTIATED))
+        {
+            symbol = wrapper
                 .target
                 .expect("Instantiated check flag implies links.target");
-            let target_mapper = links.mapper;
-            symbol = target;
-            mapper = self.combine_type_mappers(target_mapper, mapper);
+            mapper = self.combine_type_mappers(wrapper.mapper, mapper);
+            source_links = self.links.transient_symbol(symbol);
         }
+        perf::bump(PerfCounter::LinksSymbolReads);
+        let (source_check_flags, name_type) = source_links
+            .map(|links| (links.check_flags, links.name_type))
+            .unwrap_or_default();
         let source = self.binder.symbol(symbol);
         let source_flags = source.flags;
         let escaped_name = source.escaped_name;
@@ -961,14 +966,13 @@ impl<'a> CheckerState<'a> {
         let value_declaration = source.value_declaration;
         let check_flags = CheckFlags::INSTANTIATED
             | CheckFlags::from_bits(
-                self.links.read_symbol_check_flags(symbol).bits()
+                source_check_flags.bits()
                     & (CheckFlags::READONLY
                         | CheckFlags::LATE
                         | CheckFlags::OPTIONAL_PARAMETER
                         | CheckFlags::REST_PARAMETER)
                         .bits(),
             );
-        let name_type = self.links.symbol(symbol).name_type;
         let result = self.binder.create_symbol(source_flags, escaped_name);
         {
             let transient = self.binder.symbol_mut(result);
@@ -996,12 +1000,12 @@ impl<'a> CheckerState<'a> {
     fn get_object_type_instantiation(
         &mut self,
         ty: TypeId,
+        object_flags: ObjectFlags,
         node: Option<NodeId>,
         mapper: MapperId,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
     ) -> CheckResult<TypeId> {
-        let object_flags = self.tables.object_flags_of(ty);
         let is_reference = object_flags.intersects(ObjectFlags::REFERENCE);
         let declaration = if object_flags
             .intersects(ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
@@ -1093,37 +1097,35 @@ impl<'a> CheckerState<'a> {
                             .symbol_flags(target_symbol)
                             .intersects(SymbolFlags::TYPE_LITERAL)
                 }) && self.tables.alias_type_argument_list(target).is_none();
-                let all_declarations: Vec<NodeId> = if object_flags
-                    .intersects(ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
-                {
-                    vec![declaration]
-                } else {
-                    let symbol = self
-                        .tables
-                        .type_of(ty)
-                        .symbol
-                        .expect("anonymous type instantiation requires a symbol");
-                    self.binder.symbol(symbol).declarations().to_vec()
-                };
-                let filtered = if filter_applies {
-                    let mut kept: Vec<TypeId> = Vec::new();
-                    for tp in outer {
-                        let mut referenced = false;
-                        for &candidate in &all_declarations {
-                            if self.is_type_parameter_possibly_referenced(tp, candidate)? {
-                                referenced = true;
+                if filter_applies {
+                    let declarations;
+                    let candidates = if object_flags.intersects(
+                        ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE,
+                    ) {
+                        std::slice::from_ref(&declaration)
+                    } else {
+                        let symbol = self
+                            .tables
+                            .type_of(ty)
+                            .symbol
+                            .expect("anonymous type instantiation requires a symbol");
+                        declarations = self.binder.symbol(symbol).declaration_list();
+                        &declarations[..]
+                    };
+                    let mut kept = 0;
+                    for index in 0..outer.len() {
+                        let parameter = outer[index];
+                        for &candidate in candidates {
+                            if self.is_type_parameter_possibly_referenced(parameter, candidate)? {
+                                outer[kept] = parameter;
+                                kept += 1;
                                 break;
                             }
                         }
-                        if referenced {
-                            kept.push(tp);
-                        }
                     }
-                    kept
-                } else {
-                    outer
-                };
-                let list = self.tables.intern_type_list(&filtered);
+                    outer.truncate(kept);
+                }
+                let list = self.tables.intern_type_list(&outer);
                 self.links.set_node_outer_type_parameters(declaration, list);
                 list
             }
@@ -1186,7 +1188,7 @@ impl<'a> CheckerState<'a> {
                             return Ok(existing);
                         }
                     }
-                    let (id_key, existing) = state.tables.lookup_instantiation(
+                    let lookup = state.tables.lookup_instantiation(
                         target,
                         type_arguments,
                         new_alias_symbol,
@@ -1194,15 +1196,20 @@ impl<'a> CheckerState<'a> {
                         single_signature,
                     );
                     perf::bump(PerfCounter::InstantiationLookups);
-                    if let Some(existing) = existing {
-                        perf::bump(PerfCounter::InstantiationHits);
-                        if plain_key {
-                            state
-                                .tables
-                                .instantiation_front_put(target, type_arguments, existing);
+                    let miss = match lookup {
+                        Ok(existing) => {
+                            perf::bump(PerfCounter::InstantiationHits);
+                            if plain_key {
+                                state.tables.instantiation_front_put(
+                                    target,
+                                    type_arguments,
+                                    existing,
+                                );
+                            }
+                            return Ok(existing);
                         }
-                        return Ok(existing);
-                    }
+                        Err(miss) => miss,
+                    };
                     let mut new_mapper = state.create_type_mapper_from_stored_sources(
                         |tables| tables.list(type_parameters),
                         type_arguments,
@@ -1248,7 +1255,7 @@ impl<'a> CheckerState<'a> {
                             new_alias_type_arguments,
                         )?
                     };
-                    state.tables.instantiation_insert(target, id_key, result);
+                    state.tables.publish_instantiation(miss, result);
                     if plain_key {
                         state
                             .tables
@@ -2197,47 +2204,58 @@ impl<'a> CheckerState<'a> {
         alias_type_arguments: Option<&[TypeId]>,
     ) -> CheckResult<TypeId> {
         perf::bump(PerfCounter::InstantiateTypeWorkerCalls);
-        let flags = self.tables.flags_of(ty);
+        let source = self.tables.type_of(ty);
+        let flags = source.flags;
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
             return self.get_mapped_type(ty, mapper);
         }
         if flags.intersects(TypeFlags::OBJECT) {
-            let object_flags = self.tables.object_flags_of(ty);
+            let object_flags = source.object_flags;
             if object_flags
                 .intersects(ObjectFlags::REFERENCE | ObjectFlags::ANONYMOUS | ObjectFlags::MAPPED)
             {
-                let node = if object_flags
-                    .intersects(ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
-                {
-                    self.type_deferred_node(ty)
+                let node = if object_flags.intersects(ObjectFlags::REFERENCE) {
+                    let (position, target, arguments) = match source.data {
+                        TypeData::Reference {
+                            node_position,
+                            target,
+                            resolved_type_arguments,
+                        } => (node_position, target, resolved_type_arguments),
+                        // Tuple and generic targets refer to themselves and use
+                        // their parameter list as their resolved arguments.
+                        _ => (
+                            source.deferred_node_position(),
+                            ty,
+                            self.tables.try_type_argument_list(ty),
+                        ),
+                    };
+                    let node = NodeId::from_position(position);
+                    if node.is_none() {
+                        let resolved =
+                            arguments.expect("eager references have resolved type arguments");
+                        return self.with_changed_instantiation_list(
+                            resolved,
+                            mapper,
+                            |state, arguments| match arguments {
+                                Some(arguments) => {
+                                    state.create_normalized_type_reference_forced(target, arguments)
+                                }
+                                None => Ok(ty),
+                            },
+                        );
+                    }
+                    node
+                } else if object_flags.intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE) {
+                    NodeId::from_position(source.deferred_node_position())
                 } else {
                     None
                 };
-                if object_flags.intersects(ObjectFlags::REFERENCE) && node.is_none() {
-                    // The !type.node fast path (63725-63729); deferred
-                    // (node-carrying) references fall through to
-                    // getObjectTypeInstantiation.
-                    let target = self.tables.reference_target(ty);
-                    let resolved = self
-                        .tables
-                        .try_type_argument_list(ty)
-                        .expect("eager references have resolved type arguments");
-                    return self.with_changed_instantiation_list(
-                        resolved,
-                        mapper,
-                        |state, arguments| match arguments {
-                            Some(arguments) => {
-                                state.create_normalized_type_reference_forced(target, arguments)
-                            }
-                            None => Ok(ty),
-                        },
-                    );
-                }
                 if object_flags.intersects(ObjectFlags::REVERSE_MAPPED) {
                     return self.instantiate_reverse_mapped_type(ty, mapper);
                 }
                 return self.get_object_type_instantiation(
                     ty,
+                    object_flags,
                     node,
                     mapper,
                     alias_symbol,
@@ -2580,7 +2598,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:73611-73615
     pub(crate) fn pop_active_mapper(&mut self) {
         self.active_type_mappers.pop().expect("active mapper scope");
-        self.active_type_mappers_caches[self.active_type_mappers.len()].clear();
+        self.active_type_mappers_caches[self.active_type_mappers.len()].clear_on_pop();
     }
 
     /// tsc-port: findActiveMapper @6.0.3
@@ -3089,21 +3107,27 @@ impl<'a> CheckerState<'a> {
         is_javascript: bool,
         inferred_type_parameters: Option<&[TypeId]>,
     ) -> CheckResult<SignatureId> {
-        let type_parameters = self
-            .signature_of(signature)
-            .type_parameters()
-            .map(tsc_types::TypeListCopy::new);
-        let min_type_argument_count = self.get_min_type_argument_count(type_parameters.as_deref());
-        let filled = self.fill_missing_type_arguments(
-            type_arguments,
-            type_parameters.as_deref(),
-            min_type_argument_count,
-            is_javascript,
-        )?;
-        let instantiated = self.get_signature_instantiation_without_filling_in_type_arguments(
-            signature,
-            filled.as_deref(),
-        )?;
+        let type_parameters = self.signature_of(signature).type_parameters();
+        let min_type_argument_count = self.get_min_type_argument_count(type_parameters);
+        let arguments = type_arguments.unwrap_or_default();
+        let parameter_count = type_parameters.map_or(0, <[TypeId]>::len);
+        let filled;
+        let arguments = if parameter_count == 0 {
+            Some(&[][..])
+        } else if !is_javascript && arguments.len() >= parameter_count {
+            Some(arguments)
+        } else {
+            let parameters = type_parameters.map(tsc_types::TypeListCopy::new);
+            filled = self.fill_missing_type_arguments(
+                type_arguments,
+                parameters.as_deref(),
+                min_type_argument_count,
+                is_javascript,
+            )?;
+            filled.as_deref()
+        };
+        let instantiated = self
+            .get_signature_instantiation_without_filling_in_type_arguments(signature, arguments)?;
         if let Some(inferred_type_parameters) = inferred_type_parameters {
             let return_type = self.get_return_type_of_signature(instantiated)?;
             let return_signature = self.get_single_call_or_construct_signature(return_type)?;

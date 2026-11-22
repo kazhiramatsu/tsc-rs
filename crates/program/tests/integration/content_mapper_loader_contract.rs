@@ -199,6 +199,14 @@ fn a_mapped_file_is_its_virtual_output_with_its_supplemental_outputs_as_subtasks
     );
     let canonical = &prepared.source_files()[1];
     assert_eq!(canonical.snapshot().text(), "export const a = 1;");
+    assert_eq!(
+        canonical.implied_node_format(),
+        Some(ResolutionMode::CommonJs)
+    );
+    assert_eq!(
+        canonical.implied_node_format_for_emit(),
+        Some(ResolutionMode::CommonJs)
+    );
     let info = canonical.content_mapped().unwrap();
     assert_eq!(info.content_mapper, "vue-mapper@1.0.0");
     assert_eq!(info.transform_identity, "test");

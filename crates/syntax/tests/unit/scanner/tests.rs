@@ -1,6 +1,57 @@
 use super::*;
 
 #[test]
+fn ascii_trivia_matches_the_class_table_at_every_bound() {
+    fn check(bytes: &[u8]) {
+        for end in 0..=bytes.len() {
+            let mut len = 0;
+            let mut line_break = false;
+            for &byte in &bytes[..end] {
+                let class = BYTE_CLASS[byte as usize];
+                if !matches!(class, b' ' | b'\n') {
+                    break;
+                }
+                len += 1;
+                line_break |= class == b'\n';
+            }
+            assert_eq!(ascii_trivia_run(&bytes[..end]), (len, line_break));
+        }
+    }
+    for byte in 0..=255 {
+        check(&[b' ', byte]);
+        check(&[b'\t', b'\r', b'\n', byte]);
+    }
+    for text in [
+        " \t\x0b\x0c",
+        "\r\n    π",
+        " \u{2028}\u{2029}",
+        " \u{a0}",
+        " /*end*/",
+    ] {
+        check(text.as_bytes());
+    }
+
+    let text = "/** doc\r */  \t\r\n   ident\u{2028}\u{2029}\u{a0}/*end*/";
+    for skip in [true, false] {
+        let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+        scanner.set_skip_trivia(skip);
+        loop {
+            let before = scanner.save();
+            let kind = scanner.scan();
+            let after = scanner.save();
+            let value = scanner.token_value().to_owned();
+            scanner.restore(before);
+            assert_eq!(scanner.scan(), kind);
+            assert_eq!(scanner.save(), after);
+            assert_eq!(scanner.token_value(), value.as_js());
+            if kind == SyntaxKind::EndOfFileToken {
+                break;
+            }
+        }
+    }
+}
+
+#[test]
 fn ascii_trivia_preserves_token_starts_and_flags_across_other_trivia() {
     let text = " \t\r\n\x0b\x0c\u{a0}/** doc */\u{2028} \t* \tπ \r";
     let mut scanner = Scanner::new(text, LanguageVariant::Standard);
@@ -66,6 +117,84 @@ fn punctuation_trivia_and_eof_clear_a_previous_cooked_value() {
             assert_eq!(scanner.full_start_pos(), full_start);
             if kind == SyntaxKind::EndOfFileToken {
                 break;
+            }
+        }
+    }
+}
+
+#[test]
+fn multiline_comments_match_the_bounded_star_and_forward_separator_searches() {
+    // Only a bounded byte slice can end with an isolated E2 in a UTF-8 source.
+    assert_eq!(multiline_last_line(b"\n\xe2"), Some(1));
+    assert_eq!(multiline_last_line(b"\xe2"), None);
+    for text in [
+        "/*x*****************x***/",
+        "/** @link a\r\n * @ts-ignore\nother\u{2026} */",
+        "/*\u{2028}x\r\u{2029}\u{a0}* @ts-expect-error */",
+        "/*\u{2029}\u{2026}\u{2028}\t * @ts-ignore */",
+        "/* @ts-ignore",
+        "/**/",
+    ] {
+        // The byte-oriented production path runs only for scalar-boundary ends.
+        for end in (2..=text.len()).filter(|&end| text.is_char_boundary(end)) {
+            let bytes = text.as_bytes();
+            let closing = memchr::memchr_iter(b'*', &bytes[2..end])
+                .map(|i| 2 + i)
+                .find(|&i| bytes.get(i + 1) == Some(&b'/'));
+            let body_end = closing.unwrap_or(end);
+            let ascii = memchr::memrchr2(b'\r', b'\n', &bytes[2..body_end]).map(|i| i + 3);
+            let unicode_start = ascii.unwrap_or(2);
+            let mut last_line = ascii;
+            for index in memchr::memchr_iter(0xe2, &bytes[unicode_start..body_end]) {
+                let i = unicode_start + index;
+                if matches!(bytes.get(i..i + 3), Some([0xe2, 0x80, 0xa8 | 0xa9])) {
+                    last_line = Some(i + 3);
+                }
+            }
+            for skip in [false, true] {
+                let mut actual = Scanner::new(text, LanguageVariant::Standard);
+                actual.reset_range(0, end);
+                actual.set_skip_trivia(skip);
+                // Seed an earlier diagnostic to pin the order of any appended one.
+                actual.error_at(0, 1, &gen::Invalid_character);
+                let mut expected = Scanner::new(text, LanguageVariant::Standard);
+                expected.reset_range(0, end);
+                expected.set_skip_trivia(skip);
+                expected.error_at(0, 1, &gen::Invalid_character);
+                expected.pos = closing.map_or(end, |i| i + 2);
+                if last_line.is_some() {
+                    expected
+                        .token_flags
+                        .insert(TokenFlags::PRECEDING_LINE_BREAK);
+                }
+                if expected.byte_at(2) == Some(b'*')
+                    && expected.byte_at(3) != Some(b'/')
+                    && expected.should_parse_jsdoc()
+                {
+                    expected
+                        .token_flags
+                        .insert(TokenFlags::PRECEDING_JSDOC_COMMENT);
+                }
+                expected.append_if_comment_directive(
+                    last_line.unwrap_or(0),
+                    CommentDirectiveRegEx::MultiLine,
+                );
+                if closing.is_none() {
+                    expected.unterminated_comment_error();
+                }
+                if skip {
+                    expected.token_start = expected.pos;
+                    expected.token = SyntaxKind::EndOfFileToken;
+                } else {
+                    expected.token = SyntaxKind::MultiLineCommentTrivia;
+                    if closing.is_none() {
+                        expected.token_flags.insert(TokenFlags::UNTERMINATED);
+                    }
+                }
+                assert_eq!(actual.scan(), expected.token);
+                assert_eq!(actual.save(), expected.save(), "{text:?} at {end}");
+                assert_eq!(actual.errors, expected.errors);
+                assert_eq!(actual.comment_directives, expected.comment_directives);
             }
         }
     }

@@ -57,17 +57,21 @@ fn push_bytes(words: &mut StoreVec<TextWord>, bytes: &[u8], flag: u32) -> usize 
         .filter(|len| len & NOT_UTF8 == 0)
         .expect("a literal text longer than 2 GiB");
     let index = words.len();
-    words.reserve(text_words(bytes.len()));
-    words.push(TextWord(len | flag));
-    let (chunks, rest) = bytes.as_chunks::<4>();
-    for chunk in chunks {
-        words.push(TextWord(u32::from_le_bytes(*chunk)));
+    let count = text_words(bytes.len());
+    words.reserve(count);
+    // SAFETY: reserve made room for the header and the rounded-up body.
+    // The exclusive destination is disjoint from the source. Copy as bytes
+    // so the source needs no word alignment, and initialize the padding
+    // before exposing any of the new words through the length.
+    unsafe {
+        let header = words.records.as_ptr().add(index);
+        header.write(TextWord(len | flag));
+        let body = header.add(1).cast::<u8>();
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), body, bytes.len());
+        let padding = (count - 1) * 4 - bytes.len();
+        std::ptr::write_bytes(body.add(bytes.len()), 0, padding);
     }
-    if !rest.is_empty() {
-        let mut last = [0u8; 4];
-        last[..rest.len()].copy_from_slice(rest);
-        words.push(TextWord(u32::from_le_bytes(last)));
-    }
+    words.len += count;
     index
 }
 

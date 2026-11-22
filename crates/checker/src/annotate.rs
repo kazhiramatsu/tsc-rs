@@ -183,10 +183,25 @@ impl<'a> CheckerState<'a> {
 
     /// The modifier flags a modifiers array keeps (tsgo
     /// `ModifierList.ModifierFlags`).
+    #[inline]
     pub(crate) fn modifier_flags_of(&self, array: Option<NodeArrayId>) -> ModifierFlags {
-        array.map_or(ModifierFlags::NONE, |array| {
-            self.binder.node_array(array).modifier_flags
-        })
+        array.map_or(
+            ModifierFlags::NONE,
+            tsc_syntax::published_node_array_modifier_flags,
+        )
+    }
+
+    /// Test a written modifier whose result is independent of implicit namespace exports.
+    #[inline]
+    pub(crate) fn has_written_modifier(&self, node: NodeId, mask: ModifierFlags) -> bool {
+        debug_assert!(!mask.intersects(ModifierFlags::EXPORT));
+        let record = self.record_of(node);
+        let kind = record.kind as u16;
+        if (SyntaxKind::FirstToken as u16..=SyntaxKind::LastToken as u16).contains(&kind) {
+            return false;
+        }
+        self.modifier_flags_of(record.modifiers_field())
+            .intersects(mask)
     }
 
     /// tsrs-native: typed Identifier projection for tsc's direct
@@ -1595,11 +1610,20 @@ impl<'a> CheckerState<'a> {
     /// getTypeReferenceType ports. Missing entity names flow through
     /// getUnresolvedSymbolForEntityName so the type remains error-like
     /// while retaining its written alias identity.
+    #[inline]
     pub(crate) fn get_type_from_type_reference(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        let mut cursor = crate::links::NodeLinksCursor::new(node);
-        if let Some(cached) = cursor.read(&self.links, |links| links.resolved_type.resolved()) {
-            return Ok(cached);
+        match crate::links::NodeLinksCursor::probe_type_reference(&self.links, node) {
+            Ok(cached) => Ok(cached),
+            Err(cursor) => self.resolve_type_reference(node, cursor),
         }
+    }
+
+    #[inline(never)]
+    fn resolve_type_reference(
+        &mut self,
+        node: NodeId,
+        mut cursor: crate::links::NodeLinksCursor,
+    ) -> CheckResult<TypeId> {
         if self.is_const_type_reference_node(node) {
             let expression = self.parent_of(node).and_then(|parent| {
                 match_record! { self.record_of(parent), {
@@ -10673,9 +10697,8 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::FunctionDeclaration
                 | SyntaxKind::Constructor
         );
-        let is_immediately_invoked =
-            node_util::get_immediately_invoked_function_expression(&Published, declaration)
-                .is_some();
+        let invocation =
+            node_util::get_immediately_invoked_function_expression(&Published, declaration);
         // tsgo (checker.go:20184-20189): every parameter of the JavaScript
         // function is untyped — the reparsed `@param` types and a `@this`
         // type count — and the function has no contextual type.
@@ -10684,7 +10707,7 @@ impl<'a> CheckerState<'a> {
         } else {
             None
         };
-        let is_untyped_signature_in_js_file = !is_immediately_invoked
+        let is_untyped_signature_in_js_file = invocation.is_none()
             && self.is_in_js_file(declaration)
             && is_value_signature_declaration
             && !this_tag.is_some_and(|tag| {
@@ -10848,17 +10871,20 @@ impl<'a> CheckerState<'a> {
             // non-initialized, non-rest parameter. The IIFE arm
             // (59614: over-declared parameters of an immediately
             // invoked function with fewer arguments and no annotation
-            // are optional) rides the node_util walk.
-            let iife_optional = is_normal_parameter
-                && type_node.is_none()
-                && node_util::get_immediately_invoked_function_expression(&Published, declaration)
-                    .is_some_and(|iife| {
-                        let argument_count = match self.record_of(iife).as_call_expression() {
-                            Some(call) => self.nodes_of(call.arguments).len(),
-                            _ => 0,
-                        };
-                        parameters.len() > argument_count
-                    });
+            // are optional) uses the call found at function entry.
+            let iife_optional = is_normal_parameter && type_node.is_none() && {
+                debug_assert_eq!(
+                    invocation,
+                    node_util::get_immediately_invoked_function_expression(&Published, declaration)
+                );
+                invocation.is_some_and(|iife| {
+                    let argument_count = match self.record_of(iife).as_call_expression() {
+                        Some(call) => self.nodes_of(call.arguments).len(),
+                        _ => 0,
+                    };
+                    parameters.len() > argument_count
+                })
+            };
             let is_optional_parameter = question_token.is_some()
                 || initializer.is_some()
                 || self.is_rest_parameter_declaration(parameter)
@@ -11028,63 +11054,29 @@ impl<'a> CheckerState<'a> {
     /// on the resolution stack (59812/59821); an Err unwind pops the
     /// stack and leaves the slot Vacant (M3-review Resolving-dangling
     /// fix).
+    #[inline]
     pub fn get_return_type_of_signature(&mut self, id: SignatureId) -> CheckResult<TypeId> {
         if let Some(resolved) = self.signature_of(id).resolved_return_type {
             return Ok(resolved);
         }
+        self.resolve_return_type_of_signature(id)
+    }
+
+    #[inline(never)]
+    fn resolve_return_type_of_signature(&mut self, id: SignatureId) -> CheckResult<TypeId> {
         if !self.push_type_resolution(
             crate::state::ResolutionTarget::Signature(id),
             tsc_types::TypeSystemPropertyName::RESOLVED_RETURN_TYPE,
         ) {
             return Ok(self.tables.intrinsics.error);
         }
-        let declaration = self.signature_of(id).declaration;
-        let annotation = declaration.and_then(|declaration| match_record!{ self.record_of(declaration), {
-            as_function_type(data) => data.r#type,
-            as_js_doc_function_type(data) => {
-                if node_util::is_jsdoc_construct_signature(&Published, declaration) {
-                    self.nodes_of(data.parameters)
-                        .first()
-                        .and_then(|&parameter| match self.record_of(parameter).as_parameter() {
-Some(data) => data.r#type,
-_ => None,
-})
-                } else {
-                    data.r#type
-                }
-            },
-            as_js_doc_signature(data) => data.r#type.and_then(|tag| match self.record_of(tag).as_js_doc_return_tag() {
-Some(data) => {
-                    self.jsdoc_type_expression_type(data.type_expression)
-                },
-_ => None,
-}),
-            as_constructor_type(data) => data.r#type,
-            as_call_signature(data) => data.r#type,
-            as_construct_signature(data) => data.r#type,
-            as_method_signature(data) => data.r#type,
-            as_function_declaration(data) => data.r#type,
-            as_function_expression(data) => data.r#type,
-            as_arrow_function(data) => data.r#type,
-            as_method_declaration(data) => data.r#type,
-            as_get_accessor(data) => data.r#type,
-            as_set_accessor(data) => data.r#type,
-            _ => None,
-        }});
-        let target = self.signature_of(id).target;
-        let composite = self.signature_of(id).cloned_composite_signatures();
-        let computed = match (target, composite) {
-            // 59815: signature.target → instantiate the target's
-            // return type through signature.mapper.
-            (Some(target), _) => {
-                let mapper = self.signature_of(id).mapper;
-                self.get_return_type_of_signature(target)
-                    .and_then(|target_return| self.instantiate_type(target_return, mapper))
-            }
-            // 59815: composite signatures — the union/intersection of
-            // the member returns (Subtype reduction on the union arm),
-            // instantiated through signature.mapper.
-            (None, Some(composite)) => (|state: &mut Self| {
+        let computed = if let Some(target) = self.signature_of(id).target {
+            let mapper = self.signature_of(id).mapper;
+            self.get_return_type_of_signature(target)
+                .and_then(|target_return| self.instantiate_type(target_return, mapper))
+        } else if let Some(composite) = self.signature_of(id).cloned_composite_signatures() {
+            // Keep the ordered list across member return-type resolution.
+            (|state: &mut Self| {
                 let kind = state.signature_of(id).composite_kind();
                 let mut returns = Vec::with_capacity(composite.len());
                 for &member in &composite {
@@ -11098,26 +11090,21 @@ _ => None,
                 };
                 let mapper = state.signature_of(id).mapper;
                 state.instantiate_type(combined, mapper)
-            })(self),
-            // 59815 tail: getReturnTypeFromAnnotation(declaration) ||
-            // (nodeIsMissing(body) ? anyType : getReturnTypeFromBody).
-            // getReturnTypeFromAnnotation also covers the Constructor
-            // class-type arm and the getter's setter-annotation borrow.
-            (None, None) => (|state: &mut Self| {
-                let Some(declaration) = declaration else {
-                    // Synthetic signatures (returnOnly/unknown) carry a
-                    // pre-seeded resolvedReturnType and never get here;
-                    // annotation-context bodyless shapes answer any.
+            })(self)
+        } else {
+            (|state: &mut Self| {
+                let Some(declaration) = state.signature_of(id).declaration else {
+                    // An annotation-context signature without a declaration
+                    // or a seeded return type answers any.
                     return Ok(state.tables.intrinsics.any);
                 };
+                // This also handles constructors and getters with an
+                // annotated setter.
                 if let Some(annotated) = state.get_return_type_from_annotation(declaration)? {
                     return Ok(annotated);
                 }
-                // The annotation-context kinds (FunctionType/
-                // CallSignature/...) sit outside getReturnTypeFrom-
-                // Annotation's declaration match — their typeNode read
-                // is the `annotation` extraction above.
-                if let Some(annotation) = annotation {
+                // Type-node signatures are outside that declaration match.
+                if let Some(annotation) = state.written_signature_return_annotation(declaration) {
                     return state.get_type_from_type_node(annotation);
                 }
                 if node_util::node_is_missing(
@@ -11128,7 +11115,7 @@ _ => None,
                 } else {
                     state.get_return_type_from_body(declaration, tsc_types::CheckMode::NORMAL)
                 }
-            })(self),
+            })(self)
         };
         let resolved = match computed {
             Ok(resolved) => resolved,
@@ -11159,7 +11146,10 @@ _ => None,
             resolved
         } else {
             // 59821-59836: a deeper frame flagged the cycle.
-            if let Some(type_node) = annotation {
+            let declaration = self.signature_of(id).declaration;
+            if let Some(type_node) =
+                declaration.and_then(|node| self.written_signature_return_annotation(node))
+            {
                 self.error_at(
                     Some(type_node),
                     &diagnostics::Return_type_annotation_circularly_references_itself,
@@ -11204,6 +11194,37 @@ _ => None,
         // 59839: `??=` — an inner recursive frame's fill wins and IS
         // the returned value.
         Ok(self.seal_signature_return_type(id, resolved))
+    }
+
+    /// The written annotation of a signature, including hosted JSDoc syntax.
+    fn written_signature_return_annotation(&self, declaration: NodeId) -> Option<NodeId> {
+        match_record! { self.record_of(declaration), {
+            as_function_type(data) => data.r#type,
+            as_js_doc_function_type(data) => {
+                if node_util::is_jsdoc_construct_signature(&Published, declaration) {
+                    self.nodes_of(data.parameters)
+                        .first()
+                        .and_then(|&parameter| self.record_of(parameter).as_parameter())
+                        .and_then(|data| data.r#type)
+                } else {
+                    data.r#type
+                }
+            },
+            as_js_doc_signature(data) => data.r#type
+                .and_then(|tag| self.record_of(tag).as_js_doc_return_tag())
+                .and_then(|tag| self.jsdoc_type_expression_type(tag.type_expression)),
+            as_constructor_type(data) => data.r#type,
+            as_call_signature(data) => data.r#type,
+            as_construct_signature(data) => data.r#type,
+            as_method_signature(data) => data.r#type,
+            as_function_declaration(data) => data.r#type,
+            as_function_expression(data) => data.r#type,
+            as_arrow_function(data) => data.r#type,
+            as_method_declaration(data) => data.r#type,
+            as_get_accessor(data) => data.r#type,
+            as_set_accessor(data) => data.r#type,
+            _ => None,
+        }}
     }
 }
 

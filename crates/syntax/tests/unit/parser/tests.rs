@@ -8,6 +8,50 @@ fn nodes_of_kind(source: &crate::SourceFile, kind: SyntaxKind) -> Vec<NodeId> {
 }
 
 #[test]
+fn source_name_ranges_keep_speculative_and_warm_identifier_payloads() {
+    fn parse_names() -> Vec<(SyntaxKind, u32, u32, tsc_types::EscapedName)> {
+        let text = r"πname \u03c0name #privateπ __hidden πname";
+        let mut parser = Parser::new("a.ts".into(), text, LanguageVariant::Standard, false);
+        parser.next_token();
+        let accepted = parser.try_parse(|parser| {
+            parser.parse_identifier();
+            false
+        });
+        assert!(!accepted);
+        while parser.token() != SyntaxKind::EndOfFileToken {
+            if parser.token() == SyntaxKind::PrivateIdentifier {
+                parser.parse_private_identifier();
+            } else {
+                parser.parse_identifier();
+            }
+        }
+        assert!(parser.parse_diagnostics.is_empty());
+        parser
+            .arena
+            .nodes()
+            .iter()
+            .map(|node| {
+                let name = match node.data() {
+                    NodeData::Identifier(data) => data.escaped_text,
+                    NodeData::PrivateIdentifier(data) => data.escaped_text,
+                    data => panic!("unexpected identifier payload {data:?}"),
+                };
+                (node.kind, node.pos, node.end, name)
+            })
+            .collect()
+    }
+    let first = parse_names();
+    let spellings: Vec<_> = first.iter().map(|row| row.3.as_str().unwrap()).collect();
+    assert_eq!(
+        spellings,
+        ["πname", "πname", "πname", "#privateπ", "___hidden", "πname"]
+    );
+    assert_eq!(first[0], first[1]);
+    assert_eq!(first[3].0, SyntaxKind::PrivateIdentifier);
+    assert_eq!(first, parse_names());
+}
+
+#[test]
 fn function_free_statement_lists_track_direct_children() {
     let mut source =
         parse_ts("namespace N { let a; } { function f() {} } const g = function() {};");
@@ -890,6 +934,33 @@ fn forced_external_module_uses_the_root_indicator_and_reparses_await() {
             .any(|node| node.kind == SyntaxKind::AwaitExpression),
         "forced modules must take createSourceFile2's top-level-await reparse"
     );
+}
+
+#[test]
+fn explicit_module_indicator_belongs_to_the_final_statements() {
+    for force in [false, true] {
+        for initializer in ["plain", "a.await"] {
+            let text = format!("export const x = {initializer}; export const later = 1;");
+            let source = parse_source_file(
+                "m.ts".into(),
+                text,
+                ParseOptions {
+                    force_external_module: force,
+                    ..ParseOptions::default()
+                },
+                None,
+            );
+            let first = statement_nodes(&source)[0];
+            assert_eq!(source.external_module_indicator, Some(first));
+            assert!(source.parse_diagnostics.is_empty());
+            // The await property marks the first declaration for reparse.
+            let declarations = nodes_of_kind(&source, SyntaxKind::VariableStatement);
+            assert_eq!(
+                declarations.len(),
+                if initializer == "a.await" { 3 } else { 2 }
+            );
+        }
+    }
 }
 
 #[test]
@@ -3118,6 +3189,48 @@ fn parse_type_reference_and_postfix_shapes() {
 }
 
 #[test]
+fn union_and_intersection_callbacks_keep_constituent_and_diagnostic_order() {
+    let source =
+        parse_ts("type U = | A & B | () => void; type I = & X & new () => Y; type M = A | ;");
+    let kinds: Vec<_> = source
+        .arena
+        .nodes()
+        .iter()
+        .map(|node| node.kind)
+        .filter(|kind| {
+            matches!(
+                kind,
+                SyntaxKind::UnionType
+                    | SyntaxKind::IntersectionType
+                    | SyntaxKind::FunctionType
+                    | SyntaxKind::ConstructorType
+            )
+        })
+        .collect();
+    assert_eq!(
+        kinds,
+        [
+            SyntaxKind::IntersectionType,
+            SyntaxKind::FunctionType,
+            SyntaxKind::UnionType,
+            SyntaxKind::ConstructorType,
+            SyntaxKind::IntersectionType,
+            SyntaxKind::UnionType,
+        ]
+    );
+    let codes: Vec<_> = source.parse_diagnostics.iter().map(|d| d.code()).collect();
+    assert_eq!(
+        codes,
+        [
+            gen::Function_type_notation_must_be_parenthesized_when_used_in_a_union_type.code,
+            gen::Constructor_type_notation_must_be_parenthesized_when_used_in_an_intersection_type
+                .code,
+            gen::Type_expected.code,
+        ]
+    );
+}
+
+#[test]
 fn parse_union_intersection_and_type_operators() {
     let source = parse_source_file(
         "a.ts".into(),
@@ -4314,6 +4427,147 @@ fn missing_semicolon_reports_spelling_suggestions() {
         "{:?}",
         source.parse_diagnostics
     );
+}
+
+#[test]
+fn jsdoc_body_text_keeps_ranges_and_factory_counts() {
+    for js in [false, true] {
+        for (source, expected, dropped) in [
+            ("/** */", None, 0),
+            ("/**  \t */", None, 0),
+            ("/**\n\n*/", None, 1),
+            ("/** word*/", Some("word"), 1),
+        ] {
+            let mut parser = Parser::new("body".into(), source, LanguageVariant::Standard, js);
+            let doc = jsdoc::parse_jsdoc_comment(&mut parser, 0, source.len(), NodeFlags::NONE);
+            let node = parser.arena.node(doc.node);
+            assert_eq!((node.pos, node.end), (0, source.len() as u32));
+            let data = node.as_js_doc().unwrap();
+            assert!(data.tags.is_none());
+            let actual = data.comment.map(|comment| {
+                let crate::JSDocComment::Text {
+                    text,
+                    pos,
+                    end,
+                    text_end,
+                } = comment
+                else {
+                    panic!("expected a plain comment")
+                };
+                assert_eq!(
+                    (pos, end, text_end),
+                    (0, source.len() as u32 - 2, source.len() as u32 - 2)
+                );
+                parser.arena.text_utf8(text)
+            });
+            assert_eq!(actual, expected);
+            assert_eq!(parser.arena.factory_node_count(), 1 + dropped, "{source:?}");
+            assert!(parser.parse_diagnostics.is_empty() && parser.js_doc_diagnostics.is_empty());
+        }
+        let source = "/** before {@link A} after  */";
+        let mut parser = Parser::new("body".into(), source, LanguageVariant::Standard, js);
+        let doc = jsdoc::parse_jsdoc_comment(&mut parser, 0, source.len(), NodeFlags::NONE);
+        let data = parser.arena.node(doc.node).as_js_doc().unwrap();
+        let parts = parser
+            .arena
+            .node_array(data.comment.unwrap().nodes().unwrap());
+        let [first, link, last] = *parts.nodes else {
+            panic!("three comment parts")
+        };
+        let text = |id| {
+            parser
+                .arena
+                .text_utf8(parser.arena.node(id).as_js_doc_text().unwrap().text)
+        };
+        assert_eq!((text(first), text(last)), ("before ", " after"));
+        assert_eq!(parser.arena.node(link).kind, SyntaxKind::JSDocLink);
+        assert_eq!((parts.pos, parts.end), (0, source.len() as u32 - 2));
+        let ranges = [first, link, last].map(|id| {
+            let node = parser.arena.node(id);
+            (node.pos, node.end)
+        });
+        assert_eq!(ranges, [(0, 11), (11, 20), (20, 28)]);
+        assert_eq!(
+            (parser.arena.len(), parser.arena.factory_node_count()),
+            (5, 5)
+        );
+        assert!(parser.parse_diagnostics.is_empty() && parser.js_doc_diagnostics.is_empty());
+    }
+}
+
+#[test]
+fn jsdoc_trimmed_tag_text_keeps_parts_and_factory_counts() {
+    for (source, expected, counts) in [
+        (
+            "/** @param x first\n * second\u{a0} */",
+            Some("first\nsecond"),
+            (4, 5),
+        ),
+        ("/** @param x  \u{a0} */", None, (4, 4)),
+        (
+            "/** @param x see {@link X} more\u{feff} */",
+            Some(" more"),
+            (8, 8),
+        ),
+    ] {
+        let mut parser = Parser::new("tag.js".into(), source, LanguageVariant::Jsx, true);
+        let doc = jsdoc::parse_jsdoc_comment(&mut parser, 0, source.len(), NodeFlags::NONE);
+        let tags = parser
+            .arena
+            .node(doc.node)
+            .as_js_doc()
+            .unwrap()
+            .tags
+            .unwrap();
+        let [tag] = *parser.arena.node_array(tags).nodes else {
+            panic!("one tag")
+        };
+        let tag = parser.arena.node(tag);
+        assert_eq!(
+            (tag.pos, tag.end),
+            (source.find('@').unwrap() as u32, source.len() as u32 - 2)
+        );
+        let comment = tag.as_js_doc_parameter_tag().unwrap().comment;
+        let text = comment.map(|comment| match comment {
+            crate::JSDocComment::Text {
+                text,
+                pos,
+                end,
+                text_end,
+            } => {
+                assert_eq!(pos as usize, source.find("first").unwrap());
+                assert_eq!((end, text_end), (tag.end, tag.end));
+                parser.arena.text_utf8(text)
+            }
+            crate::JSDocComment::Nodes(id) => {
+                let parts = parser.arena.node_array(id);
+                let [first, link, last] = *parts.nodes else {
+                    panic!("three tag parts")
+                };
+                assert_eq!(
+                    parser
+                        .arena
+                        .text_utf8(parser.arena.node(first).as_js_doc_text().unwrap().text),
+                    "see "
+                );
+                assert_eq!(parser.arena.node(link).kind, SyntaxKind::JSDocLink);
+                let ranges = [first, link, last].map(|id| {
+                    let node = parser.arena.node(id);
+                    (node.pos, node.end)
+                });
+                assert_eq!(ranges, [(13, 17), (17, 26), (26, 35)]);
+                let last = parser.arena.node(last);
+                assert_eq!(last.end, tag.end);
+                parser.arena.text_utf8(last.as_js_doc_text().unwrap().text)
+            }
+        });
+        assert_eq!(text, expected);
+        assert_eq!(
+            (parser.arena.len(), parser.arena.factory_node_count()),
+            counts
+        );
+        assert!(parser.js_doc_diagnostics.is_empty() && parser.parse_diagnostics.is_empty());
+    }
 }
 
 #[test]

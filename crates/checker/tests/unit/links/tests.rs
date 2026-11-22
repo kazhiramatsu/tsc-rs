@@ -389,3 +389,81 @@ fn mapped_slots_share_records_but_keep_independent_transitions() {
     assert_eq!(links.type_cold.mapped(second).template, LinkSlot::Vacant);
     assert_eq!(debug_resolving_open(), initial);
 }
+
+#[test]
+fn call_signature_journal_index_survives_reentry_and_rejects_reused_slots() {
+    let run = |use_index: bool, commit: bool| {
+        let mut links = LinksTables::default();
+        let node = NodeId::new(3);
+        let other = NodeId::new(9);
+        let mut cursor = NodeLinksCursor::new(node);
+        let outer = links.speculative_marks();
+        let saved = cursor.set_call_signature(&mut links, 1, LinkSlot::Resolving, None);
+        let nested = links.speculative_marks();
+        let hint = |entry| if use_index { entry } else { None };
+        // The outer entry refers to the right node at a different depth.
+        let inner = cursor.set_call_signature(&mut links, 2, LinkSlot::Resolving, hint(saved));
+        let result = LinkSlot::Resolved(SignatureId::new(11));
+        cursor.set_call_signature(&mut links, 2, result.clone(), hint(inner));
+        if commit {
+            links.commit_speculative_writes(nested, 1);
+        } else {
+            links.restore_speculative_writes(nested);
+        }
+        // The popped inner index is now out of bounds.
+        cursor.set_call_signature(&mut links, 1, result.clone(), hint(inner));
+        assert_eq!(links.speculative_resolved_signature_mark(), 1);
+        // Reuse the popped inner index at the same depth for another node.
+        let mut other_cursor = NodeLinksCursor::new(other);
+        other_cursor.set_call_signature(&mut links, 2, LinkSlot::Resolving, None);
+        cursor.set_call_signature(&mut links, 2, result.clone(), hint(inner));
+        let journal = links.speculative_resolved_signature_writes.clone();
+        assert_eq!(journal.len(), 3);
+        assert_eq!(journal[2], (2, node, result.clone()));
+        links.restore_speculative_writes(nested);
+        cursor.set_call_signature(&mut links, 1, result.clone(), hint(saved));
+        links.restore_speculative_writes(outer);
+        assert_eq!(links.speculative_resolved_signature_mark(), 0);
+        assert_eq!(links.node(other).resolved_signature.get(), LinkSlot::Vacant);
+        (journal, links.node(node).resolved_signature.get())
+    };
+    for commit in [false, true] {
+        let ordinary = run(false, commit);
+        assert_eq!(ordinary.1, LinkSlot::Resolved(SignatureId::new(11)));
+        assert_eq!(run(true, commit), ordinary);
+    }
+}
+
+#[test]
+fn type_reference_probe_keeps_absent_records_unallocated_and_reads_live_slots() {
+    let mut links = LinksTables::default();
+    let before = links.memory_usage();
+    let node = NodeId::new(3);
+    let mut outer = NodeLinksCursor::probe_type_reference(&links, node).expect_err("no record");
+    assert!(outer.location.is_none());
+    assert_eq!(links.memory_usage(), before);
+
+    let inner_symbol = SymbolId::new(5);
+    let inner_type = TypeId::new(6);
+    outer.set_symbol(&mut links, inner_symbol);
+    let mut inner =
+        NodeLinksCursor::probe_type_reference(&links, node).expect_err("record without type");
+    assert_eq!(inner.location, outer.location);
+    inner.finish_type_reference(&mut links, Some(inner_symbol), inner_type);
+    assert_eq!(
+        NodeLinksCursor::probe_type_reference(&links, node).ok(),
+        Some(inner_type)
+    );
+
+    let outer_symbol = SymbolId::new(7);
+    let outer_type = TypeId::new(8);
+    outer.finish_type_reference(&mut links, Some(outer_symbol), outer_type);
+    assert_eq!(
+        NodeLinksCursor::probe_type_reference(&links, node).ok(),
+        Some(outer_type)
+    );
+    assert_eq!(
+        inner.read(&links, |record| record.resolved_symbol.resolved()),
+        Some(outer_symbol)
+    );
+}

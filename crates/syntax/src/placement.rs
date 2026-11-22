@@ -701,7 +701,12 @@ mod tests {
         }
         for index in 0..source.arena.node_arrays().len() as u32 {
             let id = crate::NodeArrayId::new(source.arena.array_base() + index);
-            assert_eq!(source.arena.node_array(id), published_node_array(id));
+            let local = source.arena.node_array(id);
+            assert_eq!(local, published_node_array(id));
+            assert_eq!(
+                local.modifier_flags,
+                crate::published_node_array_modifier_flags(id)
+            );
         }
     }
     #[test]

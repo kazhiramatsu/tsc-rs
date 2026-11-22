@@ -342,7 +342,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
     fn comment_value(
         &mut self,
         parts_mark: usize,
-        text: String,
+        text: &str,
         pos: usize,
         end: usize,
         text_end: usize,
@@ -355,7 +355,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         self.parser.truncate_node_list(parts_mark);
         if !text.is_empty() {
             Some(JSDocComment::Text {
-                text: self.parser.arena.push_text(text.as_bytes()),
+                text: self.parser.arena.push_text_str(text),
                 pos: pos as u32,
                 end: end as u32,
                 text_end: text_end as u32,
@@ -543,14 +543,22 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             let trimmed = last.trim_end_matches(char::is_whitespace).len();
             Self::truncate_piece(last, trimmed);
         }
-        let trimmed_comments = comments.join("");
+        let joined;
+        let trimmed_comments = match comments.as_slice() {
+            [] => "",
+            [piece] => piece.as_ref(),
+            pieces => {
+                joined = pieces.join("");
+                &joined
+            }
+        };
         let has_text_node =
             self.parser.node_stack.len() != parts_mark && !trimmed_comments.is_empty();
         if !comments.is_empty() && !has_text_node {
             self.parser.arena.count_dropped_nodes(1);
         }
         if has_text_node {
-            let text = self.parser.arena.push_text(trimmed_comments.as_bytes());
+            let text = self.parser.arena.push_text_str(trimmed_comments);
             let part = self.finish(
                 NodeData::JSDocText(JSDocTextData { text }),
                 link_end.unwrap_or(start),
@@ -718,7 +726,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
 
         Self::remove_leading_newlines(&mut comments);
         let joined_comments = comments.join("");
-        let trimmed = Self::trim_end(&joined_comments).to_owned();
+        let trimmed = Self::trim_end(&joined_comments);
         let has_text_node = self.parser.node_stack.len() != parts_mark && !trimmed.is_empty();
         let go_has_text_node = comments
             .iter()
@@ -727,7 +735,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             self.parser.arena.count_dropped_nodes(1);
         }
         if has_text_node {
-            let text = self.parser.arena.push_text(trimmed.as_bytes());
+            let text = self.parser.arena.push_text_str(trimmed);
             let part = self.finish(
                 NodeData::JSDocText(JSDocTextData { text }),
                 link_end.unwrap_or(comments_pos),

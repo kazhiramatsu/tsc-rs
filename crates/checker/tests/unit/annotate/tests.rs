@@ -1037,3 +1037,170 @@ fn declaration_routing_keeps_cross_file_overload_order() {
         }
     );
 }
+
+#[test]
+fn weak_properties_follow_the_full_record_through_resolution_and_speculation() {
+    use tsc_types::SymbolFlags;
+
+    with_state(
+        "interface Base { required: number }
+         interface Derived extends Base { opt?: number }
+         declare let full: Derived;
+         declare let shell: { opt?: number };
+         interface Callable<T> { (): T; opt?: T }
+         declare let deferred: Callable<string>;",
+        |state| {
+            let shell = annotation_type(state, "shell");
+            let full = annotation_type(state, "full");
+            let id = state.resolve_structured_type_members(shell).unwrap();
+            let complete = state.resolve_structured_type_members(full).unwrap();
+            let shared = state.create_resolved_empty_anonymous_type(None);
+            state
+                .links
+                .set_type_members(0, shared, LinkSlot::Resolved(id));
+
+            let counts = |state: &CheckerState| {
+                let c = crate::CheckerCounts::of(state, true);
+                (c.types, c.instantiations, c.symbols)
+            };
+            let before = counts(state);
+            state.members_resolving += 1;
+            assert!(state.is_weak_type(shell).unwrap());
+            state.members_resolving -= 1;
+            assert_eq!(state.members_of(id).weak_properties(), None);
+            let checkpoint = state.begin_speculation();
+            assert!(state.is_weak_type(shell).unwrap());
+            state.rollback_speculation(checkpoint);
+            assert_eq!(state.members_of(id).weak_properties(), None);
+            assert!(state.is_weak_type(shell).unwrap());
+            assert_eq!(state.members_of(id).weak_properties(), Some(true));
+            assert!(state.is_weak_type(shared).unwrap());
+            assert_eq!(state.members_of(id).clone().weak_properties(), None);
+
+            let inherited = state.members_of(complete).clone();
+            state.publish_members(id, inherited);
+            assert_eq!(state.members_of(id).weak_properties(), None);
+            assert!(!state.is_weak_type(shared).unwrap());
+            assert!(!state.is_weak_type(shell).unwrap());
+            assert_eq!(state.members_of(id).weak_properties(), Some(false));
+            assert_eq!(state.members_of(id).clone().weak_properties(), None);
+            assert_eq!(counts(state), before);
+
+            let transient = state
+                .binder
+                .create_symbol(SymbolFlags::OPTIONAL, tsc_types::known_name!("name"));
+            state.members_mut(id).set_properties(&[transient]);
+            assert!(state.is_weak_type(shared).unwrap());
+            state.binder.symbol_mut(transient).flags = SymbolFlags::PROPERTY;
+            assert!(!state.is_weak_type(shell).unwrap());
+            assert_eq!(state.members_of(id).weak_properties(), None);
+            let required = state
+                .members_of(complete)
+                .members
+                .get(&state.binder, "required")
+                .unwrap();
+            state.binder.symbol_mut(transient).flags = SymbolFlags::OPTIONAL;
+            state.members_mut(id).set_properties(&[transient, required]);
+            assert!(!state.is_weak_type(shell).unwrap());
+            assert_eq!(state.members_of(id).weak_properties(), Some(false));
+            let restored = state.members_of(id).clone();
+            let checkpoint = state.begin_speculation();
+            state.members_mut(id).set_properties(&[transient]);
+            assert!(state.is_weak_type(shared).unwrap());
+            assert_eq!(state.members_of(id).weak_properties(), None);
+            state.rollback_speculation(checkpoint);
+            state.publish_members(id, restored);
+            assert_eq!(state.members_of(id).weak_properties(), None);
+            assert!(!state.is_weak_type(shared).unwrap());
+            state.members_mut(id).set_properties(&[]);
+            assert!(!state.is_weak_type(shared).unwrap());
+            assert_eq!(state.members_of(id).weak_properties(), Some(false));
+
+            let ty = annotation_type(state, "deferred");
+            let header = state.structured_member_headers(ty).unwrap();
+            let before = counts(state);
+            assert!(!state.is_weak_type(ty).unwrap());
+            assert!(state
+                .links
+                .read_ty(ty, |l| l.resolved_members.resolved())
+                .is_none());
+            assert_eq!(state.structured_member_headers(ty).unwrap(), header);
+            let copy = state.members_of(header).clone();
+            assert_eq!(
+                copy.call_signatures(),
+                state.members_of(header).call_signatures()
+            );
+            assert_eq!(copy.weak_properties(), None);
+            assert_eq!(counts(state), before);
+        },
+    );
+}
+
+#[test]
+fn signature_return_branches_preserve_target_precedence_composite_order_and_cycles() {
+    let text = "declare function first(): { first: string };
+declare function second(): { second: number };
+function annotated(): string { return 'ok'; }
+function unannotated() { return 0; }";
+    with_state(text, |state| {
+        use crate::state::Signature;
+        use tsc_syntax::SyntaxKind;
+
+        let nodes: Vec<_> = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .filter(|&node| state.kind_of(node) == SyntaxKind::FunctionDeclaration)
+            .collect();
+        let signatures: Vec<_> = nodes
+            .into_iter()
+            .map(|node| state.get_signature_from_declaration(node).unwrap())
+            .collect();
+        let [first, second, annotated, unannotated] = signatures[..] else {
+            panic!("four signatures");
+        };
+
+        let mut target = Signature::new();
+        target.target = Some(first);
+        target.set_composite_signatures(Some(Box::new([second])));
+        let target = state.alloc_signature(target);
+        let first_return = state.get_return_type_of_signature(target).unwrap();
+        assert_eq!(
+            state.signature_of(first).resolved_return_type,
+            Some(first_return)
+        );
+        assert!(state.signature_of(second).resolved_return_type.is_none());
+
+        let mut composite = Signature::new();
+        composite.set_composite_signatures(Some(Box::new([first, second])));
+        composite.set_composite_kind(Some(TypeFlags::UNION));
+        let composite = state.alloc_signature(composite);
+        let combined = state.get_return_type_of_signature(composite).unwrap();
+        let second_return = state.signature_of(second).resolved_return_type.unwrap();
+        assert!(first_return.index() < second_return.index());
+        assert!(second_return.index() < combined.index());
+
+        for signature in [annotated, unannotated] {
+            state.signature_mut(signature).target = Some(signature);
+            assert_eq!(
+                state.get_return_type_of_signature(signature).unwrap(),
+                state.tables.intrinsics.any
+            );
+        }
+        let rows: Vec<_> = state
+            .diagnostics
+            .iter()
+            .filter(|diag| diag.file_name.is_some())
+            .filter_map(|diag| diag.start.map(|start| (diag.code(), start as usize)))
+            .collect();
+        assert_eq!(
+            rows,
+            [
+                (2577, text.find("): string").unwrap() + 3),
+                (7023, text.find("unannotated").unwrap()),
+            ]
+        );
+        assert!(state.resolution_targets.is_empty());
+    });
+}

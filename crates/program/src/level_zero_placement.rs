@@ -88,13 +88,11 @@ impl DiscoveredRooms {
         room: &mut DiscoveredRoom,
         source: &PreparedSourceFile,
         options: &CompilerOptions,
-    ) -> Result<(crate::module_requests::SourceRequestPlan, PreparsedSyntax), ResolutionError> {
+    ) -> Result<(crate::module_requests::LoaderRequestPlan, PreparsedSyntax), ResolutionError> {
         if source.path().display().starts_with("bundled:///libs/")
             || source.content_mapped().is_some()
         {
-            return crate::module_requests::plan_source_requests_retaining_syntax(
-                source, options, None,
-            );
+            return crate::module_requests::plan_retaining_syntax(source, options, None);
         }
         let counts = |bytes: usize, entries: usize| {
             direct::bounds(bytes, entries).map(|bounds| {
@@ -132,12 +130,8 @@ impl DiscoveredRooms {
             }
         }
         match room.0.as_mut() {
-            Some((_, stripe)) => {
-                crate::module_requests::plan_source_requests_in_stripe(source, options, stripe)
-            }
-            None => {
-                crate::module_requests::plan_source_requests_retaining_syntax(source, options, None)
-            }
+            Some((_, stripe)) => crate::module_requests::plan_in_stripe(source, options, stripe),
+            None => crate::module_requests::plan_retaining_syntax(source, options, None),
         }
     }
 
@@ -1041,12 +1035,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                                 } else {
                                     None
                                 };
-                                let implied = implied_node_format(
-                                    entry.path.display(),
-                                    scope.as_ref(),
-                                    options,
-                                );
-                                let implied_for_emit = implied_node_format_for_emit(
+                                let (implied, implied_for_emit) = implied_node_formats(
                                     entry.path.display(),
                                     scope.as_ref(),
                                     options,

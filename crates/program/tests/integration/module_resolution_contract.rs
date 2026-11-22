@@ -1223,7 +1223,7 @@ fn package_identity_carries_the_peer_dependencies_found_beside_the_package() {
         )
         .file(
             "/work/node_modules/alpha/package.json",
-            br#"{"name":"alpha","version":"1.5.0"}"#.to_vec(),
+            br#"{"name":"alpha","version":false,"version":"1.5.0","unused":[{"version":"nested"}]}"#.to_vec(),
         )
         .file(
             "/work/node_modules/bare/package.json",
@@ -1242,17 +1242,32 @@ fn package_identity_carries_the_peer_dependencies_found_beside_the_package() {
         .build()
         .expect("build peer dependency host");
     let options = CompilerOptions {
+        trace_resolution: Some(true),
         module: Some(99),
         module_resolution: Some(100),
         ..CompilerOptions::default()
     };
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
 
-    let module = resolved(
-        resolver
-            .resolve("/work/main.ts", "pkg", ResolutionMode::EsNext)
-            .expect("resolve pkg"),
+    let facts = resolver
+        .resolve_with_facts("/work/main.ts", "pkg", ResolutionMode::EsNext)
+        .expect("resolve pkg");
+    let peer_lines: Vec<_> = facts
+        .trace()
+        .iter()
+        .map(|line| line.text())
+        .filter(|line| line.starts_with("Found peerDependency"))
+        .collect();
+    assert_eq!(
+        peer_lines,
+        [
+            "Found peerDependency 'alpha' with '1.5.0' version.",
+            "Found peerDependency 'bare' with '' version.",
+            "Found peerDependency 'zeta' with '9.0.0' version.",
+        ]
     );
+
+    let module = resolved(facts.into_outcome());
     let package_id = module.package_id().expect("package identity");
     assert_eq!(
         package_id.peer_dependencies(),

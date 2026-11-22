@@ -4436,10 +4436,10 @@ impl<'a> CheckerState<'a> {
                         && !should_rewrite
                         && !source.is_declaration_file
                         && if self.authoritative_module_provider.is_some() {
-                            self.authoritative_source_may_be_emitted
+                            self.authoritative_sources
+                                .files
                                 .get(resolved.file_index)
-                                .copied()
-                                .unwrap_or(false)
+                                .is_some_and(|file| file.may_be_emitted)
                         } else {
                             !resolved.is_external_library_import
                         }
@@ -5224,7 +5224,12 @@ impl<'a> CheckerState<'a> {
 
         let file_index = self.binder.file_index_of_node(location);
         let containing_file = &self.binder.source(file_index).file_name;
-        let Some(&source_token) = self.authoritative_source_tokens.get(file_index) else {
+        let Some(source_token) = self
+            .authoritative_sources
+            .files
+            .get(file_index)
+            .map(|file| file.token)
+        else {
             self.record_authoritative_module_failure(
                 crate::AuthoritativeModuleFailure::UnknownSourceToken {
                     file_index,
@@ -5275,9 +5280,8 @@ impl<'a> CheckerState<'a> {
                 })
             }
             Ok(crate::AuthoritativeModuleResolution::Resolved(resolved)) => {
-                let Some(&target_index) = self
-                    .authoritative_source_index_by_token
-                    .get(&resolved.target_token)
+                let Some(target_index) =
+                    self.authoritative_sources.file_index(resolved.target_token)
                 else {
                     self.record_authoritative_module_failure(
                         crate::AuthoritativeModuleFailure::UnknownTargetToken {
@@ -7008,8 +7012,10 @@ impl<'a> CheckerState<'a> {
         &self,
         file_index: usize,
     ) -> Option<&tsc_program::ProjectReferenceFile> {
-        self.authoritative_project_references
+        self.authoritative_sources
+            .files
             .get(file_index)?
+            .project_reference
             .as_ref()
     }
 
@@ -7407,10 +7413,10 @@ impl<'a> CheckerState<'a> {
                 .program_path_index
                 .get(&normalized)
                 .and_then(|&file_index| {
-                    self.authoritative_implied_node_formats
+                    self.authoritative_sources
+                        .files
                         .get(file_index)
-                        .copied()
-                        .flatten()
+                        .and_then(|file| file.implied_node_format)
                 })
                 .and_then(|mode| match mode {
                     crate::AuthoritativeResolutionMode::CommonJs => {
@@ -7571,10 +7577,10 @@ impl<'a> CheckerState<'a> {
                 .program_path_index
                 .get(&normalized)
                 .and_then(|&file_index| {
-                    self.authoritative_implied_node_formats_for_emit
+                    self.authoritative_sources
+                        .files
                         .get(file_index)
-                        .copied()
-                        .flatten()
+                        .and_then(|file| file.implied_node_format_for_emit)
                 })
                 .and_then(|mode| match mode {
                     crate::AuthoritativeResolutionMode::CommonJs => {

@@ -266,8 +266,12 @@ impl PlannedLibReferenceDirective {
 }
 
 /// Exact source-owned resolution requests discovered by one syntax parse.
+pub type SourceRequestPlan = RequestPlan<GroupedOccurrences>;
+
+pub(crate) type LoaderRequestPlan = RequestPlan<LoaderOccurrences>;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SourceRequestPlan {
+pub struct RequestPlan<O> {
     is_external_module: bool,
     /// Parser Imports() length; synthesized resolver requests are separate.
     import_count: usize,
@@ -276,13 +280,7 @@ pub struct SourceRequestPlan {
     unpreprocessed_module_requests: BTreeSet<ResolutionKey>,
     /// By request: whether an occurrence of it loads its target.
     module_request_loads: Vec<bool>,
-    /// By request: the spans of its occurrences that load their target.
-    module_request_spans: Vec<Vec<(u32, u32)>>,
-    /// The request of each occurrence that loads its target, in tsgo's
-    /// `moduleNames` order (the synthetic imports, the imports, then the
-    /// module augmentations).
-    module_request_occurrences: Vec<u32>,
-    module_request_occurrence_counts: Vec<u32>,
+    occurrences: O,
     module_request_order: Vec<ResolutionKey>,
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     lib_reference_directives: Vec<PlannedLibReferenceDirective>,
@@ -306,57 +304,147 @@ pub(crate) struct AdmissionPlanParts {
     pub type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     pub lib_reference_directives: Vec<PlannedLibReferenceDirective>,
     pub module_request_order: Vec<ResolutionKey>,
-    pub module_request_occurrences: Vec<u32>,
 }
 
-/// The loader keeps the planner's arrays rather than rebuilding each request.
-/// Keys move into the contiguous resolution batch when that source is planned;
-/// its immutable occurrence metadata stays available for another spelling.
+/// The public planner groups real spans by resolution row and also exposes
+/// the loading order across rows.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct GroupedOccurrences {
+    spans: Vec<Vec<(u32, u32)>>,
+    requests: Vec<u32>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct ImportOccurrence {
+    pub request: u32,
+    pub pos: u32,
+    pub end: u32,
+    pub synthetic: bool,
+}
+
+const _: () = assert!(std::mem::size_of::<ImportOccurrence>() == 16);
+
 #[derive(Default)]
-pub(crate) struct LoaderModuleRequests {
-    pub keys: Vec<ResolutionKey>,
-    pub loads_source: Vec<bool>,
-    pub spans: Vec<Vec<(u32, u32)>>,
-    pub occurrence_counts: Vec<u32>,
+pub(crate) struct LoaderOccurrences {
+    pub records: Vec<ImportOccurrence>,
+    /// Each synthetic insertion creates its own leading row.
+    pub synthetic_rows: usize,
 }
 
-impl LoaderModuleRequests {
-    pub fn len(&self) -> usize {
-        self.loads_source.len()
+pub(crate) trait OccurrenceDestination: Default {
+    fn with_capacity(_loading: usize) -> Self {
+        Self::default()
     }
+    fn add_row(&mut self);
+    fn push(&mut self, request: u32, span: Option<(u32, u32)>);
+    #[cfg(feature = "loader-counters")]
+    fn storage(&self) -> (usize, usize);
 }
 
-impl SourceRequestPlan {
-    pub(crate) fn take_loader_module_requests(&mut self) -> LoaderModuleRequests {
-        LoaderModuleRequests {
-            keys: std::mem::take(&mut self.module_requests),
-            loads_source: std::mem::take(&mut self.module_request_loads),
-            spans: std::mem::take(&mut self.module_request_spans),
-            occurrence_counts: std::mem::take(&mut self.module_request_occurrence_counts),
+impl OccurrenceDestination for GroupedOccurrences {
+    fn add_row(&mut self) {
+        self.spans.push(Vec::new());
+    }
+    fn push(&mut self, request: u32, span: Option<(u32, u32)>) {
+        self.requests.push(request);
+        if let Some(span) = span {
+            self.spans[request as usize].push(span);
         }
     }
+    #[cfg(feature = "loader-counters")]
+    fn storage(&self) -> (usize, usize) {
+        (
+            self.requests.len(),
+            self.requests.capacity() * size_of::<u32>()
+                + self.spans.capacity() * size_of::<Vec<(u32, u32)>>()
+                + self
+                    .spans
+                    .iter()
+                    .map(|row| row.capacity() * size_of::<(u32, u32)>())
+                    .sum::<usize>(),
+        )
+    }
+}
 
+impl OccurrenceDestination for LoaderOccurrences {
+    fn with_capacity(loading: usize) -> Self {
+        Self {
+            records: Vec::with_capacity(loading),
+            synthetic_rows: 0,
+        }
+    }
+    fn add_row(&mut self) {}
+    fn push(&mut self, request: u32, span: Option<(u32, u32)>) {
+        let synthetic = span.is_none();
+        if synthetic {
+            debug_assert_eq!(request as usize, self.synthetic_rows);
+            self.synthetic_rows += 1;
+        }
+        let (pos, end) = span.unwrap_or_default();
+        self.records.push(ImportOccurrence {
+            request,
+            pos,
+            end,
+            synthetic,
+        });
+    }
+    #[cfg(feature = "loader-counters")]
+    fn storage(&self) -> (usize, usize) {
+        (
+            self.records.len(),
+            self.records.capacity() * size_of::<ImportOccurrence>(),
+        )
+    }
+}
+
+impl LoaderRequestPlan {
+    pub(crate) fn into_loader_parts(
+        self,
+    ) -> (
+        AdmissionPlanParts,
+        Vec<ResolutionKey>,
+        Vec<bool>,
+        LoaderOccurrences,
+    ) {
+        (
+            AdmissionPlanParts {
+                path_references: self.path_references,
+                type_reference_directives: self.type_reference_directives,
+                lib_reference_directives: self.lib_reference_directives,
+                module_request_order: self.module_request_order,
+            },
+            self.module_requests,
+            self.module_request_loads,
+            self.occurrences,
+        )
+    }
+}
+
+impl<O> RequestPlan<O> {
     pub const fn import_count(&self) -> usize {
         self.import_count
     }
 
-    /// Admission becomes the sole owner of these persistent file records.
-    /// The plan's module requests remain for the following consuming stage.
-    pub(crate) fn take_admission_parts(&mut self) -> AdmissionPlanParts {
-        AdmissionPlanParts {
-            path_references: std::mem::take(&mut self.path_references),
-            type_reference_directives: std::mem::take(&mut self.type_reference_directives),
-            lib_reference_directives: std::mem::take(&mut self.lib_reference_directives),
-            module_request_order: std::mem::take(&mut self.module_request_order),
-            module_request_occurrences: std::mem::take(&mut self.module_request_occurrences),
-        }
+    /// Count every path, directive and module occurrence before deduplication
+    /// so repeated imports still count towards the admission limit.
+    pub const fn observed_request_occurrence_count(&self) -> usize {
+        self.observed_request_occurrence_count
+    }
+
+    /// Module detection from the same parse used to collect requests.
+    pub const fn is_external_module(&self) -> bool {
+        self.is_external_module
     }
 
     #[cfg(feature = "loader-counters")]
-    fn record_high_water(&self, file: JsStr<'_>) {
+    fn record_high_water(&self, file: JsStr<'_>)
+    where
+        O: OccurrenceDestination,
+    {
+        let (occurrences, occurrence_bytes) = self.occurrences.storage();
         use crate::loader_counters as c;
         c::maximum("plan.requests", self.module_requests.len());
-        c::maximum("plan.occurrences", self.module_request_occurrences.len());
+        c::maximum("plan.occurrences", occurrences);
         c::maximum("plan.observed", self.observed_request_occurrence_count);
         c::maximum("plan.path_references", self.path_references.len());
         c::maximum("plan.type_directives", self.type_reference_directives.len());
@@ -369,27 +457,21 @@ impl SourceRequestPlan {
             + (self.module_requests.capacity() + self.module_request_order.capacity())
                 * std::mem::size_of::<ResolutionKey>()
             + self.module_request_loads.capacity()
-            + self.module_request_spans.capacity() * std::mem::size_of::<Vec<(u32, u32)>>()
-            + self
-                .module_request_spans
-                .iter()
-                .map(|v| v.capacity() * std::mem::size_of::<(u32, u32)>())
-                .sum::<usize>()
-            + (self.module_request_occurrences.capacity()
-                + self.module_request_occurrence_counts.capacity())
-                * std::mem::size_of::<u32>();
+            + occurrence_bytes;
         c::maximum("plan.vector_capacity_bytes", bytes);
         c::plan(
             file,
             [
                 self.module_requests.len(),
-                self.module_request_occurrences.len(),
+                occurrences,
                 self.observed_request_occurrence_count,
                 bytes,
             ],
         );
     }
+}
 
+impl SourceRequestPlan {
     /// tsgo `canReplaceFileInProgram`'s request half: the same module
     /// status and the same requests in the same order (imports and their
     /// modes, module augmentations, path, type and lib references),
@@ -435,11 +517,6 @@ impl SourceRequestPlan {
         self.synthetic_imports
     }
 
-    /// Source-owned module detection from the same parse used for requests.
-    pub const fn is_external_module(&self) -> bool {
-        self.is_external_module
-    }
-
     pub fn path_references(&self) -> &[PlannedPathReference] {
         &self.path_references
     }
@@ -470,7 +547,7 @@ impl SourceRequestPlan {
     /// `moduleNames` order: processImportedModules adds a subtask per
     /// occurrence in this order.
     pub fn module_request_occurrences(&self) -> &[u32] {
-        &self.module_request_occurrences
+        &self.occurrences.requests
     }
 
     /// The module requests in order with whether each loads its target and
@@ -485,7 +562,7 @@ impl SourceRequestPlan {
     ) -> impl ExactSizeIterator<Item = PlannedModuleRequest> {
         let keys = std::mem::take(&mut self.module_requests);
         let loads = std::mem::take(&mut self.module_request_loads);
-        let spans = std::mem::take(&mut self.module_request_spans);
+        let spans = std::mem::take(&mut self.occurrences.spans);
         keys.into_iter()
             .zip(loads)
             .zip(spans)
@@ -532,7 +609,7 @@ impl SourceRequestPlan {
         self.module_requests
             .iter()
             .position(|request| request == key)
-            .map_or(&[], |index| self.module_request_spans[index].as_slice())
+            .map_or(&[], |index| self.occurrences.spans[index].as_slice())
     }
 
     /// Every resolved occurrence in tsgo's `moduleNames` order
@@ -550,13 +627,6 @@ impl SourceRequestPlan {
 
     pub fn lib_reference_directives(&self) -> &[PlannedLibReferenceDirective] {
         &self.lib_reference_directives
-    }
-
-    /// Count every observed path/type/lib/module occurrence before exact-key
-    /// deduplication. Program loaders use this input-sensitive count for
-    /// bounded edge admission; repeated imports cannot evade the ceiling.
-    pub const fn observed_request_occurrence_count(&self) -> usize {
-        self.observed_request_occurrence_count
     }
 
     fn into_module_requests(self) -> Vec<ResolutionKey> {
@@ -635,6 +705,14 @@ pub fn plan_source_requests_retaining_syntax(
     options: &CompilerOptions,
     cache: Option<&dyn ParseCache>,
 ) -> Result<(SourceRequestPlan, PreparsedSyntax), ResolutionError> {
+    plan_retaining_syntax(source, options, cache)
+}
+
+pub(crate) fn plan_retaining_syntax<O: OccurrenceDestination>(
+    source: &PreparedSourceFile,
+    options: &CompilerOptions,
+    cache: Option<&dyn ParseCache>,
+) -> Result<(RequestPlan<O>, PreparsedSyntax), ResolutionError> {
     if cache.is_none()
         && source.path().display().starts_with("bundled:///libs/")
         && source.path().display().ends_with(".d.ts")
@@ -658,32 +736,8 @@ pub fn plan_source_requests_retaining_syntax(
             ));
         }
         if let Some((external, libs)) = tsc_syntax::placement::library_metadata(source.text()) {
-            let observed_request_occurrence_count = libs.len();
             return Ok((
-                SourceRequestPlan {
-                    is_external_module: external,
-                    import_count: 0,
-                    path_references: Vec::new(),
-                    module_requests: Vec::new(),
-                    unpreprocessed_module_requests: BTreeSet::new(),
-                    module_request_loads: Vec::new(),
-                    module_request_spans: Vec::new(),
-                    module_request_occurrences: Vec::new(),
-                    module_request_occurrence_counts: Vec::new(),
-                    module_request_order: Vec::new(),
-                    type_reference_directives: Vec::new(),
-                    lib_reference_directives: libs
-                        .into_iter()
-                        .map(|r| PlannedLibReferenceDirective {
-                            file_name: r.file_name,
-                            pos: r.pos,
-                            end: r.end,
-                            preserve: r.preserve,
-                        })
-                        .collect(),
-                    observed_request_occurrence_count,
-                    synthetic_imports: false,
-                },
+                library_image_plan(external, libs),
                 PreparsedSyntax::default(),
             ));
         }
@@ -735,18 +789,19 @@ pub fn plan_source_requests_retaining_syntax(
     ))
 }
 
-fn library_image_plan(external: bool, libs: Vec<tsc_syntax::FileReference>) -> SourceRequestPlan {
+fn library_image_plan<O: Default>(
+    external: bool,
+    libs: Vec<tsc_syntax::FileReference>,
+) -> RequestPlan<O> {
     let observed_request_occurrence_count = libs.len();
-    SourceRequestPlan {
+    RequestPlan {
         is_external_module: external,
         import_count: 0,
         path_references: Vec::new(),
         module_requests: Vec::new(),
         unpreprocessed_module_requests: BTreeSet::new(),
         module_request_loads: Vec::new(),
-        module_request_spans: Vec::new(),
-        module_request_occurrences: Vec::new(),
-        module_request_occurrence_counts: Vec::new(),
+        occurrences: O::default(),
         module_request_order: Vec::new(),
         type_reference_directives: Vec::new(),
         lib_reference_directives: libs
@@ -891,6 +946,14 @@ pub fn plan_source_requests_in_stripe(
     options: &CompilerOptions,
     stripe: &mut tsc_syntax::placement::SyntaxStripe,
 ) -> Result<(SourceRequestPlan, PreparsedSyntax), ResolutionError> {
+    plan_in_stripe(source, options, stripe)
+}
+
+pub(crate) fn plan_in_stripe<O: OccurrenceDestination>(
+    source: &PreparedSourceFile,
+    options: &CompilerOptions,
+    stripe: &mut tsc_syntax::placement::SyntaxStripe,
+) -> Result<(RequestPlan<O>, PreparsedSyntax), ResolutionError> {
     let mut output = None;
     let syntax = plan_source_requests_in_stripe_into(source, options, stripe, &mut output)?;
     Ok((
@@ -901,11 +964,11 @@ pub fn plan_source_requests_in_stripe(
 
 /// Publish a complete request plan once; an error leaves the slot empty.
 /// Library syntax keeps its pristine capability and existing fallback.
-pub(crate) fn plan_source_requests_in_stripe_into(
+pub(crate) fn plan_source_requests_in_stripe_into<O: OccurrenceDestination>(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
     stripe: &mut tsc_syntax::placement::SyntaxStripe,
-    output: &mut Option<SourceRequestPlan>,
+    output: &mut Option<RequestPlan<O>>,
 ) -> Result<PreparsedSyntax, ResolutionError> {
     let started = std::time::Instant::now();
     let parsed = plan_module_requests_with_parser(
@@ -1013,13 +1076,13 @@ impl RequestIndex {
     }
 }
 
-fn plan_module_requests_with_parser(
+fn plan_module_requests_with_parser<O: OccurrenceDestination>(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
     expanded: bool,
     nested_requests: bool,
     cache: Option<&dyn ParseCache>,
-    output: &mut Option<SourceRequestPlan>,
+    output: &mut Option<RequestPlan<O>>,
     parse: impl FnOnce(ParseOptions) -> PlanningConstruction,
 ) -> Result<PlanningParse, ResolutionError> {
     debug_assert!(output.is_none());
@@ -1312,8 +1375,6 @@ fn plan_module_requests_with_parser(
         + source_phase_import_count;
     let mut module_requests = Vec::new();
     let mut module_request_loads = Vec::new();
-    let mut module_request_spans: Vec<Vec<(u32, u32)>> = Vec::new();
-    let mut module_request_occurrences = Vec::new();
     let mut request_index = RequestIndex::default();
     // tsc collectExternalModuleReferences prepends a synthesized `tslib`
     // import when importHelpers can participate in this source. The checker
@@ -1341,13 +1402,23 @@ fn plan_module_requests_with_parser(
         .saturating_add(augmentation_occurrences.len())
         .saturating_add(usize::from(has_synthetic_tslib))
         .saturating_add(usize::from(has_synthetic_jsx_runtime));
+    // All JS imports load. For TS we know the static count without
+    // walking the dynamic rows to exclude checker-only occurrences.
+    let known_loading = if javascript_file {
+        static_occurrences.len() + dynamic_occurrences.len()
+    } else {
+        static_import_count
+    };
+    let mut occurrences = O::with_capacity(
+        known_loading + usize::from(has_synthetic_tslib) + usize::from(has_synthetic_jsx_runtime),
+    );
     if has_synthetic_tslib {
         let key = ResolutionKey::new(source.path().canonical().clone(), "tslib", static_mode);
-        module_request_occurrences.push(module_requests.len() as u32);
+        occurrences.add_row();
+        occurrences.push(module_requests.len() as u32, None);
         module_requests.push(key);
         request_index.pushed(&module_requests);
         module_request_loads.push(true);
-        module_request_spans.push(Vec::new());
     }
     if has_synthetic_jsx_runtime {
         let key = ResolutionKey::new(
@@ -1355,11 +1426,11 @@ fn plan_module_requests_with_parser(
             jsx_runtime_import.expect("guarded JSX runtime synthetic import"),
             static_mode,
         );
-        module_request_occurrences.push(module_requests.len() as u32);
+        occurrences.add_row();
+        occurrences.push(module_requests.len() as u32, None);
         module_requests.push(key);
         request_index.pushed(&module_requests);
         module_request_loads.push(true);
-        module_request_spans.push(Vec::new());
     }
     // The spans are UTF-16 offsets from the snapshot's position index: one
     // lookup each. Counting the UTF-16 units of the text prefix for every
@@ -1392,19 +1463,21 @@ fn plan_module_requests_with_parser(
                 module_requests.push(occurrence.key);
                 request_index.pushed(&module_requests);
                 module_request_loads.push(false);
-                module_request_spans.push(Vec::new());
+                occurrences.add_row();
                 index
             }
         };
         if occurrence.loads_source {
             module_request_loads[index] = true;
-            module_request_occurrences.push(index as u32);
             let span_start =
                 skip_trivia(source_text, occurrence.pos as usize).min(occurrence.end as usize);
-            module_request_spans[index].push((
-                byte_to_utf16_offset(positions, source_text, span_start),
-                byte_to_utf16_offset(positions, source_text, occurrence.end as usize),
-            ));
+            occurrences.push(
+                index as u32,
+                Some((
+                    byte_to_utf16_offset(positions, source_text, span_start),
+                    byte_to_utf16_offset(positions, source_text, occurrence.end as usize),
+                )),
+            );
         }
     }
     // The source-file resolution cache is keyed by exact specifier and mode.
@@ -1413,20 +1486,14 @@ fn plan_module_requests_with_parser(
     unpreprocessed_module_requests
         .retain(|key| request_index.find(&module_requests, key).is_none());
 
-    let mut module_request_occurrence_counts = vec![0_u32; module_requests.len()];
-    for &request in &module_request_occurrences {
-        module_request_occurrence_counts[request as usize] += 1;
-    }
-    let plan = SourceRequestPlan {
+    let plan = RequestPlan {
         is_external_module: parsed.external_module_indicator.is_some(),
         import_count,
         path_references,
         module_requests,
         unpreprocessed_module_requests,
         module_request_loads,
-        module_request_spans,
-        module_request_occurrences,
-        module_request_occurrence_counts,
+        occurrences,
         module_request_order,
         type_reference_directives,
         lib_reference_directives,
@@ -2488,6 +2555,14 @@ mod direct_library_tests {
         });
         assert!(result.is_err());
         assert_eq!(seen, expected[..expected.len() - 1]);
+
+        let (plan, _) =
+            plan_retaining_syntax::<LoaderOccurrences>(&source, &CompilerOptions::default(), None)
+                .unwrap();
+        let records = &plan.occurrences.records;
+        assert_eq!(records.len(), expected.len());
+        assert!(records[..4].iter().all(|record| record == &records[0]));
+        assert_ne!(records[4], records[0]);
     }
 
     #[test]
@@ -2637,6 +2712,70 @@ mod direct_library_tests {
     }
 
     #[test]
+    fn loader_occurrences_match_expanded_grouped_spans() {
+        let path =
+            crate::ProgramPath::from_js_parts("/main.mts".into(), "/main.mts".into()).unwrap();
+        let text = concat!(
+            "// 😀\nimport 'tslib'; import 'a'; import 'b'; import 'a';",
+            "import c = require('a'); declare module 'aug' {}",
+        );
+        let source =
+            PreparedSourceFile::new(path, text).with_implied_node_format(ResolutionMode::EsNext);
+        let options = CompilerOptions {
+            module: Some(199),
+            module_resolution: Some(99),
+            import_helpers: Some(true),
+            trace_resolution: Some(true),
+            ..CompilerOptions::default()
+        };
+        let (public, _) = plan_source_requests_retaining_syntax(&source, &options, None).unwrap();
+        let (loader, _) =
+            plan_retaining_syntax::<LoaderOccurrences>(&source, &options, None).unwrap();
+        assert_eq!(loader.module_request_order, public.module_request_order());
+        assert_eq!(loader.module_requests, public.module_requests());
+        assert_eq!(loader.module_request_loads, public.module_request_loads);
+        assert_eq!(loader.import_count(), 5);
+        assert_eq!(loader.import_count(), public.import_count());
+        assert_eq!(
+            loader.observed_request_occurrence_count(),
+            public.observed_request_occurrence_count()
+        );
+        assert_eq!(loader.occurrences.synthetic_rows, 1);
+        let mut expected = Vec::new();
+        let mut cursors = vec![0; public.module_requests().len()];
+        for &row in public.module_request_occurrences() {
+            let key = &public.module_requests()[row as usize];
+            let spans = public.module_request_spans(key);
+            let count = public
+                .module_request_occurrences()
+                .iter()
+                .filter(|&&r| r == row)
+                .count();
+            let synthetic_count = count - spans.len();
+            let cursor = &mut cursors[row as usize];
+            let synthetic = *cursor < synthetic_count;
+            let (pos, end) = if synthetic {
+                (0, 0)
+            } else {
+                spans[*cursor - synthetic_count]
+            };
+            expected.push(ImportOccurrence {
+                request: row,
+                pos,
+                end,
+                synthetic,
+            });
+            *cursor += 1;
+        }
+        assert_eq!(loader.occurrences.records, expected);
+        assert_eq!(
+            expected[1].pos as usize,
+            text[..text.find("'tslib'").unwrap()].encode_utf16().count()
+        );
+        assert!(!loader.module_request_loads.last().unwrap());
+    }
+
+    #[test]
     fn a_planning_error_after_parsing_leaves_the_output_empty() {
         let path =
             crate::ProgramPath::from_js_parts("/input.ts".into(), "/input.ts".into()).unwrap();
@@ -2647,7 +2786,7 @@ mod direct_library_tests {
             ..CompilerOptions::default()
         };
         let parsed = std::cell::Cell::new(false);
-        let mut output = None;
+        let mut output: Option<LoaderRequestPlan> = None;
         let result = plan_module_requests_with_parser(
             &source,
             &options,

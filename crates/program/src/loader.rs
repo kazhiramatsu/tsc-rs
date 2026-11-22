@@ -25,8 +25,8 @@ use crate::inclusion_reason::{InclusionReasonRecord, InclusionSource, SourceIncl
 use crate::json::{json_object_get, parse_json_object};
 use crate::library::{replacement_package_name, LibraryCatalog};
 use crate::module_requests::{
-    is_declaration_file_name, plan_source_requests_retaining_syntax, PlannedLibReferenceDirective,
-    PlannedPathReference, PlannedTypeReferenceDirective, SourceRequestPlan,
+    is_declaration_file_name, plan_retaining_syntax, PlannedLibReferenceDirective,
+    PlannedPathReference, PlannedTypeReferenceDirective,
 };
 use crate::module_resolution::{
     make_program_path, HostModuleResolution, HostResolvedTypeReferenceDirective, ModuleResolver,
@@ -2341,18 +2341,13 @@ impl ParallelReadAhead<'_> {
                 } else {
                     None
                 };
-                let implied =
-                    implied_node_format(virtual_file_name.as_js(), scope.as_ref(), self.options);
-                let implied_for_emit = implied_node_format_for_emit(
-                    virtual_file_name.as_js(),
-                    scope.as_ref(),
-                    self.options,
-                );
+                let (implied, implied_for_emit) =
+                    implied_node_formats(virtual_file_name.as_js(), scope.as_ref(), self.options);
                 let prepared = PreparedSourceFile::from_snapshot(path.clone(), canonical.text)
                     .with_content_mapped(canonical.info)
                     .with_implied_node_formats(implied, implied_for_emit);
                 let canonical = Box::new(
-                    match plan_source_requests_retaining_syntax(
+                    match plan_retaining_syntax(
                         &prepared,
                         self.options,
                         self.program_options.parse_cache(),
@@ -2409,6 +2404,7 @@ impl ParallelReadAhead<'_> {
             let directory = resolver.lexical_paths().directory(containing_file);
             let directory_resolutions = self.resolutions.get_or_default(&directory);
             let containing_file_is_declaration = is_declaration_file_name(containing_file);
+            let mut relative_context = None;
             for row in plan.module_rows_mut() {
                 let key = &row.key;
                 let loads_source = row.loads_source;
@@ -2420,6 +2416,7 @@ impl ParallelReadAhead<'_> {
                     None => {
                         let relative = resolver.prepare_relative_request(
                             containing_file,
+                            &mut relative_context,
                             key.specifier(),
                             key.mode(),
                         );
@@ -2960,8 +2957,8 @@ fn parse_root_ahead(
             tsc_types::trace::mark(&format!("load: decode {name} ({byte_len} bytes)"), *started);
         }
         let prepare_started = std::time::Instant::now();
-        let implied = implied_node_format(path.display(), package_scope, options);
-        let implied_for_emit = implied_node_format_for_emit(path.display(), package_scope, options);
+        let (implied, implied_for_emit) =
+            implied_node_formats(path.display(), package_scope, options);
         let prepared = PreparedSourceFile::from_snapshot(path.clone(), text.into_snapshot())
             .with_implied_node_formats(implied, implied_for_emit);
         if let Some((_, name)) = &traced {
@@ -2971,7 +2968,7 @@ fn parse_root_ahead(
         let planned = match discovered {
             // In the worker's room: at its final identities.
             Some((rooms, room)) if parse_cache.is_none() => rooms.plan(room, &prepared, options),
-            _ => plan_source_requests_retaining_syntax(&prepared, options, parse_cache),
+            _ => plan_retaining_syntax(&prepared, options, parse_cache),
         };
         if let Some((_, name)) = &traced {
             tsc_types::trace::mark(&format!("load: parse and plan {name}"), plan_started);
@@ -3109,9 +3106,6 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// The missing-library diagnostics by path: a root of the same path
     /// reports that diagnostic instead of its own.
     missing_library_diagnostics: FxHashMap<JsString, Diagnostic>,
-    /// The kept sources in program order, once the files are collected
-    /// (`finish`); the diagnostics located by program order read it.
-    program_order: Vec<usize>,
     roots: Vec<StagedRoot>,
     type_resolution_by_key: BTreeMap<TypeReferenceResolutionKey, usize>,
     module_batch_order: Vec<usize>,
@@ -3245,7 +3239,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             root_tasks: Vec::new(),
             stack: Vec::new(),
             missing_library_diagnostics: FxHashMap::default(),
-            program_order: Vec::new(),
             roots: Vec::new(),
             module_batch_order: Vec::new(),
             type_resolution_by_key: BTreeMap::new(),
@@ -4242,7 +4235,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             .into_iter()
             .map(|(containing_file, key, loads_source)| {
                 let result = self
-                    .resolve_program_request(&containing_file, &key)
+                    .resolve_program_request(&containing_file, &mut None, &key)
                     .ok()
                     .map(|host| Arc::new(PreparedModule::new(host, key.mode(), &identities)));
                 (key, loads_source, result)
@@ -4858,7 +4851,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         timer.mark("load: graph resolution targets");
         let collected = self.collect_files(timer)?;
         timer.mark("load: graph collection cleanup");
-        self.program_order = collected.order.clone();
         // Collection has fixed the parent spellings. Reasons reference this
         // one immutable source table instead of owning a path and text each.
         let reason_sources = Arc::new(
@@ -5064,7 +5056,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             self.program_diagnostics.push(diagnostic);
         }
         timer.mark("load: graph casing diagnostics");
-        let (option_diagnostics, root_diagnostics) = self.output_directory_diagnostics();
+        let (option_diagnostics, root_diagnostics) =
+            self.output_directory_diagnostics(&collected.order);
         timer.mark("load: graph output directory diagnostics");
         let (reference_diagnostics, build_info_emit_blocked) = self.project_reference_diagnostics();
         timer.mark("load: graph project reference diagnostics");
@@ -5077,12 +5070,19 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             });
             self.program_diagnostics.push(diagnostic);
         }
-        let mut library_postorder = collected
-            .order
-            .iter()
-            .copied()
-            .filter(|&source| self.sources[source].library_priority.is_some())
-            .collect::<Vec<_>>();
+        let mut library_postorder = Vec::new();
+        let mut ordinary_postorder = collected.order;
+        ordinary_postorder.retain(|&source| {
+            if self.sources[source].library_priority.is_some() {
+                library_postorder.push(source);
+                false
+            } else {
+                true
+            }
+        });
+        // The collection reserved space for every staged source, including
+        // discarded redirects. Only ordinary indices survive in this buffer.
+        ordinary_postorder.shrink_to_fit();
         if !library_postorder.is_empty() {
             library_postorder.sort_by_key(|&source| {
                 let staged = &self.sources[source];
@@ -5101,12 +5101,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 )
             });
         }
-        let ordinary_postorder = collected
-            .order
-            .iter()
-            .copied()
-            .filter(|&source| self.sources[source].library_priority.is_none())
-            .collect();
         let mut package_json_probes = self.read_ahead_package_json_probes;
         for resolver in self.project_resolvers.values_mut() {
             package_json_probes.extend(resolver.take_package_json_probes());
@@ -5115,7 +5109,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         if tsc_types::trace::enabled() {
             eprintln!(
                 "[load census] collected: sources {}, redirects {}, module rows {}, type rows {}, inclusion records {}",
-                collected.order.len(), collected.redirects.len(), self.sources.iter().map(|source| source.module_requests.rows.len()).sum::<usize>(), self.type_resolutions.len(),
+                ordinary_postorder.len() + library_postorder.len(), collected.redirects.len(), self.sources.iter().map(|source| source.module_requests.rows.len()).sum::<usize>(), self.type_resolutions.len(),
                 self.sources.iter().map(|source| source.inclusion_reasons.record_count()).sum::<usize>(),
             );
         }
@@ -5278,7 +5272,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// tsc-span: _tsc.js:124639-124657
     /// Root diagnostics join the Program collection; its consumers select
     /// fileless option diagnostics and source-owned semantic diagnostics.
-    fn output_directory_diagnostics(&self) -> (Vec<Diagnostic>, Vec<ExplainingFileDiagnostic>) {
+    fn output_directory_diagnostics(
+        &self,
+        program_order: &[usize],
+    ) -> (Vec<Diagnostic>, Vec<ExplainingFileDiagnostic>) {
         use crate::output_directories::{
             canonical_emit_path, common_source_directory, directory_relative_to_config,
             inferred_common_source_directory, source_file_may_be_emitted_for_options,
@@ -5311,8 +5308,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let context = self.resolver.path_context();
         let current_directory = context.current_directory().display();
         let case_sensitive = context.use_case_sensitive_file_names();
-        let emitted = self
-            .program_order
+        let emitted = program_order
             .iter()
             .map(|&index| &self.sources[index])
             .filter(|source| {
@@ -5508,10 +5504,12 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     fn resolve_program_request(
         &mut self,
         containing_file: &JsString,
+        context: &mut Option<crate::lexical_path_cache::FileResolutionContext>,
         key: &ResolutionKey,
     ) -> Result<HostModuleResolution, ResolutionError> {
         let relative = self.resolver.prepare_relative_request(
             containing_file.as_js(),
+            context,
             key.specifier(),
             key.mode(),
         );
@@ -5548,10 +5546,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         &mut self,
         file: &CanonicalPath,
         containing_file: &JsString,
+        context: &mut Option<crate::lexical_path_cache::FileResolutionContext>,
         key: &ResolutionKey,
     ) -> Result<HostModuleResolution, ResolutionError> {
         let Some(project) = self.project_for_resolution(file) else {
-            return self.resolve_program_request(containing_file, key);
+            return self.resolve_program_request(containing_file, context, key);
         };
         if !self.project_resolvers.contains_key(project.canonical()) {
             let resolver = ModuleResolver::new_with_program_options(
@@ -6013,13 +6012,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             DecodedSource::MappedParsed(parsed) => parsed.prepared.parse_file_name(),
             _ => file_name,
         };
-        let implied =
-            implied_node_format(format_file_name, package_scope.as_deref(), options_for_file);
-        let implied_for_emit = implied_node_format_for_emit(
-            format_file_name,
-            package_scope.as_deref(),
-            options_for_file,
-        );
+        let (implied, implied_for_emit) =
+            implied_node_formats(format_file_name, package_scope.as_deref(), options_for_file);
         // A read-ahead parse is adopted only when its assumptions are the
         // facts computed above; otherwise its decoded text is planned here.
         // tsgo's file handle may give the file a kind of its own (an open
@@ -6192,7 +6186,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         .filter(|_| self.direct_layout);
                     let planned = match rooms {
                         Some(rooms) => rooms.plan(&mut self.walk_room, &prepared, options_for_plan),
-                        None => plan_source_requests_retaining_syntax(
+                        None => plan_retaining_syntax(
                             &prepared,
                             options_for_plan,
                             self.program_options.parse_cache(),
@@ -6231,7 +6225,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             type_reference_directives,
             lib_reference_directives,
             module_request_order,
-            module_request_occurrences: _,
         } = plan.as_mut().map_or_else(
             Default::default,
             PreparedSourceRequests::take_admission_parts,
@@ -7074,7 +7067,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             .collect();
         for key in keys {
             let host = self
-                .resolve_module_for_file(containing_canonical, containing_file, &key)
+                .resolve_module_for_file(containing_canonical, containing_file, &mut None, &key)
                 .map_err(|error| {
                     ProgramLoadError::resolution_js(
                         ProgramLoadOperation::ResolveModule,
@@ -7248,6 +7241,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 self.pre_resolved_hits += request_count;
             } else {
                 let mut containing_directory = None;
+                let mut relative_context = None;
                 for request_index in 0..request_count {
                     if self.sources[source].module_requests.rows[request_index].ready {
                         self.pre_resolved_hits += 1;
@@ -7293,6 +7287,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                                         .resolve_module_for_file(
                                             &containing_canonical,
                                             &containing_file,
+                                            &mut relative_context,
                                             &key,
                                         )
                                         .map_err(|error| {
@@ -8772,25 +8767,43 @@ fn wildcard_package_has_null_typings(
     Ok(json_object_get(&object, "typings").is_some_and(crate::JsonValue::is_null))
 }
 
-/// tsgo `loadSourceFileMetaData`'s `PackageJsonType`: the package scope's
-/// `type` counts only under a node16/nodenext resolution (not for an
-/// explicit `.mts`/`.cts`/`.mjs`/`.cjs` file) or inside `node_modules`.
-fn metadata_package_json_type(
-    file_name: JsStr<'_>,
-    package_scope: Option<&PackageMetadata>,
-    options: &CompilerOptions,
-) -> Option<PackageJsonType> {
-    let explicit_format = [".mts", ".cts", ".mjs", ".cjs"]
-        .iter()
-        .any(|extension| file_name.ends_with(extension));
-    let consulted = (!explicit_format && matches!(options.emit_module_resolution_kind(), 3..=99))
-        || file_name
+/// Only ordinary script extensions take their implied format from a package.
+#[derive(Clone, Copy)]
+enum FormatExtension {
+    Explicit(ResolutionMode),
+    Package,
+    Other,
+}
+
+impl FormatExtension {
+    fn of(name: JsStr<'_>) -> Self {
+        if name.ends_with(".mts") || name.ends_with(".mjs") {
+            Self::Explicit(ResolutionMode::EsNext)
+        } else if name.ends_with(".cts") || name.ends_with(".cjs") {
+            Self::Explicit(ResolutionMode::CommonJs)
+        } else if [".ts", ".tsx", ".js", ".jsx"]
+            .iter()
+            .any(|suffix| name.ends_with(suffix))
+        {
+            Self::Package
+        } else {
+            Self::Other
+        }
+    }
+}
+
+fn package_type_applies(name: JsStr<'_>, options: &CompilerOptions) -> bool {
+    matches!(options.emit_module_resolution_kind(), 3..=99)
+        || name
             .split_ascii(b'/')
-            .any(|segment| segment == "node_modules");
-    if consulted {
-        package_scope.map(PackageMetadata::module_type)
+            .any(|segment| segment == "node_modules")
+}
+
+fn package_format(package_type: Option<PackageJsonType>) -> ResolutionMode {
+    if package_type == Some(PackageJsonType::Module) {
+        ResolutionMode::EsNext
     } else {
-        None
+        ResolutionMode::CommonJs
     }
 }
 
@@ -8804,7 +8817,9 @@ pub(crate) fn implied_node_format(
     options: &CompilerOptions,
 ) -> Option<ResolutionMode> {
     get_implied_node_format_for_file(file_name, || {
-        metadata_package_json_type(file_name, package_scope, options)
+        package_scope
+            .filter(|_| package_type_applies(file_name, options))
+            .map(PackageMetadata::module_type)
     })
 }
 
@@ -8815,25 +8830,11 @@ pub fn get_implied_node_format_for_file(
     file_name: JsStr<'_>,
     package_json_type: impl FnOnce() -> Option<PackageJsonType>,
 ) -> Option<ResolutionMode> {
-    if file_name.ends_with(".d.mts") || file_name.ends_with(".mts") || file_name.ends_with(".mjs") {
-        return Some(ResolutionMode::EsNext);
+    match FormatExtension::of(file_name) {
+        FormatExtension::Explicit(mode) => Some(mode),
+        FormatExtension::Package => Some(package_format(package_json_type())),
+        FormatExtension::Other => None,
     }
-    if file_name.ends_with(".d.cts") || file_name.ends_with(".cts") || file_name.ends_with(".cjs") {
-        return Some(ResolutionMode::CommonJs);
-    }
-    if file_name.ends_with(".d.ts")
-        || file_name.ends_with(".ts")
-        || file_name.ends_with(".tsx")
-        || file_name.ends_with(".js")
-        || file_name.ends_with(".jsx")
-    {
-        return Some(if package_json_type() == Some(PackageJsonType::Module) {
-            ResolutionMode::EsNext
-        } else {
-            ResolutionMode::CommonJs
-        });
-    }
-    None
 }
 
 /// Whether [`implied_node_format`] consults the package scope for this file
@@ -8843,53 +8844,32 @@ fn implied_node_format_needs_package_scope(
     file_name: JsStr<'_>,
     options: &CompilerOptions,
 ) -> bool {
-    if file_name.ends_with(".mts")
-        || file_name.ends_with(".mjs")
-        || file_name.ends_with(".cts")
-        || file_name.ends_with(".cjs")
-    {
-        return false;
-    }
-    let package_eligible = file_name.ends_with(".ts")
-        || file_name.ends_with(".tsx")
-        || file_name.ends_with(".js")
-        || file_name.ends_with(".jsx");
-    package_eligible
-        && (matches!(options.emit_module_resolution_kind(), 3..=99)
-            || file_name
-                .split_ascii(b'/')
-                .any(|segment| segment == "node_modules"))
+    matches!(FormatExtension::of(file_name), FormatExtension::Package)
+        && package_type_applies(file_name, options)
 }
 
-/// tsgo `GetImpliedNodeFormatForEmitWorker`: under a node16..nodenext
-/// module kind the implied format itself; otherwise CommonJS or ESM only
-/// when the metadata's package type (or the extension) says so.
-fn implied_node_format_for_emit(
+/// Derive parse and emit formats together from the selected source name
+/// and its observed scope. Explicit extensions determine both formats.
+fn implied_node_formats(
     file_name: JsStr<'_>,
     package_scope: Option<&PackageMetadata>,
     options: &CompilerOptions,
-) -> Option<ResolutionMode> {
-    let implied = implied_node_format(file_name, package_scope, options)?;
-    if (100..=199).contains(&options.emit_module_kind()) {
-        return Some(implied);
-    }
-    let package_type = metadata_package_json_type(file_name, package_scope, options);
-    match implied {
-        ResolutionMode::CommonJs
-            if package_type == Some(PackageJsonType::CommonJs)
-                || file_name.ends_with(".cjs")
-                || file_name.ends_with(".cts") =>
-        {
-            Some(ResolutionMode::CommonJs)
+) -> (Option<ResolutionMode>, Option<ResolutionMode>) {
+    match FormatExtension::of(file_name) {
+        FormatExtension::Explicit(mode) => (Some(mode), Some(mode)),
+        FormatExtension::Other => (None, None),
+        FormatExtension::Package => {
+            let package_type = package_scope
+                .filter(|_| package_type_applies(file_name, options))
+                .map(PackageMetadata::module_type);
+            let mode = package_format(package_type);
+            let has_emit_format = (100..=199).contains(&options.emit_module_kind())
+                || matches!(
+                    package_type,
+                    Some(PackageJsonType::CommonJs | PackageJsonType::Module)
+                );
+            (Some(mode), has_emit_format.then_some(mode))
         }
-        ResolutionMode::EsNext
-            if package_type == Some(PackageJsonType::Module)
-                || file_name.ends_with(".mjs")
-                || file_name.ends_with(".mts") =>
-        {
-            Some(ResolutionMode::EsNext)
-        }
-        _ => None,
     }
 }
 

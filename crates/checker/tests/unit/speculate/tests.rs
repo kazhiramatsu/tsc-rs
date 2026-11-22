@@ -599,10 +599,11 @@ fn link_protocols_persist_on_commit_and_rollback() {
         let rolled_back_members = state.alloc_members(ResolvedMembers::default());
         let exercise = |state: &mut CheckerState, node, symbol, ty, members| {
             let mut cursor = crate::links::NodeLinksCursor::new(node);
-            cursor.set_call_signature(
+            let entry = cursor.set_call_signature(
                 &mut state.links,
                 state.speculation_depth,
                 LinkSlot::Resolving,
+                None,
             );
             // Other nodes can grow the page and chunk directories during dispatch.
             for offset in 1..=300 {
@@ -625,6 +626,7 @@ fn link_protocols_persist_on_commit_and_rollback() {
                 &mut state.links,
                 state.speculation_depth,
                 LinkSlot::Resolved(state.any_signature),
+                entry,
             );
             state.links.set_node_resolved_type(
                 state.speculation_depth,
@@ -1503,4 +1505,81 @@ let secondError: string = 1;";
             ]
         );
     });
+}
+
+#[test]
+fn call_signature_journal_restores_nested_rejected_and_aborted_trials() {
+    with_program_state(
+        &[("a.ts", "f(); g();")],
+        &CompilerOptions::default(),
+        |state| {
+            let source = state.binder.source(0);
+            let calls: Vec<_> = source
+                .arena
+                .node_ids()
+                .filter(|&node| state.kind_of(node) == SyntaxKind::CallExpression)
+                .collect();
+            let first = calls[0];
+            let second = calls[1];
+            let initial = crate::links::debug_resolving_open();
+            let read = |state: &CheckerState, node| state.links.node(node).resolved_signature.get();
+            let write = |state: &mut CheckerState, node, value| {
+                state.links.set_node_resolved_signature_call_protocol(
+                    state.speculation_depth,
+                    node,
+                    value,
+                );
+            };
+            let check = |state: &CheckerState, mark, extra, a, b| {
+                assert_eq!(state.links.speculative_resolved_signature_mark(), mark);
+                assert_eq!(read(state, first), a);
+                assert_eq!(read(state, second), b);
+                // The open-resolution census counts in debug builds only.
+                let open = if cfg!(debug_assertions) { extra } else { 0 };
+                assert_eq!(crate::links::debug_resolving_open(), initial + open);
+            };
+            check(state, 0, 0, LinkSlot::Vacant, LinkSlot::Vacant);
+            let selected = state.any_signature;
+            state
+                .speculate(|state| {
+                    write(state, first, LinkSlot::Resolving);
+                    check(state, 1, 1, LinkSlot::Resolving, LinkSlot::Vacant);
+
+                    let aborted = state.speculate_with_result(|state| {
+                        write(state, first, LinkSlot::Resolving);
+                        write(state, first, LinkSlot::Resolving);
+                        write(state, second, LinkSlot::Resolving);
+                        check(state, 3, 2, LinkSlot::Resolving, LinkSlot::Resolving);
+                        Err::<SpeculationOutcome<()>, _>("test abort")
+                    });
+                    assert_eq!(aborted, Err("test abort"));
+                    check(state, 1, 1, LinkSlot::Resolving, LinkSlot::Vacant);
+
+                    state.speculate(|state| {
+                        write(state, first, LinkSlot::Resolving);
+                        write(state, second, LinkSlot::Resolving);
+                        check(state, 3, 2, LinkSlot::Resolving, LinkSlot::Resolving);
+                        Ok(SpeculationOutcome::Reject(()))
+                    })?;
+                    check(state, 1, 1, LinkSlot::Resolving, LinkSlot::Vacant);
+
+                    state.speculate(|state| {
+                        write(state, first, LinkSlot::Resolved(selected));
+                        write(state, second, LinkSlot::Resolving);
+                        check(
+                            state,
+                            3,
+                            1,
+                            LinkSlot::Resolved(selected),
+                            LinkSlot::Resolving,
+                        );
+                        Ok(SpeculationOutcome::Commit(()))
+                    })?;
+                    check(state, 1, 0, LinkSlot::Resolved(selected), LinkSlot::Vacant);
+                    Ok(SpeculationOutcome::Commit(()))
+                })
+                .unwrap();
+            check(state, 0, 0, LinkSlot::Resolved(selected), LinkSlot::Vacant);
+        },
+    );
 }

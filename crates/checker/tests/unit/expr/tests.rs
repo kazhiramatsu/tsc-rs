@@ -748,6 +748,28 @@ fn higher_order_generic_argument_lifts_type_parameters() {
 }
 
 #[test]
+fn higher_order_generic_argument_with_unfilled_return_parameters() {
+    for (return_type, expected, instantiations) in [
+        ("(x: A) => B", "<T>(x: T) => T", 9),
+        ("<U>(x: U) => U", "<U>(x: U) => U", 7),
+    ] {
+        let text = format!(
+            "declare function outer<A, B>(fn: (x: A) => B): {return_type};\n\
+             declare function id<T>(x: T): T;\nconst f = outer(id);"
+        );
+        with_program_state(&[("a.ts", &text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let call = find_node(state, SyntaxKind::CallExpression, None);
+            let result = state.get_type_at_location(call).unwrap();
+            assert_eq!(state.type_to_string(result).unwrap(), expected);
+            let diagnostics = rows(state);
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            assert_eq!(state.total_instantiation_count, instantiations);
+        });
+    }
+}
+
+#[test]
 fn quick_call_generic_initializer_resolves_live() {
     // LIVE since 7.4b (the stub era contained this element and the
     // 2339 was a recorded FN): inference types y as '1', so `.bad`
@@ -1199,6 +1221,71 @@ fn narrowable_type_entry_preserves_position_reads_and_type_creation() {
                 trace
             },
         )
+    };
+    assert_eq!(run(true), run(false));
+}
+
+#[test]
+fn expression_literal_dispatch_preserves_fresh_ids_and_grammar_order() {
+    let text = "'ordinary'; 'blocked'; `template`; 9007199254740992; 9007199254740994;";
+    let run = |dispatch| {
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            let source = state.binder.source(0);
+            let statements = source.arena.node(source.root).statements_field().unwrap();
+            let expressions: Vec<_> = state
+                .nodes_of(Some(statements))
+                .into_iter()
+                .map(|node| {
+                    state
+                        .record_of(node)
+                        .as_expression_statement()
+                        .unwrap()
+                        .expression
+                        .unwrap()
+                })
+                .collect();
+            state.skip_direct_inference_nodes.insert(expressions[1]);
+            let mut results = Vec::new();
+            for (index, &node) in expressions.iter().enumerate() {
+                let ty = if dispatch {
+                    state.check_expression(node, CheckMode::NORMAL).unwrap()
+                } else {
+                    let literal = match index {
+                        0 => state.tables.get_string_literal_type("ordinary"),
+                        1 => {
+                            results.push(state.tables.intrinsics.blocked_string);
+                            continue;
+                        }
+                        2 => state.tables.get_string_literal_type("template"),
+                        _ => {
+                            state.check_grammar_numeric_literal(node).unwrap();
+                            let value = if index == 3 {
+                                9_007_199_254_740_992.0
+                            } else {
+                                9_007_199_254_740_994.0
+                            };
+                            state.tables.get_number_literal_type(value)
+                        }
+                    };
+                    state.tables.get_fresh_type_of_literal_type(literal)
+                };
+                results.push(ty);
+            }
+            let diagnostics: Vec<_> = state
+                .diagnostics
+                .iter()
+                .filter_map(|diag| diag.start.map(|start| (diag.code(), start)))
+                .collect();
+            assert_eq!(diagnostics.len(), 2);
+            assert!(diagnostics[0].1 < diagnostics[1].1);
+            (
+                results,
+                diagnostics,
+                state.tables.len(),
+                state.total_instantiation_count,
+                state.binder.transient_symbol_count(),
+            )
+        })
     };
     assert_eq!(run(true), run(false));
 }

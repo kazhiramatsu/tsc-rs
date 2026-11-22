@@ -7339,10 +7339,10 @@ fn sharded_checkers_publish_the_serial_result_over_the_shared_snapshot() {
 
     let libs = [InputFile::new(
         "/lib.sharded-probe.d.ts".to_owned(),
-        "interface IArguments {}\ninterface Array<T> { length: number; [index: number]: T; }\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\n"
+        "interface IArguments {}\ninterface Array<T> { length: number; [index: number]: T; }\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\ndeclare const libError: MissingLibraryType;\n"
             .to_owned(),
     )];
-    let files = [
+    let mut files = vec![
         InputFile::new(
             "/left.ts".to_owned(),
             "interface Merged {\n    [key: string]: number;\n}\n".to_owned(),
@@ -7353,9 +7353,10 @@ fn sharded_checkers_publish_the_serial_result_over_the_shared_snapshot() {
         ),
         InputFile::new(
             "/consumer.ts".to_owned(),
-            "declare const merged: Merged;\n// @ts-expect-error\nconst text: string = merged.anything;\n// @ts-expect-error\nconst fine: number = 1;\n".to_owned(),
+            "/// <reference path=\"missing.ts\" />\ndeclare const merged: Merged;\n// @ts-expect-error\nconst text: string = merged.anything;\n// @ts-expect-error\nconst fine: number = 1;\nfunction leave() { return; leave(); }\n".to_owned(),
         ),
     ];
+    files.extend((4..12).map(|index| InputFile::new(format!("/empty{index}.ts"), "")));
     let lib_metadata = [AuthoritativeSourceMetadata {
         token: AuthoritativeSourceToken(0),
         file_name: libs[0].name.clone(),
@@ -7381,7 +7382,15 @@ fn sharded_checkers_publish_the_serial_result_over_the_shared_snapshot() {
         strict: Some(true),
         ..CompilerOptions::default()
     };
-    let run = |checkers: usize| {
+    let project = |checkers: usize, library_prefix, select: bool| {
+        let mut planner = |snapshot: &ProgramSnapshot,
+                           _: &CheckerSession<'_>,
+                           _: &[IncrementalFileFacts],
+                           _: bool| {
+            let mut check = vec![true; snapshot.documents().len()];
+            check[3] = false;
+            IncrementalPlan { check }
+        };
         check_program_with_authoritative_modules_at_cache_mode_with_source(
             &libs,
             &files,
@@ -7393,16 +7402,20 @@ fn sharded_checkers_publish_the_serial_result_over_the_shared_snapshot() {
             false,
             None,
             None,
-            crate::LibraryPrefixCompletion::Complete,
+            library_prefix,
             crate::DiagnosticSchedule::Eager,
             tsc_program::WorkerBudget::serial(),
             CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap()),
             None,
-            crate::IncrementalRequest::NONE,
+            crate::IncrementalRequest {
+                facts: true,
+                planner: select.then_some(&mut planner),
+            },
             false,
         )
         .expect("authoritative result")
     };
+    let run = |checkers| project(checkers, crate::LibraryPrefixCompletion::Complete, false);
     let shared = check_program_with_authoritative_modules_at_cache_mode(
         &libs,
         &files,
@@ -7417,7 +7430,7 @@ fn sharded_checkers_publish_the_serial_result_over_the_shared_snapshot() {
         crate::LibraryPrefixCompletion::Complete,
         crate::DiagnosticSchedule::Eager,
         tsc_program::WorkerBudget::serial(),
-        crate::IncrementalRequest::NONE,
+        crate::IncrementalRequest::facts_only(true),
         false,
     )
     .expect("shared-provider serial result");
@@ -7452,12 +7465,36 @@ fn sharded_checkers_publish_the_serial_result_over_the_shared_snapshot() {
     );
     assert!(!program.iter().any(|diagnostic| diagnostic.code() == 2322));
 
-    // Four Program files (one library, three fixtures): budgets above four
-    // clamp to four shards, each with its own thread.
-    for checkers in [2usize, 3, 4, 8] {
+    assert_eq!(owners(2304), ["/lib.sharded-probe.d.ts"]);
+    assert_eq!(owners(6053), ["/consumer.ts"]);
+    let facts = &serial.incremental.as_ref().unwrap().files[3];
+    assert!(facts.program_rows.iter().any(|row| row.code() == 6053));
+    assert!(facts
+        .semantic_rows
+        .as_ref()
+        .unwrap()
+        .iter()
+        .all(|row| row.code() != 6053));
+    assert!(serial.file_diagnostics[2]
+        .suggestion
+        .iter()
+        .any(|row| row.code() == 7027));
+    // Each width owns its initialization work. Pin the pre-merge counts at
+    // that width independently of serial diagnostic equality.
+    for (checkers, types, symbols) in [
+        (1, 84, 39),
+        (2, 160, 47),
+        (4, 314, 63),
+        (8, 618, 95),
+        (12, 922, 127),
+    ] {
         let sharded = run(checkers);
         assert_eq!(sharded, serial, "checkers={checkers}");
-        let expected = checkers.min(4) as u64;
+        assert_eq!(sharded.incremental, serial.incremental);
+        assert_eq!(sharded.work_counters.types(), types);
+        assert_eq!(sharded.work_counters.instantiations(), 1);
+        assert_eq!(sharded.work_counters.symbols(), symbols);
+        let expected = checkers as u64;
         assert_eq!(
             sharded.work_counters.checker_shards(),
             expected,
@@ -7481,6 +7518,37 @@ fn sharded_checkers_publish_the_serial_result_over_the_shared_snapshot() {
             sharded.work_counters.bound_documents(),
             serial.work_counters.bound_documents()
         );
+    }
+    let selected = |width| {
+        project(
+            width,
+            crate::LibraryPrefixCompletion::FixtureObservedOnly,
+            true,
+        )
+    };
+    let subset = selected(1);
+    assert!(subset.file_diagnostics[2].suggestion.is_empty());
+    assert!(subset.incremental.as_ref().unwrap().files[3]
+        .semantic_rows
+        .is_none());
+    assert!(subset
+        .program_semantic_diagnostics
+        .as_ref()
+        .unwrap()
+        .iter()
+        .all(|row| row.code() != 2304));
+    for checkers in [2, 4, 8, 12] {
+        let parallel = selected(checkers);
+        assert_eq!(parallel, subset);
+        // Fixture-only shards never visit library files for module facts.
+        // Both drivers still assemble the same incremental diagnostic rows.
+        let files = &parallel.incremental.as_ref().unwrap().files;
+        let expected = &subset.incremental.as_ref().unwrap().files;
+        assert_eq!(files.len(), expected.len());
+        for (file, expected) in files.iter().zip(expected) {
+            assert_eq!(file.semantic_rows, expected.semantic_rows);
+            assert_eq!(file.program_rows, expected.program_rows);
+        }
     }
 }
 

@@ -2343,12 +2343,14 @@ impl CheckerState<'_> {
 
     fn declaration_emit_resolver_node(&self, node: NodeId) -> EmitResolverNode {
         let file_index = self.binder.file_index_of_node(node);
-        let source = if self.authoritative_source_tokens.is_empty() {
+        let source = if self.authoritative_sources.files.is_empty() {
             u32::try_from(file_index).expect("checker file index exceeds SourceFileId")
         } else {
-            self.authoritative_source_tokens
+            self.authoritative_sources
+                .files
                 .get(file_index)
                 .expect("authoritative metadata covers every checker file")
+                .token
                 .0
         };
         EmitResolverNode::from_raw_source(source, node)

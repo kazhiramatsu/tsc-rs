@@ -2673,7 +2673,7 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::OBJECT) {
             let members_id = self.resolve_structured_type_members(ty)?;
             let (call_signatures, construct_signatures, members, properties, index_infos) = {
-                let resolved = &self.members[members_id.index() as usize];
+                let resolved = self.members_of(members_id);
                 (
                     resolved.call_signatures().to_vec(),
                     resolved.construct_signatures().to_vec(),

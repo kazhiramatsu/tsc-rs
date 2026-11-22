@@ -887,3 +887,81 @@ fn synthetic_reference_matches_the_real_path_and_its_prefixes() {
         );
     });
 }
+
+#[test]
+fn narrowing_uses_the_receiver_or_left_operand_for_presence() {
+    use tsc_syntax::SyntaxKind;
+    use tsc_types::TypeFacts;
+    let source = "declare let x: any; x ?? x; x ??= x; x?.p; x?.[0]; x?.(); x?.p!.q;";
+    with_program_state(
+        &[("a.ts", source)],
+        &CompilerOptions {
+            strict_null_checks: Some(true),
+            ..Default::default()
+        },
+        |state| {
+            let tree = state.binder.source(0);
+            let zero = state.tables.get_number_literal_type(0.0);
+            let one = state.tables.get_number_literal_type(1.0);
+            let ty = state
+                .get_union_type_ex(
+                    &[zero, one, state.tables.intrinsics.null],
+                    tsc_types::UnionReduction::Literal,
+                )
+                .unwrap();
+            let mut operands = Vec::new();
+            for node in tree.arena.node_ids() {
+                let record = state.record_of(node);
+                if let Some(binary) = record.as_binary_expression() {
+                    operands.push((binary.left.unwrap(), true));
+                    operands.push((binary.right.unwrap(), false));
+                } else if let Some(non_null) = record.as_non_null_expression() {
+                    operands.push((non_null.expression.unwrap(), false));
+                } else if record.question_dot_token_field().is_some()
+                    && matches!(
+                        record.kind,
+                        SyntaxKind::PropertyAccessExpression
+                            | SyntaxKind::ElementAccessExpression
+                            | SyntaxKind::CallExpression
+                    )
+                {
+                    operands.push((record.expression_field().unwrap(), true));
+                }
+            }
+            assert_eq!(operands.len(), 9);
+            for (expr, presence) in operands {
+                let mut query = super::FlowQuery::for_memo_test(state, expr);
+                for positive in [true, false] {
+                    let facts = match (presence, positive) {
+                        (true, true) => TypeFacts::NE_UNDEFINED_OR_NULL,
+                        (true, false) => TypeFacts::EQ_UNDEFINED_OR_NULL,
+                        (false, true) => TypeFacts::TRUTHY,
+                        (false, false) => TypeFacts::FALSY,
+                    };
+                    let expected = state.get_adjusted_type_with_facts(ty, facts).unwrap();
+                    let counts = |state: &crate::state::CheckerState| {
+                        let c = crate::CheckerCounts::of(state, true);
+                        (
+                            c.types,
+                            c.instantiations,
+                            c.symbols,
+                            state.diagnostics.iter().count(),
+                        )
+                    };
+                    let before = counts(state);
+                    assert_eq!(
+                        state.narrow_type(&mut query, ty, expr, positive).unwrap(),
+                        expected
+                    );
+                    assert_eq!(counts(state), before);
+                }
+            }
+            let mut query = super::FlowQuery::for_memo_test(state, tree.root);
+            assert!(state.parent_of(tree.root).is_none());
+            assert_eq!(
+                state.narrow_type(&mut query, ty, tree.root, true).unwrap(),
+                ty
+            );
+        },
+    );
+}

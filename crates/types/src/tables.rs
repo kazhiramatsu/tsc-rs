@@ -242,6 +242,15 @@ impl InstantiationKey {
     }
 }
 
+/// A slice lookup has interned the arguments of this key. Its hash stays
+/// valid across recursive work, even if the table grows or gains an answer.
+#[derive(Debug)]
+pub struct InstantiationMiss {
+    target: TypeId,
+    key: InstantiationKey,
+    plain_hash: Option<u32>,
+}
+
 /// A bounded front of the instantiations map for its commonest key: a
 /// target with one or two type arguments, no alias and no single-signature
 /// mark. Such a key lies in a slot with its answer — sixteen bytes, at the
@@ -2289,11 +2298,17 @@ impl TypeTables {
         alias_symbol: Option<SymbolId>,
         alias_arguments: Option<&[TypeId]>,
         single_signature: bool,
-    ) -> (InstantiationKey, Option<TypeId>) {
+    ) -> Result<TypeId, InstantiationMiss> {
         if alias_symbol.is_some() || target.index() >= 1 << 31 {
             let key =
                 self.instantiation_key(arguments, alias_symbol, alias_arguments, single_signature);
-            return (key, self.instantiations.full.get(&(target, key)).copied());
+            return self.instantiations.full.get(&(target, key)).copied().ok_or(
+                InstantiationMiss {
+                    target,
+                    key,
+                    plain_hash: None,
+                },
+            );
         }
         let list_hash = hash_type_list(arguments);
         let hash = instantiation_hash(target, single_signature, list_hash);
@@ -2317,13 +2332,21 @@ impl TypeTables {
                 self.instantiations.get(target, key, Some(hash)),
                 Some(entry.value)
             );
-            return (key, Some(entry.value));
+            return Ok(entry.value);
         }
         let key = InstantiationKey {
             single_signature,
             ..InstantiationKey::plain(self.intern_type_list_with_hash(arguments, list_hash))
         };
-        (key, self.instantiations.full.get(&(target, key)).copied())
+        self.instantiations
+            .full
+            .get(&(target, key))
+            .copied()
+            .ok_or(InstantiationMiss {
+                target,
+                key,
+                plain_hash: Some(hash as u32),
+            })
     }
 
     /// The per-target instantiations map (`type.instantiations`) —
@@ -2343,6 +2366,23 @@ impl TypeTables {
     pub fn instantiation_insert(&mut self, target: TypeId, key: InstantiationKey, value: TypeId) {
         let hash = self.instantiation_list_hash(target, key);
         self.instantiations.insert(target, key, value, hash);
+    }
+
+    /// Publish at the current table entry, which recursive work may have filled.
+    pub fn publish_instantiation(&mut self, miss: InstantiationMiss, value: TypeId) {
+        let hash = miss.plain_hash.map(spread_instantiation_hash);
+        debug_assert_eq!(
+            hash,
+            InstantiationCache::packed_key(miss.target, miss.key).map(|_| {
+                instantiation_hash(
+                    miss.target,
+                    miss.key.single_signature,
+                    hash_type_list(self.list(miss.key.arguments)),
+                )
+            })
+        );
+        self.instantiations
+            .insert(miss.target, miss.key, value, hash);
     }
 
     /// The instantiation of `target` under the plain key of `arguments` (no
@@ -3882,18 +3922,20 @@ impl TypeTables {
         if let Some(id) = self.instantiation_front_get(target, type_arguments) {
             return id;
         }
-        let (key, existing) = self.lookup_instantiation(target, type_arguments, None, None, false);
-        if let Some(id) = existing {
-            self.instantiations.front.put(target, type_arguments, id);
-            return id;
-        }
+        let miss = match self.lookup_instantiation(target, type_arguments, None, None, false) {
+            Ok(id) => {
+                self.instantiations.front.put(target, type_arguments, id);
+                return id;
+            }
+            Err(miss) => miss,
+        };
         let symbol = self.type_of(target).symbol;
         let id = self.create_type(
             TypeFlags::OBJECT,
             TypeData::Reference {
                 node_position: 0,
                 target,
-                resolved_type_arguments: Some(key.arguments),
+                resolved_type_arguments: Some(miss.key.arguments),
             },
         );
         let object_flags = ObjectFlags::from_bits(
@@ -3905,7 +3947,7 @@ impl TypeTables {
         );
         self.type_mut(id).object_flags = object_flags;
         self.type_mut(id).symbol = symbol;
-        self.instantiation_insert(target, key, id);
+        self.publish_instantiation(miss, id);
         self.instantiations.front.put(target, type_arguments, id);
         id
     }

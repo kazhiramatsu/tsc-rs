@@ -139,3 +139,29 @@ fn arbitrary_extension_and_typed_host_failure_preserve_the_query_units() {
     assert_eq!(error.js_path(), Some(file.as_js()));
     assert_eq!(error, failure.into());
 }
+
+#[test]
+fn legacy_extension_stems_keep_a_trailing_unpaired_surrogate() {
+    let options = CompilerOptions {
+        module: Some(99),
+        module_resolution: Some(100),
+        ..Default::default()
+    };
+    for (written, selected) in [(".js", ".tsx"), ("", ".tsx")] {
+        let request = named("./long-stem-", 0xd800, written);
+        let file = named("/work/long-stem-", 0xd800, selected);
+        let host = MemoryCompilerHost::builder("/work")
+            .file_js(file.clone(), Vec::new())
+            .build()
+            .unwrap();
+        let ResolutionOutcome::Resolved(module) = ModuleResolver::new(&host, &options)
+            .unwrap()
+            .resolve("/work/main.ts", &request, ResolutionMode::CommonJs)
+            .unwrap()
+        else {
+            panic!("expected a .tsx hit after the .ts miss");
+        };
+        assert_eq!(module.resolved_file().display(), file.as_js());
+        assert_eq!(module.extension(), &ModuleExtension::Tsx);
+    }
+}

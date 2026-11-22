@@ -14,7 +14,7 @@ use tsc_types::{
 
 use crate::json::{
     decode_user_object_key, json_number_as_f64, json_object_get, json_object_own_get,
-    parse_json_object,
+    parse_json_object, read_peer_version,
 };
 use crate::path::ProgramPath;
 use crate::prepared::{
@@ -304,13 +304,13 @@ impl HostModuleResolution {
 }
 
 /// The spellings for one relative request eligible for the target cache.
-pub(crate) struct PreparedRelativeRequest<'specifier> {
-    context: FileResolutionContext,
+pub(crate) struct PreparedRelativeRequest<'context, 'specifier> {
+    context: &'context FileResolutionContext,
     specifier: JsStr<'specifier>,
     target_key: (LexicalPath, ResolutionMode),
 }
 
-impl PreparedRelativeRequest<'_> {
+impl PreparedRelativeRequest<'_, '_> {
     pub(crate) fn target_key(&self) -> &(LexicalPath, ResolutionMode) {
         &self.target_key
     }
@@ -658,6 +658,27 @@ pub struct PackageJsonProbe {
     pub exists: bool,
 }
 
+/// An exact missing spelling already belongs to the map as its key.
+#[derive(Clone)]
+enum RecordedProbe {
+    MissingAtKey,
+    Spelled(PackageJsonProbe),
+}
+
+const _: () = assert!(size_of::<RecordedProbe>() <= size_of::<PackageJsonProbe>());
+
+impl RecordedProbe {
+    fn into_public(self, key: impl FnOnce() -> JsString) -> PackageJsonProbe {
+        match self {
+            Self::MissingAtKey => PackageJsonProbe {
+                path: key(),
+                exists: false,
+            },
+            Self::Spelled(probe) => probe,
+        }
+    }
+}
+
 /// A suffix-free hit borrows its canonical query; only an expanded
 /// moduleSuffixes candidate needs a new owner.
 enum ProbedFile<'a> {
@@ -999,7 +1020,7 @@ pub struct ModuleResolver<'a> {
     shared_package_loads: Option<Arc<SharedPackageLoads>>,
     /// Every package.json this resolver probed, by canonical path (see
     /// [`PackageJsonProbe`]).
-    package_json_probes: std::cell::RefCell<BTreeMap<JsString, PackageJsonProbe>>,
+    package_json_probes: std::cell::RefCell<BTreeMap<JsString, RecordedProbe>>,
     /// Record the real path of a found package.json (an incremental program
     /// writes it to its build info; tsgo `ensurePackageJsonsForState`).
     record_package_json_realpaths: bool,
@@ -1281,12 +1302,13 @@ impl<'a> ModuleResolver<'a> {
     /// containing directory) to be absent and no API resolution in front; a
     /// traced request names its containing file, and a redirected
     /// resolver's requests are not the program's.
-    pub(crate) fn prepare_relative_request<'specifier>(
+    pub(crate) fn prepare_relative_request<'context, 'specifier>(
         &self,
         containing_file: JsStr<'_>,
+        batch: &'context mut Option<FileResolutionContext>,
         specifier: JsStr<'specifier>,
         mode: ResolutionMode,
-    ) -> Option<PreparedRelativeRequest<'specifier>> {
+    ) -> Option<PreparedRelativeRequest<'context, 'specifier>> {
         if !is_path_relative_specifier(specifier)
             || specifier.contains("\0")
             || self.trace.is_some()
@@ -1299,10 +1321,30 @@ impl<'a> ModuleResolver<'a> {
         {
             return None;
         }
-        let context = self
-            .lexical_paths
-            .file_context(containing_file, self.current_directory_text())
-            .ok()?;
+        let context = match batch {
+            Some(context) => {
+                // The uncached spelling operations have no side effects when
+                // path instrumentation is disabled.
+                #[cfg(not(feature = "loader-counters"))]
+                debug_assert!({
+                    normalize_absolute_js_path(
+                        containing_file,
+                        Some(self.current_directory_text()),
+                        true,
+                    )
+                    .is_ok_and(|file| {
+                        file == *context.file
+                            && crate::js_path::directory_name(file.as_js()) == *context.directory
+                    })
+                });
+                context
+            }
+            None => batch.insert(
+                self.lexical_paths
+                    .file_context(containing_file, self.current_directory_text())
+                    .ok()?,
+            ),
+        };
         let target = self
             .lexical_paths
             .normalize(specifier, Some(context.directory.as_js()), true)
@@ -1733,16 +1775,17 @@ impl<'a> ModuleResolver<'a> {
     pub fn package_json_probes(&self) -> Vec<PackageJsonProbe> {
         self.package_json_probes
             .borrow()
-            .values()
-            .cloned()
+            .iter()
+            .map(|(key, probe)| probe.clone().into_public(|| key.clone()))
             .collect()
     }
 
     /// Take the probes (see [`Self::package_json_probes`]) out of a resolver
     /// that is about to be dropped.
     pub fn take_package_json_probes(&mut self) -> Vec<PackageJsonProbe> {
-        std::mem::take(&mut *self.package_json_probes.borrow_mut())
-            .into_values()
+        std::mem::take(self.package_json_probes.get_mut())
+            .into_iter()
+            .map(|(key, probe)| probe.into_public(|| key))
             .collect()
     }
 
@@ -2005,7 +2048,7 @@ impl<'a> ModuleResolver<'a> {
     /// for that same request. The eligibility check excluded API overrides.
     pub(crate) fn resolve_prepared_relative(
         &mut self,
-        request: &PreparedRelativeRequest<'_>,
+        request: &PreparedRelativeRequest<'_, '_>,
     ) -> Result<HostModuleResolution, ResolutionError> {
         self.resolve_request(
             &request.context.file,
@@ -5798,9 +5841,10 @@ impl<'a> ModuleResolver<'a> {
                 .host
                 .directory_exists_js(JsStr::from(&js_directory_name(candidate)))?
         {
-            if let Some((base, probes)) = replacement {
+            if let Some((base, probes)) = replacement.filter(|(_, probes)| !probes.is_empty()) {
+                let stem_len = base.as_bytes().len();
+                let mut path = base.to_owned();
                 for (extension, suffix) in probes {
-                    let mut path = base.to_owned();
                     path.push_str(suffix);
                     if let Some(resolved_path) = self.try_file(&path)? {
                         let extension = materialize_module_extension(extension, suffix);
@@ -5816,6 +5860,7 @@ impl<'a> ModuleResolver<'a> {
                             },
                         );
                     }
+                    assert!(path.truncate_bytes(stem_len));
                 }
             }
             if let Some(extension) = self.extra_extension_of(candidate) {
@@ -5852,8 +5897,12 @@ impl<'a> ModuleResolver<'a> {
             {
                 return Ok(ResolutionOutcome::NotFound);
             }
+            if probes.is_empty() {
+                return Ok(ResolutionOutcome::NotFound);
+            }
+            let stem_len = candidate.as_bytes().len();
+            let mut path = candidate.to_owned();
             for (extension, suffix) in probes {
-                let mut path = candidate.to_owned();
                 path.push_str(suffix);
                 if let Some(resolved_path) = self.try_file(&path)? {
                     return self.finish_legacy_resolution(
@@ -5869,6 +5918,7 @@ impl<'a> ModuleResolver<'a> {
                         },
                     );
                 }
+                assert!(path.truncate_bytes(stem_len));
             }
         }
         Ok(ResolutionOutcome::NotFound)
@@ -6118,16 +6168,21 @@ impl<'a> ModuleResolver<'a> {
         if self.package_json_probes.borrow().contains_key(cache_key) {
             return Ok(());
         }
-        let path = if exists && self.record_package_json_realpaths {
-            self.host
-                .realpath_js(package_json)?
-                .unwrap_or_else(|| package_json.to_owned())
+        let probe = if !exists && package_json == cache_key.as_js() {
+            RecordedProbe::MissingAtKey
         } else {
-            package_json.to_owned()
+            let path = if exists && self.record_package_json_realpaths {
+                self.host
+                    .realpath_js(package_json)?
+                    .unwrap_or_else(|| package_json.to_owned())
+            } else {
+                package_json.to_owned()
+            };
+            RecordedProbe::Spelled(PackageJsonProbe { path, exists })
         };
         self.package_json_probes
             .borrow_mut()
-            .insert(cache_key.clone(), PackageJsonProbe { path, exists });
+            .insert(cache_key.clone(), probe);
         Ok(())
     }
 
@@ -6286,19 +6341,14 @@ impl<'a> ModuleResolver<'a> {
                     peer_package_json.as_js().to_string_lossy()
                 ))
             })?;
-            let (_, peer) = parse_json_object(peer_package_json.as_js(), text);
+            let snapshot = tsc_diagnostics::TextSnapshot::new(text, Default::default());
+            let version =
+                read_peer_version(peer_package_json.as_js(), &snapshot).unwrap_or_default();
             suffix.push_str("+");
             suffix.push_js(name.as_js());
             suffix.push_str("@");
-            let version = json_object_get(&peer, "version").and_then(Value::as_js);
-            if let Some(version) = version {
-                suffix.push_js(version);
-            }
-            peers.push((
-                name,
-                peer_package_json,
-                Some(version.map(JsStr::to_owned).unwrap_or_else(JsString::new)),
-            ));
+            suffix.push_js(version.as_js());
+            peers.push((name, peer_package_json, Some(version)));
         }
         Ok(PeerDependencyLookup {
             suffix: Some(suffix),
@@ -9208,56 +9258,205 @@ mod shared_package_loads_tests {
     }
 
     #[test]
-    fn prepared_relative_request_preserves_resolution_and_target_spelling() {
-        let host = host(true);
-        let settings = options(false);
-        for (specifier, target) in [
-            ("./main", "/work/src/main"),
-            ("../node_modules/pkg/", "/work/node_modules/pkg/"),
-            ("./missing", "/work/src/missing"),
-        ] {
-            let mode = ResolutionMode::CommonJs;
-            let mut ordinary = ModuleResolver::new(&host, &settings).unwrap();
-            let expected = ordinary
-                .resolve_with_facts("src/main.ts", specifier, mode)
+    fn legacy_extension_stems_keep_probe_and_trace_order() {
+        use tsc_host::HostOperation::{DirectoryExists, FileExists};
+        let stem = "/work/long-stem-😀";
+        let candidate = format!("{stem}.js");
+        for implicit in [false, true] {
+            let winning_stem = if implicit { candidate.as_str() } else { stem };
+            let winner = format!("{winning_stem}.mobile.tsx");
+            let mut host = host(true);
+            host.inner = MemoryCompilerHost::builder("/work")
+                .file(&winner, Vec::new())
+                .build()
                 .unwrap();
-            let expected_reads = host.reads.take();
+            let settings = CompilerOptions {
+                module_suffixes: Some(vec![
+                    crate::ModuleSuffix::value(".desktop"),
+                    crate::ModuleSuffix::value(".mobile"),
+                ]),
+                ..options(true)
+            };
             let mut resolver = ModuleResolver::new(&host, &settings).unwrap();
-            let request = resolver
-                .prepare_relative_request("src/main.ts".into(), specifier.into(), mode)
+            host.probes.take();
+            let result = resolver
+                .probe_legacy_file(
+                    None,
+                    candidate.as_str(),
+                    ExtensionProbePass::Preferred,
+                    true,
+                    LegacyResolutionContext {
+                        is_external_library_import: false,
+                        attach_package_id: false,
+                        resolved_using_ts_extension: false,
+                        follow_realpath: false,
+                    },
+                )
                 .unwrap();
-            assert_eq!(request.target_key().0.as_js(), target);
-            assert_eq!(request.target_key().1, mode);
+            let ResolutionOutcome::Resolved(module) = result else {
+                panic!("expected suffix hit");
+            };
+            assert_eq!(module.resolved_file().display(), winner.as_str());
+            let mut trace = vec![format!(
+                "File name '{candidate}' has a '.js' extension - stripping it."
+            )];
+            let mut calls = vec![(DirectoryExists, std::ffi::OsString::from("/work"))];
+            if implicit {
+                for suffix in [
+                    ".desktop.ts",
+                    ".mobile.ts",
+                    ".desktop.tsx",
+                    ".mobile.tsx",
+                    ".desktop.d.ts",
+                    ".mobile.d.ts",
+                ] {
+                    let miss = format!("{stem}{suffix}");
+                    trace.push(format!("File '{miss}' does not exist."));
+                    calls.push((FileExists, miss.into()));
+                }
+                calls.push((DirectoryExists, "/work".into()));
+            }
+            for suffix in [".desktop.ts", ".mobile.ts", ".desktop.tsx"] {
+                let miss = format!("{winning_stem}{suffix}");
+                trace.push(format!("File '{miss}' does not exist."));
+                calls.push((FileExists, miss.into()));
+            }
+            trace.push(format!(
+                "File '{winner}' exists - use it as a name resolution result."
+            ));
+            calls.push((FileExists, winner.into()));
+            assert_eq!(host.probes.take(), calls);
             assert_eq!(
-                resolver.resolve_prepared_relative(&request).unwrap(),
-                expected
+                resolver
+                    .take_trace()
+                    .iter()
+                    .map(|line| line.text())
+                    .collect::<Vec<_>>(),
+                trace
             );
-            assert_eq!(
-                resolver.package_json_probes(),
-                ordinary.package_json_probes()
-            );
-            assert_eq!(host.reads.take(), expected_reads);
         }
-        let traced = options(true);
-        let resolver = ModuleResolver::new(&host, &traced).unwrap();
-        let prepare_main = |resolver: &ModuleResolver<'_>| {
-            resolver.prepare_relative_request(
-                "src/main.ts".into(),
-                "./main".into(),
-                ResolutionMode::CommonJs,
-            )
-        };
-        assert!(prepare_main(&resolver).is_none());
-        let redirected = ModuleResolver::new(&host, &settings)
-            .unwrap()
-            .with_redirect_config("/work/redirect/tsconfig.json".into(), false);
-        assert!(prepare_main(&redirected).is_none());
+    }
+
+    #[test]
+    fn missing_probes_publish_the_first_display_spelling_and_positive_realpath() {
+        for sensitive in [true, false] {
+            let host = MemoryCompilerHost::builder("/work")
+                .case_sensitive(sensitive)
+                .realpath("/work/link/package.json", "/real/package.json")
+                .file("/work/link/package.json", b"{}".to_vec())
+                .file("/real/package.json", b"{}".to_vec())
+                .build()
+                .unwrap();
+            let settings = CompilerOptions {
+                incremental: Some(true),
+                ..options(false)
+            };
+            let mut resolver = ModuleResolver::new(&host, &settings).unwrap();
+            let first = "/work/Mixed/package.json";
+            let missing = canonical_text(first, sensitive);
+            resolver
+                .record_package_json_probe(&missing, first.into(), false)
+                .unwrap();
+            resolver
+                .record_package_json_probe(&missing, missing.as_js(), true)
+                .unwrap();
+            let link: JsString = "/work/link/package.json".into();
+            resolver
+                .record_package_json_probe(&link, link.as_js(), true)
+                .unwrap();
+            let peer: JsString = "/work/node_modules/peer/package.json".into();
+            resolver
+                .record_package_json_probe(&peer, peer.as_js(), false)
+                .unwrap();
+            let public = resolver.package_json_probes();
+            assert_eq!(public.len(), 3);
+            for (path, exists) in [
+                (first, false),
+                ("/real/package.json", true),
+                ("/work/node_modules/peer/package.json", false),
+            ] {
+                assert!(public.contains(&PackageJsonProbe {
+                    path: path.into(),
+                    exists
+                }));
+            }
+            assert!(matches!(
+                resolver.package_json_probes.borrow().get(&peer),
+                Some(RecordedProbe::MissingAtKey)
+            ));
+            assert_eq!(resolver.take_package_json_probes(), public);
+            assert!(resolver.package_json_probes().is_empty());
+        }
+    }
+
+    #[test]
+    fn prepared_relative_request_preserves_resolution_and_target_spelling() {
+        let mode = ResolutionMode::CommonJs;
         let root =
             crate::ProgramPath::from_js_parts("/work/src".into(), "/work/src".into()).unwrap();
-        let program_options = crate::ProgramOptions::default().with_root_dirs(vec![root]);
-        let with_roots =
-            ModuleResolver::new_with_program_options(&host, &settings, &program_options).unwrap();
-        assert!(prepare_main(&with_roots).is_none());
+        let no_roots = crate::ProgramOptions::default();
+        let roots = crate::ProgramOptions::default().with_root_dirs(vec![root]);
+        for (trace, redirect, paths) in [
+            (false, false, &no_roots),
+            (true, false, &no_roots),
+            (false, true, &no_roots),
+            (false, false, &roots),
+        ] {
+            let settings = options(trace);
+            let baseline = host(true);
+            let batched = host(true);
+            let [mut ordinary, mut resolver] = [&baseline, &batched].map(|host| {
+                let resolver =
+                    ModuleResolver::new_with_program_options(host, &settings, paths).unwrap();
+                if redirect {
+                    resolver.with_redirect_config("/work/redirect/tsconfig.json".into(), false)
+                } else {
+                    resolver
+                }
+            });
+            for containing in [
+                "src/main.ts",
+                "/work/other/../src/main.ts",
+                "/work/other/alias.ts",
+            ] {
+                let mut batch = None;
+                for specifier in ["./main", "../node_modules/pkg/", "./missing", "./main"] {
+                    let expected = ordinary
+                        .resolve_with_facts(containing, specifier, mode)
+                        .unwrap();
+                    let request = resolver.prepare_relative_request(
+                        containing.into(),
+                        &mut batch,
+                        specifier.into(),
+                        mode,
+                    );
+                    assert_eq!(
+                        request.is_some(),
+                        !trace && !redirect && paths.root_dirs().is_none_or(|dirs| dirs.is_empty())
+                    );
+                    let actual = match request {
+                        Some(request) => {
+                            assert_eq!(
+                                request.target_key().0.ends_with("/"),
+                                specifier.ends_with("/")
+                            );
+                            resolver.resolve_prepared_relative(&request)
+                        }
+                        None => {
+                            assert!(batch.is_none());
+                            resolver.resolve_with_facts(containing, specifier, mode)
+                        }
+                    }
+                    .unwrap();
+                    assert_eq!(actual, expected);
+                    assert_eq!(
+                        resolver.package_json_probes(),
+                        ordinary.package_json_probes()
+                    );
+                    assert_eq!(batched.probes.take(), baseline.probes.take());
+                }
+            }
+        }
     }
 
     /// A resolver of a load takes another resolver's package.json lookup:

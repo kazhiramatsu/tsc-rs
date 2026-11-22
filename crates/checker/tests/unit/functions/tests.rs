@@ -1365,3 +1365,206 @@ fn type_predicate_complexity_boundary_wraps_only_the_captured_diagnostic() {
         }
     }
 }
+
+#[test]
+fn written_modifier_queries_preserve_syntactic_answers() {
+    use tsc_binder::node_util::has_syntactic_modifier;
+    use tsc_syntax::Published;
+    use tsc_types::{ModifierFlags, NodeFlags};
+
+    let text = "async function run<const T>(value: T) {}
+class C { accessor x = 0; constructor(public y: number) {} }
+namespace Outer.Inner {}";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let queries = [
+            (SyntaxKind::FunctionDeclaration, ModifierFlags::ASYNC),
+            (SyntaxKind::TypeParameter, ModifierFlags::CONST),
+            (SyntaxKind::PropertyDeclaration, ModifierFlags::ACCESSOR),
+            (
+                SyntaxKind::Parameter,
+                ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
+            ),
+        ];
+        let mut found = [false; 4];
+        let mut found_unmodified_parameter = false;
+        let mut found_nested_namespace = false;
+        for node in state.binder.source(0).arena.node_ids() {
+            let record = state.record_of(node);
+            for (index, (kind, mask)) in queries.into_iter().enumerate() {
+                let written = state.has_written_modifier(node, mask);
+                assert_eq!(written, has_syntactic_modifier(&Published, node, mask));
+                if record.kind == kind {
+                    found[index] |= written;
+                    found_unmodified_parameter |= kind == SyntaxKind::Parameter && !written;
+                }
+            }
+            if record.kind == SyntaxKind::ModuleDeclaration
+                && NodeFlags::from_bits(record.flags).intersects(NodeFlags::NESTED_NAMESPACE)
+            {
+                assert!(record.modifiers_field().is_none());
+                assert!(has_syntactic_modifier(
+                    &Published,
+                    node,
+                    ModifierFlags::EXPORT
+                ));
+                found_nested_namespace = true;
+            }
+        }
+        assert_eq!(found, [true; 4]);
+        assert!(found_unmodified_parameter && found_nested_namespace);
+    });
+}
+
+#[test]
+fn singleton_export_checks_keep_merged_and_alias_diagnostics() {
+    let text = "export interface I {}
+export type T = I;
+export class C {}
+export enum E { One }
+export function f(): void {}
+interface Mixed {}
+export interface Mixed {}
+export default class Defaulted {}
+interface Defaulted {}
+namespace N { export type Value = string; }
+export import Alias = N.Value;
+declare const value: Alias;
+const mismatch: number = value;";
+    let rows = checked_rows(text);
+    let relevant: Vec<_> = rows
+        .into_iter()
+        .filter(|row| matches!(row.0, 2395 | 2652 | 2322))
+        .map(|row| row.0)
+        .collect();
+    assert_eq!(relevant, [2395, 2395, 2652, 2652, 2322]);
+}
+
+#[test]
+fn parameter_spelling_keeps_keyword_diagnostics_in_order() {
+    let text = r"function ordinary(aVeryLongOrdinaryParameterName: number, caf\u00e9: number) {
+    return aVeryLongOrdinaryParameterName + café;
+}
+function misplaced(value: number, this: object) {}
+class C { constructor(value: number, this: object) {} }
+type Ctor = new (value: number, placeholder: object) => object;";
+    let domain = tsc_types::IdentityDomain::new();
+    let mut source =
+        tsc_syntax::parse_source_file("a.ts", text, tsc_syntax::ParseOptions::default(), None);
+    assert!(
+        source.parse_diagnostics.is_empty(),
+        "{:?}",
+        source.parse_diagnostics
+    );
+    // The regular binding parser rejects the reserved word. Form the
+    // recovery parameter directly to exercise the checker's `new` branch.
+    let placeholder = source
+        .arena
+        .node_ids()
+        .find(|&node| {
+            source
+                .arena
+                .node(node)
+                .as_identifier()
+                .is_some_and(|data| data.escaped_text.identifier_text() == "placeholder")
+        })
+        .unwrap();
+    source.arena.set_data(
+        placeholder,
+        tsc_syntax::NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
+            escaped_text: tsc_types::EscapedName::from_escaped_value("new".into()),
+        }),
+    );
+    source.relocate_into_identity_domain(&domain).unwrap();
+    let binder = tsc_binder::Binder::bind_in_identity_domain(&mut source, &domain).unwrap();
+    let options = CompilerOptions::default();
+    let mut state = crate::state::CheckerState::from_program(vec![&binder], &options);
+    state.check_source_file(0);
+    let relevant: Vec<_> = state
+        .diagnostics
+        .iter()
+        .filter(|diag| matches!(diag.code(), 2680 | 2681))
+        .map(|diag| {
+            (
+                diag.code(),
+                diag.message_text().to_string_lossy().into_owned(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        relevant,
+        [
+            (
+                2680,
+                "A 'this' parameter must be the first parameter.".to_owned()
+            ),
+            (
+                2680,
+                "A 'this' parameter must be the first parameter.".to_owned()
+            ),
+            (
+                2681,
+                "A constructor cannot have a 'this' parameter.".to_owned()
+            ),
+            (
+                2680,
+                "A 'new' parameter must be the first parameter.".to_owned()
+            ),
+            (
+                2681,
+                "A constructor cannot have a 'this' parameter.".to_owned()
+            ),
+        ]
+    );
+}
+
+#[test]
+fn overload_adjacency_uses_positions_only_within_the_same_parent() {
+    let text = "function adjacent(x: number): number;
+function adjacent(x: number): number { return x; }
+function separated(x: number): number;
+const gap = 0;
+function separated(x: number): number { return x; }
+class A { constructor(x: number); constructor(x: number) {} }
+class B { constructor(x: number); gap = 0; constructor(x: number) {} }";
+    let adjacency: Vec<_> = checked_rows(text)
+        .into_iter()
+        .filter(|row| matches!(row.0, 2389..=2391))
+        .collect();
+    assert_eq!(
+        adjacency,
+        [
+            (2391, text.find("separated").unwrap() as u32, 9),
+            (
+                2390,
+                (text.find("class B { ").unwrap() + "class B { ".len()) as u32,
+                11
+            ),
+        ]
+    );
+
+    with_program_state(
+        &[
+            ("a.ts", "function cross(x: number): number;"),
+            ("b.ts", "function cross(x: number): number { return x; }"),
+        ],
+        &CompilerOptions::default(),
+        |state| {
+            let symbol = state
+                .resolve_file_scope_name("cross", tsc_types::SymbolFlags::VALUE)
+                .unwrap();
+            let &[overload, implementation] = state.binder.symbol(symbol).declarations() else {
+                panic!("one global symbol with two declarations");
+            };
+            assert_ne!(state.parent_of(overload), state.parent_of(implementation));
+            assert_ne!(
+                state.record_of(overload).end,
+                state.record_of(implementation).pos
+            );
+            state.check_function_or_constructor_symbol(symbol).unwrap();
+            assert!(state
+                .diagnostics
+                .iter()
+                .all(|diag| !matches!(diag.code(), 2389..=2391)));
+        },
+    );
+}

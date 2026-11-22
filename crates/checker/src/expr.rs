@@ -202,12 +202,15 @@ impl<'a> CheckerState<'a> {
         if let Some(return_signature) = return_signature {
             let return_signature_generic =
                 self.signature_of(return_signature).has_type_parameters();
-            let all_have_candidates = self
-                .inference_context(context)
-                .inferences
-                .iter()
-                .all(|&slot| crate::inference::has_inference_candidates(self.inference_info(slot)));
-            if !return_signature_generic && !all_have_candidates {
+            if !return_signature_generic
+                && !self
+                    .inference_context(context)
+                    .inferences
+                    .iter()
+                    .all(|&slot| {
+                        crate::inference::has_inference_candidates(self.inference_info(slot))
+                    })
+            {
                 let unique_type_parameters =
                     self.get_unique_type_parameters(context, &type_parameters)?;
                 let instantiated_signature = self
@@ -547,7 +550,8 @@ impl<'a> CheckerState<'a> {
         check_mode: CheckMode,
         force_tuple: bool,
     ) -> CheckResult<TypeId> {
-        match self.kind_of(node) {
+        let record = self.record_of(node);
+        match record.kind {
             SyntaxKind::Identifier => self.check_identifier(node, check_mode),
             SyntaxKind::PrivateIdentifier => self.check_private_identifier_expression(node),
             SyntaxKind::ThisKeyword => self.check_this_expression(node),
@@ -557,7 +561,7 @@ impl<'a> CheckerState<'a> {
                 if self.has_skip_direct_inference_flag(node) {
                     return Ok(self.tables.intrinsics.blocked_string);
                 }
-                let text = match_record! { self.record_of(node), {
+                let text = match_record! { record, {
                     as_string_literal(data) => self.text_js(data.text),
                     as_no_substitution_template_literal(data) => self.text_js(data.text),
                     _ => unreachable!("kind/data agree"),
@@ -567,7 +571,7 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::NumericLiteral => {
                 self.check_grammar_numeric_literal(node)?;
-                let Some(data) = self.record_of(node).as_numeric_literal() else {
+                let Some(data) = record.as_numeric_literal() else {
                     unreachable!("kind/data agree");
                 };
                 let value = crate::annotate::parse_numeric_literal_text(self.text_utf8(data.text))?;
@@ -2577,13 +2581,13 @@ impl<'a> CheckerState<'a> {
                 if self.kind_of(current) != SyntaxKind::ArrowFunction {
                     break;
                 }
-                if node_util::has_syntactic_modifier(&Published, current, ModifierFlags::ASYNC) {
+                if self.has_written_modifier(current, ModifierFlags::ASYNC) {
                     in_async_function = true;
                 }
                 container = self.get_super_container(current, true);
             }
             if let Some(current) = container {
-                if node_util::has_syntactic_modifier(&Published, current, ModifierFlags::ASYNC) {
+                if self.has_written_modifier(current, ModifierFlags::ASYNC) {
                     in_async_function = true;
                 }
             }
@@ -3680,9 +3684,11 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
             let symbol = self.tables.type_of(ty).symbol;
             return Ok(symbol.is_some_and(|s| {
-                self.binder.symbol(s).declarations().iter().any(|&d| {
-                    node_util::has_syntactic_modifier(&Published, d, ModifierFlags::CONST)
-                })
+                self.binder
+                    .symbol(s)
+                    .declarations()
+                    .iter()
+                    .any(|&d| self.has_written_modifier(d, ModifierFlags::CONST))
             }));
         }
         if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
