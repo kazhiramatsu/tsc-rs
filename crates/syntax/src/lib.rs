@@ -503,6 +503,13 @@ impl SourceFile {
     }
 }
 
+/// The written modifier mask of a published array, read without its nodes.
+#[inline]
+pub fn published_node_array_modifier_flags(id: NodeArrayId) -> tsc_types::ModifierFlags {
+    let record: &nodes::NodeArrayRecord = tsc_store::get(id.position());
+    record.modifier_flags()
+}
+
 /// A source file's own tree, for the walkers and `node_util`.
 impl NodeLookup for SourceFile {
     #[inline]

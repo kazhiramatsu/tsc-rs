@@ -667,15 +667,8 @@ impl<'a> CheckerState<'a> {
                     matches!(
                         self.kind_of(parent),
                         SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
-                    ) && !node_util::has_syntactic_modifier(
-                        &Published,
-                        node,
-                        ModifierFlags::ABSTRACT,
-                    ) && !node_util::has_syntactic_modifier(
-                        &Published,
-                        node,
-                        ModifierFlags::AMBIENT,
-                    )
+                    ) && !self.has_written_modifier(node, ModifierFlags::ABSTRACT)
+                        && !self.has_written_modifier(node, ModifierFlags::AMBIENT)
                 }
             }),
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor | SyntaxKind::MethodDeclaration => {
@@ -1070,7 +1063,7 @@ impl<'a> CheckerState<'a> {
         Ok(match self.kind_of(parent) {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => 1,
             SyntaxKind::PropertyDeclaration => {
-                if node_util::has_syntactic_modifier(&Published, parent, ModifierFlags::ACCESSOR) {
+                if self.has_written_modifier(parent, ModifierFlags::ACCESSOR) {
                     3
                 } else {
                     2
@@ -1209,7 +1202,7 @@ impl<'a> CheckerState<'a> {
                 let value_type = self.get_type_of_symbol(symbol)?;
                 let this_type = self.decorator_this_type_of_member(parent, class_node)?;
                 let has_accessor_modifier =
-                    node_util::has_syntactic_modifier(&Published, parent, ModifierFlags::ACCESSOR);
+                    self.has_written_modifier(parent, ModifierFlags::ACCESSOR);
                 let target_type = if has_accessor_modifier {
                     self.create_class_accessor_decorator_target_type(this_type, value_type)?
                 } else {
@@ -1379,12 +1372,8 @@ impl<'a> CheckerState<'a> {
                 } else {
                     self.create_typed_property_descriptor_type(node_type)?
                 };
-                let has_prop_desc = !is_property
-                    || node_util::has_syntactic_modifier(
-                        &Published,
-                        parent,
-                        ModifierFlags::ACCESSOR,
-                    );
+                let has_prop_desc =
+                    !is_property || self.has_written_modifier(parent, ModifierFlags::ACCESSOR);
                 let target_param = self.create_synthetic_parameter("target", target_type);
                 let key_param = self.create_synthetic_parameter("propertyKey", key_type);
                 let full_return_type =
@@ -1531,7 +1520,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::GetAccessor => self.get_global_class_getter_decorator_context_type()?,
             SyntaxKind::SetAccessor => self.get_global_class_setter_decorator_context_type()?,
             SyntaxKind::PropertyDeclaration => {
-                if node_util::has_syntactic_modifier(&Published, node, ModifierFlags::ACCESSOR) {
+                if self.has_written_modifier(node, ModifierFlags::ACCESSOR) {
                     self.get_global_class_accessor_decorator_context_type()?
                 } else {
                     self.get_global_class_field_decorator_context_type()?
@@ -6069,11 +6058,7 @@ impl<'a> CheckerState<'a> {
                 .symbol
                 .and_then(|symbol| self.get_class_like_declaration_of_symbol(symbol));
             if let Some(value_decl) = value_decl {
-                if node_util::has_syntactic_modifier(
-                    &Published,
-                    value_decl,
-                    ModifierFlags::ABSTRACT,
-                ) {
+                if self.has_written_modifier(value_decl, ModifierFlags::ABSTRACT) {
                     self.error_at(
                         Some(node),
                         &diagnostics::Cannot_create_an_instance_of_an_abstract_class,

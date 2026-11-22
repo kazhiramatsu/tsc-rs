@@ -1365,3 +1365,52 @@ fn type_predicate_complexity_boundary_wraps_only_the_captured_diagnostic() {
         }
     }
 }
+
+#[test]
+fn written_modifier_queries_preserve_syntactic_answers() {
+    use tsc_binder::node_util::has_syntactic_modifier;
+    use tsc_syntax::Published;
+    use tsc_types::{ModifierFlags, NodeFlags};
+
+    let text = "async function run<const T>(value: T) {}
+class C { accessor x = 0; constructor(public y: number) {} }
+namespace Outer.Inner {}";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let queries = [
+            (SyntaxKind::FunctionDeclaration, ModifierFlags::ASYNC),
+            (SyntaxKind::TypeParameter, ModifierFlags::CONST),
+            (SyntaxKind::PropertyDeclaration, ModifierFlags::ACCESSOR),
+            (
+                SyntaxKind::Parameter,
+                ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
+            ),
+        ];
+        let mut found = [false; 4];
+        let mut found_unmodified_parameter = false;
+        let mut found_nested_namespace = false;
+        for node in state.binder.source(0).arena.node_ids() {
+            let record = state.record_of(node);
+            for (index, (kind, mask)) in queries.into_iter().enumerate() {
+                let written = state.has_written_modifier(node, mask);
+                assert_eq!(written, has_syntactic_modifier(&Published, node, mask));
+                if record.kind == kind {
+                    found[index] |= written;
+                    found_unmodified_parameter |= kind == SyntaxKind::Parameter && !written;
+                }
+            }
+            if record.kind == SyntaxKind::ModuleDeclaration
+                && NodeFlags::from_bits(record.flags).intersects(NodeFlags::NESTED_NAMESPACE)
+            {
+                assert!(record.modifiers_field().is_none());
+                assert!(has_syntactic_modifier(
+                    &Published,
+                    node,
+                    ModifierFlags::EXPORT
+                ));
+                found_nested_namespace = true;
+            }
+        }
+        assert_eq!(found, [true; 4]);
+        assert!(found_unmodified_parameter && found_nested_namespace);
+    });
+}

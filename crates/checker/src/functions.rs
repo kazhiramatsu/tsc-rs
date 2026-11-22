@@ -1935,11 +1935,7 @@ impl<'a> CheckerState<'a> {
         // rest token (reparser.go:188-194).
         let reparsed_rest = self.kind_of(node) == SyntaxKind::JSDocParameterTag
             && self.is_rest_parameter_declaration(node);
-        if node_util::has_syntactic_modifier(
-            &Published,
-            node,
-            tsc_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
-        ) {
+        if self.has_written_modifier(node, tsc_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER) {
             if self.options.erasable_syntax_only == Some(true) {
                 self.error_at(
                     Some(node),
@@ -2559,7 +2555,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ef8656cf63ef4572437e31c6e94657e5d7347469b8186a82faf2194ccf706b59
     /// tsc-span: _tsc.js:82010-82012
     pub(crate) fn is_private_within_ambient(&self, node: NodeId) -> bool {
-        (node_util::has_syntactic_modifier(&Published, node, tsc_types::ModifierFlags::PRIVATE)
+        (self.has_written_modifier(node, tsc_types::ModifierFlags::PRIVATE)
             || self.is_private_identifier_class_element(node))
             && NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT)
     }
@@ -2607,7 +2603,7 @@ impl<'a> CheckerState<'a> {
         }
         self.check_function_or_method_declaration(node)?;
         let body = node_util::body_of(&Published, node);
-        if node_util::has_syntactic_modifier(&Published, node, tsc_types::ModifierFlags::ABSTRACT)
+        if self.has_written_modifier(node, tsc_types::ModifierFlags::ABSTRACT)
             && is_method_declaration
             && body.is_some()
         {
@@ -2659,7 +2655,7 @@ impl<'a> CheckerState<'a> {
             NodeData::PropertyDeclaration(data) => data.initializer,
             _ => None,
         };
-        if node_util::has_syntactic_modifier(&Published, node, tsc_types::ModifierFlags::ABSTRACT)
+        if self.has_written_modifier(node, tsc_types::ModifierFlags::ABSTRACT)
             && self.kind_of(node) == SyntaxKind::PropertyDeclaration
             && initializer.is_some()
         {
@@ -2874,10 +2870,7 @@ impl<'a> CheckerState<'a> {
                 self.data_of(member),
                 NodeData::PropertyDeclaration(data)
                     if data.initializer.is_some()
-                        && !node_util::has_syntactic_modifier(&Published,
-                            member,
-                            tsc_types::ModifierFlags::STATIC,
-                        )
+                        && !self.has_written_modifier(member, tsc_types::ModifierFlags::STATIC)
             )
         })
     }
@@ -2889,8 +2882,7 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         self.nodes_of(parameters).iter().any(|&parameter| {
-            node_util::has_syntactic_modifier(
-                &Published,
+            self.has_written_modifier(
                 parameter,
                 tsc_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
             )
@@ -3401,11 +3393,7 @@ impl<'a> CheckerState<'a> {
             // nodeIsPresent(body). A parser-inserted missing body is still a
             // body node and must not produce the 2389/2391 family.
             if node_util::body_of(&Published, last).is_none()
-                && !node_util::has_syntactic_modifier(
-                    &Published,
-                    last,
-                    tsc_types::ModifierFlags::ABSTRACT,
-                )
+                && !self.has_written_modifier(last, tsc_types::ModifierFlags::ABSTRACT)
                 && !self.has_question_token(last)
             {
                 self.report_implementation_expected_error(last, is_constructor)?;
@@ -3531,16 +3519,10 @@ impl<'a> CheckerState<'a> {
                             self.kind_of(node),
                             SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature
                         );
-                        let node_static = node_util::has_syntactic_modifier(
-                            &Published,
-                            node,
-                            tsc_types::ModifierFlags::STATIC,
-                        );
-                        let subsequent_static = node_util::has_syntactic_modifier(
-                            &Published,
-                            subsequent,
-                            tsc_types::ModifierFlags::STATIC,
-                        );
+                        let node_static =
+                            self.has_written_modifier(node, tsc_types::ModifierFlags::STATIC);
+                        let subsequent_static =
+                            self.has_written_modifier(subsequent, tsc_types::ModifierFlags::STATIC);
                         if is_method && node_static != subsequent_static {
                             let diagnostic = if node_static {
                                 &diagnostics::Function_overload_must_be_static
@@ -3575,11 +3557,7 @@ impl<'a> CheckerState<'a> {
                 &diagnostics::Constructor_implementation_is_missing,
                 &[],
             );
-        } else if node_util::has_syntactic_modifier(
-            &Published,
-            node,
-            tsc_types::ModifierFlags::ABSTRACT,
-        ) {
+        } else if self.has_written_modifier(node, tsc_types::ModifierFlags::ABSTRACT) {
             self.error_at(
                 Some(error_node),
                 &diagnostics::All_declarations_of_an_abstract_method_must_be_consecutive,
@@ -4426,16 +4404,9 @@ impl<'a> CheckerState<'a> {
                     parent_kind,
                     Some(SyntaxKind::ClassDeclaration) | Some(SyntaxKind::ClassExpression)
                 );
-                let is_static = node_util::has_syntactic_modifier(
-                    &Published,
-                    node,
-                    tsc_types::ModifierFlags::STATIC,
-                );
-                let has_abstract = node_util::has_syntactic_modifier(
-                    &Published,
-                    node,
-                    tsc_types::ModifierFlags::ABSTRACT,
-                );
+                let is_static = self.has_written_modifier(node, tsc_types::ModifierFlags::STATIC);
+                let has_abstract =
+                    self.has_written_modifier(node, tsc_types::ModifierFlags::ABSTRACT);
                 let ambient =
                     NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT);
                 if !is_class_parent
@@ -4492,20 +4463,12 @@ impl<'a> CheckerState<'a> {
         // both faces.
         let ambient = NodeFlags::from_bits(self.node_flags(accessor))
             .intersects(NodeFlags::AMBIENT)
-            || node_util::has_syntactic_modifier(
-                &Published,
-                accessor,
-                tsc_types::ModifierFlags::AMBIENT,
-            );
+            || self.has_written_modifier(accessor, tsc_types::ModifierFlags::AMBIENT);
         let in_type_container = matches!(
             parent_kind,
             Some(SyntaxKind::TypeLiteral) | Some(SyntaxKind::InterfaceDeclaration)
         );
-        let has_abstract = node_util::has_syntactic_modifier(
-            &Published,
-            accessor,
-            tsc_types::ModifierFlags::ABSTRACT,
-        );
+        let has_abstract = self.has_written_modifier(accessor, tsc_types::ModifierFlags::ABSTRACT);
         if !ambient && !in_type_container && body.is_none() && !has_abstract {
             let end = Published.node(accessor).end;
             return Ok(self.grammar_error_at_pos(

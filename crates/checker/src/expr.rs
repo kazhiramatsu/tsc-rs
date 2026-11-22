@@ -2580,13 +2580,13 @@ impl<'a> CheckerState<'a> {
                 if self.kind_of(current) != SyntaxKind::ArrowFunction {
                     break;
                 }
-                if node_util::has_syntactic_modifier(&Published, current, ModifierFlags::ASYNC) {
+                if self.has_written_modifier(current, ModifierFlags::ASYNC) {
                     in_async_function = true;
                 }
                 container = self.get_super_container(current, true);
             }
             if let Some(current) = container {
-                if node_util::has_syntactic_modifier(&Published, current, ModifierFlags::ASYNC) {
+                if self.has_written_modifier(current, ModifierFlags::ASYNC) {
                     in_async_function = true;
                 }
             }
@@ -3683,9 +3683,11 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
             let symbol = self.tables.type_of(ty).symbol;
             return Ok(symbol.is_some_and(|s| {
-                self.binder.symbol(s).declarations().iter().any(|&d| {
-                    node_util::has_syntactic_modifier(&Published, d, ModifierFlags::CONST)
-                })
+                self.binder
+                    .symbol(s)
+                    .declarations()
+                    .iter()
+                    .any(|&d| self.has_written_modifier(d, ModifierFlags::CONST))
             }));
         }
         if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {

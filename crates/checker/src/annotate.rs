@@ -183,10 +183,25 @@ impl<'a> CheckerState<'a> {
 
     /// The modifier flags a modifiers array keeps (tsgo
     /// `ModifierList.ModifierFlags`).
+    #[inline]
     pub(crate) fn modifier_flags_of(&self, array: Option<NodeArrayId>) -> ModifierFlags {
-        array.map_or(ModifierFlags::NONE, |array| {
-            self.binder.node_array(array).modifier_flags
-        })
+        array.map_or(
+            ModifierFlags::NONE,
+            tsc_syntax::published_node_array_modifier_flags,
+        )
+    }
+
+    /// Test a written modifier whose result is independent of implicit namespace exports.
+    #[inline]
+    pub(crate) fn has_written_modifier(&self, node: NodeId, mask: ModifierFlags) -> bool {
+        debug_assert!(!mask.intersects(ModifierFlags::EXPORT));
+        let record = self.record_of(node);
+        let kind = record.kind as u16;
+        if (SyntaxKind::FirstToken as u16..=SyntaxKind::LastToken as u16).contains(&kind) {
+            return false;
+        }
+        self.modifier_flags_of(record.modifiers_field())
+            .intersects(mask)
     }
 
     /// tsrs-native: typed Identifier projection for tsc's direct

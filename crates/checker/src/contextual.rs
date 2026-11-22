@@ -537,11 +537,7 @@ impl<'a> CheckerState<'a> {
                 self.get_contextual_type_for_binding_element(declaration, context_flags)
             }
             SyntaxKind::PropertyDeclaration
-                if node_util::has_syntactic_modifier(
-                    &Published,
-                    declaration,
-                    ModifierFlags::STATIC,
-                ) =>
+                if self.has_written_modifier(declaration, ModifierFlags::STATIC) =>
             {
                 self.get_contextual_type_for_static_property_declaration(declaration, context_flags)
             }
@@ -1426,9 +1422,7 @@ impl<'a> CheckerState<'a> {
                 flags |= FUNCTION_FLAGS_GENERATOR;
             }
         }
-        if async_eligible
-            && node_util::has_syntactic_modifier(&Published, node, ModifierFlags::ASYNC)
-        {
+        if async_eligible && self.has_written_modifier(node, ModifierFlags::ASYNC) {
             flags |= FUNCTION_FLAGS_ASYNC;
         }
         let body = match_record! { self.record_of(node), {
