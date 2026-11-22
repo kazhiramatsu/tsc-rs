@@ -3149,13 +3149,24 @@ fn parse_program_inputs(
         })
         .collect();
     // Fixture-file shadowing (unchanged from the libless world): a
-    // later file with the same name shadows an earlier one entirely.
+    // later file with the same name shadows an earlier one entirely. The
+    // loader's Program has one source a path and names each once, so its
+    // inputs alone shadow nothing and the table of last occurrences is not
+    // made (ten thousand file names hashed twice in a large program).
+    let unique_names = authoritative_run.is_some() && files_outside_program == 0;
+    let shadowing = !unique_names || cfg!(debug_assertions);
     let mut last_index_by_name = rustc_hash::FxHashMap::default();
-    for (index, file) in files.iter().enumerate() {
-        if file.host_only {
-            continue;
+    if shadowing {
+        for (index, file) in files.iter().enumerate() {
+            if file.host_only {
+                continue;
+            }
+            let earlier = last_index_by_name.insert(file.name.as_js(), index);
+            debug_assert!(
+                !unique_names || earlier.is_none(),
+                "the loader's Program names a file twice"
+            );
         }
-        last_index_by_name.insert(file.name.as_js(), index);
     }
     tsc_types::trace::mark(
         "checker: admission (package facts, source order)",
@@ -3209,7 +3220,7 @@ fn parse_program_inputs(
             authoritative_file_index += 1;
             metadata
         });
-        if last_index_by_name.get(&file.name.as_js()) != Some(&index) {
+        if shadowing && last_index_by_name.get(&file.name.as_js()) != Some(&index) {
             continue;
         }
         // tsc createProgram only loads roots with supported extensions;
