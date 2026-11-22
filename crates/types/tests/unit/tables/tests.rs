@@ -1437,6 +1437,56 @@ fn an_instantiation_target_is_seeded_once() {
 /// three are left to the map; a
 /// slot holds one key (another key of the same slot replaces it, and both
 /// are still answered by the map); and when the map changes an answer the
+/// The front's size follows the reservation: twice the lists the checker is
+/// expected to hold, between 4,096 and 65,536 slots; an unsized front has the
+/// most. A front of any size answers what was put, a key at a time a slot,
+/// and the reserved bytes the tables report include its slots.
+#[test]
+fn the_instantiation_front_is_sized_from_the_reservation() {
+    let sized = |lists: usize| {
+        let mut front = InstantiationFront::default();
+        front.size_for(lists);
+        front.bits
+    };
+    assert_eq!(InstantiationFront::default().bits, 16);
+    assert_eq!(sized(0), 12);
+    assert_eq!(sized(2_048), 12);
+    assert_eq!(sized(2_049), 13);
+    assert_eq!(sized(14_836), 15);
+    assert_eq!(sized(29_673), 16);
+    assert_eq!(sized(1 << 16), 16);
+    assert_eq!(sized(usize::MAX), 16);
+
+    // A program of 400 symbols a checker: the smallest front.
+    let mut t = tables();
+    let before = t.reserved_lookup_bytes();
+    t.reserve_capacity_hint(12_800, 400);
+    assert_eq!(t.instantiations.front.bits, 12);
+    assert!(t.reserved_lookup_bytes() < before);
+    let (string, number) = (t.intrinsics.string, t.intrinsics.number);
+    let target = t.intrinsics.any;
+    let one = t.create_type_reference(target, &[string]);
+    let two = t.create_type_reference(target, &[string, number]);
+    assert_eq!(t.instantiations.front.slots.len(), 1 << 12);
+    assert_eq!(t.instantiation_front_get(target, &[string]), Some(one));
+    assert_eq!(
+        t.instantiation_front_get(target, &[string, number]),
+        Some(two)
+    );
+    // Sizing again after the first entry changes nothing.
+    t.reserve_capacity_hint(1 << 24, 1 << 22);
+    assert_eq!(t.instantiations.front.bits, 12);
+    assert_eq!(t.instantiation_front_get(target, &[string]), Some(one));
+
+    // Every key's slot lies inside a front of its size.
+    for bits in [12, 15, 16] {
+        for index in 0..4_096u32 {
+            let key = [index + 1, index.wrapping_mul(2_654_435_761) | 1, index % 3];
+            assert!(InstantiationFront::slot(key, bits) < 1 << bits);
+        }
+    }
+}
+
 /// front forgets what it held.
 #[test]
 fn the_instantiation_front_repeats_the_map_for_one_or_two_arguments() {
@@ -1498,7 +1548,8 @@ fn the_instantiation_front_repeats_the_map_for_one_or_two_arguments() {
         .find(|&candidate| {
             candidate != string
                 && InstantiationFront::key(target, &[candidate]).is_some_and(|key| {
-                    InstantiationFront::slot(key) == InstantiationFront::slot(first)
+                    let bits = InstantiationFront::MAX_BITS;
+                    InstantiationFront::slot(key, bits) == InstantiationFront::slot(first, bits)
                 })
         })
         .unwrap();

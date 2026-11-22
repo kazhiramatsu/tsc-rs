@@ -1126,6 +1126,91 @@ fn authoritative_sources_follow_the_snapshot_and_install_atomically() {
     assert_eq!(reordered.file_index(AuthoritativeSourceToken(7)), Some(1));
 }
 
+/// A checker of a pool reserves its lookup tables (the type-list map, the
+/// literal map, the instantiation map and its front, the relation pairs)
+/// for half the program; the one checker of a program for all of it. The
+/// reservation is capacity alone: both checkers check the program to the
+/// same diagnostics and the same types in the same order.
+#[test]
+fn a_pooled_checker_reserves_its_lookup_tables_for_half_the_program() {
+    assert_eq!(CheckerState::lookup_share(0), 1);
+    assert_eq!(CheckerState::lookup_share(1), 1);
+    assert_eq!(CheckerState::lookup_share(2), 2);
+    assert_eq!(CheckerState::lookup_share(12), 2);
+
+    let domain = IdentityDomain::new();
+    // Forty thousand declarations: reservations well above the tables'
+    // smallest sizes, so that half of one is a smaller table.
+    let mut declarations = String::from(
+        "interface Object {} interface Function {} interface CallableFunction {} \
+         interface NewableFunction {} interface IArguments {} interface String {} \
+         interface Number {} interface Boolean {} interface RegExp {} \
+         interface Array<T> { length: number }\n",
+    );
+    for index in 0..40_000 {
+        declarations.push_str(&format!("declare const v{index}: number;\n"));
+    }
+    let documents = vec![
+        bound_document_for_snapshot(
+            "/lib.d.ts",
+            TextSnapshot::new(declarations, Default::default()),
+            &domain,
+        ),
+        bound_document_for_snapshot(
+            "/use.ts",
+            TextSnapshot::new(
+                "const a: number[] = [v1, v2]; const b: string = v3;".to_owned(),
+                Default::default(),
+            ),
+            &domain,
+        ),
+    ];
+    let snapshot = ProgramSnapshot::new(documents, 1).unwrap();
+    let options = CompilerOptions::default();
+    let run = |pool_size| {
+        let mut state =
+            CheckerState::from_snapshot_deferring_globals(&snapshot, &options, false, pool_size);
+        let reserved = (
+            state.tables.reserved_lookup_bytes(),
+            state.relations.memory_usage().1,
+        );
+        state.initialize_deferred_program_globals();
+        state.merge_module_augmentations_around(|checker| {
+            checker.materialize_init_global_diagnostics()
+        });
+        for file in 0..snapshot.documents().len() {
+            state.check_source_file(file);
+        }
+        let creation_order: Vec<_> = (0..state.tables.len())
+            .map(|index| {
+                state
+                    .tables
+                    .type_of(tsc_types::TypeId::new(index as u32))
+                    .clone()
+            })
+            .collect();
+        (reserved, state.diagnostics.to_vec(), creation_order)
+    };
+    let (whole, whole_diagnostics, whole_types) = run(1);
+    let (pooled, pooled_diagnostics, pooled_types) = run(4);
+    assert!(
+        pooled.0 < whole.0,
+        "type tables: {} against {}",
+        pooled.0,
+        whole.0
+    );
+    assert!(
+        pooled.1 < whole.1,
+        "relation pairs: {} against {}",
+        pooled.1,
+        whole.1
+    );
+    // `const b: string = v3` is an error in both.
+    assert!(!whole_diagnostics.is_empty());
+    assert_eq!(pooled_diagnostics, whole_diagnostics);
+    assert_eq!(pooled_types, whole_types);
+}
+
 #[test]
 fn snapshot_augmentations_keep_both_merge_passes_in_checker_order() {
     let domain = IdentityDomain::new();
@@ -1146,7 +1231,8 @@ fn snapshot_augmentations_keep_both_merge_passes_in_checker_order() {
     let inputs = crate::merge::AugmentationInputs::for_snapshot(&snapshot);
     let options = CompilerOptions::default();
     let run = |shared| {
-        let mut state = CheckerState::from_snapshot_deferring_globals(&snapshot, &options, false);
+        let mut state =
+            CheckerState::from_snapshot_deferring_globals(&snapshot, &options, false, 1);
         state.initialize_deferred_program_globals();
         let between =
             |checker: &mut CheckerState<'_>| checker.materialize_init_global_diagnostics();

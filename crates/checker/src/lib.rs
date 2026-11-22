@@ -3628,11 +3628,16 @@ fn init_checker_state<'a>(
     augmentations: Option<&merge::AugmentationInputs>,
     checker_index: Option<usize>,
     measure_lane_costs: bool,
+    pool_size: usize,
 ) -> state::CheckerState<'a> {
     #[cfg(feature = "phase-ledger")]
     tsc_types::phase_ledger::switch(tsc_types::phase_ledger::Phase::CheckerInit);
-    let mut state =
-        state::CheckerState::from_snapshot_deferring_globals(snapshot, options, measure_lane_costs);
+    let mut state = state::CheckerState::from_snapshot_deferring_globals(
+        snapshot,
+        options,
+        measure_lane_costs,
+        pool_size,
+    );
     // tsgo `NewTracer` per checker of the pool: the checker's events carry
     // its index and its types file is written when the state ends.
     if let (Some(index), Some(tracing)) = (
@@ -4534,6 +4539,7 @@ fn run_checker_shard<'a>(
         Some(&augmentations),
         Some(shard_index),
         queue.measures_costs(),
+        queue.shard_count(),
     );
     drop(augmentations);
     reserve_type_tables(&mut state, reserved_nodes);
@@ -5278,6 +5284,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
                 Some(&augmentations),
                 None,
                 false,
+                1,
             );
             reserve_type_tables(&mut state, 0);
             let facts = incremental::planner_facts(&mut state, &program_diagnostics);
@@ -5849,8 +5856,16 @@ fn check_snapshot_serially(
     planner: Option<&mut IncrementalPlanner<'_>>,
 ) -> CheckExecution {
     let init_started = std::time::Instant::now();
-    let mut state =
-        init_checker_state(snapshot, options, authoritative, host, None, Some(0), false);
+    let mut state = init_checker_state(
+        snapshot,
+        options,
+        authoritative,
+        host,
+        None,
+        Some(0),
+        false,
+        1,
+    );
     reserve_type_tables(&mut state, snapshot_node_count(snapshot));
     let global_diagnostics = if collect_global_diagnostics {
         let mut rows = state.visible_global_diagnostics.clone();
@@ -6345,6 +6360,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             None,
             Some(0),
             false,
+            1,
         );
         reserve_type_tables(&mut state, snapshot_node_count(&snapshot));
         work_counters.record_checker_shards(1, 1);

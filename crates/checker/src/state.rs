@@ -2176,7 +2176,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: Rust checker arena/cache construction around the
     /// separately ledgered initializeTypeChecker slices.
     pub fn from_program(binders: Vec<&'a Binder<'a>>, options: &'a CompilerOptions) -> Self {
-        Self::from_program_binder(ProgramBinder::new(binders), options, true, false)
+        Self::from_program_binder(ProgramBinder::new(binders), options, true, false, 1)
     }
 
     /// Fresh checker-session construction over an already parsed and bound
@@ -2185,7 +2185,13 @@ impl<'a> CheckerState<'a> {
     /// remain session-local.
     /// tsrs-native: fresh checker session over an immutable ProgramSnapshot.
     pub fn from_snapshot(snapshot: &'a ProgramSnapshot, options: &'a CompilerOptions) -> Self {
-        Self::from_program_binder(ProgramBinder::from_snapshot(snapshot), options, true, false)
+        Self::from_program_binder(
+            ProgramBinder::from_snapshot(snapshot),
+            options,
+            true,
+            false,
+            1,
+        )
     }
 
     /// [`Self::from_snapshot`] without the globals merge: the caller installs
@@ -2194,18 +2200,42 @@ impl<'a> CheckerState<'a> {
     /// declarations of an ambient module resolves an alias among their
     /// exports (mergeSymbol's resolveSymbol(target)), and that can need a
     /// module of the program.
+    ///
+    /// `pool_size` is the number of checkers that share the program's files
+    /// (1 for a checker that checks them all): it sizes the lookup tables
+    /// (see [`Self::lookup_share`]).
     /// tsrs-native: two-step construction for the program driver.
     pub(crate) fn from_snapshot_deferring_globals(
         snapshot: &'a ProgramSnapshot,
         options: &'a CompilerOptions,
         measure_lane_costs: bool,
+        pool_size: usize,
     ) -> Self {
         Self::from_program_binder(
             ProgramBinder::from_snapshot(snapshot),
             options,
             false,
             measure_lane_costs,
+            pool_size,
         )
+    }
+
+    /// The divisor of the program's counts for a checker's lookup-table
+    /// reservations: 1 for the one checker of a program, 2 for a checker of a
+    /// pool. A checker of a pool resolves its own files and what they
+    /// reach: at four checkers between a quarter and a half of the type
+    /// lists, instantiations and relation pairs the one checker of the same
+    /// program holds (the TypeScript compiler's sources: 31-42 %, 35-43 %,
+    /// 23-44 %; playwright: up to 50 %, 47 %, 37 %). Reserved for the whole
+    /// program, each checker's hash tables were two to four times too large,
+    /// and a hash table's pages are all resident once a few hundred entries
+    /// are in it. A table that needs more than its reservation grows.
+    pub(crate) const fn lookup_share(pool_size: usize) -> usize {
+        if pool_size > 1 {
+            2
+        } else {
+            1
+        }
     }
 
     /// The initializeTypeChecker slice a constructor runs unless it was
@@ -2292,6 +2322,7 @@ impl<'a> CheckerState<'a> {
         options: &'a CompilerOptions,
         initialize_globals: bool,
         measure_lane_costs: bool,
+        pool_size: usize,
     ) -> Self {
         let strict_null_checks = options.strict_option_value(options.strict_null_checks);
         let strict_function_types = options.strict_option_value(options.strict_function_types);
@@ -2344,7 +2375,8 @@ impl<'a> CheckerState<'a> {
             symbol_id_end =
                 symbol_id_end.max(binder.file(file_index).symbols.next_id().index() as usize);
         }
-        tables.reserve_capacity_hint(program_nodes, program_symbols);
+        let lookup_share = Self::lookup_share(pool_size);
+        tables.reserve_capacity_hint(program_nodes / lookup_share, program_symbols / lookup_share);
         tsc_types::names::reserve_capacity_hint(program_symbols / 4);
 
         let mut state = Self {
@@ -2377,7 +2409,7 @@ impl<'a> CheckerState<'a> {
             contextual_relevant: Default::default(),
             deferred_reference_members: Default::default(),
             named_member_order_buffers: Default::default(),
-            relations: RelationCaches::with_capacity_hint(program_symbols),
+            relations: RelationCaches::with_capacity_hint(program_symbols / lookup_share),
             subtype_reduction_cache: rustc_hash::FxHashMap::default(),
             inference_visited: Default::default(),
             infer_memo: crate::infer_memo::InferMemo::new(),
