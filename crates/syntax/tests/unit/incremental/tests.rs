@@ -392,6 +392,18 @@ fn import_attribute_and_typescript_extension_edits_are_fresh_equivalent() {
 }
 
 #[test]
+fn fresh_list_recovery_matches_incremental_with_reusable_statements() {
+    let before = "const keep = 1; function f(a b) { return { x: 1; y: 2 }; } const tail = 3;";
+    let stats = compare_incremental(before, before.find("y: 2").unwrap() + 3, 1, "4");
+    let reused: Vec<_> = stats
+        .reused_old_ranges
+        .iter()
+        .map(|&(start, end, _)| before[start as usize..end as usize].trim())
+        .collect();
+    assert_eq!(reused, ["const tail = 3;"]);
+}
+
+#[test]
 fn pinned_incremental_parser_core_cases_are_fresh_equivalent() {
     let cases = [
         (

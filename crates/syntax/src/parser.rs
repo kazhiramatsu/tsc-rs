@@ -1558,8 +1558,21 @@ impl<'text> Parser<'text> {
         result
     }
 
-    fn current_node(&self, context: ParsingContext) -> Option<ReusableNode> {
-        let cursor = self.syntax_cursor.as_ref()?;
+    /// Fresh lists have no candidates. Keep their eligibility and element
+    /// parsing paths out of the incremental lookup frame.
+    #[inline]
+    fn current_node(&self, context: ParsingContext, incremental: bool) -> Option<ReusableNode> {
+        debug_assert_eq!(incremental, self.syntax_cursor.is_some());
+        if incremental {
+            self.current_node_from_cursor(context)
+        } else {
+            None
+        }
+    }
+
+    #[inline(never)]
+    fn current_node_from_cursor(&self, context: ParsingContext) -> Option<ReusableNode> {
+        let cursor = self.syntax_cursor.as_ref().expect("incremental list");
         if !Self::is_reusable_parsing_context(context) || self.parse_error_before_next_finished_node
         {
             return None;
@@ -1814,6 +1827,7 @@ impl<'text> Parser<'text> {
         collect_modules: bool,
         mut parse_element: impl FnMut(&mut Self) -> Option<NodeId>,
     ) -> crate::NodeArrayId {
+        let incremental = self.syntax_cursor.is_some();
         let saved_context = self.parsing_context;
         self.parsing_context |= context.bit();
         let mark = self.start_node_list();
@@ -1825,10 +1839,10 @@ impl<'text> Parser<'text> {
         let mut modules = Vec::new();
 
         while !self.is_list_terminator(context) {
-            if self.is_list_element(context, false) {
+            if self.is_list_element(context, false, incremental) {
                 let start_pos = self.scanner.full_start_pos();
                 let element = self
-                    .current_node(context)
+                    .current_node(context, incremental)
                     .map(|node| self.consume_node(node))
                     .or_else(|| parse_element(self));
                 if let Some(element) = element {
@@ -1888,16 +1902,17 @@ impl<'text> Parser<'text> {
         mut parse_element: impl FnMut(&mut Self) -> Option<NodeId>,
         consider_semicolon_as_delimiter: bool,
     ) -> Option<crate::NodeArrayId> {
+        let incremental = self.syntax_cursor.is_some();
         let saved_context = self.parsing_context;
         self.parsing_context |= context.bit();
         let mark = self.start_node_list();
         let list_pos = self.node_pos();
 
         loop {
-            if self.is_list_element(context, false) {
+            if self.is_list_element(context, false, incremental) {
                 let start_pos = self.scanner.full_start_pos();
                 let element = self
-                    .current_node(context)
+                    .current_node(context, incremental)
                     .map(|node| self.consume_node(node))
                     .or_else(|| parse_element(self));
                 let Some(element) = element else {
@@ -2034,8 +2049,13 @@ impl<'text> Parser<'text> {
         }
     }
 
-    fn is_list_element(&mut self, context: ParsingContext, in_error_recovery: bool) -> bool {
-        if self.current_node(context).is_some() {
+    fn is_list_element(
+        &mut self,
+        context: ParsingContext,
+        in_error_recovery: bool,
+        incremental: bool,
+    ) -> bool {
+        if self.current_node(context, incremental).is_some() {
             return true;
         }
         match context {
@@ -2169,7 +2189,8 @@ impl<'text> Parser<'text> {
     fn is_in_some_parsing_context(&mut self) -> bool {
         for context in ParsingContext::ALL {
             if self.parsing_context & context.bit() != 0
-                && (self.is_list_element(context, true) || self.is_list_terminator(context))
+                && (self.is_list_element(context, true, self.syntax_cursor.is_some())
+                    || self.is_list_terminator(context))
             {
                 return true;
             }
