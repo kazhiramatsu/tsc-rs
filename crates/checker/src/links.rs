@@ -18,7 +18,7 @@
 
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashMap as HashMap;
-use std::num::NonZeroU32;
+use std::num::{NonZeroU32, NonZeroUsize};
 use std::sync::Arc;
 
 use tsc_binder::SymbolId;
@@ -1621,25 +1621,29 @@ impl NodeLinksCursor {
         }
     }
 
+    /// The first write at this depth saves the original slot. A recursive
+    /// call can unwind the journal, so check the one-based index before
+    /// using it for the second write.
+    #[inline]
     pub(crate) fn set_call_signature(
         &mut self,
         links: &mut LinksTables,
         speculation_depth: u32,
         value: LinkSlot<SignatureId>,
-    ) {
-        if speculation_depth != 0
-            && !links
-                .speculative_resolved_signature_writes
-                .iter()
-                .any(|(depth, node, _)| *depth == speculation_depth && *node == self.node)
-        {
-            let previous = self.slot(links).resolved_signature.get();
-            links.speculative_resolved_signature_writes.push((
-                speculation_depth,
-                self.node,
-                previous,
-            ));
-        }
+        previous_entry: Option<NonZeroUsize>,
+    ) -> Option<NonZeroUsize> {
+        let entry = (speculation_depth != 0).then(|| {
+            let journal = &links.speculative_resolved_signature_writes;
+            if let Some(index) = previous_entry {
+                let matches =
+                    |&(depth, node, _): &_| depth == speculation_depth && node == self.node;
+                if journal.get(index.get() - 1).is_some_and(matches) {
+                    debug_assert_eq!(journal.iter().position(matches), Some(index.get() - 1));
+                    return index;
+                }
+            }
+            self.find_or_save_call_signature(links, speculation_depth)
+        });
         let slot = &mut self.slot(links).resolved_signature;
         match (slot.get(), &value) {
             (LinkSlot::Vacant, LinkSlot::Resolving)
@@ -1651,6 +1655,26 @@ impl NodeLinksCursor {
             }
             _ => panic!("call resolvedSignature protocol violated: {slot:?} -> {value:?}"),
         }
+        entry
+    }
+
+    #[inline(never)]
+    fn find_or_save_call_signature(
+        &mut self,
+        links: &mut LinksTables,
+        speculation_depth: u32,
+    ) -> NonZeroUsize {
+        if let Some(index) = links
+            .speculative_resolved_signature_writes
+            .iter()
+            .position(|&(depth, node, _)| depth == speculation_depth && node == self.node)
+        {
+            return NonZeroUsize::new(index + 1).expect("one-based journal index");
+        }
+        let previous = self.slot(links).resolved_signature.get();
+        let journal = &mut links.speculative_resolved_signature_writes;
+        journal.push((speculation_depth, self.node, previous));
+        NonZeroUsize::new(journal.len()).expect("just appended a journal entry")
     }
 
     pub(crate) fn swap_call_signature(
@@ -2539,7 +2563,7 @@ impl LinksTables {
         id: NodeId,
         value: LinkSlot<SignatureId>,
     ) {
-        NodeLinksCursor::new(id).set_call_signature(self, speculation_depth, value)
+        NodeLinksCursor::new(id).set_call_signature(self, speculation_depth, value, None);
     }
 
     /// getContextuallyTypedParameterType's IIFE stash (72708-72712):

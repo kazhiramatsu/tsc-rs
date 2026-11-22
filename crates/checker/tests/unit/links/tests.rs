@@ -389,3 +389,47 @@ fn mapped_slots_share_records_but_keep_independent_transitions() {
     assert_eq!(links.type_cold.mapped(second).template, LinkSlot::Vacant);
     assert_eq!(debug_resolving_open(), initial);
 }
+
+#[test]
+fn call_signature_journal_index_survives_reentry_and_rejects_reused_slots() {
+    let run = |use_index: bool, commit: bool| {
+        let mut links = LinksTables::default();
+        let node = NodeId::new(3);
+        let other = NodeId::new(9);
+        let mut cursor = NodeLinksCursor::new(node);
+        let outer = links.speculative_marks();
+        let saved = cursor.set_call_signature(&mut links, 1, LinkSlot::Resolving, None);
+        let nested = links.speculative_marks();
+        let hint = |entry| if use_index { entry } else { None };
+        // The outer entry refers to the right node at a different depth.
+        let inner = cursor.set_call_signature(&mut links, 2, LinkSlot::Resolving, hint(saved));
+        let result = LinkSlot::Resolved(SignatureId::new(11));
+        cursor.set_call_signature(&mut links, 2, result.clone(), hint(inner));
+        if commit {
+            links.commit_speculative_writes(nested, 1);
+        } else {
+            links.restore_speculative_writes(nested);
+        }
+        // The popped inner index is now out of bounds.
+        cursor.set_call_signature(&mut links, 1, result.clone(), hint(inner));
+        assert_eq!(links.speculative_resolved_signature_mark(), 1);
+        // Reuse the popped inner index at the same depth for another node.
+        let mut other_cursor = NodeLinksCursor::new(other);
+        other_cursor.set_call_signature(&mut links, 2, LinkSlot::Resolving, None);
+        cursor.set_call_signature(&mut links, 2, result.clone(), hint(inner));
+        let journal = links.speculative_resolved_signature_writes.clone();
+        assert_eq!(journal.len(), 3);
+        assert_eq!(journal[2], (2, node, result.clone()));
+        links.restore_speculative_writes(nested);
+        cursor.set_call_signature(&mut links, 1, result.clone(), hint(saved));
+        links.restore_speculative_writes(outer);
+        assert_eq!(links.speculative_resolved_signature_mark(), 0);
+        assert_eq!(links.node(other).resolved_signature.get(), LinkSlot::Vacant);
+        (journal, links.node(node).resolved_signature.get())
+    };
+    for commit in [false, true] {
+        let ordinary = run(false, commit);
+        assert_eq!(ordinary.1, LinkSlot::Resolved(SignatureId::new(11)));
+        assert_eq!(run(true, commit), ordinary);
+    }
+}

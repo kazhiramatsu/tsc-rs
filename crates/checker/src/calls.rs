@@ -6980,11 +6980,17 @@ impl<'a> CheckerState<'a> {
         // tsgo resolves a cached call again to fill the candidates output,
         // and puts the cached signature back when it does not memoize.
         let rerun = matches!(cached, LinkSlot::Resolved(_));
-        if rerun {
+        let journal_entry = if rerun {
             cursor.swap_call_signature(&mut self.links, LinkSlot::Resolving);
+            None
         } else {
-            cursor.set_call_signature(&mut self.links, self.speculation_depth, LinkSlot::Resolving);
-        }
+            cursor.set_call_signature(
+                &mut self.links,
+                self.speculation_depth,
+                LinkSlot::Resolving,
+                None,
+            )
+        };
         let result = self.resolve_signature_dispatch(node, candidates_out, check_mode);
         self.resolution_start = save_resolution_start;
         match result {
@@ -7011,6 +7017,7 @@ impl<'a> CheckerState<'a> {
                         &mut self.links,
                         self.speculation_depth,
                         LinkSlot::Resolved(result),
+                        journal_entry,
                     );
                 } else if wrote_sentinel {
                     cursor.clear_call_signature(&mut self.links);
