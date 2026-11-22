@@ -5831,3 +5831,28 @@ fn jsdoc_indentation_past_the_margin_is_kept_as_written() {
         Some("two")
     );
 }
+
+/// The JSDoc parser measures every piece of a comment in UTF-16 code units
+/// and reads that length from the bytes: one unit for each byte that begins
+/// a character, one more for a character of four bytes.
+#[test]
+fn the_utf16_length_of_a_text_is_read_from_its_bytes() {
+    for text in [
+        "",
+        "a",
+        " * @param x the value",
+        "\u{e9}",
+        "\u{65e5}\u{672c}\u{8a9e}",
+        "a\u{a0}b\u{3000}c\u{feff}",
+        "\u{2028}\u{2029}",
+        "\u{1f600}",
+        "a\u{1f600}b\u{1d4b3}c",
+        "\u{7f}\u{80}\u{7ff}\u{800}\u{ffff}\u{10000}\u{10ffff}",
+    ] {
+        assert_eq!(
+            jsdoc::utf16_len(text),
+            text.encode_utf16().count(),
+            "{text:?}"
+        );
+    }
+}

@@ -96,7 +96,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
     }
 
     fn text_len(text: &str) -> usize {
-        text.encode_utf16().count()
+        utf16_len(text)
     }
 
     fn trim_end(text: &str) -> &str {
@@ -105,7 +105,9 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
 
     /// JavaScript String#slice start semantics. JavaScript indexes strings in
     /// UTF-16 code units, including for non-ASCII indentation whitespace.
-    fn slice_indent(text: &str, start: isize) -> String {
+    /// The result is a slice of `text`: a kept piece of indentation is the
+    /// source's own bytes, like every other piece of a comment.
+    fn slice_indent(text: &str, start: isize) -> Cow<'_, str> {
         let len = Self::text_len(text);
         let start = if start < 0 {
             len.saturating_sub(start.unsigned_abs())
@@ -113,29 +115,29 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             (start as usize).min(len)
         };
         if start == 0 {
-            return text.to_owned();
+            return Cow::Borrowed(text);
         }
         if start == len {
-            return String::new();
+            return Cow::Borrowed("");
         }
 
         let mut utf16_pos = 0;
         for (byte_pos, ch) in text.char_indices() {
             if utf16_pos == start {
-                return text[byte_pos..].to_owned();
+                return Cow::Borrowed(&text[byte_pos..]);
             }
             let next = utf16_pos + ch.len_utf16();
             if start < next {
                 // Indentation tokens only contain BMP whitespace, so this is
                 // unreachable for parser callers. Keep the helper total if it
                 // is ever reused with a supplementary-plane character.
-                return String::from_utf16_lossy(
+                return Cow::Owned(String::from_utf16_lossy(
                     &text.encode_utf16().skip(start).collect::<Vec<_>>(),
-                );
+                ));
             }
             utf16_pos = next;
         }
-        String::new()
+        Cow::Borrowed("")
     }
 
     fn next_token_jsdoc(&mut self) -> SyntaxKind {
@@ -395,7 +397,9 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             .rfind('\n')
             .map_or(0, |index| index + 1);
         let mut indent = Self::text_len(&self.parser.source_text[line_start..start]) + 4;
-        let mut comments = Vec::<Cow<'text, str>>::new();
+        // The pieces of every comment of a file collect in one buffer.
+        let mut comments = std::mem::take(&mut self.parser.jsdoc_comment_pieces);
+        debug_assert!(comments.is_empty());
         let parts_mark = self.parser.start_node_list();
         let mut link_end: Option<usize> = None;
         let mut comments_pos: Option<usize> = None;
@@ -463,10 +467,10 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                     if let Some(margin) = margin {
                         let whitespace_len = Self::text_len(whitespace);
                         if indent + whitespace_len > margin {
-                            comments.push(Cow::Owned(Self::slice_indent(
+                            comments.push(Self::slice_indent(
                                 whitespace,
                                 margin as isize - indent as isize,
-                            )));
+                            ));
                         }
                     }
                     indent += Self::text_len(whitespace);
@@ -573,6 +577,8 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             comments_pos.unwrap_or(scan_end),
             comments_pos.unwrap_or(scan_end),
         );
+        comments.clear();
+        self.parser.jsdoc_comment_pieces = comments;
         let tags = if self.tags.is_empty() {
             None
         } else {
@@ -595,7 +601,11 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         initial_margin: Option<String>,
     ) -> Option<JSDocComment> {
         let comments_pos = self.node_pos();
-        let mut comments = Vec::<Cow<'text, str>>::new();
+        // A tag's pieces collect while the comment's own are held: a second
+        // buffer. (A tag nested in a tag finds it taken and starts a new
+        // one; the last one put back stays.)
+        let mut comments = std::mem::take(&mut self.parser.jsdoc_tag_comment_pieces);
+        debug_assert!(comments.is_empty());
         let parts_mark = self.parser.start_node_list();
         let mut link_end = None;
         let mut state = CommentState::BeginningOfLine;
@@ -651,10 +661,10 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                     // Whitespace crossing the margin keeps the part past it.
                     if let Some(margin) = margin.filter(|&margin| indent + whitespace_len > margin)
                     {
-                        comments.push(Cow::Owned(Self::slice_indent(
+                        comments.push(Self::slice_indent(
                             whitespace,
                             margin.saturating_sub(indent) as isize,
-                        )));
+                        ));
                         state = text_state;
                     }
                     indent += whitespace_len;
@@ -725,8 +735,17 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         }
 
         Self::remove_leading_newlines(&mut comments);
-        let joined_comments = comments.join("");
-        let trimmed = Self::trim_end(&joined_comments);
+        // One piece is its own text; only several are joined.
+        let joined_comments;
+        let whole = match comments.as_slice() {
+            [] => "",
+            [piece] => piece.as_ref(),
+            pieces => {
+                joined_comments = pieces.join("");
+                &joined_comments
+            }
+        };
+        let trimmed = Self::trim_end(whole);
         let has_text_node = self.parser.node_stack.len() != parts_mark && !trimmed.is_empty();
         let go_has_text_node = comments
             .iter()
@@ -744,13 +763,16 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             self.parser.node_stack.push(part);
         }
         let text_end = self.node_pos();
-        self.comment_value(
+        let comment = self.comment_value(
             parts_mark,
             trimmed,
             comments_pos,
             self.token_end(),
             text_end,
-        )
+        );
+        comments.clear();
+        self.parser.jsdoc_tag_comment_pieces = comments;
+        comment
     }
 
     fn parse_trailing_tag_comments(
@@ -770,7 +792,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         } else {
             margin
         };
-        let initial = Self::slice_indent(&indent_text, adjusted as isize);
+        let initial = Self::slice_indent(&indent_text, adjusted as isize).into_owned();
         self.parse_tag_comments(adjusted, Some(initial))
     }
 
@@ -2015,6 +2037,19 @@ trait Pipe: Sized {
     }
 }
 impl<T> Pipe for T {}
+
+/// The length of `text` in UTF-16 code units - JavaScript's `length`, the
+/// unit of a comment's indent and margin - read from the bytes without
+/// decoding them: every byte that is not a continuation byte begins a
+/// character, and a character of four bytes is a surrogate pair. (The pieces
+/// of every parsed comment are measured: decoding them cost a third to a
+/// half of the comment parser's own time.)
+pub(super) fn utf16_len(text: &str) -> usize {
+    text.as_bytes()
+        .iter()
+        .map(|&byte| usize::from(byte & 0xC0 != 0x80) + usize::from(byte >= 0xF0))
+        .sum()
+}
 
 pub(super) fn parse_jsdoc_comment(
     parser: &mut Parser<'_>,

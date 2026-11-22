@@ -256,6 +256,11 @@ struct Parser<'text> {
     /// Root JSDoc tags overlap comment parts, whose array finishes first.
     /// Keep their reusable scratch separate so both arrays copy only once.
     jsdoc_tags: Vec<NodeId>,
+    /// The text pieces of the JSDoc comment being parsed, and those of the
+    /// tag comment being parsed inside it: empty between comments, kept for
+    /// their room.
+    jsdoc_comment_pieces: Vec<std::borrow::Cow<'text, str>>,
+    jsdoc_tag_comment_pieces: Vec<std::borrow::Cow<'text, str>>,
     /// The open lists' marks, to check that they close in order.
     #[cfg(debug_assertions)]
     node_list_marks: Vec<usize>,
@@ -440,7 +445,11 @@ fn parser_calls_with_jsdoc_for_kind(kind: SyntaxKind) -> bool {
 /// tsc iterateCommentRanges/getLeadingCommentRanges/getTrailingCommentRanges.
 /// Ranges include their delimiters and use parser byte-position space.
 pub fn comment_ranges(text: &str, pos: usize, trailing: bool) -> Vec<(usize, usize)> {
-    let mut cursor = pos.min(text.len());
+    // By bytes: every character that decides here is ASCII but the two
+    // Unicode line separators and the white space outside ASCII, and only a
+    // byte of 0x80 or more is decoded.
+    let bytes = text.as_bytes();
+    let mut cursor = pos.min(bytes.len());
     let mut collecting = trailing;
     let mut ranges = Vec::new();
     let mut pending = None;
@@ -448,14 +457,10 @@ pub fn comment_ranges(text: &str, pos: usize, trailing: bool) -> Vec<(usize, usi
         collecting = true;
         cursor = crate::scanner::get_shebang(text).len();
     }
-    'scan: while cursor < text.len() {
-        let ch = text[cursor..]
-            .chars()
-            .next()
-            .expect("cursor is on a UTF-8 boundary");
-        match ch {
-            '\r' | '\n' => {
-                if ch == '\r' && text[cursor + 1..].starts_with('\n') {
+    'scan: while cursor < bytes.len() {
+        match bytes[cursor] {
+            byte @ (b'\r' | b'\n') => {
+                if byte == b'\r' && bytes.get(cursor + 1) == Some(&b'\n') {
                     cursor += 1;
                 }
                 cursor += 1;
@@ -464,47 +469,63 @@ pub fn comment_ranges(text: &str, pos: usize, trailing: bool) -> Vec<(usize, usi
                 }
                 collecting = true;
             }
-            ' ' | '\t' | '\u{000B}' | '\u{000C}' => cursor += ch.len_utf8(),
-            '/' if text[cursor..].starts_with("//") => {
+            b' ' | b'\t' | 0x0B | 0x0C => cursor += 1,
+            b'/' if bytes.get(cursor + 1) == Some(&b'/') => {
                 let start = cursor;
-                cursor += 2;
-                while cursor < text.len() {
-                    let ch = text[cursor..]
-                        .chars()
-                        .next()
-                        .expect("cursor is on a UTF-8 boundary");
-                    if is_whitespace_like(ch) && matches!(ch, '\n' | '\r' | '\u{2028}' | '\u{2029}')
-                    {
-                        break;
-                    }
-                    cursor += ch.len_utf8();
-                }
+                cursor = single_line_comment_end(bytes, cursor + 2);
                 if collecting {
                     if let Some(previous) = pending.replace((start, cursor)) {
                         ranges.push(previous);
                     }
                 }
             }
-            '/' if text[cursor..].starts_with("/*") => {
+            b'/' if bytes.get(cursor + 1) == Some(&b'*') => {
                 let start = cursor;
                 cursor += 2;
-                if let Some(close) = text[cursor..].find("*/") {
-                    cursor += close + 2;
-                } else {
-                    cursor = text.len();
-                }
+                cursor = match memchr::memmem::find(&bytes[cursor..], b"*/") {
+                    Some(close) => cursor + close + 2,
+                    None => bytes.len(),
+                };
                 if collecting {
                     if let Some(previous) = pending.replace((start, cursor)) {
                         ranges.push(previous);
                     }
                 }
             }
-            _ if ch > '\u{7f}' && is_whitespace_like(ch) => cursor += ch.len_utf8(),
+            byte if byte >= 0x80 => {
+                let ch = text[cursor..]
+                    .chars()
+                    .next()
+                    .expect("cursor is on a UTF-8 boundary");
+                if !is_whitespace_like(ch) {
+                    break 'scan;
+                }
+                cursor += ch.len_utf8();
+            }
             _ => break 'scan,
         }
     }
     ranges.extend(pending);
     ranges
+}
+
+/// Where the text of a `//` comment ends, searched from `from`: at the next
+/// line break (LF, CR, U+2028 or U+2029) or at the end of the text.
+fn single_line_comment_end(bytes: &[u8], mut from: usize) -> usize {
+    loop {
+        let Some(offset) = memchr::memchr3(b'\n', b'\r', 0xE2, &bytes[from..]) else {
+            return bytes.len();
+        };
+        let at = from + offset;
+        // 0xE2 begins many characters; the line separators are E2 80 A8 and
+        // E2 80 A9.
+        if bytes[at] != 0xE2
+            || (bytes.get(at + 1) == Some(&0x80) && matches!(bytes.get(at + 2), Some(0xA8 | 0xA9)))
+        {
+            return at;
+        }
+        from = at + 1;
+    }
 }
 
 /// tsgo `GetJSDocCommentRanges` of a node of `kind` at full start `pos`.
@@ -984,6 +1005,8 @@ impl<'text> Parser<'text> {
             },
             node_stack: Vec::new(),
             jsdoc_tags: Vec::new(),
+            jsdoc_comment_pieces: Vec::new(),
+            jsdoc_tag_comment_pieces: Vec::new(),
             #[cfg(debug_assertions)]
             node_list_marks: Vec::new(),
             file_name,
@@ -10517,10 +10540,10 @@ impl<'text> Parser<'text> {
                 // hasJSDoc bit when the expression began with `(`.
                 continue;
             }
-            let ranges = range_cache
+            // Read where the cache keeps them: the cache is this loop's own.
+            let ranges: &[(usize, usize)] = range_cache
                 .entry((kind, pos))
-                .or_insert_with(|| jsdoc_comment_ranges(self.source_text, kind, pos))
-                .clone();
+                .or_insert_with(|| jsdoc_comment_ranges(self.source_text, kind, pos));
             let mark = self.start_node_list();
             let mut deprecated = false;
             let javascript = self.javascript_file;
@@ -10530,7 +10553,7 @@ impl<'text> Parser<'text> {
                         .iter()
                         .any(|tag| comment_has_jsdoc_tag(&self.source_text[start..end], tag))
                 });
-            for (start, comment_end) in ranges {
+            for &(start, comment_end) in ranges {
                 if comment_end <= end {
                     let before = self.arena.factory_node_count();
                     let parsed = jsdoc::parse_jsdoc_comment(self, start, comment_end, flags);
