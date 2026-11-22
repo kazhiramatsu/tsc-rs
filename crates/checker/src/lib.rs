@@ -3617,6 +3617,7 @@ fn include_processor_diagnostics_of_state(state: &state::CheckerState<'_>) -> Ve
 /// is constructed by the caller and outlives the state; the host facts are
 /// moved in).
 /// tsrs-native: initializeTypeChecker's ordered init as one constructor.
+#[allow(clippy::too_many_arguments)]
 fn init_checker_state<'a>(
     snapshot: &'a ProgramSnapshot,
     options: &'a CompilerOptions,

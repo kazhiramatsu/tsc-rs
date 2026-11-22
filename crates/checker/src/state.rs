@@ -1467,7 +1467,7 @@ pub struct CheckerState<'a> {
     pub(crate) exhaustive_switch_cache: rustc_hash::FxHashMap<NodeId, bool>,
     /// tsc links.effectsSignature (getEffectsSignature 70195), where the
     /// node HAS an effects signature. The memoized unknownSignature verdict
-    /// - nearly every call's - is the node's
+    /// (nearly every call's) is the node's
     /// `NodeCheckFlags::NO_EFFECTS_SIGNATURE` bit: the flow walk asks at
     /// every call it passes, and the bit is read from the links record the
     /// call's resolved signature already lies in.
