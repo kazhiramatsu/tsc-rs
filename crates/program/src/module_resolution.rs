@@ -5841,9 +5841,10 @@ impl<'a> ModuleResolver<'a> {
                 .host
                 .directory_exists_js(JsStr::from(&js_directory_name(candidate)))?
         {
-            if let Some((base, probes)) = replacement {
+            if let Some((base, probes)) = replacement.filter(|(_, probes)| !probes.is_empty()) {
+                let stem_len = base.as_bytes().len();
+                let mut path = base.to_owned();
                 for (extension, suffix) in probes {
-                    let mut path = base.to_owned();
                     path.push_str(suffix);
                     if let Some(resolved_path) = self.try_file(&path)? {
                         let extension = materialize_module_extension(extension, suffix);
@@ -5859,6 +5860,7 @@ impl<'a> ModuleResolver<'a> {
                             },
                         );
                     }
+                    assert!(path.truncate_bytes(stem_len));
                 }
             }
             if let Some(extension) = self.extra_extension_of(candidate) {
@@ -5895,8 +5897,12 @@ impl<'a> ModuleResolver<'a> {
             {
                 return Ok(ResolutionOutcome::NotFound);
             }
+            if probes.is_empty() {
+                return Ok(ResolutionOutcome::NotFound);
+            }
+            let stem_len = candidate.as_bytes().len();
+            let mut path = candidate.to_owned();
             for (extension, suffix) in probes {
-                let mut path = candidate.to_owned();
                 path.push_str(suffix);
                 if let Some(resolved_path) = self.try_file(&path)? {
                     return self.finish_legacy_resolution(
@@ -5912,6 +5918,7 @@ impl<'a> ModuleResolver<'a> {
                         },
                     );
                 }
+                assert!(path.truncate_bytes(stem_len));
             }
         }
         Ok(ResolutionOutcome::NotFound)
@@ -9247,6 +9254,86 @@ mod shared_package_loads_tests {
                     );
                 }
             }
+        }
+    }
+
+    #[test]
+    fn legacy_extension_stems_keep_probe_and_trace_order() {
+        use tsc_host::HostOperation::{DirectoryExists, FileExists};
+        let stem = "/work/long-stem-😀";
+        let candidate = format!("{stem}.js");
+        for implicit in [false, true] {
+            let winning_stem = if implicit { candidate.as_str() } else { stem };
+            let winner = format!("{winning_stem}.mobile.tsx");
+            let mut host = host(true);
+            host.inner = MemoryCompilerHost::builder("/work")
+                .file(&winner, Vec::new())
+                .build()
+                .unwrap();
+            let settings = CompilerOptions {
+                module_suffixes: Some(vec![
+                    crate::ModuleSuffix::value(".desktop"),
+                    crate::ModuleSuffix::value(".mobile"),
+                ]),
+                ..options(true)
+            };
+            let mut resolver = ModuleResolver::new(&host, &settings).unwrap();
+            host.probes.take();
+            let result = resolver
+                .probe_legacy_file(
+                    None,
+                    candidate.as_str(),
+                    ExtensionProbePass::Preferred,
+                    true,
+                    LegacyResolutionContext {
+                        is_external_library_import: false,
+                        attach_package_id: false,
+                        resolved_using_ts_extension: false,
+                        follow_realpath: false,
+                    },
+                )
+                .unwrap();
+            let ResolutionOutcome::Resolved(module) = result else {
+                panic!("expected suffix hit");
+            };
+            assert_eq!(module.resolved_file().display(), winner.as_str());
+            let mut trace = vec![format!(
+                "File name '{candidate}' has a '.js' extension - stripping it."
+            )];
+            let mut calls = vec![(DirectoryExists, std::ffi::OsString::from("/work"))];
+            if implicit {
+                for suffix in [
+                    ".desktop.ts",
+                    ".mobile.ts",
+                    ".desktop.tsx",
+                    ".mobile.tsx",
+                    ".desktop.d.ts",
+                    ".mobile.d.ts",
+                ] {
+                    let miss = format!("{stem}{suffix}");
+                    trace.push(format!("File '{miss}' does not exist."));
+                    calls.push((FileExists, miss.into()));
+                }
+                calls.push((DirectoryExists, "/work".into()));
+            }
+            for suffix in [".desktop.ts", ".mobile.ts", ".desktop.tsx"] {
+                let miss = format!("{winning_stem}{suffix}");
+                trace.push(format!("File '{miss}' does not exist."));
+                calls.push((FileExists, miss.into()));
+            }
+            trace.push(format!(
+                "File '{winner}' exists - use it as a name resolution result."
+            ));
+            calls.push((FileExists, winner.into()));
+            assert_eq!(host.probes.take(), calls);
+            assert_eq!(
+                resolver
+                    .take_trace()
+                    .iter()
+                    .map(|line| line.text())
+                    .collect::<Vec<_>>(),
+                trace
+            );
         }
     }
 
