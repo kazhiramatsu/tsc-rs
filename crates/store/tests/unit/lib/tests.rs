@@ -311,21 +311,36 @@ fn texts_read_back_from_their_words_and_the_store() {
     use crate::texts::{
         published_text, published_text_str, push_text, text_in, text_str_in, text_words, TextWord,
     };
-    let texts: [&[u8]; 5] = [b"", b"a", b"abcd", b"hello, world", "\u{1F600}x".as_bytes()];
-    let mut words = StoreVec::<TextWord>::new();
-    let starts: Vec<usize> = texts
-        .iter()
-        .map(|text| push_text(&mut words, text))
-        .collect();
-    assert_eq!(
-        words.len(),
-        texts
-            .iter()
-            .map(|text| text_words(text.len()))
-            .sum::<usize>()
-    );
-    for (text, &start) in texts.iter().zip(&starts) {
-        assert_eq!(text_in(&words, start), *text);
+    let texts: &[&[u8]] = &[
+        b"",
+        b"a",
+        b"ab",
+        b"abc",
+        b"abcd",
+        b"hello, world",
+        &[0xed, 0xa0, 0x80],
+        "𐀀".as_bytes(),
+        b"",
+        &b"unaligned bytes"[1..],
+    ];
+    let mut words = StoreVec::<TextWord>::with_capacity(1);
+    let mut starts = Vec::new();
+    let mut expected = Vec::new();
+    for &text in texts {
+        let index = push_text(&mut words, text);
+        starts.push(index);
+        assert_eq!(index, expected.len());
+        let flag = u32::from(std::str::from_utf8(text).is_err()) << 31;
+        expected.push(TextWord(flag | text.len() as u32));
+        for chunk in text.chunks(4) {
+            let mut padded = [0; 4];
+            padded[..chunk.len()].copy_from_slice(chunk);
+            expected.push(TextWord(u32::from_le_bytes(padded)));
+        }
+        assert_eq!(words.len(), index + text_words(text.len()));
+        assert_eq!(&words[..], expected);
+        assert_eq!(text_in(&words, index), text);
+        assert_eq!(text_str_in(&words, index), std::str::from_utf8(text).ok());
     }
     const TEXTS: u32 = 9_000_000;
     words.publish(TEXTS);
@@ -336,12 +351,7 @@ fn texts_read_back_from_their_words_and_the_store() {
             std::str::from_utf8(text).ok()
         );
     }
-    // Bytes that are not UTF-8 (a lone surrogate's WTF-8) read as bytes only.
-    let mut words = StoreVec::<TextWord>::new();
-    let surrogate = [0xED, 0xA0, 0x80];
-    let start = push_text(&mut words, &surrogate);
-    assert_eq!(text_in(&words, start), surrogate);
-    assert_eq!(text_str_in(&words, start), None);
+    assert_eq!(&words[..], expected);
 }
 
 #[test]
