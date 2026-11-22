@@ -4764,6 +4764,11 @@ fn merge_shard_outputs(
                 options,
             )
     };
+    // Most runs record no partially checked range: then no shard's table is
+    // asked for each file.
+    let any_ranges = outputs
+        .iter()
+        .any(|output| !output.ledger.partially_checked_ranges.is_empty());
     let assemble = |file: usize| {
         let document = snapshot.document(file);
         let source = document.source();
@@ -4772,27 +4777,52 @@ fn merge_shard_outputs(
             .iter()
             .flat_map(|output| output.ledger.globals_by_file[file].iter().cloned())
             .collect::<Vec<_>>();
-        let ranges = outputs
-            .iter()
-            .flat_map(|output| {
-                output
-                    .ledger
-                    .partially_checked_ranges
-                    .get(&file)
-                    .into_iter()
-                    .flatten()
-                    .copied()
+        let ranges = if any_ranges {
+            outputs
+                .iter()
+                .flat_map(|output| {
+                    output
+                        .ledger
+                        .partially_checked_ranges
+                        .get(&file)
+                        .into_iter()
+                        .flatten()
+                        .copied()
+                })
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
+        let assembled = || {
+            semantic_diagnostics_for_file_rows(
+                source,
+                &document.data.bind_diagnostics,
+                checker_for_file,
+                (!ranges.is_empty()).then_some(ranges.as_slice()),
+                &globals,
+                program_diagnostics,
+                options,
+            )
+        };
+        // A file nothing reported in, without a directive that could report
+        // by itself (an unused `@ts-expect-error`, a content mapper's unused
+        // expectation) and without a row of the program's: its list is empty
+        // whatever the assembly's steps, so they are not run. Most files of a
+        // clean program are such files.
+        if checker_for_file.is_empty()
+            && globals.is_empty()
+            && document.data.bind_diagnostics.is_empty()
+            && source.js_doc_diagnostics.is_empty()
+            && source.comment_directives.is_empty()
+            && source.diagnostic_directives.is_empty()
+            && !program_diagnostics.iter().any(|diagnostic| {
+                diagnostic.file_name.as_ref().map(JsString::as_js) == Some(source.file_name.as_js())
             })
-            .collect::<Vec<_>>();
-        semantic_diagnostics_for_file_rows(
-            source,
-            &document.data.bind_diagnostics,
-            checker_for_file,
-            (!ranges.is_empty()).then_some(ranges.as_slice()),
-            &globals,
-            program_diagnostics,
-            options,
-        )
+        {
+            debug_assert!(assembled().is_empty());
+            return Vec::new();
+        }
+        assembled()
     };
 
     // Both public getters observe the same captured semantic rows. Only
