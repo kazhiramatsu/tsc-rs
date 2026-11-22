@@ -2404,6 +2404,7 @@ impl ParallelReadAhead<'_> {
             let directory = resolver.lexical_paths().directory(containing_file);
             let directory_resolutions = self.resolutions.get_or_default(&directory);
             let containing_file_is_declaration = is_declaration_file_name(containing_file);
+            let mut relative_context = None;
             for row in plan.module_rows_mut() {
                 let key = &row.key;
                 let loads_source = row.loads_source;
@@ -2415,6 +2416,7 @@ impl ParallelReadAhead<'_> {
                     None => {
                         let relative = resolver.prepare_relative_request(
                             containing_file,
+                            &mut relative_context,
                             key.specifier(),
                             key.mode(),
                         );
@@ -4237,7 +4239,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             .into_iter()
             .map(|(containing_file, key, loads_source)| {
                 let result = self
-                    .resolve_program_request(&containing_file, &key)
+                    .resolve_program_request(&containing_file, &mut None, &key)
                     .ok()
                     .map(|host| Arc::new(PreparedModule::new(host, key.mode(), &identities)));
                 (key, loads_source, result)
@@ -5503,10 +5505,12 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     fn resolve_program_request(
         &mut self,
         containing_file: &JsString,
+        context: &mut Option<crate::lexical_path_cache::FileResolutionContext>,
         key: &ResolutionKey,
     ) -> Result<HostModuleResolution, ResolutionError> {
         let relative = self.resolver.prepare_relative_request(
             containing_file.as_js(),
+            context,
             key.specifier(),
             key.mode(),
         );
@@ -5543,10 +5547,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         &mut self,
         file: &CanonicalPath,
         containing_file: &JsString,
+        context: &mut Option<crate::lexical_path_cache::FileResolutionContext>,
         key: &ResolutionKey,
     ) -> Result<HostModuleResolution, ResolutionError> {
         let Some(project) = self.project_for_resolution(file) else {
-            return self.resolve_program_request(containing_file, key);
+            return self.resolve_program_request(containing_file, context, key);
         };
         if !self.project_resolvers.contains_key(project.canonical()) {
             let resolver = ModuleResolver::new_with_program_options(
@@ -7063,7 +7068,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             .collect();
         for key in keys {
             let host = self
-                .resolve_module_for_file(containing_canonical, containing_file, &key)
+                .resolve_module_for_file(containing_canonical, containing_file, &mut None, &key)
                 .map_err(|error| {
                     ProgramLoadError::resolution_js(
                         ProgramLoadOperation::ResolveModule,
@@ -7237,6 +7242,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 self.pre_resolved_hits += request_count;
             } else {
                 let mut containing_directory = None;
+                let mut relative_context = None;
                 for request_index in 0..request_count {
                     if self.sources[source].module_requests.rows[request_index].ready {
                         self.pre_resolved_hits += 1;
@@ -7282,6 +7288,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                                         .resolve_module_for_file(
                                             &containing_canonical,
                                             &containing_file,
+                                            &mut relative_context,
                                             &key,
                                         )
                                         .map_err(|error| {

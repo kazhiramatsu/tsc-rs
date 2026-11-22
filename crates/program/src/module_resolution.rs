@@ -304,13 +304,13 @@ impl HostModuleResolution {
 }
 
 /// The spellings for one relative request eligible for the target cache.
-pub(crate) struct PreparedRelativeRequest<'specifier> {
-    context: FileResolutionContext,
+pub(crate) struct PreparedRelativeRequest<'context, 'specifier> {
+    context: &'context FileResolutionContext,
     specifier: JsStr<'specifier>,
     target_key: (LexicalPath, ResolutionMode),
 }
 
-impl PreparedRelativeRequest<'_> {
+impl PreparedRelativeRequest<'_, '_> {
     pub(crate) fn target_key(&self) -> &(LexicalPath, ResolutionMode) {
         &self.target_key
     }
@@ -1281,12 +1281,13 @@ impl<'a> ModuleResolver<'a> {
     /// containing directory) to be absent and no API resolution in front; a
     /// traced request names its containing file, and a redirected
     /// resolver's requests are not the program's.
-    pub(crate) fn prepare_relative_request<'specifier>(
+    pub(crate) fn prepare_relative_request<'context, 'specifier>(
         &self,
         containing_file: JsStr<'_>,
+        batch: &'context mut Option<FileResolutionContext>,
         specifier: JsStr<'specifier>,
         mode: ResolutionMode,
-    ) -> Option<PreparedRelativeRequest<'specifier>> {
+    ) -> Option<PreparedRelativeRequest<'context, 'specifier>> {
         if !is_path_relative_specifier(specifier)
             || specifier.contains("\0")
             || self.trace.is_some()
@@ -1299,10 +1300,30 @@ impl<'a> ModuleResolver<'a> {
         {
             return None;
         }
-        let context = self
-            .lexical_paths
-            .file_context(containing_file, self.current_directory_text())
-            .ok()?;
+        let context = match batch {
+            Some(context) => {
+                // The uncached spelling operations have no side effects when
+                // path instrumentation is disabled.
+                #[cfg(not(feature = "loader-counters"))]
+                debug_assert!({
+                    normalize_absolute_js_path(
+                        containing_file,
+                        Some(self.current_directory_text()),
+                        true,
+                    )
+                    .is_ok_and(|file| {
+                        file == *context.file
+                            && crate::js_path::directory_name(file.as_js()) == *context.directory
+                    })
+                });
+                context
+            }
+            None => batch.insert(
+                self.lexical_paths
+                    .file_context(containing_file, self.current_directory_text())
+                    .ok()?,
+            ),
+        };
         let target = self
             .lexical_paths
             .normalize(specifier, Some(context.directory.as_js()), true)
@@ -2005,7 +2026,7 @@ impl<'a> ModuleResolver<'a> {
     /// for that same request. The eligibility check excluded API overrides.
     pub(crate) fn resolve_prepared_relative(
         &mut self,
-        request: &PreparedRelativeRequest<'_>,
+        request: &PreparedRelativeRequest<'_, '_>,
     ) -> Result<HostModuleResolution, ResolutionError> {
         self.resolve_request(
             &request.context.file,
@@ -9204,55 +9225,72 @@ mod shared_package_loads_tests {
 
     #[test]
     fn prepared_relative_request_preserves_resolution_and_target_spelling() {
-        let host = host(true);
-        let settings = options(false);
-        for (specifier, target) in [
-            ("./main", "/work/src/main"),
-            ("../node_modules/pkg/", "/work/node_modules/pkg/"),
-            ("./missing", "/work/src/missing"),
-        ] {
-            let mode = ResolutionMode::CommonJs;
-            let mut ordinary = ModuleResolver::new(&host, &settings).unwrap();
-            let expected = ordinary
-                .resolve_with_facts("src/main.ts", specifier, mode)
-                .unwrap();
-            let expected_reads = host.reads.take();
-            let mut resolver = ModuleResolver::new(&host, &settings).unwrap();
-            let request = resolver
-                .prepare_relative_request("src/main.ts".into(), specifier.into(), mode)
-                .unwrap();
-            assert_eq!(request.target_key().0.as_js(), target);
-            assert_eq!(request.target_key().1, mode);
-            assert_eq!(
-                resolver.resolve_prepared_relative(&request).unwrap(),
-                expected
-            );
-            assert_eq!(
-                resolver.package_json_probes(),
-                ordinary.package_json_probes()
-            );
-            assert_eq!(host.reads.take(), expected_reads);
-        }
-        let traced = options(true);
-        let resolver = ModuleResolver::new(&host, &traced).unwrap();
-        let prepare_main = |resolver: &ModuleResolver<'_>| {
-            resolver.prepare_relative_request(
-                "src/main.ts".into(),
-                "./main".into(),
-                ResolutionMode::CommonJs,
-            )
-        };
-        assert!(prepare_main(&resolver).is_none());
-        let redirected = ModuleResolver::new(&host, &settings)
-            .unwrap()
-            .with_redirect_config("/work/redirect/tsconfig.json".into(), false);
-        assert!(prepare_main(&redirected).is_none());
+        let mode = ResolutionMode::CommonJs;
         let root =
             crate::ProgramPath::from_js_parts("/work/src".into(), "/work/src".into()).unwrap();
-        let program_options = crate::ProgramOptions::default().with_root_dirs(vec![root]);
-        let with_roots =
-            ModuleResolver::new_with_program_options(&host, &settings, &program_options).unwrap();
-        assert!(prepare_main(&with_roots).is_none());
+        let no_roots = crate::ProgramOptions::default();
+        let roots = crate::ProgramOptions::default().with_root_dirs(vec![root]);
+        for (trace, redirect, paths) in [
+            (false, false, &no_roots),
+            (true, false, &no_roots),
+            (false, true, &no_roots),
+            (false, false, &roots),
+        ] {
+            let settings = options(trace);
+            let baseline = host(true);
+            let batched = host(true);
+            let [mut ordinary, mut resolver] = [&baseline, &batched].map(|host| {
+                let resolver =
+                    ModuleResolver::new_with_program_options(host, &settings, paths).unwrap();
+                if redirect {
+                    resolver.with_redirect_config("/work/redirect/tsconfig.json".into(), false)
+                } else {
+                    resolver
+                }
+            });
+            for containing in [
+                "src/main.ts",
+                "/work/other/../src/main.ts",
+                "/work/other/alias.ts",
+            ] {
+                let mut batch = None;
+                for specifier in ["./main", "../node_modules/pkg/", "./missing", "./main"] {
+                    let expected = ordinary
+                        .resolve_with_facts(containing, specifier, mode)
+                        .unwrap();
+                    let request = resolver.prepare_relative_request(
+                        containing.into(),
+                        &mut batch,
+                        specifier.into(),
+                        mode,
+                    );
+                    assert_eq!(
+                        request.is_some(),
+                        !trace && !redirect && paths.root_dirs().is_none_or(|dirs| dirs.is_empty())
+                    );
+                    let actual = match request {
+                        Some(request) => {
+                            assert_eq!(
+                                request.target_key().0.ends_with("/"),
+                                specifier.ends_with("/")
+                            );
+                            resolver.resolve_prepared_relative(&request)
+                        }
+                        None => {
+                            assert!(batch.is_none());
+                            resolver.resolve_with_facts(containing, specifier, mode)
+                        }
+                    }
+                    .unwrap();
+                    assert_eq!(actual, expected);
+                    assert_eq!(
+                        resolver.package_json_probes(),
+                        ordinary.package_json_probes()
+                    );
+                    assert_eq!(batched.probes.take(), baseline.probes.take());
+                }
+            }
+        }
     }
 
     /// A resolver of a load takes another resolver's package.json lookup:
