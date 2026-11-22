@@ -497,3 +497,52 @@ empty = nothing;
         );
     });
 }
+
+#[test]
+fn object_literal_prechecks_computed_names_across_spreads() {
+    let text = "declare const middle: { z: string };
+const result: { left: number; z: string; f(x: number): number; right: number } = {
+    ['left']: 1, ...middle, f: x => x, ['right']: 2,
+};";
+    with_program_state(
+        &[("a.ts", text)],
+        &CompilerOptions {
+            no_implicit_any: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            assert_eq!(rows(state), []);
+            let names: Vec<_> = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .filter(|&node| state.kind_of(node) == SyntaxKind::ComputedPropertyName)
+                .map(|node| state.links.node(node).resolved_type.resolved().unwrap())
+                .collect();
+            let count = state.tables.len();
+            let first_initializer = state.tables.get_number_literal_type(1.0);
+            assert_eq!(state.tables.len(), count);
+            assert_eq!(names.len(), 2);
+            assert!(names[0].index() < names[1].index());
+            assert!(names[1].index() < first_initializer.index());
+        },
+    );
+
+    let text = "declare const invalidKey: boolean;
+const result = { [invalidKey]: 1, ...1, [invalidKey]: 2 };";
+    let rows = checked_rows(text);
+    let starts: Vec<_> = text
+        .match_indices("[invalidKey]")
+        .map(|(i, _)| i as u32)
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            (2464, starts[0], 12),
+            (2464, starts[1], 12),
+            (2698, text.find("...1").unwrap() as u32, 4),
+        ]
+    );
+}
