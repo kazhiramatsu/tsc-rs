@@ -1589,21 +1589,20 @@ impl NodeLinksCursor {
     }
 
     #[inline]
-    fn slot<'t>(&mut self, links: &'t mut LinksTables) -> &'t mut NodeLinks {
+    fn slot<'t>(&mut self, nodes: &'t mut PagedTable<NodeId, NodeLinks>) -> &'t mut NodeLinks {
         let location = *self.location.get_or_insert_with(|| {
-            NodeLinksLocation::from_position(links.node.slot_position(self.node))
+            NodeLinksLocation::from_position(nodes.slot_position(self.node))
         });
+        let position = (location.0.get() - 1) as usize;
         debug_assert_eq!(
-            links.node_with_location(self.node).map(|(found, _)| found),
-            Some(location)
+            nodes.get_with_position(self.node).map(|(found, _)| found),
+            Some(position)
         );
-        links
-            .node
-            .get_mut_at_position((location.0.get() - 1) as usize)
+        nodes.get_mut_at_position(position)
     }
 
     pub(crate) fn set_type(&mut self, links: &mut LinksTables, value: LinkSlot<TypeId>) {
-        LinksTables::write_value_slot(&mut self.slot(links).resolved_type, value);
+        LinksTables::write_value_slot(&mut self.slot(&mut links.node).resolved_type, value);
     }
 
     pub(crate) fn finish_type_reference(
@@ -1612,7 +1611,7 @@ impl NodeLinksCursor {
         symbol: Option<SymbolId>,
         value: TypeId,
     ) {
-        let links = self.slot(links);
+        let links = self.slot(&mut links.node);
         note_resolving_transition(links.resolved_symbol.is_resolving(), false);
         note_resolving_transition(links.resolved_type.is_resolving(), false);
         links.resolved_symbol = symbol.map_or(LinkSlot::Vacant, LinkSlot::Resolved).into();
@@ -1620,7 +1619,7 @@ impl NodeLinksCursor {
     }
 
     pub(crate) fn set_symbol(&mut self, links: &mut LinksTables, value: SymbolId) {
-        let slot = &mut self.slot(links).resolved_symbol;
+        let slot = &mut self.slot(&mut links.node).resolved_symbol;
         match slot.get() {
             LinkSlot::Resolved(existing) if existing == value => {}
             // tsc assigns links.resolvedSymbol on every check of the access
@@ -1650,19 +1649,20 @@ impl NodeLinksCursor {
         value: LinkSlot<SignatureId>,
         previous_entry: Option<NonZeroUsize>,
     ) -> Option<NonZeroUsize> {
+        let journal = &mut links.speculative_resolved_signature_writes;
+        let slot = &mut self.slot(&mut links.node).resolved_signature;
+        let node = self.node;
         let entry = (speculation_depth != 0).then(|| {
-            let journal = &links.speculative_resolved_signature_writes;
             if let Some(index) = previous_entry {
                 let matches =
-                    |&(depth, node, _): &_| depth == speculation_depth && node == self.node;
+                    |&(depth, written, _): &_| depth == speculation_depth && written == node;
                 if journal.get(index.get() - 1).is_some_and(matches) {
                     debug_assert_eq!(journal.iter().position(matches), Some(index.get() - 1));
                     return index;
                 }
             }
-            self.find_or_save_call_signature(links, speculation_depth)
+            Self::find_or_save_call_signature(journal, speculation_depth, node, slot.get())
         });
-        let slot = &mut self.slot(links).resolved_signature;
         match (slot.get(), &value) {
             (LinkSlot::Vacant, LinkSlot::Resolving)
             | (LinkSlot::Resolving, LinkSlot::Resolving)
@@ -1676,22 +1676,34 @@ impl NodeLinksCursor {
         entry
     }
 
+    /// The one-based index of the node's entry at this depth; a first write
+    /// appends it with the slot's value before the write.
     #[inline(never)]
     fn find_or_save_call_signature(
-        &mut self,
-        links: &mut LinksTables,
+        journal: &mut Vec<(u32, NodeId, LinkSlot<SignatureId>)>,
         speculation_depth: u32,
+        node: NodeId,
+        previous: LinkSlot<SignatureId>,
     ) -> NonZeroUsize {
-        if let Some(index) = links
-            .speculative_resolved_signature_writes
+        // Closing a nested trial removes its entries, so the current
+        // depth can only be present at the end of the journal.
+        let found = journal
             .iter()
-            .position(|&(depth, node, _)| depth == speculation_depth && node == self.node)
-        {
+            .enumerate()
+            .rev()
+            .take_while(|(_, (depth, _, _))| *depth == speculation_depth)
+            .find(|(_, (_, written, _))| *written == node)
+            .map(|(index, _)| index);
+        debug_assert_eq!(
+            found,
+            journal
+                .iter()
+                .position(|&(depth, written, _)| depth == speculation_depth && written == node)
+        );
+        if let Some(index) = found {
             return NonZeroUsize::new(index + 1).expect("one-based journal index");
         }
-        let previous = self.slot(links).resolved_signature.get();
-        let journal = &mut links.speculative_resolved_signature_writes;
-        journal.push((speculation_depth, self.node, previous));
+        journal.push((speculation_depth, node, previous));
         NonZeroUsize::new(journal.len()).expect("just appended a journal entry")
     }
 
@@ -1703,13 +1715,13 @@ impl NodeLinksCursor {
         // This is an explicitly scoped park/restore pair, not a cache
         // publication; its caller restores the returned slot even when
         // the checked argument returns Err.
-        let slot = &mut self.slot(links).resolved_signature;
+        let slot = &mut self.slot(&mut links.node).resolved_signature;
         note_resolving_transition(slot.is_resolving(), value.is_resolving());
         slot.replace(value)
     }
 
     pub(crate) fn revert_call_signature(&mut self, links: &mut LinksTables) {
-        let slot = &mut self.slot(links).resolved_signature;
+        let slot = &mut self.slot(&mut links.node).resolved_signature;
         if slot.is_resolving() {
             note_resolving_transition(true, false);
             *slot = LinkSlot::Vacant.into();
@@ -1717,7 +1729,7 @@ impl NodeLinksCursor {
     }
 
     pub(crate) fn restore_resolving_signature(&mut self, links: &mut LinksTables) {
-        let slot = &mut self.slot(links).resolved_signature;
+        let slot = &mut self.slot(&mut links.node).resolved_signature;
         if !slot.is_resolving() {
             note_resolving_transition(false, true);
             *slot = LinkSlot::Resolving.into();
@@ -1725,7 +1737,7 @@ impl NodeLinksCursor {
     }
 
     pub(crate) fn clear_call_signature(&mut self, links: &mut LinksTables) {
-        let slot = &mut self.slot(links).resolved_signature;
+        let slot = &mut self.slot(&mut links.node).resolved_signature;
         if slot.get() != LinkSlot::Vacant {
             note_resolving_transition(slot.is_resolving(), false);
             *slot = LinkSlot::Vacant.into();

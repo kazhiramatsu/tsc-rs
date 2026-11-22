@@ -465,6 +465,15 @@ impl CheckerState<'_> {
         &mut self,
         f: impl FnOnce(&mut Self) -> CheckResult<SpeculationOutcome<T>>,
     ) -> CheckResult<T> {
+        self.speculate_with_result(f)
+    }
+
+    /// Share the rollback boundary with tests that can supply an error.
+    #[inline]
+    fn speculate_with_result<T, E>(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> Result<SpeculationOutcome<T>, E>,
+    ) -> Result<T, E> {
         let checkpoint = self.begin_speculation();
         match f(self) {
             Ok(SpeculationOutcome::Commit(value)) => {
