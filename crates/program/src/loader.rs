@@ -912,6 +912,13 @@ fn load_program_worker(
         limits,
         resolver: &mut resolver,
     });
+    // The shared name table gets its room while it is still empty. Left to the
+    // hints of the sources as they are parsed, it grows by rehashing, and the
+    // last and largest hint is the checker's (a quarter of the program's
+    // symbols): the first checker to start then rehashed every name of the
+    // program under the table's locks, at the head of its shard. A program
+    // of a few hundred roots reaches the hint's cap either way.
+    tsc_types::names::reserve_capacity_hint(root_names.len().saturating_mul(256));
     // Parse-ahead of the explicit roots. Normalization errors are left for
     // the sequential loop below, which reports them in root order.
     let mut prefetch_roots = Vec::with_capacity(root_names.len());
