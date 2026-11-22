@@ -692,6 +692,7 @@ fn run<'a>(
     #[cfg(feature = "loader-counters")]
     eprint!("{}", tsc_program::loader_counters::report());
     tsc_types::trace::mark("cli: execute", execute_started);
+    tsc_types::trace::flush();
     // Measurement builds only (`perf-counters` feature): aggregate counters
     // are written to the sidecar file named by TSRS_PERF_COUNTERS (one
     // `name=value` or `name=unwired` line each); stdout/stderr stay exactly

@@ -1003,7 +1003,7 @@ fn load_program_worker(
         phase_started,
     );
     let mut finish_timer = tsc_types::trace::Timer::new();
-    if tsc_types::trace::enabled() {
+    if tsc_types::trace::detail() {
         // The sources whose read-ahead resolutions the walk never took: read
         // ahead in vain, so worth knowing about.
         let unvisited = graph.pre_resolved.keys().fold(
@@ -4815,7 +4815,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         for source in self.prefetched.values_mut() {
             source.scope = None;
         }
-        if tsc_types::trace::enabled() {
+        if tsc_types::trace::detail() {
             eprintln!(
                 "[load census] staged: sources {}, tasks {}, task data {}, roots {}, module rows {}, type rows {}, source path bytes {}, module source key bytes {}",
                 self.sources.len(), self.parse.tasks.len(), self.parse.task_data.len(),
@@ -5106,7 +5106,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             package_json_probes.extend(resolver.take_package_json_probes());
         }
         timer.mark("load: graph library order and probes");
-        if tsc_types::trace::enabled() {
+        if tsc_types::trace::detail() {
             eprintln!(
                 "[load census] collected: sources {}, redirects {}, module rows {}, type rows {}, inclusion records {}",
                 ordinary_postorder.len() + library_postorder.len(), collected.redirects.len(), self.sources.iter().map(|source| source.module_requests.rows.len()).sum::<usize>(), self.type_resolutions.len(),
@@ -7568,7 +7568,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             self.resolution_trace.extend(lines);
         }
         timer.mark("load: graph collect files");
-        if tsc_types::trace::enabled() {
+        if tsc_types::trace::detail() {
             // Reconstruct incoming visits from the collected parents rather
             // than adding counters to the hot walk. A package copy entered
             // `seen` but did not walk its children; its registered owner did.

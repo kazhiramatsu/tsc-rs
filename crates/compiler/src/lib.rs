@@ -3342,7 +3342,7 @@ impl ProgramSession {
             (checked, sharded_emit.emissions.take())
         };
 
-        if tsc_types::trace::enabled() {
+        if tsc_types::trace::detail() {
             if let Some(pool) = &print_pool {
                 let peak = pool.peak();
                 eprintln!(

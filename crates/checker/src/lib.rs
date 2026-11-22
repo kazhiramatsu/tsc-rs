@@ -7191,7 +7191,7 @@ fn parse_lib_sources(
             }
         });
     }
-    if tsc_types::trace::enabled() {
+    if tsc_types::trace::detail() {
         let rewrite = pending
             .iter()
             .filter(|source| {
@@ -7632,7 +7632,7 @@ fn trace_direct_adoption<'a>(
     files: &[InputFile],
     sources: impl IntoIterator<Item = &'a tsc_syntax::SourceFile>,
 ) {
-    if !tsc_types::trace::enabled() {
+    if !tsc_types::trace::detail() {
         return;
     }
     let Some(layout) = libs
