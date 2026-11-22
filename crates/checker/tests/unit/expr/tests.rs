@@ -748,6 +748,28 @@ fn higher_order_generic_argument_lifts_type_parameters() {
 }
 
 #[test]
+fn higher_order_generic_argument_with_unfilled_return_parameters() {
+    for (return_type, expected, instantiations) in [
+        ("(x: A) => B", "<T>(x: T) => T", 9),
+        ("<U>(x: U) => U", "<U>(x: U) => U", 7),
+    ] {
+        let text = format!(
+            "declare function outer<A, B>(fn: (x: A) => B): {return_type};\n\
+             declare function id<T>(x: T): T;\nconst f = outer(id);"
+        );
+        with_program_state(&[("a.ts", &text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let call = find_node(state, SyntaxKind::CallExpression, None);
+            let result = state.get_type_at_location(call).unwrap();
+            assert_eq!(state.type_to_string(result).unwrap(), expected);
+            let diagnostics = rows(state);
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            assert_eq!(state.total_instantiation_count, instantiations);
+        });
+    }
+}
+
+#[test]
 fn quick_call_generic_initializer_resolves_live() {
     // LIVE since 7.4b (the stub era contained this element and the
     // 2339 was a recorded FN): inference types y as '1', so `.bad`

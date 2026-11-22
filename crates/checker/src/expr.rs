@@ -202,12 +202,15 @@ impl<'a> CheckerState<'a> {
         if let Some(return_signature) = return_signature {
             let return_signature_generic =
                 self.signature_of(return_signature).has_type_parameters();
-            let all_have_candidates = self
-                .inference_context(context)
-                .inferences
-                .iter()
-                .all(|&slot| crate::inference::has_inference_candidates(self.inference_info(slot)));
-            if !return_signature_generic && !all_have_candidates {
+            if !return_signature_generic
+                && !self
+                    .inference_context(context)
+                    .inferences
+                    .iter()
+                    .all(|&slot| {
+                        crate::inference::has_inference_candidates(self.inference_info(slot))
+                    })
+            {
                 let unique_type_parameters =
                     self.get_unique_type_parameters(context, &type_parameters)?;
                 let instantiated_signature = self
