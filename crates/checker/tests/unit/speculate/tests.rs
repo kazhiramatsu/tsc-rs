@@ -1534,7 +1534,9 @@ fn call_signature_journal_restores_nested_rejected_and_aborted_trials() {
                 assert_eq!(state.links.speculative_resolved_signature_mark(), mark);
                 assert_eq!(read(state, first), a);
                 assert_eq!(read(state, second), b);
-                assert_eq!(crate::links::debug_resolving_open(), initial + extra);
+                // The open-resolution census counts in debug builds only.
+                let open = if cfg!(debug_assertions) { extra } else { 0 };
+                assert_eq!(crate::links::debug_resolving_open(), initial + open);
             };
             check(state, 0, 0, LinkSlot::Vacant, LinkSlot::Vacant);
             let selected = state.any_signature;
