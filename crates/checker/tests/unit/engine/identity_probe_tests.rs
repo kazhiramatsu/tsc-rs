@@ -800,3 +800,60 @@ fn recursion_stack_tags_preserve_id_spaces_and_short_circuit_intersections() {
         },
     );
 }
+
+#[test]
+fn recursion_identity_distinguishes_written_references_from_instantiations() {
+    use super::RecursionIdentity::{Node, Symbol, Type};
+    use tsc_types::{ElementFlags, ObjectFlags, TupleTargetFlags};
+    with_program_state(
+        &[(
+            "a.ts",
+            "class C {} declare let ctor: typeof C; function f<T>(p: T) { let param: T; }",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let target = state.tables.get_tuple_target_type(
+                None,
+                TupleTargetFlags::new(&[ElementFlags::REQUIRED]).unwrap(),
+                false,
+                None,
+            );
+            let written = state.tables.create_type_reference_ex(
+                target,
+                &[state.tables.intrinsics.string],
+                ObjectFlags::FROM_TYPE_NODE,
+            );
+            let instantiated = state
+                .tables
+                .create_type_reference(target, &[state.tables.intrinsics.number]);
+            let node = find_probe_annotation(state.binder.source(0), "ctor").unwrap();
+            let deferred = state
+                .create_deferred_type_reference(target, node, None, None, None)
+                .unwrap();
+            state.tables.type_mut(deferred).object_flags |= ObjectFlags::FROM_TYPE_NODE;
+            let static_side = resolve(state, "ctor");
+            let parameter = resolve(state, "param");
+            let cases = [
+                (written, Type(written)),
+                (instantiated, Type(target)),
+                (deferred, Node(node)),
+                (static_side, Type(static_side)),
+                (
+                    parameter,
+                    Symbol(state.tables.type_of(parameter).symbol.unwrap()),
+                ),
+            ];
+            for (ty, identity) in cases {
+                assert_eq!(state.get_recursion_identity_from_target(ty), identity);
+                for (other, expected) in cases {
+                    assert_eq!(
+                        state
+                            .is_deeply_nested_type(ty, &[other, other], 2, 2)
+                            .unwrap(),
+                        identity == expected
+                    );
+                }
+            }
+        },
+    );
+}

@@ -5224,20 +5224,21 @@ impl<'a> CheckerState<'a> {
                     return RecursionIdentity::Node(node);
                 }
             }
-            let from_type_node = object_flags.intersects(ObjectFlags::FROM_TYPE_NODE);
-            if let Some(symbol) = self.tables.type_of(ty).symbol {
-                let is_anonymous_class = object_flags.intersects(ObjectFlags::ANONYMOUS)
-                    && self
-                        .binder
-                        .symbol(symbol)
-                        .flags
-                        .intersects(SymbolFlags::CLASS);
-                if !is_anonymous_class && !from_type_node {
-                    return RecursionIdentity::Symbol(symbol);
+            if !object_flags.intersects(ObjectFlags::FROM_TYPE_NODE) {
+                if let Some(symbol) = self.tables.type_of(ty).symbol {
+                    let is_anonymous_class = object_flags.intersects(ObjectFlags::ANONYMOUS)
+                        && self
+                            .binder
+                            .symbol(symbol)
+                            .flags
+                            .intersects(SymbolFlags::CLASS);
+                    if !is_anonymous_class {
+                        return RecursionIdentity::Symbol(symbol);
+                    }
                 }
-            }
-            if self.tables.is_tuple_type(ty) && !from_type_node {
-                return RecursionIdentity::Type(self.tables.reference_target(ty));
+                if self.tables.is_tuple_type(ty) {
+                    return RecursionIdentity::Type(self.tables.reference_target(ty));
+                }
             }
         }
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
