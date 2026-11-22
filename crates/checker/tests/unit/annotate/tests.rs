@@ -1135,3 +1135,72 @@ fn weak_properties_follow_the_full_record_through_resolution_and_speculation() {
         },
     );
 }
+
+#[test]
+fn signature_return_branches_preserve_target_precedence_composite_order_and_cycles() {
+    let text = "declare function first(): { first: string };
+declare function second(): { second: number };
+function annotated(): string { return 'ok'; }
+function unannotated() { return 0; }";
+    with_state(text, |state| {
+        use crate::state::Signature;
+        use tsc_syntax::SyntaxKind;
+
+        let nodes: Vec<_> = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .filter(|&node| state.kind_of(node) == SyntaxKind::FunctionDeclaration)
+            .collect();
+        let signatures: Vec<_> = nodes
+            .into_iter()
+            .map(|node| state.get_signature_from_declaration(node).unwrap())
+            .collect();
+        let [first, second, annotated, unannotated] = signatures[..] else {
+            panic!("four signatures");
+        };
+
+        let mut target = Signature::new();
+        target.target = Some(first);
+        target.set_composite_signatures(Some(Box::new([second])));
+        let target = state.alloc_signature(target);
+        let first_return = state.get_return_type_of_signature(target).unwrap();
+        assert_eq!(
+            state.signature_of(first).resolved_return_type,
+            Some(first_return)
+        );
+        assert!(state.signature_of(second).resolved_return_type.is_none());
+
+        let mut composite = Signature::new();
+        composite.set_composite_signatures(Some(Box::new([first, second])));
+        composite.set_composite_kind(Some(TypeFlags::UNION));
+        let composite = state.alloc_signature(composite);
+        let combined = state.get_return_type_of_signature(composite).unwrap();
+        let second_return = state.signature_of(second).resolved_return_type.unwrap();
+        assert!(first_return.index() < second_return.index());
+        assert!(second_return.index() < combined.index());
+
+        for signature in [annotated, unannotated] {
+            state.signature_mut(signature).target = Some(signature);
+            assert_eq!(
+                state.get_return_type_of_signature(signature).unwrap(),
+                state.tables.intrinsics.any
+            );
+        }
+        let rows: Vec<_> = state
+            .diagnostics
+            .iter()
+            .filter(|diag| diag.file_name.is_some())
+            .filter_map(|diag| diag.start.map(|start| (diag.code(), start as usize)))
+            .collect();
+        assert_eq!(
+            rows,
+            [
+                (2577, text.find("): string").unwrap() + 3),
+                (7023, text.find("unannotated").unwrap()),
+            ]
+        );
+        assert!(state.resolution_targets.is_empty());
+    });
+}
