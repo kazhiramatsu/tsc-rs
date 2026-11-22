@@ -25,8 +25,8 @@ use crate::inclusion_reason::{InclusionReasonRecord, InclusionSource, SourceIncl
 use crate::json::{json_object_get, parse_json_object};
 use crate::library::{replacement_package_name, LibraryCatalog};
 use crate::module_requests::{
-    is_declaration_file_name, plan_source_requests_retaining_syntax, PlannedLibReferenceDirective,
-    PlannedPathReference, PlannedTypeReferenceDirective, SourceRequestPlan,
+    is_declaration_file_name, plan_retaining_syntax, PlannedLibReferenceDirective,
+    PlannedPathReference, PlannedTypeReferenceDirective,
 };
 use crate::module_resolution::{
     make_program_path, HostModuleResolution, HostResolvedTypeReferenceDirective, ModuleResolver,
@@ -2352,7 +2352,7 @@ impl ParallelReadAhead<'_> {
                     .with_content_mapped(canonical.info)
                     .with_implied_node_formats(implied, implied_for_emit);
                 let canonical = Box::new(
-                    match plan_source_requests_retaining_syntax(
+                    match plan_retaining_syntax(
                         &prepared,
                         self.options,
                         self.program_options.parse_cache(),
@@ -2971,7 +2971,7 @@ fn parse_root_ahead(
         let planned = match discovered {
             // In the worker's room: at its final identities.
             Some((rooms, room)) if parse_cache.is_none() => rooms.plan(room, &prepared, options),
-            _ => plan_source_requests_retaining_syntax(&prepared, options, parse_cache),
+            _ => plan_retaining_syntax(&prepared, options, parse_cache),
         };
         if let Some((_, name)) = &traced {
             tsc_types::trace::mark(&format!("load: parse and plan {name}"), plan_started);
@@ -6192,7 +6192,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         .filter(|_| self.direct_layout);
                     let planned = match rooms {
                         Some(rooms) => rooms.plan(&mut self.walk_room, &prepared, options_for_plan),
-                        None => plan_source_requests_retaining_syntax(
+                        None => plan_retaining_syntax(
                             &prepared,
                             options_for_plan,
                             self.program_options.parse_cache(),
@@ -6231,7 +6231,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             type_reference_directives,
             lib_reference_directives,
             module_request_order,
-            module_request_occurrences: _,
         } = plan.as_mut().map_or_else(
             Default::default,
             PreparedSourceRequests::take_admission_parts,

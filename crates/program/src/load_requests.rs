@@ -1,24 +1,14 @@
 //! Source-local facts prepared before the ordered task walk.
 use super::*;
-use crate::module_requests::AdmissionPlanParts;
+use crate::module_requests::{AdmissionPlanParts, ImportOccurrence, LoaderRequestPlan};
 use crate::resolution::{PreparedModule, PreparedResolvedModule};
-
-#[derive(Clone, Copy)]
-pub(super) struct ImportOccurrence {
-    pub request: u32,
-    pub pos: u32,
-    pub end: u32,
-    pub synthetic: bool,
-}
-
-const _: () = assert!(std::mem::size_of::<ImportOccurrence>() <= 32);
 
 #[derive(Default)]
 pub(super) struct PreparedModuleRequests {
     pub rows: Vec<StagedModuleResolution>,
     pub staged: bool,
     pub all_ready: bool,
-    pub occurrences: Vec<ImportOccurrence>,
+    pub occurrences: Box<[ImportOccurrence]>,
     pub indices: crate::resolution::PreparedModuleIndices,
 }
 
@@ -38,50 +28,12 @@ pub(super) struct PreparedSourceRequests {
 }
 
 impl PreparedSourceRequests {
-    pub fn new(mut plan: SourceRequestPlan) -> Self {
+    pub fn new(plan: LoaderRequestPlan) -> Self {
         let external = plan.is_external_module();
         let import_count = plan.import_count();
         let observed = plan.observed_request_occurrence_count();
-        let mut admission = plan.take_admission_parts();
-        let modules = plan.take_loader_module_requests();
-        drop(plan);
-        let synthetic_counts: Vec<_> = modules
-            .occurrence_counts
-            .iter()
-            .zip(&modules.spans)
-            .map(|(&count, spans)| count.saturating_sub(spans.len() as u32))
-            .collect();
-        let mut next = vec![0usize; modules.len()];
-        let requests = std::mem::take(&mut admission.module_request_occurrences);
-        let mut occurrences = Vec::with_capacity(requests.len());
-        for request in requests {
-            let index = request as usize;
-            let occurrence = next[index];
-            next[index] += 1;
-            let synthetic = occurrence < synthetic_counts[index] as usize;
-            let (pos, end) = if synthetic {
-                (0, 0)
-            } else {
-                let Some(&span) =
-                    modules.spans[index].get(occurrence - synthetic_counts[index] as usize)
-                else {
-                    continue;
-                };
-                span
-            };
-            occurrences.push(ImportOccurrence {
-                request,
-                pos,
-                end,
-                synthetic,
-            });
-        }
-        let keys = modules.keys;
+        let (admission, keys, loads_source, occurrences) = plan.into_loader_parts();
         let source = keys.first().map(|key| key.source().clone());
-        let loads_source = modules.loads_source;
-        drop(modules.spans);
-        drop(modules.occurrence_counts);
-        drop(next);
         let indices = crate::resolution::PreparedModuleIndices::new(&keys);
         Self {
             external,
@@ -93,25 +45,23 @@ impl PreparedSourceRequests {
                 rows: keys
                     .into_iter()
                     .zip(loads_source)
-                    .zip(synthetic_counts)
-                    .map(
-                        |((key, loads_source), synthetic_count)| StagedModuleResolution {
-                            host: PreparedModuleResolution::empty(),
-                            key: SourceModuleKey {
-                                mode: key.mode(),
-                                specifier: key.into_parts().1,
-                            },
-                            target: StagedModuleTarget::Lookup,
-                            loads_source,
-                            synthetic_count,
-                            unloaded_reason: None,
-                            ready: false,
+                    .enumerate()
+                    .map(|(index, (key, loads_source))| StagedModuleResolution {
+                        host: PreparedModuleResolution::empty(),
+                        key: SourceModuleKey {
+                            mode: key.mode(),
+                            specifier: key.into_parts().1,
                         },
-                    )
+                        target: StagedModuleTarget::Lookup,
+                        loads_source,
+                        synthetic_count: u32::from(index < occurrences.synthetic_rows),
+                        unloaded_reason: None,
+                        ready: false,
+                    })
                     .collect(),
                 staged: false,
                 all_ready: false,
-                occurrences,
+                occurrences: occurrences.records.into_boxed_slice(),
                 indices,
             },
         }
