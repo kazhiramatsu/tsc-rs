@@ -1186,7 +1186,7 @@ impl<'a> CheckerState<'a> {
                             return Ok(existing);
                         }
                     }
-                    let (id_key, existing) = state.tables.lookup_instantiation(
+                    let lookup = state.tables.lookup_instantiation(
                         target,
                         type_arguments,
                         new_alias_symbol,
@@ -1194,15 +1194,20 @@ impl<'a> CheckerState<'a> {
                         single_signature,
                     );
                     perf::bump(PerfCounter::InstantiationLookups);
-                    if let Some(existing) = existing {
-                        perf::bump(PerfCounter::InstantiationHits);
-                        if plain_key {
-                            state
-                                .tables
-                                .instantiation_front_put(target, type_arguments, existing);
+                    let miss = match lookup {
+                        Ok(existing) => {
+                            perf::bump(PerfCounter::InstantiationHits);
+                            if plain_key {
+                                state.tables.instantiation_front_put(
+                                    target,
+                                    type_arguments,
+                                    existing,
+                                );
+                            }
+                            return Ok(existing);
                         }
-                        return Ok(existing);
-                    }
+                        Err(miss) => miss,
+                    };
                     let mut new_mapper = state.create_type_mapper_from_stored_sources(
                         |tables| tables.list(type_parameters),
                         type_arguments,
@@ -1248,7 +1253,7 @@ impl<'a> CheckerState<'a> {
                             new_alias_type_arguments,
                         )?
                     };
-                    state.tables.instantiation_insert(target, id_key, result);
+                    state.tables.publish_instantiation(miss, result);
                     if plain_key {
                         state
                             .tables

@@ -1321,14 +1321,17 @@ fn borrowed_instantiation_probes_distinguish_collisions_and_keep_miss_order() {
     assert_eq!(t.create_type_reference(target, &a), target);
     t.instantiation_insert(target, InstantiationKey::plain(list_a), a[2]);
     assert_eq!(
-        t.lookup_instantiation(target, &a, None, Some(&[]), false).1,
+        t.lookup_instantiation(target, &a, None, Some(&[]), false)
+            .ok(),
         Some(a[2])
     );
     assert_eq!(t.list_items.len(), next);
     let count = t.types.len();
     let mut worker = || {
-        let (key, existing) = t.lookup_instantiation(target, &b[..2], None, None, true);
-        assert_eq!(existing, None);
+        let miss = t
+            .lookup_instantiation(target, &b[..2], None, None, true)
+            .unwrap_err();
+        let key = miss.key;
         assert_eq!(key.arguments.index() as usize, next);
         assert_eq!(
             t.intern_type_list(&a[..2]).index(),
@@ -1347,6 +1350,28 @@ fn borrowed_instantiation_probes_distinguish_collisions_and_keep_miss_order() {
     assert_eq!(t.create_type_reference(target, &b[..1]), b[2]);
     t.instantiation_insert(target, future, b[0]);
     assert_eq!(t.create_type_reference(target, &b[..1]), b[0]);
+
+    assert!(!t.instantiations.full.contains_key(&(target, future)));
+    let next = t.list_items.len();
+    let outer = t
+        .lookup_instantiation(target, &a[..1], None, None, false)
+        .unwrap_err();
+    assert_eq!(outer.key.arguments.index() as usize, next);
+    let old_capacity = t.instantiations.plain.capacity();
+    t.instantiations.reserve(old_capacity + 1);
+    assert!(t.instantiations.plain.capacity() > old_capacity);
+    let inner = t
+        .lookup_instantiation(target, &a[..1], None, None, false)
+        .unwrap_err();
+    t.publish_instantiation(inner, b[1]);
+    assert_eq!(t.create_type_reference(target, &a[..1]), b[1]);
+    assert_eq!(t.instantiation_front_get(target, &a[..1]), Some(b[1]));
+    let len = t.instantiations.len();
+    t.publish_instantiation(outer, b[0]);
+    assert_eq!(t.instantiations.len(), len);
+    assert_eq!(t.instantiation_front_get(target, &a[..1]), None);
+    assert_eq!(t.create_type_reference(target, &a[..1]), b[0]);
+    assert_eq!(t.intern_type_list(&a[2..]).index() as usize, next + 2);
 }
 
 /// getObjectTypeInstantiation's seed is asked of the map once a target: the
