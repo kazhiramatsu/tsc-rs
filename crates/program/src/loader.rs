@@ -2185,25 +2185,36 @@ struct QueuedPath {
     queued: bool,
 }
 
+/// The symbol of `path` in the read-ahead's table, made on first sight and
+/// never changed afterwards, and whether this call is the one that queues
+/// the path (`queue` asked for it and no earlier call had).
+fn queued_path_symbol(
+    queued: &Sharded<CanonicalPath, QueuedPath>,
+    count: &AtomicUsize,
+    path: &CanonicalPath,
+    queue: bool,
+) -> (Option<std::num::NonZeroU32>, bool) {
+    let mut shard = queued.shard(path);
+    let entry = shard.entry(path.clone()).or_insert_with(|| QueuedPath {
+        symbol: count
+            .fetch_add(1, Ordering::Relaxed)
+            .checked_add(1)
+            .and_then(|id| u32::try_from(id).ok())
+            .and_then(std::num::NonZeroU32::new),
+        queued: false,
+    });
+    let newly_queued = queue && !entry.queued;
+    entry.queued |= queue;
+    (entry.symbol, newly_queued)
+}
+
 impl ParallelReadAhead<'_> {
     fn path_symbol(
         &self,
         path: &CanonicalPath,
         queue: bool,
     ) -> (Option<std::num::NonZeroU32>, bool) {
-        let mut shard = self.queued.shard(path);
-        let entry = shard.entry(path.clone()).or_insert_with(|| QueuedPath {
-            symbol: self
-                .path_symbol_count
-                .fetch_add(1, Ordering::Relaxed)
-                .checked_add(1)
-                .and_then(|id| u32::try_from(id).ok())
-                .and_then(std::num::NonZeroU32::new),
-            queued: false,
-        });
-        let newly_queued = queue && !entry.queued;
-        entry.queued |= queue;
-        (entry.symbol, newly_queued)
+        queued_path_symbol(&self.queued, &self.path_symbol_count, path, queue)
     }
 
     /// Whether the read-ahead reads `path` (`prefetch_roots`'s admission).
@@ -2227,13 +2238,24 @@ impl ParallelReadAhead<'_> {
         .cloned()
     }
 
-    fn queue(&self, path: &ProgramPath, spawned: &mut Vec<(ProgramPath, usize)>) {
-        if !self.stopped.load(Ordering::Relaxed)
-            && self.admits(path)
-            && self.path_symbol(path.canonical(), true).1
-        {
+    /// Queue `path` for the read-ahead if it reads it and no worker has
+    /// queued it yet. The answer is the path's symbol when the table was
+    /// asked (an entry's symbol never changes once it is made), `None` when
+    /// the read-ahead has stopped or does not read the path: a caller that
+    /// wants the symbol next has it without asking the table again.
+    fn queue(
+        &self,
+        path: &ProgramPath,
+        spawned: &mut Vec<(ProgramPath, usize)>,
+    ) -> Option<Option<std::num::NonZeroU32>> {
+        if self.stopped.load(Ordering::Relaxed) || !self.admits(path) {
+            return None;
+        }
+        let (symbol, newly_queued) = self.path_symbol(path.canonical(), true);
+        if newly_queued {
             spawned.push((path.clone(), usize::MAX));
         }
+        Some(symbol)
     }
 
     /// Read, parse and plan one source with the package scope its implied
@@ -2482,12 +2504,15 @@ impl ParallelReadAhead<'_> {
                         facts
                     }
                 };
+                // The symbol of the target this row queued, if it asked the
+                // table: the row's own symbol below is that one.
+                let mut queued_symbol = None;
                 if loads_source {
                     if let Some(target) = facts.resolved() {
                         if !matches!(target.extension(), ModuleExtension::Json)
                             && !prepared_read_ahead_elides_target(self.options, target)
                         {
-                            self.queue(target.resolved_file(), spawned);
+                            queued_symbol = self.queue(target.resolved_file(), spawned);
                         }
                     }
                 }
@@ -2511,10 +2536,22 @@ impl ParallelReadAhead<'_> {
                     {
                         package.id.display();
                     }
-                    prepared.symbol = prepared.resolved().and_then(|module| {
-                        self.path_symbol(module.resolved_file().canonical(), false)
-                            .0
-                    });
+                    prepared.symbol = match queued_symbol {
+                        Some(symbol) => {
+                            debug_assert_eq!(
+                                symbol,
+                                prepared.resolved().and_then(|module| {
+                                    self.path_symbol(module.resolved_file().canonical(), false)
+                                        .0
+                                })
+                            );
+                            symbol
+                        }
+                        None => prepared.resolved().and_then(|module| {
+                            self.path_symbol(module.resolved_file().canonical(), false)
+                                .0
+                        }),
+                    };
                 }
                 row.host = prepared;
                 row.ready = true;
