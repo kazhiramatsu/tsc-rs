@@ -25,20 +25,24 @@ pub struct EscapedName(u32);
 /// The id of `raw` escaped (tsc escapeLeadingUnderscores), without the
 /// counters: [`EscapedName::escape`] and a parse's name cache on a miss
 /// ([`crate::names::HeldNameCache`]).
-pub(crate) fn escaped_id(raw: JsStr<'_>) -> u32 {
+pub(crate) fn escaped_id(raw: JsStr<'_>, hash: Option<u64>) -> u32 {
     if raw.starts_with("__") {
         let mut text = JsString::from("_");
         text.push_js(raw);
         names::intern(text.as_js())
+    } else if let Some(hash) = hash {
+        names::intern_hashed(raw, hash)
     } else {
         names::intern(raw)
     }
 }
 
-pub(crate) fn escaped_str_id(raw: &str) -> u32 {
+pub(crate) fn escaped_str_id(raw: &str, hash: Option<u64>) -> u32 {
     if raw.starts_with("__") {
         // Keep the small inline escape buffer for these uncommon names.
-        escaped_id(raw.into())
+        escaped_id(raw.into(), None)
+    } else if let Some(hash) = hash {
+        names::intern_str_hashed(raw, hash)
     } else {
         names::intern_str(raw)
     }
@@ -74,7 +78,7 @@ impl EscapedName {
     pub fn escape(raw: JsStr<'_>) -> Self {
         crate::perf::name_site(std::panic::Location::caller());
         crate::perf::bump(crate::perf::PerfCounter::NamesEscapeCalls);
-        Self(escaped_id(raw))
+        Self(escaped_id(raw, None))
     }
 
     /// InternalSymbolName constants are inserted verbatim, without escaping.

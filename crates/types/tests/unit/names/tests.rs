@@ -157,3 +157,37 @@ fn contextual_name_hints_are_exact_across_intern_and_escape_paths() {
         assert_eq!(name, cache.escape(word.into()));
     }
 }
+
+#[test]
+fn long_name_misses_share_the_scalar_and_js_identity_across_threads() {
+    let spellings: Vec<_> = [16, 17, 19, 24, 25]
+        .into_iter()
+        .flat_map(|len| {
+            let ordinary = format!("hash_{}", "x".repeat(len - 5));
+            let escaped = format!("__{}", &ordinary[2..]);
+            [ordinary, escaped]
+        })
+        .collect();
+    let barrier = std::sync::Barrier::new(2);
+    let run = |scalar| {
+        let mut held = HeldNameCache::take();
+        barrier.wait();
+        spellings
+            .iter()
+            .map(|raw| {
+                let id = if scalar {
+                    held.escape_str(raw)
+                } else {
+                    held.escape(raw.as_str().into())
+                };
+                assert_eq!(id, EscapedName::escape(raw.as_str().into()));
+                id
+            })
+            .collect::<Vec<_>>()
+    };
+    std::thread::scope(|scope| {
+        let other = scope.spawn(|| run(false));
+        let ours = run(true);
+        assert_eq!(ours, other.join().unwrap());
+    });
+}

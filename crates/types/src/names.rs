@@ -136,7 +136,11 @@ thread_local! {
 
 /// The id of `text`, interning it on first sight.
 pub(crate) fn intern(text: JsStr<'_>) -> u32 {
-    intern_with(text, || {
+    intern_hashed(text, hash_bytes(text.as_bytes()))
+}
+
+pub(crate) fn intern_hashed(text: JsStr<'_>, hash: u64) -> u32 {
+    intern_with(text, hash, || {
         tsc_store::names::push_with_contextual_hint(
             text.as_bytes(),
             contextual_identifier_name(text.as_bytes()),
@@ -145,7 +149,11 @@ pub(crate) fn intern(text: JsStr<'_>) -> u32 {
 }
 
 pub(crate) fn intern_str(text: &str) -> u32 {
-    intern_with(text.into(), || {
+    intern_str_hashed(text, hash_bytes(text.as_bytes()))
+}
+
+pub(crate) fn intern_str_hashed(text: &str, hash: u64) -> u32 {
+    intern_with(text.into(), hash, || {
         tsc_store::names::push_str_with_contextual_hint(
             text,
             contextual_identifier_name(text.as_bytes()),
@@ -153,10 +161,10 @@ pub(crate) fn intern_str(text: &str) -> u32 {
     })
 }
 
-fn intern_with(text: JsStr<'_>, store: impl FnOnce() -> u32) -> u32 {
+fn intern_with(text: JsStr<'_>, hash: u64, store: impl FnOnce() -> u32) -> u32 {
     crate::perf::bump(crate::perf::PerfCounter::NamesInternCalls);
     let bytes = text.as_bytes();
-    let hash = hash_bytes(bytes);
+    debug_assert_eq!(hash, hash_bytes(bytes));
     let slot = hash as usize % RECENT;
     let recent = RECENT_NAMES.with(|recent| recent.borrow()[slot]);
     if recent.matches(hash, bytes) {
@@ -292,7 +300,7 @@ impl NameCache {
     /// The id of `raw` escaped. A name the escape changes (a leading `__`)
     /// is not cached.
     #[inline]
-    fn escaped_id(&mut self, bytes: &[u8], intern: impl FnOnce() -> u32) -> u32 {
+    fn escaped_id(&mut self, bytes: &[u8], intern: impl FnOnce(Option<u64>) -> u32) -> u32 {
         if bytes.len() <= 16 {
             let (a, b) = short_key(bytes);
             let hash = (a ^ b.rotate_left(29) ^ (bytes.len() as u64) << 59)
@@ -302,7 +310,7 @@ impl NameCache {
                 debug_assert_eq!(tsc_store::names::text(slot.id), bytes);
                 return slot.id;
             }
-            let id = intern();
+            let id = intern(None);
             if !bytes.starts_with(b"__") {
                 *slot = ShortSlot {
                     a,
@@ -326,7 +334,7 @@ impl NameCache {
                 debug_assert_eq!(tsc_store::names::text(slot.id), bytes);
                 return slot.id;
             }
-            let id = intern();
+            let id = intern(Some(hash));
             if !bytes.starts_with(b"__") {
                 slot.hash = hash;
                 slot.id = id;
@@ -370,10 +378,9 @@ impl HeldNameCache {
     pub fn escape(&mut self, raw: JsStr<'_>) -> crate::EscapedName {
         crate::perf::name_site(std::panic::Location::caller());
         crate::perf::bump(crate::perf::PerfCounter::NamesEscapeCalls);
-        crate::EscapedName::from_index(
-            self.cache
-                .escaped_id(raw.as_bytes(), || crate::escaped_name::escaped_id(raw)),
-        )
+        crate::EscapedName::from_index(self.cache.escaped_id(raw.as_bytes(), |hash| {
+            crate::escaped_name::escaped_id(raw, hash)
+        }))
     }
 
     /// Escape the scalar token at these source offsets. Exact byte equality
@@ -389,8 +396,8 @@ impl HeldNameCache {
         crate::perf::bump(crate::perf::PerfCounter::NamesEscapeCalls);
         let bytes = &source.as_bytes()[range.clone()];
         debug_assert!(source.is_char_boundary(range.start) && source.is_char_boundary(range.end));
-        crate::EscapedName::from_index(self.cache.escaped_id(bytes, || {
-            crate::escaped_name::escaped_str_id(&source[range])
+        crate::EscapedName::from_index(self.cache.escaped_id(bytes, |hash| {
+            crate::escaped_name::escaped_str_id(&source[range], hash)
         }))
     }
 
@@ -401,10 +408,9 @@ impl HeldNameCache {
     pub fn escape_str(&mut self, raw: &str) -> crate::EscapedName {
         crate::perf::name_site(std::panic::Location::caller());
         crate::perf::bump(crate::perf::PerfCounter::NamesEscapeCalls);
-        crate::EscapedName::from_index(
-            self.cache
-                .escaped_id(raw.as_bytes(), || crate::escaped_name::escaped_str_id(raw)),
-        )
+        crate::EscapedName::from_index(self.cache.escaped_id(raw.as_bytes(), |hash| {
+            crate::escaped_name::escaped_str_id(raw, hash)
+        }))
     }
 }
 
