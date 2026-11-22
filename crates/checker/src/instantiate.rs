@@ -944,15 +944,20 @@ impl<'a> CheckerState<'a> {
     ) -> SymbolId {
         let mut symbol = symbol;
         let mut mapper = mapper;
-        let links = self.links.symbol(symbol);
-        if links.check_flags.intersects(CheckFlags::INSTANTIATED) {
-            let target = links
+        let mut source_links = self.links.transient_symbol(symbol);
+        if let Some(wrapper) =
+            source_links.filter(|links| links.check_flags.intersects(CheckFlags::INSTANTIATED))
+        {
+            symbol = wrapper
                 .target
                 .expect("Instantiated check flag implies links.target");
-            let target_mapper = links.mapper;
-            symbol = target;
-            mapper = self.combine_type_mappers(target_mapper, mapper);
+            mapper = self.combine_type_mappers(wrapper.mapper, mapper);
+            source_links = self.links.transient_symbol(symbol);
         }
+        perf::bump(PerfCounter::LinksSymbolReads);
+        let (source_check_flags, name_type) = source_links
+            .map(|links| (links.check_flags, links.name_type))
+            .unwrap_or_default();
         let source = self.binder.symbol(symbol);
         let source_flags = source.flags;
         let escaped_name = source.escaped_name;
@@ -961,14 +966,13 @@ impl<'a> CheckerState<'a> {
         let value_declaration = source.value_declaration;
         let check_flags = CheckFlags::INSTANTIATED
             | CheckFlags::from_bits(
-                self.links.read_symbol_check_flags(symbol).bits()
+                source_check_flags.bits()
                     & (CheckFlags::READONLY
                         | CheckFlags::LATE
                         | CheckFlags::OPTIONAL_PARAMETER
                         | CheckFlags::REST_PARAMETER)
                         .bits(),
             );
-        let name_type = self.links.symbol(symbol).name_type;
         let result = self.binder.create_symbol(source_flags, escaped_name);
         {
             let transient = self.binder.symbol_mut(result);

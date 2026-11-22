@@ -1289,43 +1289,69 @@ fn depth_limit_precedes_an_active_mapper_hit() {
 
 #[test]
 fn instantiated_transient_keeps_original_flags_name_and_declarations_after_rollback() {
-    use tsc_types::{CheckFlags, EscapedName};
-    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
-        let name = EscapedName::internal("prop");
-        let original = state.binder.create_symbol(SymbolFlags::PROPERTY, name);
-        let node = state.binder.source(0).root;
-        state.binder.set_declarations_from(original, &[node]);
-        state.binder.symbol_mut(original).value_declaration = Some(node);
-        let flags = CheckFlags::READONLY | CheckFlags::OPTIONAL_PARAMETER;
-        let name_type = state.tables.intrinsics.string;
-        state.links.set_symbol_check_flags(0, original, flags);
-        state
-            .links
-            .set_symbol_name_type(0, original, Some(name_type));
-        let first = state.new_instantiated_symbol(original, state.permissive_mapper);
-        state
-            .links
-            .set_symbol_name_type(0, first, Some(state.tables.intrinsics.number));
-        let mut previous = first;
-        for trial in [true, false] {
-            let mark = trial.then(|| state.begin_speculation());
-            let result = state.new_instantiated_symbol(first, state.restrictive_mapper);
-            if let Some(mark) = mark {
-                state.rollback_speculation(mark);
-            }
-            let links = state.links.symbol(result);
+    use tsc_types::CheckFlags;
+    with_program_state(
+        &[("a.ts", "declare var prop: string;")],
+        &CompilerOptions::default(),
+        |state| {
+            let annotation = annotation_of_var(state, "prop");
+            let node = state.parent_of(annotation).unwrap();
+            let persistent = state.get_symbol_of_declaration(node).unwrap();
+            let mapper = state.permissive_mapper;
+            let before = state.binder.transient_symbol_count();
+            let copy = state.new_instantiated_symbol(persistent, mapper);
+            assert_eq!(state.binder.transient_symbol_count(), before + 1);
+            let links = state.links.symbol(copy);
+            assert_eq!(links.target, Some(persistent));
+            assert_eq!(links.mapper, Some(mapper));
+            assert_eq!(links.check_flags, CheckFlags::INSTANTIATED);
+            assert_eq!(links.name_type, None);
+            assert_eq!(state.binder.symbol(copy).declarations(), &[node]);
+            let name = state.binder.symbol(persistent).escaped_name;
+            let original = state.binder.create_symbol(SymbolFlags::PROPERTY, name);
+            assert_eq!(original.index(), copy.index() + 1);
+            state.binder.set_declarations_from(original, &[node]);
+            state.binder.symbol_mut(original).value_declaration = Some(node);
+            let flags = CheckFlags::READONLY | CheckFlags::OPTIONAL_PARAMETER;
+            let name_type = state.tables.intrinsics.string;
+            state.links.set_symbol_check_flags(0, original, flags);
+            state
+                .links
+                .set_symbol_name_type(0, original, Some(name_type));
+            let first = state.new_instantiated_symbol(original, state.permissive_mapper);
+            assert_eq!(state.binder.transient_symbol_count(), before + 3);
+            assert_eq!(first.index(), original.index() + 1);
+            let links = state.links.symbol(first);
             assert_eq!(links.target, Some(original));
+            assert_eq!(links.mapper, Some(mapper));
             assert_eq!(links.check_flags, flags | CheckFlags::INSTANTIATED);
             assert_eq!(links.name_type, Some(name_type));
-            assert!(
-                matches!(state.mapper(links.mapper.unwrap()), super::TypeMapper::Composite { mapper1, mapper2 } if *mapper1 == state.permissive_mapper && *mapper2 == state.restrictive_mapper)
-            );
-            assert_eq!(state.binder.symbol(result).declarations(), &[node]);
-            assert_eq!(state.binder.symbol(result).value_declaration, Some(node));
-            assert_eq!(result.index(), previous.index() + 1);
-            previous = result;
-        }
-    });
+            state
+                .links
+                .set_symbol_name_type(0, first, Some(state.tables.intrinsics.number));
+            let mut previous = first;
+            for trial in [true, false] {
+                let mark = trial.then(|| state.begin_speculation());
+                let before = state.binder.transient_symbol_count();
+                let result = state.new_instantiated_symbol(first, state.restrictive_mapper);
+                assert_eq!(state.binder.transient_symbol_count(), before + 1);
+                if let Some(mark) = mark {
+                    state.rollback_speculation(mark);
+                }
+                let links = state.links.symbol(result);
+                assert_eq!(links.target, Some(original));
+                assert_eq!(links.check_flags, flags | CheckFlags::INSTANTIATED);
+                assert_eq!(links.name_type, Some(name_type));
+                assert!(
+                    matches!(state.mapper(links.mapper.unwrap()), super::TypeMapper::Composite { mapper1, mapper2 } if *mapper1 == state.permissive_mapper && *mapper2 == state.restrictive_mapper)
+                );
+                assert_eq!(state.binder.symbol(result).declarations(), &[node]);
+                assert_eq!(state.binder.symbol(result).value_declaration, Some(node));
+                assert_eq!(result.index(), previous.index() + 1);
+                previous = result;
+            }
+        },
+    );
 }
 
 #[test]

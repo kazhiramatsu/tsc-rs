@@ -2036,9 +2036,15 @@ impl LinksTables {
     #[inline(always)]
     pub(crate) fn read_symbol_check_flags(&self, id: SymbolId) -> tsc_types::CheckFlags {
         perf::bump(PerfCounter::LinksSymbolReads);
-        transient_index(id)
-            .and_then(|index| self.transient_symbols.get(index))
+        self.transient_symbol(id)
             .map_or_else(tsc_types::CheckFlags::default, |links| links.check_flags)
+    }
+
+    /// Persistent declarations have no instantiation fields. A transient
+    /// source supplies them from its own record when it has one.
+    #[inline]
+    pub(crate) fn transient_symbol(&self, id: SymbolId) -> Option<&SymbolLinks> {
+        transient_index(id).and_then(|index| self.transient_symbols.get(index))
     }
 
     /// tsrs-native: owned projection of an immutable type-links field.
