@@ -1578,20 +1578,10 @@ pub struct CheckerState<'a> {
     /// until first use.
     pub(crate) implied_node_format_memo: std::cell::RefCell<Vec<ImpliedNodeFormatMemo>>,
     /// H0 production-only exact module provider. Its source identities are
-    /// caller tokens rather than binder indexes; the two explicit maps below
-    /// make filtering and shadowing observable instead of assuming ordinal
-    /// equality.
+    /// caller tokens. The borrowed projection maps them to binder indexes
+    /// after library filtering and shadowing.
     pub(crate) authoritative_module_provider: Option<&'a dyn crate::AuthoritativeModuleProvider>,
-    pub(crate) authoritative_source_tokens: Vec<crate::AuthoritativeSourceToken>,
-    pub(crate) authoritative_source_index_by_token:
-        rustc_hash::FxHashMap<crate::AuthoritativeSourceToken, usize>,
-    pub(crate) authoritative_source_may_be_emitted: Vec<bool>,
-    pub(crate) authoritative_implied_node_formats: Vec<Option<crate::AuthoritativeResolutionMode>>,
-    pub(crate) authoritative_implied_node_formats_for_emit:
-        Vec<Option<crate::AuthoritativeResolutionMode>>,
-    /// Per file: the referenced project it belongs to (tsgo
-    /// `getRedirectForResolution`).
-    pub(crate) authoritative_project_references: Vec<Option<tsc_program::ProjectReferenceFile>>,
+    pub(super) authoritative_sources: &'a crate::AuthoritativeSources,
     /// First fail-closed host-table failure. This is intentionally separate
     /// from CheckAbort: augmentation recovery may contain an oracle crash,
     /// but it must never turn an incomplete authoritative table into success.
@@ -1822,12 +1812,6 @@ impl<'a> CheckerState<'a> {
             std::mem::take(&mut self.unresolved_package_root_cache),
             std::mem::take(&mut self.program_path_index),
             std::mem::take(&mut self.implied_node_format_memo),
-            std::mem::take(&mut self.authoritative_source_tokens),
-            std::mem::take(&mut self.authoritative_source_index_by_token),
-            std::mem::take(&mut self.authoritative_source_may_be_emitted),
-            std::mem::take(&mut self.authoritative_implied_node_formats),
-            std::mem::take(&mut self.authoritative_implied_node_formats_for_emit),
-            std::mem::take(&mut self.authoritative_project_references),
             std::mem::take(&mut self.external_helpers_modules),
             std::mem::take(&mut self.requested_external_emit_helpers),
             std::mem::take(&mut self.distributed_type_parameters),
@@ -2140,59 +2124,27 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsrs-native: install the exact H0 host seam and stable source-index projection.
-    pub(crate) fn install_authoritative_module_provider(
+    pub(super) fn install_authoritative_module_provider(
         &mut self,
         provider: &'a dyn crate::AuthoritativeModuleProvider,
-        metadata: &[crate::AuthoritativeSourceMetadata],
+        sources: &'a crate::AuthoritativeSources,
     ) -> Result<(), crate::AuthoritativeModuleFailure> {
-        if metadata.len() != self.binder.file_count() {
+        #[cfg(debug_assertions)]
+        {
+            let (by_token, invalid) = crate::AuthoritativeSources::index_files(
+                &sources.files,
+                (0..self.binder.file_count()).map(|index| &self.binder.source(index).file_name),
+            );
+            debug_assert_eq!(sources.invalid, invalid);
+            debug_assert_eq!(sources.by_token, by_token);
+        }
+        if let Some(detail) = &sources.invalid {
             return Err(crate::AuthoritativeModuleFailure::InvalidMetadata {
-                detail: format!(
-                    "authoritative source metadata has {} rows for {} checker files",
-                    metadata.len(),
-                    self.binder.file_count()
-                ),
+                detail: detail.clone(),
             });
         }
-
-        let mut tokens = Vec::with_capacity(metadata.len());
-        let mut source_index_by_token = rustc_hash::FxHashMap::default();
-        let mut source_may_be_emitted = Vec::with_capacity(metadata.len());
-        let mut implied_node_formats = Vec::with_capacity(metadata.len());
-        let mut implied_node_formats_for_emit = Vec::with_capacity(metadata.len());
-        let mut project_references = Vec::with_capacity(metadata.len());
-        for (file_index, source) in metadata.iter().enumerate() {
-            let checker_file_name = &self.binder.source(file_index).file_name;
-            if source.file_name != *checker_file_name {
-                return Err(crate::AuthoritativeModuleFailure::InvalidMetadata {
-                    detail: format!(
-                        "authoritative source metadata row {file_index} names {:?}, checker file is {:?}",
-                        source.file_name, checker_file_name
-                    ),
-                });
-            }
-            if let Some(previous) = source_index_by_token.insert(source.token, file_index) {
-                return Err(crate::AuthoritativeModuleFailure::InvalidMetadata {
-                    detail: format!(
-                        "authoritative source token {} is shared by checker files {previous} and {file_index}",
-                        source.token.0
-                    ),
-                });
-            }
-            tokens.push(source.token);
-            source_may_be_emitted.push(source.may_be_emitted);
-            implied_node_formats.push(source.implied_node_format);
-            implied_node_formats_for_emit.push(source.implied_node_format_for_emit);
-            project_references.push(source.project_reference.clone());
-        }
-
         self.authoritative_module_provider = Some(provider);
-        self.authoritative_source_tokens = tokens;
-        self.authoritative_source_index_by_token = source_index_by_token;
-        self.authoritative_source_may_be_emitted = source_may_be_emitted;
-        self.authoritative_implied_node_formats = implied_node_formats;
-        self.authoritative_implied_node_formats_for_emit = implied_node_formats_for_emit;
-        self.authoritative_project_references = project_references;
+        self.authoritative_sources = sources;
         // The memo derives from the tables replaced above.
         self.implied_node_format_memo.borrow_mut().clear();
         Ok(())
@@ -2586,12 +2538,7 @@ impl<'a> CheckerState<'a> {
             program_path_index: rustc_hash::FxHashMap::default(),
             implied_node_format_memo: std::cell::RefCell::new(Vec::new()),
             authoritative_module_provider: None,
-            authoritative_source_tokens: Vec::new(),
-            authoritative_source_index_by_token: rustc_hash::FxHashMap::default(),
-            authoritative_source_may_be_emitted: Vec::new(),
-            authoritative_implied_node_formats: Vec::new(),
-            authoritative_implied_node_formats_for_emit: Vec::new(),
-            authoritative_project_references: Vec::new(),
+            authoritative_sources: &crate::EMPTY_AUTHORITATIVE_SOURCES,
             authoritative_module_failure: std::cell::OnceCell::new(),
             module_name_outside_program: std::cell::Cell::new(false),
             host_file_paths: Default::default(),

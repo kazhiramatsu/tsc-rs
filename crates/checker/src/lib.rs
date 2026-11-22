@@ -480,6 +480,97 @@ pub struct AuthoritativeSourceMetadata {
     pub project_reference: Option<tsc_program::ProjectReferenceFile>,
 }
 
+type AuthoritativeTokenIndex =
+    hashbrown::HashMap<AuthoritativeSourceToken, ProgramFileId, rustc_hash::FxBuildHasher>;
+
+/// The ordered host metadata for one snapshot. Association and the checkers
+/// borrow the same token index. Invalid input still participates in file
+/// assignment, but a checker can install only a valid projection.
+struct AuthoritativeSources {
+    files: Vec<AuthoritativeSourceMetadata>,
+    by_token: AuthoritativeTokenIndex,
+    invalid: Option<String>,
+}
+
+static EMPTY_AUTHORITATIVE_SOURCES: AuthoritativeSources = AuthoritativeSources {
+    files: Vec::new(),
+    by_token: AuthoritativeTokenIndex::with_hasher(rustc_hash::FxBuildHasher),
+    invalid: None,
+};
+
+impl AuthoritativeSources {
+    fn new(snapshot: &ProgramSnapshot, files: Vec<AuthoritativeSourceMetadata>) -> Self {
+        let (by_token, invalid) = Self::index_files(
+            &files,
+            snapshot
+                .documents()
+                .iter()
+                .map(|doc| &doc.source().file_name),
+        );
+        Self {
+            files,
+            by_token,
+            invalid,
+        }
+    }
+
+    fn index_files<'s>(
+        files: &[AuthoritativeSourceMetadata],
+        names: impl ExactSizeIterator<Item = &'s JsString>,
+    ) -> (AuthoritativeTokenIndex, Option<String>) {
+        let mut invalid = (files.len() != names.len()).then(|| {
+            format!(
+                "authoritative source metadata has {} rows for {} checker files",
+                files.len(),
+                names.len()
+            )
+        });
+        let mut by_token = AuthoritativeTokenIndex::default();
+        for (file_index, (source, name)) in files.iter().zip(names).enumerate() {
+            // Association takes the last matching token within the snapshot,
+            // even when installation reports an earlier invalid row.
+            let previous = by_token.insert(source.token, program_file_id(file_index));
+            if invalid.is_none() {
+                if source.file_name != *name {
+                    invalid = Some(format!(
+                        "authoritative source metadata row {file_index} names {:?}, checker file is {:?}",
+                        source.file_name, name
+                    ));
+                } else if let Some(previous) = previous {
+                    invalid = Some(format!(
+                        "authoritative source token {} is shared by checker files {} and {file_index}",
+                        source.token.0, previous.index()
+                    ));
+                }
+            }
+        }
+        (by_token, invalid)
+    }
+
+    /// Installed projections cover all their checker files.
+    fn file_index(&self, token: AuthoritativeSourceToken) -> Option<usize> {
+        debug_assert!(self.invalid.is_none());
+        self.file_index_in_snapshot(token, self.files.len())
+    }
+
+    /// Association can see invalid metadata before a checker reports it.
+    fn file_index_in_snapshot(
+        &self,
+        token: AuthoritativeSourceToken,
+        file_count: usize,
+    ) -> Option<usize> {
+        let index = self.by_token.get(&token)?.index();
+        debug_assert_eq!(
+            self.files
+                .iter()
+                .take(file_count)
+                .rposition(|file| file.token == token),
+            Some(index)
+        );
+        Some(index)
+    }
+}
+
 /// One exact checker-to-host module lookup. `containing_file` is diagnostic
 /// context only; providers must key by the stable source token, specifier,
 /// and mode.
@@ -3501,7 +3592,7 @@ fn include_processor_diagnostics_of_state(state: &state::CheckerState<'_>) -> Ve
         .include_processor_diagnostics()
         .into_iter()
         .filter_map(|(token, mut row)| {
-            let &file = state.authoritative_source_index_by_token.get(&token)?;
+            let file = state.authoritative_sources.file_index(token)?;
             row.file_name = Some(state.binder.source(file).file_name.clone());
             Some(row)
         })
@@ -3520,7 +3611,7 @@ fn init_checker_state<'a>(
     options: &'a CompilerOptions,
     authoritative: Option<(
         &'a dyn AuthoritativeModuleProvider,
-        &[AuthoritativeSourceMetadata],
+        &'a AuthoritativeSources,
     )>,
     host: HostFacts,
     checker_index: Option<usize>,
@@ -4279,7 +4370,7 @@ fn run_checker_shard<'a>(
     snapshot: &'a ProgramSnapshot,
     options: &'a CompilerOptions,
     provider: &'a dyn AuthoritativeModuleProvider,
-    metadata: &[AuthoritativeSourceMetadata],
+    metadata: &'a AuthoritativeSources,
     host: HostFacts,
     queue: &shard::ShardFileQueue,
     reserved_nodes: usize,
@@ -4941,6 +5032,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         Vec::with_capacity(run.lib_metadata.len() + authoritative_program_metadata.len());
     metadata.extend(run.lib_metadata.iter().cloned());
     metadata.extend(authoritative_program_metadata);
+    let metadata = AuthoritativeSources::new(&snapshot, metadata);
     if syntactic_closed {
         // Syntax closes getters, but emit still needs an initialized resolver.
         // Reuse the existing serial snapshot executor for this closed request.
@@ -4980,7 +5072,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             let mut state = init_checker_state(
                 &snapshot,
                 options,
-                Some((&*provider, metadata.as_slice())),
+                Some((&*provider, &metadata)),
                 host.clone(),
                 None,
                 false,
@@ -5052,20 +5144,14 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let mut adjacent = vec![Vec::new(); node_counts.len()];
     // The files each file imports, for the locality association's modules.
     let mut targets_of = vec![Vec::new(); if locality { node_counts.len() } else { 0 }];
-    let indices = metadata
-        .iter()
-        .take(node_counts.len())
-        .enumerate()
-        .map(|(index, source)| (source.token, index))
-        .collect::<rustc_hash::FxHashMap<_, _>>();
     let provider = factory.provider();
     for (token, count, targets) in provider.checker_association_imports() {
-        let Some(&file) = indices.get(&token) else {
+        let Some(file) = metadata.file_index_in_snapshot(token, node_counts.len()) else {
             continue;
         };
         imports[file] = count;
         for target in targets {
-            let Some(&other) = indices.get(&target) else {
+            let Some(other) = metadata.file_index_in_snapshot(target, node_counts.len()) else {
                 continue;
             };
             if file != other {
@@ -5527,7 +5613,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         options,
         &program_diagnostics,
         file_diagnostics,
-        Some((&*provider, metadata.as_slice())),
+        Some((&*provider, &metadata)),
         replay_host,
         collect_global_diagnostics,
         complete_library_prefix,
@@ -5561,10 +5647,7 @@ fn check_snapshot_serially(
     options: &CompilerOptions,
     program_diagnostics: &[Diagnostic],
     mut file_diagnostics: Vec<FileDiagnosticPasses>,
-    authoritative: Option<(
-        &dyn AuthoritativeModuleProvider,
-        &[AuthoritativeSourceMetadata],
-    )>,
+    authoritative: Option<(&dyn AuthoritativeModuleProvider, &AuthoritativeSources)>,
     host: HostFacts,
     collect_global_diagnostics: bool,
     complete_library_prefix: bool,
@@ -6000,8 +6083,8 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         report_program_memory(&snapshot);
         let authoritative_metadata = authoritative_run.map(|run| {
             let mut metadata = run.lib_metadata.clone();
-            metadata.extend(authoritative_program_metadata.iter().cloned());
-            metadata
+            metadata.extend(authoritative_program_metadata);
+            AuthoritativeSources::new(&snapshot, metadata)
         });
         // A per-checker provider source reaching the serial driver
         // constructs exactly one provider for its one checker state.
@@ -6033,7 +6116,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 Some((
                     provider,
                     authoritative_metadata
-                        .as_deref()
+                        .as_ref()
                         .expect("authoritative metadata assembled above"),
                 )),
                 host,
@@ -6057,7 +6140,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             &snapshot,
             options,
             authoritative_run
-                .zip(authoritative_metadata.as_deref())
+                .zip(authoritative_metadata.as_ref())
                 .map(|(run, metadata)| {
                     let provider: &dyn AuthoritativeModuleProvider = match run.provider {
                         AuthoritativeProviderSource::Shared(provider) => provider,
@@ -6097,11 +6180,11 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 &snapshot, &session, &unchecked,
             );
             state = session.into_state();
-            if let Some(run) = authoritative_run {
+            if let Some((run, sources)) = authoritative_run.zip(authoritative_metadata.as_ref()) {
                 append_include_processor_diagnostics(
                     &mut program_diagnostics,
                     run,
-                    &authoritative_program_metadata,
+                    &sources.files[run.lib_metadata.len()..],
                 );
             }
         }

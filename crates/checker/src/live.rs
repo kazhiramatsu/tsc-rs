@@ -52,7 +52,7 @@ struct LiveOwner {
     snapshot: ProgramSnapshot,
     options: CompilerOptions,
     provider: Box<dyn AuthoritativeModuleProvider + Send>,
-    metadata: Vec<AuthoritativeSourceMetadata>,
+    metadata: crate::AuthoritativeSources,
     host: HostFacts,
     lib_count: usize,
     /// The syntactic rows of every Program source (after the libraries).
@@ -69,6 +69,7 @@ impl LiveOwner {
             for (token, mut row) in self.provider.include_processor_diagnostics() {
                 if let Some(metadata) = self
                     .metadata
+                    .files
                     .iter()
                     .find(|metadata| metadata.token == token)
                 {
@@ -268,6 +269,7 @@ impl LiveChecker {
         let passes = syntactic_file_rows(&snapshot, lib_count, &options);
         let mut metadata = effective_lib_metadata;
         metadata.extend(authoritative_program_metadata);
+        let metadata = crate::AuthoritativeSources::new(&snapshot, metadata);
         let owner = LiveOwner {
             snapshot,
             options,
@@ -370,7 +372,7 @@ impl LiveChecker {
             return None;
         };
         let owner = cell.borrow_owner();
-        let metadata = owner.metadata.get(index)?;
+        let metadata = owner.metadata.files.get(index)?;
         let document = owner.snapshot.documents().get(index)?;
         (metadata.file_name == document.source().file_name).then_some(metadata.token)
     }

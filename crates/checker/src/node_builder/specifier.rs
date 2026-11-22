@@ -1270,15 +1270,14 @@ pub(crate) fn compute_module_specifiers(
     options: &ModuleSpecifierOptions,
     for_auto_import: bool,
 ) -> CheckResult<ModuleSpecifiersWithCacheInfo> {
-    let importing_index = if state.authoritative_source_index_by_token.is_empty() {
+    let importing_index = if state.authoritative_sources.files.is_empty() {
         importing_node.source().index()
     } else {
         state
-            .authoritative_source_index_by_token
-            .get(&crate::AuthoritativeSourceToken(
+            .authoritative_sources
+            .file_index(crate::AuthoritativeSourceToken(
                 importing_node.source().raw(),
             ))
-            .copied()
             .expect("module-specifier source token belongs to the checker program")
     };
     let info = get_info(&state.binder.source(importing_index).file_name, host);
@@ -1520,9 +1519,8 @@ fn existing_import_target(
             mode,
         }) {
             Ok(crate::AuthoritativeModuleResolution::Resolved(resolved)) => state
-                .authoritative_source_index_by_token
-                .get(&resolved.target_token)
-                .copied(),
+                .authoritative_sources
+                .file_index(resolved.target_token),
             Ok(
                 crate::AuthoritativeModuleResolution::Untyped(_)
                 | crate::AuthoritativeModuleResolution::ResolutionDiagnostic(_)
@@ -4449,13 +4447,15 @@ fn emit_resolver_node_for_file(
     file_index: usize,
     node: NodeId,
 ) -> EmitResolverNode {
-    let source = if state.authoritative_source_tokens.is_empty() {
+    let source = if state.authoritative_sources.files.is_empty() {
         u32::try_from(file_index).expect("checker file index exceeds SourceFileId")
     } else {
         state
-            .authoritative_source_tokens
+            .authoritative_sources
+            .files
             .get(file_index)
             .expect("authoritative metadata covers every checker file")
+            .token
             .0
     };
     EmitResolverNode::new(SourceFileId::from_raw(source), node)

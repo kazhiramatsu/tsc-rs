@@ -110,9 +110,13 @@ pub(crate) fn tracker_node_description(
 ) -> tsc_emitter::EmitTrackerNodeDescription {
     let file_index = checker.binder.file_index_of_node(node);
     let source = checker
-        .authoritative_source_tokens
+        .authoritative_sources
+        .files
         .get(file_index)
-        .map_or_else(|| u32::try_from(file_index).unwrap_or(0), |token| token.0);
+        .map_or_else(
+            || u32::try_from(file_index).unwrap_or(0),
+            |file| file.token.0,
+        );
     tsc_emitter::EmitTrackerNodeDescription {
         parse: Some(tsc_emitter::EmitResolverNode::from_raw_source(source, node)),
         original: None,

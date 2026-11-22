@@ -182,9 +182,8 @@ impl<'program> CheckerSession<'program> {
     ) -> Result<Vec<crate::PartialCheck>, crate::AuthoritativeModuleFailure> {
         let mut state = self.lock_state();
         let index = state
-            .authoritative_source_index_by_token
-            .get(&source)
-            .copied()
+            .authoritative_sources
+            .file_index(source)
             .ok_or_else(|| crate::AuthoritativeModuleFailure::InvalidMetadata {
                 detail: format!(
                     "declaration getter source token {} is not in this Program",
@@ -1351,13 +1350,15 @@ fn project_constant_value(value: EvalValue) -> EmitConstantValue {
 
 fn project_resolver_node(state: &CheckerState<'_>, node: tsc_syntax::NodeId) -> EmitResolverNode {
     let file_index = state.binder.file_index_of_node(node);
-    let source = if state.authoritative_source_tokens.is_empty() {
+    let source = if state.authoritative_sources.files.is_empty() {
         u32::try_from(file_index).expect("checker file index exceeds SourceFileId")
     } else {
         state
-            .authoritative_source_tokens
+            .authoritative_sources
+            .files
             .get(file_index)
             .expect("authoritative metadata covers every checker file")
+            .token
             .0
     };
     EmitResolverNode::from_raw_source(source, node)
@@ -1369,7 +1370,7 @@ fn validate_resolver_node(
     node: EmitResolverNode,
 ) -> Result<(), EmitResolverError> {
     let source_token = AuthoritativeSourceToken(node.source().raw());
-    let expected_program_index = if state.authoritative_source_index_by_token.is_empty() {
+    let expected_program_index = if state.authoritative_sources.files.is_empty() {
         let index = node.source().index();
         if index >= state.binder.file_count() {
             return Err(EmitResolverError::UnknownSource { method, node });
@@ -1377,9 +1378,8 @@ fn validate_resolver_node(
         index
     } else {
         state
-            .authoritative_source_index_by_token
-            .get(&source_token)
-            .copied()
+            .authoritative_sources
+            .file_index(source_token)
             .ok_or(EmitResolverError::UnknownSource { method, node })?
     };
     let actual_program_index = state
@@ -1401,16 +1401,15 @@ fn resolver_source_index(
     method: EmitResolverMethod,
     source: tsc_program::SourceFileId,
 ) -> Result<usize, EmitResolverError> {
-    if state.authoritative_source_index_by_token.is_empty() {
+    if state.authoritative_sources.files.is_empty() {
         let index = source.index();
         return (index < state.binder.file_count())
             .then_some(index)
             .ok_or(EmitResolverError::UnavailableForSource { method, source });
     }
     state
-        .authoritative_source_index_by_token
-        .get(&AuthoritativeSourceToken(source.raw()))
-        .copied()
+        .authoritative_sources
+        .file_index(AuthoritativeSourceToken(source.raw()))
         .ok_or(EmitResolverError::UnavailableForSource { method, source })
 }
 

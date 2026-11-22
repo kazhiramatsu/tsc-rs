@@ -983,3 +983,145 @@ fn snapshot_owner_route_failures_remain_local_to_the_snapshot() {
     let valid = ProgramSnapshot::new(vec![a], 0).unwrap();
     assert!(ProgramBinder::try_from_snapshot(&valid).is_ok());
 }
+
+#[test]
+fn authoritative_sources_follow_the_snapshot_and_install_atomically() {
+    use crate::modules::ModuleResolutionMode;
+    use crate::{
+        AuthoritativeModuleFailure, AuthoritativeModuleLookupFailure, AuthoritativeModuleProvider,
+        AuthoritativeModuleRequest, AuthoritativeModuleResolution, AuthoritativeResolutionMode,
+        AuthoritativeSourceMetadata, AuthoritativeSourceToken, AuthoritativeSources,
+    };
+
+    struct Provider;
+    impl AuthoritativeModuleProvider for Provider {
+        fn resolve_module(
+            &self,
+            _: AuthoritativeModuleRequest<'_>,
+        ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
+            unreachable!("the fixture has no imports")
+        }
+    }
+    let domain = IdentityDomain::new();
+    let doc = |name| {
+        bound_document_for_snapshot(name, TextSnapshot::new("", Default::default()), &domain)
+    };
+    let a = doc("/a.ts");
+    let b = doc("/b.ts");
+    let snapshot = ProgramSnapshot::new(vec![a.clone(), b.clone()], 0).unwrap();
+    let reference = tsc_program::ProjectReferenceFile {
+        options: Arc::new(tsc_program::ReferencedProjectOptions {
+            emit_module_kind: 99,
+            module_resolution_kind: 3,
+            resolve_package_json_exports: true,
+            resolve_package_json_imports: false,
+            preserves_const_enums: false,
+            common_source_directory: "/src".into(),
+            out_dir: Some("/out".into()),
+        }),
+        output_declaration: true,
+        source_from_project_reference: false,
+    };
+    let row = |name: &str, token| AuthoritativeSourceMetadata {
+        token: AuthoritativeSourceToken(token),
+        file_name: name.into(),
+        may_be_emitted: token == 7,
+        implied_node_format: Some(AuthoritativeResolutionMode::CommonJs),
+        implied_node_format_for_emit: Some(AuthoritativeResolutionMode::EsNext),
+        project_reference: Some(reference.clone()),
+    };
+    let rows = vec![row("/a.ts", 7), row("/b.ts", 3)];
+    let valid = AuthoritativeSources::new(&snapshot, rows.clone());
+    let mut replacement_rows = rows.clone();
+    replacement_rows[0].implied_node_format = None;
+    replacement_rows[0].project_reference = None;
+    let replacement = AuthoritativeSources::new(&snapshot, replacement_rows);
+    // Name validation wins over a duplicate on the same row. A failed
+    // install keeps the previous projection and the checker's populated memo.
+    let invalid_rows = [
+        (
+            vec![row("/wrong.ts", 7)],
+            "authoritative source metadata has 1 rows for 2 checker files",
+        ),
+        (
+            vec![row("/a.ts", 7), row("/wrong.ts", 7)],
+            "authoritative source metadata row 1 names \"/wrong.ts\", checker file is \"/b.ts\"",
+        ),
+        (
+            vec![row("/a.ts", 7), row("/b.ts", 7)],
+            "authoritative source token 7 is shared by checker files 0 and 1",
+        ),
+        (
+            vec![row("/a.ts", 7), row("/b.ts", 7), row("/extra.ts", 7)],
+            "authoritative source metadata has 3 rows for 2 checker files",
+        ),
+    ];
+    let invalid: Vec<_> = invalid_rows
+        .into_iter()
+        .map(|(rows, error)| (AuthoritativeSources::new(&snapshot, rows), error))
+        .collect();
+    // Association sees the last duplicate within the snapshot, even when
+    // the invalid input has an extra copy beyond the last document.
+    assert_eq!(
+        invalid[3]
+            .0
+            .file_index_in_snapshot(AuthoritativeSourceToken(7), 2),
+        Some(1)
+    );
+    let options = CompilerOptions::default();
+    let mut checker = CheckerState::from_snapshot(&snapshot, &options);
+    checker
+        .install_authoritative_module_provider(&Provider, &valid)
+        .unwrap();
+    assert_eq!(
+        checker.implied_node_format_for_file(a.source().root),
+        Some(ModuleResolutionMode::CommonJs)
+    );
+    assert_eq!(
+        checker.implied_node_format_for_emit(a.source().root),
+        Some(ModuleResolutionMode::EsNext)
+    );
+    assert_eq!(checker.project_reference_of_file(0), Some(&reference));
+    for (sources, error) in &invalid {
+        assert_eq!(
+            checker.install_authoritative_module_provider(&Provider, sources),
+            Err(AuthoritativeModuleFailure::InvalidMetadata {
+                detail: (*error).into()
+            })
+        );
+        assert!(std::ptr::eq(checker.authoritative_sources, &valid));
+        assert!(!checker.implied_node_format_memo.borrow().is_empty());
+    }
+    let mut peer = CheckerState::from_snapshot(&snapshot, &options);
+    peer.install_authoritative_module_provider(&Provider, &valid)
+        .unwrap();
+    assert!(std::ptr::eq(
+        peer.authoritative_sources,
+        checker.authoritative_sources
+    ));
+    assert!(peer.implied_node_format_memo.borrow().is_empty());
+    let first = AuthoritativeModuleFailure::InvalidMetadata {
+        detail: "first lookup".into(),
+    };
+    checker.record_authoritative_module_failure(first.clone());
+    checker.record_authoritative_module_failure(AuthoritativeModuleFailure::InvalidMetadata {
+        detail: "second lookup".into(),
+    });
+    assert!(peer.take_authoritative_module_failure().is_none());
+    checker
+        .install_authoritative_module_provider(&Provider, &replacement)
+        .unwrap();
+    assert_eq!(checker.take_authoritative_module_failure(), Some(first));
+    assert!(checker.implied_node_format_memo.borrow().is_empty());
+    assert_eq!(checker.implied_node_format_for_file(a.source().root), None);
+    assert!(checker.project_reference_of_file(0).is_none());
+
+    let reversed = ProgramSnapshot::new(vec![b, a], 0).unwrap();
+    let reordered = AuthoritativeSources::new(&reversed, rows.into_iter().rev().collect());
+    let mut next = CheckerState::from_snapshot(&reversed, &options);
+    next.install_authoritative_module_provider(&Provider, &reordered)
+        .unwrap();
+    assert!(std::ptr::eq(next.authoritative_sources, &reordered));
+    assert_eq!(valid.file_index(AuthoritativeSourceToken(7)), Some(0));
+    assert_eq!(reordered.file_index(AuthoritativeSourceToken(7)), Some(1));
+}
