@@ -238,6 +238,68 @@ fn the_evolving_array_test_knows_length_push_and_unshift_by_name_identity() {
     });
 }
 
+/// The effects signature of a call is asked for at every flow walk that
+/// passes it. A call without one (nearly every call) keeps that answer as a
+/// bit of its links record and has no entry in the map; a call to a type
+/// predicate or an assertion keeps its signature in the map and has no bit;
+/// asking again gives the same answers from the memo.
+#[test]
+fn a_call_without_an_effects_signature_is_remembered_by_a_bit_of_its_links() {
+    use tsc_syntax::SyntaxKind;
+    use tsc_types::NodeCheckFlags;
+    let text = "declare function plain(x: unknown): void;\n\
+        declare function isString(x: unknown): x is string;\n\
+        declare function assertString(x: unknown): asserts x is string;\n\
+        declare const value: unknown;\n\
+        plain(value);\n\
+        if (isString(value)) { value; }\n\
+        assertString(value);\n";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let mut calls: Vec<_> = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .filter(|&node| state.kind_of(node) == SyntaxKind::CallExpression)
+            .collect();
+        calls.sort_by_key(|&node| state.pos_of(node));
+        assert_eq!(calls.len(), 3);
+        let has_bit = |state: &crate::state::CheckerState<'_>, node| {
+            state
+                .links
+                .read_node(node, |links| links.check_flags)
+                .intersects(NodeCheckFlags::NO_EFFECTS_SIGNATURE)
+        };
+        for &call in &calls {
+            assert!(!has_bit(state, call));
+        }
+        let first: Vec<_> = calls
+            .iter()
+            .map(|&call| state.get_effects_signature(call).unwrap())
+            .collect();
+        assert!(first[0].is_none());
+        assert!(first[1].is_some() && first[2].is_some());
+        assert!(has_bit(state, calls[0]));
+        assert!(!has_bit(state, calls[1]) && !has_bit(state, calls[2]));
+        assert!(!state.effects_signature_cache.contains_key(&calls[0]));
+        assert_eq!(
+            state.effects_signature_cache.get(&calls[1]),
+            first[1].as_ref()
+        );
+        assert_eq!(
+            state.effects_signature_cache.get(&calls[2]),
+            first[2].as_ref()
+        );
+        assert_eq!(state.effects_signature_cache.len(), 2);
+        let again: Vec<_> = calls
+            .iter()
+            .map(|&call| state.get_effects_signature(call).unwrap())
+            .collect();
+        assert_eq!(again, first);
+        assert_eq!(state.effects_signature_cache.len(), 2);
+    });
+}
+
 #[test]
 fn flow_type_accessors() {
     let ty = tsc_types::TypeId::new(7);

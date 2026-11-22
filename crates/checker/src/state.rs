@@ -1465,9 +1465,13 @@ pub struct CheckerState<'a> {
     /// tsc links.isExhaustive settled verdicts (isExhaustiveSwitchStatement
     /// 78920) — state-side for the same reason.
     pub(crate) exhaustive_switch_cache: rustc_hash::FxHashMap<NodeId, bool>,
-    /// tsc links.effectsSignature (getEffectsSignature 70195) —
-    /// state-side; None IS the memoized unknownSignature verdict.
-    pub(crate) effects_signature_cache: rustc_hash::FxHashMap<NodeId, Option<SignatureId>>,
+    /// tsc links.effectsSignature (getEffectsSignature 70195), where the
+    /// node HAS an effects signature. The memoized unknownSignature verdict
+    /// - nearly every call's - is the node's
+    /// `NodeCheckFlags::NO_EFFECTS_SIGNATURE` bit: the flow walk asks at
+    /// every call it passes, and the bit is read from the links record the
+    /// call's resolved signature already lies in.
+    pub(crate) effects_signature_cache: rustc_hash::FxHashMap<NodeId, SignatureId>,
     // ---- M4 5.0: the diags sink ----
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
     /// sink; the driver (5.4) drains it per program.
