@@ -1530,20 +1530,29 @@ fn byte_to_utf16_offset(positions: &PositionIndex, text: &str, byte_offset: usiz
 
 /// `isDeclarationFileName` includes arbitrary-extension declaration twins
 /// such as `style.d.css.ts`, in addition to the three standard spellings.
+///
+/// Every declaration spelling ends in `ts`, and all but the twins are told
+/// by their last bytes: a name that is none of them (`a.tsx`, `a.js`,
+/// `a.json`) is refused there, before its last component is looked for. Only
+/// a name ending in `.ts` that is not a standard spelling reads its last
+/// component (what follows the last `/` or `\`) for a `.d.`.
 pub(crate) fn is_declaration_file_name<'a>(file_name: impl Into<JsStr<'a>>) -> bool {
-    let file_name = file_name.into();
-    if file_name.ends_with(".d.ts")
-        || file_name.ends_with(".d.cts")
-        || file_name.ends_with(".d.mts")
-    {
+    let file_name: JsStr<'a> = file_name.into();
+    let bytes = file_name.as_bytes();
+    if !bytes.ends_with(b"ts") {
+        return false;
+    }
+    if bytes.ends_with(b".d.ts") || bytes.ends_with(b".d.cts") || bytes.ends_with(b".d.mts") {
         return true;
     }
-    let base_name = file_name.split_ascii(b'/').next_back().unwrap_or(file_name);
-    let base_name = base_name
-        .split_ascii(b'\\')
-        .next_back()
-        .unwrap_or(base_name);
-    base_name.ends_with(".ts") && base_name.contains(".d.")
+    if !bytes.ends_with(b".ts") {
+        return false;
+    }
+    let base_name = bytes
+        .iter()
+        .rposition(|byte| matches!(byte, b'/' | b'\\'))
+        .map_or(bytes, |separator| &bytes[separator + 1..]);
+    base_name.windows(3).any(|window| window == b".d.")
 }
 
 // Called once for each raw-text hit, including hits that select the same node.
@@ -2444,6 +2453,74 @@ fn unsupported_at(
         source,
         format!("{} at source offset {position}", detail.into()),
     )
+}
+
+#[cfg(test)]
+mod declaration_file_name_tests {
+    use super::*;
+
+    /// The form the byte tests replaced: the standard spellings, then the
+    /// last component by two splits and a search.
+    fn by_splits(file_name: JsStr<'_>) -> bool {
+        if file_name.ends_with(".d.ts")
+            || file_name.ends_with(".d.cts")
+            || file_name.ends_with(".d.mts")
+        {
+            return true;
+        }
+        let base_name = file_name.split_ascii(b'/').next_back().unwrap_or(file_name);
+        let base_name = base_name
+            .split_ascii(b'\\')
+            .next_back()
+            .unwrap_or(base_name);
+        base_name.ends_with(".ts") && base_name.contains(".d.")
+    }
+
+    #[test]
+    fn a_declaration_name_is_told_from_its_end_as_by_the_splits() {
+        // Every text of up to five pieces over both separators, the dot,
+        // `.d`, the three extensions' letters and a two-byte scalar.
+        let pieces = ["/", "\\", ".", ".d", "ts", "c", "m", "\u{e9}"];
+        let mut texts = vec![String::new()];
+        let mut start = 0;
+        for _ in 0..5 {
+            let end = texts.len();
+            for index in start..end {
+                for piece in pieces {
+                    let mut text = texts[index].clone();
+                    text.push_str(piece);
+                    texts.push(text);
+                }
+            }
+            start = end;
+        }
+        assert_eq!(texts.len(), 37_449);
+        let mut declarations = 0;
+        for text in &texts {
+            let name = JsStr::from(text.as_str());
+            let expected = by_splits(name);
+            declarations += usize::from(expected);
+            assert_eq!(is_declaration_file_name(name), expected, "{text:?}");
+        }
+        assert!(declarations > 100, "{declarations} declaration names tried");
+        for (name, expected) in [
+            ("/project/a.d.ts", true),
+            ("/project/a.d.mts", true),
+            ("/project/a.d.cts", true),
+            ("/project/style.d.css.ts", true),
+            ("/project/dir.d.x/a.ts", false),
+            ("C:\\project.d.x\\a.ts", false),
+            ("/project/a.ts", false),
+            ("/project/a.tsx", false),
+            ("/project/a.d.tsx", false),
+            ("/project/a.js", false),
+            ("d.ts", false),
+            (".d.ts", true),
+            ("", false),
+        ] {
+            assert_eq!(is_declaration_file_name(name), expected, "{name:?}");
+        }
+    }
 }
 
 #[cfg(test)]
