@@ -1097,37 +1097,35 @@ impl<'a> CheckerState<'a> {
                             .symbol_flags(target_symbol)
                             .intersects(SymbolFlags::TYPE_LITERAL)
                 }) && self.tables.alias_type_argument_list(target).is_none();
-                let all_declarations: Vec<NodeId> = if object_flags
-                    .intersects(ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
-                {
-                    vec![declaration]
-                } else {
-                    let symbol = self
-                        .tables
-                        .type_of(ty)
-                        .symbol
-                        .expect("anonymous type instantiation requires a symbol");
-                    self.binder.symbol(symbol).declarations().to_vec()
-                };
-                let filtered = if filter_applies {
-                    let mut kept: Vec<TypeId> = Vec::new();
-                    for tp in outer {
-                        let mut referenced = false;
-                        for &candidate in &all_declarations {
-                            if self.is_type_parameter_possibly_referenced(tp, candidate)? {
-                                referenced = true;
+                if filter_applies {
+                    let declarations;
+                    let candidates = if object_flags.intersects(
+                        ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE,
+                    ) {
+                        std::slice::from_ref(&declaration)
+                    } else {
+                        let symbol = self
+                            .tables
+                            .type_of(ty)
+                            .symbol
+                            .expect("anonymous type instantiation requires a symbol");
+                        declarations = self.binder.symbol(symbol).declaration_list();
+                        &declarations[..]
+                    };
+                    let mut kept = 0;
+                    for index in 0..outer.len() {
+                        let parameter = outer[index];
+                        for &candidate in candidates {
+                            if self.is_type_parameter_possibly_referenced(parameter, candidate)? {
+                                outer[kept] = parameter;
+                                kept += 1;
                                 break;
                             }
                         }
-                        if referenced {
-                            kept.push(tp);
-                        }
                     }
-                    kept
-                } else {
-                    outer
-                };
-                let list = self.tables.intern_type_list(&filtered);
+                    outer.truncate(kept);
+                }
+                let list = self.tables.intern_type_list(&outer);
                 self.links.set_node_outer_type_parameters(declaration, list);
                 list
             }

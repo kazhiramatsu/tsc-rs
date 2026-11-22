@@ -294,6 +294,46 @@ fn unreferenced_outer_parameters_are_filtered_without_a_block() {
 }
 
 #[test]
+fn outer_parameter_filter_visits_later_method_declarations() {
+    let source = "declare function f<X, T, U>(): { m(x: T): void; m(x: U): void };";
+    for has_alias_arguments in [false, true] {
+        with_program_state(&[("a.ts", source)], &CompilerOptions::default(), |state| {
+            let file = state.binder.source(0);
+            let first = file
+                .arena
+                .node_ids()
+                .find(|&id| file.arena.node(id).kind == tsc_syntax::SyntaxKind::MethodSignature)
+                .unwrap();
+            let method = state.get_symbol_of_declaration(first).unwrap();
+            let declaration = state.binder.symbol(method).declarations()[0];
+            assert_eq!(state.binder.symbol(method).declarations().len(), 2);
+            let ty = state.get_type_of_symbol(method).unwrap();
+            let x = declared_type_parameter_at(state, declaration, "X");
+            let t = declared_type_parameter_at(state, declaration, "T");
+            let u = declared_type_parameter_at(state, declaration, "U");
+            if has_alias_arguments {
+                state
+                    .tables
+                    .set_alias(ty, Some(method), Some(state.tables.empty_type_list()));
+            }
+            let identity = state.make_unary_type_mapper(t, t);
+            assert_eq!(state.instantiate_type(ty, Some(identity)).unwrap(), ty);
+            let kept = state.links.node_outer_type_parameters(declaration).unwrap();
+            let parameters = [x, t, u];
+            let expected = if has_alias_arguments {
+                &parameters[..]
+            } else {
+                &parameters[1..]
+            };
+            assert_eq!(kept, state.tables.intern_type_list(expected));
+            let mapper = state.make_unary_type_mapper(x, state.tables.intrinsics.string);
+            let result = state.instantiate_type(ty, Some(mapper)).unwrap();
+            assert_eq!(result != ty, has_alias_arguments);
+        });
+    }
+}
+
+#[test]
 fn erased_and_argument_instantiated_signatures_map_lazily() {
     with_program_state(
         &[("a.ts", "function f<T>() { var v: (x: T) => T; }\n")],
