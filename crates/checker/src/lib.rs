@@ -3614,6 +3614,7 @@ fn init_checker_state<'a>(
         &'a AuthoritativeSources,
     )>,
     host: HostFacts,
+    augmentations: Option<&merge::AugmentationInputs>,
     checker_index: Option<usize>,
     measure_lane_costs: bool,
 ) -> state::CheckerState<'a> {
@@ -3666,7 +3667,17 @@ fn init_checker_state<'a>(
     // order consumed by getUnionType when stableTypeOrdering is off.
     // Requesting the public global-diagnostics bucket controls only
     // observation of the rows.
-    state.merge_module_augmentations_around(|state| state.materialize_init_global_diagnostics());
+    if let Some(inputs) = augmentations {
+        // Identifier text reads are observable in instrumentation builds.
+        if !tsc_types::perf::enabled() {
+            debug_assert_eq!(*inputs, merge::AugmentationInputs::for_snapshot(snapshot));
+        }
+        state
+            .merge_augmentation_inputs(inputs, |state| state.materialize_init_global_diagnostics());
+    } else {
+        state
+            .merge_module_augmentations_around(|state| state.materialize_init_global_diagnostics());
+    }
     state
 }
 
@@ -4372,6 +4383,7 @@ fn run_checker_shard<'a>(
     provider: &'a dyn AuthoritativeModuleProvider,
     metadata: &'a AuthoritativeSources,
     host: HostFacts,
+    augmentations: Arc<merge::AugmentationInputs>,
     queue: &shard::ShardFileQueue,
     reserved_nodes: usize,
     complete_library_prefix: bool,
@@ -4392,9 +4404,11 @@ fn run_checker_shard<'a>(
         options,
         Some((provider, metadata)),
         host,
+        Some(&augmentations),
         Some(shard_index),
         queue.measures_costs(),
     );
+    drop(augmentations);
     reserve_type_tables(&mut state, reserved_nodes);
     // W2c: every type created from here on is shard-local. In the exact mode
     // the guard records order-consuming operations over two or more of them
@@ -5058,6 +5072,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             planner,
         );
     }
+    let augmentations = Arc::new(merge::AugmentationInputs::for_snapshot(&snapshot));
     let complete_library_prefix = run.library_prefix == LibraryPrefixCompletion::Complete;
 
     // The incremental program's planner runs over one initialized checker on
@@ -5074,6 +5089,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
                 options,
                 Some((&*provider, &metadata)),
                 host.clone(),
+                Some(&augmentations),
                 None,
                 false,
             );
@@ -5303,18 +5319,6 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     };
     let shard_count = queue.shard_count();
 
-    // An owned copy for the serial replay (W2c), taken before any shard slot
-    // exists: the replay never reconstructs host facts from admitted sources
-    // (ignored inputs and package.json manifests matter).
-    let replay_host = host.clone();
-    // One HostFacts per shard in take-once slots: a shard takes its slot on
-    // whichever thread runs it, so a refused spawn leaves the facts for the
-    // coordinator's fallback. The original moves into slot 0.
-    let mut hosts = Vec::with_capacity(shard_count);
-    for _ in 1..shard_count {
-        hosts.push(std::sync::Mutex::new(Some(host.clone())));
-    }
-    hosts.insert(0, std::sync::Mutex::new(Some(host)));
     let emit_closure: Option<ShardEmitClosure<'_>> = sharded_emit.as_ref().map(|emit| emit.emit);
     let eager_closure: Option<ShardEagerClosure<'_>> =
         sharded_emit.as_ref().and_then(|emit| emit.eager);
@@ -5330,19 +5334,17 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     // Shards still checking, read by every shard's eager emit.
     let checking = std::sync::atomic::AtomicUsize::new(shard_count);
     let eager_remaining = std::sync::atomic::AtomicUsize::new(shard_count);
-    let run_shard = |shard_index: usize| {
-        let host = hosts[shard_index]
-            .lock()
-            .expect("host facts slot")
-            .take()
-            .expect("each shard takes its host facts once");
+    // The last shard to finish initialization releases the lists. A later
+    // standalone serial replay initializes from the published documents.
+    let run_shard = |shard_index: usize, augmentations| {
         run_checker_shard(
             shard_index,
             &snapshot,
             options,
             &*providers[shard_index],
             &metadata,
-            host,
+            host.clone(),
+            augmentations,
             &queue,
             queue.reserved_nodes(shard_index),
             complete_library_prefix,
@@ -5383,20 +5385,21 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         }
         // The coordinator runs shard 0 itself; the others run on scoped
         // threads. A refused thread is not an error: the coordinator runs
-        // that shard too, with the untouched host facts of its slot.
+        // that shard too, with the same immutable initialization inputs.
         for (shard_index, slot) in results.iter_mut().enumerate().skip(1) {
+            let inputs = Arc::clone(&augmentations);
             match std::thread::Builder::new()
                 .name(format!("tsc-rs-checker-{shard_index}"))
                 .stack_size(tsc_program::WORKER_STACK_BYTES)
                 .spawn_scoped(scope, move || {
                     tsc_program::run_thread_start_hook();
-                    run_shard(shard_index)
+                    run_shard(shard_index, inputs)
                 }) {
                 Ok(handle) => handles.push((shard_index, handle)),
-                Err(_) => *slot = Some(run_shard(shard_index)),
+                Err(_) => *slot = Some(run_shard(shard_index, Arc::clone(&augmentations))),
             }
         }
-        results[0] = Some(run_shard(0));
+        results[0] = Some(run_shard(0, augmentations));
         for (shard_index, handle) in handles {
             results[shard_index] = Some(
                 handle
@@ -5605,7 +5608,6 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             replay_started,
         );
     }
-    drop(hosts);
     let provider = factory.provider();
     let execution = check_snapshot_serially(
         &snapshot,
@@ -5614,7 +5616,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         &program_diagnostics,
         file_diagnostics,
         Some((&*provider, &metadata)),
-        replay_host,
+        host,
         collect_global_diagnostics,
         complete_library_prefix,
         true,
@@ -5659,7 +5661,8 @@ fn check_snapshot_serially(
     planner: Option<&mut IncrementalPlanner<'_>>,
 ) -> CheckExecution {
     let init_started = std::time::Instant::now();
-    let mut state = init_checker_state(snapshot, options, authoritative, host, Some(0), false);
+    let mut state =
+        init_checker_state(snapshot, options, authoritative, host, None, Some(0), false);
     reserve_type_tables(&mut state, snapshot_node_count(snapshot));
     let global_diagnostics = if collect_global_diagnostics {
         let mut rows = state.visible_global_diagnostics.clone();
@@ -6151,6 +6154,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                     (provider, metadata)
                 }),
             host,
+            None,
             Some(0),
             false,
         );

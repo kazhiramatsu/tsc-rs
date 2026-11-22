@@ -1125,3 +1125,66 @@ fn authoritative_sources_follow_the_snapshot_and_install_atomically() {
     assert_eq!(valid.file_index(AuthoritativeSourceToken(7)), Some(0));
     assert_eq!(reordered.file_index(AuthoritativeSourceToken(7)), Some(1));
 }
+
+#[test]
+fn snapshot_augmentations_keep_both_merge_passes_in_checker_order() {
+    let domain = IdentityDomain::new();
+    let sources = [
+        ("/lib.d.ts", "interface Object {} interface Function {} interface CallableFunction {} interface NewableFunction {} interface IArguments {} interface String {} interface Number {} interface Boolean {} interface RegExp {} interface Array<T> { length: number }"),
+        ("/ambient.d.ts", "declare module 'service' { export interface Item { value: string } }"),
+        ("/first.ts", "export {}; declare global { interface Array<T> { first: T } } declare module 'service' { interface Item { first: number } }"),
+        ("/second.ts", "export {}; declare global { interface Array<T> { second: T } } declare module 'service' { interface Item { second: boolean } }"),
+        ("/use.ts", "import type {Item} from 'service'; declare const v: Item; declare const a: number[]; const n: number = a.first + a.second + v.first; const b: boolean = v.second; const wrong: number = v.value;"),
+    ];
+    let documents = sources
+        .into_iter()
+        .map(|(name, text)| {
+            bound_document_for_snapshot(name, TextSnapshot::new(text, Default::default()), &domain)
+        })
+        .collect();
+    let snapshot = ProgramSnapshot::new(documents, 1).unwrap();
+    let inputs = crate::merge::AugmentationInputs::for_snapshot(&snapshot);
+    let options = CompilerOptions::default();
+    let run = |shared| {
+        let mut state = CheckerState::from_snapshot_deferring_globals(&snapshot, &options, false);
+        state.initialize_deferred_program_globals();
+        let between =
+            |checker: &mut CheckerState<'_>| checker.materialize_init_global_diagnostics();
+        if shared {
+            state.merge_augmentation_inputs(&inputs, between);
+        } else {
+            state.merge_module_augmentations_around(between);
+        }
+        for file in 0..snapshot.documents().len() {
+            state.check_source_file(file);
+        }
+        let creation_order: Vec<_> = (0..state.tables.len())
+            .map(|index| {
+                state
+                    .tables
+                    .type_of(tsc_types::TypeId::new(index as u32))
+                    .clone()
+            })
+            .collect();
+        let counts = crate::CheckerCounts::of(&state, true);
+        (
+            state.diagnostics.to_vec(),
+            creation_order,
+            (counts.types, counts.instantiations, counts.symbols),
+        )
+    };
+    let standalone = run(false);
+    assert_eq!(standalone.2, (79, 2, 58));
+    assert_eq!(
+        standalone
+            .0
+            .iter()
+            .map(|row| row.code())
+            .collect::<Vec<_>>(),
+        [2322, 6133, 6133, 6133]
+    );
+    assert!(standalone.0.iter().any(|row| {
+        row.code() == 2322 && row.file_name.as_ref().is_some_and(|name| name == "/use.ts")
+    }));
+    assert_eq!(run(true), standalone);
+}

@@ -17,6 +17,108 @@ use crate::program::ProgramFileId;
 use crate::state::{CheckResult, CheckerState};
 use tsc_binder::NameKey;
 
+/// Only published syntax identities cross the shard boundary. Both lists
+/// retain source and statement order, including nested ambient modules.
+#[derive(Debug, Default, Eq, PartialEq)]
+pub(super) struct AugmentationInputs {
+    globals: Vec<NodeId>,
+    modules: Vec<NodeId>,
+}
+
+impl AugmentationInputs {
+    pub(super) fn for_snapshot(snapshot: &crate::ProgramSnapshot) -> Self {
+        Self::collect(
+            snapshot
+                .documents()
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| {
+                    !snapshot
+                        .file_facts(crate::program_file_id(*index))
+                        .is_outside_program()
+                })
+                .map(|(_, doc)| doc.source()),
+        )
+    }
+
+    fn collect<'s>(sources: impl Iterator<Item = &'s tsc_syntax::SourceFile>) -> Self {
+        let mut inputs = Self::default();
+        for source in sources {
+            if let NodeData::SourceFile(data) = Published.node(source.root).data() {
+                if let Some(statements) = data.statements {
+                    inputs.collect_module_augmentations(source, statements, false);
+                }
+            }
+        }
+        inputs
+    }
+
+    /// collectModuleReferences' ModuleDeclaration arm
+    /// (_tsc.js:124139-124160), projected to the augmentation list consumed by
+    /// initializeTypeChecker. This deliberately follows only module bodies;
+    /// arbitrary namespace descendants are not part of that collector.
+    fn collect_module_augmentations(
+        &mut self,
+        source: &tsc_syntax::SourceFile,
+        statements: NodeArrayId,
+        in_ambient_module: bool,
+    ) {
+        let is_external_module_file = source.external_module_indicator.is_some();
+        let statements = source
+            .arena
+            .module_declaration_candidates(statements)
+            .unwrap_or_else(|| Published.node_array(statements).nodes);
+        for &statement in statements {
+            if Published.node(statement).kind != SyntaxKind::ModuleDeclaration
+                || !tsc_binder::node_util::is_ambient_module(&Published, statement)
+                || !(in_ambient_module
+                    || tsc_binder::node_util::has_syntactic_modifier(
+                        &Published,
+                        statement,
+                        tsc_types::ModifierFlags::AMBIENT,
+                    )
+                    || source.is_declaration_file)
+            {
+                continue;
+            }
+            let name = match Published.node(statement).data() {
+                NodeData::ModuleDeclaration(data) => data.name,
+                _ => None,
+            };
+            let name_text = name
+                .and_then(|name| {
+                    tsc_binder::node_util::get_text_of_identifier_or_literal(&Published, name)
+                })
+                .unwrap_or_default();
+            if is_external_module_file
+                || (in_ambient_module
+                    && !CheckerState::is_external_module_name_relative(&name_text))
+            {
+                if tsc_binder::node_util::is_global_scope_augmentation(&Published, statement) {
+                    self.globals.push(statement);
+                } else {
+                    self.modules.push(statement);
+                }
+                continue;
+            }
+            if in_ambient_module {
+                continue;
+            }
+            let body = match Published.node(statement).data() {
+                NodeData::ModuleDeclaration(data) => data.body,
+                _ => None,
+            };
+            let Some(body) = body else {
+                continue;
+            };
+            let Some(nested) = tsc_binder::node_util::statements_of(&Published, body) else {
+                continue;
+            };
+            self.collect_module_augmentations(source, nested, /*in_ambient_module*/ true);
+        }
+    }
+}
+
 /// tsc-port: escapeString @6.0.3 (doubleQuote flavor)
 /// tsc-hash: a41f6d5932395df14118761cfc227d8ad3266e0e2f3133c4ec5857ff7e0b4d2d
 /// tsc-span: _tsc.js:16311-16314
@@ -992,32 +1094,26 @@ impl<'a> CheckerState<'a> {
     /// there (materialize_init_global_diagnostics); the unit tests leave
     /// them lazy.
     pub fn merge_module_augmentations_around(&mut self, between: impl FnOnce(&mut Self)) {
-        let file_count = self.binder.file_count();
-        let mut global_augmentations: Vec<NodeId> = Vec::new();
-        let mut module_augmentations: Vec<NodeId> = Vec::new();
-        for index in 0..file_count {
-            if self.is_outside_program(index) {
-                continue;
-            }
-            let source = self.binder.source(index);
-            let root = source.root;
-            let tsc_syntax::NodeData::SourceFile(data) = Published.node(root).data() else {
-                continue;
-            };
-            let Some(statements) = data.statements else {
-                continue;
-            };
-            self.collect_module_augmentations(
-                source,
-                statements,
-                /*in_ambient_module*/ false,
-                &mut global_augmentations,
-                &mut module_augmentations,
-            );
-        }
+        let inputs = self.augmentation_inputs();
+        self.merge_augmentation_inputs(&inputs, between);
+    }
+
+    fn augmentation_inputs(&self) -> AugmentationInputs {
+        AugmentationInputs::collect(
+            (0..self.binder.file_count())
+                .filter(|&index| !self.is_outside_program(index))
+                .map(|index| self.binder.source(index)),
+        )
+    }
+
+    pub(super) fn merge_augmentation_inputs(
+        &mut self,
+        inputs: &AugmentationInputs,
+        between: impl FnOnce(&mut Self),
+    ) {
         // Pass 1: global-scope augmentations merge into globals
         // (mergeSymbolTable(globals, augmentation.symbol.exports)).
-        for augmentation in global_augmentations {
+        for &augmentation in &inputs.globals {
             let Some(symbol) = self.binder.node_symbol(augmentation) else {
                 continue;
             };
@@ -1056,7 +1152,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         // Pass 2: external-module augmentations resolve + merge.
-        for augmentation in module_augmentations {
+        for &augmentation in &inputs.modules {
             if let Err(err) = self.merge_one_module_augmentation(augmentation) {
                 self.mark_oracle_crash_range(augmentation, err);
                 if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
@@ -1112,78 +1208,6 @@ impl<'a> CheckerState<'a> {
         }
         self.pattern_ambient_modules = grouped;
         Ok(())
-    }
-
-    /// collectModuleReferences' ModuleDeclaration arm
-    /// (_tsc.js:124139-124160), projected to the augmentation list consumed by
-    /// initializeTypeChecker. This deliberately follows only module bodies;
-    /// arbitrary namespace descendants are not part of that collector.
-    fn collect_module_augmentations(
-        &self,
-        source: &tsc_syntax::SourceFile,
-        statements: NodeArrayId,
-        in_ambient_module: bool,
-        global_augmentations: &mut Vec<NodeId>,
-        module_augmentations: &mut Vec<NodeId>,
-    ) {
-        let is_external_module_file = source.external_module_indicator.is_some();
-        let statements = source
-            .arena
-            .module_declaration_candidates(statements)
-            .unwrap_or_else(|| Published.node_array(statements).nodes);
-        for &statement in statements {
-            if self.kind_of(statement) != SyntaxKind::ModuleDeclaration
-                || !tsc_binder::node_util::is_ambient_module(&Published, statement)
-                || !(in_ambient_module
-                    || tsc_binder::node_util::has_syntactic_modifier(
-                        &Published,
-                        statement,
-                        tsc_types::ModifierFlags::AMBIENT,
-                    )
-                    || source.is_declaration_file)
-            {
-                continue;
-            }
-            let name = match self.data_of(statement) {
-                NodeData::ModuleDeclaration(data) => data.name,
-                _ => None,
-            };
-            let name_text = name
-                .and_then(|name| {
-                    tsc_binder::node_util::get_text_of_identifier_or_literal(&Published, name)
-                })
-                .unwrap_or_default();
-            if is_external_module_file
-                || (in_ambient_module && !Self::is_external_module_name_relative(&name_text))
-            {
-                if tsc_binder::node_util::is_global_scope_augmentation(&Published, statement) {
-                    global_augmentations.push(statement);
-                } else {
-                    module_augmentations.push(statement);
-                }
-                continue;
-            }
-            if in_ambient_module {
-                continue;
-            }
-            let body = match self.data_of(statement) {
-                NodeData::ModuleDeclaration(data) => data.body,
-                _ => None,
-            };
-            let Some(body) = body else {
-                continue;
-            };
-            let Some(nested) = tsc_binder::node_util::statements_of(&Published, body) else {
-                continue;
-            };
-            self.collect_module_augmentations(
-                source,
-                nested,
-                /*in_ambient_module*/ true,
-                global_augmentations,
-                module_augmentations,
-            );
-        }
     }
 
     fn merge_one_module_augmentation(&mut self, augmentation: NodeId) -> CheckResult<()> {

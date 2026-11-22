@@ -630,6 +630,7 @@ fn new_checker_state(owner: &LiveOwner) -> CheckerState<'_> {
         &owner.options,
         Some((&*owner.provider, &owner.metadata)),
         owner.host.clone(),
+        None,
         Some(0),
         false,
     );
