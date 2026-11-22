@@ -3288,12 +3288,7 @@ impl<'a> CheckerState<'a> {
                     }
                 } else if let Some(previous) = previous_declaration {
                     if self.parent_of(previous) == self.parent_of(node) {
-                        let previous_end = self
-                            .binder
-                            .source_of_node(previous)
-                            .arena
-                            .node(previous)
-                            .end;
+                        let previous_end = self.record_of(previous).end;
                         let node_pos = Published.node(node).pos;
                         if previous_end != node_pos {
                             self.report_implementation_expected_error(previous, is_constructor)?;

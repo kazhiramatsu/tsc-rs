@@ -1516,3 +1516,55 @@ type Ctor = new (value: number, placeholder: object) => object;";
         ]
     );
 }
+
+#[test]
+fn overload_adjacency_uses_positions_only_within_the_same_parent() {
+    let text = "function adjacent(x: number): number;
+function adjacent(x: number): number { return x; }
+function separated(x: number): number;
+const gap = 0;
+function separated(x: number): number { return x; }
+class A { constructor(x: number); constructor(x: number) {} }
+class B { constructor(x: number); gap = 0; constructor(x: number) {} }";
+    let adjacency: Vec<_> = checked_rows(text)
+        .into_iter()
+        .filter(|row| matches!(row.0, 2389..=2391))
+        .collect();
+    assert_eq!(
+        adjacency,
+        [
+            (2391, text.find("separated").unwrap() as u32, 9),
+            (
+                2390,
+                (text.find("class B { ").unwrap() + "class B { ".len()) as u32,
+                11
+            ),
+        ]
+    );
+
+    with_program_state(
+        &[
+            ("a.ts", "function cross(x: number): number;"),
+            ("b.ts", "function cross(x: number): number { return x; }"),
+        ],
+        &CompilerOptions::default(),
+        |state| {
+            let symbol = state
+                .resolve_file_scope_name("cross", tsc_types::SymbolFlags::VALUE)
+                .unwrap();
+            let &[overload, implementation] = state.binder.symbol(symbol).declarations() else {
+                panic!("one global symbol with two declarations");
+            };
+            assert_ne!(state.parent_of(overload), state.parent_of(implementation));
+            assert_ne!(
+                state.record_of(overload).end,
+                state.record_of(implementation).pos
+            );
+            state.check_function_or_constructor_symbol(symbol).unwrap();
+            assert!(state
+                .diagnostics
+                .iter()
+                .all(|diag| !matches!(diag.code(), 2389..=2391)));
+        },
+    );
+}
