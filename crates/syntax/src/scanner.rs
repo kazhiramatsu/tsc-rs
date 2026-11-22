@@ -1062,10 +1062,16 @@ impl<'text> Scanner<'text> {
         }
     }
 
+    /// Byte offsets of the uncooked token value in the parser's source.
+    pub(crate) fn token_value_source_range(&self) -> Option<std::ops::Range<usize>> {
+        (!self.token_value.cooked).then_some(self.token_value.start..self.token_value.end)
+    }
+
     /// The token's value as a slice of the source, unless an escape (or a
     /// normalization) cooked it. The slice outlives the next token.
     pub(crate) fn token_value_source(&self) -> Option<&'text str> {
-        (!self.token_value.cooked).then(|| &self.text[self.token_value.start..self.token_value.end])
+        self.token_value_source_range()
+            .map(|range| &self.text[range])
     }
 
     /// The value of a token whose value is Unicode scalars by grammar (an

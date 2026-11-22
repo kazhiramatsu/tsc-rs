@@ -8,6 +8,50 @@ fn nodes_of_kind(source: &crate::SourceFile, kind: SyntaxKind) -> Vec<NodeId> {
 }
 
 #[test]
+fn source_name_ranges_keep_speculative_and_warm_identifier_payloads() {
+    fn parse_names() -> Vec<(SyntaxKind, u32, u32, tsc_types::EscapedName)> {
+        let text = r"πname \u03c0name #privateπ __hidden πname";
+        let mut parser = Parser::new("a.ts".into(), text, LanguageVariant::Standard, false);
+        parser.next_token();
+        let accepted = parser.try_parse(|parser| {
+            parser.parse_identifier();
+            false
+        });
+        assert!(!accepted);
+        while parser.token() != SyntaxKind::EndOfFileToken {
+            if parser.token() == SyntaxKind::PrivateIdentifier {
+                parser.parse_private_identifier();
+            } else {
+                parser.parse_identifier();
+            }
+        }
+        assert!(parser.parse_diagnostics.is_empty());
+        parser
+            .arena
+            .nodes()
+            .iter()
+            .map(|node| {
+                let name = match node.data() {
+                    NodeData::Identifier(data) => data.escaped_text,
+                    NodeData::PrivateIdentifier(data) => data.escaped_text,
+                    data => panic!("unexpected identifier payload {data:?}"),
+                };
+                (node.kind, node.pos, node.end, name)
+            })
+            .collect()
+    }
+    let first = parse_names();
+    let spellings: Vec<_> = first.iter().map(|row| row.3.as_str().unwrap()).collect();
+    assert_eq!(
+        spellings,
+        ["πname", "πname", "πname", "#privateπ", "___hidden", "πname"]
+    );
+    assert_eq!(first[0], first[1]);
+    assert_eq!(first[3].0, SyntaxKind::PrivateIdentifier);
+    assert_eq!(first, parse_names());
+}
+
+#[test]
 fn function_free_statement_lists_track_direct_children() {
     let mut source =
         parse_ts("namespace N { let a; } { function f() {} } const g = function() {};");

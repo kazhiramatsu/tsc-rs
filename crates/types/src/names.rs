@@ -292,14 +292,14 @@ impl NameCache {
     /// The id of `raw` escaped. A name the escape changes (a leading `__`)
     /// is not cached.
     #[inline]
-    fn escaped_id(&mut self, raw: JsStr<'_>, intern: impl FnOnce() -> u32) -> u32 {
-        let bytes = raw.as_bytes();
+    fn escaped_id(&mut self, bytes: &[u8], intern: impl FnOnce() -> u32) -> u32 {
         if bytes.len() <= 16 {
             let (a, b) = short_key(bytes);
             let hash = (a ^ b.rotate_left(29) ^ (bytes.len() as u64) << 59)
                 .wrapping_mul(0x9E37_79B9_7F4A_7C15);
             let slot = &mut self.short[(hash >> (64 - NAME_CACHE_BITS)) as usize];
             if slot.len as usize == bytes.len() && slot.a == a && slot.b == b {
+                debug_assert_eq!(tsc_store::names::text(slot.id), bytes);
                 return slot.id;
             }
             let id = intern();
@@ -323,6 +323,7 @@ impl NameCache {
                     tsc_store::names::text(slot.id) == bytes
                 }
             {
+                debug_assert_eq!(tsc_store::names::text(slot.id), bytes);
                 return slot.id;
             }
             let id = intern();
@@ -371,8 +372,26 @@ impl HeldNameCache {
         crate::perf::bump(crate::perf::PerfCounter::NamesEscapeCalls);
         crate::EscapedName::from_index(
             self.cache
-                .escaped_id(raw, || crate::escaped_name::escaped_id(raw)),
+                .escaped_id(raw.as_bytes(), || crate::escaped_name::escaped_id(raw)),
         )
+    }
+
+    /// Escape the scalar token at these source offsets. Exact byte equality
+    /// suffices on a cache hit. Only interning needs the checked string slice.
+    #[inline]
+    #[cfg_attr(feature = "perf-counters", track_caller)]
+    pub fn escape_source_range(
+        &mut self,
+        source: &str,
+        range: std::ops::Range<usize>,
+    ) -> crate::EscapedName {
+        crate::perf::name_site(std::panic::Location::caller());
+        crate::perf::bump(crate::perf::PerfCounter::NamesEscapeCalls);
+        let bytes = &source.as_bytes()[range.clone()];
+        debug_assert!(source.is_char_boundary(range.start) && source.is_char_boundary(range.end));
+        crate::EscapedName::from_index(self.cache.escaped_id(bytes, || {
+            crate::escaped_name::escaped_str_id(&source[range])
+        }))
     }
 
     /// Escape a scalar token while retaining its UTF-8 validity through a
@@ -384,7 +403,7 @@ impl HeldNameCache {
         crate::perf::bump(crate::perf::PerfCounter::NamesEscapeCalls);
         crate::EscapedName::from_index(
             self.cache
-                .escaped_id(raw.into(), || crate::escaped_name::escaped_str_id(raw)),
+                .escaped_id(raw.as_bytes(), || crate::escaped_name::escaped_str_id(raw)),
         )
     }
 }

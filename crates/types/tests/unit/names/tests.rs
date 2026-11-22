@@ -70,9 +70,15 @@ fn colliding_texts_keep_their_own_names() {
     let mut held = HeldNameCache::take();
     for round in 0..2 {
         for text in &texts {
+            let source = format!("π{text}/");
+            let start = "π".len();
             let raw = JsStr::from_str(text);
             assert_eq!(
-                held.escape(raw),
+                if round == 0 {
+                    held.escape_source_range(&source, start..start + text.len())
+                } else {
+                    held.escape(raw)
+                },
                 EscapedName::escape(raw),
                 "{text:?} (round {round})"
             );

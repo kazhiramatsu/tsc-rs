@@ -10043,9 +10043,9 @@ impl<'text> Parser<'text> {
     /// The escaped name of the current identifier token (tsc factory
     /// createIdentifier: escapedText is the ESCAPED form; idText stays raw).
     fn current_token_name(&mut self) -> tsc_types::EscapedName {
-        if let Some(value) = self.scanner.token_value_source() {
-            if !value.is_empty() {
-                return self.names.escape_str(value);
+        if let Some(range) = self.scanner.token_value_source_range() {
+            if !range.is_empty() {
+                return self.names.escape_source_range(self.source_text, range);
             }
         }
         let value = self.scanner.token_value();
