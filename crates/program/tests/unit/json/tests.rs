@@ -543,3 +543,75 @@ fn package_resolution_observes_duplicate_export_conditions_in_place() {
         assert_eq!(module.package_id().unwrap().submodule_name(), "good.d.ts");
     }
 }
+
+#[test]
+fn package_readers_match_the_original_object_and_peer_version() {
+    use super::{
+        read_package_json_fallback, read_package_json_object_from_snapshot, read_peer_version,
+    };
+    use tsc_diagnostics::{DocumentVersion, TextSnapshot};
+
+    fn compare(left: &Value, right: &Value) {
+        match (left, right) {
+            (Value::Object(left), Value::Object(right)) => {
+                assert!(left.keys().eq(right.keys()));
+                for (a, b) in left.values().zip(right.values()) {
+                    compare(a, b);
+                }
+            }
+            (Value::Array(left), Value::Array(right)) => {
+                assert_eq!(left.len(), right.len());
+                assert!(left.capacity() <= right.capacity());
+                for (a, b) in left.iter().zip(right) {
+                    compare(a, b);
+                }
+            }
+            (Value::Number(a), Value::Number(b)) => {
+                assert_eq!(
+                    json_number_as_f64(a).map(f64::to_bits),
+                    json_number_as_f64(b).map(f64::to_bits)
+                );
+            }
+            _ => assert_eq!(left, right),
+        }
+    }
+
+    let path = JsStr::from("package.json");
+    for input in [
+        r#"{"version":false,"exports":{"default":-0,"x":[1.5,9007199254740993],"default":-0.0},"\u0076ersion":"last","\u0000x":"y"}"#,
+        r#"{"version":"first","version":{"version":"nested"}}"#,
+        r#"{"version":"1","unknown":[true,{"a":}]}"#,
+        r#"{"version":"1","unknown":1e999,"__proto__":{"inherited":true}}"#,
+        r#"{"version":"\ud800","\udc00":[null]}"#,
+        r#"{"version":"1","unknown":"\ud800"}"#,
+        r#"{"\u0024serde_json::private::RawValue":"{\"version\":\"raw\"}"}"#,
+        r#"{"version":{"$serde_json::private::RawValue":"\"inside\""},"x":true}"#,
+        r#"{"version":"1","unknown":[{"$serde_json::private::RawValue":"bad"}]}"#,
+        r#"{"version":"1","$serde_json::private::RawValue":true}"#,
+        r#"{/* inherited */ "__proto__":{"version":"from prototype"},}"#,
+        r#"{"version":"1"} trailing"#,
+        r#"["version","ignored"]"#,
+        r#""not an object""#,
+    ] {
+        let snapshot = TextSnapshot::new(input.to_owned(), DocumentVersion::default());
+        if !input.contains("RawValue") {
+            let strict = serde_json::from_str::<serde_json::Value>(input).is_ok();
+            for dest in [
+                super::PackageDestination::Peer,
+                super::PackageDestination::Object,
+            ] {
+                assert_eq!(dest.read(input).is_ok(), strict, "{input}");
+            }
+        }
+        let expected = read_package_json_fallback(path, &snapshot);
+        let actual = read_package_json_object_from_snapshot(path, &snapshot);
+        assert_eq!(
+            read_peer_version(path, &snapshot)
+                .as_ref()
+                .map(|s| s.as_js()),
+            json_object_get(&expected, "version").and_then(Value::as_js),
+            "{input}"
+        );
+        compare(&Value::Object(actual), &Value::Object(expected));
+    }
+}

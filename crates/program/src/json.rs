@@ -1,5 +1,8 @@
 use std::sync::Arc;
 
+mod strict_package;
+use strict_package::PackageDestination;
+
 use crate::json_value::{JsonObject as Map, JsonValue as Value};
 use serde_json::Number;
 use tsc_diagnostics::{DocumentVersion, JsStr, JsString, TextSnapshot};
@@ -50,6 +53,32 @@ pub fn read_package_json_object_from_snapshot(
     if json_parser_preflight(snapshot.text()) != JsonParserPreflight::Safe {
         return Map::new();
     }
+    match PackageDestination::Object.read(snapshot.text()) {
+        Ok(Value::Object(object)) => object,
+        Ok(_) => Map::new(),
+        Err(_) => read_package_json_fallback(file_name, snapshot),
+    }
+}
+
+/// Read the one property used for peer identities. On fallback the normal
+/// package accessor also sees inherited JSONC properties.
+pub(crate) fn read_peer_version(
+    file_name: JsStr<'_>,
+    snapshot: &Arc<TextSnapshot>,
+) -> Option<JsString> {
+    if json_parser_preflight(snapshot.text()) != JsonParserPreflight::Safe {
+        return None;
+    }
+    match PackageDestination::Peer.read(snapshot.text()) {
+        Ok(Value::String(version)) => Some(version),
+        Ok(_) => None,
+        Err(_) => json_object_get(&read_package_json_fallback(file_name, snapshot), "version")
+            .and_then(Value::as_js)
+            .map(JsStr::to_owned),
+    }
+}
+
+fn read_package_json_fallback(file_name: JsStr<'_>, snapshot: &Arc<TextSnapshot>) -> Map {
     if let Ok(value) = serde_json::from_str::<serde_json::Value>(snapshot.text()) {
         return match strict_package_value(value) {
             Value::Object(object) => object,

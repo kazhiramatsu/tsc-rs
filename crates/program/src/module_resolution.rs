@@ -14,7 +14,7 @@ use tsc_types::{
 
 use crate::json::{
     decode_user_object_key, json_number_as_f64, json_object_get, json_object_own_get,
-    parse_json_object,
+    parse_json_object, read_peer_version,
 };
 use crate::path::ProgramPath;
 use crate::prepared::{
@@ -6286,19 +6286,14 @@ impl<'a> ModuleResolver<'a> {
                     peer_package_json.as_js().to_string_lossy()
                 ))
             })?;
-            let (_, peer) = parse_json_object(peer_package_json.as_js(), text);
+            let snapshot = tsc_diagnostics::TextSnapshot::new(text, Default::default());
+            let version =
+                read_peer_version(peer_package_json.as_js(), &snapshot).unwrap_or_default();
             suffix.push_str("+");
             suffix.push_js(name.as_js());
             suffix.push_str("@");
-            let version = json_object_get(&peer, "version").and_then(Value::as_js);
-            if let Some(version) = version {
-                suffix.push_js(version);
-            }
-            peers.push((
-                name,
-                peer_package_json,
-                Some(version.map(JsStr::to_owned).unwrap_or_else(JsString::new)),
-            ));
+            suffix.push_js(version.as_js());
+            peers.push((name, peer_package_json, Some(version)));
         }
         Ok(PeerDependencyLookup {
             suffix: Some(suffix),
