@@ -752,6 +752,12 @@ enum ProgramEntry<'a> {
     Owned(&'a Arc<BoundDocument>),
 }
 
+/// The locals tables of the file a scope walk lies in, once the walk has
+/// routed to it ([`ProgramBinder::locals_of_in_walk`]): unset before the
+/// first scope with locals, `None` inside for a legacy entry.
+#[derive(Default)]
+pub(crate) struct WalkLocals<'a>(Option<Option<&'a HashMap<NodeId, SymbolTable>>>);
+
 /// A scope's symbol table for a lookup that also drives the checker:
 /// borrowed for the program lifetime from a program-owned document, shared
 /// when the table lives behind an `Arc` (module exports, the globals), and
@@ -1665,6 +1671,45 @@ impl<'a> ProgramBinder<'a> {
             return None;
         }
         self.binder_of_node(scope).locals.get(&scope)
+    }
+
+    /// [`Self::locals_of`] for a walk up one node's ancestors. They lie in one
+    /// file, so the walk routes to that file's tables at its first scope
+    /// that has locals and keeps them in `walk` for the scopes above (name
+    /// resolution asks at every enclosing function, block and module of
+    /// every name it resolves). A legacy borrowed-binder entry (unit-test
+    /// callers) owns its bind data and is asked scope by scope.
+    pub(crate) fn locals_of_in_walk(
+        &self,
+        scope: NodeId,
+        walk: &mut WalkLocals<'a>,
+    ) -> Option<&SymbolTable> {
+        if !tsc_binder::published_has_locals(scope) {
+            self.debug_assert_no_locals(scope);
+            return None;
+        }
+        let tables = *walk.0.get_or_insert_with(|| {
+            match &self.file_entries[self.file_index_of_node(scope)] {
+                ProgramEntry::Owned(document) => {
+                    let document: &'a Arc<BoundDocument> = document;
+                    Some(&document.data.locals)
+                }
+                ProgramEntry::Legacy(_) => None,
+            }
+        });
+        let Some(tables) = tables else {
+            return self.locals_of(scope);
+        };
+        let locals = tables.get(&scope);
+        debug_assert!(
+            match (locals, self.locals_of(scope)) {
+                (Some(kept), Some(routed)) => std::ptr::eq(kept, routed),
+                (None, None) => true,
+                _ => false,
+            },
+            "{scope:?} lies in another file than the walk's first scope"
+        );
+        locals
     }
 
     /// The binder sets `HAS_LOCALS` wherever it creates a locals table; a

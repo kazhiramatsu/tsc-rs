@@ -327,6 +327,8 @@ impl<'a> CheckerState<'a> {
         let mut associated_declaration_for_containing_initializer: Option<NodeId> = None;
         let mut within_deferred_context = false;
         let mut name_is_const = None;
+        // The file of the walk's scopes, found at the first that has locals.
+        let mut walk_locals = crate::program::WalkLocals::default();
 
         'walk: while let Some(loc) = location {
             // tsrs H4.6: these kinds have no locals or resolver switch arm,
@@ -359,7 +361,7 @@ impl<'a> CheckerState<'a> {
             let loc_is_global_source_file = self.kind_of(loc) == SyntaxKind::SourceFile
                 && !self.binder.is_external_or_common_js_module_of_node(loc);
             if !loc_is_global_source_file {
-                if let Some(locals) = self.binder.locals_of(loc) {
+                if let Some(locals) = self.binder.locals_of_in_walk(loc, &mut walk_locals) {
                     let input = LookupInput::new(Some(locals), name, suggestion);
                     let probe = self.lookup_probe(input, name, meaning, false)?;
                     if let Some(found) = self.finish_lookup(probe, name, meaning) {

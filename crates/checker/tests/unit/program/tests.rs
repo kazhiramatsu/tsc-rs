@@ -1188,3 +1188,69 @@ fn snapshot_augmentations_keep_both_merge_passes_in_checker_order() {
     }));
     assert_eq!(run(true), standalone);
 }
+
+/// A walk up one node's ancestors asks for the locals of each scope. Over
+/// program-owned documents the walk routes to its file's tables once and
+/// reads the same tables `locals_of` reads, scope by scope, in either file
+/// of a program; a new walk routes again.
+#[test]
+fn a_scope_walk_routes_to_its_files_locals_once_and_reads_the_same_tables() {
+    let domain = IdentityDomain::new();
+    let document = |path: &str, text: &str| {
+        bound_document_for_snapshot(
+            path,
+            TextSnapshot::new(text.to_owned(), DocumentVersion::default()),
+            &domain,
+        )
+    };
+    let documents = vec![
+        document(
+            "/a.ts",
+            "export function outerA(p: number) { const a = p; function innerA() { const deepA = a; return deepA; } return innerA; }",
+        ),
+        document(
+            "/b.ts",
+            "export namespace N { export function outerB(q: string) { { let block = q; class C { m() { const deepB = block; return deepB; } } return C; } } }",
+        ),
+    ];
+    let snapshot = ProgramSnapshot::new(documents, 0).unwrap();
+    let program = ProgramBinder::from_snapshot(&snapshot);
+    for (file, deep) in [(0, "deepA"), (1, "deepB")] {
+        let start = program
+            .source(file)
+            .arena
+            .node_ids()
+            .filter(|&node| {
+                let record = tsc_syntax::published_node(node);
+                record.kind == tsc_syntax::SyntaxKind::Identifier
+                    && record
+                        .as_identifier()
+                        .is_some_and(|data| data.escaped_text.identifier_text() == deep)
+            })
+            .max_by_key(|&node| tsc_syntax::published_node(node).pos)
+            .expect("the deepest name");
+        let mut walk = WalkLocals::default();
+        let mut scopes_with_locals = 0;
+        let mut current = Some(start);
+        while let Some(node) = current {
+            let in_walk = program.locals_of_in_walk(node, &mut walk);
+            let routed = program.locals_of(node);
+            match (in_walk, routed) {
+                (Some(kept), Some(table)) => {
+                    assert!(std::ptr::eq(kept, table));
+                    scopes_with_locals += 1;
+                }
+                (None, None) => {}
+                _ => panic!("the walk and the route disagree at {node:?}"),
+            }
+            current = tsc_syntax::published_node(node).parent;
+        }
+        // The method or function, the enclosing function and the file (and
+        // on the way the block, the class and the namespace of the second).
+        assert!(scopes_with_locals >= 3, "{deep}: {scopes_with_locals}");
+        assert!(
+            matches!(walk.0, Some(Some(_))),
+            "the walk kept its file's tables"
+        );
+    }
+}
