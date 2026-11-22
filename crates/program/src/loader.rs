@@ -1375,10 +1375,20 @@ fn normalize_root(
     })
 }
 
+/// Whether the last component of `path` (what follows its last `/` or `\`)
+/// has a `.`: read from the end, the first of the three bytes decides. A
+/// source path ends in its extension, so this looks at a few bytes where
+/// two splits and a search walked the whole base name three times; no byte
+/// of a multi-byte sequence is one of the three.
 fn path_has_extension(path: JsStr<'_>) -> bool {
-    let basename = path.split_ascii(b'/').next_back().unwrap_or(path);
-    let basename = basename.split_ascii(b'\\').next_back().unwrap_or(basename);
-    basename.contains(".")
+    for &byte in path.as_bytes().iter().rev() {
+        match byte {
+            b'.' => return true,
+            b'/' | b'\\' => return false,
+            _ => {}
+        }
+    }
+    false
 }
 
 fn validate_type_roots(
@@ -10026,3 +10036,7 @@ mod shared_source_tests;
 #[cfg(test)]
 #[path = "../tests/unit/loader/shared_tables_tests.rs"]
 mod shared_tables_tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/loader/path_extension_tests.rs"]
+mod path_extension_tests;
