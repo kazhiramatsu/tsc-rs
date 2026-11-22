@@ -3906,6 +3906,10 @@ fn syntactic_rows_of_sources<'s>(
 #[derive(Default)]
 struct LedgerSnapshot {
     rows: Vec<Diagnostic>,
+    /// The captures that added rows, in order: the Program file a capture was
+    /// for and where its rows end in `rows` (they start where the preceding
+    /// capture's end). Every row of a capture names that file.
+    row_runs: Vec<(usize, usize)>,
     globals_by_file: Vec<Vec<Diagnostic>>,
     partially_checked_ranges: rustc_hash::FxHashMap<usize, Vec<(u32, u32)>>,
 }
@@ -3918,6 +3922,7 @@ impl LedgerSnapshot {
         globals_by_file: &[Vec<Diagnostic>],
     ) {
         let name = &state.binder.source(file).file_name;
+        let captured = self.rows.len();
         self.rows.extend(
             state
                 .diagnostics
@@ -3925,6 +3930,9 @@ impl LedgerSnapshot {
                 .filter(|row| row.file_name.as_ref() == Some(name))
                 .cloned(),
         );
+        if self.rows.len() != captured {
+            self.row_runs.push((file, self.rows.len()));
+        }
         self.globals_by_file[file] = globals_by_file[file].clone();
         if let Some(ranges) = state.partially_checked_ranges.get(&file) {
             self.partially_checked_ranges.insert(file, ranges.clone());
@@ -3944,12 +3952,16 @@ impl LedgerSnapshot {
         globals_by_file: &[Vec<Diagnostic>],
     ) {
         let name = &state.binder.source(file).file_name;
+        let captured = self.rows.len();
         self.rows.extend(
             state.diagnostics[rows_start..]
                 .iter()
                 .filter(|row| row.file_name.as_ref() == Some(name))
                 .cloned(),
         );
+        if self.rows.len() != captured {
+            self.row_runs.push((file, self.rows.len()));
+        }
         self.globals_by_file[file] = globals_by_file[file].clone();
         if let Some(ranges) = state.partially_checked_ranges.get(&file) {
             self.partially_checked_ranges.insert(file, ranges.clone());
@@ -4628,6 +4640,39 @@ fn run_checker_shard<'a>(
     (output, None)
 }
 
+/// The shards' rows grouped by Program file: a file's rows in the order of
+/// the ledgers, and inside a ledger in the order its captures took them. A
+/// row an EARLIER ledger kept for the file is not kept again (two checkers
+/// can report one diagnostic for a file both looked into); a row a ledger
+/// holds twice itself is kept twice, as it always was - the merge's sort
+/// and dedupe is what removes it.
+fn ledger_rows_by_file<'o>(
+    ledgers: impl Iterator<Item = &'o LedgerSnapshot>,
+    file_count: usize,
+) -> Vec<Vec<&'o Diagnostic>> {
+    let mut by_file: Vec<Vec<&Diagnostic>> = vec![Vec::new(); file_count];
+    // Per file, the ledger that last added rows (counted from one) and how
+    // many rows the earlier ledgers had kept when it began.
+    let mut earlier: Vec<(usize, usize)> = vec![(0, 0); file_count];
+    for (ledger_index, ledger) in ledgers.enumerate() {
+        let mut start = 0;
+        for &(file, end) in &ledger.row_runs {
+            let kept = &mut by_file[file];
+            if earlier[file].0 != ledger_index + 1 {
+                earlier[file] = (ledger_index + 1, kept.len());
+            }
+            let earlier = earlier[file].1;
+            for row in &ledger.rows[start..end] {
+                if !kept[..earlier].contains(&row) {
+                    kept.push(row);
+                }
+            }
+            start = end;
+        }
+    }
+    by_file
+}
+
 /// Merge each file's rows from its associated checker, captured when that
 /// checker finished the file (tsgo checker.GetDiagnostics). Deferred rows
 /// published by another checker do not enter the file's result. Final sorting
@@ -4678,31 +4723,36 @@ fn merge_shard_outputs(
         Vec::new()
     };
 
-    // Owner-local rows grouped by file for the Program-order projection
-    // below. Preserve each checker's publication order within a file.
-    fn rows_by_file<'o>(
-        ledgers: impl Iterator<Item = &'o LedgerSnapshot>,
-    ) -> rustc_hash::FxHashMap<&'o JsString, Vec<&'o Diagnostic>> {
-        let mut by_file: rustc_hash::FxHashMap<&JsString, Vec<&Diagnostic>> =
-            rustc_hash::FxHashMap::default();
-        for ledger in ledgers {
-            // Per file, how many rows the earlier shards kept.
-            let mut earlier: rustc_hash::FxHashMap<&JsString, usize> =
-                rustc_hash::FxHashMap::default();
-            for row in &ledger.rows {
-                if let Some(file_name) = row.file_name.as_ref() {
-                    let kept = by_file.entry(file_name).or_default();
-                    let earlier = *earlier.entry(file_name).or_insert(kept.len());
-                    if !kept[..earlier].contains(&row) {
-                        kept.push(row);
-                    }
-                }
+    // Owner-local rows grouped by Program file for the projection below, each
+    // file's in its checkers' publication order. A capture's rows all name
+    // the file it was taken for (`LedgerSnapshot::row_runs`), so the groups
+    // are filled by file index: no row's name is hashed, and a file without
+    // rows costs the merge nothing here. (Grouping by index is grouping by
+    // name: no two Program files share one.)
+    #[cfg(debug_assertions)]
+    {
+        let mut names = rustc_hash::FxHashSet::default();
+        debug_assert!(
+            snapshot
+                .documents()
+                .iter()
+                .all(|document| names.insert(document.source().file_name.as_js())),
+            "two Program files share a name: their rows cannot be grouped by file index"
+        );
+        for output in &outputs {
+            let mut start = 0;
+            for &(file, end) in &output.ledger.row_runs {
+                let name = &snapshot.document(file).source().file_name;
+                debug_assert!(output.ledger.rows[start..end]
+                    .iter()
+                    .all(|row| row.file_name.as_ref() == Some(name)));
+                start = end;
             }
+            debug_assert_eq!(start, output.ledger.rows.len());
         }
-        by_file
     }
-    let rows = rows_by_file(outputs.iter().map(|output| &output.ledger));
     let file_count = snapshot.documents().len();
+    let rows = ledger_rows_by_file(outputs.iter().map(|output| &output.ledger), file_count);
     let unselected = |file: usize| selected.is_some_and(|selected| !selected[file]);
     let skip = |file: usize| {
         unselected(file)
@@ -4717,8 +4767,7 @@ fn merge_shard_outputs(
     let assemble = |file: usize| {
         let document = snapshot.document(file);
         let source = document.source();
-        let empty = Vec::new();
-        let checker_for_file = rows.get(&source.file_name).unwrap_or(&empty);
+        let checker_for_file = &rows[file];
         let globals = outputs
             .iter()
             .flat_map(|output| output.ledger.globals_by_file[file].iter().cloned())
@@ -4758,13 +4807,12 @@ fn merge_shard_outputs(
             diagnostics.extend(semantic);
         } else {
             let result = &mut file_diagnostics[file - lib_count];
-            if let Some(rows) = rows.get(&snapshot.document(file).source().file_name) {
-                result.suggestion.extend(
-                    rows.iter()
-                        .filter(|row| row.category() == DiagnosticCategory::Suggestion)
-                        .map(|row| (*row).clone()),
-                );
-            }
+            result.suggestion.extend(
+                rows[file]
+                    .iter()
+                    .filter(|row| row.category() == DiagnosticCategory::Suggestion)
+                    .map(|row| (*row).clone()),
+            );
             diagnostics.extend_from_slice(&semantic);
             result.semantic = semantic;
         }
@@ -4815,8 +4863,7 @@ fn merge_shard_outputs(
                     } else {
                         let document = snapshot.document(file);
                         let source = document.source();
-                        let empty = Vec::new();
-                        let checker_for_file = rows.get(&source.file_name).unwrap_or(&empty);
+                        let checker_for_file = &rows[file];
                         let globals = outputs
                             .iter()
                             .flat_map(|output| output.ledger.globals_by_file[file].iter().cloned())

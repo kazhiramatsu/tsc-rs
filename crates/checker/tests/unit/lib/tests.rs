@@ -8984,3 +8984,56 @@ fn eager_work_counts_only_when_no_shard_closed_the_gate() {
         assert_eq!(counted, plain);
     }
 }
+
+/// The merge's groups: every row goes to the file its capture was for, by
+/// that file's index; a file's rows keep the order of the ledgers and, in a
+/// ledger, of its captures; a row an earlier ledger kept for the file is
+/// dropped, a row repeated inside one ledger is kept; a file without a
+/// capture has an empty group.
+#[test]
+fn ledger_rows_group_by_the_file_index_of_their_capture() {
+    let row = |file: &str, start: u32| {
+        Diagnostic::new_js(
+            Some(JsString::from(file)),
+            Some(start),
+            Some(1),
+            tsc_diagnostics::MessageChain::new(
+                &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
+                &["string".to_owned(), "number".to_owned()],
+            ),
+        )
+    };
+    // File 0 "/a.ts", file 1 "/b.ts", file 2 "/c.ts" (never captured).
+    // The first ledger captures a, then b, then a again (statement captures
+    // interleave files); it holds a's row at 7 twice.
+    let first = LedgerSnapshot {
+        rows: vec![
+            row("/a.ts", 1),
+            row("/a.ts", 7),
+            row("/b.ts", 2),
+            row("/a.ts", 7),
+        ],
+        row_runs: vec![(0, 2), (1, 3), (0, 4)],
+        ..LedgerSnapshot::default()
+    };
+    // The second ledger reports a's row at 1 again (dropped: the first kept
+    // it), a new row for a, and b's row at 2 again (dropped).
+    let second = LedgerSnapshot {
+        rows: vec![row("/a.ts", 1), row("/a.ts", 9), row("/b.ts", 2)],
+        row_runs: vec![(0, 2), (1, 3)],
+        ..LedgerSnapshot::default()
+    };
+    let groups = ledger_rows_by_file([&first, &second].into_iter(), 3);
+    let starts = |file: usize| {
+        groups[file]
+            .iter()
+            .map(|row| row.start.unwrap())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(starts(0), [1, 7, 7, 9]);
+    assert_eq!(starts(1), [2]);
+    assert!(groups[2].is_empty());
+    assert!(groups[0]
+        .iter()
+        .all(|row| row.file_name.as_ref().map(JsString::as_js) == Some("/a.ts".into())));
+}
