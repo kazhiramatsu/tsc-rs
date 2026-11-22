@@ -2600,7 +2600,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:73611-73615
     pub(crate) fn pop_active_mapper(&mut self) {
         self.active_type_mappers.pop().expect("active mapper scope");
-        self.active_type_mappers_caches[self.active_type_mappers.len()].clear();
+        self.active_type_mappers_caches[self.active_type_mappers.len()].clear_on_pop();
     }
 
     /// tsc-port: findActiveMapper @6.0.3

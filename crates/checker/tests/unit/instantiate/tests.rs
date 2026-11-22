@@ -1122,6 +1122,92 @@ fn mapper_cache_depths_keep_storage_and_clear_only_discarded_answers() {
 }
 
 #[test]
+fn sparse_mapper_maps_rebuild_the_same_answers_after_pop() {
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        let parameter = state.tables.create_synthesized_type_parameter(None);
+        let number = state.tables.intrinsics.number;
+        let outer = crate::state::MapperCacheKey {
+            ty: parameter,
+            alias_symbol: None,
+            alias_arguments: None,
+        };
+        let mapper = state.make_unary_type_mapper(parameter, number);
+        state.push_active_mapper(state.restrictive_mapper);
+        state.active_type_mappers_caches[0].insert(outer, parameter);
+
+        for alias_symbol in [None, Some(state.unknown_symbol)] {
+            let key = crate::state::MapperCacheKey {
+                alias_symbol,
+                ..outer
+            };
+            let other = crate::state::MapperCacheKey {
+                alias_symbol: alias_symbol.is_none().then_some(state.unknown_symbol),
+                ..outer
+            };
+            let capacities = |cache: &crate::state::ActiveMapperCache| {
+                let (plain, aliased) = cache.capacities();
+                if alias_symbol.is_some() {
+                    (aliased, plain)
+                } else {
+                    (plain, aliased)
+                }
+            };
+            state.push_active_mapper(mapper);
+            let cache = &mut state.active_type_mappers_caches[1];
+            for index in 0..1024 {
+                cache.insert(
+                    crate::state::MapperCacheKey {
+                        ty: tsc_types::TypeId::new(index),
+                        ..key
+                    },
+                    number,
+                );
+            }
+            cache.insert(other, number);
+            let (large, small) = capacities(cache);
+            assert!(large >= 1024);
+            state.pop_active_mapper();
+            assert_eq!(
+                capacities(&state.active_type_mappers_caches[1]),
+                (large, small)
+            );
+
+            let check_answer = |state: &mut CheckerState| {
+                let count = state.total_instantiation_count;
+                for _ in 0..2 {
+                    assert_eq!(
+                        state
+                            .instantiate_type_with_alias(
+                                parameter,
+                                mapper,
+                                alias_symbol,
+                                None,
+                                None
+                            )
+                            .unwrap(),
+                        number
+                    );
+                    assert_eq!(state.total_instantiation_count - count, 1);
+                }
+            };
+            let checkpoint = state.begin_speculation();
+            state.push_active_mapper(mapper);
+            check_answer(state);
+            state.rollback_speculation(checkpoint);
+            assert_eq!(capacities(&state.active_type_mappers_caches[1]), (0, small));
+            assert_eq!(
+                state.active_type_mappers_caches[0].get(&outer),
+                Some(&parameter)
+            );
+            state.push_active_mapper(mapper);
+            check_answer(state);
+            state.pop_active_mapper();
+        }
+        state.pop_active_mapper();
+    });
+}
+
+#[test]
 fn changed_instantiation_list_materializes_only_after_a_difference() {
     with_program_state(
         &[("a.ts", "function f<T>() { var x: T; }")],

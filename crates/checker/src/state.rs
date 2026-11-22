@@ -3509,6 +3509,21 @@ impl ActiveMapperCache {
         self.aliased.clear();
     }
 
+    /// A later scope at this depth can reuse an ordinary map. Release a
+    /// large allocation when the exiting scope used little of its capacity.
+    pub(crate) fn clear_on_pop(&mut self) {
+        fn clear_map<K, V>(map: &mut rustc_hash::FxHashMap<K, V>) {
+            let capacity = map.capacity();
+            if capacity >= 1024 && !map.is_empty() && map.len() <= capacity / 8 {
+                *map = Default::default();
+            } else {
+                map.clear();
+            }
+        }
+        clear_map(&mut self.plain);
+        clear_map(&mut self.aliased);
+    }
+
     #[cfg(test)]
     pub(crate) fn len(&self) -> usize {
         self.plain.len() + self.aliased.len()
