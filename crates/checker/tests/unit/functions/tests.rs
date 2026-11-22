@@ -1438,3 +1438,81 @@ const mismatch: number = value;";
         .collect();
     assert_eq!(relevant, [2395, 2395, 2652, 2652, 2322]);
 }
+
+#[test]
+fn parameter_spelling_keeps_keyword_diagnostics_in_order() {
+    let text = r"function ordinary(aVeryLongOrdinaryParameterName: number, caf\u00e9: number) {
+    return aVeryLongOrdinaryParameterName + café;
+}
+function misplaced(value: number, this: object) {}
+class C { constructor(value: number, this: object) {} }
+type Ctor = new (value: number, placeholder: object) => object;";
+    let domain = tsc_types::IdentityDomain::new();
+    let mut source =
+        tsc_syntax::parse_source_file("a.ts", text, tsc_syntax::ParseOptions::default(), None);
+    assert!(
+        source.parse_diagnostics.is_empty(),
+        "{:?}",
+        source.parse_diagnostics
+    );
+    // The regular binding parser rejects the reserved word. Form the
+    // recovery parameter directly to exercise the checker's `new` branch.
+    let placeholder = source
+        .arena
+        .node_ids()
+        .find(|&node| {
+            source
+                .arena
+                .node(node)
+                .as_identifier()
+                .is_some_and(|data| data.escaped_text.identifier_text() == "placeholder")
+        })
+        .unwrap();
+    source.arena.set_data(
+        placeholder,
+        tsc_syntax::NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
+            escaped_text: tsc_types::EscapedName::from_escaped_value("new".into()),
+        }),
+    );
+    source.relocate_into_identity_domain(&domain).unwrap();
+    let binder = tsc_binder::Binder::bind_in_identity_domain(&mut source, &domain).unwrap();
+    let options = CompilerOptions::default();
+    let mut state = crate::state::CheckerState::from_program(vec![&binder], &options);
+    state.check_source_file(0);
+    let relevant: Vec<_> = state
+        .diagnostics
+        .iter()
+        .filter(|diag| matches!(diag.code(), 2680 | 2681))
+        .map(|diag| {
+            (
+                diag.code(),
+                diag.message_text().to_string_lossy().into_owned(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        relevant,
+        [
+            (
+                2680,
+                "A 'this' parameter must be the first parameter.".to_owned()
+            ),
+            (
+                2680,
+                "A 'this' parameter must be the first parameter.".to_owned()
+            ),
+            (
+                2681,
+                "A constructor cannot have a 'this' parameter.".to_owned()
+            ),
+            (
+                2680,
+                "A 'new' parameter must be the first parameter.".to_owned()
+            ),
+            (
+                2681,
+                "A constructor cannot have a 'this' parameter.".to_owned()
+            ),
+        ]
+    );
+}

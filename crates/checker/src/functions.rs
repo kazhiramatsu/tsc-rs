@@ -1979,8 +1979,7 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(name) = name {
             if self.kind_of(name) == SyntaxKind::Identifier {
-                let text = self.identifier_text_of(name).map(str::to_owned);
-                if matches!(text.as_deref(), Some("this") | Some("new")) {
+                if let Some(text @ ("this" | "new")) = self.identifier_text_of(name) {
                     let parameters = match self.data_of(func) {
                         NodeData::FunctionDeclaration(data) => data.parameters,
                         NodeData::FunctionExpression(data) => data.parameters,
@@ -2002,7 +2001,7 @@ impl<'a> CheckerState<'a> {
                         self.error_at(
                             Some(node),
                             &diagnostics::A_0_parameter_must_be_the_first_parameter,
-                            &[text.as_deref().unwrap_or("")],
+                            &[text],
                         );
                     }
                     if matches!(
