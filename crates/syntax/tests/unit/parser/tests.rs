@@ -4403,6 +4403,72 @@ fn missing_semicolon_reports_spelling_suggestions() {
 }
 
 #[test]
+fn jsdoc_body_text_keeps_ranges_and_factory_counts() {
+    for js in [false, true] {
+        for (source, expected, dropped) in [
+            ("/** */", None, 0),
+            ("/**  \t */", None, 0),
+            ("/**\n\n*/", None, 1),
+            ("/** word*/", Some("word"), 1),
+        ] {
+            let mut parser = Parser::new("body".into(), source, LanguageVariant::Standard, js);
+            let doc = jsdoc::parse_jsdoc_comment(&mut parser, 0, source.len(), NodeFlags::NONE);
+            let node = parser.arena.node(doc.node);
+            assert_eq!((node.pos, node.end), (0, source.len() as u32));
+            let data = node.as_js_doc().unwrap();
+            assert!(data.tags.is_none());
+            let actual = data.comment.map(|comment| {
+                let crate::JSDocComment::Text {
+                    text,
+                    pos,
+                    end,
+                    text_end,
+                } = comment
+                else {
+                    panic!("expected a plain comment")
+                };
+                assert_eq!(
+                    (pos, end, text_end),
+                    (0, source.len() as u32 - 2, source.len() as u32 - 2)
+                );
+                parser.arena.text_utf8(text)
+            });
+            assert_eq!(actual, expected);
+            assert_eq!(parser.arena.factory_node_count(), 1 + dropped, "{source:?}");
+            assert!(parser.parse_diagnostics.is_empty() && parser.js_doc_diagnostics.is_empty());
+        }
+        let source = "/** before {@link A} after  */";
+        let mut parser = Parser::new("body".into(), source, LanguageVariant::Standard, js);
+        let doc = jsdoc::parse_jsdoc_comment(&mut parser, 0, source.len(), NodeFlags::NONE);
+        let data = parser.arena.node(doc.node).as_js_doc().unwrap();
+        let parts = parser
+            .arena
+            .node_array(data.comment.unwrap().nodes().unwrap());
+        let [first, link, last] = *parts.nodes else {
+            panic!("three comment parts")
+        };
+        let text = |id| {
+            parser
+                .arena
+                .text_utf8(parser.arena.node(id).as_js_doc_text().unwrap().text)
+        };
+        assert_eq!((text(first), text(last)), ("before ", " after"));
+        assert_eq!(parser.arena.node(link).kind, SyntaxKind::JSDocLink);
+        assert_eq!((parts.pos, parts.end), (0, source.len() as u32 - 2));
+        let ranges = [first, link, last].map(|id| {
+            let node = parser.arena.node(id);
+            (node.pos, node.end)
+        });
+        assert_eq!(ranges, [(0, 11), (11, 20), (20, 28)]);
+        assert_eq!(
+            (parser.arena.len(), parser.arena.factory_node_count()),
+            (5, 5)
+        );
+        assert!(parser.parse_diagnostics.is_empty() && parser.js_doc_diagnostics.is_empty());
+    }
+}
+
+#[test]
 fn jsdoc_overlapping_parts_and_tags_keep_array_order_and_reuse_root_scratch() {
     let text = concat!(
         "/** root {@link Root} tail\n",
