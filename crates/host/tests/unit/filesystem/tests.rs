@@ -98,8 +98,7 @@ fn removes_only_verbatim_disk_realpath_prefixes() {
 
 #[test]
 fn observation_lookup_checks_native_spelling_on_a_fingerprint_collision() {
-    use super::{ObservationKey, ObservationLookup, ObservationQuery, Presence};
-    use std::collections::HashMap;
+    use super::{ObservationLookup, ObservationQuery, ObservationTable, Presence};
     use std::path::Path;
 
     let first = ObservationQuery::new(Path::new("/work/a.ts"));
@@ -107,7 +106,7 @@ fn observation_lookup_checks_native_spelling_on_a_fingerprint_collision() {
     second.fingerprint = first.fingerprint;
     let mut absent = ObservationQuery::new(Path::new("/work/missing.ts"));
     absent.fingerprint = first.fingerprint;
-    let mut map = HashMap::<ObservationKey, Presence>::new();
+    let mut map = ObservationTable::<Presence>::default();
     map.insert(first.into_owned(), Presence::File { len: 17 });
     map.insert(second.into_owned(), Presence::Directory);
     assert!(matches!(
@@ -134,7 +133,7 @@ fn observation_lookup_checks_native_spelling_on_a_fingerprint_collision() {
 #[test]
 fn observation_table_preserves_path_equivalence_in_both_insertion_orders() {
     use super::{
-        canonical_observation_fingerprint, lookup_observation, ObservationKey, ObservationQuery,
+        canonical_observation_fingerprint, lookup_observation, ObservationQuery, ObservationTable,
     };
     use std::collections::HashMap;
     use std::path::{Path, PathBuf};
@@ -171,7 +170,7 @@ fn observation_table_preserves_path_equivalence_in_both_insertion_orders() {
     ];
     for reverse in [false, true] {
         let mut old = HashMap::<PathBuf, usize>::new();
-        let mut new = HashMap::<ObservationKey, usize>::new();
+        let mut new = ObservationTable::<usize>::default();
         for index in 0..paths.len() {
             let at = if reverse {
                 paths.len() - 1 - index
@@ -209,12 +208,12 @@ fn observation_table_preserves_path_equivalence_in_both_insertion_orders() {
 #[test]
 fn observation_table_keeps_non_unicode_components_lossless() {
     use super::{
-        canonical_observation_fingerprint, lookup_observation, ObservationKey, ObservationQuery,
+        canonical_observation_fingerprint, lookup_observation, ObservationQuery, ObservationTable,
     };
     use std::ffi::OsStr;
     use std::os::unix::ffi::OsStrExt;
     use std::path::Path;
-    let mut table = std::collections::HashMap::<ObservationKey, usize>::new();
+    let mut table = ObservationTable::<usize>::default();
     for (index, bytes) in [b"/work/\xff/a".as_slice(), b"/work/\xfe/a".as_slice()]
         .into_iter()
         .enumerate()
@@ -391,4 +390,40 @@ fn observation_shortcut_preserves_metadata_and_realpath_calls() {
             (HostOperation::Realpath, "/link".into()),
         ]
     );
+}
+
+/// The keys of one shard share the fingerprint's low bits (the shard is
+/// chosen by them). The table's hash of a key must not: its bucket comes
+/// from the hash's low bits and its seven-bit tag from the top ones.
+#[test]
+fn the_memo_table_spreads_the_keys_of_one_shard() {
+    use super::{FingerprintHasher, ObservationQuery};
+    use std::collections::BTreeSet;
+    use std::hash::{BuildHasher, BuildHasherDefault};
+    use std::path::Path;
+
+    let build = BuildHasherDefault::<FingerprintHasher>::default();
+    let mut by_shard = vec![(BTreeSet::new(), BTreeSet::new(), 0usize); super::OBSERVATION_SHARDS];
+    for index in 0..8192 {
+        let path = format!("/work/node_modules/pkg-{index}/lib/index.d.ts");
+        let query = ObservationQuery::new(Path::new(&path));
+        let hash = build.hash_one(query.fingerprint);
+        // A key hashes as its fingerprint: the same value for the owned key.
+        assert_eq!(build.hash_one(query.into_owned()), hash);
+        let (buckets, tags, keys) = &mut by_shard[query.shard()];
+        buckets.insert(hash & 0xff);
+        tags.insert(hash >> 57);
+        *keys += 1;
+    }
+    // 8,192 keys in 32 shards: about 256 keys to a shard, with 256 low-byte
+    // values and 128 tags to draw from.
+    for (shard, (buckets, tags, keys)) in by_shard.iter().enumerate() {
+        assert!(*keys >= 128, "shard {shard} has {keys} keys");
+        assert!(
+            buckets.len() >= 96,
+            "shard {shard}: {} low bytes",
+            buckets.len()
+        );
+        assert!(tags.len() >= 64, "shard {shard}: {} tags", tags.len());
+    }
 }
