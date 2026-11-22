@@ -3790,7 +3790,7 @@ fn syntactic_rows_of_sources<'s>(
 /// file-attributed rows and partially-checked ranges recorded up to then.
 /// Rows are cloned when the owner finishes a file, before later checks can
 /// add or update diagnostics in that file.
-#[derive(Clone, Default)]
+#[derive(Default)]
 struct LedgerSnapshot {
     rows: Vec<Diagnostic>,
     globals_by_file: Vec<Vec<Diagnostic>>,
@@ -3891,9 +3891,7 @@ struct ShardOutput {
     /// verdict arrived depends on completion order.
     after_eager: Option<(CheckerCounts, u32, crate::order_guard::DisplayMarks)>,
     /// Owner-local per-file snapshots after the requested check pass.
-    fixture: LedgerSnapshot,
-    /// The ledger after every pass.
-    complete: LedgerSnapshot,
+    ledger: LedgerSnapshot,
     /// The file-less bucket right after checker initialization; identical
     /// across shards by construction (same snapshot, same init sequence).
     init_globals: Vec<Diagnostic>,
@@ -4404,7 +4402,6 @@ fn run_checker_shard<'a>(
             break;
         }
     }
-    let fixture = captured.clone();
     #[cfg(feature = "phase-ledger")]
     tsc_types::phase_ledger::switch(tsc_types::phase_ledger::Phase::Finalization);
     files.sort_unstable();
@@ -4438,7 +4435,6 @@ fn run_checker_shard<'a>(
             );
         deposit(shard_index, closes_gate);
     }
-    let complete = captured;
     // The module facts of the files this shard checked; the merge adds the
     // cached rows from every shard's ledger.
     let incremental = if incremental_facts {
@@ -4466,8 +4462,7 @@ fn run_checker_shard<'a>(
         counts: CheckerCounts::of(&state, shard_index == 0),
         closes_gate,
         after_eager: None,
-        fixture,
-        complete,
+        ledger: captured,
         init_globals,
         partial_check_records: std::mem::take(&mut state.partial_check_records),
         failure,
@@ -4590,8 +4585,7 @@ fn merge_shard_outputs(
         }
         by_file
     }
-    let fixture_rows = rows_by_file(outputs.iter().map(|output| &output.fixture));
-    let complete_rows = rows_by_file(outputs.iter().map(|output| &output.complete));
+    let rows = rows_by_file(outputs.iter().map(|output| &output.ledger));
     let file_count = snapshot.documents().len();
     let unselected = |file: usize| selected.is_some_and(|selected| !selected[file]);
     let skip = |file: usize| {
@@ -4604,22 +4598,20 @@ fn merge_shard_outputs(
                 options,
             )
     };
-    let assemble = |file: usize,
-                    rows: &rustc_hash::FxHashMap<&JsString, Vec<&Diagnostic>>,
-                    ledger: fn(&ShardOutput) -> &LedgerSnapshot|
-     -> DiagnosticList {
+    let assemble = |file: usize| {
         let document = snapshot.document(file);
         let source = document.source();
         let empty = Vec::new();
         let checker_for_file = rows.get(&source.file_name).unwrap_or(&empty);
         let globals = outputs
             .iter()
-            .flat_map(|output| ledger(output).globals_by_file[file].iter().cloned())
+            .flat_map(|output| output.ledger.globals_by_file[file].iter().cloned())
             .collect::<Vec<_>>();
         let ranges = outputs
             .iter()
             .flat_map(|output| {
-                ledger(output)
+                output
+                    .ledger
                     .partially_checked_ranges
                     .get(&file)
                     .into_iter()
@@ -4638,33 +4630,28 @@ fn merge_shard_outputs(
         )
     };
 
-    // Fixture projection: the public per-file getters as observed after the
-    // fixture pass and before library completion.
-    for file in lib_count..file_count {
-        if skip(file) {
-            continue;
-        }
-        let source = snapshot.document(file).source();
-        let result_index = file - lib_count;
-        if let Some(rows) = fixture_rows.get(&source.file_name) {
-            file_diagnostics[result_index].suggestion.extend(
-                rows.iter()
-                    .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Suggestion)
-                    .map(|diagnostic| (*diagnostic).clone()),
-            );
-        }
-        file_diagnostics[result_index].semantic =
-            assemble(file, &fixture_rows, |output| &output.fixture);
-    }
-
-    // Whole-Program getter: every file after completion, one stable
-    // sort/dedupe after flattening (getDiagnosticsHelper's undefined arm).
+    // Both public getters observe the same captured semantic rows. Only
+    // fixtures also have a per-file result and a separate suggestion pass.
     let mut diagnostics = Vec::new();
     for file in 0..file_count {
         if skip(file) {
             continue;
         }
-        diagnostics.extend(assemble(file, &complete_rows, |output| &output.complete));
+        let semantic = assemble(file);
+        if file < lib_count {
+            diagnostics.extend(semantic);
+        } else {
+            let result = &mut file_diagnostics[file - lib_count];
+            if let Some(rows) = rows.get(&snapshot.document(file).source().file_name) {
+                result.suggestion.extend(
+                    rows.iter()
+                        .filter(|row| row.category() == DiagnosticCategory::Suggestion)
+                        .map(|row| (*row).clone()),
+                );
+            }
+            diagnostics.extend_from_slice(&semantic);
+            result.semantic = semantic;
+        }
     }
     tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
     // W2e: a display-class observation counts only when the diagnostic it
@@ -4713,19 +4700,16 @@ fn merge_shard_outputs(
                         let document = snapshot.document(file);
                         let source = document.source();
                         let empty = Vec::new();
-                        let checker_for_file =
-                            complete_rows.get(&source.file_name).unwrap_or(&empty);
+                        let checker_for_file = rows.get(&source.file_name).unwrap_or(&empty);
                         let globals = outputs
                             .iter()
-                            .flat_map(|output| {
-                                output.complete.globals_by_file[file].iter().cloned()
-                            })
+                            .flat_map(|output| output.ledger.globals_by_file[file].iter().cloned())
                             .collect::<Vec<_>>();
                         let ranges = outputs
                             .iter()
                             .flat_map(|output| {
                                 output
-                                    .complete
+                                    .ledger
                                     .partially_checked_ranges
                                     .get(&file)
                                     .into_iter()
@@ -4751,7 +4735,7 @@ fn merge_shard_outputs(
             planner_global_rows: false,
             check_global_rows: outputs.iter().any(|output| {
                 output
-                    .complete
+                    .ledger
                     .globals_by_file
                     .iter()
                     .any(|rows| !rows.is_empty())
