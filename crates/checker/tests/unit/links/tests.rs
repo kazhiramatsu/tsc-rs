@@ -433,3 +433,37 @@ fn call_signature_journal_index_survives_reentry_and_rejects_reused_slots() {
         assert_eq!(run(true, commit), ordinary);
     }
 }
+
+#[test]
+fn type_reference_probe_keeps_absent_records_unallocated_and_reads_live_slots() {
+    let mut links = LinksTables::default();
+    let before = links.memory_usage();
+    let node = NodeId::new(3);
+    let mut outer = NodeLinksCursor::probe_type_reference(&links, node).expect_err("no record");
+    assert!(outer.location.is_none());
+    assert_eq!(links.memory_usage(), before);
+
+    let inner_symbol = SymbolId::new(5);
+    let inner_type = TypeId::new(6);
+    outer.set_symbol(&mut links, inner_symbol);
+    let mut inner =
+        NodeLinksCursor::probe_type_reference(&links, node).expect_err("record without type");
+    assert_eq!(inner.location, outer.location);
+    inner.finish_type_reference(&mut links, Some(inner_symbol), inner_type);
+    assert_eq!(
+        NodeLinksCursor::probe_type_reference(&links, node).ok(),
+        Some(inner_type)
+    );
+
+    let outer_symbol = SymbolId::new(7);
+    let outer_type = TypeId::new(8);
+    outer.finish_type_reference(&mut links, Some(outer_symbol), outer_type);
+    assert_eq!(
+        NodeLinksCursor::probe_type_reference(&links, node).ok(),
+        Some(outer_type)
+    );
+    assert_eq!(
+        inner.read(&links, |record| record.resolved_symbol.resolved()),
+        Some(outer_symbol)
+    );
+}

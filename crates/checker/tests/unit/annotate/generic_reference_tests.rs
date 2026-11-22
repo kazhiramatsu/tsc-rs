@@ -965,3 +965,39 @@ fn generic_reference_relations_flow_through_instantiated_arguments() {
         },
     );
 }
+
+#[test]
+fn type_reference_probe_returns_a_completed_failed_resolution_without_reporting_again() {
+    with_program_state(
+        &[("a.ts", "declare var value: MissingType;")],
+        &CompilerOptions::default(),
+        |state| {
+            let reference = annotation_of(state, "value");
+            assert!(state.links.node_with_location(reference).is_none());
+            let first = state.get_type_from_type_reference(reference).unwrap();
+            assert!(state
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code() == 2304));
+            let counts = (
+                state.diagnostics.len(),
+                state.tables.len(),
+                state.total_instantiation_count,
+                state.binder.transient_symbol_count(),
+            );
+            assert_eq!(
+                state.get_type_from_type_reference(reference).unwrap(),
+                first
+            );
+            assert_eq!(
+                counts,
+                (
+                    state.diagnostics.len(),
+                    state.tables.len(),
+                    state.total_instantiation_count,
+                    state.binder.transient_symbol_count(),
+                )
+            );
+        },
+    );
+}

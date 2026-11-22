@@ -1556,6 +1556,24 @@ impl NodeLinksCursor {
         }
     }
 
+    /// Read a completed type reference directly. A miss keeps the record
+    /// location for the reads and writes of the unresolved reference.
+    #[inline]
+    pub(crate) fn probe_type_reference(links: &LinksTables, node: NodeId) -> Result<TypeId, Self> {
+        perf::bump(PerfCounter::LinksNodeReads);
+        let Some((position, record)) = links.node.get_with_position(node) else {
+            perf::bump(PerfCounter::LinksNodeReadAbsent);
+            return Err(Self::new(node));
+        };
+        if let Some(resolved) = record.resolved_type.resolved() {
+            return Ok(resolved);
+        }
+        Err(Self {
+            node,
+            location: Some(NodeLinksLocation::from_position(position)),
+        })
+    }
+
     #[inline]
     pub(crate) fn read<R>(&mut self, links: &LinksTables, read: impl FnOnce(&NodeLinks) -> R) -> R {
         perf::bump(PerfCounter::LinksNodeReads);

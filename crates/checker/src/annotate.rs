@@ -1610,11 +1610,20 @@ impl<'a> CheckerState<'a> {
     /// getTypeReferenceType ports. Missing entity names flow through
     /// getUnresolvedSymbolForEntityName so the type remains error-like
     /// while retaining its written alias identity.
+    #[inline]
     pub(crate) fn get_type_from_type_reference(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        let mut cursor = crate::links::NodeLinksCursor::new(node);
-        if let Some(cached) = cursor.read(&self.links, |links| links.resolved_type.resolved()) {
-            return Ok(cached);
+        match crate::links::NodeLinksCursor::probe_type_reference(&self.links, node) {
+            Ok(cached) => Ok(cached),
+            Err(cursor) => self.resolve_type_reference(node, cursor),
         }
+    }
+
+    #[inline(never)]
+    fn resolve_type_reference(
+        &mut self,
+        node: NodeId,
+        mut cursor: crate::links::NodeLinksCursor,
+    ) -> CheckResult<TypeId> {
         if self.is_const_type_reference_node(node) {
             let expression = self.parent_of(node).and_then(|parent| {
                 match_record! { self.record_of(parent), {
