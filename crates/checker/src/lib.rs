@@ -4072,7 +4072,7 @@ fn reserve_type_tables(state: &mut state::CheckerState<'_>, node_count: usize) {
     state.links.reserve_transient_symbols(transient_symbols);
     state.mappers.reserve(reserve(1.5));
     state.mapper_lists.reserve(reserve(2.0));
-    state.members.reserve(reserve(0.5));
+    state.reserve_members(reserve(0.5));
     state.signatures.reserve(reserve(0.25));
     state.inference_context_arena.reserve(reserve(0.1));
     state.inference_info_arena.reserve(reserve(0.1));

@@ -13,8 +13,8 @@ use tsc_diagnostics::JsStr;
 use tsc_diagnostics::{Diagnostic, DiagnosticList, DiagnosticMessage, MessageChain};
 use tsc_syntax::{NodeId, NodeLookup, Published, SourceFile};
 use tsc_types::{
-    CheckFlags, CompilerOptions, ExpandingFlags, ObjectFlags, PseudoBigInt, SignatureFlags,
-    SymbolFlags, TypeData, TypeFlags, TypeId, TypeSystemPropertyName, TypeTables,
+    CheckFlags, CompilerOptions, ExpandingFlags, InlineOrBox, ObjectFlags, PseudoBigInt,
+    SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId, TypeSystemPropertyName, TypeTables,
 };
 
 use crate::instantiate::MapperId;
@@ -628,7 +628,7 @@ impl<'a, T: Clone> IntoIterator for &'a SharedList<T> {
 
 /// tsc resolved structured-type members (setStructuredTypeMembers
 /// 50198): members table + named properties + signatures + index infos.
-#[derive(Clone, Debug, Default)]
+#[derive(Default)]
 pub struct ResolvedMembers {
     /// Declared, instantiated, or declared plus inherited members.
     pub members: FrozenMembers,
@@ -636,7 +636,8 @@ pub struct ResolvedMembers {
     /// The signatures and index infos, which most resolved types have none
     /// of (three empty lists were 72 of a record's 152 bytes, over a million
     /// records on VS Code).
-    extras: Option<Box<MembersExtras>>,
+    // With no signature or index lists, the word can hold the property verdict.
+    extras: InlineOrBox<MembersExtras>,
 }
 
 /// The call and construct signatures and the index infos of a resolved
@@ -648,7 +649,50 @@ pub struct MembersExtras {
     pub index_infos: IndexInfos,
 }
 
+const _: () = {
+    assert!(size_of::<InlineOrBox<MembersExtras>>() == size_of::<Option<Box<MembersExtras>>>());
+    assert!(size_of::<ResolvedMembers>() == 48);
+};
+
+impl Clone for ResolvedMembers {
+    fn clone(&self) -> Self {
+        Self {
+            members: self.members.clone(),
+            properties: self.properties.clone(),
+            extras: self
+                .extras
+                .as_boxed()
+                .cloned()
+                .map_or_else(InlineOrBox::default, InlineOrBox::boxed),
+        }
+    }
+}
+
+impl std::fmt::Debug for ResolvedMembers {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ResolvedMembers")
+            .field("members", &self.members)
+            .field("properties", &self.properties)
+            .field("extras", &self.extras.as_boxed())
+            .finish()
+    }
+}
+
 impl ResolvedMembers {
+    pub(crate) fn weak_properties(&self) -> Option<bool> {
+        match self.extras.inline_bits() {
+            Some(1) => Some(false),
+            Some(2) => Some(true),
+            _ => None,
+        }
+    }
+
+    fn forget_weak_properties(&mut self) {
+        if self.extras.inline_bits().is_some() {
+            self.extras = InlineOrBox::default();
+        }
+    }
+
     #[inline]
     pub fn new(
         members: impl FreezeMembers,
@@ -677,16 +721,18 @@ impl ResolvedMembers {
         index_infos: impl Into<IndexInfos>,
     ) -> Self {
         let index_infos = index_infos.into();
-        let extras = (!call_signatures.is_empty()
+        let extras = if !call_signatures.is_empty()
             || !construct_signatures.is_empty()
-            || !index_infos.is_empty())
-        .then(|| {
-            Box::new(MembersExtras {
+            || !index_infos.is_empty()
+        {
+            InlineOrBox::boxed(MembersExtras {
                 call_signatures: call_signatures.into(),
                 construct_signatures: construct_signatures.into(),
                 index_infos,
             })
-        });
+        } else {
+            InlineOrBox::default()
+        };
         Self {
             members,
             properties,
@@ -697,6 +743,7 @@ impl ResolvedMembers {
     /// A later property update shares only after exact ordered equality.
     #[cfg(test)]
     pub(crate) fn set_properties(&mut self, properties: &[SymbolId]) {
+        self.forget_weak_properties();
         self.properties = if properties == self.members.symbols() {
             self.members.symbol_list()
         } else {
@@ -706,27 +753,27 @@ impl ResolvedMembers {
 
     pub fn call_signatures(&self) -> &[SignatureId] {
         self.extras
-            .as_ref()
+            .as_boxed()
             .map_or(&[], |extras| &extras.call_signatures[..])
     }
 
     pub fn construct_signatures(&self) -> &[SignatureId] {
         self.extras
-            .as_ref()
+            .as_boxed()
             .map_or(&[], |extras| &extras.construct_signatures[..])
     }
 
     /// The call signatures, shared (a reference count, not a copy).
     pub fn call_signature_list(&self) -> SignatureIds {
         self.extras
-            .as_ref()
+            .as_boxed()
             .map_or_else(SignatureIds::new, |extras| extras.call_signatures.clone())
     }
 
     /// The construct signatures, shared (a reference count, not a copy).
     pub fn construct_signature_list(&self) -> SignatureIds {
         self.extras
-            .as_ref()
+            .as_boxed()
             .map_or_else(SignatureIds::new, |extras| {
                 extras.construct_signatures.clone()
             })
@@ -734,38 +781,41 @@ impl ResolvedMembers {
 
     pub fn index_infos(&self) -> &[IndexInfo] {
         self.extras
-            .as_ref()
+            .as_boxed()
             .map_or(&[], |extras| &extras.index_infos[..])
     }
 
     /// The immutable list, shared across recursive checker calls.
     pub fn index_info_list(&self) -> IndexInfos {
         self.extras
-            .as_ref()
+            .as_boxed()
             .map_or_else(IndexInfos::new, |extras| extras.index_infos.clone())
     }
 
     /// The lists for writing, allocated on the first write.
     pub fn extras_mut(&mut self) -> &mut MembersExtras {
-        self.extras.get_or_insert_with(Default::default)
+        if self.extras.inline_bits().is_some() {
+            self.extras = InlineOrBox::boxed(MembersExtras::default());
+        }
+        self.extras.as_boxed_mut().expect("allocated above")
     }
 
     /// Replace the call signatures (tsc writes the three lists one at a
     /// time); an empty list needs no record.
     pub fn set_call_signatures(&mut self, call_signatures: Vec<SignatureId>) {
-        if !call_signatures.is_empty() || self.extras.is_some() {
+        if !call_signatures.is_empty() || self.extras.as_boxed().is_some() {
             self.extras_mut().call_signatures = call_signatures.into();
         }
     }
 
     pub fn set_construct_signatures(&mut self, construct_signatures: Vec<SignatureId>) {
-        if !construct_signatures.is_empty() || self.extras.is_some() {
+        if !construct_signatures.is_empty() || self.extras.as_boxed().is_some() {
             self.extras_mut().construct_signatures = construct_signatures.into();
         }
     }
 
     pub fn set_index_infos(&mut self, index_infos: Vec<IndexInfo>) {
-        if !index_infos.is_empty() || self.extras.is_some() {
+        if !index_infos.is_empty() || self.extras.as_boxed().is_some() {
             self.extras_mut().index_infos = index_infos.into();
         }
     }
@@ -789,7 +839,7 @@ impl ResolvedMembers {
 
     /// Bytes the lists own on the heap, for memory accounting.
     pub fn extras_heap_bytes(&self) -> usize {
-        self.extras.as_ref().map_or(0, |extras| {
+        self.extras.as_boxed().map_or(0, |extras| {
             std::mem::size_of::<MembersExtras>()
                 + extras.call_signatures.heap_bytes()
                 + extras.construct_signatures.heap_bytes()
@@ -890,7 +940,7 @@ pub struct CheckerState<'a> {
     /// always empty) map.
     pub(crate) signature_instantiations:
         rustc_hash::FxHashMap<(SignatureId, tsc_types::TypeListId), SignatureId>,
-    pub members: Vec<ResolvedMembers>,
+    members: Vec<ResolvedMembers>,
     /// tsrs: do not shortcut a table while a reentrant member resolution may be building it.
     pub(crate) members_resolving: usize,
     pub(crate) intersection_recursion_ids:
@@ -2844,7 +2894,60 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: mutable MembersId arena accessor required by Rust
     /// ownership; tsc mutates the object directly.
     pub fn members_mut(&mut self, id: MembersId) -> &mut ResolvedMembers {
-        &mut self.members[id.index() as usize]
+        let members = &mut self.members[id.index() as usize];
+        members.forget_weak_properties();
+        members
+    }
+
+    pub(crate) fn reserve_members(&mut self, additional: usize) {
+        self.members.reserve(additional);
+    }
+
+    pub(crate) fn member_arena(&self) -> &Vec<ResolvedMembers> {
+        &self.members
+    }
+
+    /// The resolved property list and the file binder symbols it names are
+    /// immutable until the record is opened for writing. A required file
+    /// symbol suffices even if earlier optional symbols were transient.
+    pub(crate) fn has_only_optional_properties(&mut self, ty: TypeId, id: MembersId) -> bool {
+        let members = self.members_of(id);
+        let eligible = self.speculation_depth == 0
+            && self.members_resolving == 0
+            && members.extras.inline_bits().is_some()
+            && self
+                .links
+                .read_ty(ty, |links| links.resolved_members.resolved())
+                == Some(id);
+        let optional = |p| {
+            self.binder
+                .symbol(p)
+                .flags
+                .intersects(SymbolFlags::OPTIONAL)
+        };
+        if eligible {
+            if let Some(answer) = members.weak_properties() {
+                debug_assert_eq!(
+                    answer,
+                    !members.properties.is_empty()
+                        && members.properties.iter().copied().all(optional)
+                );
+                return answer;
+            }
+        }
+        let required = members.properties.iter().copied().find(|&p| !optional(p));
+        let answer = required.is_none() && !members.properties.is_empty();
+        if eligible {
+            let published = |p: SymbolId| p.index() & tsc_types::TRANSIENT_SYMBOL_BIT == 0;
+            if required.map_or_else(
+                || members.properties.iter().copied().all(published),
+                published,
+            ) {
+                self.members[id.index() as usize].extras =
+                    InlineOrBox::inline(if answer { 2 } else { 1 });
+            }
+        }
+        answer
     }
 
     /// Write a finished record over the one allocated for it earlier (the
@@ -3549,7 +3652,7 @@ impl<T: Clone> SharedList<T> {
 
 impl ResolvedMembers {
     fn extras_heap_bytes_once(&self, usage: &mut tsc_diagnostics::MemoryUsage) -> usize {
-        self.extras.as_ref().map_or(0, |extras| {
+        self.extras.as_boxed().map_or(0, |extras| {
             std::mem::size_of::<MembersExtras>()
                 + extras.call_signatures.heap_bytes_once(usage)
                 + extras.construct_signatures.heap_bytes_once(usage)

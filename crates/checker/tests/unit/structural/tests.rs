@@ -2539,9 +2539,9 @@ fn settled_own_member_reads_preserve_deferral_replacement_and_module_gates() {
             let replacement = state
                 .binder
                 .create_symbol(tsc_types::SymbolFlags::PROPERTY, name);
-            state.members[members.index() as usize]
-                .members
-                .insert(&state.binder, replacement);
+            let mut table = state.members_of(members).members.clone();
+            table.insert(&state.binder, replacement);
+            state.members_mut(members).members = table;
             assert_eq!(
                 state.get_resolved_property(source, ty, name).unwrap(),
                 Some(replacement)

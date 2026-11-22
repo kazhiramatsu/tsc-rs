@@ -2,7 +2,8 @@
 
 pub use tsc_store::record_lists::{OptionalBoxSlice, PackedBox, ThinBoxSlice};
 pub use tsc_store::{
-    process_memory_bytes, resident_vec_tail_bytes, InlineList, InlineOrShared, InlineOrSharedView,
+    process_memory_bytes, resident_vec_tail_bytes, InlineList, InlineOrBox, InlineOrShared,
+    InlineOrSharedView,
 };
 
 pub mod escaped_name;

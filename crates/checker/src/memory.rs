@@ -210,7 +210,7 @@ pub(crate) fn print_reserved_vec<T>(label: &str, name: &str, values: &Vec<T>) ->
 
 pub(crate) fn print_reserved_arenas(state: &CheckerState<'_>, label: &str) -> usize {
     print_reserved_vec(label, "signatures", &state.signatures)
-        + print_reserved_vec(label, "resolved_members", &state.members)
+        + print_reserved_vec(label, "resolved_members", state.member_arena())
         + print_reserved_vec(label, "mappers", &state.mappers)
         + print_reserved_vec(label, "mapper_lists", &state.mapper_lists)
         + state

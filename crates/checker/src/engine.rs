@@ -3989,14 +3989,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(false);
             }
             let members = self.resolve_structured_type_members(ty)?;
-            let properties = &self.members_of(members).properties;
-            return Ok(!properties.is_empty()
-                && properties.iter().all(|&p| {
-                    self.binder
-                        .symbol(p)
-                        .flags
-                        .intersects(tsc_types::SymbolFlags::OPTIONAL)
-                }));
+            return Ok(self.has_only_optional_properties(ty, members));
         }
         if flags.intersects(TypeFlags::SUBSTITUTION) {
             let TypeData::Substitution(data) = self.tables.type_of(ty).data else {

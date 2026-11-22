@@ -1037,3 +1037,101 @@ fn declaration_routing_keeps_cross_file_overload_order() {
         }
     );
 }
+
+#[test]
+fn weak_properties_follow_the_full_record_through_resolution_and_speculation() {
+    use tsc_types::SymbolFlags;
+
+    with_state(
+        "interface Base { required: number }
+         interface Derived extends Base { opt?: number }
+         declare let full: Derived;
+         declare let shell: { opt?: number };
+         interface Callable<T> { (): T; opt?: T }
+         declare let deferred: Callable<string>;",
+        |state| {
+            let shell = annotation_type(state, "shell");
+            let full = annotation_type(state, "full");
+            let id = state.resolve_structured_type_members(shell).unwrap();
+            let complete = state.resolve_structured_type_members(full).unwrap();
+            let shared = state.create_resolved_empty_anonymous_type(None);
+            state
+                .links
+                .set_type_members(0, shared, LinkSlot::Resolved(id));
+
+            let counts = |state: &CheckerState| {
+                let c = crate::CheckerCounts::of(state, true);
+                (c.types, c.instantiations, c.symbols)
+            };
+            let before = counts(state);
+            state.members_resolving += 1;
+            assert!(state.is_weak_type(shell).unwrap());
+            state.members_resolving -= 1;
+            assert_eq!(state.members_of(id).weak_properties(), None);
+            let checkpoint = state.begin_speculation();
+            assert!(state.is_weak_type(shell).unwrap());
+            state.rollback_speculation(checkpoint);
+            assert_eq!(state.members_of(id).weak_properties(), None);
+            assert!(state.is_weak_type(shell).unwrap());
+            assert_eq!(state.members_of(id).weak_properties(), Some(true));
+            assert!(state.is_weak_type(shared).unwrap());
+            assert_eq!(state.members_of(id).clone().weak_properties(), None);
+
+            let inherited = state.members_of(complete).clone();
+            state.publish_members(id, inherited);
+            assert_eq!(state.members_of(id).weak_properties(), None);
+            assert!(!state.is_weak_type(shared).unwrap());
+            assert!(!state.is_weak_type(shell).unwrap());
+            assert_eq!(state.members_of(id).weak_properties(), Some(false));
+            assert_eq!(state.members_of(id).clone().weak_properties(), None);
+            assert_eq!(counts(state), before);
+
+            let transient = state
+                .binder
+                .create_symbol(SymbolFlags::OPTIONAL, tsc_types::known_name!("name"));
+            state.members_mut(id).set_properties(&[transient]);
+            assert!(state.is_weak_type(shared).unwrap());
+            state.binder.symbol_mut(transient).flags = SymbolFlags::PROPERTY;
+            assert!(!state.is_weak_type(shell).unwrap());
+            assert_eq!(state.members_of(id).weak_properties(), None);
+            let required = state
+                .members_of(complete)
+                .members
+                .get(&state.binder, "required")
+                .unwrap();
+            state.binder.symbol_mut(transient).flags = SymbolFlags::OPTIONAL;
+            state.members_mut(id).set_properties(&[transient, required]);
+            assert!(!state.is_weak_type(shell).unwrap());
+            assert_eq!(state.members_of(id).weak_properties(), Some(false));
+            let restored = state.members_of(id).clone();
+            let checkpoint = state.begin_speculation();
+            state.members_mut(id).set_properties(&[transient]);
+            assert!(state.is_weak_type(shared).unwrap());
+            assert_eq!(state.members_of(id).weak_properties(), None);
+            state.rollback_speculation(checkpoint);
+            state.publish_members(id, restored);
+            assert_eq!(state.members_of(id).weak_properties(), None);
+            assert!(!state.is_weak_type(shared).unwrap());
+            state.members_mut(id).set_properties(&[]);
+            assert!(!state.is_weak_type(shared).unwrap());
+            assert_eq!(state.members_of(id).weak_properties(), Some(false));
+
+            let ty = annotation_type(state, "deferred");
+            let header = state.structured_member_headers(ty).unwrap();
+            let before = counts(state);
+            assert!(!state.is_weak_type(ty).unwrap());
+            assert!(state
+                .links
+                .read_ty(ty, |l| l.resolved_members.resolved())
+                .is_none());
+            assert_eq!(state.structured_member_headers(ty).unwrap(), header);
+            let copy = state.members_of(header).clone();
+            assert_eq!(
+                copy.call_signatures(),
+                state.members_of(header).call_signatures()
+            );
+            assert_eq!(copy.weak_properties(), None);
+            assert_eq!(counts(state), before);
+        },
+    );
+}
