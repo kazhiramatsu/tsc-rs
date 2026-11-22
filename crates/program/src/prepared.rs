@@ -2267,6 +2267,110 @@ struct StagedResolutions {
     type_references: BTreeMap<TypeReferenceResolutionKey, TypeReferenceResolution>,
 }
 
+/// The package.json files a load's resolvers probed, each once, in the order
+/// of their keys ([`PreparedProgram::package_json_probes`]).
+///
+/// The load hands over what its resolvers recorded: every probe of every
+/// resolver, the same file many times. The list is made of that record when
+/// it is first read. Its readers are an incremental program's build info and
+/// a build's orchestrator; a plain command reads nothing, and sorting some
+/// thousands of paths for it was part of every load's serial end.
+struct PackageJsonProbes {
+    /// The record, until the list is made of it.
+    recorded: std::sync::Mutex<Vec<crate::PackageJsonProbe>>,
+    case_sensitive_file_names: bool,
+    list: std::sync::OnceLock<Vec<crate::PackageJsonProbe>>,
+}
+
+impl PackageJsonProbes {
+    /// A list as it is to be read.
+    fn listed(list: Vec<crate::PackageJsonProbe>) -> Self {
+        Self {
+            recorded: std::sync::Mutex::new(Vec::new()),
+            case_sensitive_file_names: true,
+            list: std::sync::OnceLock::from(list),
+        }
+    }
+
+    /// A load's record: the first probe of each file name's key is kept, and
+    /// the list is in the keys' order.
+    fn recorded(recorded: Vec<crate::PackageJsonProbe>, case_sensitive_file_names: bool) -> Self {
+        Self {
+            recorded: std::sync::Mutex::new(recorded),
+            case_sensitive_file_names,
+            list: std::sync::OnceLock::new(),
+        }
+    }
+
+    fn list(&self) -> &[crate::PackageJsonProbe] {
+        self.list.get_or_init(|| {
+            let recorded = std::mem::take(
+                &mut *self
+                    .recorded
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner),
+            );
+            let mut by_key = BTreeMap::new();
+            for probe in recorded {
+                by_key
+                    .entry(crate::js_path::file_name_key(
+                        probe.path.as_js(),
+                        self.case_sensitive_file_names,
+                    ))
+                    .or_insert(probe);
+            }
+            by_key.into_values().collect()
+        })
+    }
+
+    /// What is held now, the list or the record, without making the list.
+    fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage, strings: &'static str) {
+        let mut account = |probes: &Vec<crate::PackageJsonProbe>| {
+            usage.vec("prepared package probes", probes);
+            for probe in probes {
+                usage.js_string(strings, &probe.path);
+            }
+        };
+        match self.list.get() {
+            Some(list) => account(list),
+            None => account(
+                &self
+                    .recorded
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner),
+            ),
+        }
+    }
+}
+
+impl Default for PackageJsonProbes {
+    fn default() -> Self {
+        Self::listed(Vec::new())
+    }
+}
+
+impl Clone for PackageJsonProbes {
+    /// A copy holds the list (made now if it was not): a record another
+    /// thread is turning into the list at this moment is never copied half.
+    fn clone(&self) -> Self {
+        Self::listed(self.list().to_vec())
+    }
+}
+
+impl fmt::Debug for PackageJsonProbes {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.debug_list().entries(self.list()).finish()
+    }
+}
+
+impl PartialEq for PackageJsonProbes {
+    fn eq(&self, other: &Self) -> bool {
+        self.list() == other.list()
+    }
+}
+
+impl Eq for PackageJsonProbes {}
+
 /// Fully owned input to one validated no-emit or emitting session entry.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PreparedProgram {
@@ -2284,7 +2388,7 @@ pub struct PreparedProgram {
     packages: BTreeMap<CanonicalPath, PackageMetadata>,
     /// Every package.json the load's resolvers probed (see
     /// [`PreparedProgram::package_json_probes`]).
-    package_json_probes: Vec<crate::PackageJsonProbe>,
+    package_json_probes: PackageJsonProbes,
     /// The `--traceResolution` lines (see
     /// [`PreparedProgram::resolution_trace`]).
     resolution_trace: Vec<String>,
@@ -2397,7 +2501,6 @@ impl PreparedProgram {
         usage.vec("prepared library ids", &self.library_files);
         usage.btree("prepared auxiliary tree (estimate)", &self.auxiliary_files);
         usage.btree("prepared package tree (estimate)", &self.packages);
-        usage.vec("prepared package probes", &self.package_json_probes);
         usage.vec("prepared resolution trace", &self.resolution_trace);
         usage.vec("prepared package redirects", &self.package_redirect_files);
         usage.vec(
@@ -2489,9 +2592,7 @@ impl PreparedProgram {
                 usage.js_string(STRINGS, text);
             }
         }
-        for probe in &self.package_json_probes {
-            usage.js_string(STRINGS, &probe.path);
-        }
+        self.package_json_probes.add_memory_usage(usage, STRINGS);
         for line in &self.resolution_trace {
             usage.string(STRINGS, line);
         }
@@ -2700,7 +2801,7 @@ impl PreparedProgram {
     /// found ones, by real path) and `missingPackageJsons` (the ones under
     /// `node_modules` it did not find).
     pub fn package_json_probes(&self) -> &[crate::PackageJsonProbe] {
-        &self.package_json_probes
+        self.package_json_probes.list()
     }
 
     /// The `--traceResolution` lines of the load (tsgo's `Host.Trace`
@@ -2792,7 +2893,7 @@ pub struct PreparedProgramBuilder {
     library_files: Vec<SourceFileId>,
     auxiliary_files: BTreeMap<CanonicalPath, PreparedAuxiliaryFile>,
     packages: BTreeMap<CanonicalPath, PackageMetadata>,
-    package_json_probes: Vec<crate::PackageJsonProbe>,
+    package_json_probes: PackageJsonProbes,
     resolution_trace: Vec<String>,
     build_info_emit_blocked: bool,
     package_redirect_files: Vec<PackageRedirectFile>,
@@ -2808,7 +2909,20 @@ impl PreparedProgramBuilder {
     /// Record the package.json files the load's resolvers probed (see
     /// [`PreparedProgram::package_json_probes`]).
     pub fn with_package_json_probes(mut self, probes: Vec<crate::PackageJsonProbe>) -> Self {
-        self.package_json_probes = probes;
+        self.package_json_probes = PackageJsonProbes::listed(probes);
+        self
+    }
+
+    /// Record every probe of the load's resolvers as they took them, repeats
+    /// included: the list of [`PreparedProgram::package_json_probes`] (the
+    /// first probe of each file name's key, in the keys' order) is made when
+    /// it is first read.
+    pub(crate) fn with_recorded_package_json_probes(
+        mut self,
+        probes: Vec<crate::PackageJsonProbe>,
+        case_sensitive_file_names: bool,
+    ) -> Self {
+        self.package_json_probes = PackageJsonProbes::recorded(probes, case_sensitive_file_names);
         self
     }
 
@@ -2869,7 +2983,7 @@ impl PreparedProgramBuilder {
             library_files: Vec::new(),
             auxiliary_files: BTreeMap::new(),
             packages: BTreeMap::new(),
-            package_json_probes: Vec::new(),
+            package_json_probes: PackageJsonProbes::default(),
             resolution_trace: Vec::new(),
             build_info_emit_blocked: false,
             package_redirect_files: Vec::new(),
@@ -4345,5 +4459,94 @@ mod preparsed_slot_tests {
         assert!(!syntax.is_available());
         assert!(syntax.take().is_none());
         assert!(syntax.clone().take().is_none());
+    }
+}
+
+#[cfg(test)]
+mod package_json_probe_tests {
+    use super::PackageJsonProbes;
+    use crate::PackageJsonProbe;
+
+    fn probe(path: &str, exists: bool) -> PackageJsonProbe {
+        PackageJsonProbe {
+            path: path.into(),
+            exists,
+        }
+    }
+
+    /// The list made of a load's record: the FIRST probe of each file name's
+    /// key is kept (a later resolver's record of the same file is dropped,
+    /// whatever it says), and the list is in the keys' order - with
+    /// case-insensitive file names the key is the lower-cased path, and the
+    /// kept probe carries the spelling it was recorded with.
+    #[test]
+    fn the_list_keeps_the_first_probe_of_each_key_in_the_keys_order() {
+        let record = vec![
+            probe("/p/node_modules/b/package.json", true),
+            probe("/p/node_modules/a/package.json", false),
+            probe("/p/node_modules/b/package.json", false),
+            probe("/p/node_modules/A/package.json", true),
+            probe("/p/package.json", true),
+        ];
+        let sensitive = PackageJsonProbes::recorded(record.clone(), true);
+        assert_eq!(
+            sensitive.list(),
+            [
+                probe("/p/node_modules/A/package.json", true),
+                probe("/p/node_modules/a/package.json", false),
+                probe("/p/node_modules/b/package.json", true),
+                probe("/p/package.json", true),
+            ]
+        );
+        let insensitive = PackageJsonProbes::recorded(record, false);
+        assert_eq!(
+            insensitive.list(),
+            [
+                probe("/p/node_modules/a/package.json", false),
+                probe("/p/node_modules/b/package.json", true),
+                probe("/p/package.json", true),
+            ]
+        );
+        // Asked again, the same list (the record is gone).
+        assert_eq!(insensitive.list().len(), 3);
+    }
+
+    /// A finished list is kept as it was given; a copy holds the list and
+    /// equals its original, and two records that make one list are equal.
+    #[test]
+    fn a_given_list_stays_and_copies_and_equality_go_by_the_list() {
+        let list = vec![
+            probe("/z/package.json", true),
+            probe("/a/package.json", false),
+        ];
+        let given = PackageJsonProbes::listed(list.clone());
+        assert_eq!(given.list(), list);
+        let recorded = PackageJsonProbes::recorded(
+            vec![
+                probe("/b/package.json", true),
+                probe("/a/package.json", true),
+                probe("/b/package.json", false),
+            ],
+            true,
+        );
+        let copy = recorded.clone();
+        assert_eq!(
+            copy.list(),
+            [
+                probe("/a/package.json", true),
+                probe("/b/package.json", true)
+            ]
+        );
+        assert!(copy == recorded);
+        let same_list = PackageJsonProbes::recorded(
+            vec![
+                probe("/a/package.json", true),
+                probe("/b/package.json", true),
+            ],
+            true,
+        );
+        assert!(same_list == recorded);
+        assert!(given != recorded);
+        assert!(PackageJsonProbes::default().list().is_empty());
     }
 }

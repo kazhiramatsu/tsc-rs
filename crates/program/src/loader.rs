@@ -8120,17 +8120,12 @@ fn publish_program(
         }
     };
     builder = builder.with_dependency_symlinks(dependency_symlinks);
-    // The package.json files every resolver of the load probed, each once.
-    let mut package_json_probes = BTreeMap::new();
-    for probe in std::mem::take(&mut staged.package_json_probes) {
-        package_json_probes
-            .entry(crate::js_path::file_name_key(
-                probe.path.as_js(),
-                case_sensitive_file_names,
-            ))
-            .or_insert(probe);
-    }
-    builder = builder.with_package_json_probes(package_json_probes.into_values().collect());
+    // The package.json files every resolver of the load probed: the Program
+    // lists each once when the list is first read.
+    builder = builder.with_recorded_package_json_probes(
+        std::mem::take(&mut staged.package_json_probes),
+        case_sensitive_file_names,
+    );
     builder = builder.with_resolution_trace(std::mem::take(&mut staged.resolution_trace));
     builder =
         builder.with_import_extension_files(std::mem::take(&mut staged.import_extension_files));
