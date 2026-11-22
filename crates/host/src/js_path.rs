@@ -65,6 +65,20 @@ pub(crate) fn filesystem_path(
     operation: HostOperation,
 ) -> Result<Cow<'_, Path>, HostError> {
     validate(path, operation)?;
+    // On Unix a path is its bytes, and ASCII text is its own UTF-8: the
+    // `Path` of the bytes is the `Path` of the `str`. Module resolution asks
+    // the host about tens of thousands of paths in a load, nearly all of
+    // them ASCII; validating each as UTF-8 to borrow the same bytes cost
+    // more than the memo's lookup that follows.
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStrExt;
+        if path.as_bytes().is_ascii() {
+            return Ok(Cow::Borrowed(Path::new(std::ffi::OsStr::from_bytes(
+                path.as_bytes(),
+            ))));
+        }
+    }
     Ok(match path.as_str() {
         Some(path) => Cow::Borrowed(Path::new(path)),
         None => Cow::Owned(PathBuf::from(path.to_string_lossy().into_owned())),
@@ -145,3 +159,7 @@ pub(crate) fn join_observed_name(parent: JsStr<'_>, name: &str) -> JsString {
     result.push_str(suffix);
     result
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/js_path/tests.rs"]
+mod tests;
