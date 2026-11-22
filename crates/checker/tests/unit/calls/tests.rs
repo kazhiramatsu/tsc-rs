@@ -2817,3 +2817,63 @@ pick(42);";
         },
     );
 }
+
+#[test]
+fn predicate_presence_uses_positive_negative_and_recursive_signature_answers() {
+    let text = "declare function typed(value: unknown): value is string;
+declare function asserted(value: unknown): asserts value;
+declare function plain(value: unknown): boolean;
+function recursive(value: unknown) {
+    return typeof value === 'string' && recursive(value);
+}";
+    let run = |presence| {
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            let declarations: Vec<_> = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .filter(|&node| state.kind_of(node) == SyntaxKind::FunctionDeclaration)
+                .collect();
+            let mut answers = Vec::new();
+            for declaration in declarations {
+                let signature = state.get_signature_from_declaration(declaration).unwrap();
+                assert!(state.signature_of(signature).type_predicate().is_none());
+                let first = if presence {
+                    state.has_type_predicate_of_signature(signature).unwrap()
+                } else {
+                    state
+                        .get_type_predicate_of_signature(signature)
+                        .unwrap()
+                        .is_some()
+                };
+                let cached = state.signature_of(signature).type_predicate().unwrap();
+                assert_eq!(first, cached.is_some());
+                let counts = (
+                    state.tables.len(),
+                    state.total_instantiation_count,
+                    state.binder.transient_symbol_count(),
+                    state.diagnostics.len(),
+                );
+                assert_eq!(
+                    state.has_type_predicate_of_signature(signature).unwrap(),
+                    first
+                );
+                assert_eq!(
+                    (
+                        state.tables.len(),
+                        state.total_instantiation_count,
+                        state.binder.transient_symbol_count(),
+                        state.diagnostics.len()
+                    ),
+                    counts
+                );
+                answers.push((first, counts));
+            }
+            assert_eq!(answers.len(), 4);
+            assert!(answers[0].0 && answers[1].0 && !answers[2].0);
+            answers
+        })
+    };
+    assert_eq!(run(true), run(false));
+}

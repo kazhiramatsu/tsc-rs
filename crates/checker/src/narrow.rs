@@ -2957,7 +2957,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
     ) -> CheckResult<bool> {
-        if self.get_type_predicate_of_signature(signature)?.is_some() {
+        if self.has_type_predicate_of_signature(signature)? {
             return Ok(true);
         }
         if let Some(declaration) = self.signature_of(signature).declaration {
@@ -3294,6 +3294,19 @@ impl<'a> CheckerState<'a> {
         self.signature_mut(signature)
             .set_type_predicate(result.clone());
         Ok(result)
+    }
+
+    /// Read presence from the signature's memo without cloning its predicate.
+    #[inline]
+    pub(crate) fn has_type_predicate_of_signature(
+        &mut self,
+        signature: SignatureId,
+    ) -> CheckResult<bool> {
+        if let Some(cached) = self.signature_of(signature).type_predicate() {
+            return Ok(cached.is_some());
+        }
+        self.get_type_predicate_of_signature(signature)
+            .map(|predicate| predicate.is_some())
     }
 
     /// tsrs-native: the RELATION-side consult face of

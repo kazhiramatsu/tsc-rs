@@ -7168,7 +7168,7 @@ impl<'a> CheckerState<'a> {
                     .tables
                     .flags_of(return_type)
                     .intersects(TypeFlags::VOID)
-                && self.get_type_predicate_of_signature(signature)?.is_some()
+                && self.has_type_predicate_of_signature(signature)?
             {
                 if let Some(expression) = expression {
                     if !self.is_dotted_name(expression) {
