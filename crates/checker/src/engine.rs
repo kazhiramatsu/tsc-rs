@@ -33,6 +33,26 @@ use crate::state::{CheckResult, CheckerState};
 use tsc_binder::NameKey;
 use tsc_types::perf::{self, PerfCounter};
 
+/// Variance comparisons can borrow filled arguments or revisit a stable list
+/// ID after a recursive check grows the type tables.
+pub(crate) trait RelationArguments: Copy {
+    fn types<'a>(&'a self, tables: &'a tsc_types::TypeTables) -> &'a [TypeId];
+}
+
+impl RelationArguments for &[TypeId] {
+    #[inline]
+    fn types<'a>(&'a self, _tables: &'a tsc_types::TypeTables) -> &'a [TypeId] {
+        self
+    }
+}
+
+impl RelationArguments for tsc_types::TypeListId {
+    #[inline]
+    fn types<'a>(&'a self, tables: &'a tsc_types::TypeTables) -> &'a [TypeId] {
+        tables.list(*self)
+    }
+}
+
 fn enum_relation_value_text(value: &EvalValue) -> JsString {
     match value {
         EvalValue::Num(value) => tsc_types::js_number_to_string(*value).into(),
@@ -3600,19 +3620,21 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-port: typeArgumentsRelatedTo @6.0.3
     /// tsc-hash: 48c9af2e688dd0f7f130ca540d0bd3d9202216800c1de96f5c3f5cacdf2be4e3
     /// tsc-span: _tsc.js:65630-65724
-    pub(crate) fn type_arguments_related_to(
+    pub(crate) fn type_arguments_related_to<L: RelationArguments>(
         &mut self,
-        sources: &[TypeId],
-        targets: &[TypeId],
+        sources: L,
+        targets: L,
         variances: &[tsc_types::VarianceFlags],
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult<Ternary> {
         use tsc_types::VarianceFlags;
-        if sources.len() != targets.len() && self.relation == RelationKind::Identity {
+        let source_len = sources.types(&self.st.tables).len();
+        let target_len = targets.types(&self.st.tables).len();
+        if source_len != target_len && self.relation == RelationKind::Identity {
             return Ok(Ternary::FALSE);
         }
-        let length = sources.len().min(targets.len());
+        let length = source_len.min(target_len);
         let mut result = Ternary::TRUE;
         for i in 0..length {
             let variance_flags = if i < variances.len() {
@@ -3624,8 +3646,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if variance == VarianceFlags::INDEPENDENT.bits() {
                 continue;
             }
-            let s = sources[i];
-            let t = targets[i];
+            let s = sources.types(&self.st.tables)[i];
+            let t = targets.types(&self.st.tables)[i];
             let related;
             if variance_flags.intersects(VarianceFlags::UNMEASURABLE) {
                 // Unmeasurable arguments compare identically (or as

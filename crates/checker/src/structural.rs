@@ -183,10 +183,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// call sites pre-answer the in-progress sentinel with
     /// Ternary::UNKNOWN.
     #[allow(clippy::too_many_arguments)] // tsc closure state is explicit in Rust
-    fn relate_variances(
+    fn relate_variances<L: crate::engine::RelationArguments>(
         &mut self,
-        source_type_arguments: &[TypeId],
-        target_type_arguments: &[TypeId],
+        source_type_arguments: L,
+        target_type_arguments: L,
         variances: &[tsc_types::VarianceFlags],
         report_errors: bool,
         intersection_state: IntersectionState,
@@ -214,7 +214,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         let allow_structural_fallback = self
             .st
-            .has_covariant_void_argument(target_type_arguments, variances);
+            .has_covariant_void_argument(target_type_arguments.types(&self.st.tables), variances);
         *variance_check_failed = !allow_structural_fallback;
         if !allow_structural_fallback {
             let has_invariant = variances.iter().any(|variance| {
@@ -699,8 +699,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                                                 false,
                                             )?;
                                             this.relate_variances(
-                                                source_types,
-                                                target_types,
+                                                source_types.as_slice(),
+                                                target_types.as_slice(),
                                                 &variances,
                                                 report_errors,
                                                 intersection_state,
@@ -1559,25 +1559,16 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     crate::variance::VariancesResult::Known(variances) => {
                         let source_arguments = self.st.get_type_argument_list(source)?;
                         let target_arguments = self.st.get_type_argument_list(target)?;
-                        let variance_result =
-                            self.with_relation_type_list(|this, source_types| {
-                                source_types
-                                    .extend_from_slice(this.st.tables.list(source_arguments));
-                                this.with_relation_type_list(|this, target_types| {
-                                    target_types
-                                        .extend_from_slice(this.st.tables.list(target_arguments));
-                                    this.relate_variances(
-                                        source_types,
-                                        target_types,
-                                        &variances,
-                                        report_errors,
-                                        intersection_state,
-                                        saved_error_info,
-                                        &mut original_error_info,
-                                        &mut variance_check_failed,
-                                    )
-                                })
-                            })?;
+                        let variance_result = self.relate_variances(
+                            source_arguments,
+                            target_arguments,
+                            &variances,
+                            report_errors,
+                            intersection_state,
+                            saved_error_info,
+                            &mut original_error_info,
+                            &mut variance_check_failed,
+                        )?;
                         if let Some(variance_result) = variance_result {
                             return Ok(variance_result);
                         }

@@ -3100,3 +3100,116 @@ declare function variadic(...args: [number, ...string[]]): void;";
         );
     }
 }
+
+#[test]
+fn interned_variance_arguments_survive_nested_comparisons() {
+    use crate::engine::{RelationArguments, RelationChecker};
+    use tsc_types::{IntersectionState, Ternary, TypeListId, VarianceFlags};
+
+    fn compare<L: RelationArguments>(
+        r: &mut RelationChecker,
+        s: L,
+        t: L,
+        variances: &[VarianceFlags],
+    ) -> (Option<Ternary>, bool, bool) {
+        let saved = r.capture_error_calculation_state();
+        let mut original = None;
+        let mut failed = false;
+        let result = r
+            .relate_variances(
+                s,
+                t,
+                variances,
+                true,
+                IntersectionState::NONE,
+                &saved,
+                &mut original,
+                &mut failed,
+            )
+            .unwrap();
+        (result, failed, original.is_some())
+    }
+
+    let observe = |interned: bool| {
+        crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                "interface Box<T> { value: { inner: { data: T } } }
+            let a: Box<'x'>; let b: { value: { inner: { data: string } } };",
+            )],
+            &CompilerOptions::default(),
+            |st| {
+                let mut annotation = |name| {
+                    let node = find_probe_annotation(st.binder.source(0), name).unwrap();
+                    st.get_type_from_type_node(node).unwrap()
+                };
+                let a = annotation("a");
+                let b = annotation("b");
+                let s = st.tables.intrinsics.string;
+                let n = st.tables.intrinsics.number;
+                let v = st.tables.intrinsics.void;
+                let lit = st.tables.get_string_literal_type("x");
+                let before = st.tables.len();
+                let mut r =
+                    RelationChecker::new(st, crate::relate::RelationKind::Assignable, 10000);
+                let mut results = Vec::new();
+                for (sources, targets, variances) in [
+                    (
+                        [a, s, s],
+                        [b, n, lit],
+                        [
+                            VarianceFlags::COVARIANT,
+                            VarianceFlags::INDEPENDENT,
+                            VarianceFlags::BIVARIANT,
+                        ],
+                    ),
+                    (
+                        [s, s, n],
+                        [s, s, s],
+                        [
+                            VarianceFlags::COVARIANT,
+                            VarianceFlags::COVARIANT,
+                            VarianceFlags::INVARIANT,
+                        ],
+                    ),
+                    ([s, s, n], [s, s, v], [VarianceFlags::COVARIANT; 3]),
+                ] {
+                    let ids: [TypeListId; 2] =
+                        [&sources, &targets].map(|list| r.st.tables.intern_type_list(list));
+                    let obs = if interned {
+                        compare(&mut r, ids[0], ids[1], &variances)
+                    } else {
+                        compare(&mut r, &sources[..], &targets[..], &variances)
+                    };
+                    results.push(obs);
+                    if results.len() == 1 {
+                        assert!(r.st.tables.len() > before, "nested member instantiation");
+                    }
+                }
+                assert_eq!(results[0], (Some(Ternary::TRUE), false, false));
+                assert_eq!(results[1], (None, true, true));
+                assert_eq!(results[2], (None, false, false));
+                r.recycle();
+                let error = st
+                    .relation_error_output_with_context(
+                        n,
+                        s,
+                        crate::relate::RelationKind::Assignable,
+                        None,
+                        None,
+                    )
+                    .unwrap()
+                    .unwrap();
+                let c = crate::CheckerCounts::of(st, true);
+                (
+                    results,
+                    error.message.text,
+                    c.types,
+                    c.instantiations,
+                    c.symbols,
+                )
+            },
+        )
+    };
+    assert_eq!(observe(false), observe(true));
+}
