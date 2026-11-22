@@ -219,6 +219,14 @@ fn the_evolving_array_test_knows_length_push_and_unshift_by_name_identity() {
         true, true, true, false, false, false, true, true, false, false,
     ];
     with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        // The nodes of the tree only: the parser's look-ahead at `(x)` leaves
+        // an identifier in the arena that no node of the tree holds.
+        let in_tree = |mut node| loop {
+            match state.parent_of(node) {
+                Some(parent) => node = parent,
+                None => break state.kind_of(node) == tsc_syntax::SyntaxKind::SourceFile,
+            }
+        };
         let mut references: Vec<_> = state
             .binder
             .source(0)
@@ -227,6 +235,7 @@ fn the_evolving_array_test_knows_length_push_and_unshift_by_name_identity() {
             .filter(|&node| {
                 state.kind_of(node) == tsc_syntax::SyntaxKind::Identifier
                     && state.escaped_text_of(Some(node)) == Some("x")
+                    && in_tree(node)
             })
             .collect();
         references.sort_by_key(|&node| state.pos_of(node));
