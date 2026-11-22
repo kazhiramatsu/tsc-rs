@@ -937,6 +937,33 @@ fn forced_external_module_uses_the_root_indicator_and_reparses_await() {
 }
 
 #[test]
+fn explicit_module_indicator_belongs_to_the_final_statements() {
+    for force in [false, true] {
+        for initializer in ["plain", "a.await"] {
+            let text = format!("export const x = {initializer}; export const later = 1;");
+            let source = parse_source_file(
+                "m.ts".into(),
+                text,
+                ParseOptions {
+                    force_external_module: force,
+                    ..ParseOptions::default()
+                },
+                None,
+            );
+            let first = statement_nodes(&source)[0];
+            assert_eq!(source.external_module_indicator, Some(first));
+            assert!(source.parse_diagnostics.is_empty());
+            // The await property marks the first declaration for reparse.
+            let declarations = nodes_of_kind(&source, SyntaxKind::VariableStatement);
+            assert_eq!(
+                declarations.len(),
+                if initializer == "a.await" { 3 } else { 2 }
+            );
+        }
+    }
+}
+
+#[test]
 fn automatic_jsx_module_detection_uses_the_jsx_tag() {
     let source = parse_source_file(
         "a.tsx".into(),

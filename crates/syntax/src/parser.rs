@@ -11047,26 +11047,34 @@ fn parse_source_file_from_snapshot_worker(
     // top-level await re-parses those statements in the Await context.
     let force_external_module = !parser.is_declaration_file && options.force_external_module;
     let detects_jsx_module = !parser.is_declaration_file && options.detect_external_module_from_jsx;
-    let is_external_module = force_external_module
-        || parser
+    let can_reparse = !parser.is_declaration_file && !parser.possible_await_spans.is_empty();
+    let detect = |parser: &Parser<'_>, statements| {
+        parser
             .is_file_probably_external_module(statements)
-            .is_some()
-        || (detects_jsx_module && parser.jsx_external_module_indicator(statements).is_some());
-    // tsgo parseSourceFileWorker (parser.go:451): a module reparses the
-    // spans of statements that created an `await` identifier.
-    let reparse_top_level_await = !parser.is_declaration_file
-        && is_external_module
-        && !parser.possible_await_spans.is_empty();
-    if reparse_top_level_await {
+            .or_else(|| {
+                detects_jsx_module
+                    .then(|| parser.jsx_external_module_indicator(statements))
+                    .flatten()
+            })
+    };
+    // A forced reparse needs the indicator only for the replacement tree.
+    let indicator = if can_reparse && force_external_module {
+        None
+    } else {
+        detect(&parser, statements)
+    };
+    let reparse_top_level_await = can_reparse && (force_external_module || indicator.is_some());
+    let detected_external_module_indicator = if reparse_top_level_await {
         statements = parser.reparse_top_level_await(statements);
-    }
-    let detected_external_module_indicator = parser
-        .is_file_probably_external_module(statements)
-        .or_else(|| {
-            detects_jsx_module
-                .then(|| parser.jsx_external_module_indicator(statements))
-                .flatten()
-        });
+        detect(&parser, statements)
+    } else {
+        // Only a reparse decision reuses this answer. In instrumented builds
+        // a name comparison records a text read, so do not replay it there.
+        if can_reparse && !tsc_types::perf::enabled() {
+            debug_assert_eq!(indicator, detect(&parser, statements));
+        }
+        indicator
+    };
 
     // tsgo allocates the original SourceFile before reparsing top-level await
     // and another afterwards. This parser allocates only the final root.
