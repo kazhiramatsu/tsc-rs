@@ -2341,13 +2341,8 @@ impl ParallelReadAhead<'_> {
                 } else {
                     None
                 };
-                let implied =
-                    implied_node_format(virtual_file_name.as_js(), scope.as_ref(), self.options);
-                let implied_for_emit = implied_node_format_for_emit(
-                    virtual_file_name.as_js(),
-                    scope.as_ref(),
-                    self.options,
-                );
+                let (implied, implied_for_emit) =
+                    implied_node_formats(virtual_file_name.as_js(), scope.as_ref(), self.options);
                 let prepared = PreparedSourceFile::from_snapshot(path.clone(), canonical.text)
                     .with_content_mapped(canonical.info)
                     .with_implied_node_formats(implied, implied_for_emit);
@@ -2960,8 +2955,8 @@ fn parse_root_ahead(
             tsc_types::trace::mark(&format!("load: decode {name} ({byte_len} bytes)"), *started);
         }
         let prepare_started = std::time::Instant::now();
-        let implied = implied_node_format(path.display(), package_scope, options);
-        let implied_for_emit = implied_node_format_for_emit(path.display(), package_scope, options);
+        let (implied, implied_for_emit) =
+            implied_node_formats(path.display(), package_scope, options);
         let prepared = PreparedSourceFile::from_snapshot(path.clone(), text.into_snapshot())
             .with_implied_node_formats(implied, implied_for_emit);
         if let Some((_, name)) = &traced {
@@ -6013,13 +6008,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             DecodedSource::MappedParsed(parsed) => parsed.prepared.parse_file_name(),
             _ => file_name,
         };
-        let implied =
-            implied_node_format(format_file_name, package_scope.as_deref(), options_for_file);
-        let implied_for_emit = implied_node_format_for_emit(
-            format_file_name,
-            package_scope.as_deref(),
-            options_for_file,
-        );
+        let (implied, implied_for_emit) =
+            implied_node_formats(format_file_name, package_scope.as_deref(), options_for_file);
         // A read-ahead parse is adopted only when its assumptions are the
         // facts computed above; otherwise its decoded text is planned here.
         // tsgo's file handle may give the file a kind of its own (an open
@@ -8771,25 +8761,43 @@ fn wildcard_package_has_null_typings(
     Ok(json_object_get(&object, "typings").is_some_and(crate::JsonValue::is_null))
 }
 
-/// tsgo `loadSourceFileMetaData`'s `PackageJsonType`: the package scope's
-/// `type` counts only under a node16/nodenext resolution (not for an
-/// explicit `.mts`/`.cts`/`.mjs`/`.cjs` file) or inside `node_modules`.
-fn metadata_package_json_type(
-    file_name: JsStr<'_>,
-    package_scope: Option<&PackageMetadata>,
-    options: &CompilerOptions,
-) -> Option<PackageJsonType> {
-    let explicit_format = [".mts", ".cts", ".mjs", ".cjs"]
-        .iter()
-        .any(|extension| file_name.ends_with(extension));
-    let consulted = (!explicit_format && matches!(options.emit_module_resolution_kind(), 3..=99))
-        || file_name
+/// Only ordinary script extensions take their implied format from a package.
+#[derive(Clone, Copy)]
+enum FormatExtension {
+    Explicit(ResolutionMode),
+    Package,
+    Other,
+}
+
+impl FormatExtension {
+    fn of(name: JsStr<'_>) -> Self {
+        if name.ends_with(".mts") || name.ends_with(".mjs") {
+            Self::Explicit(ResolutionMode::EsNext)
+        } else if name.ends_with(".cts") || name.ends_with(".cjs") {
+            Self::Explicit(ResolutionMode::CommonJs)
+        } else if [".ts", ".tsx", ".js", ".jsx"]
+            .iter()
+            .any(|suffix| name.ends_with(suffix))
+        {
+            Self::Package
+        } else {
+            Self::Other
+        }
+    }
+}
+
+fn package_type_applies(name: JsStr<'_>, options: &CompilerOptions) -> bool {
+    matches!(options.emit_module_resolution_kind(), 3..=99)
+        || name
             .split_ascii(b'/')
-            .any(|segment| segment == "node_modules");
-    if consulted {
-        package_scope.map(PackageMetadata::module_type)
+            .any(|segment| segment == "node_modules")
+}
+
+fn package_format(package_type: Option<PackageJsonType>) -> ResolutionMode {
+    if package_type == Some(PackageJsonType::Module) {
+        ResolutionMode::EsNext
     } else {
-        None
+        ResolutionMode::CommonJs
     }
 }
 
@@ -8803,7 +8811,9 @@ pub(crate) fn implied_node_format(
     options: &CompilerOptions,
 ) -> Option<ResolutionMode> {
     get_implied_node_format_for_file(file_name, || {
-        metadata_package_json_type(file_name, package_scope, options)
+        package_scope
+            .filter(|_| package_type_applies(file_name, options))
+            .map(PackageMetadata::module_type)
     })
 }
 
@@ -8814,25 +8824,11 @@ pub fn get_implied_node_format_for_file(
     file_name: JsStr<'_>,
     package_json_type: impl FnOnce() -> Option<PackageJsonType>,
 ) -> Option<ResolutionMode> {
-    if file_name.ends_with(".d.mts") || file_name.ends_with(".mts") || file_name.ends_with(".mjs") {
-        return Some(ResolutionMode::EsNext);
+    match FormatExtension::of(file_name) {
+        FormatExtension::Explicit(mode) => Some(mode),
+        FormatExtension::Package => Some(package_format(package_json_type())),
+        FormatExtension::Other => None,
     }
-    if file_name.ends_with(".d.cts") || file_name.ends_with(".cts") || file_name.ends_with(".cjs") {
-        return Some(ResolutionMode::CommonJs);
-    }
-    if file_name.ends_with(".d.ts")
-        || file_name.ends_with(".ts")
-        || file_name.ends_with(".tsx")
-        || file_name.ends_with(".js")
-        || file_name.ends_with(".jsx")
-    {
-        return Some(if package_json_type() == Some(PackageJsonType::Module) {
-            ResolutionMode::EsNext
-        } else {
-            ResolutionMode::CommonJs
-        });
-    }
-    None
 }
 
 /// Whether [`implied_node_format`] consults the package scope for this file
@@ -8842,53 +8838,32 @@ fn implied_node_format_needs_package_scope(
     file_name: JsStr<'_>,
     options: &CompilerOptions,
 ) -> bool {
-    if file_name.ends_with(".mts")
-        || file_name.ends_with(".mjs")
-        || file_name.ends_with(".cts")
-        || file_name.ends_with(".cjs")
-    {
-        return false;
-    }
-    let package_eligible = file_name.ends_with(".ts")
-        || file_name.ends_with(".tsx")
-        || file_name.ends_with(".js")
-        || file_name.ends_with(".jsx");
-    package_eligible
-        && (matches!(options.emit_module_resolution_kind(), 3..=99)
-            || file_name
-                .split_ascii(b'/')
-                .any(|segment| segment == "node_modules"))
+    matches!(FormatExtension::of(file_name), FormatExtension::Package)
+        && package_type_applies(file_name, options)
 }
 
-/// tsgo `GetImpliedNodeFormatForEmitWorker`: under a node16..nodenext
-/// module kind the implied format itself; otherwise CommonJS or ESM only
-/// when the metadata's package type (or the extension) says so.
-fn implied_node_format_for_emit(
+/// Derive parse and emit formats together from the selected source name
+/// and its observed scope. Explicit extensions determine both formats.
+fn implied_node_formats(
     file_name: JsStr<'_>,
     package_scope: Option<&PackageMetadata>,
     options: &CompilerOptions,
-) -> Option<ResolutionMode> {
-    let implied = implied_node_format(file_name, package_scope, options)?;
-    if (100..=199).contains(&options.emit_module_kind()) {
-        return Some(implied);
-    }
-    let package_type = metadata_package_json_type(file_name, package_scope, options);
-    match implied {
-        ResolutionMode::CommonJs
-            if package_type == Some(PackageJsonType::CommonJs)
-                || file_name.ends_with(".cjs")
-                || file_name.ends_with(".cts") =>
-        {
-            Some(ResolutionMode::CommonJs)
+) -> (Option<ResolutionMode>, Option<ResolutionMode>) {
+    match FormatExtension::of(file_name) {
+        FormatExtension::Explicit(mode) => (Some(mode), Some(mode)),
+        FormatExtension::Other => (None, None),
+        FormatExtension::Package => {
+            let package_type = package_scope
+                .filter(|_| package_type_applies(file_name, options))
+                .map(PackageMetadata::module_type);
+            let mode = package_format(package_type);
+            let has_emit_format = (100..=199).contains(&options.emit_module_kind())
+                || matches!(
+                    package_type,
+                    Some(PackageJsonType::CommonJs | PackageJsonType::Module)
+                );
+            (Some(mode), has_emit_format.then_some(mode))
         }
-        ResolutionMode::EsNext
-            if package_type == Some(PackageJsonType::Module)
-                || file_name.ends_with(".mjs")
-                || file_name.ends_with(".mts") =>
-        {
-            Some(ResolutionMode::EsNext)
-        }
-        _ => None,
     }
 }
 

@@ -1035,12 +1035,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                                 } else {
                                     None
                                 };
-                                let implied = implied_node_format(
-                                    entry.path.display(),
-                                    scope.as_ref(),
-                                    options,
-                                );
-                                let implied_for_emit = implied_node_format_for_emit(
+                                let (implied, implied_for_emit) = implied_node_formats(
                                     entry.path.display(),
                                     scope.as_ref(),
                                     options,
