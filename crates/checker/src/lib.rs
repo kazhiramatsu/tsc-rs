@@ -337,8 +337,8 @@ impl InputFile {
     fn script_kind(&self) -> tsc_syntax::ScriptKind {
         match (&self.content_mapped, self.script_kind) {
             (None, Some(kind)) => kind,
-            _ => tsc_syntax::ScriptKind::ensure_from_file_name(
-                &self.parse_file_name().to_string_lossy(),
+            _ => tsc_syntax::ScriptKind::ensure_from_file_name_bytes(
+                self.parse_file_name().as_bytes(),
             ),
         }
     }

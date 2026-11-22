@@ -658,7 +658,7 @@ impl PreparedSourceFile {
     pub fn script_kind(&self) -> ScriptKind {
         match (&self.records.content_mapped, self.records.script_kind) {
             (Some(_), _) | (None, None) => {
-                ScriptKind::ensure_from_file_name(&self.parse_file_name().to_string_lossy())
+                ScriptKind::ensure_from_file_name_bytes(self.parse_file_name().as_bytes())
             }
             (None, Some(kind)) => kind,
         }
