@@ -1414,3 +1414,27 @@ namespace Outer.Inner {}";
         assert!(found_unmodified_parameter && found_nested_namespace);
     });
 }
+
+#[test]
+fn singleton_export_checks_keep_merged_and_alias_diagnostics() {
+    let text = "export interface I {}
+export type T = I;
+export class C {}
+export enum E { One }
+export function f(): void {}
+interface Mixed {}
+export interface Mixed {}
+export default class Defaulted {}
+interface Defaulted {}
+namespace N { export type Value = string; }
+export import Alias = N.Value;
+declare const value: Alias;
+const mismatch: number = value;";
+    let rows = checked_rows(text);
+    let relevant: Vec<_> = rows
+        .into_iter()
+        .filter(|row| matches!(row.0, 2395 | 2652 | 2322))
+        .map(|row| row.0)
+        .collect();
+    assert_eq!(relevant, [2395, 2395, 2652, 2652, 2322]);
+}

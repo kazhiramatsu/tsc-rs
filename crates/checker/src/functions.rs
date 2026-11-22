@@ -3693,6 +3693,7 @@ impl<'a> CheckerState<'a> {
     /// The worker (82218-82311, hash 27bf5a2713904b795ff58d00bb0b7709
     /// eeed5818fb779c3dc557db69107ac931) runs eager; JSDoc tag arms
     /// are JS-only.
+    #[inline]
     pub(crate) fn check_exports_on_merged_declarations(&mut self, node: NodeId) -> CheckResult<()> {
         let local_symbol = self
             .binder
@@ -3710,7 +3711,32 @@ impl<'a> CheckerState<'a> {
                 symbol
             }
         };
-        if self.get_declaration_of_kind(symbol, self.kind_of(node)) != Some(node) {
+        let kind = self.kind_of(node);
+        if matches!(
+            kind,
+            SyntaxKind::InterfaceDeclaration
+                | SyntaxKind::TypeAliasDeclaration
+                | SyntaxKind::ClassDeclaration
+                | SyntaxKind::EnumDeclaration
+                | SyntaxKind::FunctionDeclaration
+        ) && self.binder.symbol(symbol).declarations() == [node]
+            && !self.is_in_js_file(node)
+        {
+            // These declarations contribute constant spaces to a single
+            // export bucket. Comparison with the other buckets is empty.
+            return Ok(());
+        }
+        self.check_merged_declaration_export_spaces(node, symbol, kind)
+    }
+
+    #[inline(never)]
+    fn check_merged_declaration_export_spaces(
+        &mut self,
+        node: NodeId,
+        symbol: SymbolId,
+        kind: SyntaxKind,
+    ) -> CheckResult<()> {
+        if self.get_declaration_of_kind(symbol, kind) != Some(node) {
             return Ok(());
         }
         let mut exported_spaces = 0u32;
