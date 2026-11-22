@@ -49,8 +49,38 @@ const OBSERVATION_SHARDS: usize = 32;
 /// observations are kept; a host error is reported every time.
 #[derive(Debug, Default)]
 struct ObservationCache {
-    presence: [RwLock<HashMap<ObservationKey, Presence>>; OBSERVATION_SHARDS],
-    realpath: [RwLock<HashMap<ObservationKey, Option<PathBuf>>>; OBSERVATION_SHARDS],
+    presence: [RwLock<ObservationTable<Presence>>; OBSERVATION_SHARDS],
+    realpath: [RwLock<ObservationTable<Option<PathBuf>>>; OBSERVATION_SHARDS],
+}
+
+/// One shard's table. A key hashes as its fingerprint, which is a mixed
+/// 64-bit value already: the table's hasher folds it once more, so that the
+/// bits a table takes its bucket and its tag from are not the low bits the
+/// shard was chosen by (all alike inside a shard). The standard table's
+/// keyed hash walked its rounds over those eight bytes for every probe of
+/// every module request.
+type ObservationTable<T> =
+    HashMap<ObservationKey, T, std::hash::BuildHasherDefault<FingerprintHasher>>;
+
+#[derive(Clone, Copy, Default)]
+struct FingerprintHasher(u64);
+
+impl Hasher for FingerprintHasher {
+    fn write_u64(&mut self, value: u64) {
+        self.0 = ObservationFingerprint::fold(self.0 ^ value);
+    }
+
+    /// Keys feed their fingerprint as one `u64`; any other input is folded
+    /// in byte by byte.
+    fn write(&mut self, bytes: &[u8]) {
+        for &byte in bytes {
+            self.0 = ObservationFingerprint::fold(self.0 ^ u64::from(byte));
+        }
+    }
+
+    fn finish(&self) -> u64 {
+        self.0
+    }
 }
 
 /// The original native spelling and its cached lookup fingerprint.
@@ -310,7 +340,7 @@ fn append_observation_prefix(fingerprint: &mut ObservationFingerprint, prefix: P
 }
 
 fn lookup_observation<'a, T>(
-    table: &'a HashMap<ObservationKey, T>,
+    table: &'a ObservationTable<T>,
     query: ObservationQuery<'_>,
 ) -> Result<&'a T, u64> {
     if let Some(value) = table.get(&query as &dyn ObservationLookup) {
@@ -321,7 +351,7 @@ fn lookup_observation<'a, T>(
 
 #[cold]
 fn lookup_observation_alias<'a, T>(
-    table: &'a HashMap<ObservationKey, T>,
+    table: &'a ObservationTable<T>,
     query: ObservationQuery<'_>,
 ) -> Result<&'a T, u64> {
     let fingerprint = lookup_fingerprint(query);

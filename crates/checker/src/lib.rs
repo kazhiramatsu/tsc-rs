@@ -337,8 +337,8 @@ impl InputFile {
     fn script_kind(&self) -> tsc_syntax::ScriptKind {
         match (&self.content_mapped, self.script_kind) {
             (None, Some(kind)) => kind,
-            _ => tsc_syntax::ScriptKind::ensure_from_file_name(
-                &self.parse_file_name().to_string_lossy(),
+            _ => tsc_syntax::ScriptKind::ensure_from_file_name_bytes(
+                self.parse_file_name().as_bytes(),
             ),
         }
     }
@@ -3149,13 +3149,24 @@ fn parse_program_inputs(
         })
         .collect();
     // Fixture-file shadowing (unchanged from the libless world): a
-    // later file with the same name shadows an earlier one entirely.
+    // later file with the same name shadows an earlier one entirely. The
+    // loader's Program has one source a path and names each once, so its
+    // inputs alone shadow nothing and the table of last occurrences is not
+    // made (ten thousand file names hashed twice in a large program).
+    let unique_names = authoritative_run.is_some() && files_outside_program == 0;
+    let shadowing = !unique_names || cfg!(debug_assertions);
     let mut last_index_by_name = rustc_hash::FxHashMap::default();
-    for (index, file) in files.iter().enumerate() {
-        if file.host_only {
-            continue;
+    if shadowing {
+        for (index, file) in files.iter().enumerate() {
+            if file.host_only {
+                continue;
+            }
+            let earlier = last_index_by_name.insert(file.name.as_js(), index);
+            debug_assert!(
+                !unique_names || earlier.is_none(),
+                "the loader's Program names a file twice"
+            );
         }
-        last_index_by_name.insert(file.name.as_js(), index);
     }
     tsc_types::trace::mark(
         "checker: admission (package facts, source order)",
@@ -3209,7 +3220,7 @@ fn parse_program_inputs(
             authoritative_file_index += 1;
             metadata
         });
-        if last_index_by_name.get(&file.name.as_js()) != Some(&index) {
+        if shadowing && last_index_by_name.get(&file.name.as_js()) != Some(&index) {
             continue;
         }
         // tsc createProgram only loads roots with supported extensions;
@@ -3606,6 +3617,7 @@ fn include_processor_diagnostics_of_state(state: &state::CheckerState<'_>) -> Ve
 /// is constructed by the caller and outlives the state; the host facts are
 /// moved in).
 /// tsrs-native: initializeTypeChecker's ordered init as one constructor.
+#[allow(clippy::too_many_arguments)]
 fn init_checker_state<'a>(
     snapshot: &'a ProgramSnapshot,
     options: &'a CompilerOptions,
@@ -3617,11 +3629,16 @@ fn init_checker_state<'a>(
     augmentations: Option<&merge::AugmentationInputs>,
     checker_index: Option<usize>,
     measure_lane_costs: bool,
+    pool_size: usize,
 ) -> state::CheckerState<'a> {
     #[cfg(feature = "phase-ledger")]
     tsc_types::phase_ledger::switch(tsc_types::phase_ledger::Phase::CheckerInit);
-    let mut state =
-        state::CheckerState::from_snapshot_deferring_globals(snapshot, options, measure_lane_costs);
+    let mut state = state::CheckerState::from_snapshot_deferring_globals(
+        snapshot,
+        options,
+        measure_lane_costs,
+        pool_size,
+    );
     // tsgo `NewTracer` per checker of the pool: the checker's events carry
     // its index and its types file is written when the state ends.
     if let (Some(index), Some(tracing)) = (
@@ -3895,6 +3912,10 @@ fn syntactic_rows_of_sources<'s>(
 #[derive(Default)]
 struct LedgerSnapshot {
     rows: Vec<Diagnostic>,
+    /// The captures that added rows, in order: the Program file a capture was
+    /// for and where its rows end in `rows` (they start where the preceding
+    /// capture's end). Every row of a capture names that file.
+    row_runs: Vec<(usize, usize)>,
     globals_by_file: Vec<Vec<Diagnostic>>,
     partially_checked_ranges: rustc_hash::FxHashMap<usize, Vec<(u32, u32)>>,
 }
@@ -3907,6 +3928,7 @@ impl LedgerSnapshot {
         globals_by_file: &[Vec<Diagnostic>],
     ) {
         let name = &state.binder.source(file).file_name;
+        let captured = self.rows.len();
         self.rows.extend(
             state
                 .diagnostics
@@ -3914,6 +3936,9 @@ impl LedgerSnapshot {
                 .filter(|row| row.file_name.as_ref() == Some(name))
                 .cloned(),
         );
+        if self.rows.len() != captured {
+            self.row_runs.push((file, self.rows.len()));
+        }
         self.globals_by_file[file] = globals_by_file[file].clone();
         if let Some(ranges) = state.partially_checked_ranges.get(&file) {
             self.partially_checked_ranges.insert(file, ranges.clone());
@@ -3933,12 +3958,16 @@ impl LedgerSnapshot {
         globals_by_file: &[Vec<Diagnostic>],
     ) {
         let name = &state.binder.source(file).file_name;
+        let captured = self.rows.len();
         self.rows.extend(
             state.diagnostics[rows_start..]
                 .iter()
                 .filter(|row| row.file_name.as_ref() == Some(name))
                 .cloned(),
         );
+        if self.rows.len() != captured {
+            self.row_runs.push((file, self.rows.len()));
+        }
         self.globals_by_file[file] = globals_by_file[file].clone();
         if let Some(ranges) = state.partially_checked_ranges.get(&file) {
             self.partially_checked_ranges.insert(file, ranges.clone());
@@ -4369,6 +4398,109 @@ fn run_shard_eager<'a>(
     state
 }
 
+/// Whether the merge assembles the rows of `file` (it leaves out a file the
+/// run did not select and a file whose type check is skipped).
+fn merge_assembles_file(
+    snapshot: &ProgramSnapshot,
+    options: &CompilerOptions,
+    selected: Option<&[bool]>,
+    file: usize,
+) -> bool {
+    selected.is_none_or(|selected| selected[file])
+        && !should_skip_type_checking_file(
+            snapshot.document(file).source(),
+            snapshot.file_facts(ProgramFileId::from_raw(
+                u32::try_from(file).expect("program file index"),
+            )),
+            options,
+        )
+}
+
+/// The line tables the merge will ask for, built by the shards that have
+/// finished their files while the others still check.
+///
+/// The merge filters every assembled file's rows by the file's comment
+/// directives, which key on lines: for each such file it needs the line
+/// tables, a pass over the file's text, and it runs on the coordinator alone
+/// after the last shard. The tables are a function of the immutable text and
+/// live in the source's position index, built once by whoever asks first. So
+/// a shard with nothing left to check builds them: the cursor hands each
+/// Program file to one of the threads that arrive. The longest shard usually
+/// finds none left; shards that finish together share the pass. No row,
+/// count or order depends on which thread built a table, or on whether one
+/// was built here at all.
+struct MergeLineTables<'a> {
+    files: OnceEachIndex,
+    snapshot: &'a ProgramSnapshot,
+    options: &'a CompilerOptions,
+    selected: Option<&'a [bool]>,
+}
+
+/// Hands each index below a count to exactly one caller, whichever thread
+/// asks; afterwards every call finds nothing left.
+struct OnceEachIndex {
+    next: std::sync::atomic::AtomicUsize,
+    count: usize,
+}
+
+impl OnceEachIndex {
+    fn new(count: usize) -> Self {
+        Self {
+            next: std::sync::atomic::AtomicUsize::new(0),
+            count,
+        }
+    }
+
+    fn take(&self) -> Option<usize> {
+        use std::sync::atomic::Ordering::Relaxed;
+        let index = self.next.fetch_add(1, Relaxed);
+        if index < self.count {
+            return Some(index);
+        }
+        // Keep the counter from creeping towards overflow under repeated
+        // calls. It never goes back below the count: an index is handed out
+        // only by an addition that found it, and none finds it twice.
+        self.next.store(self.count, Relaxed);
+        None
+    }
+}
+
+impl<'a> MergeLineTables<'a> {
+    fn new(
+        snapshot: &'a ProgramSnapshot,
+        options: &'a CompilerOptions,
+        selected: Option<&'a [bool]>,
+    ) -> Self {
+        Self {
+            files: OnceEachIndex::new(snapshot.documents().len()),
+            snapshot,
+            options,
+            selected,
+        }
+    }
+
+    /// Build the tables of the files no thread has taken yet.
+    fn build_remaining(&self, shard_index: usize) {
+        let started = std::time::Instant::now();
+        let mut built = 0usize;
+        while let Some(file) = self.files.take() {
+            let source = self.snapshot.document(file).source();
+            if !source.comment_directives.is_empty()
+                && merge_assembles_file(self.snapshot, self.options, self.selected, file)
+            {
+                let _ = source.positions().line_count();
+                built += 1;
+            }
+        }
+        if built != 0 && tsc_types::trace::enabled() {
+            tsc_types::trace::mark(
+                &format!("shard {shard_index}: line tables for the merge ({built} files)"),
+                started,
+            );
+        }
+    }
+}
+
 /// Run one checker shard on the calling thread: construct its `ProgramBinder`
 /// and `CheckerState` over the shared immutable snapshot with the provider the
 /// coordinator created for it, initialize, check the shard's files, and
@@ -4397,6 +4529,7 @@ fn run_checker_shard<'a>(
     eager_remaining: &std::sync::atomic::AtomicUsize,
     incremental_facts: bool,
     selected: Option<&[bool]>,
+    merge_line_tables: &MergeLineTables<'_>,
 ) -> (ShardOutput, Option<state::CheckerState<'a>>) {
     let shard_started = std::time::Instant::now();
     let mut state = init_checker_state(
@@ -4407,6 +4540,7 @@ fn run_checker_shard<'a>(
         Some(&augmentations),
         Some(shard_index),
         queue.measures_costs(),
+        queue.shard_count(),
     );
     drop(augmentations);
     reserve_type_tables(&mut state, reserved_nodes);
@@ -4596,6 +4730,7 @@ fn run_checker_shard<'a>(
         };
     }
     if keep_state {
+        merge_line_tables.build_remaining(shard_index);
         return (output, Some(state));
     }
     if leak_state {
@@ -4614,7 +4749,42 @@ fn run_checker_shard<'a>(
         }
         std::mem::forget(state);
     }
+    // This shard's part is over; the coordinator still waits for the others.
+    merge_line_tables.build_remaining(shard_index);
     (output, None)
+}
+
+/// The shards' rows grouped by Program file: a file's rows in the order of
+/// the ledgers, and inside a ledger in the order its captures took them. A
+/// row an EARLIER ledger kept for the file is not kept again (two checkers
+/// can report one diagnostic for a file both looked into); a row a ledger
+/// holds twice itself is kept twice, as it always was - the merge's sort
+/// and dedupe is what removes it.
+fn ledger_rows_by_file<'o>(
+    ledgers: impl Iterator<Item = &'o LedgerSnapshot>,
+    file_count: usize,
+) -> Vec<Vec<&'o Diagnostic>> {
+    let mut by_file: Vec<Vec<&Diagnostic>> = vec![Vec::new(); file_count];
+    // Per file, the ledger that last added rows (counted from one) and how
+    // many rows the earlier ledgers had kept when it began.
+    let mut earlier: Vec<(usize, usize)> = vec![(0, 0); file_count];
+    for (ledger_index, ledger) in ledgers.enumerate() {
+        let mut start = 0;
+        for &(file, end) in &ledger.row_runs {
+            let kept = &mut by_file[file];
+            if earlier[file].0 != ledger_index + 1 {
+                earlier[file] = (ledger_index + 1, kept.len());
+            }
+            let earlier = earlier[file].1;
+            for row in &ledger.rows[start..end] {
+                if !kept[..earlier].contains(&row) {
+                    kept.push(row);
+                }
+            }
+            start = end;
+        }
+    }
+    by_file
 }
 
 /// Merge each file's rows from its associated checker, captured when that
@@ -4667,72 +4837,97 @@ fn merge_shard_outputs(
         Vec::new()
     };
 
-    // Owner-local rows grouped by file for the Program-order projection
-    // below. Preserve each checker's publication order within a file.
-    fn rows_by_file<'o>(
-        ledgers: impl Iterator<Item = &'o LedgerSnapshot>,
-    ) -> rustc_hash::FxHashMap<&'o JsString, Vec<&'o Diagnostic>> {
-        let mut by_file: rustc_hash::FxHashMap<&JsString, Vec<&Diagnostic>> =
-            rustc_hash::FxHashMap::default();
-        for ledger in ledgers {
-            // Per file, how many rows the earlier shards kept.
-            let mut earlier: rustc_hash::FxHashMap<&JsString, usize> =
-                rustc_hash::FxHashMap::default();
-            for row in &ledger.rows {
-                if let Some(file_name) = row.file_name.as_ref() {
-                    let kept = by_file.entry(file_name).or_default();
-                    let earlier = *earlier.entry(file_name).or_insert(kept.len());
-                    if !kept[..earlier].contains(&row) {
-                        kept.push(row);
-                    }
-                }
+    // Owner-local rows grouped by Program file for the projection below, each
+    // file's in its checkers' publication order. A capture's rows all name
+    // the file it was taken for (`LedgerSnapshot::row_runs`), so the groups
+    // are filled by file index: no row's name is hashed, and a file without
+    // rows costs the merge nothing here. (Grouping by index is grouping by
+    // name: no two Program files share one.)
+    #[cfg(debug_assertions)]
+    {
+        let mut names = rustc_hash::FxHashSet::default();
+        debug_assert!(
+            snapshot
+                .documents()
+                .iter()
+                .all(|document| names.insert(document.source().file_name.as_js())),
+            "two Program files share a name: their rows cannot be grouped by file index"
+        );
+        for output in &outputs {
+            let mut start = 0;
+            for &(file, end) in &output.ledger.row_runs {
+                let name = &snapshot.document(file).source().file_name;
+                debug_assert!(output.ledger.rows[start..end]
+                    .iter()
+                    .all(|row| row.file_name.as_ref() == Some(name)));
+                start = end;
             }
+            debug_assert_eq!(start, output.ledger.rows.len());
         }
-        by_file
     }
-    let rows = rows_by_file(outputs.iter().map(|output| &output.ledger));
     let file_count = snapshot.documents().len();
+    let rows = ledger_rows_by_file(outputs.iter().map(|output| &output.ledger), file_count);
     let unselected = |file: usize| selected.is_some_and(|selected| !selected[file]);
-    let skip = |file: usize| {
-        unselected(file)
-            || should_skip_type_checking_file(
-                snapshot.document(file).source(),
-                snapshot.file_facts(ProgramFileId::from_raw(
-                    u32::try_from(file).expect("program file index"),
-                )),
-                options,
-            )
-    };
+    let skip = |file: usize| !merge_assembles_file(snapshot, options, selected, file);
+    // Most runs record no partially checked range: then no shard's table is
+    // asked for each file.
+    let any_ranges = outputs
+        .iter()
+        .any(|output| !output.ledger.partially_checked_ranges.is_empty());
     let assemble = |file: usize| {
         let document = snapshot.document(file);
         let source = document.source();
-        let empty = Vec::new();
-        let checker_for_file = rows.get(&source.file_name).unwrap_or(&empty);
+        let checker_for_file = &rows[file];
         let globals = outputs
             .iter()
             .flat_map(|output| output.ledger.globals_by_file[file].iter().cloned())
             .collect::<Vec<_>>();
-        let ranges = outputs
-            .iter()
-            .flat_map(|output| {
-                output
-                    .ledger
-                    .partially_checked_ranges
-                    .get(&file)
-                    .into_iter()
-                    .flatten()
-                    .copied()
+        let ranges = if any_ranges {
+            outputs
+                .iter()
+                .flat_map(|output| {
+                    output
+                        .ledger
+                        .partially_checked_ranges
+                        .get(&file)
+                        .into_iter()
+                        .flatten()
+                        .copied()
+                })
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
+        let assembled = || {
+            semantic_diagnostics_for_file_rows(
+                source,
+                &document.data.bind_diagnostics,
+                checker_for_file,
+                (!ranges.is_empty()).then_some(ranges.as_slice()),
+                &globals,
+                program_diagnostics,
+                options,
+            )
+        };
+        // A file nothing reported in, without a directive that could report
+        // by itself (an unused `@ts-expect-error`, a content mapper's unused
+        // expectation) and without a row of the program's: its list is empty
+        // whatever the assembly's steps, so they are not run. Most files of a
+        // clean program are such files.
+        if checker_for_file.is_empty()
+            && globals.is_empty()
+            && document.data.bind_diagnostics.is_empty()
+            && source.js_doc_diagnostics.is_empty()
+            && source.comment_directives.is_empty()
+            && source.diagnostic_directives.is_empty()
+            && !program_diagnostics.iter().any(|diagnostic| {
+                diagnostic.file_name.as_ref().map(JsString::as_js) == Some(source.file_name.as_js())
             })
-            .collect::<Vec<_>>();
-        semantic_diagnostics_for_file_rows(
-            source,
-            &document.data.bind_diagnostics,
-            checker_for_file,
-            (!ranges.is_empty()).then_some(ranges.as_slice()),
-            &globals,
-            program_diagnostics,
-            options,
-        )
+        {
+            debug_assert!(assembled().is_empty());
+            return Vec::new();
+        }
+        assembled()
     };
 
     // Both public getters observe the same captured semantic rows. Only
@@ -4747,13 +4942,12 @@ fn merge_shard_outputs(
             diagnostics.extend(semantic);
         } else {
             let result = &mut file_diagnostics[file - lib_count];
-            if let Some(rows) = rows.get(&snapshot.document(file).source().file_name) {
-                result.suggestion.extend(
-                    rows.iter()
-                        .filter(|row| row.category() == DiagnosticCategory::Suggestion)
-                        .map(|row| (*row).clone()),
-                );
-            }
+            result.suggestion.extend(
+                rows[file]
+                    .iter()
+                    .filter(|row| row.category() == DiagnosticCategory::Suggestion)
+                    .map(|row| (*row).clone()),
+            );
             diagnostics.extend_from_slice(&semantic);
             result.semantic = semantic;
         }
@@ -4804,8 +4998,7 @@ fn merge_shard_outputs(
                     } else {
                         let document = snapshot.document(file);
                         let source = document.source();
-                        let empty = Vec::new();
-                        let checker_for_file = rows.get(&source.file_name).unwrap_or(&empty);
+                        let checker_for_file = &rows[file];
                         let globals = outputs
                             .iter()
                             .flat_map(|output| output.ledger.globals_by_file[file].iter().cloned())
@@ -5092,6 +5285,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
                 Some(&augmentations),
                 None,
                 false,
+                1,
             );
             reserve_type_tables(&mut state, 0);
             let facts = incremental::planner_facts(&mut state, &program_diagnostics);
@@ -5336,6 +5530,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let eager_remaining = std::sync::atomic::AtomicUsize::new(shard_count);
     // The last shard to finish initialization releases the lists. A later
     // standalone serial replay initializes from the published documents.
+    let merge_line_tables = MergeLineTables::new(&snapshot, options, selected.as_deref());
     let run_shard = |shard_index: usize, augmentations| {
         run_checker_shard(
             shard_index,
@@ -5358,6 +5553,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             &eager_remaining,
             run.incremental_facts,
             selected.as_deref(),
+            &merge_line_tables,
         )
     };
     #[allow(clippy::large_enum_variant)]
@@ -5661,8 +5857,16 @@ fn check_snapshot_serially(
     planner: Option<&mut IncrementalPlanner<'_>>,
 ) -> CheckExecution {
     let init_started = std::time::Instant::now();
-    let mut state =
-        init_checker_state(snapshot, options, authoritative, host, None, Some(0), false);
+    let mut state = init_checker_state(
+        snapshot,
+        options,
+        authoritative,
+        host,
+        None,
+        Some(0),
+        false,
+        1,
+    );
     reserve_type_tables(&mut state, snapshot_node_count(snapshot));
     let global_diagnostics = if collect_global_diagnostics {
         let mut rows = state.visible_global_diagnostics.clone();
@@ -6157,6 +6361,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             None,
             Some(0),
             false,
+            1,
         );
         reserve_type_tables(&mut state, snapshot_node_count(&snapshot));
         work_counters.record_checker_shards(1, 1);
@@ -7191,7 +7396,7 @@ fn parse_lib_sources(
             }
         });
     }
-    if tsc_types::trace::enabled() {
+    if tsc_types::trace::detail() {
         let rewrite = pending
             .iter()
             .filter(|source| {
@@ -7632,7 +7837,7 @@ fn trace_direct_adoption<'a>(
     files: &[InputFile],
     sources: impl IntoIterator<Item = &'a tsc_syntax::SourceFile>,
 ) {
-    if !tsc_types::trace::enabled() {
+    if !tsc_types::trace::detail() {
         return;
     }
     let Some(layout) = libs

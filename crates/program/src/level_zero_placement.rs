@@ -361,7 +361,7 @@ impl BindAdmission {
 
     fn finish(&self) {
         assert!(self.expected.is_empty() && self.parked.is_empty());
-        if tsc_types::trace::enabled() {
+        if tsc_types::trace::detail() {
             eprintln!(
                 "[bind-placement] exact stripes={} sources={} domain_ranges={} deferred_sources={}",
                 self.stripes,
@@ -1164,7 +1164,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             self.direct_stripes.extend(rooms.take_retired());
         }
         let stream = stream.into_inner().expect("ordered root stream");
-        if tsc_types::trace::enabled() {
+        if tsc_types::trace::detail() {
             eprintln!("[syntax-placement] level 0: config_lease_batches={} root_lease_batches={} leases={} root_prefix={} root_candidates={} stopped={}",
                 usize::from(library_stripes != 0), stream.leased,
                 (library_stripes + stream.leased) * direct::SPACES.len(), stream.admitted, roots.len(), stream.stopped);

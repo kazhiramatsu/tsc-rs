@@ -692,6 +692,7 @@ fn run<'a>(
     #[cfg(feature = "loader-counters")]
     eprint!("{}", tsc_program::loader_counters::report());
     tsc_types::trace::mark("cli: execute", execute_started);
+    tsc_types::trace::flush();
     // Measurement builds only (`perf-counters` feature): aggregate counters
     // are written to the sidecar file named by TSRS_PERF_COUNTERS (one
     // `name=value` or `name=unwired` line each); stdout/stderr stay exactly
@@ -1270,8 +1271,14 @@ pub(crate) struct BuildProjectRun {
 /// tsgo `PackageJsonLookupPaths`: every package.json the program looked
 /// up, existing or not, sorted (a program without a configuration file has
 /// none).
-fn package_json_lookup_paths(prepared: &tsc_program::PreparedProgram) -> Vec<String> {
-    if prepared.program_options().config_file_path().is_none() {
+fn package_json_lookup_paths(
+    prepared: &tsc_program::PreparedProgram,
+    mode: ProjectRunMode,
+) -> Vec<String> {
+    // Only a build's orchestrator reads the list (the watched package.json
+    // files of each project); a plain command or a watch cycle would sort
+    // every probe of the load for nothing.
+    if !mode.build || prepared.program_options().config_file_path().is_none() {
         return Vec::new();
     }
     let mut paths = prepared
@@ -1817,7 +1824,7 @@ fn execute_prepared(
     let session_started = std::time::Instant::now();
     let list_emitted_files = prepared.compiler_options().list_emitted_files == Some(true);
     let list_files_only = prepared.compiler_options().list_files_only == Some(true);
-    let package_json_lookups = package_json_lookup_paths(&prepared);
+    let package_json_lookups = package_json_lookup_paths(&prepared, mode);
     // tsc emitFilesAndReportErrors (_tsc.js:129433-129440): a --noEmit
     // command with getEmitDeclarations(options) reports the declaration
     // diagnostics after the semantic pass, only while nothing beyond the
@@ -2118,7 +2125,7 @@ fn execute_emitting_prepared(
             &mut ordered_sink
         };
     let list_emitted_files = prepared.compiler_options().list_emitted_files == Some(true);
-    let package_json_lookups = package_json_lookup_paths(&prepared);
+    let package_json_lookups = package_json_lookup_paths(&prepared, mode);
     let session_started = std::time::Instant::now();
     let mut outcome = ProgramSession::new(Arc::clone(&prepared))
         .with_worker_budget(worker_budget)

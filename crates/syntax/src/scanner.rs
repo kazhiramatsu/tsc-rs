@@ -1452,6 +1452,21 @@ impl<'text> Scanner<'text> {
     /// range.pos.
     #[inline(never)]
     fn append_if_comment_directive(&mut self, line_start: usize, regex: CommentDirectiveRegEx) {
+        // A directive is `@ts-...` after nothing but slashes, asterisks and
+        // white space. Nearly every comment fails that at its first ordinary
+        // byte; only an `@` there, or a byte that may begin a white-space
+        // character outside ASCII, needs the test itself.
+        let first = self.text.as_bytes()[line_start..self.pos]
+            .iter()
+            .find(|&&byte| {
+                !matches!(
+                    byte,
+                    b' ' | b'\t' | b'\n' | 0x0B | 0x0C | b'\r' | b'/' | b'*'
+                )
+            });
+        if !matches!(first, Some(&byte) if byte == b'@' || byte >= 0x80) {
+            return;
+        }
         let comment = &self.text[line_start..self.pos];
         let Some(kind) = get_directive_from_comment(js_trim_start(comment), regex) else {
             return;

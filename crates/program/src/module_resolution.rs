@@ -1013,7 +1013,12 @@ pub struct ModuleResolver<'a> {
     paths: Option<Arc<ProgramPathMappings>>,
     paths_base_directory: Option<Arc<JsString>>,
     root_dirs: Option<Vec<JsString>>,
-    package_cache: BTreeMap<JsString, PackageCacheEntry>,
+    /// The package.json files this resolver looked for, by canonical
+    /// spelling. Every package lookup of every request asks it and nothing
+    /// reads it in order but [`Self::observed_package_metadata`], which
+    /// sorts what it lists: a hash table, where an ordered one compared a
+    /// hundred-byte path a dozen times a lookup.
+    package_cache: rustc_hash::FxHashMap<JsString, PackageCacheEntry>,
     package_cache_enabled: bool,
     /// The lookups of the load's other resolvers (see
     /// [`SharedPackageLoads`]); none outside a parallel load.
@@ -1219,7 +1224,7 @@ impl<'a> ModuleResolver<'a> {
             paths,
             paths_base_directory,
             root_dirs,
-            package_cache: BTreeMap::new(),
+            package_cache: rustc_hash::FxHashMap::default(),
             package_cache_enabled: true,
             shared_package_loads: None,
             package_json_probes: std::cell::RefCell::new(BTreeMap::new()),
@@ -1261,7 +1266,7 @@ impl<'a> ModuleResolver<'a> {
             paths: None,
             paths_base_directory: None,
             root_dirs: None,
-            package_cache: BTreeMap::new(),
+            package_cache: rustc_hash::FxHashMap::default(),
             package_cache_enabled: true,
             shared_package_loads: None,
             package_json_probes: std::cell::RefCell::new(BTreeMap::new()),
@@ -1764,11 +1769,20 @@ impl<'a> ModuleResolver<'a> {
         std::mem::swap(&mut self.package_cache, &mut other.package_cache);
     }
 
+    /// The packages this resolver found, in the order of their canonical
+    /// package.json spellings (the cache's keys): the order its readers
+    /// have always had, whatever the table's own.
     pub fn observed_package_metadata(&self) -> impl Iterator<Item = &PackageMetadata> {
-        self.package_cache.values().filter_map(|entry| match entry {
-            PackageCacheEntry::Missing { .. } => None,
-            PackageCacheEntry::Found(package) => Some(package.metadata.as_ref()),
-        })
+        let mut found: Vec<(&JsString, &PackageMetadata)> = self
+            .package_cache
+            .iter()
+            .filter_map(|(key, entry)| match entry {
+                PackageCacheEntry::Missing { .. } => None,
+                PackageCacheEntry::Found(package) => Some((key, package.metadata.as_ref())),
+            })
+            .collect();
+        found.sort_unstable_by(|left, right| left.0.cmp(right.0));
+        found.into_iter().map(|(_, metadata)| metadata)
     }
 
     /// Every package.json this resolver probed, in canonical-path order.

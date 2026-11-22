@@ -262,18 +262,48 @@ pub struct InstantiationMiss {
 /// The front only repeats the map: a slot is written with the answer the
 /// map holds for that key, and when the map changes an answer the front is
 /// emptied (see [`InstantiationCache::insert`]).
-#[derive(Default)]
 struct InstantiationFront {
-    /// Empty until the first entry, then `1 << Self::BITS` slots of
+    /// Empty until the first entry, then `1 << self.bits` slots of
     /// `[target, first argument, second argument or 0, answer]`, each id as
     /// its store position (the index plus one): no id is zero, and a zero
     /// first word is an empty slot.
     slots: Vec<[u32; 4]>,
+    /// The logarithm of the slot count, chosen before the first entry
+    /// ([`Self::size_for`]).
+    bits: u32,
+}
+
+impl Default for InstantiationFront {
+    fn default() -> Self {
+        Self {
+            slots: Vec::new(),
+            bits: Self::MAX_BITS,
+        }
+    }
 }
 
 impl InstantiationFront {
-    /// 65,536 slots: one megabyte a checker.
-    const BITS: u32 = 16;
+    /// The most slots a front has, and what it has when nothing sized it:
+    /// 65,536, one megabyte a checker.
+    const MAX_BITS: u32 = 16;
+    /// The fewest: 4,096 slots, 64 KiB.
+    const MIN_BITS: u32 = 12;
+
+    /// Size the front for a checker expected to hold `lists` type lists:
+    /// twice as many slots, within the two bounds. A slot holds one key, and
+    /// a key is answered here only while no other key of its slot was put
+    /// after it, so the front is kept at most half full; a megabyte is more
+    /// than that for a checker of a small program, and every slot written is
+    /// resident. Only before the first entry: the slots stay as they are.
+    fn size_for(&mut self, lists: usize) {
+        if self.slots.is_empty() {
+            let wanted = lists
+                .saturating_mul(2)
+                .clamp(1 << Self::MIN_BITS, 1 << Self::MAX_BITS)
+                .next_power_of_two();
+            self.bits = wanted.trailing_zeros();
+        }
+    }
 
     /// The key's three words, for the keys the front takes.
     #[inline]
@@ -285,18 +315,19 @@ impl InstantiationFront {
         }
     }
 
+    /// The slot of `key` in a front of `1 << bits` slots.
     #[inline]
-    fn slot(key: [u32; 3]) -> usize {
+    fn slot(key: [u32; 3], bits: u32) -> usize {
         const K: u64 = 0x9E37_79B9_7F4A_7C15;
         let mixed = (u64::from(key[0]) | (u64::from(key[1]) << 32)).wrapping_mul(K)
             ^ u64::from(key[2]).wrapping_mul(0xC2B2_AE3D_27D4_EB4F);
-        (mixed.wrapping_mul(K) >> (64 - Self::BITS)) as usize
+        (mixed.wrapping_mul(K) >> (64 - bits)) as usize
     }
 
     #[inline]
     fn get(&self, target: TypeId, arguments: &[TypeId]) -> Option<TypeId> {
         let key = Self::key(target, arguments)?;
-        let slot = self.slots.get(Self::slot(key))?;
+        let slot = self.slots.get(Self::slot(key, self.bits))?;
         if slot[..3] == key {
             TypeId::from_position(slot[3])
         } else {
@@ -310,9 +341,9 @@ impl InstantiationFront {
             return;
         };
         if self.slots.is_empty() {
-            self.slots = vec![[0; 4]; 1 << Self::BITS];
+            self.slots = vec![[0; 4]; 1 << self.bits];
         }
-        self.slots[Self::slot(key)] = [key[0], key[1], key[2], answer.position()];
+        self.slots[Self::slot(key, self.bits)] = [key[0], key[1], key[2], answer.position()];
     }
 
     fn clear(&mut self) {
@@ -1132,6 +1163,12 @@ impl TypeTables {
     /// bucket order never assigns a type/list identity or visits a member:
     /// those orders live in `types` and `list_items`. The caps bound eager
     /// allocation when a large declaration file is mostly unchecked.
+    ///
+    /// `nodes` and `symbols` are the part of the program this checker is
+    /// expected to resolve (the whole of it for the one checker of a serial
+    /// check): a hash table's entries land all over it, so every page of a
+    /// table reserved too large becomes resident with its first few hundred
+    /// entries.
     pub fn reserve_capacity_hint(&mut self, nodes: usize, symbols: usize) {
         let lists = (symbols / 4).min(1 << 16);
         let literals = (nodes / 128).min(1 << 14);
@@ -1147,6 +1184,19 @@ impl TypeTables {
         );
         self.instantiations
             .reserve(lists.saturating_sub(self.instantiations.len()));
+        self.instantiations.front.size_for(lists);
+    }
+
+    /// The bytes of the lookup tables [`Self::reserve_capacity_hint`]
+    /// reserves, as they stand: the list map, the string literal map, the
+    /// instantiation map and the front's slots once it has them (the front
+    /// is counted at its chosen size from its creation on).
+    pub fn reserved_lookup_bytes(&self) -> usize {
+        self.list_ids.capacity() * (std::mem::size_of::<TypeListId>() + 1)
+            + self.string_literal_types.capacity()
+                * (std::mem::size_of::<(LiteralTextId, TypeId)>() + 1)
+            + self.instantiations.plain.capacity() * (std::mem::size_of::<PlainInstantiation>() + 1)
+            + (std::mem::size_of::<[u32; 4]>() << self.instantiations.front.bits)
     }
 
     // ---- arena ----

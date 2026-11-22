@@ -1591,6 +1591,11 @@ impl NodeCheckFlags {
     pub const IN_CHECK_IDENTIFIER: Self = Self(4194304);
     /// tsc NodeCheckFlags.PartiallyTypeChecked
     pub const PARTIALLY_TYPE_CHECKED: Self = Self(8388608);
+    /// tsrs-native, no tsc flag: the node's effects signature has been asked
+    /// for and there is none (tsc keeps `unknownSignature` in
+    /// `links.effectsSignature`). Bit 30 belongs to no tsc flag; a reader of
+    /// the word tests the bits it asks for.
+    pub const NO_EFFECTS_SIGNATURE: Self = Self(1 << 30);
     /// tsc NodeCheckFlags.LazyFlags
     pub const LAZY_FLAGS: Self = Self(16);
     /// tsc NodeCheckFlags.| SuperStatic

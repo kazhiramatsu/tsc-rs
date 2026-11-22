@@ -3342,7 +3342,7 @@ impl ProgramSession {
             (checked, sharded_emit.emissions.take())
         };
 
-        if tsc_types::trace::enabled() {
+        if tsc_types::trace::detail() {
             if let Some(pool) = &print_pool {
                 let peak = pool.peak();
                 eprintln!(
@@ -4727,12 +4727,16 @@ fn project_checker_inputs(
 
     let mut files = Vec::with_capacity(sources.len().saturating_sub(library_ids.len()));
     let mut file_metadata = Vec::with_capacity(files.capacity());
-    for source in sources.iter().skip(library_ids.len()) {
-        let source_file = prepared
-            .source_id(source.path().canonical())
-            .ok_or_else(|| DriverError::MissingPreparedSourceIdentity {
-                path: source.path().display().to_owned(),
-            })?;
+    for (position, source) in sources.iter().enumerate().skip(library_ids.len()) {
+        // A source's id is its place among the Program's sources
+        // (`PreparedProgram::source_file`): the path is not hashed to find it.
+        let source_file = SourceFileId::from_raw(
+            u32::try_from(position).expect("a Program's source count fits its identifiers"),
+        );
+        debug_assert_eq!(
+            prepared.source_id(source.path().canonical()),
+            Some(source_file)
+        );
         let (input, metadata) =
             project_source(source, source_file, source_api_facts.get(&source_file))?;
         files.push(input);

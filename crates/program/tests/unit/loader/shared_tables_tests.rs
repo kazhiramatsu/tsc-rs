@@ -69,3 +69,48 @@ fn a_directorys_resolutions_are_kept_by_specifier_and_mode() {
         None
     );
 }
+
+/// A path's symbol is made when the table first sees the path and is the
+/// same for every later call, whichever of them queues: the read-ahead takes
+/// the symbol of a target from the call that queued it and does not ask the
+/// table a second time for the row's own symbol.
+#[test]
+fn a_paths_symbol_is_the_same_for_the_queueing_call_and_every_later_one() {
+    let queued = Sharded::<CanonicalPath, QueuedPath>::new();
+    let count = AtomicUsize::new(0);
+    let path = |text: &str| {
+        ProgramPath::from_js_parts(text.into(), text.into())
+            .unwrap()
+            .canonical()
+            .clone()
+    };
+    let a = path("/project/a.ts");
+    let b = path("/project/b.ts");
+    // Queued first: the entry's symbol, and this call is the queueing one.
+    let (a_symbol, a_new) = queued_path_symbol(&queued, &count, &a, true);
+    assert!(a_symbol.is_some() && a_new);
+    // A lookup after the queueing: the same symbol, nothing queued, no entry made.
+    assert_eq!(
+        queued_path_symbol(&queued, &count, &a, false),
+        (a_symbol, false)
+    );
+    assert_eq!(
+        queued_path_symbol(&queued, &count, &a, true),
+        (a_symbol, false)
+    );
+    assert_eq!(count.load(Ordering::Relaxed), 1);
+    // Looked up first, queued later: the lookup makes the entry and its
+    // symbol, the later call is the one that queues.
+    let (b_symbol, b_new) = queued_path_symbol(&queued, &count, &b, false);
+    assert!(b_symbol.is_some() && !b_new);
+    assert_ne!(b_symbol, a_symbol);
+    assert_eq!(
+        queued_path_symbol(&queued, &count, &b, true),
+        (b_symbol, true)
+    );
+    assert_eq!(
+        queued_path_symbol(&queued, &count, &b, false),
+        (b_symbol, false)
+    );
+    assert_eq!(count.load(Ordering::Relaxed), 2);
+}

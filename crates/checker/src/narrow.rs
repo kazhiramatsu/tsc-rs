@@ -2874,8 +2874,16 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<Option<SignatureId>> {
+        if self
+            .links
+            .read_node(node, |links| links.check_flags)
+            .intersects(tsc_types::NodeCheckFlags::NO_EFFECTS_SIGNATURE)
+        {
+            debug_assert!(!self.effects_signature_cache.contains_key(&node));
+            return Ok(None);
+        }
         if let Some(&cached) = self.effects_signature_cache.get(&node) {
-            return Ok(cached);
+            return Ok(Some(cached));
         }
         let func_type: Option<TypeId> = if self.kind_of(node) == SyntaxKind::BinaryExpression {
             let right = match self.data_of(node) {
@@ -2946,7 +2954,19 @@ impl<'a> CheckerState<'a> {
                 result = Some(candidate);
             }
         }
-        self.effects_signature_cache.insert(node, result);
+        // The memo is written once, when the answer is complete, and never
+        // taken back: the bit like the map's entry (node check flags are not
+        // among the links a speculative candidate restores).
+        match result {
+            Some(signature) => {
+                self.effects_signature_cache.insert(node, signature);
+            }
+            None => self.links.or_node_check_flags(
+                self.speculation_depth,
+                node,
+                tsc_types::NodeCheckFlags::NO_EFFECTS_SIGNATURE,
+            ),
+        }
         Ok(result)
     }
 

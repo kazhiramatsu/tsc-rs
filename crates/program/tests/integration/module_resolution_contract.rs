@@ -10406,3 +10406,64 @@ fn loader_metadata_normalizes_callback_paths_before_observing_package_scope() {
             .all(|probe| !probe.path.contains("/../")));
     }
 }
+
+/// The packages a resolver found are listed by the canonical spelling of
+/// their package.json, whatever the order the requests found them in: the
+/// program's package table, the output-directory checks and the casing
+/// details read this list.
+#[test]
+fn observed_packages_are_listed_in_the_order_of_their_package_json_paths() {
+    let mut host =
+        MemoryCompilerHost::builder("/work").file("/work/main.ts", b"export {};".to_vec());
+    let names = [
+        "zeta",
+        "alpha",
+        "mid",
+        "Beta",
+        "alpha-2",
+        "@scope/pkg",
+        "omega",
+    ];
+    for name in names {
+        host = host
+            .file(
+                format!("/work/node_modules/{name}/package.json"),
+                format!(r#"{{"name":"{name}","version":"1.0.0","types":"index.d.ts"}}"#)
+                    .into_bytes(),
+            )
+            .file(
+                format!("/work/node_modules/{name}/index.d.ts"),
+                b"export declare const value: number;".to_vec(),
+            );
+    }
+    let host = host.build().expect("build package host");
+    let options = CompilerOptions {
+        module: Some(1),
+        module_resolution: Some(2),
+        ..CompilerOptions::default()
+    };
+    let observed = |order: &[&str]| {
+        let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+        for name in order {
+            resolver
+                .resolve("/work/main.ts", *name, ResolutionMode::CommonJs)
+                .expect("resolve a package");
+        }
+        resolver
+            .observed_package_metadata()
+            .map(|package| package.package_json().canonical().clone())
+            .collect::<Vec<_>>()
+    };
+    let listed = observed(&names);
+    assert_eq!(listed.len(), names.len());
+    let mut sorted = listed.clone();
+    sorted.sort();
+    assert_eq!(listed, sorted, "the list is in the order of its keys");
+    let mut reversed = names;
+    reversed.reverse();
+    assert_eq!(
+        observed(&reversed),
+        listed,
+        "the request order does not show"
+    );
+}

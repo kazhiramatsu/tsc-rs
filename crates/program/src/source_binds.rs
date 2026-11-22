@@ -128,7 +128,7 @@ impl SourceBinds {
                     }
                     run();
                 });
-                if tsc_types::trace::enabled() {
+                if tsc_types::trace::detail() {
                     let queue = queue
                         .lock()
                         .unwrap_or_else(std::sync::PoisonError::into_inner);

@@ -5623,3 +5623,236 @@ fn ordinary_expression_path_preserves_complete_source_files_in_both_jsdoc_modes(
         }
     }
 }
+
+/// `comment_ranges` against a reading of the same rule character by
+/// character: the ranges of the comments before a position (and of those
+/// after it on its line), at every position of texts that carry each
+/// character the rule decides by.
+#[test]
+fn comment_ranges_agree_with_the_reading_by_characters() {
+    fn by_characters(text: &str, pos: usize, trailing: bool) -> Vec<(usize, usize)> {
+        let mut cursor = pos.min(text.len());
+        let mut collecting = trailing;
+        let mut ranges = Vec::new();
+        let mut pending = None;
+        if cursor == 0 {
+            collecting = true;
+            cursor = crate::scanner::get_shebang(text).len();
+        }
+        'scan: while cursor < text.len() {
+            let ch = text[cursor..].chars().next().unwrap();
+            match ch {
+                '\r' | '\n' => {
+                    if ch == '\r' && text[cursor + 1..].starts_with('\n') {
+                        cursor += 1;
+                    }
+                    cursor += 1;
+                    if trailing {
+                        break;
+                    }
+                    collecting = true;
+                }
+                ' ' | '\t' | '\u{000B}' | '\u{000C}' => cursor += ch.len_utf8(),
+                '/' if text[cursor..].starts_with("//") => {
+                    let start = cursor;
+                    cursor += 2;
+                    while cursor < text.len() {
+                        let ch = text[cursor..].chars().next().unwrap();
+                        if matches!(ch, '\n' | '\r' | '\u{2028}' | '\u{2029}') {
+                            break;
+                        }
+                        cursor += ch.len_utf8();
+                    }
+                    if collecting {
+                        if let Some(previous) = pending.replace((start, cursor)) {
+                            ranges.push(previous);
+                        }
+                    }
+                }
+                '/' if text[cursor..].starts_with("/*") => {
+                    let start = cursor;
+                    cursor += 2;
+                    if let Some(close) = text[cursor..].find("*/") {
+                        cursor += close + 2;
+                    } else {
+                        cursor = text.len();
+                    }
+                    if collecting {
+                        if let Some(previous) = pending.replace((start, cursor)) {
+                            ranges.push(previous);
+                        }
+                    }
+                }
+                _ if ch > '\u{7f}' && crate::scanner::is_whitespace_like(ch) => {
+                    cursor += ch.len_utf8()
+                }
+                _ => break 'scan,
+            }
+        }
+        ranges.extend(pending);
+        ranges
+    }
+    let texts = [
+        "#!/usr/bin/env node\n// a\n/* b */ x",
+        "// one\r\n// two\r// three\n/** doc */\nfunction f() {}",
+        "// ends at a line separator\u{2028}// next\u{2029}/* c */ y",
+        "// an ellipsis \u{2026} and a dagger \u{2020} stay inside\n/* d */",
+        "// \u{e2}\u{2027}\u{202a} beside the separators\u{2028}x",
+        "/* unterminated",
+        "/**/ /***/ /** */ /* * / */ z",
+        " \t\u{000B}\u{000C}\u{00A0}\u{3000}\u{FEFF}// after white space outside ASCII\nq",
+        "\u{0085}// after NEXT LINE\n",
+        "\u{200B}// after a zero width space\n",
+        "/ not a comment",
+        "x // trailing\n// leading of the next\n y",
+        "/* a */ /* b */\n/* c */ w",
+        "\u{e9}// after a letter outside ASCII\n",
+        "// the last line has no line break",
+        "/* \u{65e5}\u{672c}\u{8a9e} */ // \u{1f600}\r\n\r\n/** z */",
+        "",
+    ];
+    let mut compared = 0;
+    for text in texts {
+        for pos in (0..=text.len()).filter(|&pos| text.is_char_boundary(pos)) {
+            for trailing in [false, true] {
+                assert_eq!(
+                    comment_ranges(text, pos, trailing),
+                    by_characters(text, pos, trailing),
+                    "{text:?} at {pos}, trailing {trailing}"
+                );
+                compared += 1;
+            }
+        }
+    }
+    assert!(compared > 800);
+}
+
+/// The text of a JSDoc comment keeps the indentation past its margin as it
+/// is written (white space outside ASCII counts by UTF-16 code units, as
+/// JavaScript's `slice` counts), in the comment's body and in a tag's
+/// comment; and the comments of one file do not share pieces.
+#[test]
+fn jsdoc_indentation_past_the_margin_is_kept_as_written() {
+    fn body(parser: &mut Parser<'_>, start: usize, end: usize) -> Option<String> {
+        let doc = jsdoc::parse_jsdoc_comment(parser, start, end, NodeFlags::NONE);
+        let data = parser.arena.node(doc.node).as_js_doc().unwrap();
+        data.comment.map(|comment| {
+            let crate::JSDocComment::Text { text, .. } = comment else {
+                panic!("expected a plain comment")
+            };
+            parser.arena.text_utf8(text).to_owned()
+        })
+    }
+    fn first_tag_comment(parser: &mut Parser<'_>, start: usize, end: usize) -> Option<String> {
+        let doc = jsdoc::parse_jsdoc_comment(parser, start, end, NodeFlags::NONE);
+        let data = parser.arena.node(doc.node).as_js_doc().unwrap();
+        let tags = parser.arena.node_array(data.tags.unwrap());
+        let tag = parser.arena.node(tags.nodes[0]);
+        let comment = match tag.data() {
+            NodeData::JSDocParameterTag(data) => data.comment,
+            NodeData::JSDocReturnTag(data) => data.comment,
+            NodeData::JSDocTag(data) => data.comment,
+            other => panic!("unexpected tag {other:?}"),
+        };
+        comment.map(|comment| {
+            let crate::JSDocComment::Text { text, .. } = comment else {
+                panic!("expected a plain comment")
+            };
+            parser.arena.text_utf8(text).to_owned()
+        })
+    }
+    for (source, expected) in [
+        (
+            "/**\n * first\n *   indented\n * last\n */",
+            "first\n  indented\nlast",
+        ),
+        (
+            "/**\n * first\n * \u{3000}\u{3000}wide\n */",
+            "first\n\u{3000}\u{3000}wide",
+        ),
+        ("/**\n *  first\n * \u{3000}x\n */", "first\nx"),
+        (
+            "/**\n * ```ts\n *   const a = 1;\n *     nested();\n * ```\n */",
+            "```ts\n  const a = 1;\n    nested();\n```",
+        ),
+    ] {
+        let mut parser = Parser::new("body".into(), source, LanguageVariant::Standard, false);
+        assert_eq!(
+            body(&mut parser, 0, source.len()).as_deref(),
+            Some(expected),
+            "{source:?}"
+        );
+    }
+    for (source, expected) in [
+        // A tag's text that begins on the tag's line sets the margin there.
+        (
+            "/**\n * @param x first\n *     second\n *   third\n */",
+            "first\nsecond\nthird",
+        ),
+        (
+            "/**\n * @returns the\n * \u{3000}\u{3000}wide\n *  \u{a0}narrow\n */",
+            "the\nwide\nnarrow",
+        ),
+        // A text that begins on the next line keeps its indentation.
+        (
+            "/**\n * @returns\n *   the value\n *     indented\n */",
+            "  the value\n    indented",
+        ),
+        (
+            "/**\n * @param x\n *     first\n *       second\n */",
+            "    first\n      second",
+        ),
+        (
+            "/**\n * @example\n *   const a = 1;\n *     nested();\n */",
+            "  const a = 1;\n    nested();",
+        ),
+        (
+            "/**\n * @example\n * \u{3000}\u{3000}wide\n *  \u{a0}narrow\n */",
+            "\u{3000}\u{3000}wide\n \u{a0}narrow",
+        ),
+    ] {
+        let mut parser = Parser::new("tag".into(), source, LanguageVariant::Standard, false);
+        assert_eq!(
+            first_tag_comment(&mut parser, 0, source.len()).as_deref(),
+            Some(expected),
+            "{source:?}"
+        );
+    }
+    // Two comments of one file, parsed one after the other by one parser.
+    let source = "/**\n * one\n *   more\n */\n/**\n * two\n */";
+    let second = source.rfind("/**").unwrap();
+    let mut parser = Parser::new("two".into(), source, LanguageVariant::Standard, false);
+    assert_eq!(
+        body(&mut parser, 0, second - 1).as_deref(),
+        Some("one\n  more")
+    );
+    assert_eq!(
+        body(&mut parser, second, source.len()).as_deref(),
+        Some("two")
+    );
+}
+
+/// The JSDoc parser measures every piece of a comment in UTF-16 code units
+/// and reads that length from the bytes: one unit for each byte that begins
+/// a character, one more for a character of four bytes.
+#[test]
+fn the_utf16_length_of_a_text_is_read_from_its_bytes() {
+    for text in [
+        "",
+        "a",
+        " * @param x the value",
+        "\u{e9}",
+        "\u{65e5}\u{672c}\u{8a9e}",
+        "a\u{a0}b\u{3000}c\u{feff}",
+        "\u{2028}\u{2029}",
+        "\u{1f600}",
+        "a\u{1f600}b\u{1d4b3}c",
+        "\u{7f}\u{80}\u{7ff}\u{800}\u{ffff}\u{10000}\u{10ffff}",
+    ] {
+        assert_eq!(
+            jsdoc::utf16_len(text),
+            text.encode_utf16().count(),
+            "{text:?}"
+        );
+    }
+}

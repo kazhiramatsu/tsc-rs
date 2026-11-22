@@ -262,18 +262,95 @@ pub fn combine_paths(parent: JsStr<'_>, child: JsStr<'_>) -> JsString {
 }
 
 fn has_relative_segment(path: JsStr<'_>) -> bool {
-    // `/` is ASCII in WTF-8. Visit separators once: each search also
-    // identifies the complete preceding component, so dots inside an
-    // ordinary file name never make it a relative segment.
-    let mut remaining = path.as_bytes();
-    while let Some(end) = memchr::memchr(b'/', remaining) {
-        let segment = &remaining[..end];
-        if segment == b"." || segment == b".." || remaining.get(end + 1) == Some(&b'/') {
-            return true;
+    // `/` is ASCII in WTF-8. A component is relative when it is `.` or `..`,
+    // and a separator directly after a separator leaves an empty one: one
+    // pass over the bytes sees every component's end, so dots inside an
+    // ordinary file name never make it a relative segment. (The components
+    // of a path are a few bytes each; a search for each next separator cost
+    // more in its set-up than in its bytes, for every file name of a
+    // program in every checker.)
+    let bytes = path.as_bytes();
+    let mut start = 0;
+    for (index, &byte) in bytes.iter().enumerate() {
+        if byte == b'/' {
+            let segment = &bytes[start..index];
+            if segment == b"." || segment == b".." || bytes.get(index + 1) == Some(&b'/') {
+                return true;
+            }
+            start = index + 1;
         }
-        remaining = &remaining[end + 1..];
     }
-    remaining == b"." || remaining == b".."
+    let segment = &bytes[start..];
+    segment == b"." || segment == b".."
+}
+
+#[cfg(test)]
+mod relative_segment_tests {
+    use super::has_relative_segment;
+
+    /// The form before the single pass: a search for each separator.
+    fn by_separator_search(path: &[u8]) -> bool {
+        let mut remaining = path;
+        while let Some(end) = memchr::memchr(b'/', remaining) {
+            let segment = &remaining[..end];
+            if segment == b"." || segment == b".." || remaining.get(end + 1) == Some(&b'/') {
+                return true;
+            }
+            remaining = &remaining[end + 1..];
+        }
+        remaining == b"." || remaining == b".."
+    }
+
+    /// Every string of up to seven characters over the alphabet that
+    /// matters (a separator, a dot, a letter) answers as it did, and so do
+    /// the shapes of real paths.
+    #[test]
+    fn the_single_pass_answers_as_the_search_for_each_separator_did() {
+        let alphabet = *b"/.a";
+        for length in 0..=7u32 {
+            for code in 0..3usize.pow(length) {
+                let mut text = Vec::with_capacity(length as usize);
+                let mut rest = code;
+                for _ in 0..length {
+                    text.push(alphabet[rest % 3]);
+                    rest /= 3;
+                }
+                let text = String::from_utf8(text).unwrap();
+                assert_eq!(
+                    has_relative_segment(text.as_str().into()),
+                    by_separator_search(text.as_bytes()),
+                    "{text:?}"
+                );
+            }
+        }
+        for (path, relative) in [
+            ("/a/b/c.d.ts", false),
+            ("/a/.b/..c/d..", false),
+            (
+                "/a/node_modules/.pnpm/x@1.0.0/node_modules/x/index.d.ts",
+                false,
+            ),
+            ("c:/a/b.ts", false),
+            ("", false),
+            ("/", false),
+            ("a", false),
+            ("/a/./b", true),
+            ("/a/../b", true),
+            ("/a/b/.", true),
+            ("/a/b/..", true),
+            ("./a", true),
+            ("../a", true),
+            (".", true),
+            ("..", true),
+            ("//server/share", true),
+            ("/a//b", true),
+            ("/a/b//", true),
+            ("/a/.../b", false),
+        ] {
+            assert_eq!(has_relative_segment(path.into()), relative, "{path:?}");
+            assert_eq!(by_separator_search(path.as_bytes()), relative, "{path:?}");
+        }
+    }
 }
 
 fn simple_normalize(path: PathText<'_>) -> Result<PathText<'_>, PathText<'_>> {

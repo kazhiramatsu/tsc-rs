@@ -2040,3 +2040,46 @@ fn assert_jsdoc_scanners_match(actual: &Scanner<'_>, scalar: &Scanner<'_>, text:
     assert_eq!(actual.token_value_source(), scalar.token_value_source());
     assert_eq!(actual.errors(), scalar.errors());
 }
+
+/// A comment is a directive when `@ts-ignore` or `@ts-expect-error` follows
+/// nothing but its slashes, asterisks and white space - JavaScript's white
+/// space, the characters outside ASCII included - and no other comment is.
+#[test]
+fn a_directive_follows_only_slashes_asterisks_and_white_space() {
+    let kinds = |text: &str| -> Vec<CommentDirectiveKind> {
+        directives_of(text)
+            .into_iter()
+            .map(|directive| directive.kind)
+            .collect()
+    };
+    use CommentDirectiveKind::{ExpectError, Ignore};
+    for (text, expected) in [
+        ("//@ts-ignore\n", vec![Ignore]),
+        ("// \t\u{000B}\u{000C}@ts-expect-error\n", vec![ExpectError]),
+        ("//\u{00A0}@ts-ignore\n", vec![Ignore]),
+        (
+            "//\u{3000}\u{FEFF}\u{2003}@ts-expect-error\n",
+            vec![ExpectError],
+        ),
+        ("// x @ts-ignore\n", vec![]),
+        ("//\u{e9}@ts-ignore\n", vec![]),
+        ("//\u{200B}@ts-ignore\n", vec![]),
+        ("// @ ts-ignore\n", vec![]),
+        ("//\n", vec![]),
+        ("// */ @ts-ignore\n", vec![]),
+        ("/* @ts-ignore */\n", vec![Ignore]),
+        ("/*\u{3000}@ts-expect-error */\n", vec![ExpectError]),
+        ("/*** @ts-ignore ***/\n", vec![Ignore]),
+        ("/* a\n * @ts-ignore */\n", vec![Ignore]),
+        ("/* a\n * b @ts-ignore */\n", vec![]),
+        ("/**\n * @ts-ignore\n */\n", vec![]),
+        ("/* a\n\u{00A0}* @ts-expect-error */\n", vec![ExpectError]),
+        ("/**/\n", vec![]),
+        (
+            "// @ts-ignore\n/* @ts-expect-error */\n// plain\n",
+            vec![Ignore, ExpectError],
+        ),
+    ] {
+        assert_eq!(kinds(text), expected, "{text:?}");
+    }
+}

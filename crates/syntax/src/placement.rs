@@ -512,7 +512,7 @@ pub fn library_metadata(text: &str) -> Option<(bool, Vec<crate::FileReference>)>
 }
 
 pub fn trace_statistics(label: &str, statistics: &Statistics) {
-    if tsc_types::trace::enabled() {
+    if tsc_types::trace::detail() {
         eprintln!("[syntax-placement] {label}: direct_sources={} direct_bytes={} fallbacks={} stripes={} lease_batches={} holes={:?} page_end_bytes_guide={}",
             statistics.direct_sources, statistics.direct_bytes, statistics.fallbacks,
             statistics.stripes, statistics.lease_batches, statistics.holes, statistics.page_end_bytes);

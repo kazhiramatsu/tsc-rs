@@ -633,6 +633,7 @@ fn new_checker_state(owner: &LiveOwner) -> CheckerState<'_> {
         None,
         Some(0),
         false,
+        1,
     );
     reserve_type_tables(&mut state, snapshot_node_count(&owner.snapshot));
     state

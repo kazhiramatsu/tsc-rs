@@ -912,6 +912,13 @@ fn load_program_worker(
         limits,
         resolver: &mut resolver,
     });
+    // The shared name table gets its room while it is still empty. Left to the
+    // hints of the sources as they are parsed, it grows by rehashing, and the
+    // last and largest hint is the checker's (a quarter of the program's
+    // symbols): the first checker to start then rehashed every name of the
+    // program under the table's locks, at the head of its shard. A program
+    // of a few hundred roots reaches the hint's cap either way.
+    tsc_types::names::reserve_capacity_hint(root_names.len().saturating_mul(256));
     // Parse-ahead of the explicit roots. Normalization errors are left for
     // the sequential loop below, which reports them in root order.
     let mut prefetch_roots = Vec::with_capacity(root_names.len());
@@ -1003,7 +1010,7 @@ fn load_program_worker(
         phase_started,
     );
     let mut finish_timer = tsc_types::trace::Timer::new();
-    if tsc_types::trace::enabled() {
+    if tsc_types::trace::detail() {
         // The sources whose read-ahead resolutions the walk never took: read
         // ahead in vain, so worth knowing about.
         let unvisited = graph.pre_resolved.keys().fold(
@@ -1368,10 +1375,20 @@ fn normalize_root(
     })
 }
 
+/// Whether the last component of `path` (what follows its last `/` or `\`)
+/// has a `.`: read from the end, the first of the three bytes decides. A
+/// source path ends in its extension, so this looks at a few bytes where
+/// two splits and a search walked the whole base name three times; no byte
+/// of a multi-byte sequence is one of the three.
 fn path_has_extension(path: JsStr<'_>) -> bool {
-    let basename = path.split_ascii(b'/').next_back().unwrap_or(path);
-    let basename = basename.split_ascii(b'\\').next_back().unwrap_or(basename);
-    basename.contains(".")
+    for &byte in path.as_bytes().iter().rev() {
+        match byte {
+            b'.' => return true,
+            b'/' | b'\\' => return false,
+            _ => {}
+        }
+    }
+    false
 }
 
 fn validate_type_roots(
@@ -2168,25 +2185,36 @@ struct QueuedPath {
     queued: bool,
 }
 
+/// The symbol of `path` in the read-ahead's table, made on first sight and
+/// never changed afterwards, and whether this call is the one that queues
+/// the path (`queue` asked for it and no earlier call had).
+fn queued_path_symbol(
+    queued: &Sharded<CanonicalPath, QueuedPath>,
+    count: &AtomicUsize,
+    path: &CanonicalPath,
+    queue: bool,
+) -> (Option<std::num::NonZeroU32>, bool) {
+    let mut shard = queued.shard(path);
+    let entry = shard.entry(path.clone()).or_insert_with(|| QueuedPath {
+        symbol: count
+            .fetch_add(1, Ordering::Relaxed)
+            .checked_add(1)
+            .and_then(|id| u32::try_from(id).ok())
+            .and_then(std::num::NonZeroU32::new),
+        queued: false,
+    });
+    let newly_queued = queue && !entry.queued;
+    entry.queued |= queue;
+    (entry.symbol, newly_queued)
+}
+
 impl ParallelReadAhead<'_> {
     fn path_symbol(
         &self,
         path: &CanonicalPath,
         queue: bool,
     ) -> (Option<std::num::NonZeroU32>, bool) {
-        let mut shard = self.queued.shard(path);
-        let entry = shard.entry(path.clone()).or_insert_with(|| QueuedPath {
-            symbol: self
-                .path_symbol_count
-                .fetch_add(1, Ordering::Relaxed)
-                .checked_add(1)
-                .and_then(|id| u32::try_from(id).ok())
-                .and_then(std::num::NonZeroU32::new),
-            queued: false,
-        });
-        let newly_queued = queue && !entry.queued;
-        entry.queued |= queue;
-        (entry.symbol, newly_queued)
+        queued_path_symbol(&self.queued, &self.path_symbol_count, path, queue)
     }
 
     /// Whether the read-ahead reads `path` (`prefetch_roots`'s admission).
@@ -2210,13 +2238,24 @@ impl ParallelReadAhead<'_> {
         .cloned()
     }
 
-    fn queue(&self, path: &ProgramPath, spawned: &mut Vec<(ProgramPath, usize)>) {
-        if !self.stopped.load(Ordering::Relaxed)
-            && self.admits(path)
-            && self.path_symbol(path.canonical(), true).1
-        {
+    /// Queue `path` for the read-ahead if it reads it and no worker has
+    /// queued it yet. The answer is the path's symbol when the table was
+    /// asked (an entry's symbol never changes once it is made), `None` when
+    /// the read-ahead has stopped or does not read the path: a caller that
+    /// wants the symbol next has it without asking the table again.
+    fn queue(
+        &self,
+        path: &ProgramPath,
+        spawned: &mut Vec<(ProgramPath, usize)>,
+    ) -> Option<Option<std::num::NonZeroU32>> {
+        if self.stopped.load(Ordering::Relaxed) || !self.admits(path) {
+            return None;
+        }
+        let (symbol, newly_queued) = self.path_symbol(path.canonical(), true);
+        if newly_queued {
             spawned.push((path.clone(), usize::MAX));
         }
+        Some(symbol)
     }
 
     /// Read, parse and plan one source with the package scope its implied
@@ -2465,12 +2504,15 @@ impl ParallelReadAhead<'_> {
                         facts
                     }
                 };
+                // The symbol of the target this row queued, if it asked the
+                // table: the row's own symbol below is that one.
+                let mut queued_symbol = None;
                 if loads_source {
                     if let Some(target) = facts.resolved() {
                         if !matches!(target.extension(), ModuleExtension::Json)
                             && !prepared_read_ahead_elides_target(self.options, target)
                         {
-                            self.queue(target.resolved_file(), spawned);
+                            queued_symbol = self.queue(target.resolved_file(), spawned);
                         }
                     }
                 }
@@ -2494,10 +2536,22 @@ impl ParallelReadAhead<'_> {
                     {
                         package.id.display();
                     }
-                    prepared.symbol = prepared.resolved().and_then(|module| {
-                        self.path_symbol(module.resolved_file().canonical(), false)
-                            .0
-                    });
+                    prepared.symbol = match queued_symbol {
+                        Some(symbol) => {
+                            debug_assert_eq!(
+                                symbol,
+                                prepared.resolved().and_then(|module| {
+                                    self.path_symbol(module.resolved_file().canonical(), false)
+                                        .0
+                                })
+                            );
+                            symbol
+                        }
+                        None => prepared.resolved().and_then(|module| {
+                            self.path_symbol(module.resolved_file().canonical(), false)
+                                .0
+                        }),
+                    };
                 }
                 row.host = prepared;
                 row.ready = true;
@@ -4815,7 +4869,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         for source in self.prefetched.values_mut() {
             source.scope = None;
         }
-        if tsc_types::trace::enabled() {
+        if tsc_types::trace::detail() {
             eprintln!(
                 "[load census] staged: sources {}, tasks {}, task data {}, roots {}, module rows {}, type rows {}, source path bytes {}, module source key bytes {}",
                 self.sources.len(), self.parse.tasks.len(), self.parse.task_data.len(),
@@ -5106,7 +5160,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             package_json_probes.extend(resolver.take_package_json_probes());
         }
         timer.mark("load: graph library order and probes");
-        if tsc_types::trace::enabled() {
+        if tsc_types::trace::detail() {
             eprintln!(
                 "[load census] collected: sources {}, redirects {}, module rows {}, type rows {}, inclusion records {}",
                 ordinary_postorder.len() + library_postorder.len(), collected.redirects.len(), self.sources.iter().map(|source| source.module_requests.rows.len()).sum::<usize>(), self.type_resolutions.len(),
@@ -7568,7 +7622,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             self.resolution_trace.extend(lines);
         }
         timer.mark("load: graph collect files");
-        if tsc_types::trace::enabled() {
+        if tsc_types::trace::detail() {
             // Reconstruct incoming visits from the collected parents rather
             // than adding counters to the hot walk. A package copy entered
             // `seen` but did not walk its children; its registered owner did.
@@ -8113,17 +8167,12 @@ fn publish_program(
         }
     };
     builder = builder.with_dependency_symlinks(dependency_symlinks);
-    // The package.json files every resolver of the load probed, each once.
-    let mut package_json_probes = BTreeMap::new();
-    for probe in std::mem::take(&mut staged.package_json_probes) {
-        package_json_probes
-            .entry(crate::js_path::file_name_key(
-                probe.path.as_js(),
-                case_sensitive_file_names,
-            ))
-            .or_insert(probe);
-    }
-    builder = builder.with_package_json_probes(package_json_probes.into_values().collect());
+    // The package.json files every resolver of the load probed: the Program
+    // lists each once when the list is first read.
+    builder = builder.with_recorded_package_json_probes(
+        std::mem::take(&mut staged.package_json_probes),
+        case_sensitive_file_names,
+    );
     builder = builder.with_resolution_trace(std::mem::take(&mut staged.resolution_trace));
     builder =
         builder.with_import_extension_files(std::mem::take(&mut staged.import_extension_files));
@@ -10024,3 +10073,7 @@ mod shared_source_tests;
 #[cfg(test)]
 #[path = "../tests/unit/loader/shared_tables_tests.rs"]
 mod shared_tables_tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/loader/path_extension_tests.rs"]
+mod path_extension_tests;
