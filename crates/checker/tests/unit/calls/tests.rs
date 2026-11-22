@@ -2384,6 +2384,69 @@ fn iife_argument_types_flow_into_untyped_parameters() {
         );
 }
 
+#[test]
+fn iife_signature_minimum_uses_the_invocation_argument_list() {
+    let options = CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        ..Default::default()
+    };
+    for (name, text, arity, minimum, has_this, expected_rows, counts) in [
+        (
+            "a.js",
+            "(((function(a, b, c) {})))(1);",
+            3,
+            1,
+            false,
+            &[6133, 6133, 6133][..],
+            [65, 0, 10],
+        ),
+        (
+            "a.ts",
+            "(function(this: void, a, b: number, c) {})(1);",
+            3,
+            2,
+            true,
+            &[2554, 6133, 6133, 6133][..],
+            [65, 0, 11],
+        ),
+        (
+            "a.ts",
+            "const f = (function(a, b) {});",
+            2,
+            2,
+            false,
+            &[7006, 7006, 6133, 6133][..],
+            [63, 0, 10],
+        ),
+    ] {
+        with_program_state(&[(name, text)], &options, |state| {
+            let declaration = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .find(|&node| state.kind_of(node) == SyntaxKind::FunctionExpression)
+                .unwrap();
+            let id = state.get_signature_from_declaration(declaration).unwrap();
+            let signature = state.signature_of(id);
+            assert_eq!(signature.parameters.len(), arity);
+            assert_eq!(signature.min_argument_count(), minimum);
+            assert_eq!(signature.this_parameter.is_some(), has_this);
+            state.check_source_file(0);
+            let rows: Vec<_> = state
+                .diagnostics
+                .iter()
+                .filter(|row| row.file_name.is_some())
+                .map(|row| row.code())
+                .collect();
+            assert_eq!(rows, expected_rows);
+            let work = crate::CheckerCounts::of(state, true);
+            assert_eq!([work.types, work.instantiations, work.symbols], counts);
+        });
+    }
+}
+
 // ---- 5.7b review round 2: late-bound members in intersections ----
 
 #[test]

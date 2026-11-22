@@ -10673,9 +10673,8 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::FunctionDeclaration
                 | SyntaxKind::Constructor
         );
-        let is_immediately_invoked =
-            node_util::get_immediately_invoked_function_expression(&Published, declaration)
-                .is_some();
+        let invocation =
+            node_util::get_immediately_invoked_function_expression(&Published, declaration);
         // tsgo (checker.go:20184-20189): every parameter of the JavaScript
         // function is untyped — the reparsed `@param` types and a `@this`
         // type count — and the function has no contextual type.
@@ -10684,7 +10683,7 @@ impl<'a> CheckerState<'a> {
         } else {
             None
         };
-        let is_untyped_signature_in_js_file = !is_immediately_invoked
+        let is_untyped_signature_in_js_file = invocation.is_none()
             && self.is_in_js_file(declaration)
             && is_value_signature_declaration
             && !this_tag.is_some_and(|tag| {
@@ -10848,17 +10847,20 @@ impl<'a> CheckerState<'a> {
             // non-initialized, non-rest parameter. The IIFE arm
             // (59614: over-declared parameters of an immediately
             // invoked function with fewer arguments and no annotation
-            // are optional) rides the node_util walk.
-            let iife_optional = is_normal_parameter
-                && type_node.is_none()
-                && node_util::get_immediately_invoked_function_expression(&Published, declaration)
-                    .is_some_and(|iife| {
-                        let argument_count = match self.record_of(iife).as_call_expression() {
-                            Some(call) => self.nodes_of(call.arguments).len(),
-                            _ => 0,
-                        };
-                        parameters.len() > argument_count
-                    });
+            // are optional) uses the call found at function entry.
+            let iife_optional = is_normal_parameter && type_node.is_none() && {
+                debug_assert_eq!(
+                    invocation,
+                    node_util::get_immediately_invoked_function_expression(&Published, declaration)
+                );
+                invocation.is_some_and(|iife| {
+                    let argument_count = match self.record_of(iife).as_call_expression() {
+                        Some(call) => self.nodes_of(call.arguments).len(),
+                        _ => 0,
+                    };
+                    parameters.len() > argument_count
+                })
+            };
             let is_optional_parameter = question_token.is_some()
                 || initializer.is_some()
                 || self.is_rest_parameter_declaration(parameter)
