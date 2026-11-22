@@ -493,3 +493,98 @@ fn raw_text_import_scan_occurrences() {
         check(name);
     }
 }
+
+#[test]
+fn collected_order_preserves_library_ties_redirects_and_root_diagnostics() {
+    let mut mixed = fixture("package_redirect");
+    // The root is admitted before the DOM reference and has a different
+    // display spelling, so the later replacement task promotes that source.
+    mixed.case_sensitive = false;
+    mixed.files.get_mut("a/main.ts").unwrap().insert_str(
+        0,
+        concat!(
+            "/// <reference lib=\"dom\" />\n",
+            "/// <reference lib=\"es5\" />\n",
+            "/// <reference lib=\"es2015\" />\n",
+        ),
+    );
+    let libs = fixture("library_trace_tail_order");
+    for (name, text) in libs.files {
+        if name.starts_with("node_modules/@typescript/") {
+            mixed.files.insert(name, text);
+        }
+    }
+    mixed.files.insert(
+        "node_modules/@typescript/lib-dom/package.json".into(),
+        r#"{"name":"@typescript/lib-dom","version":"1","types":"index.d.ts"}"#.into(),
+    );
+    mixed.files.insert(
+        "node_modules/@typescript/lib-dom/index.d.ts".into(),
+        "interface DOM {}".into(),
+    );
+    mixed.files.insert("tsconfig.json".into(), serde_json::json!({
+        "compilerOptions": { "module": "esnext", "moduleResolution": "bundler", "target": "es2022",
+            "types": [], "lib": ["es2015", "es5"], "libReplacement": true, "rootDir": "./src", "outDir": "./out" },
+        "files": ["globals.d.ts", "a/main.ts", "b/main.ts", "node_modules/@typescript/lib-dom/INDEX.d.ts"]
+    }).to_string());
+    let serial = load(&mixed, WorkerBudget::serial(), false);
+    let parallel = load(
+        &mixed,
+        WorkerBudget::new(NonZeroUsize::new(4).unwrap()),
+        false,
+    );
+    assert_eq!(
+        serial.library_files().len(),
+        3,
+        "{:?}",
+        serial.explain_files("/project".into())
+    );
+    for (&id, expected) in serial.library_files()[..2].iter().zip(&libs.list_files) {
+        assert_eq!(
+            serial.source_file(id).unwrap().path().display(),
+            expected.as_str()
+        );
+    }
+    assert_eq!(
+        serial.roots().last().unwrap().source(),
+        serial.library_files().last().copied(),
+        "{:?}",
+        serial.explain_files("/project".into())
+    );
+    assert_eq!(serial.package_redirect_files().len(), 1);
+    assert_eq!(
+        serial
+            .diagnostics()
+            .program()
+            .iter()
+            .filter(|d| d.code() == 6059)
+            .count(),
+        2
+    );
+    assert_eq!(
+        serial.diagnostics().program(),
+        parallel.diagnostics().program()
+    );
+    assert_eq!(
+        serial.package_redirect_files(),
+        parallel.package_redirect_files()
+    );
+    assert_eq!(
+        serial.explain_files("/project".into()),
+        parallel.explain_files("/project".into())
+    );
+    let sources = |program: &tsc_program::PreparedProgram| {
+        program
+            .source_files()
+            .iter()
+            .map(|s| {
+                (
+                    program.source_id(s.path().canonical()).unwrap(),
+                    s.path().clone(),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(sources(&serial), sources(&parallel));
+    assert_eq!(serial.library_files(), parallel.library_files());
+}

@@ -3106,9 +3106,6 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// The missing-library diagnostics by path: a root of the same path
     /// reports that diagnostic instead of its own.
     missing_library_diagnostics: FxHashMap<JsString, Diagnostic>,
-    /// The kept sources in program order, once the files are collected
-    /// (`finish`); the diagnostics located by program order read it.
-    program_order: Vec<usize>,
     roots: Vec<StagedRoot>,
     type_resolution_by_key: BTreeMap<TypeReferenceResolutionKey, usize>,
     module_batch_order: Vec<usize>,
@@ -3242,7 +3239,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             root_tasks: Vec::new(),
             stack: Vec::new(),
             missing_library_diagnostics: FxHashMap::default(),
-            program_order: Vec::new(),
             roots: Vec::new(),
             module_batch_order: Vec::new(),
             type_resolution_by_key: BTreeMap::new(),
@@ -4855,7 +4851,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         timer.mark("load: graph resolution targets");
         let collected = self.collect_files(timer)?;
         timer.mark("load: graph collection cleanup");
-        self.program_order = collected.order.clone();
         // Collection has fixed the parent spellings. Reasons reference this
         // one immutable source table instead of owning a path and text each.
         let reason_sources = Arc::new(
@@ -5061,7 +5056,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             self.program_diagnostics.push(diagnostic);
         }
         timer.mark("load: graph casing diagnostics");
-        let (option_diagnostics, root_diagnostics) = self.output_directory_diagnostics();
+        let (option_diagnostics, root_diagnostics) =
+            self.output_directory_diagnostics(&collected.order);
         timer.mark("load: graph output directory diagnostics");
         let (reference_diagnostics, build_info_emit_blocked) = self.project_reference_diagnostics();
         timer.mark("load: graph project reference diagnostics");
@@ -5074,12 +5070,19 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             });
             self.program_diagnostics.push(diagnostic);
         }
-        let mut library_postorder = collected
-            .order
-            .iter()
-            .copied()
-            .filter(|&source| self.sources[source].library_priority.is_some())
-            .collect::<Vec<_>>();
+        let mut library_postorder = Vec::new();
+        let mut ordinary_postorder = collected.order;
+        ordinary_postorder.retain(|&source| {
+            if self.sources[source].library_priority.is_some() {
+                library_postorder.push(source);
+                false
+            } else {
+                true
+            }
+        });
+        // The collection reserved space for every staged source, including
+        // discarded redirects. Only ordinary indices survive in this buffer.
+        ordinary_postorder.shrink_to_fit();
         if !library_postorder.is_empty() {
             library_postorder.sort_by_key(|&source| {
                 let staged = &self.sources[source];
@@ -5098,12 +5101,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 )
             });
         }
-        let ordinary_postorder = collected
-            .order
-            .iter()
-            .copied()
-            .filter(|&source| self.sources[source].library_priority.is_none())
-            .collect();
         let mut package_json_probes = self.read_ahead_package_json_probes;
         for resolver in self.project_resolvers.values_mut() {
             package_json_probes.extend(resolver.take_package_json_probes());
@@ -5112,7 +5109,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         if tsc_types::trace::enabled() {
             eprintln!(
                 "[load census] collected: sources {}, redirects {}, module rows {}, type rows {}, inclusion records {}",
-                collected.order.len(), collected.redirects.len(), self.sources.iter().map(|source| source.module_requests.rows.len()).sum::<usize>(), self.type_resolutions.len(),
+                ordinary_postorder.len() + library_postorder.len(), collected.redirects.len(), self.sources.iter().map(|source| source.module_requests.rows.len()).sum::<usize>(), self.type_resolutions.len(),
                 self.sources.iter().map(|source| source.inclusion_reasons.record_count()).sum::<usize>(),
             );
         }
@@ -5275,7 +5272,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// tsc-span: _tsc.js:124639-124657
     /// Root diagnostics join the Program collection; its consumers select
     /// fileless option diagnostics and source-owned semantic diagnostics.
-    fn output_directory_diagnostics(&self) -> (Vec<Diagnostic>, Vec<ExplainingFileDiagnostic>) {
+    fn output_directory_diagnostics(
+        &self,
+        program_order: &[usize],
+    ) -> (Vec<Diagnostic>, Vec<ExplainingFileDiagnostic>) {
         use crate::output_directories::{
             canonical_emit_path, common_source_directory, directory_relative_to_config,
             inferred_common_source_directory, source_file_may_be_emitted_for_options,
@@ -5308,8 +5308,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let context = self.resolver.path_context();
         let current_directory = context.current_directory().display();
         let case_sensitive = context.use_case_sensitive_file_names();
-        let emitted = self
-            .program_order
+        let emitted = program_order
             .iter()
             .map(|&index| &self.sources[index])
             .filter(|source| {
