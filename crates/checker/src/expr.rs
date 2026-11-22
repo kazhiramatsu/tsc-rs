@@ -550,7 +550,8 @@ impl<'a> CheckerState<'a> {
         check_mode: CheckMode,
         force_tuple: bool,
     ) -> CheckResult<TypeId> {
-        match self.kind_of(node) {
+        let record = self.record_of(node);
+        match record.kind {
             SyntaxKind::Identifier => self.check_identifier(node, check_mode),
             SyntaxKind::PrivateIdentifier => self.check_private_identifier_expression(node),
             SyntaxKind::ThisKeyword => self.check_this_expression(node),
@@ -560,7 +561,7 @@ impl<'a> CheckerState<'a> {
                 if self.has_skip_direct_inference_flag(node) {
                     return Ok(self.tables.intrinsics.blocked_string);
                 }
-                let text = match_record! { self.record_of(node), {
+                let text = match_record! { record, {
                     as_string_literal(data) => self.text_js(data.text),
                     as_no_substitution_template_literal(data) => self.text_js(data.text),
                     _ => unreachable!("kind/data agree"),
@@ -570,7 +571,7 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::NumericLiteral => {
                 self.check_grammar_numeric_literal(node)?;
-                let Some(data) = self.record_of(node).as_numeric_literal() else {
+                let Some(data) = record.as_numeric_literal() else {
                     unreachable!("kind/data agree");
                 };
                 let value = crate::annotate::parse_numeric_literal_text(self.text_utf8(data.text))?;
