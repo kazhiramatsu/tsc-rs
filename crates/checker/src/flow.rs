@@ -4571,6 +4571,13 @@ impl<'a> CheckerState<'a> {
     /// an explicit pre-order stack in a suffix of child_scratch. Reverse
     /// only the newly appended children to retain left-to-right order.
     /// Reentrant walks preserve the caller's pending nodes in the prefix.
+    ///
+    /// A child at which the step ([`Self::mark_assignment_at`]) has nothing
+    /// to do and below which there is nothing is not pushed
+    /// ([`assignment_walk_visits`]): most of a tree's nodes are tokens, and
+    /// each cost the walk a push, a pop, a kind read and a call of the child
+    /// visitor that found no child. The nodes the step acts on are pushed
+    /// and popped in the order they always were.
     fn mark_node_assignments(&mut self, root: NodeId) -> CheckResult<()> {
         let first = self.child_scratch.len();
         self.child_scratch.push(root);
@@ -4582,90 +4589,120 @@ impl<'a> CheckerState<'a> {
     fn mark_node_assignments_worker(&mut self, first: usize) -> CheckResult<()> {
         while self.child_scratch.len() > first {
             let node = self.child_scratch.pop().expect("assignment walk node");
-            match self.kind_of(node) {
-                SyntaxKind::Identifier => {
-                    let assignment_target = self.get_assignment_target_kind(node);
-                    if assignment_target != crate::expr::AssignmentKind::None {
-                        let Some(symbol) = self.get_resolved_symbol(node)? else {
-                            continue;
-                        };
-                        let previous = self.links.symbol_cold().last_assignment_pos.get(symbol);
-                        let has_definite_assignment = assignment_target
-                            == crate::expr::AssignmentKind::Definite
-                            || previous.is_some_and(|pos| pos < 0);
-                        if self.is_parameter_or_mutable_local_variable(symbol) {
-                            if previous.is_none_or(|pos| pos.abs() != i64::MAX) {
-                                let referencing_function =
-                                    self.find_ancestor(Some(node), |state, n| {
-                                        if state.is_function_or_source_file(n) {
-                                            crate::expr::Ancestor::Yes
-                                        } else {
-                                            crate::expr::Ancestor::No
-                                        }
-                                    });
-                                let declaring_function =
-                                    self.binder.symbol(symbol).value_declaration.and_then(
-                                        |declaration| {
-                                            self.find_ancestor(Some(declaration), |state, n| {
-                                                if state.is_function_or_source_file(n) {
-                                                    crate::expr::Ancestor::Yes
-                                                } else {
-                                                    crate::expr::Ancestor::No
-                                                }
-                                            })
-                                        },
-                                    );
-                                let pos = if referencing_function == declaring_function {
-                                    let declaration = self
-                                        .binder
-                                        .symbol(symbol)
-                                        .value_declaration
-                                        .expect("parameter-or-mutable-local has a declaration");
-                                    self.extend_assignment_position(node, declaration)
-                                } else {
-                                    i64::MAX
-                                };
-                                self.links.set_symbol_last_assignment_pos(
-                                    self.speculation_depth,
-                                    symbol,
-                                    Some(pos),
-                                );
-                            }
-                            if has_definite_assignment {
-                                let current =
-                                    self.links.symbol_cold().last_assignment_pos.get(symbol);
-                                if let Some(pos) = current {
-                                    if pos > 0 {
-                                        self.links.set_symbol_last_assignment_pos(
-                                            self.speculation_depth,
-                                            symbol,
-                                            Some(-pos),
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    continue;
-                }
-                SyntaxKind::ExportSpecifier => {
-                    self.mark_export_specifier_assignment(node)?;
-                    continue;
-                }
-                SyntaxKind::InterfaceDeclaration
-                | SyntaxKind::TypeAliasDeclaration
-                | SyntaxKind::EnumDeclaration => continue,
-                kind if self.is_type_node_kind(kind) => continue,
-                _ => {}
+            if !self.mark_assignment_at(node)? {
+                continue;
             }
+            let holds_targets = holds_assignment_targets(self.kind_of(node));
             let first_child = self.child_scratch.len();
             tsc_syntax::for_each_child(&Published, Published.node(node), |child| {
-                self.child_scratch.push(child);
+                let record = Published.node(child);
+                // The parent an identifier's target test starts from is the
+                // child's own; it is the node being expanded, whose kind is
+                // at hand.
+                let below_target_holder = if record.parent == Some(node) {
+                    holds_targets
+                } else {
+                    record
+                        .parent
+                        .is_some_and(|parent| holds_assignment_targets(Published.node(parent).kind))
+                };
+                if assignment_walk_visits(record.kind, below_target_holder) {
+                    self.child_scratch.push(child);
+                } else {
+                    debug_assert!(
+                        record.kind.value() > SyntaxKind::LastToken.value()
+                            || tsc_syntax::for_each_child(&Published, record, |_| true).is_none(),
+                        "a token has no child for the walk to miss"
+                    );
+                }
                 false
             });
             self.child_scratch[first_child..].reverse();
         }
         Ok(())
+    }
+
+    /// The walk's step at one node; `true` when the walk goes on into the
+    /// node's children. An identifier in an assignment target's position
+    /// marks its symbol, an export specifier marks the local it re-exports,
+    /// and nothing below either is visited; a type node, an interface, a
+    /// type alias and an enum hold no assignment the walk counts.
+    fn mark_assignment_at(&mut self, node: NodeId) -> CheckResult<bool> {
+        match self.kind_of(node) {
+            SyntaxKind::Identifier => {
+                let assignment_target = self.get_assignment_target_kind(node);
+                if assignment_target != crate::expr::AssignmentKind::None {
+                    let Some(symbol) = self.get_resolved_symbol(node)? else {
+                        return Ok(false);
+                    };
+                    let previous = self.links.symbol_cold().last_assignment_pos.get(symbol);
+                    let has_definite_assignment = assignment_target
+                        == crate::expr::AssignmentKind::Definite
+                        || previous.is_some_and(|pos| pos < 0);
+                    if self.is_parameter_or_mutable_local_variable(symbol) {
+                        if previous.is_none_or(|pos| pos.abs() != i64::MAX) {
+                            let referencing_function =
+                                self.find_ancestor(Some(node), |state, n| {
+                                    if state.is_function_or_source_file(n) {
+                                        crate::expr::Ancestor::Yes
+                                    } else {
+                                        crate::expr::Ancestor::No
+                                    }
+                                });
+                            let declaring_function =
+                                self.binder.symbol(symbol).value_declaration.and_then(
+                                    |declaration| {
+                                        self.find_ancestor(Some(declaration), |state, n| {
+                                            if state.is_function_or_source_file(n) {
+                                                crate::expr::Ancestor::Yes
+                                            } else {
+                                                crate::expr::Ancestor::No
+                                            }
+                                        })
+                                    },
+                                );
+                            let pos = if referencing_function == declaring_function {
+                                let declaration = self
+                                    .binder
+                                    .symbol(symbol)
+                                    .value_declaration
+                                    .expect("parameter-or-mutable-local has a declaration");
+                                self.extend_assignment_position(node, declaration)
+                            } else {
+                                i64::MAX
+                            };
+                            self.links.set_symbol_last_assignment_pos(
+                                self.speculation_depth,
+                                symbol,
+                                Some(pos),
+                            );
+                        }
+                        if has_definite_assignment {
+                            let current = self.links.symbol_cold().last_assignment_pos.get(symbol);
+                            if let Some(pos) = current {
+                                if pos > 0 {
+                                    self.links.set_symbol_last_assignment_pos(
+                                        self.speculation_depth,
+                                        symbol,
+                                        Some(-pos),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+                Ok(false)
+            }
+            SyntaxKind::ExportSpecifier => {
+                self.mark_export_specifier_assignment(node)?;
+                Ok(false)
+            }
+            SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::EnumDeclaration => Ok(false),
+            kind if self.is_type_node_kind(kind) => Ok(false),
+            _ => Ok(true),
+        }
     }
 
     /// The ExportSpecifier arm of markNodeAssignments (71549-71565):
@@ -5024,6 +5061,45 @@ impl<'a> CheckerState<'a> {
             /*no_tuple_bounds_check*/ true,
         )?))
     }
+}
+
+/// The parents below which an identifier can be (part of) an assignment's
+/// target: the kinds at which [`CheckerState::get_assignment_target`] does
+/// not return `None` at once. Below any other parent an identifier is no
+/// target, whatever lies above.
+pub(crate) fn holds_assignment_targets(parent: SyntaxKind) -> bool {
+    matches!(
+        parent,
+        SyntaxKind::BinaryExpression
+            | SyntaxKind::PrefixUnaryExpression
+            | SyntaxKind::PostfixUnaryExpression
+            | SyntaxKind::ForInStatement
+            | SyntaxKind::ForOfStatement
+            | SyntaxKind::ParenthesizedExpression
+            | SyntaxKind::ArrayLiteralExpression
+            | SyntaxKind::SpreadElement
+            | SyntaxKind::NonNullExpression
+            | SyntaxKind::SpreadAssignment
+            | SyntaxKind::ShorthandPropertyAssignment
+            | SyntaxKind::PropertyAssignment
+    )
+}
+
+/// Whether the assignment walk has to visit a child of this kind: whether
+/// its step does something there or there are children below it. A token
+/// has no children, and the step acts on one only when it is an identifier
+/// below a parent that can hold a target (`below_target_holder`); a type
+/// node, an interface, a type alias and an enum are returned from at once.
+pub(crate) fn assignment_walk_visits(kind: SyntaxKind, below_target_holder: bool) -> bool {
+    if kind.value() <= SyntaxKind::LastToken.value() {
+        return kind == SyntaxKind::Identifier && below_target_holder;
+    }
+    !(matches!(
+        kind,
+        SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::EnumDeclaration
+    ) || crate::resolve::type_node_kind(kind))
 }
 
 #[cfg(test)]

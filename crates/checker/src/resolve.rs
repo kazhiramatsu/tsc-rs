@@ -3193,29 +3193,35 @@ impl<'a> CheckerState<'a> {
     /// tsgo `ast.IsTypeNodeKind` (utilities.go:775-798), with the JSDoc
     /// types.
     pub(crate) fn is_type_node_kind(&self, kind: SyntaxKind) -> bool {
-        (kind >= SyntaxKind::TypePredicate && kind <= SyntaxKind::ImportType)
-            || matches!(
-                kind,
-                SyntaxKind::AnyKeyword
-                    | SyntaxKind::UnknownKeyword
-                    | SyntaxKind::NumberKeyword
-                    | SyntaxKind::BigIntKeyword
-                    | SyntaxKind::ObjectKeyword
-                    | SyntaxKind::BooleanKeyword
-                    | SyntaxKind::StringKeyword
-                    | SyntaxKind::SymbolKeyword
-                    | SyntaxKind::VoidKeyword
-                    | SyntaxKind::UndefinedKeyword
-                    | SyntaxKind::NeverKeyword
-                    | SyntaxKind::IntrinsicKeyword
-                    | SyntaxKind::ExpressionWithTypeArguments
-                    | SyntaxKind::JSDocAllType
-                    | SyntaxKind::JSDocNullableType
-                    | SyntaxKind::JSDocNonNullableType
-                    | SyntaxKind::JSDocOptionalType
-                    | SyntaxKind::JSDocVariadicType
-            )
+        type_node_kind(kind)
     }
+}
+
+/// [`CheckerState::is_type_node_kind`] without a checker: the test reads the
+/// kind alone.
+pub(crate) fn type_node_kind(kind: SyntaxKind) -> bool {
+    (kind >= SyntaxKind::TypePredicate && kind <= SyntaxKind::ImportType)
+        || matches!(
+            kind,
+            SyntaxKind::AnyKeyword
+                | SyntaxKind::UnknownKeyword
+                | SyntaxKind::NumberKeyword
+                | SyntaxKind::BigIntKeyword
+                | SyntaxKind::ObjectKeyword
+                | SyntaxKind::BooleanKeyword
+                | SyntaxKind::StringKeyword
+                | SyntaxKind::SymbolKeyword
+                | SyntaxKind::VoidKeyword
+                | SyntaxKind::UndefinedKeyword
+                | SyntaxKind::NeverKeyword
+                | SyntaxKind::IntrinsicKeyword
+                | SyntaxKind::ExpressionWithTypeArguments
+                | SyntaxKind::JSDocAllType
+                | SyntaxKind::JSDocNullableType
+                | SyntaxKind::JSDocNonNullableType
+                | SyntaxKind::JSDocOptionalType
+                | SyntaxKind::JSDocVariadicType
+        )
 }
 
 impl<'a> CheckerState<'a> {

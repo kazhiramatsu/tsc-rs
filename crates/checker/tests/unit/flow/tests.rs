@@ -34,6 +34,169 @@ fn assignment_walk_keeps_the_last_write_definite_assignment_and_scratch_prefix()
     );
 }
 
+/// The last-assignment position of every variable, parameter and binding
+/// element of `text`, by the declaration's place in the text, after the
+/// walk over the whole file: the product's walk, or (`exhaustive`) the walk
+/// as the reference writes it, which takes the step at every node of the
+/// tree in pre-order.
+fn last_assignment_positions(text: &str, exhaustive: bool) -> Vec<(u32, Option<i64>)> {
+    use tsc_syntax::{NodeLookup, Published, SyntaxKind};
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let root = state.binder.source(0).root;
+        if exhaustive {
+            let mut stack = vec![root];
+            while let Some(node) = stack.pop() {
+                if state.mark_assignment_at(node).unwrap() {
+                    let first = stack.len();
+                    tsc_syntax::for_each_child(&Published, Published.node(node), |child| {
+                        stack.push(child);
+                        false
+                    });
+                    stack[first..].reverse();
+                }
+            }
+        } else {
+            state.mark_node_assignments(root).unwrap();
+            assert!(state.child_scratch.is_empty());
+        }
+        let mut positions = Vec::new();
+        for node in state.binder.source(0).arena.node_ids() {
+            if !matches!(
+                state.kind_of(node),
+                SyntaxKind::VariableDeclaration
+                    | SyntaxKind::Parameter
+                    | SyntaxKind::BindingElement
+            ) {
+                continue;
+            }
+            if let Some(symbol) = state.get_symbol_of_declaration_opt(node) {
+                positions.push((
+                    state.pos_of(node),
+                    state.links.symbol_cold().last_assignment_pos.get(symbol),
+                ));
+            }
+        }
+        positions.sort_unstable();
+        positions
+    })
+}
+
+/// The walk leaves out the children at which its step does nothing and
+/// below which there is nothing. What it marks is what a walk over every
+/// node marks: plain, compound and logical assignments, increments,
+/// destructuring through arrays, objects, shorthands, spreads, defaults,
+/// parentheses and non-null assertions, `for` heads, assignments in nested
+/// functions and after them, exported locals, and the places the walk does
+/// not enter (type nodes, interfaces, type aliases, enums).
+#[test]
+fn the_assignment_walk_marks_what_a_walk_over_every_node_marks() {
+    let text = r#"
+export {};
+declare const source: any;
+let plain = 0, compound = 0, logical: any, bumped = 0, dropped = 0;
+let inArray = 0, inSpread: any[] = [], inObject = 0, shorthand = 0, rest: any = {}, withDefault = 0;
+let parenthesized = 0, nonNull: any, loopIn: any, loopOf: any, nested = 0, later = 0, untouched = 0;
+let viaExport = 0, onlyRead = 1, inType = 0, inEnum = 0, inInterface = 0, twice = 0;
+function outer(parameter: number, assigned: number, { bound, alsoBound }: { bound: number; alsoBound: number }) {
+    plain = 1;
+    compound += parameter;
+    logical ??= source;
+    bumped++;
+    --dropped;
+    [inArray, ...inSpread] = source;
+    ({ key: inObject, shorthand, ...rest } = source);
+    [withDefault = 5] = source;
+    (parenthesized) = 2;
+    nonNull! = 3;
+    for (loopIn in source) { twice = 1; }
+    for (loopOf of source) { if (source) { twice = 2; } }
+    assigned = onlyRead + untouched;
+    bound = alsoBound;
+    const inner = () => { nested = 4; };
+    inner();
+    later = nested;
+    type Computed = { [K in keyof typeof source]: typeof inType };
+    interface Shape { member: typeof inInterface }
+    enum Members { First = inEnum }
+    let local: Computed | Shape | Members | undefined;
+    local = undefined;
+    return source.property.plain;
+}
+export { viaExport, viaExport as renamed };
+outer(plain, compound, source);
+"#;
+    let product = last_assignment_positions(text, false);
+    let exhaustive = last_assignment_positions(text, true);
+    assert_eq!(product, exhaustive);
+    // The table is not empty of marks, and it has both kinds of them.
+    assert!(product.iter().filter(|(_, pos)| pos.is_some()).count() >= 18);
+    assert!(product.iter().any(|(_, pos)| *pos == Some(i64::MAX)));
+    assert!(product
+        .iter()
+        .any(|(_, pos)| pos.is_some_and(|pos| pos < 0)));
+    assert!(product.iter().any(|(_, pos)| pos.is_none()));
+}
+
+/// The two tests the walk makes of a child's kind, over every kind: a
+/// token is visited only as an identifier below a parent that can hold an
+/// assignment's target, and those parents are the twelve kinds at which
+/// `get_assignment_target` goes on; a type node, an interface, a type alias
+/// and an enum are not entered; every other node is.
+#[test]
+fn the_assignment_walk_visits_identifiers_below_target_holders_and_every_node_it_enters() {
+    use tsc_syntax::SyntaxKind;
+    let holders = [
+        SyntaxKind::BinaryExpression,
+        SyntaxKind::PrefixUnaryExpression,
+        SyntaxKind::PostfixUnaryExpression,
+        SyntaxKind::ForInStatement,
+        SyntaxKind::ForOfStatement,
+        SyntaxKind::ParenthesizedExpression,
+        SyntaxKind::ArrayLiteralExpression,
+        SyntaxKind::SpreadElement,
+        SyntaxKind::NonNullExpression,
+        SyntaxKind::SpreadAssignment,
+        SyntaxKind::ShorthandPropertyAssignment,
+        SyntaxKind::PropertyAssignment,
+    ];
+    let mut kinds = 0;
+    for value in 0..=u16::MAX {
+        let Some(kind) = SyntaxKind::from_u16(value) else {
+            continue;
+        };
+        kinds += 1;
+        assert_eq!(
+            super::holds_assignment_targets(kind),
+            holders.contains(&kind),
+            "{kind:?}"
+        );
+        for below in [false, true] {
+            let visits = super::assignment_walk_visits(kind, below);
+            let expected = if value <= SyntaxKind::LastToken.value() {
+                kind == SyntaxKind::Identifier && below
+            } else {
+                !matches!(
+                    kind,
+                    SyntaxKind::InterfaceDeclaration
+                        | SyntaxKind::TypeAliasDeclaration
+                        | SyntaxKind::EnumDeclaration
+                ) && !crate::resolve::type_node_kind(kind)
+            };
+            assert_eq!(visits, expected, "{kind:?} below a holder: {below}");
+        }
+    }
+    assert!(kinds > 300);
+    // A type keyword is a token and a type node: not visited either way.
+    assert!(!super::assignment_walk_visits(
+        SyntaxKind::StringKeyword,
+        true
+    ));
+    assert!(super::assignment_walk_visits(
+        SyntaxKind::ExportSpecifier,
+        false
+    ));
+}
+
 #[test]
 fn flow_type_accessors() {
     let ty = tsc_types::TypeId::new(7);
