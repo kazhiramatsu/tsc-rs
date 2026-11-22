@@ -23,6 +23,35 @@ use tsc_binder::NameKey;
 use tsc_types::perf::{self, PerfCounter};
 
 impl<'a> CheckerState<'a> {
+    /// The receiver at the start of an optional chain and the left operand
+    /// of a nullish operator are tested for presence.
+    #[inline]
+    fn is_optionality_operand(&self, expr: NodeId) -> bool {
+        let Some(parent) = self.parent_of(expr) else {
+            return false;
+        };
+        let parent = self.record_of(parent);
+        if let Some(binary) = parent.as_binary_expression() {
+            return binary.left == Some(expr)
+                && binary.operator_token.is_some_and(|token| {
+                    matches!(
+                        self.kind_of(token),
+                        SyntaxKind::QuestionQuestionToken | SyntaxKind::QuestionQuestionEqualsToken
+                    )
+                });
+        }
+        if parent.flags & tsc_types::NodeFlags::OPTIONAL_CHAIN.bits() == 0 {
+            return false;
+        }
+        let (receiver, token) = match_record! { parent, {
+            as_property_access_expression(data) => (data.expression, data.question_dot_token),
+            as_element_access_expression(data) => (data.expression, data.question_dot_token),
+            as_call_expression(data) => (data.expression, data.question_dot_token),
+            _ => return false,
+        }};
+        token.is_some() && receiver == Some(expr)
+    }
+
     /// tsc-port: narrowType @6.0.3
     /// tsc-hash: 27ad08800fadb3f5234051fdb384cffe54850849b9ba6eca2c94f97e7979a821
     /// tsc-span: _tsc.js:71400-71439
@@ -41,27 +70,7 @@ impl<'a> CheckerState<'a> {
         expr: NodeId,
         assume_true: bool,
     ) -> CheckResult<TypeId> {
-        let optionality = node_util::is_expression_of_optional_chain_root(&Published, expr) || {
-            match self.parent_of(expr) {
-                Some(parent) if self.kind_of(parent) == SyntaxKind::BinaryExpression => {
-                    match self.record_of(parent).as_binary_expression() {
-                        Some(data) => {
-                            data.left == Some(expr)
-                                && data.operator_token.is_some_and(|operator| {
-                                    matches!(
-                                        self.kind_of(operator),
-                                        SyntaxKind::QuestionQuestionToken
-                                            | SyntaxKind::QuestionQuestionEqualsToken
-                                    )
-                                })
-                        }
-                        _ => false,
-                    }
-                }
-                _ => false,
-            }
-        };
-        if optionality {
+        if self.is_optionality_operand(expr) {
             return self.narrow_type_by_optionality(query, ty, expr, assume_true);
         }
         match self.kind_of(expr) {
