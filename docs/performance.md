@@ -18,7 +18,7 @@ slower build.
 
 ## Latest numbers
 
-Type check (`--noEmit`) of eight open-source projects, November 19, 2026:
+Type check (`--noEmit`) of eight open-source projects, November 22, 2026:
 wall-clock time and peak memory (the peak memory footprint reported by
 `/usr/bin/time -l`), median of 9 interleaved runs (the order of the compilers
 rotated every round, one untimed run before each project), on an Apple M5
@@ -28,14 +28,14 @@ default settings.
 
 | Project | tsgo | tsrs | tsc-rs |
 | --- | ---: | ---: | ---: |
-| VS Code `src` | 4.71 s · 6,259 MiB | 2.07 s · 2,286 MiB | 2.05 s · 2,388 MiB |
-| Next.js `packages/next` | 1.37 s · 1,500 MiB | 0.51 s · 575 MiB | 0.54 s · 515 MiB |
-| zod | 0.90 s · 1,578 MiB | 0.32 s · 581 MiB | 0.32 s · 532 MiB |
-| Effect `packages/effect` | 0.79 s · 1,074 MiB | 0.34 s · 432 MiB | 0.31 s · 413 MiB |
-| Playwright | 0.58 s · 938 MiB | 0.21 s · 351 MiB | 0.24 s · 374 MiB |
-| Vue | 0.54 s · 669 MiB | 0.21 s · 231 MiB | 0.23 s · 236 MiB |
-| TypeScript `src/compiler` | 0.36 s · 374 MiB | 0.15 s · 139 MiB | 0.16 s · 166 MiB |
-| hono | 0.17 s · 258 MiB | 0.06 s · 109 MiB | 0.06 s · 110 MiB |
+| VS Code `src` | 4.85 s · 6,186 MiB | 1.98 s · 2,281 MiB | 1.92 s · 2,330 MiB |
+| Next.js `packages/next` | 1.32 s · 1,518 MiB | 0.49 s · 575 MiB | 0.50 s · 510 MiB |
+| zod | 0.89 s · 1,593 MiB | 0.32 s · 581 MiB | 0.30 s · 529 MiB |
+| Effect `packages/effect` | 0.79 s · 1,087 MiB | 0.32 s · 432 MiB | 0.30 s · 415 MiB |
+| Playwright | 0.58 s · 905 MiB | 0.21 s · 352 MiB | 0.22 s · 373 MiB |
+| Vue | 0.54 s · 667 MiB | 0.20 s · 231 MiB | 0.20 s · 246 MiB |
+| TypeScript `src/compiler` | 0.37 s · 367 MiB | 0.15 s · 139 MiB | 0.16 s · 170 MiB |
+| hono | 0.17 s · 260 MiB | 0.06 s · 109 MiB | 0.06 s · 112 MiB |
 
 tsc-rs printed exactly `tsgo`'s output (diagnostics and exit status) on all
 eight projects.
@@ -45,23 +45,23 @@ tsc-rs ([the fast preset](#the-fast-preset)):
 
 | Project | tsrs `--fast` | tsc-rs `TSRS_FAST=1` |
 | --- | ---: | ---: |
-| VS Code `src` | 1.19 s · 1,832 MiB | 1.51 s · 2,503 MiB |
-| Next.js `packages/next` | 0.28 s · 558 MiB | 0.33 s · 615 MiB |
-| zod | 0.21 s · 503 MiB | 0.27 s · 554 MiB |
-| Effect `packages/effect` | 0.22 s · 388 MiB | 0.27 s · 425 MiB |
-| Playwright | 0.15 s · 345 MiB | 0.19 s · 425 MiB |
-| Vue | 0.13 s · 253 MiB | 0.16 s · 290 MiB |
-| TypeScript `src/compiler` | 0.13 s · 138 MiB | 0.14 s · 162 MiB |
-| hono | 0.05 s · 95 MiB | 0.05 s · 121 MiB |
+| VS Code `src` | 1.17 s · 1,828 MiB | 1.33 s · 2,446 MiB |
+| Next.js `packages/next` | 0.27 s · 561 MiB | 0.31 s · 636 MiB |
+| zod | 0.21 s · 502 MiB | 0.24 s · 557 MiB |
+| Effect `packages/effect` | 0.21 s · 387 MiB | 0.26 s · 431 MiB |
+| Playwright | 0.14 s · 345 MiB | 0.17 s · 447 MiB |
+| Vue | 0.13 s · 254 MiB | 0.15 s · 312 MiB |
+| TypeScript `src/compiler` | 0.13 s · 137 MiB | 0.13 s · 164 MiB |
+| hono | 0.05 s · 95 MiB | 0.05 s · 119 MiB |
 
 Compilers:
 
 - tsc-rs: main at
-  [`a403423df`](https://github.com/kazhiramatsu/tsc-rs/commit/a403423df),
+  [`c6aa12d36`](https://github.com/kazhiramatsu/tsc-rs/commit/c6aa12d36),
   `cargo build --release`.
 - `tsgo`: TypeScript 7.1 built from the commit tsc-rs follows (`aa814927`).
-- [tsrs](https://github.com/oxc-project/tsrs) 0.23.0 (TypeScript
-  7.1.0-beta), built from source with its release profile.
+- [tsrs](https://github.com/oxc-project/tsrs) 7.1.0-beta.tsrs3, built from
+  source with its release profile.
 - No profile-guided optimization (PGO) on either Rust compiler: both are
   plain release builds. The binaries tsrs publishes are PGO builds (and
   BOLT-optimized on Linux); a PGO build of tsc-rs is not part of this
@@ -273,7 +273,7 @@ the preset.
 Its numbers beside the default and tsrs: [Latest numbers](#latest-numbers).
 
 The preset uses more memory, as every checker keeps its own type tables
-(VS Code: 2,388 MiB by default, 2,503 MiB with the preset).
+(VS Code: 2,330 MiB by default, 2,446 MiB with the preset).
 
 ## The lane profile
 
