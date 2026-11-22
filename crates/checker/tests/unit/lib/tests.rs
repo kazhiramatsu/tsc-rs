@@ -9037,3 +9037,35 @@ fn ledger_rows_group_by_the_file_index_of_their_capture() {
         .iter()
         .all(|row| row.file_name.as_ref().map(JsString::as_js) == Some("/a.ts".into())));
 }
+
+/// The cursor of the merge's line tables: every index below the count goes
+/// to exactly one of the threads that ask, and once they are gone every
+/// call finds nothing, however often it is repeated.
+#[test]
+fn every_index_is_handed_out_once_whichever_thread_asks() {
+    let cursor = OnceEachIndex::new(1000);
+    let taken: Vec<Vec<usize>> = std::thread::scope(|scope| {
+        let handles: Vec<_> = (0..4)
+            .map(|_| {
+                scope.spawn(|| {
+                    let mut mine = Vec::new();
+                    while let Some(index) = cursor.take() {
+                        mine.push(index);
+                    }
+                    mine
+                })
+            })
+            .collect();
+        handles
+            .into_iter()
+            .map(|handle| handle.join().unwrap())
+            .collect()
+    });
+    let mut all: Vec<usize> = taken.into_iter().flatten().collect();
+    all.sort_unstable();
+    assert_eq!(all, (0..1000).collect::<Vec<_>>());
+    for _ in 0..3 {
+        assert_eq!(cursor.take(), None);
+    }
+    assert_eq!(OnceEachIndex::new(0).take(), None);
+}

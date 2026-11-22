@@ -4392,6 +4392,109 @@ fn run_shard_eager<'a>(
     state
 }
 
+/// Whether the merge assembles the rows of `file` (it leaves out a file the
+/// run did not select and a file whose type check is skipped).
+fn merge_assembles_file(
+    snapshot: &ProgramSnapshot,
+    options: &CompilerOptions,
+    selected: Option<&[bool]>,
+    file: usize,
+) -> bool {
+    selected.is_none_or(|selected| selected[file])
+        && !should_skip_type_checking_file(
+            snapshot.document(file).source(),
+            snapshot.file_facts(ProgramFileId::from_raw(
+                u32::try_from(file).expect("program file index"),
+            )),
+            options,
+        )
+}
+
+/// The line tables the merge will ask for, built by the shards that have
+/// finished their files while the others still check.
+///
+/// The merge filters every assembled file's rows by the file's comment
+/// directives, which key on lines: for each such file it needs the line
+/// tables, a pass over the file's text, and it runs on the coordinator alone
+/// after the last shard. The tables are a function of the immutable text and
+/// live in the source's position index, built once by whoever asks first. So
+/// a shard with nothing left to check builds them: the cursor hands each
+/// Program file to one of the threads that arrive. The longest shard usually
+/// finds none left; shards that finish together share the pass. No row,
+/// count or order depends on which thread built a table, or on whether one
+/// was built here at all.
+struct MergeLineTables<'a> {
+    files: OnceEachIndex,
+    snapshot: &'a ProgramSnapshot,
+    options: &'a CompilerOptions,
+    selected: Option<&'a [bool]>,
+}
+
+/// Hands each index below a count to exactly one caller, whichever thread
+/// asks; afterwards every call finds nothing left.
+struct OnceEachIndex {
+    next: std::sync::atomic::AtomicUsize,
+    count: usize,
+}
+
+impl OnceEachIndex {
+    fn new(count: usize) -> Self {
+        Self {
+            next: std::sync::atomic::AtomicUsize::new(0),
+            count,
+        }
+    }
+
+    fn take(&self) -> Option<usize> {
+        use std::sync::atomic::Ordering::Relaxed;
+        let index = self.next.fetch_add(1, Relaxed);
+        if index < self.count {
+            return Some(index);
+        }
+        // Keep the counter from creeping towards overflow under repeated
+        // calls. It never goes back below the count: an index is handed out
+        // only by an addition that found it, and none finds it twice.
+        self.next.store(self.count, Relaxed);
+        None
+    }
+}
+
+impl<'a> MergeLineTables<'a> {
+    fn new(
+        snapshot: &'a ProgramSnapshot,
+        options: &'a CompilerOptions,
+        selected: Option<&'a [bool]>,
+    ) -> Self {
+        Self {
+            files: OnceEachIndex::new(snapshot.documents().len()),
+            snapshot,
+            options,
+            selected,
+        }
+    }
+
+    /// Build the tables of the files no thread has taken yet.
+    fn build_remaining(&self, shard_index: usize) {
+        let started = std::time::Instant::now();
+        let mut built = 0usize;
+        while let Some(file) = self.files.take() {
+            let source = self.snapshot.document(file).source();
+            if !source.comment_directives.is_empty()
+                && merge_assembles_file(self.snapshot, self.options, self.selected, file)
+            {
+                let _ = source.positions().line_count();
+                built += 1;
+            }
+        }
+        if built != 0 && tsc_types::trace::enabled() {
+            tsc_types::trace::mark(
+                &format!("shard {shard_index}: line tables for the merge ({built} files)"),
+                started,
+            );
+        }
+    }
+}
+
 /// Run one checker shard on the calling thread: construct its `ProgramBinder`
 /// and `CheckerState` over the shared immutable snapshot with the provider the
 /// coordinator created for it, initialize, check the shard's files, and
@@ -4420,6 +4523,7 @@ fn run_checker_shard<'a>(
     eager_remaining: &std::sync::atomic::AtomicUsize,
     incremental_facts: bool,
     selected: Option<&[bool]>,
+    merge_line_tables: &MergeLineTables<'_>,
 ) -> (ShardOutput, Option<state::CheckerState<'a>>) {
     let shard_started = std::time::Instant::now();
     let mut state = init_checker_state(
@@ -4619,6 +4723,7 @@ fn run_checker_shard<'a>(
         };
     }
     if keep_state {
+        merge_line_tables.build_remaining(shard_index);
         return (output, Some(state));
     }
     if leak_state {
@@ -4637,6 +4742,8 @@ fn run_checker_shard<'a>(
         }
         std::mem::forget(state);
     }
+    // This shard's part is over; the coordinator still waits for the others.
+    merge_line_tables.build_remaining(shard_index);
     (output, None)
 }
 
@@ -4754,16 +4861,7 @@ fn merge_shard_outputs(
     let file_count = snapshot.documents().len();
     let rows = ledger_rows_by_file(outputs.iter().map(|output| &output.ledger), file_count);
     let unselected = |file: usize| selected.is_some_and(|selected| !selected[file]);
-    let skip = |file: usize| {
-        unselected(file)
-            || should_skip_type_checking_file(
-                snapshot.document(file).source(),
-                snapshot.file_facts(ProgramFileId::from_raw(
-                    u32::try_from(file).expect("program file index"),
-                )),
-                options,
-            )
-    };
+    let skip = |file: usize| !merge_assembles_file(snapshot, options, selected, file);
     // Most runs record no partially checked range: then no shard's table is
     // asked for each file.
     let any_ranges = outputs
@@ -5424,6 +5522,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let eager_remaining = std::sync::atomic::AtomicUsize::new(shard_count);
     // The last shard to finish initialization releases the lists. A later
     // standalone serial replay initializes from the published documents.
+    let merge_line_tables = MergeLineTables::new(&snapshot, options, selected.as_deref());
     let run_shard = |shard_index: usize, augmentations| {
         run_checker_shard(
             shard_index,
@@ -5446,6 +5545,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             &eager_remaining,
             run.incremental_facts,
             selected.as_deref(),
+            &merge_line_tables,
         )
     };
     #[allow(clippy::large_enum_variant)]
