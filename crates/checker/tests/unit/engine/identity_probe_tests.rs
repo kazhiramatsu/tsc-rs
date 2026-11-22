@@ -627,9 +627,11 @@ fn empty_anonymous_objects_keep_late_members_and_unresolved_taint() {
 
 #[test]
 fn literal_rejection_matches_payload_equality_for_every_relation() {
-    let source = "namespace A { export enum E { X = 0 } }
-        namespace B { export enum E { X = 0 } }
-        let a: A.E.X; let b: B.E.X;";
+    let source = "namespace A { export enum E { X = -0, Y = 's' } }
+        namespace B { export enum E { X = 0, Y = 's' } }
+        namespace C { export enum E { X = 0, Y = 's', Z = 3 } }
+        let a: A.E.X; let b: B.E.X; let c: C.E.X;
+        let ay: A.E.Y; let by: B.E.Y; let cz: C.E.Z;";
     with_program_state(&[("a.ts", source)], &CompilerOptions::default(), |state| {
         let a = resolve(state, "a");
         let b = resolve(state, "b");
@@ -647,7 +649,22 @@ fn literal_rejection_matches_payload_equality_for_every_relation() {
             });
         let high = state.tables.get_string_literal_type_from_utf16(&[0xd800]);
         let replacement = state.tables.get_string_literal_type_from_utf16(&[0xfffd]);
-        let values = [a, b, zero, nan, other_nan, big, high, replacement];
+        let c = resolve(state, "c");
+        let values = [
+            a,
+            b,
+            c,
+            resolve(state, "ay"),
+            resolve(state, "by"),
+            resolve(state, "cz"),
+            state.tables.get_string_literal_type("s"),
+            zero,
+            nan,
+            other_nan,
+            big,
+            high,
+            replacement,
+        ];
         for lhs in values {
             let lhs = state.tables.type_of(lhs).regular_type().unwrap();
             let fresh = state.tables.get_fresh_type_of_literal_type(lhs);
@@ -659,7 +676,10 @@ fn literal_rejection_matches_payload_equality_for_every_relation() {
                         continue;
                     }
                     let unequal = !state.tables.literal_type_values_equal(lhs, rhs);
-                    assert_eq!(state.unequal_value_literals(lhs, rhs), unequal);
+                    assert_eq!(
+                        state.compare_value_literals(lhs, rhs) == super::LiteralComparison::Unequal,
+                        unequal
+                    );
                     let related = state.is_type_related_to(fresh, rhs, relation).unwrap();
                     let expected = if unequal {
                         false
@@ -668,13 +688,51 @@ fn literal_rejection_matches_payload_equality_for_every_relation() {
                         flags == state.tables.flags_of(rhs)
                             && flags.intersects(tsc_types::TypeFlags::SINGLETON)
                     } else {
-                        (relation == RelationKind::Comparable
-                            && state.is_simple_type_related_to(rhs, lhs, relation).unwrap())
-                            || state.is_simple_type_related_to(lhs, rhs, relation).unwrap()
+                        let mut worker = |source, target| {
+                            state
+                                .simple_type_relation_worker(
+                                    source,
+                                    target,
+                                    relation,
+                                    None,
+                                    state.tables.flags_of(source).bits(),
+                                    state.tables.flags_of(target).bits(),
+                                )
+                                .unwrap()
+                        };
+                        (relation == RelationKind::Comparable && worker(rhs, lhs))
+                            || worker(lhs, rhs)
                     };
                     assert_eq!(related, expected, "{lhs:?} / {rhs:?} / {relation:?}");
                 }
             }
+        }
+        let counts = |state: &CheckerState| {
+            let c = crate::CheckerCounts::of(state, true);
+            (c.types, c.instantiations, c.symbols)
+        };
+        // C.E.X has equal value but its enum has an extra member. Replay the
+        // cached boolean failure in a reporting frame twice.
+        assert!(!state
+            .is_type_related_to(c, a, RelationKind::Assignable)
+            .unwrap());
+        let mut previous = None;
+        for _ in 0..2 {
+            let error = state
+                .relation_error_output_with_context(c, a, RelationKind::Assignable, None, None)
+                .unwrap()
+                .expect("extra enum member");
+            assert_eq!(error.message.code, 2322);
+            assert_eq!(error.message.next.len(), 1);
+            assert_eq!(
+                error.message.next[0].text,
+                "Property 'Z' is missing in type 'A.E'."
+            );
+            let observation = (error.message.text, counts(state));
+            if let Some(expected) = &previous {
+                assert_eq!(&observation, expected);
+            }
+            previous = Some(observation);
         }
     });
 }

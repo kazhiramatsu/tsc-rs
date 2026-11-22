@@ -61,6 +61,20 @@ pub(crate) fn is_true(result: Ternary) -> bool {
     result.bits() != 0
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LiteralComparison {
+    Unequal,
+    EqualEnumMembers,
+    Other,
+}
+
+#[inline]
+fn exact_enum_member_pair(s: i32, t: i32) -> bool {
+    const NUMBER: i32 = TypeFlags::ENUM_LITERAL.bits() | TypeFlags::NUMBER_LITERAL.bits();
+    const STRING: i32 = TypeFlags::ENUM_LITERAL.bits() | TypeFlags::STRING_LITERAL.bits();
+    s == t && matches!(s, NUMBER | STRING)
+}
+
 impl<'a> CheckerState<'a> {
     /// The boolean relation entries.
     /// tsc-port: isTypeAssignableTo @6.0.3
@@ -129,8 +143,18 @@ impl<'a> CheckerState<'a> {
         // two of them needs equal values, and literals are neither objects
         // nor structured. Narrowing by equality asks this of every member
         // of a union (a SyntaxKind comparison: hundreds of enum members).
-        if self.unequal_value_literals(source, target) {
-            return Ok(false);
+        match self.compare_value_literals(source, target) {
+            LiteralComparison::Unequal => return Ok(false),
+            LiteralComparison::EqualEnumMembers if relation != RelationKind::Identity => {
+                if relation == RelationKind::Comparable {
+                    if self.relate_equal_enum_members(target, source, None)? {
+                        return Ok(true);
+                    }
+                    return self.is_simple_type_related_to(source, target, relation);
+                }
+                return self.relate_equal_enum_members(source, target, None);
+            }
+            _ => {}
         }
         if relation != RelationKind::Identity {
             if (relation == RelationKind::Comparable
@@ -233,6 +257,15 @@ impl<'a> CheckerState<'a> {
                 )
                 && self.is_unknown_like_union_type(target)?;
             return Ok(related);
+        }
+        if exact_enum_member_pair(s, t) {
+            if self.literal_values_equal(source, target) {
+                return self.relate_equal_enum_members(source, target, enum_error);
+            }
+            if let Some(error) = enum_error {
+                *error = None;
+            }
+            return Ok(false);
         }
         self.simple_type_relation_worker(source, target, relation, enum_error, s, t)
     }
@@ -402,6 +435,32 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
+    /// These literal flags leave only the enum relation after the values match.
+    #[inline(never)]
+    fn relate_equal_enum_members(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        enum_error: Option<&mut Option<EnumRelationError>>,
+    ) -> CheckResult<bool> {
+        debug_assert!(
+            exact_enum_member_pair(
+                self.tables.flags_of(source).bits(),
+                self.tables.flags_of(target).bits()
+            ) && self.literal_values_equal(source, target)
+        );
+        let symbol = |ty| self.tables.type_of(ty).symbol.expect("enum member symbol");
+        match self.enum_type_relation(symbol(source), symbol(target), enum_error.is_some())? {
+            EnumRelationOutcome::Related => Ok(true),
+            EnumRelationOutcome::Unrelated(detail) => {
+                if let Some(error) = enum_error {
+                    *error = detail;
+                }
+                Ok(false)
+            }
+        }
+    }
+
     fn literal_values_equal(&self, source: TypeId, target: TypeId) -> bool {
         self.tables.literal_type_values_equal(source, target)
     }
@@ -410,20 +469,20 @@ impl<'a> CheckerState<'a> {
     /// literals of one kind have unequal values. Enum members can share a
     /// value with another member or an ordinary literal.
     #[inline]
-    fn unequal_value_literals(&self, source: TypeId, target: TypeId) -> bool {
+    fn compare_value_literals(&self, source: TypeId, target: TypeId) -> LiteralComparison {
         let value =
             TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL | TypeFlags::BIG_INT_LITERAL;
         let allowed = value | TypeFlags::ENUM_LITERAL;
         let s = self.tables.flags_of(source);
         if !s.intersects(value) || !allowed.contains(s) {
-            return false;
+            return LiteralComparison::Other;
         }
         let t = self.tables.flags_of(target);
         if !t.intersects(value) || !allowed.contains(t) {
-            return false;
+            return LiteralComparison::Other;
         }
         if s & value != t & value {
-            return true;
+            return LiteralComparison::Unequal;
         }
         if s == t
             && matches!(
@@ -432,9 +491,15 @@ impl<'a> CheckerState<'a> {
             )
         {
             debug_assert!(!self.literal_values_equal(source, target));
-            return true;
+            return LiteralComparison::Unequal;
         }
-        !self.literal_values_equal(source, target)
+        if !self.literal_values_equal(source, target) {
+            LiteralComparison::Unequal
+        } else if exact_enum_member_pair(s.bits(), t.bits()) {
+            LiteralComparison::EqualEnumMembers
+        } else {
+            LiteralComparison::Other
+        }
     }
 
     /// tsc-port: isUnknownLikeUnionType @6.0.3
