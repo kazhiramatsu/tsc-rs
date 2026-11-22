@@ -3162,6 +3162,48 @@ fn parse_type_reference_and_postfix_shapes() {
 }
 
 #[test]
+fn union_and_intersection_callbacks_keep_constituent_and_diagnostic_order() {
+    let source =
+        parse_ts("type U = | A & B | () => void; type I = & X & new () => Y; type M = A | ;");
+    let kinds: Vec<_> = source
+        .arena
+        .nodes()
+        .iter()
+        .map(|node| node.kind)
+        .filter(|kind| {
+            matches!(
+                kind,
+                SyntaxKind::UnionType
+                    | SyntaxKind::IntersectionType
+                    | SyntaxKind::FunctionType
+                    | SyntaxKind::ConstructorType
+            )
+        })
+        .collect();
+    assert_eq!(
+        kinds,
+        [
+            SyntaxKind::IntersectionType,
+            SyntaxKind::FunctionType,
+            SyntaxKind::UnionType,
+            SyntaxKind::ConstructorType,
+            SyntaxKind::IntersectionType,
+            SyntaxKind::UnionType,
+        ]
+    );
+    let codes: Vec<_> = source.parse_diagnostics.iter().map(|d| d.code()).collect();
+    assert_eq!(
+        codes,
+        [
+            gen::Function_type_notation_must_be_parenthesized_when_used_in_a_union_type.code,
+            gen::Constructor_type_notation_must_be_parenthesized_when_used_in_an_intersection_type
+                .code,
+            gen::Type_expected.code,
+        ]
+    );
+}
+
+#[test]
 fn parse_union_intersection_and_type_operators() {
     let source = parse_source_file(
         "a.ts".into(),

@@ -9361,8 +9361,8 @@ impl<'text> Parser<'text> {
     fn parse_union_or_intersection_type(
         &mut self,
         operator: SyntaxKind,
-        parse_constituent_type: fn(&mut Self) -> NodeId,
-        create_type_node: fn(crate::NodeArrayId) -> NodeData,
+        parse_constituent_type: impl Fn(&mut Self) -> NodeId,
+        create_type_node: impl FnOnce(crate::NodeArrayId) -> NodeData,
     ) -> NodeId {
         let pos = self.node_pos();
         let is_union_type = operator == SyntaxKind::BarToken;
