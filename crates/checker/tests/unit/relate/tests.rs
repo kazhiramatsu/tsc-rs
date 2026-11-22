@@ -495,11 +495,12 @@ fn packed_pair_round_trips_at_bounds_and_falls_back_without_losing_result_bits()
         target: 6,
         intersection: 3,
     };
+    let live = super::CanonicalRelationKey::pair(5, 6, 3);
     let unusual = RelationComparisonResult::from_bits(-1);
     assert_eq!(cache.insert(key.clone(), unusual), None);
-    assert_eq!(cache.get(&key), Some(unusual));
+    assert_eq!(cache.get_canonical(&live), Some(unusual));
     assert_eq!(
-        cache.insert(key.clone(), RelationComparisonResult::SUCCEEDED),
+        cache.insert_canonical(live, RelationComparisonResult::SUCCEEDED),
         Some(unusual)
     );
     assert_eq!(
@@ -508,7 +509,7 @@ fn packed_pair_round_trips_at_bounds_and_falls_back_without_losing_result_bits()
     );
     assert_eq!(cache.get(&key), Some(unusual));
     let generic = RelationKey::Generic("*5=0,6=0:3".into());
-    assert!(generic.has_constraint_marker());
+    assert!(super::CanonicalRelationKey::Generic("*5=0,6=0:3".into()).has_constraint_marker());
     assert_eq!(
         cache.insert(generic.clone(), RelationComparisonResult::FAILED),
         None

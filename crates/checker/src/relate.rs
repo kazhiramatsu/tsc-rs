@@ -96,20 +96,31 @@ impl RelationCache {
                 source,
                 target,
                 intersection,
-            } => {
-                if let Some(key) = packed_pair(*source, *target, *intersection) {
-                    if let Some(&slot) = self
-                        .pairs
-                        .find(pair_hash(key), |&slot| slot >> RESULT_BITS == key)
-                    {
-                        return Some(pair_result(slot));
-                    }
-                }
-                self.wide_pairs
-                    .get(&(*source, *target, *intersection))
-                    .copied()
-            }
+            } => self.get_canonical(&CanonicalRelationKey::pair(*source, *target, *intersection)),
             RelationKey::Generic(text) => self.get_generic(text),
+        }
+    }
+
+    #[inline]
+    pub(crate) fn get_canonical(
+        &self,
+        key: &CanonicalRelationKey,
+    ) -> Option<RelationComparisonResult> {
+        match key {
+            CanonicalRelationKey::Compact(key) => {
+                if let Some(&slot) = self
+                    .pairs
+                    .find(pair_hash(*key), |&slot| slot >> RESULT_BITS == *key)
+                {
+                    return Some(pair_result(slot));
+                }
+                if self.wide_pairs.is_empty() {
+                    return None;
+                }
+                self.wide_pairs.get(&unpack_pair(*key)).copied()
+            }
+            CanonicalRelationKey::Wide(pair) => self.wide_pairs.get(pair).copied(),
+            CanonicalRelationKey::Generic(text) => self.get_generic(text),
         }
     }
 
@@ -125,49 +136,59 @@ impl RelationCache {
         key: RelationKey,
         value: RelationComparisonResult,
     ) -> Option<RelationComparisonResult> {
-        match key {
+        let key = match key {
             RelationKey::Pair {
                 source,
                 target,
                 intersection,
-            } => {
-                let full_key = (source, target, intersection);
-                if let Some(key) = packed_pair(source, target, intersection) {
-                    let hash = pair_hash(key);
-                    if (0..=RESULT_MASK as i32).contains(&value.bits()) {
-                        // Preserve even values constructed with nonstandard result bits:
-                        // those use the full table and may be replaced by a packed value.
-                        let previous = if self.wide_pairs.is_empty() {
-                            None
-                        } else {
-                            self.wide_pairs.remove(&full_key)
-                        };
-                        let entry = self.pairs.entry(
-                            hash,
-                            |&slot| slot >> RESULT_BITS == key,
-                            |&slot| pair_hash(slot >> RESULT_BITS),
-                        );
-                        let slot = (key << RESULT_BITS) | value.bits() as u64;
-                        return match entry {
-                            hashbrown::hash_table::Entry::Occupied(mut entry) => {
-                                Some(pair_result(std::mem::replace(entry.get_mut(), slot)))
-                            }
-                            hashbrown::hash_table::Entry::Vacant(entry) => {
-                                entry.insert(slot);
-                                previous
-                            }
-                        };
-                    }
-                    let previous = self
-                        .pairs
-                        .find_entry(hash, |&slot| slot >> RESULT_BITS == key)
-                        .ok()
-                        .map(|entry| pair_result(entry.remove().0));
-                    return self.wide_pairs.insert(full_key, value).or(previous);
+            } => CanonicalRelationKey::pair(source, target, intersection),
+            RelationKey::Generic(text) => CanonicalRelationKey::Generic(text),
+        };
+        self.insert_canonical(key, value)
+    }
+
+    #[inline]
+    pub(crate) fn insert_canonical(
+        &mut self,
+        key: CanonicalRelationKey,
+        value: RelationComparisonResult,
+    ) -> Option<RelationComparisonResult> {
+        match key {
+            CanonicalRelationKey::Compact(key) => {
+                let hash = pair_hash(key);
+                if (0..=RESULT_MASK as i32).contains(&value.bits()) {
+                    // Preserve even values constructed with nonstandard result bits:
+                    // those use the full table and may be replaced by a packed value.
+                    let previous = if self.wide_pairs.is_empty() {
+                        None
+                    } else {
+                        self.wide_pairs.remove(&unpack_pair(key))
+                    };
+                    let entry = self.pairs.entry(
+                        hash,
+                        |&slot| slot >> RESULT_BITS == key,
+                        |&slot| pair_hash(slot >> RESULT_BITS),
+                    );
+                    let slot = (key << RESULT_BITS) | value.bits() as u64;
+                    return match entry {
+                        hashbrown::hash_table::Entry::Occupied(mut entry) => {
+                            Some(pair_result(std::mem::replace(entry.get_mut(), slot)))
+                        }
+                        hashbrown::hash_table::Entry::Vacant(entry) => {
+                            entry.insert(slot);
+                            previous
+                        }
+                    };
                 }
-                self.wide_pairs.insert(full_key, value)
+                let previous = self
+                    .pairs
+                    .find_entry(hash, |&slot| slot >> RESULT_BITS == key)
+                    .ok()
+                    .map(|entry| pair_result(entry.remove().0));
+                self.wide_pairs.insert(unpack_pair(key), value).or(previous)
             }
-            RelationKey::Generic(text) => self.insert_generic(text, value),
+            CanonicalRelationKey::Wide(pair) => self.wide_pairs.insert(pair, value),
+            CanonicalRelationKey::Generic(text) => self.insert_generic(text, value),
         }
     }
 
@@ -227,7 +248,53 @@ pub enum RelationKey {
     Generic(Arc<str>),
 }
 
-impl RelationKey {
+/// The key carried by a relation walk. Each ordinary triple has exactly one
+/// representation, including when its result needs the wide cache.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum CanonicalRelationKey {
+    Compact(u64),
+    Wide((u32, u32, i32)),
+    Generic(Arc<str>),
+}
+
+const _: () = assert!(size_of::<CanonicalRelationKey>() <= size_of::<RelationKey>());
+
+#[inline]
+fn unpack_pair(key: u64) -> (u32, u32, i32) {
+    const MASK: u64 = (1 << 28) - 1;
+    (
+        (key & MASK) as u32,
+        ((key >> 28) & MASK) as u32,
+        (key >> 56) as i32,
+    )
+}
+
+impl From<CanonicalRelationKey> for RelationKey {
+    fn from(key: CanonicalRelationKey) -> Self {
+        let (source, target, intersection) = match key {
+            CanonicalRelationKey::Compact(key) => unpack_pair(key),
+            CanonicalRelationKey::Wide(pair) => pair,
+            CanonicalRelationKey::Generic(text) => return Self::Generic(text),
+        };
+        Self::Pair {
+            source,
+            target,
+            intersection,
+        }
+    }
+}
+
+impl CanonicalRelationKey {
+    #[inline]
+    pub(crate) fn pair(source: u32, target: u32, intersection: i32) -> Self {
+        if let Some(key) = packed_pair(source, target, intersection) {
+            debug_assert_eq!(unpack_pair(key), (source, target, intersection));
+            Self::Compact(key)
+        } else {
+            Self::Wide((source, target, intersection))
+        }
+    }
+
     /// tsc `id.startsWith("*")`: a generic key whose reference has a
     /// constrained type parameter among its arguments.
     pub(crate) fn has_constraint_marker(&self) -> bool {
@@ -491,7 +558,7 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         intersection_state: IntersectionState,
         ignore_constraints: bool,
-    ) -> CheckResult<RelationKey> {
+    ) -> CheckResult<CanonicalRelationKey> {
         let (mut result, mut type_parameters) =
             self.relations.key_buffers.pop().unwrap_or_default();
         let key = self.write_generic_type_reference_relation_key(
@@ -505,13 +572,13 @@ impl<'a> CheckerState<'a> {
         let key = key.map(|()| {
             if let Some(key) = self.relations.generic_keys.get(result.as_slice()) {
                 debug_assert_eq!(GenericKeyPart::spelling(&result), key.as_ref());
-                RelationKey::Generic(key.clone())
+                CanonicalRelationKey::Generic(key.clone())
             } else {
                 let key: Arc<str> = Arc::from(GenericKeyPart::spelling(&result));
                 self.relations
                     .generic_keys
                     .insert(result.clone().into_boxed_slice(), key.clone());
-                RelationKey::Generic(key)
+                CanonicalRelationKey::Generic(key)
             }
         });
         result.clear();
@@ -631,28 +698,47 @@ impl<'a> CheckerState<'a> {
         relation: RelationKind,
         ignore_constraints: bool,
     ) -> CheckResult<RelationKey> {
+        Ok(self
+            .canonical_relation_key(
+                source,
+                target,
+                intersection_state,
+                relation,
+                ignore_constraints,
+            )?
+            .into())
+    }
+
+    /// Build the key shared by the active comparison and its cache lookup.
+    #[inline]
+    pub(crate) fn canonical_relation_key(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        intersection_state: IntersectionState,
+        relation: RelationKind,
+        ignore_constraints: bool,
+    ) -> CheckResult<CanonicalRelationKey> {
         let (source, target) =
             if relation == RelationKind::Identity && source.index() > target.index() {
                 (target, source)
             } else {
                 (source, target)
             };
-        let pair = RelationKey::Pair {
-            source: source.index(),
-            target: target.index(),
-            intersection: intersection_state.bits(),
-        };
         if !self.is_non_deferred_type_reference(source)
             || !self.is_non_deferred_type_reference(target)
         {
-            return Ok(pair);
+            return Ok(CanonicalRelationKey::pair(
+                source.index(),
+                target.index(),
+                intersection_state.bits(),
+            ));
         }
         self.relation_key_for_eager_references(
             source,
             target,
             intersection_state,
             ignore_constraints,
-            pair,
         )
     }
 
@@ -663,8 +749,7 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         intersection_state: IntersectionState,
         ignore_constraints: bool,
-        pair: RelationKey,
-    ) -> CheckResult<RelationKey> {
+    ) -> CheckResult<CanonicalRelationKey> {
         if self.has_generic_type_argument(source) && self.has_generic_type_argument(target) {
             return self.get_generic_type_reference_relation_key(
                 source,
@@ -673,7 +758,11 @@ impl<'a> CheckerState<'a> {
                 ignore_constraints,
             );
         }
-        Ok(pair)
+        Ok(CanonicalRelationKey::pair(
+            source.index(),
+            target.index(),
+            intersection_state.bits(),
+        ))
     }
 
     /// tsc-port: isEnumTypeRelatedTo @6.0.3

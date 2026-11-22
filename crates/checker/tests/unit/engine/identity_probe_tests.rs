@@ -240,12 +240,16 @@ fn normalization_gate_matches_the_full_loop_for_all_normalizing_kinds() {
 
 #[test]
 fn active_keys_follow_the_live_prefix_across_unwinds_and_frame_loans() {
-    use super::{IntersectionState, RelationComparisonResult, RelationKey};
+    use super::{CanonicalRelationKey, IntersectionState, RelationComparisonResult};
 
     with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
         let mut checker = identity_checker(state);
         let keys: Vec<_> = (0..40)
-            .map(|i| RelationKey::Generic(format!("*{i}").into()))
+            .map(|i| match i % 3 {
+                0 => CanonicalRelationKey::pair(i, (1 << 28) - 1, 3),
+                1 => CanonicalRelationKey::pair(i, 1 << 28, 3),
+                _ => CanonicalRelationKey::Generic(format!("*{i}").into()),
+            })
             .collect();
         for (i, key) in keys.iter().enumerate() {
             checker.push_active_key(key);
@@ -261,7 +265,7 @@ fn active_keys_follow_the_live_prefix_across_unwinds_and_frame_loans() {
         nested.recycle();
         checker.restore_frame(frame);
         let budget = checker.work.relation_count;
-        for depth in [34, 32, 2] {
+        for depth in [34, 33, 32, 2] {
             checker.reset_maybe_stack(depth, false, RelationComparisonResult::NONE);
             assert!(keys[..depth].iter().all(|key| checker.has_active_key(key)));
             assert!(keys[depth..].iter().all(|key| !checker.has_active_key(key)));
@@ -277,7 +281,11 @@ fn active_keys_follow_the_live_prefix_across_unwinds_and_frame_loans() {
         assert_eq!(checker.work.relation_count, budget - 33);
         assert!(checker.work.maybe_keys_set.is_empty());
         for (i, key) in keys.iter().enumerate() {
-            let verdict = checker.st.relations.cache(checker.relation).get(key);
+            let verdict = checker
+                .st
+                .relations
+                .cache(checker.relation)
+                .get_canonical(key);
             assert_eq!(verdict.is_some(), i < 2 || (5..36).contains(&i));
             assert!(!checker.has_active_key(key));
         }
@@ -307,8 +315,55 @@ fn active_keys_follow_the_live_prefix_across_unwinds_and_frame_loans() {
 }
 
 #[test]
+fn active_compact_pair_defers_the_verdict_and_replays_a_reported_failure() {
+    use super::{IntersectionState, RelationComparisonResult, Ternary};
+    with_program_state(
+        &[(
+            "a.ts",
+            "let a: { value: number }; let b: { value: string };",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let a = resolve(state, "a");
+            let b = resolve(state, "b");
+            let kind = RelationKind::Assignable;
+            let key = state
+                .canonical_relation_key(a, b, IntersectionState::NONE, kind, false)
+                .unwrap();
+            let mut r = RelationChecker::new(state, kind, 40);
+            let compare = |r: &mut RelationChecker, report| {
+                r.recursive_type_related_to(
+                    a,
+                    b,
+                    report,
+                    IntersectionState::NONE,
+                    RecursionFlags::BOTH,
+                )
+                .unwrap()
+            };
+            r.push_active_key(&key);
+            assert_eq!(compare(&mut r, false), Ternary::MAYBE);
+            assert_eq!(r.st.relations.cache(kind).get_canonical(&key), None);
+            assert_eq!(r.work.relation_count, 40);
+            r.reset_maybe_stack(0, false, RelationComparisonResult::NONE);
+            assert_eq!(compare(&mut r, false), Ternary::FALSE);
+            assert_eq!(
+                r.st.relations.cache(kind).get_canonical(&key),
+                Some(RelationComparisonResult::FAILED)
+            );
+            let budget = r.work.relation_count;
+            assert_eq!(compare(&mut r, false), Ternary::FALSE);
+            assert_eq!(r.work.relation_count, budget);
+            assert_eq!(compare(&mut r, true), Ternary::FALSE);
+            assert_eq!(r.work.relation_count, budget - 1);
+            assert!(r.capture_current_error_info().is_some());
+        },
+    );
+}
+
+#[test]
 fn active_keys_follow_the_loan_through_a_forward_constraint_clamp() {
-    use super::{IntersectionState, RelationFrameLoan, RelationKey};
+    use super::{CanonicalRelationKey, IntersectionState, RelationFrameLoan};
     use crate::inference::CompareTypesFn;
     use tsc_types::{InferenceFlags, SymbolFlags};
 
@@ -339,7 +394,7 @@ fn active_keys_follow_the_loan_through_a_forward_constraint_clamp() {
         state.inference_info_mut(forward).candidates = Some(vec![number].into());
 
         let mut checker = RelationChecker::new(state, RelationKind::Assignable, 29);
-        let active = RelationKey::Generic("*active".into());
+        let active = CanonicalRelationKey::Generic("*active".into());
         checker.push_active_key(&active);
         let frame = checker.loan_frame(IntersectionState::NONE);
         checker.st.relation_frame_loan = RelationFrameLoan::Available(frame);

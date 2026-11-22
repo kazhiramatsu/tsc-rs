@@ -28,7 +28,7 @@ use tsc_types::{
 use tsc_syntax::NodeId;
 
 use crate::evaluate::EvalValue;
-use crate::relate::{EnumRelationError, EnumRelationOutcome, RelationKey, RelationKind};
+use crate::relate::{CanonicalRelationKey, EnumRelationError, EnumRelationOutcome, RelationKind};
 use crate::state::{CheckResult, CheckerState};
 use tsc_binder::NameKey;
 use tsc_types::perf::{self, PerfCounter};
@@ -162,7 +162,7 @@ impl<'a> CheckerState<'a> {
         if self.tables.flags_of(source).intersects(TypeFlags::OBJECT)
             && self.tables.flags_of(target).intersects(TypeFlags::OBJECT)
         {
-            let key = self.get_relation_key(
+            let key = self.canonical_relation_key(
                 source,
                 target,
                 IntersectionState::NONE,
@@ -170,7 +170,7 @@ impl<'a> CheckerState<'a> {
                 /*ignore_constraints*/ false,
             )?;
             perf::bump(PerfCounter::RelationLookups);
-            if let Some(related) = self.relations.cache(relation).get(&key) {
+            if let Some(related) = self.relations.cache(relation).get_canonical(&key) {
                 perf::bump(PerfCounter::RelationEntryFound);
                 perf::bump(PerfCounter::RelationReturnedCached);
                 return Ok(related.intersects(RelationComparisonResult::SUCCEEDED));
@@ -1356,8 +1356,8 @@ fn is_excess_property_message(message: &'static DiagnosticMessage) -> bool {
 /// it in a box lets a nested walk take a different set of stacks and budget.
 #[derive(Default)]
 pub(crate) struct RelationWork {
-    pub(crate) maybe_keys: Vec<RelationKey>,
-    pub(crate) maybe_keys_set: HashSet<RelationKey>,
+    pub(crate) maybe_keys: Vec<CanonicalRelationKey>,
+    pub(crate) maybe_keys_set: HashSet<CanonicalRelationKey>,
     pub(crate) source_stack: Vec<RelationStackEntry>,
     pub(crate) target_stack: Vec<RelationStackEntry>,
     pub(crate) maybe_count: usize,
@@ -1540,7 +1540,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         });
         let overflow_bits = RelationComparisonResult::COMPLEXITY_OVERFLOW;
         let message = &diagnostics::Excessive_complexity_comparing_types_0_and_1;
-        let id = self.st.get_relation_key(
+        let id = self.st.canonical_relation_key(
             source,
             target,
             IntersectionState::NONE,
@@ -1548,7 +1548,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             /*ignore_constraints*/ false,
         )?;
         perf::bump(PerfCounter::RelationSets);
-        self.st.relations.cache_mut(self.relation).insert(
+        self.st.relations.cache_mut(self.relation).insert_canonical(
             id,
             RelationComparisonResult::from_bits(
                 RelationComparisonResult::FAILED.bits() | overflow_bits.bits(),
@@ -3665,7 +3665,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if self.work.overflow {
             return Ok(Ternary::FALSE);
         }
-        let id = self.st.get_relation_key(
+        let id = self.st.canonical_relation_key(
             source,
             target,
             intersection_state,
@@ -3673,7 +3673,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             /*ignore_constraints*/ false,
         )?;
         perf::bump(PerfCounter::RelationLookups);
-        if let Some(entry) = self.st.relations.cache(self.relation).get(&id) {
+        if let Some(entry) = self.st.relations.cache(self.relation).get_canonical(&id) {
             perf::bump(PerfCounter::RelationEntryFound);
             // 65739-65741: a failed, non-overflow cached relation is
             // deliberately recomputed in reporting mode so the exact
@@ -3715,7 +3715,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 return Ok(Ternary::MAYBE);
             }
             if id.has_constraint_marker() {
-                let broadest = self.st.get_relation_key(
+                let broadest = self.st.canonical_relation_key(
                     source,
                     target,
                     intersection_state,
@@ -3853,7 +3853,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         } else {
             perf::bump(PerfCounter::RelationSets);
-            self.st.relations.cache_mut(self.relation).insert(
+            self.st.relations.cache_mut(self.relation).insert_canonical(
                 id,
                 RelationComparisonResult::from_bits(
                     RelationComparisonResult::FAILED.bits() | propagating_variance_flags.bits(),
@@ -3869,7 +3869,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         Ok(result)
     }
 
-    fn has_active_key(&self, key: &RelationKey) -> bool {
+    fn has_active_key(&self, key: &CanonicalRelationKey) -> bool {
         if self.work.maybe_count <= MAYBE_SCAN_LIMIT {
             self.work.maybe_keys[..self.work.maybe_count].contains(key)
         } else {
@@ -3877,7 +3877,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
     }
 
-    fn push_active_key(&mut self, key: &RelationKey) {
+    fn push_active_key(&mut self, key: &CanonicalRelationKey) {
         if self.work.maybe_count == self.work.maybe_keys.len() {
             self.work.maybe_keys.push(key.clone());
         } else {
@@ -3912,7 +3912,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if mark_all_as_succeeded {
             for key in popped {
                 perf::bump(PerfCounter::RelationSets);
-                self.st.relations.cache_mut(self.relation).insert(
+                self.st.relations.cache_mut(self.relation).insert_canonical(
                     key.clone(),
                     RelationComparisonResult::from_bits(
                         RelationComparisonResult::SUCCEEDED.bits()
