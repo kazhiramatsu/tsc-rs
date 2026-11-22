@@ -1,6 +1,57 @@
 use super::*;
 
 #[test]
+fn ascii_trivia_matches_the_class_table_at_every_bound() {
+    fn check(bytes: &[u8]) {
+        for end in 0..=bytes.len() {
+            let mut len = 0;
+            let mut line_break = false;
+            for &byte in &bytes[..end] {
+                let class = BYTE_CLASS[byte as usize];
+                if !matches!(class, b' ' | b'\n') {
+                    break;
+                }
+                len += 1;
+                line_break |= class == b'\n';
+            }
+            assert_eq!(ascii_trivia_run(&bytes[..end]), (len, line_break));
+        }
+    }
+    for byte in 0..=255 {
+        check(&[b' ', byte]);
+        check(&[b'\t', b'\r', b'\n', byte]);
+    }
+    for text in [
+        " \t\x0b\x0c",
+        "\r\n    π",
+        " \u{2028}\u{2029}",
+        " \u{a0}",
+        " /*end*/",
+    ] {
+        check(text.as_bytes());
+    }
+
+    let text = "/** doc\r */  \t\r\n   ident\u{2028}\u{2029}\u{a0}/*end*/";
+    for skip in [true, false] {
+        let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+        scanner.set_skip_trivia(skip);
+        loop {
+            let before = scanner.save();
+            let kind = scanner.scan();
+            let after = scanner.save();
+            let value = scanner.token_value().to_owned();
+            scanner.restore(before);
+            assert_eq!(scanner.scan(), kind);
+            assert_eq!(scanner.save(), after);
+            assert_eq!(scanner.token_value(), value.as_js());
+            if kind == SyntaxKind::EndOfFileToken {
+                break;
+            }
+        }
+    }
+}
+
+#[test]
 fn ascii_trivia_preserves_token_starts_and_flags_across_other_trivia() {
     let text = " \t\r\n\x0b\x0c\u{a0}/** doc */\u{2028} \t* \tπ \r";
     let mut scanner = Scanner::new(text, LanguageVariant::Standard);

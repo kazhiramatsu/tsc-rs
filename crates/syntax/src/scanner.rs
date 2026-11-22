@@ -266,6 +266,25 @@ const BYTE_CLASS: [u8; 256] = {
     table
 };
 
+/// Count skipped ASCII trivia within the scan range. Once a line break has
+/// been seen, horizontal and vertical whitespace can share the same test.
+#[inline]
+fn ascii_trivia_run(bytes: &[u8]) -> (usize, bool) {
+    let horizontal = bytes
+        .iter()
+        .position(|byte| !matches!(byte, b' ' | b'\t' | 0x0b | 0x0c))
+        .unwrap_or(bytes.len());
+    if !matches!(bytes.get(horizontal), Some(b'\r' | b'\n')) {
+        return (horizontal, false);
+    }
+    let rest = &bytes[horizontal + 1..];
+    let tail = rest
+        .iter()
+        .position(|byte| !matches!(byte, b' ' | b'\t'..=b'\r'))
+        .unwrap_or(rest.len());
+    (horizontal + 1 + tail, true)
+}
+
 const IDENTIFIER_PART: [bool; 256] = {
     let mut table = [false; 256];
     let mut i = 0;
@@ -379,24 +398,16 @@ impl<'text> Scanner<'text> {
             if matches!(class, b' ' | b'\n') && self.skip_trivia {
                 // Track the run locally and leave the first other byte ready
                 // to dispatch, including comments and Unicode trivia.
-                let mut pos = self.pos;
-                let mut line_break = false;
-                while matches!(class, b' ' | b'\n') {
-                    line_break |= class == b'\n';
-                    pos += 1;
-                    if pos == self.end {
-                        break;
-                    }
-                    byte = bytes[pos];
-                    class = BYTE_CLASS[byte as usize];
-                }
-                self.pos = pos;
+                let (len, line_break) = ascii_trivia_run(&bytes[self.pos..self.end]);
+                self.pos += len;
                 if line_break {
                     self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
                 }
-                if pos == self.end {
+                if self.pos == self.end {
                     continue;
                 }
+                byte = bytes[self.pos];
+                class = BYTE_CLASS[byte as usize];
             }
             self.token_start = self.pos;
             match class {
