@@ -386,6 +386,83 @@ fn erased_and_argument_instantiated_signatures_map_lazily() {
     );
 }
 
+#[test]
+fn signature_arguments_preserve_fill_keys_and_allocation_order() {
+    let mut runs = Vec::new();
+    for always_fill in [true, false] {
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare var f: <T, U = T>() => U; declare var g: () => number;",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let f = state
+                    .get_signature_from_declaration(annotation_of_var(state, "f"))
+                    .unwrap();
+                let g = state
+                    .get_signature_from_declaration(annotation_of_var(state, "g"))
+                    .unwrap();
+                let n = state.tables.intrinsics.number;
+                let s = state.tables.intrinsics.string;
+                let mut snapshots = Vec::new();
+                for (signature, arguments, javascript) in [
+                    (f, &[s, n][..], false),
+                    (f, &[s, n], false),
+                    (f, &[s, n, s], false),
+                    (f, &[s, n, s], true),
+                    (f, &[s], false),
+                    (f, &[s, s], false),
+                    (g, &[s], false),
+                    (g, &[], true),
+                ] {
+                    let result = if always_fill {
+                        let parameters = state.signature_of(signature).cloned_type_parameters();
+                        let min = state.get_min_type_argument_count(parameters.as_deref());
+                        let filled = state
+                            .fill_missing_type_arguments(
+                                Some(arguments),
+                                parameters.as_deref(),
+                                min,
+                                javascript,
+                            )
+                            .unwrap();
+                        state
+                            .get_signature_instantiation_without_filling_in_type_arguments(
+                                signature,
+                                filled.as_deref(),
+                            )
+                            .unwrap()
+                    } else {
+                        state
+                            .get_signature_instantiation(
+                                signature,
+                                Some(arguments),
+                                javascript,
+                                None,
+                            )
+                            .unwrap()
+                    };
+                    snapshots.push((
+                        result,
+                        state.tables.len(),
+                        state.total_instantiation_count,
+                        state.binder.transient_symbol_count(),
+                    ));
+                }
+                assert_eq!(snapshots[0], snapshots[1]);
+                assert_ne!(snapshots[0].0, snapshots[2].0);
+                assert_eq!(snapshots[0].0, snapshots[3].0);
+                assert_eq!(snapshots[4].0, snapshots[5].0);
+                assert_eq!(snapshots[6], snapshots[7]);
+                let next = state.tables.intern_type_list(&[n, s, n, s]);
+                runs.push((snapshots, next));
+            },
+        );
+    }
+    assert_eq!(runs[0], runs[1]);
+}
+
 fn literal_mapping_symbol(state: &mut CheckerState, name: &'static str) -> tsc_binder::SymbolId {
     state.binder.create_symbol(
         SymbolFlags::TYPE_ALIAS,

@@ -3107,21 +3107,27 @@ impl<'a> CheckerState<'a> {
         is_javascript: bool,
         inferred_type_parameters: Option<&[TypeId]>,
     ) -> CheckResult<SignatureId> {
-        let type_parameters = self
-            .signature_of(signature)
-            .type_parameters()
-            .map(tsc_types::TypeListCopy::new);
-        let min_type_argument_count = self.get_min_type_argument_count(type_parameters.as_deref());
-        let filled = self.fill_missing_type_arguments(
-            type_arguments,
-            type_parameters.as_deref(),
-            min_type_argument_count,
-            is_javascript,
-        )?;
-        let instantiated = self.get_signature_instantiation_without_filling_in_type_arguments(
-            signature,
-            filled.as_deref(),
-        )?;
+        let type_parameters = self.signature_of(signature).type_parameters();
+        let min_type_argument_count = self.get_min_type_argument_count(type_parameters);
+        let arguments = type_arguments.unwrap_or_default();
+        let parameter_count = type_parameters.map_or(0, <[TypeId]>::len);
+        let filled;
+        let arguments = if parameter_count == 0 {
+            Some(&[][..])
+        } else if !is_javascript && arguments.len() >= parameter_count {
+            Some(arguments)
+        } else {
+            let parameters = type_parameters.map(tsc_types::TypeListCopy::new);
+            filled = self.fill_missing_type_arguments(
+                type_arguments,
+                parameters.as_deref(),
+                min_type_argument_count,
+                is_javascript,
+            )?;
+            filled.as_deref()
+        };
+        let instantiated = self
+            .get_signature_instantiation_without_filling_in_type_arguments(signature, arguments)?;
         if let Some(inferred_type_parameters) = inferred_type_parameters {
             let return_type = self.get_return_type_of_signature(instantiated)?;
             let return_signature = self.get_single_call_or_construct_signature(return_type)?;
