@@ -1979,14 +1979,19 @@ impl<'a> CheckerState<'a> {
     /// exactly like tsc. This is the sole JSDoc dispatch path: checker
     /// consumers do not reconstruct tags from source text.
     fn check_source_element_worker(&mut self, node: NodeId) -> CheckResult<()> {
-        self.check_attached_jsdoc(node);
+        let record = self.record_of(node);
+        let documents = self.nodes_of(record.js_doc());
+        if !documents.is_empty() {
+            let in_js_file = record.flags & tsc_types::NodeFlags::JAVA_SCRIPT_FILE.bits() != 0;
+            self.check_attached_jsdoc(&documents, in_js_file);
+        }
         if self.options.allow_unreachable_code != Some(true)
             && !self.within_unreachable_code
             && self.check_source_element_unreachable(node)?
         {
             self.within_unreachable_code = true;
         }
-        match self.kind_of(node) {
+        match record.kind {
             SyntaxKind::TypeParameter => self.check_type_parameter(node),
             SyntaxKind::Parameter => self.check_parameter(node),
             SyntaxKind::PropertyDeclaration => self.check_property_declaration(node),
@@ -2156,9 +2161,8 @@ impl<'a> CheckerState<'a> {
     /// Comments and tags are parser-owned arena nodes. Links in comment
     /// fragments are checked in every source kind; semantic tag nodes
     /// are dispatched only for JS files, matching tsc.
-    fn check_attached_jsdoc(&mut self, host: NodeId) {
-        let documents = self.direct_jsdoc_documents(host);
-        let in_js_file = self.is_in_js_file(host);
+    #[inline(never)]
+    fn check_attached_jsdoc(&mut self, documents: &[NodeId], in_js_file: bool) {
         for &document in documents {
             self.check_jsdoc_comment_links(document);
             let tags = match self.record_of(document).as_js_doc() {

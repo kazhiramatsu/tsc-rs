@@ -11505,3 +11505,100 @@ private field;
         },
     );
 }
+
+#[test]
+fn source_element_attachment_checks_preserve_order_and_empty_lists() {
+    let options = CompilerOptions {
+        allow_unreachable_code: Some(false),
+        allow_js: true,
+        check_js: Some(true),
+        ..CompilerOptions::default()
+    };
+    let text = "function f() { return; let x = 1; }";
+    let run = |attach_empty| {
+        let domain = tsc_types::IdentityDomain::new();
+        let mut source =
+            tsc_syntax::parse_source_file("a.ts", text, tsc_syntax::ParseOptions::default(), None);
+        if attach_empty {
+            let host = source
+                .arena
+                .node_ids()
+                .find(|&id| source.arena.node(id).kind == SyntaxKind::VariableStatement)
+                .unwrap();
+            let docs = source.arena.empty_array(0);
+            source.arena.set_js_doc(host, docs);
+        }
+        source.relocate_into_identity_domain(&domain).unwrap();
+        let binder = tsc_binder::Binder::bind_in_identity_domain(&mut source, &domain).unwrap();
+        let mut state = CheckerState::from_program(vec![&binder], &options);
+        let host = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .find(|&node| state.kind_of(node) == SyntaxKind::VariableStatement)
+            .unwrap();
+        let documents = state.record_of(host).js_doc();
+        assert_eq!(documents.is_some(), attach_empty);
+        assert!(state.nodes_of(documents).is_empty());
+        state.check_source_file(0);
+        (
+            diag_rows(&state),
+            state.tables.len(),
+            state.total_instantiation_count,
+            state.binder.transient_symbol_count(),
+        )
+    };
+    let absent = run(false);
+    assert!(absent.0.iter().any(|row| row.0 == 7027));
+    assert_eq!(run(true), absent);
+
+    let ts = "interface T { member: number }
+function f() {
+    return;
+    /** {@link T.member} */
+    let x: number = 'wrong';
+}";
+    let codes = |file, text| {
+        checked_file_diags_with(file, text, &options)
+            .into_iter()
+            .filter_map(|row| matches!(row.0, 1473 | 2304 | 2322 | 7027).then_some(row.0))
+            .collect::<Vec<_>>()
+    };
+    with_program_state(&[("a.ts", ts)], &options, |state| {
+        let source = state.binder.source(0);
+        let host = source
+            .arena
+            .node_ids()
+            .find(|&node| state.kind_of(node) == SyntaxKind::VariableStatement)
+            .unwrap();
+        assert_eq!(state.direct_jsdoc_documents(host).len(), 1);
+        assert!(source
+            .arena
+            .node_ids()
+            .any(|node| state.kind_of(node) == SyntaxKind::JSDocLink));
+        state.check_source_file(0);
+        let codes: Vec<_> = state
+            .diagnostics
+            .iter()
+            .map(|diag| diag.code())
+            .filter(|code| matches!(code, 7027 | 2322))
+            .collect();
+        assert_eq!(codes, [7027, 2322]);
+    });
+    let js = "function f() {
+    return;
+    /**
+     * @typedef {MissingAliasType} Alias
+     * @import { T } from './missing-module'
+     */
+    const x = 1;
+}
+/**
+ * @overload
+ * @param {MissingOverloadType} x
+ * @returns {number}
+ */
+function overloaded(x) { return 1; }";
+    assert_eq!(codes("a.js", js), [2304, 1473, 7027, 2304]);
+}
