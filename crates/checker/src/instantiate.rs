@@ -996,12 +996,12 @@ impl<'a> CheckerState<'a> {
     fn get_object_type_instantiation(
         &mut self,
         ty: TypeId,
+        object_flags: ObjectFlags,
         node: Option<NodeId>,
         mapper: MapperId,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
     ) -> CheckResult<TypeId> {
-        let object_flags = self.tables.object_flags_of(ty);
         let is_reference = object_flags.intersects(ObjectFlags::REFERENCE);
         let declaration = if object_flags
             .intersects(ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
@@ -2202,47 +2202,58 @@ impl<'a> CheckerState<'a> {
         alias_type_arguments: Option<&[TypeId]>,
     ) -> CheckResult<TypeId> {
         perf::bump(PerfCounter::InstantiateTypeWorkerCalls);
-        let flags = self.tables.flags_of(ty);
+        let source = self.tables.type_of(ty);
+        let flags = source.flags;
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
             return self.get_mapped_type(ty, mapper);
         }
         if flags.intersects(TypeFlags::OBJECT) {
-            let object_flags = self.tables.object_flags_of(ty);
+            let object_flags = source.object_flags;
             if object_flags
                 .intersects(ObjectFlags::REFERENCE | ObjectFlags::ANONYMOUS | ObjectFlags::MAPPED)
             {
-                let node = if object_flags
-                    .intersects(ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
-                {
-                    self.type_deferred_node(ty)
+                let node = if object_flags.intersects(ObjectFlags::REFERENCE) {
+                    let (position, target, arguments) = match source.data {
+                        TypeData::Reference {
+                            node_position,
+                            target,
+                            resolved_type_arguments,
+                        } => (node_position, target, resolved_type_arguments),
+                        // Tuple and generic targets refer to themselves and use
+                        // their parameter list as their resolved arguments.
+                        _ => (
+                            source.deferred_node_position(),
+                            ty,
+                            self.tables.try_type_argument_list(ty),
+                        ),
+                    };
+                    let node = NodeId::from_position(position);
+                    if node.is_none() {
+                        let resolved =
+                            arguments.expect("eager references have resolved type arguments");
+                        return self.with_changed_instantiation_list(
+                            resolved,
+                            mapper,
+                            |state, arguments| match arguments {
+                                Some(arguments) => {
+                                    state.create_normalized_type_reference_forced(target, arguments)
+                                }
+                                None => Ok(ty),
+                            },
+                        );
+                    }
+                    node
+                } else if object_flags.intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE) {
+                    NodeId::from_position(source.deferred_node_position())
                 } else {
                     None
                 };
-                if object_flags.intersects(ObjectFlags::REFERENCE) && node.is_none() {
-                    // The !type.node fast path (63725-63729); deferred
-                    // (node-carrying) references fall through to
-                    // getObjectTypeInstantiation.
-                    let target = self.tables.reference_target(ty);
-                    let resolved = self
-                        .tables
-                        .try_type_argument_list(ty)
-                        .expect("eager references have resolved type arguments");
-                    return self.with_changed_instantiation_list(
-                        resolved,
-                        mapper,
-                        |state, arguments| match arguments {
-                            Some(arguments) => {
-                                state.create_normalized_type_reference_forced(target, arguments)
-                            }
-                            None => Ok(ty),
-                        },
-                    );
-                }
                 if object_flags.intersects(ObjectFlags::REVERSE_MAPPED) {
                     return self.instantiate_reverse_mapped_type(ty, mapper);
                 }
                 return self.get_object_type_instantiation(
                     ty,
+                    object_flags,
                     node,
                     mapper,
                     alias_symbol,

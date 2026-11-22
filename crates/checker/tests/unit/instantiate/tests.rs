@@ -166,6 +166,43 @@ fn tuple_reference_instantiation_reuses_the_interned_reference() {
 }
 
 #[test]
+fn reference_worker_preserves_eager_and_self_target_instantiation_counts() {
+    with_program_state(
+        &[(
+            "a.ts",
+            "interface Box<P> { p: P } function f<T>() { var tuple: [T]; var boxed: Box<T>; }",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let t = declared_type_parameter(state, "T");
+            let number = state.tables.intrinsics.number;
+            for name in ["tuple", "boxed"] {
+                let node = annotation_of_var(state, name);
+                let annotation = state.get_type_from_type_node(node).unwrap();
+                let target = state.tables.reference_target(annotation);
+                assert_eq!(state.tables.reference_target(target), target);
+                let parameter = state.tables.type_arguments(target)[0];
+                let eager = state.tables.create_type_reference(target, &[t]);
+                let expected = state.tables.create_type_reference(target, &[number]);
+                for (source, from, result) in [
+                    (eager, parameter, eager),
+                    (eager, t, expected),
+                    (target, parameter, expected),
+                ] {
+                    let mapper = state.make_unary_type_mapper(from, number);
+                    let before = state.total_instantiation_count;
+                    assert_eq!(
+                        state.instantiate_type(source, Some(mapper)).unwrap(),
+                        result
+                    );
+                    assert_eq!(state.total_instantiation_count - before, 2);
+                }
+            }
+        },
+    );
+}
+
+#[test]
 fn anonymous_type_instantiation_creates_a_cached_shell() {
     with_program_state(
         &[("a.ts", "function f<T, U>() { var v: { a: T }; }\n")],
