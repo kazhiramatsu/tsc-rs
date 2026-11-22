@@ -46,7 +46,36 @@ fn import_node_at_position(source: &SourceFile, position: u32) -> NodeId {
                     .find(|&id| contains(id));
             }
         }
-        if child.is_none() {
+        // A source file, a block and a module block have one child list, their
+        // statements (a source file's end-of-file token is a token: it never
+        // holds the position). In a TypeScript file the statements are in
+        // source order and do not overlap, so the one that can hold the
+        // position is the first that ends after it. A raw-text hit in a
+        // declaration file of a few thousand statements walked half of them
+        // from the root, once for every `import` and `require` in its text.
+        // JavaScript keeps the visitor: its statements include reparsed
+        // JSDoc declarations.
+        let statements = match node.kind {
+            SyntaxKind::SourceFile | SyntaxKind::Block | SyntaxKind::ModuleBlock if !javascript => {
+                let list = match node.data() {
+                    NodeData::SourceFile(data) => data.statements,
+                    NodeData::Block(data) => data.statements,
+                    NodeData::ModuleBlock(data) => data.statements,
+                    _ => unreachable!("the three statement-list kinds"),
+                };
+                Some(list.map_or(&[][..], |list| source.arena.node_array(list).nodes))
+            }
+            _ => None,
+        };
+        if let Some(statements) = statements {
+            let index = statements.partition_point(|&id| source.arena.node(id).end <= position);
+            child = statements.get(index).copied().filter(|&id| contains(id));
+            debug_assert_eq!(
+                child,
+                statements.iter().copied().find(|&id| contains(id)),
+                "statements in source order that do not overlap"
+            );
+        } else if child.is_none() {
             for_each_child(&source.arena, node, |id| {
                 if contains(id) {
                     child = Some(id);
@@ -2519,6 +2548,97 @@ mod declaration_file_name_tests {
             ("", false),
         ] {
             assert_eq!(is_declaration_file_name(name), expected, "{name:?}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod import_node_search_tests {
+    use super::*;
+
+    /// The search before the statement lists were searched by position:
+    /// every level through the child visitor.
+    fn by_child_visitor(source: &SourceFile, position: u32) -> NodeId {
+        let contains = |id| {
+            let node = source.arena.node(id);
+            node.kind.value() > SyntaxKind::LastToken.value()
+                && node.pos <= position
+                && position < node.end
+        };
+        let mut current = source.root;
+        loop {
+            let node = source.arena.node(current);
+            let mut child = None;
+            for_each_child(&source.arena, node, |id| {
+                if contains(id) {
+                    child = Some(id);
+                }
+                child.is_some()
+            });
+            let Some(child) = child else {
+                return current;
+            };
+            if source.arena.node(child).kind == SyntaxKind::MetaProperty {
+                return current;
+            }
+            current = child;
+        }
+    }
+
+    fn parse(name: &str, text: &str) -> SourceFile {
+        let path = crate::ProgramPath::from_js_parts(name.into(), name.into()).unwrap();
+        let source = PreparedSourceFile::new(path, text);
+        parse_source_file_from_snapshot(
+            source.path().display().to_owned(),
+            Arc::clone(source.snapshot()),
+            source_request_parse_options(&source, &CompilerOptions::default()),
+            None,
+        )
+    }
+
+    #[test]
+    fn the_node_at_a_position_is_the_child_visitors_node_at_every_position() {
+        let mut text = String::from(
+            "// import require in a comment\n\
+             import { a } from './a';\n\
+             export declare const lazy: import('./types').Lazy<typeof import('./b')>;\n\
+             namespace outer {\n  export namespace inner {\n    export const load = () => import('./c');\n  }\n\
+               export function f(x: number) {\n    if (x) {\n      return import('./d');\n    }\n    { const required = x; }\n    return import.meta;\n  }\n}\n\
+             class C {\n  m() {\n    return `${import('./e')} tail`;\n  }\n}\n\
+             declare module 'ambient' {\n  export const v: import('./f').V;\n}\n\
+             ;;\n\
+             export default async function () {\n  const m = await import('./g');\n  for (const k of m.keys) {\n    await import(k);\n  }\n}\n",
+        );
+        // Many statements after the ones above: the list the search was written for.
+        for index in 0..300 {
+            text.push_str(&format!(
+                "export const v{index} = {index}; // import{index}\n"
+            ));
+        }
+        text.push_str("export const last = import('./last');\n// trailing require\n");
+        let source = parse("/project/search.ts", &text);
+        assert!(!source.is_source_file_js());
+        let mut deepest = std::collections::BTreeSet::new();
+        for position in 0..=text.len() as u32 {
+            let expected = by_child_visitor(&source, position);
+            assert_eq!(
+                import_node_at_position(&source, position),
+                expected,
+                "position {position}"
+            );
+            deepest.insert(expected);
+        }
+        assert!(deepest.len() > 600, "{} nodes found", deepest.len());
+        // An empty file and a file of one token: no statement holds anything.
+        for text in ["", " ", ";"] {
+            let source = parse("/project/empty.ts", text);
+            for position in 0..=text.len() as u32 {
+                assert_eq!(
+                    import_node_at_position(&source, position),
+                    by_child_visitor(&source, position),
+                    "{text:?} at {position}"
+                );
+            }
         }
     }
 }
