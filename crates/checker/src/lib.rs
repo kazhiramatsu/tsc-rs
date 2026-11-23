@@ -4543,6 +4543,9 @@ fn run_checker_shard<'a>(
         queue.shard_count(),
     );
     drop(augmentations);
+    // The fast preset's history rules (a one-lane queue keeps them too: a
+    // Program prints the same whatever its pool).
+    state.canonical_history = queue.canonical_history();
     reserve_type_tables(&mut state, reserved_nodes);
     // W2c: every type created from here on is shard-local. In the exact mode
     // the guard records order-consuming operations over two or more of them
@@ -5537,6 +5540,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             checker_count,
         );
         queue.split(&association.splits, &checked_nodes);
+        queue.keep_canonical_history();
         // The preset's scheduling of a whole-Program check: heavy files
         // first, and a checker without files takes from the fullest lane.
         if selected.is_none() && !checkers.order_replay() {

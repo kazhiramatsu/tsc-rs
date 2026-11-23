@@ -11602,3 +11602,135 @@ function f() {
 function overloaded(x) { return 1; }";
     assert_eq!(codes("a.js", js), [2304, 1473, 7027, 2304]);
 }
+
+/// tsrs-native (the fast preset): a type-argument constraint check reached in
+/// a file the checker has not started on waits for that file's own check.
+///
+/// `use.ts` reads `made`, a function expression of `made.ts` whose parameter
+/// annotation breaks the constraint of `Box`. The expression's type is first
+/// needed from `use.ts`, and its signature is checked then. In place, the
+/// TS2344 of `made.ts` is reported during the check of `use.ts`; under the
+/// preset it waits and is reported when `made.ts` is checked - once either
+/// way, and never by a checker that does not check `made.ts`.
+#[test]
+fn a_foreign_files_type_argument_constraints_wait_for_its_own_check_under_the_preset() {
+    let files = [
+        ("use.ts", "made;\n"),
+        (
+            "made.ts",
+            "type Box<T extends number> = { value: T };\n\
+const made = function (box: Box<string>) { return box; };\n",
+        ),
+    ];
+    let constraint_errors = |state: &CheckerState<'_>| {
+        state
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 2344)
+            .count()
+    };
+    // In place: the reference's and every other pool's order.
+    with_program_state(&files, &CompilerOptions::default(), |state| {
+        state.check_source_file(0);
+        assert_eq!(constraint_errors(state), 1);
+        assert!(state.deferred_type_argument_checks.is_empty());
+        state.check_source_file(1);
+        assert_eq!(constraint_errors(state), 1);
+    });
+    // Under the preset: nothing while `use.ts` is checked, the one report at
+    // the check of `made.ts`.
+    with_program_state(&files, &CompilerOptions::default(), |state| {
+        state.canonical_history = true;
+        state.check_source_file(0);
+        assert_eq!(constraint_errors(state), 0);
+        assert_eq!(state.deferred_type_argument_checks.len(), 1);
+        state.check_source_file(1);
+        assert_eq!(constraint_errors(state), 1);
+        assert!(state.deferred_type_argument_checks.is_empty());
+    });
+    // A file's own references are checked in place under the preset too.
+    with_program_state(&files, &CompilerOptions::default(), |state| {
+        state.canonical_history = true;
+        state.check_source_file(1);
+        assert_eq!(constraint_errors(state), 1);
+        assert!(state.deferred_type_argument_checks.is_empty());
+        state.check_source_file(0);
+        assert_eq!(constraint_errors(state), 1);
+    });
+}
+
+/// tsrs-native (the fast preset's history): the instantiations of a check end
+/// with it.
+///
+/// The call instantiates its signature's return type. The reference leaves
+/// that count behind when the call's check returns, for whatever is checked
+/// around it; under the preset's history the count is zero again. (The
+/// return type is an interface of the test's own: the harness has no
+/// library, and an array type without the global `Array` is the empty
+/// object type, which nothing instantiates.)
+#[test]
+fn a_checks_instantiations_end_with_it_under_the_preset_history() {
+    let text =
+        "interface Box<T> { value: T }\ndeclare function make<T = string>(): Box<T>;\nmake();\n";
+    let left_behind = |canonical: bool| {
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.canonical_history = canonical;
+            let call = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .find(|&node| state.kind_of(node) == tsc_syntax::SyntaxKind::CallExpression)
+                .expect("the call");
+            let before = state.total_instantiation_count;
+            state
+                .check_expression(call, tsc_types::CheckMode::NORMAL)
+                .expect("the call checks");
+            assert!(state.total_instantiation_count > before);
+            state.instantiation_count
+        })
+    };
+    assert!(left_behind(false) > 0);
+    assert_eq!(left_behind(true), 0);
+}
+
+/// tsrs-native (the fast preset's history): a merged interface's checks run
+/// at its first declaration in each file.
+///
+/// `Merged` has two declarations in `a.ts` and one in `b.ts`. The reference
+/// runs the merged checks once a checker, at whichever declaration it meets
+/// first; under the preset's history each file's first declaration runs
+/// them, whatever was checked before.
+#[test]
+fn a_merged_interfaces_checks_run_at_its_first_declaration_in_each_file_under_the_preset_history() {
+    let files = [
+        (
+            "a.ts",
+            "interface Merged { first: 1 }\ninterface Merged { again: 2 }\n",
+        ),
+        ("b.ts", "interface Merged { second: 3 }\n"),
+    ];
+    with_program_state(&files, &CompilerOptions::default(), |state| {
+        let declarations: Vec<_> = (0..2)
+            .flat_map(|file| state.binder.source(file).arena.node_ids())
+            .filter(|&node| state.kind_of(node) == tsc_syntax::SyntaxKind::InterfaceDeclaration)
+            .collect();
+        assert_eq!(declarations.len(), 3);
+        let symbol = state
+            .get_symbol_of_declaration(declarations[0])
+            .expect("the merged interface");
+        // The reference: once, wherever the checker starts.
+        assert!(state.runs_merged_interface_checks(symbol, declarations[2]));
+        assert!(!state.runs_merged_interface_checks(symbol, declarations[0]));
+        assert!(!state.runs_merged_interface_checks(symbol, declarations[1]));
+        // The preset's history: the first declaration of each file, every time.
+        state.canonical_history = true;
+        for _ in 0..2 {
+            let runs: Vec<bool> = declarations
+                .iter()
+                .map(|&declaration| state.runs_merged_interface_checks(symbol, declaration))
+                .collect();
+            assert_eq!(runs, [true, false, true]);
+        }
+    });
+}

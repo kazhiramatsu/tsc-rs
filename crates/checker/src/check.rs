@@ -198,6 +198,7 @@ impl<'a> CheckerState<'a> {
         let Some(data) = self.record_of(root).as_source_file() else {
             unreachable!("a Program file's root is a source file");
         };
+        let checking_before = self.checking_file.replace(file_index);
         for &statement in &self.nodes_of(data.statements)[statements] {
             self.check_source_element(Some(statement));
         }
@@ -208,6 +209,7 @@ impl<'a> CheckerState<'a> {
         self.potentially_unused_identifiers.remove(&root);
         self.produce_deferred_diagnostics();
         self.reported_unreachable_nodes.clear();
+        self.checking_file = checking_before;
     }
 
     /// tsc-port: checkSourceFileWorker @6.0.3
@@ -254,6 +256,10 @@ impl<'a> CheckerState<'a> {
                 ),
             )
         });
+        let checking_before = self
+            .checking_file
+            .replace(self.binder.file_index_of_node(root));
+        self.run_deferred_type_argument_checks(root);
         self.check_grammar_source_file(root);
         // 87010-87014: the per-file accumulators clear at worker entry
         // (the PartiallyTypeChecked restore stays elided).
@@ -360,6 +366,72 @@ impl<'a> CheckerState<'a> {
         }
         self.links
             .or_node_check_flags(self.speculation_depth, root, NodeCheckFlags::TYPE_CHECKED);
+        self.checking_file = checking_before;
+    }
+
+    /// tsrs-native (the fast preset): whether the type-argument constraint
+    /// check of the type reference `node` is left to the check of its file.
+    ///
+    /// A checker reaches that check while it computes a type in a file it
+    /// has not started on: a function expression's signature is checked when
+    /// its type is first needed, from any file that uses it. The check only
+    /// reports, and what a checker reports in a file it does not check is
+    /// never read (a shard publishes a file's rows when it has checked the
+    /// file), so every checker but the file's own repeated it for nothing.
+    /// Left to the file's check it runs once on the checker that reports it
+    /// ([`Self::run_deferred_type_argument_checks`]) and not at all on the
+    /// others. tsc 6.0 queued the same check as a lazy diagnostic; tsgo runs
+    /// it in place, and so does every pool but the preset's: the order of a
+    /// checker's instantiations changes with it, and with that what a
+    /// history-dependent program prints.
+    fn defers_type_argument_constraints(&mut self, node: NodeId) -> bool {
+        if !self.canonical_history {
+            return false;
+        }
+        let file = self.binder.file_index_of_node(node);
+        if self.checking_file == Some(file) {
+            return false;
+        }
+        let root = self.binder.source(file).root;
+        if self
+            .links
+            .read_node(root, |links| links.check_flags)
+            .intersects(NodeCheckFlags::TYPE_CHECKED)
+        {
+            return false;
+        }
+        self.deferred_type_argument_checks
+            .entry(file)
+            .or_default()
+            .push(node);
+        true
+    }
+
+    /// The type-argument constraint checks that waited for the check of the
+    /// file of `root`, each as the type reference's own check would run it:
+    /// the reference is the current node and the instantiation count starts
+    /// anew.
+    fn run_deferred_type_argument_checks(&mut self, root: NodeId) {
+        let file = self.binder.file_index_of_node(root);
+        let Some(nodes) = self.deferred_type_argument_checks.remove(&file) else {
+            return;
+        };
+        for node in nodes {
+            let save_current_node = self.current_node.replace(node);
+            self.instantiation_count = 0;
+            let checked = (|| -> CheckResult<()> {
+                if let Some(type_parameters) =
+                    self.get_type_parameters_for_type_reference_or_import(node)?
+                {
+                    self.check_type_argument_constraints(node, &type_parameters)?;
+                }
+                Ok(())
+            })();
+            if let Err(abort) = checked {
+                self.mark_oracle_crash_range(node, abort);
+            }
+            self.current_node = save_current_node;
+        }
     }
 
     /// tsgo produceDeferredDiagnostics (checker.go:14251-14255): visit the
@@ -1836,6 +1908,7 @@ impl<'a> CheckerState<'a> {
         }
         self.current_node = save_current_node;
         self.within_unreachable_code = save_within_unreachable_code;
+        self.end_instantiation_count();
     }
 
     /// tsc-port: checkSourceElementUnreachable @6.0.3
@@ -2968,6 +3041,37 @@ impl<'a> CheckerState<'a> {
     /// member-specific elaboration (unlike classes);
     /// registerForUnusedIdentifiersCheck is inert until M7. A missing
     /// name (parse recovery) skips the name-anchored lazy block.
+    /// Whether the check of `node` runs the checks of its merged interface
+    /// (inherited properties, the base types, the index constraints). The
+    /// reference runs them once a checker, at whichever declaration that
+    /// checker meets first, so with declarations in several files the files
+    /// that get the index-constraint errors depend on which of them share a
+    /// checker and in what order. Under the preset's history
+    /// ([`CheckerState::canonical_history`]) they run at the interface's
+    /// first declaration in each file: a file's errors come with its own
+    /// check. The two name-anchored errors stay at the interface's first
+    /// declaration of all either way.
+    fn runs_merged_interface_checks(&mut self, symbol: SymbolId, node: NodeId) -> bool {
+        if !self.canonical_history {
+            if self.links.symbol_cold().interface_checked.get(symbol) {
+                return false;
+            }
+            self.links.set_symbol_interface_checked(symbol);
+            return true;
+        }
+        let file = self.binder.file_index_of_node(node);
+        self.binder
+            .symbol(symbol)
+            .declarations()
+            .iter()
+            .copied()
+            .find(|&declaration| {
+                self.kind_of(declaration) == SyntaxKind::InterfaceDeclaration
+                    && self.binder.file_index_of_node(declaration) == file
+            })
+            == Some(node)
+    }
+
     fn check_interface_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         // A modifier grammar error suppresses the interface grammar
         // walk (duplicate-extends family).
@@ -2998,8 +3102,7 @@ impl<'a> CheckerState<'a> {
         self.check_type_parameter_lists_identical(symbol)?;
         // tsgo checkInterfaceDeclaration: once per checker, anchored at
         // the first declaration even when this checker visits another first.
-        if !self.links.symbol_cold().interface_checked.get(symbol) {
-            self.links.set_symbol_interface_checked(symbol);
+        if self.runs_merged_interface_checks(symbol, node) {
             let first_interface_declaration =
                 self.get_declaration_of_kind(symbol, SyntaxKind::InterfaceDeclaration);
             if let Some(name) = first_interface_declaration.and_then(|first| {
@@ -3190,7 +3293,7 @@ impl<'a> CheckerState<'a> {
         // node after the file's other checks.
         let ty = self.get_type_from_type_node(node)?;
         if !self.tables.is_error_type(ty) {
-            if has_type_arguments {
+            if has_type_arguments && !self.defers_type_argument_constraints(node) {
                 if let Some(type_parameters) =
                     self.get_type_parameters_for_type_reference_or_import(node)?
                 {

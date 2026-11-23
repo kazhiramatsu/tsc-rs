@@ -1219,6 +1219,25 @@ pub struct CheckerState<'a> {
     /// (flowInvocationCount pre-exists below — M4 wired it for the
     /// getTypeOfExpression cache gate.)
     pub(crate) flow_analysis_disabled: bool,
+    /// The fast preset's history rules. Where the reference's answer depends
+    /// on what a checker happened to meet first, these make it a matter of
+    /// the Program alone, so a pool that deals its files by time prints one
+    /// output:
+    /// - a type reference's type-argument constraint check in a file this
+    ///   checker is not checking and has not checked waits for that file's
+    ///   own check ([`CheckerState::defers_type_argument_constraints`]);
+    /// - the instantiations of a check end with it
+    ///   ([`CheckerState::end_instantiation_count`]);
+    /// - a widened object literal's filled-in optional property is kept by
+    ///   the sibling property it stands for (`undefined_properties_by_property`);
+    /// - a merged interface's checks run at its first declaration in each
+    ///   file (`runs_merged_interface_checks`).
+    pub(crate) canonical_history: bool,
+    /// The file whose check runs now.
+    pub(crate) checking_file: Option<usize>,
+    /// By file: the type references whose type-argument constraint check
+    /// waits for the file's check.
+    pub(crate) deferred_type_argument_checks: rustc_hash::FxHashMap<usize, Vec<NodeId>>,
     /// Bounded flow answers and their dependency registers; independent of
     /// speculation rollback.
     pub(crate) flow_memo: crate::flow_memo::FlowMemo,
@@ -1384,6 +1403,12 @@ pub struct CheckerState<'a> {
     /// tsc undefinedProperties (47426): the per-checker
     /// getUndefinedProperty cache keyed by escaped name.
     pub(crate) undefined_properties: rustc_hash::FxHashMap<tsc_types::EscapedName, SymbolId>,
+    /// The same cache under the preset's history ([`Self::canonical_history`]):
+    /// by the sibling property the filled-in property stands for. The
+    /// reference's entry carries the declarations of the first property of
+    /// that NAME the checker ever widened, so the property sorts, and is
+    /// printed, at a declaration that depends on the checker's earlier files.
+    pub(crate) undefined_properties_by_property: rustc_hash::FxHashMap<SymbolId, SymbolId>,
 
     // ---- M4 5.5: expression-checking state ----
     /// tsc typeofType (47100): union of the typeofNEFacts key literals
@@ -1782,6 +1807,7 @@ impl<'a> CheckerState<'a> {
             std::mem::take(&mut self.awaited_type_stack),
             std::mem::take(&mut self.widening_contexts),
             std::mem::take(&mut self.undefined_properties),
+            std::mem::take(&mut self.undefined_properties_by_property),
             std::mem::take(&mut self.contextual_binding_patterns),
             std::mem::take(&mut self.contextual_types),
             std::mem::take(&mut self.inference_contexts),
@@ -2481,6 +2507,9 @@ impl<'a> CheckerState<'a> {
             type_parameter_defaults_in_progress: Vec::new(),
             mapped_types_in_progress: Vec::new(),
             flow_analysis_disabled: false,
+            canonical_history: false,
+            checking_file: None,
+            deferred_type_argument_checks: rustc_hash::FxHashMap::default(),
             flow_memo: crate::flow_memo::FlowMemo::new(),
             no_flow_context_nodes: Default::default(),
             union_front_cache: Default::default(),
@@ -2523,6 +2552,7 @@ impl<'a> CheckerState<'a> {
             deferred_global_omit_symbol: None,
             widening_contexts: Vec::new(),
             undefined_properties: rustc_hash::FxHashMap::default(),
+            undefined_properties_by_property: rustc_hash::FxHashMap::default(),
             typeof_type: TypeId::new(0),
             contextual_binding_patterns: Vec::new(),
             contextual_types: Default::default(),

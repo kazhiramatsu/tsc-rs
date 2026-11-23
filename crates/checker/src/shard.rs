@@ -1081,6 +1081,10 @@ pub(crate) struct ShardFileQueue {
     /// The fast preset's rules for a checker without files, when it takes
     /// from other lanes.
     taking: Option<Taking>,
+    /// The fast preset's history rules hold for the checkers of this queue
+    /// (`CheckerState::canonical_history`): whatever its lane count, and
+    /// whether or not its checkers take from each other.
+    canonical_history: bool,
 }
 
 /// How checkers without files take from other lanes.
@@ -1258,6 +1262,7 @@ impl ShardFileQueue {
             aborted: AtomicBool::new(false),
             measures_costs: false,
             taking: None,
+            canonical_history: false,
         }
     }
 
@@ -1360,6 +1365,17 @@ impl ShardFileQueue {
             sticky: checkers >= STICKY_CHECKERS
                 || (checkers >= LARGE_STICKY_CHECKERS && checked >= LARGE_STICKY_FILES),
         });
+    }
+
+    /// The checkers of this queue keep the fast preset's history rules.
+    pub(crate) fn keep_canonical_history(&mut self) {
+        self.canonical_history = true;
+    }
+
+    /// Whether the checkers of this queue keep the fast preset's history
+    /// rules ([`Self::keep_canonical_history`]).
+    pub(crate) fn canonical_history(&self) -> bool {
+        self.canonical_history
     }
 
     /// The statement ranges of other lanes' files this lane checks first.

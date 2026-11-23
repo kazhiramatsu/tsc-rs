@@ -124,7 +124,24 @@ impl<'a> CheckerState<'a> {
             Ok(ty)
         })();
         self.current_node = save_current_node;
+        self.end_instantiation_count();
         result
+    }
+
+    /// The preset's history ([`CheckerState::canonical_history`]): the
+    /// instantiations of the check that ends here are not counted against
+    /// the check it was made inside. The reference starts the count at a
+    /// check's entry and leaves it at its exit, so an expression that had a
+    /// declaration resolved on demand goes on with that declaration's
+    /// instantiations, and one that found it resolved goes on with its own:
+    /// whether TS2589 is reported there depends on the checker's earlier
+    /// files. The count before the inner check is not put back; the
+    /// reference has dropped it at the inner check's entry as well.
+    #[inline]
+    pub(crate) fn end_instantiation_count(&mut self) {
+        if self.canonical_history {
+            self.instantiation_count = 0;
+        }
     }
 
     /// tsc-port: instantiateTypeWithSingleGenericCallSignature @6.0.3
