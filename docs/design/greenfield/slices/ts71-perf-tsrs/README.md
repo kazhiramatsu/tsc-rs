@@ -1739,6 +1739,12 @@ front end が zod で 4.5 %、next で 4.6 %、playwright で 5.2 %、vue で 5.
 
 **自分の誤り。** (1) trace の対を 1 通りの順序（main → 候補）で 5 巡だけ測り、VS Code の全 shard が 27〜55 ms 長いと所有者に伝えた。順序を入れ替えた 16 巡と trace なし 9 回で消えた（playwright と zod では対の順序だけで check の印が約 0.7 % 動く）。以後、trace の対は必ず両方の順序で測る。(2) 朝「TypeScript の既定設定の差は member の family の伸び 1 つ」と書いた。service 別の伸びの表は最深の family frame で分けていて port 間で inline の境界が違う（member +45 M は他の group の −73 M で相殺）。その読みで census 2 回と試作 1 つを使った。(3) nice 付きの実行の shard の終了時刻を読んで「next は 1 lane だけ 31 ms 遅い」と書き、試作の基準に入れた（nice なしでは 9 ms）。(4) 試作 (a)(b) を書く前の履歴の確認で、前夜の自分の計測（rate rule、cold rule、`McpProtocol.ts` の take）を見つけられなかった。証拠そのものの語（file 名）で検索すれば 1 行で出た。(5) 事前の基準を大きさで書き、−4.4 % と −2.9 % で悪化のない試作を「未達」と報告した。
 
+**結果 58（2026-11-24 未明：fast の same-route の系列の着地（PR #1030）、夜間に build した計測用 binary と朝の計測の準備）。**
+
+**着地（PR #1030、merge `852b244c1`、11-24 02:44:10 JST、hosted run 45224798786）。** 4 commit：`TSRS_FAST=1` の下で pool を機械と program に合わせ（16 core まで 1 core に 1 checker、型検査する 32 file につき 1 つ以下、最低 4）、各 lane は重い file から始め、file の無くなった checker は残りの最も多い lane の末尾から take する；take の下でも答えを Program だけで決める履歴の規則 4 つ；2 ms 以上 shard を占めた file を phase trace が名指しする行；README と docs/performance.md の preset の説明（機械と実行時刻に依存する — 履歴に依存する program では実行ごとに出力が変わり得る）。既定 mode はこの code に届かない。local の検査（夜間設定：cargo 2 job、test 2 thread、conformance 1 worker）は全部 rc 0：workspace の clippy、fmt、2 crate の test 2,518 件、4 checker の conformance 15,335 構成一致・既知の 4 件のみ差、suite 0 regression、emit の oracle 24 / 24、構文の fingerprint 161,676 行で差 0、preset の出力は 7 project で基準と一致（14 / 14）、zod は「実行ごとに変わり得る」と宣言して比較しない。計測値は結果 57（preset の wall：effect −9.4 %、hono −4.4、vue −4.1、next −3.4、VS Code −2.8、zod −1.0、TypeScript −0.5、playwright +0.9；peak +4〜28 %、持ち主は揃った lane そのもの）。README と docs/performance.md の表は前回公開した窓のままで、静かな時間に測り直す。
+
+**夜間に用意したもの（計測は所有者の指示を待つ）。** 計測用 binary 2 つを夜間設定で build し、lint と test を通した：take する側の cost で lane を並べる各形を switch で切り替える binary（`proto/fast-bound-stay` eeb7870a3：import の閉包での見積もり、宣言 file を数えない、cost が重さの 4 倍を超える file は take させない、pace による take）と、過去の実行の cost の記録で fast の配り方を決める binary（`proto/fast-profile-dealt` c5d3f3903）。記録は 8 project 分を既定 mode の 2 回の実行で作り（2 回目で変化なし、記録があっても既定 mode の出力は同じ）、読み取り専用にした — preset の実行は記録を書き換えられないので、計測の各回が同じ記録を読む。朝の計測枠は 4 本：新しい順序の各形と pace による take、記録で配る版、11-22 に外した switch の再評価、既定設定での step 3 と「宣言 file の root を先に読む」順序。読み方は結果 57 の 3 つの数字（下限との差、W、S + T）と「基準 2 列の両方より下／悪化なし」。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
