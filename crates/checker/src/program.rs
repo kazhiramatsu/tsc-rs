@@ -654,6 +654,69 @@ pub struct ProgramSnapshot {
     file_facts: Vec<ProgramFileFacts>,
     owner_routes: Arc<OnceLock<Result<ProgramOwnerRoutes, ProgramIdentityError>>>,
     checker_tables: Arc<OnceLock<ProgramCheckerTables>>,
+    checker_starts: Arc<OnceLock<ProgramCheckerStarts>>,
+}
+
+/// What a checker's start reads from every file of the Program, made once
+/// for the snapshot (by the first checker's start, or ahead of the checkers
+/// by [`ProgramSnapshot::warm_checker_starts`]) instead of by a pass over
+/// all files in every checker.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ProgramCheckerStarts {
+    /// The nodes and persistent symbols of all files: the type tables'
+    /// capacity hints.
+    pub(crate) nodes: usize,
+    pub(crate) symbols: usize,
+    /// The exclusive ends of the node and symbol identities in use: the link
+    /// directories' sizes (program-wide identities can have gaps).
+    pub(crate) node_id_end: usize,
+    pub(crate) symbol_id_end: usize,
+    /// The files the globals merge takes something from, in Program order:
+    /// the Program's global scripts, the files with pattern ambient modules
+    /// and the files whose symbol has global exports. Every other file is
+    /// outside the Program or an external module that has neither.
+    pub(crate) global_contributors: Vec<u32>,
+}
+
+impl ProgramCheckerStarts {
+    fn build(view: &ProgramBinder<'_>) -> Self {
+        let mut starts = Self::default();
+        for index in 0..view.file_count() {
+            let source = view.source(index);
+            let data = view.file(index);
+            starts.nodes += source.arena.len();
+            starts.symbols += data.symbols.len();
+            starts.node_id_end = starts.node_id_end.max(source.arena.node_end() as usize);
+            starts.symbol_id_end = starts
+                .symbol_id_end
+                .max(data.symbols.next_id().index() as usize);
+            let file =
+                ProgramFileId::from_raw(u32::try_from(index).expect("Program file index overflow"));
+            if view.file_facts(file).is_outside_program() {
+                continue;
+            }
+            let global_script = source.external_module_indicator.is_none()
+                && data.common_js_module_indicator.is_none();
+            let contributes = global_script
+                || !data.pattern_ambient_modules.is_empty()
+                || view.node_symbol(source.root).is_some_and(|symbol| {
+                    view.symbol(symbol)
+                        .extras()
+                        .global_exports
+                        .iter()
+                        .next()
+                        .is_some()
+                });
+            if contributes {
+                starts.global_contributors.push(file.0);
+            }
+        }
+        starts
+    }
+
+    fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
+        usage.vec("checker host tables (estimate)", &self.global_contributors);
+    }
 }
 
 /// What every checker of a Program reads from all of its files and none of
@@ -693,9 +756,15 @@ impl ProgramCheckerTables {
 /// Where a checker's view finds the Program's checker tables.
 enum ProgramTables<'a> {
     /// The snapshot's, shared by every checker over it.
-    Snapshot(&'a OnceLock<ProgramCheckerTables>),
+    Snapshot(
+        &'a OnceLock<ProgramCheckerTables>,
+        &'a OnceLock<ProgramCheckerStarts>,
+    ),
     /// A view over borrowed binders (unit tests) has its own.
-    Own(OnceLock<ProgramCheckerTables>),
+    Own(
+        OnceLock<ProgramCheckerTables>,
+        OnceLock<ProgramCheckerStarts>,
+    ),
 }
 
 impl ProgramSnapshot {
@@ -743,20 +812,24 @@ impl ProgramSnapshot {
             file_facts,
             owner_routes: Arc::default(),
             checker_tables: Arc::default(),
+            checker_starts: Arc::default(),
         })
     }
 
-    /// Make the owner routes ahead of the checkers. A driver calls this on a
-    /// thread of its own beside its serial preparation, so no checker's start
-    /// builds them or waits for the one that does; without the call the
-    /// first checker's view builds them.
-    pub fn warm_owner_routes(&self) {
-        let _ = ProgramBinder::try_from_snapshot(self);
+    /// Make what the checkers' starts read ahead of them: the owner routes
+    /// and the starts' table. A driver calls this on a thread of its own
+    /// beside its serial preparation; without the call the first checker's
+    /// start builds both.
+    pub fn warm_checker_starts(&self) {
+        if let Ok(view) = ProgramBinder::try_from_snapshot(self) {
+            view.checker_starts();
+        }
     }
 
-    /// Make the module resolver's path table ahead of the checkers, as
-    /// [`Self::warm_owner_routes`] does for the routes; without the call the
-    /// first checker to read the table builds it.
+    /// Make the module resolver's path table ahead of the checkers. A driver
+    /// calls this on a thread of its own beside its serial preparation, so no
+    /// checker builds the table or waits for the one that does; without the
+    /// call the first checker to read the table builds it.
     pub fn warm_path_index(&self) {
         self.checker_tables.get_or_init(|| {
             let sources = self
@@ -1324,7 +1397,7 @@ impl<'a> ProgramBinder<'a> {
             entries,
             snapshot.file_facts.clone(),
             routes,
-            ProgramTables::Snapshot(&snapshot.checker_tables),
+            ProgramTables::Snapshot(&snapshot.checker_tables, &snapshot.checker_starts),
         ))
     }
 
@@ -1351,7 +1424,7 @@ impl<'a> ProgramBinder<'a> {
             file_entries,
             file_facts,
             routes,
-            ProgramTables::Own(OnceLock::new()),
+            ProgramTables::Own(OnceLock::new(), OnceLock::new()),
         ))
     }
 
@@ -1389,10 +1462,20 @@ impl<'a> ProgramBinder<'a> {
     /// The Program's checker tables, built by the first view to ask.
     fn checker_tables(&self) -> &ProgramCheckerTables {
         let tables = match &self.tables {
-            ProgramTables::Snapshot(tables) => *tables,
-            ProgramTables::Own(tables) => tables,
+            ProgramTables::Snapshot(tables, _) => *tables,
+            ProgramTables::Own(tables, _) => tables,
         };
         tables.get_or_init(|| ProgramCheckerTables::build(&self.sources))
+    }
+
+    /// What a checker's start reads from every file, built by the first view
+    /// to ask.
+    pub(crate) fn checker_starts(&self) -> &ProgramCheckerStarts {
+        let starts = match &self.tables {
+            ProgramTables::Snapshot(_, starts) => *starts,
+            ProgramTables::Own(_, starts) => starts,
+        };
+        starts.get_or_init(|| ProgramCheckerStarts::build(self))
     }
 
     /// The module resolver's path table: the normalized name of every file
@@ -1935,14 +2018,22 @@ impl ProgramSnapshot {
                 tables.add_memory_usage(usage);
             }
         }
+        if usage.arc("snapshot checker tables", &self.checker_starts) {
+            if let Some(starts) = self.checker_starts.get() {
+                starts.add_memory_usage(usage);
+            }
+        }
     }
 }
 
 impl ProgramBinder<'_> {
     pub(crate) fn add_projection_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
-        if let ProgramTables::Own(tables) = &self.tables {
+        if let ProgramTables::Own(tables, starts) = &self.tables {
             if let Some(tables) = tables.get() {
                 tables.add_memory_usage(usage);
+            }
+            if let Some(starts) = starts.get() {
+                starts.add_memory_usage(usage);
             }
         }
         usage.vec("checker program projections", &self.file_entries);

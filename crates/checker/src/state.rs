@@ -2358,17 +2358,17 @@ impl<'a> CheckerState<'a> {
 
         // Counts size the type-table hints; exclusive arena ends size the
         // link directories because program-wide identities can have gaps.
-        let mut program_nodes = 0usize;
-        let mut program_symbols = 0usize;
-        let mut node_id_end = 0usize;
-        let mut symbol_id_end = 0usize;
-        for file_index in 0..binder.file_count() {
-            program_nodes += binder.source(file_index).arena.len();
-            program_symbols += binder.file(file_index).symbols.len();
-            node_id_end = node_id_end.max(binder.source(file_index).arena.node_end() as usize);
-            symbol_id_end =
-                symbol_id_end.max(binder.file(file_index).symbols.next_id().index() as usize);
-        }
+        // The Program's sums and bounds over all files, not this checker's
+        // pass: `ProgramBinder::checker_starts`.
+        let (program_nodes, program_symbols, node_id_end, symbol_id_end) = {
+            let starts = binder.checker_starts();
+            (
+                starts.nodes,
+                starts.symbols,
+                starts.node_id_end,
+                starts.symbol_id_end,
+            )
+        };
         let lookup_share = Self::lookup_share(pool_size);
         tables.reserve_capacity_hint(program_nodes / lookup_share, program_symbols / lookup_share);
         tsc_types::names::reserve_capacity_hint(program_symbols / 4);

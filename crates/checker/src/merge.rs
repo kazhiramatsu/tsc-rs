@@ -950,11 +950,15 @@ impl<'a> CheckerState<'a> {
     /// globals stay LAZY accessors (globals.rs) per the M4 5.0 doc so
     /// they begin resolving when 5.1's declared types exist.
     pub(crate) fn initialize_program_globals(&mut self) {
-        let file_count = self.binder.file_count();
-        for index in 0..file_count {
-            if self.is_outside_program(index) {
-                continue;
-            }
+        // tsgo initializeChecker visits every source file. Only the global
+        // scripts, the files with pattern ambient modules and the files with
+        // global exports have something for this loop; the Program knows
+        // them (`ProgramCheckerStarts::global_contributors`, in Program
+        // order), so a checker does not visit the other files to find that
+        // they have nothing.
+        let contributors = self.binder.checker_starts().global_contributors.clone();
+        for index in contributors {
+            let index = index as usize;
             let source = self.binder.source(index);
             let is_external_module = source.external_module_indicator.is_some()
                 || self.binder.file(index).common_js_module_indicator.is_some();

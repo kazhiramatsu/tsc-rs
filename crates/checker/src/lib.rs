@@ -5339,20 +5339,27 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         checked.iter().filter(|&&checked| checked).count(),
     );
     // What every checker reads from all of the Program's files and none of
-    // them changes - the snapshot's owner routes and its checker tables - is
-    // made once, on a thread of its own beside the rest of this preparation
-    // and the checkers' starts, so no checker builds it or waits for the one
-    // that does. The thread holds the snapshot's shared cells and ends with
-    // the tables; a refused thread leaves them to the first checker that asks.
+    // them changes is made once, on two threads of their own beside the rest
+    // of this preparation and the checkers' starts, so no checker builds it
+    // or waits for the one that does: the snapshot's owner routes and what a
+    // start reads from every file (needed first), and the module resolver's
+    // path table (needed at the first lookup by name). The threads hold the
+    // snapshot's shared cells and end with their tables; a refused thread
+    // leaves its tables to the first checker that asks.
     if checker_count > 1 && snapshot.file_count() >= WARMED_CHECKER_TABLES_FILES {
-        let warmed = snapshot.clone();
-        let _ = std::thread::Builder::new()
-            .name("tsc-rs-checker-tables".to_owned())
-            .spawn(move || {
-                tsc_program::run_thread_start_hook();
-                warmed.warm_owner_routes();
-                warmed.warm_path_index();
-            });
+        let warmed = Arc::new(snapshot.clone());
+        for make in [
+            ProgramSnapshot::warm_checker_starts,
+            ProgramSnapshot::warm_path_index,
+        ] {
+            let warmed = Arc::clone(&warmed);
+            let _ = std::thread::Builder::new()
+                .name("tsc-rs-checker-tables".to_owned())
+                .spawn(move || {
+                    tsc_program::run_thread_start_hook();
+                    make(&warmed);
+                });
+        }
     }
     let node_counts = snapshot
         .documents()
