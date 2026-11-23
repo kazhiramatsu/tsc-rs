@@ -1567,11 +1567,6 @@ pub struct CheckerState<'a> {
             Option<tsc_types::JsString>,
         >,
     >,
-    /// tsrs-native (M4 5.8d): normalized file path → program file
-    /// index — the host.getResolvedModule seam's lookup table
-    /// (program-and-modules.md §2; later files shadow earlier
-    /// same-name entries like the program layer's last-index-by-name).
-    pub program_path_index: rustc_hash::FxHashMap<tsc_types::JsString, usize>,
     /// Per-Program-file memo of getImpliedNodeFormatForFile /
     /// getImpliedNodeFormatForEmit results. Both are pure functions of the
     /// file name, the installed authoritative metadata, the package-scope
@@ -1814,7 +1809,6 @@ impl<'a> CheckerState<'a> {
             std::mem::take(&mut self.resolving_explicit_type_of_symbol),
             std::mem::take(&mut self.unresolved_module_augmentations),
             std::mem::take(&mut self.unresolved_package_root_cache),
-            std::mem::take(&mut self.program_path_index),
             std::mem::take(&mut self.implied_node_format_memo),
             std::mem::take(&mut self.external_helpers_modules),
             std::mem::take(&mut self.requested_external_emit_helpers),
@@ -2364,17 +2358,17 @@ impl<'a> CheckerState<'a> {
 
         // Counts size the type-table hints; exclusive arena ends size the
         // link directories because program-wide identities can have gaps.
-        let mut program_nodes = 0usize;
-        let mut program_symbols = 0usize;
-        let mut node_id_end = 0usize;
-        let mut symbol_id_end = 0usize;
-        for file_index in 0..binder.file_count() {
-            program_nodes += binder.source(file_index).arena.len();
-            program_symbols += binder.file(file_index).symbols.len();
-            node_id_end = node_id_end.max(binder.source(file_index).arena.node_end() as usize);
-            symbol_id_end =
-                symbol_id_end.max(binder.file(file_index).symbols.next_id().index() as usize);
-        }
+        // The Program's sums and bounds over all files, not this checker's
+        // pass: `ProgramBinder::checker_starts`.
+        let (program_nodes, program_symbols, node_id_end, symbol_id_end) = {
+            let starts = binder.checker_starts();
+            (
+                starts.nodes,
+                starts.symbols,
+                starts.node_id_end,
+                starts.symbol_id_end,
+            )
+        };
         let lookup_share = Self::lookup_share(pool_size);
         tables.reserve_capacity_hint(program_nodes / lookup_share, program_symbols / lookup_share);
         tsc_types::names::reserve_capacity_hint(program_symbols / 4);
@@ -2571,7 +2565,6 @@ impl<'a> CheckerState<'a> {
             conditional_constraint_depth: 0,
             unresolved_module_augmentations: rustc_hash::FxHashMap::default(),
             unresolved_package_root_cache: Default::default(),
-            program_path_index: rustc_hash::FxHashMap::default(),
             implied_node_format_memo: std::cell::RefCell::new(Vec::new()),
             authoritative_module_provider: None,
             authoritative_sources: &crate::EMPTY_AUTHORITATIVE_SOURCES,
@@ -2618,13 +2611,8 @@ impl<'a> CheckerState<'a> {
             global_this_symbol,
             CheckFlags::READONLY,
         );
-        // The module resolver's path table (M4 5.8d): later files
-        // shadow earlier same-name entries (lib.rs last_index_by_name).
-        for index in 0..state.binder.file_count() {
-            let normalized =
-                Self::normalize_js_program_path(&state.binder.source(index).file_name, "");
-            state.program_path_index.insert(normalized, index);
-        }
+        // The module resolver's path table (M4 5.8d) is the Program's, not
+        // this checker's: `ProgramBinder::path_index`.
         std::sync::Arc::make_mut(&mut state.globals).insert(
             tsc_types::EscapedName::from_identifier_escaped_text("globalThis"),
             global_this_symbol,

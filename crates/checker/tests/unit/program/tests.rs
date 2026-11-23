@@ -960,6 +960,132 @@ fn snapshot_owner_routes_are_shared_across_concurrent_sessions_and_clones() {
 }
 
 #[test]
+fn snapshot_checker_tables_are_made_once_for_every_view() {
+    let domain = IdentityDomain::new();
+    let document = |path: &str, text: &str| {
+        bound_document_for_snapshot(
+            path,
+            TextSnapshot::new(text.to_owned(), Default::default()),
+            &domain,
+        )
+    };
+    let documents = vec![
+        document("/src/a.ts", "export const a = 1;"),
+        document("/src/./b.ts", "export const b = 2;"),
+        // A later file shadows an earlier one of the same name.
+        document("/src/a.ts", "export const a = 3;"),
+    ];
+    let snapshot = ProgramSnapshot::new(documents.clone(), 0).unwrap();
+    let cloned = snapshot.clone();
+    // A view does not build the tables; the first reader does, once, for
+    // every view of the snapshot and of its clones.
+    let left = ProgramBinder::from_snapshot(&snapshot);
+    let right = ProgramBinder::from_snapshot(&cloned);
+    assert!(snapshot.checker_tables.get().is_none());
+    let paths = left.path_index();
+    assert!(std::ptr::eq(paths, right.path_index()));
+    assert!(std::ptr::eq(
+        paths,
+        &cloned.checker_tables.get().unwrap().path_index
+    ));
+    assert_eq!(paths.len(), 2);
+    assert_eq!(paths.get("/src/a.ts".as_bytes()), Some(&2));
+    assert_eq!(paths.get("/src/b.ts".as_bytes()), Some(&1));
+    // Made ahead of the checkers: the table is there before any view asks,
+    // and a view reads that one.
+    let warmed = ProgramSnapshot::new(documents, 0).unwrap();
+    assert!(warmed.checker_tables.get().is_none());
+    warmed.warm_path_index();
+    assert!(warmed.has_path_index());
+    let made = warmed.checker_tables.get().expect("warmed tables");
+    assert!(std::ptr::eq(
+        ProgramBinder::from_snapshot(&warmed).path_index(),
+        &made.path_index
+    ));
+    assert_eq!(made.path_index, *paths);
+}
+
+#[test]
+fn snapshot_checker_starts_name_the_files_the_globals_merge_reads() {
+    let domain = IdentityDomain::new();
+    let document = |path: &str, text: &str| {
+        bound_document_for_snapshot(
+            path,
+            TextSnapshot::new(text.to_owned(), Default::default()),
+            &domain,
+        )
+    };
+    let documents = vec![
+        // 0: an external module with nothing for the globals.
+        document("/src/module.ts", "export const a = 1;"),
+        // 1: a global script.
+        document("/src/script.ts", "var g = 1;"),
+        // 2: an external module whose symbol has global exports.
+        document(
+            "/types/umd.d.ts",
+            "export as namespace Umd;\nexport const u: number;",
+        ),
+        // 3: another module with nothing.
+        document("/src/other.ts", "import { a } from './module';\na;"),
+        // 4: a file without a module indicator is a global script.
+        document("/src/empty.ts", ""),
+        // 5: a global script outside the Program.
+        document("/outside/script.ts", "var h = 2;"),
+    ];
+    let mut facts = vec![ProgramFileFacts::ORDINARY; documents.len()];
+    facts[5] = ProgramFileFacts::OUTSIDE_PROGRAM;
+    let snapshot = ProgramSnapshot::new_with_file_facts(documents.clone(), facts.clone()).unwrap();
+    let view = ProgramBinder::from_snapshot(&snapshot);
+    assert!(snapshot.checker_starts.get().is_none());
+    let starts = view.checker_starts();
+    assert_eq!(starts.global_contributors, [1, 2, 4]);
+    let files = 0..documents.len();
+    assert_eq!(
+        starts.nodes,
+        files
+            .clone()
+            .map(|index| view.source(index).arena.len())
+            .sum::<usize>()
+    );
+    assert_eq!(
+        starts.symbols,
+        files
+            .clone()
+            .map(|index| view.file(index).symbols.len())
+            .sum::<usize>()
+    );
+    assert_eq!(
+        starts.node_id_end,
+        files
+            .clone()
+            .map(|index| view.source(index).arena.node_end() as usize)
+            .max()
+            .unwrap()
+    );
+    assert_eq!(
+        starts.symbol_id_end,
+        files
+            .map(|index| view.file(index).symbols.next_id().index() as usize)
+            .max()
+            .unwrap()
+    );
+    // One table for every view of the snapshot and of its clones.
+    assert!(std::ptr::eq(
+        starts,
+        ProgramBinder::from_snapshot(&snapshot.clone()).checker_starts()
+    ));
+    // Made ahead of the checkers: the routes and the table are there before
+    // any view asks.
+    let warmed = ProgramSnapshot::new_with_file_facts(documents, facts).unwrap();
+    assert!(warmed.owner_routes.get().is_none() && warmed.checker_starts.get().is_none());
+    assert!(!warmed.has_checker_starts() && !warmed.has_path_index());
+    warmed.warm_checker_starts();
+    assert!(warmed.owner_routes.get().is_some());
+    assert!(warmed.has_checker_starts() && !warmed.has_path_index());
+    assert_eq!(warmed.checker_starts.get(), Some(starts));
+}
+
+#[test]
 fn snapshot_owner_route_failures_remain_local_to_the_snapshot() {
     let first_domain = IdentityDomain::new();
     let second_domain = IdentityDomain::new();

@@ -5063,6 +5063,72 @@ pub fn declaration_output_requested(options: &CompilerOptions) -> bool {
         || options.emit_declaration_only == Some(true)
 }
 
+/// A Program of fewer files leaves the snapshot's checker tables to the first
+/// checker that asks for them: there a thread costs more than the tables. In
+/// this crate's own tests every sharded Program takes the threads, so their
+/// small Programs exercise that path.
+const WARMED_CHECKER_TABLES_FILES: usize = if cfg!(test) { 1 } else { 256 };
+
+/// The threads that make a snapshot's shared checker tables ahead of the
+/// checkers: the owner routes with what a start reads from every file
+/// (needed first), and the module resolver's path table (needed at the first
+/// lookup by name). They hold a clone of the snapshot - its shared cells and
+/// its documents' handles - and the driver joins them before it returns, so
+/// nothing of a Program outlives its check on their account. They end with
+/// their tables, long before the checkers do.
+struct TableWarmers(Vec<std::thread::JoinHandle<()>>);
+
+/// One table of the snapshot: whether it is made already, and the call that
+/// makes it.
+type TableMaker = (fn(&ProgramSnapshot) -> bool, fn(&ProgramSnapshot));
+
+impl TableWarmers {
+    /// Starts a thread for each table the snapshot does not have yet (an
+    /// earlier session over the snapshot, or the incremental planner, may
+    /// have made them). A refused thread leaves its table to the first
+    /// checker that asks.
+    fn start(snapshot: &ProgramSnapshot, checker_count: usize) -> Self {
+        let mut threads = Vec::new();
+        if checker_count > 1 && snapshot.file_count() >= WARMED_CHECKER_TABLES_FILES {
+            let makers: [TableMaker; 2] = [
+                (
+                    ProgramSnapshot::has_checker_starts,
+                    ProgramSnapshot::warm_checker_starts,
+                ),
+                (
+                    ProgramSnapshot::has_path_index,
+                    ProgramSnapshot::warm_path_index,
+                ),
+            ];
+            let mut warmed: Option<Arc<ProgramSnapshot>> = None;
+            for (made, make) in makers {
+                if made(snapshot) {
+                    continue;
+                }
+                let warmed = Arc::clone(warmed.get_or_insert_with(|| Arc::new(snapshot.clone())));
+                let thread = std::thread::Builder::new()
+                    .name("tsc-rs-checker-tables".to_owned())
+                    .spawn(move || {
+                        tsc_program::run_thread_start_hook();
+                        make(&warmed);
+                    });
+                threads.extend(thread);
+            }
+        }
+        Self(threads)
+    }
+}
+
+impl Drop for TableWarmers {
+    fn drop(&mut self) {
+        for thread in self.0.drain(..) {
+            // A warmer that panicked left its cell empty: the first checker
+            // that asked has built that table.
+            let _ = thread.join();
+        }
+    }
+}
+
 /// The sharded driver: stages 1–2 once (parse/adopt, bind, snapshot), then
 /// one checker state per shard on scoped threads over the shared immutable
 /// snapshot, then the Program-order merge. Equivalent to the serial driver's
@@ -5332,6 +5398,11 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         snapshot.documents().len(),
         checked.iter().filter(|&&checked| checked).count(),
     );
+    // What every checker reads from all of the Program's files and none of
+    // them changes is made once, on threads of their own beside the rest of
+    // this preparation and the checkers' starts, so no checker builds it or
+    // waits for the one that does. Joined when this driver returns.
+    let _table_warmers = TableWarmers::start(&snapshot, checker_count);
     let node_counts = snapshot
         .documents()
         .iter()
