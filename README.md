@@ -35,8 +35,10 @@ tsc-rs printed exactly `tsgo`'s diagnostics on all eight projects.
 
 tsrs and tsc-rs each have an opt-in mode that spreads the check over more
 cores and may report a few diagnostics differently from `tsgo`: `--fast` in
-tsrs, the environment variable `TSRS_FAST=1` in tsc-rs (its result is the
-same on every machine and in every run).
+tsrs, the environment variable `TSRS_FAST=1` in tsc-rs. In both, the pool
+follows the machine and the checkers take files from each other as they
+finish, so a program whose diagnostics depend on the order of checking can
+print differently from run to run.
 
 | Project | tsrs `--fast` | tsc-rs `TSRS_FAST=1` |
 | --- | ---: | ---: |

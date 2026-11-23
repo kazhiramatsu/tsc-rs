@@ -239,12 +239,20 @@ fn checker_defaults_environment_and_option_precedence_follow_tsgo() {
         }
     }
     // The preset keeps a requested count and changes the association; with
-    // no count its pool follows the Program, up to twelve checkers.
-    // `--singleThreaded` is the serial mode with or without it.
+    // no count its pool follows the machine and the Program
+    // (`CheckerBudget::fast`, whose rule the checker's own tests pin by core
+    // count). `--singleThreaded` is the serial mode with or without it.
+    let machine = CheckerBudget::fast().checkers();
     for fast in ["1", " 1 "] {
         for (environment, explicit, single, expected, assignment) in [
-            (None, None, false, 12, CheckerAssignment::Locality),
-            (Some("bad"), None, false, 12, CheckerAssignment::Locality),
+            (None, None, false, machine, CheckerAssignment::Locality),
+            (
+                Some("bad"),
+                None,
+                false,
+                machine,
+                CheckerAssignment::Locality,
+            ),
             (Some("2"), None, false, 2, CheckerAssignment::Locality),
             (Some("8"), Some(2.0), false, 2, CheckerAssignment::Locality),
             (Some("1000"), None, false, 256, CheckerAssignment::Locality),

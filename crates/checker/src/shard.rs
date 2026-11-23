@@ -2,14 +2,21 @@
 //! the fast preset's association by directory locality.
 //!
 //! A checker owns its caches and visits its associated files in Program order.
-//! Neither worker scheduling nor file check durations can change ownership:
-//! under either association the owner of a file is a function of the Program,
-//! and so is the checker of every statement range of a file that the fast
-//! preset checks in ranges.
+//! Under tsgo's association neither worker scheduling nor file check durations
+//! can change ownership: the owner of a file is a function of the Program.
+//!
+//! The fast preset gives that up for the pool's width: its association is
+//! the starting point, every checker starts with its heavy files, and a
+//! checker that has run out of files takes unstarted ones from the back of the
+//! lane with the most work left ([`ShardFileQueue::next_fixture`]). Which
+//! checker checks a file then depends on how fast the others were, and with it
+//! what a history-dependent program prints. The checker of every statement
+//! range of a file checked in ranges stays a function of the Program.
 
 use std::num::NonZeroUsize;
 use std::ops::Range;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::Mutex;
 
 /// tsgo `newCheckerPoolWithTracing`: max(min(requested, files, 256), 1).
 pub const MAX_CHECKERS: usize = 256;
@@ -28,16 +35,37 @@ pub enum CheckerAssignment {
     Locality,
 }
 
-/// The fast preset's pool: one checker per this many type-checked files,
-/// between four (tsgo's default) and twelve. The count follows the Program
-/// and never the machine, so the preset's output is the same on every machine.
-/// Every checker resolves again some of what the others resolved, so the work
-/// grows with the pool (about 0.6 % per checker on a ten-thousand-file
-/// program); twelve was the fastest pool on ten cores and still divides the
-/// work finely enough that four cores share it evenly.
+/// The fast preset's pool: a checker for every core up to sixteen, beyond
+/// that half the cores, at least four (tsgo's default) and at most
+/// thirty-two — and never more than one checker per
+/// [`FAST_FILES_PER_CHECKER`] type-checked files. Parsing and checking are
+/// phases of their own, so a checker takes no core from the parser; what it
+/// costs is memory and the declarations it resolves again, and a checker that
+/// runs out of files takes over others' ([`ShardFileQueue::next_fixture`]).
+/// The count follows the machine: a history-dependent program can print
+/// something else on a machine with other cores.
 const FAST_FILES_PER_CHECKER: usize = 32;
 const FAST_MIN_CHECKERS: usize = 4;
-const FAST_MAX_CHECKERS: usize = 12;
+const FAST_MAX_CHECKERS: usize = 32;
+/// Up to this many cores every core gets a checker.
+const FAST_CHECKER_PER_CORE_UP_TO: usize = 16;
+
+/// A file heavier than one part in this many of a mean checker's share is
+/// started first by its checker (see [`ShardFileQueue::take_from_the_fullest`]).
+const HEAVY_SHARE_DIVISOR: u64 = 200;
+/// From this many checkers on (or [`LARGE_STICKY_CHECKERS`] checkers on a
+/// program of [`LARGE_STICKY_FILES`] checked files) a taking checker stays
+/// with the lane it took from last while that lane has at least half the work
+/// of the fullest: the back of a lane is one directory region, and every
+/// region a taker enters costs it that region's modules.
+const STICKY_CHECKERS: usize = 16;
+const LARGE_STICKY_CHECKERS: usize = 8;
+const LARGE_STICKY_FILES: usize = 24_000;
+/// Between this many checkers and [`STICKY_CHECKERS`], at most one checker in
+/// [`CHECKERS_PER_TAKER`] takes from one lane at a time: every taker of a
+/// region builds that region's types for itself.
+const TAKER_LIMIT_FROM_CHECKERS: usize = 8;
+const CHECKERS_PER_TAKER: usize = 4;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CheckerBudget {
@@ -111,12 +139,24 @@ impl CheckerBudget {
         Self::new(NonZeroUsize::new(4).expect("four is nonzero"))
     }
 
-    /// The fast preset without an explicit count: the locality association
-    /// and a pool that follows the Program's checked files.
+    /// The fast preset without an explicit count on this machine: the
+    /// locality association and a pool that follows the machine's cores and
+    /// the Program's checked files.
     pub fn fast() -> Self {
+        Self::fast_for(std::thread::available_parallelism().map_or(1, NonZeroUsize::get))
+    }
+
+    /// [`Self::fast`] for a machine of `cores` cores: one checker a core up
+    /// to sixteen cores, then the larger of sixteen and half the cores,
+    /// between four and thirty-two (4 on 4, 8 on 8, 10 on 10, 16 on 16 to 33,
+    /// 32 on 64); [`Self::checkers_for`] lowers it for a small Program.
+    pub fn fast_for(cores: usize) -> Self {
+        let checkers = (cores / 2)
+            .max(cores.min(FAST_CHECKER_PER_CORE_UP_TO))
+            .clamp(FAST_MIN_CHECKERS, FAST_MAX_CHECKERS);
         Self {
             scaled: true,
-            ..Self::new(NonZeroUsize::new(FAST_MAX_CHECKERS).expect("twelve is nonzero"))
+            ..Self::new(NonZeroUsize::new(checkers).expect("four at least"))
                 .with_assignment(CheckerAssignment::Locality)
         }
     }
@@ -520,12 +560,15 @@ pub(crate) struct SplitFile {
     pub(crate) pieces: Vec<(Range<usize>, usize)>,
 }
 
-/// The fast preset's association: every file's checker, and the files
-/// checked in statement ranges, in ascending file index.
+/// The fast preset's association: every file's checker, the files checked in
+/// statement ranges in ascending file index, and what every file weighed in
+/// the placement (a file checked in ranges: its own checker's range; a file
+/// no checker works for: nothing).
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct LocalityAssociation {
     pub(crate) checkers: Vec<usize>,
     pub(crate) splits: Vec<SplitFile>,
+    pub(crate) weights: Vec<usize>,
 }
 
 /// At most `count` contiguous ranges of statements with about equal text,
@@ -621,6 +664,7 @@ pub(crate) fn associate_files_by_locality(
     let mut associations = vec![0; base_weights.len()];
     if checkers == 1 {
         return LocalityAssociation {
+            weights: vec![0; associations.len()],
             checkers: associations,
             splits: Vec::new(),
         };
@@ -647,6 +691,7 @@ pub(crate) fn associate_files_by_locality(
         .collect::<Vec<_>>();
     if order.is_empty() {
         return LocalityAssociation {
+            weights: vec![0; associations.len()],
             checkers: associations,
             splits: Vec::new(),
         };
@@ -713,6 +758,9 @@ pub(crate) fn associate_files_by_locality(
     let piece_weight = (share / SPLIT_PIECE_DIVISOR).max(1);
     let mut exclusive = vec![0u32; group_weights.len()];
     let mut split_groups = Vec::<(usize, Vec<Range<usize>>, usize)>::new();
+    // What every file weighs on its own checker: a file checked in ranges,
+    // its first range.
+    let mut own_weights = weights.clone();
     for file in 0..weights.len() {
         let group = group_of[file];
         if group == usize::MAX
@@ -742,6 +790,7 @@ pub(crate) fn associate_files_by_locality(
             if index == 0 {
                 group_weights[group] = weight;
                 exclusive[group] = id;
+                own_weights[file] = weight;
             } else {
                 group_weights.push(weight);
                 group_adjacent.push(Vec::new());
@@ -810,6 +859,7 @@ pub(crate) fn associate_files_by_locality(
     LocalityAssociation {
         checkers: associations,
         splits,
+        weights: own_weights,
     }
 }
 
@@ -1012,8 +1062,13 @@ fn place_groups(
     placed
 }
 
-/// Each lane has a fixed owner. Cursors are independent; no lane steals or
-/// pulls another lane's work. Empty checkers are retained, as in tsgo's pool.
+/// The files of every checker, in the order it visits them. Empty checkers
+/// are retained, as in tsgo's pool.
+///
+/// A lane's files are its checker's, and under tsgo's association nobody else
+/// touches them. Under the fast preset ([`Self::take_from_the_fullest`]) a
+/// lane is a queue with two ends: its checker takes at the front, and a
+/// checker that has no file left takes at the back of another lane.
 #[derive(Debug)]
 pub(crate) struct ShardFileQueue {
     lanes: Vec<Lane>,
@@ -1023,6 +1078,41 @@ pub(crate) struct ShardFileQueue {
     /// The checkers measure what every fixture's check costs (a lane
     /// profile is written after the check).
     measures_costs: bool,
+    /// The fast preset's rules for a checker without files, when it takes
+    /// from other lanes.
+    taking: Option<Taking>,
+    /// The fast preset's history rules hold for the checkers of this queue
+    /// (`CheckerState::canonical_history`): whatever its lane count, and
+    /// whether or not its checkers take from each other.
+    canonical_history: bool,
+}
+
+/// How checkers without files take from other lanes.
+#[derive(Clone, Copy, Debug)]
+struct Taking {
+    /// The most checkers that take from one lane at a time; zero for no
+    /// limit.
+    takers_per_lane: usize,
+    /// A taking checker stays with its lane while that has half the work of
+    /// the fullest.
+    sticky: bool,
+}
+
+/// Where a checker without files of its own takes from: its place among a
+/// lane's takers, and the lane it took from last.
+#[derive(Debug)]
+pub(crate) struct TakeCursor {
+    lane: usize,
+    last: usize,
+}
+
+impl Default for TakeCursor {
+    fn default() -> Self {
+        Self {
+            lane: usize::MAX,
+            last: usize::MAX,
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -1033,8 +1123,113 @@ struct Lane {
     /// files.
     pieces: Vec<(usize, Range<usize>)>,
     weight: usize,
-    next_fixture: AtomicUsize,
     next_library: AtomicUsize,
+    /// The fixtures nobody has taken yet.
+    untaken: Mutex<Untaken>,
+    /// `fixtures[..kept]` are never taken by another checker: the files
+    /// checked in ranges, whose other ranges other checkers hold.
+    kept: usize,
+    /// `weights_before[i]`: the scheduling weight of `fixtures[..i]`; empty
+    /// while no checker takes from another.
+    weights_before: Vec<u64>,
+    /// The weight of the untaken fixtures another checker may take. A read
+    /// may be a moment old: it only chooses the lane to try.
+    takeable: AtomicU64,
+    /// The checkers that take from this lane now.
+    takers: Mutex<Vec<usize>>,
+}
+
+/// `fixtures[front..back]` of a lane.
+#[derive(Debug, Default)]
+struct Untaken {
+    front: usize,
+    back: usize,
+}
+
+impl Lane {
+    fn lock_untaken(&self) -> std::sync::MutexGuard<'_, Untaken> {
+        self.untaken
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn lock_takers(&self) -> std::sync::MutexGuard<'_, Vec<usize>> {
+        self.takers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    /// Publishes what another checker may still take of `untaken`.
+    fn publish_takeable(&self, untaken: &Untaken) {
+        if self.weights_before.is_empty() {
+            return;
+        }
+        let from = untaken.front.max(self.kept);
+        let weight = if from < untaken.back {
+            self.weights_before[untaken.back] - self.weights_before[from]
+        } else {
+            0
+        };
+        self.takeable.store(weight, Ordering::Relaxed);
+    }
+
+    /// The lane's own checker takes its next file.
+    fn take_front(&self) -> Option<usize> {
+        let mut untaken = self.lock_untaken();
+        if untaken.front >= untaken.back {
+            return None;
+        }
+        let file = self.fixtures[untaken.front];
+        untaken.front += 1;
+        self.publish_takeable(&untaken);
+        Some(file)
+    }
+
+    /// Another checker takes the lane's last untaken file, unless its own
+    /// checker keeps it.
+    fn take_back(&self) -> Option<usize> {
+        let mut untaken = self.lock_untaken();
+        if untaken.front.max(self.kept) >= untaken.back {
+            return None;
+        }
+        untaken.back -= 1;
+        self.publish_takeable(&untaken);
+        Some(self.fixtures[untaken.back])
+    }
+
+    fn takeable(&self) -> u64 {
+        self.takeable.load(Ordering::Relaxed)
+    }
+
+    /// Whether `checker` may take from this lane: it does already, or fewer
+    /// than `limit` checkers do (zero: no limit).
+    fn admits(&self, checker: usize, limit: usize) -> bool {
+        if limit == 0 {
+            return true;
+        }
+        let takers = self.lock_takers();
+        takers.len() < limit || takers.contains(&checker)
+    }
+
+    /// Makes `checker` one of this lane's takers if [`Self::admits`] it.
+    fn admit(&self, checker: usize, limit: usize) -> bool {
+        if limit == 0 {
+            return true;
+        }
+        let mut takers = self.lock_takers();
+        if takers.contains(&checker) {
+            return true;
+        }
+        if takers.len() >= limit {
+            return false;
+        }
+        takers.push(checker);
+        true
+    }
+
+    fn leave(&self, checker: usize) {
+        self.lock_takers().retain(|&taker| taker != checker);
+    }
 }
 
 impl ShardFileQueue {
@@ -1055,11 +1250,19 @@ impl ShardFileQueue {
                 lane.fixtures.push(file);
             }
         }
+        for lane in &mut lanes {
+            lane.untaken = Mutex::new(Untaken {
+                front: 0,
+                back: lane.fixtures.len(),
+            });
+        }
         Self {
             lanes,
             owned_statements: rustc_hash::FxHashMap::default(),
             aborted: AtomicBool::new(false),
             measures_costs: false,
+            taking: None,
+            canonical_history: false,
         }
     }
 
@@ -1087,6 +1290,92 @@ impl ShardFileQueue {
                 lane.weight += node_counts[split.file] / split.pieces.len();
             }
         }
+    }
+
+    /// The fast preset's scheduling of a whole-Program check, after
+    /// [`Self::split`]: a checker that has run out of files takes unstarted
+    /// ones from the back of the lane with the most work left
+    /// ([`Self::next_fixture`]). `weights[file]` is what the file weighed in
+    /// the placement, `checked` the number of files a checker works for.
+    ///
+    /// A file cannot be cut, so the check ends when the checker with the
+    /// costliest file has finished it. Every lane therefore starts with its
+    /// heavy files — those above one part in [`HEAVY_SHARE_DIVISOR`] of a
+    /// mean lane's weight, heaviest first — so that such a file overlaps the
+    /// other checkers' work instead of following it. The other files keep the
+    /// Program's order: it keeps a checker's caches warm, and it leaves the
+    /// lane's back, where others take, one directory region.
+    ///
+    /// A file checked in ranges stays with its checker, at the lane's very
+    /// front: the other checkers hold its other ranges, and no checker may
+    /// hold two ranges of one file.
+    pub(crate) fn take_from_the_fullest(&mut self, weights: &[usize], checked: usize) {
+        let checkers = self.lanes.len();
+        if checkers < 2 {
+            return;
+        }
+        let weight = |file: usize| weights[file] as u64;
+        let total = self
+            .lanes
+            .iter()
+            .flat_map(|lane| &lane.fixtures)
+            .map(|&file| weight(file))
+            .sum::<u64>();
+        let active = self
+            .lanes
+            .iter()
+            .filter(|lane| !lane.fixtures.is_empty())
+            .count()
+            .max(1) as u64;
+        let heavy_above = total / (active * HEAVY_SHARE_DIVISOR);
+        let owned_statements = &self.owned_statements;
+        for lane in &mut self.lanes {
+            let (kept, rest): (Vec<usize>, Vec<usize>) = lane
+                .fixtures
+                .iter()
+                .partition(|&&file| owned_statements.contains_key(&file));
+            let (mut heavy, light): (Vec<usize>, Vec<usize>) = rest
+                .into_iter()
+                .partition(|&file| weight(file) > heavy_above);
+            // Stable: equal weights keep the Program's order.
+            heavy.sort_by_key(|&file| std::cmp::Reverse(weight(file)));
+            lane.kept = kept.len();
+            lane.fixtures = kept;
+            lane.fixtures.extend(heavy);
+            lane.fixtures.extend(light);
+            lane.weights_before = std::iter::once(0)
+                .chain(lane.fixtures.iter().scan(0u64, |sum, &file| {
+                    *sum += weight(file);
+                    Some(*sum)
+                }))
+                .collect();
+            let untaken = Untaken {
+                front: 0,
+                back: lane.fixtures.len(),
+            };
+            lane.publish_takeable(&untaken);
+            lane.untaken = Mutex::new(untaken);
+        }
+        self.taking = Some(Taking {
+            takers_per_lane: if (TAKER_LIMIT_FROM_CHECKERS..STICKY_CHECKERS).contains(&checkers) {
+                checkers / CHECKERS_PER_TAKER
+            } else {
+                0
+            },
+            sticky: checkers >= STICKY_CHECKERS
+                || (checkers >= LARGE_STICKY_CHECKERS && checked >= LARGE_STICKY_FILES),
+        });
+    }
+
+    /// The checkers of this queue keep the fast preset's history rules.
+    pub(crate) fn keep_canonical_history(&mut self) {
+        self.canonical_history = true;
+    }
+
+    /// Whether the checkers of this queue keep the fast preset's history
+    /// rules ([`Self::keep_canonical_history`]).
+    pub(crate) fn canonical_history(&self) -> bool {
+        self.canonical_history
     }
 
     /// The statement ranges of other lanes' files this lane checks first.
@@ -1124,14 +1413,85 @@ impl ShardFileQueue {
         }
     }
 
-    pub(crate) fn next_fixture(&self, shard: usize) -> Option<usize> {
+    /// The next file for the checker of lane `shard`, and whether it comes
+    /// from another lane.
+    ///
+    /// A checker takes its own files from the front of its lane. Under the
+    /// fast preset's scheduling a checker without files then takes the last
+    /// untaken file of the lane with the most weight left among those that
+    /// admit it (the lower lane among equals) and stays one of that lane's
+    /// takers until it moves on; with the sticky rule it keeps the lane it
+    /// took from last while that has at least half the fullest's weight left.
+    /// When only files without weight are left (files no checker works for),
+    /// anyone takes them. `None`: nothing is left for this checker — the
+    /// lanes with work have their takers and their own checkers.
+    pub(crate) fn next_fixture(
+        &self,
+        shard: usize,
+        cursor: &mut TakeCursor,
+    ) -> Option<(usize, bool)> {
         if self.aborted() {
             return None;
         }
-        let lane = &self.lanes[shard];
-        lane.fixtures
-            .get(lane.next_fixture.fetch_add(1, Ordering::Relaxed))
-            .copied()
+        if let Some(file) = self.lanes[shard].take_front() {
+            return Some((file, false));
+        }
+        let taking = self.taking?;
+        let leave = |cursor: &mut TakeCursor| {
+            if cursor.lane != usize::MAX {
+                self.lanes[cursor.lane].leave(shard);
+                cursor.lane = usize::MAX;
+            }
+        };
+        loop {
+            if self.aborted() {
+                leave(&mut *cursor);
+                return None;
+            }
+            let others = || {
+                self.lanes
+                    .iter()
+                    .enumerate()
+                    .filter(move |&(other, _)| other != shard)
+            };
+            if self.lanes.iter().all(|lane| lane.takeable() == 0) {
+                leave(&mut *cursor);
+                return others()
+                    .find_map(|(_, lane)| lane.take_back())
+                    .map(|file| (file, true));
+            }
+            let fullest = others()
+                .filter(|(_, lane)| lane.admits(shard, taking.takers_per_lane))
+                .map(|(other, lane)| (lane.takeable(), std::cmp::Reverse(other)))
+                .max();
+            let Some((left, std::cmp::Reverse(mut from))) = fullest else {
+                leave(&mut *cursor);
+                return None;
+            };
+            if left == 0 {
+                leave(&mut *cursor);
+                return None;
+            }
+            if taking.sticky {
+                if cursor.last != usize::MAX {
+                    let last = &self.lanes[cursor.last];
+                    if last.admits(shard, taking.takers_per_lane) && last.takeable() * 2 >= left {
+                        from = cursor.last;
+                    }
+                }
+                cursor.last = from;
+            }
+            if from != cursor.lane {
+                if !self.lanes[from].admit(shard, taking.takers_per_lane) {
+                    continue;
+                }
+                leave(&mut *cursor);
+                cursor.lane = from;
+            }
+            if let Some(file) = self.lanes[from].take_back() {
+                return Some((file, true));
+            }
+        }
     }
 
     pub(crate) fn next_library(&self, shard: usize) -> Option<usize> {
@@ -1217,14 +1577,28 @@ mod tests {
 
     #[test]
     fn fast_budget_follows_the_program() {
-        let fast = CheckerBudget::fast();
-        assert_eq!(fast.assignment(), CheckerAssignment::Locality);
+        assert_eq!(
+            CheckerBudget::fast().assignment(),
+            CheckerAssignment::Locality
+        );
         assert_eq!(
             CheckerBudget::automatic().assignment(),
             CheckerAssignment::Tsgo
         );
-        // One checker per 32 checked files, between 4 and 12, never more
-        // than files; nothing here reads the machine.
+        // The machine's part: a checker a core up to sixteen cores, then the
+        // larger of sixteen and half the cores, between 4 and 32.
+        let pool = |cores: usize| CheckerBudget::fast_for(cores).checkers();
+        assert_eq!(
+            [1, 4, 8, 10, 16, 24, 33, 48, 64, 128].map(pool),
+            [4, 4, 8, 10, 16, 16, 16, 24, 32, 32]
+        );
+        assert_eq!(
+            CheckerBudget::fast().checkers(),
+            pool(std::thread::available_parallelism().map_or(1, NonZeroUsize::get))
+        );
+        // The Program's part: one checker per 32 checked files, at least 4,
+        // never more than the machine's count or the files.
+        let fast = CheckerBudget::fast_for(12);
         assert_eq!(fast.checkers_for(10_270, 9_243), 12);
         assert_eq!(fast.checkers_for(739, 440), 12);
         assert_eq!(fast.checkers_for(600, 352), 11);
@@ -1232,6 +1606,9 @@ mod tests {
         assert_eq!(fast.checkers_for(249, 78), 4);
         assert_eq!(fast.checkers_for(3, 3), 3);
         assert_eq!(fast.checkers_for(0, 0), 1);
+        assert_eq!(CheckerBudget::fast_for(10).checkers_for(10_270, 9_243), 10);
+        assert_eq!(CheckerBudget::fast_for(64).checkers_for(10_270, 9_243), 32);
+        assert_eq!(CheckerBudget::fast_for(64).checkers_for(739, 440), 13);
         // An explicit count is kept under either association.
         let eight = CheckerBudget::new(NonZeroUsize::new(8).unwrap());
         assert_eq!(eight.checkers_for(1000, 10), 8);
@@ -1612,10 +1989,33 @@ mod tests {
         assert_eq!(queue.pieces(1), [(0, 4..6)]);
         assert_eq!(queue.pieces(2), [(0, 6..8)]);
         assert_eq!(queue.pieces(3), [(0, 2..4)]);
-        assert_eq!(queue.next_fixture(0), Some(0));
-        assert_eq!(queue.next_fixture(0), Some(1));
-        assert_eq!(queue.next_fixture(0), None);
+        let mut cursor = TakeCursor::default();
+        assert_eq!(queue.next_fixture(0, &mut cursor), Some((0, false)));
+        assert_eq!(queue.next_fixture(0, &mut cursor), Some((1, false)));
+        assert_eq!(queue.next_fixture(0, &mut cursor), None);
         assert_eq!(queue.reserved_nodes(3), 1000 + 4000 / 4);
+
+        // Under the preset's scheduling the file checked in ranges stays with
+        // its checker, at the front of its lane, whatever the others weigh:
+        // nobody takes it, and the lane's other file can be taken.
+        let mut queue = ShardFileQueue::associated(0, &nodes, &association.checkers, 4);
+        queue.split(&association.splits, &nodes);
+        queue.take_from_the_fullest(&association.weights, 7);
+        let lane = association.checkers[0];
+        let other = (0..4).find(|&checker| checker != lane).unwrap();
+        let mut taker = TakeCursor::default();
+        let mut taken = Vec::new();
+        // The taker's own files first, then everything it may take.
+        while let Some((file, from_another_lane)) = queue.next_fixture(other, &mut taker) {
+            if from_another_lane {
+                taken.push(file);
+            }
+        }
+        assert!(!taken.contains(&0), "a range owner's file was taken");
+        assert_eq!(taken.len(), 6 - queue.lanes[other].fixtures.len());
+        let mut owner = TakeCursor::default();
+        assert_eq!(queue.next_fixture(lane, &mut owner), Some((0, false)));
+        assert_eq!(queue.next_fixture(lane, &mut owner), None);
     }
 
     #[test]
@@ -1628,7 +2028,12 @@ mod tests {
                 while let Some(file) = queue.next_library(checker) {
                     files.push(file);
                 }
-                while let Some(file) = queue.next_fixture(checker) {
+                // Without the preset's scheduling no lane's file is another
+                // checker's, however the checkers are scheduled.
+                let mut cursor = TakeCursor::default();
+                while let Some((file, from_another_lane)) = queue.next_fixture(checker, &mut cursor)
+                {
+                    assert!(!from_another_lane);
                     files.push(file);
                 }
                 assert_eq!(
@@ -1643,6 +2048,184 @@ mod tests {
             ShardFileQueue::associated(0, &[1], &[0], 8).shard_count(),
             1
         );
+    }
+
+    /// A queue of `lanes` lanes over files of the given weights, each file on
+    /// the lane `associations` names, under the preset's scheduling.
+    fn taking_queue(weights: &[usize], associations: &[usize], lanes: usize) -> ShardFileQueue {
+        let mut queue = ShardFileQueue::associated(0, &vec![1; weights.len()], associations, lanes);
+        queue.take_from_the_fullest(weights, weights.len());
+        queue
+    }
+
+    /// Everything `checker` gets from `queue`, with whether each file came
+    /// from another lane.
+    fn drain(queue: &ShardFileQueue, checker: usize) -> Vec<(usize, bool)> {
+        let mut cursor = TakeCursor::default();
+        std::iter::from_fn(|| queue.next_fixture(checker, &mut cursor)).collect()
+    }
+
+    #[test]
+    fn a_lane_starts_with_its_heavy_files_and_keeps_the_rest_in_program_order() {
+        // Two lanes; lane 0 holds files 0..6. The weights sum to 2,400, so a
+        // file above 2,400 / (2 * 200) = 6 is heavy: file 4 (900), then 1 and
+        // 2 (500 each, in the Program's order) go first; 0, 3 and 5 keep
+        // their order.
+        let weights = [5, 500, 500, 6, 900, 3, 486];
+        let queue = taking_queue(&weights, &[0, 0, 0, 0, 0, 0, 1], 2);
+        assert_eq!(queue.lanes[0].fixtures, [4, 1, 2, 0, 3, 5]);
+        assert_eq!(queue.lanes[1].fixtures, [6]);
+        // The owner takes at the front, the other checker at the back.
+        let mut owner = TakeCursor::default();
+        let mut taker = TakeCursor::default();
+        assert_eq!(queue.next_fixture(0, &mut owner), Some((4, false)));
+        assert_eq!(queue.next_fixture(1, &mut taker), Some((6, false)));
+        assert_eq!(queue.next_fixture(1, &mut taker), Some((5, true)));
+        assert_eq!(queue.next_fixture(1, &mut taker), Some((3, true)));
+        assert_eq!(queue.next_fixture(0, &mut owner), Some((1, false)));
+        assert_eq!(queue.next_fixture(0, &mut owner), Some((2, false)));
+        assert_eq!(queue.next_fixture(1, &mut taker), Some((0, true)));
+        assert_eq!(queue.next_fixture(0, &mut owner), None);
+        assert_eq!(queue.next_fixture(1, &mut taker), None);
+    }
+
+    #[test]
+    fn a_checker_without_files_takes_from_the_lane_with_the_most_left() {
+        // Lane 0 holds 300, lane 1 holds 500, lane 2 nothing: checker 2 takes
+        // from lane 1 until lane 0 has more left, the lower lane among equals.
+        let weights = [100, 100, 100, 250, 150, 100];
+        let queue = taking_queue(&weights, &[0, 0, 0, 1, 1, 1], 3);
+        // Every file is above the bound (800 / (2 * 200) = 2): heaviest first
+        // within a lane, the Program's order among equals.
+        assert_eq!(queue.lanes[0].fixtures, [0, 1, 2]);
+        assert_eq!(queue.lanes[1].fixtures, [3, 4, 5]);
+        let taken = drain(&queue, 2);
+        // 500 against 300: file 5; 400 against 300: file 4; 250 against 300:
+        // lane 0's file 2; 250 against 200: file 3; then lane 0's rest.
+        assert_eq!(
+            taken,
+            [
+                (5, true),
+                (4, true),
+                (2, true),
+                (3, true),
+                (1, true),
+                (0, true)
+            ]
+        );
+        assert_eq!(drain(&queue, 0), []);
+        assert_eq!(drain(&queue, 1), []);
+    }
+
+    #[test]
+    fn files_without_weight_are_taken_when_nothing_else_is_left() {
+        // Lane 0 holds two files no checker works for and one of weight 10.
+        let weights = [0, 0, 10, 10];
+        let queue = taking_queue(&weights, &[0, 0, 0, 1], 2);
+        let mut owner = TakeCursor::default();
+        // The weighted file is heavy and goes first.
+        assert_eq!(queue.next_fixture(0, &mut owner), Some((2, false)));
+        // Lane 0 has no weight left; its files without weight are still there
+        // for whoever is free.
+        assert_eq!(drain(&queue, 1), [(3, false), (1, true), (0, true)]);
+        assert_eq!(queue.next_fixture(0, &mut owner), None);
+    }
+
+    #[test]
+    fn a_lane_admits_a_quarter_of_the_checkers_as_takers_from_eight_checkers_on() {
+        // Eight checkers: two takers a lane at a time. Lane 0 holds all the
+        // work; checkers 1 and 2 are admitted, checker 3 finds nothing
+        // although work is left: its own checker and its takers finish it.
+        let weights = vec![10; 40];
+        let queue = taking_queue(&weights, &[0; 40], 8);
+        assert_eq!(
+            queue
+                .taking
+                .map(|taking| (taking.takers_per_lane, taking.sticky)),
+            Some((2, false))
+        );
+        let (mut one, mut two, mut three) = Default::default();
+        assert_eq!(queue.next_fixture(1, &mut one), Some((39, true)));
+        assert_eq!(queue.next_fixture(2, &mut two), Some((38, true)));
+        assert_eq!(queue.next_fixture(3, &mut three), None);
+        // Checker 1 is still a taker of lane 0 and goes on.
+        assert_eq!(queue.next_fixture(1, &mut one), Some((37, true)));
+        // Seven and fewer, and sixteen and more: no limit.
+        assert_eq!(
+            taking_queue(&weights, &[0; 40], 7)
+                .taking
+                .map(|taking| taking.takers_per_lane),
+            Some(0)
+        );
+        let sixteen = taking_queue(&weights, &[0; 40], 16);
+        assert_eq!(
+            sixteen
+                .taking
+                .map(|taking| (taking.takers_per_lane, taking.sticky)),
+            Some((0, true))
+        );
+    }
+
+    #[test]
+    fn a_sticky_taker_stays_with_its_lane_while_that_has_half_the_fullest() {
+        // Sixteen checkers. Lane 0 holds 6 x 10, lane 1 holds 5 x 10 + 1.
+        // Checker 2 starts at lane 0 (60 against 51) and stays there while
+        // lane 0 has at least half of what lane 1 has: 50, 40, 30 against 51
+        // - at 20 it moves to lane 1. (A pool has no more lanes than files:
+        // four files without weight on lane 3 make the sixteen; they are
+        // taken last.)
+        let mut weights = vec![10; 11];
+        weights.push(1);
+        weights.extend([0; 4]);
+        let mut associations = vec![0; 6];
+        associations.extend([1; 6]);
+        associations.extend([3; 4]);
+        let queue = taking_queue(&weights, &associations, 16);
+        assert_eq!(queue.shard_count(), 16);
+        assert_eq!(queue.taking.map(|taking| taking.sticky), Some(true));
+        let taken = drain(&queue, 2)
+            .into_iter()
+            .map(|(file, _)| associations[file])
+            .collect::<Vec<_>>();
+        assert_eq!(taken[..4], [0, 0, 0, 0]);
+        assert_eq!(taken[4], 1);
+        assert_eq!(taken[12..], [3, 3, 3, 3]);
+        assert_eq!(taken.len(), 16);
+        // Without the sticky rule (four checkers) the taker alternates: the
+        // fullest lane every time.
+        let queue = taking_queue(&weights, &associations, 4);
+        assert_eq!(queue.taking.map(|taking| taking.sticky), Some(false));
+        let taken = drain(&queue, 2)
+            .into_iter()
+            .map(|(file, _)| associations[file])
+            .collect::<Vec<_>>();
+        assert_eq!(taken[..4], [0, 1, 0, 1]);
+    }
+
+    #[test]
+    fn checkers_on_threads_check_every_file_once() {
+        // Twelve checkers on threads over 3,000 files of uneven lanes: every
+        // file is handed out exactly once, whoever takes it.
+        let files = 3_000;
+        let weights = (0..files).map(|file| 1 + file % 17).collect::<Vec<_>>();
+        let associations = (0..files).map(|file| (file * file) % 5).collect::<Vec<_>>();
+        let queue = taking_queue(&weights, &associations, 12);
+        let seen = std::thread::scope(|scope| {
+            let handles = (0..12)
+                .map(|checker| {
+                    let queue = &queue;
+                    scope.spawn(move || drain(queue, checker))
+                })
+                .collect::<Vec<_>>();
+            handles
+                .into_iter()
+                .flat_map(|handle| handle.join().unwrap())
+                .map(|(file, _)| file)
+                .collect::<Vec<_>>()
+        });
+        let mut seen = seen;
+        seen.sort_unstable();
+        assert_eq!(seen, (0..files).collect::<Vec<_>>());
     }
 
     #[test]

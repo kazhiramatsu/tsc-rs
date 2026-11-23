@@ -64,6 +64,10 @@ pub(crate) fn checker_owners(
     usage.hash_map("memo: evolving arrays", &state.evolving_array_types);
     usage.hash_map("memo: final arrays", &state.final_array_types);
     usage.hash_map("memo: undefined properties", &state.undefined_properties);
+    usage.hash_map(
+        "memo: undefined properties",
+        &state.undefined_properties_by_property,
+    );
     usage.hash_map("memo: reverse mapped types", &state.reverse_mapped_cache);
     usage.hash_map(
         "memo: reverse homomorphic types",

@@ -253,27 +253,40 @@ cores buy little.
 Setting `TSRS_FAST=1` in the environment (it is not a command-line option)
 selects a preset for machines with more cores:
 
+- the number of checkers follows the machine and the program: one per core
+  up to sixteen cores (beyond that the larger of sixteen and half the cores,
+  at most 32), never more than one per 32 type-checked files, and at least
+  four (`--checkers` and `TSRS_CHECKERS` still set it);
 - files are associated with checkers by directory and by the modules they
   import, so that the files of one checker resolve largely the same
   declarations;
-- the number of checkers follows the program: one per 32 type-checked files,
-  between 4 and 12 (`--checkers` and `TSRS_CHECKERS` still set it);
+- every checker starts with its heaviest files, and a checker that has run
+  out of files takes unstarted ones from the checker with the most work left;
 - a declaration file heavy enough to hold its checker back is checked in
   ranges of statements on several checkers.
 
-All three follow from the program alone — not from the core count or from
-timing — so the same program gives the same output on every machine and in
-every run. That output is the default's except where a diagnostic depends on
-which files a checker saw first; tsgo itself reports such programs
-differently at different checker counts. Of the eight projects below only zod
-differs (37 errors instead of 35). The files written for hono, zod and
-Effect (JavaScript, declarations and maps) were identical with and without
-the preset.
+Every file is checked exactly once. The pool's size follows the machine, and
+which checker takes a file is decided by time, so the preset does not promise
+the same output on every machine or in every run. A file whose diagnostics do
+not depend on what its checker checked before reports what the default
+reports; a program whose diagnostics depend on the checkers' history can
+print differently from run to run (tsgo itself reports such programs
+differently at different checker counts).
+Four rules make the commonest such answers a matter of the program alone
+(when a type argument's constraint is checked, where the count of
+instantiations of one check ends, which declaration a widened object
+literal's filled-in property carries, and at which declaration a merged
+interface is checked). Of the eight projects below seven printed the
+default's output in every one of twelve runs (VS Code: four); zod printed
+four different outputs in twelve runs (36 to 38 errors; the default reports
+35, tsrs `--fast` 36).
 
 Its numbers beside the default and tsrs: [Latest numbers](#latest-numbers).
 
-The preset uses more memory, as every checker keeps its own type tables
-(VS Code: 2,330 MiB by default, 2,446 MiB with the preset).
+The preset uses more memory: every checker keeps its own type tables, and
+because the checkers level their work all of them are alive at the end of
+the run (VS Code: 2,322 MiB by default, 2,513 MiB with the preset; zod 522
+and 693).
 
 ## The lane profile
 

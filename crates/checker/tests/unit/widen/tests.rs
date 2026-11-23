@@ -620,3 +620,65 @@ fn widening_source_lists_keep_nested_union_and_intersection_order() {
     };
     assert_eq!(run(true), run(false));
 }
+
+/// tsrs-native (the fast preset's history): a filled-in optional property is
+/// kept by the sibling property it stands for.
+///
+/// `b.ts` widens `c ? { status: "x" } : { user: 2 }`, and its first member
+/// gets a filled-in `user?: undefined`. The reference keeps one such property
+/// a name for the whole checker: once `a.ts` has widened a `user`, the
+/// property carries the declaration in `a.ts` and sorts before `status`.
+/// Under the preset's history it stands for the `user` of `b.ts` and sorts
+/// after `status`, whether `a.ts` was checked before or not. (Conditional
+/// expressions, not array literals: the harness has no library, and an array
+/// literal without the global `Array` has no element type to widen.)
+#[test]
+fn a_filled_in_optional_property_sorts_by_its_own_sibling_under_the_preset_history() {
+    let files = [
+        (
+            "a.ts",
+            "declare const d: boolean;\nconst first = d ? { user: 1 } : {};\n",
+        ),
+        (
+            "b.ts",
+            "declare const c: boolean;\nconst second = c ? { status: \"x\" } : { user: 2 };\nconst n: number = second;\n",
+        ),
+    ];
+    let user_sorts_first = |canonical: bool, check_first: bool| {
+        with_program_state(&files, &CompilerOptions::default(), |state| {
+            state.canonical_history = canonical;
+            if check_first {
+                state.check_source_file(0);
+            }
+            state.check_source_file(1);
+            let messages: Vec<String> = state
+                .diagnostics
+                .iter()
+                .map(|diagnostic| {
+                    format!(
+                        "TS{}: {}",
+                        diagnostic.code(),
+                        diagnostic.message_text().to_string_lossy()
+                    )
+                })
+                .collect();
+            let message = messages
+                .iter()
+                .find(|message| message.starts_with("TS2322"))
+                .unwrap_or_else(|| panic!("the assignment's error among {messages:?}"));
+            let user = message
+                .find("user?: undefined")
+                .unwrap_or_else(|| panic!("the filled-in property in {message:?}"));
+            let status = message
+                .find("status: string")
+                .unwrap_or_else(|| panic!("the member's own property in {message:?}"));
+            user < status
+        })
+    };
+    // The reference: the first widening of the name decides.
+    assert!(user_sorts_first(false, true));
+    assert!(!user_sorts_first(false, false));
+    // The preset's history: the sibling's own declaration, either way.
+    assert!(!user_sorts_first(true, true));
+    assert!(!user_sorts_first(true, false));
+}

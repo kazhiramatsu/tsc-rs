@@ -4501,6 +4501,34 @@ impl<'a> MergeLineTables<'a> {
     }
 }
 
+/// A file whose check holds its checker for this long gets a line of its own
+/// in the phase trace.
+const TRACED_FILE_CHECK_MS: f64 = 2.0;
+
+/// The phase trace's line for a long file check: which shard, how long, when
+/// it ended, whether the file came from another lane. What bounds a pool's
+/// check is its longest shard, and what bounds a shard under the fast
+/// preset's takes is a file nobody else can take: these lines name it.
+#[cold]
+fn trace_long_file_check(
+    state: &state::CheckerState<'_>,
+    shard_index: usize,
+    file: usize,
+    from_another_lane: bool,
+    started: std::time::Instant,
+) {
+    let elapsed_ms = started.elapsed().as_secs_f64() * 1e3;
+    if elapsed_ms < TRACED_FILE_CHECK_MS {
+        return;
+    }
+    eprintln!(
+        "[shard-file] shard {shard_index}: {elapsed_ms:.1} ms (at {:.1} ms){} {}",
+        tsc_types::trace::since_epoch_ms(),
+        if from_another_lane { " taken" } else { "" },
+        state.binder.source(file).file_name.to_string_lossy()
+    );
+}
+
 /// Run one checker shard on the calling thread: construct its `ProgramBinder`
 /// and `CheckerState` over the shared immutable snapshot with the provider the
 /// coordinator created for it, initialize, check the shard's files, and
@@ -4543,6 +4571,9 @@ fn run_checker_shard<'a>(
         queue.shard_count(),
     );
     drop(augmentations);
+    // The fast preset's history rules (a one-lane queue keeps them too: a
+    // Program prints the same whatever its pool).
+    state.canonical_history = queue.canonical_history();
     reserve_type_tables(&mut state, reserved_nodes);
     // W2c: every type created from here on is shard-local. In the exact mode
     // the guard records order-consuming operations over two or more of them
@@ -4609,7 +4640,13 @@ fn run_checker_shard<'a>(
         }
     }
     let mut costs = Vec::new();
-    while let Some(file) = queue.next_fixture(shard_index) {
+    // Under the fast preset's scheduling a checker that has run out of its
+    // own files takes unstarted ones from the lane with the most work left.
+    let mut take_cursor = shard::TakeCursor::default();
+    let mut taken = 0usize;
+    while let Some((file, from_another_lane)) = queue.next_fixture(shard_index, &mut take_cursor) {
+        taken += usize::from(from_another_lane);
+        let traced = tsc_types::trace::enabled().then(std::time::Instant::now);
         let counted = queue
             .measures_costs()
             .then(|| lane_profile::counted(&state));
@@ -4629,6 +4666,9 @@ fn run_checker_shard<'a>(
             captured.capture_file(&state, file, &globals_by_file);
         }
         files.push(file);
+        if let Some(started) = traced {
+            trace_long_file_check(&state, shard_index, file, from_another_lane, started);
+        }
         if let Some(counted) = counted {
             costs.push((file, lane_profile::counted(&state).wrapping_sub(counted)));
         }
@@ -4687,7 +4727,7 @@ fn run_checker_shard<'a>(
     if tsc_types::trace::enabled() {
         tsc_types::trace::mark(
             &format!(
-                "shard {shard_index}: check ({} types, {} symbol links, {} files)",
+                "shard {shard_index}: check ({} types, {} symbol links, {} files, {taken} taken from other lanes)",
                 state.tables.len(),
                 state.links.symbol_len(),
                 files.len()
@@ -5532,6 +5572,15 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             checker_count,
         );
         queue.split(&association.splits, &checked_nodes);
+        queue.keep_canonical_history();
+        // The preset's scheduling of a whole-Program check: heavy files
+        // first, and a checker without files takes from the fullest lane.
+        if selected.is_none() && !checkers.order_replay() {
+            queue.take_from_the_fullest(
+                &association.weights,
+                checked.iter().filter(|&&checked| checked).count(),
+            );
+        }
         work_counters.record_statement_ranges(
             association
                 .splits

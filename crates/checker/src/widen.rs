@@ -317,15 +317,30 @@ impl<'a> CheckerState<'a> {
     /// exactOptionalPropertyTypes (m4-review A13; the old
     /// "eOPT is unmodeled" justification was false — options.rs
     /// carries it and tables.rs computes the intrinsic from it).
+    ///
+    /// The reference keeps one such property a NAME for the whole checker,
+    /// made from the first property of that name it widened. Under the
+    /// preset's history ([`CheckerState::canonical_history`]) there is one a
+    /// sibling property, so it carries the declarations of the property it
+    /// stands for whatever the checker widened before.
     fn get_undefined_property(&mut self, prop: SymbolId) -> SymbolId {
         let name = self.binder.symbol(prop).escaped_name;
-        if let Some(&cached) = self.undefined_properties.get(&name) {
+        let cached = if self.canonical_history {
+            self.undefined_properties_by_property.get(&prop)
+        } else {
+            self.undefined_properties.get(&name)
+        };
+        if let Some(&cached) = cached {
             return cached;
         }
         let undefined_or_missing = self.tables.intrinsics.undefined_or_missing;
         let result = self.create_symbol_with_type(prop, Some(undefined_or_missing));
         self.binder.symbol_mut(result).flags |= SymbolFlags::OPTIONAL;
-        self.undefined_properties.insert(name, result);
+        if self.canonical_history {
+            self.undefined_properties_by_property.insert(prop, result);
+        } else {
+            self.undefined_properties.insert(name, result);
+        }
         result
     }
 
