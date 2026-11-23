@@ -816,6 +816,17 @@ impl ProgramSnapshot {
         })
     }
 
+    /// Whether the owner routes and the starts' table are made already (by
+    /// an earlier session over this snapshot or a clone of it).
+    pub fn has_checker_starts(&self) -> bool {
+        self.owner_routes.get().is_some() && self.checker_starts.get().is_some()
+    }
+
+    /// Whether the module resolver's path table is made already.
+    pub fn has_path_index(&self) -> bool {
+        self.checker_tables.get().is_some()
+    }
+
     /// Make what the checkers' starts read ahead of them: the owner routes
     /// and the starts' table. A driver calls this on a thread of its own
     /// beside its serial preparation; without the call the first checker's

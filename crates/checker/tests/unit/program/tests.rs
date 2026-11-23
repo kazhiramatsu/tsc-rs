@@ -996,6 +996,7 @@ fn snapshot_checker_tables_are_made_once_for_every_view() {
     let warmed = ProgramSnapshot::new(documents, 0).unwrap();
     assert!(warmed.checker_tables.get().is_none());
     warmed.warm_path_index();
+    assert!(warmed.has_path_index());
     let made = warmed.checker_tables.get().expect("warmed tables");
     assert!(std::ptr::eq(
         ProgramBinder::from_snapshot(&warmed).path_index(),
@@ -1077,8 +1078,10 @@ fn snapshot_checker_starts_name_the_files_the_globals_merge_reads() {
     // any view asks.
     let warmed = ProgramSnapshot::new_with_file_facts(documents, facts).unwrap();
     assert!(warmed.owner_routes.get().is_none() && warmed.checker_starts.get().is_none());
+    assert!(!warmed.has_checker_starts() && !warmed.has_path_index());
     warmed.warm_checker_starts();
     assert!(warmed.owner_routes.get().is_some());
+    assert!(warmed.has_checker_starts() && !warmed.has_path_index());
     assert_eq!(warmed.checker_starts.get(), Some(starts));
 }
 
