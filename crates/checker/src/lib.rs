@@ -5063,6 +5063,12 @@ pub fn declaration_output_requested(options: &CompilerOptions) -> bool {
         || options.emit_declaration_only == Some(true)
 }
 
+/// A Program of fewer files leaves the snapshot's checker tables to the first
+/// checker that asks for them: there a thread costs more than the tables. In
+/// this crate's own tests every sharded Program takes the threads, so their
+/// small Programs exercise that path.
+const WARMED_CHECKER_TABLES_FILES: usize = if cfg!(test) { 1 } else { 256 };
+
 /// The sharded driver: stages 1–2 once (parse/adopt, bind, snapshot), then
 /// one checker state per shard on scoped threads over the shared immutable
 /// snapshot, then the Program-order merge. Equivalent to the serial driver's
@@ -5332,6 +5338,22 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         snapshot.documents().len(),
         checked.iter().filter(|&&checked| checked).count(),
     );
+    // What every checker reads from all of the Program's files and none of
+    // them changes - the snapshot's owner routes and its checker tables - is
+    // made once, on a thread of its own beside the rest of this preparation
+    // and the checkers' starts, so no checker builds it or waits for the one
+    // that does. The thread holds the snapshot's shared cells and ends with
+    // the tables; a refused thread leaves them to the first checker that asks.
+    if checker_count > 1 && snapshot.file_count() >= WARMED_CHECKER_TABLES_FILES {
+        let warmed = snapshot.clone();
+        let _ = std::thread::Builder::new()
+            .name("tsc-rs-checker-tables".to_owned())
+            .spawn(move || {
+                tsc_program::run_thread_start_hook();
+                warmed.warm_owner_routes();
+                warmed.warm_path_index();
+            });
+    }
     let node_counts = snapshot
         .documents()
         .iter()

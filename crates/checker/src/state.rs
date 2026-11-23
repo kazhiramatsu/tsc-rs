@@ -1567,11 +1567,6 @@ pub struct CheckerState<'a> {
             Option<tsc_types::JsString>,
         >,
     >,
-    /// tsrs-native (M4 5.8d): normalized file path → program file
-    /// index — the host.getResolvedModule seam's lookup table
-    /// (program-and-modules.md §2; later files shadow earlier
-    /// same-name entries like the program layer's last-index-by-name).
-    pub program_path_index: rustc_hash::FxHashMap<tsc_types::JsString, usize>,
     /// Per-Program-file memo of getImpliedNodeFormatForFile /
     /// getImpliedNodeFormatForEmit results. Both are pure functions of the
     /// file name, the installed authoritative metadata, the package-scope
@@ -1814,7 +1809,6 @@ impl<'a> CheckerState<'a> {
             std::mem::take(&mut self.resolving_explicit_type_of_symbol),
             std::mem::take(&mut self.unresolved_module_augmentations),
             std::mem::take(&mut self.unresolved_package_root_cache),
-            std::mem::take(&mut self.program_path_index),
             std::mem::take(&mut self.implied_node_format_memo),
             std::mem::take(&mut self.external_helpers_modules),
             std::mem::take(&mut self.requested_external_emit_helpers),
@@ -2571,7 +2565,6 @@ impl<'a> CheckerState<'a> {
             conditional_constraint_depth: 0,
             unresolved_module_augmentations: rustc_hash::FxHashMap::default(),
             unresolved_package_root_cache: Default::default(),
-            program_path_index: rustc_hash::FxHashMap::default(),
             implied_node_format_memo: std::cell::RefCell::new(Vec::new()),
             authoritative_module_provider: None,
             authoritative_sources: &crate::EMPTY_AUTHORITATIVE_SOURCES,
@@ -2618,13 +2611,8 @@ impl<'a> CheckerState<'a> {
             global_this_symbol,
             CheckFlags::READONLY,
         );
-        // The module resolver's path table (M4 5.8d): later files
-        // shadow earlier same-name entries (lib.rs last_index_by_name).
-        for index in 0..state.binder.file_count() {
-            let normalized =
-                Self::normalize_js_program_path(&state.binder.source(index).file_name, "");
-            state.program_path_index.insert(normalized, index);
-        }
+        // The module resolver's path table (M4 5.8d) is the Program's, not
+        // this checker's: `ProgramBinder::path_index`.
         std::sync::Arc::make_mut(&mut state.globals).insert(
             tsc_types::EscapedName::from_identifier_escaped_text("globalThis"),
             global_this_symbol,

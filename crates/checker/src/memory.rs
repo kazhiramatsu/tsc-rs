@@ -169,10 +169,6 @@ pub(crate) fn checker_owners(
         }
     }
     usage.js_string(STRINGS, &state.host_current_directory);
-    usage.hash_map(TABLES, &state.program_path_index);
-    for path in state.program_path_index.keys() {
-        usage.js_string(STRINGS, path);
-    }
     if include_shared {
         let sources = state.authoritative_sources;
         usage.add(

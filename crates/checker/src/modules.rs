@@ -5429,7 +5429,7 @@ impl<'a> CheckerState<'a> {
                         &"/index",
                         &(extension),
                     ]);
-                    if let Some(&index) = self.program_path_index.get(probed.as_bytes()) {
+                    if let Some(&index) = self.binder.path_index().get(probed.as_bytes()) {
                         return ProgramModuleResolution::Resolved(ResolvedProgramModule {
                             file_index: index,
                             resolved_file_name: probed.clone(),
@@ -5452,7 +5452,7 @@ impl<'a> CheckerState<'a> {
                             &"/index",
                             &(extension),
                         ]);
-                        if let Some(&index) = self.program_path_index.get(probed.as_bytes()) {
+                        if let Some(&index) = self.binder.path_index().get(probed.as_bytes()) {
                             return ProgramModuleResolution::Resolved(ResolvedProgramModule {
                                 file_index: index,
                                 resolved_file_name: probed.clone(),
@@ -6757,7 +6757,7 @@ impl<'a> CheckerState<'a> {
         let candidate = candidate.into();
         const TS_EXTENSIONS: &[&str] =
             &[".ts", ".tsx", ".d.ts", ".mts", ".cts", ".d.mts", ".d.cts"];
-        let lookup = |path: JsStr<'_>| self.program_path_index.get(path.as_bytes()).copied();
+        let lookup = |path: JsStr<'_>| self.binder.path_index().get(path.as_bytes()).copied();
         let make = |file_index: usize, resolved_using_ts_extension: bool, path: JsStr<'_>| {
             ResolvedProgramModule {
                 file_index,
@@ -7410,7 +7410,8 @@ impl<'a> CheckerState<'a> {
         let normalized = Self::normalize_js_program_path(file_name, "");
         if self.authoritative_module_provider.is_some() {
             return self
-                .program_path_index
+                .binder
+                .path_index()
                 .get(&normalized)
                 .and_then(|&file_index| {
                     self.authoritative_sources
@@ -7574,7 +7575,8 @@ impl<'a> CheckerState<'a> {
         if self.authoritative_module_provider.is_some() {
             let normalized = Self::normalize_js_program_path(file_name, "");
             return self
-                .program_path_index
+                .binder
+                .path_index()
                 .get(&normalized)
                 .and_then(|&file_index| {
                     self.authoritative_sources

@@ -653,6 +653,49 @@ pub struct ProgramSnapshot {
     documents: Vec<Arc<BoundDocument>>,
     file_facts: Vec<ProgramFileFacts>,
     owner_routes: Arc<OnceLock<Result<ProgramOwnerRoutes, ProgramIdentityError>>>,
+    checker_tables: Arc<OnceLock<ProgramCheckerTables>>,
+}
+
+/// What every checker of a Program reads from all of its files and none of
+/// them changes: made once for the snapshot (by whichever checker asks
+/// first, or ahead of the checkers by [`ProgramSnapshot::warm_path_index`])
+/// instead of once per checker.
+#[derive(Debug, Default)]
+pub(crate) struct ProgramCheckerTables {
+    /// The module resolver's path table (M4 5.8d): the normalized name of
+    /// every file and its index; a later file shadows an earlier one of the
+    /// same name (lib.rs last_index_by_name).
+    path_index: HashMap<JsString, usize>,
+}
+
+impl ProgramCheckerTables {
+    fn build(sources: &[&SourceFile]) -> Self {
+        let mut path_index = HashMap::with_capacity_and_hasher(sources.len(), Default::default());
+        for (index, source) in sources.iter().enumerate() {
+            path_index.insert(
+                crate::state::CheckerState::normalize_js_program_path(&source.file_name, ""),
+                index,
+            );
+        }
+        Self { path_index }
+    }
+
+    // Only commutative ownership sums.
+    #[allow(clippy::iter_over_hash_type)]
+    fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
+        usage.hash_map("checker host tables (estimate)", &self.path_index);
+        for path in self.path_index.keys() {
+            usage.js_string("strings: stable owners", path);
+        }
+    }
+}
+
+/// Where a checker's view finds the Program's checker tables.
+enum ProgramTables<'a> {
+    /// The snapshot's, shared by every checker over it.
+    Snapshot(&'a OnceLock<ProgramCheckerTables>),
+    /// A view over borrowed binders (unit tests) has its own.
+    Own(OnceLock<ProgramCheckerTables>),
 }
 
 impl ProgramSnapshot {
@@ -699,7 +742,30 @@ impl ProgramSnapshot {
             documents,
             file_facts,
             owner_routes: Arc::default(),
+            checker_tables: Arc::default(),
         })
+    }
+
+    /// Make the owner routes ahead of the checkers. A driver calls this on a
+    /// thread of its own beside its serial preparation, so no checker's start
+    /// builds them or waits for the one that does; without the call the
+    /// first checker's view builds them.
+    pub fn warm_owner_routes(&self) {
+        let _ = ProgramBinder::try_from_snapshot(self);
+    }
+
+    /// Make the module resolver's path table ahead of the checkers, as
+    /// [`Self::warm_owner_routes`] does for the routes; without the call the
+    /// first checker to read the table builds it.
+    pub fn warm_path_index(&self) {
+        self.checker_tables.get_or_init(|| {
+            let sources = self
+                .documents
+                .iter()
+                .map(|document| document.source())
+                .collect::<Vec<_>>();
+            ProgramCheckerTables::build(&sources)
+        });
     }
 
     /// tsrs-native: returns all ordered immutable document handles.
@@ -914,6 +980,8 @@ pub struct ProgramBinder<'a> {
     /// tie-breakers retain the creation order of the ordinary bind passes.
     direct_symbol_rooms: bool,
     symbol_creation_bases: OnceLock<Box<[u32]>>,
+    /// The Program's checker tables: the snapshot's, or this view's own.
+    tables: ProgramTables<'a>,
     /// Checker-side symbols (tsc createSymbol 47652 adds Transient).
     transient: SymbolArena,
     /// Set once a merge has put a symbol into a table under a key that is
@@ -1256,6 +1324,7 @@ impl<'a> ProgramBinder<'a> {
             entries,
             snapshot.file_facts.clone(),
             routes,
+            ProgramTables::Snapshot(&snapshot.checker_tables),
         ))
     }
 
@@ -1278,13 +1347,19 @@ impl<'a> ProgramBinder<'a> {
             });
         }
         let routes = ProgramOwnerRoutes::build(&file_entries)?;
-        Ok(Self::with_owner_routes(file_entries, file_facts, routes))
+        Ok(Self::with_owner_routes(
+            file_entries,
+            file_facts,
+            routes,
+            ProgramTables::Own(OnceLock::new()),
+        ))
     }
 
     fn with_owner_routes(
         file_entries: Vec<ProgramEntry<'a>>,
         file_facts: Vec<ProgramFileFacts>,
         routes: ProgramOwnerRoutes,
+        tables: ProgramTables<'a>,
     ) -> Self {
         let ProgramOwnerRoutes {
             node_owners,
@@ -1305,9 +1380,25 @@ impl<'a> ProgramBinder<'a> {
             symbol_files,
             direct_symbol_rooms,
             symbol_creation_bases: OnceLock::new(),
+            tables,
             transient: SymbolArena::with_base(TRANSIENT_SYMBOL_BIT),
             members_keyed_apart: false,
         }
+    }
+
+    /// The Program's checker tables, built by the first view to ask.
+    fn checker_tables(&self) -> &ProgramCheckerTables {
+        let tables = match &self.tables {
+            ProgramTables::Snapshot(tables) => *tables,
+            ProgramTables::Own(tables) => tables,
+        };
+        tables.get_or_init(|| ProgramCheckerTables::build(&self.sources))
+    }
+
+    /// The module resolver's path table: the normalized name of every file
+    /// and its index (a later file shadows an earlier one of the same name).
+    pub(crate) fn path_index(&self) -> &HashMap<JsString, usize> {
+        &self.checker_tables().path_index
     }
 
     /// tsrs-native: Rust ProgramBinder collection accessor.
@@ -1839,11 +1930,21 @@ impl ProgramSnapshot {
                 routes.add_memory_usage(usage);
             }
         }
+        if usage.arc("snapshot checker tables", &self.checker_tables) {
+            if let Some(tables) = self.checker_tables.get() {
+                tables.add_memory_usage(usage);
+            }
+        }
     }
 }
 
 impl ProgramBinder<'_> {
     pub(crate) fn add_projection_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
+        if let ProgramTables::Own(tables) = &self.tables {
+            if let Some(tables) = tables.get() {
+                tables.add_memory_usage(usage);
+            }
+        }
         usage.vec("checker program projections", &self.file_entries);
         usage.vec("checker program projections", &self.sources);
         usage.vec("checker program projections", &self.file_facts);

@@ -960,6 +960,53 @@ fn snapshot_owner_routes_are_shared_across_concurrent_sessions_and_clones() {
 }
 
 #[test]
+fn snapshot_checker_tables_are_made_once_for_every_view() {
+    let domain = IdentityDomain::new();
+    let document = |path: &str, text: &str| {
+        bound_document_for_snapshot(
+            path,
+            TextSnapshot::new(text.to_owned(), Default::default()),
+            &domain,
+        )
+    };
+    let documents = vec![
+        document("/src/a.ts", "export const a = 1;"),
+        document("/src/./b.ts", "export const b = 2;"),
+        // A later file shadows an earlier one of the same name.
+        document("/src/a.ts", "export const a = 3;"),
+    ];
+    let snapshot = ProgramSnapshot::new(documents.clone(), 0).unwrap();
+    let cloned = snapshot.clone();
+    // A view does not build the tables; the first reader does, once, for
+    // every view of the snapshot and of its clones.
+    let left = ProgramBinder::from_snapshot(&snapshot);
+    let right = ProgramBinder::from_snapshot(&cloned);
+    assert!(snapshot.checker_tables.get().is_none());
+    let paths = left.path_index();
+    assert!(std::ptr::eq(paths, right.path_index()));
+    assert!(std::ptr::eq(
+        paths,
+        &cloned.checker_tables.get().unwrap().path_index
+    ));
+    assert_eq!(paths.len(), 2);
+    assert_eq!(paths.get("/src/a.ts".as_bytes()), Some(&2));
+    assert_eq!(paths.get("/src/b.ts".as_bytes()), Some(&1));
+    // Made ahead of the checkers: the routes and the tables are there before
+    // any view asks, and a view reads those.
+    let warmed = ProgramSnapshot::new(documents, 0).unwrap();
+    assert!(warmed.owner_routes.get().is_none() && warmed.checker_tables.get().is_none());
+    warmed.warm_owner_routes();
+    assert!(warmed.owner_routes.get().is_some() && warmed.checker_tables.get().is_none());
+    warmed.warm_path_index();
+    let made = warmed.checker_tables.get().expect("warmed tables");
+    assert!(std::ptr::eq(
+        ProgramBinder::from_snapshot(&warmed).path_index(),
+        &made.path_index
+    ));
+    assert_eq!(made.path_index, *paths);
+}
+
+#[test]
 fn snapshot_owner_route_failures_remain_local_to_the_snapshot() {
     let first_domain = IdentityDomain::new();
     let second_domain = IdentityDomain::new();
