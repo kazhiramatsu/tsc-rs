@@ -327,17 +327,22 @@ const CHECKERS_ENV: &str = "TSRS_CHECKERS";
 /// - files are associated with checkers by directory locality and module
 ///   affinity ([`CheckerAssignment::Locality`]), so a checker repeats less
 ///   of the other checkers' work;
-/// - without `--checkers` / `TSRS_CHECKERS` the pool follows the Program: one
-///   checker per 32 type-checked files, between 4 and 12;
+/// - without `--checkers` / `TSRS_CHECKERS` the pool follows the machine and
+///   the Program ([`CheckerBudget::fast`]): one checker a core up to sixteen
+///   cores, never more than one per 32 type-checked files, at least four;
+/// - every checker starts with its heaviest files, and a checker that has
+///   run out of files takes unstarted ones from the checker with the most
+///   work left;
 /// - a declaration file heavy enough to hold its checker back is checked in
 ///   ranges of statements on several checkers.
 ///
-/// None of this depends on the machine or on timing: the same Program gives
-/// the same output on every machine and in every run. That output is tsgo's
-/// except where a diagnostic depends on which files a checker saw first
-/// (tsgo itself reports such programs differently at different checker
-/// counts). `--singleThreaded` is unaffected. This is not a command-line
-/// option.
+/// Every file is checked exactly once. The pool's size follows the machine
+/// and which checker takes a file is a matter of timing, so the preset does
+/// not promise the same output on every machine or in every run: the output
+/// is tsgo's except where a diagnostic depends on which files a checker saw
+/// first (tsgo itself reports such programs differently at different
+/// checker counts), and there it can differ from run to run.
+/// `--singleThreaded` is unaffected. This is not a command-line option.
 const FAST_ENV: &str = "TSRS_FAST";
 
 fn cli_fast_preset(system: &dyn System) -> bool {

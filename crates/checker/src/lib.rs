@@ -4609,7 +4609,12 @@ fn run_checker_shard<'a>(
         }
     }
     let mut costs = Vec::new();
-    while let Some(file) = queue.next_fixture(shard_index) {
+    // Under the fast preset's scheduling a checker that has run out of its
+    // own files takes unstarted ones from the lane with the most work left.
+    let mut take_cursor = shard::TakeCursor::default();
+    let mut taken = 0usize;
+    while let Some((file, from_another_lane)) = queue.next_fixture(shard_index, &mut take_cursor) {
+        taken += usize::from(from_another_lane);
         let counted = queue
             .measures_costs()
             .then(|| lane_profile::counted(&state));
@@ -4687,7 +4692,7 @@ fn run_checker_shard<'a>(
     if tsc_types::trace::enabled() {
         tsc_types::trace::mark(
             &format!(
-                "shard {shard_index}: check ({} types, {} symbol links, {} files)",
+                "shard {shard_index}: check ({} types, {} symbol links, {} files, {taken} taken from other lanes)",
                 state.tables.len(),
                 state.links.symbol_len(),
                 files.len()
@@ -5532,6 +5537,14 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             checker_count,
         );
         queue.split(&association.splits, &checked_nodes);
+        // The preset's scheduling of a whole-Program check: heavy files
+        // first, and a checker without files takes from the fullest lane.
+        if selected.is_none() && !checkers.order_replay() {
+            queue.take_from_the_fullest(
+                &association.weights,
+                checked.iter().filter(|&&checked| checked).count(),
+            );
+        }
         work_counters.record_statement_ranges(
             association
                 .splits
