@@ -265,7 +265,10 @@ selects a preset for machines with more cores:
   Heavy counts what a file would cost another checker: the modules it imports
   that no other checker holds. A small file of a large family is then checked
   early by the checker that holds the family, and what is left at a
-  checker's end, where the others take, costs a taker least;
+  checker's end, where the others take, costs a taker least. A taker builds
+  the types of the region it takes from for itself, so with eight to fifteen
+  checkers one checker at a time takes from another, and it stays with that
+  checker while there is a file left to take;
 - a declaration file heavy enough to hold its checker back is checked in
   ranges of statements on several checkers.
 
@@ -282,15 +285,15 @@ instantiations of one check ends, which declaration a widened object
 literal's filled-in property carries, and at which declaration a merged
 interface is checked). Of the eight projects below seven printed the
 default's output in every one of twelve runs (VS Code: four); zod printed
-four different outputs in twelve runs (36 to 38 errors; the default reports
-35, tsrs `--fast` 36).
+two different outputs in twelve runs (38 errors eleven times, 37 once; the
+default reports 35, tsrs `--fast` 36).
 
 Its numbers beside the default and tsrs: [Latest numbers](#latest-numbers).
 
 The preset uses more memory: every checker keeps its own type tables, and
 because the checkers level their work all of them are alive at the end of
-the run (VS Code: 2,322 MiB by default, 2,513 MiB with the preset; zod 522
-and 693).
+the run (VS Code: 2,322 MiB by default, 2,488 MiB with the preset; zod 522
+and 630).
 
 ## The lane profile
 
