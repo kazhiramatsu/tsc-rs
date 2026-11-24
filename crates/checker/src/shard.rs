@@ -1062,6 +1062,82 @@ fn place_groups(
     placed
 }
 
+/// What each checked file would cost a checker of another lane that takes
+/// it, beyond the file itself: the nodes of the source files it imports,
+/// each counted by the share of the other lanes that do not hold it. A lane
+/// holds a file that is its own or that one of its files imports.
+/// `lane_of[file]` is a checked file's lane, `targets[file]` the files it
+/// imports, `nodes[file]` its size, `declarations[file]` whether it is a
+/// declaration file.
+///
+/// A checker builds the types of a module once, when one of its files first
+/// needs them. A file whose imports every lane holds costs a taker nothing
+/// more; a small file of a family that only its own lane has resolved costs
+/// the taker that family.
+///
+/// An imported declaration file is not counted: its types are declared, and
+/// a checker resolves the few it uses, where what a taker pays again is the
+/// inference behind a source file's exports. (Counted in full, the files
+/// that import a large declaration file stayed with a lane that already had
+/// the most work.)
+///
+/// Only the files a file imports itself are counted, not what it reaches
+/// through them: in a connected program nearly every file reaches the same
+/// large families, and a cost that is large for every file orders nothing
+/// (measured on Effect: the direct imports end its run 14 % earlier, the
+/// imports' closure does not).
+///
+/// A function of the Program and the placement alone. All zero for one lane
+/// or more than sixty-four.
+pub(crate) fn takers_costs(
+    lane_of: &[usize],
+    checked: &[bool],
+    targets: &[Vec<usize>],
+    nodes: &[usize],
+    declarations: &[bool],
+    lanes: usize,
+) -> Vec<u64> {
+    let files = lane_of.len();
+    let mut costs = vec![0u64; files];
+    if !(2..=64).contains(&lanes) || targets.len() != files {
+        return costs;
+    }
+    let counted = |target: usize| !declarations.get(target).copied().unwrap_or(false);
+    // holders[file]: the lanes that own it or import it.
+    let mut holders = vec![0u64; files];
+    for ((&lane, &checked), (file, targets)) in
+        lane_of.iter().zip(checked).zip(targets.iter().enumerate())
+    {
+        if !checked {
+            continue;
+        }
+        let lane = 1u64 << lane;
+        holders[file] |= lane;
+        for &target in targets {
+            holders[target] |= lane;
+        }
+    }
+    let others = lanes as u64 - 1;
+    for ((cost, &checked), (file, targets)) in costs
+        .iter_mut()
+        .zip(checked)
+        .zip(targets.iter().enumerate())
+    {
+        if !checked {
+            continue;
+        }
+        *cost = targets
+            .iter()
+            .filter(|&&target| target != file && counted(target))
+            .map(|&target| {
+                let without = lanes as u64 - u64::from(holders[target].count_ones());
+                nodes[target] as u64 * without / others
+            })
+            .sum();
+    }
+    costs
+}
+
 /// The files of every checker, in the order it visits them. Empty checkers
 /// are retained, as in tsgo's pool.
 ///
@@ -1296,7 +1372,9 @@ impl ShardFileQueue {
     /// [`Self::split`]: a checker that has run out of files takes unstarted
     /// ones from the back of the lane with the most work left
     /// ([`Self::next_fixture`]). `weights[file]` is what the file weighed in
-    /// the placement, `checked` the number of files a checker works for.
+    /// the placement, `takers_costs[file]` what it would cost a checker of
+    /// another lane beyond that ([`takers_costs`]; empty: nothing), `checked`
+    /// the number of files a checker works for.
     ///
     /// A file cannot be cut, so the check ends when the checker with the
     /// costliest file has finished it. Every lane therefore starts with its
@@ -1306,15 +1384,27 @@ impl ShardFileQueue {
     /// Program's order: it keeps a checker's caches warm, and it leaves the
     /// lane's back, where others take, one directory region.
     ///
+    /// Heavy is a file's weight plus what it would cost a taker. A file that
+    /// is light and costly to take — it imports modules only its own lane
+    /// holds — is then reached early by its own checker, for which it is
+    /// cheap, and the lane's back holds what costs a taker least. What a lane
+    /// has left for the takers is still counted in weights.
+    ///
     /// A file checked in ranges stays with its checker, at the lane's very
     /// front: the other checkers hold its other ranges, and no checker may
     /// hold two ranges of one file.
-    pub(crate) fn take_from_the_fullest(&mut self, weights: &[usize], checked: usize) {
+    pub(crate) fn take_from_the_fullest(
+        &mut self,
+        weights: &[usize],
+        takers_costs: &[u64],
+        checked: usize,
+    ) {
         let checkers = self.lanes.len();
         if checkers < 2 {
             return;
         }
         let weight = |file: usize| weights[file] as u64;
+        let order_key = |file: usize| weight(file) + takers_costs.get(file).copied().unwrap_or(0);
         let total = self
             .lanes
             .iter()
@@ -1336,9 +1426,9 @@ impl ShardFileQueue {
                 .partition(|&&file| owned_statements.contains_key(&file));
             let (mut heavy, light): (Vec<usize>, Vec<usize>) = rest
                 .into_iter()
-                .partition(|&file| weight(file) > heavy_above);
-            // Stable: equal weights keep the Program's order.
-            heavy.sort_by_key(|&file| std::cmp::Reverse(weight(file)));
+                .partition(|&file| order_key(file) > heavy_above);
+            // Stable: equal keys keep the Program's order.
+            heavy.sort_by_key(|&file| std::cmp::Reverse(order_key(file)));
             lane.kept = kept.len();
             lane.fixtures = kept;
             lane.fixtures.extend(heavy);
@@ -2000,7 +2090,7 @@ mod tests {
         // nobody takes it, and the lane's other file can be taken.
         let mut queue = ShardFileQueue::associated(0, &nodes, &association.checkers, 4);
         queue.split(&association.splits, &nodes);
-        queue.take_from_the_fullest(&association.weights, 7);
+        queue.take_from_the_fullest(&association.weights, &[], 7);
         let lane = association.checkers[0];
         let other = (0..4).find(|&checker| checker != lane).unwrap();
         let mut taker = TakeCursor::default();
@@ -2054,7 +2144,7 @@ mod tests {
     /// the lane `associations` names, under the preset's scheduling.
     fn taking_queue(weights: &[usize], associations: &[usize], lanes: usize) -> ShardFileQueue {
         let mut queue = ShardFileQueue::associated(0, &vec![1; weights.len()], associations, lanes);
-        queue.take_from_the_fullest(weights, weights.len());
+        queue.take_from_the_fullest(weights, &[], weights.len());
         queue
     }
 
@@ -2087,6 +2177,91 @@ mod tests {
         assert_eq!(queue.next_fixture(1, &mut taker), Some((0, true)));
         assert_eq!(queue.next_fixture(0, &mut owner), None);
         assert_eq!(queue.next_fixture(1, &mut taker), None);
+    }
+
+    #[test]
+    fn a_file_costs_a_taker_the_imports_the_other_lanes_do_not_hold() {
+        // Three lanes. File 0 (lane 0, 1,000 nodes) is imported by file 1
+        // (lane 0) alone: lanes 1 and 2 do not hold it. File 2 (lane 1, 600
+        // nodes) is imported by files 3 (lane 1), 4 (lane 2) and 1 (lane 0):
+        // every lane holds it. File 5 is not checked.
+        let lane_of = [0, 0, 1, 1, 2, 0];
+        let checked = [true, true, true, true, true, false];
+        let targets = [vec![], vec![0, 2], vec![], vec![2], vec![2, 5], vec![0]];
+        let nodes = [1_000, 10, 600, 10, 10, 50];
+        let sources = [false; 6];
+        assert_eq!(
+            takers_costs(&lane_of, &checked, &targets, &nodes, &sources, 3),
+            // File 1: file 0 in full (neither other lane holds it), file 2
+            // nothing (every lane holds it). File 4: file 2 nothing, file 5
+            // in full (lane 2 alone holds it).
+            [0, 1_000, 0, 0, 50, 0]
+        );
+        // Two lanes hold file 0 when file 3 imports it too: half of it is
+        // left for a taker, which is one of the two other lanes.
+        let mut shared = targets.to_vec();
+        shared[3].push(0);
+        assert_eq!(
+            takers_costs(&lane_of, &checked, &shared, &nodes, &sources, 3),
+            [0, 500, 0, 500, 50, 0]
+        );
+        // An imported declaration file is not counted: file 0 as one costs
+        // file 1's taker nothing.
+        assert_eq!(
+            takers_costs(
+                &lane_of,
+                &checked,
+                &targets,
+                &nodes,
+                &[true, false, false, false, false, false],
+                3
+            ),
+            [0, 0, 0, 0, 50, 0]
+        );
+        // What a file reaches through its imports is not counted: when file 0
+        // imports file 5 (lanes 0 and 2 then hold it: half of its 50 nodes
+        // for a taker), file 1 still costs its taker file 0 alone.
+        let mut chained = targets.to_vec();
+        chained[0].push(5);
+        assert_eq!(
+            takers_costs(&lane_of, &checked, &chained, &nodes, &sources, 3),
+            [25, 1_000, 0, 0, 25, 0]
+        );
+        // One lane has no taker, and a lane beyond the sixty-fourth no bit.
+        assert_eq!(
+            takers_costs(&lane_of, &checked, &targets, &nodes, &sources, 1),
+            [0; 6]
+        );
+        assert_eq!(
+            takers_costs(&lane_of, &checked, &targets, &nodes, &sources, 65),
+            [0; 6]
+        );
+    }
+
+    #[test]
+    fn a_lane_orders_its_files_by_weight_and_what_they_cost_a_taker() {
+        // Lane 0 holds files 0..5 with weights 400, 300, 5, 5, 200; lane 1
+        // one file. The total is 1,410: heavy above 1,410 / (2 * 200) = 3,
+        // so by weight alone the order is 0, 1, 4, 2, 3. File 3 would cost a
+        // taker 350 more: it goes between files 0 and 1 and no longer sits at
+        // the back, where the other checker takes.
+        let weights = [400, 300, 5, 5, 200, 500];
+        let associations = [0, 0, 0, 0, 0, 1];
+        let mut plain = ShardFileQueue::associated(0, &[1; 6], &associations, 2);
+        plain.take_from_the_fullest(&weights, &[], 6);
+        assert_eq!(plain.lanes[0].fixtures, [0, 1, 4, 2, 3]);
+        let mut queue = ShardFileQueue::associated(0, &[1; 6], &associations, 2);
+        queue.take_from_the_fullest(&weights, &[0, 0, 0, 350, 0, 0], 6);
+        assert_eq!(queue.lanes[0].fixtures, [0, 3, 1, 4, 2]);
+        // What the lane has for a taker is counted in weights: all but the
+        // file its checker has started.
+        let mut owner = TakeCursor::default();
+        assert_eq!(queue.next_fixture(0, &mut owner), Some((0, false)));
+        assert_eq!(queue.lanes[0].takeable(), 510);
+        let mut taker = TakeCursor::default();
+        assert_eq!(queue.next_fixture(1, &mut taker), Some((5, false)));
+        assert_eq!(queue.next_fixture(1, &mut taker), Some((2, true)));
+        assert_eq!(queue.next_fixture(1, &mut taker), Some((4, true)));
     }
 
     #[test]

@@ -9069,3 +9069,27 @@ fn every_index_is_handed_out_once_whichever_thread_asks() {
     }
     assert_eq!(OnceEachIndex::new(0).take(), None);
 }
+
+/// The adoption's pass takes workers for a source to rewrite, or for a
+/// thousand path references and more; ready sources with a few references
+/// stay on the calling thread, however many they are.
+#[test]
+fn the_adoption_pass_takes_workers_only_for_rewrites_or_many_references() {
+    let ready = |references: usize| (0usize, references);
+    assert!(!adoption_pass_needs_workers(std::iter::empty()));
+    assert!(!adoption_pass_needs_workers((0..10_000).map(|_| ready(0))));
+    assert!(!adoption_pass_needs_workers(
+        (0..10_000).map(|index| ready(usize::from(index % 10 == 0)))
+    ));
+    assert!(adoption_pass_needs_workers(
+        (0..10_000).map(|index| ready(usize::from(index % 9 == 0)))
+    ));
+    assert!(adoption_pass_needs_workers(
+        [ready(1023), ready(1)].into_iter()
+    ));
+    assert!(!adoption_pass_needs_workers([ready(1023)].into_iter()));
+    // One source to rewrite is enough, wherever it stands.
+    assert!(adoption_pass_needs_workers(
+        [ready(0), (1, 0), ready(0)].into_iter()
+    ));
+}
