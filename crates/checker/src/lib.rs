@@ -5612,9 +5612,19 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         queue.keep_canonical_history();
         // The preset's scheduling of a whole-Program check: heavy files
         // first, and a checker without files takes from the fullest lane.
+        // Heavy counts what a file would cost a checker that takes it.
         if selected.is_none() && !checkers.order_replay() {
+            let takers_costs = shard::takers_costs(
+                &association.checkers,
+                &checked,
+                &targets_of,
+                &parse_nodes,
+                &declarations,
+                queue.shard_count(),
+            );
             queue.take_from_the_fullest(
                 &association.weights,
+                &takers_costs,
                 checked.iter().filter(|&&checked| checked).count(),
             );
         }
