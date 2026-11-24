@@ -4704,6 +4704,7 @@ fn project_checker_inputs(
     // hands the sources' parse slots on without opening them, and the crew
     // is stopped and joined at its end, before the checker session adopts a
     // tree or leases an identity.
+    let projection_started = std::time::Instant::now();
     let sources = prepared.source_files();
     let library_ids = prepared.library_files();
     let mut libs = Vec::with_capacity(library_ids.len());
@@ -4754,6 +4755,7 @@ fn project_checker_inputs(
 
     let current_directory_path = prepared.current_directory().display();
     let current_directory = current_directory_path.to_owned();
+    tsc_types::trace::mark("session: checker inputs projected", projection_started);
     // No identity has been leased by this projection. End the crew (a slot
     // it is binding finishes its bind; the checker session binds the slots
     // it has not started) and release any unvisited worker-owned parse

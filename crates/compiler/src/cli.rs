@@ -1468,6 +1468,7 @@ fn run_config(
             return Err(CliError::Load(error.to_string()))
         }
     };
+    let texts_started = std::time::Instant::now();
     for source in prepared.source_files() {
         source_texts.insert_source(source);
     }
@@ -1477,6 +1478,7 @@ fn run_config(
             Arc::clone(source.snapshot()),
         );
     }
+    tsc_types::trace::mark("cli: source texts for diagnostics", texts_started);
     let option_diagnostics = plan
         .option_diagnostics()
         .iter()

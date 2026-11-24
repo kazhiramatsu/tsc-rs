@@ -5404,6 +5404,11 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         );
     }
     let augmentations = Arc::new(merge::AugmentationInputs::for_snapshot(&snapshot));
+    tsc_types::trace::mark(
+        "checker: program snapshot and augmentation inputs",
+        phase_started,
+    );
+    let dealing_started = std::time::Instant::now();
     let complete_library_prefix = run.library_prefix == LibraryPrefixCompletion::Complete;
 
     // The incremental program's planner runs over one initialized checker on
@@ -5664,6 +5669,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         queue
     };
     let shard_count = queue.shard_count();
+    tsc_types::trace::mark("checker: files dealt to the checkers", dealing_started);
 
     let emit_closure: Option<ShardEmitClosure<'_>> = sharded_emit.as_ref().map(|emit| emit.emit);
     let eager_closure: Option<ShardEagerClosure<'_>> =
