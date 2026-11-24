@@ -1799,6 +1799,54 @@ kernel の時間の割合は両 port で同じ（6〜13 %）、performance core 
 
 **自分の誤り。** (1) 11-23 夜の記録に「cb1（import で見つけた source の bind を crew に渡す行）は切り捨てた行」と書いたが、11-20 に PR #1023 で着地していた。行が main にあるかは `git log main` で読む。(2) 夜間の job を、script の構文検査が失敗した同じ command の中で列に入れた（検査の `&&` の外に `;` で書いていた；開始前に修正）；同じ形の書き方を日中にもう一度した（構文は正しく、影響なし）。列に入れる行は検査の `&&` の最後の link にする。(3) lane の順序の着地形を、時間を測っていない閉包版で書いた（上記）；計測した cell の code をそのまま着地形にする。(4) 朝の枠 A の VS Code の block（5 回）で候補の列だけ +10〜14 % と出たのを、同じ binary の前夜の値（±0.7 %）と突き合わせる前に読みかけた；9 回の確認枠では +0.5 % で基準の範囲。VS Code は 9 回以上、対照列つきで読む。
 
+**結果 60（2026-11-24 夜〜11-25 未明：fast preset の take の規則の着地（PR #1032、preset の peak が 6 project で −11〜−62 MiB）、所有者の「計測OK」の 3 枠（take の 2 形・葉の解放の batch 形・遅延 member の 2 行）、weak-type 行は向きが 2 つで着地させず第 2 形を書いた、交差型の名前数えの行は候補から外す、計数の 3 巡目（自分の推測の誤りを直す前に数えて見つけた）、葉の解放の試作の穴 1 つと検証の追加、disk（Instruments の一時 trace 84 GiB）、自分の誤り 4 件）。**
+
+**着地（PR #1032、merge `e6a555d60`、11-25 03:28:12 JST、hosted run 45453659799）。** 3 commit：(1) `TSRS_FAST=1` の下で checker が 8〜15 のとき、1 つの lane から同時に take する checker を 1 つにする（これまでは 8 つにつき 2 つ、12 で 3 つ；16 以上の sticky の規則と 8 未満の無制限はそのまま）；(2) take した checker は、その lane に take できる file が残っている間そこに留まる；(3) docs/performance.md（規則の一文、この形で数えた preset の出力の揺れ、preset の peak）。checker ごとに型の世界が別なので、take する checker はその領域の module を自分で作る：1 つの lane に taker が 2 つ入ると同じ領域を 2 回作り、払ったばかりの lane を離れると次の lane でまた払う — #1031 の lane の順序（lane の末尾に taker にとって安い file を残す）の take する側。既定 mode は触らない：出力は main と同一（8 project の diffout、1 / 4 checker の counter 24 行、emit の oracle、3 通りの設定の出力 24 / 24）。local の検査（train、夜間の設定）は全部 rc 0：workspace の clippy、fmt、checker crate の test 2,216、release build、4 checker の conformance（15,335 一致・既知の 4 件）、suites の ratchet、fingerprint の oracle（161,676 行で差 0）、preset の出力は 7 project × 2 回が基準と同一（zod は実行ごとに変わると宣言：47 行対 42・41）。
+
+**計測（所有者 23:33「計測OK」；3 枠を 1 つの lock の下で 23:44:21〜00:07:08；最初の枠の最初の行では他の application が 1 core の 92 %、fan は最初の block から最大；終了と同時に夜間設定に切り替えた）。** 判定は `tools/slot-verdict.py`（基準 2 列の両方より下 = COUNTS、両方より上で 2 列の差を超える = out、それ以外 = inside）。
+
+*枠 1：take の規則（preset の wall；21 回、VS Code 11 回、中央値；`n-ot2` = commit 1 と 2、`n-ot1` = commit 1 だけ、対照 = main の動作の別 binary `n-pt8`；相手 = `tsrs-sym-nopgo` 7.1.0-beta.tsrs3 の `--fast`、PGO なし）。*
+
+| project | 相手 `--fast` | main | main 再 | `n-ot2` | 基準 2 列比（下回った round） | cycles | 相手比 | peak MiB：main、`n-ot2`、相手 | 対照の読み |
+|---|---:|---:|---:|---:|---:|---:|---:|---|---:|
+| Effect | 277.4 ms | 266.3 | 269.2 | 265.4 | **−0.89 %（21 中 12）、COUNTS** | −2.80 % | 0.957 | 468、451、388 | +0.25 % |
+| Vue | 145.8 | 146.8 | 147.4 | 145.5 | **−1.08 %（12）、COUNTS** | −1.33 % | 0.998 | 320、310、244 | −0.03 % |
+| Next.js | 314.0 | 325.6 | 333.2 | 329.1 | −0.11 %（12）、inside | +0.25 % | 1.048 | 699、680、560 | −0.62 % |
+| Playwright | 193.0 | 208.9 | 215.2 | 213.1 | +0.48 %（13）、inside | −0.08 % | 1.104 | 466、443、347 | +3.78 % |
+| zod | 267.9 | 327.3 | 319.3 | 327.4 | +1.26 %（15）、inside | −1.20 % | 1.222 | 689、630、503 | +1.33 % |
+| VS Code | 1,361.6 | 1,481.4 | 1,443.1 | 1,475.8 | +0.93 %（11 中 4）、inside | +0.58 % | 1.084 | 2,526、2,488、1,818 | −0.60 % |
+
+`n-ot2` は Effect と Vue で数え、外れる project が無く、preset の peak は 6 project 全部で下がる（基準 2 列の平均比 −11〜−34 MiB、zod は −62 MiB = −8.9 %）。枠は静かではなかった（基準 2 列の差 0.4〜2.9 %、対照は最大 +3.8 %）ので wall はこれ以上を言わない；cycles（6 project 中 4 で減；Next.js と VS Code は +0.25 % と +0.58 % で、対照の読みは +0.57 % と +0.42 %）と peak が読みを支える。`n-ot1`（commit 1 だけ）は Effect −0.96 % と zod −3.62 % で数えるが Vue で out（+2.32 %、21 round 中 6）；peak は `n-ot2` と 14 MiB 以内。着地させるのは外れの無いセルの code。同じ日 17:59 の枠（乱れていて wall は何も決めない）も両形で cycles と peak が同じ向きだった。TypeScript と hono は preset で checker 4 つ：規則は 8 からで、その経路は変わらない。preset の出力は `n-ot2` で 12 回（VS Code 4 回）数えた：7 project は既定と同じ 1 通り、zod は 2 通り（38 errors が 11 回、37 が 1 回；main の preset は 4 通り、既定は 35、相手の `--fast` は 36）。
+
+*枠 2：葉の解放の batch 形（試作 `n-lf2`、preset；plain・数えるだけ・fresh mapping・madvise・plain 再）。* 3 形とも out で、何も返さない「数えるだけ」の形が最も遅い（VS Code +2.28 % = +33 ms；fresh mapping +1.03 %、madvise +0.94 %）；葉がほとんど無い project でも +1〜10 ms（zod・Playwright・Next.js；Vue は +3.9〜5.4 %）。code を読むと、解放の thread は check の thread scope の中で 10 ms ずつ sleep し、scope の終わりがそれを join していた：check の終わりが毎回最大 10 ms 遅れ、最後の checker の後に最後の batch が走る — 枠が測ったのは試作の thread で、解放そのものではない（部分ごとには未計測）。VS Code では page を返す形の方が数えるだけの形より速く読める（1,480・1,479 対 1,499 ms）；peak は −217・−211 MiB（−8.6・−8.4 %）、Vue −11 MiB。試作を直した（thread は時間つきで park し、scope の guard が起こす；check が終わっていれば batch の前に終わる；最後の batch なし）：`n-lf4`、次の枠で測り直す。
+
+*枠 3：遅延 member の 2 行（既定 mode の行；`n-lw1` = weak-type の判定を参照の宣言から読む、`n-li2` = それ + 交差型の reduction の名前数えを宣言から読む；15 回、VS Code と 1 thread は 9 回；wall｜cycles｜peak）。* `n-lw1`：
+
+| project | 既定設定 | preset | 1 thread |
+|---|---|---|---|
+| zod | **−2.59 %（15 中 14）COUNTS**｜−2.15 %｜−24 MiB | **−2.68 % COUNTS**｜−3.22 %｜−32 | **−1.25 % COUNTS**｜−0.95 %｜−18 |
+| Next.js | +0.29 % inside｜−0.92 %｜−13 | −0.73 % inside｜−0.99 %｜−20 | +0.58 % out｜+0.39 %｜−8 |
+| Playwright | −0.08 % inside｜−0.80 %｜−8 | +0.17 % inside｜−1.21 %｜−12 | +0.07 % inside｜−0.29 %｜−3 |
+| Effect | +0.48 % inside｜+0.48 %｜−2 | +1.01 % inside｜+0.08 %｜+2 | **+1.10 % out｜+0.57 %**｜+1 |
+| Vue | **+1.48 % out**｜+0.01 %｜−1 | +0.77 % inside｜+0.04 %｜−2 | −1.01 % inside｜−0.02 %｜0 |
+| TypeScript | +1.14 % inside｜+0.52 %｜0 | −0.92 % COUNTS｜−0.26 %｜0 | — |
+| hono | −1.01 % COUNTS｜+1.10 %｜0 | +0.74 % inside｜+1.50 %｜+1 | — |
+| VS Code | −0.05 % inside｜−0.63 %｜−5 | +0.33 % inside｜+0.35 %｜−9 | +1.57 % out｜+0.51 %｜−9 |
+
+weak-type 行は zod で明確な改善（既定設定の wall −2.6 %、1 thread −1.25 %、peak −18〜−32 MiB）で、Next.js・Playwright・VS Code の peak を下げる。out の 4 セルを生の行で読むと：1 thread の Effect は分布ごと動いている（cycles 3.327 対 3.309・3.307 G；夕方と夜の台帳 2 回も +0.37・+0.65 %；命令数は −0.19 %）— **約 0.5 % の実際の cost**；1 thread の Next.js は下半分が 0.3 % 差で台帳の cycles は −0.07・−0.17 % — 示されていない；1 thread の VS Code は 1 セルの中で 6.3〜7.0 s に広がり（fan が最大で熱い機械）、cycles の下半分は 0.2 % 差 — 示されていない；既定設定の Vue は cycles が基準と同じ（2.845 対 2.842・2.848 G）で最速値も同じ（208.9 対 208.3 ms）、中ほどの run が 2〜4 ms 高い — 対照列がこの枠に無いので揺れとは断定しない。**向きが 2 つなので、この形では着地させない。** 2 行目 `n-li2` は候補にならない：Vue の cycles が 3 block とも約 +1.9 %、1 thread の命令数は全 project で `n-lw1` より多い（台帳：Vue +1.42 point、zod +0.47、Playwright +0.42）。
+
+**計数の 3 巡目（`n-sym3` = 2 行の code + 計数の commit、既定設定と preset；時間は読まない）— 2 行目についての自分の推測は誤りだった。** 命令数が増える理由を「同じ参照に対して宣言からの名前の列を何度も作り直している」と推測したが、直す前に数えた：歩き直しは歩きの 2〜7 %（Vue：4,272 回のうち 98 回）。実際は歩きそのものが重い：Vue で 4,370 回の歩きが 236,895 個の名前を集める（1 回 54 個、Next.js 109、Playwright 70；hash と安定順の sort）のに、減る symbol は 51,000 個 — 派生した参照の全解決は自分の member だけを instantiate して base の表をそのまま使うので、階層の名前を全部集める歩きの方が高く、後で全解決される参照は両方を払う。weak-type 行の可変の仕事は「base を持つ参照の歩き」（既定設定：zod 16,614、Effect 11,118、VS Code 10,585、Next.js 5,207、Playwright 3,981、Vue 259）；Effect では判定が全解決の 44 % を頼んでいたのに symbol は 3 % しか減らない。2 行を入れた後に全解決を頼むもの（preset；zod 28,673、Playwright 14,023、Next.js 13,324）：全解決の中から base の全 list を頼む連鎖が 39〜54 %、source に無い最初の target property を探す検索（`get_unmatched_property`）が zod 34 %・Next.js 47 %・Playwright 31 % — ただし不一致が無ければ呼び出し側がその後で全 property を比べるので、行になり得るのは検索が不一致で終わる場合だけ（4 巡目で数える）。zod の preset の一時 symbol は 1,446,145 で、相手（140 万）と数は同等になった：zod の peak の残りの差はこの数の外にある。
+
+**weak-type 行の第 2 形（`perf/lazy-weak-verdict-2` `9385a88c7`、時間は未計測）。** 名前を取った symbol が value で optional でなければ、その時点で「weak ではない」が確定する（value の holder は後から置き換わらない）；以後は名前を集めず、階層の残りは全解決と同じ順に訪れるだけにする（そこで作られるものは同じ時点で作られる）。unit test を 1 つ足した（自分の宣言の中／2 番目の base の必須の value、判定の記憶、generic な interface の鎖と交差型の alias を訪れて型の数と instantiation の数が全解決と同じ）。
+
+**葉の解放の試作：読んで見つけた穴 1 つと、検証の追加。** 穴：範囲に分けて check される file が葉になり得て、所有者の checker が自分の範囲の capture で解放する時に他の checker がまだ自分の範囲を読んでいる可能性があった → 葉から外して数を census 行に出す（8 project では 0 個）。検証：これまでの sweep は 1 file の program だけで、葉の後に check されるのは library だけだった。各 lane が葉を先に check する test 用の順序（`TSRS_X_LEAVES_FIRST`）を足し、preset の pool で 8 project を count・scribble（解放した範囲の全 byte を上書き）・poison（page を読めなくする）で比べた：全部同じ出力（zod の poison だけ zod 自身の実行ごとの揺れの範囲で、scribble は同じ）。VS Code は 10 lane が 2,170 個の葉（範囲 284 MiB）を最初に解放し、残り約 8,100 file を同じ 449 行で check する。複数 file の test case 1,936 件（`tools/leaf-order-sweep.py`；葉を解放した 924 件、うち葉でない root を並べて check した 669 件）で相違 0。言えないこと：checker 1 つでは解放の経路を通らない（1 checker のセルと sweep 2 本は何も示さない）；lane 4 つに file 2〜5 個の case では順序は lane の中でしか厳密でない。葉の数（preset）：VS Code 2,170 / 10,270 file、zod 318（16.5 MiB）、Next.js 211、Vue 198、Playwright 36、hono 25、Effect 3、TypeScript 0。
+
+**disk（所有者 21:5x「不要なビルドキャッシュを削除したいです。いつものようにスクリプトを作成してください」）。** 空きは 11-22 の実行後の 150 GiB から 70 GiB に減っていたが、inventory の範囲（tsc-rs の tree と tool）は 2 日で約 21 GiB しか増えていなかった。範囲の外を見ると、user の一時 directory に `instruments??????.ktrace` が 1,070 個・84 GiB（11-14〜11-21 の `xctrace record` の一時 file）あり、11-14 に template 保存のため起動したままの Instruments の service が全部を開いて保持していた。所有者が Instruments を終了して script（`handover/arch-arena/tools/disk-cleanup-1124.sh`：build cache 16 件、着地・終了した計測用 binary 55 個、一時 trace）を実行：1,141 件・106.8 GiB、空き 69 → 174 GiB。11-22 の script の source copy の group（94 GiB）は未実行。以後、記録の campaign の後は一時 directory の trace を数える。
+
+**自分の誤り。** (1) 削除 script の最初の list を大きさと名前だけで作り、使用中の cache 2 件（毎回の train の fingerprint oracle が build する tree の release cache、当日使った計数 tree の cache）と cache でないもの 1 件（計測結果の directory）を入れていた — 各 cache の最後の書き込みとそれを書く script を読んで、所有者の実行前に外した。(2) 2 行目の原因の推測を、数える前に所有者への報告に書いた（数えたら違った；修正の code はまだ書いていなかった）。(3) 「checker 1 つなら葉を全部解放してから残りを check する最も厳密な順序になる」と計画したが、その経路では解放そのものが走らない — job に入れる前に census 行で確かめるべきだった。(4) 夜の job 1 本を lint（hash map の走査）で止め、置き換えの安全確認の `pgrep -f` を lock 待ちの command 自身に一致させた（どちらも何も壊さず、直して続けた）。
+
+**次。** (1) weak-type 行の第 2 形：計数、1 thread の台帳（日中、session の shell から — scheduler の job の background class では命令数の差が狂う）、対照列つきの枠。(2) 葉の解放：`n-lf4` の枠（最初の問い：数えるだけの形が基準の内に入ったか）、その後に着地形（preset の pool の経路だけ、範囲に分ける file は対象外、葉の規則を相手の全条項に、解放は file 自身の範囲の中の whole page）。(3) 計数の 4 巡目：宣言から読んだ後に全解決される参照の数、weak の歩きで最初の必須の value が現れる位置、不一致の検索が不一致で終わる割合。(4) README と docs の wall の表（静かな時間の枠）。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
