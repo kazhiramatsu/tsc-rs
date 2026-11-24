@@ -61,11 +61,13 @@ const HEAVY_SHARE_DIVISOR: u64 = 200;
 const STICKY_CHECKERS: usize = 16;
 const LARGE_STICKY_CHECKERS: usize = 8;
 const LARGE_STICKY_FILES: usize = 24_000;
-/// Between this many checkers and [`STICKY_CHECKERS`], at most one checker in
-/// [`CHECKERS_PER_TAKER`] takes from one lane at a time: every taker of a
-/// region builds that region's types for itself.
+/// Between this many checkers and [`STICKY_CHECKERS`] one checker at a time
+/// takes from a lane: every taker of a region builds that region's types
+/// for itself, and a family that only its own lane holds is cold for every
+/// one of them. (Measured with ten checkers: two takers a lane cost Effect a
+/// third of what its lane order gains, takers without a limit all of it.)
+/// That taker stays with the lane while it has anything left for a taker.
 const TAKER_LIMIT_FROM_CHECKERS: usize = 8;
-const CHECKERS_PER_TAKER: usize = 4;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CheckerBudget {
@@ -1172,6 +1174,10 @@ struct Taking {
     /// A taking checker stays with its lane while that has half the work of
     /// the fullest.
     sticky: bool,
+    /// A taking checker stays with the lane it took from last while that lane
+    /// has anything left for a taker: it has paid for that region's modules,
+    /// and any other lane would cost it another region's.
+    stays: bool,
 }
 
 /// Where a checker without files of its own takes from: its place among a
@@ -1447,11 +1453,10 @@ impl ShardFileQueue {
             lane.untaken = Mutex::new(untaken);
         }
         self.taking = Some(Taking {
-            takers_per_lane: if (TAKER_LIMIT_FROM_CHECKERS..STICKY_CHECKERS).contains(&checkers) {
-                checkers / CHECKERS_PER_TAKER
-            } else {
-                0
-            },
+            takers_per_lane: usize::from(
+                (TAKER_LIMIT_FROM_CHECKERS..STICKY_CHECKERS).contains(&checkers),
+            ),
+            stays: (TAKER_LIMIT_FROM_CHECKERS..STICKY_CHECKERS).contains(&checkers),
             sticky: checkers >= STICKY_CHECKERS
                 || (checkers >= LARGE_STICKY_CHECKERS && checked >= LARGE_STICKY_FILES),
         });
@@ -1562,10 +1567,13 @@ impl ShardFileQueue {
                 leave(&mut *cursor);
                 return None;
             }
-            if taking.sticky {
+            if taking.sticky || taking.stays {
                 if cursor.last != usize::MAX {
                     let last = &self.lanes[cursor.last];
-                    if last.admits(shard, taking.takers_per_lane) && last.takeable() * 2 >= left {
+                    if last.admits(shard, taking.takers_per_lane)
+                        && ((taking.sticky && last.takeable() * 2 >= left)
+                            || (taking.stays && last.takeable() > 0))
+                    {
                         from = cursor.last;
                     }
                 }
@@ -2307,24 +2315,30 @@ mod tests {
     }
 
     #[test]
-    fn a_lane_admits_a_quarter_of_the_checkers_as_takers_from_eight_checkers_on() {
-        // Eight checkers: two takers a lane at a time. Lane 0 holds all the
-        // work; checkers 1 and 2 are admitted, checker 3 finds nothing
-        // although work is left: its own checker and its takers finish it.
+    fn a_lane_admits_one_taker_at_a_time_from_eight_checkers_on() {
+        // Eight checkers: one taker a lane at a time. Lane 0 holds all the
+        // work; checker 1 is admitted, checker 2 finds nothing although work
+        // is left: its own checker and its one taker finish it.
         let weights = vec![10; 40];
         let queue = taking_queue(&weights, &[0; 40], 8);
         assert_eq!(
             queue
                 .taking
                 .map(|taking| (taking.takers_per_lane, taking.sticky)),
-            Some((2, false))
+            Some((1, false))
         );
-        let (mut one, mut two, mut three) = Default::default();
+        let (mut one, mut two) = Default::default();
         assert_eq!(queue.next_fixture(1, &mut one), Some((39, true)));
-        assert_eq!(queue.next_fixture(2, &mut two), Some((38, true)));
-        assert_eq!(queue.next_fixture(3, &mut three), None);
-        // Checker 1 is still a taker of lane 0 and goes on.
-        assert_eq!(queue.next_fixture(1, &mut one), Some((37, true)));
+        assert_eq!(queue.next_fixture(2, &mut two), None);
+        // Checker 1 is still the taker of lane 0 and goes on.
+        assert_eq!(queue.next_fixture(1, &mut one), Some((38, true)));
+        // Fifteen checkers: still one.
+        assert_eq!(
+            taking_queue(&weights, &[0; 40], 15)
+                .taking
+                .map(|taking| taking.takers_per_lane),
+            Some(1)
+        );
         // Seven and fewer, and sixteen and more: no limit.
         assert_eq!(
             taking_queue(&weights, &[0; 40], 7)
@@ -2339,6 +2353,45 @@ mod tests {
                 .map(|taking| (taking.takers_per_lane, taking.sticky)),
             Some((0, true))
         );
+    }
+
+    #[test]
+    fn a_taker_stays_with_its_lane_while_that_has_anything_left() {
+        // Eight checkers. Lane 0 holds 6 x 10, lane 1 holds 5 x 10 + 1.
+        // Checker 2 starts at lane 0 (60 against 51) and takes all of it
+        // before it moves to lane 1, although lane 1 is the fuller from the
+        // second take on. (Four files without weight on lane 3 are taken
+        // last.)
+        let mut weights = vec![10; 11];
+        weights.push(1);
+        weights.extend([0; 4]);
+        let mut associations = vec![0; 6];
+        associations.extend([1; 6]);
+        associations.extend([3; 4]);
+        let queue = taking_queue(&weights, &associations, 8);
+        assert_eq!(queue.shard_count(), 8);
+        assert_eq!(
+            queue
+                .taking
+                .map(|taking| (taking.takers_per_lane, taking.sticky, taking.stays)),
+            Some((1, false, true))
+        );
+        let taken = drain(&queue, 2)
+            .into_iter()
+            .map(|(file, _)| associations[file])
+            .collect::<Vec<_>>();
+        assert_eq!(taken[..6], [0; 6]);
+        assert_eq!(taken[6..12], [1; 6]);
+        assert_eq!(taken[12..], [3; 4]);
+        // Seven checkers and sixteen: the rule is off.
+        for checkers in [7, 16] {
+            assert_eq!(
+                taking_queue(&weights, &associations, checkers)
+                    .taking
+                    .map(|taking| taking.stays),
+                Some(false)
+            );
+        }
     }
 
     #[test]
