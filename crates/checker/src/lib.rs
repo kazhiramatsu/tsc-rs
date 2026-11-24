@@ -3032,6 +3032,32 @@ enum PendingProgramSource {
     Shared(Arc<BoundDocument>),
 }
 
+/// From this many `/// <reference path>` directives on, the adoption's pass
+/// over the sources is worth its workers for the directives alone.
+const PATH_REFERENCES_WORTH_WORKERS: usize = 1024;
+
+/// Whether the adoption's pass over the pending sources runs on workers:
+/// when a source is rewritten at its leased identities (its weight is the
+/// nodes to rewrite), or when the sources carry so many path references
+/// that resolving them serially would cost more than starting the threads
+/// (a reference is one path normalized and two set look-ups). A source
+/// that is ready and has no reference costs the pass nothing; one file
+/// with one reference used to send a pass over ten thousand ready sources
+/// to nine new threads.
+fn adoption_pass_needs_workers(sources: impl Iterator<Item = (usize, usize)>) -> bool {
+    let mut references = 0usize;
+    for (weight, path_references) in sources {
+        if weight != 0 {
+            return true;
+        }
+        references += path_references;
+        if references >= PATH_REFERENCES_WORTH_WORKERS {
+            return true;
+        }
+    }
+    false
+}
+
 impl PendingProgramSource {
     fn weight(&self) -> usize {
         match self {
@@ -3500,10 +3526,16 @@ fn parse_program_inputs(
         )
     });
     let rewrite_started = std::time::Instant::now();
-    let workers = if pending_sources.iter().any(|source| {
-        source.weight() != 0
-            || (options.no_resolve != Some(true) && !source.source().referenced_files.is_empty())
-    }) {
+    let workers = if adoption_pass_needs_workers(pending_sources.iter().map(|source| {
+        (
+            source.weight(),
+            if options.no_resolve == Some(true) {
+                0
+            } else {
+                source.source().referenced_files.len()
+            },
+        )
+    })) {
         workers
     } else {
         WorkerBudget::serial()
