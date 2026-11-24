@@ -261,7 +261,11 @@ selects a preset for machines with more cores:
   import, so that the files of one checker resolve largely the same
   declarations;
 - every checker starts with its heaviest files, and a checker that has run
-  out of files takes unstarted ones from the checker with the most work left;
+  out of files takes unstarted ones from the checker with the most work left.
+  Heavy counts what a file would cost another checker: the modules it imports
+  that no other checker holds. A small file of a large family is then checked
+  early by the checker that holds the family, and what is left at a
+  checker's end, where the others take, costs a taker least;
 - a declaration file heavy enough to hold its checker back is checked in
   ranges of statements on several checkers.
 
