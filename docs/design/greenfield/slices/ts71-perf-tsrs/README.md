@@ -1745,6 +1745,58 @@ front end が zod で 4.5 %、next で 4.6 %、playwright で 5.2 %、vue で 5.
 
 **夜間に用意したもの（計測は所有者の指示を待つ）。** 計測用 binary 2 つを夜間設定で build し、lint と test を通した：take する側の cost で lane を並べる各形を switch で切り替える binary（`proto/fast-bound-stay` eeb7870a3：import の閉包での見積もり、宣言 file を数えない、cost が重さの 4 倍を超える file は take させない、pace による take）と、過去の実行の cost の記録で fast の配り方を決める binary（`proto/fast-profile-dealt` c5d3f3903）。記録は 8 project 分を既定 mode の 2 回の実行で作り（2 回目で変化なし、記録があっても既定 mode の出力は同じ）、読み取り専用にした — preset の実行は記録を書き換えられないので、計測の各回が同じ記録を読む。朝の計測枠は 4 本：新しい順序の各形と pace による take、記録で配る版、11-22 に外した switch の再評価、既定設定での step 3 と「宣言 file の root を先に読む」順序。読み方は結果 57 の 3 つの数字（下限との差、W、S + T）と「基準 2 列の両方より下／悪化なし」。
 
+**結果 59（2026-11-24：fast mode の lane の順序の着地（PR #1031、Effect −12〜−14 %、相手の `--fast` を下回る）と採用の pass の行、朝の 5 枠とその後の 4 枠の結果（記録で配る版・take 側の cold rule・take の人数・purge delay・step 3・宣言 root）、take の勘定、fast mode の peak の差の内訳、fast mode の相手との差の勘定（命令数は同等・1 命令あたりの cycles +5〜10 %・peak +21〜38 %）、今の構造の下限の内訳、判定の読み方（対照列と `slot-verdict.py`）、調べて行にしなかったもの、自分の誤り 4 件）。**
+
+**着地（PR #1031、merge `dde9a163a`、11-24 16:58:42 JST、hosted run 45346930734）。** 4 commit：(1) 採用の pass（identity の書き換えと `/// <reference path>` の解決）は、書き換える source があるか path reference が 1,024 以上のときだけ worker を使う — loader が作った program では source は全部 ready で、reference が 1 つあるだけで 9 thread を立てていた；(2) 直列区間の印 4 つ（trace のみ）；(3) `TSRS_FAST=1` の下で lane の heavy-first の順序を「重さ + 他の lane の checker が take したら余分にかかる分」で決める（`shard::takers_costs`：その file が**直接** import する source file の node 数 × それを持たない lane の割合；宣言 file と import の先は数えない）；(4) docs/performance.md。既定 mode の出力は main と同一（8 project、1 / 4 checker の work counter 24 行、emit の oracle、出力 24 / 24）。local の検査（train、日中の設定）は全部 rc 0：workspace の clippy、fmt、2 crate の test 2,521 件、release build、8 project の出力の同一性、4 checker の conformance 15,335 構成一致・既知の 4 件のみ差、suite 0 regression、emit の oracle 24 / 24、構文の fingerprint 161,676 行で差 0、preset の出力は 7 project で基準と一致（14 / 14）、zod は「実行ごとに変わり得る」と宣言して比較しない（12 回ずつ数えた結果：7 project は毎回既定の出力、zod は main と同じ 4 通り）。
+
+**計測（所有者の「計測OK」12:4x の後、5 枠 12:48〜13:08 とその後の 4 枠 13:48〜13:55、15:09〜15:17、16:46〜16:58；所有者の application が横で動いていた：WindowServer 25〜43 %、browser 7〜27 %）。**
+
+*lane の順序（fast preset、15 回、VS Code 9 回、基準 2 列・対照列つき）。* 着地用 binary（n-lo4）：Effect **−12.2 %（15 回中 15 回）、219.1 ms 対 相手 232.7 ms（0.942）**；同じ動作の別 binary 2 つ −13.5 %・−12.9 %；3 枠で −13.8 / −12.2 / −13.2 %。他の project は対照列の読み（−2.7〜+1.7 %）の中：zod −0.8、Playwright −0.8、Next.js +0.3、Vue +0.8、TypeScript −1.3、hono +0.2、VS Code +0.5 %（9 回中 4 回下）。peak ±5 MiB。下限との差（trace）：Effect 46.1 → 26.3 ms、lane の仕事量 W 1,652 → 1,516 ms（cold な take は同じ仕事の二度目）。**夜に着地形として書いた「閉包版」は誤りだった**：cost を import の閉包で数える形は Effect +2.2 %（密に繋がった program ではほぼ全 file が同じ大きな family に届き、cost が何も順序づけない）、VS Code は閉包の計算だけで 5 回とも基準より遅い；「cost が重さの 4 倍を超える file は take させない」+2.4 %、「pace による take」は対照列の範囲。閉包版は一度も時間を測らずに試作の既定にしていた。
+
+*記録で配る版（lane profile の記録で association を決める、n-fpd、9 回）。* Effect −11.2 %（9/9）、hono −7.3 %（8/9）、zod −5.5 %（8/9）、Vue −6.5 %（6/9）、Playwright・Next.js・TypeScript・VS Code は動かず；peak は Effect +44 MiB、zod +46。記録なしの列は基準と同じ。順序と合わせた試作（`proto/fast-profile-order`）を build 中。
+
+*take 側の cold rule（checker が読んだ file の集合を持ち、lane の最後の file が自分にとってどれだけ冷たいかで take 先を選ぶ；2 枠）。* 「冷たすぎる lane からは取らない」形：Playwright −4〜−5 %（cycles −4〜−6 %、peak −7〜−8 %）、zod −3 %（peak −9〜−11 %）、Vue の peak −10 % — だが hono +6.6〜7.8 %、VS Code +1.9〜5.7 %。見積もりを import の深さ 1 / 2 / 3 で切る形、平均 lane の 1/4・1/2 で上限をつける形でも直らない。「他に無ければ取る」形は zod で順序だけの版よりさらに −1.3〜−2.6 %、ただし VS Code が 2 枠とも正（+0.2、+2.5 %）で、take のたびに import を辿る規則自体の仕事が疑わしい（数えて確かめていない）。**どの形も着地しない**；見積もりを安く（take ごとに辿らず、表を一度だけ）してからの再挑戦、上限は Playwright 4〜5 %、zod 2〜4 %、peak 7〜11 %。
+
+*take の勘定（着地用 binary の trace、6 回；2 ms 以上の taken file を、同じ file の自分の lane での最短の check と比べる）。* 冷たい take の超過分は Effect 154.9 ms（lane の仕事量 W の 10.2 %）、zod 185.5（10.7 %）、Playwright 92.4（8.1 %）、Vue 89.9（9.1 %）、Next.js 76.0（3.6 %）；毎回同じ file が取られる（Effect の `McpSchema.ts` は 6 回中 6 回、take した側で 39.5 ms、自分の lane では 2 ms 未満；Playwright の `tools/backend/*.ts` は 1 つ 21〜24 ms）。その lane だけが持つ family は、どの taker にとっても冷たい — 変えられるのは「何人が支払うか」。
+
+*take する側の人数と居つき（試作 n-pt8 = 着地した head + switch、15 回、VS Code 9 回、基準 2 列）。* 1 lane から同時に take できる checker を 1 人にする：**Effect −16.4 %（15/15；順序だけの版よりさらに 6.8 point）**、cycles −7.0 %、Playwright −1.1、zod −1.3、Next.js −2.0、VS Code +0.9 %（9 回中 3 回下）；peak は zod −60 MiB、Playwright −17、Effect −16、VS Code −13。1 人 + 「取った lane に何か残っている間は留まる」：Effect −11.2、**Playwright −3.6 %（13/15）**、zod −2.9、Next.js −2.7、Vue −0.8、VS Code −0.0 — 基準より上の project が無い；cycles −0.7〜−6.3 %、peak zod −61、Playwright −22、Next.js −19、VS Code −18 MiB。人数の制限を外すと Effect で順序の利得が消える（−1.0 %）。同じ動作の 2 列は Playwright と hono で 5 point 違う（そこでの物差し）。着地形（8 checker 以上で 1 人；留まる規則）を作って確認の計測へ。
+
+*記録 + 順序（試作 n-fpo、15 回）。* 記録は順序の上でも zod −4.1 %（14/15）、Vue −4.7 %（14/15）、hono −7〜−12 % を与え、Effect では足し合わさらない（どちらも単独で 10〜12 %）。**VS Code は +2.0〜2.8 %（9 回中 1〜3 回だけ下）**、cycles は大きい project で +0.3〜3.9 %、peak は Effect・zod +40 MiB 前後。trace では記録つきの lane は揃っている（下限との差 Effect 4.3 ms、zod 3.0、Next.js 3.1）。記録つきの preset の実行は次の記録のための計測もしており、その分が配り方から分離できていない → このままでは着地しない。
+
+*purge delay（同じ binary の対、9 回）。* 原因ではなかった。既定設定で 20 / 30 / 50 ms：wall も cycles も同じ binary 同士の対のばらつき（wall ±2 %、cycles ±1.8 %）の中で、遅延との順序が無い。fast preset で「返さない」：cycles −0.4〜−1.2 %（zod +0.2）、wall は両符号、peak +3〜9 MiB。purge の call が 10 lane のとき 1 命令を 5〜10 % 高くしているのではない。
+
+*既定 mode の 2 行（9 回）。* step 3 の 2 行のうち採用の pass の行は自分の印で確定（Next.js 0.34・0.32 → 0.043 ms、zod 0.30・0.26 → 0.039、Playwright 0.23・0.20 → 0.023、TypeScript 0.14・0.13 → 0.010、VS Code 1.09・1.01 → 0.13；両方の順序、10 回ずつ、範囲が重ならない）→ 着地。「walk の表の解放を cleanup thread へ」は VS Code の start stretch が両順序で 1.4〜2.9 ms 長くなる → 着地しない。「宣言 file の root を先に読む」は利得なし、VS Code +0.7 %（7 回中 1 回下）→ 採らない。
+
+*11-22 の switch の再評価（n-fsx4、9 回）。* 上の cold rule のほか：rate（進み具合で lane を比べる、時計なし）zod −1.7 %・Next.js −3.8 %（5/9）で悪化なし；末尾を残す zod +4.5 %；taker 1 人 Vue +6.6 %；affinity なし hono −6.3 %・VS Code +1.5 %。
+
+**夜間に用意して使わなかったもの（記録として残す）。** (1) lane の順序の「閉包版」の branch `perf/fast-lane-order` b6b68782b（閉包での cost・cost が重さの 4 倍を超える file を残す・pace による take の 3 commit + 説明文；lint、test 2,523 件、3 つの binary n-lo1 / n-lo2 / n-lo3 まで検査した）— 朝の枠で誤った形と分かり、着地したのは日中に書き直した直接 import 版（`perf/fast-lane-order-direct` 7b5b468b3 → `perf/batch52-rows`）。(2) step 3 の 2 行の branch `perf/stretch-step3-b53` — 採用の pass の行だけを着地させた。(3) 「宣言 file の root を先に読む」の着地形 `perf/read-declaration-roots-first-b53` 239d7b853（unit test つき、72 cell と 10 回実行で出力同一）— 利得なしで採らない。(4) 計測用 binary：purge delay の switch（n-pd1）、記録で配る版（n-fpd）と 8 project 分の読み取り専用の記録。
+
+**fast mode の相手（`--fast`）との差を 1 つの表にする（11-23 の枠 spt2 の生 data を読み直した；新しい実行なし；こちら = main の code、こちら − 相手）。**
+
+| project | 命令数 | cycles | 1 命令あたりの cycles | うち performance core | efficiency core | wall | peak |
+|---|---:|---:|---:|---:|---:|---:|---|
+| Effect | +3.0 % | +8.9 % | +5.7 % | +5.8 % | +5.4 % | +5.6 % | +21 %（471 対 389 MiB） |
+| Playwright | +2.0 | +11.5 | +9.3 | +10.0 | +6.8 | +8.7 | +36 %（474 対 348） |
+| zod | +6.4 | +14.9 | +8.0 | +7.9 | +9.7 | +15.2 | +38 %（694 対 503） |
+| Next.js | −0.9 | +6.7 | +7.6 | +8.9 | +4.1 | +2.4 | +25 %（701 対 560） |
+| Vue | −5.0 | +1.7 | +7.1 | +6.9 | +10.1 | +1.2 | +31 %（318 対 244） |
+| TypeScript | −1.0 | +0.8 | +1.8 | +2.6 | +2.5 | +2.4 | +22 %（167 対 137） |
+| VS Code | −2.2 | +3.6 | +6.0 | +5.0 | +8.0 | +6.4 | +38 %（2,516 対 1,818） |
+
+kernel の時間の割合は両 port で同じ（6〜13 %）、performance core で実行した命令の割合も同じ（60〜67 %）。**命令数は同等で（zod +6 %、Effect +3 % は take が繰り返す分）、1 命令が両方の種類の core で 5〜10 % 高く、peak が 21〜38 % 多い。** 1 thread では 1〜2 %、4 process の同時実行で 4〜8 %（11-23 の co-run）、10 lane で 5〜10 %：checker が増えるほど 1 命令が高くなる — 配り方ではなく working set の問題。11-22 の block F の一文（「命令数が同じで CPU 時間 +6〜9 %」）と一致する；今回加わったのは系列の着地後の project ごとの一覧、core の種類での分解、kernel の割合。最初の候補は allocator の purge（こちらは空いた page を 10 ms 後に system へ返す；相手は allocator の既定のままで 1 回の実行ではほとんど返さない；返す call は process が走っている全 core に届く）— 枠 E。
+
+**fast mode の peak の差（所有者 16:4x「--fastモードでのvscodeですがpeak memoryに差がありすぎますね。原因はわかっていますか」；11-22 の両 port の memory report の読み、各 1 回）。** VS Code：2,516 対 1,818 MiB。差は checker ではなく front end：check の開始時点でこちら 約 1,290 MiB、相手 約 750 MiB（木 + binder が 1 node あたり 54 byte 対 約 30 byte；こちらは構文 630 MiB（1,688 万 node × 32 byte + 配列 79 + literal 27）、binder 287、text 136、どの行にも入らない分 234）。既定 mode では隠れている（相手の checker 4 つは member 表を先に作るので 約 1,530 MiB、こちら 約 1,035：合計 2,324 対 2,277）。fast mode では相手が member 表の遅延（−322 MiB；こちらは全 mode で遅延済み）と、check が終わった leaf file の木の解放（−267 MiB；こちらは未実装、見積もり 約 330 MiB、相手の名前ごとの履歴の規則が先に必要）を入れ、こちらは checker 10 個が最後まで生きる（+190 MiB）。1 node あたりの byte を相手並みにする行はこれまで立てていなかった；所有者「そうしてください」— 相手の 30 byte の内訳と 234 MiB の正体を数えるところから始める。
+
+**今の構造の下限の内訳（`tools/preset-floor.py`、11-23 の trace、main の code、ms；S | lane 数 | W | W/N | 最長 file | T | 下限 | 実際）。** Effect 26.6 | 10 | 1,652 | 165.2 | 89.1 | 0.9 | 192.7 | 238.8；zod 59.4 | 10 | 1,745 | 174.5 | 120.7 | 1.2 | 235.2 | 256.1；Playwright 42.7 | 10 | 1,177 | 117.7 | 47.5 | 3.9 | 164.3 | 174.6；Next.js 73.7 | 10 | 2,158 | 215.8 | 82.3 | 1.7 | 291.2 | 299.4；Vue 25.1 | 10 | 1,026 | 102.6 | 95.8 | 0.6 | 128.4 | 135.4；TypeScript 28.5 | 4 | 344 | 85.9 | 107.7 | 0.2 | 136.4 | 136.3。**zod・Playwright・TypeScript では下限そのものが相手の wall（226〜230、155〜158、132〜140）より上**：配り方が完全でも抜けない。W（命令数 × 1 命令の cycles）か S を下げる行が要る。zod を lane ごとに読むと、3 つの lane が「重さは軽いのに check が 34〜106 ms かかる test file」を 4〜6 個ずつ持って 180〜198 ms かかり、take できる重さが小さいので誰も取りに行かない；自分の file を 146〜185 ms で終えた 4 lane は別の lane の小さな file を取る。2 回の実行で同じ lane が同じ役になる（core の種類ではなく内容で決まる）。
+
+**切り捨てた行の洗い出し（所有者の指示 11-23「過去の試作で切り捨てたものを再評価」；11-18 以降の記録の判定語と packet）。** 朝の枠に入れたもの：fast の switch（閉包の cold rule、rate、末尾を残す、taker 1 人、affinity なし）、step-3 行、宣言 root、**allocator の purge delay**（11-20 の対：50 ms で Next.js wall −0.90 %・cycles −0.69 %（9 対中 7）、Vue −1.92 %・−0.70 %（8）、zod は peak +31.9 MiB；「4 project 中 3 つで −0.5 %、peak +1 % 未満」という自分の基準で外していた；10〜50 ms の間は未計測；11-16 の「環境変数での設定は効果なし」は起動時の固定値が上書きしていたため）。候補にならなかったもの（時間で正の方向が無い）：C16・C19・C20、型の読みの定数 address 化、宣言 member 表の共有、scanner の 2 行目（cycles は両符号）、read-ahead の他の順序。11-08〜11-14 の命令数基準の行（約 60 か所）は base が 100 PR 前なので、上の行の後に 1 % 以上のものから。
+
+**判定の読み方。** 11-23 の枠 spt2 では、基準と同じ動作の対照列（別 binary）が Vue で −1.2 %（「基準 2 列の両方より下」）、Playwright で +3.6 %（「両方より上」）と読めていた（9 回）。以後：候補の枠には対照列を入れ、小さい project は 15 回；判定は `tools/slot-verdict.py`（core-split の生 data から、case と候補ごとに COUNTS / inside / out、round ごとの勝ち数、cycles、peak、相手との比）が同じ規則で表にし、対照列の読みを超えた分だけ信用する。
+
+**調べて行にしなかったもの（それぞれの上限つき）。** (1) 開始前の file 名の展開（tsconfig の include の directory walk：zod 3.9〜5.1 ms、Next.js 3.9〜6.3、VS Code 23.7 = wall の 1〜1.7 %）：既に 4 thread で先読みしていて時間は kernel の open（system 全体で直列）、`openat` は安くならない（3 回計測済み）、相手も同じ時間；残るのは walk と並行して root を loader に流す形（loader の admission の作り直し）。(2) zod の checker 開始時の ambient module の merge（@types/node が 2 版あり、115 の module 名が 2 回宣言されている；既定設定で 1 開始 2.6 ms、fast mode の 10 lane では lane あたり 4.7〜6.2 ms = fast の wall の約 2.4 %）：最初に参照されたときに merge する形は、宣言自身の symbol から入る経路すべてに保留中の merge の判定が要る；最初の checker の状態を複製する形は `CheckerState` の複製が別の大きな作業。どちらも設計項目として記録。(3) loader の直列の walk の file ごとの処理（class A）：read-ahead の package scope は既に引き継がれていて、残りは path による lookup で 0.1〜0.2 % の行の集まり（合計で既定 wall の約 0.5 %）。(4) 「core の種類で重さを配り分ける」：trace に根拠が無い（上記）。
+
+**自分の誤り。** (1) 11-23 夜の記録に「cb1（import で見つけた source の bind を crew に渡す行）は切り捨てた行」と書いたが、11-20 に PR #1023 で着地していた。行が main にあるかは `git log main` で読む。(2) 夜間の job を、script の構文検査が失敗した同じ command の中で列に入れた（検査の `&&` の外に `;` で書いていた；開始前に修正）；同じ形の書き方を日中にもう一度した（構文は正しく、影響なし）。列に入れる行は検査の `&&` の最後の link にする。(3) lane の順序の着地形を、時間を測っていない閉包版で書いた（上記）；計測した cell の code をそのまま着地形にする。(4) 朝の枠 A の VS Code の block（5 回）で候補の列だけ +10〜14 % と出たのを、同じ binary の前夜の値（±0.7 %）と突き合わせる前に読みかけた；9 回の確認枠では +0.5 % で基準の範囲。VS Code は 9 回以上、対照列つきで読む。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
