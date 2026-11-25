@@ -5306,7 +5306,8 @@ impl<'a> CheckerState<'a> {
             .links
             .read_ty(id, |links| links.resolved_members.resolved())
             .expect("created resolved above");
-        self.members_mut(members).extras_mut().call_signatures = vec![signature].into();
+        self.members_mut(members)
+            .set_call_signatures(vec![signature]);
         id
     }
 

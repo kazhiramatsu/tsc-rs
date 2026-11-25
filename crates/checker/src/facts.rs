@@ -287,7 +287,7 @@ impl<'a> CheckerState<'a> {
         }
         let resolved = self.structured_member_headers(ty)?;
         let members = self.members_of(resolved);
-        if !members.call_signatures().is_empty() || !members.construct_signatures().is_empty() {
+        if members.has_signatures() {
             return Ok(true);
         }
         let has_bind = match self.deferred_reference_property(

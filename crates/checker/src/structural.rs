@@ -5008,8 +5008,8 @@ impl<'a> CheckerState<'a> {
         let (has_call, has_construct) = {
             let resolved = self.members_of(members);
             (
-                !resolved.call_signatures().is_empty(),
-                !resolved.construct_signatures().is_empty(),
+                resolved.has_call_signatures(),
+                resolved.has_construct_signatures(),
             )
         };
         let function_type = if ty == self.any_function_type {
@@ -7433,8 +7433,7 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::OBJECT) {
             let members = self.resolve_structured_type_members(ty)?;
             let resolved = self.members_of(members).clone();
-            if !resolved.construct_signatures().is_empty() || !resolved.call_signatures().is_empty()
-            {
+            if resolved.has_signatures() {
                 let symbol = self.tables.type_of(ty).symbol;
                 let result = self.create_resolved_empty_anonymous_type(symbol);
                 let result_members = self
@@ -9175,18 +9174,7 @@ impl<'a> CheckerState<'a> {
         let has_properties = !allow_members && self.structured_type_has_properties(ty)?;
         let resolved = self.members_of(members);
         if allow_members || !has_properties && resolved.index_infos().is_empty() {
-            if kind == SignatureKind::Call
-                && resolved.call_signatures().len() == 1
-                && resolved.construct_signatures().is_empty()
-            {
-                return Ok(Some(resolved.call_signatures()[0]));
-            }
-            if kind == SignatureKind::Construct
-                && resolved.construct_signatures().len() == 1
-                && resolved.call_signatures().is_empty()
-            {
-                return Ok(Some(resolved.construct_signatures()[0]));
-            }
+            return Ok(resolved.single_signature(kind == SignatureKind::Construct));
         }
         Ok(None)
     }

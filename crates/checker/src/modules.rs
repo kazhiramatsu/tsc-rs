@@ -8052,7 +8052,7 @@ impl<'a> CheckerState<'a> {
         }
         let members = self.resolve_structured_type_members(ty)?;
         let resolved = self.members_of(members);
-        Ok(!resolved.call_signatures().is_empty() || !resolved.construct_signatures().is_empty())
+        Ok(resolved.has_signatures())
     }
 
     /// tsc-port: createDefaultPropertyWrapperForModule @6.0.3

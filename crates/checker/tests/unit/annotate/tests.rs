@@ -1231,6 +1231,56 @@ fn declaration_routing_keeps_cross_file_overload_order() {
 }
 
 #[test]
+fn a_types_one_signature_stays_in_its_record_through_writes_and_the_weak_test() {
+    with_state(
+        "declare let callable: { (): void };
+         declare let optional_callable: { (): void; opt?: number };
+         declare let newable: { new (): object };
+         declare let overloaded: { (): void; (x: number): void };",
+        |state| {
+            let callable = annotation_type(state, "callable");
+            let id = state.resolve_structured_type_members(callable).unwrap();
+            assert_eq!(state.members_of(id).call_signatures().len(), 1);
+            assert_eq!(state.members_of(id).extras_heap_bytes(), 0);
+            let signature = state.members_of(id).call_signatures()[0];
+            // Opening the record for writing forgets a verdict, never the
+            // signature its word holds.
+            let _ = state.members_mut(id);
+            assert_eq!(state.members_of(id).call_signatures(), &[signature]);
+            // A type with a signature is not weak, and its word keeps the
+            // signature: there is no room for a verdict, and none is written.
+            assert!(!state.is_weak_type(callable).unwrap());
+            assert!(!state.has_only_optional_properties(callable, id));
+            assert_eq!(state.members_of(id).weak_properties(), None);
+            assert_eq!(state.members_of(id).call_signatures(), &[signature]);
+
+            let optional = annotation_type(state, "optional_callable");
+            let id = state.resolve_structured_type_members(optional).unwrap();
+            let signature = state.members_of(id).call_signatures()[0];
+            assert!(!state.is_weak_type(optional).unwrap());
+            // Its one property is optional; the answer is computed each time
+            // and the signature stays.
+            assert!(state.has_only_optional_properties(optional, id));
+            assert!(state.has_only_optional_properties(optional, id));
+            assert_eq!(state.members_of(id).weak_properties(), None);
+            assert_eq!(state.members_of(id).call_signatures(), &[signature]);
+            assert_eq!(state.members_of(id).extras_heap_bytes(), 0);
+
+            let newable = annotation_type(state, "newable");
+            let id = state.resolve_structured_type_members(newable).unwrap();
+            assert!(state.members_of(id).call_signatures().is_empty());
+            assert_eq!(state.members_of(id).construct_signatures().len(), 1);
+            assert_eq!(state.members_of(id).extras_heap_bytes(), 0);
+
+            let overloaded = annotation_type(state, "overloaded");
+            let id = state.resolve_structured_type_members(overloaded).unwrap();
+            assert_eq!(state.members_of(id).call_signatures().len(), 2);
+            assert!(state.members_of(id).extras_heap_bytes() > 0);
+        },
+    );
+}
+
+#[test]
 fn weak_properties_follow_the_full_record_through_resolution_and_speculation() {
     use tsc_types::SymbolFlags;
 

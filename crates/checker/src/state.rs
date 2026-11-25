@@ -19,7 +19,7 @@ use tsc_types::{
 
 use crate::instantiate::MapperId;
 use crate::links::{LinkSlot, LinksTables};
-use crate::member_table::{FreezeMembers, FrozenMembers, MemberTable};
+use crate::member_table::{FreezeMembers, FrozenMembers};
 use crate::program::{ProgramBinder, ProgramSnapshot};
 use crate::relate::RelationCaches;
 
@@ -503,8 +503,201 @@ pub struct SharedList<T: Clone>(Option<Arc<[T]>>);
 /// A resolved type's properties (see [`SharedList`]).
 pub type SymbolIds = SharedList<SymbolId>;
 
-/// A resolved type's call or construct signatures (see [`SharedList`]).
-pub type SignatureIds = SharedList<SignatureId>;
+/// A resolved type's call or construct signatures: an immutable list its
+/// readers share, like a [`SharedList`]. Most such lists hold ONE signature
+/// (a function type, a method), and that one is kept in the handle itself:
+/// no allocation, and a copy where a longer list counts a reference. It
+/// reads as a slice, and iterating it by value yields the ids.
+#[derive(Clone, Debug)]
+pub struct SignatureIds(SignatureList);
+
+#[derive(Clone, Debug)]
+enum SignatureList {
+    /// No signature, or one.
+    Small(Option<SignatureId>),
+    /// Two signatures or more.
+    Shared(Arc<[SignatureId]>),
+}
+
+const _: () = assert!(size_of::<SignatureIds>() == size_of::<SharedList<SignatureId>>());
+
+impl SignatureIds {
+    /// The empty list.
+    #[inline]
+    pub const fn new() -> Self {
+        Self(SignatureList::Small(None))
+    }
+
+    /// The list of one signature.
+    #[inline]
+    pub const fn one(signature: SignatureId) -> Self {
+        Self(SignatureList::Small(Some(signature)))
+    }
+
+    /// The list's signature when it holds exactly one.
+    #[inline]
+    pub fn single(&self) -> Option<SignatureId> {
+        match self.0 {
+            SignatureList::Small(one) => one,
+            SignatureList::Shared(_) => None,
+        }
+    }
+
+    /// Bytes the list owns on the heap (its counts and records), for
+    /// memory accounting.
+    pub fn heap_bytes(&self) -> usize {
+        match &self.0 {
+            SignatureList::Small(_) => 0,
+            SignatureList::Shared(list) => {
+                2 * size_of::<usize>() + std::mem::size_of_val::<[SignatureId]>(list)
+            }
+        }
+    }
+
+    pub(crate) fn heap_bytes_once(&self, usage: &mut tsc_diagnostics::MemoryUsage) -> usize {
+        match &self.0 {
+            SignatureList::Shared(list) if usage.claim_arc(list) => self.heap_bytes(),
+            _ => 0,
+        }
+    }
+}
+
+impl Default for SignatureIds {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl From<&[SignatureId]> for SignatureIds {
+    #[inline]
+    fn from(list: &[SignatureId]) -> Self {
+        Self(match *list {
+            [] => SignatureList::Small(None),
+            [one] => SignatureList::Small(Some(one)),
+            _ => SignatureList::Shared(Arc::from(list)),
+        })
+    }
+}
+
+impl From<Vec<SignatureId>> for SignatureIds {
+    #[inline]
+    fn from(list: Vec<SignatureId>) -> Self {
+        if list.len() < 2 {
+            Self::from(&list[..])
+        } else {
+            Self(SignatureList::Shared(Arc::from(list)))
+        }
+    }
+}
+
+impl std::ops::Deref for SignatureIds {
+    type Target = [SignatureId];
+
+    #[inline]
+    fn deref(&self) -> &[SignatureId] {
+        match &self.0 {
+            SignatureList::Small(None) => &[],
+            SignatureList::Small(Some(one)) => std::slice::from_ref(one),
+            SignatureList::Shared(list) => list,
+        }
+    }
+}
+
+impl PartialEq for SignatureIds {
+    fn eq(&self, other: &Self) -> bool {
+        self[..] == other[..]
+    }
+}
+
+impl Eq for SignatureIds {}
+
+/// The signatures of a [`SignatureIds`] by value, in order.
+pub struct SignatureIdsIter {
+    list: SignatureIds,
+    next: usize,
+}
+
+impl Iterator for SignatureIdsIter {
+    type Item = SignatureId;
+
+    #[inline]
+    fn next(&mut self) -> Option<SignatureId> {
+        let signature = self.list.get(self.next).copied();
+        self.next += usize::from(signature.is_some());
+        signature
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let left = self.list.len() - self.next;
+        (left, Some(left))
+    }
+}
+
+impl ExactSizeIterator for SignatureIdsIter {}
+
+impl IntoIterator for SignatureIds {
+    type Item = SignatureId;
+    type IntoIter = SignatureIdsIter;
+
+    fn into_iter(self) -> SignatureIdsIter {
+        SignatureIdsIter {
+            list: self,
+            next: 0,
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a SignatureIds {
+    type Item = &'a SignatureId;
+    type IntoIter = std::slice::Iter<'a, SignatureId>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+/// A record's call or construct signatures, borrowed from it: a slice of
+/// its list, or the one signature the record keeps in its own word. It
+/// reads as a slice.
+#[derive(Clone, Copy, Debug)]
+pub enum SignatureSlice<'a> {
+    /// No signature, or the record's one.
+    Small(Option<SignatureId>),
+    /// The record's list.
+    Slice(&'a [SignatureId]),
+}
+
+impl std::ops::Deref for SignatureSlice<'_> {
+    type Target = [SignatureId];
+
+    #[inline]
+    fn deref(&self) -> &[SignatureId] {
+        match self {
+            Self::Small(None) => &[],
+            Self::Small(Some(one)) => std::slice::from_ref(one),
+            Self::Slice(list) => list,
+        }
+    }
+}
+
+impl PartialEq for SignatureSlice<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self[..] == other[..]
+    }
+}
+
+impl PartialEq<&[SignatureId]> for SignatureSlice<'_> {
+    fn eq(&self, other: &&[SignatureId]) -> bool {
+        self[..] == **other
+    }
+}
+
+impl<const N: usize> PartialEq<&[SignatureId; N]> for SignatureSlice<'_> {
+    fn eq(&self, other: &&[SignatureId; N]) -> bool {
+        self[..] == other[..]
+    }
+}
 
 /// Immutable resolved index infos; cloning this list copies only its Arc.
 pub type IndexInfos = SharedList<IndexInfo>;
@@ -635,10 +828,30 @@ pub struct ResolvedMembers {
     pub properties: SymbolIds,
     /// The signatures and index infos, which most resolved types have none
     /// of (three empty lists were 72 of a record's 152 bytes, over a million
-    /// records on VS Code).
+    /// records on VS Code). Of the records that have any, seven in ten have
+    /// ONE call signature and nothing else (a function type, a method): that
+    /// signature, or one construct signature, is kept in the word itself
+    /// ([`ExtrasKind`]); every other combination is a boxed record.
     // With no signature or index lists, the word can hold the property verdict.
     extras: InlineOrBox<MembersExtras>,
 }
+
+/// What the record's word holds when it is not a boxed [`MembersExtras`]:
+/// the low two bits of its inline payload, the rest being the kind's own
+/// payload.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ExtrasKind {
+    /// No list. The payload is the weak-properties verdict: 0 not asked,
+    /// 1 false, 2 true.
+    None = 0,
+    /// One call signature and nothing else. The payload is its position.
+    OneCall = 1,
+    /// One construct signature and nothing else, likewise.
+    OneConstruct = 2,
+}
+
+const EXTRAS_KIND_BITS: usize = 2;
+const EXTRAS_KIND_MASK: usize = (1 << EXTRAS_KIND_BITS) - 1;
 
 /// The call and construct signatures and the index infos of a resolved
 /// type, allocated when the type has any.
@@ -659,11 +872,11 @@ impl Clone for ResolvedMembers {
         Self {
             members: self.members.clone(),
             properties: self.properties.clone(),
-            extras: self
-                .extras
-                .as_boxed()
-                .cloned()
-                .map_or_else(InlineOrBox::default, InlineOrBox::boxed),
+            // A copy carries the lists, not the verdict.
+            extras: match self.inline_extras() {
+                Some((ExtrasKind::None, _)) => InlineOrBox::default(),
+                _ => self.extras.clone(),
+            },
         }
     }
 }
@@ -673,22 +886,173 @@ impl std::fmt::Debug for ResolvedMembers {
         f.debug_struct("ResolvedMembers")
             .field("members", &self.members)
             .field("properties", &self.properties)
-            .field("extras", &self.extras.as_boxed())
+            .field("call_signatures", &&*self.call_signatures())
+            .field("construct_signatures", &&*self.construct_signatures())
+            .field("index_infos", &self.index_infos())
             .finish()
     }
 }
 
 impl ResolvedMembers {
-    pub(crate) fn weak_properties(&self) -> Option<bool> {
+    /// The word's inline form: its kind and the kind's payload.
+    #[inline]
+    fn inline_extras(&self) -> Option<(ExtrasKind, usize)> {
+        let bits = self.extras.inline_bits()?;
+        let kind = match bits & EXTRAS_KIND_MASK {
+            0 => ExtrasKind::None,
+            1 => ExtrasKind::OneCall,
+            2 => ExtrasKind::OneConstruct,
+            _ => unreachable!("no such kind is written"),
+        };
+        Some((kind, bits >> EXTRAS_KIND_BITS))
+    }
+
+    /// The one signature the word holds inline, when it is of `kind`.
+    #[inline]
+    fn inline_signature(&self, kind: ExtrasKind) -> Option<SignatureId> {
         match self.extras.inline_bits() {
-            Some(1) => Some(false),
-            Some(2) => Some(true),
+            Some(bits) if bits & EXTRAS_KIND_MASK == kind as usize => {
+                SignatureId::from_position((bits >> EXTRAS_KIND_BITS) as u32)
+            }
             _ => None,
         }
     }
 
+    /// Whether the type has a call signature. Like the three readings
+    /// below it reads the word alone unless the record is a boxed one: a
+    /// property lookup asks it of every object type.
+    #[inline]
+    pub fn has_call_signatures(&self) -> bool {
+        match self.extras.inline_bits() {
+            Some(bits) => bits & EXTRAS_KIND_MASK == ExtrasKind::OneCall as usize,
+            None => !self.call_signatures().is_empty(),
+        }
+    }
+
+    /// Whether the type has a construct signature.
+    #[inline]
+    pub fn has_construct_signatures(&self) -> bool {
+        match self.extras.inline_bits() {
+            Some(bits) => bits & EXTRAS_KIND_MASK == ExtrasKind::OneConstruct as usize,
+            None => !self.construct_signatures().is_empty(),
+        }
+    }
+
+    /// Whether the type has a call or a construct signature.
+    #[inline]
+    pub fn has_signatures(&self) -> bool {
+        match self.extras.inline_bits() {
+            Some(bits) => bits & EXTRAS_KIND_MASK != ExtrasKind::None as usize,
+            None => !self.call_signatures().is_empty() || !self.construct_signatures().is_empty(),
+        }
+    }
+
+    /// The type's call signature when it has exactly one and no construct
+    /// signature, or (`construct`) its construct signature when it has
+    /// exactly one and no call signature: getSingleSignature's shape.
+    #[inline]
+    pub fn single_signature(&self, construct: bool) -> Option<SignatureId> {
+        let kind = if construct {
+            ExtrasKind::OneConstruct
+        } else {
+            ExtrasKind::OneCall
+        };
+        match self.extras.as_boxed() {
+            None => self.inline_signature(kind),
+            Some(extras) => {
+                let (wanted, other) = if construct {
+                    (&extras.construct_signatures, &extras.call_signatures)
+                } else {
+                    (&extras.call_signatures, &extras.construct_signatures)
+                };
+                if other.is_empty() {
+                    wanted.single()
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    #[inline]
+    fn inline_word(kind: ExtrasKind, payload: usize) -> InlineOrBox<MembersExtras> {
+        InlineOrBox::inline((payload << EXTRAS_KIND_BITS) | kind as usize)
+    }
+
+    /// The word for the three lists: inline for none and for one call or
+    /// one construct signature alone, a boxed record otherwise.
+    fn extras_word(
+        call_signatures: SignatureIds,
+        construct_signatures: SignatureIds,
+        index_infos: IndexInfos,
+    ) -> InlineOrBox<MembersExtras> {
+        if index_infos.is_empty() {
+            if construct_signatures.is_empty() {
+                if call_signatures.is_empty() {
+                    return InlineOrBox::default();
+                }
+                if let Some(call) = call_signatures.single() {
+                    return Self::inline_word(ExtrasKind::OneCall, call.position() as usize);
+                }
+            } else if call_signatures.is_empty() {
+                if let Some(construct) = construct_signatures.single() {
+                    return Self::inline_word(
+                        ExtrasKind::OneConstruct,
+                        construct.position() as usize,
+                    );
+                }
+            }
+        }
+        InlineOrBox::boxed(MembersExtras {
+            call_signatures,
+            construct_signatures,
+            index_infos,
+        })
+    }
+
+    /// The three lists, taken out of the word (which is left without any).
+    fn take_lists(&mut self) -> (SignatureIds, SignatureIds, IndexInfos) {
+        let call = self.inline_signature(ExtrasKind::OneCall);
+        let construct = self.inline_signature(ExtrasKind::OneConstruct);
+        let lists = match self.extras.as_boxed_mut() {
+            Some(extras) => (
+                std::mem::take(&mut extras.call_signatures),
+                std::mem::take(&mut extras.construct_signatures),
+                std::mem::take(&mut extras.index_infos),
+            ),
+            None => (
+                call.map_or_else(SignatureIds::new, SignatureIds::one),
+                construct.map_or_else(SignatureIds::new, SignatureIds::one),
+                IndexInfos::new(),
+            ),
+        };
+        self.extras = InlineOrBox::default();
+        lists
+    }
+
+    /// Whether the record has no signature and no index info: only then
+    /// can its word hold the weak-properties verdict.
+    #[inline]
+    fn has_no_lists(&self) -> bool {
+        matches!(self.inline_extras(), Some((ExtrasKind::None, _)))
+    }
+
+    pub(crate) fn weak_properties(&self) -> Option<bool> {
+        match self.inline_extras() {
+            Some((ExtrasKind::None, 1)) => Some(false),
+            Some((ExtrasKind::None, 2)) => Some(true),
+            _ => None,
+        }
+    }
+
+    /// Keep the verdict in the word of a record without lists.
+    fn set_weak_properties(&mut self, weak: bool) {
+        debug_assert!(self.has_no_lists());
+        self.extras = Self::inline_word(ExtrasKind::None, if weak { 2 } else { 1 });
+    }
+
     fn forget_weak_properties(&mut self) {
-        if self.extras.inline_bits().is_some() {
+        if self.has_no_lists() {
             self.extras = InlineOrBox::default();
         }
     }
@@ -720,23 +1084,14 @@ impl ResolvedMembers {
         construct_signatures: Vec<SignatureId>,
         index_infos: impl Into<IndexInfos>,
     ) -> Self {
-        let index_infos = index_infos.into();
-        let extras = if !call_signatures.is_empty()
-            || !construct_signatures.is_empty()
-            || !index_infos.is_empty()
-        {
-            InlineOrBox::boxed(MembersExtras {
-                call_signatures: call_signatures.into(),
-                construct_signatures: construct_signatures.into(),
-                index_infos,
-            })
-        } else {
-            InlineOrBox::default()
-        };
         Self {
             members,
             properties,
-            extras,
+            extras: Self::extras_word(
+                call_signatures.into(),
+                construct_signatures.into(),
+                index_infos.into(),
+            ),
         }
     }
 
@@ -751,32 +1106,43 @@ impl ResolvedMembers {
         };
     }
 
-    pub fn call_signatures(&self) -> &[SignatureId] {
-        self.extras
-            .as_boxed()
-            .map_or(&[], |extras| &extras.call_signatures[..])
+    /// The call signatures: read them as a slice.
+    #[inline]
+    pub fn call_signatures(&self) -> SignatureSlice<'_> {
+        match self.extras.as_boxed() {
+            Some(extras) => SignatureSlice::Slice(&extras.call_signatures),
+            None => SignatureSlice::Small(self.inline_signature(ExtrasKind::OneCall)),
+        }
     }
 
-    pub fn construct_signatures(&self) -> &[SignatureId] {
-        self.extras
-            .as_boxed()
-            .map_or(&[], |extras| &extras.construct_signatures[..])
+    /// The construct signatures: read them as a slice.
+    #[inline]
+    pub fn construct_signatures(&self) -> SignatureSlice<'_> {
+        match self.extras.as_boxed() {
+            Some(extras) => SignatureSlice::Slice(&extras.construct_signatures),
+            None => SignatureSlice::Small(self.inline_signature(ExtrasKind::OneConstruct)),
+        }
     }
 
-    /// The call signatures, shared (a reference count, not a copy).
+    /// The call signatures, shared (the one signature of most records by
+    /// value, a longer list by a reference count: not a copy).
     pub fn call_signature_list(&self) -> SignatureIds {
-        self.extras
-            .as_boxed()
-            .map_or_else(SignatureIds::new, |extras| extras.call_signatures.clone())
+        match self.extras.as_boxed() {
+            Some(extras) => extras.call_signatures.clone(),
+            None => self
+                .inline_signature(ExtrasKind::OneCall)
+                .map_or_else(SignatureIds::new, SignatureIds::one),
+        }
     }
 
-    /// The construct signatures, shared (a reference count, not a copy).
+    /// The construct signatures, shared likewise.
     pub fn construct_signature_list(&self) -> SignatureIds {
-        self.extras
-            .as_boxed()
-            .map_or_else(SignatureIds::new, |extras| {
-                extras.construct_signatures.clone()
-            })
+        match self.extras.as_boxed() {
+            Some(extras) => extras.construct_signatures.clone(),
+            None => self
+                .inline_signature(ExtrasKind::OneConstruct)
+                .map_or_else(SignatureIds::new, SignatureIds::one),
+        }
     }
 
     pub fn index_infos(&self) -> &[IndexInfo] {
@@ -792,31 +1158,30 @@ impl ResolvedMembers {
             .map_or_else(IndexInfos::new, |extras| extras.index_infos.clone())
     }
 
-    /// The lists for writing, allocated on the first write.
-    pub fn extras_mut(&mut self) -> &mut MembersExtras {
-        if self.extras.inline_bits().is_some() {
-            self.extras = InlineOrBox::boxed(MembersExtras::default());
-        }
-        self.extras.as_boxed_mut().expect("allocated above")
-    }
-
     /// Replace the call signatures (tsc writes the three lists one at a
-    /// time); an empty list needs no record.
+    /// time); an empty list written to a record without lists changes
+    /// nothing.
     pub fn set_call_signatures(&mut self, call_signatures: Vec<SignatureId>) {
-        if !call_signatures.is_empty() || self.extras.as_boxed().is_some() {
-            self.extras_mut().call_signatures = call_signatures.into();
+        if !call_signatures.is_empty() || !self.has_no_lists() {
+            let (_, construct_signatures, index_infos) = self.take_lists();
+            self.extras =
+                Self::extras_word(call_signatures.into(), construct_signatures, index_infos);
         }
     }
 
     pub fn set_construct_signatures(&mut self, construct_signatures: Vec<SignatureId>) {
-        if !construct_signatures.is_empty() || self.extras.as_boxed().is_some() {
-            self.extras_mut().construct_signatures = construct_signatures.into();
+        if !construct_signatures.is_empty() || !self.has_no_lists() {
+            let (call_signatures, _, index_infos) = self.take_lists();
+            self.extras =
+                Self::extras_word(call_signatures, construct_signatures.into(), index_infos);
         }
     }
 
     pub fn set_index_infos(&mut self, index_infos: Vec<IndexInfo>) {
-        if !index_infos.is_empty() || self.extras.as_boxed().is_some() {
-            self.extras_mut().index_infos = index_infos.into();
+        if !index_infos.is_empty() || !self.has_no_lists() {
+            let (call_signatures, construct_signatures, _) = self.take_lists();
+            self.extras =
+                Self::extras_word(call_signatures, construct_signatures, index_infos.into());
         }
     }
 
@@ -827,14 +1192,11 @@ impl ResolvedMembers {
         construct_signatures: Vec<SignatureId>,
         index_infos: Vec<IndexInfo>,
     ) {
-        self.extras = Self::new(
-            MemberTable::with_capacity(0),
-            Vec::new(),
-            call_signatures,
-            construct_signatures,
-            index_infos,
-        )
-        .extras;
+        self.extras = Self::extras_word(
+            call_signatures.into(),
+            construct_signatures.into(),
+            index_infos.into(),
+        );
     }
 
     /// Bytes the lists own on the heap, for memory accounting.
@@ -2928,7 +3290,7 @@ impl<'a> CheckerState<'a> {
         let members = self.members_of(id);
         let eligible = self.speculation_depth == 0
             && self.members_resolving == 0
-            && members.extras.inline_bits().is_some()
+            && members.has_no_lists()
             && self
                 .links
                 .read_ty(ty, |links| links.resolved_members.resolved())
@@ -2957,8 +3319,7 @@ impl<'a> CheckerState<'a> {
                 || members.properties.iter().copied().all(published),
                 published,
             ) {
-                self.members[id.index() as usize].extras =
-                    InlineOrBox::inline(if answer { 2 } else { 1 });
+                self.members[id.index() as usize].set_weak_properties(answer);
             }
         }
         answer

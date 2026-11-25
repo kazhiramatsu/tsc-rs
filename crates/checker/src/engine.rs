@@ -4069,10 +4069,7 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::OBJECT) {
             let members = self.structured_member_headers(ty)?;
             let resolved = self.members_of(members);
-            if !resolved.call_signatures().is_empty()
-                || !resolved.construct_signatures().is_empty()
-                || !resolved.index_infos().is_empty()
-            {
+            if resolved.has_signatures() || !resolved.index_infos().is_empty() {
                 return Ok(false);
             }
             // A reference whose members are still deferred answers from its
@@ -4176,7 +4173,7 @@ impl<'a> CheckerState<'a> {
         }
         let members = self.resolve_structured_type_members(ty)?;
         let resolved = self.members_of(members);
-        Ok(!resolved.call_signatures().is_empty() || !resolved.construct_signatures().is_empty())
+        Ok(resolved.has_signatures())
     }
 
     /// The value-type of the applicable index info for a property
@@ -4367,10 +4364,7 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::OBJECT) {
             let members = self.structured_member_headers(ty)?;
             let resolved = self.members_of(members);
-            if !resolved.call_signatures().is_empty()
-                || !resolved.construct_signatures().is_empty()
-                || !resolved.index_infos().is_empty()
-            {
+            if resolved.has_signatures() || !resolved.index_infos().is_empty() {
                 return Ok(false);
             }
             return Ok(!self.structured_type_has_properties(ty)?);
