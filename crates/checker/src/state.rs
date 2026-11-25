@@ -1322,8 +1322,7 @@ pub struct CheckerState<'a> {
     /// Viable positions only; property types still depend on the contextual name type.
     pub(crate) contextual_relevant:
         rustc_hash::FxHashMap<(TypeId, tsc_types::EscapedName), ContextualRelevantPositions>,
-    pub(crate) deferred_reference_members:
-        rustc_hash::FxHashMap<TypeId, Option<crate::annotate::DeferredReferenceMembers>>,
+    pub(crate) deferred_reference_members: crate::annotate::LazyMemberTables,
     pub(crate) named_member_order_buffers:
         std::cell::Cell<crate::type_order::NamedMemberOrderBuffers>,
     /// checker-key §1.5: five per-relation caches + enumRelation.
@@ -2392,11 +2391,10 @@ impl<'a> CheckerState<'a> {
         rows.push((
             "deferred reference members",
             self.deferred_reference_members.len(),
-            map_bytes(&self.deferred_reference_members)
+            self.deferred_reference_members.table_bytes()
                 + self
                     .deferred_reference_members
-                    .values()
-                    .flatten()
+                    .iter()
                     .map(|members| members.heap_bytes(&mut usage))
                     .sum::<usize>()
                 + self.unaffected_members.heap_bytes(),

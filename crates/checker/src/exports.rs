@@ -214,10 +214,7 @@ impl CheckerState<'_> {
         self.links
             .read_ty(ty, |links| links.resolved_members.resolved())
             .is_some()
-            || self
-                .deferred_reference_members
-                .get(&ty)
-                .is_some_and(Option::is_some)
+            || self.lazy_members_index(ty).is_some()
     }
 
     /// tsgo `MappedType.ResolveComponents`: the type parameter, constraint,

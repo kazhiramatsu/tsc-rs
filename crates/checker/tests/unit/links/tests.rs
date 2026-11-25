@@ -68,6 +68,65 @@ fn value_slots_keep_replacements_clearing_and_identity_bounds() {
 }
 
 #[test]
+fn a_members_slot_holds_resolved_members_or_a_lazy_table_in_four_bytes() {
+    assert_eq!(std::mem::size_of::<MembersSlot>(), 4);
+    let mut links = LinksTables::default();
+    let (a, b, c) = (TypeId::new(3), TypeId::new(4), TypeId::new(900));
+    let (first, second) = (MembersId::new(0), MembersId::new((1 << 31) - 2));
+    // Vacant: no members, no lazy table; an unwritten type reads the same.
+    for ty in [a, b, c] {
+        assert_eq!(links.ty(ty).resolved_members.resolved(), None);
+        assert_eq!(links.ty(ty).resolved_members.lazy(), LazyMembers::None);
+    }
+    // In preparation, then ready by index: still "not resolved" to every
+    // reader of the members.
+    links.begin_type_lazy_members(a);
+    assert_eq!(links.ty(a).resolved_members.lazy(), LazyMembers::Preparing);
+    assert_eq!(links.ty(a).resolved_members.resolved(), None);
+    assert!(matches!(
+        links.ty(a).resolved_members.get(),
+        LinkSlot::Vacant
+    ));
+    for index in [0, 7, (1 << 31) - 3] {
+        links.end_type_lazy_members(b);
+        links.begin_type_lazy_members(b);
+        links.set_type_lazy_members(b, index);
+        assert_eq!(
+            links.ty(b).resolved_members.lazy(),
+            LazyMembers::Ready(index)
+        );
+        assert_eq!(links.ty(b).resolved_members.resolved(), None);
+        assert!(matches!(
+            links.ty(b).resolved_members.get(),
+            LinkSlot::Vacant
+        ));
+    }
+    // Resolved members take the slot from either lazy state, and giving a
+    // lazy table up afterwards leaves them.
+    links.set_type_members(0, a, LinkSlot::Resolved(first));
+    links.set_type_members(0, b, LinkSlot::Resolved(second));
+    for (ty, members) in [(a, first), (b, second)] {
+        assert_eq!(links.ty(ty).resolved_members.resolved(), Some(members));
+        assert_eq!(links.ty(ty).resolved_members.lazy(), LazyMembers::None);
+        links.end_type_lazy_members(ty);
+        assert_eq!(links.ty(ty).resolved_members.resolved(), Some(members));
+    }
+    // A table given up in preparation, or when ready, leaves the slot vacant.
+    links.begin_type_lazy_members(c);
+    links.end_type_lazy_members(c);
+    assert_eq!(links.ty(c).resolved_members.lazy(), LazyMembers::None);
+    links.begin_type_lazy_members(c);
+    links.set_type_lazy_members(c, 1);
+    links.end_type_lazy_members(c);
+    assert_eq!(links.ty(c).resolved_members.lazy(), LazyMembers::None);
+    assert_eq!(links.ty(c).resolved_members.resolved(), None);
+    // The retraction of resolved members is as before.
+    links.retract_type_members(a);
+    assert_eq!(links.ty(a).resolved_members.resolved(), None);
+    assert_eq!(links.ty(a).resolved_members.lazy(), LazyMembers::None);
+}
+
+#[test]
 #[should_panic(expected = "value-only identity slot cannot store Resolving")]
 fn value_slots_reject_a_separate_in_progress_state() {
     let _ = ValueSlot::<TypeId>::from(LinkSlot::Resolving);

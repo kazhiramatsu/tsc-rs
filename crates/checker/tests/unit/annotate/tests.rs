@@ -133,7 +133,7 @@ fn a_deferred_reference_answers_the_weak_test_from_its_declarations() {
                 assert_eq!(state.is_weak_type(ty).unwrap(), expected, "{name}");
                 // No member was realized, nothing was resolved in full, and
                 // the verdict is remembered.
-                let deferred = state.deferred_reference_members[&ty].as_ref().unwrap();
+                let deferred = state.lazy_members(ty).unwrap();
                 assert!(deferred.instantiated.is_none(), "{name}");
                 assert_eq!(deferred.weak, Some(expected), "{name}");
                 assert!(
@@ -193,7 +193,7 @@ fn the_weak_test_of_a_deferred_reference_follows_the_inherited_names() {
             ] {
                 let ty = annotation_type(state, name);
                 assert_eq!(state.is_weak_type(ty).unwrap(), expected, "{name}");
-                assert!(state.deferred_reference_members[&ty].is_some(), "{name}");
+                assert!(state.lazy_members(ty).is_some(), "{name}");
                 let properties = state.get_properties_of_type_full(ty).unwrap();
                 assert_eq!(
                     !properties.is_empty()
@@ -274,7 +274,7 @@ fn the_weak_test_settles_at_a_required_value_and_still_visits_every_base() {
                         state.resolve_structured_type_members(ty).unwrap();
                     } else {
                         assert!(!state.is_weak_type(ty).unwrap(), "{name}");
-                        assert!(state.deferred_reference_members[&ty].is_some(), "{name}");
+                        assert!(state.lazy_members(ty).is_some(), "{name}");
                         // The verdict is remembered, and the second answer is the first.
                         assert!(!state.is_weak_type(ty).unwrap(), "{name}");
                     }
@@ -294,18 +294,55 @@ fn the_weak_test_resolves_a_reference_that_is_being_finished() {
         |state| {
             let ty = annotation_type(state, "box");
             state.structured_member_headers(ty).unwrap();
-            state
-                .deferred_reference_members
-                .get_mut(&ty)
-                .unwrap()
-                .as_mut()
-                .unwrap()
-                .finishing = true;
+            state.lazy_members_mut(ty).unwrap().finishing = true;
             assert!(state.is_weak_type(ty).unwrap());
             assert!(state
                 .links
                 .read_ty(ty, |links| links.resolved_members.resolved())
                 .is_some());
+        },
+    );
+}
+
+#[test]
+fn a_lazy_tables_index_lives_in_its_types_slot_and_a_finished_tables_place_is_reused() {
+    with_state(
+        "interface Box<T> { value: T; plain: number }
+         declare let a: Box<string>;
+         declare let b: Box<number>;
+         declare let c: Box<boolean>;",
+        |state| {
+            let a = annotation_type(state, "a");
+            let b = annotation_type(state, "b");
+            let c = annotation_type(state, "c");
+            assert_eq!(state.lazy_members_index(a), None);
+            state.structured_member_headers(a).unwrap();
+            state.structured_member_headers(b).unwrap();
+            let first = state.lazy_members_index(a).expect("a's table is ready");
+            let second = state.lazy_members_index(b).expect("b's table is ready");
+            assert_ne!(first, second);
+            assert_eq!(state.deferred_reference_members.len(), 2);
+            // The slot says "not resolved" to every reader of the members,
+            // and the public reading says the type's members are resolved
+            // (tsgo's flag), as before.
+            assert_eq!(state.links.ty(a).resolved_members.resolved(), None);
+            assert!(state.members_resolved(a));
+            // A property read finds the table again and keeps its place.
+            assert!(state
+                .get_property_of_object_type(a, "value")
+                .unwrap()
+                .is_some());
+            assert_eq!(state.lazy_members_index(a), Some(first));
+            // The full members take the slot and free the table's place.
+            let members = state.resolve_structured_type_members(a).unwrap();
+            assert_eq!(state.links.ty(a).resolved_members.resolved(), Some(members));
+            assert_eq!(state.lazy_members_index(a), None);
+            assert_eq!(state.deferred_reference_members.len(), 1);
+            // The next lazy table takes the freed place; b keeps its own.
+            state.structured_member_headers(c).unwrap();
+            assert_eq!(state.lazy_members_index(c), Some(first));
+            assert_eq!(state.lazy_members_index(b), Some(second));
+            assert_eq!(state.deferred_reference_members.len(), 2);
         },
     );
 }
@@ -363,7 +400,7 @@ fn deferred_reference_members_publish_each_frozen_identity_once() {
             state.structured_member_headers(ty).unwrap();
             for (declared, unaffected) in [(plain, true), (value, false)] {
                 let key = HashedName::new(state.binder.symbol(declared).escaped_name);
-                let ready = state.deferred_reference_members[&ty].as_ref().unwrap();
+                let ready = state.lazy_members(ty).unwrap();
                 assert!(
                     matches!(ready.declared_member(&state.binder, declared, key),
                 DeferredDeclaredMember::Publish { declared: id, mapper } if id == declared && mapper.is_none() == unaffected)
@@ -374,7 +411,7 @@ fn deferred_reference_members_publish_each_frozen_identity_once() {
                     .unwrap()
                     .unwrap();
                 assert_eq!(symbol == declared, unaffected);
-                let ready = state.deferred_reference_members[&ty].as_ref().unwrap();
+                let ready = state.lazy_members(ty).unwrap();
                 assert!(
                     matches!(ready.declared_member(&state.binder, declared, key), DeferredDeclaredMember::Cached(id) if id == symbol)
                 );
@@ -411,10 +448,7 @@ fn deferred_reference_members_freeze_identity_before_declaration_type_warms() {
                 state.members_resolved(box_type),
                 "public flags retain the eager resolution boundary"
             );
-            assert!(state
-                .deferred_reference_members
-                .get(&box_type)
-                .is_some_and(Option::is_some));
+            assert!(state.lazy_members(box_type).is_some());
             assert_eq!(
                 state.get_type_of_symbol(plain).unwrap(),
                 state.tables.intrinsics.number
@@ -972,10 +1006,7 @@ fn deferred_reference_realization_retires_the_record_and_keeps_warmed_and_new_me
                 state.tables.intrinsics.number
             );
             state.structured_member_headers(ty).unwrap();
-            assert!(state
-                .deferred_reference_members
-                .get(&ty)
-                .is_some_and(Option::is_some));
+            assert!(state.lazy_members(ty).is_some());
             assert_eq!(
                 state.get_property_of_object_type(ty, "plain").unwrap(),
                 Some(plain)
@@ -992,7 +1023,7 @@ fn deferred_reference_realization_retires_the_record_and_keeps_warmed_and_new_me
             assert_eq!(all.len(), 3);
             assert!(all.contains(&plain));
             assert!(all.contains(&value));
-            assert!(!state.deferred_reference_members.contains_key(&ty));
+            assert!(state.links.ty(ty).resolved_members.lazy() == crate::links::LazyMembers::None);
             assert!(state.members_resolved(ty));
             assert_eq!(
                 state.get_property_of_object_type(ty, "value").unwrap(),
@@ -1003,7 +1034,7 @@ fn deferred_reference_realization_retires_the_record_and_keeps_warmed_and_new_me
                 Some(plain)
             );
             assert_eq!(state.get_properties_of_type_full(ty).unwrap(), all);
-            assert!(!state.deferred_reference_members.contains_key(&ty));
+            assert!(state.links.ty(ty).resolved_members.lazy() == crate::links::LazyMembers::None);
         },
     );
 }
