@@ -428,8 +428,8 @@ impl CheckerState<'_> {
                         if !std::mem::replace(&mut context.escaped, true) {
                             todo.extend(
                                 [
-                                    Some(context.mapper),
-                                    Some(context.non_fixing_mapper),
+                                    context.mapper,
+                                    context.non_fixing_mapper,
                                     context.return_mapper,
                                     context.outer_return_mapper,
                                 ]

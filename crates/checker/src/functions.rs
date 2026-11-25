@@ -189,8 +189,7 @@ impl<'a> CheckerState<'a> {
                                 .flags_of(rest_type)
                                 .intersects(TypeFlags::TYPE_PARAMETER)
                         }) {
-                            let non_fixing_mapper =
-                                self.inference_context(context).non_fixing_mapper;
+                            let non_fixing_mapper = self.inference_non_fixing_mapper(context);
                             instantiated_contextual_signature = Some(self.instantiate_signature(
                                 contextual_signature,
                                 non_fixing_mapper,
@@ -206,7 +205,7 @@ impl<'a> CheckerState<'a> {
                         Some(instantiated) => instantiated,
                         None => match inference_context {
                             Some(context) => {
-                                let mapper = self.inference_context(context).mapper;
+                                let mapper = self.inference_mapper(context);
                                 self.instantiate_signature(contextual_signature, mapper, false)?
                             }
                             None => contextual_signature,

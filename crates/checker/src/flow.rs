@@ -4889,7 +4889,7 @@ impl<'a> CheckerState<'a> {
                             // absent context.
                             let mapped = match self.get_inference_context(func) {
                                 Some(context) => {
-                                    let mapper = self.inference_context(context).non_fixing_mapper;
+                                    let mapper = self.inference_non_fixing_mapper(context);
                                     self.instantiate_type(rest_symbol_type, Some(mapper))?
                                 }
                                 None => rest_symbol_type,

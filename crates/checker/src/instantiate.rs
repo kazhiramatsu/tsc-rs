@@ -3283,9 +3283,9 @@ impl<'a> CheckerState<'a> {
         });
         let mapper = inference_context.map(|inference_context| {
             if generic_rest {
-                self.inference_context(inference_context).non_fixing_mapper
+                self.inference_non_fixing_mapper(inference_context)
             } else {
-                self.inference_context(inference_context).mapper
+                self.inference_mapper(inference_context)
             }
         });
         let source_signature = match mapper {
