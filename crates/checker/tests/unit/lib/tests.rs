@@ -9093,3 +9093,69 @@ fn the_adoption_pass_takes_workers_only_for_rewrites_or_many_references() {
         [ready(0), (1, 0), ready(0)].into_iter()
     ));
 }
+
+/// The syntactic half of the leaf test, clause by clause: a TypeScript
+/// module whose top level adds nothing to another module or to the globals
+/// and re-exports nothing.
+#[test]
+fn a_leaf_by_syntax_is_a_typescript_module_without_aliases_or_module_declarations() {
+    for (name, text, leaf) in [
+        // Imports, exported declarations and a default-exported function.
+        (
+            "a.ts",
+            "import { x } from './x'; export const a = x; export interface I { a: number }",
+            true,
+        ),
+        ("a.tsx", "export default function f() { return 1; }", true),
+        // No module at all, a declaration file, JavaScript.
+        ("a.ts", "const a = 1;", false),
+        ("a.d.ts", "export declare const a: number;", false),
+        ("a.js", "export const a = 1;", false),
+        // A module declaration: the globals, another module, a namespace.
+        (
+            "a.ts",
+            "import './x'; declare global { interface X {} }",
+            false,
+        ),
+        (
+            "a.ts",
+            "import './x'; declare module './x' { interface Y {} }",
+            false,
+        ),
+        (
+            "a.ts",
+            "export const a = 1; namespace N { export const b = 1; }",
+            false,
+        ),
+        // An export declaration or assignment, an import alias, a global name.
+        ("a.ts", "import { x } from './x'; export { x };", false),
+        ("a.ts", "export * from './x';", false),
+        ("a.ts", "const a = 1; export = a;", false),
+        ("a.ts", "const a = 1; export default a;", false),
+        (
+            "a.ts",
+            "import x = require('./x'); export const a = x;",
+            false,
+        ),
+        ("a.ts", "export as namespace A; export const a = 1;", false),
+    ] {
+        // The Program names a source's script kind from its extension.
+        let script_kind = if name.ends_with(".js") {
+            tsc_syntax::ScriptKind::Js
+        } else if name.ends_with(".tsx") {
+            tsc_syntax::ScriptKind::Tsx
+        } else {
+            tsc_syntax::ScriptKind::Ts
+        };
+        let source = tsc_syntax::parse_source_file(
+            name,
+            text,
+            tsc_syntax::ParseOptions {
+                script_kind,
+                ..Default::default()
+            },
+            None,
+        );
+        assert_eq!(leaf_by_syntax(&source), leaf, "{name}: {text}");
+    }
+}

@@ -1235,6 +1235,12 @@ pub struct CheckerState<'a> {
     pub(crate) canonical_history: bool,
     /// The file whose check runs now.
     pub(crate) checking_file: Option<usize>,
+    /// By file: whether its tree and bind records go back to the system once
+    /// its check is captured (the fast preset's leaves,
+    /// `ShardFileQueue::release_leaves`); empty when nothing is released. No
+    /// other file refers to such a file, and a walk over every file passes
+    /// over it ([`Self::releases_file`]).
+    pub(crate) released_leaves: std::sync::Arc<[bool]>,
     /// By file: the type references whose type-argument constraint check
     /// waits for the file's check.
     pub(crate) deferred_type_argument_checks: rustc_hash::FxHashMap<usize, Vec<NodeId>>,
@@ -2313,6 +2319,12 @@ impl<'a> CheckerState<'a> {
 
     /// Mount one binder source into the checker display arena on first use.
     /// tsrs-native: per-file arena mount for checker-built display nodes.
+    /// Whether `file`'s tree and bind records go back to the system once its
+    /// check is captured ([`Self::released_leaves`]).
+    pub(crate) fn releases_file(&self, file: usize) -> bool {
+        self.released_leaves.get(file).copied().unwrap_or(false)
+    }
+
     pub(crate) fn emit_display_target(
         &mut self,
         file_index: usize,
@@ -2509,6 +2521,7 @@ impl<'a> CheckerState<'a> {
             flow_analysis_disabled: false,
             canonical_history: false,
             checking_file: None,
+            released_leaves: std::sync::Arc::from(Vec::new()),
             deferred_type_argument_checks: rustc_hash::FxHashMap::default(),
             flow_memo: crate::flow_memo::FlowMemo::new(),
             no_flow_context_nodes: Default::default(),

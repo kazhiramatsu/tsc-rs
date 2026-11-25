@@ -1163,6 +1163,13 @@ pub(crate) struct ShardFileQueue {
     /// (`CheckerState::canonical_history`): whatever its lane count, and
     /// whether or not its checkers take from each other.
     canonical_history: bool,
+    /// The files whose tree and bind records go back to the system once their
+    /// check is captured ([`Self::release_leaves`]): `leaves[file]`. Empty
+    /// when nothing is released.
+    leaves: std::sync::Arc<[bool]>,
+    /// The leaves whose checks were captured since the releasing thread last
+    /// asked ([`Self::take_done_leaves`]).
+    done_leaves: Mutex<Vec<usize>>,
 }
 
 /// How checkers without files take from other lanes.
@@ -1345,7 +1352,65 @@ impl ShardFileQueue {
             measures_costs: false,
             taking: None,
             canonical_history: false,
+            leaves: std::sync::Arc::from(Vec::new()),
+            done_leaves: Mutex::new(Vec::new()),
         }
+    }
+
+    /// The tree and bind records of these files are given back to the system
+    /// when their checks are captured, by one thread beside the checkers
+    /// ([`Self::leaf_done`], [`Self::take_done_leaves`]): `leaves[file]` says
+    /// that no other file refers to `file`, so that nothing reads its records
+    /// once its own check has ended.
+    ///
+    /// A file checked in ranges is left out: its owner captures its own range
+    /// while other checkers may still be in theirs (a lane checks its pieces
+    /// of other lanes' files first, all lanes at once), so the owner's
+    /// capture is not the end of the file's check.
+    pub(crate) fn release_leaves(&mut self, mut leaves: Vec<bool>) {
+        for (file, leaf) in leaves.iter_mut().enumerate() {
+            if *leaf && self.owned_statements.contains_key(&file) {
+                *leaf = false;
+            }
+        }
+        if leaves.contains(&true) {
+            self.leaves = leaves.into();
+        }
+    }
+
+    /// The marks of [`Self::release_leaves`], for the checkers' states.
+    pub(crate) fn leaves(&self) -> std::sync::Arc<[bool]> {
+        std::sync::Arc::clone(&self.leaves)
+    }
+
+    /// Whether any file's records are released ([`Self::release_leaves`]).
+    pub(crate) fn releases_leaves(&self) -> bool {
+        !self.leaves.is_empty()
+    }
+
+    /// Whether `file`'s records are released once its check is captured.
+    pub(crate) fn is_leaf(&self, file: usize) -> bool {
+        self.leaves.get(file).copied().unwrap_or(false)
+    }
+
+    /// `file`'s check is captured: a leaf is named for the releasing thread.
+    pub(crate) fn leaf_done(&self, file: usize) {
+        if self.is_leaf(file) {
+            self.done_leaves
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push(file);
+        }
+    }
+
+    /// The leaves named since the last call.
+    pub(crate) fn take_done_leaves(&self) -> Vec<usize> {
+        std::mem::take(
+            &mut *self
+                .done_leaves
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        )
     }
 
     /// From now on the checkers measure what every fixture's check costs.
@@ -2516,5 +2581,41 @@ mod tests {
             2,
         );
         assert_eq!(associations, [0, 0, 1, 1, 1]);
+    }
+
+    /// The leaves whose records go back once their check is captured: a
+    /// file checked in ranges is none (its owner's capture is not the end
+    /// of its check), a captured leaf is named once for the releasing
+    /// thread, and without a leaf nothing is released.
+    #[test]
+    fn released_leaves_leave_out_a_file_checked_in_ranges_and_are_named_once() {
+        let lengths = |file: usize| if file == 0 { vec![10; 8] } else { Vec::new() };
+        let association = heavy_declaration_program().associate_with(4, &lengths);
+        assert_eq!(association.splits.len(), 1);
+        let nodes = [4000, 1000, 1000, 1000, 1000, 1000, 1000];
+        let mut queue = ShardFileQueue::associated(0, &nodes, &association.checkers, 4);
+        queue.split(&association.splits, &nodes);
+        assert!(!queue.releases_leaves() && queue.leaves().is_empty());
+        queue.leaf_done(1);
+        assert!(queue.take_done_leaves().is_empty());
+
+        queue.release_leaves(vec![true, true, false, true, false, false, false]);
+        assert!(queue.releases_leaves());
+        assert_eq!(
+            &*queue.leaves(),
+            [false, true, false, true, false, false, false],
+            "file 0 is checked in ranges"
+        );
+        assert!(!queue.is_leaf(0) && queue.is_leaf(1) && !queue.is_leaf(7));
+        for file in [3, 2, 0, 1] {
+            queue.leaf_done(file);
+        }
+        assert_eq!(queue.take_done_leaves(), [3, 1]);
+        assert!(queue.take_done_leaves().is_empty());
+
+        let mut none = ShardFileQueue::associated(0, &nodes, &association.checkers, 4);
+        none.split(&association.splits, &nodes);
+        none.release_leaves(vec![true, false, false, false, false, false, false]);
+        assert!(!none.releases_leaves() && none.leaves().is_empty());
     }
 }

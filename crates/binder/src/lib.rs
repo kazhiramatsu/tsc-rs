@@ -29,6 +29,8 @@ pub use symbols::{
     InternalSymbolName, NameKey, Symbol, SymbolArena, SymbolArenaExhausted, SymbolExtras, SymbolId,
     SymbolTable,
 };
+/// The store's retiring of published spans (see `BindData::published_spans`).
+pub use tsc_store::retire_spans;
 
 /// tsc bindSourceFile (42408): runs the binder over one parsed file and
 /// returns it with its symbol tables, node links, flow graph, and bind

@@ -414,3 +414,80 @@ fn scalar_text_writes_match_checked_bytes_and_keep_utf8_metadata() {
     let name = names::push(&lone_surrogate);
     assert_eq!(names::scalar_text(name), None);
 }
+
+/// Three lists side by side, a page and a half, a page, a page and a half:
+/// a retired span gives back the pages inside it, and a page two lists share
+/// only when both are retired. Records outside the returned pages keep
+/// their values; a span retired twice gives nothing more.
+#[test]
+fn retired_spans_give_whole_pages_back_and_a_shared_page_with_its_last_span() {
+    let page = (RETURN_GRANULE / std::mem::size_of::<u32>()) as u32;
+    // Far from every other test's positions in this region, on a page edge.
+    let position = page * 700_000;
+    let list = |position: u32, len: u32| {
+        let mut list = StoreVec::<u32>::new();
+        list.resize(len as usize, 7);
+        list.publish(position);
+        list
+    };
+    let left = list(position, page + page / 2);
+    let middle = list(position + page + page / 2, page);
+    let right = list(position + 2 * page + page / 2, page + page / 2);
+    let read = |from: u32, len: u32| slice::<u32>(position + from, len).to_vec();
+    let all = |from: u32, len: u32, value: u32| read(from, len).iter().all(|&v| v == value);
+
+    // The middle list alone completes no page: both of its pages are shared.
+    assert_eq!(retire_spans(&mut vec![middle.published_span().unwrap()]), 0);
+    assert!(all(0, page + page / 2, 7) && all(2 * page + page / 2, page + page / 2, 7));
+
+    // The left list: its own page, and the page it shares with the middle one.
+    assert_eq!(
+        retire_spans(&mut vec![left.published_span().unwrap()]),
+        2 * RETURN_GRANULE
+    );
+    assert!(all(0, 2 * page, 0), "the two returned pages read as zeros");
+    assert!(
+        all(2 * page, 2 * page, 7),
+        "the pages the right list shares or owns are untouched"
+    );
+
+    // Twice is once.
+    assert_eq!(retire_spans(&mut vec![left.published_span().unwrap()]), 0);
+
+    // The right list: the page it shares with the middle one, and its own.
+    assert_eq!(
+        retire_spans(&mut vec![right.published_span().unwrap()]),
+        2 * RETURN_GRANULE
+    );
+    assert!(all(0, 4 * page, 0));
+}
+
+/// The spans of one call may come in any order, and adjacent pages of one
+/// call go back together.
+#[test]
+fn retired_spans_of_one_call_are_taken_in_address_order() {
+    let page = (RETURN_GRANULE / std::mem::size_of::<u32>()) as u32;
+    let position = page * 700_100;
+    let mut lists = Vec::new();
+    for index in 0..4u32 {
+        let mut list = StoreVec::<u32>::new();
+        list.resize((page / 2) as usize, index + 1);
+        list.publish(position + index * (page / 2));
+        lists.push(list);
+    }
+    let mut spans = lists
+        .iter()
+        .rev()
+        .map(|list| list.published_span().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(retire_spans(&mut spans), 2 * RETURN_GRANULE);
+    assert!(spans.is_empty());
+    assert!(slice::<u32>(position, 2 * page)
+        .iter()
+        .all(|&value| value == 0));
+    // A list that is not published, or is empty, has no span.
+    assert!(StoreVec::<u32>::new().published_span().is_none());
+    let mut heap = StoreVec::<u32>::new();
+    heap.push(1);
+    assert!(heap.published_span().is_none());
+}

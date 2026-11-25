@@ -187,6 +187,14 @@ impl BoundDocument {
     pub fn source(&self) -> &SourceFile {
         &self.parsed.source
     }
+
+    /// Where the document's published tree and bind records are (nodes,
+    /// arrays, array items, literal texts, symbols, node -> symbol, node ->
+    /// flow), for `tsc_binder::retire_spans`, added to `spans`.
+    pub fn published_spans(&self, spans: &mut Vec<(usize, usize)>) {
+        self.parsed.source.arena.published_spans(spans);
+        self.data.published_spans(spans);
+    }
 }
 
 /// What a program source's parse and bind depend on besides its file name

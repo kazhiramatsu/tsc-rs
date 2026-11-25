@@ -362,6 +362,11 @@ impl std::fmt::Display for SymbolArenaExhausted {
 impl std::error::Error for SymbolArenaExhausted {}
 
 impl SymbolArena {
+    /// Where the published symbol records are (`StoreVec::published_span`).
+    pub fn published_span(&self) -> Option<(usize, usize)> {
+        self.symbols.published_span()
+    }
+
     /// Symbol count, the arena's bytes, and the bytes of the symbols' names
     /// and declaration lists; `tables` collects each distinct member/export
     /// table once (they are shared between symbols).

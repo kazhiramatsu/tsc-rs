@@ -1207,7 +1207,12 @@ fn alternative_containing_module_chains(
 
     // Once the per-containing-file import cache misses, upstream computes
     // the symbol-wide fallback by scanning every external source file.
+    // A file whose records the fast preset releases is passed over, unless
+    // it is the file printed for: no other file refers to it and its export
+    // table holds no alias, so it has no chain to a symbol of another file -
+    // and its records may be gone.
     let modules = (0..checker.binder.file_count())
+        .filter(|&index| index == file_index || !checker.releases_file(index))
         .filter_map(|index| {
             let root = checker.binder.source(index).root;
             checker

@@ -1219,6 +1219,15 @@ impl NodeArena {
         self.nodes.len()
     }
 
+    /// Where the tree's published records are - nodes, arrays, array items,
+    /// literal texts - for `tsc_store::retire_spans`, added to `spans`.
+    pub fn published_spans(&self, spans: &mut Vec<(usize, usize)>) {
+        spans.extend(self.nodes.published_span());
+        spans.extend(self.arrays.published_span());
+        spans.extend(self.array_items.published_span());
+        spans.extend(self.texts.published_span());
+    }
+
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()
     }

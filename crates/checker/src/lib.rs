@@ -710,6 +710,15 @@ pub trait AuthoritativeModuleProvider: Sync {
         Vec::new()
     }
 
+    /// The files no other file refers to: every inclusion reason is a root's
+    /// and no resolved module of another file targets them. The fast preset
+    /// gives such a file's tree and bind records back to the system once it
+    /// is checked (see `leaf_by_syntax` for the other half of the test).
+    /// Providers without a Program name none.
+    fn check_leaf_candidates(&self) -> Vec<AuthoritativeSourceToken> {
+        Vec::new()
+    }
+
     fn resolve_module(
         &self,
         request: AuthoritativeModuleRequest<'_>,
@@ -3844,6 +3853,63 @@ fn splittable_statement_lengths(source: &tsc_syntax::SourceFile) -> Vec<u32> {
     lengths
 }
 
+/// In how many batches the fast preset's releasing thread gives the leaves'
+/// pages back, at most: one each time the leaves collected since the last
+/// hold this part of what all leaves hold. A call that gives pages back
+/// reaches every running checker, so the calls are few and large: measured
+/// on VS Code under the preset, a batch every ten milliseconds (89 batches,
+/// 2,595 calls) cost about 0.9 % of the wall for the same peak.
+const LEAF_RELEASE_BATCHES: usize = 8;
+
+/// The bytes of published spans (`BoundDocument::published_spans`).
+fn span_bytes(spans: &[(usize, usize)]) -> usize {
+    spans.iter().map(|&(_, bytes)| bytes).sum()
+}
+
+/// The syntactic half of the leaf test (the other is the provider's
+/// `check_leaf_candidates`): whether nothing in `source` can be reached from
+/// another file once no file refers to it. A TypeScript module (no
+/// declaration file, no JavaScript or JSON) whose top level has no module
+/// declaration (an augmentation, `declare global`, an ambient module - and a
+/// plain namespace too), no export declaration or assignment (an alias,
+/// `export *`, `export =`), no import alias and no `export as namespace`:
+/// its export table then holds its own declarations only, and it adds
+/// nothing to the globals or to another module.
+fn leaf_by_syntax(source: &tsc_syntax::SourceFile) -> bool {
+    if source.is_declaration_file
+        || source.external_module_indicator.is_none()
+        || !matches!(
+            source.script_kind,
+            tsc_syntax::ScriptKind::Ts | tsc_syntax::ScriptKind::Tsx
+        )
+    {
+        return false;
+    }
+    let Some(statements) = source
+        .arena
+        .node(source.root)
+        .as_source_file()
+        .and_then(|data| data.statements)
+    else {
+        return false;
+    };
+    source
+        .arena
+        .node_array(statements)
+        .nodes
+        .iter()
+        .all(|&statement| {
+            !matches!(
+                source.arena.node(statement).kind,
+                tsc_syntax::SyntaxKind::ModuleDeclaration
+                    | tsc_syntax::SyntaxKind::ExportDeclaration
+                    | tsc_syntax::SyntaxKind::ExportAssignment
+                    | tsc_syntax::SyntaxKind::ImportEqualsDeclaration
+                    | tsc_syntax::SyntaxKind::NamespaceExportDeclaration
+            )
+        })
+}
+
 fn program_file_id(file: usize) -> ProgramFileId {
     ProgramFileId::from_raw(u32::try_from(file).expect("program file index"))
 }
@@ -4606,6 +4672,7 @@ fn run_checker_shard<'a>(
     // The fast preset's history rules (a one-lane queue keeps them too: a
     // Program prints the same whatever its pool).
     state.canonical_history = queue.canonical_history();
+    state.released_leaves = queue.leaves();
     reserve_type_tables(&mut state, reserved_nodes);
     // W2c: every type created from here on is shard-local. In the exact mode
     // the guard records order-consuming operations over two or more of them
@@ -4696,6 +4763,9 @@ fn run_checker_shard<'a>(
                 &mut globals_by_file,
             );
             captured.capture_file(&state, file, &globals_by_file);
+            // Nothing reads a leaf's tree and bind records again: it is
+            // named for the releasing thread.
+            queue.leaf_done(file);
         }
         files.push(file);
         if let Some(started) = traced {
@@ -5521,6 +5591,26 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             }
         }
     }
+    // The fast preset's whole-Program check of a one-shot command that
+    // nothing follows (no emit, no declaration pass, no memory report) gives
+    // the tree and bind records of a file no other file refers to back to
+    // the system once the file is checked. The process ends with its stores
+    // (`leaks_states`), so a released range is never handed out again. Who
+    // the candidates are is asked while the provider is at hand.
+    let release_leaves = locality
+        && selected.is_none()
+        && !checkers.order_replay()
+        && checkers.leaks_states()
+        && sharded_emit.is_none()
+        && std::env::var_os("TSRS_MEMORY_REPORT").is_none();
+    let mut leaf_candidates = vec![false; node_counts.len()];
+    if release_leaves {
+        for token in provider.check_leaf_candidates() {
+            if let Some(file) = metadata.file_index_in_snapshot(token, node_counts.len()) {
+                leaf_candidates[file] = true;
+            }
+        }
+    }
     drop(provider);
     // A lane profile (opt-in): what the files' checks cost in an earlier run.
     // Not with the locality association, a selection or an order replay.
@@ -5627,6 +5717,20 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
                 &takers_costs,
                 checked.iter().filter(|&&checked| checked).count(),
             );
+            if release_leaves {
+                queue.release_leaves(
+                    snapshot
+                        .documents()
+                        .iter()
+                        .enumerate()
+                        .map(|(file, document)| {
+                            leaf_candidates[file]
+                                && checked[file]
+                                && leaf_by_syntax(document.source())
+                        })
+                        .collect(),
+                );
+            }
         }
         work_counters.record_statement_ranges(
             association
@@ -5730,7 +5834,69 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         Replay(u32),
     }
     let mut check_span = run.check_phase();
+    let leaf_release_ended = std::sync::atomic::AtomicBool::new(false);
     let sharded = std::thread::scope(|scope| {
+        // The leaves' releasing thread: it collects the leaves the checkers
+        // name and gives their whole pages back in a few large batches - one
+        // each time the collected leaves hold an eighth of what all leaves
+        // hold (`LEAF_RELEASE_BATCHES`). A checker makes no system call for
+        // it, and the neighbours of a batch go back in one call. It ends
+        // when no checker checks any more, or when this scope's body ends in
+        // any way - and the scope's end does not wait for it: the guard
+        // wakes it from its pause, and what is collected then is left alone
+        // (the check is over).
+        struct LeafReleaseEnds<'a> {
+            ended: &'a std::sync::atomic::AtomicBool,
+            releaser: Option<std::thread::Thread>,
+        }
+        impl Drop for LeafReleaseEnds<'_> {
+            fn drop(&mut self) {
+                self.ended.store(true, std::sync::atomic::Ordering::Release);
+                if let Some(releaser) = &self.releaser {
+                    releaser.unpark();
+                }
+            }
+        }
+        let mut leaf_release_ends = LeafReleaseEnds {
+            ended: &leaf_release_ended,
+            releaser: None,
+        };
+        if queue.releases_leaves() {
+            let (snapshot, queue, checking, ended) =
+                (&snapshot, &queue, &checking, &leaf_release_ended);
+            let spawned = std::thread::Builder::new()
+                .name("tsc-rs-leaf-release".to_owned())
+                .spawn_scoped(scope, move || {
+                    let mut spans = Vec::new();
+                    for (file, _) in queue.leaves().iter().enumerate().filter(|(_, &leaf)| leaf) {
+                        snapshot.document(file).published_spans(&mut spans);
+                    }
+                    let batch = span_bytes(&spans) / LEAF_RELEASE_BATCHES;
+                    spans.clear();
+                    let mut collected = 0;
+                    loop {
+                        if checking.load(std::sync::atomic::Ordering::Acquire) == 0
+                            || ended.load(std::sync::atomic::Ordering::Acquire)
+                        {
+                            break;
+                        }
+                        for file in queue.take_done_leaves() {
+                            let from = spans.len();
+                            snapshot.document(file).published_spans(&mut spans);
+                            collected += span_bytes(&spans[from..]);
+                        }
+                        if collected != 0 && collected >= batch {
+                            tsc_binder::retire_spans(&mut spans);
+                            collected = 0;
+                        }
+                        std::thread::park_timeout(std::time::Duration::from_millis(10));
+                    }
+                });
+            // A refused thread is not an error: nothing is released.
+            if let Ok(releaser) = spawned {
+                leaf_release_ends.releaser = Some(releaser.thread().clone());
+            }
+        }
         let mut handles = Vec::with_capacity(shard_count);
         let mut results: Vec<Option<(ShardOutput, Option<state::CheckerState<'_>>)>> =
             (0..shard_count).map(|_| None).collect();
