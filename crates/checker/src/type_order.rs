@@ -349,8 +349,8 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
                 let c = compare_type_lists(
                     tables,
                     self,
-                    Some(&self.mapper_lists[sources1.range()]),
-                    Some(&self.mapper_lists[sources2.range()]),
+                    Some(sources1.types(self.mapper_lists)),
+                    Some(sources2.types(self.mapper_lists)),
                 );
                 if c != Ordering::Equal {
                     return c;
@@ -358,8 +358,8 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
                 compare_type_lists(
                     tables,
                     self,
-                    targets1.map(|list| &self.mapper_lists[list.range()]),
-                    targets2.map(|list| &self.mapper_lists[list.range()]),
+                    targets1.map(|list| list.types(self.mapper_lists)),
+                    targets2.map(|list| list.types(self.mapper_lists)),
                 )
             }
             (
