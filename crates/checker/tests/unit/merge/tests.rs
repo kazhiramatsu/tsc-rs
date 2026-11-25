@@ -544,6 +544,46 @@ fn conflicts_in_skipped_declaration_files_build_no_rows() {
 }
 
 #[test]
+fn an_ambient_module_declared_twice_in_skipped_files_builds_no_rows() {
+    // The shape of two versions of one typings package in a program: both
+    // declaration files declare the module, and its exports that cannot
+    // merge conflict member by member. tsgo (7.1.0-beta) reports nothing
+    // with skipLibCheck and these six rows with `--skipLibCheck false`.
+    let module = |member: &str, alias: &str| {
+        format!(
+            "declare module \"m\" {{\n    export const x: number;\n    export class C {{}}\n    \
+             export interface I {{ {member}: number }}\n    export type T = {alias};\n}}\n"
+        )
+    };
+    let (one, two) = (module("a", "string"), module("b", "number"));
+    let files = [("one.d.ts", one.as_str()), ("two.d.ts", two.as_str())];
+    let skipped = CompilerOptions {
+        skip_lib_check: Some(true),
+        ..CompilerOptions::default()
+    };
+    assert_eq!(merged_conflict_rows_with(&files, &skipped), []);
+    let row = |file: &str, start: u32, code: u32, other: &str| {
+        (
+            file.to_owned(),
+            start,
+            code,
+            vec![(other.to_owned(), start, 6203)],
+        )
+    };
+    assert_eq!(
+        merged_conflict_rows(&files),
+        [
+            row("one.d.ts", 38, 2451, "two.d.ts"),
+            row("one.d.ts", 66, 2300, "two.d.ts"),
+            row("one.d.ts", 124, 2300, "two.d.ts"),
+            row("two.d.ts", 38, 2451, "one.d.ts"),
+            row("two.d.ts", 66, 2300, "one.d.ts"),
+            row("two.d.ts", 124, 2300, "one.d.ts"),
+        ]
+    );
+}
+
+#[test]
 fn augmentation_conflicts_merge_their_related_rows_like_tsgo() {
     // tsgo (tsc-19dadef8): each augmentation merges, and reports,
     // separately; the two a.ts diagnostics differ only by related
