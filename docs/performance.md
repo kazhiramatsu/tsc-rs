@@ -270,7 +270,14 @@ selects a preset for machines with more cores:
   checkers one checker at a time takes from another, and it stays with that
   checker while there is a file left to take;
 - a declaration file heavy enough to hold its checker back is checked in
-  ranges of statements on several checkers.
+  ranges of statements on several checkers;
+- when the command only checks (`--noEmit`, one run), a TypeScript module
+  that no other file refers to — nothing imports or references it, and it
+  re-exports nothing and declares no namespace, global or module
+  augmentation — gives its syntax tree and symbol tables back to the system
+  soon after it is checked, in a few large batches while the other files are
+  still being checked. In a project with many such files (tests, entry
+  points) the run needs less memory at its peak.
 
 Every file is checked exactly once. The pool's size follows the machine, and
 which checker takes a file is decided by time, so the preset does not promise
@@ -292,8 +299,10 @@ Its numbers beside the default and tsrs: [Latest numbers](#latest-numbers).
 
 The preset uses more memory: every checker keeps its own type tables, and
 because the checkers level their work all of them are alive at the end of
-the run (VS Code: 2,322 MiB by default, 2,488 MiB with the preset; zod 522
-and 630).
+the run (zod: 522 MiB by default, 630 with the preset). VS Code, a fifth
+of whose files nothing refers to, peaks at 2,322 MiB by default and at
+2,317 MiB with the preset when the command only checks (2,494 before those
+files' records were given back).
 
 ## The lane profile
 
