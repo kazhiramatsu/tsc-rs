@@ -329,7 +329,7 @@ const CHECKERS_ENV: &str = "TSRS_CHECKERS";
 ///   of the other checkers' work;
 /// - without `--checkers` / `TSRS_CHECKERS` the pool follows the machine and
 ///   the Program ([`CheckerBudget::fast`]): one checker a core up to sixteen
-///   cores, never more than one per 32 type-checked files, at least four;
+///   cores, never more than one per 40 type-checked files, at least four;
 /// - every checker starts with its heaviest files, and a checker that has
 ///   run out of files takes unstarted ones from the checker with the most
 ///   work left;
