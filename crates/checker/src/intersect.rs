@@ -55,8 +55,7 @@ impl<'a> CheckerState<'a> {
             let resolved = self.members_of(members);
             if ty != self.any_function_type
                 && resolved.properties.is_empty()
-                && resolved.call_signatures().is_empty()
-                && resolved.construct_signatures().is_empty()
+                && !resolved.has_signatures()
                 && resolved.index_infos().is_empty()
             {
                 return Ok(true);

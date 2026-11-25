@@ -1147,6 +1147,131 @@ mod tests {
     }
 
     #[test]
+    fn one_call_or_one_construct_signature_lives_in_the_records_word() {
+        let record =
+            |calls: Vec<SignatureId>, constructs: Vec<SignatureId>, infos: Vec<IndexInfo>| {
+                ResolvedMembers::new(
+                    MemberTable::with_capacity(0),
+                    Vec::new(),
+                    calls,
+                    constructs,
+                    infos,
+                )
+            };
+        let info = IndexInfo {
+            key_type: TypeId::new(1),
+            value_type: TypeId::new(2),
+            is_readonly: false,
+            declaration: None,
+            components: None,
+            is_enum_number_index_info: false,
+            is_any_base_type_index_info: false,
+        };
+        // The largest index an identity can have is still held inline.
+        let (a, b) = (SignatureId::new(7), SignatureId::new(u32::MAX - 1));
+        for id in [a, b] {
+            // One call signature alone, or one construct signature alone:
+            // no allocation, and both readings give it back.
+            let call = record(vec![id], vec![], vec![]);
+            assert_eq!(call.extras_heap_bytes(), 0);
+            assert_eq!(call.call_signatures(), &[id]);
+            assert_eq!(&*call.call_signature_list(), &[id]);
+            assert!(call.construct_signatures().is_empty());
+            assert!(call.construct_signature_list().is_empty());
+            assert!(call.index_infos().is_empty());
+            let construct = record(vec![], vec![id], vec![]);
+            assert_eq!(construct.extras_heap_bytes(), 0);
+            assert!(construct.call_signatures().is_empty());
+            assert!(construct.call_signature_list().is_empty());
+            assert_eq!(construct.construct_signatures(), &[id]);
+            assert_eq!(&*construct.construct_signature_list(), &[id]);
+            // A copy keeps the signature, and never a verdict.
+            assert_eq!(call.clone().call_signatures(), &[id]);
+            assert_eq!(construct.clone().construct_signatures(), &[id]);
+            assert_eq!(call.weak_properties(), None);
+            // The readings of the word alone agree with the lists.
+            assert!(call.has_call_signatures() && call.has_signatures());
+            assert!(!call.has_construct_signatures());
+            assert_eq!(call.single_signature(false), Some(id));
+            assert_eq!(call.single_signature(true), None);
+            assert!(construct.has_construct_signatures() && construct.has_signatures());
+            assert!(!construct.has_call_signatures());
+            assert_eq!(construct.single_signature(true), Some(id));
+            assert_eq!(construct.single_signature(false), None);
+        }
+        // Every other combination is a boxed record with the same readings.
+        for (calls, constructs, infos) in [
+            (vec![a, b], vec![], vec![]),
+            (vec![], vec![a, b], vec![]),
+            (vec![a], vec![b], vec![]),
+            (vec![a], vec![], vec![info.clone()]),
+            (vec![], vec![b], vec![info.clone()]),
+            (vec![], vec![], vec![info.clone()]),
+        ] {
+            let boxed = record(calls.clone(), constructs.clone(), infos.clone());
+            assert!(boxed.extras_heap_bytes() >= std::mem::size_of::<MembersExtras>());
+            assert_eq!(&*boxed.call_signatures(), &calls[..]);
+            assert_eq!(&*boxed.call_signature_list(), &calls[..]);
+            assert_eq!(&*boxed.construct_signatures(), &constructs[..]);
+            assert_eq!(&*boxed.construct_signature_list(), &constructs[..]);
+            assert_eq!(boxed.index_infos().len(), infos.len());
+            let copy = boxed.clone();
+            assert_eq!(copy.call_signatures(), boxed.call_signatures());
+            assert_eq!(copy.construct_signatures(), boxed.construct_signatures());
+            assert_eq!(boxed.has_call_signatures(), !calls.is_empty());
+            assert_eq!(boxed.has_construct_signatures(), !constructs.is_empty());
+            assert_eq!(
+                boxed.has_signatures(),
+                !calls.is_empty() || !constructs.is_empty()
+            );
+            assert_eq!(
+                boxed.single_signature(false),
+                (calls.len() == 1 && constructs.is_empty()).then(|| calls[0])
+            );
+            assert_eq!(
+                boxed.single_signature(true),
+                (constructs.len() == 1 && calls.is_empty()).then(|| constructs[0])
+            );
+        }
+        // The setters write one list at a time and keep the others; the
+        // word follows what the three lists hold.
+        let mut written = record(vec![], vec![], vec![]);
+        written.set_construct_signatures(vec![]);
+        written.set_index_infos(vec![]);
+        assert!(written.call_signatures().is_empty());
+        assert!(!written.has_signatures() && !written.has_call_signatures());
+        assert!(!written.has_construct_signatures());
+        assert_eq!(written.single_signature(false), None);
+        assert_eq!(written.single_signature(true), None);
+        written.set_call_signatures(vec![a]);
+        assert_eq!(written.extras_heap_bytes(), 0);
+        assert_eq!(written.call_signatures(), &[a]);
+        written.set_construct_signatures(vec![b]);
+        assert_eq!(written.call_signatures(), &[a]);
+        assert_eq!(written.construct_signatures(), &[b]);
+        assert!(written.extras_heap_bytes() > 0);
+        written.set_call_signatures(vec![]);
+        assert!(written.call_signatures().is_empty());
+        assert_eq!(written.construct_signatures(), &[b]);
+        assert_eq!(written.extras_heap_bytes(), 0);
+        written.set_index_infos(vec![info.clone()]);
+        assert_eq!(written.construct_signatures(), &[b]);
+        assert_eq!(written.index_infos().len(), 1);
+        written.set_index_infos(vec![]);
+        assert_eq!(written.construct_signatures(), &[b]);
+        assert_eq!(written.extras_heap_bytes(), 0);
+        written.set_lists(vec![a, b], vec![], vec![]);
+        assert_eq!(written.call_signatures(), &[a, b]);
+        assert!(written.construct_signatures().is_empty());
+        written.set_lists(vec![a], vec![], vec![]);
+        assert_eq!(written.call_signatures(), &[a]);
+        assert_eq!(written.extras_heap_bytes(), 0);
+        written.set_call_signatures(vec![]);
+        assert!(written.call_signatures().is_empty() && written.construct_signatures().is_empty());
+        assert_eq!(written.weak_properties(), None);
+    }
+
+    #[test]
     #[cfg(target_pointer_width = "64")]
     fn published_layout_is_48_bytes_with_one_index_word() {
         assert_eq!(std::mem::size_of::<MemberTable>(), 32);

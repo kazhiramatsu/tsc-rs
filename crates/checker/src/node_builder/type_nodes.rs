@@ -3437,7 +3437,7 @@ fn create_type_node_from_object_type(
         .map_err(|abort| checker_abort_error(checker, context, abort))?;
     let resolved = checker.members_of(members).clone();
     if resolved.properties.is_empty() && resolved.index_infos().is_empty() {
-        if resolved.call_signatures().is_empty() && resolved.construct_signatures().is_empty() {
+        if !resolved.has_signatures() {
             add_approximate_length(context, 2);
             let node = create_node(
                 arena,
@@ -4271,7 +4271,7 @@ fn create_type_nodes_from_resolved_type(
                 None
             };
         let mut elements = Vec::new();
-        for signature in resolved.call_signatures() {
+        for signature in resolved.call_signatures().iter() {
             elements.push(signature_to_signature_declaration_helper(
                 checker,
                 arena,
@@ -4282,7 +4282,7 @@ fn create_type_nodes_from_resolved_type(
                 None,
             )?);
         }
-        for signature in resolved.construct_signatures() {
+        for signature in resolved.construct_signatures().iter() {
             if checker
                 .signature_of(*signature)
                 .flags
