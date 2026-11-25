@@ -6,6 +6,11 @@
 //! did not return errorType. See the lane's DESIGN.md for the cache argument.
 //! No state is shared between checkers. Verification and statistics exist
 //! only with union-cache-shadow (unit tests also keep local statistics).
+//!
+//! A key of up to eight words lives in its slot. A longer one (a union built
+//! again and again from the same few dozen or few thousand inputs) has a
+//! table of its own beside it: the same complete key, held in a buffer its
+//! slot keeps, under the same store rule.
 
 use tsc_types::{SymbolId, TypeFlags, TypeId, UnionReduction};
 
@@ -13,6 +18,10 @@ use crate::state::{CheckResult, CheckerState};
 
 const MAX_WORDS: usize = 8;
 const SLOTS: usize = 1 << 10;
+/// The table of keys that do not fit a slot: its size, and the longest key
+/// it takes (a longer list is built without a probe, as before).
+const LONG_SLOTS: usize = 1 << 10;
+const MAX_LONG_WORDS: usize = 1 << 13;
 
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
 struct Key {
@@ -75,9 +84,56 @@ struct Slot {
 
 const _: () = assert!(std::mem::size_of::<Slot>() == 40);
 
+/// A key too long for a `Slot`: `words` is the whole key - the meta word,
+/// the inputs in order, then the alias and its arguments. An evicted
+/// entry's buffer is reused by the one that replaces it.
+#[derive(Default)]
+struct LongSlot {
+    hash: u64,
+    words: Vec<u32>,
+    result: Option<TypeId>,
+}
+
+/// The words of a long key in order, without building them.
+fn long_key_words<'a>(
+    types: &'a [TypeId],
+    reduction: UnionReduction,
+    alias: Option<SymbolId>,
+    arguments: Option<&'a [TypeId]>,
+) -> impl Iterator<Item = u32> + 'a {
+    let has_arguments = alias.is_some() && arguments.is_some();
+    let arguments = if alias.is_some() {
+        arguments.unwrap_or_default()
+    } else {
+        &[]
+    };
+    // The input count separates the inputs from the alias's arguments; the
+    // low bits keep None and Some([]) arguments apart, as the short key does.
+    let meta = (reduction as u32)
+        | (u32::from(alias.is_some()) << 2)
+        | (u32::from(has_arguments) << 3)
+        | ((types.len() as u32) << 4);
+    std::iter::once(meta)
+        .chain(types.iter().map(|ty| ty.position()))
+        .chain(alias.map(|alias| alias.index()))
+        .chain(arguments.iter().map(|ty| ty.position()))
+}
+
+fn long_key_hash(words: impl Iterator<Item = u32>) -> (u64, usize) {
+    let mut hash = 0u64;
+    for word in words {
+        hash = (hash ^ u64::from(word)).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    }
+    hash ^= hash >> 29;
+    (hash, (hash >> (64 - 10)) as usize)
+}
+
+const _: () = assert!(LONG_SLOTS == 1 << 10);
+
 #[derive(Default)]
 pub(crate) struct UnionFrontCache {
     slots: Vec<Slot>,
+    long_slots: Vec<LongSlot>,
     /// Increment before either unstable reduction, including in nested calls.
     pub(crate) impure: u64,
     #[cfg(any(test, feature = "union-cache-shadow"))]
@@ -94,6 +150,9 @@ struct Stats {
     origin: u64,
     long: u64,
     aborted: u64,
+    long_lookups: u64,
+    long_hits: u64,
+    long_stores: u64,
 }
 
 impl UnionFrontCache {
@@ -110,6 +169,35 @@ impl UnionFrontCache {
             key,
             result: Some(result),
         };
+    }
+
+    fn lookup_long(
+        &self,
+        hash: u64,
+        index: usize,
+        words: impl Iterator<Item = u32>,
+    ) -> Option<TypeId> {
+        let slot = self.long_slots.get(index)?;
+        (slot.hash == hash && slot.result.is_some() && slot.words.iter().copied().eq(words))
+            .then_some(slot.result)
+            .flatten()
+    }
+
+    fn store_long(
+        &mut self,
+        hash: u64,
+        index: usize,
+        words: impl Iterator<Item = u32>,
+        result: TypeId,
+    ) {
+        if self.long_slots.is_empty() {
+            self.long_slots.resize_with(LONG_SLOTS, LongSlot::default);
+        }
+        let slot = &mut self.long_slots[index];
+        slot.hash = hash;
+        slot.words.clear();
+        slot.words.extend(words);
+        slot.result = Some(result);
     }
 }
 
@@ -171,11 +259,7 @@ impl CheckerState<'_> {
             return self.get_union_type_ex_uncached(types, reduction, alias, arguments, origin);
         }
         let Some((key, index)) = Key::new(types, reduction, alias, arguments) else {
-            #[cfg(any(test, feature = "union-cache-shadow"))]
-            {
-                self.union_front_cache.stats.long += 1;
-            }
-            return self.get_union_type_ex_uncached(types, reduction, alias, arguments, None);
+            return self.get_union_type_long_cached(types, reduction, alias, arguments);
         };
         #[cfg(any(test, feature = "union-cache-shadow"))]
         {
@@ -187,34 +271,7 @@ impl CheckerState<'_> {
                 self.union_front_cache.stats.hits += 1;
             }
             #[cfg(feature = "union-cache-shadow")]
-            {
-                let before = Counters::read(self);
-                let fresh = self
-                    .get_union_type_ex_uncached(types, reduction, alias, arguments, None)
-                    .expect("union-cache-shadow: uncached hit aborted");
-                let after = Counters::read(self);
-                assert_eq!(fresh, cached, "union-cache-shadow: answer for {key:?}");
-                assert_eq!(
-                    before.types, after.types,
-                    "union-cache-shadow: type creation"
-                );
-                assert_eq!(
-                    before.local, after.local,
-                    "union-cache-shadow: local instantiation"
-                );
-                assert_eq!(
-                    before.total, after.total,
-                    "union-cache-shadow: total instantiation"
-                );
-                assert_eq!(
-                    before.impure, after.impure,
-                    "union-cache-shadow: impure reduction"
-                );
-                assert_eq!(
-                    before.diagnostics, after.diagnostics,
-                    "union-cache-shadow: diagnostic"
-                );
-            }
+            self.union_cache_shadow(types, reduction, alias, arguments, cached);
             return Ok(cached);
         }
         let before = Counters::read(self);
@@ -250,6 +307,104 @@ impl CheckerState<'_> {
         }
         Ok(result)
     }
+
+    /// The probe for a key that does not fit a slot: the same hit and the
+    /// same store rule over the long keys' table.
+    fn get_union_type_long_cached(
+        &mut self,
+        types: &[TypeId],
+        reduction: UnionReduction,
+        alias: Option<SymbolId>,
+        arguments: Option<&[TypeId]>,
+    ) -> CheckResult<TypeId> {
+        let argument_count = if alias.is_some() {
+            arguments.map_or(0, <[TypeId]>::len)
+        } else {
+            0
+        };
+        if types.len() + argument_count >= MAX_LONG_WORDS {
+            #[cfg(any(test, feature = "union-cache-shadow"))]
+            {
+                self.union_front_cache.stats.long += 1;
+            }
+            return self.get_union_type_ex_uncached(types, reduction, alias, arguments, None);
+        }
+        let (hash, index) = long_key_hash(long_key_words(types, reduction, alias, arguments));
+        #[cfg(any(test, feature = "union-cache-shadow"))]
+        {
+            self.union_front_cache.stats.long_lookups += 1;
+        }
+        if let Some(cached) = self.union_front_cache.lookup_long(
+            hash,
+            index,
+            long_key_words(types, reduction, alias, arguments),
+        ) {
+            #[cfg(any(test, feature = "union-cache-shadow"))]
+            {
+                self.union_front_cache.stats.long_hits += 1;
+            }
+            #[cfg(feature = "union-cache-shadow")]
+            self.union_cache_shadow(types, reduction, alias, arguments, cached);
+            return Ok(cached);
+        }
+        let before = Counters::read(self);
+        let result = self.get_union_type_ex_uncached(types, reduction, alias, arguments, None)?;
+        if !before.rejections(self, result).iter().any(|&no| no) {
+            self.union_front_cache.store_long(
+                hash,
+                index,
+                long_key_words(types, reduction, alias, arguments),
+                result,
+            );
+            #[cfg(any(test, feature = "union-cache-shadow"))]
+            {
+                self.union_front_cache.stats.long_stores += 1;
+            }
+        }
+        Ok(result)
+    }
+
+    /// Run the call a hit skipped and assert it answers `cached` without an
+    /// effect.
+    #[cfg(feature = "union-cache-shadow")]
+    fn union_cache_shadow(
+        &mut self,
+        types: &[TypeId],
+        reduction: UnionReduction,
+        alias: Option<SymbolId>,
+        arguments: Option<&[TypeId]>,
+        cached: TypeId,
+    ) {
+        let before = Counters::read(self);
+        let fresh = self
+            .get_union_type_ex_uncached(types, reduction, alias, arguments, None)
+            .expect("union-cache-shadow: uncached hit aborted");
+        let after = Counters::read(self);
+        assert_eq!(
+            fresh, cached,
+            "union-cache-shadow: answer for {types:?} {reduction:?} {alias:?} {arguments:?}"
+        );
+        assert_eq!(
+            before.types, after.types,
+            "union-cache-shadow: type creation"
+        );
+        assert_eq!(
+            before.local, after.local,
+            "union-cache-shadow: local instantiation"
+        );
+        assert_eq!(
+            before.total, after.total,
+            "union-cache-shadow: total instantiation"
+        );
+        assert_eq!(
+            before.impure, after.impure,
+            "union-cache-shadow: impure reduction"
+        );
+        assert_eq!(
+            before.diagnostics, after.diagnostics,
+            "union-cache-shadow: diagnostic"
+        );
+    }
 }
 
 #[cfg(feature = "union-cache-shadow")]
@@ -257,9 +412,10 @@ impl UnionFrontCache {
     pub(crate) fn report(&self) {
         let s = &self.stats;
         eprintln!(
-            "union-front-cache: lookups={} hits={} stores={} reject_created={} reject_instantiated={} reject_impure={} reject_error={} origin={} long={} aborted={}",
+            "union-front-cache: lookups={} hits={} stores={} reject_created={} reject_instantiated={} reject_impure={} reject_error={} origin={} long={} aborted={} long_lookups={} long_hits={} long_stores={}",
             s.lookups, s.hits, s.stores, s.rejected[0], s.rejected[1],
             s.rejected[2], s.rejected[3], s.origin, s.long, s.aborted,
+            s.long_lookups, s.long_hits, s.long_stores,
         );
     }
 }
@@ -347,6 +503,75 @@ mod tests {
     }
 
     #[test]
+    fn long_keys_hit_without_creating_and_keep_every_part_of_the_key() {
+        with_state("", |state| {
+            let types: Vec<TypeId> = (0..12)
+                .map(|i| {
+                    state
+                        .tables
+                        .get_string_literal_type(&format!("long-key-{i}"))
+                })
+                .collect();
+            let before = state.tables.len();
+            let result = call(state, &types);
+            assert_eq!(state.tables.len(), before + 1);
+            assert_eq!(state.union_front_cache.stats.long_stores, 1);
+            let before = Counters::read(state);
+            assert_eq!(call(state, &types), result);
+            let after = Counters::read(state);
+            assert_eq!(state.union_front_cache.stats.long_hits, 1);
+            assert_eq!(after.types, before.types);
+            assert_eq!(after.local, before.local);
+            assert_eq!(after.total, before.total);
+            // Another order of the same inputs is another key for the same union.
+            let mut reversed = types.clone();
+            reversed.reverse();
+            assert_eq!(call(state, &reversed), result);
+            assert_eq!(state.union_front_cache.stats.long_hits, 1);
+            assert_eq!(state.union_front_cache.stats.long_lookups, 3);
+        });
+        let a = TypeId::new(1);
+        let b = TypeId::new(2);
+        let symbol = SymbolId::new(3);
+        let words = |types: &[TypeId], mode, alias, args: Option<&[TypeId]>| {
+            long_key_words(types, mode, alias, args).collect::<Vec<_>>()
+        };
+        let nine = [a; 9];
+        let keys = [
+            words(&nine, UnionReduction::Literal, None, None),
+            words(&nine, UnionReduction::Subtype, None, None),
+            words(&nine, UnionReduction::None, None, None),
+            words(&nine, UnionReduction::Literal, Some(symbol), None),
+            words(&nine, UnionReduction::Literal, Some(symbol), Some(&[])),
+            words(&nine, UnionReduction::Literal, Some(symbol), Some(&[a])),
+            words(&nine, UnionReduction::Literal, Some(symbol), Some(&[b])),
+            words(&[a; 10], UnionReduction::Literal, None, None),
+            // Where the inputs end is part of the key.
+            words(
+                &[a; 8],
+                UnionReduction::Literal,
+                Some(symbol),
+                Some(&[a, a]),
+            ),
+        ];
+        let mut cache = UnionFrontCache::default();
+        assert!(cache.long_slots.is_empty());
+        for (i, key) in keys.iter().enumerate() {
+            for previous in &keys[..i] {
+                assert_ne!(previous, key);
+            }
+            // Deliberately the same hash and slot: the whole key controls the hit.
+            cache.store_long(7, 0, key.iter().copied(), b);
+            assert_eq!(cache.lookup_long(7, 0, key.iter().copied()), Some(b));
+            for previous in &keys[..i] {
+                assert_eq!(cache.lookup_long(7, 0, previous.iter().copied()), None);
+            }
+            assert_eq!(cache.lookup_long(8, 0, key.iter().copied()), None);
+        }
+        assert_eq!(cache.long_slots.len(), LONG_SLOTS);
+    }
+
+    #[test]
     fn caches_new_union_and_non_union_answers_without_creating_on_hit() {
         with_state("", |state| {
             let i = state.tables.intrinsics.clone();
@@ -419,7 +644,7 @@ mod tests {
     }
 
     #[test]
-    fn origin_and_long_keys_bypass_the_table() {
+    fn origin_and_overlong_keys_bypass_the_tables() {
         with_state("", |state| {
             let inputs = [
                 state.tables.intrinsics.string,
@@ -451,9 +676,19 @@ mod tests {
             assert_eq!(first, second);
             assert_eq!(state.union_front_cache.stats.lookups, lookups);
             assert_eq!(state.union_front_cache.stats.origin, bypass + 2);
+            // Nine inputs do not fit a slot: they probe the long keys' table,
+            // not the slots'.
             let long = [inputs[0]; 9];
             assert_eq!(call(state, &long), inputs[0]);
             assert_eq!(state.union_front_cache.stats.lookups, lookups);
+            assert_eq!(state.union_front_cache.stats.long_lookups, 1);
+            assert_eq!(state.union_front_cache.stats.long, 0);
+            // A list beyond the long table's limit is built without a probe.
+            let overlong = vec![inputs[0]; MAX_LONG_WORDS];
+            assert_eq!(call(state, &overlong), inputs[0]);
+            assert_eq!(call(state, &overlong[..MAX_LONG_WORDS - 1]), inputs[0]);
+            assert_eq!(state.union_front_cache.stats.lookups, lookups);
+            assert_eq!(state.union_front_cache.stats.long_lookups, 2);
             assert_eq!(state.union_front_cache.stats.long, 1);
             assert_eq!(call(state, &[]), state.tables.intrinsics.never);
             assert_eq!(call(state, &inputs[..1]), inputs[0]);
