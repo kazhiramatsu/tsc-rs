@@ -710,11 +710,13 @@ pub trait AuthoritativeModuleProvider: Sync {
         Vec::new()
     }
 
-    /// The files no other file refers to: every inclusion reason is a root's
-    /// and no resolved module of another file targets them. The fast preset
-    /// gives such a file's tree and bind records back to the system once it
-    /// is checked (see `leaf_by_syntax` for the other half of the test).
-    /// Providers without a Program name none.
+    /// The files that are in the Program only as roots: every inclusion
+    /// reason is a root's. Of these, the ones no resolved module of another
+    /// file targets (`checker_association_imports`) and whose syntax adds
+    /// nothing to another module (`leaf_by_syntax`) are the files no other
+    /// file refers to: the fast preset gives their tree and bind records back
+    /// to the system once they are checked. Providers without a Program name
+    /// none.
     fn check_leaf_candidates(&self) -> Vec<AuthoritativeSourceToken> {
         Vec::new()
     }
@@ -5572,6 +5574,8 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let mut adjacent = vec![Vec::new(); node_counts.len()];
     // The files each file imports, for the locality association's modules.
     let mut targets_of = vec![Vec::new(); if locality { node_counts.len() } else { 0 }];
+    // The files another file's resolved module targets (the leaf test below).
+    let mut referred = vec![false; if locality { node_counts.len() } else { 0 }];
     let provider = factory.provider();
     for (token, count, targets) in provider.checker_association_imports() {
         let Some(file) = metadata.file_index_in_snapshot(token, node_counts.len()) else {
@@ -5587,6 +5591,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
                 adjacent[other].push(file);
                 if locality {
                     targets_of[file].push(other);
+                    referred[other] = true;
                 }
             }
         }
@@ -5595,8 +5600,9 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     // nothing follows (no emit, no declaration pass, no memory report) gives
     // the tree and bind records of a file no other file refers to back to
     // the system once the file is checked. The process ends with its stores
-    // (`leaks_states`), so a released range is never handed out again. Who
-    // the candidates are is asked while the provider is at hand.
+    // (`leaks_states`), so a released range is never handed out again. The
+    // candidates: in the Program only as roots (asked while the provider is
+    // at hand) and no target of another file's resolved module (`referred`).
     let release_leaves = locality
         && selected.is_none()
         && !checkers.order_replay()
@@ -5607,7 +5613,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     if release_leaves {
         for token in provider.check_leaf_candidates() {
             if let Some(file) = metadata.file_index_in_snapshot(token, node_counts.len()) {
-                leaf_candidates[file] = true;
+                leaf_candidates[file] = !referred[file];
             }
         }
     }
