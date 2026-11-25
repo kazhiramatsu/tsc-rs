@@ -255,7 +255,7 @@ selects a preset for machines with more cores:
 
 - the number of checkers follows the machine and the program: one per core
   up to sixteen cores (beyond that the larger of sixteen and half the cores,
-  at most 32), never more than one per 32 type-checked files, and at least
+  at most 32), never more than one per 40 type-checked files, and at least
   four (`--checkers` and `TSRS_CHECKERS` still set it);
 - files are associated with checkers by directory and by the modules they
   import, so that the files of one checker resolve largely the same

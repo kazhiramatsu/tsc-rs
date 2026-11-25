@@ -44,7 +44,14 @@ pub enum CheckerAssignment {
 /// runs out of files takes over others' ([`ShardFileQueue::next_fixture`]).
 /// The count follows the machine: a history-dependent program can print
 /// something else on a machine with other cores.
-const FAST_FILES_PER_CHECKER: usize = 32;
+///
+/// Forty files a checker: every checker resolves the Program's common
+/// declarations for itself, so on a small Program one checker more adds
+/// more work than it takes off the others. (Measured on a Program of 187
+/// checked files: four checkers end it a twentieth earlier than five, with
+/// a tenth less processor time and memory; from 440 files on, ten checkers
+/// on ten cores are the fastest.)
+const FAST_FILES_PER_CHECKER: usize = 40;
 const FAST_MIN_CHECKERS: usize = 4;
 const FAST_MAX_CHECKERS: usize = 32;
 /// Up to this many cores every core gets a checker.
@@ -1759,19 +1766,19 @@ mod tests {
             CheckerBudget::fast().checkers(),
             pool(std::thread::available_parallelism().map_or(1, NonZeroUsize::get))
         );
-        // The Program's part: one checker per 32 checked files, at least 4,
+        // The Program's part: one checker per 40 checked files, at least 4,
         // never more than the machine's count or the files.
         let fast = CheckerBudget::fast_for(12);
         assert_eq!(fast.checkers_for(10_270, 9_243), 12);
-        assert_eq!(fast.checkers_for(739, 440), 12);
-        assert_eq!(fast.checkers_for(600, 352), 11);
-        assert_eq!(fast.checkers_for(362, 187), 5);
+        assert_eq!(fast.checkers_for(739, 440), 11);
+        assert_eq!(fast.checkers_for(600, 352), 8);
+        assert_eq!(fast.checkers_for(362, 187), 4);
         assert_eq!(fast.checkers_for(249, 78), 4);
         assert_eq!(fast.checkers_for(3, 3), 3);
         assert_eq!(fast.checkers_for(0, 0), 1);
         assert_eq!(CheckerBudget::fast_for(10).checkers_for(10_270, 9_243), 10);
         assert_eq!(CheckerBudget::fast_for(64).checkers_for(10_270, 9_243), 32);
-        assert_eq!(CheckerBudget::fast_for(64).checkers_for(739, 440), 13);
+        assert_eq!(CheckerBudget::fast_for(64).checkers_for(739, 440), 11);
         // An explicit count is kept under either association.
         let eight = CheckerBudget::new(NonZeroUsize::new(8).unwrap());
         assert_eq!(eight.checkers_for(1000, 10), 8);
