@@ -1946,6 +1946,45 @@ weak-type 行は zod で明確な改善（既定設定の wall −2.6 %、1 thre
 
 **残り。** 遅延 member 表の行の train；member record の行の残り 0.1 % の命令（record を書き込み用に開く時の decode を mask 比較にする小さな追補は書いてある、未計測）；index info だけの box 16.5 万個；第 2 の仕様の Row 12（module 解決表）→ 11（path 文字列と file ごとの record）→ 9・10（binder の表）→ 8、Row 14 は node table の census を main の code で取り直してから；「1 命令の値段」の残り 2 つの計測。
 
+**結果 64（2026-11-26 0 時台：遅延 member 表の行の着地（PR #1039）；「既定設定では勝ち、fast mode では負ける」理由の勘定（tsrs の preset を相手自身の switch で分解、同じ仕事量での比較）；reviewer の分析の新案 6 つを計数で評価（候補として残るのは 3 つ、残りは再提案・前提なし・効果なし）；node ごとの 2 表の census）**
+
+**着地（PR #1039、merge `1481868ec`、hosted run 45640041931、00:33）。** 結果 63 に書いた遅延 member 表の行（型の members の slot 4 byte に 4 状態、表は 1 本の list）。#1038 の後の main に載せ直した binary（`n-lzm`、job lzn）は出力・counter が main と同じで、台帳（1 thread）は Effect −0.289 %、zod −0.251 %、Playwright −0.069 %、Next.js −0.062 %、VS Code −0.041 %（同じ code の control +0.015〜+0.052 %）、Vue だけ +0.122 %（control +0.034 %）；遅延表の行は preset で VS Code 33.4 → 29.1 MiB、zod 19.5 → 15.5、Next.js 11.6 → 9.9。時間の枠は載せ直す前の binary の枠 lz（結果 63）で、載せ直した binary の時間は測っていない。train の local 検査：checker crate の test、4 checker の conformance 15,335 構成が同じ・違うのは既知の 4 つ、suites の退行 0、oracle 24 / 24、fingerprint 0 / 161,676、preset の出力 14 / 14（zod は run ごとに変わる既知の分）。main の binary は `batch61-sel-c36763cc1`。
+
+**所有者の問い（11-25 23:2x）：「VS Codeは規定では上回っているのに--fastになると大幅に負けるのはなぜなんでしょうね」。** 22:58 の窓を比に分けると（ours / tsrs）、既定設定は wall 0.950 = 命令 0.889 × cycle / 命令 1.117、fast mode は 1.077 = 0.979 × 1.063（core の埋まり 7.72 対 7.92、peak 1.214）。既定で勝っているのは 1 命令が安いからではなく、命令が 11 % 少ないから。相手の preset を相手自身の switch で 1 つずつ外した（枠 tf1、23:51、VS Code 9 回・zod 15 回；`--lazyMembers`、`TSRS_FREE_LEAVES`、`TSRS_CHECKER_ASSIGNMENT`、`--checkers`）：
+
+| VS Code | wall | 命令 | cycle | cycle / 命令 | peak |
+|---|---:|---:|---:|---:|---:|
+| tsrs 既定（checker 4、eager な member） | 2,125 ms | 92.27 G | 31.52 G | 0.342 | 2,281 MiB |
+| 　+ `--lazyMembers` | 2,070 | 88.16 | 31.11 | 0.353 | 1,988 |
+| tsrs `--fast`（checker 10） | 1,315 | 85.81 | 35.42 | 0.413 | 1,825 |
+| 　leaf の解放なし（`TSRS_FREE_LEAVES=0`、命令と peak のみ） | — | 86.63 | — | — | 2,084 |
+| 　tsgo の配分（`go`：leaf の解放も止まる） | 1,567 | 95.85 | 37.79 | 0.394 | 2,201 |
+| 　checker 4 つ | 1,749 | 80.76 | 29.27 | 0.362 | 1,660 |
+| ours 既定 | 2,017 | 82.01 | 31.73 | 0.387 | 2,235 |
+| ours preset（checker 10、2 cell） | 1,414〜1,460 | 83.94 | 36.78〜37.53 | 0.438〜0.447 | 2,198 |
+| 　checker 4 つ | 1,871 | 79.91 | 30.79 | 0.385 | 2,010 |
+
+読み：(1) 相手の既定は tsgo 互換の重りを 3 つ背負っている — eager な member（命令 +4.5 %、peak +300 MiB）、leaf の解放なし（peak +270 MiB）、自前の配分・3 つの cache なし（命令 +10 %、peak +115 MiB）。ours は lazy member と memo を出力同一の形で既定に持つので、既定同士では仕事が 11 % 少ない。(2) fast mode で重りが外れると仕事量は並ぶ（同じ checker 数で命令は −1〜−2 %）。**同じ仕事量での 1 命令の値段の差は +6.4 %**（4 checker の fast：0.385 対 0.362）で、既定設定の +12〜13 % の半分は相手の「安い余計な命令」が平均を下げている分（reviewer の指摘、tf1 で確認：相手は 0.342 → 0.353 → 0.362 と上がり、ours は動かない）。(3) zod の既定設定での勝ち（0.874）は相手の eager な member の分だけ：相手の既定に lazy member を入れると 300 ms、ours 301 ms。
+
+*memory を同じ仕事量で（1 thread、相手は `--singleThreaded --lazyMembers`；命令は ±3 % 以内、VS Code は ours −7 %）。* peak の全体 | `--noCheck` から、check の分 ours | tsrs（比）と front end の差：hono 31 | 26（1.19）・+8、TypeScript 44 | 36（1.22）・+16、Vue 93 | 74（1.26）・+22、Effect 183 | 150（1.22）・+16、Playwright 101 | 89（1.13）・+34、zod 219 | 164（1.34）・+35、Next.js 252 | 232（1.09）・+43、VS Code 813 | 637（1.28）・+128 MiB。**fast mode の peak の差はこの表に pool を掛けたもの**：front end が全案件で 12〜25 % 多く、check の record が同じ仕事に対して 1.09〜1.34 倍。VS Code の fast（10 checker、+391 MiB）は、front end の一般 heap +204、checker の record 約 +95〜135、leaf の解放の差 約 +50（相手は 283 MiB を解放、ours は 284 MiB の range のうち whole page 231 MiB）。checker を 1 つ足すごとの peak は ours +31（preset）・+36（既定の配分）、相手 +25〜27 MiB。footprint は run の最後まで増え続ける（新しい tool `tools/footprint-curve.py`：1 ms ごとの footprint）ので、途中で返した page はすべて peak に効く。
+
+**reviewer の新案 6 つ（`vscode-fast-gap-analysis-1125.md`）の評価。**
+
+| 案 | 判定 | 根拠 |
+|---|---|---|
+| A 終盤に lane のない checker が制限を超えて引き取る | 不採用（再提案） | 11-25 15:4x の枠 et1 の形そのもの：zod +1.84 %、Effect +1.93 %、peak +25〜59 MiB、run は早く終わらない（引き取った file の家族の型を作り直す） |
+| B skip される file 同士の merge 衝突で名前と走査を省く | 書いて測った、着地させない | guard は 10 月（`0f387f437`）から行ごとの関数の中にある。残りを省く行（`perf/merge-error-skipped-files`）は出力・counter 同一、台帳は zod の 1 checker で +0.043 %（同じ code の control +0.035 %）＝ 差なし。tsgo の 6 行で pin した unit test は次の checker の train に test だけ載せる |
+| C leaf の解放の取りこぼし | 上限 約 50 MiB（主張 150〜250） | ours は既に 231 MiB を返している。差は page の共有 38 MiB（symbol の store が最大）と最後の 1 batch 15 MiB |
+| D fast 専用 cache | 3 つのうち 2 つは 0、1 つは Next.js で約 1 % | census binary（`census/memo-rejects`）：推論 memo で「生成のために保存を拒否された key」の再出現は VS Code 28 回・0.1 ms；indexed-access の memo は 11-22 に相手の switch で 0；8 語を超える union の key の再出現は 1 checker で Next.js 14.9 ms（約 1 %）、VS Code 11.5 ms（0.14 %）、zod・Effect 1 ms 未満 → 長い key の表を足す行（`perf/union-front-long-keys`、既定 mode にも入る厳密な形）を計測中 |
+| E lane の前後の直列（VS Code +33 ms） | 候補（合計 約 15 ms） | merge は 11-25 に計数済み（suggestion 6,833 行を 4 回 copy：上限 8 ms）；配分 13.4 ms は Row 13A（上限 6〜8 ms） |
+| F 既存の Row の再掲 | 一部は古い | Row 1・6 は #1037 で着地済み、Row 2・3 は 11-25 に前提なしと確認済み。「footprint の行が時間に効くことは実証済み」は 2 つの README の窓の比較で、行の枠では時間は control と横ばい（peak だけ減）— 実証とは言えない |
+
+**node ごとの 2 表の census（main の code、`census/node-tables-m`）。** node → symbol の表（node ごとに 4 byte）は VS Code で 16,880,227 node のうち 2,181,337（12.9 %）しか埋まっていない：表 64.4 MiB、中身 8.3 MiB。checker の読み出しは 1,574 万回（98.9 % が当たり）。node → flow（2 byte）は 51.4 % が埋まり、表 32.2 MiB、読み出し 496 万回。他の案件も同じ割合（node → symbol 10〜19 %）。「64 node ごとに bit 64 個と通し番号、symbol は詰めて並べる」形なら VS Code で 64.4 → 12.9 MiB（既定設定で −51.5 MiB、peak の 2.3 %；preset では leaf の分が既に返っているので約 −35）、Next.js −6.9、zod −6.0、TypeScript −3.4 MiB — 全案件・両 mode に効く、表に載っている中で最大の行。読み出しは load 1 回が load 2 回 + popcount になる（時間への影響は未実測：読み出しだけを差し替える試作で先に測る）。
+
+**自分の誤り。** (1) reviewer への資料に「相手の配分・cache・history が peak を 380 MiB 下げる」と書いた — 270 は leaf の解放で、内訳は 11-22 の自分の記録（相手の switch の表）にあった。資料を書く前に記録を引かなかった（資料の §8 で訂正）。(2) 所有者に「#1034・#1035 では leaf の解放で 25 MiB しか回収できていない」と伝えた — どの記録にも無い数字で、実際は whole page 231 MiB・peak −178 MiB。その場で訂正した。(3) C の上限を、物差しの違う 2 つの数字（`/usr/bin/time` の −178 と相手の −270）から「約 90 MiB」と書き、同じ物差し（footprint の曲線：−215 対 −267）で取り直して約 50 MiB に直した。
+
+**残り。** 長い union の key の行の台帳と train；node → symbol の読み出しの試作（時間）；直列の 2 行（merge、配分）；第 2 の仕様の Row 12（module 解決表、VS Code −16 MiB）→ 11 → 9・10；枠 n2（隣の core が忙しい時の遅れを、今日の main と「同じ仕事量」の cell で撮り直す）；member record の行の残り 0.1 %。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
