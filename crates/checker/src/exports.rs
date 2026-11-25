@@ -295,7 +295,11 @@ impl CheckerState<'_> {
                 TypeData::Reference { target, .. } => Some(*target),
                 TypeData::TupleTarget(_) | TypeData::GenericType { .. } => Some(ty),
                 TypeData::Mapped(mapped) => mapped.target,
-                _ => self.links.read_ty(ty, |links| links.instantiated_target),
+                TypeData::Object {
+                    instantiated_target,
+                    ..
+                } => *instantiated_target,
+                _ => None,
             };
         }
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {

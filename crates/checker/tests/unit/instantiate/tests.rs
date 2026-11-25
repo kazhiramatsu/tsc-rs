@@ -5,6 +5,38 @@ use crate::state::test_support::with_program_state;
 use crate::state::CheckerState;
 
 #[test]
+fn a_mapper_list_is_six_bytes_and_keeps_a_long_lists_length_in_the_arena() {
+    use crate::instantiate::{MapperList, TypeMapper};
+    use tsc_types::TypeId;
+
+    assert_eq!(std::mem::size_of::<MapperList>(), 6);
+    assert_eq!(std::mem::size_of::<TypeMapper>(), 16);
+    let types = |count: usize| (0..count as u32).map(TypeId::new).collect::<Vec<_>>();
+    let mut arena = Vec::new();
+    // Lists follow each other in the arena; an empty one takes nothing.
+    let empty = MapperList::store(&mut arena, &[]);
+    let three = MapperList::store(&mut arena, &types(3));
+    assert_eq!(arena.len(), 3);
+    assert!(empty.types(&arena).is_empty());
+    assert_eq!(three.types(&arena), types(3));
+    // The longest list whose length fits the handle: no entry beside its types.
+    let short = usize::from(MapperList::LONG) - 1;
+    let fits = MapperList::store(&mut arena, &types(short));
+    assert_eq!(arena.len(), 3 + short);
+    assert_eq!(fits.types(&arena), types(short));
+    // From `LONG` entries on the length is the arena entry before the first.
+    for count in [usize::from(MapperList::LONG), 70_000] {
+        let before = arena.len();
+        let long = MapperList::store(&mut arena, &types(count));
+        assert_eq!(arena.len(), before + 1 + count);
+        assert_eq!(long.types(&arena), types(count));
+    }
+    // Earlier lists read as before.
+    assert_eq!(three.types(&arena), types(3));
+    assert_eq!(fits.types(&arena), types(short));
+}
+
+#[test]
 fn child_scratch_preserves_nested_visits_early_returns_and_the_callers_prefix() {
     with_program_state(
         &[("a.ts", "let x = 1; function f() { x = 2; } x = 3;")],
@@ -224,7 +256,10 @@ fn anonymous_type_instantiation_creates_a_cached_shell() {
                 .tables
                 .object_flags_of(shell)
                 .intersects(ObjectFlags::INSTANTIATED));
-            assert_eq!(state.links.ty(shell).instantiated_target, Some(anonymous));
+            assert_eq!(
+                state.tables.type_of(shell).instantiated_target(),
+                Some(anonymous)
+            );
             // Same type arguments -> the interned instantiation.
             let mapper2 = state.create_type_mapper(&[t], Some(&[string]));
             let again = state

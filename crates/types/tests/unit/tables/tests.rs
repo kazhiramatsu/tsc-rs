@@ -1815,6 +1815,78 @@ fn a_cloned_type_parameter_keeps_its_target_and_mapper_in_its_record() {
 }
 
 #[test]
+fn an_instantiated_objects_target_and_mapper_live_in_its_record() {
+    let mut tables = tables();
+    let target = tables.create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
+    // A plain object has neither, and the store's all-zero record is one.
+    assert_eq!(tables.type_of(target).instantiated_target(), None);
+    assert_eq!(tables.type_of(target).instantiated_mapper(), None);
+    assert_eq!(
+        TypeData::PLAIN_OBJECT,
+        TypeData::Object {
+            node_position: 0,
+            instantiated_target: None,
+            instantiated_mapper: None,
+        }
+    );
+    // An instantiated shell is created with both.
+    let shell = tables.create_type(
+        TypeFlags::OBJECT,
+        TypeData::Object {
+            node_position: 0,
+            instantiated_target: Some(target),
+            instantiated_mapper: Some(MapperId::new(7)),
+        },
+    );
+    assert_eq!(tables.type_of(shell).instantiated_target(), Some(target));
+    assert_eq!(
+        tables.type_of(shell).instantiated_mapper(),
+        Some(MapperId::new(7))
+    );
+    // Stamping the instantiation expression's node leaves them as they are.
+    let TypeData::Object { node_position, .. } = &mut tables.type_mut(shell).data else {
+        unreachable!();
+    };
+    *node_position = 41;
+    assert_eq!(tables.type_of(shell).deferred_node_position(), 41);
+    assert_eq!(tables.type_of(shell).instantiated_target(), Some(target));
+    // An isolated single-signature type gets a mapper and no target.
+    let isolated = tables.create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
+    tables
+        .type_mut(isolated)
+        .set_isolated_signature_mapper(MapperId::new(9));
+    assert_eq!(tables.type_of(isolated).instantiated_target(), None);
+    assert_eq!(
+        tables.type_of(isolated).instantiated_mapper(),
+        Some(MapperId::new(9))
+    );
+    // Other kinds of type have neither.
+    let string = tables.intrinsics.string;
+    assert_eq!(tables.type_of(string).instantiated_target(), None);
+    assert_eq!(tables.type_of(string).instantiated_mapper(), None);
+    // Both live in the 32-byte record: no table beside the type store.
+    assert_eq!(std::mem::size_of::<Type>(), 32);
+}
+
+#[test]
+#[should_panic(expected = "isolated-signature mapper written over instantiation links")]
+fn an_isolated_signature_mapper_is_not_written_over_an_instantiation() {
+    let mut tables = tables();
+    let target = tables.create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
+    let shell = tables.create_type(
+        TypeFlags::OBJECT,
+        TypeData::Object {
+            node_position: 0,
+            instantiated_target: Some(target),
+            instantiated_mapper: Some(MapperId::new(7)),
+        },
+    );
+    tables
+        .type_mut(shell)
+        .set_isolated_signature_mapper(MapperId::new(9));
+}
+
+#[test]
 fn reference_clones_copy_the_argument_slot_and_start_without_a_node() {
     let mut tables = tables();
     let target = tables.create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);

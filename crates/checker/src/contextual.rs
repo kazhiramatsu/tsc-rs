@@ -2519,7 +2519,7 @@ impl<'a> CheckerState<'a> {
                             .iter()
                             .any(|&info| self.has_inference_candidates_or_default(info))
                     {
-                        let non_fixing = self.inference_context(context).non_fixing_mapper;
+                        let non_fixing = self.inference_non_fixing_mapper(context);
                         let instantiated = self.instantiate_instantiable_types(ty, non_fixing)?;
                         if !self
                             .tables

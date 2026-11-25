@@ -458,6 +458,14 @@ pub enum TypeData {
     Object {
         /// The instantiation expression that created this object, or zero.
         node_position: u32,
+        /// tsc type.target for ObjectFlags::INSTANTIATED anonymous types
+        /// (instantiateAnonymousType 63658), written when the instantiated
+        /// shell is created.
+        instantiated_target: Option<TypeId>,
+        /// tsc type.mapper for ObjectFlags::INSTANTIATED anonymous types
+        /// (63659), and the mapper of an isolated single-signature type
+        /// (getSignatureInstantiation's inferredTypeParameters arm, 59894).
+        instantiated_mapper: Option<MapperId>,
     },
     /// any/unknown/string/... incl. error/silentNever/wildcard/missing
     /// variants (createIntrinsicType 50111). The boolean literal
@@ -628,7 +636,11 @@ impl tsc_store::StoreRecord for Type {
 
 impl TypeData {
     /// An object created without an originating instantiation expression.
-    pub const PLAIN_OBJECT: Self = Self::Object { node_position: 0 };
+    pub const PLAIN_OBJECT: Self = Self::Object {
+        node_position: 0,
+        instantiated_target: None,
+        instantiated_mapper: None,
+    };
 }
 
 impl Type {
@@ -637,10 +649,50 @@ impl Type {
     #[inline]
     pub fn deferred_node_position(&self) -> u32 {
         match self.data {
-            TypeData::Reference { node_position, .. } | TypeData::Object { node_position } => {
+            TypeData::Reference { node_position, .. } | TypeData::Object { node_position, .. } => {
                 node_position
             }
             _ => 0,
+        }
+    }
+
+    /// tsc type.target of an instantiated anonymous object type; None for
+    /// every other type.
+    #[inline]
+    pub fn instantiated_target(&self) -> Option<TypeId> {
+        match self.data {
+            TypeData::Object {
+                instantiated_target,
+                ..
+            } => instantiated_target,
+            _ => None,
+        }
+    }
+
+    /// tsc type.mapper of an instantiated anonymous object type or of an
+    /// isolated single-signature type; None for every other type.
+    #[inline]
+    pub fn instantiated_mapper(&self) -> Option<MapperId> {
+        match self.data {
+            TypeData::Object {
+                instantiated_mapper,
+                ..
+            } => instantiated_mapper,
+            _ => None,
+        }
+    }
+
+    /// The mapper of a freshly created isolated single-signature type: the
+    /// one write of a type mapper without an instantiation target. The
+    /// type is new, so it has neither yet.
+    pub fn set_isolated_signature_mapper(&mut self, mapper: MapperId) {
+        match &mut self.data {
+            TypeData::Object {
+                instantiated_target: None,
+                instantiated_mapper: slot @ None,
+                ..
+            } => *slot = Some(mapper),
+            _ => panic!("isolated-signature mapper written over instantiation links"),
         }
     }
 

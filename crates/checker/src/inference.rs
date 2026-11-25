@@ -144,8 +144,14 @@ pub(crate) struct InferenceContext {
     pub(crate) flags: InferenceFlags,
     pub(crate) inferences: InferenceInfos,
     pub(crate) signature: Option<SignatureId>,
-    pub(crate) mapper: MapperId,
-    pub(crate) non_fixing_mapper: MapperId,
+    /// The context's fixing mapper (makeFixingMapperForContext 68258) and
+    /// its non-fixing mapper (makeNonFixingMapperForContext 68271), each
+    /// made when it is first asked for ([`CheckerState::inference_mapper`],
+    /// [`CheckerState::inference_non_fixing_mapper`]): a mapper's targets
+    /// are computed on demand in tsc too, and most contexts are never
+    /// asked for both.
+    pub(crate) mapper: Option<MapperId>,
+    pub(crate) non_fixing_mapper: Option<MapperId>,
     pub(crate) return_mapper: Option<MapperId>,
     pub(crate) outer_return_mapper: Option<MapperId>,
     pub(crate) compare_types: CompareTypesFn,
@@ -209,7 +215,7 @@ const _: () = {
     assert!(std::mem::offset_of!(InferenceContext, inferences) == 8);
     assert!(std::mem::offset_of!(InferenceInfo, generation) == 0);
     assert!(std::mem::offset_of!(InferenceInfo, candidates) == 16);
-    assert!(std::mem::size_of::<TypeMapper>() == 20);
+    assert!(std::mem::size_of::<TypeMapper>() == 16);
 };
 
 /// tsc-port: createInferenceInfo @6.0.3
@@ -410,12 +416,6 @@ impl<'a> CheckerState<'a> {
         let mut mapper_infos =
             crate::inference_storage::exact_buffer(mapper_infos, inferences.len());
         mapper_infos.extend_from_slice(&inferences);
-        let mapper = self.alloc_mapper(TypeMapper::Deferred(
-            DeferredMapperTargets::InferenceFixing(id),
-        ));
-        let non_fixing_mapper = self.alloc_mapper(TypeMapper::Deferred(
-            DeferredMapperTargets::InferenceNonFixing(id),
-        ));
         self.inference_context_arena.push(InferenceContext {
             generation: 0,
             escaped: false,
@@ -425,8 +425,8 @@ impl<'a> CheckerState<'a> {
             signature,
             flags,
             compare_types,
-            mapper,
-            non_fixing_mapper,
+            mapper: None,
+            non_fixing_mapper: None,
             return_mapper: None,
             inferred_type_parameters: None,
             intra_expression_inference_sites: None,
@@ -468,10 +468,36 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 215681bda0692b7d5a62205f8b81998258ef2dbd6543d18c995c4529ab09ca1b
     /// tsc-span: _tsc.js:68328-68330
     pub(crate) fn get_mapper_from_context(
-        &self,
+        &mut self,
         context: Option<InferenceContextId>,
     ) -> Option<MapperId> {
-        context.map(|id| self.inference_context(id).mapper)
+        context.map(|id| self.inference_mapper(id))
+    }
+
+    /// The fixing mapper of `context` (tsc `context.mapper`), made at its
+    /// first use and the same from then on.
+    pub(crate) fn inference_mapper(&mut self, context: InferenceContextId) -> MapperId {
+        if let Some(mapper) = self.inference_context(context).mapper {
+            return mapper;
+        }
+        let mapper = self.alloc_mapper(TypeMapper::Deferred(
+            DeferredMapperTargets::InferenceFixing(context),
+        ));
+        self.inference_context_mut(context).mapper = Some(mapper);
+        mapper
+    }
+
+    /// The non-fixing mapper of `context` (tsc `context.nonFixingMapper`),
+    /// made at its first use and the same from then on.
+    pub(crate) fn inference_non_fixing_mapper(&mut self, context: InferenceContextId) -> MapperId {
+        if let Some(mapper) = self.inference_context(context).non_fixing_mapper {
+            return mapper;
+        }
+        let mapper = self.alloc_mapper(TypeMapper::Deferred(
+            DeferredMapperTargets::InferenceNonFixing(context),
+        ));
+        self.inference_context_mut(context).non_fixing_mapper = Some(mapper);
+        mapper
     }
 
     /// tsc-port: hasInferenceCandidatesOrDefault @6.0.3
@@ -643,7 +669,7 @@ impl<'a> CheckerState<'a> {
         let clone = self
             .clone_inference_context(Some(context), InferenceFlags::NONE)
             .expect("Some in, Some out");
-        let clone_mapper = self.inference_context(clone).mapper;
+        let clone_mapper = self.inference_mapper(clone);
         let merged = self.merge_type_mappers(return_mapper, clone_mapper);
         self.inference_context_mut(context).outer_return_mapper = Some(merged);
         self.retain_context_mapper(context, Some(merged));
@@ -1597,7 +1623,7 @@ impl<'a> CheckerState<'a> {
                     // backreference mapper merged with the non-fixing
                     // mapper — forward parameters collapse to unknown.
                     let backreference = self.create_backreference_mapper(context, index);
-                    let non_fixing_mapper = self.inference_context(context).non_fixing_mapper;
+                    let non_fixing_mapper = self.inference_non_fixing_mapper(context);
                     let merged = self.merge_type_mappers(Some(backreference), non_fixing_mapper);
                     inferred_type = Some(self.instantiate_type(default_type, Some(merged))?);
                 }
@@ -1619,7 +1645,7 @@ impl<'a> CheckerState<'a> {
         self.inference_info_mut(inference).inferred_type = Some(memo);
         let type_parameter = self.inference_info(inference).type_parameter;
         if let Some(constraint) = self.get_constraint_of_type_parameter(type_parameter)? {
-            let non_fixing_mapper = self.inference_context(context).non_fixing_mapper;
+            let non_fixing_mapper = self.inference_non_fixing_mapper(context);
             let instantiated_constraint =
                 self.instantiate_type(constraint, Some(non_fixing_mapper))?;
             // tsgo (checker/inference.go:1381): a recursive resolution of

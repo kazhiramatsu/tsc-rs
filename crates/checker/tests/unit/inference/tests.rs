@@ -124,8 +124,18 @@ fn create_inference_context_initial_shape() {
             assert!(context.inferred_type_parameters.is_none());
             assert!(context.intra_expression_inference_sites.is_none());
             assert!(context.outer_return_mapper.is_none());
-            let mapper = context.mapper;
-            let non_fixing = context.non_fixing_mapper;
+            // Neither mapper exists before it is asked for; each is made
+            // once.
+            assert!(context.mapper.is_none() && context.non_fixing_mapper.is_none());
+            let mapper = state.inference_mapper(ctx);
+            let non_fixing = state.inference_non_fixing_mapper(ctx);
+            assert_eq!(state.inference_mapper(ctx), mapper);
+            assert_eq!(state.inference_non_fixing_mapper(ctx), non_fixing);
+            assert_eq!(state.inference_context(ctx).mapper, Some(mapper));
+            assert_eq!(
+                state.inference_context(ctx).non_fixing_mapper,
+                Some(non_fixing)
+            );
             for (index, tp) in [t, u].into_iter().enumerate() {
                 let info = slot(state, ctx, index);
                 assert_eq!(info.type_parameter, tp);
@@ -196,7 +206,7 @@ fn clone_inference_context_deep_copies_infos_only() {
             assert!(cloned.intra_expression_inference_sites.is_none());
             assert!(cloned.outer_return_mapper.is_none());
             // Fresh mapper pair over the CLONE.
-            let clone_mapper = cloned.mapper;
+            let clone_mapper = state.inference_mapper(clone);
             assert_eq!(slot(state, clone, 0).candidates, Some(vec![string].into()));
             match state.mapper(clone_mapper) {
                 TypeMapper::Deferred(DeferredMapperTargets::InferenceFixing(id)) => {
@@ -260,7 +270,7 @@ fn deferred_dispatch_identity_and_live_resolution() {
             let string = state.tables.intrinsics.string;
             let unknown = state.tables.intrinsics.unknown;
             let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
-            let non_fixing = state.inference_context(ctx).non_fixing_mapper;
+            let non_fixing = state.inference_non_fixing_mapper(ctx);
             // 63348: non-member types map to themselves.
             let mapped = state
                 .get_mapped_type(string, non_fixing)
@@ -293,7 +303,7 @@ fn fixing_dispatch_clears_caches_and_fixes_before_resolution() {
             let ctx = state.create_inference_context(&[t, u], None, InferenceFlags::NONE, None);
             slot_mut(state, ctx, 0).inferred_type = Some(string);
             slot_mut(state, ctx, 1).inferred_type = Some(string);
-            let fixing = state.inference_context(ctx).mapper;
+            let fixing = state.inference_mapper(ctx);
             let resolved = state.get_mapped_type(t, fixing).expect("live resolution");
             // 68263-68265 order: clearCachedInferences runs while
             // the row is still unfixed (its own STALE Some(string)
@@ -338,7 +348,7 @@ fn fixing_dispatch_consults_creation_capture_after_slot_replacement() {
             let string = state.tables.intrinsics.string;
             let unknown = state.tables.intrinsics.unknown;
             let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
-            let fixing = state.inference_context(ctx).mapper;
+            let fixing = state.inference_mapper(ctx);
             let first = state.get_mapped_type(t, fixing).expect("live resolution");
             assert_eq!(first, unknown);
             assert!(slot(state, ctx, 0).is_fixed);
@@ -389,7 +399,7 @@ fn fixing_dispatch_drains_sites_with_no_contextual_type() {
                     .len(),
                 2
             );
-            let fixing = state.inference_context(ctx).mapper;
+            let fixing = state.inference_mapper(ctx);
             // `var w = 1` has no contextual type at the
             // initializer, so the drain loop completes without
             // touching inferTypes and clears the list (68297),
@@ -420,7 +430,7 @@ fn fixing_dispatch_drains_conditional_context_and_fixes() {
             let literal = node_of_kind(state, tsc_syntax::SyntaxKind::NumericLiteral);
             let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
             state.add_intra_expression_inference_site(ctx, literal, string);
-            let fixing = state.inference_context(ctx).mapper;
+            let fixing = state.inference_mapper(ctx);
             // 9.6d: the conditional target is a live inference
             // shape, so the drain completes before fixing T.
             let resolved = state
@@ -572,10 +582,10 @@ fn get_mapper_from_context_reads_fixing_mapper() {
             let t = declared_type_parameter(state, "T");
             assert!(state.get_mapper_from_context(None).is_none());
             let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
-            assert_eq!(
-                state.get_mapper_from_context(Some(ctx)),
-                Some(state.inference_context(ctx).mapper)
-            );
+            let mapper = state.get_mapper_from_context(Some(ctx));
+            assert!(mapper.is_some());
+            assert_eq!(mapper, state.inference_context(ctx).mapper);
+            assert_eq!(mapper, Some(state.inference_mapper(ctx)));
         },
     );
 }
@@ -2639,10 +2649,10 @@ fn direct_owner_mapper_noops_keep_logical_age_after_slot_reuse() {
             let string = state.tables.intrinsics.string;
             let scope = state.inference_scope_start();
             let older = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
-            let older_mapper = state.inference_context(older).mapper;
+            let older_mapper = state.inference_mapper(older);
             let inner = state.inference_scope_start();
             let younger = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
-            let own_mapper = state.inference_context(younger).mapper;
+            let own_mapper = state.inference_mapper(younger);
             state.retain_context_mapper(younger, Some(older_mapper));
             state.retain_context_mapper(younger, Some(own_mapper));
             assert!(!state.inference_context(older).escaped);
@@ -2656,7 +2666,7 @@ fn direct_owner_mapper_noops_keep_logical_age_after_slot_reuse() {
             assert_eq!(state.inference_context_arena.records().len(), records);
             let info = state.inference_context(replacement).inferences[0];
             state.push_inference_candidate(info, string, false);
-            let mapper = state.inference_context(replacement).mapper;
+            let mapper = state.inference_mapper(replacement);
             state.retain_context_mapper(older, Some(mapper));
             state.inference_context_mut(older).return_mapper = Some(mapper);
             assert!(state.inference_context(replacement).escaped);
@@ -2686,7 +2696,7 @@ fn a_published_mapper_keeps_its_composite_and_merged_context_graph() {
             let context = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
             let info = state.inference_context(context).inferences[0];
             state.inference_info_mut(info).candidates = Some(vec![string].into());
-            let fixing = state.inference_context(context).mapper;
+            let fixing = state.inference_mapper(context);
             let unary = state.make_unary_type_mapper(u, number);
             let composite = state.combine_type_mappers(Some(fixing), unary);
             let merged = state.merge_type_mappers(Some(composite), unary);

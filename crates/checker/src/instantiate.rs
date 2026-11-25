@@ -58,16 +58,49 @@ pub enum DeferredMapperTargets {
 /// tsrs-native: a checker creates millions of mappers, so their source and
 /// target lists live in one arena instead of one heap allocation each, and
 /// the mapper record stays a few words (tsc closes over the arrays).
+///
+/// Six bytes, so that the mapper with two lists is sixteen: the length is
+/// sixteen bits, and a list of [`MapperList::LONG`] entries or more keeps its
+/// length in the arena entry before its first (no list of a real program is
+/// that long; one that is still maps as it did).
 #[derive(Clone, Copy, Debug)]
+#[repr(C, packed(2))]
 pub struct MapperList {
     start: u32,
-    len: u32,
+    len: u16,
 }
 
+const _: () = assert!(std::mem::size_of::<MapperList>() == 6);
+
 impl MapperList {
-    /// The list's range in `CheckerState::mapper_lists`.
-    pub(crate) fn range(self) -> std::ops::Range<usize> {
-        self.start as usize..(self.start + self.len) as usize
+    /// The length that says: read the length from the arena.
+    pub(crate) const LONG: u16 = u16::MAX;
+
+    /// Store `types` at the end of `arena`.
+    pub(crate) fn store(arena: &mut Vec<TypeId>, types: &[TypeId]) -> Self {
+        let len = match u16::try_from(types.len()) {
+            Ok(len) if len != Self::LONG => len,
+            _ => {
+                let len = u32::try_from(types.len()).expect("mapper list length fits u32");
+                arena.push(TypeId::new(len));
+                Self::LONG
+            }
+        };
+        let start = u32::try_from(arena.len()).expect("mapper list arena fits u32");
+        arena.extend_from_slice(types);
+        Self { start, len }
+    }
+
+    /// The list's types in `arena` (`CheckerState::mapper_lists`).
+    #[inline]
+    pub(crate) fn types(self, arena: &[TypeId]) -> &[TypeId] {
+        let start = self.start as usize;
+        let len = if self.len == Self::LONG {
+            arena[start - 1].index() as usize
+        } else {
+            usize::from(self.len)
+        };
+        &arena[start..start + len]
     }
 }
 
@@ -341,17 +374,12 @@ impl<'a> CheckerState<'a> {
 
     /// Store `types` in the mapper-list arena (see [`MapperList`]).
     pub(crate) fn alloc_mapper_list(&mut self, types: &[TypeId]) -> MapperList {
-        let start = u32::try_from(self.mapper_lists.len()).expect("mapper list arena fits u32");
-        self.mapper_lists.extend_from_slice(types);
-        MapperList {
-            start,
-            len: u32::try_from(types.len()).expect("mapper list length fits u32"),
-        }
+        MapperList::store(&mut self.mapper_lists, types)
     }
 
     /// The types of a stored mapper list.
     pub(crate) fn mapper_list(&self, list: MapperList) -> &[TypeId] {
-        &self.mapper_lists[list.start as usize..(list.start + list.len) as usize]
+        list.types(&self.mapper_lists)
     }
 
     /// tsc-port: makeUnaryTypeMapper @6.0.3
@@ -415,10 +443,7 @@ impl<'a> CheckerState<'a> {
         if sources.len() == 1 {
             return self.make_unary_type_mapper(sources[0], targets[0]);
         }
-        let start = u32::try_from(self.mapper_lists.len()).expect("mapper list arena fits u32");
-        let len = u32::try_from(sources.len()).expect("mapper list length fits u32");
-        self.mapper_lists.extend_from_slice(sources);
-        let sources = MapperList { start, len };
+        let sources = MapperList::store(&mut self.mapper_lists, sources);
         let targets = Some(self.alloc_mapper_list(targets));
         self.alloc_mapper(TypeMapper::Array { sources, targets })
     }
@@ -1053,10 +1078,11 @@ impl<'a> CheckerState<'a> {
                 TypeData::Mapped(mapped) => mapped
                     .target
                     .expect("instantiated mapped types carry their target"),
-                _ => self
-                    .links
-                    .read_ty(ty, |links| links.instantiated_target)
-                    .expect("Instantiated object flag implies links target"),
+                TypeData::Object {
+                    instantiated_target,
+                    ..
+                } => instantiated_target.expect("Instantiated object flag implies its target"),
+                _ => unreachable!("an instantiated object type is a mapped type or an object"),
             }
         } else {
             ty
@@ -1137,10 +1163,15 @@ impl<'a> CheckerState<'a> {
         // references, the instantiation mapper for anonymous shells.
         let type_mapper = if is_reference {
             *self.links.type_cold().deferred_mapper.get(ty)
-        } else if let TypeData::Mapped(mapped) = &self.tables.type_of(ty).data {
-            mapped.mapper
         } else {
-            self.links.read_ty(ty, |links| links.instantiated_mapper)
+            match &self.tables.type_of(ty).data {
+                TypeData::Mapped(mapped) => mapped.mapper,
+                TypeData::Object {
+                    instantiated_mapper,
+                    ..
+                } => *instantiated_mapper,
+                _ => None,
+            }
         };
         self.with_instantiation_type_list(|state, type_arguments| {
             let mut parameters = state.tables.cursor(type_parameters);
@@ -1582,12 +1613,17 @@ impl<'a> CheckerState<'a> {
                 .set_fresh_mapped_type_parameter(result, fresh_type_parameter);
             result
         } else {
-            let result = self
-                .tables
-                .create_type(TypeFlags::OBJECT, TypeData::PLAIN_OBJECT);
+            // instantiateAnonymousType's target and mapper (63658-63659)
+            // are part of the shell from its creation.
+            let result = self.tables.create_type(
+                TypeFlags::OBJECT,
+                TypeData::Object {
+                    node_position: 0,
+                    instantiated_target: Some(ty),
+                    instantiated_mapper: Some(mapper),
+                },
+            );
             self.retain_inference_mapper(Some(mapper));
-            self.links
-                .set_type_instantiation_links(self.speculation_depth, result, ty, mapper);
             result
         };
         let mut object_flags = (source_object_flags.bits()
@@ -3141,11 +3177,12 @@ impl<'a> CheckerState<'a> {
                     self.get_or_create_type_from_signature(new_return_signature)?;
                 if let Some(mapper) = self.signature_of(instantiated).mapper {
                     self.retain_inference_mapper(Some(mapper));
-                    self.links.set_type_isolated_signature_mapper(
-                        self.speculation_depth,
-                        new_return_type,
-                        mapper,
-                    );
+                    // `newReturnType.mapper = instantiatedSignature.mapper`
+                    // (59894): the isolated single-signature type was
+                    // created for this clone a moment ago.
+                    self.tables
+                        .type_mut(new_return_type)
+                        .set_isolated_signature_mapper(mapper);
                 }
                 let new_instantiated_signature = self.clone_signature(instantiated);
                 self.set_fresh_signature_return_type(new_instantiated_signature, new_return_type);
@@ -3246,9 +3283,9 @@ impl<'a> CheckerState<'a> {
         });
         let mapper = inference_context.map(|inference_context| {
             if generic_rest {
-                self.inference_context(inference_context).non_fixing_mapper
+                self.inference_non_fixing_mapper(inference_context)
             } else {
-                self.inference_context(inference_context).mapper
+                self.inference_mapper(inference_context)
             }
         });
         let source_signature = match mapper {

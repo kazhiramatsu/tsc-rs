@@ -1396,7 +1396,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         Some(CompareTypesFn::RelationFrame),
                     );
                     let inferences = self.st.inference_context(context).inferences.clone();
-                    let context_mapper = self.st.inference_context(context).mapper;
+                    let context_mapper = self.st.inference_mapper(context);
                     let frame = self.loan_frame(intersection_state);
                     let saved = std::mem::replace(
                         &mut self.st.relation_frame_loan,
@@ -8251,10 +8251,7 @@ impl<'a> CheckerState<'a> {
             }
             member_name.get_or_insert(name);
 
-            let Some(mapper) = self
-                .links
-                .read_ty(constituent, |links| links.instantiated_mapper)
-            else {
+            let Some(mapper) = self.tables.type_of(constituent).instantiated_mapper() else {
                 eligible = false;
                 break;
             };

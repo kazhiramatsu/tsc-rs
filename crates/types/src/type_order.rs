@@ -32,10 +32,10 @@ pub trait TypeOrderContext {
     /// tsc compareElementLabels (90837-90848) over labeled tuple element
     /// declarations.
     fn compare_element_labels(&self, a: Option<u32>, b: Option<u32>) -> Ordering;
-    /// tsc's `type.mapper` of a deferred reference or an instantiated
-    /// anonymous object type (checker TypeLinks); mapped types carry theirs
-    /// in their type data.
-    fn object_mapper(&self, ty: TypeId, has_node: bool) -> Option<MapperId>;
+    /// tsc's `type.mapper` of a deferred reference (the checker's links);
+    /// instantiated anonymous object types and mapped types carry theirs in
+    /// their type data.
+    fn deferred_mapper(&self, ty: TypeId) -> Option<MapperId>;
     /// tsc compareTypeMappers (90859-90898); the implementation recurses
     /// into [`compare_types`] for the mapper's sources and targets.
     fn compare_mappers(
@@ -178,8 +178,8 @@ pub fn compare_types(
                 }
                 let c = ctx.compare_mappers(
                     tables,
-                    ctx.object_mapper(t1, node1.is_some()),
-                    ctx.object_mapper(t2, node2.is_some()),
+                    object_mapper(tables, ctx, t1, node1.is_some()),
+                    object_mapper(tables, ctx, t2, node2.is_some()),
                 );
                 if c != Ordering::Equal {
                     return c;
@@ -660,9 +660,25 @@ fn reference_target(tables: &TypeTables, ty: TypeId) -> TypeId {
     }
 }
 
+/// tsc's `type.mapper` of an object type that is not a mapped type: a deferred
+/// reference's is in the checker's links, an instantiated anonymous type's in
+/// its type data.
+fn object_mapper(
+    tables: &TypeTables,
+    ctx: &dyn TypeOrderContext,
+    ty: TypeId,
+    has_node: bool,
+) -> Option<MapperId> {
+    if has_node {
+        ctx.deferred_mapper(ty)
+    } else {
+        tables.type_of(ty).instantiated_mapper()
+    }
+}
+
 /// tsc's `type.mapper` of a non-reference object type: a mapped type carries
-/// its instantiation mapper in its type data, an instantiated anonymous type
-/// in the checker's links, and reverse mapped types have none.
+/// its instantiation mapper in its type data, and so does an instantiated
+/// anonymous type; reverse mapped types have none.
 fn anonymous_or_mapped_mapper(
     tables: &TypeTables,
     ctx: &dyn TypeOrderContext,
@@ -671,7 +687,12 @@ fn anonymous_or_mapped_mapper(
     match &tables.type_of(ty).data {
         TypeData::Mapped(data) => ctx.mapped_instantiation_mapper(data.mapper),
         TypeData::ReverseMapped(_) => None,
-        _ => ctx.object_mapper(ty, tables.type_of(ty).deferred_node_position() != 0),
+        _ => object_mapper(
+            tables,
+            ctx,
+            ty,
+            tables.type_of(ty).deferred_node_position() != 0,
+        ),
     }
 }
 

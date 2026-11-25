@@ -222,9 +222,9 @@ impl<'a> CheckerState<'a> {
                     None,
                 );
                 if let Some(outer_mapper) = mapper {
-                    let non_fixing = self.inference_context(context).non_fixing_mapper;
+                    let non_fixing = self.inference_non_fixing_mapper(context);
                     let combined = self.combine_type_mappers(Some(non_fixing), outer_mapper);
-                    self.inference_context_mut(context).non_fixing_mapper = combined;
+                    self.inference_context_mut(context).non_fixing_mapper = Some(combined);
                     self.retain_context_mapper(context, Some(combined));
                 }
                 if !check_type_deferred {
@@ -237,7 +237,7 @@ impl<'a> CheckerState<'a> {
                         false,
                     )?;
                 }
-                let inference_mapper = self.inference_context(context).mapper;
+                let inference_mapper = self.inference_mapper(context);
                 combined_mapper = Some(match mapper {
                     Some(outer_mapper) => {
                         self.combine_type_mappers(Some(inference_mapper), outer_mapper)

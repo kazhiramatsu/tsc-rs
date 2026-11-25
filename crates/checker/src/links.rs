@@ -1051,10 +1051,11 @@ impl SymbolLinksCold {
 /// object (setStructuredTypeMembers); a side table keeps Type immutable
 /// after interning.
 ///
-/// The fields below are the ones a large share of type records set
-/// (resolved members, instantiation target and mapper), the
-/// type-parameter constraint caches the relation paths read for most
-/// generic types. The other TypeLinks fields live in [`TypeLinksCold`].
+/// The fields below are the ones a large share of type records set (the
+/// resolved members) and the type-parameter constraint caches the relation
+/// paths read for most generic types. The other TypeLinks fields live in
+/// [`TypeLinksCold`]; an instantiated anonymous type's target and mapper are
+/// part of its type record (`TypeData::Object`), written at its creation.
 #[derive(Clone, Debug, Default)]
 pub struct TypeLinks {
     pub resolved_members: ValueSlot<MembersId>,
@@ -1066,15 +1067,9 @@ pub struct TypeLinks {
     /// nested base-constraint resolutions; the resolution property is
     /// IMMEDIATE_BASE_CONSTRAINT.
     pub resolved_base_constraint: ValueSlot<TypeId>,
-    /// tsc type.target for ObjectFlags::INSTANTIATED anonymous types
-    /// (instantiateAnonymousType 63658).
-    pub instantiated_target: Option<TypeId>,
-    /// tsc type.mapper for ObjectFlags::INSTANTIATED anonymous types
-    /// (63659).
-    pub instantiated_mapper: Option<MapperId>,
 }
 
-const _: () = assert!(std::mem::size_of::<TypeLinks>() == 20);
+const _: () = assert!(std::mem::size_of::<TypeLinks>() == 12);
 
 /// The lazily resolved parts of one mapped type. Reading a missing record
 /// observes four vacant slots without allocating an index page.
@@ -3900,53 +3895,6 @@ impl LinksTables {
         let slot = self.type_cold.default_only_type.slot(id);
         assert!(slot.is_none(), "defaultOnlyType written twice for {id:?}");
         *slot = Some(value);
-    }
-
-    /// instantiateAnonymousType's target/mapper seed (63658-63659),
-    /// written once at creation of the instantiated shell.
-    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
-    /// links-field access; no standalone tsc function.
-    pub fn set_type_instantiation_links(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        target: TypeId,
-        mapper: MapperId,
-    ) {
-        let _ = speculation_depth;
-        let links = self.ty.slot(id);
-        assert!(
-            links.instantiated_target.is_none() && links.instantiated_mapper.is_none(),
-            "type instantiation links written twice for {id:?}"
-        );
-        links.instantiated_target = Some(target);
-        links.instantiated_mapper = Some(mapper);
-    }
-
-    /// tsrs-native: getSignatureInstantiation's inferredTypeParameters
-    /// arm (59894) — `newReturnType.mapper =
-    /// instantiatedSignature.mapper`, the one site that writes a type
-    /// mapper WITHOUT an instantiation target
-    /// (the isolated SingleSignatureType is freshly minted per clone,
-    /// so the once-only assert holds by construction; its reader is
-    /// getObjectTypeInstantiation's 63484 `type.mapper` read — the
-    /// 63496 arm combines the INCOMING mapper, not this field).
-    pub fn set_type_isolated_signature_mapper(
-        &mut self,
-        speculation_depth: u32,
-        id: TypeId,
-        mapper: MapperId,
-    ) {
-        // This initializes the mapper carried by a freshly allocated
-        // isolated-signature type. It is semantic object construction,
-        // not publication into a cache on a pre-existing type.
-        let _ = speculation_depth;
-        let links = self.ty.slot(id);
-        assert!(
-            links.instantiated_target.is_none() && links.instantiated_mapper.is_none(),
-            "isolated-signature mapper written over instantiation links for {id:?}"
-        );
-        links.instantiated_mapper = Some(mapper);
     }
 
     /// getResolvedMembersOrExportsOfSymbol's links[resolutionKind]
