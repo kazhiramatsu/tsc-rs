@@ -4075,6 +4075,11 @@ impl<'a> CheckerState<'a> {
             {
                 return Ok(false);
             }
+            // A reference whose members are still deferred answers from its
+            // declarations' flags: the test needs no instantiated member.
+            if let Some(weak) = self.deferred_reference_is_weak(ty)? {
+                return Ok(weak);
+            }
             let members = self.resolve_structured_type_members(ty)?;
             return Ok(self.has_only_optional_properties(ty, members));
         }

@@ -119,6 +119,159 @@ fn deferred_reference_members_classify_the_frozen_property_selection() {
 }
 
 #[test]
+fn a_deferred_reference_answers_the_weak_test_from_its_declarations() {
+    with_state(
+        "interface Optional<T> { first?: T; second?: T; }\n\
+         interface Required<T> { first: T; second?: T; }\n\
+         interface Empty<T> {}\n\
+         declare const optional: Optional<string>;\n\
+         declare const required: Required<string>;\n\
+         declare const empty: Empty<string>;",
+        |state| {
+            for (name, expected) in [("optional", true), ("required", false), ("empty", false)] {
+                let ty = annotation_type(state, name);
+                assert_eq!(state.is_weak_type(ty).unwrap(), expected, "{name}");
+                // No member was realized, nothing was resolved in full, and
+                // the verdict is remembered.
+                let deferred = state.deferred_reference_members[&ty].as_ref().unwrap();
+                assert!(deferred.instantiated.is_none(), "{name}");
+                assert_eq!(deferred.weak, Some(expected), "{name}");
+                assert!(
+                    state
+                        .links
+                        .read_ty(ty, |links| links.resolved_members.resolved())
+                        .is_none(),
+                    "{name}"
+                );
+                assert_eq!(state.is_weak_type(ty).unwrap(), expected, "{name}");
+            }
+            // The members' identity and order afterwards are a full
+            // resolution's, and the resolved record answers the same.
+            let optional = annotation_type(state, "optional");
+            let first = state
+                .get_property_of_object_type(optional, "first")
+                .unwrap()
+                .unwrap();
+            assert!(state.is_weak_type(optional).unwrap());
+            let all = state.get_properties_of_type_full(optional).unwrap();
+            assert_eq!(all[0], first);
+            assert_eq!(state.binder.symbol(all[1]).escaped_name, "second");
+            assert_eq!(
+                state
+                    .get_property_of_object_type(optional, "first")
+                    .unwrap(),
+                Some(first)
+            );
+            assert!(state.is_weak_type(optional).unwrap());
+        },
+    );
+}
+
+#[test]
+fn the_weak_test_of_a_deferred_reference_follows_the_inherited_names() {
+    with_state(
+        "interface A<T> { value?: T; a?: T; }\n\
+         interface B<T> { value: T; b?: T; }\n\
+         interface AB<T> extends A<T>, B<T> { own?: T; }\n\
+         interface BA<T> extends B<T>, A<T> { own?: T; }\n\
+         interface Override<T> extends B<T> { value?: T; }\n\
+         interface Deep<T> extends Override<T> { deep?: T; }\n\
+         interface OnlyBase<T> extends A<T> {}\n\
+         declare const ab: AB<string>; declare const ba: BA<string>;\n\
+         declare const overridden: Override<string>; declare const deep: Deep<string>;\n\
+         declare const only: OnlyBase<string>;",
+        |state| {
+            // An erroneous inheritance has the same table as a full
+            // resolution builds - the first value holds a name - and the
+            // verdict read from the declarations is that table's.
+            for (name, expected) in [
+                ("ab", true),
+                ("ba", false),
+                ("overridden", true),
+                ("deep", true),
+                ("only", true),
+            ] {
+                let ty = annotation_type(state, name);
+                assert_eq!(state.is_weak_type(ty).unwrap(), expected, "{name}");
+                assert!(state.deferred_reference_members[&ty].is_some(), "{name}");
+                let properties = state.get_properties_of_type_full(ty).unwrap();
+                assert_eq!(
+                    !properties.is_empty()
+                        && properties.iter().all(|&property| state
+                            .symbol_flags(property)
+                            .intersects(tsc_types::SymbolFlags::OPTIONAL)),
+                    expected,
+                    "{name}"
+                );
+            }
+        },
+    );
+}
+
+#[test]
+fn the_weak_test_of_a_deferred_reference_creates_what_a_full_resolution_creates() {
+    let run = |eager: bool, stable: bool| {
+        with_state(
+            "type Parent<T> = { left?: T; same?: T } &\n\
+                              { right?: { wrapped: T }; same?: number };\n\
+             interface Child<T> extends Parent<T> { required: T; }\n\
+             declare const child: Child<string>;",
+            |state| {
+                state.stable_type_ordering = stable;
+                let ty = annotation_type(state, "child");
+                if eager {
+                    state.structured_member_headers(ty).unwrap();
+                    state.resolve_structured_type_members(ty).unwrap();
+                } else {
+                    assert!(!state.is_weak_type(ty).unwrap());
+                }
+                let boundary = (state.tables.len(), state.total_instantiation_count);
+                let mut observed = Vec::new();
+                for name in ["right", "left", "same", "required"] {
+                    let property = state
+                        .get_property_of_object_type(ty, name)
+                        .unwrap()
+                        .unwrap();
+                    observed.push(state.get_type_of_symbol(property).unwrap());
+                }
+                (
+                    boundary,
+                    observed,
+                    state.tables.len(),
+                    state.total_instantiation_count,
+                )
+            },
+        )
+    };
+    for stable in [false, true] {
+        assert_eq!(run(false, stable), run(true, stable));
+    }
+}
+
+#[test]
+fn the_weak_test_resolves_a_reference_that_is_being_finished() {
+    with_state(
+        "interface Box<T> { value?: T; }\ndeclare const box: Box<string>;",
+        |state| {
+            let ty = annotation_type(state, "box");
+            state.structured_member_headers(ty).unwrap();
+            state
+                .deferred_reference_members
+                .get_mut(&ty)
+                .unwrap()
+                .as_mut()
+                .unwrap()
+                .finishing = true;
+            assert!(state.is_weak_type(ty).unwrap());
+            assert!(state
+                .links
+                .read_ty(ty, |links| links.resolved_members.resolved())
+                .is_some());
+        },
+    );
+}
+
+#[test]
 fn deferred_reference_members_keep_identity_across_lookup_and_enumeration() {
     with_state(
         "interface Box<T> { value: T; other: T; }\n\
