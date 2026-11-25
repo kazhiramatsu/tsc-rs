@@ -1047,6 +1047,95 @@ impl SymbolLinksCold {
     }
 }
 
+/// A type's resolved members, or the lazy member table of a reference whose
+/// members are instantiated on demand: four states in four bytes. Zero is
+/// vacant; a positive value (as `i32`) is the resolved members' position;
+/// [`MembersSlot::PREPARING`] says a lazy table is being prepared; a value
+/// above it names a ready lazy table by its index. Every reader of the
+/// resolved members sees a lazy state as "not resolved"; the lazy tables'
+/// own code reads [`MembersSlot::lazy`], so a property read of a lazy
+/// reference finds its table from the word it has just loaded.
+#[derive(Clone, Copy, Default, Eq, PartialEq)]
+pub struct MembersSlot(u32);
+
+/// What a [`MembersSlot`] says of a lazy member table.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum LazyMembers {
+    /// No lazy table: the slot is vacant or resolved.
+    None,
+    /// A table in preparation: a recursive query resolves the ordinary way.
+    Preparing,
+    /// A ready table, by its index among the checker's lazy tables.
+    Ready(u32),
+}
+
+impl MembersSlot {
+    const PREPARING: u32 = 1 << 31;
+
+    /// The resolved members; `None` while vacant or lazy.
+    #[inline]
+    pub fn resolved(self) -> Option<MembersId> {
+        if (self.0 as i32) > 0 {
+            MembersId::from_position(self.0)
+        } else {
+            None
+        }
+    }
+
+    /// The slot as a [`LinkSlot`]: resolved, or vacant (a lazy state too).
+    #[inline]
+    pub fn get(self) -> LinkSlot<MembersId> {
+        self.resolved().map_or(LinkSlot::Vacant, LinkSlot::Resolved)
+    }
+
+    /// The slot's lazy state.
+    #[inline]
+    pub(crate) fn lazy(self) -> LazyMembers {
+        if self.0 < Self::PREPARING {
+            LazyMembers::None
+        } else if self.0 == Self::PREPARING {
+            LazyMembers::Preparing
+        } else {
+            LazyMembers::Ready(self.0 - Self::PREPARING - 1)
+        }
+    }
+
+    fn ready(index: u32) -> Self {
+        assert!(
+            index < Self::PREPARING - 1,
+            "lazy member table index {index} does not fit a members slot"
+        );
+        Self(Self::PREPARING + 1 + index)
+    }
+}
+
+impl From<LinkSlot<MembersId>> for MembersSlot {
+    #[inline]
+    fn from(slot: LinkSlot<MembersId>) -> Self {
+        match slot {
+            LinkSlot::Vacant => Self(0),
+            LinkSlot::Resolved(id) => {
+                let position = id.position();
+                assert!(
+                    position < Self::PREPARING,
+                    "members position {position} does not fit a members slot"
+                );
+                Self(position)
+            }
+            LinkSlot::Resolving => panic!("a members slot cannot store Resolving"),
+        }
+    }
+}
+
+impl std::fmt::Debug for MembersSlot {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.lazy() {
+            LazyMembers::None => self.get().fmt(formatter),
+            lazy => lazy.fmt(formatter),
+        }
+    }
+}
+
 /// Resolved-members store — tsc keeps these directly on the type
 /// object (setStructuredTypeMembers); a side table keeps Type immutable
 /// after interning.
@@ -1058,7 +1147,7 @@ impl SymbolLinksCold {
 /// part of its type record (`TypeData::Object`), written at its creation.
 #[derive(Clone, Debug, Default)]
 pub struct TypeLinks {
-    pub resolved_members: ValueSlot<MembersId>,
+    pub resolved_members: MembersSlot,
     /// tsc TypeParameter.constraint (getConstraintFromTypeParameter
     /// 60103) — Resolved(noConstraintType sentinel) = computed, none.
     pub type_parameter_constraint: ValueSlot<TypeId>,
@@ -4247,7 +4336,7 @@ impl LinksTables {
             matches!(slot.get(), LinkSlot::Resolved(_)),
             "retract without a members write for {id:?}"
         );
-        *slot = LinkSlot::Vacant.into();
+        *slot = MembersSlot::default();
     }
 
     /// tsrs-native: Err-unwind retraction (tsc has no failure mode
@@ -4403,9 +4492,49 @@ impl LinksTables {
         // setStructuredTypeMembers writes an empty table first as a
         // re-entrancy guard, then the real one (58333/58339) — allow
         // Resolved -> Resolved for that one tsc-shaped double write.
+        // A lazy state reads as vacant here: the resolved members take
+        // the slot (the lazy table's own code frees its record).
         match (slot.get(), &value) {
             (LinkSlot::Resolved(_), LinkSlot::Resolved(_)) => *slot = value.into(),
-            _ => Self::write_value_slot(slot, value),
+            _ => Self::write_members_slot(slot, value),
+        }
+    }
+
+    fn write_members_slot(slot: &mut MembersSlot, next: LinkSlot<crate::state::MembersId>) {
+        let mut value = slot.get();
+        Self::write_slot(&mut value, next);
+        *slot = value.into();
+    }
+
+    /// A lazy member table of `id` is being prepared: until it is ready
+    /// (or given up) a recursive query of the type's members resolves the
+    /// ordinary way.
+    pub(crate) fn begin_type_lazy_members(&mut self, id: TypeId) {
+        let slot = &mut self.ty.slot(id).resolved_members;
+        assert!(
+            *slot == MembersSlot::default(),
+            "a lazy member table begun over {slot:?} for {id:?}"
+        );
+        *slot = MembersSlot(MembersSlot::PREPARING);
+    }
+
+    /// The prepared lazy member table of `id` is the checker's table
+    /// `index`.
+    pub(crate) fn set_type_lazy_members(&mut self, id: TypeId, index: u32) {
+        let slot = &mut self.ty.slot(id).resolved_members;
+        assert!(
+            slot.lazy() == LazyMembers::Preparing,
+            "a lazy member table published over {slot:?} for {id:?}"
+        );
+        *slot = MembersSlot::ready(index);
+    }
+
+    /// Give up the lazy member table of `id` - in preparation or ready -
+    /// and leave the slot vacant. Members resolved meanwhile stay.
+    pub(crate) fn end_type_lazy_members(&mut self, id: TypeId) {
+        let slot = &mut self.ty.slot(id).resolved_members;
+        if slot.lazy() != LazyMembers::None {
+            *slot = MembersSlot::default();
         }
     }
 
@@ -4415,7 +4544,7 @@ impl LinksTables {
     /// semantic type. This is object construction, not publication of
     /// a cold cache on a pre-existing type.
     pub fn set_fresh_type_members(&mut self, id: TypeId, value: LinkSlot<crate::state::MembersId>) {
-        Self::write_value_slot(&mut self.ty.slot(id).resolved_members, value);
+        Self::write_members_slot(&mut self.ty.slot(id).resolved_members, value);
     }
 }
 

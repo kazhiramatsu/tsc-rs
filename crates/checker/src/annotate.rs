@@ -14,7 +14,7 @@ use tsc_types::{
 
 use crate::evaluate::EvalValue;
 
-use crate::links::LinkSlot;
+use crate::links::{LazyMembers, LinkSlot};
 use crate::member_table::{FreezeMembers, HashedName, MemberTable};
 use crate::state::{
     CheckResult, CheckerState, IndexInfo, MembersId, ResolvedMembers, SignatureId, SymbolIds,
@@ -88,6 +88,69 @@ impl DeferredReferenceMembers {
                 std::mem::size_of::<MemberTable>() + table.heap_bytes()
             })
             + self.bases.heap_bytes_once(usage)
+    }
+}
+
+/// A checker's lazy member tables. A table's index is held by its type's
+/// members slot ([`crate::links::MembersSlot`]): a property read of a lazy
+/// reference loads that slot anyway, so it finds the table without a hash
+/// lookup, and the tables sit in one list instead of a hash map's buckets.
+/// A finished table's place is given to the next one.
+#[derive(Default)]
+pub(crate) struct LazyMemberTables {
+    records: Vec<Option<DeferredReferenceMembers>>,
+    free: Vec<u32>,
+}
+
+impl LazyMemberTables {
+    fn insert(&mut self, record: DeferredReferenceMembers) -> u32 {
+        match self.free.pop() {
+            Some(index) => {
+                self.records[index as usize] = Some(record);
+                index
+            }
+            None => {
+                let index = u32::try_from(self.records.len()).expect("lazy member tables fit u32");
+                self.records.push(Some(record));
+                index
+            }
+        }
+    }
+
+    fn remove(&mut self, index: u32) {
+        let record = self.records[index as usize].take();
+        assert!(record.is_some(), "a lazy member table removed twice");
+        self.free.push(index);
+    }
+
+    /// The table a ready members slot names.
+    #[inline]
+    fn get(&self, index: u32) -> &DeferredReferenceMembers {
+        self.records[index as usize]
+            .as_ref()
+            .expect("a ready members slot names a live table")
+    }
+
+    #[inline]
+    fn get_mut(&mut self, index: u32) -> &mut DeferredReferenceMembers {
+        self.records[index as usize]
+            .as_mut()
+            .expect("a ready members slot names a live table")
+    }
+
+    /// The live tables (memory accounting).
+    pub(crate) fn len(&self) -> usize {
+        self.records.len() - self.free.len()
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &DeferredReferenceMembers> {
+        self.records.iter().flatten()
+    }
+
+    /// Bytes of the list itself and of its free places.
+    pub(crate) fn table_bytes(&self) -> usize {
+        self.records.capacity() * std::mem::size_of::<Option<DeferredReferenceMembers>>()
+            + self.free.capacity() * std::mem::size_of::<u32>()
     }
 }
 
@@ -4523,12 +4586,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 3761f294b677fb0961124508846997f613d16efd53c91352cd4fbd0053548734
     /// tsc-span: _tsc.js:57845-57852
     fn resolve_type_reference_members(&mut self, ty: TypeId) -> CheckResult<MembersId> {
-        if self
-            .deferred_reference_members
-            .get(&ty)
-            .is_some_and(|entry| entry.as_ref().is_some_and(|members| !members.finishing))
-        {
-            return self.finish_deferred_reference_members(ty);
+        if let Some(index) = self.lazy_members_index(ty) {
+            if !self.deferred_reference_members.get(index).finishing {
+                return self.finish_deferred_reference_members(ty, index);
+            }
         }
         let target = self.tables.reference_target(ty);
         let source = self.resolve_declared_members(target)?;
@@ -4598,15 +4659,21 @@ impl<'a> CheckerState<'a> {
             .tables
             .object_flags_of(ty)
             .intersects(ObjectFlags::REFERENCE)
-            || self
-                .links
-                .read_ty(ty, |links| links.resolved_members.resolved())
-                .is_some()
         {
             return Ok(None);
         }
-        if let Some(entry) = self.deferred_reference_members.get(&ty) {
-            return Ok(entry.as_ref().map(|members| read(self, members)));
+        // One read of the type's slot says all of it: resolved members, a
+        // ready table, a table in preparation, or nothing yet.
+        let slot = self.links.read_ty(ty, |links| links.resolved_members);
+        if slot.resolved().is_some() {
+            return Ok(None);
+        }
+        match slot.lazy() {
+            LazyMembers::Ready(index) => {
+                return Ok(Some(read(self, self.deferred_reference_members.get(index))));
+            }
+            LazyMembers::Preparing => return Ok(None),
+            LazyMembers::None => {}
         }
         let Some(ready) = self.create_deferred_reference_members(ty)? else {
             return Ok(None);
@@ -4614,8 +4681,34 @@ impl<'a> CheckerState<'a> {
         // The projection only reads settled IDs and clones the base snapshot.
         // Publish before the caller can instantiate a symbol or visit a base.
         let result = read(self, &ready);
-        self.deferred_reference_members.insert(ty, Some(ready));
+        let index = self.deferred_reference_members.insert(ready);
+        self.links.set_type_lazy_members(ty, index);
         Ok(Some(result))
+    }
+
+    /// The index of `ty`'s ready lazy member table, if it has one.
+    #[inline]
+    pub(crate) fn lazy_members_index(&self, ty: TypeId) -> Option<u32> {
+        match self
+            .links
+            .read_ty(ty, |links| links.resolved_members.lazy())
+        {
+            LazyMembers::Ready(index) => Some(index),
+            LazyMembers::None | LazyMembers::Preparing => None,
+        }
+    }
+
+    /// `ty`'s ready lazy member table, if it has one.
+    #[inline]
+    fn lazy_members(&self, ty: TypeId) -> Option<&DeferredReferenceMembers> {
+        self.lazy_members_index(ty)
+            .map(|index| self.deferred_reference_members.get(index))
+    }
+
+    #[inline]
+    fn lazy_members_mut(&mut self, ty: TypeId) -> Option<&mut DeferredReferenceMembers> {
+        self.lazy_members_index(ty)
+            .map(|index| self.deferred_reference_members.get_mut(index))
     }
 
     fn create_deferred_reference_members(
@@ -4637,7 +4730,7 @@ impl<'a> CheckerState<'a> {
         }
         // A recursive query during preparation must use the ordinary
         // resolution path; partially prepared headers are not answers.
-        self.deferred_reference_members.insert(ty, None);
+        self.links.begin_type_lazy_members(ty);
         let prepared = (|| -> CheckResult<Option<DeferredReferenceMembers>> {
             let source = self.resolve_declared_members(target)?;
             let (parameters, this_type) = match self.tables.type_of(target).data {
@@ -4756,12 +4849,14 @@ impl<'a> CheckerState<'a> {
             {
                 Ok(Some(members))
             }
+            // Not a lazy type after all, or resolved the ordinary way by
+            // a recursive query meanwhile (those members stay).
             Ok(_) => {
-                self.deferred_reference_members.remove(&ty);
+                self.links.end_type_lazy_members(ty);
                 Ok(None)
             }
             Err(error) => {
-                self.deferred_reference_members.remove(&ty);
+                self.links.end_type_lazy_members(ty);
                 Err(error)
             }
         }
@@ -4769,7 +4864,7 @@ impl<'a> CheckerState<'a> {
 
     fn realize_deferred_declared_member(
         &mut self,
-        ty: TypeId,
+        index: u32,
         member: DeferredDeclaredMember,
     ) -> SymbolId {
         let symbol = match member {
@@ -4784,10 +4879,7 @@ impl<'a> CheckerState<'a> {
             } => self.new_instantiated_symbol(declared, mapper),
         };
         self.deferred_reference_members
-            .get_mut(&ty)
-            .unwrap()
-            .as_mut()
-            .unwrap()
+            .get_mut(index)
             .instantiated
             .get_or_insert_with(Box::default)
             .insert(&self.binder, symbol);
@@ -4837,7 +4929,12 @@ impl<'a> CheckerState<'a> {
         else {
             return Ok(None);
         };
-        let mut result = own.map(|member| self.realize_deferred_declared_member(ty, member));
+        let mut result = own.map(|member| {
+            let index = self
+                .lazy_members_index(ty)
+                .expect("the table just read is ready");
+            self.realize_deferred_declared_member(index, member)
+        });
         for base in bases {
             if result.is_some_and(|symbol| self.symbol_flags(symbol).intersects(SymbolFlags::VALUE))
             {
@@ -4854,7 +4951,9 @@ impl<'a> CheckerState<'a> {
 
     pub(crate) fn structured_type_has_properties(&mut self, ty: TypeId) -> CheckResult<bool> {
         if self.prepare_deferred_reference_members(ty)?.is_some() {
-            let members = self.deferred_reference_members[&ty].as_ref().unwrap();
+            let members = self
+                .lazy_members(ty)
+                .expect("the table just prepared is ready");
             if !self.members_of(members.source).properties.is_empty() {
                 return Ok(true);
             }
@@ -4888,12 +4987,7 @@ impl<'a> CheckerState<'a> {
         if self.prepare_deferred_reference_members(ty)?.is_none() {
             return Ok(None);
         }
-        let Some(members) = self
-            .deferred_reference_members
-            .get(&ty)
-            .and_then(Option::as_ref)
-            .filter(|members| !members.finishing)
-        else {
+        let Some(members) = self.lazy_members(ty).filter(|members| !members.finishing) else {
             return Ok(None);
         };
         if let Some(weak) = members.weak {
@@ -4915,9 +5009,7 @@ impl<'a> CheckerState<'a> {
         };
         // A base's enumeration can have resolved this reference meanwhile.
         if let Some(members) = self
-            .deferred_reference_members
-            .get_mut(&ty)
-            .and_then(Option::as_mut)
+            .lazy_members_mut(ty)
             .filter(|members| !members.finishing)
         {
             members.weak = Some(weak);
@@ -4940,9 +5032,7 @@ impl<'a> CheckerState<'a> {
         inherited: bool,
         held: &mut HeldFlags,
     ) -> CheckResult<()> {
-        let members = self.deferred_reference_members[&ty]
-            .as_ref()
-            .expect("ready reference members");
+        let members = self.lazy_members(ty).expect("ready reference members");
         let properties = self.members_of(members.source).properties.clone();
         let bases = members.bases.clone();
         for &property in properties.iter() {
@@ -4955,9 +5045,7 @@ impl<'a> CheckerState<'a> {
             let reduced = self.get_reduced_apparent_type(base)?;
             let deferred = self.prepare_deferred_reference_members(reduced)?.is_some()
                 && self
-                    .deferred_reference_members
-                    .get(&reduced)
-                    .and_then(Option::as_ref)
+                    .lazy_members(reduced)
                     .is_some_and(|members| !members.finishing);
             if deferred {
                 self.hold_deferred_reference_properties(reduced, true, held)?;
@@ -5002,13 +5090,16 @@ impl<'a> CheckerState<'a> {
         held.required_value |= holds && entry.0 && !entry.1;
     }
 
-    fn finish_deferred_reference_members(&mut self, ty: TypeId) -> CheckResult<MembersId> {
-        let deferred = self
-            .deferred_reference_members
-            .get_mut(&ty)
-            .unwrap()
-            .as_mut()
-            .unwrap();
+    /// Finish the ready table `index` of `ty` into full members. The index
+    /// is the caller's reading of the type's slot: while this runs a
+    /// recursive query may resolve `ty` the ordinary way and take the slot
+    /// (the table says `finishing`), and the table is still read here.
+    fn finish_deferred_reference_members(
+        &mut self,
+        ty: TypeId,
+        index: u32,
+    ) -> CheckResult<MembersId> {
+        let deferred = self.deferred_reference_members.get_mut(index);
         deferred.finishing = true;
         let source = deferred.source;
         let header = deferred.header;
@@ -5025,12 +5116,10 @@ impl<'a> CheckerState<'a> {
                 None => MemberTable::with_capacity(properties.len()),
             };
             for &declared in &properties {
-                let ready = self.deferred_reference_members[&ty]
-                    .as_ref()
-                    .expect("ready reference members");
+                let ready = self.deferred_reference_members.get(index);
                 let key = HashedName::new(self.binder.symbol(declared).escaped_name);
                 let member = ready.declared_member(&self.binder, declared, key);
-                let symbol = self.realize_deferred_declared_member(ty, member);
+                let symbol = self.realize_deferred_declared_member(index, member);
                 members.insert(&self.binder, symbol);
             }
             for base in bases {
@@ -5047,7 +5136,12 @@ impl<'a> CheckerState<'a> {
                 .set_type_members(self.speculation_depth, ty, LinkSlot::Resolved(header));
             Ok(header)
         })();
-        self.deferred_reference_members.remove(&ty);
+        self.deferred_reference_members.remove(index);
+        if result.is_err() {
+            // The table is gone; members resolved the ordinary way
+            // meanwhile stay.
+            self.links.end_type_lazy_members(ty);
+        }
         result
     }
 
