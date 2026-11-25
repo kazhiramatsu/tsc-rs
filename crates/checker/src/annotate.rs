@@ -38,6 +38,18 @@ pub(crate) struct DeferredReferenceMembers {
     weak: Option<bool>,
 }
 
+/// What the weak-type test's walk of a reference's declarations holds: for
+/// every property name its holder - whether it is a value, whether it is
+/// optional.
+#[derive(Default)]
+struct HeldFlags {
+    names: rustc_hash::FxHashMap<tsc_types::EscapedName, (bool, bool)>,
+    /// A value that is not optional holds a name. No later symbol takes a
+    /// name from a value, so the type has a required property whatever
+    /// follows: it is not weak, and the walk holds no further name.
+    required_value: bool,
+}
+
 /// The result of reading a ready reference's instantiated table and its
 /// frozen identity decision. Publication can require a mutable checker.
 enum DeferredDeclaredMember {
@@ -4895,9 +4907,11 @@ impl<'a> CheckerState<'a> {
                         .intersects(SymbolFlags::OPTIONAL)
                 })
         } else {
-            let mut held = rustc_hash::FxHashMap::default();
+            let mut held = HeldFlags::default();
             self.hold_deferred_reference_properties(ty, false, &mut held)?;
-            !held.is_empty() && held.values().all(|&(_, optional)| optional)
+            !held.required_value
+                && !held.names.is_empty()
+                && held.names.values().all(|&(_, optional)| optional)
         };
         // A base's enumeration can have resolved this reference meanwhile.
         if let Some(members) = self
@@ -4916,12 +4930,15 @@ impl<'a> CheckerState<'a> {
     /// full resolution visits them: the declared properties, then every
     /// base's. Every base is visited, and a base without a deferred table
     /// through its full property list, so whatever such a list creates is
-    /// created here, in the order of a full resolution.
+    /// created here, in the order of a full resolution. Once a value that is
+    /// not optional holds a name ([`HeldFlags::required_value`]) the answer
+    /// is known and no further name is held: what is left of the hierarchy
+    /// is only visited.
     fn hold_deferred_reference_properties(
         &mut self,
         ty: TypeId,
         inherited: bool,
-        held: &mut rustc_hash::FxHashMap<tsc_types::EscapedName, (bool, bool)>,
+        held: &mut HeldFlags,
     ) -> CheckResult<()> {
         let members = self.deferred_reference_members[&ty]
             .as_ref()
@@ -4929,6 +4946,9 @@ impl<'a> CheckerState<'a> {
         let properties = self.members_of(members.source).properties.clone();
         let bases = members.bases.clone();
         for &property in properties.iter() {
+            if held.required_value {
+                break;
+            }
             self.hold_property(property, inherited, held);
         }
         for base in bases {
@@ -4943,6 +4963,9 @@ impl<'a> CheckerState<'a> {
                 self.hold_deferred_reference_properties(reduced, true, held)?;
             } else {
                 for &property in self.get_properties_of_type_full(base)?.iter() {
+                    if held.required_value {
+                        break;
+                    }
                     self.hold_property(property, true, held);
                 }
             }
@@ -4953,12 +4976,7 @@ impl<'a> CheckerState<'a> {
     /// One visited property of [`Self::hold_deferred_reference_properties`]:
     /// it takes its name unless a value holds it already, and an inherited
     /// static private name is never taken (`add_inherited_members`).
-    fn hold_property(
-        &self,
-        property: SymbolId,
-        inherited: bool,
-        held: &mut rustc_hash::FxHashMap<tsc_types::EscapedName, (bool, bool)>,
-    ) {
+    fn hold_property(&self, property: SymbolId, inherited: bool, held: &mut HeldFlags) {
         if inherited && self.is_static_private_identifier_property(property) {
             return;
         }
@@ -4967,16 +4985,21 @@ impl<'a> CheckerState<'a> {
             symbol.flags.intersects(SymbolFlags::VALUE),
             symbol.flags.intersects(SymbolFlags::OPTIONAL),
         );
-        match held.entry(symbol.escaped_name) {
+        let holds = match held.names.entry(symbol.escaped_name) {
             std::collections::hash_map::Entry::Vacant(slot) => {
                 slot.insert(entry);
+                true
             }
             std::collections::hash_map::Entry::Occupied(mut slot) => {
-                if !slot.get().0 {
+                let takes = !slot.get().0;
+                if takes {
                     slot.insert(entry);
                 }
+                takes
             }
-        }
+        };
+        // A value keeps its name against everything visited later.
+        held.required_value |= holds && entry.0 && !entry.1;
     }
 
     fn finish_deferred_reference_members(&mut self, ty: TypeId) -> CheckResult<MembersId> {

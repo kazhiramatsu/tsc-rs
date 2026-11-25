@@ -249,6 +249,45 @@ fn the_weak_test_of_a_deferred_reference_creates_what_a_full_resolution_creates(
 }
 
 #[test]
+fn the_weak_test_settles_at_a_required_value_and_still_visits_every_base() {
+    // A value that is not optional settles "not weak" where it is met - an
+    // own property, or the second base's - and no further name is held. What
+    // is left of the hierarchy (a chain of generic interfaces, an intersected
+    // alias) is still visited as a full resolution visits it: the same types
+    // and the same instantiation count exist afterwards.
+    let run = |eager: bool| {
+        with_state(
+            "interface Root<T> { root?: T[]; }\n\
+             interface Middle<T> extends Root<{ boxed: T }> { middle?: T; }\n\
+             type Mixed<T> = { left?: T } & { right?: { wrapped: T } };\n\
+             interface Leaf<T> extends Middle<T>, Mixed<T> { required: T; optional?: T; }\n\
+             interface LateOptional<T> extends Middle<T> { late?: T; }\n\
+             interface RequiredBase<T> { needed: T; }\n\
+             interface FromBase<T> extends LateOptional<T>, RequiredBase<T> {}\n\
+             declare const leaf: Leaf<string>; declare const from_base: FromBase<string>;",
+            |state| {
+                let mut boundaries = Vec::new();
+                for name in ["leaf", "from_base"] {
+                    let ty = annotation_type(state, name);
+                    if eager {
+                        state.structured_member_headers(ty).unwrap();
+                        state.resolve_structured_type_members(ty).unwrap();
+                    } else {
+                        assert!(!state.is_weak_type(ty).unwrap(), "{name}");
+                        assert!(state.deferred_reference_members[&ty].is_some(), "{name}");
+                        // The verdict is remembered, and the second answer is the first.
+                        assert!(!state.is_weak_type(ty).unwrap(), "{name}");
+                    }
+                    boundaries.push((state.tables.len(), state.total_instantiation_count));
+                }
+                boundaries
+            },
+        )
+    };
+    assert_eq!(run(false), run(true));
+}
+
+#[test]
 fn the_weak_test_resolves_a_reference_that_is_being_finished() {
     with_state(
         "interface Box<T> { value?: T; }\ndeclare const box: Box<string>;",
