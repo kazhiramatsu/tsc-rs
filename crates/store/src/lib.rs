@@ -319,6 +319,82 @@ fn scrub(start: usize, bytes: usize) {
     system::reset(first, last - first);
 }
 
+/// The byte ranges of published lists that their owners have retired
+/// ([`retire_spans`]), merged where they touch (start -> end): a page two
+/// neighbours share goes back once both are retired.
+static RETIRED: std::sync::Mutex<std::collections::BTreeMap<usize, usize>> =
+    std::sync::Mutex::new(std::collections::BTreeMap::new());
+
+/// Retire published spans (see [`StoreVec::published_span`]): the caller
+/// claims that nothing reads their records again. The whole pages the spans
+/// complete - inside one span, or shared by spans that are all retired now -
+/// are given back to the system and read as zeros from here on; what the
+/// records owned on the heap stays allocated. The registry is taken once, and
+/// the system is asked once for every run of adjacent pages of a region.
+/// Returns the bytes given back. The spans are consumed.
+///
+/// A retired range stays retired for the life of the process: only a process
+/// that ends with its stores may call this.
+pub fn retire_spans(spans: &mut Vec<(usize, usize)>) -> usize {
+    spans.sort_unstable();
+    let mut completed = Vec::new();
+    {
+        let mut retired = RETIRED
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for (start, bytes) in spans.drain(..) {
+            if bytes == 0 || retired.contains_key(&start) {
+                continue;
+            }
+            let end = start + bytes;
+            let mut merged_start = start;
+            if let Some((&left_start, &left_end)) = retired.range(..start).next_back() {
+                if left_end > start {
+                    continue;
+                }
+                if left_end == start {
+                    merged_start = left_start;
+                }
+            }
+            let merged_end = retired.remove(&end).unwrap_or(end);
+            retired.insert(merged_start, merged_end);
+            // The pages this span completes: those inside it, and the page
+            // at either edge when the neighbours that share it are retired.
+            let first = merged_start
+                .next_multiple_of(RETURN_GRANULE)
+                .max(start / RETURN_GRANULE * RETURN_GRANULE);
+            let last = (merged_end / RETURN_GRANULE * RETURN_GRANULE)
+                .min(end.next_multiple_of(RETURN_GRANULE));
+            if first < last {
+                completed.push((first, last));
+            }
+        }
+    }
+    completed.sort_unstable();
+    let mut runs: Vec<(usize, usize)> = Vec::with_capacity(completed.len());
+    for (first, last) in completed {
+        match runs.last_mut() {
+            // Runs of one region only: a region's mapping is asked a run at a time.
+            Some(run)
+                if run.1 == first
+                    && (run.0 - FIRST_REGION) / REGION_BYTES
+                        == (first - FIRST_REGION) / REGION_BYTES =>
+            {
+                run.1 = last;
+            }
+            _ => runs.push((first, last)),
+        }
+    }
+    let mut bytes = 0;
+    for &(first, last) in &runs {
+        // A page is completed by the retirement of its last range, under the
+        // registry's lock: no two calls give the same page back.
+        system::reset(first, last - first);
+        bytes += last - first;
+    }
+    bytes
+}
+
 /// The system's side of the stores on Unix, where a private anonymous
 /// mapping reads as zeros and takes memory only for the pages written.
 #[cfg(unix)]
@@ -671,6 +747,17 @@ impl<T: StoreRecord> StoreVec<T> {
     #[inline]
     pub fn is_published(&self) -> bool {
         matches!(self.placement, Placement::Claimed | Placement::Published)
+    }
+
+    /// Where this published list's records are (address, bytes), for
+    /// [`retire_spans`]; nothing for a list that is not published or is empty.
+    pub fn published_span(&self) -> Option<(usize, usize)> {
+        (self.placement == Placement::Published && self.len != 0).then(|| {
+            (
+                self.records.as_ptr() as usize,
+                self.len * std::mem::size_of::<T>(),
+            )
+        })
     }
 
     /// The records' allocated room.
