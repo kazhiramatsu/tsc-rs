@@ -2141,7 +2141,7 @@ impl<'a> CheckerState<'a> {
         mapper: Option<crate::instantiate::MapperId>,
     ) {
         let position = match &mut self.tables.type_mut(ty).data {
-            TypeData::Reference { node_position, .. } | TypeData::Object { node_position } => {
+            TypeData::Reference { node_position, .. } | TypeData::Object { node_position, .. } => {
                 node_position
             }
             _ => unreachable!("only a reference or instantiation expression carries a node"),
@@ -7853,14 +7853,13 @@ impl<'a> CheckerState<'a> {
                 active_id =
                     Some(state.publish_anonymous_members_stage(ty, ResolvedMembers::default()));
                 // 58317-58330: the target's members under type.mapper.
-                let target = state
-                    .links
-                    .read_ty(ty, |links| links.instantiated_target)
-                    .expect("Instantiated object flag implies links target");
-                let mapper = state
-                    .links
-                    .read_ty(ty, |links| links.instantiated_mapper)
-                    .expect("Instantiated object flag implies links mapper");
+                let instantiated = state.tables.type_of(ty);
+                let target = instantiated
+                    .instantiated_target()
+                    .expect("Instantiated object flag implies its target");
+                let mapper = instantiated
+                    .instantiated_mapper()
+                    .expect("Instantiated object flag implies its mapper");
                 let target_properties = state.get_properties_of_object_type_owned(target)?;
                 let source = state
                     .links

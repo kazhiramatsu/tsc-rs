@@ -8251,10 +8251,7 @@ impl<'a> CheckerState<'a> {
             }
             member_name.get_or_insert(name);
 
-            let Some(mapper) = self
-                .links
-                .read_ty(constituent, |links| links.instantiated_mapper)
-            else {
+            let Some(mapper) = self.tables.type_of(constituent).instantiated_mapper() else {
                 eligible = false;
                 break;
             };

@@ -234,7 +234,7 @@ impl super::TypeOrderContext for TestOrderContext {
     fn compare_element_labels(&self, a: Option<u32>, b: Option<u32>) -> std::cmp::Ordering {
         a.cmp(&b)
     }
-    fn object_mapper(&self, _: crate::TypeId, _: bool) -> Option<crate::MapperId> {
+    fn deferred_mapper(&self, _: crate::TypeId) -> Option<crate::MapperId> {
         None
     }
     fn compare_mappers(

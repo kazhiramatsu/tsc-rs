@@ -273,12 +273,8 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
         }
     }
 
-    fn object_mapper(&self, ty: TypeId, has_node: bool) -> Option<MapperId> {
-        if has_node {
-            *self.links.type_cold().deferred_mapper.get(ty)
-        } else {
-            self.links.ty(ty).instantiated_mapper
-        }
+    fn deferred_mapper(&self, ty: TypeId) -> Option<MapperId> {
+        *self.links.type_cold().deferred_mapper.get(ty)
     }
 
     fn first_declaration(&self, symbol: Option<SymbolId>) -> Option<u32> {

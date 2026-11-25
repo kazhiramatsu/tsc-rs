@@ -224,7 +224,10 @@ fn anonymous_type_instantiation_creates_a_cached_shell() {
                 .tables
                 .object_flags_of(shell)
                 .intersects(ObjectFlags::INSTANTIATED));
-            assert_eq!(state.links.ty(shell).instantiated_target, Some(anonymous));
+            assert_eq!(
+                state.tables.type_of(shell).instantiated_target(),
+                Some(anonymous)
+            );
             // Same type arguments -> the interned instantiation.
             let mapper2 = state.create_type_mapper(&[t], Some(&[string]));
             let again = state
