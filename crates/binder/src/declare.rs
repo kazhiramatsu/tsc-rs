@@ -216,6 +216,15 @@ pub struct BinderMemory {
 }
 
 impl BindData {
+    /// Where the file's published bind records are - symbols, the node ->
+    /// symbol slots, the node -> flow slots - for `tsc_store::retire_spans`,
+    /// added to `spans`. (The hash maps and the flow nodes are on the heap.)
+    pub fn published_spans(&self, spans: &mut Vec<(usize, usize)>) {
+        spans.extend(self.symbols.published_span());
+        spans.extend(self.node_symbol.published_span());
+        spans.extend(self.node_flow.published_span());
+    }
+
     /// Add this file's bind results to `usage`.
     pub fn add_memory_usage(&self, usage: &mut BinderMemory) {
         fn map_bytes<K, V>(map: &FxHashMap<K, V>) -> usize {
@@ -1893,6 +1902,11 @@ impl NodeFlowSlot {
 }
 
 impl NodeFlowMap {
+    /// Where the published slots are (`StoreVec::published_span`).
+    pub fn published_span(&self) -> Option<(usize, usize)> {
+        self.slots.published_span()
+    }
+
     /// The empty map of `arena`'s nodes: in the store at their positions for
     /// a published tree, where a Program reads it.
     pub fn for_tree(arena: &NodeArena) -> Self {
@@ -1986,6 +2000,11 @@ impl<V: Copy> DenseNodeMap<V>
 where
     NodeSlot<V>: StoreRecord,
 {
+    /// Where the published slots are (`StoreVec::published_span`).
+    pub fn published_span(&self) -> Option<(usize, usize)> {
+        self.slots.published_span()
+    }
+
     /// Bytes this map owns, for memory accounting.
     pub fn heap_bytes(&self) -> usize {
         self.slots.capacity() * std::mem::size_of::<Option<V>>()
