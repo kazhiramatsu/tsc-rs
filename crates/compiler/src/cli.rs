@@ -683,9 +683,10 @@ fn run<'a>(
 ) -> (i32, NoEmitWorkCounters) {
     // tsc's command line never requests suggestion diagnostics, so the
     // unused-identifier suggestion pass (checkUnusedIdentifiers behind
-    // getSuggestionDiagnostics) is skipped; noUnusedLocals /
-    // noUnusedParameters errors still run.
-    tsc_checker::set_unused_identifier_suggestions(false);
+    // getSuggestionDiagnostics) is skipped and the check's result carries
+    // no suggestion rows; noUnusedLocals / noUnusedParameters errors still
+    // run.
+    tsc_checker::set_suggestion_diagnostics_requested(false);
     // executeCommandLine's host parses JSDoc with defaultJSDocParsingMode
     // (ParseForTypeErrors, _tsc.js:132784, 132867): TS/TSX comments only
     // when they contain @see or @link, JS/JSX comments always.
