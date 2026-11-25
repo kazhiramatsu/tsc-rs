@@ -1173,6 +1173,43 @@ impl<P: std::borrow::Borrow<PreparedProgram> + Sync> AuthoritativeModuleProvider
         files
     }
 
+    /// The files no other file refers to. Every inclusion reason is a root's
+    /// (so no import, path reference, type reference, library reference or
+    /// synthesized import brought it in), and no resolved module of another
+    /// file targets it (imports, module augmentations).
+    fn check_leaf_candidates(&self) -> Vec<AuthoritativeSourceToken> {
+        let prepared = self.prepared();
+        let mut candidate = prepared
+            .source_files()
+            .iter()
+            .map(|source| {
+                let reasons = source.inclusion_reasons();
+                !reasons.is_empty()
+                    && reasons
+                        .iter()
+                        .all(|reason| matches!(reason, tsc_program::SourceInclusionReason::Root(_)))
+            })
+            .collect::<Vec<_>>();
+        for (key, resolution) in prepared.resolutions().modules() {
+            let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
+                continue;
+            };
+            if let Some(target) = module.target().source() {
+                if target.raw() != key.source_id().raw() {
+                    if let Some(slot) = candidate.get_mut(target.raw() as usize) {
+                        *slot = false;
+                    }
+                }
+            }
+        }
+        candidate
+            .iter()
+            .enumerate()
+            .filter(|(_, &candidate)| candidate)
+            .map(|(index, _)| AuthoritativeSourceToken(index as u32))
+            .collect()
+    }
+
     fn common_source_directory(&self) -> Option<JsString> {
         Some(self.prepared().common_source_directory())
     }
