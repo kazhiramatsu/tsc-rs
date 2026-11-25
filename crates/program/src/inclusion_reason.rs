@@ -249,6 +249,26 @@ impl SourceInclusionReasons {
         &mut self.records
     }
 
+    /// Whether there is a reason and every reason is a root's, read from the
+    /// records as they are kept: nothing is made (the text form of a file's
+    /// reasons is built on its first read and kept from then on).
+    pub(crate) fn only_roots(&self) -> bool {
+        if let Some(text) = self.text.get() {
+            return !text.is_empty()
+                && text
+                    .iter()
+                    .all(|reason| matches!(reason, SourceInclusionReason::Root(_)));
+        }
+        !self.records.is_empty()
+            && self.records.iter().all(|record| {
+                matches!(
+                    record,
+                    InclusionReasonRecord::Owned(reason)
+                        if matches!(**reason, SourceInclusionReason::Root(_))
+                )
+            })
+    }
+
     pub(crate) fn into_text(self) -> Vec<SourceInclusionReason> {
         self.text.into_inner().unwrap_or_else(|| {
             let sources = self.sources.as_deref().map_or(&[][..], Vec::as_slice);
@@ -342,6 +362,48 @@ mod tests {
                 )
             );
         }
+    }
+
+    /// "Only roots" is answered from the records, and answering it makes no
+    /// text: the text form of every file's reasons is megabytes on a large
+    /// program, and a check that only asks this must not build it.
+    #[test]
+    fn only_roots_is_read_from_the_records_without_making_the_text() {
+        let root = || {
+            InclusionReasonRecord::Owned(Arc::new(SourceInclusionReason::Root(
+                crate::RootFileReason::Explicit,
+            )))
+        };
+        let mut roots = SourceInclusionReasons::default();
+        assert!(!roots.only_roots(), "no reason at all");
+        roots.push(root());
+        roots.push(root());
+        assert!(roots.only_roots());
+        let mut imported = SourceInclusionReasons::default();
+        imported.push(root());
+        imported.push(InclusionReasonRecord::import(0, 3, 6));
+        assert!(!imported.only_roots());
+        let mut synthetic = SourceInclusionReasons::default();
+        synthetic.push(InclusionReasonRecord::synthetic_import(
+            0,
+            Arc::new("tslib".into()),
+            true,
+        ));
+        assert!(!synthetic.only_roots());
+        assert!(
+            roots.text.get().is_none()
+                && imported.text.get().is_none()
+                && synthetic.text.get().is_none(),
+            "nothing was made"
+        );
+        // Reasons handed over as text (a builder's) are read as they are.
+        assert!(
+            SourceInclusionReasons::from(vec![SourceInclusionReason::Root(
+                crate::RootFileReason::Explicit
+            )])
+            .only_roots()
+        );
+        assert!(!SourceInclusionReasons::from(Vec::new()).only_roots());
     }
 
     #[test]

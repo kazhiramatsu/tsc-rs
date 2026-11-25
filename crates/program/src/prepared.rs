@@ -827,9 +827,18 @@ impl PreparedSourceFile {
     }
 
     /// Why the file is in the program (tsgo `fileIncludeReasons`), one
-    /// entry per occurrence.
+    /// entry per occurrence. The first read builds the reasons' text form
+    /// (parent names, reference texts) and keeps it.
     pub fn inclusion_reasons(&self) -> &[crate::SourceInclusionReason] {
         &self.records.inclusion_reasons
+    }
+
+    /// Whether the file is in the program only as a root: it has a reason
+    /// and every reason is a root's (no import, reference or library brought
+    /// it in). Read from the reasons as the loader keeps them; unlike
+    /// [`Self::inclusion_reasons`] it builds and keeps nothing.
+    pub fn included_only_as_root(&self) -> bool {
+        self.records.inclusion_reasons.only_roots()
     }
 
     pub fn path(&self) -> &ProgramPath {

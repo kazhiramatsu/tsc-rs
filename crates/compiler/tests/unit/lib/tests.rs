@@ -299,6 +299,57 @@ fn checker_association_keeps_syntactic_multiplicity_and_resolution_keys_separate
     assert!(imports[a.index()].2.is_empty());
 }
 
+/// The leaf candidates are the files in the Program only as roots: a root
+/// that an import also brought in, a file only imported and a file without a
+/// recorded reason are none.
+#[test]
+fn leaf_candidates_are_the_files_included_only_as_roots() {
+    let path = |name: &str| ProgramPath::from_trusted_parts(name, name).unwrap();
+    let root = || tsc_program::SourceInclusionReason::Root(tsc_program::RootFileReason::Explicit);
+    let import = || tsc_program::SourceInclusionReason::Import {
+        parent: "/src/b.ts".into(),
+        reference_text: "'./x'".into(),
+        pos: 7,
+        end: 12,
+        package_id: None,
+    };
+    let mut builder = PreparedProgram::builder(
+        PathContext::new(path("/src"), true),
+        CompilerOptions {
+            no_emit: Some(true),
+            ..CompilerOptions::default()
+        },
+    );
+    let mut add = |name: &str, reasons: Vec<tsc_program::SourceInclusionReason>| {
+        builder
+            .add_source_file(
+                PreparedSourceFile::new(path(name), "export const x = 1;")
+                    .with_import_count(0)
+                    .with_inclusion_reasons(reasons),
+            )
+            .unwrap()
+    };
+    let root_and_imported = add("/src/a.ts", vec![root(), import()]);
+    let only_root = add("/src/b.ts", vec![root()]);
+    let only_imported = add("/src/c.ts", vec![import()]);
+    let unrecorded = add("/src/d.ts", Vec::new());
+    let twice_root = add("/src/e.ts", vec![root(), root()]);
+    let prepared = builder.build().unwrap();
+    let provider = PreparedModuleProvider {
+        prepared: &prepared,
+        request_plans: Default::default(),
+        tracing: None,
+    };
+    assert_eq!(
+        provider.check_leaf_candidates(),
+        [
+            AuthoritativeSourceToken(only_root.raw()),
+            AuthoritativeSourceToken(twice_root.raw()),
+        ]
+    );
+    let _ = (root_and_imported, only_imported, unrecorded);
+}
+
 #[test]
 fn declaration_order_consumption_replays_after_pending_prints_complete() {
     use std::num::NonZeroUsize;
