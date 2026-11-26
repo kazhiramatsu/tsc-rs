@@ -2004,13 +2004,13 @@ pub struct CheckerState<'a> {
     /// (TS2307), as tsgo's `GetResolvedModule` answers nil, rather than an
     /// authority failure.
     pub(crate) module_name_outside_program: std::cell::Cell<bool>,
-    /// tsrs-native (M4 5.8d): EVERY host input path (normalized),
-    /// including files the program layer drops (.json bodies, .js
-    /// without allowJs) — the resolver's suppression probes read this
-    /// set to decide whether a miss is tsc-undecidable (FP=0 rule).
-    pub host_file_paths: std::sync::Arc<rustc_hash::FxHashSet<tsc_types::JsString>>,
     /// Exact input text for host reads, including host-only package manifests.
     /// Do not reconstruct a readFile result from parsed JSON or source membership.
+    /// tsrs-native (M4 5.8d): its keys are EVERY host input path (normalized),
+    /// including files the program layer drops (.json bodies, .js without
+    /// allowJs) — the resolver's suppression probes read them through
+    /// [`CheckerState::host_file_paths`] and [`CheckerState::is_host_file_path`]
+    /// to decide whether a miss is tsc-undecidable (FP=0 rule).
     pub(crate) host_input_snapshots: std::sync::Arc<
         rustc_hash::FxHashMap<tsc_types::JsString, std::sync::Arc<tsc_diagnostics::TextSnapshot>>,
     >,
@@ -3020,7 +3020,6 @@ impl<'a> CheckerState<'a> {
             outside_import_equals: Default::default(),
             outside_type_declarations: Default::default(),
             module_name_outside_program: std::cell::Cell::new(false),
-            host_file_paths: Default::default(),
             host_input_snapshots: Default::default(),
             basic_module_specifier_host: std::cell::OnceCell::new(),
             host_current_directory: "/".into(),

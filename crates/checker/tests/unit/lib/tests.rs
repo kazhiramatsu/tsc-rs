@@ -8719,8 +8719,8 @@ fn adoption_path_reference_rows_keep_source_and_reference_order_on_workers() {
             assert_eq!(inputs.host.input_snapshots.len(), files.len() - 1);
             assert!(inputs
                 .host
-                .file_paths
-                .contains(&JsString::from("/work/ignored.txt")));
+                .input_snapshots
+                .contains_key(&JsString::from("/work/ignored.txt")));
             assert!(Arc::ptr_eq(
                 inputs
                     .host

@@ -5140,6 +5140,17 @@ impl<'a> CheckerState<'a> {
         )
     }
 
+    /// Every host input path (normalized), in no order: the keys of the
+    /// host's input snapshots.
+    pub(crate) fn host_file_paths(&self) -> impl Iterator<Item = &JsString> + '_ {
+        self.host_input_snapshots.keys()
+    }
+
+    /// Whether `path` (normalized) is a host input.
+    pub(crate) fn is_host_file_path(&self, path: &JsString) -> bool {
+        self.host_input_snapshots.contains_key(path)
+    }
+
     fn nearest_visible_package_root<'augmentation, 'p>(
         &self,
         augmentation_file: impl Into<JsStr<'augmentation>>,
@@ -5153,8 +5164,7 @@ impl<'a> CheckerState<'a> {
         }
         let marker = crate::concat_js(&[&"/node_modules/", &package]);
         let nearest = self
-            .host_file_paths
-            .iter()
+            .host_file_paths()
             .filter_map(|path| {
                 let root = Self::node_modules_package_root(path, package)?;
                 let owner = root
@@ -5530,8 +5540,7 @@ impl<'a> CheckerState<'a> {
                 // case could fabricate a resolution target or a
                 // 2307/2835 failure face, so suppress (FN, ledger).
                 let has_package_json = self
-                    .host_file_paths
-                    .iter()
+                    .host_file_paths()
                     .any(|path| path.ends_with("/package.json"));
                 if extensionless
                     && has_package_json
@@ -5640,16 +5649,14 @@ impl<'a> CheckerState<'a> {
                 .as_ref()
                 .map(JsString::as_js)
                 .is_some_and(|marker| {
-                    self.host_file_paths
-                        .iter()
+                    self.host_file_paths()
                         .any(|path| Self::module_path_has_package_marker(path.as_js(), marker))
                 })
                 || types_package_marker
                     .as_ref()
                     .map(JsString::as_js)
                     .is_some_and(|marker| {
-                        self.host_file_paths
-                            .iter()
+                        self.host_file_paths()
                             .any(|path| Self::module_path_has_package_marker(path.as_js(), marker))
                     });
             let has_matching_package_scope = self
@@ -6368,7 +6375,7 @@ impl<'a> CheckerState<'a> {
         candidate: impl Into<JsStr<'path_text>>,
     ) -> Option<HostModuleTarget> {
         let candidate = candidate.into();
-        let exists = |path: JsStr<'_>| self.host_file_paths.contains(path.as_bytes());
+        let exists = |path: JsStr<'_>| self.host_input_snapshots.contains_key(path.as_bytes());
         let typed = |path: JsString| HostModuleTarget::Typed(path);
         let untyped = |path: JsString| HostModuleTarget::Untyped(path);
         if Self::is_typed_host_path(candidate) && exists(candidate) {
@@ -6489,7 +6496,7 @@ impl<'a> CheckerState<'a> {
             return true;
         }
         let prefix = crate::concat_js(&[&(package_root), &"/"]);
-        self.host_file_paths.iter().any(|path| {
+        self.host_file_paths().any(|path| {
             path.as_js().starts_with_js(prefix.as_js())
                 && [".d.ts", ".d.mts", ".d.cts"]
                     .iter()
@@ -6846,7 +6853,7 @@ impl<'a> CheckerState<'a> {
         let base = Self::trim_module_path_end(candidate);
         if UNMODELED.iter().any(|extension| {
             let probed = crate::concat_js(&[&(base), &(extension)]);
-            self.host_file_paths.contains(&probed)
+            self.is_host_file_path(&probed)
         }) {
             return true;
         }
@@ -6858,7 +6865,7 @@ impl<'a> CheckerState<'a> {
             .iter()
             .any(|suffix| {
                 let probed = crate::concat_js(&[&(base), &(suffix)]);
-                self.host_file_paths.contains(&probed)
+                self.is_host_file_path(&probed)
             })
         {
             return true;
@@ -7831,7 +7838,7 @@ impl<'a> CheckerState<'a> {
             .iter()
             .find(|(actual, _)| {
                 let probed = crate::concat_js(&[&(candidate), &(actual)]);
-                self.host_file_paths.contains(&probed)
+                self.is_host_file_path(&probed)
                     || self
                         .authoritative_module_provider
                         .is_some_and(|provider| provider.has_import_extension_file(probed.as_js()))

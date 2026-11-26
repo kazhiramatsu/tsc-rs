@@ -2962,7 +2962,8 @@ fn validate_authoritative_metadata(
 #[derive(Clone)]
 struct HostFacts {
     current_directory: JsString,
-    file_paths: Arc<rustc_hash::FxHashSet<JsString>>,
+    /// Every input by its normalized path, excluded and host-only rows
+    /// included: the keys are the resolver's set of host paths.
     input_snapshots: Arc<rustc_hash::FxHashMap<JsString, Arc<TextSnapshot>>>,
     package_json_module_types: Arc<rustc_hash::FxHashMap<JsString, state::PackageJsonModuleType>>,
     package_json_values: Arc<rustc_hash::FxHashMap<JsString, Arc<tsc_program::JsonValue>>>,
@@ -3573,15 +3574,13 @@ fn parse_program_inputs(
         program_diagnostics.extend(diagnostics);
     }
 
-    let mut file_paths =
-        rustc_hash::FxHashSet::with_capacity_and_hasher(files.len(), Default::default());
     let mut input_snapshots =
         rustc_hash::FxHashMap::with_capacity_and_hasher(files.len(), Default::default());
     // Host facts include every input, including excluded and host-only rows.
-    // Normalize once; retain the path set and the snapshots' last-wins rule.
+    // Normalize once; the snapshots keep the last of two rows of one path,
+    // and their keys are the path set.
     for file in files {
         let path = state::CheckerState::normalize_program_path(&file.name, "");
-        file_paths.insert(path.clone());
         input_snapshots.insert(path, Arc::clone(file.snapshot()));
     }
     let package_json_names = package_json_values
@@ -3607,7 +3606,6 @@ fn parse_program_inputs(
         program_diagnostics,
         host: HostFacts {
             current_directory: host_current_directory,
-            file_paths: Arc::new(file_paths),
             input_snapshots: Arc::new(input_snapshots),
             package_json_module_types: Arc::new(host_package_json_module_types),
             package_json_values: Arc::new(package_json_values),
@@ -3712,7 +3710,6 @@ fn init_checker_state<'a>(
     // files the program dropped (.json bodies, .js without
     // allowJs) — the suppression probes need them to keep 2307
     // FP-free.
-    state.host_file_paths = host.file_paths;
     state.host_input_snapshots = host.input_snapshots;
     state.host_package_json_module_types = host.package_json_module_types;
     state.host_package_json_values = host.package_json_values;
