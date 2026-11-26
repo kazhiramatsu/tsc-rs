@@ -2099,6 +2099,65 @@ zod の差の 83 % は member の解決（mapped type の member を作る本体
 
 **残り。** link の行の枠と train；member の並べ替え（instantiate した型は元の型の順を引き継ぐ：省ける範囲を code で確定する；key の memo）；check 中の module 解決（解決済みの答えを specifier の node で引く）；mapper の scope cache（pop のたびの clear、作り直し）；名前の intern；VS Code の copy とゼロ埋めの上位（flow memo の書き込み 24 M、型の member slot の表 28 M）；specifier pool の peak；node → symbol の疎な表（Row 14）；C5（link 時の並べ替え）は所有者の判断。
 
+**結果 67（2026-11-26 午後：「生成時に書く link を生成順の列に置く」行の着地（PR #1042）；その上に積んだ行の現状（check 中の module 解決、instantiate した型の member の順、最小引数数、最後の代入位置）；両 port が同額を払っている費用を 3 つ特定し、その 1 つ — property 参照ごとに木を根まで上る走査 2 本 — を途中で止める行を書いた；mapper の scope cache の census）**
+
+**着地（PR #1042、merge `9b9fe0fe6`、hosted run 45753286160、13:41）。** 結果 66 の「生成時に書く link を生成順の列に置く」行（`CreationOrderLinks`、5 field）。出力・3 counter は main と同じ。train の local 検査：checker の test 2,233 件、4 checker の conformance 15,335 構成が同じ・違うのは既知の 4 つ、suites の退行 0、oracle 24 / 24、fingerprint の差 0 行。枠 col2（着地の形の binary `n-col2` 対 main の binary `batch63-sel-d7704ef44`；control は同じ code の `n-if10`；wall、括弧内は control）：
+
+| | 1 thread（15 回、VS Code 9） | 既定設定（21 回、VS Code 9） | preset |
+|---|---:|---:|---:|
+| zod | **−2.71 %**（−0.30） | **−2.87 %**（−0.36） | **−2.07 %**（−0.67） |
+| Next.js | **−1.08 %**（−0.20） | −0.26 %（+0.62） | +0.16 %（+3.64） |
+| Effect | −0.11 %（0.00） | −0.84 %（+0.30） | **−2.40 %**（+1.90） |
+| VS Code | −0.35 %（−0.16） | +7.03 %（+3.78）→ 31 回で −0.70 %（−0.28） | +0.82 %（+0.47） |
+| Playwright | +0.13 %（−0.01）→ 31 回で −0.13 %（−0.23） | −0.07 %（−0.49） | +0.30 %（+0.47） |
+| Vue | +0.29 %（+0.41） | −0.26 %（−0.76） | +0.83 %（+0.32） |
+| TypeScript | — | −0.82 %（−0.77） | +0.04 %（−0.99） |
+| hono | — | −0.09 %（+0.32） | −3.24 %（−1.21） |
+
+幅の外に出た cell は 2 つ：既定設定の VS Code（同じ code の control も +3.78 %、その block では相手の cell も当日の他の枠より 3 % 高い — 乱れた block）と 1 thread の Playwright（cycle は −0.08 %）。どちらも 31 回で撮り直して幅の中（上の表）。zod の 1 thread は 15 回中 15 回、Next.js は 12 回で低い。命令数（1 thread、既定 mode）：zod −0.648 %（control +0.053 %）、他は ±0.09 % 以内。peak（MiB、1 thread ｜ 既定設定 ｜ preset）：zod −7.7 ｜ −5.8 ｜ −3.6、Next.js −2.5 ｜ −4.6 ｜ −5.1、Vue −1.4 ｜ −2.0 ｜ −3.2（control は −2.7〜+2.0）。枠の中の tsrs 比：既定の zod 0.860 → 0.836、Effect 0.936 → 0.928、TypeScript 1.029 → 1.021；preset の zod 1.059 → 1.037、Effect 0.902 → 0.880、hono 1.074 → 1.039。main の binary は `batch64-sel-ba271b5da`、同じ code の control は `n-col2`。
+
+**その上に積んだ行（1 行 1 commit、前の行の binary を base にした job で検査；13 時台の状態）。**
+
+| 行（branch、commit） | 何を変えるか | 状態 |
+|---|---|---|
+| 2 `perf/resolved-module-cache` `3fc4ef055` | import 文の check と alias の解決が、load 済みの module を provider に毎回聞き直していた：答えを specifier の node で引く 256 slot の表に置く | job 済み：checker の test 2,234 件；出力・counter は base と同じ（8 案件、両 mode）；命令数 VS Code −0.38 %、TypeScript −0.35 %、Vue −0.15 %、Next.js −0.12 %、Playwright −0.10 %（cycle はこの台帳の幅の中：枠で読む） |
+| 3 `perf/members-ordered-by-construction` `1805b964c` | instantiate した型の member 表は、元の型の並べ済みの list の順に作られる：3 か所（instantiate した匿名型、base の無い参照の即時解決と遅延解決）で sort をしない。debug build は sort して「動かない」ことを assert する | test 2,235 件；検証用の binary（release でも全ての「sort しない表」を sort して突き合わせる）で 8 案件・両 mode とも順の違う表は 0。VS Code：sort しない表 287,581（member 787,069）、sort する表 165,028（member 3,188,058、うち順が変わるのは 39,290 表）。台帳と conformance（検証つき）は走行中 |
+| 4 `perf/min-argument-count-memo` `ad7c9b2ca` | signature の最小引数数を 1 回だけ計算する（tsc の `resolvedMinArgumentCount`；ours は毎回 parameter を走査していた：Effect・zod で run の 2.3 %、VS Code は相手の 1.9 倍） | job 待ち |
+| 5 `perf/last-assignment-front` `432dbb628` | symbol の「最後の代入位置」が確定したら 1,024 slot の表に置く（`is_past_last_assignment`：VS Code で 237 ｜ 116 M cycle） | job 待ち |
+| 6 `perf/alias-walks-end-where-decided` `1c07753ee` | 下の段落 | 最初の compile 待ち |
+
+行 3 は sort する member の 2 割しか外せていない（VS Code の数字）：残る 165,028 表の 76 % は「既に並んでいる」ことの確認で、次は宣言の member list（宣言が 1 file にあり late-bound の member が無ければ binder の挿入順 = 宣言の位置の順）を site 別の census で確かめる。
+
+**両 port が同額を払っている費用（VS Code、1 thread、1 run の M cycle、ours ｜ tsrs；`tools/cyc-under.py`）。**
+
+| | ours ｜ tsrs | run に占める割合 |
+|---|---:|---:|
+| property 参照ごとの alias の印付け（`markPropertyAliasReferenced`） | 222.8 ｜ 211.1 | 0.94 % |
+| 非推奨の判定（`isDeprecatedSymbol`：宣言 node の flag、親 symbol） | 222.4 ｜ 203.7 | 0.94 % |
+| 制御 flow の入れ物探し（`getControlFlowContainer`） | 234.3 ｜ 225.1 | 0.99 % |
+| alias の印付け（`markAliasReferenced`） | 96.5 ｜ 104.3 | 0.41 % |
+
+差ではない（reference の code そのもの）— 短くすれば ours の得になる。1 つ目を命令単位で読んだ（`tools/cyc-sites.py` と disassembly）：自前の 206.5 M のうち **138.7 M が 1 本の loop** — 「kind が ImportEqualsDeclaration か、でなければ parent へ」：tsgo の `isPartOfImportEqualsModuleReference` が、**全ての property 参照から file の根まで**上っている。30.8 M が 2 本目の loop、`isExportOrExportExpression`（`preserveConstEnums` のとき；これも根まで）。
+
+行 6 は答えを変えずに 2 本とも途中で止める。(a) `isExportOrExportExpression` が true になるのは、export assignment の式が entity name expression のとき（その下には identifier・property access・`?.` の token しか無い）か、export specifier 自身の名前のときだけ：それ以外の種類の node を通過した時点で false（ours の parser は identifier と property access に JSDoc を付けない）。(b) import-equals の宣言探しは、前の探索が根まで上る途中で通った node（= どの import-equals の外でもある）に着いたら止める：直前の探索の一番内側の block と一番外側の block の 2 つを覚える。(c) 副作用の無い判定が並ぶ所では、field を読むだけの判定を木を上る判定の前に置く（`left` が identifier か；alias の先が const enum か）。unit test は、5 file の全 node について 3 通りの順で「途中で止める版 = 根まで上る版」を突き合わせる。見込み：VS Code の 1 thread で cycle −0.5 % 前後（命令数も減る）。
+
+**mapper の scope cache の census（preset、1 checker；`TSRS_X_MAPPER_SCOPE_CENSUS` の census binary）。**
+
+| | pop した scope | entry 0 | 1 | 2 | 3〜4 | 5〜8 | 9 以上 | 引いた回数 | hit | insert |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| zod | 1,127,425 | 697,012 | 211,173 | 91,527 | 90,785 | 28,889 | 8,039 | 1,198,365 | 191,300 | 1,007,065 |
+| Effect | 847,249 | 519,869 | 130,235 | 63,513 | 74,039 | 49,069 | 10,524 | 1,231,369 | 172,468 | 1,058,901 |
+| Next.js | 1,174,890 | 757,457 | 143,669 | 79,540 | 123,047 | 33,927 | 37,250 | 2,277,880 | 631,509 | 1,646,371 |
+| VS Code | 1,929,330 | 1,405,649 | 269,794 | 84,800 | 138,625 | 21,399 | 9,063 | 1,667,513 | 275,220 | 1,392,293 |
+
+scope の 97〜99 % は 8 entry 以下、alias つきの map はこの 4 案件では 1 度も使われない、作り直しは 1 run に 59〜132 回だけ（map は深さごとに使い回される）。候補：最初の 8 entry を inline の配列に置く（引くのは走査、同じ key の insert は上書き、9 個目から map）— 1 run あたり 100〜165 万回の hash つき insert が走査になる。
+
+**TypeScript の「flow 解析 +26 M」は差ではなかった。** flow の入口の下の合計は 261.3 ｜ 253.1 M（差は run の 0.6 %）、歩く関数の下は 251.9 ｜ 238.4。`narrow_type` の 80.6 ｜ 55.3 は inline の違い（相手は呼び出し側に溶けている）で、`get_narrowed_type_worker` の下は 30.8 ｜ 34.9。service 別の表の flow の行は、相手の汎用名の葉（`get`・`search`・`store`）が分類に入らない分だけ ours が多く見える。
+
+**自分の誤り。** (1) 行 3 の新しい unit test が、bind 済みの file の symbol を test から書き換えようとして、設計上の assert（file の binder の symbol は bind 後に書けない）で落ち、job が検査で止まった。行の code ではなく test の誤り：「宣言は先、束縛は後」になる late-bound の member（`[key]: T`）で、書き換えなしに「表の順 ≠ 宣言の順」を作る形に直した。stack の 3 commit を付け替え、job を掛け直した（約 6 分）。(2) 行 2 の job に「VS Code で命令 −0.5 % 以上」と書いたのは外れ（−0.38 %）：この関数の 1.18 % は cycle で、多くは memory 待ち。(3) 所有者に「node の modifier の flag を、ours は聞かれるたびに modifier の列から読み直している」と報告したのは誤り：flag は ours でも modifier の列に保存済みで（reference と同じ 2 回の読み込み）、費用は property 参照ごとに宣言の node を読むこと。(4) 枠 col2 を shell の `&` で始めた（harness が追跡しない）：lock の持ち主の記録と log で走行を確かめて続けた。枠・job・待ちは 1 つずつ background task として出す。
+
+**残り。** 行 2〜5 を 1 つの枠で鎖として読む（base ｜ 2 ｜ 3 ｜ 4 ｜ 5 ｜ control）→ train；行 6 の検査・台帳・枠；mapper の scope cache の inline 配列；非推奨の判定を symbol ごとに覚える形；宣言の member list の順（site 別の census）；名前の intern；VS Code の copy とゼロ埋めの上位；specifier pool の peak；node → symbol の疎な表（Row 14）；C5（link 時の並べ替え）は所有者の判断。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
