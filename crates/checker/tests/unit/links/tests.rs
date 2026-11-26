@@ -526,3 +526,181 @@ fn type_reference_probe_keeps_absent_records_unallocated_and_reads_live_slots() 
         Some(outer_symbol)
     );
 }
+
+/// Values written as their symbols are created lie in creation order and are
+/// found by rank across the words of bits; a symbol between two written ones
+/// reads the default; a second write replaces in place and returns what was
+/// there.
+#[test]
+fn creation_order_links_find_appended_values_by_rank() {
+    let transient = |index: u32| SymbolId::new(tsc_types::TRANSIENT_SYMBOL_BIT | index);
+    let mut links = CreationOrderLinks::<SymbolId, Option<TypeId>>::default();
+    assert_eq!(links.memory_usage(), (0, 0));
+    assert_eq!(*links.get(transient(0)), None);
+    let written = [0u32, 1, 63, 64, 65, 127, 128, 1_000, 1_001, 70_000];
+    for (rank, index) in written.into_iter().enumerate() {
+        assert_eq!(
+            links.replace(transient(index), Some(TypeId::new(index + 1))),
+            None
+        );
+        assert_eq!(links.values.len(), rank + 1);
+    }
+    for index in 0..70_100u32 {
+        let expected = written.contains(&index).then(|| TypeId::new(index + 1));
+        assert_eq!(*links.get(transient(index)), expected, "{index}");
+    }
+    assert!(links.late.is_empty());
+    assert_eq!(links.memory_usage().0, written.len());
+
+    // In place: the previous value comes back and nothing is appended.
+    assert_eq!(
+        links.replace(transient(64), Some(TypeId::new(7))),
+        Some(TypeId::new(65))
+    );
+    assert_eq!(*links.get(transient(64)), Some(TypeId::new(7)));
+    assert_eq!(*links.get(transient(65)), Some(TypeId::new(66)));
+    assert_eq!(links.values.len(), written.len());
+
+    // A field of types ranks every type: a fresh deferred reference's mapper.
+    let mut tables = LinksTables::default();
+    let mapper = crate::instantiate::MapperId::new;
+    for index in [10u32, 11, 12, 90, 4_000] {
+        tables.set_fresh_deferred_mapper(TypeId::new(index), Some(mapper(index + 1)));
+    }
+    // A reference without a mapper stores nothing.
+    tables.set_fresh_deferred_mapper(TypeId::new(4_001), None);
+    let cold = tables.type_cold();
+    for index in 0..4_100u32 {
+        let expected = [10u32, 11, 12, 90, 4_000]
+            .contains(&index)
+            .then(|| mapper(index + 1));
+        assert_eq!(*cold.deferred_mapper.get(TypeId::new(index)), expected);
+    }
+    assert_eq!(cold.deferred_mapper.values.len(), 5);
+    assert!(cold.deferred_mapper.late.is_empty());
+}
+
+/// A write below a symbol that already has a value, and a persistent
+/// symbol's, are kept beside the values and read the same; storing the
+/// default unsets either kind.
+#[test]
+fn creation_order_links_keep_out_of_order_and_persistent_writes() {
+    let transient = |index: u32| SymbolId::new(tsc_types::TRANSIENT_SYMBOL_BIT | index);
+    let persistent = SymbolId::new(42);
+    let mut links = CreationOrderLinks::<SymbolId, Option<TypeId>>::default();
+    links.set(transient(100), Some(TypeId::new(1)));
+    links.set(transient(200), Some(TypeId::new(2)));
+    // Below the last written symbol: not an append.
+    links.set(transient(150), Some(TypeId::new(3)));
+    links.set(persistent, Some(TypeId::new(4)));
+    assert_eq!(links.values.len(), 2);
+    assert_eq!(links.late.len(), 2);
+    assert_eq!(*links.get(transient(100)), Some(TypeId::new(1)));
+    assert_eq!(*links.get(transient(150)), Some(TypeId::new(3)));
+    assert_eq!(*links.get(transient(200)), Some(TypeId::new(2)));
+    assert_eq!(*links.get(persistent), Some(TypeId::new(4)));
+    assert_eq!(*links.get(SymbolId::new(43)), None);
+    assert_eq!(*links.get(transient(151)), None);
+    assert_eq!(
+        links.replace(transient(150), Some(TypeId::new(5))),
+        Some(TypeId::new(3))
+    );
+    assert_eq!(
+        links.replace(persistent, Some(TypeId::new(6))),
+        Some(TypeId::new(4))
+    );
+    assert_eq!(links.memory_usage().0, 4);
+
+    // The default unsets: a value among the appended ones keeps its place,
+    // one beside them goes.
+    links.set(transient(100), None);
+    links.set(transient(150), None);
+    links.set(persistent, None);
+    assert_eq!(*links.get(transient(100)), None);
+    assert_eq!(*links.get(transient(150)), None);
+    assert_eq!(*links.get(persistent), None);
+    assert_eq!(*links.get(transient(200)), Some(TypeId::new(2)));
+    assert!(links.late.is_empty());
+
+    // Unset, then written again: in place, and it reads as a first write.
+    assert_eq!(links.replace(transient(100), Some(TypeId::new(8))), None);
+    assert_eq!(*links.get(transient(100)), Some(TypeId::new(8)));
+    assert_eq!(links.values.len(), 2);
+
+    // Storing the default for a symbol that has nothing writes nothing.
+    links.set(transient(5_000), None);
+    assert_eq!(links.values.len(), 2);
+    assert_eq!(links.end, 201);
+}
+
+/// The members a mapped type synthesizes keep their links in creation order:
+/// each member's mapped type, key type and synthetic origin are read back by
+/// its symbol, a duplicate remap replaces the key type in place, and a
+/// reverse-mapped member shares the mapped-type field.
+#[test]
+fn mapped_member_links_are_read_back_by_symbol_in_creation_order() {
+    let transient = |index: u32| SymbolId::new(tsc_types::TRANSIENT_SYMBOL_BIT | index);
+    let mut links = LinksTables::default();
+    let mapped = TypeId::new(500);
+    let members = [3u32, 4, 5, 70, 200];
+    for index in members {
+        links.set_symbol_mapped_links(
+            0,
+            transient(index),
+            mapped,
+            TypeId::new(1_000 + index),
+            TypeId::new(2_000 + index),
+        );
+        if index != 70 {
+            links.set_symbol_synthetic_origin(0, transient(index), SymbolId::new(index));
+        }
+    }
+    links.set_symbol_reverse_mapped_links(
+        0,
+        transient(201),
+        None,
+        TypeId::new(7),
+        TypeId::new(501),
+        TypeId::new(8),
+    );
+    let cold = links.symbol_cold();
+    for index in members {
+        assert_eq!(*cold.mapped_type.get(transient(index)), Some(mapped));
+        assert_eq!(
+            *cold.key_type.get(transient(index)),
+            Some(TypeId::new(2_000 + index))
+        );
+        assert_eq!(
+            *cold.synthetic_origin.get(transient(index)),
+            (index != 70).then(|| SymbolId::new(index))
+        );
+        assert_eq!(
+            links.symbol(transient(index)).name_type,
+            Some(TypeId::new(1_000 + index))
+        );
+    }
+    assert_eq!(
+        *cold.mapped_type.get(transient(201)),
+        Some(TypeId::new(501))
+    );
+    assert_eq!(*cold.key_type.get(transient(201)), None);
+    for index in [0u32, 6, 69, 71, 199, 202] {
+        assert_eq!(*cold.mapped_type.get(transient(index)), None);
+        assert_eq!(*cold.key_type.get(transient(index)), None);
+        assert_eq!(*cold.synthetic_origin.get(transient(index)), None);
+    }
+
+    links.update_symbol_mapped_name_and_key(transient(4), TypeId::new(9_000), TypeId::new(9_001));
+    assert_eq!(
+        *links.symbol_cold().key_type.get(transient(4)),
+        Some(TypeId::new(9_001))
+    );
+    assert_eq!(
+        links.symbol(transient(4)).name_type,
+        Some(TypeId::new(9_000))
+    );
+    assert_eq!(
+        *links.symbol_cold().key_type.get(transient(5)),
+        Some(TypeId::new(2_005))
+    );
+}
