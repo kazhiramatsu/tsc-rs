@@ -2238,6 +2238,70 @@ VS Code の 1 thread では、行を積むごとに下がる：行 1〜4 で −
 
 **手順の変更。** (a) 新しい test は、job に載せる前に、compile 済みの tree で単体で走らせる（1 分半）；前提（「いくつ」「どれ」）は数ではなく期待する値そのものを assert する。(b) job script の生成は「古い行の名前を placeholder に → base を名指す行を書く → placeholder を解決 → その行を assert」の順。(c) 行の大きさは、関数の inclusive な cycle ではなく、その行が除く仕事から言う：memo なら「要求数 − 異なる key の数」、省く sort なら省かれる表の大きさ。
 
+**結果 69（2026-11-26 夜：9 行の train の着地（PR #1044）；10 checker の起動が遅い原因（全 checker が同じ空表の参照数を数える）とその行；check 開始前の直列区間の残り；helper の checker 構造の設計（P1〜P7）と、その最初の 2 段；自分の誤り）**
+
+**計測の保留と再開。** 17:1x に所有者が「他の作業をしているので計測関係は後回しにしてください」：行 11〜16 の job（台帳＝1 thread の計測を含む）を待ち状態のまま止め、計測の要らない作業（compile・test・出力の同一性・conformance）だけを続けた。18:4x の「続けてください」で再開した。
+
+**10 個の checker の起動が遅い原因。** 結果 68 で、zod の preset では checker 1 つの起動が 6.3 ms（うち「augmentation と global 型」が 4.8 ms）と読んだ。census（`n-dm2`、`n-dm3`：起動の各段の wall と、その thread の user / system 時間）で checker 数を変えた：
+
+| 段 | checker 数 | wall | user | sys | 待ち |
+|---|---|---:|---:|---:|---:|
+| zod：augmentation と global 型 | 1 | 1.54 | — | — | — |
+| 〃 | 2 | 1.52 | 1.30 | 0.24 | 0.02 |
+| 〃 | 4 | 2.03 | — | — | — |
+| 〃 | 10 | 5.01 | 4.26 | 0.22 | 0.17 |
+| VS Code：snapshot からの状態 | 2 | 0.36 | 0.13 | 0.22 | 0.00 |
+| 〃 | 10 | 2.20 | 0.17 | 1.35 | 0.40 |
+
+1 つの checker の仕事は同じで、同時に走る数で 3〜7 倍になる：競合。VS Code の段は kernel 時間（10 個が同時に新しい page を触る）、zod の段は user 時間。zod の 10 checker の run を 3 本 cycle profile に録った（`fable52-1111/dm3/rec-fast10/`）：起動は 1 本あたり 10 checker 合計 147 M cycle（1 checker あたり 14.7 M；1 thread の録りでは起動全体が 8.1 M）、葉は `merge_symbol` 自前 75.5 M と `clone_symbol` 36.3 M。`merge_symbol` の熱い命令は 4 つの atomic（`Arc::clone` の `ldadd` 2 つと drop の `ldaddl` 2 つ）で、その関数の 9 割。run 全体で atomic 直後に当たった cycle は 131 M（3.1 %）、うち 104 M がこの 2 関数で、check の本体には同種の費用は無い。**原因（code）：** `Symbol::extras()` は extras の無い symbol に process で 1 つの static（`ABSENT`）を返し、その members と exports は 1 つずつの `Arc`。`merge_symbol` は source の 2 つの表を空かどうか調べる前に clone し、`clone_symbol` は元の 2 つの表を常に clone していた：global 宣言のほとんど（変数・関数）は表を持たないので、10 個の checker が同じ 2 つの cache line の参照数を同時に増減していた。
+
+**この行と、ほかに書いた行（どれも main の code 上の 1 commit、出力・3 counter は main と同じ）。**
+
+| 行（branch、commit） | 何を変えるか | 根拠 |
+|---|---|---|
+| 18 `perf/checkers-start-beside-the-dealing` `0b86807d0` | pool の checker はすべて自分の thread で、driver が file を配る間に起動し、配り終えた queue を起動の後で待つ（配分が unwind したら guard が None を入れて待ちを終わらせる）；1 checker と thread を断られた checker は配分の後に driver で | `n-dm2`：最初の check を止めているのは配分（VS Code 12.3 ms）で、温めの thread ではない；起動（4.0 ms）は配分の結果を使わない。上限 VS Code −4 ms、Next.js −1.8、zod −0.8（preset） |
+| 19 `perf/merge-reads-published-tables` `0bd739d68` | merge は published symbol の表をその場で読み（`&'static`）、transient symbol の表だけ参照数で持つ；表は空かどうか調べてから取る；clone は元にある表だけ共有する | 上の原因；上限 zod の起動 4.9 → 約 1.5 ms（各 lane が約 3 ms 早く始まる） |
+| 20 `perf/package-scope-memo-by-hash` `7a7abaa73` | resolver の package scope の memo（とその受け渡し）を、directory の path を key にした B-tree から hash map に | VS Code の 1 thread で memo の 17.2 M cycle の 62 % が memcmp；順序で読む箇所は無い（受け渡しは key ごとに最初の 1 つ） |
+| P1 `perf/symbol-links-sixteen-bytes` `9b31d5a27` | transient symbol の links の保存形を 16 B に：まれな name type は作成順の表に置き、保存した check flags の bit 24（どの flag も使わない；最上位は 23）が有無を示す；読む側には従来どおりの 20 B の view を返すので、15 の読み手は変えていない | helper の P1（VS Code 10 checker −12.7 MiB、zod −6.7、主張） |
+| P2 前半 `perf/index-info-twenty-bytes` `d1b99c78c` | IndexInfo を 40 → 20 B・`Copy` に：まれな components（object literal の合成 index signature だけが持つ）を checker の一覧への 4 B の handle に | helper の P2 の一部（表の intern と inline の印は後段） |
+
+次の train の stack（`perf/next-train-rows-b66` `0d81e4d9c`）は、行 10〜17 と 19 を main の code に積んだもの（行 9 は台帳で得が無かったので外した）。
+
+**確認したこと（計測なし）。** 行 18・19・20・P1・P2 前半と stack の binary はどれも、既定 mode で 8 案件すべて、checker 2 個と 10 個で main の同じ個数の出力と同じ、preset で 7 案件同じ（zod は実行ごとに変わる）、3 counter が同じ。行 18 は 4 checker の conformance も main の 1 checker の report と同じ（15,335 構成、既知の 4 つ、panic 0）。
+
+**着地（PR #1044、merge `c81f9ebe4`、hosted run 45814344098、21:25）。** 次の train の stack（行 10〜17 と 19、9 commit）を 1 本の PR で入れた。出力・3 counter は main と同じ。train の local 検査：checker の test 2,245 件（失敗 0）、4 checker の conformance は既知の 4 つだけ違う、suites の退行 0、oracle 24 / 24、fingerprint の差 0 行、preset の出力 14 / 14 が同じ（zod は宣言済み）。train は一度、開始直後に止まった：PR 本文の template に generic の必須の placeholder（`@ORACLEALL@`）が無かった（下の誤り (4)）。
+
+**行ごとの台帳（命令数、1 thread、既定 mode、直前の binary 比；行 9 を含む鎖の上で測った）。** 行 10 VS Code −0.15 %；行 11（呼び出し側での早期 return）VS Code −0.41 %、TypeScript −0.27 %（8 案件すべて減）；行 12（宣言 modifier の front）zod −0.41 %、Vue −0.38 %、TypeScript −0.36 %；行 13（source file を引く前の判定）VS Code −0.49 %、Vue −0.34 %；行 11〜13 の 3 行で VS Code −1.20 %、Vue −0.87 %、TypeScript −0.80 %、zod −0.70 %。行 14〜16 は小さい（3 行で VS Code −0.12 %、Vue −0.24 %、TypeScript −0.23 %；zod +0.02 % は base の 2 cell の差の内）。inline の行（11、15）は、11-08 の行 D1 と逆に、どの案件でも命令数を増やしていない。
+
+**枠 s29（19:34、cell は順番に回す；base は main の binary `batch65-sel-525b3e014`、control は同じ code の `n-dep`）と 31 回の撮り直し s29b（20:16）。** wall（cycle）、括弧は control：
+
+| | 1 thread（15 回、VS Code 9） | 既定設定（21 回、VS Code 9） | preset（21 回、VS Code 9） |
+|---|---:|---:|---:|
+| VS Code | **−0.71 %（−0.70）**、9 回中 9 回［+0.11］ | **−0.62 %（−0.64）**［+0.44］ | +1.26 %（−0.55）、幅の内［+1.52］ |
+| TypeScript | — | **−1.05 %（−0.29）**［+0.05］ | **−0.83 %（−0.62）**［−0.02］ |
+| Vue | **−1.38 %（−0.98）**［−0.10］ | **−1.18 %**；31 回で −1.02 %（−1.23）、24 回 | +0.06 %（−1.01）［+0.74］ |
+| zod | −0.33 %［+0.41］ | −0.19 %（−0.80） | **−0.76 %（−2.41）**［+0.92］ |
+| Playwright | −0.49 %［−0.09］ | +0.91 %（−0.49）→ 31 回で +0.14 %、幅の内［+0.43］ | +0.48 % → 31 回で −0.67 %（−0.53） |
+| Effect | −0.36 % | +0.04 %（−0.37）→ 31 回で +0.22 %、幅の内［+0.54］ | **−1.59 %（−0.24）**［+2.18］ |
+| hono | — | **−2.29 %（−1.25）** | −3.62 %（base の 2 cell が 7.5 % 開いた） |
+
+相手との比（既定）：VS Code 0.925 → 0.919、Vue 0.924 → 0.913、TypeScript 1.007 → 0.997、hono 0.910 → 0.889；preset：zod 1.044 → 1.037、TypeScript 1.027 → 1.018、Effect 0.883 → 0.869。peak は −5.8〜+2.0 MiB。
+
+**同じ枠のほかの cell（それぞれ main の code 上の 1 commit）。**
+- 行 19 単独：preset の zod **−2.38 %（cycle −2.07 %、21 回中 13 回）**、相手との比 1.044 → 1.020 — 10 個の checker の起動の競合の上限どおり；Next.js −0.98 %、Vue −1.57 %。1 thread では control と同じ（checker が 1 つでは働かない）。train に入っている。
+- 行 18（配分の間に起動）：判定できず。VS Code の上限 約 4 ms は、この枠の preset の VS Code の揺れ（control +1.52 %）より小さい。後日、単独で測る。
+- 行 20（package scope の memo を hash に）：どこでも得が無く、1 thread で遅め（VS Code +0.34 %、Next.js +0.46 %、zod +0.76 %、control は +0.11 / −0.07 / +0.41）：**外した**。
+- helper の P1（transient symbol の links を 16 B に）：**どの mode でも遅い**（cycle +0.5〜+1.0 %；preset の VS Code +2.27 %、既定の Playwright +1.63 %、1 thread の zod +0.87 %）、peak は −4〜−12 MiB：**採らない**（所有者の決まり：peak のために遅くなるものは採らない）。hot な record の形を変えると読むたびに費用がかかる、という skill の教訓（2026-11-09）のとおり：`symbol()` が呼ばれるたびに 20 B の view を組み立てていた。
+- helper の P2 の前半（IndexInfo を 20 B・`Copy` に）：既定で GOES ON、1 thread はほぼ横ばい、preset の Vue −0.69 %・TypeScript −0.83 %、31 回の撮り直しで「幅の外」は無し；peak −1.5〜−6.1 MiB。新しい main（この train の code）の上でも測った（枠 s30：1 thread・既定で GOES ON、preset で VS Code −1.46 %・TypeScript −0.99 %、zod +2.14 %［control +1.10］と Effect +0.44 %［−0.54］が「幅の外」で、31 回の撮り直しを待つ）。
+
+**helper の checker 構造の設計（`checker-structures-design-1126.md`、`checker-structures-impl-spec-1126.md`）。** 11-25 の依頼の §9 への答え：VS Code の preset（10 checker）で NodeLinks 169.1 MiB、ResolvedMembers 163.5、transient Symbol 99.6、SymbolLinks 62.3 MiB（計 496.9）を 7 段で約 −200 MiB とする主張（zod −63〜−73）。過去に棄却した NodeLinks の 4 つの形（N2、行 2、sparse id pages、N3）を避け、各段に実装前の 5 行の census を置いている。今日書いたのは P1 と P2 の前半；P2 の残り（表の intern と inline の印：約 190 行に触れる）、P3（NodeLinks）、P4、P5 は census の後。
+
+**check 開始前の直列区間の残り（code を読んだだけ）。** loader の walk の file ごとの仕事は、すでに一部が先読みに移っている（`admit_source` は先読みの parse と、先読みが処理した source の package scope を受け取る）：1 つの塊ではなく小さな仕事の集まり。memcmp は VS Code の 1 thread の run の 195 M cycle（0.8 %）で、load 側では上の memo、task の path（hit 時の等価比較で必要）、graph の仕上げの出力 directory の診断（共通の source directory：path の前方比較そのもの）、CLI の診断用 source map（全 file を check の前に B-tree に入れる：build・watch・保存された結果を通って運ばれるので、遅延化は小さな変更ではない）。
+
+**自分の誤り。** (1) 行 18・19 と stack の同一性の検査で、checker 2 個と 10 個の出力を main の**既定**（4 個）の出力と比べた：既定 mode が約束するのは同じ個数での tsgo の出力で、main 自身の zod の出力が 2 個と 4 個で違う。前提を base で確かめずに段に書いた（今朝の test の前提と同じ種類）。同じ個数どうしで比べ直して全部同じ。(2) 行 18 の修正で、Edit が拒まれた（その file をこの session で読んでいなかった）のと同じ一括の中で、それに依存する shell の命令（commit の amend と compile の順番待ち）を送った：変更の無い amend と同じ失敗する compile が走りかけ、すぐ止めた。Edit とそれに依存する命令は同じ一括に入れない。(3) 計測の保留中に止めた job の lock の順番札が残ったように見えたが、90 秒更新の無い札は飛ばされる設計だった（害なし）。(4) train 66 の PR 本文の template を train 65 のものから書いたとき、1 行 240 文字で切って読んだ写しから写したため、同一性の行の末尾にあった generic の必須の placeholder（`@ORACLEALL@`）を落とした：train は開始直後に止まり、直して別の tag で入れ直した（5 分の遅れ）。
+
+**手順の変更。** (a) 同一性の検査で checker の個数を変えるときは、候補を main の**同じ個数**と比べ、main 自身のその個数と既定の差も表示する（前提の検査を段の中に持つ）。(b) 別の train の template から書いた本文は、listing の前に generic の必須の placeholder（`@ORACLEALL@ @FINGERPRINT@ @PRESETID@ @SUITES@`）が揃っているかを確かめる。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
