@@ -118,6 +118,70 @@ fn deferred_reference_members_classify_the_frozen_property_selection() {
     }
 }
 
+/// An instantiated type repeats its target's property order without a sort
+/// of its own: a reference without base types lists its instantiated members
+/// as the declared list has them (whatever the symbol's table order), and an
+/// instantiated anonymous type as its target has them. With stable ordering
+/// the debug build sorts each such list and asserts that nothing moves.
+#[test]
+fn instantiated_members_repeat_their_targets_property_order() {
+    // `[key]` is declared first and bound late: the symbol's table has it
+    // behind the early members, the declared list of stable ordering (by
+    // where the declarations lie) ahead of them.
+    let source = "declare const key: \"z\";
+        interface Box<T> { [key]: T; a: T; m(): T; }
+        declare var b: Box<string>;
+        type Lit<T> = { z: T; a: T; q: T };
+        declare var l: Lit<number>;
+        declare var k: Lit<string>;";
+    let mut declared_orders = Vec::new();
+    for stable in [false, true] {
+        let order = with_state(source, |state| {
+            state.stable_type_ordering = stable;
+            let names = |state: &CheckerState, properties: &[tsc_types::SymbolId]| -> Vec<_> {
+                properties
+                    .iter()
+                    .map(|&id| state.binder.symbol(id).escaped_name)
+                    .collect()
+            };
+            let owner = *state.globals.get("Box").unwrap();
+            let target = state.get_declared_type_of_symbol(owner).unwrap();
+            let declared_members = state.resolve_declared_members(target).unwrap();
+            let declared = state.members_of(declared_members).properties.clone();
+            let declared_names = names(state, &declared);
+            assert_eq!(declared_names.len(), 3);
+            if stable {
+                assert_eq!(declared_names[0], tsc_types::known_name!("z"));
+            }
+
+            let reference = annotation_type(state, "b");
+            assert_ne!(reference, target);
+            let instantiated = state.get_properties_of_type(reference).unwrap();
+            assert_eq!(names(state, &instantiated), declared_names);
+            // Fresh members, not the declared ones.
+            assert!(instantiated.iter().all(|id| !declared.contains(id)));
+
+            let first = annotation_type(state, "l");
+            let second = annotation_type(state, "k");
+            assert_ne!(first, second);
+            let expected = [
+                tsc_types::known_name!("z"),
+                tsc_types::known_name!("a"),
+                tsc_types::known_name!("q"),
+            ];
+            for ty in [first, second] {
+                let properties = state.get_properties_of_type(ty).unwrap();
+                assert_eq!(names(state, &properties), expected);
+            }
+            declared_names
+        });
+        declared_orders.push(order);
+    }
+    // The premise: the table's order (what the list is without stable
+    // ordering) and the order of the declarations are two orders here.
+    assert_ne!(declared_orders[0], declared_orders[1]);
+}
+
 #[test]
 fn a_deferred_reference_answers_the_weak_test_from_its_declarations() {
     with_state(
