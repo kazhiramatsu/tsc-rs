@@ -1985,6 +1985,59 @@ weak-type 行は zod で明確な改善（既定設定の wall −2.6 %、1 thre
 
 **残り。** 長い union の key の行の台帳と train；node → symbol の読み出しの試作（時間）；直列の 2 行（merge、配分）；第 2 の仕様の Row 12（module 解決表、VS Code −16 MiB）→ 11 → 9・10；枠 n2（隣の core が忙しい時の遅れを、今日の main と「同じ仕事量」の cell で撮り直す）；member record の行の残り 0.1 %。
 
+**結果 65（2026-11-26 朝：長い union key の表と merge の行の着地（PR #1040）；所有者の問いの続き — 相手も fast mode にした「同じ仕事量・1 thread」の差の勘定（差は back end の memory 待ち、L1 dTLB miss が 1.7 倍、どの表も miss の 1〜5 %）；reviewer の第 3 の資料（仮説 H1〜H5、候補 C1〜C5、実験 X1・X2）の評価；sparse な symbol link の census；instantiation の front の大きさ（X1：1 MiB の表を 16 KiB にすると wall が 0.5〜1.5 % 短い、着地の形を検査中）；module 解決表の specifier pool）**
+
+**着地（PR #1040、merge `8ee255f3b`、hosted run 45725438242、09:27）。** 3 commit。(1) union の front cache は 8 語を超える key を素通りさせていた：9〜8,191 語の key に専用の表（1,024 entry、key 全体 — reduction、入力の並び、alias とその引数 — を entry が持つ buffer に置く）を足した。保存の規則は短い key と同じ（返す union 以外を作らず、instantiate せず、状態に依存する reduction を通らず、errorType でない miss だけ）。(2) unit test のみ：2 つの declaration file で宣言された ambient module は `skipLibCheck` では何も報告せず、無しでは tsgo の 6 行（相手 file の宣言を related に持つ）。(3) command line の check は suggestion 行を結果に copy しない：tsc は suggestion を `getSuggestionDiagnostics` だけが読む集まりに置き、command line はそれを呼ばない。process 全体の switch を意味どおりの名前（`suggestion_diagnostics_requested`）に変え、sharded merge は switch が off なら clone を省く（表示の mark の判定は元の行を読む）。出力・3 counter は main と同じ；train（07:57〜08:59）の local 検査はすべて rc 0。出所の計数：8 語を超える union は 1 checker で Next.js 8,172 回（うち既出の key 6,141 回、構築 14.9 ms ≈ run の 1 %）、VS Code 28,340 回（18,431 回、11.5 ms）；merge は VS Code で suggestion 6,833 行を 4 回 clone していた（light trace の mark：既定設定 6.0〜7.6 → 2.2〜4.1 ms、preset 9.6〜13.5 → 3.8〜5.6 ms）。
+
+枠 b62（stack の binary `n-b62` 対 main の binary `batch61-sel-c36763cc1`；control は同じ code の別 binary `n-lzm`；1 thread 15 回、他 21 回、VS Code 9 回；wall、括弧内は control）：
+
+| | 1 thread | 既定設定 | preset |
+|---|---:|---:|---:|
+| Vue | **−2.51 %**（−0.53） | **−2.35 %**（−0.63） | **−2.31 %**（−0.62） |
+| Next.js | −0.58 %（+0.19） | +0.13 %（+0.68） | +0.76 %（+1.15） |
+| VS Code | −0.48 %（−0.33） | −0.71 %（+0.14） | −0.55 %（−0.80） |
+| zod | −0.42 %（−0.25） | −0.45 %（+1.25） | −1.51 %（−1.99） |
+| Effect | −0.25 %（+0.26） | −0.23 %（−0.55） | +0.40 %（+1.29） |
+| Playwright | −0.17 %（−0.14） | −1.46 %（+0.01） | +1.77 %（−0.33；base の 2 cell が 1.76 % 離れている） |
+| TypeScript | — | +1.44 %（+1.85） | +0.86 %（−0.06） |
+| hono | — | +0.63 %（+0.56） | +4.21 %（+2.38） |
+
+1 thread は 6 案件すべてで base の 2 cell より速い（Vue は 15 回中 15 回、cycle −2.12 %）。base の幅の外に出た cell（既定の TypeScript・hono、preset の hono）は control も同じ向きに外：その 3 cell を 31 回で撮り直すと（枠 b62b）hono の preset +0.05 %、既定 +0.57 %、TypeScript +0.21 % で、どれも base の 2 cell の幅の内側。台帳（1 thread の命令、stack 対 main）：Vue −3.127 %、Next.js −1.557 %、Playwright −0.693 %、TypeScript −0.049 %、hono +0.088 %（control +0.058 %）。枠の中の tsrs 比：既定設定の Playwright 1.009 → 0.995、Vue 0.979 → 0.956；preset の Vue 1.012 → 0.989、zod 1.082 → 1.066。
+
+**「同じ仕事量・1 thread」の勘定（reviewer への返答の全文は `target/claude-tools/handover/arch-arena/CPI-GAP-LIKE-FOR-LIKE-1126.md`）。** これまでの 1 thread の比較は相手の既定 mode（eager な member、cache なし）が相手だった。相手の `--fast --singleThreaded` は、こちらの preset の 1 worker・1 checker と同じ仕事をする（命令が ±4 % 以内）。この組で測ると、1 thread 単独の時点で既に差がある（枠 n2、7 round；ours − tsrs）：
+
+| | 命令 | cycle 単独 | cycle 4 本同時 | wall 単独 | peak（ours ｜ tsrs） |
+|---|---:|---:|---:|---:|---:|
+| Playwright | −0.1 % | +3.5 % | +6.1 % | +3.3 % | 272 ｜ 217 MiB |
+| Next.js | −1.3 % | +3.5 % | +5.3 % | +4.7 % | 466 ｜ 403 MiB |
+| zod | +3.9 % | **+7.9 %** | **+11.6 %** | +9.2 % | 406 ｜ 298 MiB |
+
+front end だけ（`--noCheck`）は単独で Playwright +6.3 %、Next.js +1.1 %、zod −1.0 %、4 本同時で +10.1 %、+7.2 %、+9.5 %；check の分は単独で Playwright +2.4 %、Next.js +4.2 %、zod +11.2 %（命令 +4.7 %）。front end の差は隣の core が忙しいときに出て、check の差は単独で出る。
+
+counter（`ceilings/chain-counters-ll.sh`、`fable52-1111/stalls/ll1126/report.txt`）。top-down の 4 分類を cycle に直した差（ours − tsrs、G）：zod は processing（back end の待ち）**+0.157**（memory_miss +0.088、memory_miss_executing +0.098）、discarded +0.069、delivery −0.043（うち命令 cache の遅延 +0.042）、useful +0.016；Playwright は processing **+0.088**、discarded +0.015、delivery −0.010（同 +0.042）。1,000 命令あたりの event（ours ｜ tsrs）：
+
+| | zod | Playwright |
+|---|---:|---:|
+| L1 dTLB miss | 3.35 ｜ 1.96（**+70 %**） | 2.49 ｜ 1.41（**+76 %**） |
+| dTLB fill | 1.92 ｜ 0.92（+109 %） | 1.43 ｜ 0.74（+93 %） |
+| L1D store miss | 2.76 ｜ 2.11（+31 %） | 2.21 ｜ 1.79（+24 %） |
+| L1D load miss | 5.37 ｜ 4.63（+16 %） | 4.45 ｜ 4.63（−4 %） |
+| 分岐の捨て | 1.99 ｜ 2.10（−5 %） | — |
+
+zod の miss の sample を葉の関数の種類で分けると（1 sample ≈ 1 万 event；ours ｜ tsrs）：L1 dTLB miss 3,596 ｜ 2,039 のうち port 自身の関数 2,942 ｜ 1,586（表・record を直接引く load；上位 22 関数で 42 % — 1 か所に集まっていない）、hash table の汎用 code 298 ｜ 111、allocator 196 ｜ 259、memmove 87 ｜ 47；L1D store miss 2,968 ｜ 2,185 は memmove 538 ｜ 342、allocator 390 ｜ 185、memset 194 ｜ 87 で、超過の 65 % が copy・確保・ゼロ埋め。表の操作を完全名で見ると、どの表も miss 全体の 1〜5 %：instantiation の表と型 list の intern 約 5 %、`MemberTable::get_hashed` 1.7 %、relation cache 1.6 %、symbol の sparse な link 約 2 %。関数別の cycle の勘定（zod、`fable52-1111/check-side/rec6-fast1b/account.txt`）：load 407 ｜ 370 M、bind 138 ｜ 118、check 2,642 ｜ 2,449（+192：型の取得 +100、relation +61、conditional / indexed / mapped +57、call / signature +42、union +13）。
+
+**reviewer の第 3 の資料の判定。** H2（data が多くの領域・表に分かれ、1 つの操作が多くの page に触る）＝主因。H1（数珠つなぎの load）＝ memory_miss の形で同居。H5（分岐予測）＝外れ（ours のほうが少ない）。H4（命令 cache）＝ +0.04 G（cycle の 1.3〜1.8 %）は実在するが、delivery 全体では ours が少ない；link 時の並べ替え（C5）は profile が入力なので所有者の判断待ち。H3（front end）＝今の code では Next.js・zod は単独なら同じで、4 本同時で +7〜10 %。候補の上限は上の miss の割合：C2・X1（instantiation）約 5 %、C3（member 表の名前 index）1.7 %、C1（`SymbolMap::find`）は check 中 0.2 %、C4（`PagedTable`）は葉の名前に出ないので別の計数が要る。C2 の「1〜2 引数の key の直置き」は、front（11-17 着地、census から設計）が既にその形。
+
+**sparse な symbol link の census（`census/sparse-symbol-links`、preset・1 checker；資料に無かった項目）。** checker の「まれな link」は field ごとの hash map に置いてある（「set する record が 3 分の 1 未満なら得」という前提）。zod は transient symbol 845,514 個に対して entry 1,000,540 個（16.3 MiB）：`mapped_type` 282,651、`key_type` 270,738、`synthetic_origin` 265,392、`containing_type` 87,537。Next.js も同じ 3 つ組（各 8.5〜9.1 万）、VS Code は `resolved_exports` 187,075、`alias_target` 180,878、`immediate_target` 177,643、`synthetic_origin` 159,694、`tuple_label_declaration` 136,888。mapped type の member 1 個に 3 つの map へ insert している。いっしょに書く field を 1 record にすれば insert は 3 → 1、zod で 14.1 → 約 5 MiB；ただし行全体で miss の約 2 %（cycle の 0.2〜0.3 % 程度の見込み）。
+
+**X1：instantiation の front の大きさ（計測用 switch の binary `n-ifb`、`TSRS_X_INST_FRONT_BITS`；着地させない）。** front は予約から大きさを決めていて、checker が 131,072 symbol 以上を見込む program では 65,536 slot（1 MiB / checker）。1 thread の命令は 65,536 = 4,096 = 1,024 slot（±0.02 %）、front なしで +0.08〜0.27 %。枠 ifb（同じ binary の中で、plain の 2 cell 対 4,096 / 1,024 / なし；1 thread 15 回、既定設定・preset 21 回、VS Code 9 回）：1,024 slot は 22 cell のうち plain の幅を超えて速い cell 16、幅の内側 6、遅い cell 0 — 1 thread で zod −1.10 %（15 回中 15 回）、Next.js −0.75 %、Playwright −0.73 %；既定設定で zod −1.70 %、Vue −0.98 %、Next.js −0.79 %、VS Code −0.76 %、TypeScript −0.75 %；preset で Next.js −1.78 %、Vue −1.03 %、VS Code −0.82 %（peak −18 MiB）。4,096 slot と「なし」は hono の既定設定で幅の外（+0.33 %、+1.14 %）。対照（`fable52-1111/ifb/pad.jsonl`、7 回）：読まれない同じ長さの環境変数を立てた cell と、switch を 65,536 にした cell は plain と同じ（命令 ±0.02 %、cycle −0.4〜+0.3 %；plain 同士が −0.1〜−0.3 %）— 効果は環境ではなく表の大きさ。読み：hash が指す場所を引く 1 MiB の表は 64 page に散らばるが、当たる数は 16 KiB の表と変わらない（11-17 の simulation：1,024 slot で当たりの 90〜94 %）。着地の形（1,024 slot 固定、branch `perf/instantiation-front-1024`）は専用の binary を build して検査中 — 枠は次の結果に書く。
+
+**module 解決表の specifier pool（第 2 の仕様の Row 12A を自分の形で；branch `perf/resolution-specifier-pool`、夜の job rsp）。** 行 48 → 24 + 4 byte、lookup の entry 16 → 8 byte、specifier の text は種類ごとに 1 回。出力・counter は main と同じ、program crate の test 857 件 rc 0。VS Code の勘定：行 5.16 → 3.01 MiB、lookup 2.26 → 1.40、文字列 10.14 → 6.81（合計 −6.3 MiB；行は 112,780 で、仕様の言う 178,745 ではなかった）。peak は昼に測る（1 回の run の幅を超えて動くときだけ着地させる）。
+
+**自分の誤り。** (1) waiter 4 本が終わらなかった：`[ a \> b ]` の backslash が harness の eval で落ち、条件が常に偽になった。`[[ "$a" > "$b" ]]` と書き、新しい waiter の出力は 1 回読む。(2) train の停止条件 `FAILED\|panicked` が、通った test の名前（`…a_query_that_panicked_leaves…`）に当たって train が止まった。実際の error の形だけに絞って流し直した。(3) 関数別の録りを、strip された比較用 binary で撮り、共通の関数名が 0 だった。symbol 付きの binary で撮り直した。(4) 「録りの一時 file は残っていない」と記録したが、42 個・7.9 GiB 残っていた（訂正し、所有者に削除の command を渡した）。(5) 枠 ifb に「環境変数を立てただけの cell」を入れなかった（11-25 に自分で決めた規則：mode の費用は、同じ binary の no-op の cell と比べる）。着地の前に対照を別に測って、影響なしを確かめた。
+
+**残り。** front の行の枠と train；ほかの「hash で引く大きい表」（union の front、relation cache の予約、型 list の front、推論の memo）の大きさを同じ switch の方法で測る；sparse な link をいっしょに書く field ごとに 1 record にする行；specifier pool の peak；node → symbol の疎な表（Row 14、1 日分）；配分の直列（Row 13A）；C5 は所有者の判断。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
