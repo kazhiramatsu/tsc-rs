@@ -476,6 +476,153 @@ impl<K, V> SparseLinks<K, V> {
     }
 }
 
+/// An identity a [`CreationOrderLinks`] field can rank: its index among the
+/// identities its checker creates, dense from zero - or `None` for one the
+/// checker did not create (a persistent symbol), which the field keeps
+/// beside its values.
+pub trait CreationKey: Copy + Eq + std::hash::Hash {
+    fn creation_index(self) -> Option<usize>;
+}
+
+impl CreationKey for SymbolId {
+    #[inline]
+    fn creation_index(self) -> Option<usize> {
+        transient_index(self)
+    }
+}
+
+impl CreationKey for TypeId {
+    #[inline]
+    fn creation_index(self) -> Option<usize> {
+        Some(self.index() as usize)
+    }
+}
+
+/// A links field written for a record when the record is created - the
+/// members a mapped type synthesizes, the properties a union or an
+/// intersection synthesizes, a deferred reference's mapper: the values lie
+/// one after another in the order of their identities, and an identity's
+/// value is found by its rank among the identities that have one (a bit an
+/// identity, and a count a word of bits).
+///
+/// A [`SparseLinks`] map of such a field is a hash entry a record, at the
+/// place its hash names. On a program that sets the field on a third of its
+/// records every write went to two pages of a table of megabytes, and every
+/// doubling of the table moved all of it. Here a write appends, and the
+/// values of records created together lie together.
+///
+/// A value for an identity below one that already has a value (a write out
+/// of creation order) and a value for an identity without an index go to a
+/// map beside the values: correct at a hash entry's price, for the writes
+/// this form is not made for.
+#[derive(Debug)]
+pub struct CreationOrderLinks<K, V> {
+    /// One bit an identity, by its index: set when `values` holds the
+    /// identity's value.
+    bits: Vec<u64>,
+    /// The number of values before each word of `bits`.
+    before: Vec<u32>,
+    /// The values of the identities whose bit is set, in the order of their
+    /// indices.
+    values: Vec<V>,
+    /// One past the highest index with a bit: an append is a write at or
+    /// above it.
+    end: usize,
+    /// The values written out of creation order, and those of identities
+    /// without an index.
+    late: FxHashMap<K, V>,
+    /// The value every identity without one reads.
+    absent: V,
+}
+
+impl<K, V: Default> Default for CreationOrderLinks<K, V> {
+    fn default() -> Self {
+        Self {
+            bits: Vec::new(),
+            before: Vec::new(),
+            values: Vec::new(),
+            end: 0,
+            late: FxHashMap::default(),
+            absent: V::default(),
+        }
+    }
+}
+
+impl<K: CreationKey, V: Default> CreationOrderLinks<K, V> {
+    /// The place in `values` of the identity at `index`, when its bit is
+    /// set.
+    #[inline]
+    fn rank(&self, index: usize) -> Option<usize> {
+        let word = *self.bits.get(index >> 6)?;
+        let bit = 1u64 << (index & 63);
+        (word & bit != 0)
+            .then(|| self.before[index >> 6] as usize + (word & (bit - 1)).count_ones() as usize)
+    }
+
+    /// The value for `key`; the default when it was never written.
+    #[inline]
+    pub fn get(&self, key: K) -> &V {
+        if let Some(rank) = key.creation_index().and_then(|index| self.rank(index)) {
+            return &self.values[rank];
+        }
+        if self.late.is_empty() {
+            &self.absent
+        } else {
+            self.late.get(&key).unwrap_or(&self.absent)
+        }
+    }
+
+    /// Store `value` for `key`, returning the previous value (the default
+    /// when there was none).
+    fn replace(&mut self, key: K, value: V) -> V {
+        if let Some(index) = key.creation_index() {
+            if let Some(rank) = self.rank(index) {
+                return std::mem::replace(&mut self.values[rank], value);
+            }
+            if index >= self.end {
+                let word = index >> 6;
+                while self.bits.len() <= word {
+                    self.bits.push(0);
+                    self.before.push(self.values.len() as u32);
+                }
+                self.bits[word] |= 1 << (index & 63);
+                self.values.push(value);
+                self.end = index + 1;
+                return V::default();
+            }
+        }
+        self.late.insert(key, value).unwrap_or_default()
+    }
+
+    /// Entries and table bytes (memory accounting; heap owned by the values
+    /// is not included).
+    fn memory_usage(&self) -> (usize, usize) {
+        (
+            self.values.len() + self.late.len(),
+            self.bits.capacity() * std::mem::size_of::<u64>()
+                + self.before.capacity() * std::mem::size_of::<u32>()
+                + self.values.capacity() * std::mem::size_of::<V>()
+                + self.late.capacity() * (std::mem::size_of::<(K, V)>() + 1) * 8 / 7,
+        )
+    }
+}
+
+impl<K: CreationKey, V: Default + PartialEq> CreationOrderLinks<K, V> {
+    /// Store `value` for `key`. Storing the default unsets the identity: its
+    /// place among the values, once taken, then holds the default.
+    fn set(&mut self, key: K, value: V) {
+        if value == self.absent {
+            if let Some(rank) = key.creation_index().and_then(|index| self.rank(index)) {
+                self.values[rank] = value;
+            } else {
+                self.late.remove(&key);
+            }
+        } else {
+            self.replace(key, value);
+        }
+    }
+}
+
 /// Sum the memory accounting of a cold struct's sparse fields.
 fn sparse_memory_usage<const N: usize>(fields: [(usize, usize); N]) -> (usize, usize) {
     fields
@@ -799,19 +946,21 @@ pub type ModuleSpecifierCache = std::collections::BTreeMap<JsString, (JsString, 
 /// [`SparseLinks`]).
 #[derive(Debug, Default)]
 pub struct SymbolLinksCold {
-    /// tsc links.containingType for synthetic properties.
-    pub containing_type: SparseLinks<SymbolId, Option<TypeId>>,
+    /// tsc links.containingType for synthetic properties. Written when the
+    /// property is created, like the three fields below: values in creation
+    /// order ([`CreationOrderLinks`]).
+    pub containing_type: CreationOrderLinks<SymbolId, Option<TypeId>>,
     /// tsc links.mappedType for CheckFlags::MAPPED property symbols
     /// synthesized by resolveMappedTypeMembers (58549), and for
     /// CheckFlags::REVERSE_MAPPED properties (58446/58449).
-    pub mapped_type: SparseLinks<SymbolId, Option<TypeId>>,
+    pub mapped_type: CreationOrderLinks<SymbolId, Option<TypeId>>,
     /// tsc links.keyType for CheckFlags::MAPPED property symbols
     /// (58551); distinct from nameType after key remapping.
-    pub key_type: SparseLinks<SymbolId, Option<TypeId>>,
+    pub key_type: CreationOrderLinks<SymbolId, Option<TypeId>>,
     /// tsc links.syntheticOrigin (getSpreadSymbol 63052 /
     /// getAnonymousPartialType 62955). Dormant store like the spread pair
     /// below.
-    pub synthetic_origin: SparseLinks<SymbolId, Option<SymbolId>>,
+    pub synthetic_origin: CreationOrderLinks<SymbolId, Option<SymbolId>>,
     /// tsc links.inferredClassSymbol (mergeJSSymbols 77526-77538): source
     /// symbol-local map from the inferred target symbol id to that
     /// transient merged symbol. The key is the inferred symbol
@@ -1262,8 +1411,10 @@ pub struct TypeLinksCold {
     pub resolved_reduced_type: SparseMemo<TypeId, TypeId>,
     /// tsc TypeReference.mapper (60197): applied to the node-read
     /// arguments in getTypeArguments (60211); set by
-    /// getObjectTypeInstantiation's deferred-reference result arm.
-    pub deferred_mapper: SparseLinks<TypeId, Option<MapperId>>,
+    /// getObjectTypeInstantiation's deferred-reference result arm, for the
+    /// reference it has just created: values in creation order
+    /// ([`CreationOrderLinks`]).
+    pub deferred_mapper: CreationOrderLinks<TypeId, Option<MapperId>>,
     /// tsc InterfaceTypeWithDeclaredMembers.declaredProperties/
     /// declaredCallSignatures/declaredConstructSignatures/
     /// declaredIndexInfos (resolveDeclaredMembers 57602) — one
