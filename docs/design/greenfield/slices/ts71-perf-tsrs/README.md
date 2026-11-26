@@ -2302,6 +2302,18 @@ VS Code の 1 thread では、行を積むごとに下がる：行 1〜4 で −
 
 **手順の変更。** (a) 同一性の検査で checker の個数を変えるときは、候補を main の**同じ個数**と比べ、main 自身のその個数と既定の差も表示する（前提の検査を段の中に持つ）。(b) 別の train の template から書いた本文は、listing の前に generic の必須の placeholder（`@ORACLEALL@ @FINGERPRINT@ @PRESETID@ @SUITES@`）が揃っているかを確かめる。
 
+**結果 70（2026-11-26 夜：IndexInfo を 20 B・`Copy` にする行の着地（PR #1045）；helper の checker 構造の設計の残り；次の行）**
+
+**着地（PR #1045、merge `8591d9573`、hosted run 45824878171、22:33）。** helper の P2 の前半を 1 commit で入れた：IndexInfo は 40 → 20 B・`Copy`。computed name の components（object literal の合成 index signature だけが持つ）は checker が 1 度だけ持つ一覧への 4 B の handle になり、info の複製は一覧を共有する（誰も書き換えない）。node builder（唯一の読み手）は checker を呼ぶ前に一覧を写す。出力・3 counter は main と同じ。train の local 検査：checker の test 2,245 件（失敗 0）、4 checker の conformance は既知の 4 つ、suites の退行 0、oracle 24 / 24、fingerprint の差 0 行。
+
+**測ったこと（wall、括弧は control）。** 枠 s29（前の main の上で `n-p2a`）：既定設定で GOES ON（Effect −0.47 %、hono −1.84 %）、1 thread はほぼ横ばい、preset の Playwright +2.97 %［+2.38］は 31 回で −1.25 %。枠 s30（この main の上で `n-p2a67`、base は train 66 の binary、control は `n-b66`）：1 thread と既定で GOES ON（既定の VS Code −1.46 %［+0.14］、TypeScript −0.84 %）、preset の zod +2.14 %［+1.10］と Effect +0.44 %［−0.54］は 31 回の s30b で zod −0.64 %（31 回中 19 回）［+2.43］、Effect −0.03 %［+2.07］。peak は zod の preset −6.0 MiB、VS Code の 1 thread −2.5〜−3.3 MiB、ほかは ±2 MiB。この夜の機械は揺れが大きかった（base の 2 cell が 1〜4 % 開いた block が複数；control 自身が +2 % を読む）：31 回の撮り直しの規則がそれを分けた。
+
+**helper の設計の残り。** P1（transient symbol の links を 16 B に）は全 mode で遅く採らない（結果 69）。P2 の後半（index info の一覧を pool に intern し、index info だけを持つ member に 2 bit の印：約 190 行）、P3（NodeLinks：過去 4 つの形が棄却された所、census が門）、P4、P5 は census の後。census は memory report の数で、時間の計測ではない。
+
+**次の行（書いていない、根拠つき）。** (1) 行 18（配分の間に checker が起動）：正しく、conformance も同じ；枠の揺れより小さい上限（VS Code 約 4 ms）なので、VS Code の preset を 31 回以上で単独に読む。(2) VS Code の checker の起動の「snapshot からの状態」は 10 個で kernel 時間が 6 倍（新しい page）：何を触るかを fault の数で分ける census。(3) check 開始前の直列区間：配分の部分（VS Code のみ、各 1〜2 ms）と、loader の file ごとの仕事（小さな仕事の集まり；先読みに一部は移っている）。
+
+**自分の誤り。** なし（この entry の範囲）。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
