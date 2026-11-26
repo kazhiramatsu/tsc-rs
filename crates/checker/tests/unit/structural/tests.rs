@@ -3356,3 +3356,111 @@ fn declaration_modifier_flags_answer_the_same_from_their_kept_cells() {
         },
     );
 }
+
+/// A string literal key applies to a number index signature exactly when
+/// its text is one a number prints as (`(+name).toString() === name`): the
+/// test by the first byte that stands before the parse answers as the parse
+/// does, name by name, and the names are the expected ones.
+#[test]
+fn a_string_key_applies_to_a_number_index_when_a_number_prints_as_it() {
+    crate::state::test_support::with_program_state(
+        &[("a.ts", "")],
+        &CompilerOptions::default(),
+        |state| {
+            let number = state.tables.intrinsics.number;
+            let cases = [
+                ("0", true),
+                ("7", true),
+                ("1.5", true),
+                ("-1", true),
+                ("Infinity", true),
+                ("-Infinity", true),
+                ("NaN", true),
+                ("1e+21", true),
+                ("1e21", false),
+                ("01", false),
+                ("0x10", false),
+                ("+1", false),
+                (".5", false),
+                (" 1", false),
+                ("", false),
+                ("-", false),
+                ("Info", false),
+                ("Na", false),
+                ("NaNa", false),
+                ("abc", false),
+                ("length", false),
+                ("_1", false),
+            ];
+            for (name, expected) in cases {
+                assert_eq!(
+                    super::is_numeric_literal_name_js(name),
+                    expected,
+                    "{name:?}"
+                );
+                let key = state.tables.get_string_literal_type(name);
+                assert_eq!(
+                    state.is_applicable_index_type(key, number).unwrap(),
+                    expected,
+                    "{name:?}"
+                );
+            }
+        },
+    );
+}
+
+/// The applicable index info of a key: the one that applies, a synthesized
+/// intersection when two apply (readonly only if both are), and the string
+/// signature only when no other applies.
+#[test]
+fn the_applicable_index_info_is_the_one_or_the_intersection_of_several() {
+    let text = "declare const s: unique symbol;\n\
+        interface One { [k: number]: 1; [k: string]: 1 | 2 }\n\
+        interface Two { readonly [k: number]: { a: 1 }; [k: `${number}`]: { b: 2 }; [k: string]: {} }\n\
+        declare const one: One;\n\
+        declare const two: Two;\n";
+    crate::state::test_support::with_program_state(
+        &[("a.ts", text)],
+        &CompilerOptions::default(),
+        |state| {
+            let number = state.tables.intrinsics.number;
+            let string = state.tables.intrinsics.string;
+            let unknown = state.tables.intrinsics.unknown;
+            let type_of = |state: &mut CheckerState, name: &str| {
+                let symbol = *state.globals.get(name).unwrap();
+                state.get_type_of_symbol(symbol).unwrap()
+            };
+            let one = type_of(state, "one");
+            let infos = state.get_index_infos_of_type(one).unwrap();
+            let by_number = state
+                .find_applicable_index_info(infos.clone(), number)
+                .unwrap()
+                .expect("the number signature");
+            assert_eq!(by_number.key_type, number);
+            let by_string = state
+                .find_applicable_index_info(infos, string)
+                .unwrap()
+                .expect("the string signature");
+            assert_eq!(by_string.key_type, string);
+
+            let two = type_of(state, "two");
+            let infos = state.get_index_infos_of_type(two).unwrap();
+            let seven = state.tables.get_string_literal_type("7");
+            let both = state
+                .find_applicable_index_info(infos.clone(), seven)
+                .unwrap()
+                .expect("two signatures apply to the key \"7\"");
+            // The synthesized info: an unknown key, not readonly (one of the
+            // two is not), no declaration.
+            assert_eq!(both.key_type, unknown);
+            assert!(!both.is_readonly);
+            assert!(both.declaration.is_none());
+            let name = state.tables.get_string_literal_type("name");
+            let only_string = state
+                .find_applicable_index_info(infos, name)
+                .unwrap()
+                .expect("the string signature");
+            assert_eq!(only_string.key_type, string);
+        },
+    );
+}

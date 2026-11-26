@@ -9075,18 +9075,28 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<IndexInfo>> {
         let string = self.tables.intrinsics.string;
         let mut string_index_info: Option<&IndexInfo> = None;
-        let mut applicable: Vec<&IndexInfo> = Vec::new();
+        // As the reference keeps them: the first applicable info in a
+        // variable, a list only when a second one applies.
+        let mut applicable: Option<&IndexInfo> = None;
+        let mut more: Vec<&IndexInfo> = Vec::new();
         for info in &index_infos {
             if info.key_type == string {
                 string_index_info = Some(info);
             } else if self.is_applicable_index_type(key_type, info.key_type)? {
-                applicable.push(info);
+                if applicable.is_none() {
+                    applicable = Some(info);
+                } else {
+                    more.push(info);
+                }
             }
         }
-        if applicable.len() > 1 {
-            let types: Vec<TypeId> = applicable.iter().map(|info| info.value_type).collect();
+        if let (Some(first), false) = (applicable, more.is_empty()) {
+            let types: Vec<TypeId> = std::iter::once(first)
+                .chain(more.iter().copied())
+                .map(|info| info.value_type)
+                .collect();
             let value = self.get_intersection_type(&types, tsc_types::IntersectionFlags::NONE)?;
-            let is_readonly = applicable.iter().all(|info| info.is_readonly);
+            let is_readonly = first.is_readonly && more.iter().all(|info| info.is_readonly);
             // tsgo findApplicableIndexInfo: the synthetic info has no
             // declaration.
             return Ok(Some(IndexInfo {
@@ -9099,7 +9109,7 @@ impl<'a> CheckerState<'a> {
                 is_any_base_type_index_info: false,
             }));
         }
-        if let Some(info) = applicable.into_iter().next() {
+        if let Some(info) = applicable {
             return Ok(Some(info.clone()));
         }
         if let Some(info) = string_index_info {
@@ -9135,7 +9145,14 @@ impl<'a> CheckerState<'a> {
             }
             if let Some(tsc_types::LiteralValue::String(value)) = self.tables.literal_value(source)
             {
-                return Ok(value.as_str().is_some_and(is_numeric_literal_name_js));
+                // `(+name).toString() === name` holds only for a name that
+                // a number prints as, and a number's print begins with a
+                // digit, '-', 'I' (Infinity) or 'N' (NaN): any other first
+                // byte answers without the validation and the parse.
+                return Ok(matches!(
+                    value.as_bytes().first(),
+                    Some(b'0'..=b'9' | b'-' | b'I' | b'N')
+                ) && value.as_str().is_some_and(is_numeric_literal_name_js));
             }
         }
         Ok(false)
