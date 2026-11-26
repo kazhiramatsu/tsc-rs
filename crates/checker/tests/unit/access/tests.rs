@@ -1328,3 +1328,118 @@ b.hasOwnProperty;\nb.toString();\n";
         ]
     );
 }
+
+/// isDeprecatedSymbol answers as the reference's form does (tsgo checker.go
+/// 14326) for every symbol of a file, asked three times: a persistent
+/// symbol found not deprecated is kept and answers from its kept slot, and
+/// the kept slots hold only symbols of at most one declaration.
+#[test]
+fn the_deprecation_test_answers_the_same_from_its_kept_symbols() {
+    fn reference(state: &CheckerState, symbol: tsc_types::SymbolId) -> bool {
+        let declarations = state.binder.symbol(symbol).declarations();
+        if let Some(parent) = state.get_parent_of_symbol(symbol) {
+            if declarations.len() > 1 {
+                if state
+                    .binder
+                    .symbol(parent)
+                    .flags
+                    .intersects(tsc_types::SymbolFlags::INTERFACE)
+                {
+                    return declarations
+                        .iter()
+                        .any(|&declaration| state.is_deprecated_declaration(declaration));
+                }
+                return declarations
+                    .iter()
+                    .all(|&declaration| state.is_deprecated_declaration(declaration));
+            }
+        }
+        state
+            .binder
+            .symbol(symbol)
+            .value_declaration
+            .is_some_and(|declaration| state.is_deprecated_declaration(declaration))
+            || !declarations.is_empty()
+                && declarations
+                    .iter()
+                    .all(|&declaration| state.is_deprecated_declaration(declaration))
+    }
+
+    // A JSDoc comment belongs to a member only after a line break (on the
+    // line of the `{` it trails that token), so every tag has its own line.
+    let text = "/** @deprecated */\ndeclare const old: number;\n\
+        declare const fresh: number;\n\
+        /** @deprecated */\ndeclare function gone(): void;\n\
+        declare function over(a: string): void;\n\
+        /** @deprecated */\ndeclare function over(a: number): void;\n\
+        /** @deprecated */\ndeclare function all(a: string): void;\n\
+        /** @deprecated */\ndeclare function all(a: number): void;\n\
+        interface M {\n/** @deprecated */\nx: number;\ny: number;\nz(): void;\n}\n\
+        interface M {\nx: number;\n/** @deprecated */\nz(): void;\n}\n\
+        class K {\n/** @deprecated */\na = 1;\nb = 2;\n/** @deprecated */\nm(): void;\n\
+        m(v?: number): void {}\nget g() { return 1; }\nset g(v) {}\n}\n\
+        /** @deprecated */\ntype T = { p: number };\n\
+        /** @deprecated */\nenum E {\nA,\n/** @deprecated */\nB\n}\n\
+        namespace N {\n/** @deprecated */\nexport const q = 1;\nexport const r = 2;\n}\n";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        let mut symbols = Vec::new();
+        for node in state.binder.source(0).arena.node_ids() {
+            if let Some(symbol) = state.node_symbol(node) {
+                if !symbols.contains(&symbol) {
+                    symbols.push(symbol);
+                }
+            }
+        }
+        let (mut deprecated, mut live, mut several) = (0, 0, 0);
+        let mut deprecated_names = Vec::new();
+        for round in 0..3 {
+            for &symbol in &symbols {
+                let expected = reference(state, symbol);
+                assert_eq!(
+                    state.is_deprecated_symbol(symbol),
+                    expected,
+                    "round {round}, {symbol:?}"
+                );
+                if expected {
+                    deprecated += 1;
+                    if round == 0 {
+                        deprecated_names.push(
+                            format!("{:?}", state.symbol_name(symbol))
+                                .trim_matches('"')
+                                .to_owned(),
+                        );
+                    }
+                } else {
+                    live += 1;
+                }
+                if state.binder.symbol(symbol).declarations().len() > 1 {
+                    several += 1;
+                }
+            }
+        }
+        // Both answers occur, and symbols of several declarations.
+        // An overload set is deprecated when every declaration is (`all`,
+        // not `over` or the class's `m`), an interface's merged member when
+        // one is (`x`, `z`).
+        deprecated_names.sort();
+        assert_eq!(
+            deprecated_names,
+            ["B", "E", "T", "a", "all", "gone", "old", "q", "x", "z"]
+        );
+        assert_eq!(deprecated, 3 * 10);
+        assert!(live >= 3 * 10, "{live}");
+        assert!(several >= 3 * 4, "{several}");
+
+        let mut kept = 0;
+        for slot in state.not_deprecated_front.iter() {
+            let Some(raw) = slot.get().checked_sub(1) else {
+                continue;
+            };
+            let symbol = tsc_types::SymbolId::new(raw);
+            assert!(state.binder.symbol(symbol).declarations().len() <= 1);
+            assert!(!reference(state, symbol));
+            kept += 1;
+        }
+        assert!(kept >= 8, "{kept}");
+    });
+}

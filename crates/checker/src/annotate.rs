@@ -5122,12 +5122,22 @@ impl<'a> CheckerState<'a> {
                 let symbol = self.realize_deferred_declared_member(index, member);
                 members.insert(&self.binder, symbol);
             }
+            let no_bases = bases.is_empty();
             for base in bases {
                 let properties = self.get_properties_of_type_full(base)?;
                 self.add_inherited_members(&mut members, &properties)?;
             }
+            let container = self.tables.type_of(ty).symbol;
+            let target = self.tables.reference_target(ty);
+            // Without bases the table holds the declared properties in
+            // their order, and that order was made under the target's
+            // symbol.
             let (members, properties) =
-                self.freeze_named_members(members, self.tables.type_of(ty).symbol)?;
+                if no_bases && container == self.tables.type_of(target).symbol {
+                    self.freeze_named_members_in_order(members, container)?
+                } else {
+                    self.freeze_named_members(members, container)?
+                };
             self.remember_member_shape(source, followed.as_ref(), &members);
             let resolved = self.members_mut(header);
             resolved.members = members;
@@ -5466,6 +5476,12 @@ impl<'a> CheckerState<'a> {
         let container = self.tables.type_of(ty).symbol;
         let (members, properties) = match live_table {
             Some(table) => self.freeze_named_members(table, container)?,
+            // Without base types the table holds the declared properties in
+            // their order (instantiated or as they are), and the declared
+            // list was ordered under the target's symbol.
+            None if base_types.is_empty() && container == source_symbol => {
+                self.freeze_named_members_in_order(members, container)?
+            }
             None => self.freeze_named_members(members, container)?,
         };
         if mapper.is_some() {
@@ -7974,7 +7990,13 @@ impl<'a> CheckerState<'a> {
                 let target_index_infos = state.get_index_infos_of_type(target)?;
                 let index_infos = state.instantiate_index_info_list(&target_index_infos, mapper)?;
                 let container = state.tables.type_of(ty).symbol;
-                let (members, properties) = state.freeze_named_members(members, container)?;
+                // The target's properties in their order, instantiated one
+                // by one: in order under the symbol the two types share.
+                let (members, properties) = if container == state.tables.type_of(target).symbol {
+                    state.freeze_named_members_in_order(members, container)?
+                } else {
+                    state.freeze_named_members(members, container)?
+                };
                 if let Some(source) = source {
                     state.remember_member_shape(source, followed.as_ref(), &members);
                 }
@@ -8314,6 +8336,43 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<(crate::member_table::FrozenMembers, SymbolIds)> {
         let (members, properties) = self.freeze_selected_members(members)?;
         let properties = self.order_named_member_list(&members, properties, container);
+        Ok((members, properties))
+    }
+
+    /// [`Self::freeze_named_members`] for a table whose members were
+    /// inserted in the order `getNamedMembers` gives them: the instantiated
+    /// (or shared) members of a type whose own property list is that order
+    /// under the same container, inserted as that list has them.
+    ///
+    /// `compareSymbols` orders two members of one table by where their
+    /// first declarations lie and by their names (names are unique in a
+    /// table, so its creation-order tie-break is never reached), and
+    /// `getNamedMembers` groups them by whether their value declaration
+    /// lies inside the container's declarations. An instantiated member
+    /// has its target's declarations and name, and the container is the
+    /// same symbol: the order of the target's list is the order of this
+    /// one, and sorting it again would only confirm it.
+    fn freeze_named_members_in_order(
+        &mut self,
+        members: impl FreezeMembers,
+        container: Option<SymbolId>,
+    ) -> CheckResult<(crate::member_table::FrozenMembers, SymbolIds)> {
+        let (members, properties) = self.freeze_selected_members(members)?;
+        debug_assert!(
+            {
+                let mut sorted = properties.to_vec();
+                self.order_named_members_if_stable(&mut sorted, container);
+                sorted == *properties
+            },
+            "named members out of order by construction (container {container:?})"
+        );
+        // The table's own list when every member is a named one, as the
+        // sorted path shares it.
+        let properties = if properties.len() == members.len() {
+            members.symbol_list()
+        } else {
+            properties
+        };
         Ok((members, properties))
     }
 

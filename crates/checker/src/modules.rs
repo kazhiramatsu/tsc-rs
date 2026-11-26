@@ -74,6 +74,87 @@ pub(crate) struct ResolvedProgramModule {
     pub package_bundles_types: bool,
 }
 
+/// The program's resolved answers to a checker's most recent module
+/// requests, by the node a request was asked at.
+///
+/// A module is asked for at its import declaration again and again: once by
+/// the declaration's own check and three or four times by every alias the
+/// declaration introduces (the alias's target, its type, its deprecation
+/// check each start from the declaration). The program's answer to a
+/// request is a function of the asking file, the specifier and the mode
+/// the node implies - of the node and the specifier, for a finite program
+/// that does not change - and getting it costs the mode's walk up the
+/// tree, a table look-up by the specifier's text and owned copies of the
+/// resolved names. A slot here keeps the last resolved answer asked at a
+/// node whose index maps to it.
+///
+/// Only resolved answers are kept: a miss, an untyped implementation and a
+/// failed look-up take the whole path every time, with what they record.
+#[derive(Default)]
+pub(crate) struct ResolvedModuleCache {
+    /// Empty until the first resolved answer, then [`Self::SLOTS`] slots.
+    slots: Vec<Option<ResolvedModuleEntry>>,
+}
+
+struct ResolvedModuleEntry {
+    location: NodeId,
+    specifier: JsString,
+    resolved: ResolvedProgramModule,
+}
+
+impl ResolvedModuleCache {
+    /// The requests of the file being checked stay in sight: a file has
+    /// tens of import declarations, rarely hundreds.
+    const SLOTS: usize = 256;
+
+    #[inline]
+    fn slot(location: NodeId) -> usize {
+        // Import declarations of one file are a few node indices apart:
+        // spread them.
+        (location.index().wrapping_mul(0x9E37_79B1) >> 24) as usize
+    }
+
+    /// The answer kept for a request of `specifier` at `location`.
+    pub(crate) fn get(
+        &self,
+        location: NodeId,
+        specifier: JsStr<'_>,
+    ) -> Option<&ResolvedProgramModule> {
+        let entry = self.slots.get(Self::slot(location))?.as_ref()?;
+        (entry.location == location && entry.specifier.as_js() == specifier)
+            .then_some(&entry.resolved)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn is_empty(&self) -> bool {
+        self.slots.iter().all(Option::is_none)
+    }
+
+    /// Forget every answer (another provider or other sources were
+    /// installed).
+    pub(crate) fn clear(&mut self) {
+        self.slots.clear();
+    }
+
+    /// Keep `resolved` as the answer to a request of `specifier` at
+    /// `location`, in place of what its slot held.
+    pub(crate) fn put(
+        &mut self,
+        location: NodeId,
+        specifier: JsStr<'_>,
+        resolved: &ResolvedProgramModule,
+    ) {
+        if self.slots.is_empty() {
+            self.slots.resize_with(Self::SLOTS, || None);
+        }
+        self.slots[Self::slot(location)] = Some(ResolvedModuleEntry {
+            location,
+            specifier: specifier.to_owned(),
+            resolved: resolved.clone(),
+        });
+    }
+}
+
 /// The resolver's verdict. `Missed` may retain diagnostic-only host facts;
 /// `Suppressed` marks a miss that unmodeled machinery (node_modules,
 /// paths, allowJs targets, mode-dependent extensions) might turn into
@@ -903,7 +984,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isExportOrExportExpression @6.0.3
     /// tsc-hash: cea0c3dcc402c1d015329d558f5758763d1a1697f9010e21458c0aa7496bcc50
     /// tsc-span: _tsc.js:71647-71661
-    fn is_export_or_export_expression(&self, location: NodeId) -> bool {
+    ///
+    /// The walk ends where the answer is decided. An export assignment's
+    /// expression counts only as an entity name expression, and one of
+    /// those holds nothing but identifiers, property accesses and their
+    /// `?.` tokens; an export specifier's names hold nothing at all. With a
+    /// node of another kind below it, no ancestor can answer true (the
+    /// parser hangs no JSDoc under an identifier or a property access).
+    pub(crate) fn is_export_or_export_expression(&self, location: NodeId) -> bool {
         let mut current = location;
         while let Some(parent) = self.parent_of(current) {
             match_record! { self.record_of(parent), {
@@ -915,6 +1003,14 @@ impl<'a> CheckerState<'a> {
                 },
                 _ => {},
             }}
+            if !matches!(
+                self.kind_of(current),
+                SyntaxKind::Identifier
+                    | SyntaxKind::PropertyAccessExpression
+                    | SyntaxKind::QuestionDotToken
+            ) {
+                return false;
+            }
             current = parent;
         }
         false
@@ -1133,10 +1229,12 @@ impl<'a> CheckerState<'a> {
         }
         let target = self.get_export_symbol_of_value_symbol_if_exported(target);
         let isolated_modules = self.options.isolated_modules == Some(true);
+        // Three tests without effects joined by "or": the one that reads two
+        // fields of the target stands before the one that walks the tree.
         if isolated_modules
+            || !self.is_const_enum_or_const_enum_only_module_symbol(target)
             || (self.options.should_preserve_const_enums()
                 && self.is_export_or_export_expression(location))
-            || !self.is_const_enum_or_const_enum_only_module_symbol(target)
         {
             self.mark_alias_symbol_as_referenced(symbol)?;
         }
@@ -1251,15 +1349,49 @@ impl<'a> CheckerState<'a> {
     /// tsgo-port: isPartOfImportEqualsModuleReference @7.1
     /// (checker/checker.go:28943-28954): the names of `import x = a.b.c` are
     /// resolved by the alias, never as property accesses of a value.
-    fn is_part_of_import_equals_module_reference(&self, location: NodeId) -> bool {
+    ///
+    /// The search for the declaration ends at a node that an earlier search
+    /// passed on its way to the root: such a node lies outside every
+    /// import-equals declaration, so nothing above it has to be read again.
+    /// Two of them are kept - the innermost block of the last search and
+    /// its outermost block (the root for a search that met no block): the
+    /// next property access of the same block ends at the first, the next
+    /// of the same function at the second.
+    pub(crate) fn is_part_of_import_equals_module_reference(&self, location: NodeId) -> bool {
+        let (kept_inner, kept_outer) = self.outside_import_equals.get();
+        let mut inner_block = None;
+        let mut outer_block = None;
+        let mut last = location;
         let mut import_equals = Some(location);
+        let mut reached_root = true;
         while let Some(node) = import_equals {
-            if self.kind_of(node) == SyntaxKind::ImportEqualsDeclaration {
+            if Some(node) == kept_inner || Some(node) == kept_outer {
+                import_equals = None;
+                reached_root = false;
                 break;
             }
+            match self.kind_of(node) {
+                SyntaxKind::ImportEqualsDeclaration => break,
+                SyntaxKind::Block => {
+                    if inner_block.is_none() {
+                        inner_block = Some(node);
+                    }
+                    outer_block = Some(node);
+                }
+                _ => {}
+            }
+            last = node;
             import_equals = self.parent_of(node);
         }
         let Some(import_equals) = import_equals else {
+            // Every node of this search lies outside such a declaration.
+            let inner = inner_block.or(kept_inner);
+            let outer = if reached_root {
+                Some(outer_block.unwrap_or(last))
+            } else {
+                kept_outer
+            };
+            self.outside_import_equals.set((inner, outer));
             return false;
         };
         let module_reference = match self.data_of(import_equals) {
@@ -1286,10 +1418,12 @@ impl<'a> CheckerState<'a> {
         prop: Option<SymbolId>,
         parent_type: TypeId,
     ) -> CheckResult<()> {
-        if self.is_part_of_import_equals_module_reference(location) {
+        // Two tests without effects, both returning: the one that reads
+        // `left` stands before the one that walks the tree.
+        if self.is_this_identifier(left) || self.kind_of(left) != SyntaxKind::Identifier {
             return Ok(());
         }
-        if self.is_this_identifier(left) || self.kind_of(left) != SyntaxKind::Identifier {
+        if self.is_part_of_import_equals_module_reference(location) {
             return Ok(());
         }
         let parent_symbol = match self.get_resolved_symbol(left)? {
@@ -1641,10 +1775,12 @@ impl<'a> CheckerState<'a> {
         location: NodeId,
         left: NodeId,
     ) -> CheckResult<()> {
-        if self.is_part_of_import_equals_module_reference(location) {
+        // Two tests without effects, both returning: the one that reads
+        // `left` stands before the one that walks the tree.
+        if self.is_this_identifier(left) || self.kind_of(left) != SyntaxKind::Identifier {
             return Ok(());
         }
-        if self.is_this_identifier(left) || self.kind_of(left) != SyntaxKind::Identifier {
+        if self.is_part_of_import_equals_module_reference(location) {
             return Ok(());
         }
         let parent_symbol = match self.get_resolved_symbol(left)? {
@@ -5221,6 +5357,13 @@ impl<'a> CheckerState<'a> {
         if self.authoritative_module_failure.get().is_some() {
             return ProgramModuleResolution::AuthorityFailed;
         }
+        if let Some(resolved) = self
+            .resolved_module_cache
+            .borrow()
+            .get(location, module_reference)
+        {
+            return ProgramModuleResolution::Resolved(resolved.clone());
+        }
 
         let file_index = self.binder.file_index_of_node(location);
         let containing_file = &self.binder.source(file_index).file_name;
@@ -5294,7 +5437,7 @@ impl<'a> CheckerState<'a> {
                     );
                     return ProgramModuleResolution::AuthorityFailed;
                 };
-                ProgramModuleResolution::Resolved(ResolvedProgramModule {
+                let resolved = ResolvedProgramModule {
                     file_index: target_index,
                     resolved_file_name: resolved.resolved_file_name,
                     resolved_using_ts_extension: resolved.resolved_using_ts_extension,
@@ -5310,7 +5453,11 @@ impl<'a> CheckerState<'a> {
                     alternate_result: resolved.alternate_result,
                     types_package_exists: resolved.types_package_exists,
                     package_bundles_types: resolved.package_bundles_types,
-                })
+                };
+                self.resolved_module_cache
+                    .borrow_mut()
+                    .put(location, module_reference, &resolved);
+                ProgramModuleResolution::Resolved(resolved)
             }
             Err(crate::AuthoritativeModuleLookupFailure::Missing)
                 if self.module_name_outside_program.get() =>

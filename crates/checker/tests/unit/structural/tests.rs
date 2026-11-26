@@ -25,6 +25,67 @@ fn probe(
     })
 }
 
+/// tsc `signature.resolvedMinArgumentCount` (getMinArgumentCount): a
+/// signature's minimum argument count - with the trailing parameters that
+/// accept void trimmed, or from a rest tuple's required elements - is
+/// computed at the first request and kept by the signature's identity. A copy
+/// of the signature is another signature: nothing is kept for it until it is
+/// asked.
+#[test]
+fn a_signatures_minimum_argument_count_is_computed_once() {
+    crate::state::test_support::with_program_state(
+        &[(
+            "a.ts",
+            "declare let plain: (a: number, b?: string) => void;\n\
+declare let trimmed: (a: number, b: void, c: undefined | void) => void;\n\
+declare let rest: (a: number, ...more: [string, boolean?]) => void;\n",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let signature = |state: &mut CheckerState, name: &str| {
+                let annotation =
+                    find_probe_annotation(state.binder.source(0), name).expect("annotation");
+                let ty = state.get_type_from_type_node(annotation).expect("type");
+                state
+                    .get_signatures_of_type(ty, crate::structural::SignatureKind::Call)
+                    .expect("signatures")[0]
+            };
+            let kept = |state: &CheckerState, id: crate::state::SignatureId| {
+                state
+                    .resolved_min_argument_counts
+                    .get(id.index() as usize)
+                    .copied()
+                    .unwrap_or(0)
+            };
+            for (name, expected) in [("plain", 1usize), ("trimmed", 1), ("rest", 2)] {
+                let id = signature(state, name);
+                assert_eq!(kept(state, id), 0, "{name}");
+                assert_eq!(
+                    state.get_min_argument_count(id).unwrap(),
+                    expected,
+                    "{name}"
+                );
+                assert_eq!(usize::from(kept(state, id)), expected + 1, "{name}");
+                assert_eq!(
+                    state.get_min_argument_count(id).unwrap(),
+                    expected,
+                    "{name}"
+                );
+
+                let copy = state.signature_of(id).clone();
+                let copy = state.alloc_signature(copy);
+                assert_eq!(kept(state, copy), 0, "{name}");
+                assert_eq!(
+                    state.get_min_argument_count(copy).unwrap(),
+                    expected,
+                    "{name}"
+                );
+                assert_eq!(usize::from(kept(state, copy)), expected + 1, "{name}");
+            }
+        },
+    );
+}
+
 /// tsgo getUnionOrIntersectionProperty (checker.go:21837-21858): the cache
 /// without the Object / Function augmentation hands a non-partial property
 /// on to the augmented cache; nothing goes the other way, and a partial

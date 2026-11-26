@@ -704,3 +704,48 @@ fn mapped_member_links_are_read_back_by_symbol_in_creation_order() {
         Some(TypeId::new(2_005))
     );
 }
+
+/// The front of final last-assignment positions answers a kept symbol -
+/// "never assigned" and a position alike -, keeps one symbol a slot, and a
+/// later write of the field for a kept symbol empties its slot.
+#[test]
+fn the_last_assignment_front_keeps_final_positions_until_the_field_moves() {
+    let mut links = LinksTables::default();
+    let symbols: Vec<SymbolId> = [3u32, 17, 4_000, tsc_types::TRANSIENT_SYMBOL_BIT | 9]
+        .into_iter()
+        .map(SymbolId::new)
+        .collect();
+    for &symbol in &symbols {
+        assert_eq!(links.final_last_assignment_pos(symbol), None);
+    }
+    links.keep_final_last_assignment_pos(symbols[0], None);
+    links.keep_final_last_assignment_pos(symbols[1], Some(42));
+    links.keep_final_last_assignment_pos(symbols[2], Some(-7));
+    links.keep_final_last_assignment_pos(symbols[3], Some(i64::MAX));
+    assert_eq!(links.final_last_assignment_pos(symbols[0]), Some(None));
+    assert_eq!(links.final_last_assignment_pos(symbols[1]), Some(Some(42)));
+    assert_eq!(links.final_last_assignment_pos(symbols[2]), Some(Some(-7)));
+    assert_eq!(
+        links.final_last_assignment_pos(symbols[3]),
+        Some(Some(i64::MAX))
+    );
+
+    // The field moves: the kept answer goes, the others stay.
+    links.set_symbol_last_assignment_pos(0, symbols[1], Some(50));
+    assert_eq!(links.final_last_assignment_pos(symbols[1]), None);
+    assert_eq!(links.final_last_assignment_pos(symbols[0]), Some(None));
+    assert_eq!(links.final_last_assignment_pos(symbols[2]), Some(Some(-7)));
+
+    // One symbol a slot: a symbol of the same slot replaces the kept one.
+    let rival = (0..u32::MAX - 1)
+        .map(SymbolId::new)
+        .find(|&candidate| {
+            candidate != symbols[2]
+                && LastAssignmentFront::slot(candidate) == LastAssignmentFront::slot(symbols[2])
+        })
+        .unwrap();
+    links.keep_final_last_assignment_pos(rival, Some(1));
+    assert_eq!(links.final_last_assignment_pos(symbols[2]), None);
+    assert_eq!(links.final_last_assignment_pos(rival), Some(Some(1)));
+    assert!(LastAssignmentFront::slot(rival) < LastAssignmentFront::SLOTS);
+}

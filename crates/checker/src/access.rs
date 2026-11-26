@@ -1540,11 +1540,25 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isDeprecatedSymbol @6.0.3
     /// tsc-hash: 186bd24a3ff7473b4fe7b156f5322ba22c7d16b30d959ed48bf8401401fb522c
     /// tsc-span: _tsc.js:47634-47640
+    ///
+    /// Every reference to a symbol asks this. A persistent symbol with at
+    /// most one declaration answers from that declaration alone, and
+    /// neither it nor the tree changes after bind: the ones last found not
+    /// deprecated are kept (`not_deprecated_front`), and a kept symbol
+    /// answers without its declaration being read again.
     pub(crate) fn is_deprecated_symbol(&self, symbol: SymbolId) -> bool {
+        let raw = symbol.index();
+        let persistent = raw & tsc_types::TRANSIENT_SYMBOL_BIT == 0;
+        let slot = &self.not_deprecated_front[Self::not_deprecated_slot(raw)];
+        if persistent && slot.get() == raw + 1 {
+            return false;
+        }
         // tsgo checker.go:14326 reads the supplied symbol directly.
-        let declarations = self.binder.symbol(symbol).declarations();
-        if let Some(parent) = self.get_parent_of_symbol(symbol) {
-            if declarations.len() > 1 {
+        let record = self.binder.symbol(symbol);
+        let declarations = record.declarations();
+        if declarations.len() > 1 {
+            // The parent decides only between several declarations.
+            if let Some(parent) = self.get_parent_of_symbol(symbol) {
                 if self
                     .binder
                     .symbol(parent)
@@ -1560,15 +1574,35 @@ impl<'a> CheckerState<'a> {
                     .all(|&declaration| self.is_deprecated_declaration(declaration));
             }
         }
-        self.binder
-            .symbol(symbol)
-            .value_declaration
-            .is_some_and(|declaration| self.is_deprecated_declaration(declaration))
-            || !declarations.is_empty()
-                && declarations
-                    .iter()
-                    .all(|&declaration| self.is_deprecated_declaration(declaration))
+        let value_declaration = record.value_declaration;
+        let deprecated = match declarations {
+            // One declaration that is the value declaration, or stands
+            // without one, is tested once.
+            [only] if value_declaration.is_none_or(|value| value == *only) => {
+                self.is_deprecated_declaration(*only)
+            }
+            _ => {
+                value_declaration
+                    .is_some_and(|declaration| self.is_deprecated_declaration(declaration))
+                    || !declarations.is_empty()
+                        && declarations
+                            .iter()
+                            .all(|&declaration| self.is_deprecated_declaration(declaration))
+            }
+        };
+        if persistent && !deprecated && declarations.len() <= 1 {
+            slot.set(raw + 1);
+        }
+        deprecated
     }
+
+    /// The slot of a symbol in `not_deprecated_front` (one page of slots).
+    #[inline]
+    pub(crate) fn not_deprecated_slot(raw: u32) -> usize {
+        (raw.wrapping_mul(0x9E37_79B1) >> (32 - Self::NOT_DEPRECATED_BITS)) as usize
+    }
+
+    pub(crate) const NOT_DEPRECATED_BITS: u32 = 12;
 
     /// tsgo `ast.GetJSDocDeprecatedTag`: the `@deprecated` tag of a
     /// declaration's own JSDoc (a variable's sits on its statement, so it

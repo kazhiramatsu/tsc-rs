@@ -1273,6 +1273,62 @@ fn mapper_cache_depths_keep_storage_and_clear_only_discarded_answers() {
     });
 }
 
+/// A scope's first eight plain answers lie inline and the ninth goes to
+/// the map; asked in any order, with keys stored again under another
+/// answer, the scope answers as one map does, and forgets all at its pop.
+#[test]
+fn a_mapper_scope_keeps_its_first_answers_inline_and_answers_as_a_map() {
+    with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+        let answers = [
+            state.tables.intrinsics.string,
+            state.tables.intrinsics.number,
+            state.tables.intrinsics.any,
+        ];
+        let key = |index: u32| crate::state::MapperCacheKey {
+            ty: tsc_types::TypeId::new(index),
+            alias_symbol: None,
+            alias_arguments: None,
+        };
+        state.push_active_mapper(state.permissive_mapper);
+        for distinct in [3u32, 8, 9, 24] {
+            let mut model = std::collections::HashMap::new();
+            let mut seed = 0x2545_f491u32;
+            for step in 0..200u32 {
+                seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                let index = (seed >> 16) % distinct;
+                let cache = &mut state.active_type_mappers_caches[0];
+                assert_eq!(
+                    cache.get(&key(index)),
+                    model.get(&index),
+                    "{distinct} keys, step {step}"
+                );
+                if step % 3 != 2 {
+                    let answer = answers[((seed >> 8) % 3) as usize];
+                    cache.insert(key(index), answer);
+                    model.insert(index, answer);
+                }
+            }
+            let cache = &state.active_type_mappers_caches[0];
+            assert_eq!(cache.len(), model.len());
+            assert!(model.len() >= 3);
+            // The map is used from the ninth key on.
+            assert_eq!(
+                cache.capacities().0 != 0,
+                model.len() > 8,
+                "{distinct} keys"
+            );
+            state.pop_active_mapper();
+            let cache = &state.active_type_mappers_caches[0];
+            assert_eq!(cache.len(), 0);
+            for index in 0..distinct {
+                assert_eq!(cache.get(&key(index)), None);
+            }
+            state.push_active_mapper(state.permissive_mapper);
+        }
+        state.pop_active_mapper();
+    });
+}
+
 #[test]
 fn sparse_mapper_maps_rebuild_the_same_answers_after_pop() {
     with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
@@ -1346,6 +1402,26 @@ fn sparse_mapper_maps_rebuild_the_same_answers_after_pop() {
             state.push_active_mapper(mapper);
             check_answer(state);
             state.rollback_speculation(checkpoint);
+            if alias_symbol.is_none() {
+                // One plain answer stayed in the scope's inline entries: the
+                // large map was not used and keeps its storage. A scope that
+                // spills a few answers into it releases it.
+                assert_eq!(
+                    capacities(&state.active_type_mappers_caches[1]),
+                    (large, small)
+                );
+                state.push_active_mapper(mapper);
+                for index in 0..16 {
+                    state.active_type_mappers_caches[1].insert(
+                        crate::state::MapperCacheKey {
+                            ty: tsc_types::TypeId::new(index),
+                            ..key
+                        },
+                        number,
+                    );
+                }
+                state.pop_active_mapper();
+            }
             assert_eq!(capacities(&state.active_type_mappers_caches[1]), (0, small));
             assert_eq!(
                 state.active_type_mappers_caches[0].get(&outer),
