@@ -6199,10 +6199,8 @@ impl<'a> CheckerState<'a> {
             let Some(declaration) = self.signature_of(signature).declaration else {
                 continue;
             };
-            let source = self.binder.source_of_node(declaration);
             let modifiers = ModifierFlags::from_bits(
-                node_util::get_combined_modifier_flags(source, declaration).bits()
-                    & modifiers_mask.bits(),
+                self.combined_modifier_flags(declaration).bits() & modifiers_mask.bits(),
             );
             if modifiers == ModifierFlags::NONE
                 || self.kind_of(declaration) != SyntaxKind::Constructor
