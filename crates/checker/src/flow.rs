@@ -4438,6 +4438,9 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         location: Option<NodeId>,
     ) -> CheckResult<bool> {
+        if let Some(pos) = self.links.final_last_assignment_pos(symbol) {
+            return Ok(self.is_past_assignment_position(pos, location));
+        }
         let Some(value_declaration) = self.binder.symbol(symbol).value_declaration else {
             return Ok(false);
         };
@@ -4461,7 +4464,9 @@ impl<'a> CheckerState<'a> {
                 NodeCheckFlags::ASSIGNMENTS_MARKED,
             );
             if !self.has_parent_with_assignments_marked(parent) {
+                self.assignment_marking_depth += 1;
                 let marked = self.mark_node_assignments(parent);
+                self.assignment_marking_depth -= 1;
                 if marked.is_err() {
                     self.links.clear_node_check_flags(
                         self.speculation_depth,
@@ -4473,12 +4478,25 @@ impl<'a> CheckerState<'a> {
             }
         }
         let pos = self.links.symbol_cold().last_assignment_pos.get(symbol);
-        Ok(match pos {
+        // The container is marked. Outside a marking walk that is the end of
+        // the field's writes for this symbol (inside one, a container up the
+        // tree may still be on its way through the symbol's assignments).
+        if self.assignment_marking_depth == 0 {
+            self.links.keep_final_last_assignment_pos(symbol, pos);
+        }
+        Ok(self.is_past_assignment_position(pos, location))
+    }
+
+    /// The answer of `isPastLastAssignment` from the position: tsc's
+    /// `!symbol.lastAssignmentPos || location && abs(pos) < location.pos`.
+    #[inline]
+    fn is_past_assignment_position(&self, pos: Option<i64>, location: Option<NodeId>) -> bool {
+        match pos {
             None | Some(0) => true,
             Some(pos) => location.is_some_and(|location| {
                 (pos.unsigned_abs() as usize) < self.pos_of(location) as usize
             }),
-        })
+        }
     }
 
     /// tsc-port: isSomeSymbolAssigned @6.0.3

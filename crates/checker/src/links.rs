@@ -623,6 +623,70 @@ impl<K: CreationKey, V: Default + PartialEq> CreationOrderLinks<K, V> {
     }
 }
 
+/// A symbol's last assignment position once nothing can change it, for the
+/// symbols asked most recently.
+///
+/// `isPastLastAssignment` is asked for every narrowable reference to a
+/// parameter or a local. Each request walked from the symbol's declaration
+/// up to its function or file, read that container's links for the "marked"
+/// flag and probed the sparse position field. Once the container's
+/// assignments are marked the position is final: every assignment to a
+/// parameter or a local lies inside the function that declares it, and a
+/// container nested in a marked one is never walked again. A slot keeps the
+/// final position of the last symbol asked that maps to it; a later write of
+/// the field for that symbol empties the slot.
+#[derive(Debug, Default)]
+pub(crate) struct LastAssignmentFront {
+    /// Empty until the first kept position, then [`Self::SLOTS`] slots.
+    slots: Vec<LastAssignmentSlot>,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct LastAssignmentSlot {
+    /// The symbol's store position; zero for an empty slot.
+    symbol: u32,
+    /// `Some(position)` flattened: whether the field is set, and its value.
+    assigned: bool,
+    position: i64,
+}
+
+impl LastAssignmentFront {
+    /// One page: sixteen bytes a slot.
+    const SLOTS: usize = 1 << 10;
+
+    #[inline]
+    fn slot(symbol: SymbolId) -> usize {
+        (symbol.position().wrapping_mul(0x9E37_79B1) >> 22) as usize
+    }
+
+    /// The kept final position of `symbol`: `None` when the slot holds
+    /// another symbol or nothing, `Some(None)` for a symbol never assigned.
+    #[inline]
+    fn get(&self, symbol: SymbolId) -> Option<Option<i64>> {
+        let slot = self.slots.get(Self::slot(symbol))?;
+        (slot.symbol == symbol.position()).then(|| slot.assigned.then_some(slot.position))
+    }
+
+    fn put(&mut self, symbol: SymbolId, position: Option<i64>) {
+        if self.slots.is_empty() {
+            self.slots = vec![LastAssignmentSlot::default(); Self::SLOTS];
+        }
+        self.slots[Self::slot(symbol)] = LastAssignmentSlot {
+            symbol: symbol.position(),
+            assigned: position.is_some(),
+            position: position.unwrap_or(0),
+        };
+    }
+
+    fn forget(&mut self, symbol: SymbolId) {
+        if let Some(slot) = self.slots.get_mut(Self::slot(symbol)) {
+            if slot.symbol == symbol.position() {
+                *slot = LastAssignmentSlot::default();
+            }
+        }
+    }
+}
+
 /// Sum the memory accounting of a cold struct's sparse fields.
 fn sparse_memory_usage<const N: usize>(fields: [(usize, usize); N]) -> (usize, usize) {
     fields
@@ -2178,6 +2242,9 @@ impl<K: DenseKey, T: Default> PagedTable<K, T> {
 pub struct LinksTables {
     /// Invalidates shortcuts that retained resolved member tables across a base-cycle reset or abort.
     pub(crate) members_reset_epoch: u64,
+    /// The final last-assignment positions of the symbols asked most
+    /// recently ([`LastAssignmentFront`]).
+    last_assignment_front: LastAssignmentFront,
     // Dense paged tables over compiler-assigned IDs (see PagedTable): no
     // hashing, no rehash, records never move. Their iteration order is not
     // observable. Keep the other cache and public field types unchanged.
@@ -3036,6 +3103,22 @@ impl LinksTables {
     ) {
         let _ = speculation_depth;
         self.symbol_cold.last_assignment_pos.set(id, value);
+        // Whatever was kept as final is not: the field moved.
+        self.last_assignment_front.forget(id);
+    }
+
+    /// The final last-assignment position kept for `id`, if any
+    /// ([`LastAssignmentFront`]): `Some(None)` for a symbol never assigned.
+    #[inline]
+    pub(crate) fn final_last_assignment_pos(&self, id: SymbolId) -> Option<Option<i64>> {
+        self.last_assignment_front.get(id)
+    }
+
+    /// Keep `position` as the final last-assignment position of `id`: the
+    /// caller has seen the symbol's container marked, outside any marking
+    /// walk.
+    pub(crate) fn keep_final_last_assignment_pos(&mut self, id: SymbolId, position: Option<i64>) {
+        self.last_assignment_front.put(id, position);
     }
 
     /// checkGrammarStatementInAmbientContext's once-flag (90344/90349):

@@ -1301,6 +1301,9 @@ pub struct CheckerState<'a> {
     /// is the signature's own; a count of 255 or more is computed at every
     /// request. The table grows to the highest signature asked.
     pub(crate) resolved_min_argument_counts: Vec<u8>,
+    /// The assignment-marking walks in progress (isPastLastAssignment's
+    /// markNodeAssignments): a position read inside one is not yet final.
+    pub(crate) assignment_marking_depth: u32,
     /// tsc signature.instantiations (getSignatureInstantiationWithout
     /// FillingInTypeArguments 59903): every signature's map in one table
     /// keyed by the signature and the type arguments' interned list (tsc's
@@ -2804,6 +2807,7 @@ impl<'a> CheckerState<'a> {
             links: LinksTables::with_id_bounds(node_id_end, symbol_id_end),
             signatures: Vec::new(),
             resolved_min_argument_counts: Vec::new(),
+            assignment_marking_depth: 0,
             signature_instantiations: rustc_hash::FxHashMap::default(),
             members: Vec::new(),
             members_resolving: 0,
