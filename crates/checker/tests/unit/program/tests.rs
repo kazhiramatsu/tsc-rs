@@ -1252,6 +1252,120 @@ fn authoritative_sources_follow_the_snapshot_and_install_atomically() {
     assert_eq!(reordered.file_index(AuthoritativeSourceToken(7)), Some(1));
 }
 
+/// The program is asked for a module once at an import declaration: the
+/// declaration's own check and every alias it introduces start from the same
+/// node, and the resolved answer is kept by that node and the specifier. A
+/// second provider's installation forgets the first one's answers.
+#[test]
+fn a_resolved_module_is_asked_of_the_provider_once_an_import_declaration() {
+    use crate::{
+        AuthoritativeModuleLookupFailure, AuthoritativeModuleProvider, AuthoritativeModuleRequest,
+        AuthoritativeModuleResolution, AuthoritativeResolvedModule, AuthoritativeSourceMetadata,
+        AuthoritativeSourceToken, AuthoritativeSources,
+    };
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct Provider {
+        requests: AtomicUsize,
+    }
+    impl AuthoritativeModuleProvider for Provider {
+        fn resolve_module(
+            &self,
+            request: AuthoritativeModuleRequest<'_>,
+        ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
+            self.requests.fetch_add(1, Ordering::Relaxed);
+            assert_eq!(request.source_token, AuthoritativeSourceToken(1));
+            assert_eq!(request.specifier, "./b");
+            Ok(AuthoritativeModuleResolution::Resolved(
+                AuthoritativeResolvedModule {
+                    target_token: AuthoritativeSourceToken(2),
+                    resolved_file_name: "/b.ts".into(),
+                    resolved_using_ts_extension: false,
+                    is_custom_resolution: false,
+                    is_tsx: false,
+                    is_arbitrary_extension: false,
+                    is_external_library_import: false,
+                    package_id: None,
+                    alternate_result: None,
+                    types_package_exists: false,
+                    package_bundles_types: false,
+                },
+            ))
+        }
+    }
+
+    let domain = IdentityDomain::new();
+    let doc = |name, text: &str| {
+        bound_document_for_snapshot(
+            name,
+            TextSnapshot::new(text.to_owned(), Default::default()),
+            &domain,
+        )
+    };
+    let documents = vec![
+        doc(
+            "/a.ts",
+            "import { x, y, z } from \"./b\";\n\
+             export const p = x + y;\nexport const q: typeof z = z;\nexport const r = [x, y, z];\n",
+        ),
+        doc(
+            "/b.ts",
+            "export const x = 1;\nexport const y = 2;\nexport const z = 3;\n",
+        ),
+    ];
+    let snapshot = ProgramSnapshot::new(documents, 0).unwrap();
+    let row = |name: &str, token| AuthoritativeSourceMetadata {
+        token: AuthoritativeSourceToken(token),
+        file_name: name.into(),
+        may_be_emitted: true,
+        implied_node_format: None,
+        implied_node_format_for_emit: None,
+        project_reference: None,
+    };
+    let sources = AuthoritativeSources::new(&snapshot, vec![row("/a.ts", 1), row("/b.ts", 2)]);
+    let options = CompilerOptions::default();
+    let provider = Provider {
+        requests: AtomicUsize::new(0),
+    };
+    let mut checker = CheckerState::from_snapshot(&snapshot, &options);
+    checker
+        .install_authoritative_module_provider(&provider, &sources)
+        .unwrap();
+    for file in 0..snapshot.documents().len() {
+        checker.check_source_file(file);
+    }
+    assert!(checker.take_authoritative_module_failure().is_none());
+    let module_errors: Vec<_> = checker
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| matches!(diagnostic.code(), 2305 | 2307 | 2792))
+        .collect();
+    assert!(module_errors.is_empty(), "{module_errors:?}");
+    // Three aliases, each resolved along more than one path, and the
+    // declaration's own check: one request without the kept answer would
+    // be ten or more.
+    let asked = provider.requests.load(Ordering::Relaxed);
+    assert!((1..=2).contains(&asked), "{asked} requests");
+
+    // Another provider: nothing of the first one's is answered from the
+    // cache.
+    let second = Provider {
+        requests: AtomicUsize::new(0),
+    };
+    let mut fresh = CheckerState::from_snapshot(&snapshot, &options);
+    fresh
+        .install_authoritative_module_provider(&provider, &sources)
+        .unwrap();
+    fresh.check_source_file(0);
+    let before = provider.requests.load(Ordering::Relaxed);
+    assert!(before > asked);
+    fresh
+        .install_authoritative_module_provider(&second, &sources)
+        .unwrap();
+    assert!(fresh.resolved_module_cache.borrow().is_empty());
+    assert_eq!(second.requests.load(Ordering::Relaxed), 0);
+}
+
 /// A checker of a pool reserves its lookup tables (the type-list map, the
 /// literal map, the instantiation map and its front, the relation pairs)
 /// for half the program; the one checker of a program for all of it. The

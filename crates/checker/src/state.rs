@@ -1977,6 +1977,9 @@ pub struct CheckerState<'a> {
     /// from CheckAbort: augmentation recovery may contain an oracle crash,
     /// but it must never turn an incomplete authoritative table into success.
     pub(crate) authoritative_module_failure: std::cell::OnceCell<crate::AuthoritativeModuleFailure>,
+    /// The provider's resolved answers to this checker's last requests
+    /// ([`crate::modules::ResolvedModuleCache`]).
+    pub(crate) resolved_module_cache: std::cell::RefCell<crate::modules::ResolvedModuleCache>,
     /// tsgo's checkExternalModuleNameInGlobalScope resolves module names the
     /// program does not collect (an import misplaced in a block). While it
     /// does, a name missing from the authoritative table is unresolved
@@ -2535,8 +2538,10 @@ impl<'a> CheckerState<'a> {
         }
         self.authoritative_module_provider = Some(provider);
         self.authoritative_sources = sources;
-        // The memo derives from the tables replaced above.
+        // The memo derives from the tables replaced above, and the kept
+        // answers were the replaced provider's.
         self.implied_node_format_memo.borrow_mut().clear();
+        self.resolved_module_cache.borrow_mut().clear();
         Ok(())
     }
 
@@ -2972,6 +2977,7 @@ impl<'a> CheckerState<'a> {
             authoritative_module_provider: None,
             authoritative_sources: &crate::EMPTY_AUTHORITATIVE_SOURCES,
             authoritative_module_failure: std::cell::OnceCell::new(),
+            resolved_module_cache: Default::default(),
             module_name_outside_program: std::cell::Cell::new(false),
             host_file_paths: Default::default(),
             host_input_snapshots: Default::default(),
