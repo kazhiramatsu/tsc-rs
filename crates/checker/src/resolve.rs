@@ -2931,6 +2931,10 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs-native: typed AST projection for tsc's direct
     /// `node.name` property access.
+    ///
+    /// Inlined: the body is one read of the node's kind and of the slot that
+    /// kind names, less than the call that fifty sites paid for it.
+    #[inline]
     pub(crate) fn name_of_node(&self, node: NodeId) -> Option<NodeId> {
         node_util::name_field_of(&Published, node)
     }
