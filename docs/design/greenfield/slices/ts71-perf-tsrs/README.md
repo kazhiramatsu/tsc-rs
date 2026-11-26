@@ -2038,6 +2038,67 @@ zod の miss の sample を葉の関数の種類で分けると（1 sample ≈ 1
 
 **残り。** front の行の枠と train；ほかの「hash で引く大きい表」（union の front、relation cache の予約、型 list の front、推論の memo）の大きさを同じ switch の方法で測る；sparse な link をいっしょに書く field ごとに 1 record にする行；specifier pool の peak；node → symbol の疎な表（Row 14、1 日分）；配分の直列（Row 13A）；C5 は所有者の判断。
 
+**結果 66（2026-11-26 昼：instantiation の front を 1 page にする行の着地（PR #1041）；cycle profile を「葉の関数の種類」と「service」で切る勘定を 7 案件に（相手も fast mode・1 thread）；zod の check の差の 83 % は member の解決、hash table の作り直しが zod の 2 %；「生成時に書く link を生成順の列に置く」行（zod で cycle −2.0 %、peak −7.8 MiB、枠待ち）；全案件に共通する 2 行を数字で特定（member の並べ替え 0.6〜1.6 %、check 中の module 解決が VS Code で 1.2 %））**
+
+**着地（PR #1041、merge `07d4a4e28`、hosted run 45741570810、11:46）。** 型の instantiation の map の前に置いた直接 map の表（front）を、checker の大きさによらず 1,024 slot（16 KiB = 1 page）に固定した。それまでは予約から決めていて、131,072 symbol 以上を見込む checker では 65,536 slot（1 MiB）だった。出力・3 counter は main と同じ、命令数は横ばい（−0.038〜+0.016 %、control +0.010〜+0.060 %）。train の local 検査：types と checker の test 2,341 件、4 checker の conformance 15,335 構成が同じ・違うのは既知の 4 つ、suites の退行 0、oracle 24 / 24。枠 if10（着地の形の binary `n-if10` 対 main の binary；control は同じ code の `n-b62`；wall、括弧内は control）：
+
+| | 1 thread（15 回、VS Code 9） | 既定設定（21 回） | preset |
+|---|---:|---:|---:|
+| zod | −0.90 %（−0.10） | **−1.16 %**（−0.19） | **−2.34 %**（−0.33） |
+| Playwright | −0.58 %（+0.07） | **−1.86 %**（−0.13） | **−2.31 %**（−0.24） |
+| Effect | **−1.06 %**（−0.33） | **−1.57 %**（0.00） | −0.66 %（−1.44） |
+| Next.js | −0.47 %（−0.45） | −0.50 %（−0.47） | **−1.57 %**（+1.02） |
+| Vue | −0.77 %（+0.01） | −0.91 %（−0.77） | −0.77 %（+0.44） |
+| VS Code | −0.63 %（−0.33） | −0.21 %（+0.13） | −0.79 %（−1.07） |
+| TypeScript | — | −0.56 %（+0.83） | +0.71 %（−0.18）→ 31 回で −0.79 % |
+| hono | — | −0.24 %（−0.30） | −2.89 %（−2.77） |
+
+幅の外に出た cell は preset の TypeScript 1 つ（cycle は −0.48 %）：31 回で撮り直すと −0.79 %（cycle −0.64 %、control −0.16 %）。同じ撮り直しで Next.js の 1 thread は −0.76 %（31 回中 26 回、control +0.05 %）。peak は checker 1 つあたり −1 MiB（preset で Next.js −14.3、VS Code −12.3、Vue −11.8、Effect −9.4 MiB）。枠の中の tsrs 比：既定の Playwright 1.014 → 0.995、zod 0.873 → 0.863、Effect 0.941 → 0.926；preset の zod 1.092 → 1.066、Playwright 1.050 → 1.026、Next.js 0.997 → 0.981、VS Code 1.078 → 1.069。経緯：front を足した行（11-21）は 65,536 slot で入れ、「当たり率を見て小さい大きさを試す」と書いたまま測っていなかった。reviewer の実験 X1 がそれを掘り起こした。
+
+**勘定の切り口を 2 つ足した（どちらも「同じ仕事量・1 thread」の cycle profile、stack つき）。** (a) 葉の関数の種類と、その持ち主（port 自身の最初の frame）：`tools/cyc-leaf-owners.py`（copy・ゼロ埋め・allocator・hash table の汎用 code）；(b) check の service（両 port が持つ reference の関数名の家族、11-21 の `tools/cyc-services.py`）。miss sampling の録りは 1 sample に frame が 1 つしか無く、持ち主は cycle profile からしか読めない。
+
+葉の種類（1 run の M cycle、ours ｜ tsrs）：
+
+| | zod | Next.js | VS Code | Effect |
+|---|---:|---:|---:|---:|
+| hash table の汎用 code | **175.8 ｜ 135.0** | 183.7 ｜ 184.2 | 593.1 ｜ 582.2 | 105.9 ｜ 96.5 |
+| copy | 66.1 ｜ 65.1 | 89.2 ｜ 75.3 | **420.7 ｜ 318.8** | 72.6 ｜ 50.4 |
+| ゼロ埋め | 23.0 ｜ 12.0 | 27.1 ｜ 16.2 | **106.9 ｜ 33.0** | 21.7 ｜ 12.3 |
+| allocator | 54.5 ｜ 55.2 | 61.5 ｜ 87.6 | 407.7 ｜ 434.4 | 53.2 ｜ 59.4 |
+
+結果 65 に「store miss の超過の 65 % が copy・確保・ゼロ埋め」と書いたのは miss の数で、時間では zod の copy と allocator は相手と同等（VS Code では copy +102、ゼロ埋め +74 M）。zod の hash table +40.8 M の中身は表の「作り直し」：`reserve_rehash` だけで約 58 M cycle（zod の run の 2 %）— 8 byte entry の map（symbol・type の sparse な link と、同じ code に畳まれた mapper の cache）30 M、type list の id 表 12.9 M、relation cache 7.4 M、union の property 表 4.3 M。
+
+check の service 別（M cycle、ours − tsrs；括弧内は check 全体の差）：
+
+| | zod（+192） | VS Code（+510） | Effect（+93） | Vue（−25） | Playwright（+7） | TypeScript（+20） |
+|---|---:|---:|---:|---:|---:|---:|
+| members and properties | **+160** | 0 | +7 | +9 | −24 | +15 |
+| instantiation | +44 | **+304** | +37 | +33 | +20 | +6 |
+| types of declarations and nodes | +25 | +199 | +5 | +16 | −5 | +12 |
+| relation | +12 | +149 | +12 | +42 | 0 | +7 |
+| conditional / indexed / mapped | +14 | +59 | +32 | −118 | +5 | −9 |
+| flow analysis | −16 | +98 | −5 | −4 | +12 | +26 |
+| names and symbols | −28 | −358 | +1 | −9 | −24 | −21 |
+| inference | −41 | −133 | +8 | −14 | −25 | −6 |
+
+zod の差の 83 % は member の解決（mapped type の member を作る本体、参照の遅延 member の準備、並べ替え、member 表）。instantiation は全案件で plus（VS Code で +31 %）：表の部分（lookup 133 + type list の intern 118 + insert 64 = 315 M、相手の target ごとの表は約 100〜200 M）は 11-21 に一度大きさを測っていて（表の作り直しで届くのは run の 0.6〜1.0 %、内容 key の 1 回引きは着地済み、「target の直前の key」の cache は front に勝たない）、残りは呼び出しごとの overhead が散っている。
+
+**「生成時に書く link を生成順の列に置く」行（`perf/creation-order-links`、枠待ち）。** checker の「まれな link」は field ごとの hash map（`SparseLinks`）。そのうち record の生成時に書かれる 5 つ — synthetic property の containing type、mapped member の mapped type・key type・synthetic origin、遅延参照の mapper — を `CreationOrderLinks`（identity ごとに bit 1 つ、bit 64 個ごとに通し番号、値は identity の順に詰めた列；順不同の書き込みと index の無い identity は脇の map）に載せ替えた。読み手・書き手は変えていない。古い main の上での job（`n-col`）：出力・counter は main と同じ（8 案件、両 mode）；台帳は zod で命令 −0.64 %・cycle −1.80 %（既定 mode の 1 thread）、preset の 1 thread で命令 −0.65 %・**cycle −2.02 %・peak −7.8 MiB**（同じ code の control +0.04 %、+0.09 %、+2.1 MiB）、他の案件は ±0.08 % 以内（Next.js の peak −3.5 MiB）。census：5 field の書き込みは zod の 4 件（mapped type）を除いて全部生成順、Next.js と VS Code は全部。#1041 の後の main に載せ直して枠を取る。
+
+**全案件に共通する 2 行（`tools/cyc-under.py`：1 つの関数の下の cycle と、誰が呼ぶか；ours、1 thread の run に占める割合）。**
+
+| | VS Code | Next.js | zod | Playwright | Vue | Effect | TypeScript |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| member の並べ替え（`order_named_members_if_stable`） | 175 M（0.74 %） | 55（1.31 %） | 45（1.61 %） | 28（1.45 %） | 24（1.27 %） | 26（0.87 %） | 7（0.56 %） |
+| check 中の module 解決（`resolve_authoritative_program_module`） | **278 M（1.18 %）** | 24（0.58 %） | 9（0.32 %） | 11（0.57 %） | 5（0.28 %） | 9（0.31 %） | 4（0.33 %） |
+| 名前の intern（`names::intern_hashed`） | 106（0.45 %） | 19（0.44 %） | 15（0.52 %） | 11（0.54 %） | 9（0.46 %） | 8（0.28 %） | 4（0.29 %） |
+
+並べ替えは、member 表を作るたびに key（宣言の file と位置）を宣言から読み直して sort し、結果が表の順と同じなら表の list を返す — ほとんどの場合「既に並んでいる」ことの確認になっている。module 解決は、load が解決済みの import を、import 文の check と alias の解決のたびに、所有する文字列の request と path の正規化つきで引き直している（VS Code で 1 回あたり数百 cycle）。どちらも次の行の候補。
+
+**自分の誤り。** (1) type 側の rehash 9.0 M を「遅延参照の mapper の map」と読んだ — census では zod で 7,744 entry しか無い。`HashMap<TypeId, TypeId>::insert`（mapper の scope cache）と `HashMap<TypeId, Option<TypeId>>::insert` は 1 本の code に畳まれていて、profile は linker が残した名前を表示する。(2) `tools/cyc-leaf-owners.py` を、`tools/` を見ずに書いた — copy・ゼロ埋め・allocator の呼び出し元は 11-20 の `tools/cyc-callers.py` が既に切っていた（新しいほうは家族を足せることと、持ち主の下の葉を出すことが違い）。(3) train が lock を持っている間に、lock の外で `cargo check` を 1 回走らせた（低優先度・2 job）。以後は lock 経由。
+
+**残り。** link の行の枠と train；member の並べ替え（instantiate した型は元の型の順を引き継ぐ：省ける範囲を code で確定する；key の memo）；check 中の module 解決（解決済みの答えを specifier の node で引く）；mapper の scope cache（pop のたびの clear、作り直し）；名前の intern；VS Code の copy とゼロ埋めの上位（flow memo の書き込み 24 M、型の member slot の表 28 M）；specifier pool の peak；node → symbol の疎な表（Row 14）；C5（link 時の並べ替え）は所有者の判断。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
