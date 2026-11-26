@@ -1204,9 +1204,9 @@ mod tests {
             (vec![a, b], vec![], vec![]),
             (vec![], vec![a, b], vec![]),
             (vec![a], vec![b], vec![]),
-            (vec![a], vec![], vec![info.clone()]),
-            (vec![], vec![b], vec![info.clone()]),
-            (vec![], vec![], vec![info.clone()]),
+            (vec![a], vec![], vec![info]),
+            (vec![], vec![b], vec![info]),
+            (vec![], vec![], vec![info]),
         ] {
             let boxed = record(calls.clone(), constructs.clone(), infos.clone());
             assert!(boxed.extras_heap_bytes() >= std::mem::size_of::<MembersExtras>());
@@ -1254,7 +1254,7 @@ mod tests {
         assert!(written.call_signatures().is_empty());
         assert_eq!(written.construct_signatures(), &[b]);
         assert_eq!(written.extras_heap_bytes(), 0);
-        written.set_index_infos(vec![info.clone()]);
+        written.set_index_infos(vec![info]);
         assert_eq!(written.construct_signatures(), &[b]);
         assert_eq!(written.index_infos().len(), 1);
         written.set_index_infos(vec![]);

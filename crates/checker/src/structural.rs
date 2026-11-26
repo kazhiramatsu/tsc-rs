@@ -9110,11 +9110,11 @@ impl<'a> CheckerState<'a> {
             }));
         }
         if let Some(info) = applicable {
-            return Ok(Some(info.clone()));
+            return Ok(Some(*info));
         }
         if let Some(info) = string_index_info {
             if self.is_applicable_index_type(key_type, string)? {
-                return Ok(Some(info.clone()));
+                return Ok(Some(*info));
             }
         }
         Ok(None)
