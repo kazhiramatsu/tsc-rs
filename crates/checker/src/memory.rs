@@ -133,12 +133,6 @@ pub(crate) fn checker_owners(
     state.add_inference_walker_memory_usage(usage);
     state.binder.add_projection_memory_usage(usage);
     if include_shared {
-        if usage.arc("host fact Arc headers", &state.host_file_paths) {
-            usage.hash_set(TABLES, &state.host_file_paths);
-            for path in state.host_file_paths.iter() {
-                usage.js_string(STRINGS, path);
-            }
-        }
         if usage.arc("host fact Arc headers", &state.host_input_snapshots) {
             usage.hash_map(TABLES, &state.host_input_snapshots);
             for (path, snapshot) in state.host_input_snapshots.iter() {

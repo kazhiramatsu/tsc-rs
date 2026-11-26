@@ -1994,19 +1994,23 @@ pub struct CheckerState<'a> {
     /// its outermost block or root): a later search ends at either
     /// ([`CheckerState::is_part_of_import_equals_module_reference`]).
     pub(crate) outside_import_equals: std::cell::Cell<(Option<NodeId>, Option<NodeId>)>,
+    /// The same two kept nodes for the search of an enclosing interface,
+    /// type alias or type literal
+    /// ([`CheckerState::is_in_ambient_or_type_node`]).
+    pub(crate) outside_type_declarations: std::cell::Cell<(Option<NodeId>, Option<NodeId>)>,
     /// tsgo's checkExternalModuleNameInGlobalScope resolves module names the
     /// program does not collect (an import misplaced in a block). While it
     /// does, a name missing from the authoritative table is unresolved
     /// (TS2307), as tsgo's `GetResolvedModule` answers nil, rather than an
     /// authority failure.
     pub(crate) module_name_outside_program: std::cell::Cell<bool>,
-    /// tsrs-native (M4 5.8d): EVERY host input path (normalized),
-    /// including files the program layer drops (.json bodies, .js
-    /// without allowJs) — the resolver's suppression probes read this
-    /// set to decide whether a miss is tsc-undecidable (FP=0 rule).
-    pub host_file_paths: std::sync::Arc<rustc_hash::FxHashSet<tsc_types::JsString>>,
     /// Exact input text for host reads, including host-only package manifests.
     /// Do not reconstruct a readFile result from parsed JSON or source membership.
+    /// tsrs-native (M4 5.8d): its keys are EVERY host input path (normalized),
+    /// including files the program layer drops (.json bodies, .js without
+    /// allowJs) — the resolver's suppression probes read them through
+    /// [`CheckerState::host_file_paths`] and [`CheckerState::is_host_file_path`]
+    /// to decide whether a miss is tsc-undecidable (FP=0 rule).
     pub(crate) host_input_snapshots: std::sync::Arc<
         rustc_hash::FxHashMap<tsc_types::JsString, std::sync::Arc<tsc_diagnostics::TextSnapshot>>,
     >,
@@ -2067,6 +2071,19 @@ pub struct CheckerState<'a> {
     /// not deprecated, a slot holding the symbol's index plus one (zero for
     /// an empty slot): [`CheckerState::is_deprecated_symbol`] asks it first.
     pub(crate) not_deprecated_front: Box<[std::cell::Cell<u32>]>,
+    /// Persistent class members last found neither private nor named by a
+    /// private identifier, kept as `not_deprecated_front` keeps its
+    /// symbols: [`CheckerState::mark_property_as_referenced`] asks it first.
+    pub(crate) not_private_front: Box<[std::cell::Cell<u32>]>,
+    /// Persistent symbols last found not to be static private identifier
+    /// properties, kept the same way
+    /// ([`CheckerState::is_static_private_identifier_property`]).
+    pub(crate) not_static_private_front: Box<[std::cell::Cell<u32>]>,
+    /// The declaration modifier flags of the persistent symbols last
+    /// asked: two cells a slot (the read side, the write side), each a
+    /// symbol's index plus one and its flags
+    /// ([`CheckerState::get_declaration_modifier_flags_from_symbol_write`]).
+    pub(crate) declaration_modifier_front: Box<[std::cell::Cell<(u32, i32)>]>,
     /// The syntactic container of a starting parent in this published program.
     pub(crate) control_flow_containers: [crate::expr::ControlFlowContainerSlot; 16],
     /// tsc `node.jsDoc.jsDocCache` (getJSDocTagsWorker): effective,
@@ -3001,8 +3018,8 @@ impl<'a> CheckerState<'a> {
             authoritative_module_failure: std::cell::OnceCell::new(),
             resolved_module_cache: Default::default(),
             outside_import_equals: Default::default(),
+            outside_type_declarations: Default::default(),
             module_name_outside_program: std::cell::Cell::new(false),
-            host_file_paths: Default::default(),
             host_input_snapshots: Default::default(),
             basic_module_specifier_host: std::cell::OnceCell::new(),
             host_current_directory: "/".into(),
@@ -3016,6 +3033,15 @@ impl<'a> CheckerState<'a> {
             combined_node_flags_cache: Default::default(),
             not_deprecated_front: vec![std::cell::Cell::new(0); 1 << Self::NOT_DEPRECATED_BITS]
                 .into_boxed_slice(),
+            not_private_front: vec![std::cell::Cell::new(0); 1 << Self::NOT_DEPRECATED_BITS]
+                .into_boxed_slice(),
+            not_static_private_front: vec![std::cell::Cell::new(0); 1 << Self::NOT_DEPRECATED_BITS]
+                .into_boxed_slice(),
+            declaration_modifier_front: vec![
+                std::cell::Cell::new((0, 0));
+                2 << Self::NOT_DEPRECATED_BITS
+            ]
+            .into_boxed_slice(),
             control_flow_containers: Default::default(),
             jsdoc_tag_cache: Default::default(),
             global_type_memos: Default::default(),

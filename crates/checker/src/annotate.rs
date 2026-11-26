@@ -7780,7 +7780,30 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isStaticPrivateIdentifierProperty @6.0.3
     /// tsc-hash: c7763b3f1125d6016a597248984eb7ef72ea51ea6f831d542e00f4177e87f433
     /// tsc-span: _tsc.js:57599-57601
+    ///
+    /// getUnmatchedProperties asks this first, of every target property of
+    /// every structural comparison, and the answer is read from the
+    /// property's value declaration. A persistent symbol's does not change
+    /// after bind: the ones last found not to be one are kept
+    /// (`not_static_private_front`, as the deprecation test keeps its
+    /// symbols).
     pub(crate) fn is_static_private_identifier_property(&self, symbol: SymbolId) -> bool {
+        let raw = symbol.index();
+        let persistent = raw & tsc_types::TRANSIENT_SYMBOL_BIT == 0;
+        let slot = &self.not_static_private_front[Self::not_deprecated_slot(raw)];
+        if persistent && slot.get() == raw + 1 {
+            return false;
+        }
+        let answer = self.compute_is_static_private_identifier_property(symbol);
+        if persistent && !answer {
+            slot.set(raw + 1);
+        }
+        answer
+    }
+
+    /// [`Self::is_static_private_identifier_property`] read from the value
+    /// declaration.
+    pub(crate) fn compute_is_static_private_identifier_property(&self, symbol: SymbolId) -> bool {
         let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
             return false;
         };

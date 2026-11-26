@@ -9117,11 +9117,23 @@ fn json_declaration_twin_precedes_the_json_resolution() {
         ..CompilerOptions::default()
     };
     let run = |files: &[(&str, &str)], options: &CompilerOptions| -> Vec<(u32, u32, u32, String)> {
-        let names: Vec<String> = files.iter().map(|(name, _)| (*name).to_owned()).collect();
         with_program_state(files, options, |state| {
-            // The unit harness has no ProgramJson host.
-            state.host_file_paths =
-                std::sync::Arc::new(names.iter().cloned().map(Into::into).collect());
+            // The unit harness has no ProgramJson host: its inputs are the
+            // host's paths.
+            state.host_input_snapshots = std::sync::Arc::new(
+                files
+                    .iter()
+                    .map(|(name, text)| {
+                        (
+                            (*name).into(),
+                            tsc_diagnostics::TextSnapshot::new(
+                                *text,
+                                tsc_diagnostics::DocumentVersion::new("1"),
+                            ),
+                        )
+                    })
+                    .collect(),
+            );
             state.check_source_file(0);
             diag_rows(state)
         })

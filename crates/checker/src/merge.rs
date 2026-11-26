@@ -215,6 +215,23 @@ pub fn get_excluded_symbol_flags(flags: SymbolFlags) -> SymbolFlags {
     result
 }
 
+/// A merge source's table: a published symbol's is read where the program
+/// keeps it (no checker writes it, and every checker of a pool merges the
+/// same globals at its start: a reference count there is one cache line for
+/// all of them), a transient symbol's is held by a reference count while the
+/// merge writes the target.
+fn merge_source_table(
+    state: &CheckerState<'_>,
+    source: SymbolId,
+    table: fn(&tsc_binder::Symbol) -> &std::sync::Arc<SymbolTable>,
+) -> std::borrow::Cow<'static, std::sync::Arc<SymbolTable>> {
+    if source.index() & tsc_types::TRANSIENT_SYMBOL_BIT != 0 {
+        std::borrow::Cow::Owned(table(state.binder.symbol(source)).clone())
+    } else {
+        std::borrow::Cow::Borrowed(table(tsc_binder::published_symbol(source)))
+    }
+}
+
 /// A symbol's bit in the merged-symbol bitset. Binder symbols and transient
 /// symbols are each dense from zero, so they interleave (a transient id's
 /// own value would address bit 2^31).
@@ -279,8 +296,11 @@ impl<'a> CheckerState<'a> {
         let parent = original.parent;
         let value_declaration = original.value_declaration;
         let const_enum_only_module = original.extras().const_enum_only_module;
-        let members = original.members().clone();
-        let exports = original.exports().clone();
+        // A symbol without members or exports reads the process's one empty
+        // table (`Symbol::extras`): the clone shares only the tables the
+        // original has, so that no reference is counted on those.
+        let members = (!original.members().is_empty()).then(|| original.members().clone());
+        let exports = (!original.exports().is_empty()).then(|| original.exports().clone());
         let result = self.binder.create_symbol(flags, escaped_name);
         let cloned = self.binder.symbol_mut(result);
         cloned.set_declarations(declarations);
@@ -289,8 +309,12 @@ impl<'a> CheckerState<'a> {
         if const_enum_only_module == Some(true) {
             cloned.extras_mut().const_enum_only_module = Some(true);
         }
-        *cloned.members_mut() = members;
-        *cloned.exports_mut() = exports;
+        if let Some(members) = members {
+            *cloned.members_mut() = members;
+        }
+        if let Some(exports) = exports {
+            *cloned.exports_mut() = exports;
+        }
         self.record_merged_symbol(result, symbol);
         result
     }
@@ -445,8 +469,8 @@ impl<'a> CheckerState<'a> {
                     self.set_value_declaration(target, value_declaration);
                 }
             }
-            let source_members = self.binder.symbol(source).members().clone();
-            if !source_members.is_empty() {
+            if !self.binder.symbol(source).members().is_empty() {
+                let source_members = merge_source_table(self, source, tsc_binder::Symbol::members);
                 let mut target_members =
                     std::mem::take(self.binder.symbol_mut(target).members_mut());
                 self.merge_symbol_table(
@@ -457,14 +481,16 @@ impl<'a> CheckerState<'a> {
                 );
                 *self.binder.symbol_mut(target).members_mut() = target_members;
             }
-            let source_exports = self.binder.symbol(source).exports().clone();
-            if !source_exports.is_empty() && target == self.global_this_symbol {
+            let source_has_exports = !self.binder.symbol(source).exports().is_empty();
+            if source_has_exports && target == self.global_this_symbol {
                 // globalThisSymbol's exports ARE `globals` (tsgo
                 // initializeChecker: `SetExports(c.globals)`): what a
                 // `namespace globalThis` augmentation or a checked-JS
                 // `globalThis.x = ...` declares is a global.
+                let source_exports = merge_source_table(self, source, tsc_binder::Symbol::exports);
                 self.merge_into_globals(&source_exports, unidirectional, Some(target));
-            } else if !source_exports.is_empty() {
+            } else if source_has_exports {
+                let source_exports = merge_source_table(self, source, tsc_binder::Symbol::exports);
                 let mut target_exports =
                     std::mem::take(self.binder.symbol_mut(target).exports_mut());
                 self.merge_symbol_table(
@@ -1126,7 +1152,7 @@ impl<'a> CheckerState<'a> {
             if self.binder.symbol(symbol).declarations().first().copied() != Some(augmentation) {
                 continue;
             }
-            let exports = self.binder.symbol(symbol).exports().clone();
+            let exports = merge_source_table(self, symbol, tsc_binder::Symbol::exports);
             self.merge_into_globals(&exports, false, None);
         }
         // tsc and tsgo look the global types up after the global-scope

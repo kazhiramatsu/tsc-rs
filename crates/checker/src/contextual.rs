@@ -2502,7 +2502,26 @@ impl<'a> CheckerState<'a> {
     /// them with Some contexts since 7.4 (inferTypeArguments' phase-b
     /// pushes feed getInferenceContext for every contextual read
     /// under an inference trial).
+    ///
+    /// The two tests the body begins with stand at the call: no contextual
+    /// type, or one without an instantiable part, is returned as it is.
+    #[inline]
     pub(crate) fn instantiate_contextual_type(
+        &mut self,
+        contextual_type: Option<TypeId>,
+        node: NodeId,
+        context_flags: ContextFlags,
+    ) -> CheckResult<Option<TypeId>> {
+        match contextual_type {
+            Some(ty) if self.maybe_type_of_kind(ty, TypeFlags::INSTANTIABLE) => {
+                self.instantiate_contextual_type_worker(contextual_type, node, context_flags)
+            }
+            _ => Ok(contextual_type),
+        }
+    }
+
+    #[inline(never)]
+    fn instantiate_contextual_type_worker(
         &mut self,
         contextual_type: Option<TypeId>,
         node: NodeId,

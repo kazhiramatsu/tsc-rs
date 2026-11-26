@@ -368,7 +368,7 @@ impl BasicModuleSpecifierHost {
                 default_resolution_mode_for_checker_file(checker, source.root),
             );
         }
-        let mut host_file_paths = checker.host_file_paths.iter().collect::<Vec<_>>();
+        let mut host_file_paths = checker.host_file_paths().collect::<Vec<_>>();
         host_file_paths.sort_unstable();
         for path in host_file_paths {
             let normalized = CheckerState::normalize_js_program_path(path, &current_directory);

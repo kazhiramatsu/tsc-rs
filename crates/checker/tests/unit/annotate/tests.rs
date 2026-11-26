@@ -1541,3 +1541,67 @@ function unannotated() { return 0; }";
         assert!(state.resolution_targets.is_empty());
     });
 }
+
+/// The static-private-identifier test answers the same from its kept
+/// symbols as from the value declarations: every symbol of a file, three
+/// rounds (the first reads the declaration, the others the kept slot), the
+/// set of symbols that are static private properties, and the kept slots
+/// read back.
+#[test]
+fn the_static_private_test_answers_the_same_from_its_kept_symbols() {
+    let source = "class K {
+            static #sp = 1;
+            static #sm() { return K.#sp; }
+            static get #sg() { return 1; }
+            #ip = 2;
+            #im() { return this.#ip; }
+            static pub = 3;
+            plain = 4;
+            m() { return K.#sm() + K.#sg + this.#im() + this.plain; }
+        }
+        interface I { a: number; m(): void }
+        declare const v: { x: K; y: I };";
+    with_state(source, |state| {
+        let mut symbols = Vec::new();
+        for node in state.binder.source(0).arena.node_ids() {
+            if let Some(symbol) = state.node_symbol(node) {
+                if !symbols.contains(&symbol) {
+                    symbols.push(symbol);
+                }
+            }
+        }
+        let mut found = Vec::new();
+        for round in 0..3 {
+            for &symbol in &symbols {
+                let computed = state.compute_is_static_private_identifier_property(symbol);
+                assert_eq!(
+                    state.is_static_private_identifier_property(symbol),
+                    computed,
+                    "round {round}, {symbol:?}"
+                );
+                if computed && round == 0 {
+                    found.push(
+                        format!("{:?}", state.symbol_name(symbol))
+                            .trim_matches('"')
+                            .rsplit('#')
+                            .next()
+                            .unwrap()
+                            .to_owned(),
+                    );
+                }
+            }
+        }
+        found.sort();
+        assert_eq!(found, ["sg", "sm", "sp"]);
+        let mut kept = 0;
+        for slot in state.not_static_private_front.iter() {
+            let Some(raw) = slot.get().checked_sub(1) else {
+                continue;
+            };
+            let symbol = tsc_types::SymbolId::new(raw);
+            assert!(!state.compute_is_static_private_identifier_property(symbol));
+            kept += 1;
+        }
+        assert!(kept >= 8, "{kept}");
+    });
+}

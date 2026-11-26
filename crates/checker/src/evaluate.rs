@@ -1327,7 +1327,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isSameScopeDescendentOf @6.0.3
     /// tsc-hash: b6ffa36eb5f3ba52f245efbfc9dbd16db3995cc03e410d56a558c4efcbb3640f
     /// tsc-span: _tsc.js:48478-48480
-    fn is_same_scope_descendent_of(
+    ///
+    /// The walk can answer yes only by reaching `parent`, which is `initial`
+    /// or above it only if `initial` lies within its text. A use past the
+    /// end of the declaration it is compared with - nearly every use - is
+    /// answered from the two ranges. JavaScript keeps the walk (a reparsed
+    /// JSDoc node lies outside its host's text).
+    pub(crate) fn is_same_scope_descendent_of(
         &mut self,
         initial: NodeId,
         parent: Option<NodeId>,
@@ -1336,6 +1342,26 @@ impl<'a> CheckerState<'a> {
         let Some(parent) = parent else {
             return Ok(false);
         };
+        if (self.pos_of(initial) < self.pos_of(parent)
+            || self.end_of(initial) > self.end_of(parent))
+            && !self.is_in_js_file(initial)
+        {
+            debug_assert!(matches!(
+                self.walk_same_scope_descendent_of(initial, parent, stop_at),
+                Ok(false)
+            ));
+            return Ok(false);
+        }
+        self.walk_same_scope_descendent_of(initial, parent, stop_at)
+    }
+
+    /// [`Self::is_same_scope_descendent_of`] as the reference walks it.
+    pub(crate) fn walk_same_scope_descendent_of(
+        &mut self,
+        initial: NodeId,
+        parent: NodeId,
+        stop_at: Option<NodeId>,
+    ) -> CheckResult<bool> {
         let mut current = Some(initial);
         while let Some(node) = current {
             if node == parent {
@@ -1467,23 +1493,75 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isInAmbientOrTypeNode @6.0.3
     /// tsc-hash: bcea35c9b9ab2de5c35c6aaea990ce25eb0171c7cf514a166a40c0c2675d60b2
     /// tsc-span: _tsc.js:69404-69406
+    ///
+    /// Asked of every use of a block-scoped name (and of every identifier's
+    /// check flags): outside a type the reference walks to the root to say
+    /// no. The search ends at a node kept from the last one
+    /// ([`Self::nearest_ancestor_or_kept`]).
     pub(crate) fn is_in_ambient_or_type_node(&self, node: NodeId) -> bool {
         if self.node_flags(node) & NodeFlags::AMBIENT.bits() != 0 {
             return true;
         }
-        let mut current = Some(node);
-        while let Some(node) = current {
-            if matches!(
-                self.kind_of(node),
+        self.nearest_ancestor_or_kept(node, &self.outside_type_declarations, |kind| {
+            matches!(
+                kind,
                 SyntaxKind::InterfaceDeclaration
                     | SyntaxKind::TypeAliasDeclaration
                     | SyntaxKind::TypeLiteral
-            ) {
-                return true;
+            )
+        })
+        .is_some()
+    }
+
+    /// The nearest node whose kind `wanted` accepts among `start` and its
+    /// ancestors, for a search that mostly finds none and would walk to the
+    /// root to say so.
+    ///
+    /// `kept` holds two nodes that an earlier search with the same `wanted`
+    /// passed on its way to the root: nothing wanted lies at or above them,
+    /// so the search ends at either. They are the innermost block of the
+    /// last search that found nothing and its outermost block (the root for
+    /// a search that met no block): the next request from the same block
+    /// ends at the first, the next from the same function at the second.
+    /// `wanted` accepts neither a block nor a source file.
+    pub(crate) fn nearest_ancestor_or_kept(
+        &self,
+        start: NodeId,
+        kept: &std::cell::Cell<(Option<NodeId>, Option<NodeId>)>,
+        wanted: impl Fn(SyntaxKind) -> bool,
+    ) -> Option<NodeId> {
+        let (kept_inner, kept_outer) = kept.get();
+        let mut inner_block = None;
+        let mut outer_block = None;
+        let mut last = start;
+        let mut reached_root = true;
+        let mut current = Some(start);
+        while let Some(node) = current {
+            if Some(node) == kept_inner || Some(node) == kept_outer {
+                reached_root = false;
+                break;
             }
+            let kind = self.kind_of(node);
+            if wanted(kind) {
+                return Some(node);
+            }
+            if kind == SyntaxKind::Block {
+                if inner_block.is_none() {
+                    inner_block = Some(node);
+                }
+                outer_block = Some(node);
+            }
+            last = node;
             current = self.parent_of(node);
         }
-        false
+        // Every node of this search lies outside what is wanted.
+        let outer = if reached_root {
+            Some(outer_block.unwrap_or(last))
+        } else {
+            kept_outer
+        };
+        kept.set((inner_block.or(kept_inner), outer));
+        None
     }
 
     // ---- small shared helpers ----

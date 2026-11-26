@@ -157,7 +157,25 @@ impl<'a> CheckerState<'a> {
     /// when no overlap — inferredTypeParameters feeds chooseOverload's
     /// 76844 instantiation) or instantiates against the contextual
     /// signature in the context of the outer inference.
+    ///
+    /// Every checked expression passes here, and outside an inference it
+    /// leaves at the first test: that test stands at the call, the rest is
+    /// called.
+    #[inline]
     fn instantiate_type_with_single_generic_call_signature(
+        &mut self,
+        node: NodeId,
+        ty: TypeId,
+        check_mode: CheckMode,
+    ) -> CheckResult<TypeId> {
+        if !check_mode.intersects(CheckMode::INFERENTIAL | CheckMode::SKIP_GENERIC_FUNCTIONS) {
+            return Ok(ty);
+        }
+        self.instantiate_type_with_single_generic_call_signature_worker(node, ty, check_mode)
+    }
+
+    #[inline(never)]
+    fn instantiate_type_with_single_generic_call_signature_worker(
         &mut self,
         node: NodeId,
         ty: TypeId,
@@ -1788,8 +1806,10 @@ impl<'a> CheckerState<'a> {
         if self.node_flags(list) & tsc_types::NodeFlags::LET.bits() == 0 {
             return false;
         }
-        let source = self.binder.source_of_node(declaration);
-        if node_util::get_combined_modifier_flags(source, declaration)
+        // The node's own JavaScript flag chooses the reader: its file is
+        // fetched only there.
+        if self
+            .combined_modifier_flags(declaration)
             .intersects(ModifierFlags::EXPORT)
         {
             return false;
@@ -3154,7 +3174,8 @@ impl<'a> CheckerState<'a> {
         matches!(
             self.kind_of(node),
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression
-        ) || node_util::is_jsdoc_type_assertion(self.binder.source_of_node(node), node)
+        ) || (self.kind_of(node) == SyntaxKind::ParenthesizedExpression
+            && node_util::is_jsdoc_type_assertion(self.binder.source_of_node(node), node))
     }
 
     /// tsc-port: checkDeclarationInitializer @6.0.3
@@ -3404,8 +3425,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// Combined readonly modifier, excluding parameter properties.
     pub(crate) fn is_declaration_readonly(&self, declaration: NodeId) -> bool {
-        let source = self.binder.source_of_node(declaration);
-        node_util::get_combined_modifier_flags(source, declaration)
+        self.combined_modifier_flags(declaration)
             .intersects(ModifierFlags::READONLY)
             && !self.parent_of(declaration).is_some_and(|parent| {
                 node_util::is_parameter_property_declaration(&Published, declaration, parent)
@@ -3545,7 +3565,10 @@ impl<'a> CheckerState<'a> {
                 return Ok((true, None));
             }
         }
-        if node_util::is_jsdoc_type_assertion(self.binder.source_of_node(parent), parent)
+        // Only a parenthesized expression can be one: asked of the node
+        // before its file is fetched.
+        if self.kind_of(parent) == SyntaxKind::ParenthesizedExpression
+            && node_util::is_jsdoc_type_assertion(self.binder.source_of_node(parent), parent)
             && self
                 .jsdoc_type_assertion_type_node(parent)
                 .is_some_and(|type_node| self.is_const_type_reference_node(type_node))

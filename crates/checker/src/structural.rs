@@ -6530,7 +6530,36 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getDeclarationModifierFlagsFromSymbol @6.0.3
     /// tsc-hash: 640b7c9d80362bc126b54abbed85737561ceff6a8dec412cfaf111c794a4ef8d
     /// tsc-span: _tsc.js:17436-17452
+    ///
+    /// The accessibility test, the readonly test and the reference marking
+    /// ask this at every property access. A persistent symbol's answer is
+    /// a function of its own record, its parent's flags and its
+    /// declarations' modifiers, none of which changes after bind: the
+    /// answers last computed are kept, a slot a symbol and side
+    /// (`declaration_modifier_front`).
     pub fn get_declaration_modifier_flags_from_symbol_write(
+        &self,
+        symbol: SymbolId,
+        is_write: bool,
+    ) -> ModifierFlags {
+        let raw = symbol.index();
+        if raw & tsc_types::TRANSIENT_SYMBOL_BIT != 0 {
+            return self.compute_declaration_modifier_flags_from_symbol(symbol, is_write);
+        }
+        let slot = &self.declaration_modifier_front
+            [(Self::not_deprecated_slot(raw) << 1) | usize::from(is_write)];
+        let (key, kept) = slot.get();
+        if key == raw + 1 {
+            return ModifierFlags::from_bits(kept);
+        }
+        let flags = self.compute_declaration_modifier_flags_from_symbol(symbol, is_write);
+        slot.set((raw + 1, flags.bits()));
+        flags
+    }
+
+    /// [`Self::get_declaration_modifier_flags_from_symbol_write`] computed
+    /// from the symbol and its declarations.
+    pub(crate) fn compute_declaration_modifier_flags_from_symbol(
         &self,
         symbol: SymbolId,
         is_write: bool,
@@ -6693,13 +6722,22 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: removeMissingType @6.0.3
     /// tsc-hash: 84f12e953d3cae2fbd118aeedd88f90504bbd65eff6a2b343bfef5a8bc2693c1
     /// tsc-span: _tsc.js:67883-67885
+    ///
+    /// Without `exactOptionalPropertyTypes`, or for a required property,
+    /// the type is returned as it is: that test stands at the call.
+    #[inline]
     pub fn remove_missing_type(&mut self, ty: TypeId, is_optional: bool) -> TypeId {
         if self.tables.exact_optional_property_types && is_optional {
-            let missing = self.tables.intrinsics.missing;
-            self.tables.filter_type(ty, |_, t| t != missing)
+            self.remove_missing_type_worker(ty)
         } else {
             ty
         }
+    }
+
+    #[inline(never)]
+    fn remove_missing_type_worker(&mut self, ty: TypeId) -> TypeId {
+        let missing = self.tables.intrinsics.missing;
+        self.tables.filter_type(ty, |_, t| t != missing)
     }
 
     /// tsc-port: isObjectTypeWithInferableIndex @6.0.3
@@ -9037,18 +9075,28 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<IndexInfo>> {
         let string = self.tables.intrinsics.string;
         let mut string_index_info: Option<&IndexInfo> = None;
-        let mut applicable: Vec<&IndexInfo> = Vec::new();
+        // As the reference keeps them: the first applicable info in a
+        // variable, a list only when a second one applies.
+        let mut applicable: Option<&IndexInfo> = None;
+        let mut more: Vec<&IndexInfo> = Vec::new();
         for info in &index_infos {
             if info.key_type == string {
                 string_index_info = Some(info);
             } else if self.is_applicable_index_type(key_type, info.key_type)? {
-                applicable.push(info);
+                if applicable.is_none() {
+                    applicable = Some(info);
+                } else {
+                    more.push(info);
+                }
             }
         }
-        if applicable.len() > 1 {
-            let types: Vec<TypeId> = applicable.iter().map(|info| info.value_type).collect();
+        if let (Some(first), false) = (applicable, more.is_empty()) {
+            let types: Vec<TypeId> = std::iter::once(first)
+                .chain(more.iter().copied())
+                .map(|info| info.value_type)
+                .collect();
             let value = self.get_intersection_type(&types, tsc_types::IntersectionFlags::NONE)?;
-            let is_readonly = applicable.iter().all(|info| info.is_readonly);
+            let is_readonly = first.is_readonly && more.iter().all(|info| info.is_readonly);
             // tsgo findApplicableIndexInfo: the synthetic info has no
             // declaration.
             return Ok(Some(IndexInfo {
@@ -9061,7 +9109,7 @@ impl<'a> CheckerState<'a> {
                 is_any_base_type_index_info: false,
             }));
         }
-        if let Some(info) = applicable.into_iter().next() {
+        if let Some(info) = applicable {
             return Ok(Some(info.clone()));
         }
         if let Some(info) = string_index_info {
@@ -9097,7 +9145,14 @@ impl<'a> CheckerState<'a> {
             }
             if let Some(tsc_types::LiteralValue::String(value)) = self.tables.literal_value(source)
             {
-                return Ok(value.as_str().is_some_and(is_numeric_literal_name_js));
+                // `(+name).toString() === name` holds only for a name that
+                // a number prints as, and a number's print begins with a
+                // digit, '-', 'I' (Infinity) or 'N' (NaN): any other first
+                // byte answers without the validation and the parse.
+                return Ok(matches!(
+                    value.as_bytes().first(),
+                    Some(b'0'..=b'9' | b'-' | b'I' | b'N')
+                ) && value.as_str().is_some_and(is_numeric_literal_name_js));
             }
         }
         Ok(false)

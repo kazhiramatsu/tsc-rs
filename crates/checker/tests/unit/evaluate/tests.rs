@@ -72,3 +72,116 @@ fn numeric_literal_names_round_trip() {
     assert!(!is_numeric_literal_name("A"));
     assert!(!is_numeric_literal_name(""));
 }
+
+/// The two walks of the declared-before-use test answer as the reference's
+/// walks do: the search for an enclosing interface, type alias or type
+/// literal (it ends at a node kept from the last search) for every node of a
+/// file in three orders, and the same-scope-descendant test (answered from
+/// the text ranges when the use lies outside the declaration) for every
+/// identifier against every variable declaration.
+#[test]
+fn declared_before_use_walks_answer_as_the_reference_walks() {
+    use crate::state::CheckerState;
+    use tsc_syntax::{NodeId, SyntaxKind};
+
+    fn type_node_walk(state: &CheckerState, node: NodeId) -> bool {
+        if state
+            .binder
+            .flags_of(node)
+            .intersects(tsc_types::NodeFlags::AMBIENT)
+        {
+            return true;
+        }
+        let mut current = Some(node);
+        while let Some(node) = current {
+            if matches!(
+                state.kind_of(node),
+                SyntaxKind::InterfaceDeclaration
+                    | SyntaxKind::TypeAliasDeclaration
+                    | SyntaxKind::TypeLiteral
+            ) {
+                return true;
+            }
+            current = state.parent_of(node);
+        }
+        false
+    }
+
+    let text = "declare const k: unique symbol;\n\
+        interface I { a: number; [k]: string; m(x: typeof v): void }\n\
+        type A = { b: I; [k]: number } | typeof v;\n\
+        declare namespace Amb { const z: number; function g(): typeof z; }\n\
+        const v = 1, w = v + ((): number => w)();\n\
+        function f(p = v) { const a = p, b = a + (() => b)(); \
+        { let c = a; for (const d of [c, d]) { c = d; } return (x: { y: typeof c }) => x.y; } }\n\
+        class C { p = v; m() { for (let i = 0, j = i; i < j; i++) { const q = i; \
+        if (q) { return q; } } return this.p; } }\n\
+        for (const e in { e }) { e; }\n";
+    crate::state::test_support::with_program_state(
+        &[("a.ts", text)],
+        &tsc_types::CompilerOptions::default(),
+        |state| {
+            let nodes: Vec<NodeId> = state.binder.source(0).arena.node_ids().collect();
+            let backward: Vec<NodeId> = nodes.iter().rev().copied().collect();
+            let striding: Vec<NodeId> = (0..nodes.len())
+                .map(|index| nodes[index * 7919 % nodes.len()])
+                .collect();
+            let (mut in_type, mut outside_type) = (0, 0);
+            for order in [&nodes, &backward, &striding] {
+                for &node in order {
+                    let expected = type_node_walk(state, node);
+                    assert_eq!(
+                        state.is_in_ambient_or_type_node(node),
+                        expected,
+                        "{node:?} ({:?})",
+                        state.kind_of(node)
+                    );
+                    if expected {
+                        in_type += 1;
+                    } else {
+                        outside_type += 1;
+                    }
+                }
+            }
+            assert!(in_type >= 3 * 30, "{in_type}");
+            assert!(outside_type >= 3 * 60, "{outside_type}");
+
+            let declarations: Vec<NodeId> = nodes
+                .iter()
+                .copied()
+                .filter(|&node| state.kind_of(node) == SyntaxKind::VariableDeclaration)
+                .collect();
+            let identifiers: Vec<NodeId> = nodes
+                .iter()
+                .copied()
+                .filter(|&node| state.kind_of(node) == SyntaxKind::Identifier)
+                .collect();
+            let (mut inside, mut outside) = (0, 0);
+            for &declaration in &declarations {
+                let stop_at = state.get_enclosing_block_scope_container(declaration);
+                for &identifier in &identifiers {
+                    let expected = state
+                        .walk_same_scope_descendent_of(identifier, declaration, stop_at)
+                        .unwrap();
+                    assert_eq!(
+                        state
+                            .is_same_scope_descendent_of(identifier, Some(declaration), stop_at)
+                            .unwrap(),
+                        expected,
+                        "{identifier:?} under {declaration:?}"
+                    );
+                    if expected {
+                        inside += 1;
+                    } else {
+                        outside += 1;
+                    }
+                }
+            }
+            // Every declaration holds its own name; most identifiers lie
+            // outside most declarations.
+            assert!(declarations.len() >= 10, "{}", declarations.len());
+            assert!(inside >= declarations.len(), "{inside}");
+            assert!(outside > 10 * inside, "{outside} against {inside}");
+        },
+    );
+}
