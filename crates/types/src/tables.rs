@@ -262,48 +262,30 @@ pub struct InstantiationMiss {
 /// The front only repeats the map: a slot is written with the answer the
 /// map holds for that key, and when the map changes an answer the front is
 /// emptied (see [`InstantiationCache::insert`]).
+///
+/// The front is one page of the machines it was measured on: 1,024 slots,
+/// sixteen kilobytes, for a checker of any program. A key's slot is a place
+/// its hash names, so the keys in use are spread over every slot there is
+/// and each look-up reads a slot of its own: the look-ups of a front of
+/// 65,536 slots (a megabyte) went to sixty-four pages no other data shares,
+/// and the check took half a percent to a percent and a half longer than
+/// with these, for the same instructions - a checker's look-ups repeat few
+/// enough keys that 1,024 slots answer nine in ten of what the map holds,
+/// and the look-ups this front passes on are what the map is for.
+#[derive(Default)]
 struct InstantiationFront {
-    /// Empty until the first entry, then `1 << self.bits` slots of
+    /// Empty until the first entry, then [`Self::SLOTS`] slots of
     /// `[target, first argument, second argument or 0, answer]`, each id as
     /// its store position (the index plus one): no id is zero, and a zero
     /// first word is an empty slot.
     slots: Vec<[u32; 4]>,
-    /// The logarithm of the slot count, chosen before the first entry
-    /// ([`Self::size_for`]).
-    bits: u32,
-}
-
-impl Default for InstantiationFront {
-    fn default() -> Self {
-        Self {
-            slots: Vec::new(),
-            bits: Self::MAX_BITS,
-        }
-    }
 }
 
 impl InstantiationFront {
-    /// The most slots a front has, and what it has when nothing sized it:
-    /// 65,536, one megabyte a checker.
-    const MAX_BITS: u32 = 16;
-    /// The fewest: 4,096 slots, 64 KiB.
-    const MIN_BITS: u32 = 12;
-
-    /// Size the front for a checker expected to hold `lists` type lists:
-    /// twice as many slots, within the two bounds. A slot holds one key, and
-    /// a key is answered here only while no other key of its slot was put
-    /// after it, so the front is kept at most half full; a megabyte is more
-    /// than that for a checker of a small program, and every slot written is
-    /// resident. Only before the first entry: the slots stay as they are.
-    fn size_for(&mut self, lists: usize) {
-        if self.slots.is_empty() {
-            let wanted = lists
-                .saturating_mul(2)
-                .clamp(1 << Self::MIN_BITS, 1 << Self::MAX_BITS)
-                .next_power_of_two();
-            self.bits = wanted.trailing_zeros();
-        }
-    }
+    /// The logarithm of the slot count.
+    const BITS: u32 = 10;
+    /// The slots of a front: 1,024, sixteen bytes each.
+    const SLOTS: usize = 1 << Self::BITS;
 
     /// The key's three words, for the keys the front takes.
     #[inline]
@@ -315,19 +297,19 @@ impl InstantiationFront {
         }
     }
 
-    /// The slot of `key` in a front of `1 << bits` slots.
+    /// The slot of `key`.
     #[inline]
-    fn slot(key: [u32; 3], bits: u32) -> usize {
+    fn slot(key: [u32; 3]) -> usize {
         const K: u64 = 0x9E37_79B9_7F4A_7C15;
         let mixed = (u64::from(key[0]) | (u64::from(key[1]) << 32)).wrapping_mul(K)
             ^ u64::from(key[2]).wrapping_mul(0xC2B2_AE3D_27D4_EB4F);
-        (mixed.wrapping_mul(K) >> (64 - bits)) as usize
+        (mixed.wrapping_mul(K) >> (64 - Self::BITS)) as usize
     }
 
     #[inline]
     fn get(&self, target: TypeId, arguments: &[TypeId]) -> Option<TypeId> {
         let key = Self::key(target, arguments)?;
-        let slot = self.slots.get(Self::slot(key, self.bits))?;
+        let slot = self.slots.get(Self::slot(key))?;
         if slot[..3] == key {
             TypeId::from_position(slot[3])
         } else {
@@ -341,9 +323,9 @@ impl InstantiationFront {
             return;
         };
         if self.slots.is_empty() {
-            self.slots = vec![[0; 4]; 1 << self.bits];
+            self.slots = vec![[0; 4]; Self::SLOTS];
         }
-        self.slots[Self::slot(key, self.bits)] = [key[0], key[1], key[2], answer.position()];
+        self.slots[Self::slot(key)] = [key[0], key[1], key[2], answer.position()];
     }
 
     fn clear(&mut self) {
@@ -1184,19 +1166,18 @@ impl TypeTables {
         );
         self.instantiations
             .reserve(lists.saturating_sub(self.instantiations.len()));
-        self.instantiations.front.size_for(lists);
     }
 
     /// The bytes of the lookup tables [`Self::reserve_capacity_hint`]
-    /// reserves, as they stand: the list map, the string literal map, the
-    /// instantiation map and the front's slots once it has them (the front
-    /// is counted at its chosen size from its creation on).
+    /// reserves, as they stand: the list map, the string literal map and the
+    /// instantiation map, with the slots of the map's front (which no
+    /// reservation sizes; counted from its creation on).
     pub fn reserved_lookup_bytes(&self) -> usize {
         self.list_ids.capacity() * (std::mem::size_of::<TypeListId>() + 1)
             + self.string_literal_types.capacity()
                 * (std::mem::size_of::<(LiteralTextId, TypeId)>() + 1)
             + self.instantiations.plain.capacity() * (std::mem::size_of::<PlainInstantiation>() + 1)
-            + (std::mem::size_of::<[u32; 4]>() << self.instantiations.front.bits)
+            + InstantiationFront::SLOTS * std::mem::size_of::<[u32; 4]>()
     }
 
     // ---- arena ----
