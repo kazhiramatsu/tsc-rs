@@ -2158,6 +2158,86 @@ scope の 97〜99 % は 8 entry 以下、alias つきの map はこの 4 案件�
 
 **残り。** 行 2〜5 を 1 つの枠で鎖として読む（base ｜ 2 ｜ 3 ｜ 4 ｜ 5 ｜ control）→ train；行 6 の検査・台帳・枠；mapper の scope cache の inline 配列；非推奨の判定を symbol ごとに覚える形；宣言の member list の順（site 別の census）；名前の intern；VS Code の copy とゼロ埋めの上位；specifier pool の peak；node → symbol の疎な表（Row 14）；C5（link 時の並べ替え）は所有者の判断。
 
+**結果 68（2026-11-26 夕方：7 行をまとめた train の着地（PR #1043）— check 中の module 解決、instantiate した型の member の順、最小引数数、最後の代入位置、alias の印付けの 2 本の走査、mapper の scope、非推奨の判定；枠 s27 と 31 回の撮り直し；行ごとの台帳；次の train の行 9〜17 と行 9 の台帳（得なし）；helper の再監査の扱い；次の主線 — 先読みの終わりから最初の check までの直列区間（VS Code 101 ms）；自分の誤り 7 件と手順の変更 3 つ）**
+
+**着地（PR #1043、merge `b4bde8891`、hosted run 45774563378、16:51）。** 結果 67 の行 2〜6 と、同じ午後に勘定から書いた行 7・8 を 1 本の PR（7 commit）で入れた。出力・3 counter は main と同じ。train の local 検査：clippy（全 target）、checker の test 2,240 件（失敗 0）、4 checker の conformance 15,335 構成が同じ・違うのは既知の 4 つ、suites の退行 0、oracle 24 / 24、fingerprint の差 0 行（161,676 行）、preset の出力 14 / 14 が同じ（zod は実行ごとに変わると宣言済み）。
+
+| commit | 何を変えるか | 命令数（1 thread、既定 mode、直前の binary 比） |
+|---|---|---|
+| 1 | import 文の check と alias の解決が、load 済みの module を provider に聞き直していた：答えを specifier の node で引く 256 slot の表に置く | VS Code −0.38 %、TypeScript −0.35 %、Vue −0.15 %、Next.js −0.12 % |
+| 2 | instantiate した型の member 表は元の並べ済みの list の順に作られる：3 か所で sort しない（検証 binary で 8 案件・両 mode・conformance とも順の違う表 0） | Vue −0.26 %、Next.js −0.18 %、VS Code −0.12 %、Effect −0.12 % |
+| 3 | signature の最小引数数を 1 回だけ計算する（reference の `resolvedMinArgumentCount` と同じ場所で保存） | hono −0.60 %、Vue −0.27 %、TypeScript −0.24 %、VS Code −0.21 % |
+| 4 | symbol の最後の代入位置が確定したら 1 page の表に置く | 全案件 −0.03〜−0.11 % |
+| 5 | property 参照ごとの alias の印付けの走査 2 本（import-equals の中か；export 式か）を、答えが決まる所で止める | VS Code −0.35 %、TypeScript −0.32 %；他は横ばい |
+| 6 | mapper の scope は最初の 8 個の答えを inline の配列に持つ（9 個目から map） | Effect −0.75 %、zod −0.73 %、Next.js −0.36 %、Playwright −0.31 %、hono −0.24 % |
+| 7 | 非推奨の判定：親 symbol は宣言が複数のときだけ引く；宣言 1 つは 1 回だけ読む；「非推奨でない」と分かった persistent な symbol を 1 page 覚える | TypeScript −0.54 %、VS Code −0.46 %、Vue −0.25 %、Playwright −0.20 % |
+
+7 行の合計（命令数）：VS Code −1.70 %、TypeScript −1.69 %、Effect −1.19 %、Vue −1.15 %、hono −1.07 %、zod −0.99 %、Playwright −0.80 %、Next.js −0.77 %。
+
+枠 s27（7 行を積んだ binary `n-dep` 対 main の binary `batch64-sel-ba271b5da`；control は同じ code の `n-col2`；wall、括弧内は control）：
+
+| | 1 thread（15 回、VS Code 9） | 既定設定（21 回、VS Code 9） | preset |
+|---|---:|---:|---:|
+| VS Code | **−1.31 %**、9 回中 9 回、cycle −1.55 %（−0.05） | **−0.73 %**、9 回中 9 回（+0.22） | −0.40 %、cycle −0.69 %（−0.02） |
+| Next.js | **−1.67 %**（−0.36）；31 回で −0.65 %、25 回 | −0.94 %（−0.59） | +0.13 %（+0.63） |
+| Vue | −0.93 %（−0.31） | −0.45 %（+0.32） | −1.27 %（−1.03） |
+| zod | −3.06 %（base の 2 cell が 4.5 % 開いた；−1.72） | +0.13 %、cycle −0.33 % | +0.18 %（+1.34）；31 回で −0.81 %（−0.47） |
+| Playwright | −0.41 %（+0.20） | +0.57 %、cycle −0.45 %（−0.02）；31 回で +1.67 %（+1.22）、31 回中 15 回が低い | +0.19 %（−0.65） |
+| Effect | −0.33 %（−0.39）；31 回で −0.25 %（−0.36） | +0.25 % 幅の外（+0.11）；31 回で −1.06 %（−1.22） | +0.27 %（+1.08） |
+| TypeScript | — | −0.54 %（+1.20） | **−1.44 %**（−0.53） |
+| hono | — | −0.64 %（+0.13） | +0.12 %（+3.25）；31 回で −2.11 %（+3.20） |
+
+VS Code の 1 thread では、行を積むごとに下がる：行 1〜4 で −0.48 %、+5 で −0.89 %、+6 で −1.16 %、+7 で −1.31 %（cycle −0.47、−0.82、−1.18、−1.55 %）。枠の中の tsrs 比（既定設定）：VS Code 0.934 → 0.927、Next.js 0.965 → 0.956、Vue 0.939 → 0.935、TypeScript 1.022 → 1.017、hono 0.895 → 0.889；preset：TypeScript 1.039 → 1.024、Vue 0.976 → 0.964、VS Code 1.064 → 1.060。peak は全 mode・全案件で −2.3〜+3.1 MiB（control は −7.8〜+3.7）。
+
+**書かないこと。** Effect は命令数が 1.2 % 減ったが、時間はどの mode でも control と同じ（1 thread −0.25 % 対 −0.36 %、既定 −1.06 % 対 −1.22 %）：速くなったとは言えない。Playwright の既定設定は 21 回で +0.57 %（cycle −0.45 %）、31 回で +1.67 %（control +1.22 %、base の 2 cell が 1.4 % 開いた block、31 回中 15 回が base より低い）：決まりでは横ばいだが、相手との差が 0.4 % の cell（0.996 → 1.002）で、gain は無い。
+
+**枠の読み方（走らせる前に script の頭に書いた決まり）。** (1) 積んだ先頭の cell が 1 thread で 6 案件中 4 つ以上、base の 2 cell より速く、かつ control を超えていること；(2) 「幅の外」の cell は 31 回で撮り直してから数える；(3) 途中の cell が 2 つ以上の mode で control より上に残った行は train から外す。結果：(1) は 5 案件；(2) 印の付いた cell は 11 個（先頭の cell では Effect の既定設定 1 つ；多くは base より cycle が少なく、Effect のは base の 2 cell が偶然 0.05〜0.10 % しか離れなかったため）、撮り直しで control より上に残った cell は 0；(3) 該当なし。
+
+**予定の変更（14:27）。** 行 9（宣言 member の順）は「binder の挿入順 = getNamedMembers の順」という主張が検証 binary を通るまで仮のもの：確認済みの行 2〜8 をそれに待たせず、先に枠と train に出した。
+
+**次の train の行（code と test は書き終え、job が順に走行中：dmo → dbu → r1113 → r1416；行 17 は最初の compile 待ち）。**
+
+| 行（branch、commit） | 何を変えるか | 根拠（1 thread の cycle profile、ours ｜ tsrs） |
+|---|---|---|
+| 9 `perf/declared-members-in-binder-order` `0e5eadb08` | class・interface・型 literal の、binder 自身の member 表（JavaScript の外、late-bound の member 無し）は sort せずに凍結する | 行 2 の後も VS Code は 165,028 表・319 万 member を sort し、その 76 % は既に並んでいる |
+| 10 `perf/declared-before-use-walks` `b7f56151e` | `isBlockScopedNameDeclaredBeforeUse` の走査 2 本：型宣言の中かの探索は前回の探索が通った node で止める；初期化子の中かは 2 つの text 範囲で答える | VS Code 198 ｜ 246 M（0.84 %）、他 0.25〜0.80 %；命令単位で 77 M + 72 M |
+| 11 `perf/early-returns-at-the-call` `8ad0ede8d` | 毎回呼ばれて最初の判定で帰る 3 関数（single generic call signature の instantiation、removeMissingType、instantiateContextualType）の判定を呼び出し側に出す | 自前の時間の 54〜96 % が関数の入口と出口（VS Code で 54 + 29 + 32 M） |
+| 12 `perf/declaration-modifier-fronts` `8630116e9` | persistent な symbol の宣言 modifier の flag を symbol と read / write の側ごとに覚える；private でない class member を覚える | node の modifier の読み 216 M（0.91 %）；呼び手 3 つの合計が相手より 50〜90 M 多い |
+| 13 `perf/node-flag-before-source-file` `7bd04a294` | source file を引く前に、node 自身の JavaScript flag・種類で判定する（5 か所） | `source_of_node` 63 M（0.27 %） |
+| 14 `perf/applicable-index-info-without-a-list` `dcaa232cc` | 当てはまる index signature の探索は、最初に当てはまったものを変数に持つ（list を作らない）；string の key は先頭の 1 byte で数かどうかを先に判定する | `find_applicable_index_info` 103 ｜ 61 M（自前 33 ｜ 13）；list の伸長 8 M、key の検証 12 M |
+| 15 `perf/node-name-inline` `c32730000` | `name_of_node` を inline にする | 48.5 M、ほぼ全部が入口と出口 |
+| 16 `perf/static-private-front` `c09d54c8b` | `isStaticPrivateIdentifierProperty`：「該当しない」と分かった persistent な symbol を覚える | 46.9 M（0.20 %）；大きさは主張しない |
+| 17 `perf/host-paths-from-snapshots` `9ffcf139a` | host の path の集合は、同じ 1 つの loop で作る host の入力 snapshot の map の key と同じ：集合を除き、resolver はその key を引く（helper の 11A） | memory：入力 1 つにつき path 文字列 1 本と表の 1 行（helper の勘定で VS Code −1.45 MiB） |
+
+**行 9 の判定（job dmo、16:41）。** 正しい：出力・3 counter は base（行 8 の binary）と同じ；検証 binary で 8 案件・両 mode とも順の違う表 0；検証を入れた 4 checker の conformance も 15,335 同じ・既知の 4 つ・panic 0。しかし台帳（命令数、1 thread、base の 2 cell 比）は hono +0.053 %、zod +0.044、Vue +0.031、TypeScript +0.009、Effect +0.003、Next.js −0.010、VS Code −0.012、Playwright −0.025、preset でも −0.024〜+0.043：**得が無い**。理由は検証 binary 自身の数にある：sort を省けた表は小さく（VS Code で 351,908 表に 1,016,371 member、1 表 2.9 個）、sort が残る 123,488 表が 2,968,062 member を持つ。結果 66 の「member の順付け 0.6〜1.6 %」は順付け全体の大きさで、この行が除く分ではなかった。枠で時間が出なければ行 9 は次の train から外し、行 10〜17 を行 8 の上に積み直す（各 job の台帳は 1 つ前の binary との差なので、そのまま使える）。
+
+行 11 は 11-08 の行 D1（早期 return の body を inline：命令数 +0.1〜+0.5 %）と同じ種類なので、台帳で命令数と cycle が全案件で下がらなければ出さない。行 12 は大きさを主張しない（覚えた答えが省くのは繰り返しだけ）。
+
+**helper の再監査（`frontend-serial-reaudit-1126.md`、main ba271b5da を read-only で読み直したもの）の扱い。** 前回の仕様の front end の行を、私の memory report の数で自分で下方修正し、未計測の数は主張と明記している。code で確かめた事実：locals の外側の表は node 数 / 32 の容量で作られ、縮められない；変数 0 個の関数にも空の表が入る；直列区間の 13.5 ms は trace の通り；前回の「名前の小文字化を借用で」は macOS の path（`/Users`）では一度も当たらない、という自己訂正も正しい。採ったもの：11A（行 17）、13A（下の直列区間の一部として、trace で形を決める）。今は書かないもの：12B（`--explainFiles` 無しで inclusion reason を早く捨てる；program の option に保持の切り替えが要り、勘定で VS Code の peak の 0.25 %）。census の後：10（locals）、9A、9B。後で：11B、11C。front end の memory で最大の行は引き続き helper の仕様の Row 14（node → symbol の疎な表、VS Code −51.5 MiB、11-26 未明に設計済み・未着手）。
+
+**次の主線：先読みの終わりから最初の check までの直列区間。** `n-dm1`（census：main の code に配分の内側の印を足したもの）の light trace、preset、1 案件 7 本の中央値。区間は **VS Code 101 ms（実行の 7.4 %）、Next.js 19.5 ms（6.5 %）、zod 13.2 ms（5.7 %）**：preset の相手との差（VS Code 1.060 ≒ 80 ms、zod 1.031 ≒ 7 ms、Playwright 1.021、TypeScript 1.024）と同じ大きさ。VS Code の内訳（ms）：root の walk 26.1（parse task の実行 22.9）｜graph の仕上げ 16.9（collect files 6.0、片付け 3.3、出力 directory の診断 2.6）｜symlink と package 3.6｜publish 14.8（module 解決 6.3、source 3.9）｜診断用の source text 2.2｜checker 入力の射影 2.1｜parse / adopt 8.1｜session の bind 6.0｜文書の公開 2.3｜snapshot 1.0｜**file の配分 12.3**（11-23 は 3.3：locality の association が入って増えた）｜checker の起動 4.0。
+
+| 配分の内訳（ms） | VS Code | Next.js | zod |
+|---|---:|---:|---:|
+| 配分の全体 | 12.30 | 2.50 | 0.79 |
+| provider の import | 2.25 | 0.30 | 0.24 |
+| 名前の小文字化 | 1.02 | 0.14 | 0.03 |
+| association：名前順の sort | 0.73 | 0.23 | 0.04 |
+| association：部分木の重さと group | 1.99 | 0.68 | 0.12 |
+| association：group の隣と module | 1.67 | 0.21 | 0.03 |
+| association：group の配置 | 2.22 | 0.60 | 0.12 |
+| association 後の queue（構文での leaf 判定 0.86 を含む） | 1.39 | 0.13 | 0.09 |
+
+`n-dm2`（`n-dm1` に、表を温める 2 thread と checker の起動の 4 段の印を足したもの）で、最初の check を待たせているのが何かを確かめた：VS Code では温めは snapshot の 3.7 ms 後に終わり、**配分（12.3 ms）が最初の check を止めている**；その後の checker の起動が 4.0 ms（snapshot からの状態 2.1、遅延した global 1.0、augmentation と global 型 0.5、予約 0.1）。起動は配分の結果を待つ必要が無い（pool の大きさと cost 計測の有無しか使わない）。配分と並べて起動すれば −3〜−6.6 ms、配分自体を縮めれば更に約 −4 ms：VS Code で合わせて約 −11 ms（preset の 0.8 %）、Next.js −2.4 ms（0.8 %）。**zod は形が違う**：配分は 0.8 ms だが、checker の起動が 6.3 ms、うち「augmentation と global 型」が 4.8 ms（VS Code 0.5）、10 個の checker の全部で 3.7〜6.3 ms。1 thread の録り（preset 1/1）では起動全体が 8.1 M cycle（約 2 ms）なので、同時に 10 個で走ると数倍になる。checker 数を変えた trace（zod 5 回、VS Code 3 回、`fable52-1111/dm2/scale/`）：zod の augmentation の段は checker 1 個で 1.54 ms、2 個 1.57、4 個 2.03、10 個 4.92 ms（最速の checker でも 3.98）— 1 つの checker の仕事は同じで、同時に走る数で伸びる：**競合**。VS Code の「snapshot からの状態」も 2 個で 0.34 ms、10 個で 2.43 ms。何を奪い合っているか（新しい memory の page、allocator、OS の memory 管理）はまだ分けていない。checker 間で結果を共有する形は helper の 13B ＝ owner の「今はやめる」なので、1 つの checker の中の仕事として読む。
+
+そのほかの直列の行は、track seat の `CHAIN-1119.md`（11-19）の分類が今も使える：parse task で作れる file ごとの仕事（class A、VS Code 15 ms、zod 3.2 ms：11-20 に owner の承認があり、未着手）、program の順に依存する merge（class B：module 解決を 2 回なめる publish など）、check の前に要らない仕事（診断用の source text は全 file について check の前に集めているが、読むのは診断のある file だけ）。どれもまだ書いていない。**checker の 0.1〜0.4 % の行を積むより先に、ここを主線にする。**
+
+**行にしなかったもの（命令単位で読んだ結果）。** 制御 flow の入れ物探し（0.25〜1.4 %、相手と同等）：既に親で引く 16 slot の cache があり、残りは式の深さぶんの上り。式の dispatcher（VS Code で自前 504 M）：loop も、32 M を超える単独の load も無い。`isConstContext` の 590 M は必要な contextual type の計算（既に呼び手に渡している）。TypeScript の flow 解析は入口の下の合計で 261 ｜ 253 M：差ではない。
+
+**自分の誤り。** (1)(2) 新しい unit test の「前提」の数え違いが 2 回：行 2 の test は bind 済みの file の symbol を書き換えようとし（設計上の assert で停止）、行 7 の test は「非推奨の symbol が 6 個以上」と書いたが 5 個だった — TypeScript では `{` と同じ行に書いた `/** @deprecated */` は member の JSDoc にならない（改行の後の comment だけ）。どちらも行の code ではなく test 側で、どちらも job が検査で止まり、stack の付け替えと掛け直しになった。(3) job script の生成で、新しい行の名前への置換を、base を名指す行を書いた「後」に流し、候補自身を base にして自分の log を待つ script を作った（走らせる前の読みで発見）。(4)(5) 見込みの外れ 2 件：最小引数数の memo は「Effect・zod・Next.js で 0.2 % 以上」と書いたが、効いたのは hono・Vue・TypeScript・VS Code（その 3 案件の cycle は最初の 1 回の計算で、memo は繰り返ししか省かない）；最後の代入位置の表は「TypeScript・VS Code で 0.1 % 以上」と書いて 0.04〜0.06 %。(6) 行 9 の大きさ：結果 66 で「member の順付け 0.6〜1.6 %」と書いたのは順付け全体の数で、行 9 が除く分は台帳で ±0.05 % だった。(7) trace の「最後の lane を lane の中央値で終わらせた場合の上限」（Next.js 7.6 %、zod 10.5 %）を新しい発見のように owner に伝えた：11-23・24 に調べた構造（取れない family を持つ lane；cost で配ると family が割れて仕事が 12〜16 % 増える；zod・Playwright・TypeScript では床が相手の wall より上）で、同じ 15 分で訂正した。
+
+**手順の変更。** (a) 新しい test は、job に載せる前に、compile 済みの tree で単体で走らせる（1 分半）；前提（「いくつ」「どれ」）は数ではなく期待する値そのものを assert する。(b) job script の生成は「古い行の名前を placeholder に → base を名指す行を書く → placeholder を解決 → その行を assert」の順。(c) 行の大きさは、関数の inclusive な cycle ではなく、その行が除く仕事から言う：memo なら「要求数 − 異なる key の数」、省く sort なら省かれる表の大きさ。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
