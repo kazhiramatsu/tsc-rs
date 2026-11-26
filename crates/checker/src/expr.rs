@@ -157,7 +157,25 @@ impl<'a> CheckerState<'a> {
     /// when no overlap — inferredTypeParameters feeds chooseOverload's
     /// 76844 instantiation) or instantiates against the contextual
     /// signature in the context of the outer inference.
+    ///
+    /// Every checked expression passes here, and outside an inference it
+    /// leaves at the first test: that test stands at the call, the rest is
+    /// called.
+    #[inline]
     fn instantiate_type_with_single_generic_call_signature(
+        &mut self,
+        node: NodeId,
+        ty: TypeId,
+        check_mode: CheckMode,
+    ) -> CheckResult<TypeId> {
+        if !check_mode.intersects(CheckMode::INFERENTIAL | CheckMode::SKIP_GENERIC_FUNCTIONS) {
+            return Ok(ty);
+        }
+        self.instantiate_type_with_single_generic_call_signature_worker(node, ty, check_mode)
+    }
+
+    #[inline(never)]
+    fn instantiate_type_with_single_generic_call_signature_worker(
         &mut self,
         node: NodeId,
         ty: TypeId,

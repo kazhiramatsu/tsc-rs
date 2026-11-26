@@ -6693,13 +6693,22 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: removeMissingType @6.0.3
     /// tsc-hash: 84f12e953d3cae2fbd118aeedd88f90504bbd65eff6a2b343bfef5a8bc2693c1
     /// tsc-span: _tsc.js:67883-67885
+    ///
+    /// Without `exactOptionalPropertyTypes`, or for a required property,
+    /// the type is returned as it is: that test stands at the call.
+    #[inline]
     pub fn remove_missing_type(&mut self, ty: TypeId, is_optional: bool) -> TypeId {
         if self.tables.exact_optional_property_types && is_optional {
-            let missing = self.tables.intrinsics.missing;
-            self.tables.filter_type(ty, |_, t| t != missing)
+            self.remove_missing_type_worker(ty)
         } else {
             ty
         }
+    }
+
+    #[inline(never)]
+    fn remove_missing_type_worker(&mut self, ty: TypeId) -> TypeId {
+        let missing = self.tables.intrinsics.missing;
+        self.tables.filter_type(ty, |_, t| t != missing)
     }
 
     /// tsc-port: isObjectTypeWithInferableIndex @6.0.3
