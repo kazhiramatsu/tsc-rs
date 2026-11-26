@@ -1295,6 +1295,12 @@ pub struct CheckerState<'a> {
     pub stable_type_ordering: bool,
     pub links: LinksTables,
     pub signatures: Vec<Signature>,
+    /// tsc `signature.resolvedMinArgumentCount` (getMinArgumentCount 78287):
+    /// a byte a signature, by its index - zero while not computed, else the
+    /// count plus one. A signature's identity is never reused, so the byte
+    /// is the signature's own; a count of 255 or more is computed at every
+    /// request. The table grows to the highest signature asked.
+    pub(crate) resolved_min_argument_counts: Vec<u8>,
     /// tsc signature.instantiations (getSignatureInstantiationWithout
     /// FillingInTypeArguments 59903): every signature's map in one table
     /// keyed by the signature and the type arguments' interned list (tsc's
@@ -2367,7 +2373,9 @@ impl<'a> CheckerState<'a> {
         rows.push((
             "signatures (Signature)",
             self.signatures.len(),
-            self.signatures.len() * std::mem::size_of::<Signature>() + signature_heap,
+            self.signatures.len() * std::mem::size_of::<Signature>()
+                + signature_heap
+                + self.resolved_min_argument_counts.capacity(),
         ));
         let mut member_symbols = rustc_hash::FxHashSet::default();
         let members_heap: usize = self
@@ -2795,6 +2803,7 @@ impl<'a> CheckerState<'a> {
             stable_type_ordering,
             links: LinksTables::with_id_bounds(node_id_end, symbol_id_end),
             signatures: Vec::new(),
+            resolved_min_argument_counts: Vec::new(),
             signature_instantiations: rustc_hash::FxHashMap::default(),
             members: Vec::new(),
             members_resolving: 0,

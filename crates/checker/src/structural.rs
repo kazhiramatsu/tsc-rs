@@ -8510,7 +8510,19 @@ impl<'a> CheckerState<'a> {
     /// none. Untyped JavaScript signatures therefore have minimum
     /// arity zero; the void-trimming loop lowers other syntactic
     /// counts when trailing parameters accept void.
+    ///
+    /// The count is computed once a signature, as tsc keeps it in
+    /// `signature.resolvedMinArgumentCount`: the rest parameter's type and
+    /// the types the void-trimming loop reads are asked at the first request
+    /// only. The untyped-JavaScript zero is not kept (tsc returns it before
+    /// its store).
     pub fn get_min_argument_count(&mut self, signature: SignatureId) -> CheckResult<usize> {
+        let index = signature.index() as usize;
+        if let Some(&kept) = self.resolved_min_argument_counts.get(index) {
+            if kept != 0 {
+                return Ok(usize::from(kept) - 1);
+            }
+        }
         let mut computed: Option<usize> = None;
         if let Some((_, data)) = self.rest_tuple_target_data(signature)? {
             let data = self.tables.tuple_target(data);
@@ -8546,6 +8558,12 @@ impl<'a> CheckerState<'a> {
             } else {
                 break;
             }
+        }
+        if let Ok(kept) = u8::try_from(min_argument_count + 1) {
+            if self.resolved_min_argument_counts.len() <= index {
+                self.resolved_min_argument_counts.resize(index + 1, 0);
+            }
+            self.resolved_min_argument_counts[index] = kept;
         }
         Ok(min_argument_count)
     }
