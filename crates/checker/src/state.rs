@@ -2075,6 +2075,10 @@ pub struct CheckerState<'a> {
     /// private identifier, kept as `not_deprecated_front` keeps its
     /// symbols: [`CheckerState::mark_property_as_referenced`] asks it first.
     pub(crate) not_private_front: Box<[std::cell::Cell<u32>]>,
+    /// Persistent symbols last found not to be static private identifier
+    /// properties, kept the same way
+    /// ([`CheckerState::is_static_private_identifier_property`]).
+    pub(crate) not_static_private_front: Box<[std::cell::Cell<u32>]>,
     /// The declaration modifier flags of the persistent symbols last
     /// asked: two cells a slot (the read side, the write side), each a
     /// symbol's index plus one and its flags
@@ -3031,6 +3035,8 @@ impl<'a> CheckerState<'a> {
             not_deprecated_front: vec![std::cell::Cell::new(0); 1 << Self::NOT_DEPRECATED_BITS]
                 .into_boxed_slice(),
             not_private_front: vec![std::cell::Cell::new(0); 1 << Self::NOT_DEPRECATED_BITS]
+                .into_boxed_slice(),
+            not_static_private_front: vec![std::cell::Cell::new(0); 1 << Self::NOT_DEPRECATED_BITS]
                 .into_boxed_slice(),
             declaration_modifier_front: vec![
                 std::cell::Cell::new((0, 0));
