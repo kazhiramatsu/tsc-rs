@@ -2063,6 +2063,10 @@ pub struct CheckerState<'a> {
     pub(crate) jsx_implicit_import_containers: rustc_hash::FxHashMap<usize, Option<SymbolId>>,
     /// tsgo getCombinedNodeFlagsCached: the last tree-stable node and result.
     pub(crate) combined_node_flags_cache: std::cell::Cell<Option<(NodeId, tsc_types::NodeFlags)>>,
+    /// Persistent symbols with at most one declaration that were last found
+    /// not deprecated, a slot holding the symbol's index plus one (zero for
+    /// an empty slot): [`CheckerState::is_deprecated_symbol`] asks it first.
+    pub(crate) not_deprecated_front: Box<[std::cell::Cell<u32>]>,
     /// The syntactic container of a starting parent in this published program.
     pub(crate) control_flow_containers: [crate::expr::ControlFlowContainerSlot; 16],
     /// tsc `node.jsDoc.jsDocCache` (getJSDocTagsWorker): effective,
@@ -3010,6 +3014,8 @@ impl<'a> CheckerState<'a> {
             distributed_type_parameters: rustc_hash::FxHashMap::default(),
             jsx_implicit_import_containers: rustc_hash::FxHashMap::default(),
             combined_node_flags_cache: Default::default(),
+            not_deprecated_front: vec![std::cell::Cell::new(0); 1 << Self::NOT_DEPRECATED_BITS]
+                .into_boxed_slice(),
             control_flow_containers: Default::default(),
             jsdoc_tag_cache: Default::default(),
             global_type_memos: Default::default(),
