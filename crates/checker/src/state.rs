@@ -1994,6 +1994,10 @@ pub struct CheckerState<'a> {
     /// its outermost block or root): a later search ends at either
     /// ([`CheckerState::is_part_of_import_equals_module_reference`]).
     pub(crate) outside_import_equals: std::cell::Cell<(Option<NodeId>, Option<NodeId>)>,
+    /// The same two kept nodes for the search of an enclosing interface,
+    /// type alias or type literal
+    /// ([`CheckerState::is_in_ambient_or_type_node`]).
+    pub(crate) outside_type_declarations: std::cell::Cell<(Option<NodeId>, Option<NodeId>)>,
     /// tsgo's checkExternalModuleNameInGlobalScope resolves module names the
     /// program does not collect (an import misplaced in a block). While it
     /// does, a name missing from the authoritative table is unresolved
@@ -3001,6 +3005,7 @@ impl<'a> CheckerState<'a> {
             authoritative_module_failure: std::cell::OnceCell::new(),
             resolved_module_cache: Default::default(),
             outside_import_equals: Default::default(),
+            outside_type_declarations: Default::default(),
             module_name_outside_program: std::cell::Cell::new(false),
             host_file_paths: Default::default(),
             host_input_snapshots: Default::default(),
