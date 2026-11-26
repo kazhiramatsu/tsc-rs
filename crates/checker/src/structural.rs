@@ -6530,7 +6530,36 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getDeclarationModifierFlagsFromSymbol @6.0.3
     /// tsc-hash: 640b7c9d80362bc126b54abbed85737561ceff6a8dec412cfaf111c794a4ef8d
     /// tsc-span: _tsc.js:17436-17452
+    ///
+    /// The accessibility test, the readonly test and the reference marking
+    /// ask this at every property access. A persistent symbol's answer is
+    /// a function of its own record, its parent's flags and its
+    /// declarations' modifiers, none of which changes after bind: the
+    /// answers last computed are kept, a slot a symbol and side
+    /// (`declaration_modifier_front`).
     pub fn get_declaration_modifier_flags_from_symbol_write(
+        &self,
+        symbol: SymbolId,
+        is_write: bool,
+    ) -> ModifierFlags {
+        let raw = symbol.index();
+        if raw & tsc_types::TRANSIENT_SYMBOL_BIT != 0 {
+            return self.compute_declaration_modifier_flags_from_symbol(symbol, is_write);
+        }
+        let slot = &self.declaration_modifier_front
+            [(Self::not_deprecated_slot(raw) << 1) | usize::from(is_write)];
+        let (key, kept) = slot.get();
+        if key == raw + 1 {
+            return ModifierFlags::from_bits(kept);
+        }
+        let flags = self.compute_declaration_modifier_flags_from_symbol(symbol, is_write);
+        slot.set((raw + 1, flags.bits()));
+        flags
+    }
+
+    /// [`Self::get_declaration_modifier_flags_from_symbol_write`] computed
+    /// from the symbol and its declarations.
+    pub(crate) fn compute_declaration_modifier_flags_from_symbol(
         &self,
         symbol: SymbolId,
         is_write: bool,

@@ -2952,6 +2952,17 @@ impl<'a> CheckerState<'a> {
         if !flags.intersects(SymbolFlags::CLASS_MEMBER) {
             return;
         }
+        // Every access to a class member comes here, and nearly all leave at
+        // the test below. Whether a persistent member is private (by
+        // modifier or by name) is read from its value declaration, which
+        // does not change after bind: the members last found not private
+        // are kept (`not_private_front`).
+        let raw = prop.index();
+        let persistent = raw & tsc_types::TRANSIENT_SYMBOL_BIT == 0;
+        let slot = Self::not_deprecated_slot(raw);
+        if persistent && self.not_private_front[slot].get() == raw + 1 {
+            return;
+        }
         let Some(value_declaration) = self.binder.symbol(prop).value_declaration else {
             return;
         };
@@ -2962,6 +2973,9 @@ impl<'a> CheckerState<'a> {
             .name_of_node(value_declaration)
             .is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier);
         if !has_private_modifier && !has_private_identifier {
+            if persistent {
+                self.not_private_front[slot].set(raw + 1);
+            }
             return;
         }
         if let Some(node) = node_for_check_write_only {

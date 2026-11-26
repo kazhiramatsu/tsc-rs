@@ -3274,3 +3274,85 @@ fn interned_variance_arguments_survive_nested_comparisons() {
     };
     assert_eq!(observe(false), observe(true));
 }
+
+/// A symbol's declaration modifier flags answer the same from their kept
+/// cells as computed from the declarations: every symbol of a file, the
+/// read side and the write side, three rounds (the first computes, the
+/// others read the kept cell), and the kept cells read back.
+#[test]
+fn declaration_modifier_flags_answer_the_same_from_their_kept_cells() {
+    let text = "class K {\n\
+        a = 1;\n\
+        private b = 2;\n\
+        protected readonly c = 3;\n\
+        static d = 4;\n\
+        #e = 5;\n\
+        get g() { return 1; }\n\
+        private set g(v: number) {}\n\
+        protected set h(v: number) {}\n\
+        get h() { return 1; }\n\
+        constructor(public p: number, private readonly q: string) {}\n\
+        abstract m(): void;\n\
+        }\n\
+        interface I { readonly r: number; s: string }\n\
+        declare const v: number;\n\
+        export {};\n";
+    crate::state::test_support::with_program_state_allow_parse_diagnostics(
+        &[("a.ts", text)],
+        &tsc_types::CompilerOptions::default(),
+        |state| {
+            let mut symbols = Vec::new();
+            for node in state.binder.source(0).arena.node_ids() {
+                if let Some(symbol) = state.node_symbol(node) {
+                    if !symbols.contains(&symbol) {
+                        symbols.push(symbol);
+                    }
+                }
+            }
+            let mut distinct = Vec::new();
+            for round in 0..3 {
+                for &symbol in &symbols {
+                    for is_write in [false, true] {
+                        let computed =
+                            state.compute_declaration_modifier_flags_from_symbol(symbol, is_write);
+                        assert_eq!(
+                            state
+                                .get_declaration_modifier_flags_from_symbol_write(symbol, is_write),
+                            computed,
+                            "round {round}, {symbol:?}, write {is_write}"
+                        );
+                        if !distinct.contains(&computed) {
+                            distinct.push(computed);
+                        }
+                    }
+                }
+            }
+            // The fixture has more than a handful of different answers, and
+            // an accessor pair whose sides differ.
+            assert!(distinct.len() >= 6, "{distinct:?}");
+            let g = symbols
+                .iter()
+                .copied()
+                .find(|&symbol| format!("{:?}", state.symbol_name(symbol)) == "\"g\"")
+                .expect("the accessor pair g");
+            assert_ne!(
+                state.get_declaration_modifier_flags_from_symbol_write(g, false),
+                state.get_declaration_modifier_flags_from_symbol_write(g, true)
+            );
+            // Every kept cell names a symbol and holds its computed answer.
+            let mut kept = 0;
+            for (index, cell) in state.declaration_modifier_front.iter().enumerate() {
+                let (key, flags) = cell.get();
+                let Some(raw) = key.checked_sub(1) else {
+                    continue;
+                };
+                let symbol = tsc_types::SymbolId::new(raw);
+                let computed =
+                    state.compute_declaration_modifier_flags_from_symbol(symbol, index & 1 == 1);
+                assert_eq!(flags, computed.bits());
+                kept += 1;
+            }
+            assert!(kept >= 2 * 10, "{kept}");
+        },
+    );
+}

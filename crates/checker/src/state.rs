@@ -2071,6 +2071,15 @@ pub struct CheckerState<'a> {
     /// not deprecated, a slot holding the symbol's index plus one (zero for
     /// an empty slot): [`CheckerState::is_deprecated_symbol`] asks it first.
     pub(crate) not_deprecated_front: Box<[std::cell::Cell<u32>]>,
+    /// Persistent class members last found neither private nor named by a
+    /// private identifier, kept as `not_deprecated_front` keeps its
+    /// symbols: [`CheckerState::mark_property_as_referenced`] asks it first.
+    pub(crate) not_private_front: Box<[std::cell::Cell<u32>]>,
+    /// The declaration modifier flags of the persistent symbols last
+    /// asked: two cells a slot (the read side, the write side), each a
+    /// symbol's index plus one and its flags
+    /// ([`CheckerState::get_declaration_modifier_flags_from_symbol_write`]).
+    pub(crate) declaration_modifier_front: Box<[std::cell::Cell<(u32, i32)>]>,
     /// The syntactic container of a starting parent in this published program.
     pub(crate) control_flow_containers: [crate::expr::ControlFlowContainerSlot; 16],
     /// tsc `node.jsDoc.jsDocCache` (getJSDocTagsWorker): effective,
@@ -3021,6 +3030,13 @@ impl<'a> CheckerState<'a> {
             combined_node_flags_cache: Default::default(),
             not_deprecated_front: vec![std::cell::Cell::new(0); 1 << Self::NOT_DEPRECATED_BITS]
                 .into_boxed_slice(),
+            not_private_front: vec![std::cell::Cell::new(0); 1 << Self::NOT_DEPRECATED_BITS]
+                .into_boxed_slice(),
+            declaration_modifier_front: vec![
+                std::cell::Cell::new((0, 0));
+                2 << Self::NOT_DEPRECATED_BITS
+            ]
+            .into_boxed_slice(),
             control_flow_containers: Default::default(),
             jsdoc_tag_cache: Default::default(),
             global_type_memos: Default::default(),
