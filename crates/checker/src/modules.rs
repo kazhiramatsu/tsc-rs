@@ -984,7 +984,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isExportOrExportExpression @6.0.3
     /// tsc-hash: cea0c3dcc402c1d015329d558f5758763d1a1697f9010e21458c0aa7496bcc50
     /// tsc-span: _tsc.js:71647-71661
-    fn is_export_or_export_expression(&self, location: NodeId) -> bool {
+    ///
+    /// The walk ends where the answer is decided. An export assignment's
+    /// expression counts only as an entity name expression, and one of
+    /// those holds nothing but identifiers, property accesses and their
+    /// `?.` tokens; an export specifier's names hold nothing at all. With a
+    /// node of another kind below it, no ancestor can answer true (the
+    /// parser hangs no JSDoc under an identifier or a property access).
+    pub(crate) fn is_export_or_export_expression(&self, location: NodeId) -> bool {
         let mut current = location;
         while let Some(parent) = self.parent_of(current) {
             match_record! { self.record_of(parent), {
@@ -996,6 +1003,14 @@ impl<'a> CheckerState<'a> {
                 },
                 _ => {},
             }}
+            if !matches!(
+                self.kind_of(current),
+                SyntaxKind::Identifier
+                    | SyntaxKind::PropertyAccessExpression
+                    | SyntaxKind::QuestionDotToken
+            ) {
+                return false;
+            }
             current = parent;
         }
         false
@@ -1214,10 +1229,12 @@ impl<'a> CheckerState<'a> {
         }
         let target = self.get_export_symbol_of_value_symbol_if_exported(target);
         let isolated_modules = self.options.isolated_modules == Some(true);
+        // Three tests without effects joined by "or": the one that reads two
+        // fields of the target stands before the one that walks the tree.
         if isolated_modules
+            || !self.is_const_enum_or_const_enum_only_module_symbol(target)
             || (self.options.should_preserve_const_enums()
                 && self.is_export_or_export_expression(location))
-            || !self.is_const_enum_or_const_enum_only_module_symbol(target)
         {
             self.mark_alias_symbol_as_referenced(symbol)?;
         }
@@ -1332,15 +1349,49 @@ impl<'a> CheckerState<'a> {
     /// tsgo-port: isPartOfImportEqualsModuleReference @7.1
     /// (checker/checker.go:28943-28954): the names of `import x = a.b.c` are
     /// resolved by the alias, never as property accesses of a value.
-    fn is_part_of_import_equals_module_reference(&self, location: NodeId) -> bool {
+    ///
+    /// The search for the declaration ends at a node that an earlier search
+    /// passed on its way to the root: such a node lies outside every
+    /// import-equals declaration, so nothing above it has to be read again.
+    /// Two of them are kept - the innermost block of the last search and
+    /// its outermost block (the root for a search that met no block): the
+    /// next property access of the same block ends at the first, the next
+    /// of the same function at the second.
+    pub(crate) fn is_part_of_import_equals_module_reference(&self, location: NodeId) -> bool {
+        let (kept_inner, kept_outer) = self.outside_import_equals.get();
+        let mut inner_block = None;
+        let mut outer_block = None;
+        let mut last = location;
         let mut import_equals = Some(location);
+        let mut reached_root = true;
         while let Some(node) = import_equals {
-            if self.kind_of(node) == SyntaxKind::ImportEqualsDeclaration {
+            if Some(node) == kept_inner || Some(node) == kept_outer {
+                import_equals = None;
+                reached_root = false;
                 break;
             }
+            match self.kind_of(node) {
+                SyntaxKind::ImportEqualsDeclaration => break,
+                SyntaxKind::Block => {
+                    if inner_block.is_none() {
+                        inner_block = Some(node);
+                    }
+                    outer_block = Some(node);
+                }
+                _ => {}
+            }
+            last = node;
             import_equals = self.parent_of(node);
         }
         let Some(import_equals) = import_equals else {
+            // Every node of this search lies outside such a declaration.
+            let inner = inner_block.or(kept_inner);
+            let outer = if reached_root {
+                Some(outer_block.unwrap_or(last))
+            } else {
+                kept_outer
+            };
+            self.outside_import_equals.set((inner, outer));
             return false;
         };
         let module_reference = match self.data_of(import_equals) {
@@ -1367,10 +1418,12 @@ impl<'a> CheckerState<'a> {
         prop: Option<SymbolId>,
         parent_type: TypeId,
     ) -> CheckResult<()> {
-        if self.is_part_of_import_equals_module_reference(location) {
+        // Two tests without effects, both returning: the one that reads
+        // `left` stands before the one that walks the tree.
+        if self.is_this_identifier(left) || self.kind_of(left) != SyntaxKind::Identifier {
             return Ok(());
         }
-        if self.is_this_identifier(left) || self.kind_of(left) != SyntaxKind::Identifier {
+        if self.is_part_of_import_equals_module_reference(location) {
             return Ok(());
         }
         let parent_symbol = match self.get_resolved_symbol(left)? {
@@ -1722,10 +1775,12 @@ impl<'a> CheckerState<'a> {
         location: NodeId,
         left: NodeId,
     ) -> CheckResult<()> {
-        if self.is_part_of_import_equals_module_reference(location) {
+        // Two tests without effects, both returning: the one that reads
+        // `left` stands before the one that walks the tree.
+        if self.is_this_identifier(left) || self.kind_of(left) != SyntaxKind::Identifier {
             return Ok(());
         }
-        if self.is_this_identifier(left) || self.kind_of(left) != SyntaxKind::Identifier {
+        if self.is_part_of_import_equals_module_reference(location) {
             return Ok(());
         }
         let parent_symbol = match self.get_resolved_symbol(left)? {

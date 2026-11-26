@@ -3900,3 +3900,136 @@ fn node_core_module_lists_are_sorted_and_found() {
         }
     }
 }
+
+/// The two tree walks of alias marking end before the root. Node by node,
+/// in three orders (the search for an import-equals declaration keeps two
+/// nodes of its last run), they answer as the reference's walks to the root
+/// do (tsgo isExportOrExportExpression and
+/// isPartOfImportEqualsModuleReference).
+#[test]
+fn alias_marking_walks_answer_as_the_walks_to_the_root() {
+    use crate::state::CheckerState;
+    use tsc_syntax::NodeId;
+
+    fn export_walk(state: &CheckerState, location: NodeId) -> bool {
+        let mut current = location;
+        while let Some(parent) = state.parent_of(current) {
+            match state.data_of(parent) {
+                NodeData::ExportAssignment(data) if data.expression == Some(current) => {
+                    return state.is_entity_name_expression(current);
+                }
+                NodeData::ExportSpecifier(data)
+                    if data.name == Some(current) || data.property_name == Some(current) =>
+                {
+                    return true;
+                }
+                _ => {}
+            }
+            current = parent;
+        }
+        false
+    }
+
+    fn import_equals_walk(state: &CheckerState, location: NodeId) -> bool {
+        let mut declaration = Some(location);
+        while let Some(node) = declaration {
+            if state.kind_of(node) == SyntaxKind::ImportEqualsDeclaration {
+                break;
+            }
+            declaration = state.parent_of(node);
+        }
+        let Some(declaration) = declaration else {
+            return false;
+        };
+        let reference = match state.data_of(declaration) {
+            NodeData::ImportEqualsDeclaration(data) => data.module_reference,
+            _ => None,
+        };
+        let mut current = Some(location);
+        while let Some(node) = current.filter(|&node| node != declaration) {
+            if Some(node) == reference {
+                return true;
+            }
+            current = state.parent_of(node);
+        }
+        false
+    }
+
+    let shared = "declare const a: { b: { c: number }; f(v: unknown): unknown };\n";
+    let texts = [
+        (
+            "a.ts",
+            format!(
+                "{shared}namespace N {{ export namespace M {{ export const x = 1; }} }}\n\
+                 import A = N.M;\nimport B = N.M.x;\nimport R = require(a.b.c);\n\
+                 function f(v: unknown) {{ if (v) {{ return a.b.c; }} \
+                 return [a.b, a?.b.c, (a.b), a.f(a.b), a[\"b\"].c, A.x, B, R]; }}\n\
+                 class K {{ p = a.b; m() {{ {{ return () => a.b.c; }} }} }}\n\
+                 export {{ a as z, f }};\nexport default a.b.c;\n"
+            ),
+        ),
+        ("b.ts", format!("{shared}export = a.b;\n")),
+        ("c.ts", format!("{shared}export default a.f(a.b);\n")),
+        ("d.ts", format!("{shared}export default (a.b);\n")),
+        ("e.ts", format!("{shared}export default a?.b.c;\n")),
+    ];
+    let files: Vec<(&str, &str)> = texts
+        .iter()
+        .map(|(name, text)| (*name, text.as_str()))
+        .collect();
+    crate::state::test_support::with_program_state_allow_parse_diagnostics(
+        &files,
+        &CompilerOptions::default(),
+        |state| {
+            let mut nodes = Vec::new();
+            for file in 0..files.len() {
+                nodes.extend(state.binder.source(file).arena.node_ids());
+            }
+            let backward: Vec<NodeId> = nodes.iter().rev().copied().collect();
+            let striding: Vec<NodeId> = (0..nodes.len())
+                .map(|index| nodes[index * 7919 % nodes.len()])
+                .collect();
+            let mut in_reference = 0;
+            let mut in_export = 0;
+            for order in [&nodes, &backward, &striding] {
+                for &node in order {
+                    let kind = state.kind_of(node);
+                    let expected = import_equals_walk(state, node);
+                    assert_eq!(
+                        state.is_part_of_import_equals_module_reference(node),
+                        expected,
+                        "the search for an import-equals declaration at {node:?} ({kind:?})"
+                    );
+                    in_reference += usize::from(expected);
+                    let expected = export_walk(state, node);
+                    assert_eq!(
+                        state.is_export_or_export_expression(node),
+                        expected,
+                        "the export walk at {node:?} ({kind:?})"
+                    );
+                    in_export += usize::from(expected);
+                }
+            }
+            // Both answers occur: the names of the import-equals references;
+            // the specifiers' names and the entity names of `export default`
+            // and `export =`, a `?.` token among them.
+            assert!(in_reference >= 3 * 8, "{in_reference}");
+            assert!(in_export >= 3 * 15, "{in_export}");
+
+            // A search keeps the innermost and the outermost block above
+            // its start: `m() { { return () => a.b.c; } }`.
+            let arrow = nodes
+                .iter()
+                .copied()
+                .find(|&node| state.kind_of(node) == SyntaxKind::ArrowFunction)
+                .expect("the arrow function");
+            state.outside_import_equals.set((None, None));
+            assert!(!state.is_part_of_import_equals_module_reference(arrow));
+            let (inner, outer) = state.outside_import_equals.get();
+            let (inner, outer) = (inner.expect("inner"), outer.expect("outer"));
+            assert_eq!(state.kind_of(inner), SyntaxKind::Block);
+            assert_eq!(state.kind_of(outer), SyntaxKind::Block);
+            assert_eq!(state.parent_of(inner), Some(outer));
+        },
+    );
+}

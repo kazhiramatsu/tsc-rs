@@ -1989,6 +1989,11 @@ pub struct CheckerState<'a> {
     /// The provider's resolved answers to this checker's last requests
     /// ([`crate::modules::ResolvedModuleCache`]).
     pub(crate) resolved_module_cache: std::cell::RefCell<crate::modules::ResolvedModuleCache>,
+    /// Two nodes that the last search for an enclosing import-equals
+    /// declaration found to lie outside every one (its innermost block and
+    /// its outermost block or root): a later search ends at either
+    /// ([`CheckerState::is_part_of_import_equals_module_reference`]).
+    pub(crate) outside_import_equals: std::cell::Cell<(Option<NodeId>, Option<NodeId>)>,
     /// tsgo's checkExternalModuleNameInGlobalScope resolves module names the
     /// program does not collect (an import misplaced in a block). While it
     /// does, a name missing from the authoritative table is unresolved
@@ -2991,6 +2996,7 @@ impl<'a> CheckerState<'a> {
             authoritative_sources: &crate::EMPTY_AUTHORITATIVE_SOURCES,
             authoritative_module_failure: std::cell::OnceCell::new(),
             resolved_module_cache: Default::default(),
+            outside_import_equals: Default::default(),
             module_name_outside_program: std::cell::Cell::new(false),
             host_file_paths: Default::default(),
             host_input_snapshots: Default::default(),
