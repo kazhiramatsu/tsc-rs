@@ -283,10 +283,10 @@ impl<'a> CheckerState<'a> {
         // The unused-identifier pass publishes errors only under
         // noUnusedLocals / noUnusedParameters; otherwise its rows are
         // suggestions, which only getSuggestionDiagnostics consumers read
-        // (crate::unused_identifier_suggestions).
+        // (crate::suggestion_diagnostics_requested).
         let unused_pass_wanted = self.options.no_unused_locals == Some(true)
             || self.options.no_unused_parameters == Some(true)
-            || crate::unused_identifier_suggestions();
+            || crate::suggestion_diagnostics_requested();
         let is_unused_source_file_owner = unused_pass_wanted
             && (self.is_effective_external_module(root)
                 || self.is_in_js_file(root)

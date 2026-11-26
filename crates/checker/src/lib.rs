@@ -202,23 +202,27 @@ use tsc_program::WorkerBudget;
 pub use crate::lane_profile::LaneProfile;
 pub use crate::shard::{CheckerAssignment, CheckerBudget, MAX_CHECKERS};
 
-/// Whether checkSourceFile runs the unused-identifier pass when neither
-/// `noUnusedLocals` nor `noUnusedParameters` turns its rows into errors.
-/// tsc computes those rows only for getSuggestionDiagnostics, which the
-/// command line never requests; the API keeps them on for the harnesses that
-/// compare suggestion rows.
-static UNUSED_IDENTIFIER_SUGGESTIONS: std::sync::atomic::AtomicBool =
+/// Whether anyone will ask this process for suggestion diagnostics. tsc keeps
+/// its suggestion rows in a collection only getSuggestionDiagnostics reads,
+/// and computes the unused-identifier rows for that getter alone; the command
+/// line never calls it. When this is off, checkSourceFile skips the
+/// unused-identifier pass unless `noUnusedLocals` or `noUnusedParameters`
+/// turns its rows into errors, and the merge of the checkers' rows leaves
+/// the suggestion rows where they are instead of copying them into the
+/// result. The API keeps it on for the harnesses that compare suggestion
+/// rows.
+static SUGGESTION_DIAGNOSTICS_REQUESTED: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(true);
 
-/// Process-wide switch for the unused-identifier suggestion pass (see
-/// [`unused_identifier_suggestions`]). A command-line process sets it once
-/// before checking; library consumers leave it on.
-pub fn set_unused_identifier_suggestions(enabled: bool) {
-    UNUSED_IDENTIFIER_SUGGESTIONS.store(enabled, std::sync::atomic::Ordering::Relaxed);
+/// Process-wide switch for the suggestion rows (see
+/// [`suggestion_diagnostics_requested`]). A command-line process turns it
+/// off once before checking; library consumers leave it on.
+pub fn set_suggestion_diagnostics_requested(requested: bool) {
+    SUGGESTION_DIAGNOSTICS_REQUESTED.store(requested, std::sync::atomic::Ordering::Relaxed);
 }
 
-pub fn unused_identifier_suggestions() -> bool {
-    UNUSED_IDENTIFIER_SUGGESTIONS.load(std::sync::atomic::Ordering::Relaxed)
+pub fn suggestion_diagnostics_requested() -> bool {
+    SUGGESTION_DIAGNOSTICS_REQUESTED.load(std::sync::atomic::Ordering::Relaxed)
 }
 use tsc_types::perf::{self, PerfCounter};
 use tsc_types::tracing::{Args as TraceArgs, Phase as TracePhase, Tracing};
@@ -5076,6 +5080,11 @@ fn merge_shard_outputs(
 
     // Both public getters observe the same captured semantic rows. Only
     // fixtures also have a per-file result and a separate suggestion pass.
+    // A process nobody asks for suggestion diagnostics (the command line)
+    // gets no copy of those rows: on a large program they are most of the
+    // checkers' rows, and each would be cloned here and three more times
+    // when the result is assembled.
+    let keep_suggestions = suggestion_diagnostics_requested();
     let mut diagnostics = Vec::new();
     for file in 0..file_count {
         if skip(file) {
@@ -5086,12 +5095,14 @@ fn merge_shard_outputs(
             diagnostics.extend(semantic);
         } else {
             let result = &mut file_diagnostics[file - lib_count];
-            result.suggestion.extend(
-                rows[file]
-                    .iter()
-                    .filter(|row| row.category() == DiagnosticCategory::Suggestion)
-                    .map(|row| (*row).clone()),
-            );
+            if keep_suggestions {
+                result.suggestion.extend(
+                    rows[file]
+                        .iter()
+                        .filter(|row| row.category() == DiagnosticCategory::Suggestion)
+                        .map(|row| (*row).clone()),
+                );
+            }
             diagnostics.extend_from_slice(&semantic);
             result.semantic = semantic;
         }
@@ -5112,7 +5123,17 @@ fn merge_shard_outputs(
                     .iter()
                     .flat_map(|file| file.semantic.iter().chain(file.suggestion.iter())),
             )
-            .any(|row| marks.is_marked(row));
+            .any(|row| marks.is_marked(row))
+            // The suggestion rows that were not copied take part in this
+            // test where they stand: the same rows decide as before.
+            || !keep_suggestions
+                && (lib_count..file_count).any(|file| {
+                    !skip(file)
+                        && rows[file].iter().any(|row| {
+                            row.category() == DiagnosticCategory::Suggestion
+                                && marks.is_marked(row)
+                        })
+                });
         if published_marked && replay_on_display_marks {
             return Err(marks.reasons());
         }

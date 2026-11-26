@@ -156,14 +156,14 @@ pub(super) fn suite_and_name(scenario: &Scenario) -> (&str, &str) {
 /// parsing mode), restored when a scenario ends: the suites run the command
 /// line and the language server's transcripts in one process.
 struct CommandLineSettings {
-    unused_identifier_suggestions: bool,
+    suggestion_diagnostics_requested: bool,
     js_doc_parsing_mode: tsc_checker::JSDocParsingMode,
 }
 
 impl CommandLineSettings {
     fn save() -> Self {
         Self {
-            unused_identifier_suggestions: tsc_checker::unused_identifier_suggestions(),
+            suggestion_diagnostics_requested: tsc_checker::suggestion_diagnostics_requested(),
             js_doc_parsing_mode: tsc_program::default_js_doc_parsing_mode(),
         }
     }
@@ -171,7 +171,7 @@ impl CommandLineSettings {
 
 impl Drop for CommandLineSettings {
     fn drop(&mut self) {
-        tsc_checker::set_unused_identifier_suggestions(self.unused_identifier_suggestions);
+        tsc_checker::set_suggestion_diagnostics_requested(self.suggestion_diagnostics_requested);
         tsc_program::set_default_js_doc_parsing_mode(self.js_doc_parsing_mode);
     }
 }
