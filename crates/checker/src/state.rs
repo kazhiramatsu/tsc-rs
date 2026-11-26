@@ -447,8 +447,15 @@ impl Signature {
     }
 }
 
+/// The computed-name member declarations behind an object-literal index
+/// signature (tsc IndexInfo.components), as a handle into the checker's list
+/// of them ([`CheckerState::index_info_components`]): few infos have
+/// components, and with a handle an [`IndexInfo`] is twenty bytes and `Copy`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct IndexInfoComponents(std::num::NonZeroU32);
+
 /// tsc IndexInfo (createIndexInfo 59989).
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct IndexInfo {
     pub key_type: TypeId,
     pub value_type: TypeId,
@@ -459,7 +466,8 @@ pub struct IndexInfo {
     /// computed-name member declarations behind an object-literal
     /// index synthesis (getObjectLiteralIndexInfo 74110-74117).
     /// Dormant at M4 (index-constraint related spans consume later).
-    pub components: Option<Vec<NodeId>>,
+    /// A copy of the info shares the list, which is never changed.
+    pub components: Option<IndexInfoComponents>,
     /// Identity marker for tsc's enumNumberIndexInfo singleton
     /// (47276): getLiteralTypeFromProperties (62002) and
     /// inferToMappedType (69005, M6) exclude that ONE object by `!==`.
@@ -474,6 +482,8 @@ pub struct IndexInfo {
     /// the singleton, while semantic indexing still uses it.
     pub is_any_base_type_index_info: bool,
 }
+
+const _: () = assert!(std::mem::size_of::<IndexInfo>() == 20);
 
 /// tsc-port: createWideningContext @6.0.3
 /// tsc-hash: 45090097a709c1c9f72722e2fbd4bc8281837f4b16d6d769e70215a9a94c65c4
@@ -1301,6 +1311,8 @@ pub struct CheckerState<'a> {
     /// is the signature's own; a count of 255 or more is computed at every
     /// request. The table grows to the highest signature asked.
     pub(crate) resolved_min_argument_counts: Vec<u8>,
+    /// The lists an [`IndexInfoComponents`] names, by its value less one.
+    index_info_components: Vec<Box<[NodeId]>>,
     /// The assignment-marking walks in progress (isPastLastAssignment's
     /// markNodeAssignments): a position read inside one is not yet final.
     pub(crate) assignment_marking_depth: u32,
@@ -2421,6 +2433,12 @@ impl<'a> CheckerState<'a> {
             self.members.len(),
             self.members.len() * std::mem::size_of::<ResolvedMembers>()
                 + members_heap
+                + self.index_info_components.capacity() * std::mem::size_of::<Box<[NodeId]>>()
+                + self
+                    .index_info_components
+                    .iter()
+                    .map(|nodes| std::mem::size_of_val(&**nodes))
+                    .sum::<usize>()
                 + map_bytes(&self.declared_property_indexes)
                 + self
                     .declared_property_indexes
@@ -2833,6 +2851,7 @@ impl<'a> CheckerState<'a> {
             links: LinksTables::with_id_bounds(node_id_end, symbol_id_end),
             signatures: Vec::new(),
             resolved_min_argument_counts: Vec::new(),
+            index_info_components: Vec::new(),
             assignment_marking_depth: 0,
             signature_instantiations: rustc_hash::FxHashMap::default(),
             members: Vec::new(),
@@ -4129,6 +4148,22 @@ impl<T: Clone> SharedList<T> {
                 0
             }
         })
+    }
+}
+
+impl CheckerState<'_> {
+    /// Keeps an index info's computed-name declarations; the handle names
+    /// them for every copy of the info.
+    pub(crate) fn add_index_info_components(&mut self, nodes: Vec<NodeId>) -> IndexInfoComponents {
+        self.index_info_components.push(nodes.into_boxed_slice());
+        let count = u32::try_from(self.index_info_components.len())
+            .expect("fewer index info component lists than u32::MAX");
+        IndexInfoComponents(std::num::NonZeroU32::new(count).expect("a pushed list counts one"))
+    }
+
+    /// The computed-name declarations an index info's handle names.
+    pub(crate) fn index_info_components(&self, components: IndexInfoComponents) -> &[NodeId] {
+        &self.index_info_components[components.0.get() as usize - 1]
     }
 }
 

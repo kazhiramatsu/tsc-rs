@@ -4103,7 +4103,12 @@ fn index_info_to_object_computed_names_or_signature_declaration(
     context: &mut NodeBuilderContext<'_>,
     type_node: Option<TransformNode>,
 ) -> BuildResult<Vec<TransformNode>> {
-    let components = info.components.as_deref().or(recovered_components);
+    // The node builder is cold: the list is copied out of the checker it
+    // calls below.
+    let own_components = info
+        .components
+        .map(|components| checker.index_info_components(components).to_vec());
+    let components = own_components.as_deref().or(recovered_components);
     if let (Some(components), Some(enclosing)) = (components, context.enclosing_declaration) {
         let mut serializable = true;
         for component in components {

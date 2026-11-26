@@ -791,9 +791,12 @@ pub(crate) fn late_bound_index_signatures(
             if info.declaration.is_some() || info.is_any_base_type_index_info {
                 continue;
             }
-            if let Some(components) = &info.components {
+            if let Some(components) = info
+                .components
+                .map(|components| checker.index_info_components(components).to_vec())
+            {
                 let mut all_serializable = true;
-                for &component in components {
+                for &component in &components {
                     let source = checker.binder.source_of_node(component);
                     let name = tsc_binder::node_util::get_name_of_declaration(source, component);
                     let expression = name.and_then(|name| match Published.node(name).data() {
@@ -820,7 +823,7 @@ pub(crate) fn late_bound_index_signatures(
                     }
                 }
                 if all_serializable {
-                    for &component in components {
+                    for &component in &components {
                         if checker
                             .has_late_bindable_name(component)
                             .map_err(|abort| abort_at(checker, component, abort))?

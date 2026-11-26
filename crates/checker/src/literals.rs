@@ -621,7 +621,7 @@ impl<'a> CheckerState<'a> {
             value_type,
             is_readonly,
             declaration: None,
-            components,
+            components: components.map(|nodes| self.add_index_info_components(nodes)),
             is_enum_number_index_info: false,
             is_any_base_type_index_info: false,
         })
