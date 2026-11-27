@@ -5665,21 +5665,28 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         Vec::new()
     };
     let queue = if locality {
-        let names = snapshot
+        // The checked files' names in lower case, in one buffer: ten thousand
+        // names are no ten thousand strings.
+        let mut name_text = String::new();
+        let name_ends = snapshot
             .documents()
             .iter()
             .zip(&checked)
             .map(|(document, &checked)| {
                 if checked {
-                    document
-                        .source()
-                        .file_name
-                        .as_js()
-                        .to_string_lossy()
-                        .to_ascii_lowercase()
-                } else {
-                    String::new()
+                    let start = name_text.len();
+                    name_text.push_str(&document.source().file_name.as_js().to_string_lossy());
+                    name_text[start..].make_ascii_lowercase();
                 }
+                name_text.len()
+            })
+            .collect::<Vec<_>>();
+        let names = name_ends
+            .iter()
+            .scan(0, |start, &end| {
+                let name = &name_text[*start..end];
+                *start = end;
+                Some(name)
             })
             .collect::<Vec<_>>();
         let parse_nodes = snapshot

@@ -659,7 +659,7 @@ fn statement_pieces(lengths: &[u32], count: usize) -> Vec<Range<usize>> {
 /// lowercased names.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn associate_files_by_locality(
-    names: &[String],
+    names: &[&str],
     base_weights: &[usize],
     imports: &[usize],
     checked: &[bool],
@@ -705,14 +705,14 @@ pub(crate) fn associate_files_by_locality(
             splits: Vec::new(),
         };
     }
-    order.sort_unstable_by(|&a, &b| names[a].cmp(&names[b]).then(a.cmp(&b)));
+    order.sort_unstable_by(|&a, &b| names[a].cmp(names[b]).then(a.cmp(&b)));
     let total: usize = order.iter().map(|&file| weights[file]).sum();
     let threshold = total / (checkers * LOCALITY_GROUP_FRACTION);
 
     // The weight of every directory subtree, keyed by the directory's name.
     let mut subtrees = rustc_hash::FxHashMap::<&str, usize>::default();
     for &file in &order {
-        let name = names[file].as_str();
+        let name = names[file];
         for (end, _) in name.match_indices('/') {
             *subtrees.entry(&name[..end]).or_default() += weights[file];
         }
@@ -722,7 +722,7 @@ pub(crate) fn associate_files_by_locality(
     let mut group_weights = Vec::new();
     let mut group_sizes = Vec::new();
     for &file in &order {
-        let name = names[file].as_str();
+        let name = names[file];
         let key = name
             .match_indices('/')
             .map(|(end, _)| &name[..end])
@@ -1849,7 +1849,7 @@ mod tests {
             statement_lengths: &dyn Fn(usize) -> Vec<u32>,
         ) -> LocalityAssociation {
             associate_files_by_locality(
-                &self.names,
+                &self.names.iter().map(String::as_str).collect::<Vec<_>>(),
                 &self.base,
                 &self.imports,
                 &self.checked,
