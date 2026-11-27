@@ -1959,25 +1959,32 @@ impl NodeLinksCursor {
     #[inline]
     pub(crate) fn read<R>(&mut self, links: &LinksTables, read: impl FnOnce(&NodeLinks) -> R) -> R {
         perf::bump(PerfCounter::LinksNodeReads);
-        if let Some(location) = self.location {
-            return read(links.located_node(self.node, location));
-        }
-        match links.node.node_entry(self.node) {
-            NodeEntry::Full(position, record) => {
-                self.location = Some(NodeLinksLocation::from_position(position));
-                read(record)
-            }
-            // A symbol-only record moves when another field is written: its
-            // location is not kept.
-            NodeEntry::Symbol(_, _, resolved_symbol) => read(&NodeLinks {
-                resolved_symbol,
-                ..NodeLinks::default()
-            }),
-            NodeEntry::Absent => {
-                perf::bump(PerfCounter::LinksNodeReadAbsent);
-                read(&links.absent_node)
-            }
-        }
+        // One call of `read`, on the record the entry selects: the closure is
+        // inlined once.
+        let symbol_only;
+        let record = match self.location {
+            Some(location) => links.located_node(self.node, location),
+            None => match links.node.node_entry(self.node) {
+                NodeEntry::Full(position, record) => {
+                    self.location = Some(NodeLinksLocation::from_position(position));
+                    record
+                }
+                // A symbol-only record moves when another field is written:
+                // its location is not kept.
+                NodeEntry::Symbol(_, _, resolved_symbol) => {
+                    symbol_only = NodeLinks {
+                        resolved_symbol,
+                        ..NodeLinks::default()
+                    };
+                    &symbol_only
+                }
+                NodeEntry::Absent => {
+                    perf::bump(PerfCounter::LinksNodeReadAbsent);
+                    &links.absent_node
+                }
+            },
+        };
+        read(record)
     }
 
     #[inline]
@@ -2387,7 +2394,10 @@ fn symbol_of_word(word: u32) -> ValueSlot<SymbolId> {
 /// a symbol, kept in a four-byte record beside the sixteen-byte records of
 /// the nodes that hold more.
 impl PagedTable<NodeId, NodeLinks> {
-    #[inline]
+    /// Always inlined: out of line, its three-word result went through
+    /// memory on every read (a quarter of a billion cycles of VS Code at one
+    /// thread), where the caller's match folds it away.
+    #[inline(always)]
     fn node_entry(&self, node: NodeId) -> NodeEntry<'_> {
         let id = node.dense_index();
         let Some(page) = self.page(id >> PAGE_SHIFT) else {
@@ -2409,7 +2419,7 @@ impl PagedTable<NodeId, NodeLinks> {
         )
     }
 
-    #[inline]
+    #[inline(always)]
     fn symbol_word(&self, region: usize, position: usize) -> &u32 {
         &self.symbol_chunks[region * REGION_SYMBOL_CHUNKS + (position >> SYMBOL_CHUNK_SHIFT)]
             .as_ref()
@@ -2425,16 +2435,26 @@ impl PagedTable<NodeId, NodeLinks> {
 
     /// The position of `node`'s full record: created, or made from its
     /// symbol-only record (the symbol kept; the four bytes stay unused).
-    #[inline]
+    /// The existing record's position is found inline; a new record is made
+    /// out of line.
+    #[inline(always)]
     fn full_position(&mut self, node: NodeId) -> usize {
         let id = node.dense_index();
-        let (page_index, offset, region) =
-            (id >> PAGE_SHIFT, id & (PAGE_IDS - 1), id >> REGION_SHIFT);
-        let entry = self.page_mut(page_index)[offset];
+        let entry = self.page_mut(id >> PAGE_SHIFT)[id & (PAGE_IDS - 1)];
         let slot = usize::from(entry.wrapping_sub(1));
         if slot < REGION_RECORDS {
-            return (region << REGION_SHIFT) | slot;
+            return ((id >> REGION_SHIFT) << REGION_SHIFT) | slot;
         }
+        self.new_full_position(id, entry)
+    }
+
+    /// A new full record for the node of dense index `id` whose entry is
+    /// `entry`: absent, or a symbol-only record whose symbol it takes.
+    #[inline(never)]
+    fn new_full_position(&mut self, id: usize, entry: u16) -> usize {
+        let (page_index, offset, region) =
+            (id >> PAGE_SHIFT, id & (PAGE_IDS - 1), id >> REGION_SHIFT);
+        let slot = usize::from(entry.wrapping_sub(1));
         let symbol = (entry != 0).then(|| self.take_symbol(region, slot - REGION_RECORDS));
         let full = self.create_record(region);
         self.page_mut(page_index)[offset] = full;
@@ -2466,11 +2486,13 @@ impl PagedTable<NodeId, NodeLinks> {
     /// holds only the symbol (a full record once its region's symbol-only
     /// records run out), a symbol-only record is rewritten, a full record's
     /// field is set.
+    #[inline]
     fn write_symbol(&mut self, node: NodeId, value: ValueSlot<SymbolId>) {
-        if symbol_word(value) == MOVED_SYMBOL_WORD {
+        let word = symbol_word(value);
+        if word == MOVED_SYMBOL_WORD {
             // No symbol-only word may read as moved: this symbol is kept in
             // a full record.
-            self.full_slot(node).resolved_symbol = value;
+            self.write_full_symbol(node, value);
             return;
         }
         let id = node.dense_index();
@@ -2482,12 +2504,20 @@ impl PagedTable<NodeId, NodeLinks> {
             self.get_mut_at_position((region << REGION_SHIFT) | slot)
                 .resolved_symbol = value;
         } else if entry != 0 {
-            *self.symbol_word_mut(region, slot - REGION_RECORDS) = symbol_word(value);
-        } else if let Some(position) = self.create_symbol(region, symbol_word(value)) {
+            *self.symbol_word_mut(region, slot - REGION_RECORDS) = word;
+        } else if let Some(position) = self.create_symbol(region, word) {
             self.page_mut(page_index)[offset] = (REGION_RECORDS + 1 + position) as u16;
         } else {
-            self.full_slot(node).resolved_symbol = value;
+            self.write_full_symbol(node, value);
         }
+    }
+
+    /// A symbol kept in a full record: one whose word would read as moved,
+    /// or one in a region with no symbol-only record left.
+    #[cold]
+    #[inline(never)]
+    fn write_full_symbol(&mut self, node: NodeId, value: ValueSlot<SymbolId>) {
+        self.full_slot(node).resolved_symbol = value;
     }
 
     fn create_symbol(&mut self, region: usize, word: u32) -> Option<usize> {
@@ -2642,17 +2672,24 @@ impl LinksTables {
     #[inline]
     pub(crate) fn read_node<R>(&self, id: NodeId, read: impl FnOnce(&NodeLinks) -> R) -> R {
         perf::bump(PerfCounter::LinksNodeReads);
-        match self.node.node_entry(id) {
-            NodeEntry::Full(_, links) => read(links),
-            NodeEntry::Symbol(_, _, resolved_symbol) => read(&NodeLinks {
-                resolved_symbol,
-                ..NodeLinks::default()
-            }),
+        // One call of `read`, on the record the entry selects: the closure is
+        // inlined once.
+        let symbol_only;
+        let record = match self.node.node_entry(id) {
+            NodeEntry::Full(_, links) => links,
+            NodeEntry::Symbol(_, _, resolved_symbol) => {
+                symbol_only = NodeLinks {
+                    resolved_symbol,
+                    ..NodeLinks::default()
+                };
+                &symbol_only
+            }
             NodeEntry::Absent => {
                 perf::bump(PerfCounter::LinksNodeReadAbsent);
-                read(&self.absent_node)
+                &self.absent_node
             }
-        }
+        };
+        read(record)
     }
 
     /// Number of symbol records this table holds (trace evidence).
