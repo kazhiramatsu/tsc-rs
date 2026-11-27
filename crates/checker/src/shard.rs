@@ -1014,11 +1014,13 @@ fn place_groups(
         .iter()
         .map(|modules| modules.iter().map(|&module| worth[module]).sum::<f64>())
         .collect::<Vec<_>>();
-    // held[module * checkers + checker]: the checker's groups that hold the
-    // module. A group's sums over its modules are taken for every checker in
-    // one pass, adding the module's worth or zero: no branch on the data, and
-    // each checker's sum still runs in ascending module index.
-    let mut held = vec![0u32; files * checkers];
+    // Which checkers hold each module. A group's sums over its modules are
+    // taken only for the checkers the group fits on (no other sum is read),
+    // from the modules' sets of checkers: each such checker's sum adds the
+    // same worths in ascending module index, and the zeros it no longer adds
+    // change no sum of worths, none negative.
+    let mut holdings = Holdings::new(files, checkers);
+    let mut fits = vec![0u64; checkers.div_ceil(64)];
     // taken[(number - 1) * checkers + checker]: the checker has a range of
     // that file.
     let numbers = exclusive.iter().copied().max().unwrap_or(0) as usize;
@@ -1042,18 +1044,22 @@ fn place_groups(
         } else {
             0.0
         };
-        // The worth of the group's modules each checker already holds.
-        sums.fill(0.0);
-        for &module in &modules[group] {
-            let holders = &held[module * checkers..][..checkers];
-            for (sum, &count) in sums.iter_mut().zip(holders) {
-                *sum += if count != 0 { worth[module] } else { 0.0 };
-            }
-        }
         let taken = exclusive[group]
             .checked_sub(1)
             .map(|number| &mut taken[number as usize * checkers..][..checkers]);
         let free = |checker: usize| taken.as_ref().is_none_or(|taken| !taken[checker]);
+        fits.fill(0);
+        for (checker, &load) in loads.iter().enumerate() {
+            if load + weights[group] <= cap && free(checker) {
+                fits[checker / 64] |= 1 << (checker % 64);
+            }
+        }
+        // The worth of the group's modules each checker it fits on already
+        // holds.
+        sums.fill(0.0);
+        for &module in &modules[group] {
+            holdings.add_worth(&mut sums, module, &fits, false, worth[module]);
+        }
         let mut best = None;
         let mut best_score = f64::NEG_INFINITY;
         for (checker, &load) in loads.iter().enumerate() {
@@ -1087,7 +1093,7 @@ fn place_groups(
         placed[group] = checker;
         loads[checker] += weights[group];
         for &module in &modules[group] {
-            held[module * checkers + checker] += 1;
+            holdings.change(module, checker, true);
         }
     }
     let mut sequence = (0..weights.len()).collect::<Vec<_>>();
@@ -1099,20 +1105,26 @@ fn place_groups(
                 continue;
             }
             let from = placed[group];
+            fits.fill(0);
+            for to in 0..checkers {
+                if to != from && loads[to] + weights[group] <= cap {
+                    fits[to / 64] |= 1 << (to % 64);
+                }
+            }
+            if fits.iter().all(|&word| word == 0) {
+                continue;
+            }
             // What leaves `from` with the group (the modules only it holds
-            // there), and what each other checker would newly hold.
+            // there), and what each checker it fits on would newly hold.
             let mut released = 0.0f64;
             sums.fill(0.0);
             for &module in &modules[group] {
-                let holders = &held[module * checkers..][..checkers];
-                released += if holders[from] == 1 {
+                released += if holdings.held_once_by(module, from) {
                     worth[module]
                 } else {
                     0.0
                 };
-                for (sum, &count) in sums.iter_mut().zip(holders) {
-                    *sum += if count == 0 { worth[module] } else { 0.0 };
-                }
+                holdings.add_worth(&mut sums, module, &fits, true, worth[module]);
             }
             let mut best = None;
             let mut best_gain = 1e-9;
@@ -1130,8 +1142,8 @@ fn place_groups(
                 continue;
             };
             for &module in &modules[group] {
-                held[module * checkers + from] -= 1;
-                held[module * checkers + to] += 1;
+                holdings.change(module, from, false);
+                holdings.change(module, to, true);
             }
             loads[from] -= weights[group];
             loads[to] += weights[group];
@@ -1143,6 +1155,71 @@ fn place_groups(
         }
     }
     placed
+}
+
+/// Which checkers hold each module, for [`place_groups`]: how many of the
+/// checker's groups hold the module, and beside the numbers two sets of
+/// checkers a module (`words` words of bits each), those that hold it and
+/// those that hold it once.
+struct Holdings {
+    counts: Vec<u32>,
+    held: Vec<u64>,
+    once: Vec<u64>,
+    checkers: usize,
+    words: usize,
+}
+
+impl Holdings {
+    fn new(modules: usize, checkers: usize) -> Self {
+        let words = checkers.div_ceil(64);
+        Self {
+            counts: vec![0; modules * checkers],
+            held: vec![0; modules * words],
+            once: vec![0; modules * words],
+            checkers,
+            words,
+        }
+    }
+
+    /// One more of the checker's groups holds the module (`add`), or one
+    /// fewer.
+    fn change(&mut self, module: usize, checker: usize, add: bool) {
+        let count = &mut self.counts[module * self.checkers + checker];
+        if add {
+            *count += 1;
+        } else {
+            *count -= 1;
+        }
+        let word = module * self.words + checker / 64;
+        let bit = 1u64 << (checker % 64);
+        if *count != 0 {
+            self.held[word] |= bit;
+        } else {
+            self.held[word] &= !bit;
+        }
+        if *count == 1 {
+            self.once[word] |= bit;
+        } else {
+            self.once[word] &= !bit;
+        }
+    }
+
+    fn held_once_by(&self, module: usize, checker: usize) -> bool {
+        self.once[module * self.words + checker / 64] >> (checker % 64) & 1 != 0
+    }
+
+    /// Adds `worth` to the sum of each checker of `among` that holds the
+    /// module, or (`missing`) that does not.
+    fn add_worth(&self, sums: &mut [f64], module: usize, among: &[u64], missing: bool, worth: f64) {
+        let held = &self.held[module * self.words..][..self.words];
+        for (word, (&held, &among)) in held.iter().zip(among).enumerate() {
+            let mut checkers = if missing { !held & among } else { held & among };
+            while checkers != 0 {
+                sums[word * 64 + checkers.trailing_zeros() as usize] += worth;
+                checkers &= checkers - 1;
+            }
+        }
+    }
 }
 
 /// What each checked file would cost a checker of another lane that takes
@@ -2738,6 +2815,242 @@ mod tests {
             group_sizes[group] += 1;
         }
         (group_of, group_weights, group_sizes)
+    }
+
+    /// The groups placed as before: every checker's sums over every group's
+    /// modules, from the counts of the groups that hold each module.
+    fn place_groups_by_counts(
+        weights: &[usize],
+        adjacent: &[Vec<usize>],
+        modules: &[Vec<usize>],
+        worth: &[f64],
+        exclusive: &[u32],
+        checkers: usize,
+    ) -> Vec<usize> {
+        let files = worth.len();
+        let total: usize = weights.iter().sum();
+        let heaviest = weights.iter().copied().max().unwrap_or(0);
+        let edges: usize = adjacent.iter().map(Vec::len).sum();
+        let average = total.div_ceil(checkers);
+        let cap = heaviest.max(average + average / 100);
+        let total_float = total as f64;
+        let alpha =
+            LOCALITY_PENALTY_MULTIPLIER as f64 * (edges / 2) as f64 * (checkers as f64).sqrt()
+                / (total_float * total_float.sqrt());
+        let group_worth = modules
+            .iter()
+            .map(|modules| modules.iter().map(|&module| worth[module]).sum::<f64>())
+            .collect::<Vec<_>>();
+        // held[module * checkers + checker]: the checker's groups that hold the
+        // module. A group's sums over its modules are taken for every checker in
+        // one pass, adding the module's worth or zero: no branch on the data, and
+        // each checker's sum still runs in ascending module index.
+        let mut held = vec![0u32; files * checkers];
+        // taken[(number - 1) * checkers + checker]: the checker has a range of
+        // that file.
+        let numbers = exclusive.iter().copied().max().unwrap_or(0) as usize;
+        let mut taken = vec![false; numbers * checkers];
+        let mut placed = vec![usize::MAX; weights.len()];
+        let mut loads = vec![0usize; checkers];
+        let mut neighbors = vec![0usize; checkers];
+        let mut sums = vec![0.0f64; checkers];
+        let mut order = (0..weights.len()).collect::<Vec<_>>();
+        order.sort_unstable_by_key(|&group| (std::cmp::Reverse(weights[group]), group));
+        for &group in &order {
+            neighbors.fill(0);
+            for &other in &adjacent[group] {
+                let checker = placed[other];
+                if checker != usize::MAX {
+                    neighbors[checker] += 1;
+                }
+            }
+            let scale = if group_worth[group] > 0.0 {
+                MODULE_AFFINITY * (adjacent[group].len() + 1) as f64 / group_worth[group]
+            } else {
+                0.0
+            };
+            // The worth of the group's modules each checker already holds.
+            sums.fill(0.0);
+            for &module in &modules[group] {
+                let holders = &held[module * checkers..][..checkers];
+                for (sum, &count) in sums.iter_mut().zip(holders) {
+                    *sum += if count != 0 { worth[module] } else { 0.0 };
+                }
+            }
+            let taken = exclusive[group]
+                .checked_sub(1)
+                .map(|number| &mut taken[number as usize * checkers..][..checkers]);
+            let free = |checker: usize| taken.as_ref().is_none_or(|taken| !taken[checker]);
+            let mut best = None;
+            let mut best_score = f64::NEG_INFINITY;
+            for (checker, &load) in loads.iter().enumerate() {
+                if load + weights[group] > cap || !free(checker) {
+                    continue;
+                }
+                let old = load as f64;
+                let new = (load + weights[group]) as f64;
+                let new_penalty = new * new.sqrt();
+                let old_penalty = old * old.sqrt();
+                let penalty = alpha * (new_penalty - old_penalty);
+                let affinity = neighbors[checker] as f64 + scale * sums[checker];
+                let score = affinity - penalty;
+                if score > best_score
+                    || (score == best_score && best.is_none_or(|best| load < loads[best]))
+                {
+                    best = Some(checker);
+                    best_score = score;
+                }
+            }
+            let checker = best.unwrap_or_else(|| {
+                // Ascending index breaks ties, including fallback when no bin fits.
+                (0..checkers)
+                    .filter(|&checker| free(checker))
+                    .min_by_key(|&checker| loads[checker])
+                    .expect("a file has no more ranges than there are checkers")
+            });
+            if let Some(taken) = taken {
+                taken[checker] = true;
+            }
+            placed[group] = checker;
+            loads[checker] += weights[group];
+            for &module in &modules[group] {
+                held[module * checkers + checker] += 1;
+            }
+        }
+        let mut sequence = (0..weights.len()).collect::<Vec<_>>();
+        sequence.sort_unstable_by_key(|&group| (weights[group], group));
+        for _ in 0..REFINEMENT_PASSES {
+            let mut moved = false;
+            for &group in &sequence {
+                if exclusive[group] != 0 {
+                    continue;
+                }
+                let from = placed[group];
+                // What leaves `from` with the group (the modules only it holds
+                // there), and what each other checker would newly hold.
+                let mut released = 0.0f64;
+                sums.fill(0.0);
+                for &module in &modules[group] {
+                    let holders = &held[module * checkers..][..checkers];
+                    released += if holders[from] == 1 {
+                        worth[module]
+                    } else {
+                        0.0
+                    };
+                    for (sum, &count) in sums.iter_mut().zip(holders) {
+                        *sum += if count == 0 { worth[module] } else { 0.0 };
+                    }
+                }
+                let mut best = None;
+                let mut best_gain = 1e-9;
+                for to in 0..checkers {
+                    if to == from || loads[to] + weights[group] > cap {
+                        continue;
+                    }
+                    let gain = released - sums[to];
+                    if gain > best_gain {
+                        best = Some(to);
+                        best_gain = gain;
+                    }
+                }
+                let Some(to) = best else {
+                    continue;
+                };
+                for &module in &modules[group] {
+                    held[module * checkers + from] -= 1;
+                    held[module * checkers + to] += 1;
+                }
+                loads[from] -= weights[group];
+                loads[to] += weights[group];
+                placed[group] = to;
+                moved = true;
+            }
+            if !moved {
+                break;
+            }
+        }
+        placed
+    }
+
+    #[test]
+    fn placed_groups_are_the_groups_the_counts_place() {
+        let mut random = Xorshift(0x2545_f491_4f6c_dd1d);
+        let mut beyond_first_word = 0;
+        for round in 0..2000 {
+            let checkers = match round % 25 {
+                0 => 65 + random.below(70),
+                1 => 1,
+                _ => 2 + random.below(11),
+            };
+            // With more checkers than 64: more groups than 64, with few
+            // modules in common, so they spread past the first word of bits.
+            let wide = checkers > 64;
+            let groups = if wide {
+                70 + random.below(130)
+            } else {
+                1 + random.below(40)
+            };
+            let files = if wide {
+                300 + random.below(300)
+            } else {
+                1 + random.below(60)
+            };
+            let weights = (0..groups)
+                .map(|_| {
+                    if random.below(8) == 0 {
+                        200 + random.below(400)
+                    } else {
+                        1 + random.below(60)
+                    }
+                })
+                .collect::<Vec<_>>();
+            let mut adjacent = vec![Vec::new(); groups];
+            for _ in 0..random.below(if wide { groups / 4 } else { 4 * groups }) {
+                let (a, b) = (random.below(groups), random.below(groups));
+                if a != b {
+                    adjacent[a].push(b);
+                    adjacent[b].push(a);
+                }
+            }
+            let modules = (0..groups)
+                .map(|_| {
+                    let mut modules = (0..random.below(if wide { 4 } else { 12 }))
+                        .map(|_| random.below(files))
+                        .collect::<Vec<_>>();
+                    modules.sort_unstable();
+                    modules.dedup();
+                    modules
+                })
+                .collect::<Vec<_>>();
+            let worth = (0..files)
+                .map(|_| module_worth(random.below(5000)))
+                .collect::<Vec<_>>();
+            // Some groups are the ranges of one file: at most one a checker.
+            let mut exclusive = vec![0u32; groups];
+            let mut number = 0;
+            let mut group = 0;
+            while group < groups {
+                if random.below(5) == 0 {
+                    number += 1;
+                    let ranges = (2 + random.below(3)).min(checkers).min(groups - group);
+                    for range in &mut exclusive[group..group + ranges] {
+                        *range = number;
+                    }
+                    group += ranges;
+                } else {
+                    group += 1;
+                }
+            }
+            let placed = place_groups(&weights, &adjacent, &modules, &worth, &exclusive, checkers);
+            assert_eq!(
+                placed,
+                place_groups_by_counts(&weights, &adjacent, &modules, &worth, &exclusive, checkers),
+                "round {round}: {checkers} checkers, weights {weights:?}, modules {modules:?}, exclusive {exclusive:?}"
+            );
+            beyond_first_word += usize::from(placed.iter().any(|&checker| checker >= 64));
+        }
+        // Some rounds placed groups on checkers past the first word of bits.
+        assert!(beyond_first_word > 10, "{beyond_first_word}");
     }
 
     /// A small deterministic generator for the tests' random programs.
