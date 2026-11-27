@@ -709,35 +709,8 @@ pub(crate) fn associate_files_by_locality(
     let total: usize = order.iter().map(|&file| weights[file]).sum();
     let threshold = total / (checkers * LOCALITY_GROUP_FRACTION);
 
-    // The weight of every directory subtree, keyed by the directory's name.
-    let mut subtrees = rustc_hash::FxHashMap::<&str, usize>::default();
-    for &file in &order {
-        let name = names[file];
-        for (end, _) in name.match_indices('/') {
-            *subtrees.entry(&name[..end]).or_default() += weights[file];
-        }
-    }
-    let mut groups = rustc_hash::FxHashMap::<&str, usize>::default();
-    let mut group_of = vec![usize::MAX; weights.len()];
-    let mut group_weights = Vec::new();
-    let mut group_sizes = Vec::new();
-    for &file in &order {
-        let name = names[file];
-        let key = name
-            .match_indices('/')
-            .map(|(end, _)| &name[..end])
-            .find(|directory| subtrees[directory] <= threshold)
-            .unwrap_or(name);
-        let next = group_weights.len();
-        let group = *groups.entry(key).or_insert(next);
-        if group == next {
-            group_weights.push(0);
-            group_sizes.push(0usize);
-        }
-        group_of[file] = group;
-        group_weights[group] += weights[file];
-        group_sizes[group] += 1;
-    }
+    let (group_of, mut group_weights, group_sizes) =
+        locality_groups(&order, names, &weights, threshold);
     // One adjacency entry per file-level import edge and direction.
     let mut group_adjacent = vec![Vec::new(); group_weights.len()];
     for &file in &order {
@@ -870,6 +843,107 @@ pub(crate) fn associate_files_by_locality(
         splits,
         weights: own_weights,
     }
+}
+
+/// Step 2 of [`associate_files_by_locality`]: the files of `order` (sorted by
+/// name, then by index) in groups, as each file's group, each group's weight
+/// and each group's number of files. A file joins the shallowest directory of
+/// its name whose files weigh at most `threshold` together, or else the group
+/// of its own name (tsgo keys a group by that text, so a file named as such a
+/// directory is in the directory's group); groups are numbered in the order
+/// of their first files. The files under a directory are one run of `order`
+/// (a name between two names with a prefix has the prefix), so one pass with
+/// a stack of the directories open at a name finds each directory's run and
+/// weight.
+fn locality_groups(
+    order: &[usize],
+    names: &[&str],
+    weights: &[usize],
+    threshold: usize,
+) -> (Vec<usize>, Vec<usize>, Vec<usize>) {
+    // From each position of `order`: the end of the run of the shallowest
+    // directory that starts there and weighs at most the threshold, and the
+    // length of its name; else the next position and no directory.
+    let mut run_end = (1..=order.len()).collect::<Vec<_>>();
+    let mut run_directory = vec![usize::MAX; order.len()];
+    // The directories open at the current name, the outermost first: the
+    // length of the directory's name (the position of its slash), the
+    // position of its first file, and the weight of its files so far (a
+    // closed directory adds its weight to the one around it).
+    let mut open = Vec::<(usize, usize, usize)>::new();
+    let mut close = |open: &mut Vec<(usize, usize, usize)>, end: usize| {
+        let (length, start, weight) = open.pop().expect("an open directory");
+        if let Some(outer) = open.last_mut() {
+            outer.2 += weight;
+        }
+        // An outer directory with the same first file closes later and
+        // takes the position over.
+        if weight <= threshold {
+            run_end[start] = end;
+            run_directory[start] = length;
+        }
+    };
+    let mut previous = "";
+    for (position, &file) in order.iter().enumerate() {
+        let name = names[file];
+        let common = previous
+            .bytes()
+            .zip(name.bytes())
+            .take_while(|(previous, next)| previous == next)
+            .count();
+        while open.last().is_some_and(|&(length, _, _)| length >= common) {
+            close(&mut open, position);
+        }
+        open.extend(
+            name.bytes()
+                .enumerate()
+                .skip(common)
+                .filter(|&(_, byte)| byte == b'/')
+                .map(|(length, _)| (length, position, 0)),
+        );
+        if let Some(innermost) = open.last_mut() {
+            innermost.2 += weights[file];
+        }
+        previous = name;
+    }
+    while !open.is_empty() {
+        close(&mut open, order.len());
+    }
+    let mut group_of = vec![usize::MAX; weights.len()];
+    let mut group_weights = Vec::new();
+    let mut group_sizes = Vec::new();
+    let mut position = 0;
+    while position < order.len() {
+        let name = names[order[position]];
+        let mut end = run_end[position];
+        let length = run_directory[position];
+        let named = if length == usize::MAX {
+            // The group of the file's own name: the other files of that name
+            // follow it.
+            while end < order.len() && names[order[end]] == name {
+                end += 1;
+            }
+            None
+        } else {
+            // A file named as the directory sorts before the directory's
+            // files, in the group of its own name.
+            let directory = &name[..length];
+            let first = order[..position].partition_point(|&file| names[file] < directory);
+            (first < position && names[order[first]] == directory).then(|| group_of[order[first]])
+        };
+        let group = named.unwrap_or_else(|| {
+            group_weights.push(0);
+            group_sizes.push(0usize);
+            group_weights.len() - 1
+        });
+        for &file in &order[position..end] {
+            group_of[file] = group;
+            group_weights[group] += weights[file];
+            group_sizes[group] += 1;
+        }
+        position = end;
+    }
+    (group_of, group_weights, group_sizes)
 }
 
 /// An unsplit file larger than a syntax share keeps its original checker;
@@ -2624,5 +2698,121 @@ mod tests {
         none.split(&association.splits, &nodes);
         none.release_leaves(vec![true, false, false, false, false, false, false]);
         assert!(!none.releases_leaves() && none.leaves().is_empty());
+    }
+
+    /// The groups as the association formed them before: every directory's
+    /// weight in a map keyed by its name, then each file's key (its shallowest
+    /// light directory, or its own name) numbered on first sight.
+    fn locality_groups_by_name_maps(
+        order: &[usize],
+        names: &[&str],
+        weights: &[usize],
+        threshold: usize,
+    ) -> (Vec<usize>, Vec<usize>, Vec<usize>) {
+        let mut subtrees = rustc_hash::FxHashMap::<&str, usize>::default();
+        for &file in order {
+            let name = names[file];
+            for (end, _) in name.match_indices('/') {
+                *subtrees.entry(&name[..end]).or_default() += weights[file];
+            }
+        }
+        let mut groups = rustc_hash::FxHashMap::<&str, usize>::default();
+        let mut group_of = vec![usize::MAX; weights.len()];
+        let mut group_weights = Vec::new();
+        let mut group_sizes = Vec::new();
+        for &file in order {
+            let name = names[file];
+            let key = name
+                .match_indices('/')
+                .map(|(end, _)| &name[..end])
+                .find(|directory| subtrees[directory] <= threshold)
+                .unwrap_or(name);
+            let next = group_weights.len();
+            let group = *groups.entry(key).or_insert(next);
+            if group == next {
+                group_weights.push(0);
+                group_sizes.push(0usize);
+            }
+            group_of[file] = group;
+            group_weights[group] += weights[file];
+            group_sizes[group] += 1;
+        }
+        (group_of, group_weights, group_sizes)
+    }
+
+    /// A small deterministic generator for the tests' random programs.
+    struct Xorshift(u64);
+
+    impl Xorshift {
+        fn below(&mut self, bound: usize) -> usize {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            (self.0 % bound as u64) as usize
+        }
+    }
+
+    #[test]
+    fn locality_groups_are_the_groups_of_the_name_maps() {
+        let parts = ["a", "b", "ab", "a-b", "a.b", "b_c", "", "\u{e9}"];
+        let mut random = Xorshift(0x9e37_79b9_7f4a_7c15);
+        let mut checked = 0;
+        for round in 0..3000 {
+            let files = 1 + random.below(40);
+            let mut names = Vec::<String>::with_capacity(files);
+            for _ in 0..files {
+                let name = match random.below(10) {
+                    // An earlier file's name again, or one of its directories.
+                    0 if !names.is_empty() => names[random.below(names.len())].clone(),
+                    1 if !names.is_empty() => {
+                        let other = names[random.below(names.len())].clone();
+                        match other.rfind('/') {
+                            Some(slash) => other[..slash].to_owned(),
+                            None => other,
+                        }
+                    }
+                    2 if round % 7 == 0 => String::new(),
+                    _ => {
+                        let mut name = if random.below(3) == 0 {
+                            String::new()
+                        } else {
+                            "/".to_owned()
+                        };
+                        for depth in 0..=random.below(5) {
+                            if depth > 0 {
+                                name.push('/');
+                            }
+                            name.push_str(parts[random.below(parts.len())]);
+                        }
+                        name
+                    }
+                };
+                names.push(name);
+            }
+            let names = names.iter().map(String::as_str).collect::<Vec<_>>();
+            let weights = (0..files).map(|_| 1 + random.below(50)).collect::<Vec<_>>();
+            let mut order = (0..files).collect::<Vec<_>>();
+            order.sort_unstable_by(|&a, &b| names[a].cmp(names[b]).then(a.cmp(&b)));
+            let total = weights.iter().sum::<usize>();
+            for threshold in [0, 1, total / 4, total / 2, random.below(total + 1), total] {
+                assert_eq!(
+                    locality_groups(&order, &names, &weights, threshold),
+                    locality_groups_by_name_maps(&order, &names, &weights, threshold),
+                    "names {names:?}, weights {weights:?}, threshold {threshold}"
+                );
+                checked += 1;
+            }
+        }
+        assert_eq!(checked, 18000);
+        // A file named as a light directory is in the directory's group,
+        // after a sibling that sorts between them.
+        let names = ["/p/q", "/p/q-r", "/p/q/s", "/p/q/t", "/p/u"];
+        let order = [0, 1, 2, 3, 4];
+        let groups = locality_groups(&order, &names, &[5, 5, 1, 1, 50], 2);
+        assert_eq!(groups.0, [0, 1, 0, 0, 2]);
+        assert_eq!(
+            groups,
+            locality_groups_by_name_maps(&order, &names, &[5, 5, 1, 1, 50], 2)
+        );
     }
 }
