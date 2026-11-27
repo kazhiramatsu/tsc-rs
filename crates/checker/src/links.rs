@@ -1800,8 +1800,10 @@ impl<T: Default> DenseLinks<T> {
     #[inline]
     fn slot(&mut self, id: TypeId) -> &mut T {
         let index = id.index() as usize;
-        if index >= self.records.len() {
-            self.records.resize_with(index + 1, T::default);
+        // A record a push: a new type adds one, and a fill of a run goes
+        // through a memset call even for one record.
+        while self.records.len() <= index {
+            self.records.push(T::default());
         }
         &mut self.records[index]
     }
@@ -2488,9 +2490,9 @@ impl LinksTables {
                 "check flags, target, mapper and name type belong to transient symbols, not {id:?}"
             )
         };
-        if index >= self.transient_symbols.len() {
-            self.transient_symbols
-                .resize(index + 1, SymbolLinks::default());
+        // A record a push, as the type links grow.
+        while self.transient_symbols.len() <= index {
+            self.transient_symbols.push(SymbolLinks::default());
         }
         &mut self.transient_symbols[index]
     }
