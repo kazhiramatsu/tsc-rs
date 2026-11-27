@@ -772,3 +772,127 @@ fn dense_links_grow_to_a_far_write_with_unset_records_between() {
         tsc_types::CheckFlags::INSTANTIATED
     );
 }
+
+/// A node that holds only a resolved symbol keeps it in a four-byte record;
+/// writing any other field moves the record to the full pool with its
+/// symbol, and the reads answer the same before and after.
+#[test]
+fn a_symbol_only_node_record_moves_whole_when_another_field_is_written() {
+    let mut links = LinksTables::default();
+    let node = NodeId::new(70);
+    links.set_node_resolved_symbol(0, node, SymbolId::new(7));
+    assert!(matches!(links.node.node_entry(node), NodeEntry::Symbol(_)));
+    assert_eq!(
+        links.read_node(node, |l| l.resolved_symbol.resolved()),
+        Some(SymbolId::new(7))
+    );
+    assert_eq!(links.node(node).resolved_type.resolved(), None);
+    assert_eq!(
+        links.node(node).resolved_symbol.resolved(),
+        Some(SymbolId::new(7))
+    );
+    // Rewritten in place while it holds only the symbol.
+    links.set_node_resolved_symbol(0, node, SymbolId::new(8));
+    assert!(matches!(links.node.node_entry(node), NodeEntry::Symbol(_)));
+    assert_eq!(
+        links.node(node).resolved_symbol.resolved(),
+        Some(SymbolId::new(8))
+    );
+    let records = links.node.len;
+    links.set_node_resolved_type(0, node, LinkSlot::Resolved(TypeId::new(3)));
+    assert!(matches!(links.node.node_entry(node), NodeEntry::Full(..)));
+    assert_eq!(links.node.len, records, "the record moved, none was added");
+    assert_eq!(
+        links.read_node(node, |l| (
+            l.resolved_symbol.resolved(),
+            l.resolved_type.resolved()
+        )),
+        (Some(SymbolId::new(8)), Some(TypeId::new(3)))
+    );
+    // A full record's symbol is written in the record.
+    links.set_node_resolved_symbol(0, node, SymbolId::new(9));
+    assert_eq!(
+        links.node(node).resolved_symbol.resolved(),
+        Some(SymbolId::new(9))
+    );
+    assert_eq!(
+        links.node(node).resolved_type.resolved(),
+        Some(TypeId::new(3))
+    );
+    // The late-bind pair on a node of its own: written, then taken back.
+    let late = NodeId::new(71);
+    links.set_node_resolved_symbol_late_bind(0, late, SymbolId::new(11));
+    assert_eq!(
+        links.node(late).resolved_symbol.resolved(),
+        Some(SymbolId::new(11))
+    );
+    links.revert_node_resolved_symbol_late_bind(late);
+    assert_eq!(links.node(late).resolved_symbol.resolved(), None);
+    assert!(matches!(links.node.node_entry(late), NodeEntry::Symbol(_)));
+    links.or_node_check_flags(0, late, tsc_types::NodeCheckFlags::TYPE_CHECKED);
+    assert_eq!(links.node(late).resolved_symbol.resolved(), None);
+    assert!(links
+        .node(late)
+        .check_flags
+        .contains(tsc_types::NodeCheckFlags::TYPE_CHECKED));
+}
+
+/// A region's symbol-only records run out after `REGION_SYMBOL_RECORDS`:
+/// the next node of the region keeps its symbol in a full record.
+#[test]
+fn a_region_past_its_symbol_only_records_keeps_symbols_in_full_records() {
+    let mut links = LinksTables::default();
+    let base = 5 << REGION_SHIFT;
+    for offset in 0..=REGION_SYMBOL_RECORDS {
+        let node = NodeId::new((base + offset) as u32);
+        links.set_node_resolved_symbol(0, node, SymbolId::new(offset as u32 + 1));
+    }
+    for offset in 0..=REGION_SYMBOL_RECORDS {
+        let node = NodeId::new((base + offset) as u32);
+        assert_eq!(
+            links.node(node).resolved_symbol.resolved(),
+            Some(SymbolId::new(offset as u32 + 1)),
+            "{offset}"
+        );
+        let full = matches!(links.node.node_entry(node), NodeEntry::Full(..));
+        assert_eq!(full, offset == REGION_SYMBOL_RECORDS, "{offset}");
+    }
+    assert_eq!(links.node.len, REGION_SYMBOL_RECORDS + 1);
+}
+
+/// A cursor keeps the location of a full record only: an outer cursor that
+/// read a symbol-only record still reads the node's fields after an inner
+/// write moved the record to the full pool.
+#[test]
+fn a_cursor_keeps_no_location_of_a_record_that_can_move() {
+    let mut links = LinksTables::default();
+    let node = NodeId::new(90);
+    links.set_node_resolved_symbol(0, node, SymbolId::new(4));
+    let mut outer = NodeLinksCursor::new(node);
+    assert_eq!(
+        outer.read(&links, |l| l.resolved_symbol.resolved()),
+        Some(SymbolId::new(4))
+    );
+    assert!(outer.location.is_none());
+    let mut inner = NodeLinksCursor::new(node);
+    inner.set_type(&mut links, LinkSlot::Resolved(TypeId::new(6)));
+    assert!(inner.location.is_some());
+    assert_eq!(
+        outer.read(&links, |l| (
+            l.resolved_symbol.resolved(),
+            l.resolved_type.resolved()
+        )),
+        (Some(SymbolId::new(4)), Some(TypeId::new(6)))
+    );
+    // Its location now kept (the record is full and will not move again).
+    assert!(outer.location.is_some());
+    outer.set_symbol(&mut links, SymbolId::new(5));
+    assert_eq!(
+        links.node(node).resolved_symbol.resolved(),
+        Some(SymbolId::new(5))
+    );
+    assert_eq!(
+        links.node(node).resolved_type.resolved(),
+        Some(TypeId::new(6))
+    );
+}

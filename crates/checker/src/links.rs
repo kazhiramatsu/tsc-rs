@@ -1651,10 +1651,20 @@ impl<K, T> PagedTable<K, T> {
         let mut bytes = self.index.capacity() * std::mem::size_of::<Option<Box<[u16; PAGE_IDS]>>>()
             + pages * PAGE_IDS * std::mem::size_of::<u16>()
             + self.chunks.capacity() * std::mem::size_of::<Option<Box<[T; CHUNK_RECORDS]>>>()
-            + self.region_lens.capacity() * std::mem::size_of::<u16>();
+            + self.region_lens.capacity() * std::mem::size_of::<u16>()
+            + self.symbol_chunks.capacity()
+                * std::mem::size_of::<Option<Box<[u32; SYMBOL_CHUNK_RECORDS]>>>()
+            + self.symbol_lens.capacity() * std::mem::size_of::<u16>();
         bytes += self.chunks.iter().filter(|chunk| chunk.is_some()).count()
             * CHUNK_RECORDS
             * std::mem::size_of::<T>();
+        bytes += self
+            .symbol_chunks
+            .iter()
+            .filter(|chunk| chunk.is_some())
+            .count()
+            * SYMBOL_CHUNK_RECORDS
+            * std::mem::size_of::<u32>();
         (self.len, bytes)
     }
 }
@@ -1774,6 +1784,15 @@ const CHUNK_RECORDS: usize = 1 << CHUNK_SHIFT;
 const REGION_SHIFT: usize = 15;
 const REGION_CHUNK_SHIFT: usize = REGION_SHIFT - CHUNK_SHIFT;
 const REGION_CHUNKS: usize = 1 << REGION_CHUNK_SHIFT;
+/// Index entries 1..=REGION_RECORDS name a region's full records; the node
+/// table's entries above them name its symbol-only records
+/// (`REGION_RECORDS + 1 + position`), at most `REGION_SYMBOL_RECORDS` a
+/// region (a u16 ends at 65,535).
+const REGION_RECORDS: usize = 1 << REGION_SHIFT;
+const REGION_SYMBOL_RECORDS: usize = u16::MAX as usize - REGION_RECORDS;
+const SYMBOL_CHUNK_SHIFT: usize = 10;
+const SYMBOL_CHUNK_RECORDS: usize = 1 << SYMBOL_CHUNK_SHIFT;
+const REGION_SYMBOL_CHUNKS: usize = REGION_SYMBOL_RECORDS.div_ceil(SYMBOL_CHUNK_RECORDS);
 /// Pages below this index (ids below 2^26) live in the direct vector; the
 /// rare id far beyond the program's dense domain (a sentinel, or an enormous
 /// program) takes the hashed far-page path instead of growing the vector to
@@ -1832,13 +1851,49 @@ pub(crate) struct NodeLinksLocation(NonZeroU32);
 impl NodeLinksLocation {
     fn from_position(position: usize) -> Self {
         // NodeId indices stop at u32::MAX - 1, so the final region has
-        // one fewer key. Its last record position + 1 still fits a u32.
+        // one fewer key. Its last record position + 1 still fits a u32; it
+        // stays below u32::MAX, which `IdentifierRoot` keeps for a read by
+        // node (a full region of records at the end of the id range would
+        // take it).
         let index = u32::try_from(position)
             .ok()
             .and_then(|position| position.checked_add(1))
+            .filter(|&index| index != IdentifierRoot::BY_NODE)
             .and_then(NonZeroU32::new)
-            .expect("a node record location fits a nonzero u32");
+            .expect("a node record location fits a nonzero u32 below u32::MAX");
         Self(index)
+    }
+}
+
+/// A flow query's identifier reference ([`crate::flow::FlowQuery`]): none
+/// (0), its full record's location, or a record that holds only its symbol,
+/// read by its node (`u32::MAX`, which no location takes). Four bytes, as
+/// the location alone was.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct IdentifierRoot(u32);
+
+impl IdentifierRoot {
+    pub(crate) const NONE: Self = Self(0);
+    const BY_NODE: u32 = u32::MAX;
+
+    pub(crate) fn at(location: NodeLinksLocation) -> Self {
+        Self(location.0.get())
+    }
+
+    pub(crate) fn by_node() -> Self {
+        Self(Self::BY_NODE)
+    }
+
+    pub(crate) fn is_some(self) -> bool {
+        self.0 != 0
+    }
+
+    /// The full record's location, if the reference has one.
+    pub(crate) fn location(self) -> Option<NodeLinksLocation> {
+        if self.0 == Self::BY_NODE {
+            return None;
+        }
+        NonZeroU32::new(self.0).map(NodeLinksLocation)
     }
 }
 
@@ -1881,18 +1936,28 @@ impl NodeLinksCursor {
         if let Some(location) = self.location {
             return read(links.located_node(self.node, location));
         }
-        if let Some((location, record)) = links.node_with_location(self.node) {
-            self.location = Some(location);
-            return read(record);
+        match links.node.node_entry(self.node) {
+            NodeEntry::Full(position, record) => {
+                self.location = Some(NodeLinksLocation::from_position(position));
+                read(record)
+            }
+            // A symbol-only record moves when another field is written: its
+            // location is not kept.
+            NodeEntry::Symbol(resolved_symbol) => read(&NodeLinks {
+                resolved_symbol,
+                ..NodeLinks::default()
+            }),
+            NodeEntry::Absent => {
+                perf::bump(PerfCounter::LinksNodeReadAbsent);
+                read(&links.absent_node)
+            }
         }
-        perf::bump(PerfCounter::LinksNodeReadAbsent);
-        read(&links.absent_node)
     }
 
     #[inline]
     fn slot<'t>(&mut self, nodes: &'t mut PagedTable<NodeId, NodeLinks>) -> &'t mut NodeLinks {
         let location = *self.location.get_or_insert_with(|| {
-            NodeLinksLocation::from_position(nodes.slot_position(self.node))
+            NodeLinksLocation::from_position(nodes.full_position(self.node))
         });
         let position = (location.0.get() - 1) as usize;
         debug_assert_eq!(
@@ -1920,6 +1985,13 @@ impl NodeLinksCursor {
     }
 
     pub(crate) fn set_symbol(&mut self, links: &mut LinksTables, value: SymbolId) {
+        if self.location.is_none() {
+            // Written where the record lies: a new one holds only the symbol.
+            links
+                .node
+                .write_symbol(self.node, LinkSlot::Resolved(value).into());
+            return;
+        }
         let slot = &mut self.slot(&mut links.node).resolved_symbol;
         match slot.get() {
             LinkSlot::Resolved(existing) if existing == value => {}
@@ -2067,6 +2139,13 @@ pub(crate) struct PagedTable<K, T> {
     chunks: Vec<Option<Box<[T; CHUNK_RECORDS]>>>,
     /// Used only to allocate a new record, never to look up an existing one.
     region_lens: Vec<u16>,
+    /// The node table's symbol-only records ([`NodeEntry::Symbol`]): a
+    /// symbol's index + 1 (0 for none) in chunks, `REGION_SYMBOL_CHUNKS`
+    /// slots a region, made with a region's first such record. Other tables
+    /// leave them empty.
+    symbol_chunks: Vec<Option<Box<[u32; SYMBOL_CHUNK_RECORDS]>>>,
+    /// Used only to allocate a new symbol-only record.
+    symbol_lens: Vec<u16>,
     len: usize,
     key: std::marker::PhantomData<K>,
 }
@@ -2078,6 +2157,8 @@ impl<K, T> Default for PagedTable<K, T> {
             far: FxHashMap::default(),
             chunks: Vec::new(),
             region_lens: Vec::new(),
+            symbol_chunks: Vec::new(),
+            symbol_lens: Vec::new(),
             len: 0,
             key: std::marker::PhantomData,
         }
@@ -2156,11 +2237,12 @@ impl<K: DenseKey, T: Default> PagedTable<K, T> {
 
     #[inline]
     fn get_from_page(&self, id: usize, page: Option<&[u16; PAGE_IDS]>) -> Option<&T> {
-        let slot = page?[id & (PAGE_IDS - 1)];
-        if slot == 0 {
+        // 0 (absent) wraps above every full record, as does a symbol-only
+        // record's entry (only the node table has them; see `node_entry`).
+        let slot = usize::from(page?[id & (PAGE_IDS - 1)].wrapping_sub(1));
+        if slot >= REGION_RECORDS {
             return None;
         }
-        let slot = (slot - 1) as usize;
         let chunk = ((id >> REGION_SHIFT) << REGION_CHUNK_SHIFT) | (slot >> CHUNK_SHIFT);
         Some(
             &self.chunks[chunk]
@@ -2173,7 +2255,10 @@ impl<K: DenseKey, T: Default> PagedTable<K, T> {
     fn get_with_position(&self, key: K) -> Option<(usize, &T)> {
         let id = key.dense_index();
         let entry = self.page(id >> PAGE_SHIFT)?[id & (PAGE_IDS - 1)];
-        let slot = usize::from(entry.checked_sub(1)?);
+        let slot = usize::from(entry.wrapping_sub(1));
+        if slot >= REGION_RECORDS {
+            return None;
+        }
         let chunk = ((id >> REGION_SHIFT) << REGION_CHUNK_SHIFT) | (slot >> CHUNK_SHIFT);
         let position = (chunk << CHUNK_SHIFT) | (slot & (CHUNK_RECORDS - 1));
         Some((position, self.get_at_position(position)))
@@ -2200,6 +2285,10 @@ impl<K: DenseKey, T: Default> PagedTable<K, T> {
         let page_index = id >> PAGE_SHIFT;
         let offset = id & (PAGE_IDS - 1);
         let mut entry = self.page_mut(page_index)[offset];
+        debug_assert!(
+            usize::from(entry) <= REGION_RECORDS,
+            "a symbol-only record is written through the node table's own paths"
+        );
         if entry == 0 {
             entry = self.create_record(id >> REGION_SHIFT);
             self.page_mut(page_index)[offset] = entry;
@@ -2237,6 +2326,142 @@ impl<K: DenseKey, T: Default> PagedTable<K, T> {
     fn create_chunk(&mut self, chunk: usize) {
         debug_assert!(self.chunks[chunk].is_none());
         self.chunks[chunk] = Some(Box::new(std::array::from_fn(|_| T::default())));
+    }
+}
+
+/// Where a node's links lie ([`PagedTable::node_entry`]).
+enum NodeEntry<'t> {
+    Absent,
+    /// A full record and its position (a location may be kept: full records
+    /// never move).
+    Full(usize, &'t NodeLinks),
+    /// A record that holds only a resolved symbol, in four bytes. It moves to
+    /// the full pool when another field is written, so no location is kept.
+    Symbol(ValueSlot<SymbolId>),
+}
+
+/// A symbol-only record's word: the symbol's index + 1, or 0 for none.
+#[inline]
+fn symbol_word(value: ValueSlot<SymbolId>) -> u32 {
+    value.resolved().map_or(0, |symbol| symbol.index() + 1)
+}
+
+#[inline]
+fn symbol_of_word(word: u32) -> ValueSlot<SymbolId> {
+    ValueSlot(word.checked_sub(1).map(SymbolId::new))
+}
+
+/// The node table: most linked nodes (an identifier's resolution) hold only
+/// a symbol, kept in a four-byte record beside the sixteen-byte records of
+/// the nodes that hold more.
+impl PagedTable<NodeId, NodeLinks> {
+    #[inline]
+    fn node_entry(&self, node: NodeId) -> NodeEntry<'_> {
+        let id = node.dense_index();
+        let Some(page) = self.page(id >> PAGE_SHIFT) else {
+            return NodeEntry::Absent;
+        };
+        let slot = usize::from(page[id & (PAGE_IDS - 1)].wrapping_sub(1));
+        if slot < REGION_RECORDS {
+            let position = ((id >> REGION_SHIFT) << REGION_SHIFT) | slot;
+            return NodeEntry::Full(position, self.get_at_position(position));
+        }
+        if slot == usize::from(u16::MAX) {
+            return NodeEntry::Absent;
+        }
+        NodeEntry::Symbol(symbol_of_word(
+            *self.symbol_word(id >> REGION_SHIFT, slot - REGION_RECORDS),
+        ))
+    }
+
+    #[inline]
+    fn symbol_word(&self, region: usize, position: usize) -> &u32 {
+        &self.symbol_chunks[region * REGION_SYMBOL_CHUNKS + (position >> SYMBOL_CHUNK_SHIFT)]
+            .as_ref()
+            .expect("a symbol-only record has a chunk")[position & (SYMBOL_CHUNK_RECORDS - 1)]
+    }
+
+    #[inline]
+    fn symbol_word_mut(&mut self, region: usize, position: usize) -> &mut u32 {
+        &mut self.symbol_chunks[region * REGION_SYMBOL_CHUNKS + (position >> SYMBOL_CHUNK_SHIFT)]
+            .as_mut()
+            .expect("a symbol-only record has a chunk")[position & (SYMBOL_CHUNK_RECORDS - 1)]
+    }
+
+    /// The position of `node`'s full record: created, or made from its
+    /// symbol-only record (the symbol kept; the four bytes stay unused).
+    #[inline]
+    fn full_position(&mut self, node: NodeId) -> usize {
+        let id = node.dense_index();
+        let (page_index, offset, region) =
+            (id >> PAGE_SHIFT, id & (PAGE_IDS - 1), id >> REGION_SHIFT);
+        let entry = self.page_mut(page_index)[offset];
+        let slot = usize::from(entry.wrapping_sub(1));
+        if slot < REGION_RECORDS {
+            return (region << REGION_SHIFT) | slot;
+        }
+        let symbol = (entry != 0).then(|| self.take_symbol(region, slot - REGION_RECORDS));
+        let full = self.create_record(region);
+        self.page_mut(page_index)[offset] = full;
+        let position = (region << REGION_SHIFT) | usize::from(full - 1);
+        if let Some(symbol) = symbol {
+            self.get_mut_at_position(position).resolved_symbol = symbol;
+        }
+        position
+    }
+
+    /// A symbol-only record's symbol as it moves to the full pool.
+    #[cold]
+    #[inline(never)]
+    fn take_symbol(&mut self, region: usize, position: usize) -> ValueSlot<SymbolId> {
+        self.len -= 1;
+        symbol_of_word(*self.symbol_word(region, position))
+    }
+
+    #[inline]
+    fn full_slot(&mut self, node: NodeId) -> &mut NodeLinks {
+        let position = self.full_position(node);
+        self.get_mut_at_position(position)
+    }
+
+    /// Write `node`'s resolved symbol where its record lies: a new record
+    /// holds only the symbol (a full record once its region's symbol-only
+    /// records run out), a symbol-only record is rewritten, a full record's
+    /// field is set.
+    fn write_symbol(&mut self, node: NodeId, value: ValueSlot<SymbolId>) {
+        let id = node.dense_index();
+        let (page_index, offset, region) =
+            (id >> PAGE_SHIFT, id & (PAGE_IDS - 1), id >> REGION_SHIFT);
+        let entry = self.page_mut(page_index)[offset];
+        let slot = usize::from(entry.wrapping_sub(1));
+        if slot < REGION_RECORDS {
+            self.get_mut_at_position((region << REGION_SHIFT) | slot)
+                .resolved_symbol = value;
+        } else if entry != 0 {
+            *self.symbol_word_mut(region, slot - REGION_RECORDS) = symbol_word(value);
+        } else if let Some(position) = self.create_symbol(region, symbol_word(value)) {
+            self.page_mut(page_index)[offset] = (REGION_RECORDS + 1 + position) as u16;
+        } else {
+            self.full_slot(node).resolved_symbol = value;
+        }
+    }
+
+    fn create_symbol(&mut self, region: usize, word: u32) -> Option<usize> {
+        if self.symbol_lens.len() <= region {
+            self.symbol_lens.resize(region + 1, 0);
+            self.symbol_chunks
+                .resize_with((region + 1) * REGION_SYMBOL_CHUNKS, || None);
+        }
+        let position = usize::from(self.symbol_lens[region]);
+        if position == REGION_SYMBOL_RECORDS {
+            return None;
+        }
+        let chunk = region * REGION_SYMBOL_CHUNKS + (position >> SYMBOL_CHUNK_SHIFT);
+        self.symbol_chunks[chunk].get_or_insert_with(|| Box::new([0; SYMBOL_CHUNK_RECORDS]))
+            [position & (SYMBOL_CHUNK_RECORDS - 1)] = word;
+        self.symbol_lens[region] += 1;
+        self.len += 1;
+        Some(position)
     }
 }
 
@@ -2305,12 +2530,33 @@ pub struct LinksTables {
 type ConditionalInstantiationKey = (ConditionalRootId, bool, tsc_types::InstantiationKey);
 
 impl LinksTables {
-    /// Obtain a routing location while inspecting an existing node record.
-    /// Like `node`, this never creates a record or assigns an identity.
+    /// A node's resolved symbol and, for a full record, its location (a
+    /// symbol-only record can move, so it has none); None when the node has
+    /// no record. Like `node`, this never creates a record.
     #[inline]
-    pub(crate) fn node_with_location(&self, id: NodeId) -> Option<(NodeLinksLocation, &NodeLinks)> {
-        let (position, record) = self.node.get_with_position(id)?;
-        Some((NodeLinksLocation::from_position(position), record))
+    pub(crate) fn node_symbol_with_location(
+        &self,
+        id: NodeId,
+    ) -> Option<(Option<NodeLinksLocation>, ValueSlot<SymbolId>)> {
+        match self.node.node_entry(id) {
+            NodeEntry::Full(position, record) => Some((
+                Some(NodeLinksLocation::from_position(position)),
+                record.resolved_symbol,
+            )),
+            NodeEntry::Symbol(symbol) => Some((None, symbol)),
+            NodeEntry::Absent => None,
+        }
+    }
+
+    /// A node's resolved symbol where its record lies (the read counts
+    /// nothing; its caller counts a cached read).
+    #[inline]
+    pub(crate) fn node_resolved_symbol(&self, id: NodeId) -> Option<SymbolId> {
+        match self.node.node_entry(id) {
+            NodeEntry::Full(_, record) => record.resolved_symbol.resolved(),
+            NodeEntry::Symbol(symbol) => symbol.resolved(),
+            NodeEntry::Absent => None,
+        }
     }
 
     /// A location is checker-local, and its owner node is immutable for the
@@ -2331,9 +2577,13 @@ impl LinksTables {
     #[inline]
     pub(crate) fn read_node<R>(&self, id: NodeId, read: impl FnOnce(&NodeLinks) -> R) -> R {
         perf::bump(PerfCounter::LinksNodeReads);
-        match self.node.get(id) {
-            Some(links) => read(links),
-            None => {
+        match self.node.node_entry(id) {
+            NodeEntry::Full(_, links) => read(links),
+            NodeEntry::Symbol(resolved_symbol) => read(&NodeLinks {
+                resolved_symbol,
+                ..NodeLinks::default()
+            }),
+            NodeEntry::Absent => {
                 perf::bump(PerfCounter::LinksNodeReadAbsent);
                 read(&self.absent_node)
             }
@@ -2422,8 +2672,15 @@ impl LinksTables {
     /// links-field access; no standalone tsc function. The record by
     /// reference (the default record when none was written): readers copy
     /// the fields they need rather than the whole record and its cold box.
-    pub fn node(&self, id: NodeId) -> &NodeLinks {
-        self.node.get(id).unwrap_or(&self.absent_node)
+    pub fn node(&self, id: NodeId) -> NodeLinks {
+        match self.node.node_entry(id) {
+            NodeEntry::Full(_, links) => links.clone(),
+            NodeEntry::Symbol(resolved_symbol) => NodeLinks {
+                resolved_symbol,
+                ..NodeLinks::default()
+            },
+            NodeEntry::Absent => NodeLinks::default(),
+        }
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -2740,7 +2997,7 @@ impl LinksTables {
         id: NodeId,
         value: SymbolId,
     ) {
-        let links = self.node.slot(id);
+        let links = self.node.full_slot(id);
         note_resolving_transition(links.resolved_symbol.is_resolving(), false);
         links.resolved_symbol = LinkSlot::Resolved(value).into();
     }
@@ -2756,7 +3013,7 @@ impl LinksTables {
         id: NodeId,
         value: TypeId,
     ) {
-        let links = self.node.slot(id);
+        let links = self.node.full_slot(id);
         note_resolving_transition(links.resolved_type.is_resolving(), false);
         links.resolved_type = LinkSlot::Resolved(value).into();
     }
@@ -2870,7 +3127,7 @@ impl LinksTables {
         id: NodeId,
         value: LinkSlot<SignatureId>,
     ) {
-        Self::write_id_slot(&mut self.node.slot(id).resolved_signature, value);
+        Self::write_id_slot(&mut self.node.full_slot(id).resolved_signature, value);
     }
 
     /// getResolvedSignature's cache protocol (77491-77508) on CALL-LIKE
@@ -3000,7 +3257,7 @@ impl LinksTables {
                 .speculative_resolved_signature_writes
                 .pop()
                 .expect("length checked");
-            let slot = &mut self.node.slot(node).resolved_signature;
+            let slot = &mut self.node.full_slot(node).resolved_signature;
             if slot.is_resolving() {
                 note_resolving_transition(true, previous.is_resolving());
                 *slot = previous.into();
@@ -3040,7 +3297,7 @@ impl LinksTables {
         id: NodeId,
         bits: tsc_types::NodeCheckFlags,
     ) {
-        let links = self.node.slot(id);
+        let links = self.node.full_slot(id);
         links.check_flags =
             tsc_types::NodeCheckFlags::from_bits(links.check_flags.bits() | bits.bits());
     }
@@ -3087,7 +3344,7 @@ impl LinksTables {
         // during a candidate. This is the balancing half of that
         // protocol, not a cache publication.
         let _ = speculation_depth;
-        let links = self.node.slot(id);
+        let links = self.node.full_slot(id);
         links.check_flags =
             tsc_types::NodeCheckFlags::from_bits(links.check_flags.bits() & !bits.bits());
     }
@@ -4092,9 +4349,7 @@ impl LinksTables {
         id: NodeId,
         value: SymbolId,
     ) {
-        let slot = &mut self.node.slot(id).resolved_symbol;
-        note_resolving_transition(slot.is_resolving(), false);
-        *slot = LinkSlot::Resolved(value).into();
+        self.node.write_symbol(id, LinkSlot::Resolved(value).into());
     }
 
     /// Err-unwind twin for the late-bind protocol: a container
@@ -4105,9 +4360,7 @@ impl LinksTables {
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
     pub fn revert_node_resolved_symbol_late_bind(&mut self, id: NodeId) {
-        let slot = &mut self.node.slot(id).resolved_symbol;
-        note_resolving_transition(slot.is_resolving(), false);
-        *slot = LinkSlot::Vacant.into();
+        self.node.write_symbol(id, LinkSlot::Vacant.into());
     }
 
     /// Err-unwind twin for `links.lateSymbol`.

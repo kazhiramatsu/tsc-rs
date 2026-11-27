@@ -973,7 +973,7 @@ fn type_reference_probe_returns_a_completed_failed_resolution_without_reporting_
         &CompilerOptions::default(),
         |state| {
             let reference = annotation_of(state, "value");
-            assert!(state.links.node_with_location(reference).is_none());
+            assert!(state.links.node_symbol_with_location(reference).is_none());
             let first = state.get_type_from_type_reference(reference).unwrap();
             assert!(state
                 .diagnostics

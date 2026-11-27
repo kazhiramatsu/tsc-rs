@@ -1141,7 +1141,7 @@ fn synthetic_reference_matches_the_real_path_and_its_prefixes() {
         query.synthetic_props = None;
         let symbol = state.get_resolved_symbol(root).unwrap().unwrap();
         query.memo_key = state.flow_memo_key(&mut query);
-        assert!(query.identifier_location.is_some());
+        assert!(query.has_identifier_root());
         assert!(!state
             .contains_matching_query_reference(&query, root)
             .unwrap());
