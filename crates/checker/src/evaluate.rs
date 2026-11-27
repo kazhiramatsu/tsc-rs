@@ -101,16 +101,13 @@ impl<'a> CheckerState<'a> {
         ) {
             return Ok(None);
         }
-        if self
-            .links
-            .read_node(node, |links| links.resolved_symbol.resolved())
-            .is_none()
-        {
+        if self.links.node_symbol(node).resolved().is_none() {
             let _ = self.check_expression_cached(node, CheckMode::NORMAL)?;
         }
         let Some(symbol) = self
             .links
-            .read_node(node, |links| links.resolved_symbol.resolved())
+            .node_symbol(node)
+            .resolved()
             .filter(|symbol| *symbol != self.unknown_symbol)
         else {
             return Ok(None);

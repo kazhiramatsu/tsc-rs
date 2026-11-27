@@ -4799,7 +4799,8 @@ fn run_checker_shard<'a>(
         .filter(|&file| {
             state
                 .links
-                .read_node(state.binder.source(file).root, |links| links.check_flags)
+                .node_fields(state.binder.source(file).root)
+                .check_flags()
                 .intersects(tsc_types::NodeCheckFlags::TYPE_CHECKED)
         })
         .collect();

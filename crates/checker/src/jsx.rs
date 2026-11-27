@@ -1184,10 +1184,7 @@ impl<'a> CheckerState<'a> {
     /// (a filtered `__index` copy vs the container symbol) is
     /// services-only — T0 reads jsxFlags and the error rows.
     pub(crate) fn get_intrinsic_tag_symbol(&mut self, node: NodeId) -> CheckResult<SymbolId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_symbol.resolved())
-        {
+        if let Some(cached) = self.links.node_symbol(node).resolved() {
             return Ok(cached);
         }
         let tag_name = match self.data_of(node) {

@@ -835,7 +835,8 @@ impl<'a> CheckerState<'a> {
     fn check_regular_expression_literal(&mut self, node: NodeId) -> CheckResult<TypeId> {
         if !self
             .links
-            .read_node(node, |links| links.check_flags)
+            .node_fields(node)
+            .check_flags()
             .intersects(NodeCheckFlags::TYPE_CHECKED)
         {
             self.links.or_node_check_flags(
@@ -2993,9 +2994,7 @@ impl<'a> CheckerState<'a> {
                 );
             }
         }
-        let resolved = self
-            .links
-            .read_node(expr, |links| links.resolved_symbol.resolved());
+        let resolved = self.links.node_symbol(expr).resolved();
         if let Some(resolved) = resolved {
             let symbol = self.get_export_symbol_of_value_symbol_if_exported(resolved);
             if self.is_readonly_symbol(symbol)? {
@@ -3146,7 +3145,7 @@ impl<'a> CheckerState<'a> {
         if !check_mode.is_empty() {
             return self.check_expression(node, check_mode);
         }
-        if let Some(cached) = cursor.read(&self.links, |links| links.resolved_type.resolved()) {
+        if let Some(cached) = cursor.fields(&self.links).resolved_type().resolved() {
             return Ok(cached);
         }
         let save_flow_loop_start = self.flow_loop_start;
@@ -3157,7 +3156,9 @@ impl<'a> CheckerState<'a> {
         self.flow_loop_start = save_flow_loop_start;
         let ty = result?;
         if cursor
-            .read(&self.links, |links| links.resolved_type.resolved())
+            .fields(&self.links)
+            .resolved_type()
+            .resolved()
             .is_none()
         {
             cursor.set_type(&mut self.links, crate::links::LinkSlot::Resolved(ty));

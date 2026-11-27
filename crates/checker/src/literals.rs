@@ -434,10 +434,7 @@ impl<'a> CheckerState<'a> {
         let Some(expression) = expression else {
             return Ok(self.tables.intrinsics.error);
         };
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(cached);
         }
         // tsgo (checker.go:27273-27275) keeps the result on the computed

@@ -741,10 +741,7 @@ impl CheckerState<'_> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<SignatureId> {
-        match self
-            .links
-            .read_node(node, |links| links.resolved_signature.get())
-        {
+        match self.links.node_fields(node).resolved_signature().get() {
             crate::links::LinkSlot::Resolved(signature) => return Ok(signature),
             crate::links::LinkSlot::Resolving => return Ok(self.resolving_signature),
             crate::links::LinkSlot::Vacant => {}
@@ -1141,9 +1138,7 @@ impl CheckerState<'_> {
                     } else {
                         self.get_type_of_expression(location)?
                     };
-                    let resolved = self
-                        .links
-                        .read_node(location, |links| links.resolved_symbol.resolved());
+                    let resolved = self.links.node_symbol(location).resolved();
                     if resolved.map(|resolved| {
                         self.get_export_symbol_of_value_symbol_if_exported(resolved)
                     }) == Some(symbol)
@@ -1193,11 +1188,7 @@ impl CheckerState<'_> {
         if self.kind_of(node) == SyntaxKind::EnumMember {
             return self.enum_member_constant_value(node);
         }
-        let resolved = |state: &Self| {
-            state
-                .links
-                .read_node(node, |links| links.resolved_symbol.resolved())
-        };
+        let resolved = |state: &Self| state.links.node_symbol(node).resolved();
         if resolved(self).is_none() {
             // Ensure the cached resolved symbol is set.
             self.check_expression_cached(node, CheckMode::NORMAL)?;

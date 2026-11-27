@@ -1056,7 +1056,9 @@ impl<'a> CheckerState<'a> {
             // node hosts the instantiations map.
             match self
                 .links
-                .read_node(declaration, |links| links.resolved_type.resolved())
+                .node_fields(declaration)
+                .resolved_type()
+                .resolved()
             {
                 Some(target) => target,
                 None => {
@@ -1069,7 +1071,9 @@ impl<'a> CheckerState<'a> {
                     // unwinds, so its cache is always present here.
                     let resolved = self.get_type_from_type_node(declaration)?;
                     self.links
-                        .read_node(declaration, |links| links.resolved_type.resolved())
+                        .node_fields(declaration)
+                        .resolved_type()
+                        .resolved()
                         .unwrap_or(resolved)
                 }
             }

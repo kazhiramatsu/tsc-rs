@@ -986,10 +986,7 @@ impl<'a> CheckerState<'a> {
                     crate::modules::EMIT_HELPER_CLASS_PRIVATE_FIELD_IN,
                 )?;
             }
-            let unresolved = self
-                .links
-                .read_node(left, |links| links.resolved_symbol.resolved())
-                .is_none();
+            let unresolved = self.links.node_symbol(left).resolved().is_none();
             if unresolved && self.get_containing_class_of(left).is_some() {
                 // isUncheckedJSSuggestion is false in TS files.
                 self.report_nonexistent_property(left, right_type, false)?;
@@ -1360,9 +1357,7 @@ impl<'a> CheckerState<'a> {
             tsc_binder::get_assignment_declaration_kind(&tsc_syntax::Published, assignment)
                 == tsc_binder::AssignmentDeclarationKind::ExportsProperty
         }) {
-            let resolved = self
-                .links
-                .read_node(left, |links| links.resolved_symbol.resolved());
+            let resolved = self.links.node_symbol(left).resolved();
             if resolved.is_some_and(|symbol| self.binder.symbol(symbol).declarations().len() > 1)
                 && self
                     .tables
@@ -4036,9 +4031,7 @@ impl<'a> CheckerState<'a> {
             let receiver = data
                 .expression
                 .expect("parser invariant: PropertyAccess expression always parsed");
-            let receiver_symbol = self
-                .links
-                .read_node(receiver, |links| links.resolved_symbol.resolved());
+            let receiver_symbol = self.links.node_symbol(receiver).resolved();
             let receiver_is_enum = receiver_symbol.is_some_and(|symbol| {
                 symbol != self.unknown_symbol
                     && self
@@ -4361,10 +4354,7 @@ impl<'a> CheckerState<'a> {
                 )
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::QualifiedName => {
-                if let Some(cached) = self
-                    .links
-                    .read_node(name, |links| links.resolved_symbol.resolved())
-                {
+                if let Some(cached) = self.links.node_symbol(name).resolved() {
                     return Ok((cached != self.unknown_symbol).then_some(cached));
                 }
                 if self.kind_of(name) == SyntaxKind::PropertyAccessExpression {
@@ -4372,9 +4362,7 @@ impl<'a> CheckerState<'a> {
                 } else {
                     self.check_expression(name, CheckMode::NORMAL)?;
                 }
-                let resolved = self
-                    .links
-                    .read_node(name, |links| links.resolved_symbol.resolved());
+                let resolved = self.links.node_symbol(name).resolved();
                 Ok(resolved.filter(|&s| s != self.unknown_symbol))
             }
             SyntaxKind::ThisKeyword => {

@@ -2562,7 +2562,7 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
         // with only the latter cached by an earlier checker path; recover
         // the same decision from that resolved type rather than rejecting
         // an otherwise reusable annotation.
-        let symbol = self.checker.links.node(existing).resolved_symbol.resolved();
+        let symbol = self.checker.links.node_resolved_symbol(existing);
         let type_is_type_parameter = self
             .checker
             .tables

@@ -44,7 +44,7 @@ use tsc_types::{
 };
 
 use crate::flow_memo::{memo_shared_node, MemoKey, FLOW_DEPTH_LIMIT};
-use crate::links::{IdentifierRoot, NodeLinksLocation};
+use crate::links::IdentifierRoot;
 use crate::state::{CheckResult, CheckerState};
 
 /// tsc FlowType = Type | IncompleteType (checker-key §4.1). The
@@ -142,16 +142,6 @@ impl FlowQuery<'_> {
     pub(crate) fn has_identifier_root(&self) -> bool {
         self.identifier_root.is_some()
     }
-}
-
-/// How the identifier matcher reads a query reference's symbol: through its
-/// full record's location, through its symbol-only record's word, or by its
-/// node (a place that did not fit the root).
-#[derive(Clone, Copy)]
-enum IdentifierRead {
-    At(NodeLinksLocation),
-    Word(u32),
-    ByNode,
 }
 
 // The source shape and record location use the ordinary query's padding.
@@ -3461,28 +3451,26 @@ impl<'a> CheckerState<'a> {
         query: &FlowQuery,
         target: NodeId,
     ) -> CheckResult<bool> {
-        let identifier = match query.identifier_root.location() {
-            Some(location) => Some(IdentifierRead::At(location)),
-            None => match query.identifier_root.symbol_word() {
-                Some(word) => Some(IdentifierRead::Word(word)),
-                None => query
-                    .identifier_root
-                    .is_some()
-                    .then_some(IdentifierRead::ByNode),
-            },
-        };
-        match (query.synthetic_props.as_deref(), identifier) {
-            (None, Some(read)) => match self.kind_of(target) {
+        // The root is decoded only where an identifier's symbol is read
+        // ([`LinksTables::identifier_root_symbol`]).
+        match (
+            query.synthetic_props.as_deref(),
+            query.identifier_root.is_some(),
+        ) {
+            (None, true) => match self.kind_of(target) {
                 SyntaxKind::ParenthesizedExpression
                 | SyntaxKind::NonNullExpression
                 | SyntaxKind::BinaryExpression => {
                     self.is_matching_reference(query.reference, target)
                 }
-                kind => {
-                    self.is_matching_identifier_reference(query.reference, target, kind, Some(read))
-                }
+                kind => self.is_matching_identifier_reference(
+                    query.reference,
+                    target,
+                    kind,
+                    Some(query.identifier_root),
+                ),
             },
-            (None, None) => self.is_matching_reference(query.reference, target),
+            (None, false) => self.is_matching_reference(query.reference, target),
             (Some(props), _) => self.is_matching_synthetic_chain(
                 query.reference,
                 props,
@@ -3934,17 +3922,9 @@ impl<'a> CheckerState<'a> {
     fn get_matching_identifier_symbol(
         &mut self,
         source: NodeId,
-        location: Option<IdentifierRead>,
+        location: Option<IdentifierRoot>,
     ) -> CheckResult<Option<SymbolId>> {
-        let cached = location.and_then(|read| match read {
-            IdentifierRead::At(location) => self
-                .links
-                .located_node(source, location)
-                .resolved_symbol
-                .resolved(),
-            IdentifierRead::Word(word) => self.links.node_symbol_at_word(source, word),
-            IdentifierRead::ByNode => self.links.node_resolved_symbol(source),
-        });
+        let cached = location.and_then(|root| self.links.identifier_root_symbol(source, root));
         if let Some(cached) = cached {
             // This is the cached branch of get_resolved_symbol. A vacant
             // field falls through to that getter, which counts its own read.
@@ -3962,7 +3942,7 @@ impl<'a> CheckerState<'a> {
         source: NodeId,
         target: NodeId,
         target_kind: SyntaxKind,
-        location: Option<IdentifierRead>,
+        location: Option<IdentifierRoot>,
     ) -> CheckResult<bool> {
         match target_kind {
             SyntaxKind::Identifier => {
@@ -4486,7 +4466,8 @@ impl<'a> CheckerState<'a> {
         };
         if !self
             .links
-            .read_node(parent, |links| links.check_flags)
+            .node_fields(parent)
+            .check_flags()
             .intersects(NodeCheckFlags::ASSIGNMENTS_MARKED)
         {
             self.links.or_node_check_flags(
@@ -4598,7 +4579,8 @@ impl<'a> CheckerState<'a> {
             if state.is_function_or_source_file(n)
                 && state
                     .links
-                    .read_node(n, |links| links.check_flags)
+                    .node_fields(n)
+                    .check_flags()
                     .intersects(NodeCheckFlags::ASSIGNMENTS_MARKED)
             {
                 crate::expr::Ancestor::Yes
@@ -5062,7 +5044,8 @@ impl<'a> CheckerState<'a> {
         }
         if self
             .links
-            .read_node(parent, |links| links.check_flags)
+            .node_fields(parent)
+            .check_flags()
             .intersects(NodeCheckFlags::IN_CHECK_IDENTIFIER)
         {
             return Ok(None);

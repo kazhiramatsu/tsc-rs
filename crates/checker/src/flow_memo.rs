@@ -837,7 +837,7 @@ impl CheckerState<'_> {
     fn write_flow_memo_reference(&self, node: NodeId, bytes: &mut Vec<u8>) -> Option<()> {
         match_record! { self.record_of(node), {
             as_identifier(_) => {
-                let symbol = self.links.node(node).resolved_symbol.resolved()?;
+                let symbol = self.links.node_resolved_symbol(node)?;
                 if symbol == self.unknown_symbol || self.is_this_in_type_query(node) {
                     return None;
                 }

@@ -880,7 +880,8 @@ impl CheckerState<'_> {
     ) -> CheckResult<Option<NodeId>> {
         let symbol = self
             .links
-            .read_node(node, |links| links.resolved_symbol.resolved())
+            .node_symbol(node)
+            .resolved()
             .or_else(|| self.get_symbol_of_declaration_opt(node));
         let Some(symbol) = symbol else {
             return Ok(None);

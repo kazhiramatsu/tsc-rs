@@ -3542,10 +3542,7 @@ impl<'a> CheckerState<'a> {
         let mut factory_text = factory_namespace.as_js().to_owned();
         factory_text.push_str(".createElement");
         let mut related: Vec<RelatedInfo> = Vec::new();
-        if let Some(tag_symbol) = self
-            .links
-            .read_node(tag_name, |links| links.resolved_symbol.resolved())
-        {
+        if let Some(tag_symbol) = self.links.node_symbol(tag_name).resolved() {
             if let Some(declaration) = self.binder.symbol(tag_symbol).value_declaration {
                 related.push(self.related_info_for_node(
                     declaration,
@@ -5702,9 +5699,7 @@ impl<'a> CheckerState<'a> {
                 .map(|data| self.nodes_of(data.arguments).len())
         });
         if parent_call_args == Some(0) {
-            if let LinkSlot::Resolved(resolved_symbol) = self
-                .links
-                .read_node(error_target, |links| links.resolved_symbol.get())
+            if let LinkSlot::Resolved(resolved_symbol) = self.links.node_symbol(error_target).get()
             {
                 if self
                     .binder
@@ -6947,7 +6942,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<SignatureId> {
         let mut cursor = crate::links::NodeLinksCursor::new(node);
         self.profile_ops[crate::line_profile::OP_SIGNATURES] += 1;
-        let cached = cursor.read(&self.links, |links| links.resolved_signature.get());
+        let cached = cursor.fields(&self.links).resolved_signature().get();
         if let (LinkSlot::Resolved(cached), None) = (&cached, &candidates_out) {
             return Ok(*cached);
         }
@@ -6990,8 +6985,7 @@ impl<'a> CheckerState<'a> {
                 // possible that this inner resolution sets the
                 // resolvedSignature first. In such a case we ignore the
                 // local result and reuse the correct one that was cached."
-                let result = match cursor.read(&self.links, |links| links.resolved_signature.get())
-                {
+                let result = match cursor.fields(&self.links).resolved_signature().get() {
                     LinkSlot::Resolved(cached) => cached,
                     _ => result,
                 };
@@ -7026,7 +7020,7 @@ impl<'a> CheckerState<'a> {
                     // revert instead and feeds contextual reads, so it
                     // never reaches here as Vacant).
                     if matches!(
-                        cursor.read(&self.links, |links| links.resolved_signature.get()),
+                        cursor.fields(&self.links).resolved_signature().get(),
                         LinkSlot::Vacant
                     ) {
                         self.contained_call_resolutions.insert(node);

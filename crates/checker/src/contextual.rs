@@ -1014,7 +1014,9 @@ impl<'a> CheckerState<'a> {
         }
         let signature = if self
             .links
-            .read_node(call_target, |links| links.resolved_signature.is_resolving())
+            .node_fields(call_target)
+            .resolved_signature()
+            .is_resolving()
         {
             self.flow_memo.taint(0);
             self.resolving_signature

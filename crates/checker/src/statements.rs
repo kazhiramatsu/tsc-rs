@@ -1528,7 +1528,8 @@ impl<'a> CheckerState<'a> {
         };
         if self
             .links
-            .read_node(enclosing, |links| links.check_flags)
+            .node_fields(enclosing)
+            .check_flags()
             .intersects(tsc_types::NodeCheckFlags::CONTAINS_CLASS_WITH_PRIVATE_IDENTIFIERS)
         {
             let Some(name) = self.name_of_node(node) else {
@@ -1576,12 +1577,9 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_reflect_collision(&mut self, node: NodeId) {
         let mut has_collision = false;
         let contains_super = |state: &Self, candidate: NodeId| {
-            state
-                .links
-                .read_node(candidate, |links| links.check_flags)
-                .intersects(
-                    tsc_types::NodeCheckFlags::CONTAINS_SUPER_PROPERTY_IN_STATIC_INITIALIZER,
-                )
+            state.links.node_fields(candidate).check_flags().intersects(
+                tsc_types::NodeCheckFlags::CONTAINS_SUPER_PROPERTY_IN_STATIC_INITIALIZER,
+            )
         };
         match self.kind_of(node) {
             SyntaxKind::ClassExpression => {
