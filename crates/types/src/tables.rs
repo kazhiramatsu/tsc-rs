@@ -344,6 +344,10 @@ impl InstantiationFront {
 struct InstantiationCache {
     plain: hashbrown::HashTable<PlainInstantiation>,
     full: HashMap<(TypeId, InstantiationKey), TypeId>,
+    /// Whether `full` has held a key of the plain shape (an entry written
+    /// before its argument list had a hash). Until it has, a plain key that
+    /// misses `plain` is in neither map, and its write moves nothing.
+    full_holds_plain: bool,
     front: InstantiationFront,
     /// One bit a type: the map has been seeded for it as a target (see
     /// [`TypeTables::instantiation_seed`]).
@@ -411,20 +415,29 @@ impl InstantiationCache {
     }
 
     fn get(&self, target: TypeId, key: InstantiationKey, hash: Option<u64>) -> Option<TypeId> {
-        if let (Some(packed), Some(hash)) = (Self::packed_key(target, key), hash) {
+        let packed = Self::packed_key(target, key);
+        if let (Some(packed), Some(hash)) = (packed, hash) {
             if let Some(entry) = self.plain.find(hash, |entry| entry.key == packed) {
                 debug_assert_eq!(spread_instantiation_hash(entry.hash), hash);
                 return Some(entry.value);
             }
         }
+        if packed.is_some() && !self.full_holds_plain {
+            return None;
+        }
         self.full.get(&(target, key)).copied()
     }
 
     fn insert(&mut self, target: TypeId, key: InstantiationKey, value: TypeId, hash: Option<u64>) {
-        let previous = if let (Some(packed), Some(hash)) = (Self::packed_key(target, key), hash) {
+        let packed = Self::packed_key(target, key);
+        let previous = if let (Some(packed), Some(hash)) = (packed, hash) {
             // An ID-only entry can predate its argument list. Move it to
             // the slice-searchable table once the actual list exists.
-            let opaque = self.full.remove(&(target, key));
+            let opaque = if self.full_holds_plain {
+                self.full.remove(&(target, key))
+            } else {
+                None
+            };
             match self.plain.entry(
                 hash,
                 |entry| entry.key == packed,
@@ -444,6 +457,7 @@ impl InstantiationCache {
                 }
             }
         } else {
+            self.full_holds_plain |= packed.is_some();
             self.full.insert((target, key), value)
         };
         // The front repeats this map's answers; one of them has changed.
@@ -2369,15 +2383,17 @@ impl TypeTables {
             single_signature,
             ..InstantiationKey::plain(self.intern_type_list_with_hash(arguments, list_hash))
         };
-        self.instantiations
-            .full
-            .get(&(target, key))
-            .copied()
-            .ok_or(InstantiationMiss {
-                target,
-                key,
-                plain_hash: Some(hash as u32),
-            })
+        // A plain key is in `full` only when an entry predates its hash.
+        let opaque = if self.instantiations.full_holds_plain {
+            self.instantiations.full.get(&(target, key)).copied()
+        } else {
+            None
+        };
+        opaque.ok_or(InstantiationMiss {
+            target,
+            key,
+            plain_hash: Some(hash as u32),
+        })
     }
 
     /// The per-target instantiations map (`type.instantiations`) —

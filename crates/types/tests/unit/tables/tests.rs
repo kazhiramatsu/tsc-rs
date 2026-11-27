@@ -2002,3 +2002,27 @@ fn one_sorted_named_union_can_reuse_members_without_a_set() {
         assert_eq!(t.len(), count + 1);
     }
 }
+
+/// Until an entry of the plain shape is written without its hash, `full`
+/// holds no plain key: a plain miss is answered without it, and once such an
+/// entry exists it is found (with or without a hash) and moved by its
+/// hashed write.
+#[test]
+fn a_plain_key_written_before_its_hash_is_found_and_moved() {
+    let mut t = tables();
+    let target = t.intrinsics.any;
+    let args: [TypeId; 2] = std::array::from_fn(|_| t.create_type_parameter(false, None));
+    let key = InstantiationKey::plain(t.intern_type_list(&args));
+    // A table hash as the cache makes them (its 32 bits spread).
+    let hash = spread_instantiation_hash(9);
+    let mut cache = InstantiationCache::default();
+    assert!(!cache.full_holds_plain);
+    assert_eq!(cache.get(target, key, Some(hash)), None);
+    cache.insert(target, key, args[0], None);
+    assert!(cache.full_holds_plain);
+    assert_eq!(cache.get(target, key, Some(hash)), Some(args[0]));
+    assert_eq!(cache.get(target, key, None), Some(args[0]));
+    cache.insert(target, key, args[1], Some(hash));
+    assert!(cache.full.is_empty());
+    assert_eq!(cache.get(target, key, Some(hash)), Some(args[1]));
+}
