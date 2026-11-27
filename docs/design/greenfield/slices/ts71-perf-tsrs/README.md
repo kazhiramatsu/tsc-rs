@@ -2354,6 +2354,20 @@ VS Code の 1 thread では、行を積むごとに下がる：行 1〜4 で −
 
 **P3 の次の作り直しの訂正。** 結果 72 の末尾の「record を写して返す node の accessor」は取り下げる：その accessor の呼び出し元は 3 か所しかなく、P3 の追加命令（VS Code +1.24 %）の持ち主になりえない。次は推測で作り直さず、1 thread の cycle 記録で P3b と base を関数ごとに比べる。
 
+**結果 74（2026-11-27 夜：P3c が枠 s36 を通る → train 71；helper の review と自分の account の訂正；P3d と crew の class の実験）**
+
+**P3 の cycle の持ち主（枠 p3pair、18:21–18:27）。** 新しい道具 `tools/cyc-pair.sh`（我々の binary を順に 1 thread で "CPU Profiler" 記録）と `tools/cyc-pair-diff.py`（関数の完全な名前で self と inclusive の差、run ごとの幅）で base・P3b・control（base の code の別 binary）を VS Code と next で 4 回ずつ。VS Code で P3b +250 M cycles：**out-of-line の `PagedTable::node_entry` +252.5 M**（3 word の結果が毎回 memory を通る；約 3,000 万回の読み）、書き込みの道 +37 M（正味）、flow の照合器 +50 M（正味）；control と base の間で関数が確かに動いたものはない（`SymbolMap::find` の一つを除く）。
+
+**P3c（`17aee78de`、binary `n-p3i`；名前 `n-p3c` は 15:28 の census binary が使っていて、build job が上書きを拒み chain は自分の grep で止まった）。** `node_entry` を常に inline、読み手ごとに closure を 1 回、full record の新規作成は out of line、symbol の書き込みは inline。checks 2,248 件、出力は 8 project の全 mode で main と同じ、counter 3 / 3 同じ。ledger（1 thread、最小値の命令数）：VS Code P3b +1.22 % → **P3c +0.61 %**、next +0.98 → +0.70、zod +0.41 → +0.30。**枠 s36（18:48–19:02）**：1 thread の VS Code +0.20 %［control −0.64］inside、peak −36.8 MiB；zod +0.15 % out だが control 自身の out（+0.30）より下；next +0.23 % inside。preset の VS Code +0.79 %［+0.79］inside、peak −30.8 MiB。既定は GOES ON（zod −0.61 % counts、VS Code −0.48 % inside、peak −28.3 MiB）。前もって書いた規則（どの mode でも control より base pair の距離を越えて遅い cell がなく、VS Code の peak が preset か既定で 10 MiB 以上低い）で **通る → train 71**（P3・P3b・P3c の 3 commit を main `6aa67e1cb` に；測った cell と変更行は同じ、links の test の末尾だけ #1048 の test と両方残す）。series の binary `n-p3s` も出力 8 / 8・counter 3 / 3 同じ。
+
+**helper（Gemini）の review（`GEMINI-REVIEW-1127.md`）と自分の account の訂正。** review の §2.1 を code で確かめた：hand-off は bind crew を待たない。`finish_source_binding()` は crew を止め、crew が始めていない slot は checker session の bind が全 worker で bind する（`crates/compiler/src/lib.rs:4776` の comment）。**結果 72 の「VS Code の stretch は chain と crew の二つの縛りの最大」「既定設定は下限にある（296 対 294 ms）」は機構を誤って書いたもので、取り下げる。** 午後の census（`wc1`、枠 s34、8 回の中央値）に hand-off の mark を足して読み直すと、VS Code の crew の余白（hand-off − crew の終わり）は preset 0.15 ms・既定 0.80 ms、R は 69.8 / 68.9 ms、残りの late bind は 1.8 / 0.6 ms：**crew と chain は今ほぼ同時に終わる**。したがって chain を削ると、その分の bind が crew（実効幅 約 4.3）から全 pool（約 7.5）へ移り、最初の 1 ms から正味約 0.4 倍で効く；crew を速くすれば余白が開き、その中では F9 の削減がそのまま効く。結果 72 の F5 + F7（chain −1.86 ms、「crew が吸収」）はこの誤った模型で読んだので読み直す（owner：ノイズ内なら深追いしない）。F1 の判定は read-ahead で直接測ったので変わらない。
+
+**owner の判断（19:1x）。** P3c の着地と P3d（symbol の field を持たない view 型）をその方針で；crew の一部の thread を上の class にする計測を F9 class A の前に（R の余白を見るため）；F5 + F7 の再測定はノイズ内なら深追いしない；**binding の構造変更は引き続き保留**。
+
+**P3d（`perf/node-links-symbol-pool-d` `72879d195`、series の上）。** review §1.1–1.4 を採り、§1.1 は型で守る：symbol を読まない読み手（51 か所）は symbol の field を持たない view `NodeFields` を通り、generic な表の 1 比較の読みで symbol-only の record を absent と同じに読む（symbol の chunk に触れない）；symbol の読み手（40 か所）は symbol-only を最初に調べる読み手から slot を取る；flow の照合器は 4 byte の root をそのまま渡し、symbol を読む所でだけ word から先に decode する；symbol pool の directory と chunk の作成は out of line。91 か所は括弧の対応で読む書き換えで変えた（形が違うものは 0）。checks・identity・ledger の chain が train 71 の後に並ぶ。
+
+**crew の class の実験（census binary `n-qos1`、`census/crew-classes-1127` `faefc76d2`、着地しない）。** crew の最初の `TSRS_X_CREW_FAST` 本を `TSRS_X_CREW_CLASS`（interactive か user-initiated）で始める switch と、crew の started / unstarted の数を light の trace に。11-19 の R12（crew 全体を utility に：VS Code の front end 313 → 302 ms）と、crew 全体を user-initiated / default にすると compile thread が performance core を保てなかった記録（cli の comment）があり、分けた形は未測定。枠 s37 の読み方（実行前に書いた）：一つの binary の中で switch なし（2 回）と比べ、検査開始が VS Code の両 mode で u0 / again の距離を越えて下がり、next の preset で上がらない場合だけ product の行へ；それ以外は開く余白を F9 のために記録する。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
