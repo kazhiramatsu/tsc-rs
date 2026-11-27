@@ -493,6 +493,52 @@ fn tuple_targets_intern_by_flags_and_readonly() {
     assert!(data.has_rest_element);
 }
 
+/// A tuple target is shared by its elements' kinds (the first that applies),
+/// its readonly bit and its labels when one is set, as the string key keyed
+/// it.
+#[test]
+fn tuple_targets_share_by_kind_readonly_and_labels() {
+    let mut t = tables();
+    let required = [ElementFlags::REQUIRED, ElementFlags::OPTIONAL];
+    let a = t.get_tuple_target_type(None, TupleTargetFlags::new(&required).unwrap(), false, None);
+    let mixed = [
+        ElementFlags::REQUIRED | ElementFlags::OPTIONAL,
+        ElementFlags::OPTIONAL,
+    ];
+    assert_eq!(
+        t.get_tuple_target_type(None, TupleTargetFlags::new(&mixed).unwrap(), false, None),
+        a
+    );
+    let three = [
+        ElementFlags::REQUIRED,
+        ElementFlags::OPTIONAL,
+        ElementFlags::OPTIONAL,
+    ];
+    assert_ne!(
+        t.get_tuple_target_type(None, TupleTargetFlags::new(&three).unwrap(), false, None),
+        a
+    );
+    let flags = TupleTargetFlags::new(&required).unwrap();
+    assert_eq!(
+        t.get_tuple_target_type(None, flags, false, Some(&[None, None])),
+        a
+    );
+    let labeled = t.get_tuple_target_type(None, flags, false, Some(&[Some(5), None]));
+    assert_ne!(labeled, a);
+    assert_eq!(
+        t.get_tuple_target_type(None, flags, false, Some(&[Some(5), None])),
+        labeled
+    );
+    assert_ne!(
+        t.get_tuple_target_type(None, flags, false, Some(&[Some(6), None])),
+        labeled
+    );
+    assert_ne!(
+        t.get_tuple_target_type(None, flags, true, Some(&[Some(5), None])),
+        labeled
+    );
+}
+
 #[test]
 fn tuple_length_types_exist_before_member_queries() {
     for (flags, lengths) in [

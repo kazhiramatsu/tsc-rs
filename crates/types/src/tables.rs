@@ -337,6 +337,47 @@ impl InstantiationFront {
     }
 }
 
+/// A tuple target's key (tsc getTupleTargetType's string key, as values):
+/// each element's kind - `#` required, `?` optional, `.` rest, `*`
+/// variadic, the first that applies -, the readonly bit, and the labeled
+/// members' declaration ids when any element has one.
+struct TupleTargetKey {
+    kinds: Box<[u8]>,
+    readonly: bool,
+    named: Option<Box<[Option<u32>]>>,
+    target: TypeId,
+}
+
+#[inline]
+fn tuple_element_kind(flags: ElementFlags) -> u8 {
+    if flags.intersects(ElementFlags::REQUIRED) {
+        b'#'
+    } else if flags.intersects(ElementFlags::OPTIONAL) {
+        b'?'
+    } else if flags.intersects(ElementFlags::REST) {
+        b'.'
+    } else {
+        b'*'
+    }
+}
+
+/// The hash of a tuple target key, alike for a stored key and for the
+/// element flags a lookup has.
+fn tuple_target_hash(
+    len: usize,
+    kinds: impl Iterator<Item = u8>,
+    readonly: bool,
+    named: Option<&[Option<u32>]>,
+) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = rustc_hash::FxHasher::default();
+    len.hash(&mut hasher);
+    kinds.for_each(|kind| hasher.write_u8(kind));
+    readonly.hash(&mut hasher);
+    named.hash(&mut hasher);
+    hasher.finish()
+}
+
 /// The same instantiation map split by key shape. The common alias-free
 /// key uses all 32 list-id bits, 31 target-id bits and the signature bit.
 /// Large target ids and every other shape retain the complete key.
@@ -554,7 +595,8 @@ pub struct TypeTables {
     /// intersectionTypes (46991).
     intersection_types: HashMap<IntersectionKey, TypeId>,
     /// tupleTypes (46988), keyed per getTupleTargetType 61149.
-    tuple_types: HashMap<String, TypeId>,
+    /// The tuple targets by their key ([`TupleTargetKey`]).
+    tuple_types: hashbrown::HashTable<TupleTargetKey>,
     /// templateLiteralTypes (46997), keyed per getTemplateLiteralType 62083.
     template_literal_types: hashbrown::HashTable<(TemplateLiteralId, TypeId)>,
     /// stringMappingTypes (46998), keyed `${symbolId},${typeId}`
@@ -994,8 +1036,19 @@ impl TypeTables {
             * (std::mem::size_of::<TypeListId>() + 1)
             + self.list_items.capacity() * std::mem::size_of::<TypeId>();
         usage.string_keyed_entries += self.tuple_types.len() + self.template_literal_types.len();
-        usage.string_keyed_bytes += map_bytes(&self.tuple_types)
-            + self.tuple_types.keys().map(String::capacity).sum::<usize>()
+        usage.string_keyed_bytes += self.tuple_types.capacity()
+            * (std::mem::size_of::<TupleTargetKey>() + 1)
+            + self
+                .tuple_types
+                .iter()
+                .map(|key| {
+                    key.kinds.len()
+                        + key
+                            .named
+                            .as_ref()
+                            .map_or(0, |named| named.len() * std::mem::size_of::<Option<u32>>())
+                })
+                .sum::<usize>()
             + self.template_literal_types.capacity()
                 * (std::mem::size_of::<(TemplateLiteralId, TypeId)>() + 1);
         usage.other_map_bytes += self.plain_unions.allocation_size()
@@ -1103,7 +1156,7 @@ impl TypeTables {
             plain_unions: hashbrown::HashTable::new(),
             union_of_union_types: HashMap::default(),
             intersection_types: HashMap::default(),
-            tuple_types: HashMap::default(),
+            tuple_types: hashbrown::HashTable::default(),
             template_literal_types: hashbrown::HashTable::new(),
             string_mapping_types: HashMap::default(),
             literal_string_mappings: HashMap::default(),
@@ -4155,45 +4208,34 @@ impl TypeTables {
         named_member_declarations: Option<&[Option<u32>]>,
     ) -> TypeId {
         let element_flags = element_flags.as_slice();
-        let mut key = element_flags
-            .iter()
-            .map(|&flags| {
-                if flags.intersects(ElementFlags::REQUIRED) {
-                    "#"
-                } else if flags.intersects(ElementFlags::OPTIONAL) {
-                    "?"
-                } else if flags.intersects(ElementFlags::REST) {
-                    "."
-                } else {
-                    "*"
-                }
-            })
-            .collect::<Vec<_>>()
-            .join(",");
-        if readonly {
-            key.push('R');
-        }
         // The labeled-member key segment (getNodeId-keyed, 61149).
         let named = named_member_declarations
             .filter(|declarations| declarations.iter().any(Option::is_some));
-        if let Some(declarations) = named {
-            key.push(',');
-            key.push_str(
-                &declarations
-                    .iter()
-                    .map(|declaration| match declaration {
-                        Some(id) => id.to_string(),
-                        None => "_".to_owned(),
-                    })
-                    .collect::<Vec<_>>()
-                    .join(","),
-            );
-        }
-        if let Some(&id) = self.tuple_types.get(&key) {
-            return id;
+        let kinds = || element_flags.iter().map(|&flags| tuple_element_kind(flags));
+        let hash = tuple_target_hash(element_flags.len(), kinds(), readonly, named);
+        if let Some(key) = self.tuple_types.find(hash, |key| {
+            key.readonly == readonly
+                && key.kinds.len() == element_flags.len()
+                && key.kinds.iter().copied().eq(kinds())
+                && key.named.as_deref() == named
+        }) {
+            return key.target;
         }
         let id = self.create_tuple_target_type(order, element_flags, readonly, named);
-        self.tuple_types.insert(key, id);
+        let key = TupleTargetKey {
+            kinds: kinds().collect(),
+            readonly,
+            named: named.map(Box::from),
+            target: id,
+        };
+        self.tuple_types.insert_unique(hash, key, |key| {
+            tuple_target_hash(
+                key.kinds.len(),
+                key.kinds.iter().copied(),
+                key.readonly,
+                key.named.as_deref(),
+            )
+        });
         id
     }
 
