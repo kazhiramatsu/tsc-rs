@@ -699,6 +699,55 @@ fn is_object_literal_modifier(kind: SyntaxKind) -> bool {
     )
 }
 
+/// The names an object literal's grammar check has seen, with the kinds of
+/// their members: the first `SEEN_INLINE` in an array scanned in order, the
+/// rest in a map made only for a literal with more names (a map for every
+/// literal was allocated, grown and freed). Only looked up and written.
+struct SeenNames {
+    inline: [Option<(tsc_types::EscapedName, u8)>; SEEN_INLINE],
+    len: usize,
+    rest: rustc_hash::FxHashMap<tsc_types::EscapedName, u8>,
+}
+
+const SEEN_INLINE: usize = 12;
+
+impl SeenNames {
+    fn new() -> Self {
+        Self {
+            inline: [None; SEEN_INLINE],
+            len: 0,
+            rest: rustc_hash::FxHashMap::default(),
+        }
+    }
+
+    fn get(&self, name: tsc_types::EscapedName) -> Option<u8> {
+        let inline = self.inline[..self.len]
+            .iter()
+            .flatten()
+            .find(|&&(seen, _)| seen == name)
+            .map(|&(_, kind)| kind);
+        if inline.is_some() || self.rest.is_empty() {
+            return inline;
+        }
+        self.rest.get(&name).copied()
+    }
+
+    fn insert(&mut self, name: tsc_types::EscapedName, kind: u8) {
+        if let Some(entry) = self.inline[..self.len]
+            .iter_mut()
+            .flatten()
+            .find(|(seen, _)| *seen == name)
+        {
+            entry.1 = kind;
+        } else if self.len < SEEN_INLINE {
+            self.inline[self.len] = Some((name, kind));
+            self.len += 1;
+        } else {
+            self.rest.insert(name, kind);
+        }
+    }
+}
+
 impl<'a> CheckerState<'a> {
     /// tsc-port: checkGrammarObjectLiteralExpression @6.0.3
     /// tsc-hash: d085eaa514ed568b60dd764c7bb4460cfe440ce59bb3489b36e5b81b2581b228
@@ -723,7 +772,7 @@ impl<'a> CheckerState<'a> {
             NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
             _ => Default::default(),
         };
-        let mut seen = rustc_hash::FxHashMap::<tsc_types::EscapedName, u8>::default();
+        let mut seen = SeenNames::new();
         for member in members {
             if self.kind_of(member) == SyntaxKind::SpreadAssignment {
                 if in_destructuring_pattern {
@@ -859,7 +908,7 @@ impl<'a> CheckerState<'a> {
             else {
                 continue;
             };
-            let Some(existing_kind) = seen.get(&effective_name).copied() else {
+            let Some(existing_kind) = seen.get(effective_name) else {
                 seen.insert(effective_name, current_kind);
                 continue;
             };

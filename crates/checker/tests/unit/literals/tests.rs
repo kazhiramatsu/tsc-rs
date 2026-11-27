@@ -339,6 +339,23 @@ fn duplicate_object_props_report_1117_on_the_second_name() {
     assert_eq!(checked_rows("({ a: 1, b: 2 });\n"), []);
 }
 
+/// The check keeps a literal's first names inline and the rest in a map: a
+/// duplicate of either is reported, and a get / set pair of a name past the
+/// inline ones merges as before.
+#[test]
+fn duplicate_object_props_past_the_inline_names_report_1117() {
+    let names = (0..14)
+        .map(|i| format!("p{i}: {i}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let source = format!("({{ {names}, p0: 0, p13: 0 }});\n");
+    let p0 = source.rfind("p0:").unwrap() as u32;
+    let p13 = source.rfind("p13:").unwrap() as u32;
+    assert_eq!(checked_rows(&source), [(1117, p0, 2), (1117, p13, 3)]);
+    let accessors = format!("({{ {names}, get x() {{ return 1; }}, set x(v) {{ void v; }} }});\n");
+    assert_eq!(checked_rows(&accessors), []);
+}
+
 #[test]
 fn duplicate_object_accessors_match_the_grammar_table() {
     // tsc also reports separately owned TS2300 rows on both

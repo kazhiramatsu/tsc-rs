@@ -493,6 +493,52 @@ fn tuple_targets_intern_by_flags_and_readonly() {
     assert!(data.has_rest_element);
 }
 
+/// A tuple target is shared by its elements' kinds (the first that applies),
+/// its readonly bit and its labels when one is set, as the string key keyed
+/// it.
+#[test]
+fn tuple_targets_share_by_kind_readonly_and_labels() {
+    let mut t = tables();
+    let required = [ElementFlags::REQUIRED, ElementFlags::OPTIONAL];
+    let a = t.get_tuple_target_type(None, TupleTargetFlags::new(&required).unwrap(), false, None);
+    let mixed = [
+        ElementFlags::REQUIRED | ElementFlags::OPTIONAL,
+        ElementFlags::OPTIONAL,
+    ];
+    assert_eq!(
+        t.get_tuple_target_type(None, TupleTargetFlags::new(&mixed).unwrap(), false, None),
+        a
+    );
+    let three = [
+        ElementFlags::REQUIRED,
+        ElementFlags::OPTIONAL,
+        ElementFlags::OPTIONAL,
+    ];
+    assert_ne!(
+        t.get_tuple_target_type(None, TupleTargetFlags::new(&three).unwrap(), false, None),
+        a
+    );
+    let flags = TupleTargetFlags::new(&required).unwrap();
+    assert_eq!(
+        t.get_tuple_target_type(None, flags, false, Some(&[None, None])),
+        a
+    );
+    let labeled = t.get_tuple_target_type(None, flags, false, Some(&[Some(5), None]));
+    assert_ne!(labeled, a);
+    assert_eq!(
+        t.get_tuple_target_type(None, flags, false, Some(&[Some(5), None])),
+        labeled
+    );
+    assert_ne!(
+        t.get_tuple_target_type(None, flags, false, Some(&[Some(6), None])),
+        labeled
+    );
+    assert_ne!(
+        t.get_tuple_target_type(None, flags, true, Some(&[Some(5), None])),
+        labeled
+    );
+}
+
 #[test]
 fn tuple_length_types_exist_before_member_queries() {
     for (flags, lengths) in [
@@ -2001,4 +2047,28 @@ fn one_sorted_named_union_can_reuse_members_without_a_set() {
         assert_eq!(t.members_of(origin), &[named]);
         assert_eq!(t.len(), count + 1);
     }
+}
+
+/// Until an entry of the plain shape is written without its hash, `full`
+/// holds no plain key: a plain miss is answered without it, and once such an
+/// entry exists it is found (with or without a hash) and moved by its
+/// hashed write.
+#[test]
+fn a_plain_key_written_before_its_hash_is_found_and_moved() {
+    let mut t = tables();
+    let target = t.intrinsics.any;
+    let args: [TypeId; 2] = std::array::from_fn(|_| t.create_type_parameter(false, None));
+    let key = InstantiationKey::plain(t.intern_type_list(&args));
+    // A table hash as the cache makes them (its 32 bits spread).
+    let hash = spread_instantiation_hash(9);
+    let mut cache = InstantiationCache::default();
+    assert!(!cache.full_holds_plain);
+    assert_eq!(cache.get(target, key, Some(hash)), None);
+    cache.insert(target, key, args[0], None);
+    assert!(cache.full_holds_plain);
+    assert_eq!(cache.get(target, key, Some(hash)), Some(args[0]));
+    assert_eq!(cache.get(target, key, None), Some(args[0]));
+    cache.insert(target, key, args[1], Some(hash));
+    assert!(cache.full.is_empty());
+    assert_eq!(cache.get(target, key, Some(hash)), Some(args[1]));
 }

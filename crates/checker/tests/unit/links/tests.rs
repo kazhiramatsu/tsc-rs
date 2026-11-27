@@ -749,3 +749,26 @@ fn the_last_assignment_front_keeps_final_positions_until_the_field_moves() {
     assert_eq!(links.final_last_assignment_pos(rival), Some(Some(1)));
     assert!(LastAssignmentFront::slot(rival) < LastAssignmentFront::SLOTS);
 }
+
+/// A write past the end of the dense type and transient symbol links grows
+/// them one record at a time: the records between read as unset.
+#[test]
+fn dense_links_grow_to_a_far_write_with_unset_records_between() {
+    let mut links = LinksTables::default();
+    let far = TypeId::new(40);
+    links.set_fresh_type_members(far, LinkSlot::Vacant);
+    assert_eq!(links.ty.records.len(), 41);
+    links.set_type_members(0, TypeId::new(3), LinkSlot::Vacant);
+    assert_eq!(links.ty.records.len(), 41);
+    let symbol = SymbolId::new(tsc_types::TRANSIENT_SYMBOL_BIT | 30);
+    links.set_symbol_check_flags(0, symbol, tsc_types::CheckFlags::INSTANTIATED);
+    assert_eq!(links.transient_symbols.len(), 31);
+    for index in 0..30 {
+        let between = SymbolId::new(tsc_types::TRANSIENT_SYMBOL_BIT | index);
+        assert_eq!(links.read_symbol_check_flags(between).bits(), 0, "{index}");
+    }
+    assert_eq!(
+        links.read_symbol_check_flags(symbol),
+        tsc_types::CheckFlags::INSTANTIATED
+    );
+}
