@@ -117,9 +117,9 @@ fn prepared_identifier_matching_preserves_results_effects_and_target_normalizati
                         assert!(state.get_resolved_symbol(source).unwrap().is_some());
                         let mut q = query(state, source);
                         q.memo_key = state.flow_memo_key(&mut q);
-                        assert!(q.identifier_location.is_some());
+                        assert!(q.has_identifier_root());
                         if !prepared {
-                            q.identifier_location = None;
+                            q.identifier_root = IdentifierRoot::NONE;
                         }
                         if clear_source {
                             state.links.revert_node_resolved_symbol_late_bind(source);
@@ -180,7 +180,7 @@ fn prepared_identifier_matching_reads_replaced_symbols_and_unknowns_live() {
             let replacement = state.get_resolved_symbol(other).unwrap().unwrap();
             let mut q = query(state, source);
             q.memo_key = state.flow_memo_key(&mut q);
-            assert!(q.identifier_location.is_some());
+            assert!(q.has_identifier_root());
             assert!(!state.is_matching_query_reference(&q, other).unwrap());
             state
                 .links
@@ -197,7 +197,7 @@ fn prepared_identifier_matching_reads_replaced_symbols_and_unknowns_live() {
             assert!(state.is_matching_query_reference(&q, missing).unwrap());
             q.memo_key = state.flow_memo_key(&mut q);
             assert!(q.memo_key.is_none());
-            assert!(q.identifier_location.is_none());
+            assert!(!q.has_identifier_root());
             assert!(state.is_matching_query_reference(&q, missing).unwrap());
         },
     );
@@ -213,13 +213,13 @@ fn preparing_synthetic_and_property_queries_clears_identifier_shape() {
             assert!(state.get_resolved_symbol(source).unwrap().is_some());
             let mut q = query(state, source);
             q.memo_key = state.flow_memo_key(&mut q);
-            assert!(q.identifier_location.is_some());
+            assert!(q.has_identifier_root());
             q.synthetic_props = Some(Vec::new());
             assert!(state.flow_memo_key(&mut q).is_none());
-            assert!(q.identifier_location.is_none());
+            assert!(!q.has_identifier_root());
             q.synthetic_props = None;
             q.memo_key = state.flow_memo_key(&mut q);
-            assert!(q.identifier_location.is_some());
+            assert!(q.has_identifier_root());
             q.reference = state
                 .binder
                 .source(0)
@@ -228,7 +228,7 @@ fn preparing_synthetic_and_property_queries_clears_identifier_shape() {
                 .find(|&node| state.kind_of(node) == SyntaxKind::PropertyAccessExpression)
                 .unwrap();
             q.memo_key = state.flow_memo_key(&mut q);
-            assert!(q.identifier_location.is_none());
+            assert!(!q.has_identifier_root());
         },
     );
 }

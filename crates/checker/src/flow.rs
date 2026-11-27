@@ -44,7 +44,7 @@ use tsc_types::{
 };
 
 use crate::flow_memo::{memo_shared_node, MemoKey, FLOW_DEPTH_LIMIT};
-use crate::links::NodeLinksLocation;
+use crate::links::{IdentifierRoot, NodeLinksLocation};
 use crate::state::{CheckResult, CheckerState};
 
 /// tsc FlowType = Type | IncompleteType (checker-key §4.1). The
@@ -128,9 +128,30 @@ pub(crate) struct FlowQuery<'a> {
     /// matchers test ThisKeyword kind like tsc's isMatchingReference
     /// this arm (69462-69463) instead of node matching.
     pub(crate) synthetic_this_root: bool,
-    /// Existing record of a plain Identifier outside a `this` type query.
-    /// The location survives directory growth; its symbol remains a live read.
-    pub(crate) identifier_location: Option<NodeLinksLocation>,
+    /// Existing record of a plain Identifier outside a `this` type query: its
+    /// full record's location (it survives directory growth), or a read by
+    /// its node for a record that holds only its symbol (such a record moves
+    /// when another field is written); its symbol remains a live read.
+    pub(crate) identifier_root: IdentifierRoot,
+}
+
+impl FlowQuery<'_> {
+    /// Whether the query's reference is a plain Identifier with a resolved
+    /// symbol that the identifier matcher reads (by location or by node).
+    #[inline]
+    pub(crate) fn has_identifier_root(&self) -> bool {
+        self.identifier_root.is_some()
+    }
+}
+
+/// How the identifier matcher reads a query reference's symbol: through its
+/// full record's location, through its symbol-only record's word, or by its
+/// node (a place that did not fit the root).
+#[derive(Clone, Copy)]
+enum IdentifierRead {
+    At(NodeLinksLocation),
+    Word(u32),
+    ByNode,
 }
 
 // The source shape and record location use the ordinary query's padding.
@@ -164,7 +185,7 @@ impl<'a> FlowQuery<'a> {
             key: None,
             synthetic_props: None,
             synthetic_this_root: false,
-            identifier_location: None,
+            identifier_root: IdentifierRoot::NONE,
         }
     }
 
@@ -437,7 +458,7 @@ impl<'a> CheckerState<'a> {
             key: None,
             synthetic_props: None,
             synthetic_this_root: false,
-            identifier_location: None,
+            identifier_root: IdentifierRoot::NONE,
         };
         let frame_depth = self.flow_memo.frame_depth();
         let saved_height = self.flow_memo.save_height();
@@ -523,7 +544,7 @@ impl<'a> CheckerState<'a> {
             key: None,
             synthetic_props,
             synthetic_this_root,
-            identifier_location: None,
+            identifier_root: IdentifierRoot::NONE,
         };
         query.memo_key = self.flow_memo_key(&mut query);
         let frame_depth = self.flow_memo.frame_depth();
@@ -3440,19 +3461,26 @@ impl<'a> CheckerState<'a> {
         query: &FlowQuery,
         target: NodeId,
     ) -> CheckResult<bool> {
-        match (query.synthetic_props.as_deref(), query.identifier_location) {
-            (None, Some(location)) => match self.kind_of(target) {
+        let identifier = match query.identifier_root.location() {
+            Some(location) => Some(IdentifierRead::At(location)),
+            None => match query.identifier_root.symbol_word() {
+                Some(word) => Some(IdentifierRead::Word(word)),
+                None => query
+                    .identifier_root
+                    .is_some()
+                    .then_some(IdentifierRead::ByNode),
+            },
+        };
+        match (query.synthetic_props.as_deref(), identifier) {
+            (None, Some(read)) => match self.kind_of(target) {
                 SyntaxKind::ParenthesizedExpression
                 | SyntaxKind::NonNullExpression
                 | SyntaxKind::BinaryExpression => {
                     self.is_matching_reference(query.reference, target)
                 }
-                kind => self.is_matching_identifier_reference(
-                    query.reference,
-                    target,
-                    kind,
-                    Some(location),
-                ),
+                kind => {
+                    self.is_matching_identifier_reference(query.reference, target, kind, Some(read))
+                }
             },
             (None, None) => self.is_matching_reference(query.reference, target),
             (Some(props), _) => self.is_matching_synthetic_chain(
@@ -3621,7 +3649,7 @@ impl<'a> CheckerState<'a> {
         if let Some(props) = query.synthetic_props.as_deref() {
             return self.synthetic_chain_contains_reference(query, props, target);
         }
-        if query.identifier_location.is_some() {
+        if query.has_identifier_root() {
             debug_assert_eq!(self.kind_of(query.reference), SyntaxKind::Identifier);
             return Ok(false);
         }
@@ -3906,13 +3934,16 @@ impl<'a> CheckerState<'a> {
     fn get_matching_identifier_symbol(
         &mut self,
         source: NodeId,
-        location: Option<NodeLinksLocation>,
+        location: Option<IdentifierRead>,
     ) -> CheckResult<Option<SymbolId>> {
-        let cached = location.and_then(|location| {
-            self.links
+        let cached = location.and_then(|read| match read {
+            IdentifierRead::At(location) => self
+                .links
                 .located_node(source, location)
                 .resolved_symbol
-                .resolved()
+                .resolved(),
+            IdentifierRead::Word(word) => self.links.node_symbol_at_word(source, word),
+            IdentifierRead::ByNode => self.links.node_resolved_symbol(source),
         });
         if let Some(cached) = cached {
             // This is the cached branch of get_resolved_symbol. A vacant
@@ -3931,7 +3962,7 @@ impl<'a> CheckerState<'a> {
         source: NodeId,
         target: NodeId,
         target_kind: SyntaxKind,
-        location: Option<NodeLinksLocation>,
+        location: Option<IdentifierRead>,
     ) -> CheckResult<bool> {
         match target_kind {
             SyntaxKind::Identifier => {

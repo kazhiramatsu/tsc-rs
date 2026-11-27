@@ -11,6 +11,8 @@ use tsc_binder::flow::FlowId;
 #[cfg(test)]
 use tsc_syntax::NodeData;
 use tsc_syntax::{NodeId, SyntaxKind};
+
+use crate::links::IdentifierRoot;
 use tsc_types::{NodeFlags, TypeId};
 
 use crate::flow::{FlowQuery, FlowType, SharedFlow};
@@ -768,7 +770,7 @@ impl CheckerState<'_> {
     /// Only reads cached links and syntax. In particular, never resolves a
     /// symbol or assigns a node/symbol identity while constructing a key.
     pub(crate) fn flow_memo_key(&mut self, query: &mut FlowQuery) -> Option<MemoKey> {
-        query.identifier_location = None;
+        query.identifier_root = IdentifierRoot::NONE;
         if query.synthetic_props.is_some() || query.synthetic_this_root {
             return None;
         }
@@ -778,12 +780,12 @@ impl CheckerState<'_> {
         // the declared type index is below 2^31.
         let root = match self.kind_of(query.reference) {
             SyntaxKind::Identifier => {
-                let (location, links) = self.links.node_with_location(query.reference)?;
-                let symbol = links.resolved_symbol.resolved()?;
+                let (root, symbol) = self.links.node_symbol_with_location(query.reference)?;
+                let symbol = symbol.resolved()?;
                 if symbol == self.unknown_symbol || self.is_this_in_type_query(query.reference) {
                     return None;
                 }
-                query.identifier_location = Some(location);
+                query.identifier_root = root;
                 Some(symbol.position())
             }
             SyntaxKind::ThisKeyword => Some(0),
