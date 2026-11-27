@@ -2388,6 +2388,8 @@ VS Code の 1 thread では、行を積むごとに下がる：行 1〜4 で −
 
 **行 B（`perf/adopt-boxed-trees` `ffb9397b2`、binary `n-abx`）。** prepared record は tree を自分の allocation（解析した worker で作る）に持ち、採用する session はその allocation を引き取る（写さない）；library image の fresh な写しも box に。checks 3,416 件（program・checker・compiler）、出力は 8 project の全 mode で main と同じ、counter 3 / 3。**枠 s40（21:27–21:33）**：採用の mark（chain census、10 回）VS Code の preset **3.96 ms**（base 4.74 / 4.87）、既定 **3.93**（4.70 / 4.80）、next 0.74（1.10 / 1.15）、zod 0.47（0.69 / 0.69）― 約 −0.8 ms（census の上限 2.7 のうち lock・初回の memory touch・外側の box の解放は残る）；壁時計は preset の VS Code −0.29 %［control −0.53］counts、既定の VS Code +0.30 inside［+0.52］・next −0.24 inside・zod +0.72 out（control 自身の +0.91 の下）、1 thread の zod −0.50 % counts；peak は横ばい。前もって書いた規則（どの mode でも control より遅く out でなく、どこかで低いか採用の mark が両 mode で base pair の差を越えて短い）で **通る → train 73**（21:43 に list、owner：「row B完了までフルスピードでお願いします」）。
 
+**着地（PR #1051、merge `941cc28d5`、hosted run 46004432627、22:28）。** train の local 検査（21:43–22:0x）：program・checker・compiler の test 3,417 件 pass、8 project の出力（diffout）同一、4 checker の conformance は既知の 4 つ（15,335 同一）、oracle 24 / 24。main の binary は `batch73-sel-938e27685`。row B の完了で全速を戻した（owner の指示どおり）。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
