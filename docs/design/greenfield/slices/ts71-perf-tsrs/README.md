@@ -2348,6 +2348,12 @@ VS Code の 1 thread では、行を積むごとに下がる：行 1〜4 で −
 
 **自分の誤り。** (1) binder について「相手は checker の中で必要になった時に bind する」と frame 名から書き、同じ 15 分のうちに呼び出し元の連鎖で訂正（compiler crate から、checker の前）。(2) 記録の時刻を機械の時計より 10–30 分先に書いた（3 回、同じ時間内に訂正；以後は `date` から）。(3) 引用符なしの heredoc で記録を書き、backtick の語が command として実行されて消えた（直した）。(4) F1 の最初の検査が compile で止まった（同じ scope の reader crew の数の変数に名前が隠された）。(5) P3 の最初の census binary は 1 checker では出ない mark の後に print を置いた（作り直し）。(6) train 69 の最初の待ち手は wrapper の停止を見られなかった（scheduler の行も見る形に替えた）。
 
+**結果 73（2026-11-27 夕方：Track B の着地（PR #1048））**
+
+**着地（PR #1048、merge `0adad5d45`、hosted run 45967586394、18:16）。** Track B の 4 commit（C1 instantiation の plain な miss は plain key を持ったことのない map を引かない、C5 密な link 表は 1 record ずつ push、C3 object literal の文法検査は最初の 12 個の名前を inline に、C2 tuple target は文字列でなく値の key で）。train の local 検査（17:18–17:41、#1047 の後の main `edc508f2c` の上）：clippy・fmt・`git diff --check` rc 0；types・checker・compiler の test 2,669 件 pass；8 project の出力（diffout）同一；counter（Symbols・Types・Instantiations、hono・zod・VS Code）同一；4 checker の conformance は既知の 4 つ（15,335 同一）；suites の退行 0；oracle 24 / 24；fingerprint の差 0 行；preset の出力 14 / 14 同一（zod は run ごとに揺れると宣言して比べない）。main の binary は `batch70-sel-ab278e77f`（code は merge と同じ）。
+
+**P3 の次の作り直しの訂正。** 結果 72 の末尾の「record を写して返す node の accessor」は取り下げる：その accessor の呼び出し元は 3 か所しかなく、P3 の追加命令（VS Code +1.24 %）の持ち主になりえない。次は推測で作り直さず、1 thread の cycle 記録で P3b と base を関数ごとに比べる。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
