@@ -2368,6 +2368,16 @@ VS Code の 1 thread では、行を積むごとに下がる：行 1〜4 で −
 
 **crew の class の実験（census binary `n-qos1`、`census/crew-classes-1127` `faefc76d2`、着地しない）。** crew の最初の `TSRS_X_CREW_FAST` 本を `TSRS_X_CREW_CLASS`（interactive か user-initiated）で始める switch と、crew の started / unstarted の数を light の trace に。11-19 の R12（crew 全体を utility に：VS Code の front end 313 → 302 ms）と、crew 全体を user-initiated / default にすると compile thread が performance core を保てなかった記録（cli の comment）があり、分けた形は未測定。枠 s37 の読み方（実行前に書いた）：一つの binary の中で switch なし（2 回）と比べ、検査開始が VS Code の両 mode で u0 / again の距離を越えて下がり、next の preset で上がらない場合だけ product の行へ；それ以外は開く余白を F9 のために記録する。
 
+**結果 75（2026-11-27 夜：P3 の series の着地（PR #1049）；crew の class の実験は採らない；P3d が枠 s38・s38b を通る → train 72）**
+
+**着地（PR #1049、merge `df13ea02a`、hosted run 45987266930、20:36）。** P3・P3b・P3c の 3 commit。train の local 検査（19:19–20:03）：checker・compiler の test 2,560 件 pass；suites の退行 0；oracle 24 / 24；preset の出力 14 / 14 同一（zod は宣言して比べない）；series の binary `n-p3s` は 8 project の全 mode で main と同じ出力、counter 3 / 3 同じ。main の binary は `batch71-sel-0d44f7057`（code は merge と同じ）。
+
+**枠 s37（19:53–19:56、census binary `n-qos1`、一つの binary の中で 10 回ずつ）：crew を二つの class に分ける形は採らない。** VS Code の検査開始：preset u0 303.70 / again 302.30 に対し最初の 2 本 interactive 303.90、3 本 307.85、3 本 user-initiated 310.15；既定 290.45 / 290.55 に対し 291.15、297.65、295.20。分けた crew は先に終わる（始まらなかった source 615–654 → 0（10,200 のうち）、余白 0.15–0.35 → 2.65–6.7 ms、late bind 1.7–3.3 → 0.7 ms）が、compile thread の chain がそれ以上に遅れる（3 本 interactive の preset で walk +3.7、graph finish +4.2、publish +2.1 ms）。11-22 に「utility の crew はすでに空いた performance core 3 つを使っている」と計算で退けた（測らなかった）ものを測って確かめた。**F9 class A のための読み**：今日の VS Code の余白は約 0.2 ms、hand-off で 3–6 % の source が残り、その late bind 1.7–3.3 ms が critical path にある → chain を D ms 削ると VS Code では約 0.4 D、next・zod（crew が先に終わる）では 1:1。
+
+**P3d（`72879d195`、binary `n-p3d`）。** checks 2,561 件（新しい test を含む）、出力は 8 project の全 mode で main と同じ、counter 3 / 3。ledger（1 thread、最小値の命令数、series の前の main 比）：VS Code series +0.62 % → **+0.42 %**、next +0.60 → +0.41、zod +0.23 → +0.19。**枠 s38（20:09–20:22、base = series の binary 2 回、control = `n-p3s`）**：1 thread で GOES ON（next −0.52 % counts、VS Code −0.06・zod −0.03 inside）；preset で GOES ON（VS Code −0.78 %、control −1.18）；既定は next だけ +0.37 % out（control +0.35 % out の 0.02 上）→ 規則どおり **枠 s38b（31 回）：next −0.83 %［−0.29］counts（31 中 20 で低い）、VS Code −0.44 % inside、peak は control の 2 MiB 以内** → train 72。同じ枠の参照 cell（series の前の main を series と比べた一つの読み）：1 thread で VS Code −0.28 %・zod −0.34・next −0.64（control −0.13 / −0.11 / −0.05）、preset +0.83 % out、既定 VS Code −0.57・zod +0.06・next −0.24、peak は全 mode で 27–38 MiB 高い ― series の 1 thread の時間は s36 では control と並び、ここでは 0.1–0.6 % 遅く読めた（一つの読み；P3d がその一部を返す）。
+
+**次（owner の順）。** post-hand-off の行の最初の候補：配分を session の手順（adopt・late bind・公開、VS Code で約 20 ms）の横で helper thread に作らせる（配分は bind の結果を読まない；上限 VS Code の preset 約 −10 ms、next −2、zod −0.8；同じ配分になることを census build で 8 project で assert してから時間を測る）。その後 F9 class A。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
