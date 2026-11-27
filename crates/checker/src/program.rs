@@ -73,12 +73,13 @@ impl DocumentBuilder {
         }
     }
 
+    /// The tree's allocation is the loader's: it is taken over, not copied.
     pub(crate) fn from_preparsed(parsed: tsc_program::PreparsedSourceFile) -> Self {
-        let (bind_reservations, bind_data, source) = parsed.into_bind_parts();
+        let (bind_reservations, bind_data, source) = parsed.into_bind_parts_boxed();
         Self {
             bind_reservations,
             bind_data,
-            source: Box::new(source),
+            source,
         }
     }
 
