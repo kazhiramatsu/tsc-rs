@@ -366,7 +366,8 @@ impl EmitResolver for CheckerSession<'_> {
         let root = state.binder.source(index).root;
         Ok(state
             .links
-            .read_node(root, |links| links.check_flags)
+            .node_fields(root)
+            .check_flags()
             .intersects(tsc_types::NodeCheckFlags::TYPE_CHECKED))
     }
 
@@ -710,10 +711,7 @@ impl EmitResolver for CheckerSession<'_> {
         self.with_resolver_node(EmitResolverMethod::HasNodeCheckFlag, node, |state, node| {
             let flag = tsc_types::NodeCheckFlags::from_bits(flag as i32);
             state.calculate_node_check_flag_worker(node, flag)?;
-            Ok(state
-                .links
-                .read_node(node, |links| links.check_flags)
-                .intersects(flag))
+            Ok(state.links.node_fields(node).check_flags().intersects(flag))
         })
     }
 
@@ -739,7 +737,8 @@ impl EmitResolver for CheckerSession<'_> {
             || state.options.verbatim_module_syntax == Some(true)
             || state
                 .links
-                .read_node(file.root, |links| links.check_flags)
+                .node_fields(file.root)
+                .check_flags()
                 .intersects(tsc_types::NodeCheckFlags::TYPE_CHECKED)
         {
             return Ok(());

@@ -189,7 +189,8 @@ impl<'a> CheckerState<'a> {
         debug_assert!(source.is_declaration_file);
         if self
             .links
-            .read_node(root, |links| links.check_flags)
+            .node_fields(root)
+            .check_flags()
             .intersects(NodeCheckFlags::TYPE_CHECKED)
             || self.skip_type_checking(root)
         {
@@ -233,7 +234,8 @@ impl<'a> CheckerState<'a> {
     ) {
         if self
             .links
-            .read_node(root, |links| links.check_flags)
+            .node_fields(root)
+            .check_flags()
             .intersects(NodeCheckFlags::TYPE_CHECKED)
         {
             return;
@@ -395,7 +397,8 @@ impl<'a> CheckerState<'a> {
         let root = self.binder.source(file).root;
         if self
             .links
-            .read_node(root, |links| links.check_flags)
+            .node_fields(root)
+            .check_flags()
             .intersects(NodeCheckFlags::TYPE_CHECKED)
         {
             return false;
@@ -500,7 +503,8 @@ impl<'a> CheckerState<'a> {
         let root = self.binder.source_of_node(node).root;
         if self
             .links
-            .read_node(root, |links| links.check_flags)
+            .node_fields(root)
+            .check_flags()
             .intersects(NodeCheckFlags::TYPE_CHECKED)
         {
             return Ok(());
@@ -2714,7 +2718,8 @@ impl<'a> CheckerState<'a> {
         }
         if self
             .links
-            .read_node(declaration, |links| links.check_flags)
+            .node_fields(declaration)
+            .check_flags()
             .intersects(NodeCheckFlags::CAPTURE_ARGUMENTS)
         {
             self.links.set_node_contains_arguments_reference(
@@ -3306,10 +3311,7 @@ impl<'a> CheckerState<'a> {
     }
 
     fn check_deprecated_type_reference_or_import(&mut self, node: NodeId) {
-        let Some(symbol) = self
-            .links
-            .read_node(node, |links| links.resolved_symbol.resolved())
-        else {
+        let Some(symbol) = self.links.node_symbol(node).resolved() else {
             return;
         };
         let declarations = self.binder.symbol(symbol).declaration_list();
@@ -3380,10 +3382,7 @@ impl<'a> CheckerState<'a> {
         if self.tables.is_error_type(ty) {
             return Ok(None);
         }
-        let Some(symbol) = self
-            .links
-            .read_node(node, |links| links.resolved_symbol.resolved())
-        else {
+        let Some(symbol) = self.links.node_symbol(node).resolved() else {
             return Ok(None);
         };
         if self
@@ -4071,7 +4070,8 @@ impl<'a> CheckerState<'a> {
         let file_root = self.binder.source_of_node(node).root;
         if !self
             .links
-            .read_node(file_root, |links| links.check_flags)
+            .node_fields(file_root)
+            .check_flags()
             .intersects(NodeCheckFlags::TYPE_CHECKED)
         {
             let set = self
@@ -4172,8 +4172,7 @@ impl<'a> CheckerState<'a> {
             };
             if let Some(slot_node) = slot_node {
                 if matches!(
-                    self.links
-                        .read_node(slot_node, |links| links.resolved_signature.get()),
+                    self.links.node_fields(slot_node).resolved_signature().get(),
                     crate::links::LinkSlot::Vacant
                 ) && self.contained_call_resolutions.contains(&slot_node)
                 {
@@ -11395,10 +11394,7 @@ impl<'a> CheckerState<'a> {
             return Ok(true);
         };
         let argument_count = self.nodes_of(data.type_arguments).len();
-        let Some(symbol) = self
-            .links
-            .read_node(annotation, |links| links.resolved_symbol.resolved())
-        else {
+        let Some(symbol) = self.links.node_symbol(annotation).resolved() else {
             return Ok(true);
         };
         let declared = self.get_declared_type_of_symbol(symbol)?;
@@ -13131,10 +13127,7 @@ impl<'a> CheckerState<'a> {
         // getTypeFromImportTypeNode initializes resolvedSymbol before
         // canReuseTypeNode reads the link.
         let _ = self.get_type_from_type_node(node)?;
-        let Some(symbol) = self
-            .links
-            .read_node(node, |links| links.resolved_symbol.resolved())
-        else {
+        let Some(symbol) = self.links.node_symbol(node).resolved() else {
             return Ok(true);
         };
         if !data.is_type_of
@@ -13181,10 +13174,7 @@ impl<'a> CheckerState<'a> {
                     Some(ty) => ty,
                     None => self.get_type_from_type_node(node)?,
                 };
-                let Some(symbol) = self
-                    .links
-                    .read_node(node, |links| links.resolved_symbol.resolved())
-                else {
+                let Some(symbol) = self.links.node_symbol(node).resolved() else {
                     return Ok(false);
                 };
                 if self

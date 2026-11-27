@@ -547,10 +547,7 @@ impl<'a> CheckerState<'a> {
         reference: NodeId,
         start_in_declaration_container: bool,
     ) -> CheckResult<Option<SymbolId>> {
-        if let Some(symbol) = self
-            .links
-            .read_node(reference, |links| links.resolved_symbol.resolved())
-        {
+        if let Some(symbol) = self.links.node_symbol(reference).resolved() {
             return Ok(Some(symbol));
         }
         let mut location = reference;
@@ -696,10 +693,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         reference: NodeId,
     ) -> CheckResult<Option<SymbolId>> {
-        if let Some(symbol) = self
-            .links
-            .read_node(reference, |links| links.resolved_symbol.resolved())
-        {
+        if let Some(symbol) = self.links.node_symbol(reference).resolved() {
             if symbol != self.unknown_symbol {
                 return Ok(Some(symbol));
             }
@@ -3600,9 +3594,7 @@ impl<'a> CheckerState<'a> {
             return Ok(alias_like);
         }
         self.check_expression_cached(expression, CheckMode::NORMAL)?;
-        Ok(self
-            .links
-            .read_node(expression, |links| links.resolved_symbol.resolved()))
+        Ok(self.links.node_symbol(expression).resolved())
     }
 
     /// tsgo-port: getSymbolOfPartOfRightHandSideOfImportEquals @7.1
@@ -10099,10 +10091,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 230cca270e69688831e489ada99f4658563ce2394ee48cf2beae61b44380947b
     /// tsc-span: _tsc.js:56560-56579
     fn get_type_from_import_attributes(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(cached);
         }
         let object_symbol = self.binder.create_symbol(

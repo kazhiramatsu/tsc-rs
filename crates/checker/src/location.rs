@@ -605,9 +605,7 @@ impl CheckerState<'_> {
         if self.is_entity_name(name) {
             if let Some(import_type) = self.is_import_type_qualifier_part(name) {
                 self.get_type_from_type_node(import_type)?;
-                let resolved = self
-                    .links
-                    .read_node(name, |links| links.resolved_symbol.resolved());
+                let resolved = self.links.node_symbol(name).resolved();
                 return Ok(resolved.filter(|&s| s != self.unknown_symbol));
             }
         }
@@ -706,17 +704,15 @@ impl CheckerState<'_> {
                     self.get_symbol_for_private_identifier_expression(name)
                 }
                 SyntaxKind::PropertyAccessExpression | SyntaxKind::QualifiedName => {
-                    if let Some(resolved) = self
-                        .links
-                        .read_node(name, |links| links.resolved_symbol.resolved())
-                    {
+                    if let Some(resolved) = self.links.node_symbol(name).resolved() {
                         return Ok((resolved != self.unknown_symbol).then_some(resolved));
                     }
                     if self.kind_of(name) == SyntaxKind::PropertyAccessExpression {
                         self.check_property_access_expression(name, CheckMode::NORMAL, false)?;
                         let resolved = self
                             .links
-                            .read_node(name, |links| links.resolved_symbol.resolved())
+                            .node_symbol(name)
+                            .resolved()
                             .filter(|&s| s != self.unknown_symbol);
                         if resolved.is_none() {
                             // An access answered by an index signature names
@@ -753,7 +749,8 @@ impl CheckerState<'_> {
                     }
                     let resolved = self
                         .links
-                        .read_node(name, |links| links.resolved_symbol.resolved())
+                        .node_symbol(name)
+                        .resolved()
                         .filter(|&s| s != self.unknown_symbol);
                     if resolved.is_none()
                         && is_jsdoc

@@ -1923,6 +1923,30 @@ impl IdentifierRoot {
     }
 }
 
+/// A node's links without its resolved symbol: the view of the readers that
+/// never read the symbol ([`LinksTables::node_fields`]). A symbol-only record
+/// has every other field unset, so it reads as the absent record here, and
+/// these reads never touch the symbol chunks.
+#[derive(Clone, Copy)]
+pub(crate) struct NodeFields<'t>(&'t NodeLinks);
+
+impl NodeFields<'_> {
+    #[inline(always)]
+    pub(crate) fn resolved_type(self) -> ValueSlot<TypeId> {
+        self.0.resolved_type
+    }
+
+    #[inline(always)]
+    pub(crate) fn resolved_signature(self) -> IdSlot<SignatureId> {
+        self.0.resolved_signature
+    }
+
+    #[inline(always)]
+    pub(crate) fn check_flags(self) -> tsc_types::NodeCheckFlags {
+        self.0.check_flags
+    }
+}
+
 /// Remembers the address of a node's links for one recursive query. Each
 /// read sees the current fields. An unsuccessful read leaves the table alone.
 pub(crate) struct NodeLinksCursor {
@@ -1956,6 +1980,54 @@ impl NodeLinksCursor {
         })
     }
 
+    /// The cursor's node as the readers that never read its symbol see it
+    /// ([`LinksTables::node_fields`]); a full record's location is kept.
+    #[inline]
+    pub(crate) fn fields<'t>(&mut self, links: &'t LinksTables) -> NodeFields<'t> {
+        perf::bump(PerfCounter::LinksNodeReads);
+        if let Some(location) = self.location {
+            return NodeFields(links.located_node(self.node, location));
+        }
+        match links.node.get_with_position(self.node) {
+            Some((position, record)) => {
+                self.location = Some(NodeLinksLocation::from_position(position));
+                NodeFields(record)
+            }
+            // Absent, or a symbol-only record (its other fields unset; it
+            // moves when another field is written: no location is kept).
+            None => {
+                if perf::enabled() && links.node.has_no_record(self.node) {
+                    perf::bump(PerfCounter::LinksNodeReadAbsent);
+                }
+                NodeFields(&links.absent_node)
+            }
+        }
+    }
+
+    /// The cursor's node's resolved symbol (unset when it has no record); a
+    /// full record's location is kept.
+    #[inline]
+    pub(crate) fn symbol(&mut self, links: &LinksTables) -> ValueSlot<SymbolId> {
+        perf::bump(PerfCounter::LinksNodeReads);
+        if let Some(location) = self.location {
+            return links.located_node(self.node, location).resolved_symbol;
+        }
+        match links.node.node_entry(self.node) {
+            NodeEntry::Full(position, record) => {
+                self.location = Some(NodeLinksLocation::from_position(position));
+                record.resolved_symbol
+            }
+            NodeEntry::Symbol(_, _, resolved_symbol) => resolved_symbol,
+            NodeEntry::Absent => {
+                perf::bump(PerfCounter::LinksNodeReadAbsent);
+                ValueSlot::default()
+            }
+        }
+    }
+
+    /// The whole record, for the tests (the checker reads through
+    /// [`Self::fields`] and [`Self::symbol`]).
+    #[cfg(test)]
     #[inline]
     pub(crate) fn read<R>(&mut self, links: &LinksTables, read: impl FnOnce(&NodeLinks) -> R) -> R {
         perf::bump(PerfCounter::LinksNodeReads);
@@ -2419,6 +2491,32 @@ impl PagedTable<NodeId, NodeLinks> {
         )
     }
 
+    /// `node`'s resolved symbol where its record lies, None when it has no
+    /// record. The symbol-only records are tested first: most nodes that
+    /// have a record hold only a symbol.
+    #[inline(always)]
+    fn resolved_symbol(&self, node: NodeId) -> Option<ValueSlot<SymbolId>> {
+        let id = node.dense_index();
+        let entry = usize::from(self.page(id >> PAGE_SHIFT)?[id & (PAGE_IDS - 1)]);
+        if entry > REGION_RECORDS {
+            return Some(symbol_of_word(
+                *self.symbol_word(id >> REGION_SHIFT, entry - (REGION_RECORDS + 1)),
+            ));
+        }
+        if entry == 0 {
+            return None;
+        }
+        let position = ((id >> REGION_SHIFT) << REGION_SHIFT) | (entry - 1);
+        Some(self.get_at_position(position).resolved_symbol)
+    }
+
+    /// Whether `node` has no record at all (what the absent reads count).
+    fn has_no_record(&self, node: NodeId) -> bool {
+        let id = node.dense_index();
+        self.page(id >> PAGE_SHIFT)
+            .is_none_or(|page| page[id & (PAGE_IDS - 1)] == 0)
+    }
+
     #[inline(always)]
     fn symbol_word(&self, region: usize, position: usize) -> &u32 {
         &self.symbol_chunks[region * REGION_SYMBOL_CHUNKS + (position >> SYMBOL_CHUNK_SHIFT)]
@@ -2520,22 +2618,46 @@ impl PagedTable<NodeId, NodeLinks> {
         self.full_slot(node).resolved_symbol = value;
     }
 
+    /// A new symbol-only record in `region` holding `word`; None when the
+    /// region's symbol-only records are all taken. A region's directory and a
+    /// chunk are made out of line.
+    #[inline]
     fn create_symbol(&mut self, region: usize, word: u32) -> Option<usize> {
         if self.symbol_lens.len() <= region {
-            self.symbol_lens.resize(region + 1, 0);
-            self.symbol_chunks
-                .resize_with((region + 1) * REGION_SYMBOL_CHUNKS, || None);
+            self.add_symbol_regions(region);
         }
         let position = usize::from(self.symbol_lens[region]);
         if position == REGION_SYMBOL_RECORDS {
             return None;
         }
         let chunk = region * REGION_SYMBOL_CHUNKS + (position >> SYMBOL_CHUNK_SHIFT);
-        self.symbol_chunks[chunk].get_or_insert_with(|| Box::new([0; SYMBOL_CHUNK_RECORDS]))
-            [position & (SYMBOL_CHUNK_RECORDS - 1)] = word;
+        if position & (SYMBOL_CHUNK_RECORDS - 1) == 0 {
+            self.create_symbol_chunk(chunk);
+        }
+        self.symbol_chunks[chunk]
+            .as_mut()
+            .expect("a symbol-only record has a chunk")[position & (SYMBOL_CHUNK_RECORDS - 1)] =
+            word;
         self.symbol_lens[region] += 1;
         self.len += 1;
         Some(position)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn add_symbol_regions(&mut self, region: usize) {
+        self.symbol_lens.resize(region + 1, 0);
+        self.symbol_chunks
+            .resize_with((region + 1) * REGION_SYMBOL_CHUNKS, || None);
+    }
+
+    /// A region's positions are taken in order and never given back, so a
+    /// chunk's first position makes it.
+    #[cold]
+    #[inline(never)]
+    fn create_symbol_chunk(&mut self, chunk: usize) {
+        debug_assert!(self.symbol_chunks[chunk].is_none());
+        self.symbol_chunks[chunk] = Some(Box::new([0; SYMBOL_CHUNK_RECORDS]));
     }
 }
 
@@ -2647,10 +2769,57 @@ impl LinksTables {
     /// nothing; its caller counts a cached read).
     #[inline]
     pub(crate) fn node_resolved_symbol(&self, id: NodeId) -> Option<SymbolId> {
-        match self.node.node_entry(id) {
-            NodeEntry::Full(_, record) => record.resolved_symbol.resolved(),
-            NodeEntry::Symbol(_, _, symbol) => symbol.resolved(),
-            NodeEntry::Absent => None,
+        self.node
+            .resolved_symbol(id)
+            .and_then(|symbol| symbol.resolved())
+    }
+
+    /// The symbol of a flow query's identifier reference through its root:
+    /// a symbol-only record's word first (most such references), then a
+    /// full record's location, then by its node.
+    #[inline]
+    pub(crate) fn identifier_root_symbol(
+        &self,
+        id: NodeId,
+        root: IdentifierRoot,
+    ) -> Option<SymbolId> {
+        debug_assert!(root.is_some());
+        if let Some(word) = root.symbol_word() {
+            return self.node_symbol_at_word(id, word);
+        }
+        match root.location() {
+            Some(location) => self.located_node(id, location).resolved_symbol.resolved(),
+            None => self.node_resolved_symbol(id),
+        }
+    }
+
+    /// A node's resolved symbol slot (unset when it has no record): the
+    /// readers of the symbol.
+    #[inline]
+    pub(crate) fn node_symbol(&self, id: NodeId) -> ValueSlot<SymbolId> {
+        perf::bump(PerfCounter::LinksNodeReads);
+        match self.node.resolved_symbol(id) {
+            Some(symbol) => symbol,
+            None => {
+                perf::bump(PerfCounter::LinksNodeReadAbsent);
+                ValueSlot::default()
+            }
+        }
+    }
+
+    /// A node's links as the readers that never read its symbol see them
+    /// ([`NodeFields`]): a symbol-only record reads as the absent record.
+    #[inline]
+    pub(crate) fn node_fields(&self, id: NodeId) -> NodeFields<'_> {
+        perf::bump(PerfCounter::LinksNodeReads);
+        match self.node.get(id) {
+            Some(record) => NodeFields(record),
+            None => {
+                if perf::enabled() && self.node.has_no_record(id) {
+                    perf::bump(PerfCounter::LinksNodeReadAbsent);
+                }
+                NodeFields(&self.absent_node)
+            }
         }
     }
 
@@ -2669,6 +2838,9 @@ impl LinksTables {
     /// tsrs-native: select an owned field result without cloning a whole
     /// links record. The borrow ends before the caller can mutate the checker
     /// again; public snapshot getters retain their owned-copy semantics.
+    /// For the tests: the checker reads through [`Self::node_fields`] and
+    /// [`Self::node_symbol`].
+    #[cfg(test)]
     #[inline]
     pub(crate) fn read_node<R>(&self, id: NodeId, read: impl FnOnce(&NodeLinks) -> R) -> R {
         perf::bump(PerfCounter::LinksNodeReads);

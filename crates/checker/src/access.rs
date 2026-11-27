@@ -1318,10 +1318,7 @@ impl<'a> CheckerState<'a> {
         if !node_util::is_expression_node(&Published, priv_id) {
             return Ok(None);
         }
-        if let crate::links::LinkSlot::Resolved(symbol) = self
-            .links
-            .read_node(priv_id, |links| links.resolved_symbol.get())
-        {
+        if let crate::links::LinkSlot::Resolved(symbol) = self.links.node_symbol(priv_id).get() {
             return Ok(Some(symbol));
         }
         let name = self
@@ -2027,10 +2024,7 @@ impl<'a> CheckerState<'a> {
         _check_mode: CheckMode,
         write_only: bool,
     ) -> CheckResult<TypeId> {
-        let parent_symbol = match self
-            .links
-            .read_node(left, |links| links.resolved_symbol.get())
-        {
+        let parent_symbol = match self.links.node_symbol(left).get() {
             crate::links::LinkSlot::Resolved(symbol) => Some(symbol),
             _ => None,
         };
@@ -3232,9 +3226,8 @@ impl<'a> CheckerState<'a> {
                     node = inner;
                 }
                 if self.kind_of(node) == SyntaxKind::Identifier {
-                    if let crate::links::LinkSlot::Resolved(receiver_symbol) = self
-                        .links
-                        .read_node(node, |links| links.resolved_symbol.get())
+                    if let crate::links::LinkSlot::Resolved(receiver_symbol) =
+                        self.links.node_symbol(node).get()
                     {
                         if self
                             .binder
@@ -3861,10 +3854,7 @@ impl<'a> CheckerState<'a> {
                 None,
             )?
             .unwrap_or(self.tables.intrinsics.error);
-        let resolved_symbol = match self
-            .links
-            .read_node(node, |links| links.resolved_symbol.get())
-        {
+        let resolved_symbol = match self.links.node_symbol(node).get() {
             crate::links::LinkSlot::Resolved(symbol) => Some(symbol),
             _ => None,
         };

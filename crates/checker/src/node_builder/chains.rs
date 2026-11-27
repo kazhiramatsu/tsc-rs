@@ -3043,7 +3043,7 @@ pub(crate) fn existing_type_node_is_not_reference_or_is_reference_with_compatibl
     checker
         .get_type_from_type_node(existing)
         .map_err(|abort| checker_abort_error(checker, context, abort))?;
-    let symbol = checker.links.node(existing).resolved_symbol.resolved();
+    let symbol = checker.links.node_resolved_symbol(existing);
     let Some(symbol) = symbol else {
         return Ok(true);
     };
@@ -3308,7 +3308,8 @@ pub(crate) fn get_module_specifier_override(
     let node_symbol = parent_parse.and_then(|parent| {
         checker
             .links
-            .read_node(parent.node(), |links| links.resolved_symbol.resolved())
+            .node_symbol(parent.node())
+            .resolved()
             .filter(|&symbol| symbol != checker.unknown_symbol)
     });
     let is_type_of = matches!(

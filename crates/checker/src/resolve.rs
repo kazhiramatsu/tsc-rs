@@ -2968,10 +2968,7 @@ impl<'a> CheckerState<'a> {
     /// per node.
     #[inline]
     pub fn get_resolved_symbol(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_symbol.resolved())
-        {
+        if let Some(cached) = self.links.node_symbol(node).resolved() {
             return Ok((cached != self.unknown_symbol).then_some(cached));
         }
         self.resolve_uncached_symbol(node)

@@ -936,3 +936,75 @@ fn a_cursor_keeps_no_location_of_a_record_that_can_move() {
         Some(TypeId::new(6))
     );
 }
+
+/// The readers that never read a node's symbol see it through a view
+/// without that field, where a symbol-only record reads as the absent one;
+/// the symbol's own reader finds it in either pool; a cursor keeps a full
+/// record's location only; a flow query's root reads the same symbol by
+/// each of its handles.
+#[test]
+fn the_fields_view_and_the_symbol_reader_answer_every_entry_as_the_record() {
+    let mut links = LinksTables::default();
+    let absent = NodeId::new(80);
+    let symbol_only = NodeId::new(81);
+    let full = NodeId::new(82);
+    links.set_node_resolved_symbol(0, symbol_only, SymbolId::new(7));
+    links.set_node_resolved_symbol(0, full, SymbolId::new(8));
+    links.set_node_resolved_type(0, full, LinkSlot::Resolved(TypeId::new(3)));
+    links.or_node_check_flags(0, full, tsc_types::NodeCheckFlags::TYPE_CHECKED);
+    assert!(matches!(links.node.node_entry(absent), NodeEntry::Absent));
+    assert!(matches!(
+        links.node.node_entry(symbol_only),
+        NodeEntry::Symbol(..)
+    ));
+    assert!(matches!(links.node.node_entry(full), NodeEntry::Full(..)));
+    for node in [absent, symbol_only, full] {
+        let record = links.node(node);
+        let fields = links.node_fields(node);
+        assert_eq!(fields.resolved_type(), record.resolved_type, "{node:?}");
+        assert_eq!(
+            fields.resolved_signature(),
+            record.resolved_signature,
+            "{node:?}"
+        );
+        assert_eq!(fields.check_flags(), record.check_flags, "{node:?}");
+        assert_eq!(links.node_symbol(node), record.resolved_symbol, "{node:?}");
+        assert_eq!(
+            links.node_resolved_symbol(node),
+            record.resolved_symbol.resolved(),
+            "{node:?}"
+        );
+        let mut cursor = NodeLinksCursor::new(node);
+        assert_eq!(cursor.fields(&links).resolved_type(), record.resolved_type);
+        assert_eq!(cursor.location.is_some(), node == full, "{node:?}");
+        let mut cursor = NodeLinksCursor::new(node);
+        assert_eq!(cursor.symbol(&links), record.resolved_symbol);
+        assert_eq!(cursor.location.is_some(), node == full, "{node:?}");
+    }
+    let (root, _) = links.node_symbol_with_location(symbol_only).unwrap();
+    assert!(root.symbol_word().is_some());
+    assert_eq!(
+        links.identifier_root_symbol(symbol_only, root),
+        Some(SymbolId::new(7))
+    );
+    let (root, _) = links.node_symbol_with_location(full).unwrap();
+    assert!(root.location().is_some());
+    assert_eq!(
+        links.identifier_root_symbol(full, root),
+        Some(SymbolId::new(8))
+    );
+    assert_eq!(
+        links.identifier_root_symbol(symbol_only, IdentifierRoot::by_node()),
+        Some(SymbolId::new(7))
+    );
+    // Once another field is written the record is full, and the view reads it.
+    links.set_node_resolved_type(0, symbol_only, LinkSlot::Resolved(TypeId::new(4)));
+    assert_eq!(
+        links.node_fields(symbol_only).resolved_type().resolved(),
+        Some(TypeId::new(4))
+    );
+    assert_eq!(
+        links.node_symbol(symbol_only).resolved(),
+        Some(SymbolId::new(7))
+    );
+}

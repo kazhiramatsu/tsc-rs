@@ -2876,7 +2876,8 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<SignatureId>> {
         if self
             .links
-            .read_node(node, |links| links.check_flags)
+            .node_fields(node)
+            .check_flags()
             .intersects(tsc_types::NodeCheckFlags::NO_EFFECTS_SIGNATURE)
         {
             debug_assert!(!self.effects_signature_cache.contains_key(&node));

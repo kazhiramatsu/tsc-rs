@@ -137,7 +137,8 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<()> {
         if self
             .links
-            .read_node(node, |links| links.check_flags)
+            .node_fields(node)
+            .check_flags()
             .intersects(NodeCheckFlags::CONTEXT_CHECKED)
         {
             return Ok(());
@@ -145,7 +146,8 @@ impl<'a> CheckerState<'a> {
         let contextual_signature = self.get_contextual_signature(node)?;
         if self
             .links
-            .read_node(node, |links| links.check_flags)
+            .node_fields(node)
+            .check_flags()
             .intersects(NodeCheckFlags::CONTEXT_CHECKED)
         {
             return Ok(());
@@ -1266,7 +1268,8 @@ impl<'a> CheckerState<'a> {
                 }
                 let resolved = self
                     .links
-                    .read_node(node, |links| links.resolved_symbol.resolved())
+                    .node_symbol(node)
+                    .resolved()
                     .unwrap_or(self.unknown_symbol);
                 self.is_readonly_symbol(resolved)
             }
@@ -3055,7 +3058,8 @@ impl<'a> CheckerState<'a> {
             if let (Some(getter), Some(setter)) = (getter, setter) {
                 let getter_checked = self
                     .links
-                    .read_node(getter, |links| links.check_flags)
+                    .node_fields(getter)
+                    .check_flags()
                     .intersects(tsc_types::NodeCheckFlags::TYPE_CHECKED);
                 if !getter_checked {
                     self.links.or_node_check_flags(
@@ -5597,10 +5601,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a634e86b085e2c5bdf1ddba28241453f81b9b4c70d742c9a589fbe2b54d6dafc
     /// tsc-span: _tsc.js:69889-69892
     pub(crate) fn get_type_of_initializer(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        if let Some(resolved) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(resolved) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(resolved);
         }
         self.get_type_of_expression(node)

@@ -594,10 +594,7 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(literal) == SyntaxKind::NullKeyword {
             return Ok(self.tables.intrinsics.null);
         }
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(cached);
         }
         let fresh = self.check_literal_expression(literal)?;
@@ -688,10 +685,7 @@ impl<'a> CheckerState<'a> {
     /// twin (twin rule, unions.rs) so `"abc" | \`a${string}\``
     /// annotations run the template-literal reduction like tsc.
     fn get_type_from_union_type_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(cached);
         }
         let Some(data) = self.record_of(node).as_union_type() else {
@@ -724,10 +718,7 @@ impl<'a> CheckerState<'a> {
     /// 2-member `{} & T` where T is string/number/bigint-flavored or a
     /// pattern template literal (the NonNullable-style trick).
     fn get_type_from_intersection_type_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(cached);
         }
         let Some(data) = self.record_of(node).as_intersection_type() else {
@@ -782,10 +773,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 1a50ce55b0562f5f6b0a82d1b28d1943f8601f6172b9db8c00ba3634922d87b7
     /// tsc-span: _tsc.js:62047-62056
     fn get_type_from_template_type_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(cached);
         }
         let Some(data) = self.record_of(node).as_template_literal_type() else {
@@ -837,10 +825,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: fbfa13c985f4372427e82b3bcb4fbdcc8bba690945422a60571d8ca75d8e5301
     /// tsc-span: _tsc.js:61118-61137
     fn get_type_from_array_or_tuple_type_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(cached);
         }
         let target = self.get_array_or_tuple_target_type(node)?;
@@ -1404,10 +1389,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 94643dc28cefdc9e689c4db019c77b39683a0c1d4379adfb81b8745b243bd474
     /// tsc-span: _tsc.js:63187-63195
     fn get_type_from_named_tuple_type_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(cached);
         }
         let Some(data) = self.record_of(node).as_named_tuple_member() else {
@@ -1629,10 +1611,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(cached);
         }
         let symbol = self.node_symbol(node);
@@ -2047,7 +2026,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         cursor: &mut crate::links::NodeLinksCursor,
     ) -> CheckResult<SymbolId> {
-        if let Some(symbol) = cursor.read(&self.links, |links| links.resolved_symbol.resolved()) {
+        if let Some(symbol) = cursor.symbol(&self.links).resolved() {
             return Ok(symbol);
         }
         let symbol = self.resolve_type_reference_name(node, SymbolFlags::TYPE, false)?;
@@ -2083,10 +2062,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 5f298805f1bf4351822f0b77399acba5c31dff7ee616d8f1efed35ea03d4c9da
     /// tsc-span: _tsc.js:63160-63166
     pub(crate) fn get_type_from_this_type_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(cached);
         }
         let resolved = self.get_this_type(node)?;
@@ -2456,10 +2432,7 @@ impl<'a> CheckerState<'a> {
     /// a CommonJS `module.exports` module may also name a typedef exported
     /// beside it.
     fn get_type_from_import_type_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(cached);
         }
         let Some(data) = self.record_of(node).as_import_type() else {
@@ -3098,10 +3071,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 9e05ce48777372e904b79ee5425931016f67eb5a2b359955510d2e72f1610f98
     /// tsc-span: _tsc.js:62619-62630
     fn get_type_from_mapped_type_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(cached);
         }
         if let Some(frame) = self
@@ -3141,10 +3111,7 @@ impl<'a> CheckerState<'a> {
             crate::state::InProgressMappedType { node, ty: mapped }
         );
         constraint?;
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(cached);
         }
         self.links
@@ -3159,10 +3126,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(cached);
         }
         let Some(data) = self.record_of(node).as_indexed_access_type() else {
@@ -3189,10 +3153,7 @@ impl<'a> CheckerState<'a> {
         // The double-checked write (the 5.8a class): declaration-site
         // forcing can re-enter this node while the operands resolve —
         // the first write wins (tsc `links.resolvedType ??=`).
-        if let Some(already) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(already) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(already);
         }
         self.links.set_node_resolved_type(
@@ -3208,10 +3169,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:62770-62806
     ///
     fn get_type_from_conditional_type_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(cached);
         }
         let Some(data) = self.record_of(node).as_conditional_type() else {
@@ -3269,10 +3227,7 @@ impl<'a> CheckerState<'a> {
         // the result first; tsc's plain assignment is effectively idempotent
         // when the outer result is the same type. Keep the links-table
         // write-once invariant by accepting that identical publication.
-        if let Some(existing) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(existing) = self.links.node_fields(node).resolved_type().resolved() {
             assert_eq!(
                 existing, resolved,
                 "re-entrant conditional type node resolved to a different type"
@@ -3296,10 +3251,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: e701c8ac2036b0b493a9bd1ea3228aec8e0c2a1625f45cb8162d973ff861036c
     /// tsc-span: _tsc.js:62807-62813
     fn get_type_from_infer_type_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(cached);
         }
         let Some(data) = self.record_of(node).as_infer_type() else {
@@ -3916,10 +3868,7 @@ impl<'a> CheckerState<'a> {
     /// control-flow narrowing at the query location and shares the same
     /// instantiation-expression path as `typeof f<T>`.
     pub(crate) fn get_type_from_type_query_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
+        if let Some(cached) = self.links.node_fields(node).resolved_type().resolved() {
             return Ok(cached);
         }
         let ty = self.check_expression_with_type_arguments(node)?;
@@ -5618,11 +5567,7 @@ impl<'a> CheckerState<'a> {
                         // (checkComputedPropertyName memoizes the type).
                         let name_type = state.check_computed_property_name(name)?;
                         if state.property_name_from_type_usable(name_type).is_some() {
-                            if state
-                                .links
-                                .read_node(member, |links| links.resolved_symbol.resolved())
-                                .is_none()
-                            {
+                            if state.links.node_symbol(member).resolved().is_none() {
                                 freshly_bound.push(member);
                             }
                             state.late_bind_member(symbol, &early, &mut late, member)?;
@@ -5654,11 +5599,7 @@ impl<'a> CheckerState<'a> {
                     if !state.has_late_bindable_name(member)? {
                         continue;
                     }
-                    if state
-                        .links
-                        .read_node(member, |links| links.resolved_symbol.resolved())
-                        .is_none()
-                    {
+                    if state.links.node_symbol(member).resolved().is_none() {
                         freshly_bound.push(member);
                     }
                     state.late_bind_member(symbol, &early, &mut late, member)?;
@@ -5852,10 +5793,7 @@ impl<'a> CheckerState<'a> {
         let decl_symbol = self
             .node_symbol(decl)
             .expect("the member is expected to have a symbol");
-        if let Some(resolved) = self
-            .links
-            .read_node(decl, |links| links.resolved_symbol.resolved())
-        {
+        if let Some(resolved) = self.links.node_symbol(decl).resolved() {
             return Ok(Some(resolved));
         }
         self.links
@@ -10942,7 +10880,9 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<SignatureId> {
         if let Some(cached) = self
             .links
-            .read_node(declaration, |links| links.resolved_signature.resolved())
+            .node_fields(declaration)
+            .resolved_signature()
+            .resolved()
         {
             return Ok(cached);
         }
