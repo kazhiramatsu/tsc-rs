@@ -781,7 +781,7 @@ fn a_symbol_only_node_record_moves_whole_when_another_field_is_written() {
     let mut links = LinksTables::default();
     let node = NodeId::new(70);
     links.set_node_resolved_symbol(0, node, SymbolId::new(7));
-    assert!(matches!(links.node.node_entry(node), NodeEntry::Symbol(_)));
+    assert!(matches!(links.node.node_entry(node), NodeEntry::Symbol(..)));
     assert_eq!(
         links.read_node(node, |l| l.resolved_symbol.resolved()),
         Some(SymbolId::new(7))
@@ -793,7 +793,7 @@ fn a_symbol_only_node_record_moves_whole_when_another_field_is_written() {
     );
     // Rewritten in place while it holds only the symbol.
     links.set_node_resolved_symbol(0, node, SymbolId::new(8));
-    assert!(matches!(links.node.node_entry(node), NodeEntry::Symbol(_)));
+    assert!(matches!(links.node.node_entry(node), NodeEntry::Symbol(..)));
     assert_eq!(
         links.node(node).resolved_symbol.resolved(),
         Some(SymbolId::new(8))
@@ -828,13 +828,53 @@ fn a_symbol_only_node_record_moves_whole_when_another_field_is_written() {
     );
     links.revert_node_resolved_symbol_late_bind(late);
     assert_eq!(links.node(late).resolved_symbol.resolved(), None);
-    assert!(matches!(links.node.node_entry(late), NodeEntry::Symbol(_)));
+    assert!(matches!(links.node.node_entry(late), NodeEntry::Symbol(..)));
     links.or_node_check_flags(0, late, tsc_types::NodeCheckFlags::TYPE_CHECKED);
     assert_eq!(links.node(late).resolved_symbol.resolved(), None);
     assert!(links
         .node(late)
         .check_flags
         .contains(tsc_types::NodeCheckFlags::TYPE_CHECKED));
+}
+
+/// A flow query keeps a symbol-only record's word as its reference's place:
+/// the word reads the current symbol while the record holds only it, and
+/// once the record moves to the full pool the word says so and the read goes
+/// by node, so a symbol written later in the full record is the one read.
+#[test]
+fn a_symbol_only_records_word_reads_its_current_symbol_and_follows_a_move() {
+    let mut links = LinksTables::default();
+    let node = NodeId::new(70);
+    links.set_node_resolved_symbol(0, node, SymbolId::new(7));
+    let (root, symbol) = links.node_symbol_with_location(node).unwrap();
+    assert_eq!(symbol.resolved(), Some(SymbolId::new(7)));
+    assert!(root.location().is_none());
+    let word = root.symbol_word().expect("a symbol-only record has a word");
+    assert_eq!(
+        links.node_symbol_at_word(node, word),
+        Some(SymbolId::new(7))
+    );
+    links.set_node_resolved_symbol(0, node, SymbolId::new(8));
+    assert_eq!(
+        links.node_symbol_at_word(node, word),
+        Some(SymbolId::new(8))
+    );
+    // Another field moves the record; its word now reads as moved.
+    links.set_node_resolved_type(0, node, LinkSlot::Resolved(TypeId::new(3)));
+    assert!(matches!(links.node.node_entry(node), NodeEntry::Full(..)));
+    assert_eq!(
+        links.node_symbol_at_word(node, word),
+        Some(SymbolId::new(8))
+    );
+    links.set_node_resolved_symbol(0, node, SymbolId::new(9));
+    assert_eq!(
+        links.node_symbol_at_word(node, word),
+        Some(SymbolId::new(9))
+    );
+    // A full record's place is its location.
+    let (root, _) = links.node_symbol_with_location(node).unwrap();
+    assert!(root.location().is_some());
+    assert!(root.symbol_word().is_none());
 }
 
 /// A region's symbol-only records run out after `REGION_SYMBOL_RECORDS`:

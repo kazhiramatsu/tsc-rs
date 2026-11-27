@@ -780,13 +780,12 @@ impl CheckerState<'_> {
         // the declared type index is below 2^31.
         let root = match self.kind_of(query.reference) {
             SyntaxKind::Identifier => {
-                let (location, symbol) = self.links.node_symbol_with_location(query.reference)?;
+                let (root, symbol) = self.links.node_symbol_with_location(query.reference)?;
                 let symbol = symbol.resolved()?;
                 if symbol == self.unknown_symbol || self.is_this_in_type_query(query.reference) {
                     return None;
                 }
-                query.identifier_root =
-                    location.map_or_else(IdentifierRoot::by_node, IdentifierRoot::at);
+                query.identifier_root = root;
                 Some(symbol.position())
             }
             SyntaxKind::ThisKeyword => Some(0),

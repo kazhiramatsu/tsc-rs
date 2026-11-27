@@ -145,10 +145,12 @@ impl FlowQuery<'_> {
 }
 
 /// How the identifier matcher reads a query reference's symbol: through its
-/// full record's location, or by its node (a symbol-only record).
+/// full record's location, through its symbol-only record's word, or by its
+/// node (a place that did not fit the root).
 #[derive(Clone, Copy)]
 enum IdentifierRead {
     At(NodeLinksLocation),
+    Word(u32),
     ByNode,
 }
 
@@ -3461,10 +3463,13 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<bool> {
         let identifier = match query.identifier_root.location() {
             Some(location) => Some(IdentifierRead::At(location)),
-            None => query
-                .identifier_root
-                .is_some()
-                .then_some(IdentifierRead::ByNode),
+            None => match query.identifier_root.symbol_word() {
+                Some(word) => Some(IdentifierRead::Word(word)),
+                None => query
+                    .identifier_root
+                    .is_some()
+                    .then_some(IdentifierRead::ByNode),
+            },
         };
         match (query.synthetic_props.as_deref(), identifier) {
             (None, Some(read)) => match self.kind_of(target) {
@@ -3937,6 +3942,7 @@ impl<'a> CheckerState<'a> {
                 .located_node(source, location)
                 .resolved_symbol
                 .resolved(),
+            IdentifierRead::Word(word) => self.links.node_symbol_at_word(source, word),
             IdentifierRead::ByNode => self.links.node_resolved_symbol(source),
         });
         if let Some(cached) = cached {

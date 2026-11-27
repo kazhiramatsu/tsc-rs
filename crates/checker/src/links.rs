@@ -1866,18 +1866,38 @@ impl NodeLinksLocation {
 }
 
 /// A flow query's identifier reference ([`crate::flow::FlowQuery`]): none
-/// (0), its full record's location, or a record that holds only its symbol,
-/// read by its node (`u32::MAX`, which no location takes). Four bytes, as
-/// the location alone was.
+/// (0), its full record's location (below 2^31), the word of a record that
+/// holds only its symbol (bit 31 set: the region and the word's position in
+/// it), or a read by its node (`u32::MAX`: a location or word that does not
+/// fit). Four bytes, as the location alone was.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct IdentifierRoot(u32);
 
 impl IdentifierRoot {
     pub(crate) const NONE: Self = Self(0);
     const BY_NODE: u32 = u32::MAX;
+    const WORD: u32 = 1 << 31;
 
     pub(crate) fn at(location: NodeLinksLocation) -> Self {
-        Self(location.0.get())
+        let value = location.0.get();
+        if value < Self::WORD {
+            Self(value)
+        } else {
+            Self::by_node()
+        }
+    }
+
+    /// A symbol-only record's word: its region and its position there.
+    fn word(region: usize, position: usize) -> Self {
+        debug_assert!(position < REGION_SYMBOL_RECORDS);
+        match region
+            .checked_mul(1 << REGION_SHIFT)
+            .map(|base| base | position)
+            .and_then(|word| u32::try_from(word).ok())
+        {
+            Some(word) if word < Self::WORD - 1 => Self(Self::WORD | word),
+            _ => Self::by_node(),
+        }
     }
 
     pub(crate) fn by_node() -> Self {
@@ -1890,10 +1910,16 @@ impl IdentifierRoot {
 
     /// The full record's location, if the reference has one.
     pub(crate) fn location(self) -> Option<NodeLinksLocation> {
-        if self.0 == Self::BY_NODE {
+        if self.0 >= Self::WORD {
             return None;
         }
         NonZeroU32::new(self.0).map(NodeLinksLocation)
+    }
+
+    /// A symbol-only record's word (its region and position, packed), if
+    /// the reference has one.
+    pub(crate) fn symbol_word(self) -> Option<u32> {
+        (self.0 >= Self::WORD && self.0 != Self::BY_NODE).then_some(self.0 & !Self::WORD)
     }
 }
 
@@ -1943,7 +1969,7 @@ impl NodeLinksCursor {
             }
             // A symbol-only record moves when another field is written: its
             // location is not kept.
-            NodeEntry::Symbol(resolved_symbol) => read(&NodeLinks {
+            NodeEntry::Symbol(_, _, resolved_symbol) => read(&NodeLinks {
                 resolved_symbol,
                 ..NodeLinks::default()
             }),
@@ -2335,10 +2361,16 @@ enum NodeEntry<'t> {
     /// A full record and its position (a location may be kept: full records
     /// never move).
     Full(usize, &'t NodeLinks),
-    /// A record that holds only a resolved symbol, in four bytes. It moves to
-    /// the full pool when another field is written, so no location is kept.
-    Symbol(ValueSlot<SymbolId>),
+    /// A record that holds only a resolved symbol, in four bytes, with its
+    /// region and position. It moves to the full pool when another field is
+    /// written, and its word then says so ([`MOVED_SYMBOL_WORD`]).
+    Symbol(usize, usize, ValueSlot<SymbolId>),
 }
+
+/// The word a symbol-only record leaves when it moves to the full pool: a
+/// reader that kept the word's place reads the node's record instead. No
+/// symbol takes it (a symbol that would is kept in a full record).
+const MOVED_SYMBOL_WORD: u32 = u32::MAX;
 
 /// A symbol-only record's word: the symbol's index + 1, or 0 for none.
 #[inline]
@@ -2369,9 +2401,12 @@ impl PagedTable<NodeId, NodeLinks> {
         if slot == usize::from(u16::MAX) {
             return NodeEntry::Absent;
         }
-        NodeEntry::Symbol(symbol_of_word(
-            *self.symbol_word(id >> REGION_SHIFT, slot - REGION_RECORDS),
-        ))
+        let (region, position) = (id >> REGION_SHIFT, slot - REGION_RECORDS);
+        NodeEntry::Symbol(
+            region,
+            position,
+            symbol_of_word(*self.symbol_word(region, position)),
+        )
     }
 
     #[inline]
@@ -2415,7 +2450,10 @@ impl PagedTable<NodeId, NodeLinks> {
     #[inline(never)]
     fn take_symbol(&mut self, region: usize, position: usize) -> ValueSlot<SymbolId> {
         self.len -= 1;
-        symbol_of_word(*self.symbol_word(region, position))
+        symbol_of_word(std::mem::replace(
+            self.symbol_word_mut(region, position),
+            MOVED_SYMBOL_WORD,
+        ))
     }
 
     #[inline]
@@ -2429,6 +2467,12 @@ impl PagedTable<NodeId, NodeLinks> {
     /// records run out), a symbol-only record is rewritten, a full record's
     /// field is set.
     fn write_symbol(&mut self, node: NodeId, value: ValueSlot<SymbolId>) {
+        if symbol_word(value) == MOVED_SYMBOL_WORD {
+            // No symbol-only word may read as moved: this symbol is kept in
+            // a full record.
+            self.full_slot(node).resolved_symbol = value;
+            return;
+        }
         let id = node.dense_index();
         let (page_index, offset, region) =
             (id >> PAGE_SHIFT, id & (PAGE_IDS - 1), id >> REGION_SHIFT);
@@ -2530,22 +2574,43 @@ pub struct LinksTables {
 type ConditionalInstantiationKey = (ConditionalRootId, bool, tsc_types::InstantiationKey);
 
 impl LinksTables {
-    /// A node's resolved symbol and, for a full record, its location (a
-    /// symbol-only record can move, so it has none); None when the node has
-    /// no record. Like `node`, this never creates a record.
+    /// A node's resolved symbol and where a later read finds it: a full
+    /// record's location, or a symbol-only record's word; None when the node
+    /// has no record. Like `node`, this never creates a record.
     #[inline]
     pub(crate) fn node_symbol_with_location(
         &self,
         id: NodeId,
-    ) -> Option<(Option<NodeLinksLocation>, ValueSlot<SymbolId>)> {
+    ) -> Option<(IdentifierRoot, ValueSlot<SymbolId>)> {
         match self.node.node_entry(id) {
             NodeEntry::Full(position, record) => Some((
-                Some(NodeLinksLocation::from_position(position)),
+                IdentifierRoot::at(NodeLinksLocation::from_position(position)),
                 record.resolved_symbol,
             )),
-            NodeEntry::Symbol(symbol) => Some((None, symbol)),
+            NodeEntry::Symbol(region, position, symbol) => {
+                Some((IdentifierRoot::word(region, position), symbol))
+            }
             NodeEntry::Absent => None,
         }
+    }
+
+    /// A node's resolved symbol through its symbol-only record's word, as
+    /// [`Self::node_resolved_symbol`] reads it: the word holds the current
+    /// symbol until the record moves to the full pool, and then says so.
+    #[inline]
+    pub(crate) fn node_symbol_at_word(&self, id: NodeId, packed: u32) -> Option<SymbolId> {
+        let packed = packed as usize;
+        let word = *self
+            .node
+            .symbol_word(packed >> REGION_SHIFT, packed & ((1 << REGION_SHIFT) - 1));
+        if word == MOVED_SYMBOL_WORD {
+            return self.node_resolved_symbol(id);
+        }
+        debug_assert_eq!(
+            symbol_of_word(word).resolved(),
+            self.node_resolved_symbol(id)
+        );
+        symbol_of_word(word).resolved()
     }
 
     /// A node's resolved symbol where its record lies (the read counts
@@ -2554,7 +2619,7 @@ impl LinksTables {
     pub(crate) fn node_resolved_symbol(&self, id: NodeId) -> Option<SymbolId> {
         match self.node.node_entry(id) {
             NodeEntry::Full(_, record) => record.resolved_symbol.resolved(),
-            NodeEntry::Symbol(symbol) => symbol.resolved(),
+            NodeEntry::Symbol(_, _, symbol) => symbol.resolved(),
             NodeEntry::Absent => None,
         }
     }
@@ -2579,7 +2644,7 @@ impl LinksTables {
         perf::bump(PerfCounter::LinksNodeReads);
         match self.node.node_entry(id) {
             NodeEntry::Full(_, links) => read(links),
-            NodeEntry::Symbol(resolved_symbol) => read(&NodeLinks {
+            NodeEntry::Symbol(_, _, resolved_symbol) => read(&NodeLinks {
                 resolved_symbol,
                 ..NodeLinks::default()
             }),
@@ -2675,7 +2740,7 @@ impl LinksTables {
     pub fn node(&self, id: NodeId) -> NodeLinks {
         match self.node.node_entry(id) {
             NodeEntry::Full(_, links) => links.clone(),
-            NodeEntry::Symbol(resolved_symbol) => NodeLinks {
+            NodeEntry::Symbol(_, _, resolved_symbol) => NodeLinks {
                 resolved_symbol,
                 ..NodeLinks::default()
             },
