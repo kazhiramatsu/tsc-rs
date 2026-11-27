@@ -2378,6 +2378,16 @@ VS Code の 1 thread では、行を積むごとに下がる：行 1〜4 で −
 
 **次（owner の順）。** post-hand-off の行の最初の候補：配分を session の手順（adopt・late bind・公開、VS Code で約 20 ms）の横で helper thread に作らせる（配分は bind の結果を読まない；上限 VS Code の preset 約 −10 ms、next −2、zod −0.8；同じ配分になることを census build で 8 project で assert してから時間を測る）。その後 F9 class A。
 
+**結果 76（2026-11-27 夜：P3d の着地（PR #1049 の上、PR #1050）；採用の内訳の census；行 B → train 73）**
+
+**着地（PR #1050、merge `47d6e134e`、hosted run 45996331138、21:42）。** P3d：symbol を読まない読み手（51 か所）は symbol の field を持たない view `NodeFields` を通り、symbol の読み手（40 か所）は symbol-only を最初に調べる読み手から。train の local 検査（20:39–21:09）：test 全 pass、suites の退行 0、oracle 24 / 24、preset の出力 14 / 14 同一。main の binary は `batch72-sel-c3184fe46`。
+
+**配分を session の横で作る案（候補 A）の見直し。** 採用（adoption）は解析済みの tree を prepared program から checker の program source へ移し、公開がそれを消費する：session の横の helper が source を読める窓は late bind から公開まで（VS Code で約 5–6 ms）で、per-file の事実を先に compile thread で集める費用（約 2.5 ms）を引くと正味約 3 ms。上限の −10 ms には、配分の per-file の事実を read-ahead の task が解析した所で記録しておく必要がある（program と checker の両 crate；設計 `drafts-1111/dealing-beside-1127.md`、昼に）。
+
+**採用の内訳（census `n-adp1`、枠 s39、preset で 10 回の中央値）。** VS Code：手順の mark 5.58 ms（census の時計を含む）、部分の和 4.29 = **prepared tree の取り出し 2.72**（1 file 約 270 ns × 10,180：take-once の slot の lock、parse options と file 名の比較、record を box から写し出して box を解放（作った thread とは別の thread で）、tree を record から取り出して新しい box へ写す）、identity の lease 0.51、file の選別と metadata 0.31、共有 document の確認 0.27、残り 0.27、module 検出と parse options 0.20；既定も同じ（取り出し 2.85）。next 0.70 / 1.11、zod 0.50 / 0.81。今夜の 1 thread の profile（p3pair）でも `take_preparsed_tree` 6.6 M + `from_preparsed` 3.5 M cycles。
+
+**行 B（`perf/adopt-boxed-trees` `ffb9397b2`、binary `n-abx`）。** prepared record は tree を自分の allocation（解析した worker で作る）に持ち、採用する session はその allocation を引き取る（写さない）；library image の fresh な写しも box に。checks 3,416 件（program・checker・compiler）、出力は 8 project の全 mode で main と同じ、counter 3 / 3。**枠 s40（21:27–21:33）**：採用の mark（chain census、10 回）VS Code の preset **3.96 ms**（base 4.74 / 4.87）、既定 **3.93**（4.70 / 4.80）、next 0.74（1.10 / 1.15）、zod 0.47（0.69 / 0.69）― 約 −0.8 ms（census の上限 2.7 のうち lock・初回の memory touch・外側の box の解放は残る）；壁時計は preset の VS Code −0.29 %［control −0.53］counts、既定の VS Code +0.30 inside［+0.52］・next −0.24 inside・zod +0.72 out（control 自身の +0.91 の下）、1 thread の zod −0.50 % counts；peak は横ばい。前もって書いた規則（どの mode でも control より遅く out でなく、どこかで低いか採用の mark が両 mode で base pair の差を越えて短い）で **通る → train 73**（21:43 に list、owner：「row B完了までフルスピードでお願いします」）。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
