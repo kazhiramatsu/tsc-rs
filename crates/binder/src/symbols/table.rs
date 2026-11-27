@@ -75,6 +75,10 @@ impl NameKey for &JsString {
 // bandwidth is a measured cost of the parallel checkers).
 pub struct SymbolTable(Option<Box<SymbolMap>>);
 
+/// The locals of a scope that has locals and no entry: a bound file keeps
+/// only the tables with entries ([`crate::BindData::locals`]).
+pub static EMPTY_SYMBOL_TABLE: SymbolTable = SymbolTable(None);
+
 /// An insertion-ordered name -> symbol map: the entries in one vector and,
 /// once the map has [`INDEXED_FROM`] entries, a boxed hash table of their
 /// positions, hashed by the name's id. An entry costs its 8 bytes plus about

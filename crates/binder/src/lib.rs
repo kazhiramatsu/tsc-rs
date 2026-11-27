@@ -27,7 +27,7 @@ pub use reservations::BindReservations;
 pub use symbols::{
     escape_leading_underscores, published_symbol, unescape_leading_underscores, Declarations,
     InternalSymbolName, NameKey, Symbol, SymbolArena, SymbolArenaExhausted, SymbolExtras, SymbolId,
-    SymbolTable,
+    SymbolTable, EMPTY_SYMBOL_TABLE,
 };
 /// The store's retiring of published spans (see `BindData::published_spans`).
 pub use tsc_store::retire_spans;

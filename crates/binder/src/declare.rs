@@ -268,6 +268,18 @@ impl BindData {
     }
 }
 
+/// The locals tables a bound file keeps: those with entries, in a map of
+/// their size. A scope whose table stayed empty keeps its `HAS_LOCALS` bit,
+/// and its readers answer [`crate::EMPTY_SYMBOL_TABLE`] for it; the binder
+/// sized its map for the file's node count, the bound file holds this one
+/// to the end.
+fn kept_locals(locals: FxHashMap<NodeId, SymbolTable>) -> FxHashMap<NodeId, SymbolTable> {
+    let kept = locals.values().filter(|table| !table.is_empty()).count();
+    let mut tables = FxHashMap::with_capacity_and_hasher(kept, Default::default());
+    tables.extend(locals.into_iter().filter(|(_, table)| !table.is_empty()));
+    tables
+}
+
 impl BindData {
     /// Clone only the completed result for a compatibility adapter. The
     /// production snapshot path uses `Binder::into_bind_data` to move these
@@ -278,7 +290,7 @@ impl BindData {
             symbols: binder.symbols.clone(),
             node_symbol: binder.node_symbol.clone(),
             node_local_symbol: binder.node_local_symbol.clone(),
-            locals: binder.locals.clone(),
+            locals: kept_locals(binder.locals.clone()),
             bind_diagnostics: binder.bind_diagnostics.clone(),
             classifiable_names: binder.classifiable_names.clone(),
             assigned_symbol_ids: binder.assigned_symbol_ids.clone(),
@@ -1761,7 +1773,7 @@ impl BinderWorker<'_> {
             symbols,
             node_symbol,
             node_local_symbol,
-            locals,
+            locals: kept_locals(locals),
             bind_diagnostics,
             classifiable_names,
             assigned_symbol_ids,

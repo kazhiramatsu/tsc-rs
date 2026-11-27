@@ -218,7 +218,11 @@ fn task_binds_travel_with_the_parse_only_when_the_consumer_uses_them() {
                         .unwrap());
                     assert_eq!(expected.symbols, direct.symbols);
                     assert_eq!(expected.node_symbol, direct.node_symbol);
-                    assert_eq!(expected.locals, direct.locals);
+                    // A bound file keeps only the locals tables with entries.
+                    assert_eq!(
+                        expected.locals,
+                        tsc_binder::BindData::from_binder(&direct).locals
+                    );
                     assert_eq!(expected.node_flow, direct.node_flow);
                     assert_eq!(expected.bind_diagnostics, direct.bind_diagnostics);
                 } else if tree.arena.is_published() {
@@ -749,7 +753,11 @@ fn the_crew_gets_import_found_sources_with_bind_slices_in_path_order() {
                     .unwrap());
                 assert_eq!(crew.symbols, direct.symbols);
                 assert_eq!(crew.node_symbol, direct.node_symbol);
-                assert_eq!(crew.locals, direct.locals);
+                // A bound file keeps only the locals tables with entries.
+                assert_eq!(
+                    crew.locals,
+                    tsc_binder::BindData::from_binder(&direct).locals
+                );
                 assert_eq!(crew.node_flow, direct.node_flow);
                 assert_eq!(crew.bind_diagnostics, direct.bind_diagnostics);
             }

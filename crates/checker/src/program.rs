@@ -1863,7 +1863,13 @@ impl<'a> ProgramBinder<'a> {
             self.debug_assert_no_locals(scope);
             return None;
         }
-        self.binder_of_node(scope).locals.get(&scope)
+        // A bound file keeps only the tables with entries.
+        Some(
+            self.binder_of_node(scope)
+                .locals
+                .get(&scope)
+                .unwrap_or(&tsc_binder::EMPTY_SYMBOL_TABLE),
+        )
     }
 
     /// [`Self::locals_of`] for a walk up one node's ancestors. They lie in one
@@ -1893,7 +1899,11 @@ impl<'a> ProgramBinder<'a> {
         let Some(tables) = tables else {
             return self.locals_of(scope);
         };
-        let locals = tables.get(&scope);
+        let locals = Some(
+            tables
+                .get(&scope)
+                .unwrap_or(&tsc_binder::EMPTY_SYMBOL_TABLE),
+        );
         debug_assert!(
             match (locals, self.locals_of(scope)) {
                 (Some(kept), Some(routed)) => std::ptr::eq(kept, routed),
@@ -1930,13 +1940,18 @@ impl<'a> ProgramBinder<'a> {
         match &self.file_entries[self.file_index_of_node(scope)] {
             ProgramEntry::Owned(document) => {
                 let document: &'a Arc<BoundDocument> = document;
-                document.data.locals.get(&scope).map(ScopeTable::Borrowed)
+                Some(ScopeTable::Borrowed(
+                    document
+                        .data
+                        .locals
+                        .get(&scope)
+                        .unwrap_or(&tsc_binder::EMPTY_SYMBOL_TABLE),
+                ))
             }
-            ProgramEntry::Legacy(entry) => entry
-                .data
-                .locals
-                .get(&scope)
-                .map(|table| ScopeTable::Owned(table.clone())),
+            ProgramEntry::Legacy(entry) => Some(match entry.data.locals.get(&scope) {
+                Some(table) => ScopeTable::Owned(table.clone()),
+                None => ScopeTable::Borrowed(&tsc_binder::EMPTY_SYMBOL_TABLE),
+            }),
         }
     }
 

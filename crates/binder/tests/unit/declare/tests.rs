@@ -119,7 +119,8 @@ fn bind_relocation_matches_direct_nonzero_symbols_and_private_serials() {
     assert_eq!(expected.symbols, direct.symbols);
     assert_eq!(expected.node_symbol, direct.node_symbol);
     assert_eq!(expected.node_local_symbol, direct.node_local_symbol);
-    assert_eq!(expected.locals, direct.locals);
+    // A bound file keeps only the tables with entries: the direct bind's, too.
+    assert_eq!(expected.locals, BindData::from_binder(&direct).locals);
     assert_eq!(expected.classifiable_names, direct.classifiable_names);
     assert_eq!(expected.assigned_symbol_ids, direct.assigned_symbol_ids);
     assert_eq!(expected.next_symbol_id, direct.next_symbol_id);
@@ -447,7 +448,8 @@ fn a_reserved_bind_that_outgrows_its_room_relocates_to_a_direct_binds_symbols() 
     assert_eq!(expected.symbols, direct.symbols);
     assert_eq!(expected.node_symbol, direct.node_symbol);
     assert_eq!(expected.node_local_symbol, direct.node_local_symbol);
-    assert_eq!(expected.locals, direct.locals);
+    // A bound file keeps only the tables with entries: the direct bind's, too.
+    assert_eq!(expected.locals, BindData::from_binder(&direct).locals);
     assert_eq!(expected.assigned_symbol_ids, direct.assigned_symbol_ids);
     assert_eq!(expected.next_symbol_id, direct.next_symbol_id);
 }
@@ -487,7 +489,8 @@ fn a_completed_task_overflow_relocates_without_reclaiming_its_tree() {
     assert_eq!(expected.symbols, direct.symbols);
     assert_eq!(expected.node_symbol, direct.node_symbol);
     assert_eq!(expected.node_local_symbol, direct.node_local_symbol);
-    assert_eq!(expected.locals, direct.locals);
+    // A bound file keeps only the tables with entries: the direct bind's, too.
+    assert_eq!(expected.locals, BindData::from_binder(&direct).locals);
     assert_eq!(expected.assigned_symbol_ids, direct.assigned_symbol_ids);
     assert_eq!(expected.classifiable_names, direct.classifiable_names);
     assert_eq!(expected.next_symbol_id, direct.next_symbol_id);
@@ -560,4 +563,44 @@ fn node_flow_slots_keep_flows_past_two_bytes_in_the_overflow() {
     assert!(!map.contains_key(&nodes[0]));
     assert_eq!(map.get(&nodes[1]), Some(last_in_slot));
     assert_eq!(map.remove(&nodes[0]), None);
+}
+
+/// A bound file keeps only the locals tables with entries, in a map of their
+/// size; a scope whose table stayed empty keeps its `HAS_LOCALS` bit (its
+/// readers answer the shared empty table).
+// The scopes are sorted into two lists that are only counted and searched.
+#[allow(clippy::iter_over_hash_type)]
+#[test]
+fn a_bound_file_keeps_only_the_locals_tables_with_entries() {
+    let domain = IdentityDomain::new();
+    let mut source = parse_in_domain(
+        "/locals.ts",
+        "function f() {}\nfunction g(a: number) { { let b = a; } return a; }\nclass K { m() {} }\n",
+        &domain,
+    );
+    let binder = Binder::bind_in_identity_domain(&mut source, &domain).unwrap();
+    let (mut empty, mut full) = (Vec::new(), Vec::new());
+    for (&scope, table) in &binder.locals {
+        assert_ne!(binder.source.arena.node(scope).flags & HAS_LOCALS, 0);
+        if table.is_empty() {
+            empty.push(scope);
+        } else {
+            full.push(scope);
+        }
+    }
+    assert!(empty.len() >= 2, "f and m: {empty:?}");
+    assert!(full.len() >= 3, "the file, g and its block: {full:?}");
+    let cloned = BindData::from_binder(&binder);
+    let flags = empty
+        .iter()
+        .map(|&scope| binder.source.arena.node(scope).flags)
+        .collect::<Vec<_>>();
+    let data = binder.into_bind_data();
+    for locals in [&cloned.locals, &data.locals] {
+        assert_eq!(locals.len(), full.len());
+        assert!(full.iter().all(|scope| locals.contains_key(scope)));
+        assert!(empty.iter().all(|scope| !locals.contains_key(scope)));
+    }
+    assert!(flags.iter().all(|&flags| flags & HAS_LOCALS != 0));
+    assert!(empty.iter().all(|&scope| published_has_locals(scope)));
 }
