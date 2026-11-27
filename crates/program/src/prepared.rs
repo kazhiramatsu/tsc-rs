@@ -106,23 +106,30 @@ impl PathContext {
 /// on any difference.
 
 #[derive(Debug)]
+/// The tree in an allocation of its own, made where it was parsed: the
+/// prepared record stays a few words, and an adopting session takes the tree's
+/// allocation over instead of copying the tree out and into a new one.
 enum RetainedSource {
-    Ordinary(SourceFile),
-    Library(tsc_syntax::library_image::FreshLibrarySource),
+    Ordinary(Box<SourceFile>),
+    Library(Box<tsc_syntax::library_image::FreshLibrarySource>),
     Moving,
 }
 impl RetainedSource {
     fn into_source(self) -> SourceFile {
+        *self.into_boxed_source()
+    }
+    /// The tree's own allocation (a library image's fresh copy is boxed here).
+    fn into_boxed_source(self) -> Box<SourceFile> {
         match self {
             Self::Ordinary(source) => source,
-            Self::Library(fresh) => fresh.into_source(),
+            Self::Library(fresh) => Box::new(fresh.into_source()),
             Self::Moving => unreachable!("source transition"),
         }
     }
     fn ordinary_mut(&mut self) -> &mut SourceFile {
         if matches!(self, Self::Library(_)) {
             let old = std::mem::replace(self, Self::Moving);
-            *self = Self::Ordinary(old.into_source());
+            *self = Self::Ordinary(old.into_boxed_source());
         }
         match self {
             Self::Ordinary(source) => source,
@@ -157,7 +164,7 @@ impl PreparsedSourceFile {
             bind_reservations: None,
             bind_data: None,
             bind_span: None,
-            source: RetainedSource::Ordinary(source),
+            source: RetainedSource::Ordinary(Box::new(source)),
         }
     }
 
@@ -170,7 +177,7 @@ impl PreparsedSourceFile {
             bind_reservations: None,
             bind_data: None,
             bind_span: None,
-            source: RetainedSource::Library(source),
+            source: RetainedSource::Library(Box::new(source)),
         }
     }
 
@@ -225,7 +232,7 @@ impl PreparsedSourceFile {
             unreachable!()
         };
         assert!(self.bind_data.is_none());
-        (fresh, self.bind_reservations)
+        (*fresh, self.bind_reservations)
     }
 
     /// Adopt the tree and its take-once reservation together. A plain parse
@@ -247,6 +254,22 @@ impl PreparsedSourceFile {
             self.bind_reservations,
             self.bind_data,
             self.source.into_source(),
+        )
+    }
+
+    /// [`Self::into_bind_parts`] with the tree in its own allocation, as the
+    /// loader's parse made it: a session adopts it without copying it.
+    pub fn into_bind_parts_boxed(
+        self,
+    ) -> (
+        Option<tsc_binder::BindReservations>,
+        Option<Box<tsc_binder::BindData>>,
+        Box<SourceFile>,
+    ) {
+        (
+            self.bind_reservations,
+            self.bind_data,
+            self.source.into_boxed_source(),
         )
     }
 }
@@ -325,9 +348,9 @@ impl PreparsedSyntax {
                 unreachable!()
             };
             let (source, data) =
-                tsc_binder::library_image::restore_reserved(fresh, reservation, domain)
+                tsc_binder::library_image::restore_reserved(*fresh, reservation, domain)
                     .expect("compiler binding image matches ordinary binding");
-            parsed.source = RetainedSource::Ordinary(source);
+            parsed.source = RetainedSource::Ordinary(Box::new(source));
             parsed.bind_data = Some(Box::new(data));
             parsed.bind_span = started.map(|start| (start, std::time::Instant::now()));
             return;
