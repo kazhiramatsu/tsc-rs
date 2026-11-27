@@ -21,7 +21,7 @@ pub use tsc_types::SymbolId;
 /// observable (member synthesis and display order downstream), so it is
 /// insertion order, never hash order. Keys are stored PRE-escaped.
 mod table;
-pub use table::{EscapedNameSet, NameKey, SymbolTable};
+pub use table::{EscapedNameSet, NameKey, SymbolTable, EMPTY_SYMBOL_TABLE};
 
 mod declarations;
 pub use declarations::{DeclarationItem, DeclarationIter, DeclarationPool, Declarations};

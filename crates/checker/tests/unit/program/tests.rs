@@ -809,13 +809,27 @@ fn locals_are_found_for_exactly_the_scopes_that_have_them() {
         |state| {
             let bound = state.binder.file(0);
             let source = state.binder.source(0);
-            let mut scopes = 0;
+            let (mut scopes, mut empty) = (0, 0);
             for node in source.arena.node_ids() {
-                let found = state.binder.locals_of(node).is_some();
-                assert_eq!(found, bound.locals.contains_key(&node), "{node:?}");
-                scopes += usize::from(found);
+                let found = state.binder.locals_of(node);
+                assert_eq!(
+                    found.is_some(),
+                    tsc_binder::published_has_locals(node),
+                    "{node:?}"
+                );
+                match (found, bound.locals.get(&node)) {
+                    (Some(found), Some(kept)) => assert!(std::ptr::eq(found, kept), "{node:?}"),
+                    // The bound file keeps only the tables with entries.
+                    (Some(found), None) => {
+                        assert!(found.is_empty(), "{node:?}");
+                        empty += 1;
+                    }
+                    (None, kept) => assert!(kept.is_none(), "{node:?}"),
+                }
+                scopes += usize::from(found.is_some());
             }
             assert!(scopes >= 5, "the source file, functions, blocks and loop");
+            assert!(empty >= 1, "the method without parameters or locals");
         },
     );
 }
