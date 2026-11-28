@@ -2797,7 +2797,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Vec<crate::state::SignatureId>> {
         let mut applicable = Vec::new();
         for &signature in signatures {
-            if self.signatures[signature.index() as usize].has_no_type_parameters() {
+            if self.signature_of(signature).has_no_type_parameters() {
                 continue;
             }
             if self.has_correct_type_argument_arity(signature, argument_nodes) {
@@ -2808,7 +2808,8 @@ impl<'a> CheckerState<'a> {
         for signature in applicable {
             let type_argument_types =
                 self.check_type_arguments(signature, argument_nodes, true, None)?;
-            let is_javascript = self.signatures[signature.index() as usize]
+            let is_javascript = self
+                .signature_of(signature)
                 .declaration
                 .is_some_and(|declaration| self.is_in_js_file(declaration));
             result.push(match type_argument_types {

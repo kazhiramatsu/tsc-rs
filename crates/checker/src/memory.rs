@@ -51,7 +51,7 @@ pub(crate) fn checker_owners(
 ) {
     const TABLES: &str = "checker host tables (estimate)";
     const STRINGS: &str = "strings: stable owners";
-    for signature in &state.signatures {
+    for signature in state.signatures.iter() {
         if let Some(Some(predicate)) = signature.type_predicate() {
             if let Some(name) = &predicate.parameter_name {
                 usage.string(STRINGS, name);
@@ -205,10 +205,10 @@ pub(crate) fn print_reserved_vec<T>(label: &str, name: &str, values: &Vec<T>) ->
 }
 
 pub(crate) fn print_reserved_arenas(state: &CheckerState<'_>, label: &str) -> usize {
-    print_reserved_vec(label, "signatures", &state.signatures)
+    let (used, committed, runs) = state.tables.arena_stats();
+    eprintln!("[memory] {label} checker arena: used={used} B committed={committed} B runs={runs}");
+    state.signatures.print_reserved(label)
         + print_reserved_vec(label, "resolved_members", state.member_arena())
-        + print_reserved_vec(label, "mappers", &state.mappers)
-        + print_reserved_vec(label, "mapper_lists", &state.mapper_lists)
         + state
             .inference_context_arena
             .print_reserved(label, "inference_context")

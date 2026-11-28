@@ -1,5 +1,11 @@
 #![forbid(unsafe_code)]
 
+// The identities' arena element declaration (`id_type!`) names the arena
+// through this crate, so the crates that declare identities need no
+// dependency of their own on it.
+#[doc(hidden)]
+pub use tsc_arena as __arena;
+
 pub use tsc_store::record_lists::{OptionalBoxSlice, PackedBox, ThinBoxSlice};
 pub use tsc_store::{
     process_memory_bytes, resident_vec_tail_bytes, InlineList, InlineOrBox, InlineOrShared,

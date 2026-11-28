@@ -254,48 +254,17 @@ fn exact_heap_buffer<T: Copy, const N: usize>(
 pub(crate) struct InferenceLifetimes {
     contexts: Vec<InferenceContextId>,
     pub(crate) last_claimed_info: usize,
-    mapper_flags: Vec<u64>,
     todo: Vec<(MapperId, bool)>,
     visited: FxHashSet<MapperId>,
 }
 
 impl InferenceLifetimes {
-    #[inline]
-    fn flags(&self, mapper: MapperId) -> u64 {
-        let id = mapper.index() as usize;
-        self.mapper_flags
-            .get(id >> 5)
-            .map_or(0, |word| (*word >> ((id & 31) * 2)) & 3)
-    }
-
-    #[inline]
-    fn record_context_mapper(&mut self, mapper: MapperId) {
-        let id = mapper.index() as usize;
-        let word = id >> 5;
-        if word >= self.mapper_flags.len() {
-            let needed = word + 1;
-            // Match the dense prefix's capacity ceiling, without writing a
-            // word or updating length for each context-free mapper.
-            let capacity = needed.max(4).next_power_of_two();
-            self.mapper_flags
-                .reserve_exact(capacity - self.mapper_flags.len());
-            self.mapper_flags.resize(needed, 0);
-        }
-        self.mapper_flags[word] |= HAS_CONTEXT << ((id & 31) * 2);
-    }
-
-    fn mark_retained(&mut self, mapper: MapperId) {
-        let id = mapper.index() as usize;
-        self.mapper_flags[id >> 5] |= RETAINED << ((id & 31) * 2);
-    }
-
     pub(crate) fn created_context(&mut self, id: InferenceContextId) {
         self.contexts.push(id);
     }
 
     pub(crate) fn add_memory_usage(&self, usage: &mut tsc_diagnostics::MemoryUsage) {
         usage.vec("inference outstanding contexts", &self.contexts);
-        usage.vec("inference mapper flags", &self.mapper_flags);
         usage.vec("inference retention scratch", &self.todo);
         usage.hash_set("inference retention scratch", &self.visited);
     }
@@ -333,8 +302,10 @@ impl CheckerState<'_> {
             .push(candidate);
     }
 
+    /// The inference lifetime flags a new `mapper` is stored with (in its
+    /// record, see `MapperStore`): whether it reaches an inference context.
     #[inline(always)]
-    pub(crate) fn record_mapper_lifetime(&mut self, id: MapperId, mapper: TypeMapper) {
+    pub(crate) fn mapper_lifetime_flags(&self, mapper: TypeMapper) -> u64 {
         let has_context = match mapper {
             TypeMapper::Deferred(
                 DeferredMapperTargets::InferenceFixing(_)
@@ -342,14 +313,16 @@ impl CheckerState<'_> {
             ) => true,
             TypeMapper::Composite { mapper1, mapper2 }
             | TypeMapper::Merged { mapper1, mapper2 } => {
-                (self.inference_lifetimes.flags(mapper1) | self.inference_lifetimes.flags(mapper2))
+                (self.mappers.lifetime_flags(mapper1) | self.mappers.lifetime_flags(mapper2))
                     & HAS_CONTEXT
                     != 0
             }
             _ => false,
         };
         if has_context {
-            self.inference_lifetimes.record_context_mapper(id);
+            HAS_CONTEXT
+        } else {
+            0
         }
     }
 
@@ -357,7 +330,7 @@ impl CheckerState<'_> {
     #[inline]
     pub(crate) fn retain_inference_mapper(&mut self, mapper: Option<MapperId>) {
         if let Some(mapper) = mapper {
-            if self.inference_lifetimes.flags(mapper) == HAS_CONTEXT {
+            if self.mappers.lifetime_flags(mapper) == HAS_CONTEXT {
                 self.walk_inference_mappers(mapper, None);
             }
         }
@@ -371,7 +344,7 @@ impl CheckerState<'_> {
         mapper: Option<MapperId>,
     ) {
         if let Some(mapper) = mapper {
-            if self.inference_lifetimes.flags(mapper) == HAS_CONTEXT {
+            if self.mappers.lifetime_flags(mapper) == HAS_CONTEXT {
                 let older_than = (!self.inference_context(owner).escaped).then_some(owner);
                 self.walk_inference_mappers(mapper, older_than);
             }
@@ -402,7 +375,7 @@ impl CheckerState<'_> {
         let mut visited = std::mem::take(&mut self.inference_lifetimes.visited);
         todo.push((root, older_than.is_none()));
         while let Some((id, force)) = todo.pop() {
-            let flags = self.inference_lifetimes.flags(id);
+            let flags = self.mappers.lifetime_flags(id);
             if flags & HAS_CONTEXT == 0 || flags & RETAINED != 0 {
                 continue;
             }
@@ -410,9 +383,9 @@ impl CheckerState<'_> {
                 continue;
             }
             if force {
-                self.inference_lifetimes.mark_retained(id);
+                self.mappers.add_lifetime_flags(id, RETAINED);
             }
-            match self.mappers[id.index() as usize] {
+            match self.mappers.get(id) {
                 TypeMapper::Composite { mapper1, mapper2 }
                 | TypeMapper::Merged { mapper1, mapper2 } => {
                     todo.push((mapper1, force));
@@ -423,7 +396,7 @@ impl CheckerState<'_> {
                     | DeferredMapperTargets::InferenceNonFixing(context),
                 ) => {
                     if force || older_than.is_some_and(|owner| context.index() > owner.index()) {
-                        self.inference_lifetimes.mark_retained(id);
+                        self.mappers.add_lifetime_flags(id, RETAINED);
                         let context = self.inference_context_mut(context);
                         if !std::mem::replace(&mut context.escaped, true) {
                             todo.extend(
@@ -518,25 +491,28 @@ mod tests {
     use tsc_types::TypeId;
 
     #[test]
-    fn implicit_zero_mapper_tail_keeps_retained_bits_across_growth() {
-        use super::{InferenceLifetimes, HAS_CONTEXT, RETAINED};
-        use tsc_types::MapperId;
+    fn a_mappers_lifetime_flags_live_in_its_record() {
+        use super::{HAS_CONTEXT, RETAINED};
+        use crate::instantiate::{FunctionMapper, MapperStore, TypeMapper};
 
-        let mut lifetimes = InferenceLifetimes::default();
-        let far_tail = MapperId::new(u32::MAX - 1);
-        assert_eq!(lifetimes.flags(far_tail), 0);
-        assert_eq!(lifetimes.mapper_flags.capacity(), 0);
-
-        let first = MapperId::new(95);
-        lifetimes.record_context_mapper(first);
-        lifetimes.mark_retained(first);
-        let later = MapperId::new(70_000);
-        lifetimes.record_context_mapper(later);
-        assert_eq!(lifetimes.flags(first), HAS_CONTEXT | RETAINED);
-        assert_eq!(lifetimes.flags(later), HAS_CONTEXT);
-        assert_eq!(lifetimes.flags(MapperId::new(32_000)), 0);
-        assert_eq!(lifetimes.flags(far_tail), 0);
-        assert!(lifetimes.mapper_flags.capacity() <= 4096);
+        let arena = tsc_arena::LocalArena::new(4242);
+        let mut store = MapperStore::default();
+        let plain = store.alloc(&arena, TypeMapper::Function(FunctionMapper::Permissive), 0);
+        let context = store.alloc(
+            &arena,
+            TypeMapper::Function(FunctionMapper::Restrictive),
+            HAS_CONTEXT,
+        );
+        assert_eq!(store.lifetime_flags(plain), 0);
+        assert_eq!(store.lifetime_flags(context), HAS_CONTEXT);
+        store.add_lifetime_flags(context, RETAINED);
+        assert_eq!(store.lifetime_flags(context), HAS_CONTEXT | RETAINED);
+        assert_eq!(store.lifetime_flags(plain), 0);
+        // The flags leave the mapper itself unchanged.
+        assert!(matches!(
+            store.get(context),
+            TypeMapper::Function(FunctionMapper::Restrictive)
+        ));
     }
 
     #[test]

@@ -215,7 +215,6 @@ const _: () = {
     assert!(std::mem::offset_of!(InferenceContext, inferences) == 8);
     assert!(std::mem::offset_of!(InferenceInfo, generation) == 0);
     assert!(std::mem::offset_of!(InferenceInfo, candidates) == 16);
-    assert!(std::mem::size_of::<TypeMapper>() == 16);
 };
 
 /// tsc-port: createInferenceInfo @6.0.3

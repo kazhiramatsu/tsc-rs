@@ -97,6 +97,94 @@ pub enum SignatureKind {
 
 tsc_types::id_type!(MembersId);
 
+/// The checker's signatures and the minimum-argument memo kept beside them:
+/// the one owner of their storage, so its layout can change behind these
+/// methods. A signature's identity is its position, given in creation
+/// order; signatures are never removed.
+#[derive(Default)]
+pub struct SignatureStore {
+    signatures: Vec<Signature>,
+    /// tsc `signature.resolvedMinArgumentCount` (getMinArgumentCount 78287):
+    /// a byte a signature, by its index - zero while not computed, else the
+    /// count plus one. A signature's identity is never reused, so the byte
+    /// is the signature's own; a count of 255 or more is computed at every
+    /// request. The table grows to the highest signature asked.
+    resolved_min_argument_counts: Vec<u8>,
+}
+
+impl SignatureStore {
+    /// The signature `id`.
+    #[inline(always)]
+    pub fn get(&self, id: SignatureId) -> &Signature {
+        &self.signatures[id.index() as usize]
+    }
+
+    /// The signature `id`, to write its memo fields.
+    #[inline(always)]
+    pub fn get_mut(&mut self, id: SignatureId) -> &mut Signature {
+        &mut self.signatures[id.index() as usize]
+    }
+
+    /// The signatures created so far.
+    pub fn len(&self) -> usize {
+        self.signatures.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.signatures.is_empty()
+    }
+
+    /// Every signature, in creation order.
+    pub fn iter(&self) -> std::slice::Iter<'_, Signature> {
+        self.signatures.iter()
+    }
+
+    /// Store `signature`; its identity.
+    #[inline]
+    pub(crate) fn push(&mut self, signature: Signature) -> SignatureId {
+        let id = SignatureId::new(self.signatures.len() as u32);
+        self.signatures.push(signature);
+        id
+    }
+
+    /// Room for `additional` more signatures.
+    pub(crate) fn reserve(&mut self, additional: usize) {
+        self.signatures.reserve(additional);
+    }
+
+    /// The minimum argument count kept for `id`, if one was.
+    #[inline]
+    pub(crate) fn kept_min_argument_count(&self, id: SignatureId) -> Option<usize> {
+        match self.resolved_min_argument_counts.get(id.index() as usize) {
+            Some(&kept) if kept != 0 => Some(usize::from(kept) - 1),
+            _ => None,
+        }
+    }
+
+    /// Keep `count` as the minimum argument count of `id` (a count of 255
+    /// or more is not kept).
+    pub(crate) fn keep_min_argument_count(&mut self, id: SignatureId, count: usize) {
+        if let Ok(kept) = u8::try_from(count + 1) {
+            let index = id.index() as usize;
+            if self.resolved_min_argument_counts.len() <= index {
+                self.resolved_min_argument_counts.resize(index + 1, 0);
+            }
+            self.resolved_min_argument_counts[index] = kept;
+        }
+    }
+
+    /// The bytes the minimum-argument memo holds.
+    pub(crate) fn memo_bytes(&self) -> usize {
+        self.resolved_min_argument_counts.capacity()
+    }
+
+    /// The memory report's row of the reserved signatures; the resident
+    /// bytes of their unused tail.
+    pub(crate) fn print_reserved(&self, label: &str) -> usize {
+        crate::memory::print_reserved_vec(label, "signatures", &self.signatures)
+    }
+}
+
 /// Common signature fields and both owned list headers stay together.
 /// Computed memo fields share an optional cold owner.
 #[repr(C)]
@@ -1304,13 +1392,8 @@ pub struct CheckerState<'a> {
     /// follow the content order of `compareTypes` instead of type ids.
     pub stable_type_ordering: bool,
     pub links: LinksTables,
-    pub signatures: Vec<Signature>,
-    /// tsc `signature.resolvedMinArgumentCount` (getMinArgumentCount 78287):
-    /// a byte a signature, by its index - zero while not computed, else the
-    /// count plus one. A signature's identity is never reused, so the byte
-    /// is the signature's own; a count of 255 or more is computed at every
-    /// request. The table grows to the highest signature asked.
-    pub(crate) resolved_min_argument_counts: Vec<u8>,
+    /// The signatures and their minimum-argument memo.
+    pub signatures: SignatureStore,
     /// The lists an [`IndexInfoComponents`] names, by its value less one.
     index_info_components: Vec<Box<[NodeId]>>,
     /// The assignment-marking walks in progress (isPastLastAssignment's
@@ -1442,12 +1525,10 @@ pub struct CheckerState<'a> {
     pub circular_constraint_type: TypeId,
 
     // ---- M4 5.2: instantiation state ----
-    /// The TypeMapper arena — MapperId equality IS tsc's mapper object
+    /// The TypeMapper arena and the source and target lists of the array
+    /// and deferred mappers — MapperId equality IS tsc's mapper object
     /// identity (findActiveMapper 73616 compares `===`).
-    pub(crate) mappers: Vec<crate::instantiate::TypeMapper>,
-    /// The source and target lists of the array and deferred mappers (see
-    /// `instantiate::MapperList`).
-    pub(crate) mapper_lists: Vec<TypeId>,
+    pub(crate) mappers: crate::instantiate::MapperStore,
     /// tsc restrictiveMapper (47103).
     pub(crate) restrictive_mapper: crate::instantiate::MapperId,
     /// tsc permissiveMapper (47104).
@@ -2189,7 +2270,6 @@ impl<'a> CheckerState<'a> {
             std::mem::take(&mut self.skip_direct_inference_nodes),
             std::mem::take(&mut self.call_resolution_stack),
             std::mem::take(&mut self.mappers),
-            std::mem::take(&mut self.mapper_lists),
             std::mem::take(&mut self.display_visited_types),
             std::mem::take(&mut self.display_symbol_depth),
             std::mem::take(&mut self.display_infer_type_parameters),
@@ -2416,7 +2496,7 @@ impl<'a> CheckerState<'a> {
             self.signatures.len(),
             self.signatures.len() * std::mem::size_of::<Signature>()
                 + signature_heap
-                + self.resolved_min_argument_counts.capacity(),
+                + self.signatures.memo_bytes(),
         ));
         let mut member_symbols = rustc_hash::FxHashSet::default();
         let members_heap: usize = self
@@ -2457,12 +2537,7 @@ impl<'a> CheckerState<'a> {
                     .sum::<usize>()
                 + self.unaffected_members.heap_bytes(),
         ));
-        rows.push((
-            "type mappers",
-            self.mappers.len(),
-            self.mappers.len() * std::mem::size_of::<crate::instantiate::TypeMapper>()
-                + self.mapper_lists.len() * std::mem::size_of::<TypeId>(),
-        ));
+        rows.push(("type mappers", self.mappers.len(), self.mappers.bytes()));
         let (relations, relation_bytes) = self.relations.memory_usage();
         rows.push(("relation caches", relations, relation_bytes));
         rows.push((
@@ -2849,8 +2924,7 @@ impl<'a> CheckerState<'a> {
             strict_function_types,
             stable_type_ordering,
             links: LinksTables::with_id_bounds(node_id_end, symbol_id_end),
-            signatures: Vec::new(),
-            resolved_min_argument_counts: Vec::new(),
+            signatures: SignatureStore::default(),
             index_info_components: Vec::new(),
             assignment_marking_depth: 0,
             signature_instantiations: rustc_hash::FxHashMap::default(),
@@ -2902,8 +2976,7 @@ impl<'a> CheckerState<'a> {
             apparent_argument_count: None,
             no_constraint_type: TypeId::new(0),
             circular_constraint_type: TypeId::new(0),
-            mappers: Vec::new(),
-            mapper_lists: Vec::new(),
+            mappers: Default::default(),
             restrictive_mapper: crate::instantiate::MapperId::new(0),
             permissive_mapper: crate::instantiate::MapperId::new(0),
             unique_literal_mapper: crate::instantiate::MapperId::new(0),
@@ -3411,21 +3484,19 @@ impl<'a> CheckerState<'a> {
     /// ordinary JavaScript object allocation.
     pub fn alloc_signature(&mut self, signature: Signature) -> SignatureId {
         self.retain_inference_mapper(signature.mapper);
-        let id = SignatureId::new(self.signatures.len() as u32);
-        self.signatures.push(signature);
-        id
+        self.signatures.push(signature)
     }
 
     /// tsrs-native: mutable numeric SignatureId arena accessor; tsc
     /// mutates the object directly.
     pub fn signature_mut(&mut self, id: SignatureId) -> &mut Signature {
-        &mut self.signatures[id.index() as usize]
+        self.signatures.get_mut(id)
     }
 
     /// tsrs-native: numeric SignatureId arena accessor; tsc carries
     /// the object reference directly.
     pub fn signature_of(&self, id: SignatureId) -> &Signature {
-        &self.signatures[id.index() as usize]
+        self.signatures.get(id)
     }
 
     /// tsrs-native: tsc 59839 `signature.resolvedReturnType ??= type`
@@ -3437,7 +3508,7 @@ impl<'a> CheckerState<'a> {
         if let Some(existing) = self.signature_of(id).resolved_return_type {
             return existing;
         }
-        self.signatures[id.index() as usize].resolved_return_type = Some(resolved);
+        self.signatures.get_mut(id).resolved_return_type = Some(resolved);
         resolved
     }
 
@@ -3449,7 +3520,7 @@ impl<'a> CheckerState<'a> {
     /// inside an overload trial; unlike `seal_signature_return_type`,
     /// it does not publish a cache on a pre-existing signature.
     pub fn set_fresh_signature_return_type(&mut self, id: SignatureId, resolved: TypeId) {
-        let slot = &mut self.signatures[id.index() as usize].resolved_return_type;
+        let slot = &mut self.signatures.get_mut(id).resolved_return_type;
         assert!(slot.is_none(), "fresh return type initialized twice");
         *slot = Some(resolved);
     }

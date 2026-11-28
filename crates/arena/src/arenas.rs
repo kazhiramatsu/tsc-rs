@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::memory::{self, Run};
-use crate::{BlockAllocator, Bytes, List, ListHeader, Record, Ref, Span, BLOCK_BYTES};
+use crate::{BlockAllocator, Bytes, Element, List, ListHeader, Record, Ref, Span, BLOCK_BYTES};
 
 /// Snapshot of one live arena. Dropped arenas are removed from the registry.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -92,9 +92,25 @@ struct ArenaRun {
     used_before: usize,
     committed_before: usize,
 }
+/// The largest run a local arena's doubling reaches: 64 blocks (1 MiB). A
+/// run is one lock of the process-wide block allocator and one `mprotect`;
+/// doubling from one block keeps a small program's arena at one block and
+/// a large one's at a few dozen runs. Pages of a run that are never written
+/// are never resident. Under `arena-shuffle` every run stays one block, so
+/// each block's address is drawn on its own.
+const LOCAL_RUN_CAP_BLOCKS: usize = if cfg!(feature = "arena-shuffle") {
+    1
+} else {
+    64
+};
+
 struct Core {
     next: Cell<usize>,
     end: Cell<usize>,
+    /// The blocks the next run takes at least (see [`LOCAL_RUN_CAP_BLOCKS`]).
+    run_blocks: Cell<usize>,
+    /// The cap of `run_blocks`: one block (no doubling) for shared arenas.
+    run_cap: usize,
     runs: RefCell<Vec<ArenaRun>>,
     registration: Registration,
     #[cfg(debug_assertions)]
@@ -112,6 +128,12 @@ impl Core {
         Self {
             next: Cell::new(0),
             end: Cell::new(0),
+            run_blocks: Cell::new(1),
+            run_cap: if kind == "local" {
+                LOCAL_RUN_CAP_BLOCKS
+            } else {
+                1
+            },
             runs: RefCell::new(Vec::new()),
             registration: Registration::new(owner, kind),
             #[cfg(debug_assertions)]
@@ -162,8 +184,10 @@ impl Core {
     #[cold]
     #[inline(never)]
     fn allocate_run(&self, bytes: usize) -> usize {
-        let run = BlockAllocator::global()
-            .allocate(bytes.div_ceil(BLOCK_BYTES), self.registration.entry.owner);
+        let blocks = bytes.div_ceil(BLOCK_BYTES).max(self.run_blocks.get());
+        self.run_blocks
+            .set(blocks.saturating_mul(2).min(self.run_cap).max(1));
+        let run = BlockAllocator::global().allocate(blocks, self.registration.entry.owner);
         #[cfg(debug_assertions)]
         if self.local {
             run.set_thread(self.thread.get());
@@ -200,7 +224,7 @@ impl Core {
             Ref::from_allocated(pointer)
         }
     }
-    fn slice<T: Record>(&self, values: &[T]) -> Span<T> {
+    fn slice<T: Element>(&self, values: &[T]) -> Span<T> {
         if values.is_empty() {
             return Span::empty();
         }
@@ -213,7 +237,7 @@ impl Core {
         }
         Span::new(memory::raw(pointer), len)
     }
-    fn list<T: Record>(&self, values: &[T]) -> Ref<List<T>> {
+    fn list<T: Element>(&self, values: &[T], extra: u32) -> Ref<List<T>> {
         let len = u32::try_from(values.len()).expect("arena list length exceeds u32");
         let bytes = std::mem::size_of_val(values)
             .checked_add(8)
@@ -223,13 +247,60 @@ impl Core {
         // the eight-byte header preserves every allowed alignment. Its handle
         // is nonzero by the block allocator's issuance invariant.
         unsafe {
-            (pointer as *mut ListHeader).write(ListHeader { len, extra: 0 });
+            (pointer as *mut ListHeader).write(ListHeader { len, extra });
             std::ptr::copy_nonoverlapping(values.as_ptr(), (pointer + 8) as *mut T, values.len());
             Ref::from_allocated(pointer)
         }
     }
+    /// Write an iterator's items at `pointer` (room for `len` items, in this
+    /// arena's newest allocation). The room is taken before the first item,
+    /// so items the iterator allocates in this arena land after it. An
+    /// iterator that yields more or fewer items than its length panics; the
+    /// room it leaves holds zeros or written items, all valid records.
+    fn fill<T: Element>(pointer: usize, len: usize, items: impl Iterator<Item = T>) {
+        let mut written = 0;
+        for item in items {
+            assert!(written < len, "iterator yielded more items than its length");
+            // SAFETY: within the room of len aligned Ts taken for this fill.
+            unsafe { (pointer as *mut T).add(written).write(item) };
+            written += 1;
+        }
+        assert_eq!(written, len, "iterator yielded fewer items than its length");
+    }
+    fn slice_from_iter<T: Element>(&self, items: impl ExactSizeIterator<Item = T>) -> Span<T> {
+        let len = items.len();
+        if len == 0 {
+            Self::fill::<T>(0, 0, items);
+            return Span::empty();
+        }
+        let count = u32::try_from(len).expect("arena slice length exceeds u32");
+        let bytes = len
+            .checked_mul(size_of::<T>())
+            .expect("arena slice size overflow");
+        let pointer = self.allocate(bytes, align_of::<T>());
+        Self::fill(pointer, len, items);
+        Span::new(memory::raw(pointer), count)
+    }
+    fn list_from_iter<T: Element>(
+        &self,
+        extra: u32,
+        items: impl ExactSizeIterator<Item = T>,
+    ) -> Ref<List<T>> {
+        let len = items.len();
+        let count = u32::try_from(len).expect("arena list length exceeds u32");
+        let bytes = len
+            .checked_mul(size_of::<T>())
+            .and_then(|bytes| bytes.checked_add(8))
+            .expect("arena list size overflow");
+        let pointer = self.allocate(bytes, align_of::<T>());
+        // SAFETY: the header's room at the start of this fresh allocation.
+        unsafe { (pointer as *mut ListHeader).write(ListHeader { len: count, extra }) };
+        Self::fill(pointer + 8, len, items);
+        // SAFETY: an issued allocation; its handle is nonzero (see list).
+        unsafe { Ref::from_allocated(pointer) }
+    }
     fn bytes(&self, values: &[u8]) -> Ref<Bytes> {
-        Ref::from_raw(self.list(values).raw()).unwrap()
+        Ref::from_raw(self.list(values, 0).raw()).unwrap()
     }
     fn owns<T: Record>(&self, r: Ref<T>) -> bool {
         let pointer = memory::address(r.raw());
@@ -257,6 +328,11 @@ impl Core {
         #[cfg(debug_assertions)]
         {
             let current = memory::current_thread_id();
+            // A holder that adopts at every entry (a checker behind a lock)
+            // pays the block walk only when the thread changed.
+            if self.thread.get() == current {
+                return;
+            }
             self.thread.set(current);
             for r in self.runs.borrow().iter() {
                 r.run.set_thread(current);
@@ -286,11 +362,11 @@ impl SharedArena {
     pub fn alloc<T: Record + Sync>(&self, value: T) -> Ref<T> {
         self.core.alloc(value)
     }
-    pub fn alloc_slice<T: Record + Sync>(&self, values: &[T]) -> Span<T> {
+    pub fn alloc_slice<T: Element + Sync>(&self, values: &[T]) -> Span<T> {
         self.core.slice(values)
     }
-    pub fn alloc_list<T: Record + Sync>(&self, values: &[T]) -> Ref<List<T>> {
-        self.core.list(values)
+    pub fn alloc_list<T: Element + Sync>(&self, values: &[T]) -> Ref<List<T>> {
+        self.core.list(values, 0)
     }
     pub fn alloc_bytes(&self, bytes: &[u8]) -> Ref<Bytes> {
         self.core.bytes(bytes)
@@ -370,11 +446,34 @@ impl LocalArena {
     pub fn alloc<T: Record>(&self, value: T) -> Ref<T> {
         self.core.alloc(value)
     }
-    pub fn alloc_slice<T: Record>(&self, values: &[T]) -> Span<T> {
+    pub fn alloc_slice<T: Element>(&self, values: &[T]) -> Span<T> {
         self.core.slice(values)
     }
-    pub fn alloc_list<T: Record>(&self, values: &[T]) -> Ref<List<T>> {
-        self.core.list(values)
+    pub fn alloc_list<T: Element>(&self, values: &[T]) -> Ref<List<T>> {
+        self.core.list(values, 0)
+    }
+    /// A list whose header carries `extra` (for example the list's hash).
+    pub fn alloc_list_with_extra<T: Element>(&self, values: &[T], extra: u32) -> Ref<List<T>> {
+        self.core.list(values, extra)
+    }
+    /// A span written straight from an iterator, with no buffer between.
+    /// Panics if the iterator yields more or fewer items than its length.
+    pub fn alloc_slice_from_iter<T: Element, I>(&self, items: I) -> Span<T>
+    where
+        I: IntoIterator<Item = T>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        self.core.slice_from_iter(items.into_iter())
+    }
+    /// A list written straight from an iterator, its header carrying
+    /// `extra`. Panics if the iterator yields more or fewer items than its
+    /// length.
+    pub fn alloc_list_from_iter<T: Element, I>(&self, extra: u32, items: I) -> Ref<List<T>>
+    where
+        I: IntoIterator<Item = T>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        self.core.list_from_iter(extra, items.into_iter())
     }
     pub fn alloc_bytes(&self, bytes: &[u8]) -> Ref<Bytes> {
         self.core.bytes(bytes)
@@ -384,6 +483,20 @@ impl LocalArena {
     }
     pub fn committed_bytes(&self) -> usize {
         self.core.committed()
+    }
+    /// The runs taken from the block allocator so far, each one lock and one
+    /// `mprotect`. A local arena's runs double from one block to 1 MiB (one
+    /// block each under `arena-shuffle`).
+    pub fn run_count(&self) -> usize {
+        self.core.runs.borrow().len()
+    }
+    /// The handle the next allocation of `bytes` bytes receives, when it
+    /// fits in the current run (none before the first run or when a new run
+    /// would be taken).
+    pub fn next_raw(&self, bytes: usize) -> Option<u32> {
+        let bytes = bytes.max(1).checked_next_multiple_of(8)?;
+        let next = self.core.next.get();
+        (next != 0 && bytes <= self.core.end.get() - next).then(|| memory::raw(next))
     }
     /// Debug bookkeeping after an exclusive Owned transfer; no-op otherwise.
     pub fn adopt_current_thread(&self) {

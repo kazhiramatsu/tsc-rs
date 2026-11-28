@@ -219,7 +219,9 @@ fn filter_callbacks_preserve_member_order_origins_and_created_types() {
                         let index = calls.len();
                         let created = state.tables.get_number_literal_type(50. + index as f64);
                         let list = state.tables.intern_type_list(&[created, member]);
-                        calls.push((member, created, list));
+                        // A list's id is its arena handle, which differs
+                        // between the two runs' checkers: compare contents.
+                        calls.push((member, created, state.tables.list(list).to_vec()));
                         if replace && index == 0 {
                             let replacement = state.tables.intern_type_list(&[members[0], created]);
                             let TypeData::Union { types, .. } =

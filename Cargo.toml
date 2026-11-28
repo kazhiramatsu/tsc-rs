@@ -37,6 +37,7 @@ iter_over_hash_type = "deny"
 # aliases and Rust `use` paths can remain unchanged.
 [workspace.dependencies]
 tsc-api = { package = "tsc-rs-api", path = "crates/api" }
+tsc-arena = { package = "tsc-rs-arena", path = "crates/arena" }
 tsc-binder = { package = "tsc-rs-binder", path = "crates/binder" }
 tsc-checker = { package = "tsc-rs-checker", path = "crates/checker" }
 tsc-compiler = { package = "tsc-rs-compiler", path = "crates/compiler" }
@@ -73,6 +74,8 @@ codegen-units = 1
 # The library-image generator builds these compute crates for the host too.
 # Package overrides also cover build dependencies; their always-inline paths
 # need the same optimization as the target and the dev-profile metadata.
+[profile.release.package.tsc-rs-arena]
+opt-level = 3
 [profile.release.package.tsc-rs-binder]
 opt-level = 3
 [profile.release.package.tsc-rs-diagnostics]
@@ -91,6 +94,8 @@ debug = 0
 # corpus-wide ones ~9x slower than release. Optimize the compute crates while
 # keeping dev's debug-assertions (invariant checks stay on). The list follows
 # the `dev-profile-opt-level` metadata of the member manifests.
+[profile.dev.package.tsc-rs-arena]
+opt-level = 3
 [profile.dev.package.tsc-rs-binder]
 opt-level = 3
 [profile.dev.package.tsc-rs-checker]

@@ -5,35 +5,83 @@ use crate::state::test_support::with_program_state;
 use crate::state::CheckerState;
 
 #[test]
-fn a_mapper_list_is_six_bytes_and_keeps_a_long_lists_length_in_the_arena() {
-    use crate::instantiate::{MapperList, TypeMapper};
+fn every_mapper_round_trips_through_its_arena_record() {
+    use crate::inference::InferenceContextId;
+    use crate::inference_storage::InferenceHandle;
+    use crate::instantiate::{
+        DeferredMapperTargets, FunctionMapper, MapperList, MapperStore, TypeMapper,
+    };
     use tsc_types::TypeId;
 
-    assert_eq!(std::mem::size_of::<MapperList>(), 6);
-    assert_eq!(std::mem::size_of::<TypeMapper>(), 16);
+    assert_eq!(std::mem::size_of::<MapperList>(), 4);
+    assert_eq!(std::mem::size_of::<Option<MapperList>>(), 4);
     let types = |count: usize| (0..count as u32).map(TypeId::new).collect::<Vec<_>>();
-    let mut arena = Vec::new();
-    // Lists follow each other in the arena; an empty one takes nothing.
-    let empty = MapperList::store(&mut arena, &[]);
-    let three = MapperList::store(&mut arena, &types(3));
-    assert_eq!(arena.len(), 3);
-    assert!(empty.types(&arena).is_empty());
-    assert_eq!(three.types(&arena), types(3));
-    // The longest list whose length fits the handle: no entry beside its types.
-    let short = usize::from(MapperList::LONG) - 1;
-    let fits = MapperList::store(&mut arena, &types(short));
-    assert_eq!(arena.len(), 3 + short);
-    assert_eq!(fits.types(&arena), types(short));
-    // From `LONG` entries on the length is the arena entry before the first.
-    for count in [usize::from(MapperList::LONG), 70_000] {
-        let before = arena.len();
-        let long = MapperList::store(&mut arena, &types(count));
-        assert_eq!(arena.len(), before + 1 + count);
-        assert_eq!(long.types(&arena), types(count));
+    let arena = tsc_arena::LocalArena::new(4243);
+    let mut store = MapperStore::default();
+    // Lists of any length keep their length in their header.
+    let empty = store.store_list(&arena, &[]);
+    let three = store.store_list(&arena, &types(3));
+    let long = store.store_list(&arena, &types(70_000));
+    assert!(store.list(empty).is_empty());
+    assert_eq!(store.list(three), types(3));
+    assert_eq!(store.list(long), types(70_000));
+
+    let simple = store.alloc(
+        &arena,
+        TypeMapper::Simple {
+            source: TypeId::new(1),
+            target: TypeId::new(2),
+        },
+        0,
+    );
+    let context = InferenceContextId::from_parts(5, 3);
+    let node = tsc_syntax::NodeId::new(9);
+    let mappers = [
+        TypeMapper::Simple {
+            source: TypeId::new(0),
+            target: TypeId::new(u32::MAX - 1),
+        },
+        TypeMapper::Array {
+            sources: three,
+            targets: None,
+        },
+        TypeMapper::Array {
+            sources: empty,
+            targets: Some(long),
+        },
+        TypeMapper::Deferred(DeferredMapperTargets::InferenceFixing(context)),
+        TypeMapper::Deferred(DeferredMapperTargets::InferenceNonFixing(context)),
+        TypeMapper::Deferred(DeferredMapperTargets::EffectiveTypeArguments {
+            node,
+            type_parameters: three,
+        }),
+        TypeMapper::Function(FunctionMapper::Permissive),
+        TypeMapper::Function(FunctionMapper::Restrictive),
+        TypeMapper::Function(FunctionMapper::UniqueLiteral),
+        TypeMapper::Function(FunctionMapper::ReportsUnmeasurable),
+        TypeMapper::Function(FunctionMapper::ReportsUnreliable),
+        TypeMapper::Composite {
+            mapper1: simple,
+            mapper2: simple,
+        },
+        TypeMapper::Merged {
+            mapper1: simple,
+            mapper2: simple,
+        },
+    ];
+    for mapper in mappers {
+        let id = store.alloc(&arena, mapper, 0);
+        let stored = store.get(id);
+        assert_eq!(format!("{stored:?}"), format!("{mapper:?}"));
+        if let TypeMapper::Deferred(
+            DeferredMapperTargets::InferenceFixing(stored)
+            | DeferredMapperTargets::InferenceNonFixing(stored),
+        ) = stored
+        {
+            assert_eq!((stored.index(), stored.slot()), (5, 3));
+        }
     }
-    // Earlier lists read as before.
-    assert_eq!(three.types(&arena), types(3));
-    assert_eq!(fits.types(&arena), types(short));
+    assert_eq!(store.len(), 1 + mappers.len());
 }
 
 #[test]
@@ -491,7 +539,14 @@ fn signature_arguments_preserve_fill_keys_and_allocation_order() {
                 assert_eq!(snapshots[4].0, snapshots[5].0);
                 assert_eq!(snapshots[6], snapshots[7]);
                 let next = state.tables.intern_type_list(&[n, s, n, s]);
-                runs.push((snapshots, next));
+                // A list's handle is a position in its checker's own arena:
+                // the runs compare what they allocated there (its bytes in
+                // use) and the list itself.
+                runs.push((
+                    snapshots,
+                    state.tables.list(next).to_vec(),
+                    state.tables.arena_stats().0,
+                ));
             },
         );
     }
@@ -1657,7 +1712,7 @@ fn instantiated_transient_keeps_original_flags_name_and_declarations_after_rollb
                 assert_eq!(links.check_flags, flags | CheckFlags::INSTANTIATED);
                 assert_eq!(links.name_type, Some(name_type));
                 assert!(
-                    matches!(state.mapper(links.mapper.unwrap()), super::TypeMapper::Composite { mapper1, mapper2 } if *mapper1 == state.permissive_mapper && *mapper2 == state.restrictive_mapper)
+                    matches!(state.mapper(links.mapper.unwrap()), super::TypeMapper::Composite { mapper1, mapper2 } if mapper1 == state.permissive_mapper && mapper2 == state.restrictive_mapper)
                 );
                 assert_eq!(state.binder.symbol(result).declarations(), &[node]);
                 assert_eq!(state.binder.symbol(result).value_declaration, Some(node));

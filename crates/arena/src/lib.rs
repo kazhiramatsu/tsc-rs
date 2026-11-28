@@ -94,6 +94,60 @@ unsafe impl<T: Record, const N: usize> Record for [T; N] {}
 // SAFETY: a phantom marker has no bytes, validity constraints or Drop glue.
 unsafe impl<T: 'static> Record for std::marker::PhantomData<T> {}
 
+/// An element of a [`Span`] or a [`List`]: a [`Record`], or an identity - a
+/// four-byte newtype over `NonZeroU32` declared with [`identity_element!`].
+///
+/// # Safety
+///
+/// Implementors are bitwise-copyable, with no Drop glue, no padding and no
+/// references. A span or list holds only values written as valid values of
+/// the type by this crate's typed allocation APIs, so a read of a LIVE span or
+/// list sees valid values. Unlike a record, an identity has an invalid bit
+/// pattern (zero): a stale read, already outside the lifetime contract, is
+/// undefined behaviour rather than a zero.
+pub unsafe trait Element: Sized + 'static {}
+// SAFETY: a record accepts every bit pattern, the written ones among them.
+unsafe impl<T: Record> Element for T {}
+
+/// Declare `$name`, a four-byte newtype whose field `$field` is a
+/// `NonZeroU32`, an [`Element`]: spans and lists of it, with no unsafe code in
+/// the declaring crate. The checks: the field's type, the size (four bytes,
+/// so no other field and no padding), Copy, and no Drop glue.
+///
+/// ```
+/// #[derive(Clone, Copy)]
+/// #[repr(transparent)]
+/// pub struct NodeId(std::num::NonZeroU32);
+/// tsc_arena::identity_element!(NodeId, 0);
+/// ```
+#[macro_export]
+macro_rules! identity_element {
+    ($name:ty, $field:tt) => {
+        const _: () = {
+            fn field(id: $name) -> ::std::num::NonZeroU32 {
+                id.$field
+            }
+            fn copy<T: ::std::marker::Copy>() {}
+            fn checks() {
+                copy::<$name>();
+            }
+            let _ = (field, checks);
+            assert!(
+                ::std::mem::size_of::<$name>() == 4,
+                "an identity element is its four-byte NonZeroU32 alone"
+            );
+            assert!(
+                !::std::mem::needs_drop::<$name>(),
+                "Element must not have Drop glue"
+            );
+        };
+        // SAFETY: four bytes holding a NonZeroU32 field leave no room for
+        // another field or padding; the type is Copy without Drop glue and is
+        // read back only from values the typed allocation APIs wrote.
+        unsafe impl $crate::Element for $name {}
+    };
+}
+
 /// Define a C-layout record whose fields already satisfy [`Record`].
 ///
 /// ```

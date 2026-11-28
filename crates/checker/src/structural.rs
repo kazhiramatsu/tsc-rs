@@ -7323,7 +7323,7 @@ impl<'a> CheckerState<'a> {
                 let incompatible_generics = self.signature_of(signature).has_type_parameters()
                     && results.as_ref().is_some_and(|results| {
                         results.iter().any(|&s| {
-                            self.signatures[s.index() as usize].has_type_parameters()
+                            self.signature_of(s).has_type_parameters()
                                 && !self.compare_type_parameters_identical_ok(signature, s)
                         })
                     });
@@ -8555,11 +8555,8 @@ impl<'a> CheckerState<'a> {
     /// only. The untyped-JavaScript zero is not kept (tsc returns it before
     /// its store).
     pub fn get_min_argument_count(&mut self, signature: SignatureId) -> CheckResult<usize> {
-        let index = signature.index() as usize;
-        if let Some(&kept) = self.resolved_min_argument_counts.get(index) {
-            if kept != 0 {
-                return Ok(usize::from(kept) - 1);
-            }
+        if let Some(kept) = self.signatures.kept_min_argument_count(signature) {
+            return Ok(kept);
         }
         let mut computed: Option<usize> = None;
         if let Some((_, data)) = self.rest_tuple_target_data(signature)? {
@@ -8597,12 +8594,8 @@ impl<'a> CheckerState<'a> {
                 break;
             }
         }
-        if let Ok(kept) = u8::try_from(min_argument_count + 1) {
-            if self.resolved_min_argument_counts.len() <= index {
-                self.resolved_min_argument_counts.resize(index + 1, 0);
-            }
-            self.resolved_min_argument_counts[index] = kept;
-        }
+        self.signatures
+            .keep_min_argument_count(signature, min_argument_count);
         Ok(min_argument_count)
     }
 

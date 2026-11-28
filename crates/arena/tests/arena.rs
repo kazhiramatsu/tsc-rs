@@ -374,3 +374,135 @@ fn adoption_updates_every_block_in_every_run() {
     .unwrap();
     moved.check(true);
 }
+
+#[test]
+fn local_runs_double_from_one_block_to_one_mebibyte() {
+    let _serial = serial();
+    let small = LocalArena::new(90);
+    small.alloc(Eight { a: 1 });
+    assert_eq!(small.committed_bytes(), BLOCK_BYTES);
+    assert_eq!(small.run_count(), 1);
+    drop(small);
+
+    let large = LocalArena::new(91);
+    let target = 8 * 1024 * 1024;
+    for i in 0..target / 16 {
+        large.alloc([i as u64; 2]);
+    }
+    assert_eq!(large.used_bytes(), target);
+    // Unshuffled: 16, 32, ... 512 KiB (about 1 MiB together), then 1 MiB runs.
+    #[cfg(not(feature = "arena-shuffle"))]
+    assert_eq!(large.run_count(), 6 + 8, "{} runs", large.run_count());
+    #[cfg(feature = "arena-shuffle")]
+    assert_eq!(large.run_count(), large.committed_bytes() / BLOCK_BYTES);
+}
+
+#[test]
+fn a_large_allocation_sets_the_next_runs_size() {
+    let _serial = serial();
+    let arena = LocalArena::new(92);
+    let span = arena.alloc_slice(&vec![Eight { a: 5 }; 3 * BLOCK_BYTES / 8]);
+    assert_eq!(span.len(), 3 * BLOCK_BYTES / 8);
+    assert_eq!(arena.committed_bytes(), 3 * BLOCK_BYTES);
+    arena.alloc(Eight { a: 6 });
+    #[cfg(not(feature = "arena-shuffle"))]
+    assert_eq!(arena.committed_bytes(), (3 + 6) * BLOCK_BYTES);
+    #[cfg(feature = "arena-shuffle")]
+    assert_eq!(arena.committed_bytes(), (3 + 1) * BLOCK_BYTES);
+    assert_eq!(arena.run_count(), 2);
+}
+
+#[test]
+fn slices_and_lists_from_iterators() {
+    let _serial = serial();
+    let arena = LocalArena::new(93);
+    let span = arena.alloc_slice_from_iter((0..5u32).map(|a| Eight { a: a.into() }));
+    assert_eq!(
+        span.as_slice(),
+        &(0..5u64).map(|a| Eight { a }).collect::<Vec<_>>()[..]
+    );
+    assert!(arena
+        .alloc_slice_from_iter(std::iter::empty::<Eight>())
+        .is_empty());
+    let list = arena.alloc_list_from_iter(0xfeed, [7u32, 8, 9]);
+    assert_eq!(list.items(), &[7, 8, 9]);
+    assert_eq!(list.header().extra, 0xfeed);
+    let empty = arena.alloc_list_from_iter(3, std::iter::empty::<u32>());
+    assert!(empty.items().is_empty());
+    assert_eq!(empty.header().extra, 3);
+    let with_extra = arena.alloc_list_with_extra(&[1u64, 2], 0xabc);
+    assert_eq!(with_extra.items(), &[1, 2]);
+    assert_eq!(with_extra.header().extra, 0xabc);
+    assert_eq!(arena.alloc_list(&[4u64]).header().extra, 0);
+    // Items the iterator allocates in the same arena land after its room.
+    let nested = arena.alloc_slice_from_iter((0..3u32).map(|a| Edges {
+        next: Some(arena.alloc(Eight {
+            a: u64::from(a) + 100,
+        })),
+        items: Span::empty(),
+    }));
+    for (i, edge) in nested.as_slice().iter().enumerate() {
+        assert_eq!(edge.next.unwrap().get().a, i as u64 + 100);
+    }
+}
+
+/// An iterator that yields `left` items and claims `claimed`.
+struct Misstated {
+    left: usize,
+    claimed: usize,
+}
+impl Iterator for Misstated {
+    type Item = u64;
+    fn next(&mut self) -> Option<u64> {
+        (self.left > 0).then(|| {
+            self.left -= 1;
+            1
+        })
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.claimed, Some(self.claimed))
+    }
+}
+impl ExactSizeIterator for Misstated {}
+
+#[test]
+fn an_iterator_that_misstates_its_length_panics() {
+    let _serial = serial();
+    let arena = LocalArena::new(94);
+    for (left, claimed) in [(3, 2), (2, 3), (1, 0)] {
+        let slice = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            arena.alloc_slice_from_iter(Misstated { left, claimed });
+        }));
+        assert!(slice.is_err(), "slice: {left} items claimed as {claimed}");
+        let list = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            arena.alloc_list_from_iter(0, Misstated { left, claimed });
+        }));
+        assert!(list.is_err(), "list: {left} items claimed as {claimed}");
+    }
+    // The arena stays usable after the panics.
+    assert_eq!(arena.alloc(Eight { a: 9 }).get().a, 9);
+}
+
+/// A four-byte identity like the checker's (zero is not a value).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(transparent)]
+pub struct TestId(std::num::NonZeroU32);
+tsc_arena::identity_element!(TestId, 0);
+
+#[test]
+fn identities_are_span_and_list_elements() {
+    let _serial = serial();
+    let arena = LocalArena::new(95);
+    let ids: Vec<TestId> = (1..=5u32)
+        .map(|n| TestId(std::num::NonZeroU32::new(n).unwrap()))
+        .collect();
+    assert_eq!(arena.alloc_slice(&ids).as_slice(), &ids[..]);
+    let list = arena.alloc_list_from_iter(7, ids.iter().copied());
+    assert_eq!(list.items(), &ids[..]);
+    assert_eq!(list.header().extra, 7);
+    let reversed = arena.alloc_slice_from_iter(ids.iter().rev().copied());
+    assert_eq!(reversed.as_slice().first(), ids.last());
+    assert!(arena.alloc_slice::<TestId>(&[]).as_slice().is_empty());
+    let shared = SharedArena::new(96);
+    assert_eq!(shared.alloc_list(&ids).items(), &ids[..]);
+}

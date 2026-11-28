@@ -24,6 +24,7 @@ identity-scatter = []
 [dependencies]
 hashbrown = { version = "0.16", default-features = false, features = ["inline-more"] }
 rustc-hash.workspace = true
+tsc-arena.workspace = true
 tsc-diagnostics.workspace = true
 tsc-store.workspace = true
 # `--generateTrace` names a file's thread by tsgo's xxh3 hash of it.

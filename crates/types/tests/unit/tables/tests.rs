@@ -9,13 +9,7 @@ fn tables() -> TypeTables {
 }
 
 #[test]
-fn a_list_ends_inside_the_index_range_or_is_refused() {
-    assert_eq!(list_end(0, 0), Some(1));
-    assert_eq!(list_end(5, 3), Some(9));
-    assert_eq!(list_end(u32::MAX - 3, 2), Some(u32::MAX));
-    // The start fits and the end does not: a cursor's end would be zero.
-    assert_eq!(list_end(u32::MAX - 2, 2), None);
-    assert_eq!(list_end(u32::MAX, 0), None);
+fn a_cursor_reads_an_interned_list_and_stops_at_its_end() {
     let mut tables = tables();
     let a = tables.intrinsics.number;
     let b = tables.intrinsics.string;
@@ -1284,7 +1278,8 @@ fn packed_instantiation_keys_preserve_all_shapes_and_bounds() {
         TypeId::new(1 << 31),
         TypeId::new(u32::MAX - 1),
     ] {
-        for arguments in [TypeListId::new(0), TypeListId::new(u32::MAX - 1)] {
+        // An interned list (the empty one) and an id that names no list.
+        for arguments in [t.empty_type_list(), TypeListId::new(u32::MAX - 1)] {
             for single_signature in [false, true] {
                 for (alias_symbol, alias_arguments) in [
                     (None, None),
@@ -1348,22 +1343,18 @@ fn borrowed_instantiation_probes_distinguish_collisions_and_keep_miss_order() {
     for args in [a, b] {
         assert_eq!(
             collisions
-                .find_arguments(&t.list_items, target, false, &args, 7)
+                .find_arguments(target, false, &args, 7)
                 .unwrap()
                 .value,
             args[0]
         );
     }
 
-    assert!(collisions
-        .find_arguments(&t.list_items, a[2], false, &a, 7)
-        .is_none());
-    assert!(collisions
-        .find_arguments(&t.list_items, target, true, &a, 7)
-        .is_none());
+    assert!(collisions.find_arguments(a[2], false, &a, 7).is_none());
+    assert!(collisions.find_arguments(target, true, &a, 7).is_none());
 
     t.instantiation_seed(target, |_| InstantiationKey::plain(list_a));
-    let next = t.list_items.len();
+    let lists = t.list_ids.len();
     assert_eq!(t.create_type_reference(target, &a), target);
     t.instantiation_insert(target, InstantiationKey::plain(list_a), a[2]);
     assert_eq!(
@@ -1371,38 +1362,44 @@ fn borrowed_instantiation_probes_distinguish_collisions_and_keep_miss_order() {
             .ok(),
         Some(a[2])
     );
-    assert_eq!(t.list_items.len(), next);
+    assert_eq!(t.list_ids.len(), lists);
     let count = t.types.len();
     let mut worker = || {
         let miss = t
             .lookup_instantiation(target, &b[..2], None, None, true)
             .unwrap_err();
         let key = miss.key;
-        assert_eq!(key.arguments.index() as usize, next);
-        assert_eq!(
-            t.intern_type_list(&a[..2]).index(),
-            key.arguments.index() + 3
-        );
+        // The miss interned its arguments: the key names that list.
+        assert_eq!(t.list_ids.len(), lists + 1);
+        assert_eq!(t.list(key.arguments), &b[..2]);
+        let other = t.intern_type_list(&a[..2]);
+        assert_ne!(other, key.arguments);
+        assert_eq!(t.list_ids.len(), lists + 2);
         Err::<(), _>(key)
     };
     let failed_key = worker().unwrap_err();
     assert_eq!(t.instantiation_get(target, failed_key), None);
     assert_eq!(t.types.len(), count);
-    assert_eq!(t.list_items.len(), next + 6);
+    assert_eq!(t.list_ids.len(), lists + 2);
 
-    // An ID-only insertion can precede the allocation of that list.
-    let future = InstantiationKey::plain(TypeListId::new(t.list_items.len() as u32));
+    // An ID-only insertion can precede the allocation of that list: the id
+    // is the handle the next interned list (one item, sixteen bytes) takes.
+    let future = InstantiationKey::plain(
+        TypeListId::from_position(t.arena.next_raw(16).expect("room in the run"))
+            .expect("a nonzero handle"),
+    );
     t.instantiation_insert(target, future, b[2]);
     assert_eq!(t.create_type_reference(target, &b[..1]), b[2]);
     t.instantiation_insert(target, future, b[0]);
     assert_eq!(t.create_type_reference(target, &b[..1]), b[0]);
 
     assert!(!t.instantiations.full.contains_key(&(target, future)));
-    let next = t.list_items.len();
+    let lists = t.list_ids.len();
     let outer = t
         .lookup_instantiation(target, &a[..1], None, None, false)
         .unwrap_err();
-    assert_eq!(outer.key.arguments.index() as usize, next);
+    assert_eq!(t.list_ids.len(), lists + 1);
+    assert_eq!(t.list(outer.key.arguments), &a[..1]);
     let old_capacity = t.instantiations.plain.capacity();
     t.instantiations.reserve(old_capacity + 1);
     assert!(t.instantiations.plain.capacity() > old_capacity);
@@ -1417,7 +1414,11 @@ fn borrowed_instantiation_probes_distinguish_collisions_and_keep_miss_order() {
     assert_eq!(t.instantiations.len(), len);
     assert_eq!(t.instantiation_front_get(target, &a[..1]), None);
     assert_eq!(t.create_type_reference(target, &a[..1]), b[0]);
-    assert_eq!(t.intern_type_list(&a[2..]).index() as usize, next + 2);
+    // The publications interned nothing; a new sequence is a new list.
+    let lists = t.list_ids.len();
+    let last = t.intern_type_list(&a[2..]);
+    assert_eq!(t.list_ids.len(), lists + 1);
+    assert_eq!(t.list(last), &a[2..]);
 }
 
 /// getObjectTypeInstantiation's seed is asked of the map once a target: the
@@ -1970,7 +1971,7 @@ fn plain_union_lookup_checks_colliding_lists_and_keeps_first_creation() {
     );
 
     let args = [a, b, a];
-    let start = t.list_items.len() as u32;
+    let lists = t.list_ids.len();
     let count = t.len();
     let union = t.get_union_type_from_sorted_list(
         members,
@@ -1981,10 +1982,15 @@ fn plain_union_lookup_checks_colliding_lists_and_keeps_first_creation() {
     );
     assert_eq!(t.len(), count + 1);
     assert_eq!(t.members_of(union), members);
-    assert_eq!(t.intern_type_list(&members).index(), start);
+    // The call interned the members and the alias arguments.
+    let interned = t.list_ids.len();
+    assert!(interned >= lists + 2);
+    let members_list = t.intern_type_list(&members);
+    assert_eq!(t.list_ids.len(), interned);
+    assert_eq!(t.list(members_list), &members[..]);
     assert_eq!(
-        t.alias_type_argument_list(union).unwrap().index(),
-        start + 3
+        t.list(t.alias_type_argument_list(union).unwrap()),
+        &args[..]
     );
     assert_eq!(t.alias_type_arguments(union), Some(&args[..]));
 
@@ -1992,13 +1998,13 @@ fn plain_union_lookup_checks_colliding_lists_and_keeps_first_creation() {
         let literal = t.get_number_literal_type(f64::from(i));
         t.get_union_type_from_sorted_list([a, literal], ObjectFlags::NONE, None, None, None);
     }
-    let list_words = t.list_items.len();
+    let lists = t.list_ids.len();
     let count = t.len();
     assert_eq!(
         t.get_union_type_from_sorted_list(members, ObjectFlags::NONE, None, Some(&[b, a, b]), None),
         union
     );
-    assert_eq!(t.list_items.len(), list_words);
+    assert_eq!(t.list_ids.len(), lists);
     assert_eq!(t.len(), count);
     assert!(t
         .object_flags_of(union)

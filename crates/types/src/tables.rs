@@ -441,7 +441,6 @@ impl InstantiationCache {
 
     fn find_arguments(
         &self,
-        items: &[TypeId],
         target: TypeId,
         single_signature: bool,
         arguments: &[TypeId],
@@ -451,7 +450,7 @@ impl InstantiationCache {
             entry.hash == hash as u32
                 && entry.key as u32 & 0x7fff_ffff == target.index()
                 && entry.key >> 63 == u64::from(single_signature)
-                && list_at(items, entry.arguments()) == arguments
+                && list_at(entry.arguments()) == arguments
         })
     }
 
@@ -540,12 +539,21 @@ pub struct TypeTables {
     /// of the text's canonical WTF-8 bytes (byte equality is UTF-16
     /// equality), so the text is held once.
     string_literal_types: hashbrown::HashTable<(LiteralTextId, TypeId)>,
-    /// Interned type lists (see [`TypeTables::intern_type_list`]), all in
-    /// one list: each list is its length (as the index of a `TypeId`)
-    /// followed by its items, and a list's id is its length's position, so
-    /// reading a list loads the length and finds the items beside it. The
-    /// ids by the list's hash.
-    list_items: Vec<TypeId>,
+    /// The checker's bump arena (see `tsc_arena`): records in creation
+    /// order, never moved and never freed one by one; the whole arena goes
+    /// with the tables. A thread that takes the tables over from another
+    /// adopts it first ([`TypeTables::adopt_current_thread`]).
+    ///
+    /// Interned type lists (see [`TypeTables::intern_type_list`]) are lists
+    /// in it - a header with the length and the list's hash bits, then the
+    /// items - and a list's id is its handle, so reading a list loads the
+    /// length and finds the items beside it.
+    pub arena: tsc_arena::LocalArena,
+    /// The owner number of `arena`'s blocks ([`tsc_arena::owner_of`]).
+    arena_owner: u32,
+    /// The bytes the interned lists take in `arena`.
+    list_bytes: usize,
+    /// The interned lists' ids by the list's hash.
     list_ids: hashbrown::HashTable<TypeListId>,
     /// A list buffer reused by the builders that extend an interned list
     /// (no allocation per call).
@@ -643,34 +651,32 @@ enum NamedUnionOrigin {
 
 /// A position in an interned list that does not borrow the tables, so a
 /// loop that mutates the checker reads the list's items one at a time
-/// (interned lists never change: the items read are the ones a copy would
-/// have held).
+/// (interned lists never change and never move: the items read are the
+/// ones a copy would have held). The tables must outlive the cursor.
 #[derive(Clone, Copy, Debug)]
 pub struct ListCursor {
+    items: &'static [TypeId],
     next: u32,
-    end: u32,
 }
 
 impl ListCursor {
     /// The next item, if any.
     #[inline]
-    pub fn next(&mut self, tables: &TypeTables) -> Option<TypeId> {
-        (self.next < self.end).then(|| {
-            let item = tables.list_items[self.next as usize];
-            self.next += 1;
-            item
-        })
+    pub fn next(&mut self, _tables: &TypeTables) -> Option<TypeId> {
+        let item = self.items.get(self.next as usize).copied();
+        self.next += u32::from(item.is_some());
+        item
     }
 
     /// The items left.
     #[inline]
     pub fn len(&self) -> usize {
-        (self.end - self.next) as usize
+        self.items.len() - self.next as usize
     }
 
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.next == self.end
+        self.len() == 0
     }
 }
 
@@ -760,23 +766,47 @@ impl<'a> IntoIterator for &'a TypeListCopy {
     }
 }
 
-/// The index after the last item of a list of `len` items whose length word
-/// is at `at`, when that index is a `u32` too: a [`ListCursor`] keeps a list's
-/// end in one, so a list must end, not only start, inside the range.
-#[inline]
-const fn list_end(at: u32, len: u32) -> Option<u32> {
-    match at.checked_add(1) {
-        Some(first) => first.checked_add(len),
-        None => None,
-    }
+/// The arena list an interned list id is the handle of.
+#[inline(always)]
+fn list_ref(id: TypeListId) -> tsc_arena::Ref<tsc_arena::List<TypeId>> {
+    tsc_arena::Ref::from_raw(id.position()).expect("a list id is a nonzero handle")
 }
 
-/// The interned list at `id` in `items` (see `TypeTables::list_items`).
+/// The interned list `id` (see `TypeTables::arena`). The tables that
+/// interned it must outlive every use of the items.
+#[inline(always)]
+fn list_at(id: TypeListId) -> &'static [TypeId] {
+    list_ref(id).items()
+}
+
+/// The 32 bits of a type list's hash a list keeps in its header.
 #[inline]
-fn list_at(items: &[TypeId], id: TypeListId) -> &[TypeId] {
-    let at = id.index() as usize;
-    let len = items[at].index() as usize;
-    &items[at + 1..at + 1 + len]
+fn type_list_hash_bits(types: &[TypeId]) -> u32 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = rustc_hash::FxHasher::default();
+    types.hash(&mut hasher);
+    let mixed = hasher.finish();
+    (mixed ^ (mixed >> 32)) as u32
+}
+
+/// A type list's hash, spread from its 32 bits so that the bucket index (the
+/// low bits) and the control byte (the top seven) both come from them: a
+/// rehash rebuilds it from the list's header.
+#[inline(always)]
+const fn spread_list_hash(bits: u32) -> u64 {
+    (bits as u64) << 32 | bits as u64
+}
+
+/// The hash of the interned list `id`, from its header.
+#[inline(always)]
+fn stored_list_hash(id: TypeListId) -> u64 {
+    spread_list_hash(list_ref(id).header().extra)
+}
+
+/// A process-wide number for each checker arena's blocks.
+fn next_arena_owner() -> u32 {
+    static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
+    NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed) % (u32::MAX - 2)
 }
 
 /// The string literal texts of a checker's types, one after another in one
@@ -870,11 +900,11 @@ fn hash_literal_text(bytes: &[u8]) -> u64 {
     hasher.finish()
 }
 
+/// A type list's hash, the same for the slice and for the interned list
+/// (see [`spread_list_hash`]).
+#[inline]
 fn hash_type_list(types: &[TypeId]) -> u64 {
-    use std::hash::{Hash, Hasher};
-    let mut hasher = rustc_hash::FxHasher::default();
-    types.hash(&mut hasher);
-    hasher.finish()
+    spread_list_hash(type_list_hash_bits(types))
 }
 
 /// Append `value` in decimal without the formatting machinery: cache keys
@@ -1032,9 +1062,8 @@ impl TypeTables {
         usage.string_literal_map_bytes = self.string_literal_types.capacity()
             * (std::mem::size_of::<(LiteralTextId, TypeId)>() + 1);
         usage.type_lists = self.list_ids.len();
-        usage.type_list_map_bytes = self.list_ids.capacity()
-            * (std::mem::size_of::<TypeListId>() + 1)
-            + self.list_items.capacity() * std::mem::size_of::<TypeId>();
+        usage.type_list_map_bytes =
+            self.list_ids.capacity() * (std::mem::size_of::<TypeListId>() + 1) + self.list_bytes;
         usage.string_keyed_entries += self.tuple_types.len() + self.template_literal_types.len();
         usage.string_keyed_bytes += self.tuple_types.capacity()
             * (std::mem::size_of::<TupleTargetKey>() + 1)
@@ -1088,6 +1117,7 @@ impl TypeTables {
             ),
             Err(_) => (StoreVec::new(), None),
         };
+        let arena_owner = next_arena_owner();
         let mut tables = Self {
             types,
             lease,
@@ -1133,7 +1163,9 @@ impl TypeTables {
                 unique_literal: TypeId::new(0),
             },
             string_literal_types: hashbrown::HashTable::new(),
-            list_items: Vec::new(),
+            arena: tsc_arena::LocalArena::new(arena_owner),
+            arena_owner,
+            list_bytes: 0,
             scratch_list: Vec::new(),
             union_scratch: Vec::new(),
             list_ids: hashbrown::HashTable::new(),
@@ -1177,7 +1209,10 @@ impl TypeTables {
         (
             std::mem::take(&mut self.types),
             std::mem::take(&mut self.string_literal_types),
-            std::mem::take(&mut self.list_items),
+            std::mem::replace(
+                &mut self.arena,
+                tsc_arena::LocalArena::new(self.arena_owner),
+            ),
             std::mem::take(&mut self.list_ids),
             std::mem::take(&mut self.scratch_list),
             std::mem::take(&mut self.literal_texts),
@@ -1210,7 +1245,7 @@ impl TypeTables {
 
     /// Reserve lookup-only interning tables from the bound program. Their
     /// bucket order never assigns a type/list identity or visits a member:
-    /// those orders live in `types` and `list_items`. The caps bound eager
+    /// those orders live in `types` and the arena's lists. The caps bound eager
     /// allocation when a large declaration file is mostly unchecked.
     ///
     /// `nodes` and `symbols` are the part of the program this checker is
@@ -1221,10 +1256,9 @@ impl TypeTables {
     pub fn reserve_capacity_hint(&mut self, nodes: usize, symbols: usize) {
         let lists = (symbols / 4).min(1 << 16);
         let literals = (nodes / 128).min(1 << 14);
-        let items = &self.list_items;
         self.list_ids
             .reserve(lists.saturating_sub(self.list_ids.len()), |&id| {
-                hash_type_list(list_at(items, id))
+                stored_list_hash(id)
             });
         let texts = &self.literal_texts;
         self.string_literal_types.reserve(
@@ -2199,25 +2233,38 @@ impl TypeTables {
         self.intern_type_list_with_hash(types, hash_type_list(types))
     }
 
+    /// `hash` is the list's [`hash_type_list`]; its low 32 bits are the bits
+    /// the list keeps in its header.
     fn intern_type_list_with_hash(&mut self, types: &[TypeId], hash: u64) -> TypeListId {
-        let items = &self.list_items;
-        if let Some(&id) = self.list_ids.find(hash, |&id| list_at(items, id) == types) {
+        debug_assert_eq!(hash, hash_type_list(types));
+        if let Some(&id) = self.list_ids.find(hash, |&id| list_at(id) == types) {
             return id;
         }
-        let at = u32::try_from(self.list_items.len()).expect("type list items fit u32");
-        let len = u32::try_from(types.len()).expect("a type list's length fits u32");
-        // Refused like a start past the range: a cursor's end would wrap.
-        list_end(at, len).expect("type list items fit u32");
-        let id = TypeListId::new(at);
-        // The length word and payload are one append: reserve both before
-        // pushing the word so a boundary cannot grow the pool twice.
-        self.list_items.reserve(1 + types.len());
-        self.list_items.push(TypeId::new(len));
-        self.list_items.extend_from_slice(types);
-        let items = &self.list_items;
+        let list = self.arena.alloc_list_with_extra(types, hash as u32);
+        self.list_bytes += (8 + std::mem::size_of_val(types)).next_multiple_of(8);
+        let id = TypeListId::from_position(list.raw()).expect("an arena handle is nonzero");
         self.list_ids
-            .insert_unique(hash, id, |&id| hash_type_list(list_at(items, id)));
+            .insert_unique(hash, id, |&id| stored_list_hash(id));
         id
+    }
+
+    /// Take the tables over on the current thread: a thread that receives
+    /// them from another (a checker returned by its shard, a session's
+    /// checker taken by a request) calls this before it allocates in their
+    /// arena. Debug bookkeeping only; nothing in a release build.
+    #[inline]
+    pub fn adopt_current_thread(&self) {
+        self.arena.adopt_current_thread();
+    }
+
+    /// The arena's bytes in use, its bytes taken from the block allocator,
+    /// and its runs (for the memory report).
+    pub fn arena_stats(&self) -> (usize, usize, usize) {
+        (
+            self.arena.used_bytes(),
+            self.arena.committed_bytes(),
+            self.arena.run_count(),
+        )
     }
 
     /// The list interned once at startup for a sequence with no elements.
@@ -2229,7 +2276,7 @@ impl TypeTables {
     /// The interned list `id`.
     #[inline]
     pub fn list(&self, id: TypeListId) -> &[TypeId] {
-        list_at(&self.list_items, id)
+        list_at(id)
     }
 
     /// A copy of the interned list `id` (see [`TypeListCopy`]).
@@ -2241,10 +2288,9 @@ impl TypeTables {
     /// A cursor over the interned list `id` (see [`ListCursor`]).
     #[inline]
     pub fn cursor(&self, id: TypeListId) -> ListCursor {
-        let at = id.index();
         ListCursor {
-            next: at + 1,
-            end: at + 1 + self.list_items[at as usize].index(),
+            items: list_at(id),
+            next: 0,
         }
     }
 
@@ -2378,10 +2424,14 @@ impl TypeTables {
     /// interner can stand for a borrowed argument sequence.
     fn instantiation_list_hash(&self, target: TypeId, key: InstantiationKey) -> Option<u64> {
         InstantiationCache::packed_key(target, key)?;
-        let start = key.arguments.index() as usize;
-        let (length, tail) = self.list_items.get(start..)?.split_first()?;
-        let arguments = tail.get(..length.index() as usize)?;
-        let hash = hash_type_list(arguments);
+        // An opaque id may name no list: read through it only inside this
+        // arena's own blocks, and only the header (eight aligned bytes that
+        // never cross a block). Only an interned id passes the table probe,
+        // which compares ids alone.
+        if tsc_arena::owner_of(key.arguments.position()) != Some(self.arena_owner) {
+            return None;
+        }
+        let hash = stored_list_hash(key.arguments);
         self.list_ids.find(hash, |&id| id == key.arguments)?;
         Some(instantiation_hash(target, key.single_signature, hash))
     }
@@ -2410,13 +2460,10 @@ impl TypeTables {
         }
         let list_hash = hash_type_list(arguments);
         let hash = instantiation_hash(target, single_signature, list_hash);
-        if let Some(entry) = self.instantiations.find_arguments(
-            &self.list_items,
-            target,
-            single_signature,
-            arguments,
-            hash,
-        ) {
+        if let Some(entry) =
+            self.instantiations
+                .find_arguments(target, single_signature, arguments, hash)
+        {
             let key = InstantiationKey {
                 single_signature,
                 ..InstantiationKey::plain(entry.arguments())
@@ -4750,12 +4797,11 @@ impl TypeTables {
             unreachable!("created a template literal above");
         };
         let payloads = &self.template_literals;
-        let items = &self.list_items;
         self.template_literal_types
             .insert_unique(hash, (payload, id), |&(payload, _)| {
                 let data = &payloads[payload.index() as usize];
                 hash_template_literal_key(
-                    list_at(items, data.types),
+                    list_at(data.types),
                     data.texts.len(),
                     data.texts.iter().map(TemplateText::units),
                 )

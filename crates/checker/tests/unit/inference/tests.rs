@@ -151,13 +151,13 @@ fn create_inference_context_initial_shape() {
             // fixing first.
             match state.mapper(mapper) {
                 TypeMapper::Deferred(DeferredMapperTargets::InferenceFixing(id)) => {
-                    assert_eq!(*id, ctx)
+                    assert_eq!(id, ctx)
                 }
                 other => panic!("fixing mapper shape: {other:?}"),
             }
             match state.mapper(non_fixing) {
                 TypeMapper::Deferred(DeferredMapperTargets::InferenceNonFixing(id)) => {
-                    assert_eq!(*id, ctx)
+                    assert_eq!(id, ctx)
                 }
                 other => panic!("non-fixing mapper shape: {other:?}"),
             }
@@ -210,7 +210,7 @@ fn clone_inference_context_deep_copies_infos_only() {
             assert_eq!(slot(state, clone, 0).candidates, Some(vec![string].into()));
             match state.mapper(clone_mapper) {
                 TypeMapper::Deferred(DeferredMapperTargets::InferenceFixing(id)) => {
-                    assert_eq!(*id, clone)
+                    assert_eq!(id, clone)
                 }
                 other => panic!("clone mapper shape: {other:?}"),
             }
@@ -542,7 +542,7 @@ fn outer_return_mapper_merges_and_caches() {
             let outer = state.create_outer_return_mapper(ctx);
             match state.mapper(outer) {
                 TypeMapper::Deferred(DeferredMapperTargets::InferenceFixing(clone_id)) => {
-                    assert_ne!(*clone_id, ctx, "mapper belongs to the CLONE")
+                    assert_ne!(clone_id, ctx, "mapper belongs to the CLONE")
                 }
                 other => panic!("outer mapper shape: {other:?}"),
             }
@@ -559,10 +559,10 @@ fn outer_return_mapper_merges_and_caches() {
             let merged = state.create_outer_return_mapper(ctx2);
             match state.mapper(merged) {
                 TypeMapper::Merged { mapper1, mapper2 } => {
-                    assert_eq!(*mapper1, ret);
-                    match state.mapper(*mapper2) {
+                    assert_eq!(mapper1, ret);
+                    match state.mapper(mapper2) {
                         TypeMapper::Deferred(DeferredMapperTargets::InferenceFixing(id)) => {
-                            assert_ne!(*id, ctx2)
+                            assert_ne!(id, ctx2)
                         }
                         other => panic!("merged rhs shape: {other:?}"),
                     }

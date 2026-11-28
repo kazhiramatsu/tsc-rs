@@ -92,13 +92,7 @@ fn symbol_rooms_preserve_prototype_and_ambient_module_creation_order() {
     .unwrap();
     let options = CompilerOptions::default();
     let state = CheckerState::from_snapshot(&snapshot, &options);
-    let order = crate::type_order::OrderCtx::new(
-        &state.binder,
-        &state.links,
-        &state.mappers,
-        &state.mapper_lists,
-        true,
-    );
+    let order = crate::type_order::OrderCtx::new(&state.binder, &state.links, &state.mappers, true);
     assert_eq!(
         order.compare_symbols(Some(ap), Some(bp)),
         std::cmp::Ordering::Less
@@ -1385,6 +1379,39 @@ fn a_resolved_module_is_asked_of_the_provider_once_an_import_declaration() {
 /// for half the program; the one checker of a program for all of it. The
 /// reservation is capacity alone: both checkers check the program to the
 /// same diagnostics and the same types in the same order.
+/// A checker's types in creation order, each as its debug text with every
+/// interned list written out as its members: a list's handle is a position
+/// in its checker's own arena, so two checkers' handles differ.
+fn types_in_creation_order(state: &CheckerState<'_>) -> Vec<String> {
+    (0..state.tables.len())
+        .map(|index| {
+            let text = format!(
+                "{:?}",
+                state.tables.type_of(tsc_types::TypeId::new(index as u32))
+            );
+            lists_written_out(state, &text)
+        })
+        .collect()
+}
+
+/// `text` with each `TypeListId(n)` replaced by the members of that list.
+fn lists_written_out(state: &CheckerState<'_>, text: &str) -> String {
+    const MARK: &str = "TypeListId(";
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(at) = rest.find(MARK) {
+        out.push_str(&rest[..at]);
+        let after = &rest[at + MARK.len()..];
+        let end = after.find(')').expect("a list id's closing parenthesis");
+        let index: u32 = after[..end].parse().expect("a list id's index");
+        let list = tsc_types::TypeListId::new(index);
+        out.push_str(&format!("{:?}", state.tables.list(list)));
+        rest = &after[end + 1..];
+    }
+    out.push_str(rest);
+    out
+}
+
 #[test]
 fn a_pooled_checker_reserves_its_lookup_tables_for_half_the_program() {
     assert_eq!(CheckerState::lookup_share(0), 1);
@@ -1435,14 +1462,7 @@ fn a_pooled_checker_reserves_its_lookup_tables_for_half_the_program() {
         for file in 0..snapshot.documents().len() {
             state.check_source_file(file);
         }
-        let creation_order: Vec<_> = (0..state.tables.len())
-            .map(|index| {
-                state
-                    .tables
-                    .type_of(tsc_types::TypeId::new(index as u32))
-                    .clone()
-            })
-            .collect();
+        let creation_order = types_in_creation_order(&state);
         (reserved, state.diagnostics.to_vec(), creation_order)
     };
     let (whole, whole_diagnostics, whole_types) = run(1);
@@ -1498,14 +1518,7 @@ fn snapshot_augmentations_keep_both_merge_passes_in_checker_order() {
         for file in 0..snapshot.documents().len() {
             state.check_source_file(file);
         }
-        let creation_order: Vec<_> = (0..state.tables.len())
-            .map(|index| {
-                state
-                    .tables
-                    .type_of(tsc_types::TypeId::new(index as u32))
-                    .clone()
-            })
-            .collect();
+        let creation_order = types_in_creation_order(&state);
         let counts = crate::CheckerCounts::of(&state, true);
         (
             state.diagnostics.to_vec(),
