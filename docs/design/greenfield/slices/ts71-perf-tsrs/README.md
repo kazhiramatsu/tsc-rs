@@ -2390,6 +2390,10 @@ VS Code の 1 thread では、行を積むごとに下がる：行 1〜4 で −
 
 **着地（PR #1051、merge `941cc28d5`、hosted run 46004432627、22:28）。** train の local 検査（21:43–22:0x）：program・checker・compiler の test 3,417 件 pass、8 project の出力（diffout）同一、4 checker の conformance は既知の 4 つ（15,335 同一）、oracle 24 / 24。main の binary は `batch73-sel-938e27685`。row B の完了で全速を戻した（owner の指示どおり）。
 
+**結果 77（2026-11-28 午前：README の表を 3 窓の 27 回で更新；計測機に残っていた別 project の test の process が全 compiler を約 10 % 遅くしていた）**
+
+**README の表（`1be01e645`）。** 朝の窓 3 つ（10:09〜10:38、main `941cc28d5` の binary `batch73-sel-938e27685`）は基準の再現（tsgo・tsrs が 2 % 以内）を満たさず、公開しなかった。所有者の提案（「とりあえず今動いているプロセスを落として計測しませんか」）で私の常駐 loop 4 つを止め、別 project の JUnit の test が残した shell script 60 本（親なし、5〜11 日前から `sleep` で回り続け、合わせて 1 core の約 18 %）を所有者の判断で止めた。**その後の窓では tsgo・tsrs・tsc-rs とも 8〜14 % 速い**（VS Code：tsgo 5.05 → 4.40〜4.44 s、tsrs 2.15 → 1.85〜1.86、tsc-rs 1.94 → 1.67）：11-17 頃からの絶対時間（README の窓、枠）はこの負荷の上で測っていた（枠の比較は同じ負荷を共有するが、ばらつきは大きかった）。きれいな窓 3 つ（11:21〜11:59、各 9 round、出力は各窓で 8 案件とも tsgo と同じ）でも 2 % の再現は 7 / 5 / 6 of 8（外れは基準自身のばらつき：zod の tsgo 2.7〜3.6 %、effect の tsrs 2.6〜3.7 %、vue の tsrs 2.2〜2.5 %；tsc-rs は 6 案件で 0.4 % 以内）。所有者の判断（「Publish pooled」）で 3 窓を合わせた 27 回の中央値を公開した：既定の tsc-rs / tsrs は 8 案件すべてで 1 未満（VS Code 0.898、next 0.923、zod 0.813、effect 0.888、playwright 0.977、vue 0.909、ts 0.991、hono 0.885）、`TSRS_FAST=1` / `tsrs --fast` は 0.837〜1.082（VS Code 1.047、hono 1.082、ts 1.005 で後れ）、tsc-rs / tsgo は 0.29〜0.40。窓の記録は handover の `fable52-1111/readme2/`（`window3`〜`window8`、`pooled-1128-batch73.jsonl`）。
+
 ## 構造変更の試作と評価（2026-11-07、採用なし）
 
 [下記の計画](#次のアルゴリズムデータ構造変更の計画2026-11-07) に沿って、call-scoped な object 構文共有と
