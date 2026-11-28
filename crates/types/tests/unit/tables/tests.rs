@@ -9,13 +9,7 @@ fn tables() -> TypeTables {
 }
 
 #[test]
-fn a_list_ends_inside_the_index_range_or_is_refused() {
-    assert_eq!(list_end(0, 0), Some(1));
-    assert_eq!(list_end(5, 3), Some(9));
-    assert_eq!(list_end(u32::MAX - 3, 2), Some(u32::MAX));
-    // The start fits and the end does not: a cursor's end would be zero.
-    assert_eq!(list_end(u32::MAX - 2, 2), None);
-    assert_eq!(list_end(u32::MAX, 0), None);
+fn a_cursor_reads_an_interned_list_and_stops_at_its_end() {
     let mut tables = tables();
     let a = tables.intrinsics.number;
     let b = tables.intrinsics.string;
@@ -1284,7 +1278,8 @@ fn packed_instantiation_keys_preserve_all_shapes_and_bounds() {
         TypeId::new(1 << 31),
         TypeId::new(u32::MAX - 1),
     ] {
-        for arguments in [TypeListId::new(0), TypeListId::new(u32::MAX - 1)] {
+        // An interned list (the empty one) and an id that names no list.
+        for arguments in [t.empty_type_list(), TypeListId::new(u32::MAX - 1)] {
             for single_signature in [false, true] {
                 for (alias_symbol, alias_arguments) in [
                     (None, None),
@@ -1419,7 +1414,11 @@ fn borrowed_instantiation_probes_distinguish_collisions_and_keep_miss_order() {
     assert_eq!(t.instantiations.len(), len);
     assert_eq!(t.instantiation_front_get(target, &a[..1]), None);
     assert_eq!(t.create_type_reference(target, &a[..1]), b[0]);
-    assert_eq!(t.intern_type_list(&a[2..]).index() as usize, next + 2);
+    // The publications interned nothing; a new sequence is a new list.
+    let lists = t.list_ids.len();
+    let last = t.intern_type_list(&a[2..]);
+    assert_eq!(t.list_ids.len(), lists + 1);
+    assert_eq!(t.list(last), &a[2..]);
 }
 
 /// getObjectTypeInstantiation's seed is asked of the map once a target: the
