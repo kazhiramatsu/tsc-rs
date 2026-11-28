@@ -539,7 +539,14 @@ fn signature_arguments_preserve_fill_keys_and_allocation_order() {
                 assert_eq!(snapshots[4].0, snapshots[5].0);
                 assert_eq!(snapshots[6], snapshots[7]);
                 let next = state.tables.intern_type_list(&[n, s, n, s]);
-                runs.push((snapshots, next));
+                // A list's handle is a position in its checker's own arena:
+                // the runs compare what they allocated there (its bytes in
+                // use) and the list itself.
+                runs.push((
+                    snapshots,
+                    state.tables.list(next).to_vec(),
+                    state.tables.arena_stats().0,
+                ));
             },
         );
     }
