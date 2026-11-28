@@ -65,7 +65,7 @@ declare let rest: (a: number, ...more: [string, boolean?]) => void;\n",
                     expected,
                     "{name}"
                 );
-                assert_eq!(usize::from(kept(state, id)), expected + 1, "{name}");
+                assert_eq!(kept(state, id), expected + 1, "{name}");
                 assert_eq!(
                     state.get_min_argument_count(id).unwrap(),
                     expected,
@@ -80,7 +80,7 @@ declare let rest: (a: number, ...more: [string, boolean?]) => void;\n",
                     expected,
                     "{name}"
                 );
-                assert_eq!(usize::from(kept(state, copy)), expected + 1, "{name}");
+                assert_eq!(kept(state, copy), expected + 1, "{name}");
             }
         },
     );
