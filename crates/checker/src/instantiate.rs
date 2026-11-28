@@ -155,10 +155,10 @@ impl MapperStore {
             + self.lists.len() * std::mem::size_of::<TypeId>()
     }
 
-    /// Room for `mappers` mappers and `list_items` list entries.
-    pub(crate) fn reserve(&mut self, mappers: usize, list_items: usize) {
+    /// Room for `mappers` mappers and `entries` list entries.
+    pub(crate) fn reserve(&mut self, mappers: usize, entries: usize) {
         self.mappers.reserve(mappers);
-        self.lists.reserve(list_items);
+        self.lists.reserve(entries);
     }
 
     /// The memory report's rows of the reserved storage; the resident
@@ -3427,7 +3427,8 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         let erased = self.create_erased_signature(signature)?;
-        self.signatures[signature.index() as usize].set_erased_signature_cache(Some(erased));
+        self.signature_mut(signature)
+            .set_erased_signature_cache(Some(erased));
         Ok(erased)
     }
 
@@ -3445,7 +3446,8 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         let canonical = self.create_canonical_signature(signature)?;
-        self.signatures[signature.index() as usize].set_canonical_signature_cache(Some(canonical));
+        self.signature_mut(signature)
+            .set_canonical_signature_cache(Some(canonical));
         Ok(canonical)
     }
 
@@ -3519,7 +3521,8 @@ impl<'a> CheckerState<'a> {
             final_mapper,
             /*erase_type_parameters*/ true,
         )?;
-        self.signatures[signature.index() as usize].set_base_signature_cache(Some(base));
+        self.signature_mut(signature)
+            .set_base_signature_cache(Some(base));
         Ok(base)
     }
 

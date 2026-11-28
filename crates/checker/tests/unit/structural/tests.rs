@@ -50,12 +50,12 @@ declare let rest: (a: number, ...more: [string, boolean?]) => void;\n",
                     .get_signatures_of_type(ty, crate::structural::SignatureKind::Call)
                     .expect("signatures")[0]
             };
+            // The stored byte: zero while not computed, else the count plus one.
             let kept = |state: &CheckerState, id: crate::state::SignatureId| {
                 state
-                    .resolved_min_argument_counts
-                    .get(id.index() as usize)
-                    .copied()
-                    .unwrap_or(0)
+                    .signatures
+                    .kept_min_argument_count(id)
+                    .map_or(0, |count| count + 1)
             };
             for (name, expected) in [("plain", 1usize), ("trimmed", 1), ("rest", 2)] {
                 let id = signature(state, name);

@@ -328,7 +328,7 @@ impl<'a> CheckerState<'a> {
         if self.signature_of(context).has_type_parameters() {
             if self.signature_of(signature).has_no_type_parameters() {
                 let context_type_parameters = self.signature_of(context).cloned_type_parameters();
-                self.signatures[signature.index() as usize]
+                self.signature_mut(signature)
                     .set_type_parameters(context_type_parameters);
             } else {
                 return Ok(());
@@ -351,7 +351,7 @@ impl<'a> CheckerState<'a> {
                     // explicitly annotated `this` and a never-returning
                     // `this.skip()` ends its branch (VS Code's mocha hooks).
                     let created = self.create_symbol_with_type(context_this, None);
-                    self.signatures[signature.index() as usize].this_parameter = Some(created);
+                    self.signature_mut(signature).this_parameter = Some(created);
                 }
                 let this_type = self.get_type_of_symbol(context_this)?;
                 let this_parameter = self
