@@ -4278,13 +4278,13 @@ const _: () = {
 ///
 /// The fractions cover the largest shard of the benchmark programs (per node
 /// of the reserved count): types up to 0.8 (hono 1.9), transient symbols up
-/// to 1.8 (hono 2.8), mappers up to 1.2 (hono 1.5), resolved members up to
-/// 0.3 and signatures up to 0.2.
+/// to 1.8 (hono 2.8), resolved members up to 0.3 and signatures up to 0.2
+/// (mappers and their lists are records in the checker's arena).
 fn reserve_type_tables(state: &mut state::CheckerState<'_>, node_count: usize) {
     const MIN_RESERVED: usize = 1 << 12;
-    // Large enough that VS Code's serial check never doubles an arena (2.6
-    // million mappers, 1.2 million resolved members): a doubling copies the
-    // arena while the old buffer is still resident.
+    // Large enough that VS Code's serial check never doubles an arena (1.2
+    // million resolved members): a doubling copies the arena while the old
+    // buffer is still resident.
     const MAX_RESERVED: usize = 1 << 22;
     let reserve =
         |per_node: f64| ((node_count as f64 * per_node) as usize).clamp(MIN_RESERVED, MAX_RESERVED);
@@ -4300,7 +4300,6 @@ fn reserve_type_tables(state: &mut state::CheckerState<'_>, node_count: usize) {
     state.binder.reserve_transient_symbols(transient_symbols);
     // Every transient symbol gets links: their dense table takes the same room.
     state.links.reserve_transient_symbols(transient_symbols);
-    state.mappers.reserve(reserve(1.5), reserve(2.0));
     state.reserve_members(reserve(0.5));
     state.signatures.reserve(reserve(0.25));
     state.inference_context_arena.reserve(reserve(0.1));
@@ -4492,7 +4491,6 @@ fn run_shard_eager<'a>(
         state.release_finished_lookup_buffers();
         state.links.release_paged_record_buffers();
         state.links.release_dense_record_buffers();
-        drop(std::mem::take(&mut state.mappers));
     }
     state
 }
@@ -4884,7 +4882,6 @@ fn run_checker_shard<'a>(
         state.links.release_dense_record_buffers();
         state.no_flow_context_nodes.release_finished_buffers();
         state.flow_memo.release_finished_buffers();
-        drop(std::mem::take(&mut state.mappers));
         if checking.load(std::sync::atomic::Ordering::Acquire) != 0 {
             // Owned cleanup may finish after the command returns. Borrowed
             // views stay here; no result or identity depends on helper progress.

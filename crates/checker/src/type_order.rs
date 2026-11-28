@@ -285,7 +285,7 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
     fn mapped_instantiation_mapper(&self, mapper: Option<MapperId>) -> Option<MapperId> {
         let mapper = mapper?;
         match self.mappers.get(mapper) {
-            TypeMapper::Composite { mapper2, .. } => Some(*mapper2),
+            TypeMapper::Composite { mapper2, .. } => Some(mapper2),
             _ => Some(mapper),
         }
     }
@@ -311,11 +311,11 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
         }
         let mapper1 = self.mappers.get(m1);
         let mapper2 = self.mappers.get(m2);
-        let c = Self::mapper_kind(mapper1).cmp(&Self::mapper_kind(mapper2));
+        let c = Self::mapper_kind(&mapper1).cmp(&Self::mapper_kind(&mapper2));
         if c != Ordering::Equal {
             return c;
         }
-        match (mapper1, mapper2) {
+        match (&mapper1, &mapper2) {
             (
                 TypeMapper::Simple {
                     source: source1,

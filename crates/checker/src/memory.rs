@@ -209,7 +209,6 @@ pub(crate) fn print_reserved_arenas(state: &CheckerState<'_>, label: &str) -> us
     eprintln!("[memory] {label} checker arena: used={used} B committed={committed} B runs={runs}");
     state.signatures.print_reserved(label)
         + print_reserved_vec(label, "resolved_members", state.member_arena())
-        + state.mappers.print_reserved(label)
         + state
             .inference_context_arena
             .print_reserved(label, "inference_context")

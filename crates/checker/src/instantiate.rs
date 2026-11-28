@@ -52,120 +52,215 @@ pub enum DeferredMapperTargets {
     },
 }
 
-/// A list of types a mapper holds: `len` entries of a [`MapperStore`]'s
-/// lists from `start`.
+/// A list of types a mapper holds: a list in the checker's arena
+/// (`TypeTables::arena`), its length in its header.
 ///
 /// tsrs-native: a checker creates millions of mappers, so their source and
-/// target lists live in one arena instead of one heap allocation each, and
-/// the mapper record stays a few words (tsc closes over the arrays).
-///
-/// Six bytes, so that the mapper with two lists is sixteen: the length is
-/// sixteen bits, and a list of [`MapperList::LONG`] entries or more keeps its
-/// length in the arena entry before its first (no list of a real program is
-/// that long; one that is still maps as it did).
+/// target lists live in the arena beside the mapper records instead of one
+/// heap allocation each (tsc closes over the arrays).
 #[derive(Clone, Copy, Debug)]
-#[repr(C, packed(2))]
-pub struct MapperList {
-    start: u32,
-    len: u16,
-}
-
-const _: () = assert!(std::mem::size_of::<MapperList>() == 6);
+pub struct MapperList(tsc_arena::Ref<tsc_arena::List<TypeId>>);
 
 impl MapperList {
-    /// The length that says: read the length from the arena.
-    pub(crate) const LONG: u16 = u16::MAX;
-
-    /// Store `types` at the end of `arena`.
-    pub(crate) fn store(arena: &mut Vec<TypeId>, types: &[TypeId]) -> Self {
-        let len = match u16::try_from(types.len()) {
-            Ok(len) if len != Self::LONG => len,
-            _ => {
-                let len = u32::try_from(types.len()).expect("mapper list length fits u32");
-                arena.push(TypeId::new(len));
-                Self::LONG
-            }
-        };
-        let start = u32::try_from(arena.len()).expect("mapper list arena fits u32");
-        arena.extend_from_slice(types);
-        Self { start, len }
-    }
-
-    /// The list's types in `arena` (a [`MapperStore`]'s lists).
-    #[inline]
-    fn types(self, arena: &[TypeId]) -> &[TypeId] {
-        let start = self.start as usize;
-        let len = if self.len == Self::LONG {
-            arena[start - 1].index() as usize
-        } else {
-            usize::from(self.len)
-        };
-        &arena[start..start + len]
+    /// The list's types. The checker's arena outlives every use.
+    #[inline(always)]
+    fn types(self) -> &'static [TypeId] {
+        self.0.items()
     }
 }
 
-/// The checker's mappers and the type lists they hold: the one owner of
-/// their storage, so its layout can change behind these methods. A
-/// mapper's identity is its position, given in creation order; mappers
-/// are never removed or rewritten.
+tsc_arena::record! {
+    /// A stored mapper in the checker's arena: a word with its kind (low
+    /// byte), a function mapper's form (second byte) and its inference
+    /// lifetime flags (third byte; see `inference_storage`), then its
+    /// operands (see [`MapperStore::get`]).
+    struct MapperRecord {
+        word: tsc_arena::ArenaCell<u32>,
+        a: u32,
+        b: u32,
+        spare: u32,
+    }
+}
+
+const MAPPER_SIMPLE: u32 = 0;
+const MAPPER_ARRAY: u32 = 1;
+const MAPPER_INFERENCE_FIXING: u32 = 2;
+const MAPPER_INFERENCE_NON_FIXING: u32 = 3;
+const MAPPER_EFFECTIVE_TYPE_ARGUMENTS: u32 = 4;
+const MAPPER_FUNCTION: u32 = 5;
+const MAPPER_COMPOSITE: u32 = 6;
+const MAPPER_MERGED: u32 = 7;
+const MAPPER_LIFETIME_SHIFT: u32 = 16;
+
+/// A stored identity's word: its position, never zero.
+#[inline(always)]
+fn stored<T>(position: Option<T>) -> T {
+    position.expect("a stored identity is nonzero")
+}
+
+/// The checker's mappers: records in the checker's arena, a mapper's
+/// identity its record's handle, given in creation order; mappers are never
+/// removed and never change but for their inference lifetime flags. The
+/// store itself keeps the counts the memory report prints.
 #[derive(Default)]
 pub(crate) struct MapperStore {
-    mappers: Vec<TypeMapper>,
-    lists: Vec<TypeId>,
+    count: usize,
+    list_bytes: usize,
 }
 
 impl MapperStore {
+    #[inline(always)]
+    fn record(id: MapperId) -> &'static MapperRecord {
+        stored(tsc_arena::Ref::<MapperRecord>::from_raw(id.position())).get()
+    }
+
     /// The mapper `id`.
     #[inline(always)]
-    pub(crate) fn get(&self, id: MapperId) -> &TypeMapper {
-        &self.mappers[id.index() as usize]
+    pub(crate) fn get(&self, id: MapperId) -> TypeMapper {
+        use crate::inference_storage::InferenceHandle;
+        let record = Self::record(id);
+        let word = record.word.get();
+        let (a, b) = (record.a, record.b);
+        let list = |raw: u32| tsc_arena::Ref::from_raw(raw).map(MapperList);
+        match word & 0xff {
+            MAPPER_SIMPLE => TypeMapper::Simple {
+                source: stored(TypeId::from_position(a)),
+                target: stored(TypeId::from_position(b)),
+            },
+            MAPPER_ARRAY => TypeMapper::Array {
+                sources: stored(list(a)),
+                targets: list(b),
+            },
+            MAPPER_INFERENCE_FIXING => {
+                TypeMapper::Deferred(DeferredMapperTargets::InferenceFixing(
+                    crate::inference::InferenceContextId::from_parts(a, b),
+                ))
+            }
+            MAPPER_INFERENCE_NON_FIXING => {
+                TypeMapper::Deferred(DeferredMapperTargets::InferenceNonFixing(
+                    crate::inference::InferenceContextId::from_parts(a, b),
+                ))
+            }
+            MAPPER_EFFECTIVE_TYPE_ARGUMENTS => {
+                TypeMapper::Deferred(DeferredMapperTargets::EffectiveTypeArguments {
+                    node: stored(NodeId::from_position(a)),
+                    type_parameters: stored(list(b)),
+                })
+            }
+            MAPPER_FUNCTION => TypeMapper::Function(match (word >> 8) & 0xff {
+                0 => FunctionMapper::Permissive,
+                1 => FunctionMapper::Restrictive,
+                2 => FunctionMapper::UniqueLiteral,
+                3 => FunctionMapper::ReportsUnmeasurable,
+                _ => FunctionMapper::ReportsUnreliable,
+            }),
+            MAPPER_COMPOSITE => TypeMapper::Composite {
+                mapper1: stored(MapperId::from_position(a)),
+                mapper2: stored(MapperId::from_position(b)),
+            },
+            _ => TypeMapper::Merged {
+                mapper1: stored(MapperId::from_position(a)),
+                mapper2: stored(MapperId::from_position(b)),
+            },
+        }
+    }
+
+    /// Store `mapper` with its inference lifetime `flags` in `arena`.
+    pub(crate) fn alloc(
+        &mut self,
+        arena: &tsc_arena::LocalArena,
+        mapper: TypeMapper,
+        flags: u64,
+    ) -> MapperId {
+        use crate::inference_storage::InferenceHandle;
+        let (kind, a, b) = match mapper {
+            TypeMapper::Simple { source, target } => {
+                (MAPPER_SIMPLE, source.position(), target.position())
+            }
+            TypeMapper::Array { sources, targets } => (
+                MAPPER_ARRAY,
+                sources.0.raw(),
+                targets.map_or(0, |targets| targets.0.raw()),
+            ),
+            TypeMapper::Deferred(DeferredMapperTargets::InferenceFixing(context)) => {
+                (MAPPER_INFERENCE_FIXING, context.index(), context.slot())
+            }
+            TypeMapper::Deferred(DeferredMapperTargets::InferenceNonFixing(context)) => {
+                (MAPPER_INFERENCE_NON_FIXING, context.index(), context.slot())
+            }
+            TypeMapper::Deferred(DeferredMapperTargets::EffectiveTypeArguments {
+                node,
+                type_parameters,
+            }) => (
+                MAPPER_EFFECTIVE_TYPE_ARGUMENTS,
+                node.position(),
+                type_parameters.0.raw(),
+            ),
+            TypeMapper::Function(form) => {
+                let form = match form {
+                    FunctionMapper::Permissive => 0,
+                    FunctionMapper::Restrictive => 1,
+                    FunctionMapper::UniqueLiteral => 2,
+                    FunctionMapper::ReportsUnmeasurable => 3,
+                    FunctionMapper::ReportsUnreliable => 4,
+                };
+                (MAPPER_FUNCTION | form << 8, 0, 0)
+            }
+            TypeMapper::Composite { mapper1, mapper2 } => {
+                (MAPPER_COMPOSITE, mapper1.position(), mapper2.position())
+            }
+            TypeMapper::Merged { mapper1, mapper2 } => {
+                (MAPPER_MERGED, mapper1.position(), mapper2.position())
+            }
+        };
+        let record = arena.alloc(MapperRecord {
+            word: tsc_arena::ArenaCell::new(kind | (flags as u32) << MAPPER_LIFETIME_SHIFT),
+            a,
+            b,
+            spare: 0,
+        });
+        self.count += 1;
+        stored(MapperId::from_position(record.raw()))
+    }
+
+    /// Store `types` as a mapper list in `arena`.
+    #[inline]
+    pub(crate) fn store_list(
+        &mut self,
+        arena: &tsc_arena::LocalArena,
+        types: &[TypeId],
+    ) -> MapperList {
+        self.list_bytes += (8 + std::mem::size_of_val(types)).next_multiple_of(8);
+        MapperList(arena.alloc_list(types))
     }
 
     /// The types of a stored mapper list.
-    #[inline]
-    pub(crate) fn list(&self, list: MapperList) -> &[TypeId] {
-        list.types(&self.lists)
-    }
-
-    /// The identity the next stored mapper receives.
     #[inline(always)]
-    fn next_id(&self) -> MapperId {
-        MapperId::new(self.mappers.len() as u32)
+    pub(crate) fn list(&self, list: MapperList) -> &'static [TypeId] {
+        list.types()
     }
 
+    /// The inference lifetime flags of `id` (see `inference_storage`).
     #[inline(always)]
-    fn push(&mut self, mapper: TypeMapper) {
-        self.mappers.push(mapper);
+    pub(crate) fn lifetime_flags(&self, id: MapperId) -> u64 {
+        u64::from((Self::record(id).word.get() >> MAPPER_LIFETIME_SHIFT) & 0xff)
     }
 
-    /// Store `types` as a mapper list.
+    /// Add `flags` to the inference lifetime flags of `id`.
     #[inline]
-    fn store_list(&mut self, types: &[TypeId]) -> MapperList {
-        MapperList::store(&mut self.lists, types)
+    pub(crate) fn add_lifetime_flags(&self, id: MapperId, flags: u64) {
+        let word = &Self::record(id).word;
+        word.set(word.get() | (flags as u32) << MAPPER_LIFETIME_SHIFT);
     }
 
     /// The mappers created so far.
     pub(crate) fn len(&self) -> usize {
-        self.mappers.len()
+        self.count
     }
 
-    /// The bytes the stored mappers and lists take.
+    /// The bytes the stored mappers and lists take in the arena.
     pub(crate) fn bytes(&self) -> usize {
-        self.mappers.len() * std::mem::size_of::<TypeMapper>()
-            + self.lists.len() * std::mem::size_of::<TypeId>()
-    }
-
-    /// Room for `mappers` mappers and `entries` list entries.
-    pub(crate) fn reserve(&mut self, mappers: usize, entries: usize) {
-        self.mappers.reserve(mappers);
-        self.lists.reserve(entries);
-    }
-
-    /// The memory report's rows of the reserved storage; the resident
-    /// bytes of its unused tails.
-    pub(crate) fn print_reserved(&self, label: &str) -> usize {
-        crate::memory::print_reserved_vec(label, "mappers", &self.mappers)
-            + crate::memory::print_reserved_vec(label, "mapper_lists", &self.lists)
+        self.count * std::mem::size_of::<MapperRecord>() + self.list_bytes
     }
 }
 
@@ -406,7 +501,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs-native: arena accessor for TypeMapper values; tsc stores
     /// mapper objects by reference.
-    pub(crate) fn mapper(&self, id: MapperId) -> &TypeMapper {
+    pub(crate) fn mapper(&self, id: MapperId) -> TypeMapper {
         self.mappers.get(id)
     }
 
@@ -415,7 +510,7 @@ impl<'a> CheckerState<'a> {
     /// is a `this` type; never a function, merged, composite or inference
     /// mapper.
     pub(crate) fn maps_this_only(&self, mapper: MapperId) -> bool {
-        let sources = match *self.mapper(mapper) {
+        let sources = match self.mapper(mapper) {
             TypeMapper::Simple { source, .. } => return self.is_this_type_parameter(source),
             TypeMapper::Array { sources, .. } => sources,
             TypeMapper::Deferred(DeferredMapperTargets::EffectiveTypeArguments {
@@ -431,15 +526,13 @@ impl<'a> CheckerState<'a> {
     /// ordinary JavaScript object allocation.
     #[inline(always)]
     pub(crate) fn alloc_mapper(&mut self, mapper: TypeMapper) -> MapperId {
-        let id = self.mappers.next_id();
-        self.record_mapper_lifetime(id, mapper);
-        self.mappers.push(mapper);
-        id
+        let flags = self.mapper_lifetime_flags(mapper);
+        self.mappers.alloc(&self.tables.arena, mapper, flags)
     }
 
     /// Store `types` as a mapper list (see [`MapperList`]).
     pub(crate) fn alloc_mapper_list(&mut self, types: &[TypeId]) -> MapperList {
-        self.mappers.store_list(types)
+        self.mappers.store_list(&self.tables.arena, types)
     }
 
     /// The types of a stored mapper list.
@@ -508,7 +601,7 @@ impl<'a> CheckerState<'a> {
         if sources.len() == 1 {
             return self.make_unary_type_mapper(sources[0], targets[0]);
         }
-        let sources = self.mappers.store_list(sources);
+        let sources = self.mappers.store_list(&self.tables.arena, sources);
         let targets = Some(self.alloc_mapper_list(targets));
         self.alloc_mapper(TypeMapper::Array { sources, targets })
     }
@@ -573,7 +666,7 @@ impl<'a> CheckerState<'a> {
     #[inline]
     fn map_type_with_mapper(&mut self, ty: TypeId, mapper: MapperId) -> CheckResult<TypeId> {
         self.profile_ops[crate::line_profile::OP_MAPPED] += 1;
-        match *self.mapper(mapper) {
+        match self.mapper(mapper) {
             TypeMapper::Simple { source, target } => Ok(if ty == source { target } else { ty }),
             TypeMapper::Array { sources, targets } => {
                 let Some(index) = self
