@@ -92,13 +92,7 @@ fn symbol_rooms_preserve_prototype_and_ambient_module_creation_order() {
     .unwrap();
     let options = CompilerOptions::default();
     let state = CheckerState::from_snapshot(&snapshot, &options);
-    let order = crate::type_order::OrderCtx::new(
-        &state.binder,
-        &state.links,
-        &state.mappers,
-        &state.mapper_lists,
-        true,
-    );
+    let order = crate::type_order::OrderCtx::new(&state.binder, &state.links, &state.mappers, true);
     assert_eq!(
         order.compare_symbols(Some(ap), Some(bp)),
         std::cmp::Ordering::Less

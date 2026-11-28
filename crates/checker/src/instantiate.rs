@@ -52,8 +52,8 @@ pub enum DeferredMapperTargets {
     },
 }
 
-/// A list of types a mapper holds: `len` entries of
-/// `CheckerState::mapper_lists` from `start`.
+/// A list of types a mapper holds: `len` entries of a [`MapperStore`]'s
+/// lists from `start`.
 ///
 /// tsrs-native: a checker creates millions of mappers, so their source and
 /// target lists live in one arena instead of one heap allocation each, and
@@ -91,9 +91,9 @@ impl MapperList {
         Self { start, len }
     }
 
-    /// The list's types in `arena` (`CheckerState::mapper_lists`).
+    /// The list's types in `arena` (a [`MapperStore`]'s lists).
     #[inline]
-    pub(crate) fn types(self, arena: &[TypeId]) -> &[TypeId] {
+    fn types(self, arena: &[TypeId]) -> &[TypeId] {
         let start = self.start as usize;
         let len = if self.len == Self::LONG {
             arena[start - 1].index() as usize
@@ -101,6 +101,71 @@ impl MapperList {
             usize::from(self.len)
         };
         &arena[start..start + len]
+    }
+}
+
+/// The checker's mappers and the type lists they hold: the one owner of
+/// their storage, so its layout can change behind these methods. A
+/// mapper's identity is its position, given in creation order; mappers
+/// are never removed or rewritten.
+#[derive(Default)]
+pub(crate) struct MapperStore {
+    mappers: Vec<TypeMapper>,
+    lists: Vec<TypeId>,
+}
+
+impl MapperStore {
+    /// The mapper `id`.
+    #[inline(always)]
+    pub(crate) fn get(&self, id: MapperId) -> &TypeMapper {
+        &self.mappers[id.index() as usize]
+    }
+
+    /// The types of a stored mapper list.
+    #[inline]
+    pub(crate) fn list(&self, list: MapperList) -> &[TypeId] {
+        list.types(&self.lists)
+    }
+
+    /// The identity the next stored mapper receives.
+    #[inline(always)]
+    fn next_id(&self) -> MapperId {
+        MapperId::new(self.mappers.len() as u32)
+    }
+
+    #[inline(always)]
+    fn push(&mut self, mapper: TypeMapper) {
+        self.mappers.push(mapper);
+    }
+
+    /// Store `types` as a mapper list.
+    #[inline]
+    fn store_list(&mut self, types: &[TypeId]) -> MapperList {
+        MapperList::store(&mut self.lists, types)
+    }
+
+    /// The mappers created so far.
+    pub(crate) fn len(&self) -> usize {
+        self.mappers.len()
+    }
+
+    /// The bytes the stored mappers and lists take.
+    pub(crate) fn bytes(&self) -> usize {
+        self.mappers.len() * std::mem::size_of::<TypeMapper>()
+            + self.lists.len() * std::mem::size_of::<TypeId>()
+    }
+
+    /// Room for `mappers` mappers and `list_items` list entries.
+    pub(crate) fn reserve(&mut self, mappers: usize, list_items: usize) {
+        self.mappers.reserve(mappers);
+        self.lists.reserve(list_items);
+    }
+
+    /// The memory report's rows of the reserved storage; the resident
+    /// bytes of its unused tails.
+    pub(crate) fn print_reserved(&self, label: &str) -> usize {
+        crate::memory::print_reserved_vec(label, "mappers", &self.mappers)
+            + crate::memory::print_reserved_vec(label, "mapper_lists", &self.lists)
     }
 }
 
@@ -342,7 +407,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: arena accessor for TypeMapper values; tsc stores
     /// mapper objects by reference.
     pub(crate) fn mapper(&self, id: MapperId) -> &TypeMapper {
-        &self.mappers[id.index() as usize]
+        self.mappers.get(id)
     }
 
     /// tsgo-port: TypeMapper.MapsThisOnly @7.1 (mapper.go:108-229): a
@@ -366,20 +431,20 @@ impl<'a> CheckerState<'a> {
     /// ordinary JavaScript object allocation.
     #[inline(always)]
     pub(crate) fn alloc_mapper(&mut self, mapper: TypeMapper) -> MapperId {
-        let id = MapperId::new(self.mappers.len() as u32);
+        let id = self.mappers.next_id();
         self.record_mapper_lifetime(id, mapper);
         self.mappers.push(mapper);
         id
     }
 
-    /// Store `types` in the mapper-list arena (see [`MapperList`]).
+    /// Store `types` as a mapper list (see [`MapperList`]).
     pub(crate) fn alloc_mapper_list(&mut self, types: &[TypeId]) -> MapperList {
-        MapperList::store(&mut self.mapper_lists, types)
+        self.mappers.store_list(types)
     }
 
     /// The types of a stored mapper list.
     pub(crate) fn mapper_list(&self, list: MapperList) -> &[TypeId] {
-        list.types(&self.mapper_lists)
+        self.mappers.list(list)
     }
 
     /// tsc-port: makeUnaryTypeMapper @6.0.3
@@ -443,7 +508,7 @@ impl<'a> CheckerState<'a> {
         if sources.len() == 1 {
             return self.make_unary_type_mapper(sources[0], targets[0]);
         }
-        let sources = MapperList::store(&mut self.mapper_lists, sources);
+        let sources = self.mappers.store_list(sources);
         let targets = Some(self.alloc_mapper_list(targets));
         self.alloc_mapper(TypeMapper::Array { sources, targets })
     }

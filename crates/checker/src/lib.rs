@@ -4300,8 +4300,7 @@ fn reserve_type_tables(state: &mut state::CheckerState<'_>, node_count: usize) {
     state.binder.reserve_transient_symbols(transient_symbols);
     // Every transient symbol gets links: their dense table takes the same room.
     state.links.reserve_transient_symbols(transient_symbols);
-    state.mappers.reserve(reserve(1.5));
-    state.mapper_lists.reserve(reserve(2.0));
+    state.mappers.reserve(reserve(1.5), reserve(2.0));
     state.reserve_members(reserve(0.5));
     state.signatures.reserve(reserve(0.25));
     state.inference_context_arena.reserve(reserve(0.1));
@@ -4494,7 +4493,6 @@ fn run_shard_eager<'a>(
         state.links.release_paged_record_buffers();
         state.links.release_dense_record_buffers();
         drop(std::mem::take(&mut state.mappers));
-        drop(std::mem::take(&mut state.mapper_lists));
     }
     state
 }
@@ -4887,7 +4885,6 @@ fn run_checker_shard<'a>(
         state.no_flow_context_nodes.release_finished_buffers();
         state.flow_memo.release_finished_buffers();
         drop(std::mem::take(&mut state.mappers));
-        drop(std::mem::take(&mut state.mapper_lists));
         if checking.load(std::sync::atomic::Ordering::Acquire) != 0 {
             // Owned cleanup may finish after the command returns. Borrowed
             // views stay here; no result or identity depends on helper progress.

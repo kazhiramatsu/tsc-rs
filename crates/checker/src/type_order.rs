@@ -15,7 +15,7 @@ use tsc_types::tables::TypeTables;
 use tsc_types::type_order::{compare_type_lists, compare_types};
 use tsc_types::{MapperId, SymbolFlags, SymbolId, TypeId, TypeOrder, TypeOrderContext};
 
-use crate::instantiate::TypeMapper;
+use crate::instantiate::{MapperStore, TypeMapper};
 use crate::links::LinksTables;
 use crate::program::ProgramBinder;
 use crate::state::CheckerState;
@@ -26,8 +26,7 @@ use crate::state::CheckerState;
 pub(crate) struct OrderCtx<'s, 'a> {
     binder: &'s ProgramBinder<'a>,
     links: &'s LinksTables,
-    mappers: &'s [TypeMapper],
-    mapper_lists: &'s [TypeId],
+    mappers: &'s MapperStore,
     stable: bool,
 }
 
@@ -39,7 +38,6 @@ macro_rules! order_ctx {
             &$state.binder,
             &$state.links,
             &$state.mappers,
-            &$state.mapper_lists,
             $state.stable_type_ordering,
         )
     };
@@ -50,15 +48,13 @@ impl<'s, 'a> OrderCtx<'s, 'a> {
     pub(crate) fn new(
         binder: &'s ProgramBinder<'a>,
         links: &'s LinksTables,
-        mappers: &'s [TypeMapper],
-        mapper_lists: &'s [TypeId],
+        mappers: &'s MapperStore,
         stable: bool,
     ) -> Self {
         Self {
             binder,
             links,
             mappers,
-            mapper_lists,
             stable,
         }
     }
@@ -288,7 +284,7 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
 
     fn mapped_instantiation_mapper(&self, mapper: Option<MapperId>) -> Option<MapperId> {
         let mapper = mapper?;
-        match &self.mappers[mapper.index() as usize] {
+        match self.mappers.get(mapper) {
             TypeMapper::Composite { mapper2, .. } => Some(*mapper2),
             _ => Some(mapper),
         }
@@ -313,8 +309,8 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
         if m1 == m2 {
             return Ordering::Equal;
         }
-        let mapper1 = &self.mappers[m1.index() as usize];
-        let mapper2 = &self.mappers[m2.index() as usize];
+        let mapper1 = self.mappers.get(m1);
+        let mapper2 = self.mappers.get(m2);
         let c = Self::mapper_kind(mapper1).cmp(&Self::mapper_kind(mapper2));
         if c != Ordering::Equal {
             return c;
@@ -349,8 +345,8 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
                 let c = compare_type_lists(
                     tables,
                     self,
-                    Some(sources1.types(self.mapper_lists)),
-                    Some(sources2.types(self.mapper_lists)),
+                    Some(self.mappers.list(*sources1)),
+                    Some(self.mappers.list(*sources2)),
                 );
                 if c != Ordering::Equal {
                     return c;
@@ -358,8 +354,8 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
                 compare_type_lists(
                     tables,
                     self,
-                    targets1.map(|list| list.types(self.mapper_lists)),
-                    targets2.map(|list| list.types(self.mapper_lists)),
+                    targets1.map(|list| self.mappers.list(list)),
+                    targets2.map(|list| self.mappers.list(list)),
                 )
             }
             (

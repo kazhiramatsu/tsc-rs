@@ -412,7 +412,7 @@ impl CheckerState<'_> {
             if force {
                 self.inference_lifetimes.mark_retained(id);
             }
-            match self.mappers[id.index() as usize] {
+            match *self.mappers.get(id) {
                 TypeMapper::Composite { mapper1, mapper2 }
                 | TypeMapper::Merged { mapper1, mapper2 } => {
                     todo.push((mapper1, force));

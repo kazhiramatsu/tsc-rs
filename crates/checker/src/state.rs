@@ -1442,12 +1442,10 @@ pub struct CheckerState<'a> {
     pub circular_constraint_type: TypeId,
 
     // ---- M4 5.2: instantiation state ----
-    /// The TypeMapper arena — MapperId equality IS tsc's mapper object
+    /// The TypeMapper arena and the source and target lists of the array
+    /// and deferred mappers — MapperId equality IS tsc's mapper object
     /// identity (findActiveMapper 73616 compares `===`).
-    pub(crate) mappers: Vec<crate::instantiate::TypeMapper>,
-    /// The source and target lists of the array and deferred mappers (see
-    /// `instantiate::MapperList`).
-    pub(crate) mapper_lists: Vec<TypeId>,
+    pub(crate) mappers: crate::instantiate::MapperStore,
     /// tsc restrictiveMapper (47103).
     pub(crate) restrictive_mapper: crate::instantiate::MapperId,
     /// tsc permissiveMapper (47104).
@@ -2189,7 +2187,6 @@ impl<'a> CheckerState<'a> {
             std::mem::take(&mut self.skip_direct_inference_nodes),
             std::mem::take(&mut self.call_resolution_stack),
             std::mem::take(&mut self.mappers),
-            std::mem::take(&mut self.mapper_lists),
             std::mem::take(&mut self.display_visited_types),
             std::mem::take(&mut self.display_symbol_depth),
             std::mem::take(&mut self.display_infer_type_parameters),
@@ -2457,12 +2454,7 @@ impl<'a> CheckerState<'a> {
                     .sum::<usize>()
                 + self.unaffected_members.heap_bytes(),
         ));
-        rows.push((
-            "type mappers",
-            self.mappers.len(),
-            self.mappers.len() * std::mem::size_of::<crate::instantiate::TypeMapper>()
-                + self.mapper_lists.len() * std::mem::size_of::<TypeId>(),
-        ));
+        rows.push(("type mappers", self.mappers.len(), self.mappers.bytes()));
         let (relations, relation_bytes) = self.relations.memory_usage();
         rows.push(("relation caches", relations, relation_bytes));
         rows.push((
@@ -2902,8 +2894,7 @@ impl<'a> CheckerState<'a> {
             apparent_argument_count: None,
             no_constraint_type: TypeId::new(0),
             circular_constraint_type: TypeId::new(0),
-            mappers: Vec::new(),
-            mapper_lists: Vec::new(),
+            mappers: Default::default(),
             restrictive_mapper: crate::instantiate::MapperId::new(0),
             permissive_mapper: crate::instantiate::MapperId::new(0),
             unique_literal_mapper: crate::instantiate::MapperId::new(0),
