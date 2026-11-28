@@ -1705,7 +1705,7 @@ fn instantiated_transient_keeps_original_flags_name_and_declarations_after_rollb
                 assert_eq!(links.check_flags, flags | CheckFlags::INSTANTIATED);
                 assert_eq!(links.name_type, Some(name_type));
                 assert!(
-                    matches!(state.mapper(links.mapper.unwrap()), super::TypeMapper::Composite { mapper1, mapper2 } if *mapper1 == state.permissive_mapper && *mapper2 == state.restrictive_mapper)
+                    matches!(state.mapper(links.mapper.unwrap()), super::TypeMapper::Composite { mapper1, mapper2 } if mapper1 == state.permissive_mapper && mapper2 == state.restrictive_mapper)
                 );
                 assert_eq!(state.binder.symbol(result).declarations(), &[node]);
                 assert_eq!(state.binder.symbol(result).value_declaration, Some(node));
