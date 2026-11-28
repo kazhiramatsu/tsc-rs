@@ -82,6 +82,9 @@ tsc_arena::record! {
     }
 }
 
+// A stored mapper is sixteen bytes, as the vector's enum was.
+const _: () = assert!(std::mem::size_of::<MapperRecord>() == 16);
+
 const MAPPER_SIMPLE: u32 = 0;
 const MAPPER_ARRAY: u32 = 1;
 const MAPPER_INFERENCE_FIXING: u32 = 2;
