@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::num::NonZeroU32;
 
-use crate::{owner_of, Record};
+use crate::{owner_of, Element, Record};
 
 /// Compact identity, with caller-managed liveness (see the crate contract).
 #[repr(transparent)]
@@ -82,12 +82,17 @@ unsafe impl<T: Record> Record for Option<Ref<T>> {}
 /// Eight-byte span. The stored start is a raw word so zero/empty is valid POD.
 /// Bare `Ref<T>` would violate Record's all-bit-pattern validity at zero.
 #[repr(C)]
-pub struct Span<T: Record> {
+pub struct Span<T: Element> {
     pub(crate) start: u32,
     pub(crate) len: u32,
     marker: PhantomData<&'static T>,
 }
 impl<T: Record> Span<T> {
+    pub fn start(self) -> Option<Ref<T>> {
+        Ref::from_raw(self.start)
+    }
+}
+impl<T: Element> Span<T> {
     pub(crate) fn new(start: u32, len: u32) -> Self {
         Self {
             start,
@@ -102,9 +107,6 @@ impl<T: Record> Span<T> {
             marker: PhantomData,
         }
     }
-    pub fn start(self) -> Option<Ref<T>> {
-        Ref::from_raw(self.start)
-    }
     pub fn len(self) -> usize {
         self.len as usize
     }
@@ -115,26 +117,31 @@ impl<T: Record> Span<T> {
         if self.len == 0 {
             return &[];
         }
-        let start = self.start().expect("nonempty span has zero start");
-        let pointer = start.get() as *const T;
-        // SAFETY: issued spans describe a single initialized allocation. The
-        // holder must not use arbitrary/stale lengths or outlive that allocation.
+        assert_ne!(self.start, 0, "nonempty span has zero start");
+        debug_assert!(
+            owner_of(self.start).is_some(),
+            "arena span names a free or unissued block"
+        );
+        let pointer = crate::memory::address(self.start) as *const T;
+        // SAFETY: issued spans describe a single allocation initialized with
+        // valid Ts (Element). The holder must not use arbitrary/stale lengths
+        // or outlive that allocation.
         unsafe { std::slice::from_raw_parts(pointer, self.len as usize) }
     }
 }
-impl<T: Record> Copy for Span<T> {}
-impl<T: Record> Clone for Span<T> {
+impl<T: Element> Copy for Span<T> {}
+impl<T: Element> Clone for Span<T> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl<T: Record> Default for Span<T> {
+impl<T: Element> Default for Span<T> {
     fn default() -> Self {
         Self::empty()
     }
 }
 // SAFETY: two unrestricted u32 words and zero-sized marker; all bits valid.
-unsafe impl<T: Record> Record for Span<T> {}
+unsafe impl<T: Element> Record for Span<T> {}
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -147,17 +154,18 @@ unsafe impl Record for ListHeader {}
 
 /// Marker for a ListHeader followed immediately by its T elements.
 #[repr(transparent)]
-pub struct List<T: Record>(PhantomData<T>);
+pub struct List<T: Element>(PhantomData<T>);
 // SAFETY: the marker is zero-sized and has no validity constraints or Drop.
-unsafe impl<T: Record> Record for List<T> {}
-impl<T: Record> Ref<List<T>> {
+unsafe impl<T: Element> Record for List<T> {}
+impl<T: Element> Ref<List<T>> {
     pub fn header(self) -> &'static ListHeader {
         Ref::<ListHeader>::from_raw(self.raw()).unwrap().get()
     }
     pub fn items(self) -> &'static [T] {
         let len = self.header().len as usize;
-        // SAFETY: issued list allocation has its header followed by len Ts;
-        // T's alignment is <= 8. Same holder contract as Ref::get.
+        // SAFETY: issued list allocation has its header followed by len Ts,
+        // each written as a valid T (Element); T's alignment is <= 8. Same
+        // holder contract as Ref::get.
         unsafe {
             std::slice::from_raw_parts((crate::memory::address(self.raw()) + 8) as *const T, len)
         }

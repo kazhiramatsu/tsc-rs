@@ -816,6 +816,7 @@ dependencies = [
  "rustc-hash",
  "self_cell",
  "serde_json",
+ "tsc-rs-arena",
  "tsc-rs-binder",
  "tsc-rs-diagnostics",
  "tsc-rs-emitter",
@@ -1048,6 +1049,7 @@ version = "0.1.0"
 dependencies = [
  "hashbrown 0.16.1",
  "rustc-hash",
+ "tsc-rs-arena",
  "tsc-rs-diagnostics",
  "tsc-rs-store",
  "xxhash-rust",

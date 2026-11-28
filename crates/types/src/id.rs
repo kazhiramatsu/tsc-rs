@@ -15,7 +15,11 @@ macro_rules! id_type {
     ($(#[$attribute:meta])* $name:ident) => {
         $(#[$attribute])*
         #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+        #[repr(transparent)]
         pub struct $name(::std::num::NonZeroU32);
+
+        // Spans and lists of the identity in a checker's arena.
+        $crate::__arena::identity_element!($name, 0);
 
         impl $name {
             /// The identity of index `index` (below `u32::MAX`).

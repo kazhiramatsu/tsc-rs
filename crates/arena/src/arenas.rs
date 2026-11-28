@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::memory::{self, Run};
-use crate::{BlockAllocator, Bytes, List, ListHeader, Record, Ref, Span, BLOCK_BYTES};
+use crate::{BlockAllocator, Bytes, Element, List, ListHeader, Record, Ref, Span, BLOCK_BYTES};
 
 /// Snapshot of one live arena. Dropped arenas are removed from the registry.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -224,7 +224,7 @@ impl Core {
             Ref::from_allocated(pointer)
         }
     }
-    fn slice<T: Record>(&self, values: &[T]) -> Span<T> {
+    fn slice<T: Element>(&self, values: &[T]) -> Span<T> {
         if values.is_empty() {
             return Span::empty();
         }
@@ -237,7 +237,7 @@ impl Core {
         }
         Span::new(memory::raw(pointer), len)
     }
-    fn list<T: Record>(&self, values: &[T], extra: u32) -> Ref<List<T>> {
+    fn list<T: Element>(&self, values: &[T], extra: u32) -> Ref<List<T>> {
         let len = u32::try_from(values.len()).expect("arena list length exceeds u32");
         let bytes = std::mem::size_of_val(values)
             .checked_add(8)
@@ -257,7 +257,7 @@ impl Core {
     /// so items the iterator allocates in this arena land after it. An
     /// iterator that yields more or fewer items than its length panics; the
     /// room it leaves holds zeros or written items, all valid records.
-    fn fill<T: Record>(pointer: usize, len: usize, items: impl Iterator<Item = T>) {
+    fn fill<T: Element>(pointer: usize, len: usize, items: impl Iterator<Item = T>) {
         let mut written = 0;
         for item in items {
             assert!(written < len, "iterator yielded more items than its length");
@@ -267,7 +267,7 @@ impl Core {
         }
         assert_eq!(written, len, "iterator yielded fewer items than its length");
     }
-    fn slice_from_iter<T: Record>(&self, items: impl ExactSizeIterator<Item = T>) -> Span<T> {
+    fn slice_from_iter<T: Element>(&self, items: impl ExactSizeIterator<Item = T>) -> Span<T> {
         let len = items.len();
         if len == 0 {
             Self::fill::<T>(0, 0, items);
@@ -281,7 +281,7 @@ impl Core {
         Self::fill(pointer, len, items);
         Span::new(memory::raw(pointer), count)
     }
-    fn list_from_iter<T: Record>(
+    fn list_from_iter<T: Element>(
         &self,
         extra: u32,
         items: impl ExactSizeIterator<Item = T>,
@@ -362,10 +362,10 @@ impl SharedArena {
     pub fn alloc<T: Record + Sync>(&self, value: T) -> Ref<T> {
         self.core.alloc(value)
     }
-    pub fn alloc_slice<T: Record + Sync>(&self, values: &[T]) -> Span<T> {
+    pub fn alloc_slice<T: Element + Sync>(&self, values: &[T]) -> Span<T> {
         self.core.slice(values)
     }
-    pub fn alloc_list<T: Record + Sync>(&self, values: &[T]) -> Ref<List<T>> {
+    pub fn alloc_list<T: Element + Sync>(&self, values: &[T]) -> Ref<List<T>> {
         self.core.list(values, 0)
     }
     pub fn alloc_bytes(&self, bytes: &[u8]) -> Ref<Bytes> {
@@ -446,19 +446,19 @@ impl LocalArena {
     pub fn alloc<T: Record>(&self, value: T) -> Ref<T> {
         self.core.alloc(value)
     }
-    pub fn alloc_slice<T: Record>(&self, values: &[T]) -> Span<T> {
+    pub fn alloc_slice<T: Element>(&self, values: &[T]) -> Span<T> {
         self.core.slice(values)
     }
-    pub fn alloc_list<T: Record>(&self, values: &[T]) -> Ref<List<T>> {
+    pub fn alloc_list<T: Element>(&self, values: &[T]) -> Ref<List<T>> {
         self.core.list(values, 0)
     }
     /// A list whose header carries `extra` (for example the list's hash).
-    pub fn alloc_list_with_extra<T: Record>(&self, values: &[T], extra: u32) -> Ref<List<T>> {
+    pub fn alloc_list_with_extra<T: Element>(&self, values: &[T], extra: u32) -> Ref<List<T>> {
         self.core.list(values, extra)
     }
     /// A span written straight from an iterator, with no buffer between.
     /// Panics if the iterator yields more or fewer items than its length.
-    pub fn alloc_slice_from_iter<T: Record, I>(&self, items: I) -> Span<T>
+    pub fn alloc_slice_from_iter<T: Element, I>(&self, items: I) -> Span<T>
     where
         I: IntoIterator<Item = T>,
         I::IntoIter: ExactSizeIterator,
@@ -468,7 +468,7 @@ impl LocalArena {
     /// A list written straight from an iterator, its header carrying
     /// `extra`. Panics if the iterator yields more or fewer items than its
     /// length.
-    pub fn alloc_list_from_iter<T: Record, I>(&self, extra: u32, items: I) -> Ref<List<T>>
+    pub fn alloc_list_from_iter<T: Element, I>(&self, extra: u32, items: I) -> Ref<List<T>>
     where
         I: IntoIterator<Item = T>,
         I::IntoIter: ExactSizeIterator,
