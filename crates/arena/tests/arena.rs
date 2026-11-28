@@ -482,3 +482,27 @@ fn an_iterator_that_misstates_its_length_panics() {
     // The arena stays usable after the panics.
     assert_eq!(arena.alloc(Eight { a: 9 }).get().a, 9);
 }
+
+/// A four-byte identity like the checker's (zero is not a value).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(transparent)]
+pub struct TestId(std::num::NonZeroU32);
+tsc_arena::identity_element!(TestId, 0);
+
+#[test]
+fn identities_are_span_and_list_elements() {
+    let _serial = serial();
+    let arena = LocalArena::new(95);
+    let ids: Vec<TestId> = (1..=5u32)
+        .map(|n| TestId(std::num::NonZeroU32::new(n).unwrap()))
+        .collect();
+    assert_eq!(arena.alloc_slice(&ids).as_slice(), &ids[..]);
+    let list = arena.alloc_list_from_iter(7, ids.iter().copied());
+    assert_eq!(list.items(), &ids[..]);
+    assert_eq!(list.header().extra, 7);
+    let reversed = arena.alloc_slice_from_iter(ids.iter().rev().copied());
+    assert_eq!(reversed.as_slice().first(), ids.last());
+    assert!(arena.alloc_slice::<TestId>(&[]).as_slice().is_empty());
+    let shared = SharedArena::new(96);
+    assert_eq!(shared.alloc_list(&ids).items(), &ids[..]);
+}

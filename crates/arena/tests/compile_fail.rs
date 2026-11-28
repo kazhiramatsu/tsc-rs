@@ -86,7 +86,14 @@ fn ui_contracts() {
             false,
             "cannot be shared between threads safely",
         ),
+        (
+            "identity_wide.rs",
+            false,
+            "an identity element is its four-byte NonZeroU32 alone",
+        ),
+        ("identity_not_nonzero.rs", false, "mismatched types"),
         ("pass_records.rs", true, ""),
+        ("pass_identities.rs", true, ""),
         ("facade_contract_is_not_enforced.rs", true, ""),
     ];
     for (case, success, diagnostic) in cases {
