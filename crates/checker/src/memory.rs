@@ -205,6 +205,8 @@ pub(crate) fn print_reserved_vec<T>(label: &str, name: &str, values: &Vec<T>) ->
 }
 
 pub(crate) fn print_reserved_arenas(state: &CheckerState<'_>, label: &str) -> usize {
+    let (used, committed, runs) = state.tables.arena_stats();
+    eprintln!("[memory] {label} checker arena: used={used} B committed={committed} B runs={runs}");
     state.signatures.print_reserved(label)
         + print_reserved_vec(label, "resolved_members", state.member_arena())
         + state.mappers.print_reserved(label)

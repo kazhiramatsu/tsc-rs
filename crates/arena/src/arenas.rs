@@ -328,6 +328,11 @@ impl Core {
         #[cfg(debug_assertions)]
         {
             let current = memory::current_thread_id();
+            // A holder that adopts at every entry (a checker behind a lock)
+            // pays the block walk only when the thread changed.
+            if self.thread.get() == current {
+                return;
+            }
             self.thread.set(current);
             for r in self.runs.borrow().iter() {
                 r.run.set_thread(current);
@@ -484,6 +489,14 @@ impl LocalArena {
     /// block each under `arena-shuffle`).
     pub fn run_count(&self) -> usize {
         self.core.runs.borrow().len()
+    }
+    /// The handle the next allocation of `bytes` bytes receives, when it
+    /// fits in the current run (none before the first run or when a new run
+    /// would be taken).
+    pub fn next_raw(&self, bytes: usize) -> Option<u32> {
+        let bytes = bytes.max(1).checked_next_multiple_of(8)?;
+        let next = self.core.next.get();
+        (next != 0 && bytes <= self.core.end.get() - next).then(|| memory::raw(next))
     }
     /// Debug bookkeeping after an exclusive Owned transfer; no-op otherwise.
     pub fn adopt_current_thread(&self) {

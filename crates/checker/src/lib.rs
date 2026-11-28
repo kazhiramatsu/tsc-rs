@@ -5971,6 +5971,10 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         for result in results {
             let (output, state) = result.expect("every shard reports exactly once");
             outputs.push(output);
+            // The shard's thread has ended: this one takes its arena over.
+            if let Some(state) = &state {
+                state.tables.adopt_current_thread();
+            }
             states.extend(state);
         }
         // A closed gate discards every eager share, and which shards computed

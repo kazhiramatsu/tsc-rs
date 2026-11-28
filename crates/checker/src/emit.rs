@@ -55,6 +55,7 @@ impl<'program> CheckerSession<'program> {
         // The line profile of every path that hands a checked state to a
         // session (the emit gate, the no-emit declaration getter).
         state.line_profile.flush();
+        state.tables.adopt_current_thread();
         Self {
             state: Mutex::new(state),
             session_token: NEXT_EMIT_RESOLVER_SESSION_TOKEN.fetch_add(1, Ordering::Relaxed),
@@ -245,18 +246,25 @@ impl<'program> CheckerSession<'program> {
     /// keeps using the checker (`Server.recover`; only a canceled checker is
     /// disposed).
     fn lock_state(&self) -> std::sync::MutexGuard<'_, CheckerState<'program>> {
-        self.state
+        let state = self
+            .state
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        // Requests and emit units take the checker on any thread.
+        state.tables.adopt_current_thread();
+        state
     }
 
     /// Reclaim checker state after the emitter has released its resolver
     /// borrow so the driver can assemble diagnostics and observations.
     /// tsrs-native: ownership adapter after the H1 checker callback boundary.
     pub fn into_state(self) -> CheckerState<'program> {
-        self.state
+        let state = self
+            .state
             .into_inner()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        state.tables.adopt_current_thread();
+        state
     }
 
     fn with_resolver_node<T>(
