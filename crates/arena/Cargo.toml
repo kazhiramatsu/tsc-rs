@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[package.metadata.tsc-rs]
+role = "arena"
+dev-profile-opt-level = 3
+
 [lib]
 name = "tsc_arena"
 
